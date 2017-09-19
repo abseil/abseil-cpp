@@ -1,0 +1,39 @@
+load(
+    "//absl:copts.bzl",
+    "ABSL_DEFAULT_COPTS",
+    "ABSL_TEST_COPTS",
+)
+load(
+    "//absl:test_dependencies.bzl",
+    "GUNIT_MAIN_DEPS_SELECTOR",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["unencumbered"])  # Owned by Google
+
+cc_library(
+    name = "int128",
+    srcs = ["int128.cc"],
+    hdrs = ["int128.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "int128_test",
+    size = "small",
+    srcs = [
+        "int128_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":int128",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)

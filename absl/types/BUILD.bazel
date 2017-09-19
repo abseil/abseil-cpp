@@ -1,0 +1,178 @@
+#
+# Copyright 2017 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+load(
+    "//absl:copts.bzl",
+    "ABSL_DEFAULT_COPTS",
+    "ABSL_TEST_COPTS",
+    "ABSL_EXCEPTIONS_FLAG",
+)
+load(
+    "//absl:test_dependencies.bzl",
+    "GUNIT_MAIN_DEPS_SELECTOR",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])  # Apache 2.0
+
+cc_library(
+    name = "any",
+    hdrs = ["any.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":bad_any_cast",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "bad_any_cast",
+    srcs = ["bad_any_cast.cc"],
+    hdrs = ["bad_any_cast.h"],
+    copts = ABSL_EXCEPTIONS_FLAG + ABSL_DEFAULT_COPTS,
+    features = [
+        "-use_header_modules",  # b/33207452
+    ],
+    deps = [
+        "//absl/base",
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "any_test",
+    size = "small",
+    srcs = [
+        "any_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":any",
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/base:exception_testing",
+        "//absl/container:test_instance_tracker",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)
+
+cc_test(
+    name = "any_test_noexceptions",
+    size = "small",
+    srcs = [
+        "any_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":any",
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/base:exception_testing",
+        "//absl/container:test_instance_tracker",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)
+
+cc_library(
+    name = "span",
+    hdrs = ["span.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/algorithm",
+        "//absl/base:core_headers",
+        "//absl/base:throw_delegate",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "span_test",
+    size = "small",
+    srcs = ["span_test.cc"],
+    copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    deps = [
+        ":span",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:exception_testing",
+        "//absl/container:fixed_array",
+        "//absl/container:inlined_vector",
+        "//absl/strings",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)
+
+cc_test(
+    name = "span_test_noexceptions",
+    size = "small",
+    srcs = ["span_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":span",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:exception_testing",
+        "//absl/container:fixed_array",
+        "//absl/container:inlined_vector",
+        "//absl/strings",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)
+
+cc_library(
+    name = "optional",
+    srcs = ["optional.cc"],
+    hdrs = ["optional.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":bad_optional_access",
+        "//absl/base:config",
+        "//absl/memory",
+        "//absl/meta:type_traits",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "bad_optional_access",
+    srcs = ["bad_optional_access.cc"],
+    hdrs = ["bad_optional_access.h"],
+    copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
+    features = [
+        "-use_header_modules",  # b/33207452
+    ],
+    deps = [
+        "//absl/base",
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "optional_test",
+    size = "small",
+    srcs = [
+        "optional_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":optional",
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+)

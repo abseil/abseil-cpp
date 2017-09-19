@@ -1,0 +1,112 @@
+#
+# Copyright 2017 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+load(
+    "//absl:copts.bzl",
+    "ABSL_DEFAULT_COPTS",
+    "ABSL_TEST_COPTS",
+)
+load(
+    "//absl:test_dependencies.bzl",
+    "GUNIT_MAIN_DEPS_SELECTOR",
+)
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])  # Apache 2.0
+
+cc_library(
+    name = "time",
+    srcs = [
+        "clock.cc",
+        "duration.cc",
+        "format.cc",
+        "internal/get_current_time_ios.inc",
+        "internal/get_current_time_posix.inc",
+        "internal/get_current_time_windows.inc",
+        "time.cc",
+    ],
+    hdrs = [
+        "clock.h",
+        "time.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/numeric:int128",
+        "@com_googlesource_code_cctz//:civil_time",
+        "@com_googlesource_code_cctz//:time_zone",
+    ],
+)
+
+cc_library(
+    name = "test_util",
+    srcs = [
+        "internal/test_util.cc",
+        "internal/zoneinfo.inc",
+    ],
+    hdrs = ["internal/test_util.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":time",
+        "//absl/base",
+        "@com_googlesource_code_cctz//:time_zone",
+    ],
+)
+
+cc_test(
+    name = "time_test",
+    srcs = [
+        "clock_test.cc",
+        "duration_test.cc",
+        "format_test.cc",
+        "time_norm_test.cc",
+        "time_test.cc",
+        "time_zone_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+        "no_test_ios_x86_64",
+        "no_test_loonix",
+        "no_test_msvc_x64",
+    ],
+    deps = [
+        ":test_util",
+        ":time",
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "@com_google_googletest//:gtest_main",
+        "@com_googlesource_code_cctz//:time_zone",
+    ],
+)
+
+# Used by get_current_time_test, which, due to a dependency on commandlineflags
+# and some required cleanup, is staying back in //base for now.
+cc_library(
+    name = "get_current_time_for_test",
+    testonly = 1,
+    copts = ABSL_DEFAULT_COPTS,
+    textual_hdrs = [
+        "clock.cc",
+        "clock.h",
+    ],
+    deps = ["//absl/base"],
+)
