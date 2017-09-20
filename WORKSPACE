@@ -7,7 +7,6 @@ http_archive(
 )
 
 # CCTZ (Time-zone framework).
-# TODO(b/63158562): Make test and benchmark targets from here build.
 http_archive(
     name = "com_googlesource_code_cctz",
     urls = ["https://github.com/google/cctz/archive/master.zip"],

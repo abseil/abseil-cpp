@@ -16,8 +16,8 @@
 #ifndef ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_
 #define ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_
 
-#include <cassert>
 #include <atomic>
+#include <cassert>
 #include <utility>
 
 namespace absl {

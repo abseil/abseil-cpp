@@ -22,6 +22,7 @@
 // places listing in //base:spinlock_wait_users.  If you need to use it outside
 // of //base, please request permission to be added to that list.
 
+#include <stdint.h>
 #include <atomic>
 
 #include "absl/base/internal/scheduling_mode.h"

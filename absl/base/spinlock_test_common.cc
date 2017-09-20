@@ -24,8 +24,10 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/low_level_scheduling.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/sysinfo.h"
+#include "absl/base/macros.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
 

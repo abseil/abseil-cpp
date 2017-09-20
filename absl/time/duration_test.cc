@@ -1527,4 +1527,5 @@ TEST(Duration, FormatParseRoundTrip) {
 
 #undef TEST_PARSE_ROUNDTRIP
 }
+
 }  // namespace

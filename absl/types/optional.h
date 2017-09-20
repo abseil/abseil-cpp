@@ -439,6 +439,33 @@ struct is_constructible_convertible_assignable_from_optional
 // for checking whether an expression is convertible to bool.
 bool convertible_to_bool(bool);
 
+// Base class for std::hash<absl::optional<T>>:
+// If std::hash<std::remove_const_t<T>> is enabled, it provides operator() to
+// compute the hash; Otherwise, it is disabled.
+// Reference N4659 23.14.15 [unord.hash].
+template <typename T, typename = size_t>
+struct optional_hash_base {
+  optional_hash_base() = delete;
+  optional_hash_base(const optional_hash_base&) = delete;
+  optional_hash_base(optional_hash_base&&) = delete;
+  optional_hash_base& operator=(const optional_hash_base&) = delete;
+  optional_hash_base& operator=(optional_hash_base&&) = delete;
+};
+
+template <typename T>
+struct optional_hash_base<T, decltype(std::hash<absl::remove_const_t<T> >()(
+                                 std::declval<absl::remove_const_t<T> >()))> {
+  using argument_type = absl::optional<T>;
+  using result_type = size_t;
+  size_t operator()(const absl::optional<T>& opt) const {
+    if (opt) {
+      return std::hash<absl::remove_const_t<T> >()(*opt);
+    } else {
+      return static_cast<size_t>(0x297814aaad196e6dULL);
+    }
+  }
+};
+
 }  // namespace optional_internal
 
 // -----------------------------------------------------------------------------
@@ -1072,15 +1099,8 @@ namespace std {
 
 // std::hash specialization for absl::optional.
 template <typename T>
-struct hash<absl::optional<T>> {
-  size_t operator()(const absl::optional<T>& opt) const {
-    if (opt) {
-      return hash<T>()(*opt);
-    } else {
-      return static_cast<size_t>(0x297814aaad196e6dULL);
-    }
-  }
-};
+struct hash<absl::optional<T> >
+    : absl::optional_internal::optional_hash_base<T> {};
 
 }  // namespace std
 

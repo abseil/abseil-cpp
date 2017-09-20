@@ -14,10 +14,12 @@
 
 #include "absl/base/internal/low_level_alloc.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <thread>  // NOLINT(build/c++11)
 #include <unordered_map>
+#include <utility>
 
 #include "absl/base/internal/malloc_hook.h"
 

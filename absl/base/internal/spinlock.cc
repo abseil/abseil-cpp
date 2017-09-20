@@ -16,8 +16,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <limits>
 
-#include "absl/base/casts.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/spinlock_wait.h"

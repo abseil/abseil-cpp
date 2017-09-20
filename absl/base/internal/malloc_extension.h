@@ -25,14 +25,15 @@
 #ifndef ABSL_BASE_INTERNAL_MALLOC_EXTENSION_H_
 #define ABSL_BASE_INTERNAL_MALLOC_EXTENSION_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string>
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 namespace absl {

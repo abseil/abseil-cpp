@@ -14,12 +14,12 @@
 
 #include "absl/base/call_once.h"
 
-#include <atomic>
 #include <thread>
+#include <vector>
 
+#include "gtest/gtest.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
-#include "gtest/gtest.h"
 
 namespace absl {
 namespace {

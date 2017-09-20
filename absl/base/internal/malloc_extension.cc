@@ -15,15 +15,12 @@
 #include "absl/base/internal/malloc_extension.h"
 
 #include <assert.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 #include <atomic>
 #include <string>
 
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/malloc_extension_c.h"
-#include "absl/base/port.h"
 
 namespace absl {
 namespace base_internal {

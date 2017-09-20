@@ -25,6 +25,7 @@
 #ifndef ABSL_BASE_CALL_ONCE_H_
 #define ABSL_BASE_CALL_ONCE_H_
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <type_traits>
@@ -32,7 +33,10 @@
 #include "absl/base/internal/invoke.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock_wait.h"
+#include "absl/base/macros.h"
+#include "absl/base/port.h"
 
 namespace absl {
 

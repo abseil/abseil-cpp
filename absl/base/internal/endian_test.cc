@@ -16,13 +16,11 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdio>
 #include <limits>
 #include <random>
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "absl/base/casts.h"
 #include "absl/base/config.h"
 
 namespace absl {

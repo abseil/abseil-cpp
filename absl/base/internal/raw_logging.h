@@ -19,6 +19,7 @@
 #ifndef ABSL_BASE_INTERNAL_RAW_LOGGING_H_
 #define ABSL_BASE_INTERNAL_RAW_LOGGING_H_
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/log_severity.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"

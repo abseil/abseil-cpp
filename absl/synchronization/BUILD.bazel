@@ -80,6 +80,18 @@ cc_library(
 )
 
 cc_test(
+    name = "barrier_test",
+    size = "small",
+    srcs = ["barrier_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":synchronization",
+        "//absl/time",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "blocking_counter_test",
     size = "small",
     srcs = ["blocking_counter_test.cc"],

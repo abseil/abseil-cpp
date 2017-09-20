@@ -17,9 +17,12 @@
 // This allocator is slow and wasteful of memory;
 // it should not be used when performance is key.
 
-#include "absl/base/config.h"
-
 #include "absl/base/internal/low_level_alloc.h"
+
+#include "absl/base/config.h"
+#include "absl/base/internal/scheduling_mode.h"
+#include "absl/base/macros.h"
+#include "absl/base/thread_annotations.h"
 
 // LowLevelAlloc requires that the platform support low-level
 // allocation of virtual memory. Platforms lacking this cannot use
@@ -27,7 +30,6 @@
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #ifndef _WIN32
-#include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -38,8 +40,8 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
-#include <cstddef>
 #include <cerrno>
+#include <cstddef>
 #include <new>                   // for placement-new
 
 #include "absl/base/dynamic_annotations.h"

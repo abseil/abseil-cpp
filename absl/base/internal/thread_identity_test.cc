@@ -19,6 +19,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/spinlock.h"
+#include "absl/base/macros.h"
 #include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/synchronization/mutex.h"
 

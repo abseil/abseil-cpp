@@ -48,7 +48,6 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/unscaledcycleclock.h"
-#include "absl/base/thread_annotations.h"
 
 namespace absl {
 namespace base_internal {

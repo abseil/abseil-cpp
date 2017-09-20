@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <atomic>
-#include <cassert>
+#include "absl/base/internal/raw_logging.h"
+
+#include <stddef.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -22,8 +23,6 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/log_severity.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/base/port.h"
 
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.
@@ -38,6 +37,7 @@
 #if defined(__linux__) || defined(__APPLE__) || defined(__Fuchsia__) || \
     defined(__GENCLAVE__)
 #include <unistd.h>
+
 #define ABSL_HAVE_POSIX_WRITE 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1
 #else
@@ -57,6 +57,7 @@
 
 #ifdef _WIN32
 #include <io.h>
+
 #define ABSL_HAVE_RAW_IO 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1
 #else

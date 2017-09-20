@@ -24,6 +24,17 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
+struct Hashable {};
+
+namespace std {
+template <>
+struct hash<Hashable> {
+  size_t operator()(const Hashable&) { return 0; }
+};
+}  // namespace std
+
+struct NonHashable {};
+
 namespace {
 
 std::string TypeQuals(std::string&) { return "&"; }
@@ -1434,6 +1445,17 @@ TEST(optionalTest, ValueType) {
       (std::is_same<absl::optional<int>::value_type, absl::nullopt_t>::value));
 }
 
+template <typename T>
+struct is_hash_enabled_for {
+  template <typename U, typename = decltype(std::hash<U>()(std::declval<U>()))>
+  static std::true_type test(int);
+
+  template <typename U>
+  static std::false_type test(...);
+
+  static constexpr bool value = decltype(test<T>(0))::value;
+};
+
 TEST(optionalTest, Hash) {
   std::hash<absl::optional<int>> hash;
   std::set<size_t> hashcodes;
@@ -1442,6 +1464,34 @@ TEST(optionalTest, Hash) {
     hashcodes.insert(hash(i));
   }
   EXPECT_GT(hashcodes.size(), 90);
+
+  static_assert(is_hash_enabled_for<absl::optional<int>>::value, "");
+  static_assert(is_hash_enabled_for<absl::optional<Hashable>>::value, "");
+
+#if defined(_MSC_VER) || (defined(_LIBCPP_VERSION) && \
+                          _LIBCPP_VERSION < 4000 && _LIBCPP_STD_VER > 11)
+  // For MSVC and libc++ (< 4.0 and c++14), std::hash primary template has a
+  // static_assert to catch any user-defined type that doesn't provide a hash
+  // specialization. So instantiating std::hash<absl::optional<T>> will result
+  // in a hard error which is not SFINAE friendly.
+#define ABSL_STD_HASH_NOT_SFINAE_FRIENDLY 1
+#endif
+
+#ifndef ABSL_STD_HASH_NOT_SFINAE_FRIENDLY
+  static_assert(!is_hash_enabled_for<absl::optional<NonHashable>>::value, "");
+#endif
+
+  // libstdc++ std::optional is missing remove_const_t, i.e. it's using
+  // std::hash<T> rather than std::hash<std::remove_const_t<T>>.
+  // Reference: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82262
+#ifndef __GLIBCXX__
+  static_assert(is_hash_enabled_for<absl::optional<const int>>::value, "");
+  static_assert(is_hash_enabled_for<absl::optional<const Hashable>>::value, "");
+  std::hash<absl::optional<const int>> c_hash;
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_EQ(hash(i), c_hash(i));
+  }
+#endif
 }
 
 struct MoveMeNoThrow {

@@ -427,4 +427,5 @@ TEST(FormatParse, RoundTripDistantPast) {
       << s << ": " << err;
   EXPECT_EQ(in, out);
 }
+
 }  // namespace

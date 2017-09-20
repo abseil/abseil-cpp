@@ -298,7 +298,7 @@ void AnnotateIgnoreWritesEnd(const char *file, int line);
    while still letting the compiler elide the functions from the final build.
 
    TODO(delesley) -- The exclusive lock here ignores writes as well, but
-   allows INGORE_READS_AND_WRITES to work properly. */
+   allows IGNORE_READS_AND_WRITES to work properly. */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 static inline void StaticAnnotateIgnoreReadsBegin(const char *file, int line)

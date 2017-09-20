@@ -121,6 +121,7 @@ cc_library(
         ":config",
         ":core_headers",
         ":dynamic_annotations",
+        ":spinlock_wait",
     ],
 )
 
@@ -192,6 +193,7 @@ cc_library(
     deps = [
         ":base",
         ":config",
+        ":core_headers",
     ],
 )
 
@@ -236,6 +238,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":base",
+        ":core_headers",
+        ":spinlock_wait",
         "//absl/synchronization",
         "@com_google_googletest//:gtest",
     ],
@@ -249,6 +253,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":base",
+        ":core_headers",
+        ":spinlock_wait",
         "//absl/synchronization",
         "@com_google_googletest//:gtest_main",
     ],
@@ -342,6 +348,7 @@ cc_test(
     }),
     deps = [
         ":base",
+        ":core_headers",
         "//absl/synchronization",
     ] + select(GUNIT_MAIN_DEPS_SELECTOR),
 )

@@ -30,11 +30,17 @@
 #ifndef ABSL_BASE_INTERNAL_SPINLOCK_H_
 #define ABSL_BASE_INTERNAL_SPINLOCK_H_
 
+#include <stdint.h>
+#include <sys/types.h>
 #include <atomic>
 
+#include "absl/base/attributes.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/low_level_scheduling.h"
+#include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/base/thread_annotations.h"
 

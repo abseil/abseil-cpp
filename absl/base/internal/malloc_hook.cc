@@ -23,16 +23,17 @@
 #undef mremap
 #endif
 
+#include "absl/base/internal/malloc_hook.h"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <algorithm>
 
 #include "absl/base/call_once.h"
-#include "absl/base/casts.h"
-#include "absl/base/internal/malloc_hook.h"
 #include "absl/base/internal/malloc_hook_invoke.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
+#include "absl/base/macros.h"
 
 // __THROW is defined in glibc systems.  It means, counter-intuitively,
 // "This function will never throw an exception."  It's an optional

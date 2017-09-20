@@ -91,6 +91,7 @@ class UnscaledCycleClockWrapperForGetCurrentTime;
 namespace base_internal {
 class CycleClock;
 class UnscaledCycleClockWrapperForInitializeFrequency;
+
 class UnscaledCycleClock {
  private:
   UnscaledCycleClock() = delete;

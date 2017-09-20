@@ -30,8 +30,8 @@ extern "C" void __google_enable_rescheduling(bool disable_result);
 namespace absl {
 namespace base_internal {
 
-class SpinLock;          // To allow use of SchedulingGuard.
 class SchedulingHelper;  // To allow use of SchedulingGuard.
+class SpinLock;          // To allow use of SchedulingGuard.
 
 // SchedulingGuard
 // Provides guard semantics that may be used to disable cooperative rescheduling

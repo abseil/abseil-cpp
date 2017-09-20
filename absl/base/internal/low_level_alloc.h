@@ -24,8 +24,10 @@
 
 // IWYU pragma: private, include "base/low_level_alloc.h"
 
+#include <sys/types.h>
 #include <cstdint>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 
 // LowLevelAlloc requires that the platform support low-level
