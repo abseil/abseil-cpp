@@ -2,7 +2,7 @@
 
 # pylint: disable=pointless-std::string-statement
 
-# TODO(catlyons): Clean up below selectors when possible. Hold on to them for
+# TODO(absl-team): Clean up below selectors when possible. Hold on to them for
 # now as we may still need our own gunit_main selectors that do not bring in any
 # heapchecker-related deps, and possibly to deal with benchmark dependencies.
 
@@ -20,7 +20,7 @@ GUNIT_MAIN_DEPS_SELECTOR = {
     ],
 }
 
-# TODO(b/30141238): In order to set up absl deps on leak checking
+# TODO(absl-team): In order to set up absl deps on leak checking
 # without base, we'll need gunit_main without either
 # base:heapcheck or base:noheapcheck.
 GUNIT_MAIN_NO_LEAK_CHECK_DEPS = [

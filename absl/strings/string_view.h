@@ -180,9 +180,9 @@ class string_view {
   constexpr string_view(const char* data, size_type len)
       : ptr_(data), length_(CheckLengthInternal(len)) {}
 
-  // NOTE(b/36227513): harmlessly omitted to work around gdb bug.
-  // constexpr string_view(const string_view&) noexcept = default;
-  // string_view& operator=(const string_view&) noexcept = default;
+  // NOTE: Harmlessly omitted to work around gdb bug.
+  //   constexpr string_view(const string_view&) noexcept = default;
+  //   string_view& operator=(const string_view&) noexcept = default;
 
   // Iterators
 
@@ -550,8 +550,7 @@ namespace absl {
 // ClippedSubstr()
 //
 // Like `s.substr(pos, n)`, but clips `pos` to an upper bound of `s.size()`.
-// Provided because std::string_view::substr throws if `pos > size()`,
-// to support b/37991613.
+// Provided because std::string_view::substr throws if `pos > size()`
 inline string_view ClippedSubstr(string_view s, size_t pos,
                                  size_t n = string_view::npos) {
   pos = std::min(pos, static_cast<size_t>(s.size()));

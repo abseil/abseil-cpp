@@ -361,7 +361,7 @@ Duration Hours(T n) {
 // Example:
 //
 //   absl::Duration d = absl::Milliseconds(1500);
-//   int64_t isec = ToInt64Seconds(d);    // isec == 1
+//   int64_t isec = ToInt64Seconds(d);  // isec == 1
 int64_t ToInt64Nanoseconds(Duration d);
 int64_t ToInt64Microseconds(Duration d);
 int64_t ToInt64Milliseconds(Duration d);
@@ -390,6 +390,46 @@ double ToDoubleMilliseconds(Duration d);
 double ToDoubleSeconds(Duration d);
 double ToDoubleMinutes(Duration d);
 double ToDoubleHours(Duration d);
+
+// FromChrono()
+//
+// Converts any of the pre-defined std::chrono durations to an absl::Duration.
+//
+// Example:
+//
+//   std::chrono::milliseconds ms(123);
+//   absl::Duration d = absl::FromChrono(ms);
+constexpr Duration FromChrono(const std::chrono::nanoseconds& d);
+constexpr Duration FromChrono(const std::chrono::microseconds& d);
+constexpr Duration FromChrono(const std::chrono::milliseconds& d);
+constexpr Duration FromChrono(const std::chrono::seconds& d);
+constexpr Duration FromChrono(const std::chrono::minutes& d);
+constexpr Duration FromChrono(const std::chrono::hours& d);
+
+// ToChronoNanoseconds()
+// ToChronoMicroseconds()
+// ToChronoMilliseconds()
+// ToChronoSeconds()
+// ToChronoMinutes()
+// ToChronoHours()
+//
+// Converts an absl::Duration to any of the pre-defined std::chrono durations.
+// If overflow would occur, the returned value will saturate at the min/max
+// chrono duration value instead.
+//
+// Example:
+//
+//   absl::Duration d = absl::Microseconds(123);
+//   auto x = absl::ToChronoMicroseconds(d);
+//   auto y = absl::ToChronoNanoseconds(d);  // x == y
+//   auto z = absl::ToChronoSeconds(absl::InfiniteDuration());
+//   // z == std::chrono::seconds::max()
+std::chrono::nanoseconds ToChronoNanoseconds(Duration d);
+std::chrono::microseconds ToChronoMicroseconds(Duration d);
+std::chrono::milliseconds ToChronoMilliseconds(Duration d);
+std::chrono::seconds ToChronoSeconds(Duration d);
+std::chrono::minutes ToChronoMinutes(Duration d);
+std::chrono::hours ToChronoHours(Duration d);
 
 // InfiniteDuration()
 //
@@ -445,7 +485,7 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 bool ParseDuration(const std::string& dur_string, Duration* d);
 
 // Flag Support
-// TODO(b/63899288) copybara strip once dependencies are removed.
+// TODO(absl-team): Remove once dependencies are removed.
 
 // ParseFlag()
 //
@@ -790,6 +830,30 @@ Time TimeFromTimeval(timeval tv);
 timespec ToTimespec(Time t);
 timeval ToTimeval(Time t);
 
+// FromChrono()
+//
+// Converts a std::chrono::system_clock::time_point to an absl::Time.
+//
+// Example:
+//
+//   auto tp = std::chrono::system_clock::from_time_t(123);
+//   absl::Time t = absl::FromChrono(tp);
+//   // t == absl::FromTimeT(123)
+Time FromChrono(const std::chrono::system_clock::time_point& tp);
+
+// ToChronoTime()
+//
+// Converts an absl::Time to a std::chrono::system_clock::time_point. If
+// overflow would occur, the returned value will saturate at the min/max time
+// point value instead.
+//
+// Example:
+//
+//   absl::Time t = absl::FromTimeT(123);
+//   auto tp = absl::ToChronoTime(t);
+//   // tp == std::chrono::system_clock::from_time_t(123);
+std::chrono::system_clock::time_point ToChronoTime(absl::Time);
+
 // RFC3339_full
 // RFC3339_sec
 //
@@ -917,7 +981,7 @@ bool ParseTime(const std::string& format, const std::string& input,
 bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
                Time* time, std::string* err);
 
-// TODO(b/63899288) copybara strip once dependencies are removed.
+// TODO(absl-team): Remove once dependencies are removed.
 
 // ParseFlag()
 // UnparseFlag()
@@ -1072,6 +1136,81 @@ constexpr int64_t NegateAndSubtractOne(int64_t n) {
 // knowledge, we would need to add-in/subtract-out UnixEpoch() respectively.
 constexpr Time FromUnixDuration(Duration d) { return Time(d); }
 constexpr Duration ToUnixDuration(Time t) { return t.rep_; }
+
+template <std::intmax_t N>
+constexpr absl::Duration FromInt64(int64_t v, std::ratio<1, N>) {
+  static_assert(0 < N && N <= 1000 * 1000 * 1000, "Unsupported ratio");
+  // Subsecond ratios cannot overflow.
+  return MakeNormalizedDuration(
+      v / N, v % N * kTicksPerNanosecond * 1000 * 1000 * 1000 / N);
+}
+constexpr absl::Duration FromInt64(int64_t v, std::ratio<60>) {
+  return Minutes(v);
+}
+constexpr absl::Duration FromInt64(int64_t v, std::ratio<3600>) {
+  return Hours(v);
+}
+
+// IsValidRep64<T>(0) is true if the expression `int64_t{std::declval<T>()}` is
+// valid. That is, if a T can be assigned to an int64_t without narrowing.
+template <typename T>
+constexpr auto IsValidRep64(int)
+    -> decltype(int64_t{std::declval<T>()}, bool()) {
+  return true;
+}
+template <typename T>
+constexpr auto IsValidRep64(char) -> bool {
+  return false;
+}
+
+// Converts a std::chrono::duration to an absl::Duration.
+template <typename Rep, typename Period>
+constexpr absl::Duration FromChrono(
+    const std::chrono::duration<Rep, Period>& d) {
+  static_assert(IsValidRep64<Rep>(0), "duration::rep is invalid");
+  return FromInt64(int64_t{d.count()}, Period{});
+}
+
+template <typename Ratio>
+int64_t ToInt64(absl::Duration d, Ratio) {
+  // Note: This may be used on MSVC, which may have a system_clock period of
+  // std::ratio<1, 10 * 1000 * 1000>
+  return ToInt64Seconds(d * Ratio::den / Ratio::num);
+}
+// Fastpath implementations for the 6 common duration units.
+inline int64_t ToInt64(absl::Duration d, std::nano) {
+  return ToInt64Nanoseconds(d);
+}
+inline int64_t ToInt64(absl::Duration d, std::micro) {
+  return ToInt64Microseconds(d);
+}
+inline int64_t ToInt64(absl::Duration d, std::milli) {
+  return ToInt64Milliseconds(d);
+}
+inline int64_t ToInt64(absl::Duration d, std::ratio<1>) {
+  return ToInt64Seconds(d);
+}
+inline int64_t ToInt64(absl::Duration d, std::ratio<60>) {
+  return ToInt64Minutes(d);
+}
+inline int64_t ToInt64(absl::Duration d, std::ratio<3600>) {
+  return ToInt64Hours(d);
+}
+
+// Converts an absl::Duration to a chrono duration of type T.
+template <typename T>
+T ToChronoDuration(absl::Duration d) {
+  using Rep = typename T::rep;
+  using Period = typename T::period;
+  static_assert(IsValidRep64<Rep>(0), "duration::rep is invalid");
+  if (time_internal::IsInfiniteDuration(d))
+    return d < ZeroDuration() ? T::min() : T::max();
+  const auto v = ToInt64(d, Period{});
+  if (v > std::numeric_limits<Rep>::max()) return T::max();
+  if (v < std::numeric_limits<Rep>::min()) return T::min();
+  return T{v};
+}
+
 }  // namespace time_internal
 
 constexpr bool operator<(Duration lhs, Duration rhs) {
@@ -1154,6 +1293,25 @@ constexpr Duration Hours(int64_t n) {
 
 constexpr Duration InfiniteDuration() {
   return time_internal::MakeDuration(std::numeric_limits<int64_t>::max(), ~0U);
+}
+
+constexpr Duration FromChrono(const std::chrono::nanoseconds& d) {
+  return time_internal::FromChrono(d);
+}
+constexpr Duration FromChrono(const std::chrono::microseconds& d) {
+  return time_internal::FromChrono(d);
+}
+constexpr Duration FromChrono(const std::chrono::milliseconds& d) {
+  return time_internal::FromChrono(d);
+}
+constexpr Duration FromChrono(const std::chrono::seconds& d) {
+  return time_internal::FromChrono(d);
+}
+constexpr Duration FromChrono(const std::chrono::minutes& d) {
+  return time_internal::FromChrono(d);
+}
+constexpr Duration FromChrono(const std::chrono::hours& d) {
+  return time_internal::FromChrono(d);
 }
 
 constexpr Time FromUnixNanos(int64_t ns) {

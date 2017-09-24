@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright 2007 Google, Inc.
-// All rights reserved.
-
-// Author: Mike Burrows
-
-// A test for the GraphCycles interface.
-
-// This test is testing a component of //third_party/absl.  As written it
-// heavily uses logging, including VLOG, so this test can't ship with Abseil.
-// We're leaving it here until Abseil gets base/logging.h in a future release.
 #include "absl/synchronization/internal/graphcycles.h"
 
 #include <map>
 #include <random>
-#include <vector>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"

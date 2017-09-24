@@ -40,8 +40,7 @@ namespace base_internal {
 // Thread-safe.
 double NominalCPUFrequency();
 
-// Number of logical processors (hyperthreads) in system. See
-// //base/cpuid/cpuid.h for more CPU-related info.  Thread-safe.
+// Number of logical processors (hyperthreads) in system. Thread-safe.
 int NumCPUs();
 
 // Return the thread id of the current thread, as told by the system.

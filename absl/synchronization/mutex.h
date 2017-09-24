@@ -81,8 +81,8 @@
 
 namespace absl {
 
-struct SynchWaitParams;
 class Condition;
+struct SynchWaitParams;
 
 // -----------------------------------------------------------------------------
 // Mutex

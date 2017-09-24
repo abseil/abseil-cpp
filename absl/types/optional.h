@@ -17,7 +17,7 @@
 // optional.h
 // -----------------------------------------------------------------------------
 //
-// This header file define the `absl::optional` type for holding a value which
+// This header file defines the `absl::optional` type for holding a value which
 // may or may not be present. This type is useful for providing value semantics
 // for operations that may either wish to return or hold "something-or-nothing".
 //
@@ -246,7 +246,7 @@ class optional_data_base : public optional_data_dtor_base<T> {
   }
 };
 
-// TODO(b/34201852): Add another base class using
+// TODO(absl-team) Add another class using
 // std::is_trivially_move_constructible trait when available to match
 // http://cplusplus.github.io/LWG/lwg-defects.html#2900, for types that
 // have trivial move but nontrivial copy.
@@ -502,7 +502,8 @@ class optional : private optional_internal::optional_data<T>,
   // the arguments `std::forward<Args>(args)...`  within the `optional`.
   // (The `in_place_t` is a tag used to indicate that the contained object
   // should be constructed in-place.)
-  // TODO(b/34201852): Add std::is_constructible<T, Args&&...> SFINAE.
+  //
+  // TODO(absl-team): Add std::is_constructible<T, Args&&...> SFINAE.
   template <typename... Args>
   constexpr explicit optional(in_place_t, Args&&... args)
       : data_base(in_place_t(), absl::forward<Args>(args)...) {}

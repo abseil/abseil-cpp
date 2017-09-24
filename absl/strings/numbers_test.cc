@@ -3,10 +3,7 @@
 #include "absl/strings/numbers.h"
 
 #include <sys/types.h>
-#include <algorithm>
-#include <cctype>
 #include <cfenv>  // NOLINT(build/c++11)
-#include <cfloat>
 #include <cinttypes>
 #include <climits>
 #include <cmath>
@@ -25,7 +22,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/port.h"
 #include "absl/strings/str_cat.h"
 
 #include "absl/strings/internal/numbers_test_common.inc"
@@ -42,7 +38,6 @@ using absl::numbers_internal::safe_strto32_base;
 using absl::numbers_internal::safe_strto64_base;
 using absl::numbers_internal::safe_strtou32_base;
 using absl::numbers_internal::safe_strtou64_base;
-using absl::numbers_internal::RoundTripFloatToBuffer;
 using absl::numbers_internal::SixDigitsToBuffer;
 using absl::SimpleAtoi;
 using testing::Eq;
@@ -772,42 +767,6 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
       runnable(f);
       runnable(-f);
       last = f;
-    }
-  }
-}
-
-TEST_F(SimpleDtoaTest, ExhaustiveFloatToBuffer) {
-  uint64_t test_count = 0;
-  std::vector<float> mismatches;
-  ExhaustiveFloat(kFloatNumCases, [&](float f) {
-    if (f != f) return;  // rule out NaNs
-    ++test_count;
-    char fastbuf[kFastToBufferSize];
-    RoundTripFloatToBuffer(f, fastbuf);
-    float round_trip = strtof(fastbuf, nullptr);
-    if (f != round_trip) {
-      mismatches.push_back(f);
-      if (mismatches.size() < 10) {
-        ABSL_RAW_LOG(ERROR, "%s",
-                     absl::StrCat("Round-trip failure with float.  ", "f=", f,
-                                  "=", ToNineDigits(f), " fast=", fastbuf,
-                                  " strtof=", ToNineDigits(round_trip))
-                         .c_str());
-      }
-    }
-  });
-  if (!mismatches.empty()) {
-    EXPECT_EQ(mismatches.size(), 0);
-    for (size_t i = 0; i < mismatches.size(); ++i) {
-      if (i > 100) i = mismatches.size() - 1;
-      float f = mismatches[i];
-      std::string msg =
-          absl::StrCat("Mismatch #", i, "  f=", f, " (", ToNineDigits(f), ")");
-      char buf[kFastToBufferSize];
-      absl::StrAppend(&msg, " fast='", RoundTripFloatToBuffer(f, buf), "'");
-      float rt = strtof(buf, nullptr);
-      absl::StrAppend(&msg, " rt=", ToNineDigits(rt));
-      ABSL_RAW_LOG(ERROR, "%s", msg.c_str());
     }
   }
 }

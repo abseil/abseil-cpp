@@ -127,8 +127,8 @@ bool ParseTime(const std::string& format, const std::string& input, absl::TimeZo
   return b;
 }
 
-// TODO(b/63899288) copybara strip once dependencies are removed.
-// Functions required to support absl::Time flags. See go/flags.
+// TODO(absl-team): Remove once dependencies are removed.
+// Functions required to support absl::Time flags.
 bool ParseFlag(const std::string& text, absl::Time* t, std::string* error) {
   return absl::ParseTime(RFC3339_full, text, absl::UTCTimeZone(), t, error);
 }

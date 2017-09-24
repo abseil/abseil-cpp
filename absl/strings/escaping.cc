@@ -14,22 +14,21 @@
 
 #include "absl/strings/escaping.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <string>
-#include <vector>
 
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/unaligned_access.h"
-#include "absl/base/macros.h"
-#include "absl/base/port.h"
 #include "absl/strings/internal/char_map.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/utf8.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 

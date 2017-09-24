@@ -15,11 +15,12 @@
 #include "absl/strings/str_replace.h"
 
 #include <list>
+#include <map>
 #include <tuple>
 
 #include "gtest/gtest.h"
-#include "absl/strings/str_split.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 
 TEST(StrReplaceAll, OneReplacement) {
   std::string s;

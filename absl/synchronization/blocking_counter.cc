@@ -14,6 +14,8 @@
 
 #include "absl/synchronization/blocking_counter.h"
 
+#include "absl/base/internal/raw_logging.h"
+
 namespace absl {
 
 // Return whether int *arg is zero.

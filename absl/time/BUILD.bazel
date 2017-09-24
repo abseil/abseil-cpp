@@ -97,16 +97,3 @@ cc_test(
         "@com_googlesource_code_cctz//:time_zone",
     ],
 )
-
-# Used by get_current_time_test, which, due to a dependency on commandlineflags
-# and some required cleanup, is staying back in //base for now.
-cc_library(
-    name = "get_current_time_for_test",
-    testonly = 1,
-    copts = ABSL_DEFAULT_COPTS,
-    textual_hdrs = [
-        "clock.cc",
-        "clock.h",
-    ],
-    deps = ["//absl/base"],
-)

@@ -526,7 +526,7 @@
 //
 // Note that this attribute is redundant if the variable is declared constexpr.
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
-// NOLINTNEXTLINE(whitespace/braces) (b/36288871)
+// NOLINTNEXTLINE(whitespace/braces)
 #define ABSL_CONST_INIT [[clang::require_constant_initialization]]
 #else
 #define ABSL_CONST_INIT

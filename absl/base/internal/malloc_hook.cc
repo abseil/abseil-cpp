@@ -453,16 +453,13 @@ void MallocHook::InvokeSbrkHookSlow(const void* result, ptrdiff_t increment) {
 }  // namespace base_internal
 }  // namespace absl
 
-ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(google_malloc);
-ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(google_malloc);
-// actual functions are in debugallocation.cc or tcmalloc.cc
 ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(malloc_hook);
 ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(malloc_hook);
 // actual functions are in this file, malloc_hook.cc, and low_level_alloc.cc
+ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(google_malloc);
+ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(google_malloc);
 ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(blink_malloc);
 ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(blink_malloc);
-// actual functions are in third_party/blink_headless/.../{PartitionAlloc,
-// FastMalloc}.cpp.
 
 #define ADDR_IN_ATTRIBUTE_SECTION(addr, name)                         \
   (reinterpret_cast<uintptr_t>(ABSL_ATTRIBUTE_SECTION_START(name)) <= \
@@ -486,13 +483,6 @@ static inline bool InHookCaller(const void* caller) {
 static absl::once_flag in_hook_caller_once;
 
 static void InitializeInHookCaller() {
-  ABSL_INIT_ATTRIBUTE_SECTION_VARS(google_malloc);
-  if (ABSL_ATTRIBUTE_SECTION_START(google_malloc) ==
-      ABSL_ATTRIBUTE_SECTION_STOP(google_malloc)) {
-    ABSL_RAW_LOG(ERROR,
-                 "google_malloc section is missing, "
-                 "thus InHookCaller is broken!");
-  }
   ABSL_INIT_ATTRIBUTE_SECTION_VARS(malloc_hook);
   if (ABSL_ATTRIBUTE_SECTION_START(malloc_hook) ==
       ABSL_ATTRIBUTE_SECTION_STOP(malloc_hook)) {
@@ -500,9 +490,14 @@ static void InitializeInHookCaller() {
                  "malloc_hook section is missing, "
                  "thus InHookCaller is broken!");
   }
+  ABSL_INIT_ATTRIBUTE_SECTION_VARS(google_malloc);
+  if (ABSL_ATTRIBUTE_SECTION_START(google_malloc) ==
+      ABSL_ATTRIBUTE_SECTION_STOP(google_malloc)) {
+    ABSL_RAW_LOG(ERROR,
+                 "google_malloc section is missing, "
+                 "thus InHookCaller is broken!");
+  }
   ABSL_INIT_ATTRIBUTE_SECTION_VARS(blink_malloc);
-  // The blink_malloc section is only expected to be present in binaries
-  // linking against the blink rendering engine in third_party/blink_headless.
 }
 
 // We can improve behavior/compactness of this function
@@ -574,7 +569,8 @@ extern "C" int MallocHook_GetCallerStackTrace(
 // still allow users to disable this in special cases that can't be easily
 // detected during compilation, via -DABSL_MALLOC_HOOK_MMAP_DISABLE or #define
 // ABSL_MALLOC_HOOK_MMAP_DISABLE.
-// TODO(b/62370839): Remove MALLOC_HOOK_MMAP_DISABLE in CROSSTOOL for tsan and
+//
+// TODO(absl-team): Remove MALLOC_HOOK_MMAP_DISABLE in CROSSTOOL for tsan and
 // msan config; Replace MALLOC_HOOK_MMAP_DISABLE with
 // ABSL_MALLOC_HOOK_MMAP_DISABLE for other special cases.
 #if !defined(THREAD_SANITIZER) && !defined(MEMORY_SANITIZER) && \

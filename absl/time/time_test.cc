@@ -14,6 +14,7 @@
 
 #include "absl/time/time.h"
 
+#include <chrono>  // NOLINT(build/c++11)
 #include <cstring>
 #include <ctime>
 #include <iomanip>
@@ -487,6 +488,66 @@ TEST(Time, RoundtripConversion) {
       << now_uni;
 
 #undef TEST_CONVERSION_ROUND_TRIP
+}
+
+template <typename Duration>
+std::chrono::system_clock::time_point MakeChronoUnixTime(const Duration& d) {
+  return std::chrono::system_clock::from_time_t(0) + d;
+}
+
+TEST(Time, FromChrono) {
+  EXPECT_EQ(absl::FromTimeT(-1),
+            absl::FromChrono(std::chrono::system_clock::from_time_t(-1)));
+  EXPECT_EQ(absl::FromTimeT(0),
+            absl::FromChrono(std::chrono::system_clock::from_time_t(0)));
+  EXPECT_EQ(absl::FromTimeT(1),
+            absl::FromChrono(std::chrono::system_clock::from_time_t(1)));
+
+  EXPECT_EQ(
+      absl::FromUnixMillis(-1),
+      absl::FromChrono(MakeChronoUnixTime(std::chrono::milliseconds(-1))));
+  EXPECT_EQ(absl::FromUnixMillis(0),
+            absl::FromChrono(MakeChronoUnixTime(std::chrono::milliseconds(0))));
+  EXPECT_EQ(absl::FromUnixMillis(1),
+            absl::FromChrono(MakeChronoUnixTime(std::chrono::milliseconds(1))));
+
+  // Chrono doesn't define exactly its range and precision (neither does
+  // absl::Time), so let's simply test +/- ~100 years to make sure things work.
+  const auto century_sec = 60 * 60 * 24 * 365 * int64_t{100};
+  const auto century = std::chrono::seconds(century_sec);
+  const auto chrono_future = MakeChronoUnixTime(century);
+  const auto chrono_past = MakeChronoUnixTime(-century);
+  EXPECT_EQ(absl::FromUnixSeconds(century_sec),
+            absl::FromChrono(chrono_future));
+  EXPECT_EQ(absl::FromUnixSeconds(-century_sec), absl::FromChrono(chrono_past));
+
+  // Roundtrip them both back to chrono.
+  EXPECT_EQ(chrono_future,
+            absl::ToChronoTime(absl::FromUnixSeconds(century_sec)));
+  EXPECT_EQ(chrono_past,
+            absl::ToChronoTime(absl::FromUnixSeconds(-century_sec)));
+}
+
+TEST(Time, ToChronoTime) {
+  EXPECT_EQ(std::chrono::system_clock::from_time_t(-1),
+            absl::ToChronoTime(absl::FromTimeT(-1)));
+  EXPECT_EQ(std::chrono::system_clock::from_time_t(0),
+            absl::ToChronoTime(absl::FromTimeT(0)));
+  EXPECT_EQ(std::chrono::system_clock::from_time_t(1),
+            absl::ToChronoTime(absl::FromTimeT(1)));
+
+  EXPECT_EQ(MakeChronoUnixTime(std::chrono::milliseconds(-1)),
+            absl::ToChronoTime(absl::FromUnixMillis(-1)));
+  EXPECT_EQ(MakeChronoUnixTime(std::chrono::milliseconds(0)),
+            absl::ToChronoTime(absl::FromUnixMillis(0)));
+  EXPECT_EQ(MakeChronoUnixTime(std::chrono::milliseconds(1)),
+            absl::ToChronoTime(absl::FromUnixMillis(1)));
+
+  // Time before the Unix epoch should floor, not trunc.
+  const auto tick = absl::Nanoseconds(1) / 4;
+  EXPECT_EQ(std::chrono::system_clock::from_time_t(0) -
+                std::chrono::system_clock::duration(1),
+            absl::ToChronoTime(absl::UnixEpoch() - tick));
 }
 
 TEST(Time, ConvertDateTime) {

@@ -57,10 +57,7 @@ static int num_cpus = 0;
 static double nominal_cpu_frequency = 1.0;  // 0.0 might be dangerous.
 
 static int GetNumCPUs() {
-#if defined(__myriad2__) || defined(__GENCLAVE__)
-  // TODO(b/28296132): Calling std::thread::hardware_concurrency() induces a
-  // link error on myriad2 builds.
-  // TODO(b/62709537): Support std::thread::hardware_concurrency() in gEnclalve.
+#if defined(__myriad2__)
   return 1;
 #else
   // Other possibilities:

@@ -14,11 +14,14 @@
 
 #include "absl/strings/str_split.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
 #include <limits>
+#include <memory>
 
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/ascii.h"

@@ -162,6 +162,7 @@ cc_test(
     deps = [
         ":strings",
         ":internal",
+        "//absl/base:core_headers",
     ] + select(GUNIT_MAIN_DEPS_SELECTOR),
 )
 

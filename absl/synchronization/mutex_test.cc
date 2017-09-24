@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -32,8 +31,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
-#include "absl/base/macros.h"
-#include "absl/base/thread_annotations.h"
 #include "absl/memory/memory.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/time/clock.h"
@@ -713,7 +710,6 @@ static void LockWhenTestWaitForIsCond(LockWhenTestStruct* s) {
 TEST(Mutex, LockWhen) {
   LockWhenTestStruct s;
 
-  // Don't use ThreadPool for this test. See b/65107115.
   std::thread t(LockWhenTestWaitForIsCond, &s);
   s.mu2.LockWhen(absl::Condition(&s.waiting));
   s.mu2.Unlock();
@@ -1041,8 +1037,6 @@ TEST(Mutex, DeadlockDetector) {
   m2.Unlock();
   m4.Unlock();
   m1.Unlock();
-  // Pre b/7636708 the thread local cache remembered that ID1 is assigned to m1.
-  // So, we had a cycle ID1=>ID1=>ID1.
 }
 
 // Bazel has a test "warning" file that programs can write to if the

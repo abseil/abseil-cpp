@@ -41,40 +41,42 @@ namespace absl {
 
 // StrContains()
 //
-// Returns whether a given std::string `s` contains the substring `x`.
-inline bool StrContains(absl::string_view s, absl::string_view x) {
-  return static_cast<absl::string_view::size_type>(s.find(x, 0)) != s.npos;
+// Returns whether a given std::string `haystack` contains the substring `needle`.
+inline bool StrContains(absl::string_view haystack, absl::string_view needle) {
+  return static_cast<absl::string_view::size_type>(haystack.find(needle, 0)) !=
+         haystack.npos;
 }
 
 // StartsWith()
 //
-// Returns whether a given std::string `s` begins with `x`.
-inline bool StartsWith(absl::string_view s, absl::string_view x) {
-  return x.empty() ||
-         (s.size() >= x.size() && memcmp(s.data(), x.data(), x.size()) == 0);
+// Returns whether a given std::string `text` begins with `prefix`.
+inline bool StartsWith(absl::string_view text, absl::string_view prefix) {
+  return prefix.empty() ||
+         (text.size() >= prefix.size() &&
+         memcmp(text.data(), prefix.data(), prefix.size()) == 0);
 }
 
 // EndsWith()
 //
-// Returns whether a given std::string `s` ends `x`.
-inline bool EndsWith(absl::string_view s, absl::string_view x) {
-  return x.empty() ||
-         (s.size() >= x.size() &&
-          memcmp(s.data() + (s.size() - x.size()), x.data(), x.size()) == 0);
+// Returns whether a given std::string `text` ends with `suffix`.
+inline bool EndsWith(absl::string_view text, absl::string_view suffix) {
+  return suffix.empty() ||
+         (text.size() >= suffix.size() &&
+          memcmp(text.data() + (text.size() - suffix.size()), suffix.data(),
+  suffix.size()) == 0);
 }
 
 // StartsWithIgnoreCase()
 //
 // Returns whether a given std::string `text` starts with `starts_with`, ignoring
 // case in the comparison.
-bool StartsWithIgnoreCase(absl::string_view text,
-                          absl::string_view starts_with);
+bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix);
 
 // EndsWithIgnoreCase()
 //
 // Returns whether a given std::string `text` ends with `ends_with`, ignoring case
 // in the comparison.
-bool EndsWithIgnoreCase(absl::string_view text, absl::string_view ends_with);
+bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix);
 
 }  // namespace absl
 

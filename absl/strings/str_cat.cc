@@ -14,9 +14,9 @@
 
 #include "absl/strings/str_cat.h"
 
-#include <cstdarg>
+#include <assert.h>
+#include <algorithm>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 
 #include "absl/strings/ascii.h"

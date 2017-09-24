@@ -22,13 +22,13 @@
 #include <string>
 #include <thread>              // NOLINT(build/c++11)
 
+#include "gtest/gtest.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/malloc_extension.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "gtest/gtest.h"
 
 // In this test we explicitly avoid the use of synchronization
 // primitives which might use PerThreadSem, most notably absl::Mutex.

@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+#include <new>
+
 // This file is a no-op if the required LowLevelAlloc support is missing.
 #include "absl/base/internal/low_level_alloc.h"
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #include <string.h>
-#include <atomic>
-#include <memory>
 
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/thread_identity.h"

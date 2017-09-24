@@ -20,7 +20,6 @@
 #include <climits>
 #include <cstring>
 #include <ostream>
-#include <string>
 
 #include "absl/strings/internal/memutil.h"
 #include "absl/strings/internal/resize_uninitialized.h"

@@ -73,7 +73,7 @@
 //   * calls for a position argument which is not provided,
 //     e.g. Substitute("Hello $2", "world"), or
 //   * specifies a non-digit, non-$ character after an unescaped $ character,
-//     e.g. "Hello %f".
+//     e.g. "Hello $f".
 // In debug mode, i.e. #ifndef NDEBUG, such errors terminate the program.
 
 #ifndef ABSL_STRINGS_SUBSTITUTE_H_
@@ -149,9 +149,11 @@ class Arg {
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
   Arg(float value)  // NOLINT(runtime/explicit)
-      : piece_(numbers_internal::RoundTripFloatToBuffer(value, scratch_)) {}
+      : piece_(scratch_, numbers_internal::SixDigitsToBuffer(value, scratch_)) {
+  }
   Arg(double value)  // NOLINT(runtime/explicit)
-      : piece_(numbers_internal::RoundTripDoubleToBuffer(value, scratch_)) {}
+      : piece_(scratch_, numbers_internal::SixDigitsToBuffer(value, scratch_)) {
+  }
   Arg(bool value)  // NOLINT(runtime/explicit)
       : piece_(value ? "true" : "false") {}
   // `void*` values, with the exception of `char*`, are printed as
@@ -211,9 +213,9 @@ constexpr int PlaceholderBitmask(const char* format) {
 //
 // Example:
 //  template <typename... Args>
-//  void VarMsg(std::string* boilerplate, const std::string& format,
+//  void VarMsg(std::string* boilerplate, absl::string_view format,
 //      const Args&... args) {
-//    std::string s = absl::SubstituteAndAppend(boilerplate, format, args...)";
+//    absl::SubstituteAndAppend(boilerplate, format, args...);
 //  }
 //
 inline void SubstituteAndAppend(std::string* output, absl::string_view format) {
@@ -458,8 +460,8 @@ void SubstituteAndAppend(
 //
 // Example:
 //  template <typename... Args>
-//  void VarMsg(const std::string& format, const Args&... args) {
-//    std::string s = absl::Substitute(format, args...)";
+//  void VarMsg(absl::string_view format, const Args&... args) {
+//    std::string s = absl::Substitute(format, args...);
 
 ABSL_MUST_USE_RESULT inline std::string Substitute(absl::string_view format) {
   std::string result;

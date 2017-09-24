@@ -35,6 +35,8 @@ LLVM_FLAGS = [
     "-Wno-c++98-compat-pedantic",
     "-Wno-comma",
     "-Wno-conversion",
+    "-Wno-covered-switch-default",
+    "-Wno-deprecated",
     "-Wno-disabled-macro-expansion",
     "-Wno-documentation",
     "-Wno-documentation-unknown-command",
@@ -46,10 +48,6 @@ LLVM_FLAGS = [
     "-Wno-format-nonliteral",
     "-Wno-gcc-compat",
     "-Wno-global-constructors",
-    "-Wno-google3-inheriting-constructor",
-    "-Wno-google3-lambda-expression",
-    "-Wno-google3-rvalue-reference",
-    "-Wno-google3-trailing-return-type",
     "-Wno-nested-anon-types",
     "-Wno-non-modular-include-in-module",
     "-Wno-old-style-cast",
@@ -62,9 +60,11 @@ LLVM_FLAGS = [
     "-Wno-switch-enum",
     "-Wno-thread-safety-negative",
     "-Wno-undef",
+    "-Wno-unknown-warning-option",
+    "-Wno-unreachable-code",
     "-Wno-unused-macros",
     "-Wno-weak-vtables",
-    # flags below are also controled by -Wconversion which is disabled
+    # flags below are also controlled by -Wconversion which is disabled
     "-Wbitfield-enum-conversion",
     "-Wbool-conversion",
     "-Wconstant-conversion",
@@ -111,16 +111,10 @@ MSVC_TEST_FLAGS = [
     "/wd4503",  # decorated name length exceeded, name was truncated
 ]
 
-def _qualify_flags(scope, flags):
-  return [scope + x for x in flags]
-
-HYBRID_FLAGS = _qualify_flags("-Xgcc-only=", GCC_FLAGS) + _qualify_flags("-Xclang-only=", LLVM_FLAGS)
-HYBRID_TEST_FLAGS = _qualify_flags("-Xgcc-only=", GCC_TEST_FLAGS) + _qualify_flags("-Xclang-only=", LLVM_TEST_FLAGS)
-
 # /Wall with msvc includes unhelpful warnings such as C4711, C4710, ...
 ABSL_DEFAULT_COPTS = select({
     "//absl:windows": MSVC_FLAGS,
-    "//absl:llvm_warnings": LLVM_FLAGS,
+    "//absl:llvm_compiler": LLVM_FLAGS,
     "//conditions:default": GCC_FLAGS,
 })
 
@@ -128,7 +122,7 @@ ABSL_DEFAULT_COPTS = select({
 # to their (included header) dependencies and fail to build outside absl
 ABSL_TEST_COPTS = ABSL_DEFAULT_COPTS + select({
     "//absl:windows": MSVC_TEST_FLAGS,
-    "//absl:llvm_warnings": LLVM_TEST_FLAGS,
+    "//absl:llvm_compiler": LLVM_TEST_FLAGS,
     "//conditions:default": GCC_TEST_FLAGS,
 })
 

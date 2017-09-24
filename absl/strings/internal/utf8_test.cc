@@ -14,12 +14,11 @@
 
 #include "absl/strings/internal/utf8.h"
 
-#include <cctype>
-#include <cstdlib>
-#include <cstring>
 #include <cstdint>
+#include <utility>
 
 #include "gtest/gtest.h"
+#include "absl/base/port.h"
 
 namespace {
 

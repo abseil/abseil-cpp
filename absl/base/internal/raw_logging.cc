@@ -34,9 +34,9 @@
 //
 // This preprocessor token is also defined in raw_io.cc.  If you need to copy
 // this, consider moving both to config.h instead.
-#if defined(__linux__) || defined(__APPLE__) || defined(__Fuchsia__) || \
-    defined(__GENCLAVE__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__Fuchsia__)
 #include <unistd.h>
+
 
 #define ABSL_HAVE_POSIX_WRITE 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1
@@ -110,10 +110,6 @@ namespace {
 
 // CAVEAT: vsnprintf called from *DoRawLog below has some (exotic) code paths
 // that invoke malloc() and getenv() that might acquire some locks.
-// If this becomes a problem we should reimplement a subset of vsnprintf
-// that does not need locks and malloc.
-// E.g. google3/third_party/clearsilver/core/util/snprintf.c
-// looks like such a reimplementation.
 
 // Helper for RawLog below.
 // *DoRawLog writes to *buf of *size and move them past the written portion.

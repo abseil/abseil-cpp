@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
+#include <string>
+
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/debugging/leak_check.h"

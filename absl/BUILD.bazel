@@ -25,20 +25,6 @@ config_setting(
     },
 )
 
-config_setting(
-    name = "hybrid_compiler",
-    values = {
-        "compiler": "hybrid",
-    },
-)
-
-config_setting(
-    name = "llvm_warnings",
-    values = {
-        "define": "ABSL_LLVM_WARNINGS=1",
-    },
-)
-
 # following configs are based on mapping defined in: https://git.io/v5Ijz
 config_setting(
     name = "ios",

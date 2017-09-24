@@ -30,9 +30,6 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-# Some header files in //base are directly exported for unusual use cases,
-# and the ABSL versions must also be exported for those users.
-
 exports_files(["thread_annotations.h"])
 
 cc_library(
@@ -188,7 +185,7 @@ cc_library(
     hdrs = ["internal/throw_delegate.h"],
     copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
     features = [
-        "-use_header_modules",  # b/33207452
+        "-use_header_modules",
     ],
     deps = [
         ":base",

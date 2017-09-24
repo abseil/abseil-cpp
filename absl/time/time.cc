@@ -367,4 +367,17 @@ int64_t ToUniversal(absl::Time t) {
   return absl::FloorToUnit(t - absl::UniversalEpoch(), absl::Nanoseconds(100));
 }
 
+Time FromChrono(const std::chrono::system_clock::time_point& tp) {
+  return time_internal::FromUnixDuration(time_internal::FromChrono(
+      tp - std::chrono::system_clock::from_time_t(0)));
+}
+
+std::chrono::system_clock::time_point ToChronoTime(absl::Time t) {
+  using D = std::chrono::system_clock::duration;
+  auto d = time_internal::ToUnixDuration(t);
+  if (d < ZeroDuration()) d = Floor(d, FromChrono(D{1}));
+  return std::chrono::system_clock::from_time_t(0) +
+         time_internal::ToChronoDuration<D>(d);
+}
+
 }  // namespace absl

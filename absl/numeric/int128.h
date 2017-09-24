@@ -206,7 +206,7 @@ extern std::ostream& operator<<(std::ostream& o, const uint128& b);
 uint64_t Uint128Low64(const uint128& v);
 uint64_t Uint128High64(const uint128& v);
 
-// TODO(b/31950287): Implement signed 128-bit type
+// TODO(absl-team): Implement signed 128-bit type
 
 // --------------------------------------------------------------------------
 //                      Implementation details follow

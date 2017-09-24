@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
 #include <cstdint>
 #include <ctime>
@@ -132,50 +133,50 @@ TEST(Duration, ToConversion) {
 #undef TEST_DURATION_CONVERSION
 }
 
-template <int64_t n>
+template <int64_t N>
 void TestToConversion() {
-  constexpr absl::Duration nano = absl::Nanoseconds(n);
-  EXPECT_EQ(n, absl::ToInt64Nanoseconds(nano));
+  constexpr absl::Duration nano = absl::Nanoseconds(N);
+  EXPECT_EQ(N, absl::ToInt64Nanoseconds(nano));
   EXPECT_EQ(0, absl::ToInt64Microseconds(nano));
   EXPECT_EQ(0, absl::ToInt64Milliseconds(nano));
   EXPECT_EQ(0, absl::ToInt64Seconds(nano));
   EXPECT_EQ(0, absl::ToInt64Minutes(nano));
   EXPECT_EQ(0, absl::ToInt64Hours(nano));
-  const absl::Duration micro = absl::Microseconds(n);
-  EXPECT_EQ(n * 1000, absl::ToInt64Nanoseconds(micro));
-  EXPECT_EQ(n, absl::ToInt64Microseconds(micro));
+  const absl::Duration micro = absl::Microseconds(N);
+  EXPECT_EQ(N * 1000, absl::ToInt64Nanoseconds(micro));
+  EXPECT_EQ(N, absl::ToInt64Microseconds(micro));
   EXPECT_EQ(0, absl::ToInt64Milliseconds(micro));
   EXPECT_EQ(0, absl::ToInt64Seconds(micro));
   EXPECT_EQ(0, absl::ToInt64Minutes(micro));
   EXPECT_EQ(0, absl::ToInt64Hours(micro));
-  const absl::Duration milli = absl::Milliseconds(n);
-  EXPECT_EQ(n * 1000 * 1000, absl::ToInt64Nanoseconds(milli));
-  EXPECT_EQ(n * 1000, absl::ToInt64Microseconds(milli));
-  EXPECT_EQ(n, absl::ToInt64Milliseconds(milli));
+  const absl::Duration milli = absl::Milliseconds(N);
+  EXPECT_EQ(N * 1000 * 1000, absl::ToInt64Nanoseconds(milli));
+  EXPECT_EQ(N * 1000, absl::ToInt64Microseconds(milli));
+  EXPECT_EQ(N, absl::ToInt64Milliseconds(milli));
   EXPECT_EQ(0, absl::ToInt64Seconds(milli));
   EXPECT_EQ(0, absl::ToInt64Minutes(milli));
   EXPECT_EQ(0, absl::ToInt64Hours(milli));
-  const absl::Duration sec = absl::Seconds(n);
-  EXPECT_EQ(n * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(sec));
-  EXPECT_EQ(n * 1000 * 1000, absl::ToInt64Microseconds(sec));
-  EXPECT_EQ(n * 1000, absl::ToInt64Milliseconds(sec));
-  EXPECT_EQ(n, absl::ToInt64Seconds(sec));
+  const absl::Duration sec = absl::Seconds(N);
+  EXPECT_EQ(N * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(sec));
+  EXPECT_EQ(N * 1000 * 1000, absl::ToInt64Microseconds(sec));
+  EXPECT_EQ(N * 1000, absl::ToInt64Milliseconds(sec));
+  EXPECT_EQ(N, absl::ToInt64Seconds(sec));
   EXPECT_EQ(0, absl::ToInt64Minutes(sec));
   EXPECT_EQ(0, absl::ToInt64Hours(sec));
-  const absl::Duration min = absl::Minutes(n);
-  EXPECT_EQ(n * 60 * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(min));
-  EXPECT_EQ(n * 60 * 1000 * 1000, absl::ToInt64Microseconds(min));
-  EXPECT_EQ(n * 60 * 1000, absl::ToInt64Milliseconds(min));
-  EXPECT_EQ(n * 60, absl::ToInt64Seconds(min));
-  EXPECT_EQ(n, absl::ToInt64Minutes(min));
+  const absl::Duration min = absl::Minutes(N);
+  EXPECT_EQ(N * 60 * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(min));
+  EXPECT_EQ(N * 60 * 1000 * 1000, absl::ToInt64Microseconds(min));
+  EXPECT_EQ(N * 60 * 1000, absl::ToInt64Milliseconds(min));
+  EXPECT_EQ(N * 60, absl::ToInt64Seconds(min));
+  EXPECT_EQ(N, absl::ToInt64Minutes(min));
   EXPECT_EQ(0, absl::ToInt64Hours(min));
-  const absl::Duration hour = absl::Hours(n);
-  EXPECT_EQ(n * 60 * 60 * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(hour));
-  EXPECT_EQ(n * 60 * 60 * 1000 * 1000, absl::ToInt64Microseconds(hour));
-  EXPECT_EQ(n * 60 * 60 * 1000, absl::ToInt64Milliseconds(hour));
-  EXPECT_EQ(n * 60 * 60, absl::ToInt64Seconds(hour));
-  EXPECT_EQ(n * 60, absl::ToInt64Minutes(hour));
-  EXPECT_EQ(n, absl::ToInt64Hours(hour));
+  const absl::Duration hour = absl::Hours(N);
+  EXPECT_EQ(N * 60 * 60 * 1000 * 1000 * 1000, absl::ToInt64Nanoseconds(hour));
+  EXPECT_EQ(N * 60 * 60 * 1000 * 1000, absl::ToInt64Microseconds(hour));
+  EXPECT_EQ(N * 60 * 60 * 1000, absl::ToInt64Milliseconds(hour));
+  EXPECT_EQ(N * 60 * 60, absl::ToInt64Seconds(hour));
+  EXPECT_EQ(N * 60, absl::ToInt64Minutes(hour));
+  EXPECT_EQ(N, absl::ToInt64Hours(hour));
 }
 
 TEST(Duration, ToConversionDeprecated) {
@@ -184,6 +185,149 @@ TEST(Duration, ToConversionDeprecated) {
   TestToConversion<0>();
   TestToConversion<-1>();
   TestToConversion<-43>();
+}
+
+template <int64_t N>
+void TestFromChronoBasicEquality() {
+  using std::chrono::nanoseconds;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  using std::chrono::seconds;
+  using std::chrono::minutes;
+  using std::chrono::hours;
+
+  static_assert(absl::Nanoseconds(N) == absl::FromChrono(nanoseconds(N)), "");
+  static_assert(absl::Microseconds(N) == absl::FromChrono(microseconds(N)), "");
+  static_assert(absl::Milliseconds(N) == absl::FromChrono(milliseconds(N)), "");
+  static_assert(absl::Seconds(N) == absl::FromChrono(seconds(N)), "");
+  static_assert(absl::Minutes(N) == absl::FromChrono(minutes(N)), "");
+  static_assert(absl::Hours(N) == absl::FromChrono(hours(N)), "");
+}
+
+TEST(Duration, FromChrono) {
+  TestFromChronoBasicEquality<-123>();
+  TestFromChronoBasicEquality<-1>();
+  TestFromChronoBasicEquality<0>();
+  TestFromChronoBasicEquality<1>();
+  TestFromChronoBasicEquality<123>();
+
+  // Minutes (might, depending on the platform) saturate at +inf.
+  const auto chrono_minutes_max = std::chrono::minutes::max();
+  const auto minutes_max = absl::FromChrono(chrono_minutes_max);
+  const int64_t minutes_max_count = chrono_minutes_max.count();
+  if (minutes_max_count > kint64max / 60) {
+    EXPECT_EQ(absl::InfiniteDuration(), minutes_max);
+  } else {
+    EXPECT_EQ(absl::Minutes(minutes_max_count), minutes_max);
+  }
+
+  // Minutes (might, depending on the platform) saturate at -inf.
+  const auto chrono_minutes_min = std::chrono::minutes::min();
+  const auto minutes_min = absl::FromChrono(chrono_minutes_min);
+  const int64_t minutes_min_count = chrono_minutes_min.count();
+  if (minutes_min_count < kint64min / 60) {
+    EXPECT_EQ(-absl::InfiniteDuration(), minutes_min);
+  } else {
+    EXPECT_EQ(absl::Minutes(minutes_min_count), minutes_min);
+  }
+
+  // Hours (might, depending on the platform) saturate at +inf.
+  const auto chrono_hours_max = std::chrono::hours::max();
+  const auto hours_max = absl::FromChrono(chrono_hours_max);
+  const int64_t hours_max_count = chrono_hours_max.count();
+  if (hours_max_count > kint64max / 3600) {
+    EXPECT_EQ(absl::InfiniteDuration(), hours_max);
+  } else {
+    EXPECT_EQ(absl::Hours(hours_max_count), hours_max);
+  }
+
+  // Hours (might, depending on the platform) saturate at -inf.
+  const auto chrono_hours_min = std::chrono::hours::min();
+  const auto hours_min = absl::FromChrono(chrono_hours_min);
+  const int64_t hours_min_count = chrono_hours_min.count();
+  if (hours_min_count < kint64min / 3600) {
+    EXPECT_EQ(-absl::InfiniteDuration(), hours_min);
+  } else {
+    EXPECT_EQ(absl::Hours(hours_min_count), hours_min);
+  }
+}
+
+template <int64_t N>
+void TestToChrono() {
+  using std::chrono::nanoseconds;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  using std::chrono::seconds;
+  using std::chrono::minutes;
+  using std::chrono::hours;
+
+  EXPECT_EQ(nanoseconds(N), absl::ToChronoNanoseconds(absl::Nanoseconds(N)));
+  EXPECT_EQ(microseconds(N), absl::ToChronoMicroseconds(absl::Microseconds(N)));
+  EXPECT_EQ(milliseconds(N), absl::ToChronoMilliseconds(absl::Milliseconds(N)));
+  EXPECT_EQ(seconds(N), absl::ToChronoSeconds(absl::Seconds(N)));
+
+  constexpr auto absl_minutes = absl::Minutes(N);
+  auto chrono_minutes = minutes(N);
+  if (absl_minutes == -absl::InfiniteDuration()) {
+    chrono_minutes = minutes::min();
+  } else if (absl_minutes == absl::InfiniteDuration()) {
+    chrono_minutes = minutes::max();
+  }
+  EXPECT_EQ(chrono_minutes, absl::ToChronoMinutes(absl_minutes));
+
+  constexpr auto absl_hours = absl::Hours(N);
+  auto chrono_hours = hours(N);
+  if (absl_hours == -absl::InfiniteDuration()) {
+    chrono_hours = hours::min();
+  } else if (absl_hours == absl::InfiniteDuration()) {
+    chrono_hours = hours::max();
+  }
+  EXPECT_EQ(chrono_hours, absl::ToChronoHours(absl_hours));
+}
+
+TEST(Duration, ToChrono) {
+  using std::chrono::nanoseconds;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  using std::chrono::seconds;
+  using std::chrono::minutes;
+  using std::chrono::hours;
+
+  TestToChrono<kint64min>();
+  TestToChrono<-1>();
+  TestToChrono<0>();
+  TestToChrono<1>();
+  TestToChrono<kint64max>();
+
+  // Verify truncation toward zero.
+  const auto tick = absl::Nanoseconds(1) / 4;
+  EXPECT_EQ(nanoseconds(0), absl::ToChronoNanoseconds(tick));
+  EXPECT_EQ(nanoseconds(0), absl::ToChronoNanoseconds(-tick));
+  EXPECT_EQ(microseconds(0), absl::ToChronoMicroseconds(tick));
+  EXPECT_EQ(microseconds(0), absl::ToChronoMicroseconds(-tick));
+  EXPECT_EQ(milliseconds(0), absl::ToChronoMilliseconds(tick));
+  EXPECT_EQ(milliseconds(0), absl::ToChronoMilliseconds(-tick));
+  EXPECT_EQ(seconds(0), absl::ToChronoSeconds(tick));
+  EXPECT_EQ(seconds(0), absl::ToChronoSeconds(-tick));
+  EXPECT_EQ(minutes(0), absl::ToChronoMinutes(tick));
+  EXPECT_EQ(minutes(0), absl::ToChronoMinutes(-tick));
+  EXPECT_EQ(hours(0), absl::ToChronoHours(tick));
+  EXPECT_EQ(hours(0), absl::ToChronoHours(-tick));
+
+  // Verifies +/- infinity saturation at max/min.
+  constexpr auto inf = absl::InfiniteDuration();
+  EXPECT_EQ(nanoseconds::min(), absl::ToChronoNanoseconds(-inf));
+  EXPECT_EQ(nanoseconds::max(), absl::ToChronoNanoseconds(inf));
+  EXPECT_EQ(microseconds::min(), absl::ToChronoMicroseconds(-inf));
+  EXPECT_EQ(microseconds::max(), absl::ToChronoMicroseconds(inf));
+  EXPECT_EQ(milliseconds::min(), absl::ToChronoMilliseconds(-inf));
+  EXPECT_EQ(milliseconds::max(), absl::ToChronoMilliseconds(inf));
+  EXPECT_EQ(seconds::min(), absl::ToChronoSeconds(-inf));
+  EXPECT_EQ(seconds::max(), absl::ToChronoSeconds(inf));
+  EXPECT_EQ(minutes::min(), absl::ToChronoMinutes(-inf));
+  EXPECT_EQ(minutes::max(), absl::ToChronoMinutes(inf));
+  EXPECT_EQ(hours::min(), absl::ToChronoHours(-inf));
+  EXPECT_EQ(hours::max(), absl::ToChronoHours(inf));
 }
 
 // Used for testing the factory overloads.
@@ -248,7 +392,7 @@ TEST(Duration, FactoryOverloads) {
 }
 
 TEST(Duration, InfinityExamples) {
-  // These examples are used in the documentation in //base/time.h. They are
+  // These examples are used in the documentation in time.h. They are
   // written so that they can be copy-n-pasted easily.
 
   constexpr absl::Duration inf = absl::InfiniteDuration();

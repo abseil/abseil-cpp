@@ -38,6 +38,7 @@
 
 #include <atomic>
 
+#include "absl/base/attributes.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/stacktrace_config.h"
 
@@ -45,14 +46,13 @@
 #include ABSL_STACKTRACE_INL_HEADER
 #else
 # error Cannot calculate stack trace: will need to write for your environment
-# include "absl/debugging/internal/stacktrace_x86-inl.inc"
-# include "absl/debugging/internal/stacktrace_win32-inl.inc"
-# include "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
-# include "absl/debugging/internal/stacktrace_libunwind-inl.inc"
+# include "absl/debugging/internal/stacktrace_aarch64-inl.inc"
+# include "absl/debugging/internal/stacktrace_arm-inl.inc"
 # include "absl/debugging/internal/stacktrace_generic-inl.inc"
 # include "absl/debugging/internal/stacktrace_powerpc-inl.inc"
-# include "absl/debugging/internal/stacktrace_arm-inl.inc"
-# include "absl/debugging/internal/stacktrace_aarch64-inl.inc"
+# include "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
+# include "absl/debugging/internal/stacktrace_win32-inl.inc"
+# include "absl/debugging/internal/stacktrace_x86-inl.inc"
 #endif
 
 namespace absl {

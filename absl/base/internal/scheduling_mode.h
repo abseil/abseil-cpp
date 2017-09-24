@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Core interfaces and definitions used by by low-level //base interfaces such
-// as SpinLock.
+// Core interfaces and definitions used by by low-level interfaces such as
+// SpinLock.
 
 #ifndef ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_
 #define ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_

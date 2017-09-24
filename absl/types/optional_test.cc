@@ -328,7 +328,7 @@ TEST(optionalTest, InPlaceConstructor) {
   static_assert(opt2->x == ConstexprType::kCtorInitializerList, "");
 #endif
 
-  // TODO(b/34201852): uncomment these when std::is_constructible<T, Args&&...>
+  // TODO(absl-team): uncomment these when std::is_constructible<T, Args&&...>
   // SFINAE is added to optional::optional(absl::in_place_t, Args&&...).
   // struct I {
   //   I(absl::in_place_t);

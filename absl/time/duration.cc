@@ -641,6 +641,25 @@ timeval ToTimeval(Duration d) {
   return tv;
 }
 
+std::chrono::nanoseconds ToChronoNanoseconds(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::nanoseconds>(d);
+}
+std::chrono::microseconds ToChronoMicroseconds(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::microseconds>(d);
+}
+std::chrono::milliseconds ToChronoMilliseconds(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::milliseconds>(d);
+}
+std::chrono::seconds ToChronoSeconds(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::seconds>(d);
+}
+std::chrono::minutes ToChronoMinutes(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::minutes>(d);
+}
+std::chrono::hours ToChronoHours(Duration d) {
+  return time_internal::ToChronoDuration<std::chrono::hours>(d);
+}
+
 //
 // To/From std::string formatting.
 //
@@ -852,7 +871,7 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   return true;
 }
 
-// TODO(b/63899288) copybara strip once dependencies are removed.
+// TODO(absl-team): Remove once dependencies are removed.
 bool ParseFlag(const std::string& text, Duration* dst, std::string* /* err */) {
   return ParseDuration(text, dst);
 }

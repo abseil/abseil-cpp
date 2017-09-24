@@ -48,12 +48,10 @@ void AllocateThreadIdentityKey(ThreadIdentityReclaimerFunction reclaimer) {
     ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_CPP11
 // The actual TLS storage for a thread's currently associated ThreadIdentity.
 // This is referenced by inline accessors in the header.
-// "protected" visibility ensures that if multiple copies of //base exist in a
-// process (via dlopen() or similar), references to
-// thread_identity_ptr from each copy of the code will refer to
-// *different* instances of this ptr. See extensive discussion of this choice
-// in cl/90634708
-// TODO(ahh): hard deprecate multiple copies of //base; remove this.
+// "protected" visibility ensures that if multiple instances of Abseil code
+// exist within a process (via dlopen() or similar), references to
+// thread_identity_ptr from each instance of the code will refer to
+// *different* instances of this ptr.
 #ifdef __GNUC__
 __attribute__((visibility("protected")))
 #endif  // __GNUC__
@@ -70,7 +68,6 @@ void SetCurrentThreadIdentity(
   // NOTE: Not async-safe.  But can be open-coded.
   absl::call_once(init_thread_identity_key_once, AllocateThreadIdentityKey,
                   reclaimer);
-  // b/18366710:
   // We must mask signals around the call to setspecific as with current glibc,
   // a concurrent getspecific (needed for GetCurrentThreadIdentityIfPresent())
   // may zero our value.

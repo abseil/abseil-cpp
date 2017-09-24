@@ -25,15 +25,13 @@
 #if ABSL_STACKTRACE_INL_HEADER
 #error ABSL_STACKTRACE_INL_HEADER cannot be directly set
 #elif defined(__native_client__) || defined(__APPLE__) || \
-    defined(__ANDROID__) || defined(__myriad2__) || defined(__asmjs__) || \
-    defined(__Fuchsia__) || defined(__GENCLAVE__) || \
-    defined(GOOGLE_UNSUPPORTED_OS_HERCULES)
+    defined(__ANDROID__) || defined(__myriad2__) || defined(asmjs__) || \
+    defined(__Fuchsia__)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
 
 // Next, test for Mips and Windows.
-// TODO(marmstrong): http://b/21334018: Mips case, remove the check for
-// ABSL_STACKTRACE_INL_HEADER.
+// TODO(marmstrong): Mips case, remove the check for ABSL_STACKTRACE_INL_HEADER
 #elif defined(__mips__) && !defined(ABSL_STACKTRACE_INL_HEADER)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_unimplemented-inl.inc"

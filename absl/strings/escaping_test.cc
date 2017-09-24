@@ -17,11 +17,11 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
 #include "absl/strings/str_cat.h"
 

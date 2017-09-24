@@ -18,7 +18,6 @@
 #include "absl/strings/strip.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstring>
 #include <string>
 

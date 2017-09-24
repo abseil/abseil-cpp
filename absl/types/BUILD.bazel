@@ -48,7 +48,7 @@ cc_library(
     hdrs = ["bad_any_cast.h"],
     copts = ABSL_EXCEPTIONS_FLAG + ABSL_DEFAULT_COPTS,
     features = [
-        "-use_header_modules",  # b/33207452
+        "-use_header_modules",
     ],
     deps = [
         "//absl/base",
@@ -153,7 +153,7 @@ cc_library(
     hdrs = ["bad_optional_access.h"],
     copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
     features = [
-        "-use_header_modules",  # b/33207452
+        "-use_header_modules",
     ],
     deps = [
         "//absl/base",

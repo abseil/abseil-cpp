@@ -33,7 +33,6 @@ bool AddressIsReadable(const void* /* addr */) { return true; }
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-
 #include <atomic>
 #include <cerrno>
 #include <cstdint>

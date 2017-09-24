@@ -16,7 +16,6 @@
 
 #include "absl/strings/internal/memutil.h"
 
-#include <algorithm>
 #include <cstdlib>
 
 #include "gtest/gtest.h"

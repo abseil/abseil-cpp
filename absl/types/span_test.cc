@@ -14,7 +14,6 @@
 
 #include "absl/types/span.h"
 
-#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <numeric>
@@ -25,10 +24,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
-#include "absl/base/macros.h"
-#include "absl/base/port.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"

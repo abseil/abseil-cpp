@@ -92,9 +92,6 @@ char* FastUInt64ToBuffer(uint64_t i, char* buffer);
 static const int kFastToBufferSize = 32;
 static const int kSixDigitsToBufferSize = 16;
 
-char* RoundTripDoubleToBuffer(double d, char* buffer);
-char* RoundTripFloatToBuffer(float f, char* buffer);
-
 // Helper function for fast formatting of floating-point values.
 // The result is the same as printf's "%g", a.k.a. "%.6g"; that is, six
 // significant digits are returned, trailing zeros are removed, and numbers
