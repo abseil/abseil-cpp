@@ -20,11 +20,6 @@ load(
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
 )
-load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-    "GUNIT_MAIN_NO_LEAK_CHECK_DEPS_SELECTOR",
-)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -176,7 +171,8 @@ cc_test(
     deps = [
         ":base",
         ":core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -200,7 +196,8 @@ cc_test(
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":throw_delegate",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -221,9 +218,10 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":base_internal",
-        "//absl/strings",
         "//absl/memory",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 # Common test library made available for use in non-absl code that overrides
@@ -278,7 +276,8 @@ cc_test(
         ":base",
         ":config",
         ":endian",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -287,7 +286,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":config",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -298,7 +298,8 @@ cc_test(
         ":base",
         ":core_headers",
         "//absl/synchronization",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -319,7 +320,8 @@ cc_test(
     deps = [
         ":base",
         "//absl/synchronization",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -347,7 +349,8 @@ cc_test(
         ":base",
         ":core_headers",
         "//absl/synchronization",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -369,5 +372,6 @@ cc_test(
     ],
     deps = [
         ":malloc_extension",
-    ] + select(GUNIT_MAIN_NO_LEAK_CHECK_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )

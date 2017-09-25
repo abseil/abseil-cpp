@@ -64,8 +64,13 @@ const struct ZoneInfo {
      reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
 
     // Allows use of the local time zone from a common system-specific location.
+#ifdef _MSC_VER
+    {"localtime",  //
+     reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
+#else
     {"/etc/localtime",  //
      reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
+#endif
 };
 
 class TestZoneInfoSource : public cctz::ZoneInfoSource {

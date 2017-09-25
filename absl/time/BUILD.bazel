@@ -19,10 +19,6 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
 )
-load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -85,7 +81,6 @@ cc_test(
         "no_test_android_x86",
         "no_test_ios_x86_64",
         "no_test_loonix",
-        "no_test_msvc_x64",
     ],
     deps = [
         ":test_util",

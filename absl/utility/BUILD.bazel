@@ -3,10 +3,6 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
 )
-load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -30,5 +26,6 @@ cc_test(
     deps = [
         ":utility",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )

@@ -20,10 +20,6 @@ load(
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
 )
-load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -69,7 +65,8 @@ cc_test(
         "//absl/base:config",
         "//absl/base:exception_testing",
         "//absl/container:test_instance_tracker",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -85,7 +82,8 @@ cc_test(
         "//absl/base:config",
         "//absl/base:exception_testing",
         "//absl/container:test_instance_tracker",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -114,7 +112,8 @@ cc_test(
         "//absl/container:fixed_array",
         "//absl/container:inlined_vector",
         "//absl/strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -130,7 +129,8 @@ cc_test(
         "//absl/container:fixed_array",
         "//absl/container:inlined_vector",
         "//absl/strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -174,5 +174,6 @@ cc_test(
         "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )

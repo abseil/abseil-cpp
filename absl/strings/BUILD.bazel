@@ -19,11 +19,6 @@
 # changes to this file, see    http://www/eng/howto/build-monitors.html
 
 load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-    "GUNIT_DEPS_SELECTOR",
-)
-load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
@@ -109,7 +104,10 @@ cc_test(
     size = "small",
     srcs = ["match_test.cc"],
     copts = ABSL_TEST_COPTS,
-    deps = [":strings"] + select(GUNIT_MAIN_DEPS_SELECTOR),
+    deps = [
+        ":strings",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -124,7 +122,8 @@ cc_test(
         ":strings",
         "//absl/base:core_headers",
         "//absl/container:fixed_array",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -135,7 +134,8 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -149,7 +149,8 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -160,10 +161,11 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     deps = [
-        ":strings",
         ":internal",
+        ":strings",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -173,10 +175,11 @@ cc_test(
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":strings",
-        "//absl/base:core_headers",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -187,7 +190,8 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -197,7 +201,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -208,7 +213,8 @@ cc_test(
         ":strings",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -218,7 +224,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":internal",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -232,7 +239,8 @@ cc_test(
     deps = [
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -244,7 +252,8 @@ cc_test(
         ":strings",
         "//absl/base:core_headers",
         "//absl/memory",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -255,7 +264,8 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -273,7 +283,8 @@ cc_test(
         ":strings",
         "//absl/base",
         "//absl/base:core_headers",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -281,7 +292,10 @@ cc_test(
     size = "small",
     srcs = ["strip_test.cc"],
     copts = ABSL_TEST_COPTS,
-    deps = [":strings"] + select(GUNIT_MAIN_DEPS_SELECTOR),
+    deps = [
+        ":strings",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -290,5 +304,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":internal",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )

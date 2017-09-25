@@ -992,8 +992,7 @@ bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
 //   --start_time=2016-01-02T03:04:05.678+08:00
 //
 // Note: A UTC offset (or 'Z' indicating a zero-offset from UTC) is required.
-// If your application doesn't have a UTC offset to specify, perhaps you're
-// really specifying a Civil Time
+//
 // Additionally, if you'd like to specify a time as a count of
 // seconds/milliseconds/etc from the Unix epoch, use a absl::Duration flag and
 // add that duration to absl::UnixEpoch() to get a absl::Time.
@@ -1026,7 +1025,6 @@ std::string UnparseFlag(Time t);
 // - https://github.com/google/cctz
 // - http://www.iana.org/time-zones
 // - http://en.wikipedia.org/wiki/Zoneinfo
-//   TimeZone backing data with your binary.
 class TimeZone {
  public:
   explicit TimeZone(cctz::time_zone tz) : cz_(tz) {}

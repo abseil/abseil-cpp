@@ -392,6 +392,11 @@ TEST(FormatParse, RoundTrip) {
     EXPECT_EQ(in, out);  // RFC1123_full includes %z
   }
 
+  // `absl::FormatTime()` falls back to strftime() for "%c", which appears to
+  // work. On Windows, `absl::ParseTime()` falls back to std::get_time() which
+  // appears to fail on "%c" (or at least on the "%c" text produced by
+  // `strftime()`). This makes it fail the round-trip test.
+#ifndef _MSC_VER
   // Even though we don't know what %c will produce, it should roundtrip,
   // but only in the 0-offset timezone.
   {
@@ -400,6 +405,7 @@ TEST(FormatParse, RoundTrip) {
     EXPECT_TRUE(absl::ParseTime("%c", s, &out, &err)) << s << ": " << err;
     EXPECT_EQ(in, out);
   }
+#endif  // _MSC_VER
 }
 
 TEST(FormatParse, RoundTripDistantFuture) {

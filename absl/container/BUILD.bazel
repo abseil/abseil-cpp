@@ -19,10 +19,6 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
 )
-load(
-    "//absl:test_dependencies.bzl",
-    "GUNIT_MAIN_DEPS_SELECTOR",
-)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -49,7 +45,8 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/memory",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -61,7 +58,8 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/memory",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -88,7 +86,8 @@ cc_test(
         "//absl/base:exception_testing",
         "//absl/memory",
         "//absl/strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -103,7 +102,8 @@ cc_test(
         "//absl/base:exception_testing",
         "//absl/memory",
         "//absl/strings",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -120,5 +120,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":test_instance_tracker",
-    ] + select(GUNIT_MAIN_DEPS_SELECTOR),
+        "@com_google_googletest//:gtest_main",
+    ],
 )
