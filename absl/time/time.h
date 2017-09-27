@@ -68,9 +68,9 @@
 
 namespace absl {
 
-class Duration;      // Defined below
-class Time;          // Defined below
-class TimeZone;      // Defined below
+class Duration;  // Defined below
+class Time;      // Defined below
+class TimeZone;  // Defined below
 
 namespace time_internal {
 int64_t IDivDuration(bool satq, Duration num, Duration den, Duration* rem);
@@ -558,26 +558,32 @@ class Time {
   constexpr Time() {}
 
   // Assignment operators.
-  Time& operator+=(Duration d) { rep_ += d;  return *this; }
-  Time& operator-=(Duration d) { rep_ -= d;  return *this; }
+  Time& operator+=(Duration d) {
+    rep_ += d;
+    return *this;
+  }
+  Time& operator-=(Duration d) {
+    rep_ -= d;
+    return *this;
+  }
 
   // Time::Breakdown
   //
-  // The calendar and wall-clock (aka "civil time") components of a
+  // The calendar and wall-clock (aka "civil time") components of an
   // `absl::Time` in a certain `absl::TimeZone`. This struct is not
   // intended to represent an instant in time. So, rather than passing
   // a `Time::Breakdown` to a function, pass an `absl::Time` and an
   // `absl::TimeZone`.
   struct Breakdown {
-    int64_t year;             // year (e.g., 2013)
-    int month;              // month of year [1:12]
-    int day;                // day of month [1:31]
-    int hour;               // hour of day [0:23]
-    int minute;             // minute of hour [0:59]
-    int second;             // second of minute [0:59]
-    Duration subsecond;     // [Seconds(0):Seconds(1)) if finite
-    int weekday;            // 1==Mon, ..., 7=Sun
-    int yearday;            // day of year [1:366]
+    int64_t year;          // year (e.g., 2013)
+    int month;           // month of year [1:12]
+    int day;             // day of month [1:31]
+    int hour;            // hour of day [0:23]
+    int minute;          // minute of hour [0:59]
+    int second;          // second of minute [0:59]
+    Duration subsecond;  // [Seconds(0):Seconds(1)) if finite
+    int weekday;         // 1==Mon, ..., 7=Sun
+    int yearday;         // day of year [1:366]
 
     // Note: The following fields exist for backward compatibility
     // with older APIs.  Accessing these fields directly is a sign of
@@ -624,9 +630,7 @@ inline Duration operator-(Time lhs, Time rhs) { return lhs.rep_ - rhs.rep_; }
 // UnixEpoch()
 //
 // Returns the `absl::Time` representing "1970-01-01 00:00:00.0 +0000".
-constexpr Time UnixEpoch() {
-  return Time();
-}
+constexpr Time UnixEpoch() { return Time(); }
 
 // UniversalEpoch()
 //
@@ -717,14 +721,14 @@ constexpr Time InfinitePast() {
 //   // tc.kind == TimeConversion::UNIQUE && tc.normalized == true
 //   // tc.pre.In(tz).month == 11 && tc.pre.In(tz).day == 1
 struct TimeConversion {
-  Time pre;         // time calculated using the pre-transition offset
-  Time trans;       // when the civil-time discontinuity occurred
-  Time post;        // time calculated using the post-transition offset
+  Time pre;    // time calculated using the pre-transition offset
+  Time trans;  // when the civil-time discontinuity occurred
+  Time post;   // time calculated using the post-transition offset
 
   enum Kind {
-    UNIQUE,         // the civil time was singular (pre == trans == post)
-    SKIPPED,        // the civil time did not exist
-    REPEATED,       // the civil time was ambiguous
+    UNIQUE,    // the civil time was singular (pre == trans == post)
+    SKIPPED,   // the civil time did not exist
+    REPEATED,  // the civil time was ambiguous
   };
   Kind kind;
 
@@ -869,8 +873,8 @@ extern const char RFC3339_sec[];   // %Y-%m-%dT%H:%M:%S%Ez
 // RFC1123_no_wday
 //
 // FormatTime()/ParseTime() format specifiers for RFC1123 date/time strings.
-extern const char RFC1123_full[];  // %a, %d %b %E4Y %H:%M:%S %z
-extern const char RFC1123_no_wday[];   // %d %b %E4Y %H:%M:%S %z
+extern const char RFC1123_full[];     // %a, %d %b %E4Y %H:%M:%S %z
+extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 
 // FormatTime()
 //
@@ -937,7 +941,7 @@ inline std::ostream& operator<<(std::ostream& os, Time t) {
 //
 //   "1970-01-01 00:00:00.0 +0000"
 //
-// For example, parsing a std::string of "15:45" (%H:%M) will return a absl::Time
+// For example, parsing a std::string of "15:45" (%H:%M) will return an absl::Time
 // that represents "1970-01-01 15:45:00.0 +0000".  Note: Since ParseTime()
 // returns time instants, it makes the most sense to parse fully-specified
 // date/time strings that include a UTC offset (%z/%Ez), such as those
@@ -968,8 +972,8 @@ inline std::ostream& operator<<(std::ostream& os, Time t) {
 // If the input std::string is "infinite-past", the returned `absl::Time` will be
 // `absl::InfinitePast()` and `true` will be returned.
 //
-bool ParseTime(const std::string& format, const std::string& input,
-               Time* time, std::string* err);
+bool ParseTime(const std::string& format, const std::string& input, Time* time,
+               std::string* err);
 
 // Like ParseTime() above, but if the format std::string does not contain a UTC
 // offset specification (%z/%Ez) then the input is interpreted in the given
@@ -994,8 +998,8 @@ bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
 // Note: A UTC offset (or 'Z' indicating a zero-offset from UTC) is required.
 //
 // Additionally, if you'd like to specify a time as a count of
-// seconds/milliseconds/etc from the Unix epoch, use a absl::Duration flag and
-// add that duration to absl::UnixEpoch() to get a absl::Time.
+// seconds/milliseconds/etc from the Unix epoch, use an absl::Duration flag
+// and add that duration to absl::UnixEpoch() to get an absl::Time.
 bool ParseFlag(const std::string& text, Time* t, std::string* error);
 std::string UnparseFlag(Time t);
 
@@ -1098,7 +1102,7 @@ constexpr Duration MakeDuration(int64_t hi, uint32_t lo = 0) {
 }
 
 constexpr Duration MakeDuration(int64_t hi, int64_t lo) {
-  return time_internal::MakeDuration(hi, static_cast<uint32_t>(lo));
+  return MakeDuration(hi, static_cast<uint32_t>(lo));
 }
 
 // Creates a normalized Duration from an almost-normalized (sec,ticks)
@@ -1106,9 +1110,8 @@ constexpr Duration MakeDuration(int64_t hi, int64_t lo) {
 // -kTicksPerSecond < *ticks < kTicksPerSecond.  If ticks is negative it
 // will be normalized to a positive value in the resulting Duration.
 constexpr Duration MakeNormalizedDuration(int64_t sec, int64_t ticks) {
-  return (ticks < 0)
-             ? time_internal::MakeDuration(sec - 1, ticks + kTicksPerSecond)
-             : time_internal::MakeDuration(sec, ticks);
+  return (ticks < 0) ? MakeDuration(sec - 1, ticks + kTicksPerSecond)
+                     : MakeDuration(sec, ticks);
 }
 // Provide access to the Duration representation.
 constexpr int64_t GetRepHi(Duration d) { return d.rep_hi_; }

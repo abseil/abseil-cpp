@@ -15,7 +15,7 @@
 // The implementation of the absl::Time class, which is declared in
 // //absl/time.h.
 //
-// The representation for a absl::Time is a absl::Duration offset from the
+// The representation for an absl::Time is an absl::Duration offset from the
 // epoch.  We use the traditional Unix epoch (1970-01-01 00:00:00 +0000)
 // for convenience, but this is not exposed in the API and could be changed.
 //
@@ -23,12 +23,12 @@
 // conventions are used throughout this file.
 //
 // cz: A cctz::time_zone
-// tz: A absl::TimeZone
+// tz: An absl::TimeZone
 // cl: A cctz::time_zone::civil_lookup
 // al: A cctz::time_zone::absolute_lookup
 // cd: A cctz::civil_day
 // cs: A cctz::civil_second
-// bd: A absl::Time::Breakdown
+// bd: An absl::Time::Breakdown
 
 #include "absl/time/time.h"
 

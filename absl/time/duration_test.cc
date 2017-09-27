@@ -460,10 +460,10 @@ TEST(Duration, InfinityAddition) {
 
   // For reference: IEEE 754 behavior
   const double dbl_inf = std::numeric_limits<double>::infinity();
-  EXPECT_TRUE(isinf(dbl_inf + dbl_inf));
-  EXPECT_TRUE(isnan(dbl_inf + -dbl_inf));  // We return inf
-  EXPECT_TRUE(isnan(-dbl_inf + dbl_inf));  // We return inf
-  EXPECT_TRUE(isinf(-dbl_inf + -dbl_inf));
+  EXPECT_TRUE(std::isinf(dbl_inf + dbl_inf));
+  EXPECT_TRUE(std::isnan(dbl_inf + -dbl_inf));  // We return inf
+  EXPECT_TRUE(std::isnan(-dbl_inf + dbl_inf));  // We return inf
+  EXPECT_TRUE(std::isinf(-dbl_inf + -dbl_inf));
 }
 
 TEST(Duration, InfinitySubtraction) {
@@ -497,10 +497,10 @@ TEST(Duration, InfinitySubtraction) {
 
   // For reference: IEEE 754 behavior
   const double dbl_inf = std::numeric_limits<double>::infinity();
-  EXPECT_TRUE(isnan(dbl_inf - dbl_inf));  // We return inf
-  EXPECT_TRUE(isinf(dbl_inf - -dbl_inf));
-  EXPECT_TRUE(isinf(-dbl_inf - dbl_inf));
-  EXPECT_TRUE(isnan(-dbl_inf - -dbl_inf));  // We return inf
+  EXPECT_TRUE(std::isnan(dbl_inf - dbl_inf));  // We return inf
+  EXPECT_TRUE(std::isinf(dbl_inf - -dbl_inf));
+  EXPECT_TRUE(std::isinf(-dbl_inf - dbl_inf));
+  EXPECT_TRUE(std::isnan(-dbl_inf - -dbl_inf));  // We return inf
 }
 
 TEST(Duration, InfinityMultiplication) {
@@ -708,13 +708,13 @@ TEST(Duration, InfinityIDiv) {
 
   // IEEE 754 says inf / inf should be nan, but int64_t doesn't have
   // nan so we'll return kint64max/kint64min instead.
-  EXPECT_TRUE(isnan(dbl_inf / dbl_inf));
+  EXPECT_TRUE(std::isnan(dbl_inf / dbl_inf));
   EXPECT_EQ(kint64max, inf / inf);
   EXPECT_EQ(kint64max, -inf / -inf);
   EXPECT_EQ(kint64min, -inf / inf);
   EXPECT_EQ(kint64min, inf / -inf);
 
-  EXPECT_TRUE(isinf(dbl_inf / 2.0));
+  EXPECT_TRUE(std::isinf(dbl_inf / 2.0));
   EXPECT_EQ(kint64max, inf / any_dur);
   EXPECT_EQ(kint64max, -inf / -any_dur);
   EXPECT_EQ(kint64min, -inf / any_dur);
@@ -763,8 +763,8 @@ TEST(Duration, DivisionByZero) {
 
   // IEEE 754 behavior
   double z = 0.0, two = 2.0;
-  EXPECT_TRUE(isinf(two / z));
-  EXPECT_TRUE(isnan(z / z));  // We'll return inf
+  EXPECT_TRUE(std::isinf(two / z));
+  EXPECT_TRUE(std::isnan(z / z));  // We'll return inf
 
   // Operator/(Duration, double)
   EXPECT_EQ(inf, zero / 0.0);

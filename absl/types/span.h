@@ -35,7 +35,7 @@
 //    * `absl::Span` has no `operator()`
 //    * `absl::Span` has no constructors for `std::unique_ptr` or
 //      `std::shared_ptr`
-//    * `absl::span` has the factory functions `MakeSpan()` and
+//    * `absl::Span` has the factory functions `MakeSpan()` and
 //      `MakeConstSpan()`
 //    * `absl::Span` has `front()` and `back()` methods
 //    * bounds-checked access to `absl::Span` is accomplished with `at()`

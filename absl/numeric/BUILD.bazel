@@ -6,7 +6,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["unencumbered"])  # Owned by Google
+licenses(["notice"])  # Apache 2.0
 
 cc_library(
     name = "int128",

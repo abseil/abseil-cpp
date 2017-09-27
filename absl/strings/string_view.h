@@ -339,8 +339,8 @@ class string_view {
 
   // string_view::substr()
   //
-  // Returns a "substring" of the `string_view` (at offset `post` and length
-  // `n`) as another std::string views. This function throws `std::out_of_bounds` if
+  // Returns a "substring" of the `string_view` (at offset `pos` and length
+  // `n`) as another string_view. This function throws `std::out_of_bounds` if
   // `pos > size'.
   string_view substr(size_type pos, size_type n = npos) const {
     if (ABSL_PREDICT_FALSE(pos > length_))

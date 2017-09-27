@@ -869,7 +869,7 @@ void c_stable_sort(C& c, Compare&& comp) {
 // c_is_sorted()
 //
 // Container-based version of the <algorithm> `std::is_sorted()` function
-// to evaluate whethr the given containter is sorted in ascending order.
+// to evaluate whether the given containter is sorted in ascending order.
 template <typename C>
 bool c_is_sorted(const C& c) {
   return std::is_sorted(container_algorithm_internal::c_begin(c),
