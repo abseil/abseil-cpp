@@ -1,4 +1,4 @@
-Please submit a new Abseil Issue using the tempate below:
+Please submit a new Abseil Issue using the template below:
 
 ## [Short title of proposed API change(s)]
 
