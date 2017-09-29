@@ -36,6 +36,14 @@ config_setting(
 config_setting(
     name = "windows",
     values = {
+        "cpu": "x64_windows",
+    },
+)
+
+# TODO: Remove the following config_setting when nobody is using --cpu=x64_windows_msvc
+config_setting(
+    name = "windows_msvc",
+    values = {
         "cpu": "x64_windows_msvc",
     },
 )
