@@ -46,6 +46,7 @@
 // GCC will not tail call given inline volatile assembly.
 #define ABSL_BLOCK_TAIL_CALL_OPTIMIZATION() __asm__ __volatile__("")
 #elif defined(_MSC_VER)
+#include <intrin.h>
 // The __nop() intrinsic blocks the optimisation.
 #define ABSL_BLOCK_TAIL_CALL_OPTIMIZATION() __nop()
 #else

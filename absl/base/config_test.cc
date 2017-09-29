@@ -17,12 +17,12 @@
 #include <cstdint>
 
 #include "gtest/gtest.h"
+#include "absl/synchronization/internal/thread_pool.h"
 
 namespace {
 
 TEST(ConfigTest, Endianness) {
-  union
-  {
+  union {
     uint32_t value;
     uint8_t data[sizeof(uint32_t)];
   } number;
@@ -40,5 +40,21 @@ TEST(ConfigTest, Endianness) {
 #error Unknown endianness
 #endif
 }
+
+#if defined(ABSL_HAVE_THREAD_LOCAL)
+TEST(ConfigTest, ThreadLocal) {
+  static thread_local int mine_mine_mine = 16;
+  EXPECT_EQ(16, mine_mine_mine);
+  {
+    absl::synchronization_internal::ThreadPool pool(1);
+    pool.Schedule([&] {
+      EXPECT_EQ(16, mine_mine_mine);
+      mine_mine_mine = 32;
+      EXPECT_EQ(32, mine_mine_mine);
+    });
+  }
+  EXPECT_EQ(16, mine_mine_mine);
+}
+#endif
 
 }  // namespace

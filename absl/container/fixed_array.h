@@ -120,7 +120,7 @@ class FixedArray {
   template <typename Iter, EnableIfForwardIterator<Iter> = 0>
   FixedArray(Iter first, Iter last) : rep_(first, last) {}
 
-  // Create the array from an initializer_list.
+  // Creates the array from an initializer_list.
   FixedArray(std::initializer_list<T> init_list)
       : FixedArray(init_list.begin(), init_list.end()) {}
 

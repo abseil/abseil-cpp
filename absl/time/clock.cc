@@ -368,7 +368,7 @@ static uint64_t UpdateLastSample(
 // into the fast past.  That causes lots of register spills and reloads that
 // are unnecessary unless the slow path is taken.
 //
-// TODO(absl-team) Remove this attribute when our compiler is smart enough
+// TODO(absl-team): Remove this attribute when our compiler is smart enough
 // to do the right thing.
 ABSL_ATTRIBUTE_NOINLINE
 static int64_t GetCurrentTimeNanosSlowPath() LOCKS_EXCLUDED(lock) {

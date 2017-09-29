@@ -246,7 +246,7 @@ class optional_data_base : public optional_data_dtor_base<T> {
   }
 };
 
-// TODO(absl-team) Add another class using
+// TODO(absl-team): Add another class using
 // std::is_trivially_move_constructible trait when available to match
 // http://cplusplus.github.io/LWG/lwg-defects.html#2900, for types that
 // have trivial move but nontrivial copy.

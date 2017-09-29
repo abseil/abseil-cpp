@@ -56,6 +56,13 @@
 #include <cstddef>
 #endif  // __cplusplus
 
+#if defined(__APPLE__)
+// Included for TARGET_OS_IPHONE, __IPHONE_OS_VERSION_MIN_REQUIRED,
+// __IPHONE_8_0.
+#include <Availability.h>
+#include <TargetConditionals.h>
+#endif
+
 #include "absl/base/policy_checks.h"
 
 // -----------------------------------------------------------------------------
@@ -151,12 +158,13 @@
 //
 // Checks whether C++11's `thread_local` storage duration specifier is
 // supported.
-//
-// Notes: Clang implements the `thread_local` keyword but Xcode did not support
-// the implementation until Xcode 8.
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
-#elif !defined(__apple_build_version__) || __apple_build_version__ >= 8000042
+#elif !defined(__apple_build_version__) ||   \
+    ((__apple_build_version__ >= 8000042) && \
+     !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0))
+// Notes: Xcode's clang did not support `thread_local` until version
+// 8, and even then not for iOS < 8.0.
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 

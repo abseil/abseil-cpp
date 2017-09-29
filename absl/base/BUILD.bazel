@@ -286,6 +286,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":config",
+        "//absl/synchronization:thread_pool",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -50,7 +50,7 @@ namespace absl {
 //
 // An `implicit_cast()` may also be used to annotate numeric type conversions
 // that, although safe, may produce compiler warnings (such as `long` to `int`).
-// Additionally, an `implict_cast()` is also useful within return statements to
+// Additionally, an `implicit_cast()` is also useful within return statements to
 // indicate a specific implicit conversion is being undertaken.
 //
 // Example:

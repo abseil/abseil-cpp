@@ -46,7 +46,7 @@ namespace absl {
 // that occurs, existing uses of `uint128` will continue to work using that new
 // type.
 //
-// Note: code written with this type will continue to compile once `unint128_t`
+// Note: code written with this type will continue to compile once `uint128_t`
 // is introduced, provided the replacement helper functions
 // `Uint128(Low|High)64()` and `MakeUint128()` are made.
 //
