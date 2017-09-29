@@ -331,6 +331,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:windows_msvc": [],
         "//conditions:default": ["-pthread"],
     }),
     deps = [":malloc_internal"],
@@ -343,6 +344,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:windows_msvc": [],
         "//conditions:default": ["-pthread"],
     }),
     deps = [
@@ -359,6 +361,9 @@ cc_test(
     srcs = ["internal/malloc_extension_test.cc"],
     copts = select({
         "//absl:windows": [
+            "/DABSL_MALLOC_EXTENSION_TEST_ALLOW_MISSING_EXTENSION=1",
+        ],
+        "//absl:windows_msvc": [
             "/DABSL_MALLOC_EXTENSION_TEST_ALLOW_MISSING_EXTENSION=1",
         ],
         "//conditions:default": [

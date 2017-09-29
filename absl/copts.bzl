@@ -114,6 +114,7 @@ MSVC_TEST_FLAGS = [
 # /Wall with msvc includes unhelpful warnings such as C4711, C4710, ...
 ABSL_DEFAULT_COPTS = select({
     "//absl:windows": MSVC_FLAGS,
+    "//absl:windows_msvc": MSVC_FLAGS,
     "//absl:llvm_compiler": LLVM_FLAGS,
     "//conditions:default": GCC_FLAGS,
 })
@@ -122,11 +123,13 @@ ABSL_DEFAULT_COPTS = select({
 # to their (included header) dependencies and fail to build outside absl
 ABSL_TEST_COPTS = ABSL_DEFAULT_COPTS + select({
     "//absl:windows": MSVC_TEST_FLAGS,
+    "//absl:windows_msvc": MSVC_TEST_FLAGS,
     "//absl:llvm_compiler": LLVM_TEST_FLAGS,
     "//conditions:default": GCC_TEST_FLAGS,
 })
 
 ABSL_EXCEPTIONS_FLAG = select({
     "//absl:windows": ["/U_HAS_EXCEPTIONS", "/D_HAS_EXCEPTIONS=1", "/EHsc"],
+    "//absl:windows_msvc": ["/U_HAS_EXCEPTIONS", "/D_HAS_EXCEPTIONS=1", "/EHsc"],
     "//conditions:default": ["-fexceptions"],
 })

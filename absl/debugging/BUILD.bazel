@@ -76,6 +76,7 @@ cc_library(
         # guaranteed definitions for weak symbols.
         "//absl:ios": [],
         "//absl:windows": [],
+        "//absl:windows_msvc": [],
         "//conditions:default": [
             "leak_check.cc",
         ],
@@ -83,6 +84,7 @@ cc_library(
     hdrs = select({
         "//absl:ios": [],
         "//absl:windows": [],
+        "//absl:windows_msvc": [],
         "//conditions:default": ["leak_check.h"],
     }),
     deps = ["//absl/base:core_headers"],
