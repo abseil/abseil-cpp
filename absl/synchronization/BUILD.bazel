@@ -129,7 +129,6 @@ cc_library(
 cc_test(
     name = "mutex_test",
     size = "large",
-    timeout = "moderate",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
     tags = [

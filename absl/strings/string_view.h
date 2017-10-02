@@ -482,21 +482,21 @@ class string_view {
   static constexpr size_type kMaxSize =
       std::numeric_limits<size_type>::max() / 2 + 1;
 
-  static constexpr size_type StrLenInternal(const char* str) {
-    return str ?
-// check whether __builtin_strlen is provided by the compiler.
-// GCC doesn't have __has_builtin()
-// (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66970),
-// but has __builtin_strlen according to
-// https://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Other-Builtins.html.
+  // check whether __builtin_strlen is provided by the compiler.
+  // GCC doesn't have __has_builtin()
+  // (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66970),
+  // but has __builtin_strlen according to
+  // https://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Other-Builtins.html.
 #if ABSL_HAVE_BUILTIN(__builtin_strlen) || \
     (defined(__GNUC__) && !defined(__clang__))
-               __builtin_strlen(str)
-#else
-               strlen(str)
-#endif
-               : 0;
+  static constexpr size_type StrLenInternal(const char* str) {
+    return str ? __builtin_strlen(str) : 0;
   }
+#else
+  static constexpr size_type StrLenInternal(const char* str) {
+    return str ? strlen(str) : 0;
+  }
+#endif
 
   static constexpr size_type CheckLengthInternal(size_type len) {
     return ABSL_ASSERT(len <= kMaxSize), len;
