@@ -16,6 +16,7 @@
 #include <cctype>
 #include <cstdint>
 
+#include "absl/base/macros.h"
 #include "absl/time/time.h"
 #include "cctz/time_zone.h"
 
@@ -29,8 +30,12 @@ extern const char RFC1123_no_wday[] =  "%d %b %E4Y %H:%M:%S %z";
 
 namespace {
 
-const char kInfiniteFutureStr[] = "infinite-future";
-const char kInfinitePastStr[] = "infinite-past";
+constexpr char kInfiniteFutureStr[] = "infinite-future";
+constexpr size_t kInfiniteFutureStrSize =
+    ABSL_ARRAYSIZE(kInfiniteFutureStr) - 1;
+
+constexpr char kInfinitePastStr[] = "infinite-past";
+constexpr size_t kInfinitePastStrSize = ABSL_ARRAYSIZE(kInfinitePastStr) - 1;
 
 using cctz_sec = cctz::time_point<cctz::sys_seconds>;
 using cctz_fem = cctz::detail::femtoseconds;
@@ -95,7 +100,7 @@ bool ParseTime(const std::string& format, const std::string& input, absl::TimeZo
   const char* data = input.c_str();
   while (std::isspace(*data)) ++data;
 
-  size_t inf_size = strlen(kInfiniteFutureStr);
+  size_t inf_size = kInfiniteFutureStrSize;
   if (strncmp(data, kInfiniteFutureStr, inf_size) == 0) {
     const char* new_data = data + inf_size;
     while (std::isspace(*new_data)) ++new_data;
@@ -105,7 +110,7 @@ bool ParseTime(const std::string& format, const std::string& input, absl::TimeZo
     }
   }
 
-  inf_size = strlen(kInfinitePastStr);
+  inf_size = kInfinitePastStrSize;
   if (strncmp(data, kInfinitePastStr, inf_size) == 0) {
     const char* new_data = data + inf_size;
     while (std::isspace(*new_data)) ++new_data;
