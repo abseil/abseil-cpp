@@ -335,7 +335,7 @@
 
 // ABSL_HAVE_STD_ANY
 //
-// Checks whether C++17 std::any is availble by checking whether <any> exists.
+// Checks whether C++17 std::any is available by checking whether <any> exists.
 #ifdef ABSL_HAVE_STD_ANY
 #error "ABSL_HAVE_STD_ANY cannot be directly set."
 #endif

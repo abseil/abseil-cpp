@@ -477,11 +477,11 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 
 // ParseDuration()
 //
-// Parses a duration std::string consisting of a possibly signed sequence
-// of decimal numbers, each with an optional fractional part and a
-// unit suffix.  The valid suffixes are "ns", "us" "ms", "s", "m",
-// and "h".  Simple examples include "300ms", "-1.5h", and "2h45m".
-// Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
+// Parses a duration std::string consisting of a possibly signed sequence of
+// decimal numbers, each with an optional fractional part and a unit
+// suffix.  The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
+// Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
+// `ZeroDuration()`.  Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
 bool ParseDuration(const std::string& dur_string, Duration* d);
 
 // Flag Support

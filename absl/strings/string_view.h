@@ -176,7 +176,7 @@ class string_view {
   constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
       : ptr_(str), length_(StrLenInternal(str)) {}
 
-  // Implicit consructor of a `string_view` from a `const char*` and length
+  // Implicit constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(const char* data, size_type len)
       : ptr_(data), length_(CheckLengthInternal(len)) {}
 
@@ -324,7 +324,7 @@ class string_view {
 
   // Explicit conversion operators
 
-  // Supports conversion to both `std::basic_string` where available.
+  // Converts to `std::basic_string`.
   template <typename A>
   explicit operator std::basic_string<char, traits_type, A>() const {
     if (!data()) return {};
