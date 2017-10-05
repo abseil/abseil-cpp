@@ -180,7 +180,7 @@
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
 #elif (defined(__clang__) && defined(__SIZEOF_INT128__) &&               \
-       !defined(__ppc64__) && !defined(__aarch64__)) ||                  \
+       !defined(__aarch64__)) ||                                         \
     (defined(__CUDACC__) && defined(__SIZEOF_INT128__) &&                \
      __CUDACC_VER__ >= 70000) ||                                         \
     (!defined(__clang__) && !defined(__CUDACC__) && defined(__GNUC__) && \

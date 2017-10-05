@@ -41,7 +41,7 @@ TEST(SleepForTest, BasicSanity) {
   absl::SleepFor(sleep_time);
   absl::Time end = absl::Now();
   EXPECT_LE(sleep_time - absl::Milliseconds(100), end - start);
-  EXPECT_GE(sleep_time + absl::Milliseconds(100), end - start);
+  EXPECT_GE(sleep_time + absl::Milliseconds(200), end - start);
 }
 
 #ifdef ABSL_HAVE_ALARM
@@ -62,7 +62,7 @@ TEST(SleepForTest, AlarmSupport) {
   absl::Time end = absl::Now();
   EXPECT_TRUE(alarm_handler_invoked);
   EXPECT_LE(sleep_time - absl::Milliseconds(100), end - start);
-  EXPECT_GE(sleep_time + absl::Milliseconds(100), end - start);
+  EXPECT_GE(sleep_time + absl::Milliseconds(200), end - start);
   signal(SIGALRM, old_alarm);
 }
 #endif  // ABSL_HAVE_ALARM
