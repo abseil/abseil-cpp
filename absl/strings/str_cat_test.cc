@@ -300,6 +300,12 @@ TEST(StrAppend, Basics) {
     "World"
   };
 
+  std::string stdstrs[] = {
+    "std::Hello",
+    "std::Cruel",
+    "std::World"
+  };
+
   absl::string_view pieces[] = {"Hello", "Cruel", "World"};
 
   const char* c_strs[] = {
@@ -324,12 +330,12 @@ TEST(StrAppend, Basics) {
   EXPECT_EQ(result.substr(old_size), "CruelWorld");
 
   old_size = result.size();
-  absl::StrAppend(&result, strs[0], ", ", pieces[2]);
-  EXPECT_EQ(result.substr(old_size), "Hello, World");
+  absl::StrAppend(&result, stdstrs[0], ", ", pieces[2]);
+  EXPECT_EQ(result.substr(old_size), "std::Hello, World");
 
   old_size = result.size();
-  absl::StrAppend(&result, strs[0], ", ", strs[1], " ", strs[2], "!");
-  EXPECT_EQ(result.substr(old_size), "Hello, Cruel World!");
+  absl::StrAppend(&result, strs[0], ", ", stdstrs[1], " ", strs[2], "!");
+  EXPECT_EQ(result.substr(old_size), "Hello, std::Cruel World!");
 
   old_size = result.size();
   absl::StrAppend(&result, pieces[0], ", ", pieces[1], " ", pieces[2]);

@@ -135,8 +135,11 @@ struct negation : std::integral_constant<bool, !T::value> {};
 //
 // Determines whether the passed type `T` is trivially destructable.
 //
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::is_trivially_destructible()` metafunction.
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_trivially_destructible()` metafunction for platforms that have
+// incomplete C++11 support (such as libstdc++ 4.x). On any platforms that do
+// fully support C++11, we check whether this yields the same result as the std
+// implementation.
 //
 // NOTE: the extensions (__has_trivial_xxx) are implemented in gcc (version >=
 // 4.3) and clang. Since we are supporting libstdc++ > 4.7, they should always
@@ -157,8 +160,11 @@ struct is_trivially_destructible
 //
 // Determines whether the passed type `T` is trivially default constructible.
 //
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::is_trivially_default_constructible()` metafunction.
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_trivially_default_constructible()` metafunction for platforms that
+// have incomplete C++11 support (such as libstdc++ 4.x). On any platforms that
+// do fully support C++11, we check whether this yields the same result as the
+// std implementation.
 //
 // NOTE: according to the C++ standard, Section: 20.15.4.3 [meta.unary.prop]
 // "The predicate condition for a template specialization is_constructible<T,
@@ -199,8 +205,11 @@ struct is_trivially_default_constructible
 //
 // Determines whether the passed type `T` is trivially copy constructible.
 //
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::is_trivially_copy_constructible()` metafunction.
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_trivially_copy_constructible()` metafunction for platforms that have
+// incomplete C++11 support (such as libstdc++ 4.x). On any platforms that do
+// fully support C++11, we check whether this yields the same result as the std
+// implementation.
 //
 // NOTE: `T obj(declval<const T&>());` needs to be well-formed and not call any
 // nontrivial operation.  Nontrivally destructible types will cause the
@@ -221,8 +230,11 @@ struct is_trivially_copy_constructible
 //
 // Determines whether the passed type `T` is trivially copy assignable.
 //
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::is_trivially_copy_assignable()` metafunction.
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_trivially_copy_assignable()` metafunction for platforms that have
+// incomplete C++11 support (such as libstdc++ 4.x). On any platforms that do
+// fully support C++11, we check whether this yields the same result as the std
+// implementation.
 //
 // NOTE: `is_assignable<T, U>::value` is `true` if the expression
 // `declval<T>() = declval<U>()` is well-formed when treated as an unevaluated

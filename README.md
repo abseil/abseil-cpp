@@ -67,7 +67,7 @@ Abseil contains the following C++ library components:
   time zones.
 * [`types`](absl/types/)
   <br /> The `types` library contains non-container utility types, like a
-  C++11-compatible version of `absl::optional`.
+  C++11-compatible version of the C++17 `std::optional` type.
 
 ## License
 

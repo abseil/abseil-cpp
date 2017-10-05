@@ -124,9 +124,24 @@ class InlinedVector {
   InlinedVector(const InlinedVector& v);
   InlinedVector(const InlinedVector& v, const allocator_type& alloc);
 
+  // This move constructor does not allocate and only moves the underlying
+  // objects, so its `noexcept` specification depends on whether moving the
+  // underlying objects can throw or not. We assume
+  //  a) move constructors should only throw due to allocation failure and
+  //  b) if `value_type`'s move constructor allocates, it uses the same
+  //     allocation function as the `InlinedVector`'s allocator, so the move
+  //     constructor is non-throwing if the allocator is non-throwing or
+  //     `value_type`'s move constructor is specified as `noexcept`.
   InlinedVector(InlinedVector&& v) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value ||
       std::is_nothrow_move_constructible<value_type>::value);
+
+  // This move constructor allocates and also moves the underlying objects, so
+  // its `noexcept` specification depends on whether the allocation can throw
+  // and whether moving the underlying objects can throw. Based on the same
+  // assumptions above, the `noexcept` specification is dominated by whether the
+  // allocation can throw regardless of whether `value_type`'s move constructor
+  // is specified as `noexcept`.
   InlinedVector(InlinedVector&& v, const allocator_type& alloc) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value);
 
