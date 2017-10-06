@@ -83,13 +83,20 @@ struct FlipFlop {
 
 // CallMaybeWithArg(f) resolves either to Invoke(f) or Invoke(f, 42), depending
 // on which one is valid.
+//
+// The second function argument should not be needed to get SFINAE to work, but
+// is here to support limitations in MSVC 2015.  See
+// https://blogs.msdn.microsoft.com/vcblog/2015/12/02/partial-support-for-expression-sfinae-in-vs-2015-update-1/
 template <typename F>
-decltype(Invoke(std::declval<const F&>())) CallMaybeWithArg(const F& f) {
+decltype(Invoke(std::declval<const F&>())) CallMaybeWithArg(
+    const F& f, decltype(Invoke(std::declval<const F&>()))* dummy = nullptr) {
   return Invoke(f);
 }
 
 template <typename F>
-decltype(Invoke(std::declval<const F&>(), 42)) CallMaybeWithArg(const F& f) {
+decltype(Invoke(std::declval<const F&>(), 42)) CallMaybeWithArg(
+    const F& f,
+    decltype(Invoke(std::declval<const F&>(), 42))* dummy = nullptr) {
   return Invoke(f, 42);
 }
 
