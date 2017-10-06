@@ -84,12 +84,15 @@ struct FlipFlop {
 // CallMaybeWithArg(f) resolves either to Invoke(f) or Invoke(f, 42), depending
 // on which one is valid.
 template <typename F>
-decltype(Invoke(std::declval<const F&>())) CallMaybeWithArg(const F& f) {
+decltype(Invoke(std::declval<const F&>())) CallMaybeWithArg(
+    const F& f, decltype(Invoke(std::declval<const F&>()))* dummy = nullptr) {
   return Invoke(f);
 }
 
 template <typename F>
-decltype(Invoke(std::declval<const F&>(), 42)) CallMaybeWithArg(const F& f) {
+decltype(Invoke(std::declval<const F&>(), 42)) CallMaybeWithArg(
+    const F& f,
+    decltype(Invoke(std::declval<const F&>(), 42))* dummy = nullptr) {
   return Invoke(f, 42);
 }
 
