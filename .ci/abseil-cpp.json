@@ -3,6 +3,5 @@
 [
     {"node": "linux-x86_64"},
     {"node": "ubuntu_16.04-x86_64"},
-    {"node": "darwin-x86_64"},
-    {"node": "windows-x86_64"}
+    {"node": "darwin-x86_64"}
 ]
