@@ -383,16 +383,6 @@ class any {
 #if ABSL_ANY_DETAIL_HAS_RTTI
     virtual const std::type_info& Type() const noexcept = 0;
 #endif  // ABSL_ANY_DETAIL_HAS_RTTI
-
-    // Note that on 64-bit (unix) systems size_t is 64-bit while int is 32-bit and
-    // the compiler will happily and quietly assign such a 64-bit value to a
-    // 32-bit integer. While a client should never do that it SHOULD still be safe,
-    // assuming the BSS segment doesn't span more than 4GiB.
-    size_t type_id() const noexcept {
-      static_assert(sizeof(void*) <= sizeof(size_t),
-                    "ptr size too large for size_t");
-      return reinterpret_cast<size_t>(ObjTypeId());
-    }
   };
 
   // Hold a value of some queryable type, with an ability to Clone it.
@@ -431,8 +421,7 @@ class any {
   }
 
   const void* GetObjTypeId() const {
-    return obj_ == nullptr ? any_internal::FastTypeId<void>()
-                           : obj_->ObjTypeId();
+    return obj_ ? obj_->ObjTypeId() : any_internal::FastTypeId<void>();
   }
 
   // `absl::any` nonmember functions //
