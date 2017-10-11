@@ -82,7 +82,8 @@ class InlinedVector {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  InlinedVector() noexcept(noexcept(allocator_type()))
+  InlinedVector() noexcept(
+      std::is_nothrow_default_constructible<allocator_type>::value)
       : allocator_and_tag_(allocator_type()) {}
 
   explicit InlinedVector(const allocator_type& alloc) noexcept

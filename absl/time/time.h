@@ -1126,8 +1126,10 @@ constexpr Duration OppositeInfinity(Duration d) {
              : MakeDuration(std::numeric_limits<int64_t>::min(), ~0U);
 }
 
-// Returns (-n)-1 (equivalently -(n+1)) without overflowing on any input value.
+// Returns (-n)-1 (equivalently -(n+1)) without avoidable overflow.
 constexpr int64_t NegateAndSubtractOne(int64_t n) {
+  // Note: Good compilers will optimize this expression to ~n when using
+  // a two's-complement representation (which is required for int64_t).
   return (n < 0) ? -(n + 1) : (-n) - 1;
 }
 
@@ -1232,31 +1234,26 @@ constexpr bool operator==(Duration lhs, Duration rhs) {
 constexpr Duration operator-(Duration d) {
   // This is a little interesting because of the special cases.
   //
-  // Infinities stay infinite, and just change direction.
+  // If rep_lo_ is zero, we have it easy; it's safe to negate rep_hi_, we're
+  // dealing with an integral number of seconds, and the only special case is
+  // the maximum negative finite duration, which can't be negated.
   //
-  // The maximum negative finite duration can't be negated (at least, not
-  // on a two's complement machine), so we return infinity for that case.
-  // Next we dispatch the case where rep_lo_ is zero, observing that it's
-  // safe to negate rep_hi_ in this case because it's not int64_t-min (or
-  // else we'd have handled it above, returning InfiniteDuration()).
+  // Infinities stay infinite, and just change direction.
   //
   // Finally we're in the case where rep_lo_ is non-zero, and we can borrow
   // a second's worth of ticks and avoid overflow (as negating int64_t-min + 1
   // is safe).
-  return time_internal::IsInfiniteDuration(d)
-             ? time_internal::OppositeInfinity(d)
-             : (time_internal::GetRepHi(d) ==
-                    std::numeric_limits<int64_t>::min() &&
-                time_internal::GetRepLo(d) == 0)
+  return time_internal::GetRepLo(d) == 0
+             ? time_internal::GetRepHi(d) == std::numeric_limits<int64_t>::min()
                    ? InfiniteDuration()
-                   : (time_internal::GetRepLo(d) == 0)
-                         ? time_internal::MakeDuration(
-                               -time_internal::GetRepHi(d))
-                         : time_internal::MakeDuration(
-                               time_internal::NegateAndSubtractOne(
-                                   time_internal::GetRepHi(d)),
-                               time_internal::kTicksPerSecond -
-                                   time_internal::GetRepLo(d));
+                   : time_internal::MakeDuration(-time_internal::GetRepHi(d))
+             : time_internal::IsInfiniteDuration(d)
+                   ? time_internal::OppositeInfinity(d)
+                   : time_internal::MakeDuration(
+                         time_internal::NegateAndSubtractOne(
+                             time_internal::GetRepHi(d)),
+                         time_internal::kTicksPerSecond -
+                             time_internal::GetRepLo(d));
 }
 
 constexpr Duration Nanoseconds(int64_t n) {

@@ -63,7 +63,7 @@ const struct ZoneInfo {
     {"US/Pacific",  //
      reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
 
-    // Allows use of the local time zone from a common system-specific location.
+    // Allows use of the local time zone from a system-specific location.
 #ifdef _MSC_VER
     {"localtime",  //
      reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
