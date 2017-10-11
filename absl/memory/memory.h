@@ -38,8 +38,8 @@ namespace absl {
 // Function Template: WrapUnique()
 // -----------------------------------------------------------------------------
 //
-// Transfers ownership of a raw pointer to a `std::unique_ptr`. The returned
-// value is a `std::unique_ptr` of deduced type.
+//  Adopts ownership from a raw pointer and transfers it to the returned
+//  `std::unique_ptr`, whose type is deduced.
 //
 // Example:
 //   X* NewX(int, int);
@@ -169,8 +169,8 @@ typename memory_internal::MakeUniqueResult<T>::invalid make_unique(
 // Function Template: RawPtr()
 // -----------------------------------------------------------------------------
 //
-// Extracts the raw pointer from a pointer-like 'ptr'. `absl::RawPtr` is useful
-// within templates that need to handle a complement of raw pointers,
+// Extracts the raw pointer from a pointer-like value `ptr`. `absl::RawPtr` is
+// useful within templates that need to handle a complement of raw pointers,
 // `std::nullptr_t`, and smart pointers.
 template <typename T>
 auto RawPtr(T&& ptr) -> decltype(&*ptr) {
@@ -183,9 +183,9 @@ inline std::nullptr_t RawPtr(std::nullptr_t) { return nullptr; }
 // Function Template: ShareUniquePtr()
 // -----------------------------------------------------------------------------
 //
-// Transforms a `std::unique_ptr` rvalue into a `std::shared_ptr`. The returned
-// value is a `std::shared_ptr` of deduced type and ownership is transferred to
-// the shared pointer.
+// Adopts a `std::unique_ptr` rvalue and returns a `std::shared_ptr` of deduced
+// type. Ownership (if any) of the held value is transferred to the returned
+// shared pointer.
 //
 // Example:
 //
@@ -194,8 +194,11 @@ inline std::nullptr_t RawPtr(std::nullptr_t) { return nullptr; }
 //     CHECK_EQ(*sp, 10);
 //     CHECK(up == nullptr);
 //
-// Note that this conversion is correct even when T is an array type, although
-// the resulting shared pointer may not be very useful.
+// Note that this conversion is correct even when T is an array type, and more
+// generally it works for *any* deleter of the `unique_ptr` (single-object
+// deleter, array deleter, or any custom deleter), since the deleter is adopted
+// by the shared pointer as well. The deleter is copied (unless it is a
+// reference).
 //
 // Implements the resolution of [LWG 2415](http://wg21.link/lwg2415), by which a
 // null shared pointer does not attempt to call the deleter.

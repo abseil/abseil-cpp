@@ -295,9 +295,8 @@ class string_view {
 
   // string_view::remove_prefix()
   //
-  // Removes the first `n` characters from the `string_view`, returning a
-  // pointer to the new first character. Note that the underlying std::string is not
-  // changed, only the view.
+  // Removes the first `n` characters from the `string_view`. Note that the
+  // underlying std::string is not changed, only the view.
   void remove_prefix(size_type n) {
     assert(n <= length_);
     ptr_ += n;
