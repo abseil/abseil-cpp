@@ -103,8 +103,8 @@ template <typename Type>
 constexpr char TypeTag<Type>::dummy_var;
 
 // FastTypeId<Type>() evaluates at compile/link-time to a unique pointer for the
-// passed in type. These are meant to be good match for keys into maps or straight
-// up comparisons.
+// passed in type. These are meant to be good match for keys into maps or
+// straight up comparisons.
 template<typename Type>
 constexpr inline const void* FastTypeId() {
   return &TypeTag<Type>::dummy_var;
