@@ -270,8 +270,17 @@ TEST(optionalTest, CopyConstructor) {
     EXPECT_TRUE(absl::is_trivially_copy_constructible<
                 absl::optional<const TrivialCopyable>>::value);
 #endif
+    // When testing with VS 2017 15.3, there seems to be a bug in MSVC
+    // std::optional when T is volatile-qualified. So skipping this test.
+    // Bug report:
+    // https://connect.microsoft.com/VisualStudio/feedback/details/3142534
+#if defined(ABSL_HAVE_STD_OPTIONAL) && defined(_MSC_VER) && _MSC_VER >= 1911
+#define ABSL_MSVC_OPTIONAL_VOLATILE_COPY_BUG 1
+#endif
+#ifndef ABSL_MSVC_OPTIONAL_VOLATILE_COPY_BUG
     EXPECT_FALSE(std::is_copy_constructible<
                  absl::optional<volatile TrivialCopyable>>::value);
+#endif
   }
 }
 

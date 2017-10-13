@@ -378,7 +378,7 @@ class Span {
   //
   // Returns a reference to the i'th element of this span.
   constexpr reference at(size_type i) const {
-    return ABSL_PREDICT_FALSE(i < size())
+    return ABSL_PREDICT_TRUE(i < size())
                ? ptr_[i]
                : (base_internal::ThrowStdOutOfRange(
                       "Span::at failed bounds check"),
