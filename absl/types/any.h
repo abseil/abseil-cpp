@@ -94,23 +94,20 @@ namespace absl {
 
 namespace any_internal {
 
-// FastTypeId<Type>() evaluates at compile/link-time to a unique integer for the
-// passed in type. Their values are neither contiguous nor small, making them
-// unfit for using as an index into a vector, but a good match for keys into
-// maps or straight up comparisons.
-// Note that on 64-bit (unix) systems size_t is 64-bit while int is 32-bit and
-// the compiler will happily and quietly assign such a 64-bit value to a
-// 32-bit integer. While a client should never do that it SHOULD still be safe,
-// assuming the BSS segment doesn't span more than 4GiB.
-template<typename Type>
-inline size_t FastTypeId() {
-  static_assert(sizeof(char*) <= sizeof(size_t),
-                "ptr size too large for size_t");
+template <typename Type>
+struct TypeTag {
+  constexpr static char dummy_var = 0;
+};
 
-  // This static variable isn't actually used, only its address, so there are
-  // no concurrency issues.
-  static char dummy_var;
-  return reinterpret_cast<size_t>(&dummy_var);
+template <typename Type>
+constexpr char TypeTag<Type>::dummy_var;
+
+// FastTypeId<Type>() evaluates at compile/link-time to a unique pointer for the
+// passed in type. These are meant to be good match for keys into maps or
+// straight up comparisons.
+template<typename Type>
+constexpr inline const void* FastTypeId() {
+  return &TypeTag<Type>::dummy_var;
 }
 
 }  // namespace any_internal
@@ -382,7 +379,7 @@ class any {
    public:
     virtual ~ObjInterface() = default;
     virtual std::unique_ptr<ObjInterface> Clone() const = 0;
-    virtual size_t type_id() const noexcept = 0;
+    virtual const void* ObjTypeId() const noexcept = 0;
 #if ABSL_ANY_DETAIL_HAS_RTTI
     virtual const std::type_info& Type() const noexcept = 0;
 #endif  // ABSL_ANY_DETAIL_HAS_RTTI
@@ -400,7 +397,7 @@ class any {
       return std::unique_ptr<ObjInterface>(new Obj(in_place, value));
     }
 
-    size_t type_id() const noexcept final { return IdForType<T>(); }
+    const void* ObjTypeId() const noexcept final { return IdForType<T>(); }
 
 #if ABSL_ANY_DETAIL_HAS_RTTI
     const std::type_info& Type() const noexcept final { return typeid(T); }
@@ -415,7 +412,7 @@ class any {
   }
 
   template <typename T>
-  static size_t IdForType() {
+  constexpr static const void* IdForType() {
     // Note: This type dance is to make the behavior consistent with typeid.
     using NormalizedType =
         typename std::remove_cv<typename std::remove_reference<T>::type>::type;
@@ -423,8 +420,8 @@ class any {
     return any_internal::FastTypeId<NormalizedType>();
   }
 
-  size_t GetObjTypeId() const {
-    return obj_ == nullptr ? any_internal::FastTypeId<void>() : obj_->type_id();
+  const void* GetObjTypeId() const {
+    return obj_ ? obj_->ObjTypeId() : any_internal::FastTypeId<void>();
   }
 
   // `absl::any` nonmember functions //
