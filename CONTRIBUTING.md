@@ -48,7 +48,7 @@ will be expected to conform to the style outlined
 
 *   Don't fix code style and formatting unless you are already changing that
     line to address an issue. Formatting of modified lines may be done using
-    `git clang-format`. PRs with irrelevant changes won't be merged. If
+   `git clang-format`. PRs with irrelevant changes won't be merged. If
     you do want to fix formatting or style, do that in a separate PR.
 
 *   Unless your PR is trivial, you should expect there will be reviewer comments

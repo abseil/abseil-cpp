@@ -30,6 +30,7 @@
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #ifndef _WIN32
+#include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
 #include <unistd.h>
