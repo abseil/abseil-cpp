@@ -28,6 +28,7 @@ licenses(["notice"])  # Apache 2.0
 cc_library(
     name = "spinlock_wait",
     srcs = [
+        "internal/spinlock_akaros.inc",
         "internal/spinlock_posix.inc",
         "internal/spinlock_wait.cc",
         "internal/spinlock_win32.inc",
