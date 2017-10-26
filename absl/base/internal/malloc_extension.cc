@@ -29,6 +29,13 @@ namespace base_internal {
 SysAllocator::~SysAllocator() {}
 void SysAllocator::GetStats(char* buffer, int) { buffer[0] = 0; }
 
+// Dummy key method to avoid weak vtable.
+void MallocExtensionWriter::UnusedKeyMethod() {}
+
+void StringMallocExtensionWriter::Write(const char* buf, int len) {
+  out_->append(buf, len);
+}
+
 // Default implementation -- does nothing
 MallocExtension::~MallocExtension() { }
 bool MallocExtension::VerifyAllMemory() { return true; }
