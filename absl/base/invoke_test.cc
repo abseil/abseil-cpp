@@ -81,18 +81,6 @@ struct FlipFlop {
   int member;
 };
 
-// CallMaybeWithArg(f) resolves either to Invoke(f) or Invoke(f, 42), depending
-// on which one is valid.
-template <typename F>
-decltype(Invoke(std::declval<const F&>())) CallMaybeWithArg(const F& f) {
-  return Invoke(f);
-}
-
-template <typename F>
-decltype(Invoke(std::declval<const F&>(), 42)) CallMaybeWithArg(const F& f) {
-  return Invoke(f, 42);
-}
-
 TEST(InvokeTest, Function) {
   EXPECT_EQ(1, Invoke(Function, 3, 2));
   EXPECT_EQ(1, Invoke(&Function, 3, 2));
@@ -188,11 +176,6 @@ TEST(InvokeTest, FlipFlop) {
   // ((*obj).*&FlipFlop::ConstMethod)(). We verify that it's the former.
   EXPECT_EQ(42, Invoke(&FlipFlop::ConstMethod, obj));
   EXPECT_EQ(42, Invoke(&FlipFlop::member, obj));
-}
-
-TEST(InvokeTest, SfinaeFriendly) {
-  CallMaybeWithArg(NoOp);
-  EXPECT_THAT(CallMaybeWithArg(Factory), ::testing::Pointee(42));
 }
 
 }  // namespace

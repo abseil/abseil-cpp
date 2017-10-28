@@ -108,16 +108,16 @@ TEST(EqualTest, MoveOnlyPredicate) {
   std::vector<int> v2{4, 5, 6};
 
   // move-only equality predicate
-  struct Eq {
-    Eq() = default;
-    Eq(Eq &&) = default;
-    Eq(const Eq &) = delete;
-    Eq &operator=(const Eq &) = delete;
+  struct Eqqq {
+    Eqqq() = default;
+    Eqqq(Eqqq &&) = default;
+    Eqqq(const Eqqq &) = delete;
+    Eqqq &operator=(const Eqqq &) = delete;
     bool operator()(const int a, const int b) const { return a == b; }
   };
 
-  EXPECT_TRUE(absl::equal(v1.begin(), v1.end(), v1.begin(), v1.end(), Eq()));
-  EXPECT_FALSE(absl::equal(v1.begin(), v1.end(), v2.begin(), v2.end(), Eq()));
+  EXPECT_TRUE(absl::equal(v1.begin(), v1.end(), v1.begin(), v1.end(), Eqqq()));
+  EXPECT_FALSE(absl::equal(v1.begin(), v1.end(), v2.begin(), v2.end(), Eqqq()));
 }
 
 struct CountingTrivialPred {
