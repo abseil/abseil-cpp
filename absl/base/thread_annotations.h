@@ -43,9 +43,9 @@
 
 // GUARDED_BY()
 //
-// Documents if a shared variable/field needs to be protected by a mutex.
-// GUARDED_BY() allows the user to specify a particular mutex that should be
-// held when accessing the annotated variable.
+// Documents if a shared field or global variable needs to be protected by a
+// mutex. GUARDED_BY() allows the user to specify a particular mutex that
+// should be held when accessing the annotated variable.
 //
 // Example:
 //
