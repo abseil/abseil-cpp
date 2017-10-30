@@ -34,6 +34,9 @@ cc_library(
         "internal/graphcycles.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         "//absl/base",
         "//absl/base:core_headers",

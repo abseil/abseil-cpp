@@ -53,7 +53,7 @@ inline bool StrContains(absl::string_view haystack, absl::string_view needle) {
 inline bool StartsWith(absl::string_view text, absl::string_view prefix) {
   return prefix.empty() ||
          (text.size() >= prefix.size() &&
-         memcmp(text.data(), prefix.data(), prefix.size()) == 0);
+          memcmp(text.data(), prefix.data(), prefix.size()) == 0);
 }
 
 // EndsWith()
@@ -63,7 +63,8 @@ inline bool EndsWith(absl::string_view text, absl::string_view suffix) {
   return suffix.empty() ||
          (text.size() >= suffix.size() &&
           memcmp(text.data() + (text.size() - suffix.size()), suffix.data(),
-  suffix.size()) == 0);
+                 suffix.size()) == 0
+         );
 }
 
 // StartsWithIgnoreCase()

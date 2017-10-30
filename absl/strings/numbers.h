@@ -62,9 +62,9 @@ ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* value);
 
 // SimpleAtob()
 //
-// Converts the given std::string into into a boolean, returning `true` if
-// successful. The following case-insensitive strings are interpreted as boolean
-// `true`: "true", "t", "yes", "y", "1". The following case-insensitive strings
+// Converts the given std::string into a boolean, returning `true` if successful.
+// The following case-insensitive strings are interpreted as boolean `true`:
+// "true", "t", "yes", "y", "1". The following case-insensitive strings
 // are interpreted as boolean `false`: "false", "f", "no", "n", "0".
 ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* value);
 

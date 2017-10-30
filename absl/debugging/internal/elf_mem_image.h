@@ -43,9 +43,14 @@ namespace debug_internal {
 
 // An in-memory ELF image (may not exist on disk).
 class ElfMemImage {
+ private:
+  // Sentinel: there could never be an elf image at &kInvalidBaseSentinel.
+  static const int kInvalidBaseSentinel;
+
  public:
   // Sentinel: there could never be an elf image at this address.
-  static const void *const kInvalidBase;
+  static constexpr const void *const kInvalidBase =
+    static_cast<const void*>(&kInvalidBaseSentinel);
 
   // Information about a single vdso symbol.
   // All pointers are into .dynsym, .dynstr, or .text of the VDSO.

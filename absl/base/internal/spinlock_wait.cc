@@ -23,6 +23,8 @@
 
 #if defined(_WIN32)
 #include "absl/base/internal/spinlock_win32.inc"
+#elif defined(__akaros__)
+#include "absl/base/internal/spinlock_akaros.inc"
 #else
 #include "absl/base/internal/spinlock_posix.inc"
 #endif

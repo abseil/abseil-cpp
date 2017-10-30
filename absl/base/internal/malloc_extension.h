@@ -388,6 +388,9 @@ class MallocExtensionWriter {
   MallocExtensionWriter() {}
   MallocExtensionWriter(const MallocExtensionWriter&) = delete;
   MallocExtensionWriter& operator=(const MallocExtensionWriter&) = delete;
+
+ private:
+  virtual void UnusedKeyMethod();  // Dummy key method to avoid weak vtable.
 };
 
 // A subclass that writes to the std::string "out".  NOTE: The generated
@@ -396,9 +399,7 @@ class MallocExtensionWriter {
 class StringMallocExtensionWriter : public MallocExtensionWriter {
  public:
   explicit StringMallocExtensionWriter(std::string* out) : out_(out) {}
-  virtual void Write(const char* buf, int len) {
-    out_->append(buf, len);
-  }
+  void Write(const char* buf, int len) override;
 
  private:
   std::string* const out_;

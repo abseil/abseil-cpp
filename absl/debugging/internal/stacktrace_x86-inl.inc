@@ -114,7 +114,9 @@ static const int kMaxFrameBytes = 100000;
 // vuc is a ucontext_t *.  We use void* to avoid the use
 // of ucontext_t on non-POSIX systems.
 static uintptr_t GetFP(const void *vuc) {
-#if defined(__linux__)
+#if !defined(__linux__)
+  static_cast<void>(vuc);  // Avoid an unused argument compiler warning.
+#else
   if (vuc != nullptr) {
     auto *uc = reinterpret_cast<const ucontext_t *>(vuc);
 #if defined(__i386__)

@@ -89,8 +89,6 @@ static void CheckSumG0G1(void *v) {
 }
 
 static void TestMu(TestContext *cxt, int c) {
-  SetInvariantChecked(false);
-  cxt->mu.EnableInvariantDebugging(CheckSumG0G1, cxt);
   for (int i = 0; i != cxt->iterations; i++) {
     absl::MutexLock l(&cxt->mu);
     int a = cxt->g0 + 1;
@@ -100,8 +98,6 @@ static void TestMu(TestContext *cxt, int c) {
 }
 
 static void TestTry(TestContext *cxt, int c) {
-  SetInvariantChecked(false);
-  cxt->mu.EnableInvariantDebugging(CheckSumG0G1, cxt);
   for (int i = 0; i != cxt->iterations; i++) {
     do {
       std::this_thread::yield();
@@ -122,8 +118,6 @@ static void TestR20ms(TestContext *cxt, int c) {
 }
 
 static void TestRW(TestContext *cxt, int c) {
-  SetInvariantChecked(false);
-  cxt->mu.EnableInvariantDebugging(CheckSumG0G1, cxt);
   if ((c & 1) == 0) {
     for (int i = 0; i != cxt->iterations; i++) {
       absl::WriterMutexLock l(&cxt->mu);
@@ -356,67 +350,57 @@ static void EndTest(int *c0, int *c1, absl::Mutex *mu, absl::CondVar *cv,
   cv->Signal();
 }
 
-// Basis for the parameterized tests configured below.
-static int RunTest(void (*test)(TestContext *cxt, int), int threads,
-                   int iterations, int operations) {
-  TestContext cxt;
+// Code common to RunTest() and RunTestWithInvariantDebugging().
+static int RunTestCommon(TestContext *cxt, void (*test)(TestContext *cxt, int),
+                         int threads, int iterations, int operations) {
   absl::Mutex mu2;
   absl::CondVar cv2;
-  int c0;
-  int c1;
-
-  // run with large thread count for full test and to get timing
-
-#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
-  absl::EnableMutexInvariantDebugging(false);
-#endif
-  c0 = 0;
-  c1 = 0;
-  cxt.g0 = 0;
-  cxt.g1 = 0;
-  cxt.iterations = iterations;
-  cxt.threads = threads;
+  int c0 = 0;
+  int c1 = 0;
+  cxt->g0 = 0;
+  cxt->g1 = 0;
+  cxt->iterations = iterations;
+  cxt->threads = threads;
   absl::synchronization_internal::ThreadPool tp(threads);
   for (int i = 0; i != threads; i++) {
     tp.Schedule(std::bind(&EndTest, &c0, &c1, &mu2, &cv2,
                           std::function<void(int)>(
-                              std::bind(test, &cxt, std::placeholders::_1))));
+                              std::bind(test, cxt, std::placeholders::_1))));
   }
   mu2.Lock();
   while (c1 != threads) {
     cv2.Wait(&mu2);
   }
   mu2.Unlock();
-  int saved_g0 = cxt.g0;
-
-  // run again with small number of iterations to test invariant checking
-
-#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
-  absl::EnableMutexInvariantDebugging(true);
-#endif
-  SetInvariantChecked(true);
-  c0 = 0;
-  c1 = 0;
-  cxt.g0 = 0;
-  cxt.g1 = 0;
-  cxt.iterations = (iterations > 10 ? 10 : iterations);
-  cxt.threads = threads;
-  for (int i = 0; i != threads; i++) {
-    tp.Schedule(std::bind(&EndTest, &c0, &c1, &mu2, &cv2,
-                          std::function<void(int)>(
-                              std::bind(test, &cxt, std::placeholders::_1))));
-  }
-  mu2.Lock();
-  while (c1 != threads) {
-    cv2.Wait(&mu2);
-  }
-  mu2.Unlock();
-#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
-  ABSL_RAW_CHECK(GetInvariantChecked(), "Invariant not checked");
-#endif
-
-  return saved_g0;
+  return cxt->g0;
 }
+
+// Basis for the parameterized tests configured below.
+static int RunTest(void (*test)(TestContext *cxt, int), int threads,
+                   int iterations, int operations) {
+  TestContext cxt;
+  return RunTestCommon(&cxt, test, threads, iterations, operations);
+}
+
+// Like RunTest(), but sets an invariant on the tested Mutex and
+// verifies that the invariant check happened. The invariant function
+// will be passed the TestContext* as its arg and must call
+// SetInvariantChecked(true);
+#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
+static int RunTestWithInvariantDebugging(void (*test)(TestContext *cxt, int),
+                                         int threads, int iterations,
+                                         int operations,
+                                         void (*invariant)(void *)) {
+  absl::EnableMutexInvariantDebugging(true);
+  SetInvariantChecked(false);
+  TestContext cxt;
+  cxt.mu.EnableInvariantDebugging(invariant, &cxt);
+  int ret = RunTestCommon(&cxt, test, threads, iterations, operations);
+  ABSL_RAW_CHECK(GetInvariantChecked(), "Invariant not checked");
+  absl::EnableMutexInvariantDebugging(false);  // Restore.
+  return ret;
+}
+#endif
 
 // --------------------------------------------------------
 // Test for fix of bug in TryRemove()
@@ -1463,6 +1447,13 @@ TEST_P(MutexVariableThreadCountTest, Mutex) {
   int iterations = ScaleIterations(10000000) / threads;
   int operations = threads * iterations;
   EXPECT_EQ(RunTest(&TestMu, threads, iterations, operations), operations);
+#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
+  iterations = std::min(iterations, 10);
+  operations = threads * iterations;
+  EXPECT_EQ(RunTestWithInvariantDebugging(&TestMu, threads, iterations,
+                                          operations, CheckSumG0G1),
+            operations);
+#endif
 }
 
 TEST_P(MutexVariableThreadCountTest, Try) {
@@ -1470,6 +1461,13 @@ TEST_P(MutexVariableThreadCountTest, Try) {
   int iterations = 1000000 / threads;
   int operations = iterations * threads;
   EXPECT_EQ(RunTest(&TestTry, threads, iterations, operations), operations);
+#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
+  iterations = std::min(iterations, 10);
+  operations = threads * iterations;
+  EXPECT_EQ(RunTestWithInvariantDebugging(&TestTry, threads, iterations,
+                                          operations, CheckSumG0G1),
+            operations);
+#endif
 }
 
 TEST_P(MutexVariableThreadCountTest, R20ms) {
@@ -1484,6 +1482,13 @@ TEST_P(MutexVariableThreadCountTest, RW) {
   int iterations = ScaleIterations(20000000) / threads;
   int operations = iterations * threads;
   EXPECT_EQ(RunTest(&TestRW, threads, iterations, operations), operations / 2);
+#if !defined(ABSL_MUTEX_ENABLE_INVARIANT_DEBUGGING_NOT_IMPLEMENTED)
+  iterations = std::min(iterations, 10);
+  operations = threads * iterations;
+  EXPECT_EQ(RunTestWithInvariantDebugging(&TestRW, threads, iterations,
+                                          operations, CheckSumG0G1),
+            operations / 2);
+#endif
 }
 
 TEST_P(MutexVariableThreadCountTest, Await) {

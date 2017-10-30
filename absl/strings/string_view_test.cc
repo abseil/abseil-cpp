@@ -922,6 +922,10 @@ TEST(StringViewTest, ConstexprCompiles) {
   constexpr absl::string_view::iterator const_begin_empty = sp.begin();
   constexpr absl::string_view::iterator const_end_empty = sp.end();
   EXPECT_EQ(const_begin_empty, const_end_empty);
+
+  constexpr absl::string_view::iterator const_begin_nullptr = cstr.begin();
+  constexpr absl::string_view::iterator const_end_nullptr = cstr.end();
+  EXPECT_EQ(const_begin_nullptr, const_end_nullptr);
 #endif
 
   constexpr absl::string_view::iterator const_begin = cstr_len.begin();

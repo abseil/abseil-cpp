@@ -112,6 +112,9 @@ cc_library(
     srcs = ["internal/test_instance_tracker.cc"],
     hdrs = ["internal/test_instance_tracker.h"],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
 )
 
 cc_test(

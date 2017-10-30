@@ -75,8 +75,9 @@ const T *GetTableElement(const ElfW(Ehdr) * ehdr, ElfW(Off) table_offset,
 
 }  // namespace
 
-const void *const ElfMemImage::kInvalidBase =
-    reinterpret_cast<const void *>(~0L);
+// The value of this variable doesn't matter; it's used only for its
+// unique address.
+const int ElfMemImage::kInvalidBaseSentinel = 0;
 
 ElfMemImage::ElfMemImage(const void *base) {
   ABSL_RAW_CHECK(base != kInvalidBase, "bad pointer");

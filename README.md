@@ -90,7 +90,3 @@ For more information about Abseil:
 ## Build with CMake
 
 Please check the [CMake build instructions](CMake/README.md)
-
-## Disclaimer
-
-*   This is not an official Google product.

@@ -57,6 +57,9 @@ cc_library(
     ],
     hdrs = ["internal/test_util.h"],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl/time:__pkg__",
+    ],
     deps = [
         ":time",
         "//absl/base",

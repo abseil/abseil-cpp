@@ -20,9 +20,14 @@
 
 #ifdef ABSL_HAVE_VDSO_SUPPORT     // defined in vdso_support.h
 
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+
+#if __GLIBC_PREREQ(2, 16)  // GLIBC-2.16 implements getauxval.
+#include <sys/auxv.h>
+#endif
 
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/raw_logging.h"
@@ -35,8 +40,10 @@
 namespace absl {
 namespace debug_internal {
 
+ABSL_CONST_INIT
 std::atomic<const void *> VDSOSupport::vdso_base_(
     debug_internal::ElfMemImage::kInvalidBase);
+
 std::atomic<VDSOSupport::GetCpuFn> VDSOSupport::getcpu_fn_(&InitAndGetCPU);
 VDSOSupport::VDSOSupport()
     // If vdso_base_ is still set to kInvalidBase, we got here
@@ -56,37 +63,44 @@ VDSOSupport::VDSOSupport()
 // Finally, even if there is a race here, it is harmless, because
 // the operation should be idempotent.
 const void *VDSOSupport::Init() {
-  if (vdso_base_.load(std::memory_order_relaxed) ==
-      debug_internal::ElfMemImage::kInvalidBase) {
-    {
-      // Valgrind zaps AT_SYSINFO_EHDR and friends from the auxv[]
-      // on stack, and so glibc works as if VDSO was not present.
-      // But going directly to kernel via /proc/self/auxv below bypasses
-      // Valgrind zapping. So we check for Valgrind separately.
-      if (RunningOnValgrind()) {
-        vdso_base_.store(nullptr, std::memory_order_relaxed);
-        getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
-        return nullptr;
-      }
-      int fd = open("/proc/self/auxv", O_RDONLY);
-      if (fd == -1) {
-        // Kernel too old to have a VDSO.
-        vdso_base_.store(nullptr, std::memory_order_relaxed);
-        getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
-        return nullptr;
-      }
-      ElfW(auxv_t) aux;
-      while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
-        if (aux.a_type == AT_SYSINFO_EHDR) {
-          vdso_base_.store(reinterpret_cast<void *>(aux.a_un.a_val),
-                           std::memory_order_relaxed);
-          break;
-        }
-      }
-      close(fd);
+  const auto kInvalidBase = debug_internal::ElfMemImage::kInvalidBase;
+#if __GLIBC_PREREQ(2, 16)
+  if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
+    errno = 0;
+    const void *const sysinfo_ehdr =
+        reinterpret_cast<const void *>(getauxval(AT_SYSINFO_EHDR));
+    if (errno == 0) {
+      vdso_base_.store(sysinfo_ehdr, std::memory_order_relaxed);
     }
-    if (vdso_base_.load(std::memory_order_relaxed) ==
-        debug_internal::ElfMemImage::kInvalidBase) {
+  }
+#endif  // __GLIBC_PREREQ(2, 16)
+  if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
+    // Valgrind zaps AT_SYSINFO_EHDR and friends from the auxv[]
+    // on stack, and so glibc works as if VDSO was not present.
+    // But going directly to kernel via /proc/self/auxv below bypasses
+    // Valgrind zapping. So we check for Valgrind separately.
+    if (RunningOnValgrind()) {
+      vdso_base_.store(nullptr, std::memory_order_relaxed);
+      getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
+      return nullptr;
+    }
+    int fd = open("/proc/self/auxv", O_RDONLY);
+    if (fd == -1) {
+      // Kernel too old to have a VDSO.
+      vdso_base_.store(nullptr, std::memory_order_relaxed);
+      getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
+      return nullptr;
+    }
+    ElfW(auxv_t) aux;
+    while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
+      if (aux.a_type == AT_SYSINFO_EHDR) {
+        vdso_base_.store(reinterpret_cast<void *>(aux.a_un.a_val),
+                         std::memory_order_relaxed);
+        break;
+      }
+    }
+    close(fd);
+    if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
       // Didn't find AT_SYSINFO_EHDR in auxv[].
       vdso_base_.store(nullptr, std::memory_order_relaxed);
     }
@@ -135,6 +149,7 @@ long VDSOSupport::GetCPUViaSyscall(unsigned *cpu,  // NOLINT(runtime/int)
   return syscall(SYS_getcpu, cpu, nullptr, nullptr);
 #else
   // x86_64 never implemented sys_getcpu(), except as a VDSO call.
+  static_cast<void>(cpu);  // Avoid an unused argument compiler warning.
   errno = ENOSYS;
   return -1;
 #endif

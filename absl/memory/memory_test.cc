@@ -138,6 +138,16 @@ TEST(Make_UniqueTest, Array) {
   EXPECT_THAT(ArrayWatch::allocs(), ElementsAre(5 * sizeof(ArrayWatch)));
 }
 
+TEST(Make_UniqueTest, NotAmbiguousWithStdMakeUnique) {
+  // Ensure that absl::make_unique is not ambiguous with std::make_unique.
+  // In C++14 mode, the below call to make_unique has both types as candidates.
+  struct TakesStdType {
+    explicit TakesStdType(const std::vector<int> &vec) {}
+  };
+  using absl::make_unique;
+  make_unique<TakesStdType>(std::vector<int>());
+}
+
 #if 0
 // TODO(billydonahue): Make a proper NC test.
 // These tests shouldn't compile.
