@@ -226,6 +226,37 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "pretty_function",
+    hdrs = ["internal/pretty_function.h"],
+)
+
+cc_library(
+    name = "exception_safety_testing",
+    testonly = 1,
+    srcs = ["internal/exception_safety_testing.cc"],
+    hdrs = ["internal/exception_safety_testing.h"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":config",
+        ":pretty_function",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "exception_safety_testing_test",
+    srcs = ["exception_safety_testing_test.cc"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":exception_safety_testing",
+        "//absl/memory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "invoke_test",
     size = "small",
