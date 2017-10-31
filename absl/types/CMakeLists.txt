@@ -23,12 +23,32 @@ list(APPEND TYPES_PUBLIC_HEADERS
 )
 
 
+# any library
+absl_header_library(
+  TARGET
+    absl_any
+  PUBLIC_LIBRARIES
+    absl::utility
+  EXPORT_NAME
+    any
+)
 
+# span library
+absl_header_library(
+  TARGET
+    absl_span
+  PUBLIC_LIBRARIES
+    absl::utility
+  EXPORT_NAME
+    span
+)
+
+
+# bad_any_cast library
 list(APPEND BAD_ANY_CAST_SRC
   "bad_any_cast.cc"
   ${TYPES_PUBLIC_HEADERS}
 )
-set(BAD_ANY_CAST_PUBLIC_LIBRARIES absl::base)
 
 absl_library(
   TARGET
@@ -36,13 +56,16 @@ absl_library(
   SOURCES
     ${BAD_ANY_CAST_SRC}
   PUBLIC_LIBRARIES
-    ${BAD_ANY_CAST_PUBLIC_LIBRARIES}
+    absl::base absl::any
+  EXPORT_NAME
+    bad_any_cast
 )
 
 
-
-set(OPTIONAL_SRC "optional.cc")
-set(OPTIONAL_PUBLIC_LIBRARIES absl::base)
+# optional library
+list(APPEND OPTIONAL_SRC
+  "optional.cc"
+)
 
 absl_library(
   TARGET
@@ -50,7 +73,9 @@ absl_library(
   SOURCES
     ${OPTIONAL_SRC}
   PUBLIC_LIBRARIES
-    ${OPTIONAL_PUBLIC_LIBRARIES}
+    absl::base
+  EXPORT_NAME
+    optional
 )
 
 
@@ -64,18 +89,11 @@ absl_library(
     ${BAD_OPTIONAL_ACCESS_SRC}
   PUBLIC_LIBRARIES
     ${BAD_OPTIONAL_ACCESS_PUBLIC_LIBRARIES}
-)
-
-
-
-absl_header_library(
-  TARGET
-    absl_types
-  PUBLIC_LIBRARIES
-    absl_optional absl_bad_any_cast absl_bad_optional_access
   EXPORT_NAME
-    types
+    bad_optional_access
 )
+
+
 
 #
 ## TESTS
@@ -84,7 +102,7 @@ absl_header_library(
 
 # test any_test
 set(ANY_TEST_SRC "any_test.cc")
-set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate absl_bad_any_cast test_instance_tracker_lib)
+set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl::throw_delegate absl::any absl::bad_any_cast test_instance_tracker_lib)
 
 absl_test(
   TARGET
@@ -111,7 +129,7 @@ absl_test(
 
 # test span_test
 set(SPAN_TEST_SRC "span_test.cc")
-set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl_throw_delegate absl_bad_any_cast test_instance_tracker_lib)
+set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl::throw_delegate absl::span test_instance_tracker_lib)
 
 absl_test(
   TARGET
@@ -139,7 +157,7 @@ absl_test(
 
 # test optional_test
 set(OPTIONAL_TEST_SRC "optional_test.cc")
-set(OPTIONAL_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate absl_optional bad_optional_access)
+set(OPTIONAL_TEST_PUBLIC_LIBRARIES absl::base absl::throw_delegate absl::optional absl_bad_optional_access)
 
 absl_test(
   TARGET

@@ -42,17 +42,52 @@ absl_library(
     absl_stacktrace
   SOURCES
     ${STACKTRACE_SRC}
-  PUBLIC_LIBRARIES
-    ${STACKTRACE_PUBLIC_LIBRARIES}
   EXPORT_NAME
     stacktrace
 )
 
 
+list(APPEND LEAK_CHECK_SRC
+  "leak_check.cc"
+)
+
+
+# leak_check library
+absl_library(
+  TARGET
+    absl_leak_check
+  SOURCES
+    ${LEAK_CHECK_SRC}
+  PUBLIC_LIBRARIES
+    absl_base
+  EXPORT_NAME
+    leak_check
+)
+
+
+# component target
 absl_header_library(
   TARGET
     absl_debugging
+  PUBLIC_LIBRARIES
+    absl_stacktrace absl_leak_check
   EXPORT_NAME
     debugging
+)
+
+#
+## TESTS
+#
+
+# test leak_check_test
+list(APPEND LEAK_CHECK_TEST_SRC "leak_check_test.cc")
+
+absl_test(
+  TARGET
+    leak_check_test
+  SOURCES
+    ${LEAK_CHECK_TEST_SRC}
+  PUBLIC_LIBRARIES
+    absl_leak_check
 )
 

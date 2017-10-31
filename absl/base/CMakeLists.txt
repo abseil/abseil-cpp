@@ -65,10 +65,8 @@ list(APPEND BASE_SRC
   "internal/sysinfo.cc"
   "internal/thread_identity.cc"
   "internal/unscaledcycleclock.cc"
-  "internal/spinlock_wait.cc"
   "internal/low_level_alloc.cc"
   "internal/malloc_hook.cc"
-  "dynamic_annotations.cc"
   ${BASE_PUBLIC_HEADERS}
   ${BASE_INTERNAL_HEADERS}
 )
@@ -78,6 +76,9 @@ absl_library(
     absl_base
   SOURCES
     ${BASE_SRC}
+  PUBLIC_LIBRARIES
+    absl_dynamic_annotations
+    absl_spinlock_wait
   EXPORT_NAME
     base
 )
@@ -93,6 +94,8 @@ absl_library(
     ${MALLOC_EXTENSION_SRC}
   PUBLIC_LIBRARIES
     ${MALLOC_EXTENSION_PUBLIC_LIBRARIES}
+  EXPORT_NAME
+    malloc_extension
 )
 
 # throw delegate library
@@ -107,7 +110,49 @@ absl_library(
     ${THROW_DELEGATE_PUBLIC_LIBRARIES}
   PRIVATE_COMPILE_FLAGS
     ${ABSL_EXCEPTIONS_FLAG}
+  EXPORT_NAME
+    throw_delegate
 )
+
+
+# dynamic_annotations library
+set(DYNAMIC_ANNOTATIONS_SRC "dynamic_annotations.cc")
+
+absl_library(
+  TARGET
+    absl_dynamic_annotations
+  SOURCES
+    ${DYNAMIC_ANNOTATIONS_SRC}
+)
+
+
+# spinlock_wait library
+set(SPINLOCK_WAIT_SRC "internal/spinlock_wait.cc")
+
+absl_library(
+  TARGET
+    absl_spinlock_wait
+  SOURCES
+    ${SPINLOCK_WAIT_SRC}
+)
+
+
+# malloc_internal library
+list(APPEND MALLOC_INTERNAL_SRC
+  "internal/low_level_alloc.cc"
+  "internal/malloc_hook.cc"
+  "internal/malloc_hook_mmap_linux.inc"
+)
+
+absl_library(
+  TARGET
+    absl_malloc_internal
+  SOURCES
+    ${MALLOC_INTERNAL_SRC}
+  PUBLIC_LIBRARIES
+    absl_dynamic_annotations
+)
+
 
 
 #

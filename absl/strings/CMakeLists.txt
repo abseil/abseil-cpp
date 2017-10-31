@@ -16,7 +16,6 @@
 
 
 list(APPEND STRINGS_PUBLIC_HEADERS
-  "ascii_ctype.h"
   "ascii.h"
   "escaping.h"
   "match.h"

@@ -16,10 +16,9 @@
 
 include(CMakeParseArguments)
 
-set(_ABSL_HELPERS_PATH "${CMAKE_CURRENT_LIST_DIR}")
 
 #
-# create a static library absl_based on the following variable
+# create a library in the absl namespace
 #
 # parameters
 # SOURCES : sources files for the library
