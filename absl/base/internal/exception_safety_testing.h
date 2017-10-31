@@ -1,7 +1,7 @@
 // Utilities for testing exception-safety
 
-#ifndef ABSL_BASE_INTERNAL_EXCEPTION_TESTING_H_
-#define ABSL_BASE_INTERNAL_EXCEPTION_TESTING_H_
+#ifndef ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
+#define ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
 
 #include <cstddef>
 #include <cstdint>

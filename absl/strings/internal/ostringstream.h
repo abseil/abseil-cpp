@@ -75,7 +75,7 @@ class OStringStream : private std::basic_streambuf<char>, public std::ostream {
  private:
   using Buf = std::basic_streambuf<char>;
 
-  Buf::int_type overflow(int c = Buf::traits_type::eof()) override {
+  Buf::int_type overflow(int c) override {
     assert(s_);
     if (!Buf::traits_type::eq_int_type(c, Buf::traits_type::eof()))
       s_->push_back(static_cast<char>(c));
