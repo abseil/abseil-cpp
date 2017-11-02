@@ -781,7 +781,7 @@ class optional : private optional_internal::optional_data<T>,
 
   // optional::operator*()
   //
-  // Accesses the underlying `T `value of an `optional`. If the `optional` is
+  // Accesses the underlying `T` value of an `optional`. If the `optional` is
   // empty, behavior is undefined.
   constexpr const T& operator*() const & { return reference(); }
   T& operator*() & {
