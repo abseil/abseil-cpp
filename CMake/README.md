@@ -38,7 +38,10 @@
       Here is a short CMakeLists.txt example of a possible project file
       using abseil
 
+      cmake_minimum_required(VERSION 2.8.12)
       project(my_project)
+
+      set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ ${CMAKE_CXX_FLAGS}")
 
       add_subdirectory(googletest)
       add_subdirectory(cctz)
@@ -48,6 +51,8 @@
       target_link_libraries(my_exe absl::base absl::synchronization absl::strings)
 
 
+You will need to create your own CMake files for cctz until https://github.com/google/cctz/pull/54 lands.  As of this writing, that pull request requires -DBUILD_TESTING=OFF as it doesn't correctly export cctz's dependency on Google Benchmark.
+    
     You will find here a non exhaustive list of absl public targets
 
       absl::base
