@@ -52,7 +52,6 @@
 //   Mutex mu;
 //   int p1 GUARDED_BY(mu);
 #define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
-#define GUARDED_VAR  // no-op
 
 // PT_GUARDED_BY()
 //
@@ -72,7 +71,6 @@
 //     // guarded by `mu2`:
 //     int *q GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
 #define PT_GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
-#define PT_GUARDED_VAR  // no-op
 
 // ACQUIRED_AFTER() / ACQUIRED_BEFORE()
 //

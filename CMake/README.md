@@ -52,7 +52,7 @@
 
 
 You will need to create your own CMake files for cctz until https://github.com/google/cctz/pull/54 lands.  As of this writing, that pull request requires -DBUILD_TESTING=OFF as it doesn't correctly export cctz's dependency on Google Benchmark.
-    
+
     You will find here a non exhaustive list of absl public targets
 
       absl::base
