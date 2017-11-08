@@ -89,5 +89,4 @@ For more information about Abseil:
 <a name="cmake"></a>
 ## Build with CMake
 
-Please check the [CMake build instructions]
-(CMake/README.md)
+Please check the [CMake build instructions](CMake/README.md)
