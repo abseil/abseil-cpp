@@ -361,7 +361,7 @@ Duration Hours(T n) {
 // Example:
 //
 //   absl::Duration d = absl::Milliseconds(1500);
-//   int64_t isec = ToInt64Seconds(d);  // isec == 1
+//   int64_t isec = absl::ToInt64Seconds(d);  // isec == 1
 int64_t ToInt64Nanoseconds(Duration d);
 int64_t ToInt64Microseconds(Duration d);
 int64_t ToInt64Milliseconds(Duration d);
@@ -383,7 +383,7 @@ int64_t ToInt64Hours(Duration d);
 // Example:
 //
 //   absl::Duration d = absl::Milliseconds(1500);
-//   double dsec = ToDoubleSeconds(d);  // dsec == 1.5
+//   double dsec = absl::ToDoubleSeconds(d);  // dsec == 1.5
 double ToDoubleNanoseconds(Duration d);
 double ToDoubleMicroseconds(Duration d);
 double ToDoubleMilliseconds(Duration d);
