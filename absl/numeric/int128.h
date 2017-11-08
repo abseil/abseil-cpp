@@ -159,12 +159,12 @@ class alignas(16) uint128 {
   // Uint128Low64()
   //
   // Returns the lower 64-bit value of a `uint128` value.
-  friend uint64_t Uint128Low64(const uint128& v);
+  friend constexpr uint64_t Uint128Low64(const uint128& v);
 
   // Uint128High64()
   //
   // Returns the higher 64-bit value of a `uint128` value.
-  friend uint64_t Uint128High64(const uint128& v);
+  friend constexpr uint64_t Uint128High64(const uint128& v);
 
   // MakeUInt128()
   //
@@ -201,10 +201,6 @@ extern const uint128 kuint128max;
 extern std::ostream& operator<<(std::ostream& o, const uint128& b);
 
 // TODO(strel) add operator>>(std::istream&, uint128&)
-
-// Methods to access low and high pieces of 128-bit value.
-uint64_t Uint128Low64(const uint128& v);
-uint64_t Uint128High64(const uint128& v);
 
 // TODO(absl-team): Implement signed 128-bit type
 
@@ -283,9 +279,9 @@ inline uint128 operator%(const uint128& lhs, const uint128& rhs) {
   return uint128(lhs) %= rhs;
 }
 
-inline uint64_t Uint128Low64(const uint128& v) { return v.lo_; }
+constexpr uint64_t Uint128Low64(const uint128& v) { return v.lo_; }
 
-inline uint64_t Uint128High64(const uint128& v) { return v.hi_; }
+constexpr uint64_t Uint128High64(const uint128& v) { return v.hi_; }
 
 // Constructors from integer types.
 

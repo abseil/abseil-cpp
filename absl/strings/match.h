@@ -25,7 +25,7 @@
 // Examples:
 //   std::string s = "foo";
 //   absl::string_view sv = "f";
-//   EXPECT_TRUE(absl::StrContains(s, sv));
+//   assert(absl::StrContains(s, sv));
 //
 // Note: The order of parameters in these functions is designed to mimic the
 // order an equivalent member function would exhibit;

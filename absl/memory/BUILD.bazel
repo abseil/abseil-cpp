@@ -28,7 +28,10 @@ cc_library(
     name = "memory",
     hdrs = ["memory.h"],
     copts = ABSL_DEFAULT_COPTS,
-    deps = ["//absl/meta:type_traits"],
+    deps = [
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+    ],
 )
 
 cc_test(
