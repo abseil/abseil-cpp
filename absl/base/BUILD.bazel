@@ -25,11 +25,10 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-exports_files(["thread_annotations.h"])
-
 cc_library(
     name = "spinlock_wait",
     srcs = [
+        "internal/spinlock_akaros.inc",
         "internal/spinlock_posix.inc",
         "internal/spinlock_wait.cc",
         "internal/spinlock_win32.inc",
@@ -39,6 +38,9 @@ cc_library(
         "internal/spinlock_wait.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl/base:__pkg__",
+    ],
     deps = [":core_headers"],
 )
 
@@ -83,6 +85,9 @@ cc_library(
         "internal/malloc_extension_c.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":core_headers",
         ":dynamic_annotations",
@@ -108,6 +113,9 @@ cc_library(
     textual_hdrs = [
         "internal/malloc_hook_invoke.h",
     ],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":base",
         ":config",
@@ -124,6 +132,9 @@ cc_library(
         "internal/invoke.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
 )
 
 cc_library(
@@ -183,6 +194,9 @@ cc_library(
     features = [
         "-use_header_modules",
     ],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":base",
         ":config",
@@ -205,9 +219,41 @@ cc_library(
     testonly = 1,
     hdrs = ["internal/exception_testing.h"],
     copts = ABSL_TEST_COPTS,
+    visibility = ["//absl:__subpackages__"],
     deps = [
         ":config",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "pretty_function",
+    hdrs = ["internal/pretty_function.h"],
+)
+
+cc_library(
+    name = "exception_safety_testing",
+    testonly = 1,
+    srcs = ["internal/exception_safety_testing.cc"],
+    hdrs = ["internal/exception_safety_testing.h"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":config",
+        ":pretty_function",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "exception_safety_testing_test",
+    srcs = ["exception_safety_testing_test.cc"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":exception_safety_testing",
+        "//absl/memory",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

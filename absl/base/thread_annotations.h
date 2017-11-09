@@ -43,16 +43,15 @@
 
 // GUARDED_BY()
 //
-// Documents if a shared variable/field needs to be protected by a mutex.
-// GUARDED_BY() allows the user to specify a particular mutex that should be
-// held when accessing the annotated variable.
+// Documents if a shared field or global variable needs to be protected by a
+// mutex. GUARDED_BY() allows the user to specify a particular mutex that
+// should be held when accessing the annotated variable.
 //
 // Example:
 //
 //   Mutex mu;
 //   int p1 GUARDED_BY(mu);
 #define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
-#define GUARDED_VAR   THREAD_ANNOTATION_ATTRIBUTE__(guarded)
 
 // PT_GUARDED_BY()
 //
@@ -72,7 +71,6 @@
 //     // guarded by `mu2`:
 //     int *q GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
 #define PT_GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
-#define PT_GUARDED_VAR   THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded)
 
 // ACQUIRED_AFTER() / ACQUIRED_BEFORE()
 //

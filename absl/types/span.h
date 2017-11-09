@@ -279,7 +279,7 @@ class Span {
   using size_type = size_t;
   using difference_type = ptrdiff_t;
 
-  static const size_type npos = -1;
+  static const size_type npos = ~size_type{0};
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
   constexpr Span(pointer array, size_type length) noexcept
@@ -378,7 +378,7 @@ class Span {
   //
   // Returns a reference to the i'th element of this span.
   constexpr reference at(size_type i) const {
-    return ABSL_PREDICT_FALSE(i < size())
+    return ABSL_PREDICT_TRUE(i < size())
                ? ptr_[i]
                : (base_internal::ThrowStdOutOfRange(
                       "Span::at failed bounds check"),

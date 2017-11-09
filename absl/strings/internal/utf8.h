@@ -25,7 +25,6 @@
 #include <cstddef>
 #include <cstdint>
 
-
 namespace absl {
 namespace strings_internal {
 

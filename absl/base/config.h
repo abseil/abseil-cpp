@@ -93,28 +93,6 @@
 #define ABSL_HAVE_TLS 1
 #endif
 
-// There are platforms for which TLS should not be used even though the compiler
-// makes it seem like it's supported (Android NDK < r12b for example).
-// This is primarily because of linker problems and toolchain misconfiguration:
-// Abseil does not intend to support this indefinitely. Currently, the newest
-// toolchain that we intend to support that requires this behavior is the
-// r11 NDK - allowing for a 5 year support window on that means this option
-// is likely to be removed around June of 2021.
-#if defined(__ANDROID__) && defined(__clang__)
-#if __has_include(<android/ndk-version.h>)
-#include <android/ndk-version.h>
-#endif
-// TLS isn't supported until NDK r12b per
-// https://developer.android.com/ndk/downloads/revision_history.html
-// Since NDK r16, `__NDK_MAJOR__` and `__NDK_MINOR__` are defined in
-// <android/ndk-version.h>. For NDK < r16, users should define these macros,
-// e.g. `-D__NDK_MAJOR__=11 -D__NKD_MINOR__=0` for NDK r11.
-#if defined(__NDK_MAJOR__) && defined(__NDK_MINOR__) && \
-    ((__NDK_MAJOR__ < 12) || ((__NDK_MAJOR__ == 12) && (__NDK_MINOR__ < 1)))
-#undef ABSL_HAVE_TLS
-#endif
-#endif  // defined(__ANDROID__) && defined(__clang__)
-
 // ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
 //
 // Checks whether `std::is_trivially_destructible<T>` is supported.
@@ -168,6 +146,30 @@
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 
+// There are platforms for which TLS should not be used even though the compiler
+// makes it seem like it's supported (Android NDK < r12b for example).
+// This is primarily because of linker problems and toolchain misconfiguration:
+// Abseil does not intend to support this indefinitely. Currently, the newest
+// toolchain that we intend to support that requires this behavior is the
+// r11 NDK - allowing for a 5 year support window on that means this option
+// is likely to be removed around June of 2021.
+// TLS isn't supported until NDK r12b per
+// https://developer.android.com/ndk/downloads/revision_history.html
+// Since NDK r16, `__NDK_MAJOR__` and `__NDK_MINOR__` are defined in
+// <android/ndk-version.h>. For NDK < r16, users should define these macros,
+// e.g. `-D__NDK_MAJOR__=11 -D__NKD_MINOR__=0` for NDK r11.
+#if defined(__ANDROID__) && defined(__clang__)
+#if __has_include(<android/ndk-version.h>)
+#include <android/ndk-version.h>
+#endif  // __has_include(<android/ndk-version.h>)
+#if defined(__ANDROID__) && defined(__clang__) && defined(__NDK_MAJOR__) && \
+    defined(__NDK_MINOR__) &&                                               \
+    ((__NDK_MAJOR__ < 12) || ((__NDK_MAJOR__ == 12) && (__NDK_MINOR__ < 1)))
+#undef ABSL_HAVE_TLS
+#undef ABSL_HAVE_THREAD_LOCAL
+#endif
+#endif  // defined(__ANDROID__) && defined(__clang__)
+
 // ABSL_HAVE_INTRINSIC_INT128
 //
 // Checks whether the __int128 compiler extension for a 128-bit integral type is
@@ -182,9 +184,16 @@
 #elif (defined(__clang__) && defined(__SIZEOF_INT128__) &&               \
        !defined(__aarch64__)) ||                                         \
     (defined(__CUDACC__) && defined(__SIZEOF_INT128__) &&                \
-     __CUDACC_VER__ >= 70000) ||                                         \
+     __CUDACC_VER_MAJOR__ >= 9) ||                                       \
     (!defined(__clang__) && !defined(__CUDACC__) && defined(__GNUC__) && \
      defined(__SIZEOF_INT128__))
+#define ABSL_HAVE_INTRINSIC_INT128 1
+// __CUDACC_VER__ is a full version number before CUDA 9, and is defined to a
+// std::string explaining that it has been removed starting with CUDA 9. We can't
+// compare both variants in a single boolean expression because there is no
+// short-circuiting in the preprocessor.
+#elif defined(__CUDACC__) && defined(__SIZEOF_INT128__) && \
+    __CUDACC_VER__ >= 7000
 #define ABSL_HAVE_INTRINSIC_INT128 1
 #endif
 
@@ -370,6 +379,21 @@
 #if __has_include(<string_view>) && __cplusplus >= 201703L
 #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
+#endif
+
+// For MSVC, `__has_include` is supported in VS 2017 15.3, which is later than
+// the support for <optional>, <any>, <string_view>. So we use _MSC_VER to check
+// whether we have VS 2017 RTM (when <optional>, <any>, <string_view> is
+// implemented) or higher.
+// Also, `__cplusplus` is not correctly set by MSVC, so we use `_MSVC_LANG` to
+// check the language version.
+// TODO(zhangxy): fix tests before enabling aliasing for `std::any`,
+// `std::string_view`.
+#if defined(_MSC_VER) && _MSC_VER >= 1910 && \
+    ((defined(_MSVC_LANG) && _MSVC_LANG > 201402) || __cplusplus > 201402)
+// #define ABSL_HAVE_STD_ANY 1
+#define ABSL_HAVE_STD_OPTIONAL 1
+// #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
 #endif  // ABSL_BASE_CONFIG_H_

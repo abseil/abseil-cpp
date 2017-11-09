@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -81,6 +82,9 @@ struct MakeUniqueResult<T[N]> {
 
 }  // namespace memory_internal
 
+#if __cplusplus >= 201402L || defined(_MSC_VER)
+using std::make_unique;
+#else
 // -----------------------------------------------------------------------------
 // Function Template: make_unique<T>()
 // -----------------------------------------------------------------------------
@@ -164,6 +168,7 @@ typename memory_internal::MakeUniqueResult<T>::array make_unique(size_t n) {
 template <typename T, typename... Args>
 typename memory_internal::MakeUniqueResult<T>::invalid make_unique(
     Args&&... /* args */) = delete;
+#endif
 
 // -----------------------------------------------------------------------------
 // Function Template: RawPtr()

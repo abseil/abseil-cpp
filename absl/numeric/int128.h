@@ -93,9 +93,9 @@ class alignas(16) uint128 {
   constexpr uint128(__int128 v);           // NOLINT(runtime/explicit)
   constexpr uint128(unsigned __int128 v);  // NOLINT(runtime/explicit)
 #endif  // ABSL_HAVE_INTRINSIC_INT128
-  explicit uint128(float v);        // NOLINT(runtime/explicit)
-  explicit uint128(double v);       // NOLINT(runtime/explicit)
-  explicit uint128(long double v);  // NOLINT(runtime/explicit)
+  explicit uint128(float v);
+  explicit uint128(double v);
+  explicit uint128(long double v);
 
   // Assignment operators from arithmetic types
   uint128& operator=(int v);
@@ -159,12 +159,12 @@ class alignas(16) uint128 {
   // Uint128Low64()
   //
   // Returns the lower 64-bit value of a `uint128` value.
-  friend uint64_t Uint128Low64(const uint128& v);
+  friend constexpr uint64_t Uint128Low64(const uint128& v);
 
   // Uint128High64()
   //
   // Returns the higher 64-bit value of a `uint128` value.
-  friend uint64_t Uint128High64(const uint128& v);
+  friend constexpr uint64_t Uint128High64(const uint128& v);
 
   // MakeUInt128()
   //
@@ -202,25 +202,19 @@ extern std::ostream& operator<<(std::ostream& o, const uint128& b);
 
 // TODO(strel) add operator>>(std::istream&, uint128&)
 
-// Methods to access low and high pieces of 128-bit value.
-uint64_t Uint128Low64(const uint128& v);
-uint64_t Uint128High64(const uint128& v);
-
 // TODO(absl-team): Implement signed 128-bit type
 
 // --------------------------------------------------------------------------
 //                      Implementation details follow
 // --------------------------------------------------------------------------
 
-inline constexpr uint128 MakeUint128(uint64_t top, uint64_t bottom) {
+constexpr uint128 MakeUint128(uint64_t top, uint64_t bottom) {
   return uint128(top, bottom);
 }
 
 // Assignment from integer types.
 
-inline uint128& uint128::operator=(int v) {
-  return *this = uint128(v);
-}
+inline uint128& uint128::operator=(int v) { return *this = uint128(v); }
 
 inline uint128& uint128::operator=(unsigned int v) {
   return *this = uint128(v);
@@ -285,64 +279,62 @@ inline uint128 operator%(const uint128& lhs, const uint128& rhs) {
   return uint128(lhs) %= rhs;
 }
 
-inline uint64_t Uint128Low64(const uint128& v) { return v.lo_; }
+constexpr uint64_t Uint128Low64(const uint128& v) { return v.lo_; }
 
-inline uint64_t Uint128High64(const uint128& v) { return v.hi_; }
+constexpr uint64_t Uint128High64(const uint128& v) { return v.hi_; }
 
 // Constructors from integer types.
 
 #if defined(ABSL_IS_LITTLE_ENDIAN)
 
-inline constexpr uint128::uint128(uint64_t top, uint64_t bottom)
+constexpr uint128::uint128(uint64_t top, uint64_t bottom)
     : lo_(bottom), hi_(top) {}
 
-inline constexpr uint128::uint128(int v)
+constexpr uint128::uint128(int v)
     : lo_(v), hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
-inline constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
+constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
     : lo_(v), hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
-inline constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
+constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
     : lo_(v), hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
 
-inline constexpr uint128::uint128(unsigned int v) : lo_(v), hi_(0) {}
+constexpr uint128::uint128(unsigned int v) : lo_(v), hi_(0) {}
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::uint128(unsigned long v) : lo_(v), hi_(0) {}
+constexpr uint128::uint128(unsigned long v) : lo_(v), hi_(0) {}
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::uint128(unsigned long long v)
-    : lo_(v), hi_(0) {}
+constexpr uint128::uint128(unsigned long long v) : lo_(v), hi_(0) {}
 
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-inline constexpr uint128::uint128(__int128 v)
+constexpr uint128::uint128(__int128 v)
     : lo_(static_cast<uint64_t>(v & ~uint64_t{0})),
       hi_(static_cast<uint64_t>(static_cast<unsigned __int128>(v) >> 64)) {}
-inline constexpr uint128::uint128(unsigned __int128 v)
+constexpr uint128::uint128(unsigned __int128 v)
     : lo_(static_cast<uint64_t>(v & ~uint64_t{0})),
       hi_(static_cast<uint64_t>(v >> 64)) {}
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 #elif defined(ABSL_IS_BIG_ENDIAN)
 
-inline constexpr uint128::uint128(uint64_t top, uint64_t bottom)
+constexpr uint128::uint128(uint64_t top, uint64_t bottom)
     : hi_(top), lo_(bottom) {}
 
-inline constexpr uint128::uint128(int v)
+constexpr uint128::uint128(int v)
     : hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0), lo_(v) {}
-inline constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
+constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
     : hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0), lo_(v) {}
-inline constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
+constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
     : hi_(v < 0 ? std::numeric_limits<uint64_t>::max() : 0), lo_(v) {}
 
-inline constexpr uint128::uint128(unsigned int v) : hi_(0), lo_(v) {}
+constexpr uint128::uint128(unsigned int v) : hi_(0), lo_(v) {}
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::uint128(unsigned long v) : hi_(0), lo_(v) {}
+constexpr uint128::uint128(unsigned long v) : hi_(0), lo_(v) {}
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::uint128(unsigned long long v)
-    : hi_(0), lo_(v) {}
+constexpr uint128::uint128(unsigned long long v) : hi_(0), lo_(v) {}
 
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-inline constexpr uint128::uint128(__int128 v)
+constexpr uint128::uint128(__int128 v)
     : hi_(static_cast<uint64_t>(static_cast<unsigned __int128>(v) >> 64)),
       lo_(static_cast<uint64_t>(v & ~uint64_t{0})) {}
-inline constexpr uint128::uint128(unsigned __int128 v)
+constexpr uint128::uint128(unsigned __int128 v)
     : hi_(static_cast<uint64_t>(v >> 64)),
       lo_(static_cast<uint64_t>(v & ~uint64_t{0})) {}
 #endif  // ABSL_HAVE_INTRINSIC_INT128
@@ -353,78 +345,64 @@ inline constexpr uint128::uint128(unsigned __int128 v)
 
 // Conversion operators to integer types.
 
-inline constexpr uint128::operator bool() const {
-  return lo_ || hi_;
-}
+constexpr uint128::operator bool() const { return lo_ || hi_; }
 
-inline constexpr uint128::operator char() const {
-  return static_cast<char>(lo_);
-}
+constexpr uint128::operator char() const { return static_cast<char>(lo_); }
 
-inline constexpr uint128::operator signed char() const {
+constexpr uint128::operator signed char() const {
   return static_cast<signed char>(lo_);
 }
 
-inline constexpr uint128::operator unsigned char() const {
+constexpr uint128::operator unsigned char() const {
   return static_cast<unsigned char>(lo_);
 }
 
-inline constexpr uint128::operator char16_t() const {
+constexpr uint128::operator char16_t() const {
   return static_cast<char16_t>(lo_);
 }
 
-inline constexpr uint128::operator char32_t() const {
+constexpr uint128::operator char32_t() const {
   return static_cast<char32_t>(lo_);
 }
 
-inline constexpr uint128::operator wchar_t() const {
+constexpr uint128::operator wchar_t() const {
   return static_cast<wchar_t>(lo_);
 }
 
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator short() const {
-  return static_cast<short>(lo_);  // NOLINT(runtime/int)
+constexpr uint128::operator short() const { return static_cast<short>(lo_); }
+
+constexpr uint128::operator unsigned short() const {  // NOLINT(runtime/int)
+  return static_cast<unsigned short>(lo_);            // NOLINT(runtime/int)
 }
 
-// NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator unsigned short() const {
-  return static_cast<unsigned short>(lo_);  // NOLINT(runtime/int)
-}
+constexpr uint128::operator int() const { return static_cast<int>(lo_); }
 
-inline constexpr uint128::operator int() const {
-  return static_cast<int>(lo_);
-}
-
-inline constexpr uint128::operator unsigned int() const {
+constexpr uint128::operator unsigned int() const {
   return static_cast<unsigned int>(lo_);
 }
 
 // NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator long() const {
-  return static_cast<long>(lo_);  // NOLINT(runtime/int)
+constexpr uint128::operator long() const { return static_cast<long>(lo_); }
+
+constexpr uint128::operator unsigned long() const {  // NOLINT(runtime/int)
+  return static_cast<unsigned long>(lo_);            // NOLINT(runtime/int)
 }
 
-// NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator unsigned long() const {
-  return static_cast<unsigned long>(lo_);  // NOLINT(runtime/int)
+constexpr uint128::operator long long() const {  // NOLINT(runtime/int)
+  return static_cast<long long>(lo_);            // NOLINT(runtime/int)
 }
 
-// NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator long long() const {
-  return static_cast<long long>(lo_);  // NOLINT(runtime/int)
-}
-
-// NOLINTNEXTLINE(runtime/int)
-inline constexpr uint128::operator unsigned long long() const {
-  return static_cast<unsigned long long>(lo_);  // NOLINT(runtime/int)
+constexpr uint128::operator unsigned long long() const {  // NOLINT(runtime/int)
+  return static_cast<unsigned long long>(lo_);            // NOLINT(runtime/int)
 }
 
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-inline constexpr uint128::operator __int128() const {
+constexpr uint128::operator __int128() const {
   return (static_cast<__int128>(hi_) << 64) + lo_;
 }
 
-inline constexpr uint128::operator unsigned __int128() const {
+constexpr uint128::operator unsigned __int128() const {
   return (static_cast<unsigned __int128>(hi_) << 64) + lo_;
 }
 #endif  // ABSL_HAVE_INTRINSIC_INT128
@@ -642,6 +620,12 @@ inline uint128& uint128::operator--() {
   *this -= 1;
   return *this;
 }
+
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+#include "absl/numeric/int128_have_intrinsic.inc"
+#else  // ABSL_HAVE_INTRINSIC_INT128
+#include "absl/numeric/int128_no_intrinsic.inc"
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
 }  // namespace absl
 

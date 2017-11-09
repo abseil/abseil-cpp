@@ -149,6 +149,9 @@ class InlinedVector {
   ~InlinedVector() { clear(); }
 
   InlinedVector& operator=(const InlinedVector& v) {
+    if (this == &v) {
+      return *this;
+    }
     // Optimized to avoid reallocation.
     // Prefer reassignment to copy construction for elements.
     if (size() < v.size()) {  // grow
@@ -681,6 +684,8 @@ class InlinedVector {
   // portion and the start of the uninitialized portion of the created gap.
   // The number of initialized spots is pair.second - pair.first;
   // the number of raw spots is n - (pair.second - pair.first).
+  //
+  // Updates the size of the InlinedVector internally.
   std::pair<iterator, iterator> ShiftRight(const_iterator position,
                                            size_type n);
 
@@ -1014,28 +1019,19 @@ typename InlinedVector<T, N, A>::iterator InlinedVector<T, N, A>::emplace(
     emplace_back(std::forward<Args>(args)...);
     return end() - 1;
   }
-  size_type s = size();
-  size_type idx = std::distance(cbegin(), position);
-  if (s == capacity()) {
-    EnlargeBy(1);
-  }
-  assert(s < capacity());
-  iterator pos = begin() + idx;  // Set 'pos' to a post-enlarge iterator.
 
-  pointer space;
-  if (allocated()) {
-    tag().set_allocated_size(s + 1);
-    space = allocated_space();
+  T new_t = T(std::forward<Args>(args)...);
+
+  auto range = ShiftRight(position, 1);
+  if (range.first == range.second) {
+    // constructing into uninitialized memory
+    Construct(range.first, std::move(new_t));
   } else {
-    tag().set_inline_size(s + 1);
-    space = inlined_space();
+    // assigning into moved-from object
+    *range.first = T(std::move(new_t));
   }
-  Construct(space + s, std::move(space[s - 1]));
-  std::move_backward(pos, space + s - 1, space + s);
-  Destroy(pos, pos + 1);
-  Construct(pos, std::forward<Args>(args)...);
 
-  return pos;
+  return range.first;
 }
 
 template <typename T, size_t N, typename A>
@@ -1220,6 +1216,7 @@ auto InlinedVector<T, N, A>::ShiftRight(const_iterator position, size_type n)
     start_used = pos;
     start_raw = pos + new_elements_in_used_space;
   }
+  tag().add_size(n);
   return std::make_pair(start_used, start_raw);
 }
 
@@ -1298,10 +1295,12 @@ auto InlinedVector<T, N, A>::InsertWithCount(const_iterator position,
     -> iterator {
   assert(position >= begin() && position <= end());
   if (n == 0) return const_cast<iterator>(position);
+
+  value_type copy = v;
   std::pair<iterator, iterator> it_pair = ShiftRight(position, n);
-  std::fill(it_pair.first, it_pair.second, v);
-  UninitializedFill(it_pair.second, it_pair.first + n, v);
-  tag().add_size(n);
+  std::fill(it_pair.first, it_pair.second, copy);
+  UninitializedFill(it_pair.second, it_pair.first + n, copy);
+
   return it_pair.first;
 }
 
@@ -1337,7 +1336,6 @@ auto InlinedVector<T, N, A>::InsertWithRange(const_iterator position,
   ForwardIter open_spot = std::next(first, used_spots);
   std::copy(first, open_spot, it_pair.first);
   UninitializedCopy(open_spot, last, it_pair.second);
-  tag().add_size(n);
   return it_pair.first;
 }
 

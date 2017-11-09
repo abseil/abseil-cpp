@@ -260,7 +260,7 @@
 // ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED
 //
 // Tells the UndefinedSanitizer to ignore a given function. Useful for cases
-// where certain behavior (eg. devision by zero) is being used intentionally.
+// where certain behavior (eg. division by zero) is being used intentionally.
 // NOTE: GCC supports UndefinedBehaviorSanitizer(ubsan) since 4.9.
 // https://gcc.gnu.org/gcc-4.9/changes.html
 #if defined(__GNUC__) && \

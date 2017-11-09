@@ -29,6 +29,7 @@
 #ifndef ABSL_BASE_MACROS_H_
 #define ABSL_BASE_MACROS_H_
 
+#include <cassert>
 #include <cstddef>
 
 #include "absl/base/port.h"

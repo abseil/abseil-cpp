@@ -14,34 +14,36 @@
 # limitations under the License.
 #
 
-load(
-    "//absl:copts.bzl",
-    "ABSL_DEFAULT_COPTS",
-    "ABSL_TEST_COPTS",
+list(APPEND META_PUBLIC_HEADERS
+  "type_traits.h"
 )
 
-package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+#
+## TESTS
+#
 
-cc_library(
-    name = "memory",
-    hdrs = ["memory.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    deps = [
-        "//absl/base:core_headers",
-        "//absl/meta:type_traits",
-    ],
+# test type_traits_test
+list(APPEND TYPE_TRAITS_TEST_SRC
+  "type_traits_test.cc"
+  ${META_PUBLIC_HEADERS}
 )
 
-cc_test(
-    name = "memory_test",
-    srcs = ["memory_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    deps = [
-        ":memory",
-        "//absl/base",
-        "//absl/base:core_headers",
-        "@com_google_googletest//:gtest_main",
-    ],
+absl_header_library(
+  TARGET
+    absl_meta
+  EXPORT_NAME
+    meta
+ )
+
+absl_test(
+  TARGET
+    type_traits_test
+  SOURCES
+    ${TYPE_TRAITS_TEST_SRC}
+  PUBLIC_LIBRARIES
+    ${TYPE_TRAITS_TEST_PUBLIC_LIBRARIES} absl::meta
 )
+
+
+
