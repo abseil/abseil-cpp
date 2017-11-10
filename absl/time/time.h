@@ -506,9 +506,7 @@ std::string UnparseFlag(Duration d);
 //
 // `absl::Time` assumes there are 60 seconds in a minute, which means the
 // underlying time scales must be "smeared" to eliminate leap seconds.
-// POSIX, for example, legislates that a `time_t` value of `536457599` shall
-// correspond to "1986-12-31 23:59:59 +0000".
-//
+// See https://developers.google.com/time/smear.
 //
 // Even though `absl::Time` supports a wide range of timestamps, exercise
 // caution when using values in the distant past. `absl::Time` uses the

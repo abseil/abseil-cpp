@@ -29,6 +29,7 @@
 #endif
 
 #include <atomic>
+#include <cstdint>
 
 #include "absl/base/internal/thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
@@ -99,10 +100,10 @@ class Waiter {
 
  private:
 #if ABSL_WAITER_MODE == ABSL_WAITER_MODE_FUTEX
-  // Futexes are defined by specification to be ints.
-  // Thus std::atomic<int> must be just an int with lockfree methods.
-  std::atomic<int> futex_;
-  static_assert(sizeof(int) == sizeof(futex_), "Wrong size for futex");
+  // Futexes are defined by specification to be 32-bits.
+  // Thus std::atomic<int32_t> must be just an int32_t with lockfree methods.
+  std::atomic<int32_t> futex_;
+  static_assert(sizeof(int32_t) == sizeof(futex_), "Wrong size for futex");
 
 #elif ABSL_WAITER_MODE == ABSL_WAITER_MODE_CONDVAR
   pthread_mutex_t mu_;
