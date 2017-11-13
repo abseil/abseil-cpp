@@ -91,12 +91,12 @@ static inline bool IsCooperative(
 // Uncommon constructors.
 SpinLock::SpinLock(base_internal::SchedulingMode mode)
     : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {
-  ABSL_TSAN_MUTEX_CREATE(this, 0);
+  ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
 }
 
 SpinLock::SpinLock(base_internal::LinkerInitialized,
                    base_internal::SchedulingMode mode) {
-  ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_linker_init);
+  ABSL_TSAN_MUTEX_CREATE(this, 0);
   if (IsCooperative(mode)) {
     InitLinkerInitializedAndCooperative();
   }

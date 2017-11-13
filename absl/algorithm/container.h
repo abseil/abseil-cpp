@@ -69,6 +69,12 @@ using std::end;
 template <typename C>
 using ContainerIter = decltype(begin(std::declval<C&>()));
 
+// An MSVC bug involving template parameter substitution requires us to use
+// decltype() here instead of just std::pair.
+template <typename C1, typename C2>
+using ContainerIterPairType =
+    decltype(std::make_pair(ContainerIter<C1>(), ContainerIter<C2>()));
+
 template <typename C>
 using ContainerDifferenceType =
     decltype(std::distance(std::declval<ContainerIter<C>>(),
@@ -311,8 +317,7 @@ container_algorithm_internal::ContainerDifferenceType<const C> c_count_if(
 // Container-based version of the <algorithm> `std::mismatchf()` function to
 // return the first element where two ordered containers differ.
 template <typename C1, typename C2>
-std::pair<container_algorithm_internal::ContainerIter<C1>,
-          container_algorithm_internal::ContainerIter<C2>>
+container_algorithm_internal::ContainerIterPairType<C1, C2>
 c_mismatch(C1& c1, C2& c2) {
   return std::mismatch(container_algorithm_internal::c_begin(c1),
                        container_algorithm_internal::c_end(c1),
@@ -322,8 +327,7 @@ c_mismatch(C1& c1, C2& c2) {
 // Overload of c_mismatch() for using a predicate evaluation other than `==` as
 // the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
-std::pair<container_algorithm_internal::ContainerIter<C1>,
-          container_algorithm_internal::ContainerIter<C2>>
+container_algorithm_internal::ContainerIterPairType<C1, C2>
 c_mismatch(C1& c1, C2& c2, BinaryPredicate&& pred) {
   return std::mismatch(container_algorithm_internal::c_begin(c1),
                        container_algorithm_internal::c_end(c1),
@@ -869,7 +873,7 @@ void c_stable_sort(C& c, Compare&& comp) {
 // c_is_sorted()
 //
 // Container-based version of the <algorithm> `std::is_sorted()` function
-// to evaluate whether the given containter is sorted in ascending order.
+// to evaluate whether the given container is sorted in ascending order.
 template <typename C>
 bool c_is_sorted(const C& c) {
   return std::is_sorted(container_algorithm_internal::c_begin(c),
@@ -1042,8 +1046,7 @@ container_algorithm_internal::ContainerIter<Sequence> c_upper_bound(
 // to return an iterator pair pointing to the first and last elements in a
 // sorted container which compare equal to `value`.
 template <typename Sequence, typename T>
-std::pair<container_algorithm_internal::ContainerIter<Sequence>,
-          container_algorithm_internal::ContainerIter<Sequence>>
+container_algorithm_internal::ContainerIterPairType<Sequence, Sequence>
 c_equal_range(Sequence& sequence, T&& value) {
   return std::equal_range(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
@@ -1053,8 +1056,7 @@ c_equal_range(Sequence& sequence, T&& value) {
 // Overload of c_equal_range() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename Sequence, typename T, typename Compare>
-std::pair<container_algorithm_internal::ContainerIter<Sequence>,
-          container_algorithm_internal::ContainerIter<Sequence>>
+container_algorithm_internal::ContainerIterPairType<Sequence, Sequence>
 c_equal_range(Sequence& sequence, T&& value, Compare&& comp) {
   return std::equal_range(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
@@ -1437,8 +1439,7 @@ container_algorithm_internal::ContainerIter<Sequence> c_max_element(
 // smallest and largest values, respectively, using `operator<` to make the
 // comparisons.
 template <typename C>
-std::pair<container_algorithm_internal::ContainerIter<C>,
-          container_algorithm_internal::ContainerIter<C>>
+container_algorithm_internal::ContainerIterPairType<C, C>
 c_minmax_element(C& c) {
   return std::minmax_element(container_algorithm_internal::c_begin(c),
                              container_algorithm_internal::c_end(c));
@@ -1447,8 +1448,7 @@ c_minmax_element(C& c) {
 // Overload of c_minmax_element() for performing `comp` comparisons other than
 // `operator<`.
 template <typename C, typename Compare>
-std::pair<container_algorithm_internal::ContainerIter<C>,
-          container_algorithm_internal::ContainerIter<C>>
+container_algorithm_internal::ContainerIterPairType<C, C>
 c_minmax_element(C& c, Compare&& comp) {
   return std::minmax_element(container_algorithm_internal::c_begin(c),
                              container_algorithm_internal::c_end(c),

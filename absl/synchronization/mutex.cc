@@ -675,7 +675,7 @@ static unsigned TsanFlags(Mutex::MuHow how) {
 #endif
 
 Mutex::Mutex() : mu_(0) {
-  ABSL_TSAN_MUTEX_CREATE(this, 0);
+  ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
 }
 
 static bool DebugOnlyIsExiting() {
@@ -690,7 +690,7 @@ Mutex::~Mutex() {
   if (kDebugMode) {
     this->ForgetDeadlockInfo();
   }
-  ABSL_TSAN_MUTEX_DESTROY(this, 0);
+  ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static);
 }
 
 void Mutex::EnableDebugLog(const char *name) {

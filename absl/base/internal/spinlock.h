@@ -50,7 +50,7 @@ namespace base_internal {
 class LOCKABLE SpinLock {
  public:
   SpinLock() : lockword_(kSpinLockCooperative) {
-    ABSL_TSAN_MUTEX_CREATE(this, 0);
+    ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
   }
 
   // Special constructor for use with static SpinLock objects.  E.g.,
@@ -64,7 +64,7 @@ class LOCKABLE SpinLock {
   // initializers run.
   explicit SpinLock(base_internal::LinkerInitialized) {
     // Does nothing; lockword_ is already initialized
-    ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_linker_init);
+    ABSL_TSAN_MUTEX_CREATE(this, 0);
   }
 
   // Constructors that allow non-cooperative spinlocks to be created for use
@@ -73,7 +73,7 @@ class LOCKABLE SpinLock {
   SpinLock(base_internal::LinkerInitialized,
            base_internal::SchedulingMode mode);
 
-  ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, 0); }
+  ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static); }
 
   // Acquire this SpinLock.
   inline void Lock() EXCLUSIVE_LOCK_FUNCTION() {
