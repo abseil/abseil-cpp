@@ -39,6 +39,7 @@
 namespace absl {
 namespace synchronization_internal {
 
+class Futex;
 class Waiter;
 
 class KernelTimeout {
@@ -139,6 +140,7 @@ class KernelTimeout {
   }
 #endif
 
+  friend class Futex;
   friend class Waiter;
 };
 
