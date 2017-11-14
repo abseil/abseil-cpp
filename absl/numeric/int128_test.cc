@@ -93,6 +93,15 @@ TEST(Uint128, IntrinsicTypeTraitsTest) {
 }
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
+TEST(Uint128, TrivialTraitsTest) {
+  static_assert(absl::is_trivially_default_constructible<absl::uint128>::value,
+                "");
+  static_assert(absl::is_trivially_copy_constructible<absl::uint128>::value,
+                "");
+  static_assert(absl::is_trivially_copy_assignable<absl::uint128>::value, "");
+  static_assert(std::is_trivially_destructible<absl::uint128>::value, "");
+}
+
 TEST(Uint128, AllTests) {
   absl::uint128 zero = 0;
   absl::uint128 one = 1;
@@ -416,12 +425,6 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(zero, absl::uint128(0));
   EXPECT_EQ(one, absl::uint128(1));
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
-}
-
-TEST(Uint128, Traits) {
-  EXPECT_TRUE(absl::is_trivially_copy_constructible<absl::uint128>::value);
-  EXPECT_TRUE(absl::is_trivially_copy_assignable<absl::uint128>::value);
-  EXPECT_TRUE(std::is_trivially_destructible<absl::uint128>::value);
 }
 
 TEST(Uint128, OStream) {

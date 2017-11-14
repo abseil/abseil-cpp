@@ -291,7 +291,7 @@ Duration Ceil(Duration d, Duration unit);
 // Microseconds()
 // Milliseconds()
 // Seconds()
-// Minutes
+// Minutes()
 // Hours()
 //
 // Factory functions for constructing `Duration` values from an integral number
@@ -374,7 +374,7 @@ int64_t ToInt64Hours(Duration d);
 // ToDoubleMilliseconds()
 // ToDoubleSeconds()
 // ToDoubleMinutes()
-// ToDoubleHours
+// ToDoubleHours()
 //
 // Helper functions that convert a Duration to a floating point count of the
 // indicated unit. These functions are shorthand for the `FDivDuration()`
