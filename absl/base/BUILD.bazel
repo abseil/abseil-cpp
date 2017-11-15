@@ -191,9 +191,6 @@ cc_library(
     srcs = ["internal/throw_delegate.cc"],
     hdrs = ["internal/throw_delegate.h"],
     copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
-    features = [
-        "-use_header_modules",
-    ],
     visibility = [
         "//absl:__subpackages__",
     ],
