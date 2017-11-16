@@ -10,6 +10,7 @@ GCC_FLAGS = [
     "-Wcast-qual",
     "-Wconversion-null",
     "-Wmissing-declarations",
+    "-Wno-sign-compare",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wunused-local-typedefs",

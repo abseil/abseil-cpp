@@ -598,7 +598,7 @@ class SCOPED_LOCKABLE WriterMutexLock {
 //   // assume count_ is not internal reference count
 //   int count_ GUARDED_BY(mu_);
 //
-//   mu_.LockWhen(Condition(+[](const int* count) { return *count == 0; },
+//   mu_.LockWhen(Condition(+[](int* count) { return *count == 0; },
 //         &count_));
 //
 // When multiple threads are waiting on exactly the same condition, make sure
