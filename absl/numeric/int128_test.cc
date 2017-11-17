@@ -475,12 +475,30 @@ TEST(Uint128, OStream) {
       {absl::uint128(0), std::ios::hex | std::ios::showbase, 0, '_', "0"},
       // showpos does nothing on unsigned types
       {absl::uint128(1), std::ios::dec | std::ios::showpos, 0, '_', "1"},
-      // padding
+      // right adjustment
       {absl::uint128(9), std::ios::dec, 6, '_', "_____9"},
       {absl::uint128(12345), std::ios::dec, 6, '_', "_12345"},
+      {absl::uint128(31), std::ios::hex | std::ios::showbase, 6, '_', "__0x1f"},
+      {absl::uint128(7), std::ios::oct | std::ios::showbase, 6, '_', "____07"},
       // left adjustment
       {absl::uint128(9), std::ios::dec | std::ios::left, 6, '_', "9_____"},
       {absl::uint128(12345), std::ios::dec | std::ios::left, 6, '_', "12345_"},
+      {absl::uint128(31), std::ios::hex | std::ios::left | std::ios::showbase,
+       6, '_', "0x1f__"},
+      {absl::uint128(7), std::ios::oct | std::ios::left | std::ios::showbase, 6,
+       '_', "07____"},
+      // internal adjustment
+      {absl::uint128(123),
+       std::ios::dec | std::ios::internal | std::ios::showbase, 6, '_',
+       "___123"},
+      {absl::uint128(31),
+       std::ios::hex | std::ios::internal | std::ios::showbase, 6, '_',
+       "0x__1f"},
+      {absl::uint128(7),
+       std::ios::oct | std::ios::internal | std::ios::showbase, 6, '_',
+       "0____7"},
+      {absl::uint128(34), std::ios::hex | std::ios::internal, 6, '_', "____22"},
+      {absl::uint128(9), std::ios::oct | std::ios::internal, 6, '_', "____11"},
   };
   for (const auto& test_case : cases) {
     std::ostringstream os;
