@@ -71,12 +71,12 @@ namespace absl {
 //
 // Example:
 //
-//     float y = kuint128max; // Error. uint128 cannot be implicitly converted
-//                            // to float.
+//     float y = absl::kuint128max;  // Error. uint128 cannot be implicitly
+//                                   // converted to float.
 //
-//     uint128 v;
-//     uint64_t i = v                          // Error
-//     uint64_t i = static_cast<uint64_t>(v)   // OK
+//     absl::uint128 v;
+//     absl::uint64_t i = v;                         // Error
+//     absl::uint64_t i = static_cast<uint64_t>(v);  // OK
 //
 class alignas(16) uint128 {
  public:
