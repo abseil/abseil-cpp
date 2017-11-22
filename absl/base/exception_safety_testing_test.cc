@@ -392,7 +392,7 @@ struct FailsBasicGuarantee {
   }
 
   bool operator==(const FailsBasicGuarantee& other) const {
-    return i != other.i;
+    return i == other.i;
   }
 
   friend testing::AssertionResult AbslCheckInvariants(
