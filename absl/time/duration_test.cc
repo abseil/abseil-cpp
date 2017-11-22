@@ -1573,6 +1573,7 @@ TEST(Duration, ParseDuration) {
   EXPECT_FALSE(absl::ParseDuration("2s ", &d));
   EXPECT_FALSE(absl::ParseDuration(" 2s ", &d));
   EXPECT_FALSE(absl::ParseDuration("2mt", &d));
+  EXPECT_FALSE(absl::ParseDuration("1e3s", &d));
 
   // One unit type.
   EXPECT_TRUE(absl::ParseDuration("1ns", &d));
@@ -1587,6 +1588,12 @@ TEST(Duration, ParseDuration) {
   EXPECT_EQ(absl::Minutes(2), d);
   EXPECT_TRUE(absl::ParseDuration("2h", &d));
   EXPECT_EQ(absl::Hours(2), d);
+
+  // Huge counts of a unit.
+  EXPECT_TRUE(absl::ParseDuration("9223372036854775807us", &d));
+  EXPECT_EQ(absl::Microseconds(9223372036854775807), d);
+  EXPECT_TRUE(absl::ParseDuration("-9223372036854775807us", &d));
+  EXPECT_EQ(absl::Microseconds(-9223372036854775807), d);
 
   // Multiple units.
   EXPECT_TRUE(absl::ParseDuration("2h3m4s", &d));
@@ -1618,6 +1625,12 @@ TEST(Duration, ParseDuration) {
   EXPECT_EQ(1.5 * absl::Minutes(1), d);
   EXPECT_TRUE(absl::ParseDuration("1.5h", &d));
   EXPECT_EQ(1.5 * absl::Hours(1), d);
+
+  // Huge fractional counts of a unit.
+  EXPECT_TRUE(absl::ParseDuration("0.4294967295s", &d));
+  EXPECT_EQ(absl::Nanoseconds(429496729) + absl::Nanoseconds(1) / 2, d);
+  EXPECT_TRUE(absl::ParseDuration("0.429496729501234567890123456789s", &d));
+  EXPECT_EQ(absl::Nanoseconds(429496729) + absl::Nanoseconds(1) / 2, d);
 
   // Negative durations.
   EXPECT_TRUE(absl::ParseDuration("-1s", &d));

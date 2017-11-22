@@ -672,7 +672,7 @@ namespace {
 char* Format64(char* ep, int width, int64_t v) {
   do {
     --width;
-    *--ep = "0123456789"[v % 10];
+    *--ep = '0' + (v % 10);  // contiguous digits
   } while (v /= 10);
   while (--width >= 0) *--ep = '0';  // zero pad
   return ep;
@@ -782,15 +782,32 @@ std::string FormatDuration(Duration d) {
 namespace {
 
 // A helper for ParseDuration() that parses a leading number from the given
-// std::string and stores the result in *n.  The given std::string pointer is modified
-// to point to the first unconsumed char.
-bool ConsumeDurationNumber(const char** start, double* n) {
-  const char* s = *start;
-  char* end = nullptr;
-  errno = 0;
-  *n = strtod(s, &end);
-  *start = end;
-  return !std::isspace(*s) && errno == 0 && end != s && *n >= 0;
+// std::string and stores the result in *int_part/*frac_part/*frac_scale.  The
+// given std::string pointer is modified to point to the first unconsumed char.
+bool ConsumeDurationNumber(const char** dpp, int64_t* int_part,
+                           int64_t* frac_part, int64_t* frac_scale) {
+  *int_part = 0;
+  *frac_part = 0;
+  *frac_scale = 1;  // invariant: *frac_part < *frac_scale
+  const char* start = *dpp;
+  for (; std::isdigit(**dpp); *dpp += 1) {
+    const int d = **dpp - '0';  // contiguous digits
+    if (*int_part > kint64max / 10) return false;
+    *int_part *= 10;
+    if (*int_part > kint64max - d) return false;
+    *int_part += d;
+  }
+  const bool int_part_empty = (*dpp == start);
+  if (**dpp != '.') return !int_part_empty;
+  for (*dpp += 1; std::isdigit(**dpp); *dpp += 1) {
+    const int d = **dpp - '0';  // contiguous digits
+    if (*frac_scale <= kint64max / 10) {
+      *frac_part *= 10;
+      *frac_part += d;
+      *frac_scale *= 10;
+    }
+  }
+  return !int_part_empty || *frac_scale != 1;
 }
 
 // A helper for ParseDuration() that parses a leading unit designator (e.g.,
@@ -859,13 +876,16 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
 
   Duration dur;
   while (*start != '\0') {
-    double n = 0;
+    int64_t int_part;
+    int64_t frac_part;
+    int64_t frac_scale;
     Duration unit;
-    if (!ConsumeDurationNumber(&start, &n) ||
+    if (!ConsumeDurationNumber(&start, &int_part, &frac_part, &frac_scale) ||
         !ConsumeDurationUnit(&start, &unit)) {
       return false;
     }
-    dur += sign * n * unit;
+    if (int_part != 0) dur += sign * int_part * unit;
+    if (frac_part != 0) dur += sign * frac_part * unit / frac_scale;
   }
   *d = dur;
   return true;

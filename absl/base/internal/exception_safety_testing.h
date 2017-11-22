@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <iosfwd>
 #include <string>
 #include <unordered_map>
@@ -13,6 +14,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/pretty_function.h"
+#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
@@ -43,6 +45,8 @@ constexpr NoThrow operator&(NoThrow a, NoThrow b) {
 }
 
 namespace exceptions_internal {
+struct NoThrowTag {};
+
 constexpr bool ThrowingAllowed(NoThrow flags, NoThrow flag) {
   return !static_cast<bool>(flags & flag);
 }
@@ -92,7 +96,45 @@ class TrackedObject {
 
   friend struct ::absl::AllocInspector;
 };
+
+template <typename T, typename... Checkers>
+testing::AssertionResult TestInvariants(const T& t, const TestException& e,
+                                        int count,
+                                        const Checkers&... checkers) {
+  auto out = AbslCheckInvariants(t);
+  // Don't bother with the checkers if the class invariants are already broken.
+  bool dummy[] = {true,
+                  (out && (out = testing::AssertionResult(checkers(t))))...};
+  static_cast<void>(dummy);
+
+  return out ? out
+             : out << " Caused by exception " << count << "thrown by "
+                   << e.what();
+}
+
+template <typename T, typename EqualTo>
+class StrongGuaranteeTester {
+ public:
+  explicit StrongGuaranteeTester(std::unique_ptr<T> t_ptr, EqualTo eq) noexcept
+      : val_(std::move(t_ptr)), eq_(eq) {}
+
+  testing::AssertionResult operator()(const T& other) const {
+    return eq_(*val_, other) ? testing::AssertionSuccess()
+                             : testing::AssertionFailure() << "State changed";
+  }
+
+ private:
+  std::unique_ptr<T> val_;
+  EqualTo eq_;
+};
 }  // namespace exceptions_internal
+
+extern exceptions_internal::NoThrowTag no_throw_ctor;
+
+// These are useful for tests which just construct objects and make sure there
+// are no leaks.
+inline void SetCountdown() { exceptions_internal::countdown = 0; }
+inline void UnsetCountdown() { exceptions_internal::countdown = -1; }
 
 // A test class which is contextually convertible to bool.  The conversion can
 // be instrumented to throw at a controlled time.
@@ -152,6 +194,9 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
     dummy_ = i;
   }
 
+  ThrowingValue(int i, exceptions_internal::NoThrowTag) noexcept
+      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(i) {}
+
   // absl expects nothrow destructors
   ~ThrowingValue() noexcept = default;
 
@@ -173,22 +218,22 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // Arithmetic Operators
   ThrowingValue operator+(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ + other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ + other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator+() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator-(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ - other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ - other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator-() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(-dummy_, NoThrowTag{});
+    return ThrowingValue(-dummy_, no_throw_ctor);
   }
 
   ThrowingValue& operator++() {
@@ -199,7 +244,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue operator++(int) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    auto out = ThrowingValue(dummy_, NoThrowTag{});
+    auto out = ThrowingValue(dummy_, no_throw_ctor);
     ++dummy_;
     return out;
   }
@@ -212,34 +257,34 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue operator--(int) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    auto out = ThrowingValue(dummy_, NoThrowTag{});
+    auto out = ThrowingValue(dummy_, no_throw_ctor);
     --dummy_;
     return out;
   }
 
   ThrowingValue operator*(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ * other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ * other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator/(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ / other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ / other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator%(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ % other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ % other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator<<(int shift) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ << shift, NoThrowTag{});
+    return ThrowingValue(dummy_ << shift, no_throw_ctor);
   }
 
   ThrowingValue operator>>(int shift) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ >> shift, NoThrowTag{});
+    return ThrowingValue(dummy_ >> shift, no_throw_ctor);
   }
 
   // Comparison Operators
@@ -293,22 +338,22 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // Bitwise Logical Operators
   ThrowingValue operator~() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(~dummy_, NoThrowTag{});
+    return ThrowingValue(~dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator&(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ & other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ & other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator|(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ | other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ | other.dummy_, no_throw_ctor);
   }
 
   ThrowingValue operator^(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ ^ other.dummy_, NoThrowTag{});
+    return ThrowingValue(dummy_ ^ other.dummy_, no_throw_ctor);
   }
 
   // Compound Assignment operators
@@ -434,10 +479,6 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   const int& Get() const noexcept { return dummy_; }
 
  private:
-  struct NoThrowTag {};
-  ThrowingValue(int i, NoThrowTag) noexcept
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(i) {}
-
   int dummy_;
 };
 // While not having to do with exceptions, explicitly delete comma operator, to
@@ -596,7 +637,9 @@ int ThrowingAllocator<T, Throws>::next_id_ = 0;
 
 // Inspects the constructions and destructions of anything inheriting from
 // TrackedObject.  Place this as a member variable in a test fixture to ensure
-// that every ThrowingValue was constructed and destroyed correctly.
+// that every ThrowingValue was constructed and destroyed correctly.  This also
+// allows us to safely "leak" TrackedObjects, as AllocInspector will destroy
+// everything left over in its destructor.
 struct AllocInspector {
   AllocInspector() = default;
   ~AllocInspector() {
@@ -609,69 +652,79 @@ struct AllocInspector {
   }
 };
 
-// Tests that performing operation Op on a T follows the basic exception safety
-// guarantee.
+// Tests for resource leaks by attempting to construct a T using args repeatedly
+// until successful, using the countdown method.  Side effects can then be
+// tested for resource leaks.  If an AllocInspector is present in the test
+// fixture, then this will also test that memory resources are not leaked as
+// long as T allocates TrackedObjects.
+template <typename T, typename... Args>
+T TestThrowingCtor(Args&&... args) {
+  struct Cleanup {
+    ~Cleanup() { UnsetCountdown(); }
+  };
+  Cleanup c;
+  for (int countdown = 0;; ++countdown) {
+    exceptions_internal::countdown = countdown;
+    try {
+      return T(std::forward<Args>(args)...);
+    } catch (const exceptions_internal::TestException&) {
+    }
+  }
+}
+
+// Tests that performing operation Op on a T follows exception safety
+// guarantees.  By default only tests the basic guarantee.
 //
 // Parameters:
 //   * T: the type under test.
 //   * FunctionFromTPtrToVoid: A functor exercising the function under test.  It
-//     should take a T* and return void.
-//
-//  There must also be a function named `AbslCheckInvariants` in an associated
-//  namespace of T which takes a const T& and returns true if the T's class
-//  invariants hold, and false if they don't.
-template <typename T, typename FunctionFromTPtrToVoid>
-testing::AssertionResult TestBasicGuarantee(T* t, FunctionFromTPtrToVoid&& op) {
+//   should take a T* and return void.
+//   * Checkers: Any number of functions taking a const T& and returning
+//   anything contextually convertible to bool.  If a testing::AssertionResult
+//   is used then the error message is kept.  These test invariants related to
+//   the operation. To test the strong guarantee, pass
+//   absl::StrongGuarantee(...) as one of these arguments if T has operator==.
+//   Some types for which the strong guarantee makes sense don't have operator==
+//   (eg std::any).  A function capturing *t or a T equal to it, taking a const
+//   T&, and returning contextually-convertible-to-bool may be passed instead.
+template <typename T, typename FunctionFromTPtrToVoid, typename... Checkers>
+testing::AssertionResult TestExceptionSafety(T* t, FunctionFromTPtrToVoid&& op,
+                                             const Checkers&... checkers) {
+  auto out = testing::AssertionSuccess();
   for (int countdown = 0;; ++countdown) {
     exceptions_internal::countdown = countdown;
     try {
       op(t);
       break;
     } catch (const exceptions_internal::TestException& e) {
-      if (!AbslCheckInvariants(*t)) {
-        return exceptions_internal::FailureMessage(e, countdown)
-               << " broke invariants.";
-      }
+      out = exceptions_internal::TestInvariants(*t, e, countdown, checkers...);
+      if (!out) return out;
     }
   }
-  exceptions_internal::countdown = -1;
-  return testing::AssertionSuccess();
+  UnsetCountdown();
+  return out;
 }
 
-// Tests that performing operation Op on a T follows the strong exception safety
-// guarantee.
+// Returns a functor to test for the strong exception-safety guarantee.  If T is
+// copyable, use the const T& overload, otherwise pass a unique_ptr<T>.
+// Equality comparisons are made against the T provided and default to using
+// operator==.  See the documentation for TestExceptionSafety if T doesn't have
+// operator== but the strong guarantee still makes sense for it.
 //
 // Parameters:
-//   * T: the type under test. T must be copy-constructable and
-//   equality-comparible.
-//   * FunctionFromTPtrToVoid: A functor exercising the function under test.  It
-//     should take a T* and return void.
-//
-//  There must also be a function named `AbslCheckInvariants` in an associated
-//  namespace of T which takes a const T& and returns true if the T's class
-//  invariants hold, and false if they don't.
-template <typename T, typename FunctionFromTPtrToVoid>
-testing::AssertionResult TestStrongGuarantee(T* t,
-                                             FunctionFromTPtrToVoid&& op) {
-  exceptions_internal::countdown = -1;
-  for (auto countdown = 0;; ++countdown) {
-    T dup = *t;
-    exceptions_internal::countdown = countdown;
-    try {
-      op(t);
-      break;
-    } catch (const exceptions_internal::TestException& e) {
-      if (!AbslCheckInvariants(*t)) {
-        return exceptions_internal::FailureMessage(e, countdown)
-               << " broke invariants.";
-      }
-      if (dup != *t)
-        return exceptions_internal::FailureMessage(e, countdown)
-               << " changed state.";
-    }
-  }
-  exceptions_internal::countdown = -1;
-  return testing::AssertionSuccess();
+//   * T: The type under test.
+template <typename T, typename EqualTo = std::equal_to<T>>
+exceptions_internal::StrongGuaranteeTester<T, EqualTo> StrongGuarantee(
+    const T& t, EqualTo eq = EqualTo()) {
+  return exceptions_internal::StrongGuaranteeTester<T, EqualTo>(
+      absl::make_unique<T>(t), eq);
+}
+
+template <typename T, typename EqualTo = std::equal_to<T>>
+exceptions_internal::StrongGuaranteeTester<T, EqualTo> PointeeStrongGuarantee(
+    std::unique_ptr<T> t_ptr, EqualTo eq = EqualTo()) {
+  return exceptions_internal::StrongGuaranteeTester<T, EqualTo>(
+      std::move(t_ptr), eq);
 }
 
 }  // namespace absl

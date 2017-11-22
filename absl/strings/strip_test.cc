@@ -116,4 +116,66 @@ TEST(Strip, StripSuffix) {
   EXPECT_EQ(absl::StripSuffix("", ""), "");
 }
 
+TEST(Strip, RemoveExtraAsciiWhitespace) {
+  const char* inputs[] = {
+      "No extra space",
+      "  Leading whitespace",
+      "Trailing whitespace  ",
+      "  Leading and trailing  ",
+      " Whitespace \t  in\v   middle  ",
+      "'Eeeeep!  \n Newlines!\n",
+      "nospaces",
+  };
+  const char* outputs[] = {
+      "No extra space",
+      "Leading whitespace",
+      "Trailing whitespace",
+      "Leading and trailing",
+      "Whitespace in middle",
+      "'Eeeeep! Newlines!",
+      "nospaces",
+  };
+  int NUM_TESTS = 7;
+
+  for (int i = 0; i < NUM_TESTS; i++) {
+    std::string s(inputs[i]);
+    absl::RemoveExtraAsciiWhitespace(&s);
+    EXPECT_STREQ(outputs[i], s.c_str());
+  }
+
+  // Test that absl::RemoveExtraAsciiWhitespace returns immediately for empty
+  // strings (It was adding the \0 character to the C++ std::string, which broke
+  // tests involving empty())
+  std::string zero_string = "";
+  assert(zero_string.empty());
+  absl::RemoveExtraAsciiWhitespace(&zero_string);
+  EXPECT_EQ(zero_string.size(), 0);
+  EXPECT_TRUE(zero_string.empty());
+}
+
+TEST(Strip, StripTrailingAsciiWhitespace) {
+  std::string test = "foo  ";
+  absl::StripTrailingAsciiWhitespace(&test);
+  EXPECT_EQ(test, "foo");
+
+  test = "   ";
+  absl::StripTrailingAsciiWhitespace(&test);
+  EXPECT_EQ(test, "");
+
+  test = "";
+  absl::StripTrailingAsciiWhitespace(&test);
+  EXPECT_EQ(test, "");
+
+  test = " abc\t";
+  absl::StripTrailingAsciiWhitespace(&test);
+  EXPECT_EQ(test, " abc");
+}
+
+TEST(String, StripLeadingAsciiWhitespace) {
+  absl::string_view orig = "\t  \n\f\r\n\vfoo";
+  EXPECT_EQ("foo", absl::StripLeadingAsciiWhitespace(orig));
+  orig = "\t  \n\f\r\v\n\t  \n\f\r\v\n";
+  EXPECT_EQ(absl::string_view(), absl::StripLeadingAsciiWhitespace(orig));
+}
+
 }  // namespace

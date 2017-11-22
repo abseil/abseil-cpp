@@ -74,12 +74,13 @@ function(absl_header_library)
 
   if(NOT EXISTS ${__dummy_header_only_lib_file})
     file(WRITE ${__dummy_header_only_lib_file}
-      "\
-       /* generated file for header-only cmake target */ \
-       \
-       // single meaningless symbol \
-       void __${_NAME}__header_fakesym() {} \
-       \
+      "/* generated file for header-only cmake target */
+
+      namespace absl {
+
+       // single meaningless symbol
+       void ${_NAME}__header_fakesym() {}
+      }  // namespace absl
       "
     )
   endif()

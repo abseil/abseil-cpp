@@ -238,6 +238,7 @@ cc_library(
     deps = [
         ":config",
         ":pretty_function",
+        "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
         "@com_google_googletest//:gtest",
