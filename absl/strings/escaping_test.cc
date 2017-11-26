@@ -638,4 +638,108 @@ TEST(HexAndBack, HexStringToBytes_and_BytesToHexString) {
   EXPECT_EQ(hex_only_lower, hex_result);
 }
 
+TEST(OffByOneErrors, OctalConversion) {
+  const char creference[] = "\\111";
+  absl::string_view reference(creference, 2);
+  std::string expected = "\1";
+
+  std::string unescaped_str;
+  EXPECT_TRUE(absl::CUnescape(reference, &unescaped_str));
+
+  EXPECT_EQ(unescaped_str, expected);
+}
+
+TEST(OffByOneErrors, InvalidHexConversion) {
+  const char creference[] = "\\x1";
+  absl::string_view reference(creference, 2);
+
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, HexConversion) {
+  const char creference[] = "\\x11";
+  absl::string_view reference(creference, 3);
+  std::string expected = "\x1";
+
+  std::string unescaped_str;
+  EXPECT_TRUE(absl::CUnescape(reference, &unescaped_str));
+  EXPECT_EQ(unescaped_str, expected);
+}
+
+TEST(OffByOneErrors, UtfConversion_u) {
+  const char creference[] = "\\u11111";
+  absl::string_view reference(creference, 5);
+
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, UtfConversion_U) {
+  const char creference[] = "\\U0000000000000";
+  absl::string_view reference(creference, 9);
+
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, OctalFFLimit) {
+  std::string reference = "\\377";
+  std::string expected = "\377";
+
+  std::string unescaped_str;
+  EXPECT_TRUE(absl::CUnescape(reference, &unescaped_str));
+
+  EXPECT_EQ(unescaped_str, expected);
+}
+
+TEST(OffByOneErrors, Utf_U_10FFFF_Limit) {
+  std::string reference = "\\U0010FFFF";
+  std::string expected = "\U0010FFFF";
+
+  std::string unescaped_str;
+  EXPECT_TRUE(absl::CUnescape(reference, &unescaped_str));
+  EXPECT_EQ(unescaped_str, expected);
+
+  EXPECT_FALSE(absl::CUnescape("\\U00110000", &unescaped_str));
+}
+
+TEST(OffByOneErrors, InvalidOctal) {
+  const char creference[] = "\\1z1";
+  absl::string_view reference(creference, 3);
+
+  std::string unescaped_str;
+  EXPECT_TRUE(absl::CUnescape(reference, &unescaped_str));
+
+  EXPECT_EQ(unescaped_str, "\1z");
+}
+
+TEST(OffByOneErrors, InvalidHex) {
+  const char creference[] = "\\xz";
+  absl::string_view reference(creference, 3);
+
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, InvalidUtf_u) {
+  const char creference[] = "\\u1z11";
+  absl::string_view reference(creference, 6);
+
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, InvalidUtf_U) {
+  std::string reference = "\\U1z111111";
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
+TEST(OffByOneErrors, InvalidEscaping) {
+  std::string reference = "\\z";
+  std::string unescaped_str;
+  EXPECT_FALSE(absl::CUnescape(reference, &unescaped_str));
+}
+
 }  // namespace
