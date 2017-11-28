@@ -43,6 +43,11 @@
 
       set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++ ${CMAKE_CXX_FLAGS}")
 
+      if (MSVC)
+        add_compile_options(/wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
+        add_definitions(/DNOMINMAX /DWIN32_LEAN_AND_MEAN=1 /D_CRT_SECURE_NO_WARNINGS)
+      endif()
+
       add_subdirectory(googletest)
       add_subdirectory(cctz)
       add_subdirectory(abseil-cpp)
@@ -51,7 +56,7 @@
       target_link_libraries(my_exe absl::base absl::synchronization absl::strings)
 
 
-You will need to create your own CMake files for cctz until https://github.com/google/cctz/pull/54 lands.  As of this writing, that pull request requires -DBUILD_TESTING=OFF as it doesn't correctly export cctz's dependency on Google Benchmark.
+As of this writing, that pull request requires -DBUILD_TESTING=OFF as it doesn't correctly export cctz's dependency on Google Benchmark.
 
     You will find here a non exhaustive list of absl public targets
 

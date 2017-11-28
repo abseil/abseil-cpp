@@ -103,7 +103,9 @@ MSVC_FLAGS = [
     "/wd4244",  # conversion from 'type1' to 'type2', possible loss of data
     "/wd4267",  # conversion from 'size_t' to 'type', possible loss of data
     "/wd4800",  # forcing value to bool 'true' or 'false' (performance warning)
+    "/DNOMINMAX",  # Don't define min and max macros (windows.h)
     "/DWIN32_LEAN_AND_MEAN",  # Don't bloat namespace with incompatible winsock versions.
+    "/D_CRT_SECURE_NO_WARNINGS",  # Don't warn about usage of insecure C functions
 ]
 
 MSVC_TEST_FLAGS = [
