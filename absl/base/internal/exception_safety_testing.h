@@ -18,6 +18,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
+#include "absl/types/optional.h"
 
 namespace absl {
 struct AllocInspector;
@@ -97,19 +98,50 @@ class TrackedObject {
   friend struct ::absl::AllocInspector;
 };
 
-template <typename T, typename... Checkers>
-testing::AssertionResult TestInvariants(const T& t, const TestException& e,
-                                        int count,
-                                        const Checkers&... checkers) {
-  auto out = AbslCheckInvariants(t);
-  // Don't bother with the checkers if the class invariants are already broken.
-  bool dummy[] = {true,
-                  (out && (out = testing::AssertionResult(checkers(t))))...};
-  static_cast<void>(dummy);
+template <typename Factory>
+using FactoryType = typename absl::result_of_t<Factory()>::element_type;
 
-  return out ? out
-             : out << " Caused by exception " << count << "thrown by "
-                   << e.what();
+// Returns an optional with the result of the check if op fails, or an empty
+// optional if op passes
+template <typename Factory, typename Op, typename Checker>
+absl::optional<testing::AssertionResult> TestCheckerAtCountdown(
+    Factory factory, const Op& op, int count, const Checker& check) {
+  exceptions_internal::countdown = count;
+  auto t_ptr = factory();
+  absl::optional<testing::AssertionResult> out;
+  try {
+    op(t_ptr.get());
+  } catch (const exceptions_internal::TestException& e) {
+    out.emplace(check(t_ptr.get()));
+    if (!*out) {
+      *out << " caused by exception thrown by " << e.what();
+    }
+  }
+  return out;
+}
+
+template <typename Factory, typename Op, typename Checker>
+int UpdateOut(Factory factory, const Op& op, int count, const Checker& checker,
+              testing::AssertionResult* out) {
+  if (*out) *out = *TestCheckerAtCountdown(factory, op, count, checker);
+  return 0;
+}
+
+// Returns an optional with the result of the check if op fails, or an empty
+// optional if op passes
+template <typename Factory, typename Op, typename... Checkers>
+absl::optional<testing::AssertionResult> TestAtCountdown(
+    Factory factory, const Op& op, int count, const Checkers&... checkers) {
+  // Don't bother with the checkers if the class invariants are already broken.
+  auto out = TestCheckerAtCountdown(
+      factory, op, count,
+      [](FactoryType<Factory>* t_ptr) { return AbslCheckInvariants(t_ptr); });
+  if (!out.has_value()) return out;
+
+  // Run each checker, short circuiting after the first failure
+  int dummy[] = {0, (UpdateOut(factory, op, count, checkers, &*out))...};
+  static_cast<void>(dummy);
+  return out;
 }
 
 template <typename T, typename EqualTo>
@@ -118,9 +150,9 @@ class StrongGuaranteeTester {
   explicit StrongGuaranteeTester(std::unique_ptr<T> t_ptr, EqualTo eq) noexcept
       : val_(std::move(t_ptr)), eq_(eq) {}
 
-  testing::AssertionResult operator()(const T& other) const {
-    return eq_(*val_, other) ? testing::AssertionSuccess()
-                             : testing::AssertionFailure() << "State changed";
+  testing::AssertionResult operator()(T* other) const {
+    return eq_(*val_, *other) ? testing::AssertionSuccess()
+                              : testing::AssertionFailure() << "State changed";
   }
 
  private:
@@ -673,58 +705,52 @@ T TestThrowingCtor(Args&&... args) {
 }
 
 // Tests that performing operation Op on a T follows exception safety
-// guarantees.  By default only tests the basic guarantee.
+// guarantees.  By default only tests the basic guarantee. There must be a
+// function, AbslCheckInvariants(T*) which returns
+// anything convertible to bool and which makes sure the invariants of the type
+// are upheld.  This is called before any of the checkers.
 //
 // Parameters:
-//   * T: the type under test.
+//   * TFactory: operator() returns a unique_ptr to the type under test (T).  It
+//   should always return pointers to values which compare equal.
 //   * FunctionFromTPtrToVoid: A functor exercising the function under test.  It
 //   should take a T* and return void.
-//   * Checkers: Any number of functions taking a const T& and returning
+//   * Checkers: Any number of functions taking a T* and returning
 //   anything contextually convertible to bool.  If a testing::AssertionResult
 //   is used then the error message is kept.  These test invariants related to
 //   the operation. To test the strong guarantee, pass
-//   absl::StrongGuarantee(...) as one of these arguments if T has operator==.
-//   Some types for which the strong guarantee makes sense don't have operator==
-//   (eg std::any).  A function capturing *t or a T equal to it, taking a const
-//   T&, and returning contextually-convertible-to-bool may be passed instead.
-template <typename T, typename FunctionFromTPtrToVoid, typename... Checkers>
-testing::AssertionResult TestExceptionSafety(T* t, FunctionFromTPtrToVoid&& op,
+//   absl::StrongGuarantee(factory).  A checker may freely modify the passed-in
+//   T, for example to make sure the T can be set to a known state.
+template <typename TFactory, typename FunctionFromTPtrToVoid,
+          typename... Checkers>
+testing::AssertionResult TestExceptionSafety(TFactory factory,
+                                             FunctionFromTPtrToVoid&& op,
                                              const Checkers&... checkers) {
-  auto out = testing::AssertionSuccess();
   for (int countdown = 0;; ++countdown) {
-    exceptions_internal::countdown = countdown;
-    try {
-      op(t);
-      break;
-    } catch (const exceptions_internal::TestException& e) {
-      out = exceptions_internal::TestInvariants(*t, e, countdown, checkers...);
-      if (!out) return out;
+    auto out = exceptions_internal::TestAtCountdown(factory, op, countdown,
+                                                    checkers...);
+    if (!out.has_value()) {
+      UnsetCountdown();
+      return testing::AssertionSuccess();
     }
+    if (!*out) return *out;
   }
-  UnsetCountdown();
-  return out;
 }
 
-// Returns a functor to test for the strong exception-safety guarantee.  If T is
-// copyable, use the const T& overload, otherwise pass a unique_ptr<T>.
-// Equality comparisons are made against the T provided and default to using
-// operator==.  See the documentation for TestExceptionSafety if T doesn't have
-// operator== but the strong guarantee still makes sense for it.
+// Returns a functor to test for the strong exception-safety guarantee.
+// Equality comparisons are made against the T provided by the factory and
+// default to using operator==.
 //
 // Parameters:
-//   * T: The type under test.
-template <typename T, typename EqualTo = std::equal_to<T>>
-exceptions_internal::StrongGuaranteeTester<T, EqualTo> StrongGuarantee(
-    const T& t, EqualTo eq = EqualTo()) {
-  return exceptions_internal::StrongGuaranteeTester<T, EqualTo>(
-      absl::make_unique<T>(t), eq);
-}
-
-template <typename T, typename EqualTo = std::equal_to<T>>
-exceptions_internal::StrongGuaranteeTester<T, EqualTo> PointeeStrongGuarantee(
-    std::unique_ptr<T> t_ptr, EqualTo eq = EqualTo()) {
-  return exceptions_internal::StrongGuaranteeTester<T, EqualTo>(
-      std::move(t_ptr), eq);
+//   * TFactory: operator() returns a unique_ptr to the type under test.  It
+//   should always return pointers to values which compare equal.
+template <typename TFactory, typename EqualTo = std::equal_to<
+                                 exceptions_internal::FactoryType<TFactory>>>
+exceptions_internal::StrongGuaranteeTester<
+    exceptions_internal::FactoryType<TFactory>, EqualTo>
+StrongGuarantee(TFactory factory, EqualTo eq = EqualTo()) {
+  return exceptions_internal::StrongGuaranteeTester<
+      exceptions_internal::FactoryType<TFactory>, EqualTo>(factory(), eq);
 }
 
 }  // namespace absl

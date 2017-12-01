@@ -192,9 +192,8 @@ std::ostream& operator<<(std::ostream& o, const uint128& b) {
       rep.append(width - rep.size(), o.fill());
     } else if (adjustfield == std::ios::internal &&
                (flags & std::ios::showbase) &&
-               (flags & std::ios::basefield) != std::ios::dec) {
-      size_t base_size = (flags & std::ios::basefield) == std::ios::hex ? 2 : 1;
-      rep.insert(base_size, width - rep.size(), o.fill());
+               (flags & std::ios::basefield) == std::ios::hex && b != 0) {
+      rep.insert(2, width - rep.size(), o.fill());
     } else {
       rep.insert(0, width - rep.size(), o.fill());
     }

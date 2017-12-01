@@ -241,6 +241,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/types:optional",
         "@com_google_googletest//:gtest",
     ],
 )

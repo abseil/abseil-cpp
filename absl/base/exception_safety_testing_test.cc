@@ -384,70 +384,62 @@ struct CallOperator {
   }
 };
 
-struct FailsBasicGuarantee {
+struct NonNegative {
+  friend testing::AssertionResult AbslCheckInvariants(NonNegative* g) {
+    if (g->i >= 0) return testing::AssertionSuccess();
+    return testing::AssertionFailure()
+           << "i should be non-negative but is " << g->i;
+  }
+  bool operator==(const NonNegative& other) const { return i == other.i; }
+
+  int i;
+};
+
+template <typename T>
+struct DefaultFactory {
+  std::unique_ptr<T> operator()() const { return absl::make_unique<T>(); }
+};
+
+struct FailsBasicGuarantee : public NonNegative {
   void operator()() {
     --i;
     ThrowingValue<> bomb;
     ++i;
   }
-
-  bool operator==(const FailsBasicGuarantee& other) const {
-    return i == other.i;
-  }
-
-  friend testing::AssertionResult AbslCheckInvariants(
-      const FailsBasicGuarantee& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
-  }
-
-  int i = 0;
 };
 
 TEST(ExceptionCheckTest, BasicGuaranteeFailure) {
-  FailsBasicGuarantee g;
-  EXPECT_FALSE(TestExceptionSafety(&g, CallOperator{}));
+  EXPECT_FALSE(TestExceptionSafety(DefaultFactory<FailsBasicGuarantee>(),
+                                   CallOperator{}));
 }
 
-struct FollowsBasicGuarantee {
+struct FollowsBasicGuarantee : public NonNegative {
   void operator()() {
     ++i;
     ThrowingValue<> bomb;
   }
-
-  bool operator==(const FollowsBasicGuarantee& other) const {
-    return i == other.i;
-  }
-
-  friend testing::AssertionResult AbslCheckInvariants(
-      const FollowsBasicGuarantee& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
-  }
-
-  int i = 0;
 };
 
 TEST(ExceptionCheckTest, BasicGuarantee) {
-  FollowsBasicGuarantee g;
-  EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}));
+  EXPECT_TRUE(TestExceptionSafety(DefaultFactory<FollowsBasicGuarantee>(),
+                                  CallOperator{}));
 }
 
 TEST(ExceptionCheckTest, StrongGuaranteeFailure) {
   {
-    FailsBasicGuarantee g;
-    EXPECT_FALSE(TestExceptionSafety(&g, CallOperator{}, StrongGuarantee(g)));
+    DefaultFactory<FailsBasicGuarantee> factory;
+    EXPECT_FALSE(
+        TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
   }
 
   {
-    FollowsBasicGuarantee g;
-    EXPECT_FALSE(TestExceptionSafety(&g, CallOperator{}, StrongGuarantee(g)));
+    DefaultFactory<FollowsBasicGuarantee> factory;
+    EXPECT_FALSE(
+        TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
   }
 }
 
-struct BasicGuaranteeWithExtraInvariants {
+struct BasicGuaranteeWithExtraInvariants : public NonNegative {
   // After operator(), i is incremented.  If operator() throws, i is set to 9999
   void operator()() {
     int old_i = i;
@@ -456,92 +448,94 @@ struct BasicGuaranteeWithExtraInvariants {
     i = ++old_i;
   }
 
-  bool operator==(const FollowsBasicGuarantee& other) const {
-    return i == other.i;
-  }
-
-  friend testing::AssertionResult AbslCheckInvariants(
-      const BasicGuaranteeWithExtraInvariants& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
-  }
-
-  int i = 0;
   static constexpr int kExceptionSentinel = 9999;
 };
 constexpr int BasicGuaranteeWithExtraInvariants::kExceptionSentinel;
 
 TEST(ExceptionCheckTest, BasicGuaranteeWithInvariants) {
-  {
-    BasicGuaranteeWithExtraInvariants g;
-    EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}));
-  }
+  DefaultFactory<BasicGuaranteeWithExtraInvariants> factory;
 
-  {
-    BasicGuaranteeWithExtraInvariants g;
-    EXPECT_TRUE(TestExceptionSafety(
-        &g, CallOperator{}, [](const BasicGuaranteeWithExtraInvariants& w) {
-          if (w.i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
-            return testing::AssertionSuccess();
-          }
-          return testing::AssertionFailure()
-                 << "i should be "
-                 << BasicGuaranteeWithExtraInvariants::kExceptionSentinel
-                 << ", but is " << w.i;
-        }));
-  }
+  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
+
+  EXPECT_TRUE(TestExceptionSafety(
+      factory, CallOperator{}, [](BasicGuaranteeWithExtraInvariants* w) {
+        if (w->i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
+          return testing::AssertionSuccess();
+        }
+        return testing::AssertionFailure()
+               << "i should be "
+               << BasicGuaranteeWithExtraInvariants::kExceptionSentinel
+               << ", but is " << w->i;
+      }));
 }
 
-struct FollowsStrongGuarantee {
+struct FollowsStrongGuarantee : public NonNegative {
   void operator()() { ThrowingValue<> bomb; }
-
-  bool operator==(const FollowsStrongGuarantee& other) const {
-    return i == other.i;
-  }
-
-  friend testing::AssertionResult AbslCheckInvariants(
-      const FollowsStrongGuarantee& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
-  }
-
-  int i = 0;
 };
 
 TEST(ExceptionCheckTest, StrongGuarantee) {
-  FollowsStrongGuarantee g;
-  EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}));
-  EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}, StrongGuarantee(g)));
+  DefaultFactory<FollowsStrongGuarantee> factory;
+  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
+  EXPECT_TRUE(
+      TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
 }
 
-struct NonCopyable {
-  NonCopyable(const NonCopyable&) = delete;
-  explicit NonCopyable(int ii) : i(ii) {}
-
-  void operator()() { ThrowingValue<> bomb; }
-
-  bool operator==(const NonCopyable& other) const { return i == other.i; }
-
-  friend testing::AssertionResult AbslCheckInvariants(const NonCopyable& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
+struct HasReset : public NonNegative {
+  void operator()() {
+    i = -1;
+    ThrowingValue<> bomb;
+    i = 1;
   }
 
-  int i;
+  void reset() { i = 0; }
+
+  friend bool AbslCheckInvariants(HasReset* h) {
+    h->reset();
+    return h->i == 0;
+  }
+};
+
+TEST(ExceptionCheckTest, ModifyingChecker) {
+  {
+    DefaultFactory<FollowsBasicGuarantee> factory;
+    EXPECT_FALSE(TestExceptionSafety(
+        factory, CallOperator{},
+        [](FollowsBasicGuarantee* g) {
+          g->i = 1000;
+          return true;
+        },
+        [](FollowsBasicGuarantee* g) { return g->i == 1000; }));
+  }
+  {
+    DefaultFactory<FollowsStrongGuarantee> factory;
+    EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{},
+                                    [](FollowsStrongGuarantee* g) {
+                                      ++g->i;
+                                      return true;
+                                    },
+                                    StrongGuarantee(factory)));
+  }
+  {
+    DefaultFactory<HasReset> factory;
+    EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
+  }
+}
+
+struct NonCopyable : public NonNegative {
+  NonCopyable(const NonCopyable&) = delete;
+  NonCopyable() : NonNegative{0} {}
+
+  void operator()() { ThrowingValue<> bomb; }
 };
 
 TEST(ExceptionCheckTest, NonCopyable) {
-  NonCopyable g(0);
-  EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}));
-  EXPECT_TRUE(TestExceptionSafety(
-      &g, CallOperator{},
-      PointeeStrongGuarantee(absl::make_unique<NonCopyable>(g.i))));
+  DefaultFactory<NonCopyable> factory;
+  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
+  EXPECT_TRUE(
+      TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
 }
 
-struct NonEqualityComparable {
+struct NonEqualityComparable : public NonNegative {
   void operator()() { ThrowingValue<> bomb; }
 
   void ModifyOnThrow() {
@@ -550,71 +544,61 @@ struct NonEqualityComparable {
     static_cast<void>(bomb);
     --i;
   }
-
-  friend testing::AssertionResult AbslCheckInvariants(
-      const NonEqualityComparable& g) {
-    if (g.i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g.i;
-  }
-
-  int i = 0;
 };
 
 TEST(ExceptionCheckTest, NonEqualityComparable) {
-  NonEqualityComparable g;
+  DefaultFactory<NonEqualityComparable> factory;
   auto comp = [](const NonEqualityComparable& a,
                  const NonEqualityComparable& b) { return a.i == b.i; };
-  EXPECT_TRUE(TestExceptionSafety(&g, CallOperator{}));
-  EXPECT_TRUE(
-      TestExceptionSafety(&g, CallOperator{}, absl::StrongGuarantee(g, comp)));
+  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
+  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{},
+                                  absl::StrongGuarantee(factory, comp)));
   EXPECT_FALSE(TestExceptionSafety(
-      &g, [&](NonEqualityComparable* n) { n->ModifyOnThrow(); },
-      absl::StrongGuarantee(g, comp)));
+      factory, [&](NonEqualityComparable* n) { n->ModifyOnThrow(); },
+      absl::StrongGuarantee(factory, comp)));
 }
 
 template <typename T>
-struct InstructionCounter {
+struct ExhaustivenessTester {
   void operator()() {
-    ++counter;
+    successes |= 1;
     T b1;
     static_cast<void>(b1);
-    ++counter;
+    successes |= (1 << 1);
     T b2;
     static_cast<void>(b2);
-    ++counter;
+    successes |= (1 << 2);
     T b3;
     static_cast<void>(b3);
-    ++counter;
+    successes |= (1 << 3);
   }
 
-  bool operator==(const InstructionCounter<ThrowingValue<>>&) const {
+  bool operator==(const ExhaustivenessTester<ThrowingValue<>>&) const {
     return true;
   }
 
-  friend testing::AssertionResult AbslCheckInvariants(
-      const InstructionCounter&) {
+  friend testing::AssertionResult AbslCheckInvariants(ExhaustivenessTester*) {
     return testing::AssertionSuccess();
   }
 
-  static int counter;
+  static unsigned char successes;
 };
 template <typename T>
-int InstructionCounter<T>::counter = 0;
+unsigned char ExhaustivenessTester<T>::successes = 0;
 
 TEST(ExceptionCheckTest, Exhaustiveness) {
-  InstructionCounter<int> int_factory;
-  EXPECT_TRUE(TestExceptionSafety(&int_factory, CallOperator{}));
-  EXPECT_EQ(InstructionCounter<int>::counter, 4);
+  DefaultFactory<ExhaustivenessTester<int>> int_factory;
+  EXPECT_TRUE(TestExceptionSafety(int_factory, CallOperator{}));
+  EXPECT_EQ(ExhaustivenessTester<int>::successes, 0xF);
 
-  InstructionCounter<ThrowingValue<>> bomb_factory;
-  EXPECT_TRUE(TestExceptionSafety(&bomb_factory, CallOperator{}));
-  EXPECT_EQ(InstructionCounter<ThrowingValue<>>::counter, 10);
+  DefaultFactory<ExhaustivenessTester<ThrowingValue<>>> bomb_factory;
+  EXPECT_TRUE(TestExceptionSafety(bomb_factory, CallOperator{}));
+  EXPECT_EQ(ExhaustivenessTester<ThrowingValue<>>::successes, 0xF);
 
-  InstructionCounter<ThrowingValue<>>::counter = 0;
-  EXPECT_TRUE(TestExceptionSafety(&bomb_factory, CallOperator{},
+  ExhaustivenessTester<ThrowingValue<>>::successes = 0;
+  EXPECT_TRUE(TestExceptionSafety(bomb_factory, CallOperator{},
                                   StrongGuarantee(bomb_factory)));
-  EXPECT_EQ(InstructionCounter<ThrowingValue<>>::counter, 10);
+  EXPECT_EQ(ExhaustivenessTester<ThrowingValue<>>::successes, 0xF);
 }
 
 struct LeaksIfCtorThrows : private exceptions_internal::TrackedObject {

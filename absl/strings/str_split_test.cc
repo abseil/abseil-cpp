@@ -857,12 +857,10 @@ TEST(Delimiter, ByLength) {
   EXPECT_FALSE(IsFoundAt("abcd", four_char_delim, 0));
 }
 
-// Allocates too much memory for TSan and MSan.
-#if !defined(THREAD_SANITIZER) && !defined(MEMORY_SANITIZER)
 TEST(Split, WorksWithLargeStrings) {
-  if (sizeof(size_t) > 4 && !RunningOnValgrind()) {
-    std::string s(1ULL << 31, 'x');
-    s.push_back('-');  // 2G + 1 byte
+  if (sizeof(size_t) > 4) {
+    std::string s((uint32_t{1} << 31) + 1, 'x');  // 2G + 1 byte
+    s.back() = '-';
     std::vector<absl::string_view> v = absl::StrSplit(s, '-');
     EXPECT_EQ(2, v.size());
     // The first element will contain 2G of 'x's.
@@ -873,7 +871,6 @@ TEST(Split, WorksWithLargeStrings) {
     EXPECT_EQ("", v[1]);
   }
 }
-#endif  // THREAD_SANITIZER
 
 TEST(SplitInternalTest, TypeTraits) {
   EXPECT_FALSE(absl::strings_internal::HasMappedType<int>::value);
