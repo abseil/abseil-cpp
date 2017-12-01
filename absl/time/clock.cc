@@ -510,7 +510,7 @@ namespace {
 // Returns the maximum duration that SleepOnce() can sleep for.
 constexpr absl::Duration MaxSleep() {
 #ifdef _WIN32
-  // Windows _sleep() takes unsigned long argument in milliseconds.
+  // Windows Sleep() takes unsigned long argument in milliseconds.
   return absl::Milliseconds(
       std::numeric_limits<unsigned long>::max());  // NOLINT(runtime/int)
 #else
@@ -522,7 +522,7 @@ constexpr absl::Duration MaxSleep() {
 // REQUIRES: to_sleep <= MaxSleep().
 void SleepOnce(absl::Duration to_sleep) {
 #ifdef _WIN32
-  _sleep(to_sleep / absl::Milliseconds(1));
+  Sleep(to_sleep / absl::Milliseconds(1));
 #else
   struct timespec sleep_time = absl::ToTimespec(to_sleep);
   while (nanosleep(&sleep_time, &sleep_time) != 0 && errno == EINTR) {
