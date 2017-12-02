@@ -64,7 +64,10 @@ namespace absl {
 // Example:
 //
 //   std::string s = "foo\\rbar\\nbaz\\t";
-//   std::string unescaped_s = absl::CUnescape(s);
+//   std::string unescaped_s;
+//   if (!absl::CUnescape(s, &unescaped_s) {
+//     ...
+//   }
 //   EXPECT_EQ(unescaped_s, "foo\rbar\nbaz\t");
 bool CUnescape(absl::string_view source, std::string* dest, std::string* error);
 
