@@ -26,7 +26,17 @@ include(AbseilHelpers)
 
 
 # config options
-set(ABSL_STD_CXX_FLAG "-std=c++11" CACHE STRING "c++ std flag (default: c++11)")
+if (MSVC)
+  # /wd4005  macro-redefinition
+  # /wd4068  unknown pragma
+  # /wd4244  conversion from 'type1' to 'type2'
+  # /wd4267  conversion from 'size_t' to 'type2'
+  # /wd4800  force value to bool 'true' or 'false' (performance warning)
+  add_compile_options(/W3 /WX /wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
+  add_definitions(/DNOMINMAX /DWIN32_LEAN_AND_MEAN=1 /D_CRT_SECURE_NO_WARNINGS)
+else()
+  set(ABSL_STD_CXX_FLAG "-std=c++11" CACHE STRING "c++ std flag (default: c++11)")
+endif()
 
 
 
@@ -65,9 +75,6 @@ check_target(gmock)
 
 # -fexceptions
 set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
-
-# fix stuff
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FIX_MSVC} ${CMAKE_CXX_FLAGS}")
 
 list(APPEND ABSL_TEST_COMMON_LIBRARIES
   gtest_main

@@ -190,3 +190,19 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "lifetime_test",
+    srcs = [
+        "lifetime_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:windows": [],
+        "//conditions:default": ["-pthread"],
+    }),
+    deps = [
+        ":synchronization",
+        "//absl/base",
+    ],
+)

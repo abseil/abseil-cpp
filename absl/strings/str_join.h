@@ -208,11 +208,11 @@ DereferenceFormatter() {
 //   // Joins a `std::map`, with each key-value pair separated by an equals
 //   // sign. This pattern would also work with, say, a
 //   // `std::vector<std::pair<>>`.
-//    std::map<std::string, int> m = {
-//        std::make_pair("a", 1),
-//        std::make_pair("b", 2),
-//        std::make_pair("c", 3)};
-//   std::string s = absl::StrJoin(m, ",", strings::PairFormatter("="));
+//   std::map<std::string, int> m = {
+//       std::make_pair("a", 1),
+//       std::make_pair("b", 2),
+//       std::make_pair("c", 3)};
+//   std::string s = absl::StrJoin(m, ",", absl::PairFormatter("="));
 //   EXPECT_EQ("a=1,b=2,c=3", s);
 //
 // Example 7:
