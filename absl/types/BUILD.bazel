@@ -87,6 +87,10 @@ cc_library(
     name = "span",
     hdrs = ["span.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//absl/algorithm",
         "//absl/base:core_headers",
@@ -101,6 +105,10 @@ cc_test(
     size = "small",
     srcs = ["span_test.cc"],
     copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":span",
         "//absl/base:config",
@@ -118,6 +126,10 @@ cc_test(
     size = "small",
     srcs = ["span_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":span",
         "//absl/base:config",

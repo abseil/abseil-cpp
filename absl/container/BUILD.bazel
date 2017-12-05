@@ -66,6 +66,10 @@ cc_library(
     name = "inlined_vector",
     hdrs = ["inlined_vector.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//absl/algorithm",
         "//absl/base:core_headers",
@@ -78,6 +82,10 @@ cc_test(
     name = "inlined_vector_test",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",
@@ -94,6 +102,10 @@ cc_test(
     name = "inlined_vector_test_noexceptions",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",

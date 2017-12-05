@@ -17,6 +17,10 @@ cc_library(
     ],
     hdrs = ["int128.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -31,6 +35,10 @@ cc_test(
         "int128_test_unsigned_ostream_cases.inc",
     ],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":int128",
         "//absl/base",

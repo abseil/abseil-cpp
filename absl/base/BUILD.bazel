@@ -38,6 +38,10 @@ cc_library(
         "internal/spinlock_wait.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     visibility = [
         "//absl/base:__pkg__",
     ],
@@ -51,6 +55,10 @@ cc_library(
         "policy_checks.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
@@ -110,6 +118,10 @@ cc_library(
         "internal/malloc_hook_c.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     textual_hdrs = [
         "internal/malloc_hook_invoke.h",
     ],
@@ -132,6 +144,10 @@ cc_library(
         "internal/invoke.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -163,6 +179,10 @@ cc_library(
         "internal/unscaledcycleclock.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":base_internal",
         ":config",
@@ -262,6 +282,10 @@ cc_test(
     size = "small",
     srcs = ["invoke_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":base_internal",
         "//absl/memory",
@@ -292,6 +316,10 @@ cc_test(
     size = "medium",
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":base",
         ":core_headers",
@@ -330,6 +358,10 @@ cc_test(
     name = "config_test",
     srcs = ["config_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":config",
         "//absl/synchronization:thread_pool",
@@ -341,6 +373,10 @@ cc_test(
     name = "call_once_test",
     srcs = ["call_once_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":base",
         ":core_headers",
@@ -364,6 +400,10 @@ cc_test(
     size = "small",
     srcs = ["internal/sysinfo_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:freebsd": ["-lm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":base",
         "//absl/synchronization",
@@ -378,6 +418,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:freebsd": ["-pthread", "-lm"],
         "//conditions:default": ["-pthread"],
     }),
     deps = [":malloc_internal"],
@@ -390,6 +431,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:freebsd": ["-pthread", "-lm"],
         "//conditions:default": ["-pthread"],
     }),
     deps = [

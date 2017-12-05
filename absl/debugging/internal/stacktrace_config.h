@@ -24,9 +24,9 @@
 // First, test platforms which only support a stub.
 #if ABSL_STACKTRACE_INL_HEADER
 #error ABSL_STACKTRACE_INL_HEADER cannot be directly set
-#elif defined(__native_client__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__ANDROID__) || defined(__myriad2__) || defined(asmjs__) || \
-    defined(__Fuchsia__)
+#elif defined(__native_client__) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__ANDROID__) || defined(__myriad2__) || \
+    defined(asmjs__) || defined(__Fuchsia__)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
 
