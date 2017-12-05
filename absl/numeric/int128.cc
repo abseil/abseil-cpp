@@ -124,22 +124,22 @@ uint128::uint128(float v) : uint128(Initialize128FromFloat(v)) {}
 uint128::uint128(double v) : uint128(Initialize128FromFloat(v)) {}
 uint128::uint128(long double v) : uint128(Initialize128FromFloat(v)) {}
 
-uint128& uint128::operator/=(const uint128& divisor) {
+uint128& uint128::operator/=(uint128 other) {
   uint128 quotient = 0;
   uint128 remainder = 0;
-  DivModImpl(*this, divisor, &quotient, &remainder);
+  DivModImpl(*this, other, &quotient, &remainder);
   *this = quotient;
   return *this;
 }
-uint128& uint128::operator%=(const uint128& divisor) {
+uint128& uint128::operator%=(uint128 other) {
   uint128 quotient = 0;
   uint128 remainder = 0;
-  DivModImpl(*this, divisor, &quotient, &remainder);
+  DivModImpl(*this, other, &quotient, &remainder);
   *this = remainder;
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& o, const uint128& b) {
+std::ostream& operator<<(std::ostream& o, uint128 b) {
   std::ios_base::fmtflags flags = o.flags();
 
   // Select a divisor which is the largest power of the base < 2^64.
