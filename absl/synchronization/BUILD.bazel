@@ -17,6 +17,7 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -34,10 +35,7 @@ cc_library(
         "internal/graphcycles.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -72,10 +70,7 @@ cc_library(
         "notification.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
         "//absl/base",
@@ -95,10 +90,7 @@ cc_test(
     size = "small",
     srcs = ["barrier_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -111,10 +103,7 @@ cc_test(
     size = "small",
     srcs = ["blocking_counter_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -127,10 +116,7 @@ cc_test(
     size = "medium",
     srcs = ["internal/graphcycles_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
         "//absl/base",
@@ -154,10 +140,7 @@ cc_test(
     size = "large",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "no_test_loonix",  # Too slow.
     ],
@@ -177,10 +160,7 @@ cc_test(
     size = "small",
     srcs = ["notification_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -208,10 +188,7 @@ cc_test(
     name = "per_thread_sem_test",
     size = "medium",
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
@@ -229,11 +206,7 @@ cc_test(
         "lifetime_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:windows": [],
-        "//absl:freebsd": ["-pthread", "-lm"],
-        "//conditions:default": ["-pthread"],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/base",

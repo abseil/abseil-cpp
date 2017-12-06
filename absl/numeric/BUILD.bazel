@@ -1,6 +1,7 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -17,10 +18,7 @@ cc_library(
     ],
     hdrs = ["int128.h"],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -35,10 +33,7 @@ cc_test(
         "int128_test_unsigned_ostream_cases.inc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:freebsd": ["-lm"],
-        "//conditions:default": [],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":int128",
         "//absl/base",
