@@ -258,7 +258,7 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   // types with vtables
   EXPECT_FALSE(absl::is_trivially_copy_constructible<Base>::value);
 
-  // Verify that std pair of such types is trivially copy constructible
+  // Verify that simple_pair of such types is trivially copy constructible
   EXPECT_TRUE(
       (absl::is_trivially_copy_constructible<simple_pair<int, char*>>::value));
   EXPECT_TRUE((
@@ -270,7 +270,7 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   typedef int int10[10];
   EXPECT_FALSE(absl::is_trivially_copy_constructible<int10>::value);
 
-  // Verify that pairs of types without trivial copy constructors
+  // Verify that simple_pairs of types without trivial copy constructors
   // are not marked as trivial.
   EXPECT_FALSE((absl::is_trivially_copy_constructible<
                 simple_pair<int, std::string>>::value));
