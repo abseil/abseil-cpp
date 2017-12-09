@@ -92,7 +92,6 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:throw_delegate",
         "//absl/meta:type_traits",
-        "//absl/strings",
     ],
 )
 
