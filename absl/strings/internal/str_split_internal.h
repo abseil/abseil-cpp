@@ -29,10 +29,6 @@
 #ifndef ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_
 #define ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_
 
-#ifdef _GLIBCXX_DEBUG
-#include <glibcxx_debug_traits.h>
-#endif  // _GLIBCXX_DEBUG
-
 #include <array>
 #include <initializer_list>
 #include <iterator>
@@ -49,11 +45,7 @@
 namespace absl {
 namespace strings_internal {
 
-#ifdef _GLIBCXX_DEBUG
-using ::glibcxx_debug_traits::IsStrictlyDebugWrapperBase;
-#else  // _GLIBCXX_DEBUG
 template <typename T> struct IsStrictlyDebugWrapperBase : std::false_type {};
-#endif  // _GLIBCXX_DEBUG
 
 // This class is implicitly constructible from everything that absl::string_view
 // is implicitly constructible from. If it's constructed from a temporary
