@@ -35,6 +35,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #else
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 

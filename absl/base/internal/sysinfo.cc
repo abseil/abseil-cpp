@@ -15,6 +15,9 @@
 #include "absl/base/internal/sysinfo.h"
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <shlwapi.h>
 #include <windows.h>
 #else
