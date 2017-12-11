@@ -26,6 +26,12 @@ namespace {
 
 using ::testing::StaticAssertTypeEq;
 
+template <class T, class U>
+struct simple_pair {
+  T first;
+  U second;
+};
+
 struct Dummy {};
 
 TEST(VoidTTest, BasicUsage) {
@@ -205,9 +211,9 @@ TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
   EXPECT_TRUE(
       absl::is_trivially_default_constructible<TrivialDefaultCtor10>::value);
 
-  // Verify that std::pair has non-trivial constructors.
-  EXPECT_FALSE(
-      (absl::is_trivially_default_constructible<std::pair<int, char*>>::value));
+  // Verify that simple_pair has trivial constructors where applicable.
+  EXPECT_TRUE((absl::is_trivially_default_constructible<
+               simple_pair<int, char*>>::value));
 
   // Verify that types without trivial constructors are
   // correctly marked as such.
@@ -252,24 +258,24 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   // types with vtables
   EXPECT_FALSE(absl::is_trivially_copy_constructible<Base>::value);
 
-  // Verify that std pair of such types is trivially copy constructible
+  // Verify that simple_pair of such types is trivially copy constructible
   EXPECT_TRUE(
-      (absl::is_trivially_copy_constructible<std::pair<int, char*>>::value));
-  EXPECT_TRUE(
-      (absl::is_trivially_copy_constructible<std::pair<int, Trivial>>::value));
+      (absl::is_trivially_copy_constructible<simple_pair<int, char*>>::value));
+  EXPECT_TRUE((
+      absl::is_trivially_copy_constructible<simple_pair<int, Trivial>>::value));
   EXPECT_TRUE((absl::is_trivially_copy_constructible<
-               std::pair<int, TrivialCopyCtor>>::value));
+               simple_pair<int, TrivialCopyCtor>>::value));
 
   // Verify that arrays are not
   typedef int int10[10];
   EXPECT_FALSE(absl::is_trivially_copy_constructible<int10>::value);
 
-  // Verify that pairs of types without trivial copy constructors
+  // Verify that simple_pairs of types without trivial copy constructors
   // are not marked as trivial.
   EXPECT_FALSE((absl::is_trivially_copy_constructible<
-                std::pair<int, std::string>>::value));
+                simple_pair<int, std::string>>::value));
   EXPECT_FALSE((absl::is_trivially_copy_constructible<
-                std::pair<std::string, int>>::value));
+                simple_pair<std::string, int>>::value));
 
   // Verify that types without trivial copy constructors are
   // correctly marked as such.
@@ -317,9 +323,9 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   typedef int int10[10];
   EXPECT_FALSE(absl::is_trivially_copy_assignable<int10>::value);
 
-  // Verify that std::pair is not trivially assignable
-  EXPECT_FALSE(
-      (absl::is_trivially_copy_assignable<std::pair<int, char*>>::value));
+  // Verify that simple_pair is trivially assignable
+  EXPECT_TRUE(
+      (absl::is_trivially_copy_assignable<simple_pair<int, char*>>::value));
 
   // Verify that types without trivial copy constructors are
   // correctly marked as such.
@@ -357,10 +363,10 @@ TEST(TypeTraitsTest, TestTrivialDestructor) {
   EXPECT_TRUE(absl::is_trivially_destructible<TrivialDestructor>::value);
   EXPECT_FALSE(absl::is_trivially_destructible<NonTrivialDestructor>::value);
 
-  // std::pair of such types is trivial
-  EXPECT_TRUE((absl::is_trivially_destructible<std::pair<int, int>>::value));
+  // simple_pair of such types is trivial
+  EXPECT_TRUE((absl::is_trivially_destructible<simple_pair<int, int>>::value));
   EXPECT_TRUE((absl::is_trivially_destructible<
-               std::pair<Trivial, TrivialDestructor>>::value));
+               simple_pair<Trivial, TrivialDestructor>>::value));
 
   // array of such types is trivial
   typedef int int10[10];
