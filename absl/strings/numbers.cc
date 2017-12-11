@@ -885,19 +885,19 @@ inline bool safe_uint_internal(absl::string_view text, IntType* value_p,
 }  // anonymous namespace
 
 namespace numbers_internal {
-bool safe_strto32_base(absl::string_view text, int32_t* value, int base) {
+bool safe_strto_int_base(absl::string_view text, int32_t* value, int base) {
   return safe_int_internal<int32_t>(text, value, base);
 }
 
-bool safe_strto64_base(absl::string_view text, int64_t* value, int base) {
+bool safe_strto_int_base(absl::string_view text, int64_t* value, int base) {
   return safe_int_internal<int64_t>(text, value, base);
 }
 
-bool safe_strtou32_base(absl::string_view text, uint32_t* value, int base) {
+bool safe_strto_int_base(absl::string_view text, uint32_t* value, int base) {
   return safe_uint_internal<uint32_t>(text, value, base);
 }
 
-bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base) {
+bool safe_strto_int_base(absl::string_view text, uint64_t* value, int base) {
   return safe_uint_internal<uint64_t>(text, value, base);
 }
 }  // namespace numbers_internal

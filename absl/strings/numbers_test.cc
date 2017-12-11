@@ -29,10 +29,7 @@
 namespace {
 
 using absl::numbers_internal::kSixDigitsToBufferSize;
-using absl::numbers_internal::safe_strto32_base;
-using absl::numbers_internal::safe_strto64_base;
-using absl::numbers_internal::safe_strtou32_base;
-using absl::numbers_internal::safe_strtou64_base;
+using absl::numbers_internal::safe_strto_int_base;
 using absl::numbers_internal::SixDigitsToBuffer;
 using absl::SimpleAtoi;
 using testing::Eq;
@@ -374,101 +371,101 @@ TEST(NumbersTest, Atoenum) {
 
 TEST(stringtest, safe_strto32_base) {
   int32_t value;
-  EXPECT_TRUE(safe_strto32_base("0x34234324", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("0x34234324", &value, 16));
   EXPECT_EQ(0x34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("0X34234324", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("0X34234324", &value, 16));
   EXPECT_EQ(0x34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("34234324", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("34234324", &value, 16));
   EXPECT_EQ(0x34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("0", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 16));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto32_base(" \t\n -0x34234324", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -0x34234324", &value, 16));
   EXPECT_EQ(-0x34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base(" \t\n -34234324", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -34234324", &value, 16));
   EXPECT_EQ(-0x34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("7654321", &value, 8));
+  EXPECT_TRUE(safe_strto_int_base("7654321", &value, 8));
   EXPECT_EQ(07654321, value);
 
-  EXPECT_TRUE(safe_strto32_base("-01234", &value, 8));
+  EXPECT_TRUE(safe_strto_int_base("-01234", &value, 8));
   EXPECT_EQ(-01234, value);
 
-  EXPECT_FALSE(safe_strto32_base("1834", &value, 8));
+  EXPECT_FALSE(safe_strto_int_base("1834", &value, 8));
 
   // Autodetect base.
-  EXPECT_TRUE(safe_strto32_base("0", &value, 0));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 0));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto32_base("077", &value, 0));
+  EXPECT_TRUE(safe_strto_int_base("077", &value, 0));
   EXPECT_EQ(077, value);  // Octal interpretation
 
   // Leading zero indicates octal, but then followed by invalid digit.
-  EXPECT_FALSE(safe_strto32_base("088", &value, 0));
+  EXPECT_FALSE(safe_strto_int_base("088", &value, 0));
 
   // Leading 0x indicated hex, but then followed by invalid digit.
-  EXPECT_FALSE(safe_strto32_base("0xG", &value, 0));
+  EXPECT_FALSE(safe_strto_int_base("0xG", &value, 0));
 
   // Base-10 version.
-  EXPECT_TRUE(safe_strto32_base("34234324", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("34234324", &value, 10));
   EXPECT_EQ(34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("0", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 10));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto32_base(" \t\n -34234324", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -34234324", &value, 10));
   EXPECT_EQ(-34234324, value);
 
-  EXPECT_TRUE(safe_strto32_base("34234324 \n\t ", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("34234324 \n\t ", &value, 10));
   EXPECT_EQ(34234324, value);
 
   // Invalid ints.
-  EXPECT_FALSE(safe_strto32_base("", &value, 10));
-  EXPECT_FALSE(safe_strto32_base("  ", &value, 10));
-  EXPECT_FALSE(safe_strto32_base("abc", &value, 10));
-  EXPECT_FALSE(safe_strto32_base("34234324a", &value, 10));
-  EXPECT_FALSE(safe_strto32_base("34234.3", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("  ", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("abc", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("34234324a", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("34234.3", &value, 10));
 
   // Out of bounds.
-  EXPECT_FALSE(safe_strto32_base("2147483648", &value, 10));
-  EXPECT_FALSE(safe_strto32_base("-2147483649", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("2147483648", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("-2147483649", &value, 10));
 
   // String version.
-  EXPECT_TRUE(safe_strto32_base(std::string("0x1234"), &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(std::string("0x1234"), &value, 16));
   EXPECT_EQ(0x1234, value);
 
   // Base-10 std::string version.
-  EXPECT_TRUE(safe_strto32_base("1234", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("1234", &value, 10));
   EXPECT_EQ(1234, value);
 }
 
 TEST(stringtest, safe_strto32_range) {
   // These tests verify underflow/overflow behaviour.
   int32_t value;
-  EXPECT_FALSE(safe_strto32_base("2147483648", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("2147483648", &value, 10));
   EXPECT_EQ(std::numeric_limits<int32_t>::max(), value);
 
-  EXPECT_TRUE(safe_strto32_base("-2147483648", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("-2147483648", &value, 10));
   EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
 
-  EXPECT_FALSE(safe_strto32_base("-2147483649", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("-2147483649", &value, 10));
   EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
 }
 
 TEST(stringtest, safe_strto64_range) {
   // These tests verify underflow/overflow behaviour.
   int64_t value;
-  EXPECT_FALSE(safe_strto64_base("9223372036854775808", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("9223372036854775808", &value, 10));
   EXPECT_EQ(std::numeric_limits<int64_t>::max(), value);
 
-  EXPECT_TRUE(safe_strto64_base("-9223372036854775808", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("-9223372036854775808", &value, 10));
   EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
 
-  EXPECT_FALSE(safe_strto64_base("-9223372036854775809", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("-9223372036854775809", &value, 10));
   EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
 }
 
@@ -478,19 +475,19 @@ TEST(stringtest, safe_strto32_leading_substring) {
   //   conversion of leading substring if available ("123@@@" -> 123)
   //   0 if no leading substring available
   int32_t value;
-  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("04069@@@", &value, 10));
   EXPECT_EQ(4069, value);
 
-  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 8));
+  EXPECT_FALSE(safe_strto_int_base("04069@@@", &value, 8));
   EXPECT_EQ(0406, value);
 
-  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("04069balloons", &value, 10));
   EXPECT_EQ(4069, value);
 
-  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 16));
+  EXPECT_FALSE(safe_strto_int_base("04069balloons", &value, 16));
   EXPECT_EQ(0x4069ba, value);
 
-  EXPECT_FALSE(safe_strto32_base("@@@", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("@@@", &value, 10));
   EXPECT_EQ(0, value);  // there was no leading substring
 }
 
@@ -500,90 +497,90 @@ TEST(stringtest, safe_strto64_leading_substring) {
   //   conversion of leading substring if available ("123@@@" -> 123)
   //   0 if no leading substring available
   int64_t value;
-  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("04069@@@", &value, 10));
   EXPECT_EQ(4069, value);
 
-  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 8));
+  EXPECT_FALSE(safe_strto_int_base("04069@@@", &value, 8));
   EXPECT_EQ(0406, value);
 
-  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("04069balloons", &value, 10));
   EXPECT_EQ(4069, value);
 
-  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 16));
+  EXPECT_FALSE(safe_strto_int_base("04069balloons", &value, 16));
   EXPECT_EQ(0x4069ba, value);
 
-  EXPECT_FALSE(safe_strto64_base("@@@", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("@@@", &value, 10));
   EXPECT_EQ(0, value);  // there was no leading substring
 }
 
 TEST(stringtest, safe_strto64_base) {
   int64_t value;
-  EXPECT_TRUE(safe_strto64_base("0x3423432448783446", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("0x3423432448783446", &value, 16));
   EXPECT_EQ(int64_t{0x3423432448783446}, value);
 
-  EXPECT_TRUE(safe_strto64_base("3423432448783446", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("3423432448783446", &value, 16));
   EXPECT_EQ(int64_t{0x3423432448783446}, value);
 
-  EXPECT_TRUE(safe_strto64_base("0", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 16));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto64_base(" \t\n -0x3423432448783446", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -0x3423432448783446", &value, 16));
   EXPECT_EQ(int64_t{-0x3423432448783446}, value);
 
-  EXPECT_TRUE(safe_strto64_base(" \t\n -3423432448783446", &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -3423432448783446", &value, 16));
   EXPECT_EQ(int64_t{-0x3423432448783446}, value);
 
-  EXPECT_TRUE(safe_strto64_base("123456701234567012", &value, 8));
+  EXPECT_TRUE(safe_strto_int_base("123456701234567012", &value, 8));
   EXPECT_EQ(int64_t{0123456701234567012}, value);
 
-  EXPECT_TRUE(safe_strto64_base("-017777777777777", &value, 8));
+  EXPECT_TRUE(safe_strto_int_base("-017777777777777", &value, 8));
   EXPECT_EQ(int64_t{-017777777777777}, value);
 
-  EXPECT_FALSE(safe_strto64_base("19777777777777", &value, 8));
+  EXPECT_FALSE(safe_strto_int_base("19777777777777", &value, 8));
 
   // Autodetect base.
-  EXPECT_TRUE(safe_strto64_base("0", &value, 0));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 0));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto64_base("077", &value, 0));
+  EXPECT_TRUE(safe_strto_int_base("077", &value, 0));
   EXPECT_EQ(077, value);  // Octal interpretation
 
   // Leading zero indicates octal, but then followed by invalid digit.
-  EXPECT_FALSE(safe_strto64_base("088", &value, 0));
+  EXPECT_FALSE(safe_strto_int_base("088", &value, 0));
 
   // Leading 0x indicated hex, but then followed by invalid digit.
-  EXPECT_FALSE(safe_strto64_base("0xG", &value, 0));
+  EXPECT_FALSE(safe_strto_int_base("0xG", &value, 0));
 
   // Base-10 version.
-  EXPECT_TRUE(safe_strto64_base("34234324487834466", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("34234324487834466", &value, 10));
   EXPECT_EQ(int64_t{34234324487834466}, value);
 
-  EXPECT_TRUE(safe_strto64_base("0", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("0", &value, 10));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto64_base(" \t\n -34234324487834466", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base(" \t\n -34234324487834466", &value, 10));
   EXPECT_EQ(int64_t{-34234324487834466}, value);
 
-  EXPECT_TRUE(safe_strto64_base("34234324487834466 \n\t ", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("34234324487834466 \n\t ", &value, 10));
   EXPECT_EQ(int64_t{34234324487834466}, value);
 
   // Invalid ints.
-  EXPECT_FALSE(safe_strto64_base("", &value, 10));
-  EXPECT_FALSE(safe_strto64_base("  ", &value, 10));
-  EXPECT_FALSE(safe_strto64_base("abc", &value, 10));
-  EXPECT_FALSE(safe_strto64_base("34234324487834466a", &value, 10));
-  EXPECT_FALSE(safe_strto64_base("34234487834466.3", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("  ", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("abc", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("34234324487834466a", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("34234487834466.3", &value, 10));
 
   // Out of bounds.
-  EXPECT_FALSE(safe_strto64_base("9223372036854775808", &value, 10));
-  EXPECT_FALSE(safe_strto64_base("-9223372036854775809", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("9223372036854775808", &value, 10));
+  EXPECT_FALSE(safe_strto_int_base("-9223372036854775809", &value, 10));
 
   // String version.
-  EXPECT_TRUE(safe_strto64_base(std::string("0x1234"), &value, 16));
+  EXPECT_TRUE(safe_strto_int_base(std::string("0x1234"), &value, 16));
   EXPECT_EQ(0x1234, value);
 
   // Base-10 std::string version.
-  EXPECT_TRUE(safe_strto64_base("1234", &value, 10));
+  EXPECT_TRUE(safe_strto_int_base("1234", &value, 10));
   EXPECT_EQ(1234, value);
 }
 
@@ -627,23 +624,23 @@ void test_random_integer_parse_base(bool (*parse_func)(absl::string_view,
 }
 
 TEST(stringtest, safe_strto32_random) {
-  test_random_integer_parse_base<int32_t>(&safe_strto32_base);
+  test_random_integer_parse_base<int32_t>(&safe_strto_int_base);
 }
 TEST(stringtest, safe_strto64_random) {
-  test_random_integer_parse_base<int64_t>(&safe_strto64_base);
+  test_random_integer_parse_base<int64_t>(&safe_strto_int_base);
 }
 TEST(stringtest, safe_strtou32_random) {
-  test_random_integer_parse_base<uint32_t>(&safe_strtou32_base);
+  test_random_integer_parse_base<uint32_t>(&safe_strto_int_base);
 }
 TEST(stringtest, safe_strtou64_random) {
-  test_random_integer_parse_base<uint64_t>(&safe_strtou64_base);
+  test_random_integer_parse_base<uint64_t>(&safe_strto_int_base);
 }
 
 TEST(stringtest, safe_strtou32_base) {
   for (int i = 0; strtouint32_test_cases[i].str != nullptr; ++i) {
     const auto& e = strtouint32_test_cases[i];
     uint32_t value;
-    EXPECT_EQ(e.expect_ok, safe_strtou32_base(e.str, &value, e.base))
+    EXPECT_EQ(e.expect_ok, safe_strto_int_base(e.str, &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
     if (e.expect_ok) {
       EXPECT_EQ(e.expected, value) << "i=" << i << " str=\"" << e.str
@@ -660,7 +657,7 @@ TEST(stringtest, safe_strtou32_base_length_delimited) {
 
     uint32_t value;
     EXPECT_EQ(e.expect_ok,
-              safe_strtou32_base(absl::string_view(tmp.data(), strlen(e.str)),
+              safe_strto_int_base(absl::string_view(tmp.data(), strlen(e.str)),
                                  &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
     if (e.expect_ok) {
@@ -674,7 +671,7 @@ TEST(stringtest, safe_strtou64_base) {
   for (int i = 0; strtouint64_test_cases[i].str != nullptr; ++i) {
     const auto& e = strtouint64_test_cases[i];
     uint64_t value;
-    EXPECT_EQ(e.expect_ok, safe_strtou64_base(e.str, &value, e.base))
+    EXPECT_EQ(e.expect_ok, safe_strto_int_base(e.str, &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
     if (e.expect_ok) {
       EXPECT_EQ(e.expected, value) << "str=" << e.str << " base=" << e.base;
@@ -690,7 +687,7 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
 
     uint64_t value;
     EXPECT_EQ(e.expect_ok,
-              safe_strtou64_base(absl::string_view(tmp.data(), strlen(e.str)),
+              safe_strto_int_base(absl::string_view(tmp.data(), strlen(e.str)),
                                  &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
     if (e.expect_ok) {
@@ -930,15 +927,15 @@ TEST(StrToInt32, Partial) {
 
   for (const Int32TestLine& test_line : int32_test_line) {
     int32_t value = -2;
-    bool status = safe_strto32_base(test_line.input, &value, 10);
+    bool status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto32_base(test_line.input, &value, 10);
+    status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto32_base(absl::string_view(test_line.input), &value, 10);
+    status = safe_strto_int_base(absl::string_view(test_line.input), &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -961,15 +958,15 @@ TEST(StrToUint32, Partial) {
 
   for (const Uint32TestLine& test_line : uint32_test_line) {
     uint32_t value = 2;
-    bool status = safe_strtou32_base(test_line.input, &value, 10);
+    bool status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou32_base(test_line.input, &value, 10);
+    status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou32_base(absl::string_view(test_line.input), &value, 10);
+    status = safe_strto_int_base(absl::string_view(test_line.input), &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -994,15 +991,15 @@ TEST(StrToInt64, Partial) {
 
   for (const Int64TestLine& test_line : int64_test_line) {
     int64_t value = -2;
-    bool status = safe_strto64_base(test_line.input, &value, 10);
+    bool status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto64_base(test_line.input, &value, 10);
+    status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto64_base(absl::string_view(test_line.input), &value, 10);
+    status = safe_strto_int_base(absl::string_view(test_line.input), &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -1025,15 +1022,15 @@ TEST(StrToUint64, Partial) {
 
   for (const Uint64TestLine& test_line : uint64_test_line) {
     uint64_t value = 2;
-    bool status = safe_strtou64_base(test_line.input, &value, 10);
+    bool status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou64_base(test_line.input, &value, 10);
+    status = safe_strto_int_base(test_line.input, &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou64_base(absl::string_view(test_line.input), &value, 10);
+    status = safe_strto_int_base(absl::string_view(test_line.input), &value, 10);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -1058,15 +1055,15 @@ TEST(StrToInt32Base, PrefixOnly) {
   for (const Int32TestLine& line : int32_test_line) {
     for (const int base : base_array) {
       int32_t value = 2;
-      bool status = safe_strto32_base(line.input.c_str(), &value, base);
+      bool status = safe_strto_int_base(line.input.c_str(), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strto32_base(line.input, &value, base);
+      status = safe_strto_int_base(line.input, &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strto32_base(absl::string_view(line.input), &value, base);
+      status = safe_strto_int_base(absl::string_view(line.input), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }
@@ -1089,15 +1086,15 @@ TEST(StrToUint32Base, PrefixOnly) {
   for (const Uint32TestLine& line : uint32_test_line) {
     for (const int base : base_array) {
       uint32_t value = 2;
-      bool status = safe_strtou32_base(line.input.c_str(), &value, base);
+      bool status = safe_strto_int_base(line.input.c_str(), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strtou32_base(line.input, &value, base);
+      status = safe_strto_int_base(line.input, &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strtou32_base(absl::string_view(line.input), &value, base);
+      status = safe_strto_int_base(absl::string_view(line.input), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }
@@ -1123,15 +1120,15 @@ TEST(StrToInt64Base, PrefixOnly) {
   for (const Int64TestLine& line : int64_test_line) {
     for (const int base : base_array) {
       int64_t value = 2;
-      bool status = safe_strto64_base(line.input.c_str(), &value, base);
+      bool status = safe_strto_int_base(line.input.c_str(), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strto64_base(line.input, &value, base);
+      status = safe_strto_int_base(line.input, &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strto64_base(absl::string_view(line.input), &value, base);
+      status = safe_strto_int_base(absl::string_view(line.input), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }
@@ -1154,15 +1151,15 @@ TEST(StrToUint64Base, PrefixOnly) {
   for (const Uint64TestLine& line : uint64_test_line) {
     for (const int base : base_array) {
       uint64_t value = 2;
-      bool status = safe_strtou64_base(line.input.c_str(), &value, base);
+      bool status = safe_strto_int_base(line.input.c_str(), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strtou64_base(line.input, &value, base);
+      status = safe_strto_int_base(line.input, &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
       value = 2;
-      status = safe_strtou64_base(absl::string_view(line.input), &value, base);
+      status = safe_strto_int_base(absl::string_view(line.input), &value, base);
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }

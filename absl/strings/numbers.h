@@ -32,8 +32,10 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/internal/identity.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
+#include "absl/meta/type_traits.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 
@@ -75,11 +77,11 @@ ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* value);
 namespace absl {
 namespace numbers_internal {
 
-// safe_strto?() functions for implementing SimpleAtoi()
-bool safe_strto32_base(absl::string_view text, int32_t* value, int base);
-bool safe_strto64_base(absl::string_view text, int64_t* value, int base);
-bool safe_strtou32_base(absl::string_view text, uint32_t* value, int base);
-bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base);
+// safe_strto_int_base<?>() functions for implementing SimpleAtoi()
+bool safe_strto_int_base(absl::string_view text, int32_t* value, int base);
+bool safe_strto_int_base(absl::string_view text, int64_t* value, int base);
+bool safe_strto_int_base(absl::string_view text, uint32_t* value, int base);
+bool safe_strto_int_base(absl::string_view text, uint64_t* value, int base);
 
 static const int kFastToBufferSize = 32;
 static const int kSixDigitsToBufferSize = 16;
@@ -100,28 +102,34 @@ char* FastIntToBuffer(uint32_t, char*);
 char* FastIntToBuffer(int64_t, char*);
 char* FastIntToBuffer(uint64_t, char*);
 
-// For enums and integer types that are not an exact match for the types above,
-// use templates to call the appropriate one of the four overloads above.
+// Checks whether this int_type is signed or not, does it using underlying_type for enumerations.
+template<typename int_type>
+using IsSignedIntType =
+  std::is_signed<
+    typename absl::conditional_t<
+      std::is_enum<int_type>::value,
+      std::underlying_type<int_type>,
+      absl::internal::identity<int_type>>::type>;
+
+// Converts int-like types (integral types and enumerations) to u?int32_t or u?int64_t
+template<typename int_type>
+using IntLikeTo32Or64 =
+  absl::conditional_t<
+    IsSignedIntType<int_type>::value,
+    absl::conditional_t<
+      (sizeof(int_type) > 32 / 8),
+      int64_t,
+      int32_t>,
+    absl::conditional_t<
+      (sizeof(int_type) > 32 / 8),
+      uint64_t,
+      uint32_t>>;
+
 template <typename int_type>
 char* FastIntToBuffer(int_type i, char* buffer) {
   static_assert(sizeof(i) <= 64 / 8,
                 "FastIntToBuffer works only with 64-bit-or-less integers.");
-  // TODO(jorg): This signed-ness check is used because it works correctly
-  // with enums, and it also serves to check that int_type is not a pointer.
-  // If one day something like std::is_signed<enum E> works, switch to it.
-  if (static_cast<int_type>(1) - 2 < 0) {  // Signed
-    if (sizeof(i) > 32 / 8) {           // 33-bit to 64-bit
-      return FastIntToBuffer(static_cast<int64_t>(i), buffer);
-    } else {  // 32-bit or less
-      return FastIntToBuffer(static_cast<int32_t>(i), buffer);
-    }
-  } else {                     // Unsigned
-    if (sizeof(i) > 32 / 8) {  // 33-bit to 64-bit
-      return FastIntToBuffer(static_cast<uint64_t>(i), buffer);
-    } else {  // 32-bit or less
-      return FastIntToBuffer(static_cast<uint32_t>(i), buffer);
-    }
-  }
+  return FastIntToBuffer(static_cast<IntLikeTo32Or64<int_type>>(i), buffer);
 }
 
 }  // namespace numbers_internal
@@ -139,31 +147,11 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
                 "SimpleAtoi works only with 32-bit or 64-bit integers.");
   static_assert(!std::is_floating_point<int_type>::value,
                 "Use SimpleAtof or SimpleAtod instead.");
-  bool parsed;
-  // TODO(jorg): This signed-ness check is used because it works correctly
-  // with enums, and it also serves to check that int_type is not a pointer.
-  // If one day something like std::is_signed<enum E> works, switch to it.
-  if (static_cast<int_type>(1) - 2 < 0) {  // Signed
-    if (sizeof(*out) == 64 / 8) {       // 64-bit
-      int64_t val;
-      parsed = numbers_internal::safe_strto64_base(s, &val, 10);
-      *out = static_cast<int_type>(val);
-    } else {  // 32-bit
-      int32_t val;
-      parsed = numbers_internal::safe_strto32_base(s, &val, 10);
-      *out = static_cast<int_type>(val);
-    }
-  } else {                         // Unsigned
-    if (sizeof(*out) == 64 / 8) {  // 64-bit
-      uint64_t val;
-      parsed = numbers_internal::safe_strtou64_base(s, &val, 10);
-      *out = static_cast<int_type>(val);
-    } else {  // 32-bit
-      uint32_t val;
-      parsed = numbers_internal::safe_strtou32_base(s, &val, 10);
-      *out = static_cast<int_type>(val);
-    }
-  }
+  using SupportedType = numbers_internal::IntLikeTo32Or64<int_type>;
+
+  SupportedType val;
+  const bool parsed = numbers_internal::safe_strto_int_base(s, &val, 10);
+  *out = static_cast<int_type>(val);
   return parsed;
 }
 
