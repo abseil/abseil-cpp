@@ -231,6 +231,11 @@ bool Mutex::LockWhenWithTimeout(const Condition& cond, absl::Duration timeout) {
       cond, synchronization_internal::DeadlineFromTimeout(timeout));
 }
 
+void Mutex::ReaderLockWhen(const Condition& cond) {
+  ReaderLock();
+  Await(cond);
+}
+
 bool Mutex::ReaderLockWhenWithTimeout(const Condition& cond,
                                       absl::Duration timeout) {
   return LockWhenWithTimeout(cond, timeout);

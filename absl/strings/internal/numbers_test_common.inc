@@ -17,16 +17,6 @@
 
 namespace {
 
-// Previously documented minimum buffer sizes for Fast*ToBuffer functions.
-// NOTE(edk): These should be deleted and uses replaced with kFastToBufferSize
-//            once existing code has been fixed to use kFastToBufferSize.
-enum {
-  kFastInt32ToBufferSize = 12,
-  kFastInt64ToBufferSize = 22,
-  kFastUInt32ToBufferSize = 12,
-  kFastUInt64ToBufferSize = 22
-};
-
 template <typename IntType>
 bool Itoa(IntType value, int base, std::string* destination) {
   destination->clear();

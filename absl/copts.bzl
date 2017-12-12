@@ -29,12 +29,18 @@ GCC_TEST_FLAGS = [
     "-Wno-unused-private-field",
 ]
 
+
+# Docs on single flags is preceded by a comment.
+# Docs on groups of flags is preceded by ###.
+
 LLVM_FLAGS = [
     "-Wall",
     "-Wextra",
     "-Weverything",
+    # Abseil does not support C++98
     "-Wno-c++98-compat-pedantic",
     "-Wno-comma",
+    # Turns off all implicit conversion warnings. Most are re-enabled below.
     "-Wno-conversion",
     "-Wno-covered-switch-default",
     "-Wno-deprecated",
@@ -47,6 +53,7 @@ LLVM_FLAGS = [
     "-Wno-float-conversion",
     "-Wno-float-equal",
     "-Wno-format-nonliteral",
+    # Too aggressive: warns on Clang extensions enclosed in Clang-only code paths.
     "-Wno-gcc-compat",
     "-Wno-global-constructors",
     "-Wno-nested-anon-types",
@@ -54,6 +61,7 @@ LLVM_FLAGS = [
     "-Wno-old-style-cast",
     "-Wno-packed",
     "-Wno-padded",
+    # Warns on preferred usage of non-POD types such as string_view
     "-Wno-range-loop-analysis",
     "-Wno-reserved-id-macro",
     "-Wno-shorten-64-to-32",
@@ -63,9 +71,12 @@ LLVM_FLAGS = [
     "-Wno-undef",
     "-Wno-unknown-warning-option",
     "-Wno-unreachable-code",
+    # Causes warnings on include guards
     "-Wno-unused-macros",
     "-Wno-weak-vtables",
-    # flags below are also controlled by -Wconversion which is disabled
+    ###
+    # Implicit conversion warnings turned off by -Wno-conversion
+    # which are re-enabled below.
     "-Wbitfield-enum-conversion",
     "-Wbool-conversion",
     "-Wconstant-conversion",
@@ -76,6 +87,7 @@ LLVM_FLAGS = [
     "-Wnull-conversion",
     "-Wobjc-literal-conversion",
     "-Wstring-conversion",
+    ###
 ]
 
 LLVM_TEST_FLAGS = [

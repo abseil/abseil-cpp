@@ -28,11 +28,6 @@
 
 namespace {
 
-using absl::numbers_internal::FastInt32ToBuffer;
-using absl::numbers_internal::FastInt64ToBuffer;
-using absl::numbers_internal::FastUInt32ToBuffer;
-using absl::numbers_internal::FastUInt64ToBuffer;
-using absl::numbers_internal::kFastToBufferSize;
 using absl::numbers_internal::kSixDigitsToBufferSize;
 using absl::numbers_internal::safe_strto32_base;
 using absl::numbers_internal::safe_strto64_base;
@@ -116,22 +111,22 @@ TEST(ToString, PerfectDtoa) {
 }
 
 void CheckInt32(int32_t x) {
-  char buffer[kFastInt32ToBufferSize];
-  char* actual = FastInt32ToBuffer(x, buffer);
+  char buffer[absl::numbers_internal::kFastToBufferSize];
+  char* actual = absl::numbers_internal::FastInt32ToBuffer(x, buffer);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == actual)
+  ASSERT_TRUE(expected == std::string(buffer, actual))
       << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
       << x;
 }
 
 void CheckInt64(int64_t x) {
-  char buffer[kFastInt64ToBufferSize + 3];
+  char buffer[absl::numbers_internal::kFastToBufferSize + 3];
   buffer[0] = '*';
   buffer[23] = '*';
   buffer[24] = '*';
-  char* actual = FastInt64ToBuffer(x, &buffer[1]);
+  char* actual = absl::numbers_internal::FastInt64ToBuffer(x, &buffer[1]);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == actual)
+  ASSERT_TRUE(expected == std::string(&buffer[1], actual))
       << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
       << x;
   ASSERT_EQ(buffer[0], '*');
@@ -140,32 +135,32 @@ void CheckInt64(int64_t x) {
 }
 
 void CheckUInt32(uint32_t x) {
-  char buffer[kFastUInt64ToBufferSize];
-  char* actual = FastUInt32ToBuffer(x, buffer);
+  char buffer[absl::numbers_internal::kFastToBufferSize];
+  char* actual = absl::numbers_internal::FastUInt32ToBuffer(x, buffer);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == actual)
+  ASSERT_TRUE(expected == std::string(buffer, actual))
       << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
       << x;
 }
 
 void CheckUInt64(uint64_t x) {
-  char buffer[kFastUInt64ToBufferSize + 1];
-  char* actual = FastUInt64ToBuffer(x, &buffer[1]);
+  char buffer[absl::numbers_internal::kFastToBufferSize + 1];
+  char* actual = absl::numbers_internal::FastUInt64ToBuffer(x, &buffer[1]);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == actual)
+  ASSERT_TRUE(expected == std::string(&buffer[1], actual))
       << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
       << x;
 }
 
 void CheckHex64(uint64_t v) {
-  char expected[kFastUInt64ToBufferSize];
+  char expected[16 + 1];
   std::string actual = absl::StrCat(absl::Hex(v, absl::kZeroPad16));
   snprintf(expected, sizeof(expected), "%016" PRIx64, static_cast<uint64_t>(v));
   ASSERT_TRUE(expected == actual)
       << "Expected \"" << expected << "\", Actual \"" << actual << "\"";
 }
 
-void TestFastPrints() {
+TEST(Numbers, TestFastPrints) {
   for (int i = -100; i <= 100; i++) {
     CheckInt32(i);
     CheckInt64(i);
@@ -700,7 +695,7 @@ class SimpleDtoaTest : public testing::Test {
   }
 
   std::string ToNineDigits(double value) {
-    char buffer[kFastToBufferSize];  // more than enough for %.9g
+    char buffer[16];  // more than enough for %.9g
     snprintf(buffer, sizeof(buffer), "%.9g", value);
     return buffer;
   }

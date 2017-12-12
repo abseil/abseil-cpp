@@ -105,16 +105,16 @@ class MutexImpl {
 };
 
 // Do not use this implementation detail of CondVar and Mutex.  A storage
-// space for T that supports a base::LinkerInitialized constructor. T must
+// space for T that supports a LinkerInitialized constructor. T must
 // have a default constructor, which is called by the first call to
-// get(). T's destructor is never called if the base::LinkerInitialized
+// get(). T's destructor is never called if the LinkerInitialized
 // constructor is called.
 //
 // Objects constructed with the default constructor are constructed and
 // destructed like any other object, and should never be allocated in
 // static storage.
 //
-// Objects constructed with the base::LinkerInitialized constructor should
+// Objects constructed with the LinkerInitialized constructor should
 // always be in static storage. For such objects, calls to get() are always
 // valid, except from signal handlers.
 //
@@ -126,7 +126,7 @@ class MutexImpl {
 //
 // [basic.life] says an object has non-trivial initialization if it is of
 // class type and it is initialized by a constructor other than a trivial
-// default constructor.  (the base::LinkerInitialized constructor is
+// default constructor.  (the LinkerInitialized constructor is
 // non-trivial)
 //
 // [basic.life] says the lifetime of an object with a non-trivial
@@ -139,34 +139,34 @@ class MutexImpl {
 // members of an instance outside its
 // lifetime. (SynchronizationStorage::get() access non-static members)
 //
-// So, base::LinkerInitialized object of SynchronizationStorage uses a
+// So, LinkerInitialized object of SynchronizationStorage uses a
 // non-trivial constructor, which is called at some point during dynamic
 // initialization, and is therefore subject to order of dynamic
 // initialization bugs, where get() is called before the object's
 // constructor is, resulting in undefined behavior.
 //
-// Similarly, a base::LinkerInitialized SynchronizationStorage object has a
+// Similarly, a LinkerInitialized SynchronizationStorage object has a
 // non-trivial destructor, and so its lifetime ends at some point during
 // destruction of objects with static storage duration [basic.start.term]
 // p4. There is a window where other exit code could call get() after this
 // occurs, resulting in undefined behavior.
 //
-// Combined, these statements imply that base::LinkerInitialized instances
+// Combined, these statements imply that LinkerInitialized instances
 // of SynchronizationStorage<T> rely on undefined behavior.
 //
 // However, in practice, the implementation works on all supported
 // compilers. Specifically, we rely on:
 //
 // a) zero-initialization being sufficient to initialize
-// base::LinkerInitialized instances for the purposes of calling
+// LinkerInitialized instances for the purposes of calling
 // get(), regardless of when the constructor is called. This is
 // because the is_dynamic_ boolean is correctly zero-initialized to
 // false.
 //
-// b) the base::LinkerInitialized constructor is a NOP, and immaterial to
+// b) the LinkerInitialized constructor is a NOP, and immaterial to
 // even to concurrent calls to get().
 //
-// c) the destructor being a NOP for base::LinkerInitialized objects
+// c) the destructor being a NOP for LinkerInitialized objects
 // (guaranteed by a check for !is_dynamic_), and so any concurrent and
 // subsequent calls to get() functioning as if the destructor were not
 // called, by virtue of the instances' storage remaining valid after the
@@ -212,7 +212,7 @@ class SynchronizationStorage {
 
   // Instances allocated in static storage (not on the heap, not on the
   // stack) should use this constructor.
-  explicit SynchronizationStorage(base::LinkerInitialized) {}
+  explicit SynchronizationStorage(base_internal::LinkerInitialized) {}
 
   SynchronizationStorage(SynchronizationStorage&) = delete;
   SynchronizationStorage& operator=(SynchronizationStorage&) = delete;
@@ -227,7 +227,7 @@ class SynchronizationStorage {
   // incur the cost of absl::call_once().
   //
   // For instances in static storage constructed with the
-  // base::LinkerInitialized constructor, may be called at any time without
+  // LinkerInitialized constructor, may be called at any time without
   // regard for order of dynamic initialization or destruction of objects
   // in static storage. See the class comment for caveats.
   T* get() {
@@ -242,7 +242,7 @@ class SynchronizationStorage {
 
   // When true, T's destructor is run when this is destructed.
   //
-  // The base::LinkerInitialized constructor assumes this value will be set
+  // The LinkerInitialized constructor assumes this value will be set
   // false by static initialization.
   bool is_dynamic_;
 

@@ -243,7 +243,7 @@
 //   Windows                           _WIN32
 //   NaCL                              __native_client__
 //   AsmJS                             __asmjs__
-//   Fuschia                           __Fuchsia__
+//   Fuchsia                           __Fuchsia__
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
 // may probe for either Linux or Android by simply testing for __linux__.
