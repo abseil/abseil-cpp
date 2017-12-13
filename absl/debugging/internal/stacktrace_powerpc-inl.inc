@@ -47,7 +47,8 @@ static inline void *StacktracePowerPCGetLR(void **sp) {
   return *(sp+2);
 #elif defined(_CALL_SYSV)
   return *(sp+1);
-#elif defined(__APPLE__) || (defined(__linux__) && defined(__PPC64__))
+#elif defined(__APPLE__) || defined(__FreeBSD__) || \
+  (defined(__linux__) && defined(__PPC64__))
   // This check is in case the compiler doesn't define _CALL_AIX/etc.
   return *(sp+2);
 #elif defined(__linux)
