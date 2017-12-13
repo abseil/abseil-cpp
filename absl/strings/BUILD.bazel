@@ -21,7 +21,6 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
 )
@@ -64,7 +63,6 @@ cc_library(
         "substitute.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":internal",
         "//absl/base",
@@ -91,7 +89,6 @@ cc_library(
         "internal/utf8.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:core_headers",
         "//absl/base:endian",
@@ -104,7 +101,6 @@ cc_test(
     size = "small",
     srcs = ["match_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -120,7 +116,6 @@ cc_test(
         "internal/escaping_test_common.inc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -135,7 +130,6 @@ cc_test(
     size = "small",
     srcs = ["ascii_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -152,7 +146,6 @@ cc_test(
         "internal/memutil_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -169,7 +162,6 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":internal",
         ":strings",
@@ -183,7 +175,6 @@ cc_test(
     size = "small",
     srcs = ["string_view_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -199,7 +190,6 @@ cc_test(
     size = "small",
     srcs = ["substitute_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -213,7 +203,6 @@ cc_test(
     size = "small",
     srcs = ["str_replace_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -225,7 +214,6 @@ cc_test(
     name = "str_split_test",
     srcs = ["str_split_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -268,7 +256,6 @@ cc_test(
     size = "small",
     srcs = ["str_join_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -283,7 +270,6 @@ cc_test(
     size = "small",
     srcs = ["str_cat_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -300,7 +286,6 @@ cc_test(
         "numbers_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "no_test_loonix",
     ],
@@ -318,7 +303,6 @@ cc_test(
     size = "small",
     srcs = ["strip_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",

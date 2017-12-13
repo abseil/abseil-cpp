@@ -121,11 +121,6 @@ ABSL_DEFAULT_COPTS = select({
     "//conditions:default": GCC_FLAGS,
 })
 
-ABSL_DEFAULT_LINKOPTS = select({
-    "//absl:windows": [],
-    "//conditions:default": ["-pthread", "-lm"],
-})
-
 # in absence of modules (--compiler=gcc or -c opt), cc_tests leak their copts
 # to their (included header) dependencies and fail to build outside absl
 ABSL_TEST_COPTS = ABSL_DEFAULT_COPTS + select({

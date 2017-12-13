@@ -17,7 +17,6 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -41,7 +40,6 @@ cc_library(
         "time.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base",
         "//absl/base:core_headers",
@@ -59,7 +57,6 @@ cc_library(
     ],
     hdrs = ["internal/test_util.h"],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/time:__pkg__",
     ],
@@ -81,7 +78,6 @@ cc_test(
         "time_zone_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "no_test_android_arm",
         "no_test_android_arm64",

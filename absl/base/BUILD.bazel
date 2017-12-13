@@ -17,7 +17,6 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
 )
@@ -39,7 +38,6 @@ cc_library(
         "internal/spinlock_wait.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/base:__pkg__",
     ],
@@ -53,7 +51,6 @@ cc_library(
         "policy_checks.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
 )
 
 cc_library(
@@ -113,7 +110,6 @@ cc_library(
         "internal/malloc_hook_c.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     textual_hdrs = [
         "internal/malloc_hook_invoke.h",
     ],
@@ -136,7 +132,6 @@ cc_library(
         "internal/invoke.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -168,7 +163,6 @@ cc_library(
         "internal/unscaledcycleclock.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base_internal",
         ":config",
@@ -268,7 +262,6 @@ cc_test(
     size = "small",
     srcs = ["invoke_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base_internal",
         "//absl/memory",
@@ -299,7 +292,6 @@ cc_test(
     size = "medium",
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
         ":core_headers",
@@ -338,7 +330,6 @@ cc_test(
     name = "config_test",
     srcs = ["config_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":config",
         "//absl/synchronization:thread_pool",
@@ -350,7 +341,6 @@ cc_test(
     name = "call_once_test",
     srcs = ["call_once_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
         ":core_headers",
@@ -374,7 +364,6 @@ cc_test(
     size = "small",
     srcs = ["internal/sysinfo_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
         "//absl/synchronization",
@@ -387,7 +376,6 @@ cc_test(
     size = "small",
     srcs = ["internal/low_level_alloc_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [":malloc_internal"],
 )
 
@@ -396,7 +384,6 @@ cc_test(
     size = "small",
     srcs = ["internal/thread_identity_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
         ":core_headers",

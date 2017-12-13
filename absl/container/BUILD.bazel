@@ -17,7 +17,6 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -67,7 +66,6 @@ cc_library(
     name = "inlined_vector",
     hdrs = ["inlined_vector.h"],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/algorithm",
         "//absl/base:core_headers",
@@ -80,7 +78,6 @@ cc_test(
     name = "inlined_vector_test",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS + ["-fexceptions"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",
@@ -97,7 +94,6 @@ cc_test(
     name = "inlined_vector_test_noexceptions",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",

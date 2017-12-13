@@ -17,7 +17,6 @@
 load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
 )
@@ -88,7 +87,6 @@ cc_library(
     name = "span",
     hdrs = ["span.h"],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/algorithm",
         "//absl/base:core_headers",
@@ -103,7 +101,6 @@ cc_test(
     size = "small",
     srcs = ["span_test.cc"],
     copts = ABSL_TEST_COPTS + ["-fexceptions"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":span",
         "//absl/base:config",
@@ -121,7 +118,6 @@ cc_test(
     size = "small",
     srcs = ["span_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":span",
         "//absl/base:config",
