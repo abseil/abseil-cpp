@@ -377,7 +377,7 @@ cc_test(
     srcs = ["internal/low_level_alloc_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = select({
-        "//tools/cc_target_os:windows": [],
+        "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
     deps = [":malloc_internal"],
@@ -389,7 +389,7 @@ cc_test(
     srcs = ["internal/thread_identity_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = select({
-        "//tools/cc_target_os:windows": [],
+        "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
     deps = [
