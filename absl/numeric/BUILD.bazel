@@ -27,8 +27,8 @@ cc_test(
     name = "int128_test",
     size = "small",
     srcs = [
+        "int128_stream_test.cc",
         "int128_test.cc",
-        "int128_test_unsigned_ostream_cases.inc",
     ],
     copts = ABSL_TEST_COPTS,
     deps = [

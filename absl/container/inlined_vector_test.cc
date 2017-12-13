@@ -393,6 +393,19 @@ TEST(InlinedVectorTest, Noexcept) {
                 absl::InlinedVector<MoveCanThrow, 2>>::value));
 }
 
+TEST(InlinedVectorTest, EmplaceBack) {
+  absl::InlinedVector<std::pair<std::string, int>, 1> v;
+
+  auto& inlined_element = v.emplace_back("answer", 42);
+  EXPECT_EQ(&inlined_element, &v[0]);
+  EXPECT_EQ(inlined_element.first, "answer");
+  EXPECT_EQ(inlined_element.second, 42);
+
+  auto& allocated_element = v.emplace_back("taxicab", 1729);
+  EXPECT_EQ(&allocated_element, &v[1]);
+  EXPECT_EQ(allocated_element.first, "taxicab");
+  EXPECT_EQ(allocated_element.second, 1729);
+}
 
 TEST(IntVec, Insert) {
   for (int len = 0; len < 20; len++) {

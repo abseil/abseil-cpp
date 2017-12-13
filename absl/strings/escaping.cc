@@ -72,6 +72,17 @@ inline int hex_digit_to_int(char c) {
   return x & 0xf;
 }
 
+inline bool IsSurrogate(char32_t c, absl::string_view src, std::string* error) {
+  if (c >= 0xD800 && c <= 0xDFFF) {
+    if (error) {
+      *error = absl::StrCat("invalid surrogate character (0xD800-DFFF): \\",
+                            src);
+    }
+    return true;
+  }
+  return false;
+}
+
 // ----------------------------------------------------------------------
 // CUnescapeInternal()
 //    Implements both CUnescape() and CUnescapeForNullTerminatedString().
@@ -214,6 +225,9 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
             d += 5;
             break;
           }
+          if (IsSurrogate(rune, absl::string_view(hex_start, 5), error)) {
+            return false;
+          }
           d += strings_internal::EncodeUTF8Char(d, rune);
           break;
         }
@@ -258,6 +272,9 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
             memcpy(d, hex_start, 9);  // U00000000
             d += 9;
             break;
+          }
+          if (IsSurrogate(rune, absl::string_view(hex_start, 9), error)) {
+            return false;
           }
           d += strings_internal::EncodeUTF8Char(d, rune);
           break;

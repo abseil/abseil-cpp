@@ -160,11 +160,14 @@ TEST(Unescape, BasicFunction) {
     EXPECT_EQ(out, val.unescaped);
   }
   std::string bad[] =
-     {"\\u1",  // too short
-      "\\U1",  // too short
-      "\\Uffffff",
-      "\\777",  // exceeds 0xff
-      "\\xABCD"};  // exceeds 0xff
+     {"\\u1",         // too short
+      "\\U1",         // too short
+      "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
+      "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
+      "\\uD835",      // surrogate character (D800-DFFF)
+      "\\U0000DD04",  // surrogate character (D800-DFFF)
+      "\\777",        // exceeds 0xff
+      "\\xABCD"};     // exceeds 0xff
   for (const std::string& e : bad) {
     std::string error;
     std::string out;

@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <limits>
 #include <random>
-#include <sstream>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -425,28 +424,6 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(zero, absl::uint128(0));
   EXPECT_EQ(one, absl::uint128(1));
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
-}
-
-TEST(Uint128, OStream) {
-  struct StreamCase {
-    absl::uint128 val;
-    std::ios_base::fmtflags flags;
-    std::streamsize width;
-    char fill;
-    const char* rep;
-  };
-
-  std::vector<StreamCase> cases = {
-#include "absl/numeric/int128_test_unsigned_ostream_cases.inc"
-  };
-  for (const StreamCase& test_case : cases) {
-    std::ostringstream os;
-    os.flags(test_case.flags);
-    os.width(test_case.width);
-    os.fill(test_case.fill);
-    os << test_case.val;
-    EXPECT_EQ(test_case.rep, os.str());
-  }
 }
 
 }  // namespace
