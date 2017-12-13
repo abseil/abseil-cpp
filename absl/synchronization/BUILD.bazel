@@ -197,6 +197,10 @@ cc_test(
         "lifetime_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
+    linkopts = select({
+        "//absl:windows": [],
+        "//conditions:default": ["-pthread"],
+    }),
     deps = [
         ":synchronization",
         "//absl/base",
