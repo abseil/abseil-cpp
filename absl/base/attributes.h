@@ -305,6 +305,7 @@
   __attribute__((section(#name))) __attribute__((noinline))
 #endif
 
+
 // ABSL_ATTRIBUTE_SECTION_VARIABLE
 //
 // Tells the compiler/linker to put a given variable into a section and define
@@ -344,6 +345,7 @@
   (reinterpret_cast<void *>(__start_##name))
 #define ABSL_ATTRIBUTE_SECTION_STOP(name) \
   (reinterpret_cast<void *>(__stop_##name))
+
 #else  // !ABSL_HAVE_ATTRIBUTE_SECTION
 
 #define ABSL_HAVE_ATTRIBUTE_SECTION 0
@@ -356,6 +358,7 @@
 #define ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(name)
 #define ABSL_ATTRIBUTE_SECTION_START(name) (reinterpret_cast<void *>(0))
 #define ABSL_ATTRIBUTE_SECTION_STOP(name) (reinterpret_cast<void *>(0))
+
 #endif  // ABSL_ATTRIBUTE_SECTION
 
 // ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC

@@ -110,13 +110,38 @@ TEST(ToString, PerfectDtoa) {
   }
 }
 
+template <typename integer>
+struct MyInteger {
+  integer i;
+  explicit constexpr MyInteger(integer i) : i(i) {}
+  constexpr operator integer() const { return i; }
+
+  constexpr MyInteger operator+(MyInteger other) const { return i + other.i; }
+  constexpr MyInteger operator-(MyInteger other) const { return i - other.i; }
+  constexpr MyInteger operator*(MyInteger other) const { return i * other.i; }
+  constexpr MyInteger operator/(MyInteger other) const { return i / other.i; }
+
+  constexpr bool operator<(MyInteger other) const { return i < other.i; }
+  constexpr bool operator<=(MyInteger other) const { return i <= other.i; }
+  constexpr bool operator==(MyInteger other) const { return i == other.i; }
+  constexpr bool operator>=(MyInteger other) const { return i >= other.i; }
+  constexpr bool operator>(MyInteger other) const { return i > other.i; }
+  constexpr bool operator!=(MyInteger other) const { return i != other.i; }
+
+  integer as_integer() const { return i; }
+};
+
+typedef MyInteger<int64_t> MyInt64;
+typedef MyInteger<uint64_t> MyUInt64;
+
 void CheckInt32(int32_t x) {
   char buffer[absl::numbers_internal::kFastToBufferSize];
-  char* actual = absl::numbers_internal::FastInt32ToBuffer(x, buffer);
+  char* actual = absl::numbers_internal::FastIntToBuffer(x, buffer);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == std::string(buffer, actual))
-      << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
-      << x;
+  EXPECT_EQ(expected, std::string(buffer, actual)) << " Input " << x;
+
+  char* generic_actual = absl::numbers_internal::FastIntToBuffer(x, buffer);
+  EXPECT_EQ(expected, std::string(buffer, generic_actual)) << " Input " << x;
 }
 
 void CheckInt64(int64_t x) {
@@ -124,40 +149,47 @@ void CheckInt64(int64_t x) {
   buffer[0] = '*';
   buffer[23] = '*';
   buffer[24] = '*';
-  char* actual = absl::numbers_internal::FastInt64ToBuffer(x, &buffer[1]);
+  char* actual = absl::numbers_internal::FastIntToBuffer(x, &buffer[1]);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == std::string(&buffer[1], actual))
-      << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
-      << x;
-  ASSERT_EQ(buffer[0], '*');
-  ASSERT_EQ(buffer[23], '*');
-  ASSERT_EQ(buffer[24], '*');
+  EXPECT_EQ(expected, std::string(&buffer[1], actual)) << " Input " << x;
+  EXPECT_EQ(buffer[0], '*');
+  EXPECT_EQ(buffer[23], '*');
+  EXPECT_EQ(buffer[24], '*');
+
+  char* my_actual =
+      absl::numbers_internal::FastIntToBuffer(MyInt64(x), &buffer[1]);
+  EXPECT_EQ(expected, std::string(&buffer[1], my_actual)) << " Input " << x;
 }
 
 void CheckUInt32(uint32_t x) {
   char buffer[absl::numbers_internal::kFastToBufferSize];
-  char* actual = absl::numbers_internal::FastUInt32ToBuffer(x, buffer);
+  char* actual = absl::numbers_internal::FastIntToBuffer(x, buffer);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == std::string(buffer, actual))
-      << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
-      << x;
+  EXPECT_EQ(expected, std::string(buffer, actual)) << " Input " << x;
+
+  char* generic_actual = absl::numbers_internal::FastIntToBuffer(x, buffer);
+  EXPECT_EQ(expected, std::string(buffer, generic_actual)) << " Input " << x;
 }
 
 void CheckUInt64(uint64_t x) {
   char buffer[absl::numbers_internal::kFastToBufferSize + 1];
-  char* actual = absl::numbers_internal::FastUInt64ToBuffer(x, &buffer[1]);
+  char* actual = absl::numbers_internal::FastIntToBuffer(x, &buffer[1]);
   std::string expected = std::to_string(x);
-  ASSERT_TRUE(expected == std::string(&buffer[1], actual))
-      << "Expected \"" << expected << "\", Actual \"" << actual << "\", Input "
-      << x;
+  EXPECT_EQ(expected, std::string(&buffer[1], actual)) << " Input " << x;
+
+  char* generic_actual = absl::numbers_internal::FastIntToBuffer(x, &buffer[1]);
+  EXPECT_EQ(expected, std::string(&buffer[1], generic_actual)) << " Input " << x;
+
+  char* my_actual =
+      absl::numbers_internal::FastIntToBuffer(MyUInt64(x), &buffer[1]);
+  EXPECT_EQ(expected, std::string(&buffer[1], my_actual)) << " Input " << x;
 }
 
 void CheckHex64(uint64_t v) {
   char expected[16 + 1];
   std::string actual = absl::StrCat(absl::Hex(v, absl::kZeroPad16));
   snprintf(expected, sizeof(expected), "%016" PRIx64, static_cast<uint64_t>(v));
-  ASSERT_TRUE(expected == actual)
-      << "Expected \"" << expected << "\", Actual \"" << actual << "\"";
+  EXPECT_EQ(expected, actual) << " Input " << v;
 }
 
 TEST(Numbers, TestFastPrints) {

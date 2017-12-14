@@ -19,6 +19,9 @@
 
 #include "absl/base/internal/low_level_alloc.h"
 
+#include <type_traits>
+
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/macros.h"
@@ -194,42 +197,79 @@ static void LLA_SkiplistDelete(AllocList *head, AllocList *e,
 // ---------------------------------------------------------------------------
 // Arena implementation
 
+// Metadata for an LowLevelAlloc arena instance.
 struct LowLevelAlloc::Arena {
-  // This constructor does nothing, and relies on zero-initialization to get
-  // the proper initial state.
-  Arena() : mu(base_internal::kLinkerInitialized) {}  // NOLINT
-  explicit Arena(int)  // NOLINT(readability/casting)
-      :  // Avoid recursive cooperative scheduling w/ kernel scheduling.
-        mu(base_internal::SCHEDULE_KERNEL_ONLY),
-        // Set pagesize to zero explicitly for non-static init.
-        pagesize(0),
-        random(0) {}
+  // Constructs an arena with the given LowLevelAlloc flags.
+  explicit Arena(uint32_t flags_value);
 
-  base_internal::SpinLock mu;   // protects freelist, allocation_count,
-                                // pagesize, roundup, min_size
-  AllocList freelist;           // head of free list; sorted by addr (under mu)
-  int32_t allocation_count;     // count of allocated blocks (under mu)
-  std::atomic<uint32_t> flags;  // flags passed to NewArena (ro after init)
-  size_t pagesize;              // ==getpagesize()  (init under mu, then ro)
-  size_t roundup;               // lowest 2^n >= max(16,sizeof (AllocList))
-                                // (init under mu, then ro)
-  size_t min_size;              // smallest allocation block size
-                                // (init under mu, then ro)
-  uint32_t random;              // PRNG state
+  base_internal::SpinLock mu;
+  // Head of free list, sorted by address
+  AllocList freelist GUARDED_BY(mu);
+  // Count of allocated blocks
+  int32_t allocation_count GUARDED_BY(mu);
+  // flags passed to NewArena
+  const uint32_t flags;
+  // Result of getpagesize()
+  const size_t pagesize;
+  // Lowest power of two >= max(16, sizeof(AllocList))
+  const size_t roundup;
+  // Smallest allocation block size
+  const size_t min_size;
+  // PRNG state
+  uint32_t random GUARDED_BY(mu);
 };
 
-// The default arena, which is used when 0 is passed instead of an Arena
-// pointer.
-static struct LowLevelAlloc::Arena default_arena;  // NOLINT
+namespace {
+using ArenaStorage = std::aligned_storage<sizeof(LowLevelAlloc::Arena),
+                                          alignof(LowLevelAlloc::Arena)>::type;
 
-// Non-malloc-hooked arenas: used only to allocate metadata for arenas that
-// do not want malloc hook reporting, so that for them there's no malloc hook
-// reporting even during arena creation.
-static struct LowLevelAlloc::Arena unhooked_arena;  // NOLINT
+// Static storage space for the lazily-constructed, default global arena
+// instances.  We require this space because the whole point of LowLevelAlloc
+// is to avoid relying on malloc/new.
+ArenaStorage default_arena_storage;
+ArenaStorage unhooked_arena_storage;
+#ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
+ArenaStorage unhooked_async_sig_safe_arena_storage;
+#endif
+
+// We must use LowLevelCallOnce here to construct the global arenas, rather than
+// using function-level statics, to avoid recursively invoking the scheduler.
+absl::once_flag create_globals_once;
+
+void CreateGlobalArenas() {
+  new (&default_arena_storage)
+      LowLevelAlloc::Arena(LowLevelAlloc::kCallMallocHook);
+  new (&unhooked_arena_storage) LowLevelAlloc::Arena(0);
+#ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
+  new (&unhooked_async_sig_safe_arena_storage)
+      LowLevelAlloc::Arena(LowLevelAlloc::kAsyncSignalSafe);
+#endif
+}
+
+// Returns a global arena that does not call into hooks.  Used by NewArena()
+// when kCallMallocHook is not set.
+LowLevelAlloc::Arena* UnhookedArena() {
+  base_internal::LowLevelCallOnce(&create_globals_once, CreateGlobalArenas);
+  return reinterpret_cast<LowLevelAlloc::Arena*>(&unhooked_arena_storage);
+}
 
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
-static struct LowLevelAlloc::Arena unhooked_async_sig_safe_arena;  // NOLINT
+// Returns a global arena that is async-signal safe.  Used by NewArena() when
+// kAsyncSignalSafe is set.
+LowLevelAlloc::Arena *UnhookedAsyncSigSafeArena() {
+  base_internal::LowLevelCallOnce(&create_globals_once, CreateGlobalArenas);
+  return reinterpret_cast<LowLevelAlloc::Arena *>(
+      &unhooked_async_sig_safe_arena_storage);
+}
 #endif
+
+}  // namespace
+
+// Returns the default arena, as used by LowLevelAlloc::Alloc() and friends.
+LowLevelAlloc::Arena *LowLevelAlloc::DefaultArena() {
+  base_internal::LowLevelCallOnce(&create_globals_once, CreateGlobalArenas);
+  return reinterpret_cast<LowLevelAlloc::Arena*>(&default_arena_storage);
+}
 
 // magic numbers to identify allocated and unallocated blocks
 static const uintptr_t kMagicAllocated = 0x4c833e95U;
@@ -242,9 +282,7 @@ class SCOPED_LOCKABLE ArenaLock {
       EXCLUSIVE_LOCK_FUNCTION(arena->mu)
       : arena_(arena) {
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
-    if (arena == &unhooked_async_sig_safe_arena ||
-        (arena->flags.load(std::memory_order_relaxed) &
-         LowLevelAlloc::kAsyncSignalSafe) != 0) {
+    if ((arena->flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
       sigset_t all;
       sigfillset(&all);
       mask_valid_ = pthread_sigmask(SIG_BLOCK, &all, &mask_) == 0;
@@ -281,118 +319,107 @@ inline static uintptr_t Magic(uintptr_t magic, AllocList::Header *ptr) {
   return magic ^ reinterpret_cast<uintptr_t>(ptr);
 }
 
-// Initialize the fields of an Arena
-static void ArenaInit(LowLevelAlloc::Arena *arena) {
-  if (arena->pagesize == 0) {
+namespace {
+size_t GetPageSize() {
 #ifdef _WIN32
-    SYSTEM_INFO system_info;
-    GetSystemInfo(&system_info);
-    arena->pagesize = std::max(system_info.dwPageSize,
-                               system_info.dwAllocationGranularity);
+  SYSTEM_INFO system_info;
+  GetSystemInfo(&system_info);
+  return std::max(system_info.dwPageSize, system_info.dwAllocationGranularity);
 #else
-    arena->pagesize = getpagesize();
+  return getpagesize();
 #endif
-    // Round up block sizes to a power of two close to the header size.
-    arena->roundup = 16;
-    while (arena->roundup < sizeof (arena->freelist.header)) {
-      arena->roundup += arena->roundup;
-    }
-    // Don't allocate blocks less than twice the roundup size to avoid tiny
-    // free blocks.
-    arena->min_size = 2 * arena->roundup;
-    arena->freelist.header.size = 0;
-    arena->freelist.header.magic =
-        Magic(kMagicUnallocated, &arena->freelist.header);
-    arena->freelist.header.arena = arena;
-    arena->freelist.levels = 0;
-    memset(arena->freelist.next, 0, sizeof (arena->freelist.next));
-    arena->allocation_count = 0;
-    if (arena == &default_arena) {
-      // Default arena should be hooked, e.g. for heap-checker to trace
-      // pointer chains through objects in the default arena.
-      arena->flags.store(LowLevelAlloc::kCallMallocHook,
-                         std::memory_order_relaxed);
-    }
-#ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
-    else if (arena ==  // NOLINT(readability/braces)
-             &unhooked_async_sig_safe_arena) {
-      arena->flags.store(LowLevelAlloc::kAsyncSignalSafe,
-                         std::memory_order_relaxed);
-    }
-#endif
-    else {  // NOLINT(readability/braces)
-      // other arenas' flags may be overridden by client,
-      // but unhooked_arena will have 0 in 'flags'.
-      arena->flags.store(0, std::memory_order_relaxed);
-    }
+}
+
+size_t RoundedUpBlockSize() {
+  // Round up block sizes to a power of two close to the header size.
+  size_t roundup = 16;
+  while (roundup < sizeof(AllocList::Header)) {
+    roundup += roundup;
   }
+  return roundup;
+}
+
+}  // namespace
+
+LowLevelAlloc::Arena::Arena(uint32_t flags_value)
+    : mu(base_internal::SCHEDULE_KERNEL_ONLY),
+      allocation_count(0),
+      flags(flags_value),
+      pagesize(GetPageSize()),
+      roundup(RoundedUpBlockSize()),
+      min_size(2 * roundup),
+      random(0) {
+  freelist.header.size = 0;
+  freelist.header.magic =
+      Magic(kMagicUnallocated, &freelist.header);
+  freelist.header.arena = this;
+  freelist.levels = 0;
+  memset(freelist.next, 0, sizeof(freelist.next));
 }
 
 // L < meta_data_arena->mu
 LowLevelAlloc::Arena *LowLevelAlloc::NewArena(int32_t flags,
                                               Arena *meta_data_arena) {
   ABSL_RAW_CHECK(meta_data_arena != nullptr, "must pass a valid arena");
-  if (meta_data_arena == &default_arena) {
+  if (meta_data_arena == DefaultArena()) {
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
     if ((flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
-      meta_data_arena = &unhooked_async_sig_safe_arena;
+      meta_data_arena = UnhookedAsyncSigSafeArena();
     } else  // NOLINT(readability/braces)
 #endif
         if ((flags & LowLevelAlloc::kCallMallocHook) == 0) {
-      meta_data_arena = &unhooked_arena;
+      meta_data_arena = UnhookedArena();
     }
   }
-  // Arena(0) uses the constructor for non-static contexts
   Arena *result =
-    new (AllocWithArena(sizeof (*result), meta_data_arena)) Arena(0);
-  ArenaInit(result);
-  result->flags.store(flags, std::memory_order_relaxed);
+    new (AllocWithArena(sizeof (*result), meta_data_arena)) Arena(flags);
   return result;
 }
 
 // L < arena->mu, L < arena->arena->mu
 bool LowLevelAlloc::DeleteArena(Arena *arena) {
   ABSL_RAW_CHECK(
-      arena != nullptr && arena != &default_arena && arena != &unhooked_arena,
+      arena != nullptr && arena != DefaultArena() && arena != UnhookedArena(),
       "may not delete default arena");
   ArenaLock section(arena);
-  bool empty = (arena->allocation_count == 0);
-  section.Leave();
-  if (empty) {
-    while (arena->freelist.next[0] != nullptr) {
-      AllocList *region = arena->freelist.next[0];
-      size_t size = region->header.size;
-      arena->freelist.next[0] = region->next[0];
-      ABSL_RAW_CHECK(
-          region->header.magic == Magic(kMagicUnallocated, &region->header),
-          "bad magic number in DeleteArena()");
-      ABSL_RAW_CHECK(region->header.arena == arena,
-                     "bad arena pointer in DeleteArena()");
-      ABSL_RAW_CHECK(size % arena->pagesize == 0,
-                     "empty arena has non-page-aligned block size");
-      ABSL_RAW_CHECK(reinterpret_cast<uintptr_t>(region) % arena->pagesize == 0,
-                     "empty arena has non-page-aligned block");
-      int munmap_result;
-#ifdef _WIN32
-      munmap_result = VirtualFree(region, 0, MEM_RELEASE);
-      ABSL_RAW_CHECK(munmap_result != 0,
-                     "LowLevelAlloc::DeleteArena: VitualFree failed");
-#else
-      if ((arena->flags.load(std::memory_order_relaxed) &
-           LowLevelAlloc::kAsyncSignalSafe) == 0) {
-        munmap_result = munmap(region, size);
-      } else {
-        munmap_result = MallocHook::UnhookedMUnmap(region, size);
-      }
-      if (munmap_result != 0) {
-        ABSL_RAW_LOG(FATAL, "LowLevelAlloc::DeleteArena: munmap failed: %d",
-                     errno);
-      }
-#endif
-    }
-    Free(arena);
+  if (arena->allocation_count != 0) {
+    section.Leave();
+    return false;
   }
-  return empty;
+  while (arena->freelist.next[0] != nullptr) {
+    AllocList *region = arena->freelist.next[0];
+    size_t size = region->header.size;
+    arena->freelist.next[0] = region->next[0];
+    ABSL_RAW_CHECK(
+        region->header.magic == Magic(kMagicUnallocated, &region->header),
+        "bad magic number in DeleteArena()");
+    ABSL_RAW_CHECK(region->header.arena == arena,
+                   "bad arena pointer in DeleteArena()");
+    ABSL_RAW_CHECK(size % arena->pagesize == 0,
+                   "empty arena has non-page-aligned block size");
+    ABSL_RAW_CHECK(reinterpret_cast<uintptr_t>(region) % arena->pagesize == 0,
+                   "empty arena has non-page-aligned block");
+    int munmap_result;
+#ifdef _WIN32
+    munmap_result = VirtualFree(region, 0, MEM_RELEASE);
+    ABSL_RAW_CHECK(munmap_result != 0,
+                   "LowLevelAlloc::DeleteArena: VitualFree failed");
+#else
+    if ((arena->flags & LowLevelAlloc::kAsyncSignalSafe) == 0) {
+      munmap_result = munmap(region, size);
+    } else {
+      munmap_result = MallocHook::UnhookedMUnmap(region, size);
+    }
+    if (munmap_result != 0) {
+      ABSL_RAW_LOG(FATAL, "LowLevelAlloc::DeleteArena: munmap failed: %d",
+                   errno);
+    }
+#endif
+  }
+  section.Leave();
+  arena->~Arena();
+  Free(arena);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -479,7 +506,7 @@ void LowLevelAlloc::Free(void *v) {
     ABSL_RAW_CHECK(f->header.magic == Magic(kMagicAllocated, &f->header),
                    "bad magic number in Free()");
     LowLevelAlloc::Arena *arena = f->header.arena;
-    if ((arena->flags.load(std::memory_order_relaxed) & kCallMallocHook) != 0) {
+    if ((arena->flags & kCallMallocHook) != 0) {
       MallocHook::InvokeDeleteHook(v);
     }
     ArenaLock section(arena);
@@ -497,7 +524,6 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
   if (request != 0) {
     AllocList *s;       // will point to region that satisfies request
     ArenaLock section(arena);
-    ArenaInit(arena);
     // round up with header
     size_t req_rnd = RoundUp(CheckedAdd(request, sizeof (s->header)),
                              arena->roundup);
@@ -526,8 +552,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
                                MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
       ABSL_RAW_CHECK(new_pages != nullptr, "VirtualAlloc failed");
 #else
-      if ((arena->flags.load(std::memory_order_relaxed) &
-           LowLevelAlloc::kAsyncSignalSafe) != 0) {
+      if ((arena->flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
         new_pages = MallocHook::UnhookedMMap(nullptr, new_pages_size,
             PROT_WRITE|PROT_READ, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
       } else {
@@ -570,29 +595,23 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
 }
 
 void *LowLevelAlloc::Alloc(size_t request) {
-  void *result = DoAllocWithArena(request, &default_arena);
-  if ((default_arena.flags.load(std::memory_order_relaxed) &
-       kCallMallocHook) != 0) {
-    // this call must be directly in the user-called allocator function
-    // for MallocHook::GetCallerStackTrace to work properly
-    MallocHook::InvokeNewHook(result, request);
-  }
+  void *result = DoAllocWithArena(request, DefaultArena());
+  // The default arena always calls the malloc hook.
+  // This call must be directly in the user-called allocator function
+  // for MallocHook::GetCallerStackTrace to work properly
+  MallocHook::InvokeNewHook(result, request);
   return result;
 }
 
 void *LowLevelAlloc::AllocWithArena(size_t request, Arena *arena) {
   ABSL_RAW_CHECK(arena != nullptr, "must pass a valid arena");
   void *result = DoAllocWithArena(request, arena);
-  if ((arena->flags.load(std::memory_order_relaxed) & kCallMallocHook) != 0) {
+  if ((arena->flags & kCallMallocHook) != 0) {
     // this call must be directly in the user-called allocator function
     // for MallocHook::GetCallerStackTrace to work properly
     MallocHook::InvokeNewHook(result, request);
   }
   return result;
-}
-
-LowLevelAlloc::Arena *LowLevelAlloc::DefaultArena() {
-  return &default_arena;
 }
 
 }  // namespace base_internal

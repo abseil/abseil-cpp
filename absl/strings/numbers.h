@@ -81,14 +81,6 @@ bool safe_strto64_base(absl::string_view text, int64_t* value, int base);
 bool safe_strtou32_base(absl::string_view text, uint32_t* value, int base);
 bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base);
 
-// These functions are intended for speed. All functions take an output buffer
-// as an argument and return a pointer to the last byte they wrote, which is the
-// terminating '\0'. At most `kFastToBufferSize` bytes are written.
-char* FastInt32ToBuffer(int32_t i, char* buffer);
-char* FastUInt32ToBuffer(uint32_t i, char* buffer);
-char* FastInt64ToBuffer(int64_t i, char* buffer);
-char* FastUInt64ToBuffer(uint64_t i, char* buffer);
-
 static const int kFastToBufferSize = 32;
 static const int kSixDigitsToBufferSize = 16;
 
@@ -100,6 +92,16 @@ static const int kSixDigitsToBufferSize = 16;
 // Required buffer size is `kSixDigitsToBufferSize`.
 size_t SixDigitsToBuffer(double d, char* buffer);
 
+// These functions are intended for speed. All functions take an output buffer
+// as an argument and return a pointer to the last byte they wrote, which is the
+// terminating '\0'. At most `kFastToBufferSize` bytes are written.
+char* FastIntToBuffer(int32_t, char*);
+char* FastIntToBuffer(uint32_t, char*);
+char* FastIntToBuffer(int64_t, char*);
+char* FastIntToBuffer(uint64_t, char*);
+
+// For enums and integer types that are not an exact match for the types above,
+// use templates to call the appropriate one of the four overloads above.
 template <typename int_type>
 char* FastIntToBuffer(int_type i, char* buffer) {
   static_assert(sizeof(i) <= 64 / 8,
@@ -109,15 +111,15 @@ char* FastIntToBuffer(int_type i, char* buffer) {
   // If one day something like std::is_signed<enum E> works, switch to it.
   if (static_cast<int_type>(1) - 2 < 0) {  // Signed
     if (sizeof(i) > 32 / 8) {           // 33-bit to 64-bit
-      return numbers_internal::FastInt64ToBuffer(i, buffer);
+      return FastIntToBuffer(static_cast<int64_t>(i), buffer);
     } else {  // 32-bit or less
-      return numbers_internal::FastInt32ToBuffer(i, buffer);
+      return FastIntToBuffer(static_cast<int32_t>(i), buffer);
     }
   } else {                     // Unsigned
     if (sizeof(i) > 32 / 8) {  // 33-bit to 64-bit
-      return numbers_internal::FastUInt64ToBuffer(i, buffer);
+      return FastIntToBuffer(static_cast<uint64_t>(i), buffer);
     } else {  // 32-bit or less
-      return numbers_internal::FastUInt32ToBuffer(i, buffer);
+      return FastIntToBuffer(static_cast<uint32_t>(i), buffer);
     }
   }
 }
