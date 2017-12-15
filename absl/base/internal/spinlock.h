@@ -151,6 +151,12 @@ class LOCKABLE SpinLock {
   enum { kWaitTimeMask =                      // Includes kSpinLockSleeper.
     ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling) };
 
+  // Returns true if the provided scheduling mode is cooperative.
+  static constexpr bool IsCooperative(
+      base_internal::SchedulingMode scheduling_mode) {
+    return scheduling_mode == base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL;
+  }
+
   uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
   void InitLinkerInitializedAndCooperative();
   void SlowLock() ABSL_ATTRIBUTE_COLD;

@@ -21,6 +21,7 @@
 
 #include <string.h>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/synchronization/internal/per_thread_sem.h"

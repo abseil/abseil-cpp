@@ -181,21 +181,21 @@
 // __SIZEOF_INT128__ but not all versions actually support __int128.
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
-#elif (defined(__clang__) && defined(__SIZEOF_INT128__) &&               \
-       !defined(__aarch64__)) ||                                         \
-    (defined(__CUDACC__) && defined(__SIZEOF_INT128__) &&                \
-     __CUDACC_VER_MAJOR__ >= 9) ||                                       \
-    (!defined(__clang__) && !defined(__CUDACC__) && defined(__GNUC__) && \
-     defined(__SIZEOF_INT128__))
+#elif defined(__SIZEOF_INT128__)
+#if (defined(__clang__) && !defined(__aarch64__)) ||      \
+    (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) || \
+    (!defined(__clang__) && !defined(__CUDACC__) && defined(__GNUC__))
 #define ABSL_HAVE_INTRINSIC_INT128 1
+#elif defined(__CUDACC__)
 // __CUDACC_VER__ is a full version number before CUDA 9, and is defined to a
-// std::string explaining that it has been removed starting with CUDA 9. We can't
-// compare both variants in a single boolean expression because there is no
-// short-circuiting in the preprocessor.
-#elif defined(__CUDACC__) && defined(__SIZEOF_INT128__) && \
-    __CUDACC_VER__ >= 7000
+// std::string explaining that it has been removed starting with CUDA 9. We use
+// nested #ifs because there is no short-circuiting in the preprocessor.
+// NOTE: `__CUDACC__` could be undefined while `__CUDACC_VER__` is defined.
+#if __CUDACC_VER__ >= 70000
 #define ABSL_HAVE_INTRINSIC_INT128 1
-#endif
+#endif  // __CUDACC_VER__ >= 70000
+#endif  // defined(__CUDACC__)
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 
 // ABSL_HAVE_EXCEPTIONS
 //

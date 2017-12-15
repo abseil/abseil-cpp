@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 
 #if ABSL_HAVE_MMAP

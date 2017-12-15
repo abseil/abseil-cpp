@@ -875,6 +875,7 @@ class SCOPED_LOCKABLE ReleasableMutexLock {
 
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
 #else
+
 inline CondVar::CondVar() : cv_(0) {}
 #endif
 

@@ -14,6 +14,8 @@
 
 #include "absl/base/internal/sysinfo.h"
 
+#include "absl/base/attributes.h"
+
 #ifdef _WIN32
 #include <shlwapi.h>
 #include <windows.h>

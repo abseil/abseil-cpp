@@ -249,7 +249,6 @@ static const struct {
   { 0,                           "Signal on " },
   { 0,                           "SignalAll on " },
 };
-
 static absl::base_internal::SpinLock synch_event_mu(
     absl::base_internal::kLinkerInitialized);
 // protects synch_event

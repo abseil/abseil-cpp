@@ -83,11 +83,6 @@ void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
   submit_profile_data.Store(fn);
 }
 
-static inline bool IsCooperative(
-    base_internal::SchedulingMode scheduling_mode) {
-  return scheduling_mode == base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL;
-}
-
 // Uncommon constructors.
 SpinLock::SpinLock(base_internal::SchedulingMode mode)
     : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {

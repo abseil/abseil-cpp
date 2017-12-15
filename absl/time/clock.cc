@@ -1,5 +1,7 @@
 #include "absl/time/clock.h"
 
+#include "absl/base/attributes.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
