@@ -84,7 +84,7 @@ static void Test(bool use_new_arena, bool call_malloc_hook, int n) {
   LowLevelAlloc::Arena *arena = 0;
   if (use_new_arena) {
     int32_t flags = call_malloc_hook ? LowLevelAlloc::kCallMallocHook : 0;
-    arena = LowLevelAlloc::NewArena(flags, LowLevelAlloc::DefaultArena());
+    arena = LowLevelAlloc::NewArena(flags);
   }
   for (int i = 0; i != n; i++) {
     if (i != 0 && i % 10000 == 0) {

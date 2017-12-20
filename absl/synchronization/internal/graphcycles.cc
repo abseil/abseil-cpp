@@ -56,8 +56,7 @@ static base_internal::LowLevelAlloc::Arena* arena;
 static void InitArenaIfNecessary() {
   arena_mu.Lock();
   if (arena == nullptr) {
-    arena = base_internal::LowLevelAlloc::NewArena(
-        0, base_internal::LowLevelAlloc::DefaultArena());
+    arena = base_internal::LowLevelAlloc::NewArena(0);
   }
   arena_mu.Unlock();
 }

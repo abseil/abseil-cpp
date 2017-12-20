@@ -175,8 +175,8 @@ TEST(Uint128, AllTests) {
   big_copy = big;
   EXPECT_EQ(big >> 73, big_copy >>= 73);
 
-  EXPECT_EQ(Uint128High64(biggest), std::numeric_limits<uint64_t>::max());
-  EXPECT_EQ(Uint128Low64(biggest), std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(absl::Uint128High64(biggest), std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(absl::Uint128Low64(biggest), std::numeric_limits<uint64_t>::max());
   EXPECT_EQ(zero + one, one);
   EXPECT_EQ(one + one, two);
   EXPECT_EQ(big_minus_one + one, big);
@@ -190,8 +190,8 @@ TEST(Uint128, AllTests) {
   EXPECT_EQ(zero - 1, biggest);
   EXPECT_EQ(high_low - one, low_high);
   EXPECT_EQ(low_high + one, high_low);
-  EXPECT_EQ(Uint128High64((absl::uint128(1) << 64) - 1), 0);
-  EXPECT_EQ(Uint128Low64((absl::uint128(1) << 64) - 1),
+  EXPECT_EQ(absl::Uint128High64((absl::uint128(1) << 64) - 1), 0);
+  EXPECT_EQ(absl::Uint128Low64((absl::uint128(1) << 64) - 1),
             std::numeric_limits<uint64_t>::max());
   EXPECT_TRUE(!!one);
   EXPECT_TRUE(!!high_low);

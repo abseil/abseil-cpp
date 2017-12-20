@@ -45,8 +45,6 @@ LLVM_FLAGS = [
     "-Wno-covered-switch-default",
     "-Wno-deprecated",
     "-Wno-disabled-macro-expansion",
-    "-Wno-documentation",
-    "-Wno-documentation-unknown-command",
     "-Wno-double-promotion",
     "-Wno-exit-time-destructors",
     "-Wno-extra-semi",

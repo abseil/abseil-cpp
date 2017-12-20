@@ -31,13 +31,15 @@
 #ifndef ABSL_STRINGS_INTERNAL_STR_JOIN_INTERNAL_H_
 #define ABSL_STRINGS_INTERNAL_STR_JOIN_INTERNAL_H_
 
-#include <cassert>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "absl/strings/internal/ostringstream.h"
+#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/str_cat.h"
 
 namespace absl {
@@ -202,28 +204,9 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
   return result;
 }
 
-// No-op placeholder for input iterators which can not be iterated over.
-template <typename Iterator>
-size_t GetResultSize(Iterator, Iterator, size_t, std::input_iterator_tag) {
-  return 0;
-}
-
-// Calculates space to reserve, if the iterator supports multiple passes.
-template <typename Iterator>
-size_t GetResultSize(Iterator it, Iterator end, size_t separator_size,
-                     std::forward_iterator_tag) {
-  assert(it != end);
-  size_t length = it->size();
-  while (++it != end) {
-    length += separator_size;
-    length += it->size();
-  }
-  return length;
-}
-
-// A joining algorithm that's optimized for an iterator range of std::string-like
-// objects that do not need any additional formatting. This is to optimize the
-// common case of joining, say, a std::vector<std::string> or a
+// A joining algorithm that's optimized for a forward iterator range of
+// std::string-like objects that do not need any additional formatting. This is to
+// optimize the common case of joining, say, a std::vector<std::string> or a
 // std::vector<absl::string_view>.
 //
 // This is an overload of the previous JoinAlgorithm() function. Here the
@@ -236,20 +219,32 @@ size_t GetResultSize(Iterator it, Iterator end, size_t separator_size,
 // std::string to avoid the need to resize while appending. To do this, the iterator
 // range will be traversed twice: once to calculate the total needed size, and
 // then again to copy the elements and delimiters to the output std::string.
-template <typename Iterator>
+template <typename Iterator,
+          typename = typename std::enable_if<std::is_convertible<
+              typename std::iterator_traits<Iterator>::iterator_category,
+              std::forward_iterator_tag>::value>::type>
 std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
                      NoFormatter) {
   std::string result;
   if (start != end) {
-    typename std::iterator_traits<Iterator>::iterator_category iterator_tag;
-    result.reserve(GetResultSize(start, end, s.size(), iterator_tag));
+    // Sums size
+    size_t result_size = start->size();
+    for (Iterator it = start; ++it != end;) {
+      result_size += s.size();
+      result_size += it->size();
+    }
+
+    STLStringResizeUninitialized(&result, result_size);
 
     // Joins strings
-    absl::string_view sep("", 0);
-    for (Iterator it = start; it != end; ++it) {
-      result.append(sep.data(), sep.size());
-      result.append(it->data(), it->size());
-      sep = s;
+    char* result_buf = &*result.begin();
+    memcpy(result_buf, start->data(), start->size());
+    result_buf += start->size();
+    for (Iterator it = start; ++it != end;) {
+      memcpy(result_buf, s.data(), s.size());
+      result_buf += s.size();
+      memcpy(result_buf, it->data(), it->size());
+      result_buf += it->size();
     }
   }
 

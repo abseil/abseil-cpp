@@ -113,7 +113,7 @@ std::string Utf8SafeCEscape(absl::string_view src);
 // Utf8SafeCHexEscape()
 //
 // Escapes a 'src' std::string using C-style escape sequences, escaping bytes as
-// hexidecimal sequences, and passing through UTF-8 characters without
+// hexadecimal sequences, and passing through UTF-8 characters without
 // conversion.
 std::string Utf8SafeCHexEscape(absl::string_view src);
 

@@ -93,15 +93,12 @@ class LowLevelAlloc {
     // DefaultArena(). Not supported on all platforms.
     kAsyncSignalSafe = 0x0002,
 #endif
-
-    // When used with DefaultArena(), the NewArena() and DeleteArena() calls
-    // obey the flags given explicitly in the NewArena() call, even if those
-    // flags differ from the settings in DefaultArena().  So the call
-    // NewArena(kAsyncSignalSafe, DefaultArena()) is itself async-signal-safe,
-    // as well as generatating an arena that provides async-signal-safe
-    // Alloc/Free.
   };
-  static Arena *NewArena(int32_t flags, Arena *meta_data_arena);
+  // Construct a new arena.  The allocation of the underlying metadata honors
+  // the provided flags.  For example, the call NewArena(kAsyncSignalSafe)
+  // is itself async-signal-safe, as well as generatating an arena that provides
+  // async-signal-safe Alloc/Free.
+  static Arena *NewArena(int32_t flags);
 
   // Destroys an arena allocated by NewArena and returns true,
   // provided no allocated blocks remain in the arena.

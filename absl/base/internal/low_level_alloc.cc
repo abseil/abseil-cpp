@@ -358,18 +358,15 @@ LowLevelAlloc::Arena::Arena(uint32_t flags_value)
 }
 
 // L < meta_data_arena->mu
-LowLevelAlloc::Arena *LowLevelAlloc::NewArena(int32_t flags,
-                                              Arena *meta_data_arena) {
-  ABSL_RAW_CHECK(meta_data_arena != nullptr, "must pass a valid arena");
-  if (meta_data_arena == DefaultArena()) {
+LowLevelAlloc::Arena *LowLevelAlloc::NewArena(int32_t flags) {
+  Arena *meta_data_arena = DefaultArena();
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
-    if ((flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
-      meta_data_arena = UnhookedAsyncSigSafeArena();
-    } else  // NOLINT(readability/braces)
+  if ((flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
+    meta_data_arena = UnhookedAsyncSigSafeArena();
+  } else  // NOLINT(readability/braces)
 #endif
-        if ((flags & LowLevelAlloc::kCallMallocHook) == 0) {
-      meta_data_arena = UnhookedArena();
-    }
+      if ((flags & LowLevelAlloc::kCallMallocHook) == 0) {
+    meta_data_arena = UnhookedArena();
   }
   Arena *result =
     new (AllocWithArena(sizeof (*result), meta_data_arena)) Arena(flags);
