@@ -69,7 +69,7 @@ endif()
 # commented: used only for standalone test
 #add_subdirectory(cctz)
 #add_subdirectory(googletest)
-check_target({${CCTZ_TARGET})
+check_target(${ABSL_CCTZ_TARGET})
 
 ## check targets
 if(BUILD_TESTING)
