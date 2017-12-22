@@ -152,7 +152,7 @@ std::string HexStringToBytes(absl::string_view from);
 
 // BytesToHexString()
 //
-// Converts binary data into an ASCII text std::string, returing a std::string of size
+// Converts binary data into an ASCII text std::string, returning a std::string of size
 // `2*from.size()`.
 std::string BytesToHexString(absl::string_view from);
 

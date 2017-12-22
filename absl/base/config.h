@@ -138,9 +138,10 @@
 // supported.
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
-#elif !defined(__apple_build_version__) ||   \
-    ((__apple_build_version__ >= 8000042) && \
-     !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0))
+#elif (!defined(__apple_build_version__) || \
+       (__apple_build_version__ >= 8000042)) && \
+      !(defined(__APPLE__) && TARGET_OS_IPHONE && \
+        __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
 // Notes: Xcode's clang did not support `thread_local` until version
 // 8, and even then not for all iOS < 9.0.
 #define ABSL_HAVE_THREAD_LOCAL 1

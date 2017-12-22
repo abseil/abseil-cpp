@@ -319,13 +319,23 @@ struct RebindPtr<T, U, void_t<typename T::template rebind<U>>> {
   using type = typename T::template rebind<U>;
 };
 
-template <typename T, typename U, typename = void>
+template <typename T, typename U>
+constexpr bool HasRebindAlloc(...) {
+  return false;
+}
+
+template <typename T, typename U>
+constexpr bool HasRebindAlloc(typename T::template rebind<U>::other*) {
+  return true;
+}
+
+template <typename T, typename U, bool = HasRebindAlloc<T, U>(nullptr)>
 struct RebindAlloc {
   using type = typename RebindFirstArg<T, U>::type;
 };
 
 template <typename T, typename U>
-struct RebindAlloc<T, U, void_t<typename T::template rebind<U>::other>> {
+struct RebindAlloc<T, U, true> {
   using type = typename T::template rebind<U>::other;
 };
 

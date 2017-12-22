@@ -439,6 +439,20 @@ TEST(AllocatorTraits, Typedefs) {
 }
 
 template <typename T>
+struct AllocWithPrivateInheritance : private std::allocator<T> {
+  using value_type = T;
+};
+
+TEST(AllocatorTraits, RebindWithPrivateInheritance) {
+  // Regression test for some versions of gcc that do not like the sfinae we
+  // used in combination with private inheritance.
+  EXPECT_TRUE(
+      (std::is_same<AllocWithPrivateInheritance<int>,
+                    absl::allocator_traits<AllocWithPrivateInheritance<char>>::
+                        rebind_alloc<int>>::value));
+}
+
+template <typename T>
 struct Rebound {};
 
 struct AllocWithRebind {

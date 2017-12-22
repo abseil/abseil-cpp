@@ -10,7 +10,6 @@ GCC_FLAGS = [
     "-Wcast-qual",
     "-Wconversion-null",
     "-Wmissing-declarations",
-    "-Wno-sign-compare",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wunused-local-typedefs",
@@ -18,6 +17,9 @@ GCC_FLAGS = [
     "-Wvarargs",
     "-Wvla",  # variable-length array
     "-Wwrite-strings",
+    # Google style does not use unsigned integers, though STL containers
+    # have unsigned types.
+    "-Wno-sign-compare",
 ]
 
 GCC_TEST_FLAGS = [
@@ -34,36 +36,43 @@ GCC_TEST_FLAGS = [
 # Docs on groups of flags is preceded by ###.
 
 LLVM_FLAGS = [
+    # All warnings are treated as errors by implicit -Werror flag
     "-Wall",
     "-Wextra",
     "-Weverything",
     # Abseil does not support C++98
     "-Wno-c++98-compat-pedantic",
-    "-Wno-comma",
     # Turns off all implicit conversion warnings. Most are re-enabled below.
     "-Wno-conversion",
     "-Wno-covered-switch-default",
     "-Wno-deprecated",
     "-Wno-disabled-macro-expansion",
     "-Wno-double-promotion",
-    "-Wno-exit-time-destructors",
+    ###
+    # Turned off as they include valid C++ code.
+    "-Wno-comma",
     "-Wno-extra-semi",
+    "-Wno-packed",
+    "-Wno-padded",
+    ###
     "-Wno-float-conversion",
     "-Wno-float-equal",
     "-Wno-format-nonliteral",
-    # Too aggressive: warns on Clang extensions enclosed in Clang-only code paths.
+    # Too aggressive: warns on Clang extensions enclosed in Clang-only
+    # compilation paths.
     "-Wno-gcc-compat",
+    ###
+    # Some internal globals are necessary. Don't do this at home.
     "-Wno-global-constructors",
+    "-Wno-exit-time-destructors",
+    ###
     "-Wno-nested-anon-types",
     "-Wno-non-modular-include-in-module",
     "-Wno-old-style-cast",
-    "-Wno-packed",
-    "-Wno-padded",
     # Warns on preferred usage of non-POD types such as string_view
     "-Wno-range-loop-analysis",
     "-Wno-reserved-id-macro",
     "-Wno-shorten-64-to-32",
-    "-Wno-sign-conversion",
     "-Wno-switch-enum",
     "-Wno-thread-safety-negative",
     "-Wno-undef",
@@ -84,6 +93,7 @@ LLVM_FLAGS = [
     "-Wnon-literal-null-conversion",
     "-Wnull-conversion",
     "-Wobjc-literal-conversion",
+    "-Wno-sign-conversion",
     "-Wstring-conversion",
     ###
 ]
@@ -108,7 +118,7 @@ LLVM_TEST_FLAGS = [
 MSVC_FLAGS = [
     "/W3",
     "/WX",
-    "/wd4005",  # macro-redifinition
+    "/wd4005",  # macro-redefinition
     "/wd4068",  # unknown pragma
     "/wd4244",  # conversion from 'type1' to 'type2', possible loss of data
     "/wd4267",  # conversion from 'size_t' to 'type', possible loss of data
