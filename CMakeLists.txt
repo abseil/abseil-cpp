@@ -58,29 +58,34 @@ list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_WARNING_VLA} ${CMAKE_CXX_FLAGS} ")
 
-
 # find dependencies
 ## pthread
 find_package(Threads REQUIRED)
 
+if(NOT CCTZ_TARGET)
+  set(CCTZ_TARGET cctz)
+endif()
+
 # commented: used only for standalone test
 #add_subdirectory(cctz)
 #add_subdirectory(googletest)
+check_target({${CCTZ_TARGET})
 
 ## check targets
-check_target(cctz)
-check_target(gtest)
-check_target(gtest_main)
-check_target(gmock)
+if(BUILD_TESTING)
+  check_target(gtest)
+  check_target(gtest_main)
+  check_target(gmock)
 
-# -fexceptions
-set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
+  # -fexceptions
+  set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
 
-list(APPEND ABSL_TEST_COMMON_LIBRARIES
-  gtest_main
-  gtest
-  gmock
-  ${CMAKE_THREAD_LIBS_INIT}
-)
+  list(APPEND ABSL_TEST_COMMON_LIBRARIES
+    gtest_main
+    gtest
+    gmock
+    ${CMAKE_THREAD_LIBS_INIT}
+  )
+endif()
 
 add_subdirectory(absl)
