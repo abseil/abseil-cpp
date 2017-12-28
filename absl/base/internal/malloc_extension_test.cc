@@ -19,7 +19,6 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/malloc_extension.h"
-#include "absl/base/internal/malloc_extension_c.h"
 
 namespace absl {
 namespace base_internal {
@@ -35,15 +34,12 @@ TEST(MallocExtension, MallocExtension) {
   } else {
     ASSERT_TRUE(MallocExtension::instance()->GetNumericProperty(
         "generic.current_allocated_bytes", &cxx_bytes_used));
-    ASSERT_TRUE(MallocExtension_GetNumericProperty(
-        "generic.current_allocated_bytes", &c_bytes_used));
 #ifndef MEMORY_SANITIZER
     EXPECT_GT(cxx_bytes_used, 1000);
     EXPECT_GT(c_bytes_used, 1000);
 #endif
 
     EXPECT_TRUE(MallocExtension::instance()->VerifyAllMemory());
-    EXPECT_TRUE(MallocExtension_VerifyAllMemory());
 
     EXPECT_EQ(MallocExtension::kOwned,
               MallocExtension::instance()->GetOwnership(a));
@@ -65,28 +61,9 @@ TEST(MallocExtension, MallocExtension) {
                 MallocExtension::instance()->GetEstimatedAllocatedSize(i));
       free(p);
     }
-
-    // Check the c-shim version too.
-    EXPECT_EQ(MallocExtension_kOwned, MallocExtension_GetOwnership(a));
-    EXPECT_EQ(MallocExtension_kNotOwned,
-              MallocExtension_GetOwnership(&cxx_bytes_used));
-    EXPECT_EQ(MallocExtension_kNotOwned, MallocExtension_GetOwnership(nullptr));
-    EXPECT_GE(MallocExtension_GetAllocatedSize(a), 1000);
-    EXPECT_LE(MallocExtension_GetAllocatedSize(a), 5000);
-    EXPECT_GE(MallocExtension_GetEstimatedAllocatedSize(1000), 1000);
   }
 
   free(a);
-}
-
-// Verify that the .cc file and .h file have the same enum values.
-TEST(GetOwnership, EnumValuesEqualForCAndCXX) {
-  EXPECT_EQ(static_cast<int>(MallocExtension::kUnknownOwnership),
-            static_cast<int>(MallocExtension_kUnknownOwnership));
-  EXPECT_EQ(static_cast<int>(MallocExtension::kOwned),
-            static_cast<int>(MallocExtension_kOwned));
-  EXPECT_EQ(static_cast<int>(MallocExtension::kNotOwned),
-            static_cast<int>(MallocExtension_kNotOwned));
 }
 
 TEST(nallocx, SaneBehavior) {

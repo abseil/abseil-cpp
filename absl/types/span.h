@@ -152,11 +152,11 @@ bool LessThanImpl(Span<T> a, Span<T> b) {
 template <typename From, typename To>
 struct IsConvertibleHelper {
  private:
-  static std::true_type test(To);
-  static std::false_type test(...);
+  static std::true_type testval(To);
+  static std::false_type testval(...);
 
  public:
-  using type = decltype(test(std::declval<From>()));
+  using type = decltype(testval(std::declval<From>()));
 };
 
 template <typename From, typename To>
@@ -660,7 +660,7 @@ bool operator>=(Span<T> a, const U& b) {
 //   MyRoutine(my_vector);                // error, type mismatch
 //
 //   // Explicitly constructing the Span is verbose
-//   MyRoutine(absl::Span<MyComplicatedType>(my_vector);
+//   MyRoutine(absl::Span<MyComplicatedType>(my_vector));
 //
 //   // Use MakeSpan() to make an absl::Span<T>
 //   MyRoutine(absl::MakeSpan(my_vector));

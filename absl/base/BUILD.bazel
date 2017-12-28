@@ -82,7 +82,6 @@ cc_library(
     srcs = ["internal/malloc_extension.cc"],
     hdrs = [
         "internal/malloc_extension.h",
-        "internal/malloc_extension_c.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     visibility = [

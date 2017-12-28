@@ -38,7 +38,6 @@ list(APPEND BASE_INTERNAL_HEADERS
   "internal/log_severity.h"
   "internal/low_level_alloc.h"
   "internal/low_level_scheduling.h"
-  "internal/malloc_extension_c.h"
   "internal/malloc_extension.h"
   "internal/malloc_hook_c.h"
   "internal/malloc_hook.h"

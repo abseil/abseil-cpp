@@ -29,28 +29,9 @@
 extern "C" {
 #endif  /* __cplusplus */
 
-/* Get the current stack trace.  Try to skip all routines up to and
- * including the caller of MallocHook::Invoke*.
- * Use "skip_count" (similarly to absl::GetStackTrace from stacktrace.h)
- * as a hint about how many routines to skip if better information
- * is not available.
- */
 typedef int (*MallocHook_GetStackTraceFn)(void**, int, int);
-int MallocHook_GetCallerStackTrace(void** result, int max_depth, int skip_count,
-                                   MallocHook_GetStackTraceFn fn);
-
-/* All the MallocHook_{Add,Remove}*Hook functions below return 1 on success
- * and 0 on failure.
- */
-
 typedef void (*MallocHook_NewHook)(const void* ptr, size_t size);
-int MallocHook_AddNewHook(MallocHook_NewHook hook);
-int MallocHook_RemoveNewHook(MallocHook_NewHook hook);
-
 typedef void (*MallocHook_DeleteHook)(const void* ptr);
-int MallocHook_AddDeleteHook(MallocHook_DeleteHook hook);
-int MallocHook_RemoveDeleteHook(MallocHook_DeleteHook hook);
-
 typedef int64_t MallocHook_AllocHandle;
 typedef struct {
   /* See malloc_hook.h  for documentation for this struct. */
@@ -61,68 +42,24 @@ typedef struct {
 } MallocHook_SampledAlloc;
 typedef void (*MallocHook_SampledNewHook)(
     const MallocHook_SampledAlloc* sampled_alloc);
-int MallocHook_AddSampledNewHook(MallocHook_SampledNewHook hook);
-int MallocHook_RemoveSampledNewHook(MallocHook_SampledNewHook hook);
-
 typedef void (*MallocHook_SampledDeleteHook)(MallocHook_AllocHandle handle);
-int MallocHook_AddSampledDeleteHook(MallocHook_SampledDeleteHook hook);
-int MallocHook_RemoveSampledDeleteHook(MallocHook_SampledDeleteHook hook);
-
-typedef void (*MallocHook_PreMmapHook)(const void *start,
-                                       size_t size,
-                                       int protection,
-                                       int flags,
-                                       int fd,
+typedef void (*MallocHook_PreMmapHook)(const void* start, size_t size,
+                                       int protection, int flags, int fd,
                                        off_t offset);
-int MallocHook_AddPreMmapHook(MallocHook_PreMmapHook hook);
-int MallocHook_RemovePreMmapHook(MallocHook_PreMmapHook hook);
-
-typedef void (*MallocHook_MmapHook)(const void* result,
-                                    const void* start,
-                                    size_t size,
-                                    int protection,
-                                    int flags,
-                                    int fd,
-                                    off_t offset);
-int MallocHook_AddMmapHook(MallocHook_MmapHook hook);
-int MallocHook_RemoveMmapHook(MallocHook_MmapHook hook);
-
-typedef int (*MallocHook_MmapReplacement)(const void* start,
-                                          size_t size,
-                                          int protection,
-                                          int flags,
-                                          int fd,
-                                          off_t offset,
-                                          void** result);
-int MallocHook_SetMmapReplacement(MallocHook_MmapReplacement hook);
-int MallocHook_RemoveMmapReplacement(MallocHook_MmapReplacement hook);
-
+typedef void (*MallocHook_MmapHook)(const void* result, const void* start,
+                                    size_t size, int protection, int flags,
+                                    int fd, off_t offset);
+typedef int (*MallocHook_MmapReplacement)(const void* start, size_t size,
+                                          int protection, int flags, int fd,
+                                          off_t offset, void** result);
 typedef void (*MallocHook_MunmapHook)(const void* start, size_t size);
-int MallocHook_AddMunmapHook(MallocHook_MunmapHook hook);
-int MallocHook_RemoveMunmapHook(MallocHook_MunmapHook hook);
-
-typedef int (*MallocHook_MunmapReplacement)(const void* start,
-                                            size_t size,
+typedef int (*MallocHook_MunmapReplacement)(const void* start, size_t size,
                                             int* result);
-int MallocHook_SetMunmapReplacement(MallocHook_MunmapReplacement hook);
-int MallocHook_RemoveMunmapReplacement(MallocHook_MunmapReplacement hook);
-
-typedef void (*MallocHook_MremapHook)(const void* result,
-                                      const void* old_addr,
-                                      size_t old_size,
-                                      size_t new_size,
-                                      int flags,
-                                      const void* new_addr);
-int MallocHook_AddMremapHook(MallocHook_MremapHook hook);
-int MallocHook_RemoveMremapHook(MallocHook_MremapHook hook);
-
+typedef void (*MallocHook_MremapHook)(const void* result, const void* old_addr,
+                                      size_t old_size, size_t new_size,
+                                      int flags, const void* new_addr);
 typedef void (*MallocHook_PreSbrkHook)(ptrdiff_t increment);
-int MallocHook_AddPreSbrkHook(MallocHook_PreSbrkHook hook);
-int MallocHook_RemovePreSbrkHook(MallocHook_PreSbrkHook hook);
-
 typedef void (*MallocHook_SbrkHook)(const void* result, ptrdiff_t increment);
-int MallocHook_AddSbrkHook(MallocHook_SbrkHook hook);
-int MallocHook_RemoveSbrkHook(MallocHook_SbrkHook hook);
 
 #ifdef __cplusplus
 }  /* extern "C" */

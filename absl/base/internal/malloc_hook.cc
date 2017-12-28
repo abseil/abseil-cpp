@@ -215,139 +215,101 @@ HookList<MallocHook::MunmapReplacement> munmap_replacement_ = INIT_HOOK_LIST;
 #undef INIT_HOOK_LIST_WITH_VALUE
 #undef INIT_HOOK_LIST
 
-}  // namespace base_internal
-}  // namespace absl
+bool MallocHook::AddNewHook(NewHook hook) { return new_hooks_.Add(hook); }
 
-// These are available as C bindings as well as C++, hence their
-// definition outside the MallocHook class.
-extern "C"
-int MallocHook_AddNewHook(MallocHook_NewHook hook) {
-  return absl::base_internal::new_hooks_.Add(hook);
+bool MallocHook::RemoveNewHook(NewHook hook) { return new_hooks_.Remove(hook); }
+
+bool MallocHook::AddDeleteHook(DeleteHook hook) {
+  return delete_hooks_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveNewHook(MallocHook_NewHook hook) {
-  return absl::base_internal::new_hooks_.Remove(hook);
+bool MallocHook::RemoveDeleteHook(DeleteHook hook) {
+  return delete_hooks_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddDeleteHook(MallocHook_DeleteHook hook) {
-  return absl::base_internal::delete_hooks_.Add(hook);
+bool MallocHook::AddSampledNewHook(SampledNewHook hook) {
+  return sampled_new_hooks_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveDeleteHook(MallocHook_DeleteHook hook) {
-  return absl::base_internal::delete_hooks_.Remove(hook);
+bool MallocHook::RemoveSampledNewHook(SampledNewHook hook) {
+  return sampled_new_hooks_.Remove(hook);
 }
 
-extern "C" int MallocHook_AddSampledNewHook(MallocHook_SampledNewHook hook) {
-  return absl::base_internal::sampled_new_hooks_.Add(hook);
+bool MallocHook::AddSampledDeleteHook(SampledDeleteHook hook) {
+  return sampled_delete_hooks_.Add(hook);
 }
 
-extern "C" int MallocHook_RemoveSampledNewHook(MallocHook_SampledNewHook hook) {
-  return absl::base_internal::sampled_new_hooks_.Remove(hook);
+bool MallocHook::RemoveSampledDeleteHook(SampledDeleteHook hook) {
+  return sampled_delete_hooks_.Remove(hook);
 }
 
-extern "C" int MallocHook_AddSampledDeleteHook(
-    MallocHook_SampledDeleteHook hook) {
-  return absl::base_internal::sampled_delete_hooks_.Add(hook);
+bool MallocHook::AddPreMmapHook(PreMmapHook hook) {
+  return premmap_hooks_.Add(hook);
 }
 
-extern "C" int MallocHook_RemoveSampledDeleteHook(
-    MallocHook_SampledDeleteHook hook) {
-  return absl::base_internal::sampled_delete_hooks_.Remove(hook);
+bool MallocHook::RemovePreMmapHook(PreMmapHook hook) {
+  return premmap_hooks_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddPreMmapHook(MallocHook_PreMmapHook hook) {
-  return absl::base_internal::premmap_hooks_.Add(hook);
-}
-
-extern "C"
-int MallocHook_RemovePreMmapHook(MallocHook_PreMmapHook hook) {
-  return absl::base_internal::premmap_hooks_.Remove(hook);
-}
-
-extern "C"
-int MallocHook_SetMmapReplacement(MallocHook_MmapReplacement hook) {
+bool MallocHook::SetMmapReplacement(MmapReplacement hook) {
   // NOTE this is a best effort CHECK. Concurrent sets could succeed since
   // this test is outside of the Add spin lock.
-  ABSL_RAW_CHECK(absl::base_internal::mmap_replacement_.empty(),
+  ABSL_RAW_CHECK(mmap_replacement_.empty(),
                  "Only one MMapReplacement is allowed.");
-  return absl::base_internal::mmap_replacement_.Add(hook);
+  return mmap_replacement_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveMmapReplacement(MallocHook_MmapReplacement hook) {
-  return absl::base_internal::mmap_replacement_.Remove(hook);
+bool MallocHook::RemoveMmapReplacement(MmapReplacement hook) {
+  return mmap_replacement_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddMmapHook(MallocHook_MmapHook hook) {
-  return absl::base_internal::mmap_hooks_.Add(hook);
+bool MallocHook::AddMmapHook(MmapHook hook) { return mmap_hooks_.Add(hook); }
+
+bool MallocHook::RemoveMmapHook(MmapHook hook) {
+  return mmap_hooks_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_RemoveMmapHook(MallocHook_MmapHook hook) {
-  return absl::base_internal::mmap_hooks_.Remove(hook);
-}
-
-extern "C"
-int MallocHook_AddMunmapHook(MallocHook_MunmapHook hook) {
-  return absl::base_internal::munmap_hooks_.Add(hook);
-}
-
-extern "C"
-int MallocHook_RemoveMunmapHook(MallocHook_MunmapHook hook) {
-  return absl::base_internal::munmap_hooks_.Remove(hook);
-}
-
-extern "C"
-int MallocHook_SetMunmapReplacement(MallocHook_MunmapReplacement hook) {
+bool MallocHook::SetMunmapReplacement(MunmapReplacement hook) {
   // NOTE this is a best effort CHECK. Concurrent sets could succeed since
   // this test is outside of the Add spin lock.
-  ABSL_RAW_CHECK(absl::base_internal::munmap_replacement_.empty(),
+  ABSL_RAW_CHECK(munmap_replacement_.empty(),
                  "Only one MunmapReplacement is allowed.");
-  return absl::base_internal::munmap_replacement_.Add(hook);
+  return munmap_replacement_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveMunmapReplacement(MallocHook_MunmapReplacement hook) {
-  return absl::base_internal::munmap_replacement_.Remove(hook);
+bool MallocHook::RemoveMunmapReplacement(MunmapReplacement hook) {
+  return munmap_replacement_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddMremapHook(MallocHook_MremapHook hook) {
-  return absl::base_internal::mremap_hooks_.Add(hook);
+bool MallocHook::AddMunmapHook(MunmapHook hook) {
+  return munmap_hooks_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveMremapHook(MallocHook_MremapHook hook) {
-  return absl::base_internal::mremap_hooks_.Remove(hook);
+bool MallocHook::RemoveMunmapHook(MunmapHook hook) {
+  return munmap_hooks_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddPreSbrkHook(MallocHook_PreSbrkHook hook) {
-  return absl::base_internal::presbrk_hooks_.Add(hook);
+bool MallocHook::AddMremapHook(MremapHook hook) {
+  return mremap_hooks_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemovePreSbrkHook(MallocHook_PreSbrkHook hook) {
-  return absl::base_internal::presbrk_hooks_.Remove(hook);
+bool MallocHook::RemoveMremapHook(MremapHook hook) {
+  return mremap_hooks_.Remove(hook);
 }
 
-extern "C"
-int MallocHook_AddSbrkHook(MallocHook_SbrkHook hook) {
-  return absl::base_internal::sbrk_hooks_.Add(hook);
+bool MallocHook::AddPreSbrkHook(PreSbrkHook hook) {
+  return presbrk_hooks_.Add(hook);
 }
 
-extern "C"
-int MallocHook_RemoveSbrkHook(MallocHook_SbrkHook hook) {
-  return absl::base_internal::sbrk_hooks_.Remove(hook);
+bool MallocHook::RemovePreSbrkHook(PreSbrkHook hook) {
+  return presbrk_hooks_.Remove(hook);
 }
 
-namespace absl {
-namespace base_internal {
+bool MallocHook::AddSbrkHook(SbrkHook hook) { return sbrk_hooks_.Add(hook); }
+
+bool MallocHook::RemoveSbrkHook(SbrkHook hook) {
+  return sbrk_hooks_.Remove(hook);
+}
 
 // Note: embedding the function calls inside the traversal of HookList would be
 // very confusing, as it is legal for a hook to remove itself and add other
@@ -501,12 +463,11 @@ static void InitializeInHookCaller() {
   ABSL_INIT_ATTRIBUTE_SECTION_VARS(blink_malloc);
 }
 
-// We can improve behavior/compactness of this function
-// if we pass a generic test function (with a generic arg)
-// into the implementations for get_stack_trace_fn instead of the skip_count.
-extern "C" int MallocHook_GetCallerStackTrace(
-    void** result, int max_depth, int skip_count,
-    MallocHook_GetStackTraceFn get_stack_trace_fn) {
+namespace absl {
+namespace base_internal {
+int MallocHook::GetCallerStackTrace(void** result, int max_depth,
+                                    int skip_count,
+                                    GetStackTraceFn get_stack_trace_fn) {
   if (!ABSL_HAVE_ATTRIBUTE_SECTION) {
     // Fall back to get_stack_trace_fn and good old but fragile frame skip
     // counts.
@@ -524,11 +485,11 @@ extern "C" int MallocHook_GetCallerStackTrace(
   absl::call_once(in_hook_caller_once, InitializeInHookCaller);
   // MallocHook caller determination via InHookCaller works, use it:
   static const int kMaxSkip = 32 + 6 + 3;
-    // Constant tuned to do just one get_stack_trace_fn call below in practice
-    // and not get many frames that we don't actually need:
-    // currently max passed max_depth is 32,
-    // max passed/needed skip_count is 6
-    // and 3 is to account for some hook daisy chaining.
+  // Constant tuned to do just one get_stack_trace_fn call below in practice
+  // and not get many frames that we don't actually need:
+  // currently max passed max_depth is 32,
+  // max passed/needed skip_count is 6
+  // and 3 is to account for some hook daisy chaining.
   static const int kStackSize = kMaxSkip + 1;
   void* stack[kStackSize];
   int depth =
@@ -538,11 +499,11 @@ extern "C" int MallocHook_GetCallerStackTrace(
     return 0;
   for (int i = depth - 1; i >= 0; --i) {  // stack[0] is our immediate caller
     if (InHookCaller(stack[i])) {
-      i += 1;  // skip hook caller frame
+      i += 1;      // skip hook caller frame
       depth -= i;  // correct depth
       if (depth > max_depth) depth = max_depth;
       std::copy(stack + i, stack + i + depth, result);
-      if (depth < max_depth  &&  depth + i == kStackSize) {
+      if (depth < max_depth && depth + i == kStackSize) {
         // get frames for the missing depth
         depth += get_stack_trace_fn(result + depth, max_depth - depth,
                                     1 + kStackSize);
@@ -558,6 +519,8 @@ extern "C" int MallocHook_GetCallerStackTrace(
   // all functions in that section must be inside the same library.
   return 0;
 }
+}  // namespace base_internal
+}  // namespace absl
 
 // On systems where we know how, we override mmap/munmap/mremap/sbrk
 // to provide support for calling the related hooks (in addition,

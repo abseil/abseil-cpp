@@ -20,7 +20,6 @@
 #include <string>
 
 #include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/malloc_extension_c.h"
 
 namespace absl {
 namespace base_internal {
@@ -154,44 +153,6 @@ void MallocExtension::GetFragmentationProfile(MallocExtensionWriter*) {}
 
 }  // namespace base_internal
 }  // namespace absl
-
-// These are C shims that work on the current instance.
-
-#define C_SHIM(fn, retval, paramlist, arglist)                           \
-  extern "C" retval MallocExtension_##fn paramlist {                     \
-    return absl::base_internal::MallocExtension::instance()->fn arglist; \
-  }
-
-C_SHIM(VerifyAllMemory, int, (void), ());
-C_SHIM(VerifyNewMemory, int, (const void* p), (p));
-C_SHIM(VerifyArrayNewMemory, int, (const void* p), (p));
-C_SHIM(VerifyMallocMemory, int, (const void* p), (p));
-C_SHIM(
-    MallocMemoryStats, int,
-    (int* blocks, size_t* total,
-     int histogram[absl::base_internal::MallocExtension::kMallocHistogramSize]),
-    (blocks, total, histogram));
-
-C_SHIM(GetStats, void,
-       (char* buffer, int buffer_length), (buffer, buffer_length));
-C_SHIM(GetNumericProperty, int,
-       (const char* property, size_t* value), (property, value));
-C_SHIM(SetNumericProperty, int,
-       (const char* property, size_t value), (property, value));
-
-C_SHIM(MarkThreadIdle, void, (void), ());
-C_SHIM(MarkThreadBusy, void, (void), ());
-C_SHIM(ReleaseFreeMemory, void, (void), ());
-C_SHIM(ReleaseToSystem, void, (size_t num_bytes), (num_bytes));
-C_SHIM(GetEstimatedAllocatedSize, size_t, (size_t size), (size));
-C_SHIM(GetAllocatedSize, size_t, (const void* p), (p));
-
-// Can't use the shim here because of the need to translate the enums.
-extern "C"
-MallocExtension_Ownership MallocExtension_GetOwnership(const void* p) {
-  return static_cast<MallocExtension_Ownership>(
-      absl::base_internal::MallocExtension::instance()->GetOwnership(p));
-}
 
 // Default implementation just returns size. The expectation is that
 // the linked-in malloc implementation might provide an override of

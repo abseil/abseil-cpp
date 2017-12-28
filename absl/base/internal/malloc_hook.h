@@ -74,24 +74,16 @@ class MallocHook {
   // Object pointer and size are passed in.
   // It may be passed null pointer if the allocator returned null.
   typedef MallocHook_NewHook NewHook;
-  inline static bool AddNewHook(NewHook hook) {
-    return MallocHook_AddNewHook(hook);
-  }
-  inline static bool RemoveNewHook(NewHook hook) {
-    return MallocHook_RemoveNewHook(hook);
-  }
+  static bool AddNewHook(NewHook hook);
+  static bool RemoveNewHook(NewHook hook);
   inline static void InvokeNewHook(const void* ptr, size_t size);
 
   // The DeleteHook is invoked whenever an object is being deallocated.
   // Object pointer is passed in.
   // It may be passed null pointer if the caller is trying to delete null.
   typedef MallocHook_DeleteHook DeleteHook;
-  inline static bool AddDeleteHook(DeleteHook hook) {
-    return MallocHook_AddDeleteHook(hook);
-  }
-  inline static bool RemoveDeleteHook(DeleteHook hook) {
-    return MallocHook_RemoveDeleteHook(hook);
-  }
+  static bool AddDeleteHook(DeleteHook hook);
+  static bool RemoveDeleteHook(DeleteHook hook);
   inline static void InvokeDeleteHook(const void* ptr);
 
   // The SampledNewHook is invoked for some subset of object allocations
@@ -107,12 +99,8 @@ class MallocHook {
   // call InvokeSampledDeleteHook() with that value.
   typedef MallocHook_SampledNewHook SampledNewHook;
   typedef MallocHook_SampledAlloc SampledAlloc;
-  inline static bool AddSampledNewHook(SampledNewHook hook) {
-    return MallocHook_AddSampledNewHook(hook);
-  }
-  inline static bool RemoveSampledNewHook(SampledNewHook hook) {
-    return MallocHook_RemoveSampledNewHook(hook);
-  }
+  static bool AddSampledNewHook(SampledNewHook hook);
+  static bool RemoveSampledNewHook(SampledNewHook hook);
   inline static void InvokeSampledNewHook(const SampledAlloc* sampled_alloc);
 
   // The SampledDeleteHook is invoked whenever an object previously chosen
@@ -121,12 +109,8 @@ class MallocHook {
   // InvokeSampledNewHook()-- is passed in.
   typedef MallocHook_SampledDeleteHook SampledDeleteHook;
   typedef MallocHook_AllocHandle AllocHandle;
-  inline static bool AddSampledDeleteHook(SampledDeleteHook hook) {
-    return MallocHook_AddSampledDeleteHook(hook);
-  }
-  inline static bool RemoveSampledDeleteHook(SampledDeleteHook hook) {
-    return MallocHook_RemoveSampledDeleteHook(hook);
-  }
+  static bool AddSampledDeleteHook(SampledDeleteHook hook);
+  static bool RemoveSampledDeleteHook(SampledDeleteHook hook);
   inline static void InvokeSampledDeleteHook(AllocHandle handle);
 
   // The PreMmapHook is invoked with mmap's or mmap64's arguments just
@@ -134,12 +118,8 @@ class MallocHook {
   // in memory limited contexts, to catch allocations that will exceed
   // a memory limit, and take outside actions to increase that limit.
   typedef MallocHook_PreMmapHook PreMmapHook;
-  inline static bool AddPreMmapHook(PreMmapHook hook) {
-    return MallocHook_AddPreMmapHook(hook);
-  }
-  inline static bool RemovePreMmapHook(PreMmapHook hook) {
-    return MallocHook_RemovePreMmapHook(hook);
-  }
+  static bool AddPreMmapHook(PreMmapHook hook);
+  static bool RemovePreMmapHook(PreMmapHook hook);
   inline static void InvokePreMmapHook(const void* start,
                                        size_t size,
                                        int protection,
@@ -159,12 +139,8 @@ class MallocHook {
   // you must call RemoveMmapReplacement before calling SetMmapReplacement
   // again.
   typedef MallocHook_MmapReplacement MmapReplacement;
-  inline static bool SetMmapReplacement(MmapReplacement hook) {
-    return MallocHook_SetMmapReplacement(hook);
-  }
-  inline static bool RemoveMmapReplacement(MmapReplacement hook) {
-    return MallocHook_RemoveMmapReplacement(hook);
-  }
+  static bool SetMmapReplacement(MmapReplacement hook);
+  static bool RemoveMmapReplacement(MmapReplacement hook);
   inline static bool InvokeMmapReplacement(const void* start,
                                            size_t size,
                                            int protection,
@@ -178,12 +154,8 @@ class MallocHook {
   // a region of memory has been just mapped.
   // It may be passed MAP_FAILED if the mmap failed.
   typedef MallocHook_MmapHook MmapHook;
-  inline static bool AddMmapHook(MmapHook hook) {
-    return MallocHook_AddMmapHook(hook);
-  }
-  inline static bool RemoveMmapHook(MmapHook hook) {
-    return MallocHook_RemoveMmapHook(hook);
-  }
+  static bool AddMmapHook(MmapHook hook);
+  static bool RemoveMmapHook(MmapHook hook);
   inline static void InvokeMmapHook(const void* result,
                                     const void* start,
                                     size_t size,
@@ -202,12 +174,8 @@ class MallocHook {
   // MunmapReplacement you must call RemoveMunmapReplacement before
   // calling SetMunmapReplacement again.
   typedef MallocHook_MunmapReplacement MunmapReplacement;
-  inline static bool SetMunmapReplacement(MunmapReplacement hook) {
-    return MallocHook_SetMunmapReplacement(hook);
-  }
-  inline static bool RemoveMunmapReplacement(MunmapReplacement hook) {
-    return MallocHook_RemoveMunmapReplacement(hook);
-  }
+  static bool SetMunmapReplacement(MunmapReplacement hook);
+  static bool RemoveMunmapReplacement(MunmapReplacement hook);
   inline static bool InvokeMunmapReplacement(const void* start,
                                              size_t size,
                                              int* result);
@@ -217,23 +185,15 @@ class MallocHook {
   // TODO(maxim): Rename this to PreMunmapHook for consistency with PreMmapHook
   // and PreSbrkHook.
   typedef MallocHook_MunmapHook MunmapHook;
-  inline static bool AddMunmapHook(MunmapHook hook) {
-    return MallocHook_AddMunmapHook(hook);
-  }
-  inline static bool RemoveMunmapHook(MunmapHook hook) {
-    return MallocHook_RemoveMunmapHook(hook);
-  }
+  static bool AddMunmapHook(MunmapHook hook);
+  static bool RemoveMunmapHook(MunmapHook hook);
   inline static void InvokeMunmapHook(const void* start, size_t size);
 
   // The MremapHook is invoked with mremap's return value and arguments
   // whenever a region of memory has been just remapped.
   typedef MallocHook_MremapHook MremapHook;
-  inline static bool AddMremapHook(MremapHook hook) {
-    return MallocHook_AddMremapHook(hook);
-  }
-  inline static bool RemoveMremapHook(MremapHook hook) {
-    return MallocHook_RemoveMremapHook(hook);
-  }
+  static bool AddMremapHook(MremapHook hook);
+  static bool RemoveMremapHook(MremapHook hook);
   inline static void InvokeMremapHook(const void* result,
                                       const void* old_addr,
                                       size_t old_size,
@@ -248,12 +208,8 @@ class MallocHook {
   // to catch allocations that will exceed the limit and take outside
   // actions to increase such a limit.
   typedef MallocHook_PreSbrkHook PreSbrkHook;
-  inline static bool AddPreSbrkHook(PreSbrkHook hook) {
-    return MallocHook_AddPreSbrkHook(hook);
-  }
-  inline static bool RemovePreSbrkHook(PreSbrkHook hook) {
-    return MallocHook_RemovePreSbrkHook(hook);
-  }
+  static bool AddPreSbrkHook(PreSbrkHook hook);
+  static bool RemovePreSbrkHook(PreSbrkHook hook);
   inline static void InvokePreSbrkHook(ptrdiff_t increment);
 
   // The SbrkHook is invoked with sbrk's result and argument whenever sbrk
@@ -261,12 +217,8 @@ class MallocHook {
   // This is because sbrk(0) is often called to get the top of the memory stack,
   // and is not actually a memory-allocation call.
   typedef MallocHook_SbrkHook SbrkHook;
-  inline static bool AddSbrkHook(SbrkHook hook) {
-    return MallocHook_AddSbrkHook(hook);
-  }
-  inline static bool RemoveSbrkHook(SbrkHook hook) {
-    return MallocHook_RemoveSbrkHook(hook);
-  }
+  static bool AddSbrkHook(SbrkHook hook);
+  static bool RemoveSbrkHook(SbrkHook hook);
   inline static void InvokeSbrkHook(const void* result, ptrdiff_t increment);
 
   // Pointer to a absl::GetStackTrace implementation, following the API in
@@ -280,12 +232,8 @@ class MallocHook {
   // is not available.
   // Stack trace is filled into *result up to the size of max_depth.
   // The actual number of stack frames filled is returned.
-  inline static int GetCallerStackTrace(void** result, int max_depth,
-                                        int skip_count,
-                                        GetStackTraceFn get_stack_trace_fn) {
-    return MallocHook_GetCallerStackTrace(result, max_depth, skip_count,
-                                          get_stack_trace_fn);
-  }
+  static int GetCallerStackTrace(void** result, int max_depth, int skip_count,
+                                 GetStackTraceFn get_stack_trace_fn);
 
 #if ABSL_HAVE_MMAP
   // Unhooked versions of mmap() and munmap().   These should be used
