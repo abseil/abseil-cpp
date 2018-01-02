@@ -33,6 +33,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:throw_delegate",
+        "//absl/memory",
     ],
 )
 
@@ -42,7 +43,6 @@ cc_test(
     copts = ABSL_TEST_COPTS + ["-fexceptions"],
     deps = [
         ":fixed_array",
-        "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
@@ -55,7 +55,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":fixed_array",
-        "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",

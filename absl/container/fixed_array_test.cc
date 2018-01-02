@@ -27,6 +27,8 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/memory/memory.h"
 
+using ::testing::ElementsAreArray;
+
 namespace {
 
 // Helper routine to determine if a absl::FixedArray used stack allocation.
@@ -88,6 +90,41 @@ class ThreeInts {
 };
 
 int ThreeInts::counter = 0;
+
+TEST(FixedArrayTest, CopyCtor) {
+  absl::FixedArray<int, 10> on_stack(5);
+  std::iota(on_stack.begin(), on_stack.end(), 0);
+  absl::FixedArray<int, 10> stack_copy = on_stack;
+  EXPECT_THAT(stack_copy, ElementsAreArray(on_stack));
+  EXPECT_TRUE(IsOnStack(stack_copy));
+
+  absl::FixedArray<int, 10> allocated(15);
+  std::iota(allocated.begin(), allocated.end(), 0);
+  absl::FixedArray<int, 10> alloced_copy = allocated;
+  EXPECT_THAT(alloced_copy, ElementsAreArray(allocated));
+  EXPECT_FALSE(IsOnStack(alloced_copy));
+}
+
+TEST(FixedArrayTest, MoveCtor) {
+  absl::FixedArray<std::unique_ptr<int>, 10> on_stack(5);
+  for (int i = 0; i < 5; ++i) {
+    on_stack[i] = absl::make_unique<int>(i);
+  }
+
+  absl::FixedArray<std::unique_ptr<int>, 10> stack_copy = std::move(on_stack);
+  for (int i = 0; i < 5; ++i) EXPECT_EQ(*(stack_copy[i]), i);
+  EXPECT_EQ(stack_copy.size(), on_stack.size());
+
+  absl::FixedArray<std::unique_ptr<int>, 10> allocated(15);
+  for (int i = 0; i < 15; ++i) {
+    allocated[i] = absl::make_unique<int>(i);
+  }
+
+  absl::FixedArray<std::unique_ptr<int>, 10> alloced_copy =
+      std::move(allocated);
+  for (int i = 0; i < 15; ++i) EXPECT_EQ(*(alloced_copy[i]), i);
+  EXPECT_EQ(allocated.size(), alloced_copy.size());
+}
 
 TEST(FixedArrayTest, SmallObjects) {
   // Small object arrays

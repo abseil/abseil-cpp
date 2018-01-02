@@ -46,8 +46,7 @@
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using
-// a `PadSpec` enum, so the equivalent of `StringPrintf("%04x", my_int)` is
-// `absl::StrCat(absl::Hex(my_int, absl::kZeroPad4))`.
+// a `PadSpec` enum.
 //
 // -----------------------------------------------------------------------------
 

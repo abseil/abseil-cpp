@@ -45,17 +45,6 @@
 //   SubstituteAndAppend(&s, "My name is $0 and I am $1 years old.", "Bob", 5);
 //   EXPECT_EQ("Hi. My name is Bob and I am 5 years old.", s);
 //
-// Differences from `StringPrintf()`:
-//   * The format std::string does not identify the types of arguments. Instead, the
-//     arguments are implicitly converted to strings. See below for a list of
-//     accepted types.
-//   * Substitutions in the format std::string are identified by a '$' followed by a
-//     single digit. You can use arguments out-of-order and use the same
-//     argument multiple times.
-//   * A '$$' sequence in the format std::string means output a literal '$'
-//     character.
-//   * `Substitute()` is significantly faster than `StringPrintf()`. For very
-//     large strings, it may be orders of magnitude faster.
 //
 // Supported types:
 //   * absl::string_view, std::string, const char* (null is equivalent to "")
@@ -157,8 +146,7 @@ class Arg {
   Arg(bool value)  // NOLINT(runtime/explicit)
       : piece_(value ? "true" : "false") {}
   // `void*` values, with the exception of `char*`, are printed as
-  // `StringPrintf()` with format "%p": e.g. ("0x<hex value>").
-  // However, in the case of `nullptr`, "NULL" is printed.
+  // "0x<hex value>". However, in the case of `nullptr`, "NULL" is printed.
   Arg(const void* value);  // NOLINT(runtime/explicit)
 
   Arg(const Arg&) = delete;
