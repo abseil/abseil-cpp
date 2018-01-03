@@ -35,6 +35,7 @@ list(APPEND STRINGS_INTERNAL_HEADERS
   "internal/memutil.h"
   "internal/ostringstream.h"
   "internal/resize_uninitialized.h"
+  "internal/stl_type_traits.h"
   "internal/str_join_internal.h"
   "internal/str_split_internal.h"
   "internal/utf8.h"

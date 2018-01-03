@@ -166,6 +166,18 @@ TEST(Split, APIExamples) {
   }
 
   {
+    // Different forms of initialization / conversion.
+    std::vector<std::string> v1 = absl::StrSplit("a,b,c", ',');
+    EXPECT_THAT(v1, ElementsAre("a", "b", "c"));
+    std::vector<std::string> v2(absl::StrSplit("a,b,c", ','));
+    EXPECT_THAT(v2, ElementsAre("a", "b", "c"));
+    auto v3 = std::vector<std::string>(absl::StrSplit("a,b,c", ','));
+    EXPECT_THAT(v3, ElementsAre("a", "b", "c"));
+    v3 = absl::StrSplit("a,b,c", ',');
+    EXPECT_THAT(v3, ElementsAre("a", "b", "c"));
+  }
+
+  {
     // Results stored in a std::map.
     std::map<std::string, std::string> m = absl::StrSplit("a,1,b,2,a,3", ',');
     EXPECT_EQ(2, m.size());

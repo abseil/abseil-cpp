@@ -67,8 +67,8 @@ inline bool ConsumeSuffix(absl::string_view* str, absl::string_view expected) {
 // Returns a view into the input std::string 'str' with the given 'prefix' removed,
 // but leaving the original std::string intact. If the prefix does not match at the
 // start of the std::string, returns the original std::string instead.
-inline absl::string_view StripPrefix(absl::string_view str,
-                                     absl::string_view prefix) {
+ABSL_MUST_USE_RESULT inline absl::string_view StripPrefix(
+    absl::string_view str, absl::string_view prefix) {
   if (absl::StartsWith(str, prefix)) str.remove_prefix(prefix.size());
   return str;
 }
@@ -78,8 +78,8 @@ inline absl::string_view StripPrefix(absl::string_view str,
 // Returns a view into the input std::string 'str' with the given 'suffix' removed,
 // but leaving the original std::string intact. If the suffix does not match at the
 // end of the std::string, returns the original std::string instead.
-inline absl::string_view StripSuffix(absl::string_view str,
-                                     absl::string_view suffix) {
+ABSL_MUST_USE_RESULT inline absl::string_view StripSuffix(
+    absl::string_view str, absl::string_view suffix) {
   if (absl::EndsWith(str, suffix)) str.remove_suffix(suffix.size());
   return str;
 }

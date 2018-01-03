@@ -29,10 +29,6 @@
 #ifndef ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_
 #define ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_
 
-#ifdef _GLIBCXX_DEBUG
-#include <glibcxx_debug_traits.h>
-#endif  // _GLIBCXX_DEBUG
-
 #include <array>
 #include <initializer_list>
 #include <iterator>
@@ -46,14 +42,12 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
+#ifdef _GLIBCXX_DEBUG
+#include "absl/strings/internal/stl_type_traits.h"
+#endif  // _GLIBCXX_DEBUG
+
 namespace absl {
 namespace strings_internal {
-
-#ifdef _GLIBCXX_DEBUG
-using ::glibcxx_debug_traits::IsStrictlyDebugWrapperBase;
-#else  // _GLIBCXX_DEBUG
-template <typename T> struct IsStrictlyDebugWrapperBase : std::false_type {};
-#endif  // _GLIBCXX_DEBUG
 
 // This class is implicitly constructible from everything that absl::string_view
 // is implicitly constructible from. If it's constructed from a temporary
@@ -237,10 +231,12 @@ struct IsInitializerList
 template <typename C>
 struct SplitterIsConvertibleTo
     : std::enable_if<
-          !IsStrictlyDebugWrapperBase<C>::value &&
-          !IsInitializerList<C>::value &&
-          HasValueType<C>::value &&
-          HasConstIterator<C>::value> {};
+#ifdef _GLIBCXX_DEBUG
+          !IsStrictlyBaseOfAndConvertibleToSTLContainer<C>::value &&
+#endif  // _GLIBCXX_DEBUG
+          !IsInitializerList<C>::value && HasValueType<C>::value &&
+          HasConstIterator<C>::value> {
+};
 
 // This class implements the range that is returned by absl::StrSplit(). This
 // class has templated conversion operators that allow it to be implicitly
