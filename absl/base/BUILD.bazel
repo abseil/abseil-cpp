@@ -235,6 +235,7 @@ cc_library(
     hdrs = ["internal/exception_safety_testing.h"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
+        ":base",
         ":config",
         ":pretty_function",
         "//absl/memory",

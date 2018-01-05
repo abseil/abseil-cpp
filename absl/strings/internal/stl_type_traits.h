@@ -79,31 +79,48 @@ struct IsSTLContainer
 
 template <typename C, template <typename...> class T, typename = void>
 struct IsBaseOfSpecializationImpl : std::false_type {};
-// IsBaseOfSpecializationImpl must have three partial specializations,
-// because we must only compare templates that take the same number of
-// arguments. Otherwise, for example, std::vector can be compared with std::map,
-// and fail to compile because of too few or too many template arguments.
-//
-// We must also SFINAE on the existence of an allocator_type. Otherwise, we may
-// try to compare, for example, a std::pair<std::string, std::string> with a
-// std::vector<std::string, std:std::string>. This would fail to compile, because
-// of expected properties of the type passed in as the allocator.
-template <template <typename, typename> class U,
-          template <typename, typename> class T, typename... Args>
+// IsBaseOfSpecializationImpl needs multiple partial specializations to SFINAE
+// on the existence of container dependent types and plug them into the STL
+// template.
+template <typename C, template <typename, typename> class T>
 struct IsBaseOfSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_base_of<U<Args...>, T<Args...>> {};
-template <template <typename, typename, typename> class U,
-          template <typename, typename, typename> class T, typename... Args>
+    C, T, absl::void_t<typename C::value_type, typename C::allocator_type>>
+    : std::is_base_of<C,
+                      T<typename C::value_type, typename C::allocator_type>> {};
+template <typename C, template <typename, typename, typename> class T>
 struct IsBaseOfSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_base_of<U<Args...>, T<Args...>> {};
-template <template <typename, typename, typename, typename> class U,
-          template <typename, typename, typename, typename> class T,
-          typename... Args>
+    C, T,
+    absl::void_t<typename C::key_type, typename C::key_compare,
+                 typename C::allocator_type>>
+    : std::is_base_of<C, T<typename C::key_type, typename C::key_compare,
+                           typename C::allocator_type>> {};
+template <typename C, template <typename, typename, typename, typename> class T>
 struct IsBaseOfSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_base_of<U<Args...>, T<Args...>> {};
+    C, T,
+    absl::void_t<typename C::key_type, typename C::mapped_type,
+                 typename C::key_compare, typename C::allocator_type>>
+    : std::is_base_of<C,
+                      T<typename C::key_type, typename C::mapped_type,
+                        typename C::key_compare, typename C::allocator_type>> {
+};
+template <typename C, template <typename, typename, typename, typename> class T>
+struct IsBaseOfSpecializationImpl<
+    C, T,
+    absl::void_t<typename C::key_type, typename C::hasher,
+                 typename C::key_equal, typename C::allocator_type>>
+    : std::is_base_of<C, T<typename C::key_type, typename C::hasher,
+                           typename C::key_equal, typename C::allocator_type>> {
+};
+template <typename C,
+          template <typename, typename, typename, typename, typename> class T>
+struct IsBaseOfSpecializationImpl<
+    C, T,
+    absl::void_t<typename C::key_type, typename C::mapped_type,
+                 typename C::hasher, typename C::key_equal,
+                 typename C::allocator_type>>
+    : std::is_base_of<C, T<typename C::key_type, typename C::mapped_type,
+                           typename C::hasher, typename C::key_equal,
+                           typename C::allocator_type>> {};
 template <typename C, template <typename...> class T>
 using IsBaseOfSpecialization = IsBaseOfSpecializationImpl<absl::decay_t<C>, T>;
 
@@ -140,31 +157,47 @@ struct IsBaseOfSTLContainer
 
 template <typename C, template <typename...> class T, typename = void>
 struct IsConvertibleToSpecializationImpl : std::false_type {};
-// IsConvertibleToSpecializationImpl must have three partial specializations,
-// because we must only compare templates that take the same number of
-// arguments. Otherwise, for example, std::vector can be compared with std::map,
-// and fail to compile because of too few or too many template arguments.
-//
-// We must also SFINAE on the existence of an allocator_type. Otherwise, we may
-// try to compare, for example, a std::pair<std::string, std::string> with a
-// std::vector<std::string, std:std::string>. This would fail to compile, because
-// of expected properties of the type passed in as the allocator.
-template <template <typename, typename> class U,
-          template <typename, typename> class T, typename... Args>
+// IsConvertibleToSpecializationImpl needs multiple partial specializations to
+// SFINAE on the existence of container dependent types and plug them into the
+// STL template.
+template <typename C, template <typename, typename> class T>
 struct IsConvertibleToSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_convertible<U<Args...>, T<Args...>> {};
-template <template <typename, typename, typename> class U,
-          template <typename, typename, typename> class T, typename... Args>
+    C, T, absl::void_t<typename C::value_type, typename C::allocator_type>>
+    : std::is_convertible<
+          C, T<typename C::value_type, typename C::allocator_type>> {};
+template <typename C, template <typename, typename, typename> class T>
 struct IsConvertibleToSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_convertible<U<Args...>, T<Args...>> {};
-template <template <typename, typename, typename, typename> class U,
-          template <typename, typename, typename, typename> class T,
-          typename... Args>
+    C, T,
+    absl::void_t<typename C::key_type, typename C::key_compare,
+                 typename C::allocator_type>>
+    : std::is_convertible<C, T<typename C::key_type, typename C::key_compare,
+                               typename C::allocator_type>> {};
+template <typename C, template <typename, typename, typename, typename> class T>
 struct IsConvertibleToSpecializationImpl<
-    U<Args...>, T, absl::void_t<typename U<Args...>::allocator_type>>
-    : std::is_convertible<U<Args...>, T<Args...>> {};
+    C, T,
+    absl::void_t<typename C::key_type, typename C::mapped_type,
+                 typename C::key_compare, typename C::allocator_type>>
+    : std::is_convertible<
+          C, T<typename C::key_type, typename C::mapped_type,
+               typename C::key_compare, typename C::allocator_type>> {};
+template <typename C, template <typename, typename, typename, typename> class T>
+struct IsConvertibleToSpecializationImpl<
+    C, T,
+    absl::void_t<typename C::key_type, typename C::hasher,
+                 typename C::key_equal, typename C::allocator_type>>
+    : std::is_convertible<
+          C, T<typename C::key_type, typename C::hasher, typename C::key_equal,
+               typename C::allocator_type>> {};
+template <typename C,
+          template <typename, typename, typename, typename, typename> class T>
+struct IsConvertibleToSpecializationImpl<
+    C, T,
+    absl::void_t<typename C::key_type, typename C::mapped_type,
+                 typename C::hasher, typename C::key_equal,
+                 typename C::allocator_type>>
+    : std::is_convertible<C, T<typename C::key_type, typename C::mapped_type,
+                               typename C::hasher, typename C::key_equal,
+                               typename C::allocator_type>> {};
 template <typename C, template <typename...> class T>
 using IsConvertibleToSpecialization =
     IsConvertibleToSpecializationImpl<absl::decay_t<C>, T>;

@@ -35,6 +35,8 @@
 #include "absl/types/optional.h"
 
 namespace absl {
+struct InternalAbslNamespaceFinder {};
+
 struct AllocInspector;
 
 // A configuration enum for Throwing*.  Operations whose flags are set will
@@ -71,30 +73,44 @@ constexpr bool ThrowingAllowed(NoThrow flags, NoThrow flag) {
 class TestException {
  public:
   explicit TestException(absl::string_view msg) : msg_(msg) {}
-  absl::string_view what() const { return msg_; }
+  virtual ~TestException() {}
+  virtual const char* what() const noexcept { return msg_.c_str(); }
 
  private:
   std::string msg_;
 };
 
+// TestBadAllocException exists because allocation functions must throw an
+// exception which can be caught by a handler of std::bad_alloc.  We use a child
+// class of std::bad_alloc so we can customise the error message, and also
+// derive from TestException so we don't accidentally end up catching an actual
+// bad_alloc exception in TestExceptionSafety.
+class TestBadAllocException : public std::bad_alloc, public TestException {
+ public:
+  explicit TestBadAllocException(absl::string_view msg)
+      : TestException(msg) {}
+  using TestException::what;
+};
+
 extern int countdown;
 
-void MaybeThrow(absl::string_view msg);
+void MaybeThrow(absl::string_view msg, bool throw_bad_alloc = false);
 
 testing::AssertionResult FailureMessage(const TestException& e,
                                         int countdown) noexcept;
 
 class TrackedObject {
+ public:
+  TrackedObject(const TrackedObject&) = delete;
+  TrackedObject(TrackedObject&&) = delete;
+
  protected:
-  explicit TrackedObject(absl::string_view child_ctor) {
+  explicit TrackedObject(const char* child_ctor) {
     if (!GetAllocs().emplace(this, child_ctor).second) {
       ADD_FAILURE() << "Object at address " << static_cast<void*>(this)
                     << " re-constructed in ctor " << child_ctor;
     }
   }
-
-  TrackedObject(const TrackedObject&) = delete;
-  TrackedObject(TrackedObject&&) = delete;
 
   static std::unordered_map<TrackedObject*, absl::string_view>& GetAllocs() {
     static auto* m =
@@ -120,10 +136,10 @@ using FactoryType = typename absl::result_of_t<Factory()>::element_type;
 template <typename Factory, typename Op, typename Checker>
 absl::optional<testing::AssertionResult> TestCheckerAtCountdown(
     Factory factory, const Op& op, int count, const Checker& check) {
-  exceptions_internal::countdown = count;
   auto t_ptr = factory();
   absl::optional<testing::AssertionResult> out;
   try {
+    exceptions_internal::countdown = count;
     op(t_ptr.get());
   } catch (const exceptions_internal::TestException& e) {
     out.emplace(check(t_ptr.get()));
@@ -141,6 +157,10 @@ int UpdateOut(Factory factory, const Op& op, int count, const Checker& checker,
   return 0;
 }
 
+// Declare AbslCheckInvariants so that it can be found eventually via ADL.
+// Taking `...` gives it the lowest possible precedence.
+void AbslCheckInvariants(...);
+
 // Returns an optional with the result of the check if op fails, or an empty
 // optional if op passes
 template <typename Factory, typename Op, typename... Checkers>
@@ -148,8 +168,9 @@ absl::optional<testing::AssertionResult> TestAtCountdown(
     Factory factory, const Op& op, int count, const Checkers&... checkers) {
   // Don't bother with the checkers if the class invariants are already broken.
   auto out = TestCheckerAtCountdown(
-      factory, op, count,
-      [](FactoryType<Factory>* t_ptr) { return AbslCheckInvariants(t_ptr); });
+      factory, op, count, [](FactoryType<Factory>* t_ptr) {
+        return AbslCheckInvariants(t_ptr, InternalAbslNamespaceFinder());
+      });
   if (!out.has_value()) return out;
 
   // Run each checker, short circuiting after the first failure
@@ -483,7 +504,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   static void* operator new(size_t s, Args&&... args) noexcept(
       !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
     if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
-      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION, true);
     }
     return ::operator new(s, std::forward<Args>(args)...);
   }
@@ -492,7 +513,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   static void* operator new[](size_t s, Args&&... args) noexcept(
       !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
     if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
-      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION, true);
     }
     return ::operator new[](s, std::forward<Args>(args)...);
   }
@@ -630,10 +651,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
     p->~U();
   }
 
-  size_type max_size() const
-      noexcept(!exceptions_internal::ThrowingAllowed(Flags,
-                                                     NoThrow::kNoThrow)) {
-    ReadStateAndMaybeThrow(ABSL_PRETTY_FUNCTION);
+  size_type max_size() const noexcept {
     return std::numeric_limits<difference_type>::max() / sizeof(value_type);
   }
 
@@ -720,9 +738,12 @@ T TestThrowingCtor(Args&&... args) {
 
 // Tests that performing operation Op on a T follows exception safety
 // guarantees.  By default only tests the basic guarantee. There must be a
-// function, AbslCheckInvariants(T*) which returns
-// anything convertible to bool and which makes sure the invariants of the type
-// are upheld.  This is called before any of the checkers.
+// function, AbslCheckInvariants(T*, absl::InternalAbslNamespaceFinder) which
+// returns anything convertible to bool and which makes sure the invariants of
+// the type are upheld.  This is called before any of the checkers.  The
+// InternalAbslNamespaceFinder is unused, and just helps find
+// AbslCheckInvariants for absl types which become aliases to std::types in
+// C++17.
 //
 // Parameters:
 //   * TFactory: operator() returns a unique_ptr to the type under test (T).  It
@@ -740,11 +761,13 @@ template <typename TFactory, typename FunctionFromTPtrToVoid,
 testing::AssertionResult TestExceptionSafety(TFactory factory,
                                              FunctionFromTPtrToVoid&& op,
                                              const Checkers&... checkers) {
+  struct Cleanup {
+    ~Cleanup() { UnsetCountdown(); }
+  } c;
   for (int countdown = 0;; ++countdown) {
     auto out = exceptions_internal::TestAtCountdown(factory, op, countdown,
                                                     checkers...);
     if (!out.has_value()) {
-      UnsetCountdown();
       return testing::AssertionSuccess();
     }
     if (!*out) return *out;

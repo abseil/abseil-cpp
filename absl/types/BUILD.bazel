@@ -28,7 +28,7 @@ licenses(["notice"])  # Apache 2.0
 cc_library(
     name = "any",
     hdrs = ["any.h"],
-    copts = ABSL_DEFAULT_COPTS,
+    copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":bad_any_cast",
         "//absl/base:config",
@@ -79,6 +79,17 @@ cc_test(
         "//absl/base:config",
         "//absl/base:exception_testing",
         "//absl/container:test_instance_tracker",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "any_exception_safety_test",
+    srcs = ["any_exception_safety_test.cc"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":any",
+        "//absl/base:exception_safety_testing",
         "@com_google_googletest//:gtest_main",
     ],
 )

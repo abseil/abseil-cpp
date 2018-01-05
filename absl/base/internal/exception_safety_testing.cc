@@ -23,8 +23,11 @@ namespace exceptions_internal {
 
 int countdown = -1;
 
-void MaybeThrow(absl::string_view msg) {
-  if (countdown-- == 0) throw TestException(msg);
+void MaybeThrow(absl::string_view msg, bool throw_bad_alloc) {
+  if (countdown-- == 0) {
+    if (throw_bad_alloc) throw TestBadAllocException(msg);
+    throw TestException(msg);
+  }
 }
 
 testing::AssertionResult FailureMessage(const TestException& e,

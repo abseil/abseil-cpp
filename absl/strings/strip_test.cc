@@ -178,4 +178,24 @@ TEST(String, StripLeadingAsciiWhitespace) {
   EXPECT_EQ(absl::string_view(), absl::StripLeadingAsciiWhitespace(orig));
 }
 
+TEST(Strip, StripAsciiWhitespace) {
+  std::string test2 = "\t  \f\r\n\vfoo \t\f\r\v\n";
+  absl::StripAsciiWhitespace(&test2);
+  EXPECT_EQ(test2, "foo");
+  std::string test3 = "bar";
+  absl::StripAsciiWhitespace(&test3);
+  EXPECT_EQ(test3, "bar");
+  std::string test4 = "\t  \f\r\n\vfoo";
+  absl::StripAsciiWhitespace(&test4);
+  EXPECT_EQ(test4, "foo");
+  std::string test5 = "foo \t\f\r\v\n";
+  absl::StripAsciiWhitespace(&test5);
+  EXPECT_EQ(test5, "foo");
+  absl::string_view test6("\t  \f\r\n\vfoo \t\f\r\v\n");
+  test6 = absl::StripAsciiWhitespace(test6);
+  EXPECT_EQ(test6, "foo");
+  test6 = absl::StripAsciiWhitespace(test6);
+  EXPECT_EQ(test6, "foo");  // already stripped
+}
+
 }  // namespace

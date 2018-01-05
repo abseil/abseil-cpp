@@ -99,10 +99,39 @@ class Trivial {
   int n_;
 };
 
+struct TrivialDestructor {
+  ~TrivialDestructor() = default;
+};
+
+struct NontrivialDestructor {
+  ~NontrivialDestructor() {}
+};
+
+struct DeletedDestructor {
+  ~DeletedDestructor() = delete;
+};
+
 class TrivialDefaultCtor {
  public:
   TrivialDefaultCtor() = default;
   explicit TrivialDefaultCtor(int n) : n_(n) {}
+
+ private:
+  int n_;
+};
+
+class NontrivialDefaultCtor {
+ public:
+  NontrivialDefaultCtor() : n_(1) {}
+
+ private:
+  int n_;
+};
+
+class DeletedDefaultCtor {
+ public:
+  DeletedDefaultCtor() = delete;
+  explicit DeletedDefaultCtor(int n) : n_(n) {}
 
  private:
   int n_;
@@ -121,22 +150,57 @@ class TrivialCopyCtor {
   int n_;
 };
 
+class NontrivialCopyCtor {
+ public:
+  explicit NontrivialCopyCtor(int n) : n_(n) {}
+  NontrivialCopyCtor(const NontrivialCopyCtor& t) : n_(t.n_) {}
+  NontrivialCopyCtor& operator=(const NontrivialCopyCtor&) = default;
+
+ private:
+  int n_;
+};
+
+class DeletedCopyCtor {
+ public:
+  explicit DeletedCopyCtor(int n) : n_(n) {}
+  DeletedCopyCtor(const DeletedCopyCtor&) = delete;
+  DeletedCopyCtor& operator=(const DeletedCopyCtor&) = default;
+
+ private:
+  int n_;
+};
+
 class TrivialCopyAssign {
  public:
   explicit TrivialCopyAssign(int n) : n_(n) {}
   TrivialCopyAssign(const TrivialCopyAssign& t) : n_(t.n_) {}
   TrivialCopyAssign& operator=(const TrivialCopyAssign& t) = default;
-  ~TrivialCopyAssign() {}  // can have non trivial destructor
+  ~TrivialCopyAssign() {}  // can have nontrivial destructor
  private:
   int n_;
 };
 
-struct NonTrivialDestructor {
-  ~NonTrivialDestructor() {}
+class NontrivialCopyAssign {
+ public:
+  explicit NontrivialCopyAssign(int n) : n_(n) {}
+  NontrivialCopyAssign(const NontrivialCopyAssign&) = default;
+  NontrivialCopyAssign& operator=(const NontrivialCopyAssign& t) {
+    n_ = t.n_;
+    return *this;
+  }
+
+ private:
+  int n_;
 };
 
-struct TrivialDestructor {
-  ~TrivialDestructor() = default;
+class DeletedCopyAssign {
+ public:
+  explicit DeletedCopyAssign(int n) : n_(n) {}
+  DeletedCopyAssign(const DeletedCopyAssign&) = default;
+  DeletedCopyAssign& operator=(const DeletedCopyAssign&) = delete;
+
+ private:
+  int n_;
 };
 
 struct NonCopyable {
@@ -152,18 +216,104 @@ class Base {
 
 // In GCC/Clang, std::is_trivially_constructible requires that the destructor is
 // trivial. However, MSVC doesn't require that. This results in different
-// behavior when checking is_trivially_constructible on any type with nontrivial
-// destructor. Since absl::is_trivially_default_constructible and
+// behavior when checking is_trivially_constructible on any type with
+// nontrivial destructor. Since absl::is_trivially_default_constructible and
 // absl::is_trivially_copy_constructible both follows Clang/GCC's interpretation
 // and check is_trivially_destructible, it results in inconsistency with
 // std::is_trivially_xxx_constructible on MSVC. This macro is used to work
 // around this issue in test. In practice, a trivially constructible type
 // should also be trivially destructible.
 // GCC bug 51452: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51452
-// LWG issue 2116: http://cplusplus.github.io/LWG/lwg-active.html#2116.
-#ifdef _MSC_VER
-#define ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
+// LWG issue 2116: http://cplusplus.github.io/LWG/lwg-active.html#2116
+#ifndef _MSC_VER
+#define ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE 1
 #endif
+
+// Old versions of libc++, around Clang 3.5 to 3.6, consider deleted destructors
+// as also being trivial. With the resolution of CWG 1928 and CWG 1734, this
+// is no longer considered true and has thus been amended.
+// Compiler Explorer: https://godbolt.org/g/zT59ZL
+// CWG issue 1734: http://open-std.org/JTC1/SC22/WG21/docs/cwg_defects.html#1734
+// CWG issue 1928: http://open-std.org/JTC1/SC22/WG21/docs/cwg_closed.html#1928
+#if !defined(_LIBCPP_VERSION) || _LIBCPP_VERSION >= 3700
+#define ABSL_TRIVIALLY_DESTRUCTIBLE_CONSIDER_DELETED_DESTRUCTOR_NOT_TRIVIAL 1
+#endif
+
+// As of the moment, GCC versions >5.1 have a problem compiling for
+// std::is_trivially_default_constructible<NontrivialDestructor[10]>, where
+// NontrivialDestructor is a struct with a custom nontrivial destructor. Note
+// that this problem only occurs for arrays of a known size, so something like
+// std::is_trivially_default_constructible<NontrivialDestructor[]> does not
+// have any problems.
+// Compiler Explorer: https://godbolt.org/g/dXRbdK
+// GCC bug 83689: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83689
+#if defined(__clang__) || defined(_MSC_VER) || \
+    (defined(__GNUC__) && __GNUC__ < 5)
+#define ABSL_GCC_BUG_TRIVIALLY_CONSTRUCTIBLE_ON_ARRAY_OF_NONTRIVIAL 1
+#endif
+
+TEST(TypeTraitsTest, TestTrivialDestructor) {
+  // Verify that arithmetic types and pointers have trivial destructors.
+  EXPECT_TRUE(absl::is_trivially_destructible<bool>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<char>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<unsigned char>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<signed char>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<wchar_t>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<int>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<unsigned int>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<int16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<uint16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<int64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<uint64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<float>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<double>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<long double>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<Trivial**>::value);
+
+  // classes with destructors
+  EXPECT_TRUE(absl::is_trivially_destructible<Trivial>::value);
+  EXPECT_TRUE(absl::is_trivially_destructible<TrivialDestructor>::value);
+
+  // Verify that types with a nontrivial or deleted destructor
+  // are marked as such.
+  EXPECT_FALSE(absl::is_trivially_destructible<NontrivialDestructor>::value);
+#ifdef ABSL_TRIVIALLY_DESTRUCTIBLE_CONSIDER_DELETED_DESTRUCTOR_NOT_TRIVIAL
+  EXPECT_FALSE(absl::is_trivially_destructible<DeletedDestructor>::value);
+#endif
+
+  // simple_pair of such types is trivial
+  EXPECT_TRUE((absl::is_trivially_destructible<simple_pair<int, int>>::value));
+  EXPECT_TRUE((absl::is_trivially_destructible<
+               simple_pair<Trivial, TrivialDestructor>>::value));
+
+  // Verify that types without trivial destructors are correctly marked as such.
+  EXPECT_FALSE(absl::is_trivially_destructible<std::string>::value);
+  EXPECT_FALSE(absl::is_trivially_destructible<std::vector<int>>::value);
+
+  // Verify that simple_pairs of types without trivial destructors
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::is_trivially_destructible<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::is_trivially_destructible<
+                simple_pair<std::string, int>>::value));
+
+  // array of such types is trivial
+  using int10 = int[10];
+  EXPECT_TRUE(absl::is_trivially_destructible<int10>::value);
+  using Trivial10 = Trivial[10];
+  EXPECT_TRUE(absl::is_trivially_destructible<Trivial10>::value);
+  using TrivialDestructor10 = TrivialDestructor[10];
+  EXPECT_TRUE(absl::is_trivially_destructible<TrivialDestructor10>::value);
+
+  // Conversely, the opposite also holds.
+  using NontrivialDestructor10 = NontrivialDestructor[10];
+  EXPECT_FALSE(absl::is_trivially_destructible<NontrivialDestructor10>::value);
+}
 
 TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
   // arithmetic types and pointers have trivial default constructors.
@@ -184,42 +334,67 @@ TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
   EXPECT_TRUE(absl::is_trivially_default_constructible<std::string*>::value);
   EXPECT_TRUE(absl::is_trivially_default_constructible<Trivial*>::value);
   EXPECT_TRUE(
-      absl::is_trivially_default_constructible<const TrivialCopyCtor*>::value);
-  EXPECT_TRUE(
-      absl::is_trivially_default_constructible<TrivialCopyCtor**>::value);
+      absl::is_trivially_default_constructible<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_default_constructible<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_default_constructible<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_default_constructible<Trivial**>::value);
 
   // types with compiler generated default ctors
   EXPECT_TRUE(absl::is_trivially_default_constructible<Trivial>::value);
   EXPECT_TRUE(
       absl::is_trivially_default_constructible<TrivialDefaultCtor>::value);
 
-#ifndef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
-  // types with non trivial destructor are non trivial
+  // Verify that types without them are not.
   EXPECT_FALSE(
-      absl::is_trivially_default_constructible<NonTrivialDestructor>::value);
+      absl::is_trivially_default_constructible<NontrivialDefaultCtor>::value);
+  EXPECT_FALSE(
+      absl::is_trivially_default_constructible<DeletedDefaultCtor>::value);
+
+#ifdef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
+  // types with nontrivial destructor are nontrivial
+  EXPECT_FALSE(
+      absl::is_trivially_default_constructible<NontrivialDestructor>::value);
 #endif
 
   // types with vtables
   EXPECT_FALSE(absl::is_trivially_default_constructible<Base>::value);
 
-  // Verify that arrays of such types are trivially default constructible
-  typedef int int10[10];
-  EXPECT_TRUE(absl::is_trivially_default_constructible<int10>::value);
-  typedef Trivial Trivial10[10];
-  EXPECT_TRUE(absl::is_trivially_default_constructible<Trivial10>::value);
-  typedef Trivial TrivialDefaultCtor10[10];
-  EXPECT_TRUE(
-      absl::is_trivially_default_constructible<TrivialDefaultCtor10>::value);
-
   // Verify that simple_pair has trivial constructors where applicable.
   EXPECT_TRUE((absl::is_trivially_default_constructible<
                simple_pair<int, char*>>::value));
+  EXPECT_TRUE((absl::is_trivially_default_constructible<
+               simple_pair<int, Trivial>>::value));
+  EXPECT_TRUE((absl::is_trivially_default_constructible<
+               simple_pair<int, TrivialDefaultCtor>>::value));
 
   // Verify that types without trivial constructors are
   // correctly marked as such.
   EXPECT_FALSE(absl::is_trivially_default_constructible<std::string>::value);
   EXPECT_FALSE(
       absl::is_trivially_default_constructible<std::vector<int>>::value);
+
+  // Verify that simple_pairs of types without trivial constructors
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::is_trivially_default_constructible<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::is_trivially_default_constructible<
+                simple_pair<std::string, int>>::value));
+
+  // Verify that arrays of such types are trivially default constructible
+  using int10 = int[10];
+  EXPECT_TRUE(absl::is_trivially_default_constructible<int10>::value);
+  using Trivial10 = Trivial[10];
+  EXPECT_TRUE(absl::is_trivially_default_constructible<Trivial10>::value);
+  using TrivialDefaultCtor10 = TrivialDefaultCtor[10];
+  EXPECT_TRUE(
+      absl::is_trivially_default_constructible<TrivialDefaultCtor10>::value);
+
+  // Conversely, the opposite also holds.
+#ifdef ABSL_GCC_BUG_TRIVIALLY_CONSTRUCTIBLE_ON_ARRAY_OF_NONTRIVIAL
+  using NontrivialDefaultCtor10 = NontrivialDefaultCtor[10];
+  EXPECT_FALSE(
+      absl::is_trivially_default_constructible<NontrivialDefaultCtor10>::value);
+#endif
 }
 
 TEST(TypeTraitsTest, TestTrivialCopyCtor) {
@@ -241,18 +416,26 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   EXPECT_TRUE(absl::is_trivially_copy_constructible<long double>::value);
   EXPECT_TRUE(absl::is_trivially_copy_constructible<std::string*>::value);
   EXPECT_TRUE(absl::is_trivially_copy_constructible<Trivial*>::value);
-  EXPECT_TRUE(
-      absl::is_trivially_copy_constructible<const TrivialCopyCtor*>::value);
-  EXPECT_TRUE(absl::is_trivially_copy_constructible<TrivialCopyCtor**>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_constructible<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_constructible<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_constructible<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_constructible<Trivial**>::value);
 
   // types with compiler generated copy ctors
   EXPECT_TRUE(absl::is_trivially_copy_constructible<Trivial>::value);
   EXPECT_TRUE(absl::is_trivially_copy_constructible<TrivialCopyCtor>::value);
 
-#ifndef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
-  // type with non-trivial destructor are non-trivial copy construbtible
+  // Verify that types without them (i.e. nontrivial or deleted) are not.
   EXPECT_FALSE(
-      absl::is_trivially_copy_constructible<NonTrivialDestructor>::value);
+      absl::is_trivially_copy_constructible<NontrivialCopyCtor>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<DeletedCopyCtor>::value);
+  EXPECT_FALSE(
+      absl::is_trivially_copy_constructible<NonCopyable>::value);
+
+#ifdef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
+  // type with nontrivial destructor are nontrivial copy construbtible
+  EXPECT_FALSE(
+      absl::is_trivially_copy_constructible<NontrivialDestructor>::value);
 #endif
 
   // types with vtables
@@ -266,9 +449,10 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   EXPECT_TRUE((absl::is_trivially_copy_constructible<
                simple_pair<int, TrivialCopyCtor>>::value));
 
-  // Verify that arrays are not
-  typedef int int10[10];
-  EXPECT_FALSE(absl::is_trivially_copy_constructible<int10>::value);
+  // Verify that types without trivial copy constructors are
+  // correctly marked as such.
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<std::string>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<std::vector<int>>::value);
 
   // Verify that simple_pairs of types without trivial copy constructors
   // are not marked as trivial.
@@ -277,18 +461,14 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   EXPECT_FALSE((absl::is_trivially_copy_constructible<
                 simple_pair<std::string, int>>::value));
 
-  // Verify that types without trivial copy constructors are
-  // correctly marked as such.
-  EXPECT_FALSE(absl::is_trivially_copy_constructible<std::string>::value);
-  EXPECT_FALSE(absl::is_trivially_copy_constructible<std::vector<int>>::value);
-
-  // types with deleted copy constructors are not copy constructible
-  EXPECT_FALSE(absl::is_trivially_copy_constructible<NonCopyable>::value);
+  // Verify that arrays are not
+  using int10 = int[10];
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<int10>::value);
 }
 
 TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   // Verify that arithmetic types and pointers have trivial copy
-  // constructors.
+  // assignment operators.
   EXPECT_TRUE(absl::is_trivially_copy_assignable<bool>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<char>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<unsigned char>::value);
@@ -305,9 +485,10 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   EXPECT_TRUE(absl::is_trivially_copy_assignable<long double>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<std::string*>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial*>::value);
-  EXPECT_TRUE(
-      absl::is_trivially_copy_assignable<const TrivialCopyCtor*>::value);
-  EXPECT_TRUE(absl::is_trivially_copy_assignable<TrivialCopyCtor**>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial**>::value);
 
   // const qualified types are not assignable
   EXPECT_FALSE(absl::is_trivially_copy_assignable<const int>::value);
@@ -316,65 +497,37 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<TrivialCopyAssign>::value);
 
+  // Verify that types without them (i.e. nontrivial or deleted) are not.
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<NontrivialCopyAssign>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<DeletedCopyAssign>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<NonCopyable>::value);
+
   // types with vtables
   EXPECT_FALSE(absl::is_trivially_copy_assignable<Base>::value);
-
-  // Verify that arrays are not trivially copy assignable
-  typedef int int10[10];
-  EXPECT_FALSE(absl::is_trivially_copy_assignable<int10>::value);
 
   // Verify that simple_pair is trivially assignable
   EXPECT_TRUE(
       (absl::is_trivially_copy_assignable<simple_pair<int, char*>>::value));
+  EXPECT_TRUE(
+      (absl::is_trivially_copy_assignable<simple_pair<int, Trivial>>::value));
+  EXPECT_TRUE((absl::is_trivially_copy_assignable<
+               simple_pair<int, TrivialCopyAssign>>::value));
 
-  // Verify that types without trivial copy constructors are
+  // Verify that types not trivially copy assignable are
   // correctly marked as such.
   EXPECT_FALSE(absl::is_trivially_copy_assignable<std::string>::value);
   EXPECT_FALSE(absl::is_trivially_copy_assignable<std::vector<int>>::value);
 
-  // types with deleted copy assignment are not copy assignable
-  EXPECT_FALSE(absl::is_trivially_copy_assignable<NonCopyable>::value);
-}
+  // Verify that simple_pairs of types not trivially copy assignable
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::is_trivially_copy_assignable<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::is_trivially_copy_assignable<
+                simple_pair<std::string, int>>::value));
 
-TEST(TypeTraitsTest, TestTrivialDestructor) {
-  // Verify that arithmetic types and pointers have trivial copy
-  // constructors.
-  EXPECT_TRUE(absl::is_trivially_destructible<bool>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<char>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<unsigned char>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<signed char>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<wchar_t>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<int>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<unsigned int>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<int16_t>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<uint16_t>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<int64_t>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<uint64_t>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<float>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<double>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<long double>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<std::string*>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<Trivial*>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<const TrivialCopyCtor*>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<TrivialCopyCtor**>::value);
-
-  // classes with destructors
-  EXPECT_TRUE(absl::is_trivially_destructible<Trivial>::value);
-  EXPECT_TRUE(absl::is_trivially_destructible<TrivialDestructor>::value);
-  EXPECT_FALSE(absl::is_trivially_destructible<NonTrivialDestructor>::value);
-
-  // simple_pair of such types is trivial
-  EXPECT_TRUE((absl::is_trivially_destructible<simple_pair<int, int>>::value));
-  EXPECT_TRUE((absl::is_trivially_destructible<
-               simple_pair<Trivial, TrivialDestructor>>::value));
-
-  // array of such types is trivial
-  typedef int int10[10];
-  EXPECT_TRUE(absl::is_trivially_destructible<int10>::value);
-  typedef TrivialDestructor TrivialDestructor10[10];
-  EXPECT_TRUE(absl::is_trivially_destructible<TrivialDestructor10>::value);
-  typedef NonTrivialDestructor NonTrivialDestructor10[10];
-  EXPECT_FALSE(absl::is_trivially_destructible<NonTrivialDestructor10>::value);
+  // Verify that arrays are not trivially copy assignable
+  using int10 = int[10];
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<int10>::value);
 }
 
 #define ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(trait_name, ...)          \
