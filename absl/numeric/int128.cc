@@ -139,9 +139,9 @@ uint128& uint128::operator%=(uint128 other) {
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& o, uint128 b) {
-  std::ios_base::fmtflags flags = o.flags();
+namespace {
 
+std::string Uint128ToFormattedString(uint128 v, std::ios_base::fmtflags flags) {
   // Select a divisor which is the largest power of the base < 2^64.
   uint128 div;
   int div_base_log;
@@ -160,14 +160,14 @@ std::ostream& operator<<(std::ostream& o, uint128 b) {
       break;
   }
 
-  // Now piece together the uint128 representation from three chunks of
-  // the original value, each less than "div" and therefore representable
-  // as a uint64_t.
+  // Now piece together the uint128 representation from three chunks of the
+  // original value, each less than "div" and therefore representable as a
+  // uint64_t.
   std::ostringstream os;
   std::ios_base::fmtflags copy_mask =
       std::ios::basefield | std::ios::showbase | std::ios::uppercase;
   os.setf(flags & copy_mask, copy_mask);
-  uint128 high = b;
+  uint128 high = v;
   uint128 low;
   DivModImpl(high, div, &high, &low);
   uint128 mid;
@@ -182,25 +182,31 @@ std::ostream& operator<<(std::ostream& o, uint128 b) {
     os << std::noshowbase << std::setfill('0') << std::setw(div_base_log);
   }
   os << Uint128Low64(low);
-  std::string rep = os.str();
+  return os.str();
+}
+
+}  // namespace
+
+std::ostream& operator<<(std::ostream& os, uint128 v) {
+  std::ios_base::fmtflags flags = os.flags();
+  std::string rep = Uint128ToFormattedString(v, flags);
 
   // Add the requisite padding.
-  std::streamsize width = o.width(0);
+  std::streamsize width = os.width(0);
   if (static_cast<size_t>(width) > rep.size()) {
     std::ios::fmtflags adjustfield = flags & std::ios::adjustfield;
     if (adjustfield == std::ios::left) {
-      rep.append(width - rep.size(), o.fill());
+      rep.append(width - rep.size(), os.fill());
     } else if (adjustfield == std::ios::internal &&
                (flags & std::ios::showbase) &&
-               (flags & std::ios::basefield) == std::ios::hex && b != 0) {
-      rep.insert(2, width - rep.size(), o.fill());
+               (flags & std::ios::basefield) == std::ios::hex && v != 0) {
+      rep.insert(2, width - rep.size(), os.fill());
     } else {
-      rep.insert(0, width - rep.size(), o.fill());
+      rep.insert(0, width - rep.size(), os.fill());
     }
   }
 
-  // Stream the final representation in a single "<<" call.
-  return o << rep;
+  return os << rep;
 }
 
 }  // namespace absl
