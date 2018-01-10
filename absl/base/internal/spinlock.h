@@ -108,7 +108,7 @@ class LOCKABLE SpinLock {
       base_internal::SchedulingGuard::EnableRescheduling(true);
     }
     if ((lock_value & kWaitTimeMask) != 0) {
-      // Collect contentionz profile info, and speed the wakeup of any waiter.
+      // Collect contentions profile info, and speed the wakeup of any waiter.
       // The wait_cycles value indicates how long this thread spent waiting
       // for the lock.
       SlowUnlock(lock_value);
