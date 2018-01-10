@@ -573,6 +573,42 @@ class InlinedVector {
     }
   }
 
+  // InlinedVector::shrink_to_fit()
+  //
+  // Reduces memory usage by freeing unused memory.
+  // After this call `capacity()` will be equal to `max(N, size())`.
+  //
+  // If `size() <= N` and the elements are currently stored on the heap, they
+  // will be moved to the inlined storage and the heap memory deallocated.
+  // If `size() > N` and `size() < capacity()` the elements will be moved to
+  // a reallocated storage on heap.
+  void shrink_to_fit() {
+    const auto s = size();
+    if (!allocated() || s == capacity()) {
+      // There's nothing to deallocate.
+      return;
+    }
+
+    if (s <= N) {
+      // Move the elements to the inlined storage.
+      // We have to do this using a temporary, because inlined_storage and
+      // allocation_storage are in a union field.
+      auto temp = std::move(*this);
+      assign(std::make_move_iterator(temp.begin()),
+             std::make_move_iterator(temp.end()));
+      return;
+    }
+
+    // Reallocate storage and move elements.
+    // We can't simply use the same approach as above, because assign() would
+    // call into reserve() internally and reserve larger capacity than we need.
+    Allocation new_allocation(allocator(), s);
+    UninitializedCopy(std::make_move_iterator(allocated_space()),
+                      std::make_move_iterator(allocated_space() + s),
+                      new_allocation.buffer());
+    ResetAllocation(new_allocation, s);
+  }
+
   // InlinedVector::swap()
   //
   // Swaps the contents of this inlined vector with the contents of `other`.

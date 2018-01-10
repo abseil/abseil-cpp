@@ -460,13 +460,10 @@ inline bool operator>=(uint128 lhs, uint128 rhs) {
 // Unary operators.
 
 inline uint128 operator-(uint128 val) {
-  const uint64_t hi_flip = ~Uint128High64(val);
-  const uint64_t lo_flip = ~Uint128Low64(val);
-  const uint64_t lo_add = lo_flip + 1;
-  if (lo_add < lo_flip) {
-    return MakeUint128(hi_flip + 1, lo_add);
-  }
-  return MakeUint128(hi_flip, lo_add);
+  uint64_t hi = ~Uint128High64(val);
+  uint64_t lo = ~Uint128Low64(val) + 1;
+  if (lo == 0) ++hi;  // carry
+  return MakeUint128(hi, lo);
 }
 
 inline bool operator!(uint128 val) {
