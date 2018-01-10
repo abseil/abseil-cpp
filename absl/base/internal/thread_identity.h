@@ -61,7 +61,7 @@ struct PerThreadSynch {
 
   PerThreadSynch *next;  // Circular waiter queue; initialized to 0.
   PerThreadSynch *skip;  // If non-zero, all entries in Mutex queue
-                         // upto and including "skip" have same
+                         // up to and including "skip" have same
                          // condition as this, and will be woken later
   bool may_skip;         // if false while on mutex queue, a mutex unlocker
                          // is using this PerThreadSynch as a terminator.  Its
