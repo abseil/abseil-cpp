@@ -26,7 +26,7 @@
 //
 // Microsoft C supports thread-local storage.
 // GCC supports it if the appropriate version of glibc is available,
-// which the programme can indicate by defining ABSL_HAVE_TLS
+// which the programmer can indicate by defining ABSL_HAVE_TLS
 
 #include "absl/base/port.h"  // For ABSL_HAVE_TLS
 
