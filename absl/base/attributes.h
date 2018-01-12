@@ -281,6 +281,18 @@
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI
 #endif
 
+// ABSL_ATTRIBUTE_RETURNS_NONNULL
+//
+// Tells the compiler that a particular function never returns a null pointer.
+#if ABSL_HAVE_ATTRIBUTE(returns_nonnull) || \
+    (defined(__GNUC__) && \
+     (__GNUC__ > 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)) && \
+     !defined(__clang__))
+#define ABSL_ATTRIBUTE_RETURNS_NONNULL __attribute__((returns_nonnull))
+#else
+#define ABSL_ATTRIBUTE_RETURNS_NONNULL
+#endif
+
 // ABSL_HAVE_ATTRIBUTE_SECTION
 //
 // Indicates whether labeled sections are supported. Labeled sections are not

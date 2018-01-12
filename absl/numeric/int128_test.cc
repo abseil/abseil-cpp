@@ -110,7 +110,7 @@ TEST(Uint128, AllTests) {
   absl::uint128 big = absl::MakeUint128(2000, 2);
   absl::uint128 big_minus_one = absl::MakeUint128(2000, 1);
   absl::uint128 bigger = absl::MakeUint128(2001, 1);
-  absl::uint128 biggest = absl::kuint128max;
+  absl::uint128 biggest = absl::Uint128Max();
   absl::uint128 high_low = absl::MakeUint128(1, 0);
   absl::uint128 low_high =
       absl::MakeUint128(0, std::numeric_limits<uint64_t>::max());
@@ -227,8 +227,10 @@ TEST(Uint128, AllTests) {
 
   EXPECT_EQ(big, -(-big));
   EXPECT_EQ(two, -((-one) - 1));
-  EXPECT_EQ(absl::kuint128max, -one);
+  EXPECT_EQ(absl::Uint128Max(), -one);
   EXPECT_EQ(zero, -zero);
+
+  EXPECT_EQ(absl::Uint128Max(), absl::kuint128max);
 }
 
 TEST(Uint128, ConversionTests) {
