@@ -496,7 +496,7 @@ class optional : private optional_internal::optional_data<T>,
   // default constructed `T`.
   constexpr optional() noexcept {}
 
-  // Construct an` optional` initialized with `nullopt` to hold an empty value.
+  // Construct an `optional` initialized with `nullopt` to hold an empty value.
   constexpr optional(nullopt_t) noexcept {}  // NOLINT(runtime/explicit)
 
   // Copy constructor, standard semantics
@@ -515,7 +515,7 @@ class optional : private optional_internal::optional_data<T>,
   constexpr explicit optional(in_place_t, Args&&... args)
       : data_base(in_place_t(), absl::forward<Args>(args)...) {}
 
-  // Constructs a non-empty `optional' direct-initialized value of type `T` from
+  // Constructs a non-empty `optional` direct-initialized value of type `T` from
   // the arguments of an initializer_list and `std::forward<Args>(args)...`.
   // (The `in_place_t` is a tag used to indicate that the contained object
   // should be constructed in-place.)

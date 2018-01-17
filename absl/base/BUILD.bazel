@@ -151,7 +151,6 @@ cc_library(
         "casts.h",
         "internal/atomic_hook.h",
         "internal/cycleclock.h",
-        "internal/log_severity.h",
         "internal/low_level_scheduling.h",
         "internal/per_thread_tls.h",
         "internal/raw_logging.h",
@@ -160,6 +159,7 @@ cc_library(
         "internal/thread_identity.h",
         "internal/tsan_mutex_interface.h",
         "internal/unscaledcycleclock.h",
+        "log_severity.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     deps = [

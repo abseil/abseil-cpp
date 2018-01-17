@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["utility.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/meta:type_traits",
     ],
@@ -26,6 +27,8 @@ cc_test(
     deps = [
         ":utility",
         "//absl/base:core_headers",
+        "//absl/memory",
+        "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )

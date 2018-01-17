@@ -155,6 +155,13 @@ extern int DefaultStackUnwinder(void** pcs, int* sizes, int max_depth,
                                 int skip_count, const void* uc,
                                 int* min_dropped_frames);
 
+namespace debugging_internal {
+// Returns true for platforms which are expected to have functioning stack trace
+// implementations. Intended to be used for tests which want to exclude
+// verification of logic known to be broken because stack traces are not
+// working.
+extern bool StackTraceWorksForTest();
+}  // namespace debugging_internal
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_STACKTRACE_H_

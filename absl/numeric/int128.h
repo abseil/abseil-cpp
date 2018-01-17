@@ -511,8 +511,8 @@ inline uint128& uint128::operator^=(uint128 other) {
 // Shift and arithmetic assign operators.
 
 inline uint128& uint128::operator<<=(int amount) {
-  // Shifts of >= 128 are undefined.
-  assert(amount < 128);
+  assert(amount >= 0);   // Negative shifts are undefined.
+  assert(amount < 128);  // Shifts of >= 128 are undefined.
 
   // uint64_t shifts of >= 64 are undefined, so we will need some
   // special-casing.
@@ -529,8 +529,8 @@ inline uint128& uint128::operator<<=(int amount) {
 }
 
 inline uint128& uint128::operator>>=(int amount) {
-  // Shifts of >= 128 are undefined.
-  assert(amount < 128);
+  assert(amount >= 0);   // Negative shifts are undefined.
+  assert(amount < 128);  // Shifts of >= 128 are undefined.
 
   // uint64_t shifts of >= 64 are undefined, so we will need some
   // special-casing.

@@ -11,4 +11,12 @@ static int UnwindImpl(void** /* result */, int* /* sizes */,
   return 0;
 }
 
+namespace absl {
+namespace debugging_internal {
+bool StackTraceWorksForTest() {
+  return false;
+}
+}  // namespace debugging_internal
+}  // namespace absl
+
 #endif  // ABSL_DEBUGGING_INTERNAL_STACKTRACE_UNIMPLEMENTED_INL_H_

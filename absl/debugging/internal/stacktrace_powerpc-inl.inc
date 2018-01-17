@@ -232,4 +232,12 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
   return n;
 }
 
+namespace absl {
+namespace debugging_internal {
+bool StackTraceWorksForTest() {
+  return true;
+}
+}  // namespace debugging_internal
+}  // namespace absl
+
 #endif  // ABSL_DEBUGGING_INTERNAL_STACKTRACE_POWERPC_INL_H_
