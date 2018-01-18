@@ -570,25 +570,14 @@ inline uint128& uint128::operator*=(uint128 other) {
           static_cast<unsigned __int128>(other);
   return *this;
 #else   // ABSL_HAVE_INTRINSIC128
-  uint64_t a96 = hi_ >> 32;
-  uint64_t a64 = hi_ & 0xffffffff;
   uint64_t a32 = lo_ >> 32;
   uint64_t a00 = lo_ & 0xffffffff;
-  uint64_t b96 = other.hi_ >> 32;
-  uint64_t b64 = other.hi_ & 0xffffffff;
   uint64_t b32 = other.lo_ >> 32;
   uint64_t b00 = other.lo_ & 0xffffffff;
-  // multiply [a96 .. a00] x [b96 .. b00]
-  // terms higher than c96 disappear off the high side
-  // terms c96 and c64 are safe to ignore carry bit
-  uint64_t c96 = a96 * b00 + a64 * b32 + a32 * b64 + a00 * b96;
-  uint64_t c64 = a64 * b00 + a32 * b32 + a00 * b64;
-  this->hi_ = (c96 << 32) + c64;
-  this->lo_ = 0;
-  // add terms after this one at a time to capture carry
+  hi_ = hi_ * other.lo_ + lo_ * other.hi_ + a32 * b32;
+  lo_ = a00 * b00;
   *this += uint128(a32 * b00) << 32;
   *this += uint128(a00 * b32) << 32;
-  *this += a00 * b00;
   return *this;
 #endif  // ABSL_HAVE_INTRINSIC128
 }

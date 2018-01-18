@@ -18,6 +18,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/synchronization/notification.h"
 
@@ -106,24 +107,19 @@ void TestLocals() {
 // definitions.  We can use this to arrange for tests to be run on these objects
 // before they are created, and after they are destroyed.
 
-class ConstructorTestRunner {
+using Function = void (*)();
+
+class OnConstruction {
  public:
-  ConstructorTestRunner(absl::Mutex* mutex, absl::CondVar* condvar,
-                        absl::Notification* notification) {
-    RunTests(mutex, condvar, notification);
-  }
+  explicit OnConstruction(Function fn) { fn(); }
 };
 
-class DestructorTestRunner {
+class OnDestruction {
  public:
-  DestructorTestRunner(absl::Mutex* mutex, absl::CondVar* condvar,
-                       absl::Notification* notification)
-      : mutex_(mutex), condvar_(condvar), notification_(notification) {}
-  ~DestructorTestRunner() { RunTests(mutex_, condvar_, notification_); }
+  explicit OnDestruction(Function fn) : fn_(fn) {}
+  ~OnDestruction() { fn_(); }
  private:
-  absl::Mutex* mutex_;
-  absl::CondVar* condvar_;
-  absl::Notification* notification_;
+  Function fn_;
 };
 
 }  // namespace
