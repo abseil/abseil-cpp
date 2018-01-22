@@ -175,6 +175,7 @@ class FixedArray {
   // fixed array. This pointer can be used to access and modify the contained
   // elements.
   pointer data() { return AsValue(rep_.begin()); }
+
   // FixedArray::operator[]
   //
   // Returns a reference the ith element of the fixed array.
