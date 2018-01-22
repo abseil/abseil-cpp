@@ -17,6 +17,9 @@
 #include "absl/base/attributes.h"
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <shlwapi.h>
 #include <windows.h>
 #else

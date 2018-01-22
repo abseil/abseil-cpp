@@ -14,6 +14,9 @@
 //
 // This file is a Win32-specific part of spinlock_wait.cc
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <atomic>
 #include "absl/base/internal/scheduling_mode.h"

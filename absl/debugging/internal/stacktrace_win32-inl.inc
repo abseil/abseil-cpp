@@ -37,6 +37,9 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_STACKTRACE_WIN32_INL_H_
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_WIN32_INL_H_
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>    // for GetProcAddress and GetModuleHandle
 #include <cassert>
 
