@@ -18,6 +18,7 @@ load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
+    "ABSL_EXCEPTIONS_FLAG",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -40,7 +41,7 @@ cc_library(
 cc_test(
     name = "fixed_array_test",
     srcs = ["fixed_array_test.cc"],
-    copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":fixed_array",
         "//absl/base:exception_testing",
@@ -76,7 +77,7 @@ cc_library(
 cc_test(
     name = "inlined_vector_test",
     srcs = ["inlined_vector_test.cc"],
-    copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",

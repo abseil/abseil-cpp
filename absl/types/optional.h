@@ -849,12 +849,20 @@ class optional : private optional_internal::optional_data<T>,
   // is empty.
   template <typename U>
   constexpr T value_or(U&& v) const& {
+    static_assert(std::is_copy_constructible<value_type>::value,
+                  "optional<T>::value_or: T must by copy constructible");
+    static_assert(std::is_convertible<U&&, value_type>::value,
+                  "optional<T>::value_or: U must be convertible to T");
     return static_cast<bool>(*this)
                ? **this
                : static_cast<T>(absl::forward<U>(v));
   }
   template <typename U>
   T value_or(U&& v) && {  // NOLINT(build/c++11)
+    static_assert(std::is_move_constructible<value_type>::value,
+                  "optional<T>::value_or: T must by copy constructible");
+    static_assert(std::is_convertible<U&&, value_type>::value,
+                  "optional<T>::value_or: U must be convertible to T");
     return static_cast<bool>(*this) ? std::move(**this)
                                     : static_cast<T>(std::forward<U>(v));
   }
