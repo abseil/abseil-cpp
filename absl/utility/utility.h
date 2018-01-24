@@ -45,6 +45,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/inline_variable.h"
 #include "absl/base/internal/invoke.h"
 #include "absl/meta/type_traits.h"
 
@@ -155,7 +156,8 @@ using std::in_place;
 // `absl::optional`, designed to be a drop-in replacement for C++17's
 // `std::in_place_t`.
 struct in_place_t {};
-extern const in_place_t in_place;
+
+ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
 
 #endif  // ABSL_HAVE_STD_OPTIONAL
 

@@ -128,6 +128,7 @@ cc_library(
     name = "base_internal",
     hdrs = [
         "internal/identity.h",
+        "internal/inline_variable.h",
         "internal/invoke.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
@@ -253,6 +254,22 @@ cc_test(
     deps = [
         ":exception_safety_testing",
         "//absl/memory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "inline_variable_test",
+    size = "small",
+    srcs = [
+        "inline_variable_test.cc",
+        "inline_variable_test_a.cc",
+        "inline_variable_test_b.cc",
+        "internal/inline_variable_testing.h",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":base_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )

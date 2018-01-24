@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// -----------------------------------------------------------------------------
-// File: ascii.h
-// -----------------------------------------------------------------------------
-//
-#include "absl/utility/utility.h"
+#include "absl/base/internal/inline_variable_testing.h"
 
 namespace absl {
+namespace inline_variable_testing_internal {
 
-#ifndef ABSL_HAVE_STD_OPTIONAL
-const in_place_t in_place{};
-#endif
+const Foo& get_foo_a() { return inline_variable_foo; }
 
+const int& get_int_a() { return inline_variable_int; }
+
+}  // namespace inline_variable_testing_internal
 }  // namespace absl
