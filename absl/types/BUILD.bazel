@@ -110,7 +110,7 @@ cc_test(
     name = "span_test",
     size = "small",
     srcs = ["span_test.cc"],
-    copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     deps = [
         ":span",
         "//absl/base:config",
