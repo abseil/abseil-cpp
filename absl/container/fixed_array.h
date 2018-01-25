@@ -458,7 +458,7 @@ class FixedArray {
       // Loop optimizes to nothing for trivially destructible T.
       for (Holder* p = end(); p != begin();) (--p)->~Holder();
       if (IsAllocated(size())) {
-        ::operator delete[](begin());
+        std::allocator<Holder>().deallocate(p_, n_);
       } else {
         this->AnnotateDestruct(size());
       }
@@ -470,15 +470,11 @@ class FixedArray {
    private:
     Holder* MakeHolder(size_type n) {
       if (IsAllocated(n)) {
-        return Allocate(n);
+        return std::allocator<Holder>().allocate(n);
       } else {
         this->AnnotateConstruct(n);
         return this->data();
       }
-    }
-
-    Holder* Allocate(size_type n) {
-      return static_cast<Holder*>(::operator new[](n * sizeof(Holder)));
     }
 
     bool IsAllocated(size_type n) const { return n > inline_elements; }

@@ -227,7 +227,7 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
           kSpinLockHeld | lock_value | wait_cycles | sched_disabled_bit,
           std::memory_order_acquire, std::memory_order_relaxed)) {
   } else {
-    base_internal::SchedulingGuard::EnableRescheduling(sched_disabled_bit);
+    base_internal::SchedulingGuard::EnableRescheduling(sched_disabled_bit != 0);
   }
 
   return lock_value;

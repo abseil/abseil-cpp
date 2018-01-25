@@ -373,6 +373,7 @@ class any {
     return typeid(void);
   }
 #endif  // ABSL_ANY_DETAIL_HAS_RTTI
+
  private:
   // Tagged type-erased abstraction for holding a cloneable object.
   class ObjInterface {

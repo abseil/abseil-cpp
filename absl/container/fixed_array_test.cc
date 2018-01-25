@@ -504,6 +504,7 @@ struct PickyDelete {
 
 TEST(FixedArrayTest, UsesGlobalAlloc) { absl::FixedArray<PickyDelete, 0> a(5); }
 
+
 TEST(FixedArrayTest, Data) {
   static const int kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
   absl::FixedArray<int> fa(std::begin(kInput), std::end(kInput));
