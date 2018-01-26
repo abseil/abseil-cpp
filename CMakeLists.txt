@@ -69,9 +69,12 @@ find_package(Threads REQUIRED)
 
 ## check targets
 check_target(cctz)
-check_target(gtest)
-check_target(gtest_main)
-check_target(gmock)
+
+if (CONFIG_TESTING)
+  check_target(gtest)
+  check_target(gtest_main)
+  check_target(gmock)
+endif (CONFIG_TESTING)
 
 # -fexceptions
 set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
