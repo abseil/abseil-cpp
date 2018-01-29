@@ -64,6 +64,7 @@
 #include "absl/base/internal/identity.h"
 #include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/thread_identity.h"
+#include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/port.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
@@ -860,6 +861,9 @@ class SCOPED_LOCKABLE ReleasableMutexLock {
 
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
 #else
+inline Mutex::Mutex() : mu_(0) {
+  ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
+}
 
 inline CondVar::CondVar() : cv_(0) {}
 #endif

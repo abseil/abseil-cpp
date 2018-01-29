@@ -48,7 +48,6 @@
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/internal/thread_identity.h"
-#include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/synchronization/internal/graphcycles.h"
@@ -686,10 +685,6 @@ static unsigned TsanFlags(Mutex::MuHow how) {
   return how == kShared ? __tsan_mutex_read_lock : 0;
 }
 #endif
-
-Mutex::Mutex() : mu_(0) {
-  ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
-}
 
 static bool DebugOnlyIsExiting() {
   return false;
