@@ -19,19 +19,12 @@ list(APPEND UTILITY_PUBLIC_HEADERS
   "utility.h"
 )
 
-
-
-list(APPEND UTILITY_SRC
-  ${UTILITY_PUBLIC_HEADERS}
-)
-
 absl_header_library(
   TARGET
     absl_utility
   EXPORT_NAME
     utility
 )
-
 
 
 #
