@@ -62,8 +62,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_WARNING_VLA} ${CMAKE_CXX_FLAGS} ")
 ## pthread
 find_package(Threads REQUIRED)
 
-if(NOT CCTZ_TARGET)
-  set(CCTZ_TARGET cctz)
+if(NOT ABSL_CCTZ_TARGET)
+  set(ABSL_CCTZ_TARGET cctz)
 endif()
 
 # commented: used only for standalone test

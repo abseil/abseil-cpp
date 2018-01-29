@@ -29,7 +29,8 @@
     Note: Abseil requires CCTZ and the googletest framework. Consequently,
     the targets  `gtest`, `gtest_main`, `gmock` and `cctz` need
     to be declared in your project before including abseil with `add_subdirectory`.
-
+    However, if abseil is compiled with -DBUILD_TESTING=OFF, then `gtest`, `gmock` and `gtest_main` are not required.
+    In addition, it's possible to override the name of cctz target to custom one with option -DABSL_CCTZ_TARGET=my_cctz
 
   4- Add the absl:: target you wish to use to the `target_link_libraries()`
     section of your executable or of your library
