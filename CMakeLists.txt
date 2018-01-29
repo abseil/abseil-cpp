@@ -58,6 +58,9 @@ list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_WARNING_VLA} ${CMAKE_CXX_FLAGS} ")
 
+# -fexceptions
+set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
+
 # find dependencies
 ## pthread
 find_package(Threads REQUIRED)
@@ -76,9 +79,6 @@ if(BUILD_TESTING)
   check_target(gtest)
   check_target(gtest_main)
   check_target(gmock)
-
-  # -fexceptions
-  set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
 
   list(APPEND ABSL_TEST_COMMON_LIBRARIES
     gtest_main
