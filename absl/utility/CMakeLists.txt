@@ -33,7 +33,7 @@ absl_header_library(
 
 # test utility_test
 set(UTILITY_TEST_SRC "utility_test.cc")
-set(UTILITY_TEST_PUBLIC_LIBRARIES absl::utility)
+set(UTILITY_TEST_PUBLIC_LIBRARIES absl::utility absl::strings absl::memory)
 
 absl_test(
   TARGET
