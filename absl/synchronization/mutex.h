@@ -233,8 +233,8 @@ class LOCKABLE Mutex {
   //
   // Aliases for `Mutex::Lock()`, `Mutex::Unlock()`, and `Mutex::TryLock()`.
   //
-  // Use the `Writer*()` versions of these method names when using complementary
-  // `Reader*()` methods to distingish simple exclusive `Mutex` usage (`Lock()`,
+  // These methods may be used (along with the complementary `Reader*()`
+  // methods) to distingish simple exclusive `Mutex` usage (`Lock()`,
   // etc.) from reader/writer lock usage.
   void WriterLock() EXCLUSIVE_LOCK_FUNCTION() { this->Lock(); }
 

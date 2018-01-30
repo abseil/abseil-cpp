@@ -43,6 +43,3 @@ absl_test(
   PUBLIC_LIBRARIES
     ${UTILITY_TEST_PUBLIC_LIBRARIES}
 )
-
-
-

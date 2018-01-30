@@ -1,4 +1,3 @@
-
 ## Abseil CMake build instructions
 
 
@@ -79,8 +78,3 @@ As of this writing, that pull request requires -DBUILD_TESTING=OFF as it doesn't
       absl::synchronization
       absl::time
       absl::utility
-
-
-
-
-

@@ -130,7 +130,7 @@ absl_test(
 
 # test any_exception_safety_test
 set(ANY_EXCEPTION_SAFETY_TEST_SRC "any_exception_safety_test.cc")
-set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES absl::any absl::base)
+set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES absl::any absl::base absl::base_internal_exception_safety_testing)
 
 absl_test(
   TARGET

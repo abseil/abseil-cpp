@@ -62,7 +62,6 @@ list(APPEND BASE_INTERNAL_HEADERS
 # absl_base main library
 list(APPEND BASE_SRC
   "internal/cycleclock.cc"
-  "internal/exception_safety_testing.cc"
   "internal/raw_logging.cc"
   "internal/spinlock.cc"
   "internal/sysinfo.cc"
@@ -116,6 +115,28 @@ absl_library(
   EXPORT_NAME
     throw_delegate
 )
+
+if(BUILD_TESTING)
+  # exception-safety testing library
+  set(EXCEPTION_SAFETY_TESTING_SRC "internal/exception_safety_testing.cc")
+  set(EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES
+    ${ABSL_TEST_COMMON_LIBRARIES}
+    absl::base
+    absl::memory
+    absl::meta
+    absl::strings
+    absl::types
+  )
+
+absl_library(
+  TARGET
+    absl_base_internal_exception_safety_testing
+  SOURCES
+    ${EXCEPTION_SAFETY_TESTING_SRC}
+  PUBLIC_LIBRARIES
+    ${EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES}
+)
+endif()
 
 
 # dynamic_annotations library

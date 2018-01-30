@@ -104,11 +104,15 @@ void DivModImpl(uint128 dividend, uint128 divisor, uint128* quotient_ret,
 }
 
 template <typename T>
-uint128 Initialize128FromFloat(T v) {
+uint128 MakeUint128FromFloat(T v) {
+  static_assert(std::is_floating_point<T>::value, "");
+
   // Rounding behavior is towards zero, same as for built-in types.
 
   // Undefined behavior if v is NaN or cannot fit into uint128.
-  assert(!std::isnan(v) && v > -1 && v < std::ldexp(static_cast<T>(1), 128));
+  assert(std::isfinite(v) && v > -1 &&
+         (std::numeric_limits<T>::max_exponent <= 128 ||
+          v < std::ldexp(static_cast<T>(1), 128)));
 
   if (v >= std::ldexp(static_cast<T>(1), 64)) {
     uint64_t hi = static_cast<uint64_t>(std::ldexp(v, -64));
@@ -120,9 +124,9 @@ uint128 Initialize128FromFloat(T v) {
 }
 }  // namespace
 
-uint128::uint128(float v) : uint128(Initialize128FromFloat(v)) {}
-uint128::uint128(double v) : uint128(Initialize128FromFloat(v)) {}
-uint128::uint128(long double v) : uint128(Initialize128FromFloat(v)) {}
+uint128::uint128(float v) : uint128(MakeUint128FromFloat(v)) {}
+uint128::uint128(double v) : uint128(MakeUint128FromFloat(v)) {}
+uint128::uint128(long double v) : uint128(MakeUint128FromFloat(v)) {}
 
 uint128& uint128::operator/=(uint128 other) {
   uint128 quotient = 0;
