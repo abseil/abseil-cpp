@@ -1234,10 +1234,12 @@ static void CheckResults(bool exp_result, bool act_result,
                          absl::Duration act_duration) {
   ABSL_RAW_CHECK(exp_result == act_result, "CheckResults failed");
   // Allow for some worse-case scheduling delay and clock skew.
-  ABSL_RAW_CHECK(exp_duration - absl::Milliseconds(40) <= act_duration,
-                 "CheckResults failed");
-  ABSL_RAW_CHECK(exp_duration + absl::Milliseconds(150) >= act_duration,
-                 "CheckResults failed");
+  if ((exp_duration - absl::Milliseconds(40) > act_duration) ||
+      (exp_duration + absl::Milliseconds(150) < act_duration)) {
+    ABSL_RAW_LOG(FATAL, "CheckResults failed: operation took %s, expected %s",
+                 absl::FormatDuration(act_duration).c_str(),
+                 absl::FormatDuration(exp_duration).c_str());
+  }
 }
 
 static void TestAwaitTimeout(Cond *cp, absl::Duration timeout, bool exp_result,

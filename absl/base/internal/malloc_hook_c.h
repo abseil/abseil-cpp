@@ -37,6 +37,7 @@ typedef struct {
   /* See malloc_hook.h  for documentation for this struct. */
   MallocHook_AllocHandle handle;
   size_t allocated_size;
+  double weight;
   int stack_depth;
   const void* stack;
 } MallocHook_SampledAlloc;

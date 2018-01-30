@@ -53,7 +53,24 @@
 //   it will likely be a reference type).
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef __cpp_inline_variables
+// ABSL_INTERNAL_HAS_WARNING()
+//
+// If the compiler supports the `__has_warning` extension for detecting
+// warnings, then this macro is defined to be `__has_warning`.
+//
+// If the compiler does not support `__has_warning`, invocations expand to 0.
+//
+// For clang's documentation of `__has_warning`, see
+// https://clang.llvm.org/docs/LanguageExtensions.html#has-warning
+#if defined(__has_warning)
+#define ABSL_INTERNAL_HAS_WARNING __has_warning
+#else  // Otherwise, be optimistic and assume the warning is not enabled.
+#define ABSL_INTERNAL_HAS_WARNING(warning) 0
+#endif  // defined(__has_warning)
+
+// If the compiler supports inline variables and does not warn when used...
+#if defined(__cpp_inline_variables) && \
+    !ABSL_INTERNAL_HAS_WARNING("-Wc++98-c++11-c++14-compat")
 
 // Clang's -Wmissing-variable-declarations option erroneously warned that
 // inline constexpr objects need to be pre-declared. This has now been fixed,
@@ -66,19 +83,21 @@
 //   identity_t is used here so that the const and name are in the
 //   appropriate place for pointer types, reference types, function pointer
 //   types, etc..
-#if defined(__clang__)
+#if defined(__clang__) && \
+    ABSL_INTERNAL_HAS_WARNING("-Wmissing-variable-declarations")
 #define ABSL_INTERNAL_EXTERN_DECL(type, name) \
   extern const ::absl::internal::identity_t<type> name;
 #else  // Otherwise, just define the macro to do nothing.
 #define ABSL_INTERNAL_EXTERN_DECL(type, name)
-#endif  // defined(__clang__)
+#endif  // defined(__clang__) &&
+        // ABSL_INTERNAL_HAS_WARNING("-Wmissing-variable-declarations")
 
 // See above comment at top of file for details.
 #define ABSL_INTERNAL_INLINE_CONSTEXPR(type, name, init) \
   ABSL_INTERNAL_EXTERN_DECL(type, name)                  \
   inline constexpr ::absl::internal::identity_t<type> name = init
 
-#else
+#else  // Otherwise, we need to emulate inline variables...
 
 // See above comment at top of file for details.
 //
@@ -102,6 +121,7 @@
   static_assert(sizeof(void (*)(decltype(name))) != 0,                        \
                 "Silence unused variable warnings.")
 
-#endif  // __cpp_inline_variables
+#endif  // defined(__cpp_inline_variables) &&
+        // !ABSL_INTERNAL_HAS_WARNING("-Wc++98-c++11-c++14-compat")
 
 #endif  // ABSL_BASE_INTERNAL_INLINE_VARIABLE_EMULATION_H_

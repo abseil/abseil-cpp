@@ -91,8 +91,11 @@ class MallocHook {
   // SampledAlloc has the following fields:
   //  * AllocHandle handle: to be set to an effectively unique value (in this
   //    process) by allocator.
-  //  * size_t allocated_size: space actually used by allocator to host
-  //    the object.
+  //  * size_t allocated_size: space actually used by allocator to host the
+  //    object. Not necessarily equal to the requested size due to alignment
+  //    and other reasons.
+  //  * double weight: the expected number of allocations matching this profile
+  //    that this sample represents.
   //  * int stack_depth and const void* stack: invocation stack for
   //    the allocation.
   // The allocator invoking the hook should record the handle value and later
