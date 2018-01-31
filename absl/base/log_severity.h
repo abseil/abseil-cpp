@@ -16,6 +16,8 @@
 #ifndef ABSL_BASE_INTERNAL_LOG_SEVERITY_H_
 #define ABSL_BASE_INTERNAL_LOG_SEVERITY_H_
 
+#include <array>
+
 #include "absl/base/attributes.h"
 
 namespace absl {
@@ -26,6 +28,13 @@ enum class LogSeverity : int {
   kError = 2,
   kFatal = 3,
 };
+
+// Returns an iterable of all standard `absl::LogSeverity` values, ordered from
+// least to most severe.
+constexpr std::array<absl::LogSeverity, 4> LogSeverities() {
+  return {{absl::LogSeverity::kInfo, absl::LogSeverity::kWarning,
+           absl::LogSeverity::kError, absl::LogSeverity::kFatal}};
+}
 
 constexpr const char* LogSeverityName(absl::LogSeverity s) {
   return s == absl::LogSeverity::kInfo
