@@ -684,8 +684,11 @@ TEST(StringViewTest, TruncSubstr) {
 }
 
 TEST(StringViewTest, UTF8) {
-  EXPECT_EQ(strlen("á"), absl::string_view("á á").find_first_of(" "));
-  EXPECT_EQ(strlen("á"), absl::string_view("á á").find_first_of(" \t"));
+  std::string utf8 = "\u00E1";
+  std::string utf8_twice = utf8 + " " + utf8;
+  int utf8_len = strlen(utf8.data());
+  EXPECT_EQ(utf8_len, absl::string_view(utf8_twice).find_first_of(" "));
+  EXPECT_EQ(utf8_len, absl::string_view(utf8_twice).find_first_of(" \t"));
 }
 
 TEST(StringViewTest, FindConformance) {

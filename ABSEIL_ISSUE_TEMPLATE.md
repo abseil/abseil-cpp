@@ -18,5 +18,5 @@ possible in this section.]
 
 [Please clearly describe the API change(s) being proposed. If multiple changes,
 please keep them clearly distinguished. When possible, **use example code
-snippets to illustrate before–after API usages**. List pros-n-cons. Highlight
+snippets to illustrate before-after API usages**. List pros-n-cons. Highlight
 the main questions that you want to be answered. Given the Abseil project compatibility requirements, describe why the API change is safe.]

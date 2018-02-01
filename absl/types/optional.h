@@ -492,11 +492,11 @@ class optional : private optional_internal::optional_data<T>,
 
   // Constructors
 
-  // Constructs a default-constructed `optional` holding the empty value, NOT a
-  // default constructed `T`.
+  // Constructs an `optional` holding an empty value, NOT a default constructed
+  // `T`.
   constexpr optional() noexcept {}
 
-  // Construct an `optional` initialized with `nullopt` to hold an empty value.
+  // Constructs an `optional` initialized with `nullopt` to hold an empty value.
   constexpr optional(nullopt_t) noexcept {}  // NOLINT(runtime/explicit)
 
   // Copy constructor, standard semantics
