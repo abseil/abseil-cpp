@@ -46,7 +46,7 @@ constexpr const char* LogSeverityName(absl::LogSeverity s) {
                          : s == absl::LogSeverity::kFatal ? "FATAL" : "UNKNOWN";
 }
 
-// Note that out-of-range large severities normalize to kError, not kFatal.
+// Note that out-of-range severities normalize to kInfo or kError, never kFatal.
 constexpr absl::LogSeverity NormalizeLogSeverity(absl::LogSeverity s) {
   return s < absl::LogSeverity::kInfo
              ? absl::LogSeverity::kInfo

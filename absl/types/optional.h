@@ -845,7 +845,7 @@ class optional : private optional_internal::optional_data<T>,
 
   // optional::value_or()
   //
-  // Returns either the value of `T` or a passed default `val` if the `optional`
+  // Returns either the value of `T` or a passed default `v` if the `optional`
   // is empty.
   template <typename U>
   constexpr T value_or(U&& v) const& {
