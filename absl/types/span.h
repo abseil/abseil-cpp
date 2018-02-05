@@ -52,7 +52,7 @@
 //    * `absl::Span` has an explicit mutable-reference constructor
 //
 // For more information, see the class comments below.
-// NON_ASCII_ALERT: ヒトミ
+// NON_ASCII_ALERT: ヒトミ blahblahblah
 #ifndef ABSL_TYPES_SPAN_H_
 #define ABSL_TYPES_SPAN_H_
 
