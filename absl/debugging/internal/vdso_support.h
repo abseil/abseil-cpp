@@ -52,7 +52,7 @@
 #endif
 
 namespace absl {
-namespace debug_internal {
+namespace debugging_internal {
 
 // NOTE: this class may be used from within tcmalloc, and can not
 // use any memory allocation routines.
@@ -147,7 +147,7 @@ class VDSOSupport {
 // support SYS_getcpu.
 int GetCPU();
 
-}  // namespace debug_internal
+}  // namespace debugging_internal
 }  // namespace absl
 
 #endif  // ABSL_HAVE_ELF_MEM_IMAGE

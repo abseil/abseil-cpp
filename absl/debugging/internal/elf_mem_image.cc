@@ -38,7 +38,7 @@
 #define VERSYM_VERSION 0x7fff
 
 namespace absl {
-namespace debug_internal {
+namespace debugging_internal {
 
 namespace {
 
@@ -392,7 +392,7 @@ void ElfMemImage::SymbolIterator::Update(int increment) {
   info_.symbol  = symbol;
 }
 
-}  // namespace debug_internal
+}  // namespace debugging_internal
 }  // namespace absl
 
 #endif  // ABSL_HAVE_ELF_MEM_IMAGE

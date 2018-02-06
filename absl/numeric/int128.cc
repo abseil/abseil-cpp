@@ -20,6 +20,7 @@
 #include <iostream>  // NOLINT(readability/streams)
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 namespace absl {
 
@@ -128,19 +129,17 @@ uint128::uint128(float v) : uint128(MakeUint128FromFloat(v)) {}
 uint128::uint128(double v) : uint128(MakeUint128FromFloat(v)) {}
 uint128::uint128(long double v) : uint128(MakeUint128FromFloat(v)) {}
 
-uint128& uint128::operator/=(uint128 other) {
+uint128 operator/(uint128 lhs, uint128 rhs) {
   uint128 quotient = 0;
   uint128 remainder = 0;
-  DivModImpl(*this, other, &quotient, &remainder);
-  *this = quotient;
-  return *this;
+  DivModImpl(lhs, rhs, &quotient, &remainder);
+  return quotient;
 }
-uint128& uint128::operator%=(uint128 other) {
+uint128 operator%(uint128 lhs, uint128 rhs) {
   uint128 quotient = 0;
   uint128 remainder = 0;
-  DivModImpl(*this, other, &quotient, &remainder);
-  *this = remainder;
-  return *this;
+  DivModImpl(lhs, rhs, &quotient, &remainder);
+  return remainder;
 }
 
 namespace {

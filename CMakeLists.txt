@@ -70,6 +70,7 @@ if(NOT ABSL_CCTZ_TARGET)
 endif()
 
 # commented: used only for standalone test
+# Don't remove these or else CMake CI will break
 #add_subdirectory(cctz)
 #add_subdirectory(googletest)
 check_target(${ABSL_CCTZ_TARGET})

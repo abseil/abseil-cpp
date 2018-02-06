@@ -38,18 +38,18 @@
 #endif
 
 namespace absl {
-namespace debug_internal {
+namespace debugging_internal {
 
 ABSL_CONST_INIT
 std::atomic<const void *> VDSOSupport::vdso_base_(
-    debug_internal::ElfMemImage::kInvalidBase);
+    debugging_internal::ElfMemImage::kInvalidBase);
 
 std::atomic<VDSOSupport::GetCpuFn> VDSOSupport::getcpu_fn_(&InitAndGetCPU);
 VDSOSupport::VDSOSupport()
     // If vdso_base_ is still set to kInvalidBase, we got here
     // before VDSOSupport::Init has been called. Call it now.
     : image_(vdso_base_.load(std::memory_order_relaxed) ==
-                     debug_internal::ElfMemImage::kInvalidBase
+                     debugging_internal::ElfMemImage::kInvalidBase
                  ? Init()
                  : vdso_base_.load(std::memory_order_relaxed)) {}
 
@@ -63,7 +63,7 @@ VDSOSupport::VDSOSupport()
 // Finally, even if there is a race here, it is harmless, because
 // the operation should be idempotent.
 const void *VDSOSupport::Init() {
-  const auto kInvalidBase = debug_internal::ElfMemImage::kInvalidBase;
+  const auto kInvalidBase = debugging_internal::ElfMemImage::kInvalidBase;
 #if __GLIBC_PREREQ(2, 16)
   if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
     errno = 0;
@@ -120,7 +120,7 @@ const void *VDSOSupport::Init() {
 }
 
 const void *VDSOSupport::SetBase(const void *base) {
-  ABSL_RAW_CHECK(base != debug_internal::ElfMemImage::kInvalidBase,
+  ABSL_RAW_CHECK(base != debugging_internal::ElfMemImage::kInvalidBase,
                  "internal error");
   const void *old_base = vdso_base_.load(std::memory_order_relaxed);
   vdso_base_.store(base, std::memory_order_relaxed);
@@ -186,7 +186,7 @@ static class VDSOInitHelper {
   VDSOInitHelper() { VDSOSupport::Init(); }
 } vdso_init_helper;
 
-}  // namespace debug_internal
+}  // namespace debugging_internal
 }  // namespace absl
 
 #endif  // ABSL_HAVE_VDSO_SUPPORT

@@ -17,13 +17,13 @@
 #define ABSL_DEBUGGING_INTERNAL_ADDRESS_IS_READABLE_H_
 
 namespace absl {
-namespace debug_internal {
+namespace debugging_internal {
 
 // Return whether the byte at *addr is readable, without faulting.
 // Save and restores errno.
 bool AddressIsReadable(const void *addr);
 
-}  // namespace debug_internal
+}  // namespace debugging_internal
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_ADDRESS_IS_READABLE_H_
