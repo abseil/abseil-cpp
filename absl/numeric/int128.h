@@ -17,9 +17,10 @@
 // File: int128.h
 // -----------------------------------------------------------------------------
 //
-// This header file defines 128-bit integer types. Currently, this file defines
-// `uint128`, an unsigned 128-bit integer; a signed 128-bit integer is
-// forthcoming.
+// This header file defines 128-bit integer types.
+//
+// Currently, this file defines `uint128`, an unsigned 128-bit integer; a signed
+// 128-bit integer is forthcoming.
 
 #ifndef ABSL_NUMERIC_INT128_H_
 #define ABSL_NUMERIC_INT128_H_
@@ -36,6 +37,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+
 
 // uint128
 //
