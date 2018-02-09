@@ -45,6 +45,37 @@ AlphaNum::AlphaNum(Hex hex) {
   piece_ = absl::string_view(beg, end - beg);
 }
 
+AlphaNum::AlphaNum(Dec dec) {
+  assert(dec.width <= numbers_internal::kFastToBufferSize);
+  char* const end = &digits_[numbers_internal::kFastToBufferSize];
+  char* const minfill = end - dec.width;
+  char* writer = end;
+  uint64_t value = dec.value;
+  bool neg = dec.neg;
+  while (value > 9) {
+    *--writer = '0' + (value % 10);
+    value /= 10;
+  }
+  *--writer = '0' + value;
+  if (neg) *--writer = '-';
+
+  ptrdiff_t fillers = writer - minfill;
+  if (fillers > 0) {
+    // Tricky: if the fill character is ' ', then it's <fill><+/-><digits>
+    // But...: if the fill character is '0', then it's <+/-><fill><digits>
+    bool add_sign_again = false;
+    if (neg && dec.fill == '0') {  // If filling with '0',
+      ++writer;                    // ignore the sign we just added
+      add_sign_again = true;       // and re-add the sign later.
+    }
+    writer -= fillers;
+    std::fill_n(writer, fillers, dec.fill);
+    if (add_sign_again) *--writer = '-';
+  }
+
+  piece_ = absl::string_view(writer, end - writer);
+}
+
 // ----------------------------------------------------------------------
 // StrCat()
 //    This merges the given strings or integers, with no delimiter.  This

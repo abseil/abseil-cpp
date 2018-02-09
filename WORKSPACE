@@ -1,4 +1,15 @@
 workspace(name = "com_google_absl")
+# Bazel toolchains
+http_archive(
+    name = "bazel_toolchains",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/f3b09700fae5d7b6e659d7cefe0dcc6e8498504c.tar.gz",
+        "https://github.com/bazelbuild/bazel-toolchains/archive/f3b09700fae5d7b6e659d7cefe0dcc6e8498504c.tar.gz",
+    ],
+    strip_prefix = "bazel-toolchains-f3b09700fae5d7b6e659d7cefe0dcc6e8498504c",
+    sha256 = "ed829b5eea8af1f405f4cc3d6ecfc3b1365bb7843171036030a31b5127002311",
+)
+
 # GoogleTest/GoogleMock framework. Used by most unit-tests.
 http_archive(
      name = "com_google_googletest",

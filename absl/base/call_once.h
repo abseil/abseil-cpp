@@ -134,7 +134,10 @@ enum {
   kOnceInit = 0,
   kOnceRunning = 0x65C2937B,
   kOnceWaiter = 0x05A308D2,
-  kOnceDone = 0x3F2D8AB0,
+  // A very small constant is chosen for kOnceDone so that it fit in a single
+  // compare with immediate instruction for most common ISAs.  This is verified
+  // for x86, POWER and ARM.
+  kOnceDone = 221,    // Random Number
 };
 
 template <typename Callable, typename... Args>

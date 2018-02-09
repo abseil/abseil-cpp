@@ -431,28 +431,85 @@ void CheckHex(IntType v, const char* nopad_format, const char* zeropad_format,
   }
 }
 
-void CheckHex64(uint64_t v) {
-  unsigned long long llv = v;  // NOLINT(runtime/int)
+template <typename IntType>
+void CheckDec(IntType v, const char* nopad_format, const char* zeropad_format,
+              const char* spacepad_format) {
+  char expected[256];
 
-  CheckHex(llv, "%llx", "%0*llx", "%*llx");
+  std::string actual = absl::StrCat(absl::Dec(v, absl::kNoPad));
+  snprintf(expected, sizeof(expected), nopad_format, v);
+  EXPECT_EQ(expected, actual) << " decimal value " << v;
+
+  for (int spec = absl::kZeroPad2; spec <= absl::kZeroPad16; ++spec) {
+    std::string actual =
+        absl::StrCat(absl::Dec(v, static_cast<absl::PadSpec>(spec)));
+    snprintf(expected, sizeof(expected), zeropad_format,
+             spec - absl::kZeroPad2 + 2, v);
+    EXPECT_EQ(expected, actual)
+        << " decimal value " << v << " format '" << zeropad_format
+        << "' digits " << (spec - absl::kZeroPad2 + 2);
+  }
+
+  for (int spec = absl::kSpacePad2; spec <= absl::kSpacePad16; ++spec) {
+    std::string actual =
+        absl::StrCat(absl::Dec(v, static_cast<absl::PadSpec>(spec)));
+    snprintf(expected, sizeof(expected), spacepad_format,
+             spec - absl::kSpacePad2 + 2, v);
+    EXPECT_EQ(expected, actual)
+        << " decimal value " << v << " format '" << spacepad_format
+        << "' digits " << (spec - absl::kSpacePad2 + 2);
+  }
 }
 
-template <typename Int32Type>
-void CheckHex32(Int32Type v) {
-  CheckHex(v, "%x", "%0*x", "%*x");
+void CheckHexDec64(uint64_t v) {
+  unsigned long long ullv = v;  // NOLINT(runtime/int)
+
+  CheckHex(ullv, "%llx", "%0*llx", "%*llx");
+  CheckDec(ullv, "%llu", "%0*llu", "%*llu");
+
+  long long llv = static_cast<long long>(ullv);  // NOLINT(runtime/int)
+  CheckDec(llv, "%lld", "%0*lld", "%*lld");
+}
+
+void CheckHexDec32(uint32_t uv) {
+  CheckHex(uv, "%x", "%0*x", "%*x");
+  CheckDec(uv, "%u", "%0*u", "%*u");
+  int32_t v = static_cast<int32_t>(uv);
+  CheckDec(v, "%d", "%0*d", "%*d");
+}
+
+void CheckAll(uint64_t v) {
+  CheckHexDec64(v);
+  CheckHexDec32(static_cast<uint32_t>(v));
 }
 
 void TestFastPrints() {
-  // Test min int to make sure that works
+  // Test all small ints; there aren't many and they're common.
   for (int i = 0; i < 10000; i++) {
-    CheckHex64(i);
-    CheckHex32(static_cast<uint32_t>(i));
-    CheckHex32(i);
-    CheckHex32(-i);
+    CheckAll(i);
   }
 
-  CheckHex64(uint64_t{0x123456789abcdef0});
-  CheckHex32(0x12345678U);
+  CheckAll(std::numeric_limits<uint64_t>::max());
+  CheckAll(std::numeric_limits<uint64_t>::max() - 1);
+  CheckAll(std::numeric_limits<int64_t>::min());
+  CheckAll(std::numeric_limits<int64_t>::min() + 1);
+  CheckAll(std::numeric_limits<uint32_t>::max());
+  CheckAll(std::numeric_limits<uint32_t>::max() - 1);
+  CheckAll(std::numeric_limits<int32_t>::min());
+  CheckAll(std::numeric_limits<int32_t>::min() + 1);
+  CheckAll(999999999);              // fits in 32 bits
+  CheckAll(1000000000);             // fits in 32 bits
+  CheckAll(9999999999);             // doesn't fit in 32 bits
+  CheckAll(10000000000);            // doesn't fit in 32 bits
+  CheckAll(999999999999999999);     // fits in signed 64-bit
+  CheckAll(9999999999999999999u);   // fits in unsigned 64-bit, but not signed.
+  CheckAll(1000000000000000000);    // fits in signed 64-bit
+  CheckAll(10000000000000000000u);  // fits in unsigned 64-bit, but not signed.
+
+  CheckAll(999999999876543210);    // check all decimal digits, signed
+  CheckAll(9999999999876543210u);  // check all decimal digits, unsigned.
+  CheckAll(0x123456789abcdef0);    // check all hex digits
+  CheckAll(0x12345678);
 
   int8_t minus_one_8bit = -1;
   EXPECT_EQ("ff", absl::StrCat(absl::Hex(minus_one_8bit)));

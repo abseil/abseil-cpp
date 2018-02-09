@@ -150,6 +150,7 @@ struct is_trivially_destructible
     : std::integral_constant<bool, __has_trivial_destructor(T) &&
                                    std::is_destructible<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
+ private:
   static constexpr bool compliant = std::is_trivially_destructible<T>::value ==
                                     is_trivially_destructible::value;
   static_assert(compliant || std::is_trivially_destructible<T>::value,
@@ -199,6 +200,7 @@ struct is_trivially_default_constructible
                                    std::is_default_constructible<T>::value &&
                                    is_trivially_destructible<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
+ private:
   static constexpr bool compliant =
       std::is_trivially_default_constructible<T>::value ==
       is_trivially_default_constructible::value;
@@ -230,6 +232,7 @@ struct is_trivially_copy_constructible
                                    std::is_copy_constructible<T>::value &&
                                    is_trivially_destructible<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
+ private:
   static constexpr bool compliant =
       std::is_trivially_copy_constructible<T>::value ==
       is_trivially_copy_constructible::value;
@@ -262,6 +265,7 @@ struct is_trivially_copy_assignable
     : std::integral_constant<bool, __has_trivial_assign(T) &&
                                    std::is_copy_assignable<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
+ private:
   static constexpr bool compliant =
       std::is_trivially_copy_assignable<T>::value ==
       is_trivially_copy_assignable::value;

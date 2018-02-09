@@ -76,10 +76,10 @@ struct AlphaNumBuffer {
 
 }  // namespace strings_internal
 
-// Enum that specifies the number of significant digits to return in a `Hex`
-// conversion and fill character to use. A `kZeroPad2` value, for example, would
-// produce hexadecimal strings such as "0A","0F" and 'kSpacePad5' value would
-// produce hexadecimal strings such as "    A","    F".
+// Enum that specifies the number of significant digits to return in a `Hex` or
+// `Dec` conversion and fill character to use. A `kZeroPad2` value, for example,
+// would produce hexadecimal strings such as "0A","0F" and a 'kSpacePad5' value
+// would produce hexadecimal strings such as "    A","    F".
 enum PadSpec {
   kNoPad = 1,
   kZeroPad2,
@@ -154,6 +154,32 @@ struct Hex {
 };
 
 // -----------------------------------------------------------------------------
+// Dec
+// -----------------------------------------------------------------------------
+//
+// `Dec` stores a set of decimal std::string conversion parameters for use
+// within `AlphaNum` std::string conversions.  Dec is slower than the default
+// integer conversion, so use it only if you need padding.
+struct Dec {
+  uint64_t value;
+  uint8_t width;
+  char fill;
+  bool neg;
+
+  template <typename Int>
+  explicit Dec(Int v, PadSpec spec = absl::kNoPad,
+               typename std::enable_if<(sizeof(Int) <= 8)>::type* = nullptr)
+      : value(v >= 0 ? static_cast<uint64_t>(v)
+                     : uint64_t{0} - static_cast<uint64_t>(v)),
+        width(spec == absl::kNoPad
+                  ? 1
+                  : spec >= absl::kSpacePad2 ? spec - absl::kSpacePad2 + 2
+                                             : spec - absl::kZeroPad2 + 2),
+        fill(spec >= absl::kSpacePad2 ? ' ' : '0'),
+        neg(v < 0) {}
+};
+
+// -----------------------------------------------------------------------------
 // AlphaNum
 // -----------------------------------------------------------------------------
 //
@@ -191,6 +217,7 @@ class AlphaNum {
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
 
   AlphaNum(Hex hex);  // NOLINT(runtime/explicit)
+  AlphaNum(Dec dec);  // NOLINT(runtime/explicit)
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)
