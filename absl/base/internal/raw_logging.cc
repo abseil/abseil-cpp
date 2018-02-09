@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/log_severity.h"
