@@ -437,6 +437,7 @@ static inline bool InHookCaller(const void* caller) {
   return ADDR_IN_ATTRIBUTE_SECTION(caller, google_malloc) ||
          ADDR_IN_ATTRIBUTE_SECTION(caller, malloc_hook) ||
          ADDR_IN_ATTRIBUTE_SECTION(caller, blink_malloc);
+
   // We can use one section for everything except tcmalloc_or_debug
   // due to its special linkage mode, which prevents merging of the sections.
 }
