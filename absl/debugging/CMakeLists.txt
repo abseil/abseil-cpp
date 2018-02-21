@@ -22,6 +22,7 @@ list(APPEND DEBUGGING_PUBLIC_HEADERS
 
 list(APPEND DEBUGGING_INTERNAL_HEADERS
   "internal/address_is_readable.h"
+  "internal/demangle.h"
   "internal/elf_mem_image.h"
   "internal/stacktrace_config.h"
   "internal/vdso_support.h"
@@ -31,6 +32,7 @@ list(APPEND DEBUGGING_INTERNAL_HEADERS
 list(APPEND STACKTRACE_SRC
   "stacktrace.cc"
   "internal/address_is_readable.cc"
+  "internal/demangle.cc"
   "internal/elf_mem_image.cc"
   "internal/vdso_support.cc"
   ${DEBUGGING_PUBLIC_HEADERS}
@@ -79,6 +81,41 @@ absl_header_library(
 ## TESTS
 #
 
+list(APPEND DEBUGGING_INTERNAL_TEST_HEADERS
+  "internal/stack_consumption.h"
+)
+
+list(APPEND STACK_CONSUMPTION_SRC
+  "internal/stack_consumption.cc"
+  ${DEBUGGING_INTERNAL_TEST_HEADERS}
+)
+
+absl_library(
+  TARGET
+    absl_stack_consumption
+  SOURCES
+    ${STACK_CONSUMPTION_SRC}
+)
+
+absl_test(
+  TARGET
+    absl_stack_consumption_test
+  SOURCES
+    ${STACK_CONSUMPTION_SRC}
+)
+
+list(APPEND DEMANGLE_TEST_SRC "demangle_test.cc")
+
+absl_test(
+  TARGET
+    demangle_test
+  SOURCES
+    ${DEMANGLE_TEST_SRC}
+  PUBLIC_LIBRARIES
+    absl_stacktrace absl_stack_consumption
+)
+
+
 # test leak_check_test
 list(APPEND LEAK_CHECK_TEST_SRC "leak_check_test.cc")
 
@@ -90,4 +127,3 @@ absl_test(
   PUBLIC_LIBRARIES
     absl_leak_check
 )
-

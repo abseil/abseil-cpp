@@ -72,7 +72,7 @@ int SpinLockSuggestedDelayNS(int loop) {
   // Mean is exponential in loop for first 32 iterations, then 8ms.
   // The futex path multiplies this by 16, since we expect explicit wakeups
   // almost always on that path.
-  return r >> (44 - (loop >> 3));
+  return static_cast<int>(r >> (44 - (loop >> 3)));
 }
 
 }  // namespace base_internal

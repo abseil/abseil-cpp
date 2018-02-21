@@ -64,7 +64,31 @@ cc_library(
     deps = [
         "//absl/base",
         "//absl/base:dynamic_annotations",
+    ],
+)
+
+cc_library(
+    name = "demangle_internal",
+    srcs = ["internal/demangle.cc"],
+    hdrs = ["internal/demangle.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base",
         "//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "demangle_test",
+    srcs = ["internal/demangle_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":demangle_internal",
+        ":stack_consumption",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/memory",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
