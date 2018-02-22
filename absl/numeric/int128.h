@@ -45,8 +45,8 @@ namespace absl {
 // as closely as is practical, including exhibiting undefined behavior in
 // analogous cases (e.g. division by zero). This type is intended to be a
 // drop-in replacement once C++ supports an intrinsic `uint128_t` type; when
-// that occurs, existing uses of `uint128` will continue to work using that new
-// type.
+// that occurs, existing well-behaved uses of `uint128` will continue to work
+// using that new type.
 //
 // Note: code written with this type will continue to compile once `uint128_t`
 // is introduced, provided the replacement helper functions
@@ -70,6 +70,9 @@ namespace absl {
 //     types.
 //   * Conversion to integral types requires an explicit static_cast() to
 //     mimic use of the `-Wnarrowing` compiler flag.
+//   * The alignment requirement of `uint128` may differ from that of an
+//     intrinsic 128-bit integer type depending on platform and build
+//     configuration.
 //
 // Example:
 //
@@ -80,7 +83,11 @@ namespace absl {
 //     absl::uint64_t i = v;                         // Error
 //     absl::uint64_t i = static_cast<uint64_t>(v);  // OK
 //
-class alignas(16) uint128 {
+class
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+    alignas(unsigned __int128)
+#endif  // ABSL_HAVE_INTRINSIC_INT128
+        uint128 {
  public:
   uint128() = default;
 
