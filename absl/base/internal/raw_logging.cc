@@ -104,12 +104,6 @@ inline static bool VADoRawLog(char** buf, int* size,
 
 static constexpr int kLogBufSize = 3000;
 
-namespace absl {
-namespace raw_logging_internal {
-void SafeWriteToStderr(const char *s, size_t len);
-}  // namespace raw_logging_internal
-}  // namespace absl
-
 namespace {
 
 // CAVEAT: vsnprintf called from *DoRawLog below has some (exotic) code paths
@@ -188,12 +182,6 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 
 namespace absl {
 namespace raw_logging_internal {
-
-// Writes the provided buffer directly to stderr, in a safe, low-level manner.
-//
-// In POSIX this means calling write(), which is async-signal safe and does
-// not malloc.  If the platform supports the SYS_write syscall, we invoke that
-// directly to side-step any libc interception.
 void SafeWriteToStderr(const char *s, size_t len) {
 #if defined(ABSL_HAVE_SYSCALL_WRITE)
   syscall(SYS_write, STDERR_FILENO, s, len);

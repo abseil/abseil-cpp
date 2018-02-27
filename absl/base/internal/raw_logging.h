@@ -74,6 +74,13 @@ namespace raw_logging_internal {
 void RawLog(absl::LogSeverity severity, const char* file, int line,
             const char* format, ...) ABSL_PRINTF_ATTRIBUTE(4, 5);
 
+// Writes the provided buffer directly to stderr, in a safe, low-level manner.
+//
+// In POSIX this means calling write(), which is async-signal safe and does
+// not malloc.  If the platform supports the SYS_write syscall, we invoke that
+// directly to side-step any libc interception.
+void SafeWriteToStderr(const char *s, size_t len);
+
 // compile-time function to get the "base" filename, that is, the part of
 // a filename after the last "/" or "\" path separator.  The search starts at
 // the end of the std::string; the second parameter is the length of the std::string.

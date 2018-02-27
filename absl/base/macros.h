@@ -46,7 +46,7 @@
 namespace absl {
 namespace macros_internal {
 template <typename T, size_t N>
-char (&ArraySizeHelper(T (&array)[N]))[N];
+auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
 }  // namespace absl
 #define ABSL_ARRAYSIZE(array) \

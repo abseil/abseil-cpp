@@ -313,4 +313,6 @@ bool Condition::Eval() const {
   return (this->eval_ == nullptr) || (*this->eval_)(this);
 }
 
+void RegisterSymbolizer(bool (*)(const void*, char*, int)) {}
+
 }  // namespace absl

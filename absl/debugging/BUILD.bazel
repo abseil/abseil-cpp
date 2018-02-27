@@ -41,6 +41,42 @@ cc_library(
 )
 
 cc_library(
+    name = "symbolize",
+    srcs = [
+        "symbolize.cc",
+        "symbolize_elf.inc",
+        "symbolize_unimplemented.inc",
+    ],
+    hdrs = [
+        "internal/symbolize.h",
+        "symbolize.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":debugging_internal",
+        ":demangle_internal",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/base:malloc_internal",
+    ],
+)
+
+cc_test(
+    name = "symbolize_test",
+    srcs = ["symbolize_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":stack_consumption",
+        ":symbolize",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/base:malloc_extension",
+        "//absl/memory",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "debugging_internal",
     srcs = [
         "internal/address_is_readable.cc",
