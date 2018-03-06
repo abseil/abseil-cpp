@@ -35,6 +35,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#if defined(__myriad2__)
+#include <rtems.h>
+#endif
+
 #include <string.h>
 #include <cassert>
 #include <cstdint>
@@ -308,6 +312,14 @@ pid_t GetTID() {
   if (in_vcore_context())
     return 0;
   return reinterpret_cast<struct pthread_tcb *>(current_uthread)->id;
+}
+
+#elif defined(__myriad2__)
+
+pid_t GetTID() {
+  uint32_t tid;
+  rtems_task_ident(RTEMS_SELF, 0, &tid);
+  return tid;
 }
 
 #else
