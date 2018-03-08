@@ -154,8 +154,8 @@ TEST(Split, APIExamples) {
   {
     // Uses the SkipWhitespace predicate.
     using absl::SkipWhitespace;
-    std::vector<std::string> v = absl::StrSplit("a, ,,b,", ',', SkipWhitespace());
-    EXPECT_THAT(v, ElementsAre("a", "b"));
+    std::vector<std::string> v = absl::StrSplit(" a , ,,b,", ',', SkipWhitespace());
+    EXPECT_THAT(v, ElementsAre(" a ", "b"));
   }
 
   {
@@ -241,10 +241,10 @@ TEST(SplitIterator, Basics) {
 
   EXPECT_NE(it, end);
   EXPECT_EQ("a", *it);  // tests dereference
-  ++it;  // tests preincrement
+  ++it;                 // tests preincrement
   EXPECT_NE(it, end);
   EXPECT_EQ("b", std::string(it->data(), it->size()));  // tests dereference as ptr
-  it++;  // tests postincrement
+  it++;                                            // tests postincrement
   EXPECT_EQ(it, end);
 }
 
@@ -265,10 +265,10 @@ TEST(SplitIterator, Predicate) {
 
   EXPECT_NE(it, end);
   EXPECT_EQ("a", *it);  // tests dereference
-  ++it;  // tests preincrement -- "b" should be skipped here.
+  ++it;                 // tests preincrement -- "b" should be skipped here.
   EXPECT_NE(it, end);
   EXPECT_EQ("c", std::string(it->data(), it->size()));  // tests dereference as ptr
-  it++;  // tests postincrement
+  it++;                                            // tests postincrement
   EXPECT_EQ(it, end);
 }
 
@@ -278,13 +278,13 @@ TEST(SplitIterator, EdgeCases) {
     std::string in;
     std::vector<std::string> expect;
   } specs[] = {
-    {"", {""}},
-    {"foo", {"foo"}},
-    {",", {"", ""}},
-    {",foo", {"", "foo"}},
-    {"foo,", {"foo", ""}},
-    {",foo,", {"", "foo", ""}},
-    {"foo,bar", {"foo", "bar"}},
+      {"", {""}},
+      {"foo", {"foo"}},
+      {",", {"", ""}},
+      {",foo", {"", "foo"}},
+      {"foo,", {"foo", ""}},
+      {",foo,", {"", "foo", ""}},
+      {"foo,bar", {"foo", "bar"}},
   };
 
   for (const auto& spec : specs) {

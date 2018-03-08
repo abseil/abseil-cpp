@@ -402,7 +402,7 @@ struct SkipWhitespace {
 //
 //   std::vector<std::string> v = absl::StrSplit(" a , ,,b,",
 //                                               ',', SkipWhitespace());
-//   // v[0] == "a", v[1] == "b"
+//   // v[0] == " a ", v[1] == "b"
 //
 // See above for more information on predicates.
 //
