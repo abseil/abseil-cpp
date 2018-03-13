@@ -14,10 +14,6 @@
 //
 // UTF8 utilities, implemented to reduce dependencies.
 //
-// If you need Unicode specific processing (for example being aware of
-// Unicode character boundaries, or knowledge of Unicode casing rules,
-// or various forms of equivalence and normalization), take a look at
-// files in i18n/utf8.
 
 #ifndef ABSL_STRINGS_INTERNAL_UTF8_H_
 #define ABSL_STRINGS_INTERNAL_UTF8_H_
