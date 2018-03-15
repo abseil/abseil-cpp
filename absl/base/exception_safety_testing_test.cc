@@ -18,6 +18,7 @@
 #include <exception>
 #include <iostream>
 #include <list>
+#include <type_traits>
 #include <vector>
 
 #include "gtest/gtest-spi.h"
@@ -683,6 +684,18 @@ TEST(AllocInspectorTest, ConstructedTwice) {
         new (&storage) Tracked;
       },
       "re-constructed");
+  reinterpret_cast<Tracked*>(&storage)->~Tracked();
 }
+
+TEST(ThrowingValueTraitsTest, RelationalOperators) {
+  ThrowingValue<> a, b;
+  EXPECT_TRUE((std::is_convertible<decltype(a == b), bool>::value));
+  EXPECT_TRUE((std::is_convertible<decltype(a != b), bool>::value));
+  EXPECT_TRUE((std::is_convertible<decltype(a < b), bool>::value));
+  EXPECT_TRUE((std::is_convertible<decltype(a <= b), bool>::value));
+  EXPECT_TRUE((std::is_convertible<decltype(a > b), bool>::value));
+  EXPECT_TRUE((std::is_convertible<decltype(a >= b), bool>::value));
+}
+
 }  // namespace
 }  // namespace absl

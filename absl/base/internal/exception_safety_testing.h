@@ -203,12 +203,12 @@ extern exceptions_internal::NoThrowTag no_throw_ctor;
 inline void SetCountdown() { exceptions_internal::countdown = 0; }
 inline void UnsetCountdown() { exceptions_internal::countdown = -1; }
 
-// A test class which is contextually convertible to bool.  The conversion can
-// be instrumented to throw at a controlled time.
+// A test class which is convertible to bool.  The conversion can be
+// instrumented to throw at a controlled time.
 class ThrowingBool {
  public:
   ThrowingBool(bool b) noexcept : b_(b) {}  // NOLINT(runtime/explicit)
-  explicit operator bool() const {
+  operator bool() const {  // NOLINT(runtime/explicit)
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     return b_;
   }
@@ -355,6 +355,8 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   }
 
   // Comparison Operators
+  // NOTE: We use `ThrowingBool` instead of `bool` because most STL
+  // types/containers requires T to be convertible to bool.
   friend ThrowingBool operator==(const ThrowingValue& a,
                                  const ThrowingValue& b) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
