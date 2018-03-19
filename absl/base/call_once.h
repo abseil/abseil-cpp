@@ -43,7 +43,6 @@ namespace absl {
 class once_flag;
 
 namespace base_internal {
-// Implementation detail.
 std::atomic<uint32_t>* ControlWord(absl::once_flag* flag);
 }  // namespace base_internal
 
