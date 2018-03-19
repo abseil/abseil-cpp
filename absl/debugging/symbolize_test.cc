@@ -51,6 +51,28 @@ void ABSL_ATTRIBUTE_NOINLINE Foo::func(int) {
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
+// Create functions that will remain in different text sections in the
+// final binary when linker option "-z,keep-text-section-prefix" is used.
+int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.unlikely) unlikely_func() {
+  return 0;
+}
+
+int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.hot) hot_func() {
+  return 0;
+}
+
+int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.startup) startup_func() {
+  return 0;
+}
+
+int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.exit) exit_func() {
+  return 0;
+}
+
+int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text) regular_func() {
+  return 0;
+}
+
 // Thread-local data may confuse the symbolizer, ensure that it does not.
 // Variable sizes and order are important.
 #if ABSL_PER_THREAD_TLS
@@ -134,6 +156,14 @@ TEST(Symbolize, Truncation) {
 TEST(Symbolize, SymbolizeWithDemangling) {
   Foo::func(100);
   EXPECT_STREQ("Foo::func()", TrySymbolize((void *)(&Foo::func)));
+}
+
+TEST(Symbolize, SymbolizeSplitTextSections) {
+  EXPECT_STREQ("unlikely_func()", TrySymbolize((void *)(&unlikely_func)));
+  EXPECT_STREQ("hot_func()", TrySymbolize((void *)(&hot_func)));
+  EXPECT_STREQ("startup_func()", TrySymbolize((void *)(&startup_func)));
+  EXPECT_STREQ("exit_func()", TrySymbolize((void *)(&exit_func)));
+  EXPECT_STREQ("regular_func()", TrySymbolize((void *)(&regular_func)));
 }
 
 // Tests that verify that Symbolize stack footprint is within some limit.
