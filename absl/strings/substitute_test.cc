@@ -46,8 +46,14 @@ TEST(SubstituteTest, Substitute) {
   // Pointer.
   const int* int_p = reinterpret_cast<const int*>(0x12345);
   std::string str = absl::Substitute("$0", int_p);
-  EXPECT_EQ(absl::StrCat("0x", absl::Hex(reinterpret_cast<intptr_t>(int_p))),
-            str);
+  EXPECT_EQ(absl::StrCat("0x", absl::Hex(int_p)), str);
+
+  // Volatile Pointer.
+  // Like C++ streamed I/O, such pointers implicitly become bool
+  volatile int vol = 237;
+  volatile int *volatile volptr = &vol;
+  str = absl::Substitute("$0", volptr);
+  EXPECT_EQ("true", str);
 
   // null is special. StrCat prints 0x0. Substitute prints NULL.
   const uint64_t* null_p = nullptr;

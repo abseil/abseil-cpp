@@ -127,21 +127,32 @@ struct Hex {
   char fill;
 
   template <typename Int>
-  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<sizeof(Int) == 1>::type* = nullptr)
+  explicit Hex(
+      Int v, PadSpec spec = absl::kNoPad,
+      typename std::enable_if<sizeof(Int) == 1 &&
+                              !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint8_t>(v)) {}
   template <typename Int>
-  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<sizeof(Int) == 2>::type* = nullptr)
+  explicit Hex(
+      Int v, PadSpec spec = absl::kNoPad,
+      typename std::enable_if<sizeof(Int) == 2 &&
+                              !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint16_t>(v)) {}
   template <typename Int>
-  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<sizeof(Int) == 4>::type* = nullptr)
+  explicit Hex(
+      Int v, PadSpec spec = absl::kNoPad,
+      typename std::enable_if<sizeof(Int) == 4 &&
+                              !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint32_t>(v)) {}
   template <typename Int>
-  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<sizeof(Int) == 8>::type* = nullptr)
+  explicit Hex(
+      Int v, PadSpec spec = absl::kNoPad,
+      typename std::enable_if<sizeof(Int) == 8 &&
+                              !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint64_t>(v)) {}
+  template <typename Pointee>
+  explicit Hex(Pointee* v, PadSpec spec = absl::kNoPad)
+      : Hex(spec, reinterpret_cast<uintptr_t>(v)) {}
 
  private:
   Hex(PadSpec spec, uint64_t v)

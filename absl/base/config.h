@@ -250,6 +250,7 @@
 //   Windows                           _WIN32
 //   NaCL                              __native_client__
 //   AsmJS                             __asmjs__
+//   WebAssembly                       __wasm__
 //   Fuchsia                           __Fuchsia__
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
@@ -263,7 +264,7 @@
 #error ABSL_HAVE_MMAP cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||   \
     defined(__ros__) || defined(__native_client__) || defined(__asmjs__) || \
-    defined(__Fuchsia__)
+    defined(__wasm__) || defined(__Fuchsia__)
 #define ABSL_HAVE_MMAP 1
 #endif
 

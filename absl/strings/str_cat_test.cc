@@ -234,7 +234,7 @@ TEST(StrCat, CustomAllocator) {
 
 TEST(StrCat, MaxArgs) {
   std::string result;
-  // Test 10 up to 26 arguments, the current maximum
+  // Test 10 up to 26 arguments, the old maximum
   result = absl::StrCat(1, 2, 3, 4, 5, 6, 7, 8, 9, "a");
   EXPECT_EQ(result, "123456789a");
   result = absl::StrCat(1, 2, 3, 4, 5, 6, 7, 8, 9, "a", "b");
@@ -469,6 +469,12 @@ void CheckHexDec64(uint64_t v) {
 
   long long llv = static_cast<long long>(ullv);  // NOLINT(runtime/int)
   CheckDec(llv, "%lld", "%0*lld", "%*lld");
+
+  if (sizeof(v) == sizeof(&v)) {
+    auto uintptr = static_cast<uintptr_t>(v);
+    void* ptr = reinterpret_cast<void*>(uintptr);
+    CheckHex(ptr, "%llx", "%0*llx", "%*llx");
+  }
 }
 
 void CheckHexDec32(uint32_t uv) {
@@ -476,6 +482,12 @@ void CheckHexDec32(uint32_t uv) {
   CheckDec(uv, "%u", "%0*u", "%*u");
   int32_t v = static_cast<int32_t>(uv);
   CheckDec(v, "%d", "%0*d", "%*d");
+
+  if (sizeof(v) == sizeof(&v)) {
+    auto uintptr = static_cast<uintptr_t>(v);
+    void* ptr = reinterpret_cast<void*>(uintptr);
+    CheckHex(ptr, "%llx", "%0*llx", "%*llx");
+  }
 }
 
 void CheckAll(uint64_t v) {

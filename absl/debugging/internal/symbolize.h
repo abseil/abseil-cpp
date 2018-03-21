@@ -24,7 +24,7 @@
 #ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #error ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE cannot be directly set
 #elif defined(__ELF__) && defined(__GLIBC__) && !defined(__native_client__) && \
-    !defined(__asmjs__)
+    !defined(__asmjs__) && !defined(__wasm__)
 #define ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE 1
 
 #include <elf.h>
