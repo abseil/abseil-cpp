@@ -75,7 +75,7 @@
 // the production implementation hasn't been fully ported yet.
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
 #error ABSL_INTERNAL_USE_NONPROD_MUTEX cannot be directly set
-#elif defined(ABSL_LOW_LEVEL_ALLOC_MISSING)
+#elif defined(ABSL_LOW_LEVEL_ALLOC_MISSING) || defined(ABSL_USE_NONPROD_MUTEX)
 #define ABSL_INTERNAL_USE_NONPROD_MUTEX 1
 #include "absl/synchronization/internal/mutex_nonprod.inc"
 #endif
