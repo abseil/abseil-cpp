@@ -44,7 +44,7 @@ class ThrowingValueTest : public ::testing::Test {
   void SetUp() override { UnsetCountdown(); }
 
  private:
-  AllocInspector clouseau_;
+  ConstructorTracker clouseau_;
 };
 
 TEST_F(ThrowingValueTest, Throws) {
@@ -279,7 +279,7 @@ class ThrowingAllocatorTest : public ::testing::Test {
   void SetUp() override { UnsetCountdown(); }
 
  private:
-  AllocInspector borlu_;
+  ConstructorTracker borlu_;
 };
 
 TEST_F(ThrowingAllocatorTest, MemoryManagement) {
@@ -652,22 +652,22 @@ struct Tracked : private exceptions_internal::TrackedObject {
   Tracked() : TrackedObject(ABSL_PRETTY_FUNCTION) {}
 };
 
-TEST(AllocInspectorTest, Pass) {
-  AllocInspector javert;
+TEST(ConstructorTrackerTest, Pass) {
+  ConstructorTracker javert;
   Tracked t;
 }
 
-TEST(AllocInspectorTest, NotDestroyed) {
+TEST(ConstructorTrackerTest, NotDestroyed) {
   absl::aligned_storage_t<sizeof(Tracked), alignof(Tracked)> storage;
   EXPECT_NONFATAL_FAILURE(
       {
-        AllocInspector gadget;
+        ConstructorTracker gadget;
         new (&storage) Tracked;
       },
       "not destroyed");
 }
 
-TEST(AllocInspectorTest, DestroyedTwice) {
+TEST(ConstructorTrackerTest, DestroyedTwice) {
   EXPECT_NONFATAL_FAILURE(
       {
         Tracked t;
@@ -676,7 +676,7 @@ TEST(AllocInspectorTest, DestroyedTwice) {
       "destroyed improperly");
 }
 
-TEST(AllocInspectorTest, ConstructedTwice) {
+TEST(ConstructorTrackerTest, ConstructedTwice) {
   absl::aligned_storage_t<sizeof(Tracked), alignof(Tracked)> storage;
   EXPECT_NONFATAL_FAILURE(
       {
@@ -695,6 +695,13 @@ TEST(ThrowingValueTraitsTest, RelationalOperators) {
   EXPECT_TRUE((std::is_convertible<decltype(a <= b), bool>::value));
   EXPECT_TRUE((std::is_convertible<decltype(a > b), bool>::value));
   EXPECT_TRUE((std::is_convertible<decltype(a >= b), bool>::value));
+}
+
+TEST(ThrowingAllocatorTraitsTest, Assignablility) {
+  EXPECT_TRUE(std::is_move_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_copy_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_nothrow_move_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_nothrow_copy_assignable<ThrowingAllocator<int>>::value);
 }
 
 }  // namespace

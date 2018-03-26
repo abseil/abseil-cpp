@@ -486,7 +486,7 @@ void CheckHexDec32(uint32_t uv) {
   if (sizeof(v) == sizeof(&v)) {
     auto uintptr = static_cast<uintptr_t>(v);
     void* ptr = reinterpret_cast<void*>(uintptr);
-    CheckHex(ptr, "%llx", "%0*llx", "%*llx");
+    CheckHex(ptr, "%x", "%0*x", "%*x");
   }
 }
 

@@ -854,7 +854,7 @@ Time FromChrono(const std::chrono::system_clock::time_point& tp);
 //   absl::Time t = absl::FromTimeT(123);
 //   auto tp = absl::ToChronoTime(t);
 //   // tp == std::chrono::system_clock::from_time_t(123);
-std::chrono::system_clock::time_point ToChronoTime(absl::Time);
+std::chrono::system_clock::time_point ToChronoTime(Time);
 
 // RFC3339_full
 // RFC3339_sec
@@ -1070,13 +1070,16 @@ inline bool LoadTimeZone(const std::string& name, TimeZone* tz) {
 // Note: If the absolute value of the offset is greater than 24 hours
 // you'll get UTC (i.e., no offset) instead.
 inline TimeZone FixedTimeZone(int seconds) {
-  return TimeZone(cctz::fixed_time_zone(std::chrono::seconds(seconds)));
+  return TimeZone(
+      cctz::fixed_time_zone(std::chrono::seconds(seconds)));
 }
 
 // UTCTimeZone()
 //
 // Convenience method returning the UTC time zone.
-inline TimeZone UTCTimeZone() { return TimeZone(cctz::utc_time_zone()); }
+inline TimeZone UTCTimeZone() {
+  return TimeZone(cctz::utc_time_zone());
+}
 
 // LocalTimeZone()
 //
@@ -1084,7 +1087,9 @@ inline TimeZone UTCTimeZone() { return TimeZone(cctz::utc_time_zone()); }
 // no configured local zone.  Warning: Be wary of using LocalTimeZone(),
 // and particularly so in a server process, as the zone configured for the
 // local machine should be irrelevant.  Prefer an explicit zone name.
-inline TimeZone LocalTimeZone() { return TimeZone(cctz::local_time_zone()); }
+inline TimeZone LocalTimeZone() {
+  return TimeZone(cctz::local_time_zone());
+}
 
 // ============================================================================
 // Implementation Details Follow
@@ -1139,16 +1144,16 @@ constexpr Time FromUnixDuration(Duration d) { return Time(d); }
 constexpr Duration ToUnixDuration(Time t) { return t.rep_; }
 
 template <std::intmax_t N>
-constexpr absl::Duration FromInt64(int64_t v, std::ratio<1, N>) {
+constexpr Duration FromInt64(int64_t v, std::ratio<1, N>) {
   static_assert(0 < N && N <= 1000 * 1000 * 1000, "Unsupported ratio");
   // Subsecond ratios cannot overflow.
   return MakeNormalizedDuration(
       v / N, v % N * kTicksPerNanosecond * 1000 * 1000 * 1000 / N);
 }
-constexpr absl::Duration FromInt64(int64_t v, std::ratio<60>) {
+constexpr Duration FromInt64(int64_t v, std::ratio<60>) {
   return Minutes(v);
 }
-constexpr absl::Duration FromInt64(int64_t v, std::ratio<3600>) {
+constexpr Duration FromInt64(int64_t v, std::ratio<3600>) {
   return Hours(v);
 }
 
@@ -1166,41 +1171,40 @@ constexpr auto IsValidRep64(char) -> bool {
 
 // Converts a std::chrono::duration to an absl::Duration.
 template <typename Rep, typename Period>
-constexpr absl::Duration FromChrono(
-    const std::chrono::duration<Rep, Period>& d) {
+constexpr Duration FromChrono(const std::chrono::duration<Rep, Period>& d) {
   static_assert(IsValidRep64<Rep>(0), "duration::rep is invalid");
   return FromInt64(int64_t{d.count()}, Period{});
 }
 
 template <typename Ratio>
-int64_t ToInt64(absl::Duration d, Ratio) {
+int64_t ToInt64(Duration d, Ratio) {
   // Note: This may be used on MSVC, which may have a system_clock period of
   // std::ratio<1, 10 * 1000 * 1000>
   return ToInt64Seconds(d * Ratio::den / Ratio::num);
 }
 // Fastpath implementations for the 6 common duration units.
-inline int64_t ToInt64(absl::Duration d, std::nano) {
+inline int64_t ToInt64(Duration d, std::nano) {
   return ToInt64Nanoseconds(d);
 }
-inline int64_t ToInt64(absl::Duration d, std::micro) {
+inline int64_t ToInt64(Duration d, std::micro) {
   return ToInt64Microseconds(d);
 }
-inline int64_t ToInt64(absl::Duration d, std::milli) {
+inline int64_t ToInt64(Duration d, std::milli) {
   return ToInt64Milliseconds(d);
 }
-inline int64_t ToInt64(absl::Duration d, std::ratio<1>) {
+inline int64_t ToInt64(Duration d, std::ratio<1>) {
   return ToInt64Seconds(d);
 }
-inline int64_t ToInt64(absl::Duration d, std::ratio<60>) {
+inline int64_t ToInt64(Duration d, std::ratio<60>) {
   return ToInt64Minutes(d);
 }
-inline int64_t ToInt64(absl::Duration d, std::ratio<3600>) {
+inline int64_t ToInt64(Duration d, std::ratio<3600>) {
   return ToInt64Hours(d);
 }
 
 // Converts an absl::Duration to a chrono duration of type T.
 template <typename T>
-T ToChronoDuration(absl::Duration d) {
+T ToChronoDuration(Duration d) {
   using Rep = typename T::rep;
   using Period = typename T::period;
   static_assert(IsValidRep64<Rep>(0), "duration::rep is invalid");

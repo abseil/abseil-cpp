@@ -75,7 +75,7 @@ namespace {
 
 class AnyExceptionSafety : public ::testing::Test {
  private:
-  absl::AllocInspector inspector_;
+  absl::ConstructorTracker inspector_;
 };
 
 testing::AssertionResult AnyIsEmpty(absl::any* a) {

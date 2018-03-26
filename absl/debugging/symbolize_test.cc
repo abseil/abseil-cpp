@@ -27,7 +27,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
-#include "absl/base/internal/malloc_extension.h"
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
@@ -192,14 +191,13 @@ static const char *SymbolizeStackConsumption(void *pc, int *stack_consumed) {
 
 static int GetStackConsumptionUpperLimit() {
   // Symbolize stack consumption should be within 2kB.
-  const int kStackConsumptionUpperLimit = 2048;
-  // Account for ASan/TSan instrumentation requiring additional stack space.
-  size_t multiplier = 0;
-  if (absl::base_internal::MallocExtension::instance()->GetNumericProperty(
-          "dynamic_tool.stack_size_multiplier", &multiplier)) {
-    return kStackConsumptionUpperLimit * multiplier;
-  }
-  return kStackConsumptionUpperLimit;
+  int stack_consumption_upper_limit = 2048;
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER)
+  // Account for sanitizer instrumentation requiring additional stack space.
+  stack_consumption_upper_limit *= 5;
+#endif
+  return stack_consumption_upper_limit;
 }
 
 TEST(Symbolize, SymbolizeStackConsumption) {

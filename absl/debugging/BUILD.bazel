@@ -70,7 +70,6 @@ cc_test(
         ":symbolize",
         "//absl/base",
         "//absl/base:core_headers",
-        "//absl/base:malloc_extension",
         "//absl/memory",
         "@com_google_googletest//:gtest",
     ],
