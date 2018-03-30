@@ -216,7 +216,9 @@ cc_library(
     testonly = 1,
     hdrs = ["internal/exception_testing.h"],
     copts = ABSL_TEST_COPTS,
-    visibility = ["//absl:__subpackages__"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":config",
         "@com_google_googletest//:gtest",

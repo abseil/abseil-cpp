@@ -152,10 +152,10 @@ void CallOnceImpl(std::atomic<uint32_t>* control,
         old_control != kOnceDone) {
       ABSL_RAW_LOG(
           FATAL,
-          "Unexpected value for control word: %d. Either the control word "
+          "Unexpected value for control word: %x. Either the control word "
           "has non-static storage duration (where GoogleOnceDynamic might "
           "be appropriate), or there's been a memory corruption.",
-          old_control);
+          static_cast<unsigned>(old_control));
     }
   }
 #endif  // NDEBUG
