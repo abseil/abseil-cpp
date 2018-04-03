@@ -587,9 +587,21 @@ TEST(AnyTest, ConversionConstructionCausesOneCopy) {
 // Tests for Exception Behavior //
 //////////////////////////////////
 
+#if defined(ABSL_HAVE_STD_ANY)
+
+// If using a std `any` implementation, we can't check for a specific message.
+#define ABSL_ANY_TEST_EXPECT_BAD_ANY_CAST(...)                      \
+  ABSL_BASE_INTERNAL_EXPECT_FAIL((__VA_ARGS__), absl::bad_any_cast, \
+                                 "")
+
+#else
+
+// If using the absl `any` implementation, we can rely on a specific message.
 #define ABSL_ANY_TEST_EXPECT_BAD_ANY_CAST(...)                      \
   ABSL_BASE_INTERNAL_EXPECT_FAIL((__VA_ARGS__), absl::bad_any_cast, \
                                  "Bad any cast")
+
+#endif  // defined(ABSL_HAVE_STD_ANY)
 
 TEST(AnyTest, ThrowBadAlloc) {
   {
