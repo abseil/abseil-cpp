@@ -539,7 +539,8 @@ int MallocHook::GetCallerStackTrace(void** result, int max_depth,
 // msan config; Replace MALLOC_HOOK_MMAP_DISABLE with
 // ABSL_MALLOC_HOOK_MMAP_DISABLE for other special cases.
 #if !defined(THREAD_SANITIZER) && !defined(MEMORY_SANITIZER) && \
-    !defined(ABSL_MALLOC_HOOK_MMAP_DISABLE) && defined(__linux__)
+    !defined(ABSL_MALLOC_HOOK_MMAP_DISABLE) && !defined(__ANDROID__) && \
+    defined(__linux__)
 #include "absl/base/internal/malloc_hook_mmap_linux.inc"
 
 #elif ABSL_HAVE_MMAP
