@@ -7,10 +7,11 @@ standard library.
 ## Table of Contents
 
 - [About Abseil](#about)
+- [Quickstart](#quickstart)
+- [Building Abseil](#build)
 - [Codemap](#codemap)
 - [License](#license)
 - [Links](#links)
-- [Build with cmake](#cmake)
 
 <a name="about"></a>
 ## About Abseil
@@ -29,6 +30,26 @@ Abseil is not meant to be a competitor to the standard library; we've
 just found that many of these utilities serve a purpose within our code
 base, and we now want to provide those resources to the C++ community as
 a whole.
+
+<a name="quickstart"></a>
+## Quickstart
+
+If you want to just get started, make sure you at least run through the
+[Abseil Quickstart](https://abseil.io/docs/cpp/quickstart). The Quickstart
+contains information about setting up your development environment, downloading
+the Abseil code, running tests, and getting a simple binary working.
+
+<a name="build"></a>
+## Building Abseil
+
+[Bazel](http://bazel.build) is the official build system for Abseil,
+which is supported on most major platforms (Linux, Windows, MacOS, for example)
+and compilers. See the [quickstart](https://abseil.io/docs/cpp/quickstart) for
+more information on building Abseil using the Bazel build system.
+
+<a name="cmake"></a>
+If you require CMake support, please check the
+[CMake build instructions](CMake/README.md).
 
 ## Codemap
 
@@ -85,8 +106,3 @@ For more information about Abseil:
 * Peruse our
   [Abseil Compatibility Guarantees](http://abseil.io/about/compatibility) to
   understand both what we promise to you, and what we expect of you in return.
-  
-<a name="cmake"></a>
-## Build with CMake
-
-Please check the [CMake build instructions](CMake/README.md)

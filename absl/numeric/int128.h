@@ -80,8 +80,8 @@ namespace absl {
 //                                    // converted to float.
 //
 //     absl::uint128 v;
-//     absl::uint64_t i = v;                         // Error
-//     absl::uint64_t i = static_cast<uint64_t>(v);  // OK
+//     uint64_t i = v;                         // Error
+//     uint64_t i = static_cast<uint64_t>(v);  // OK
 //
 class
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
