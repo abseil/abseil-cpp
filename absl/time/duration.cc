@@ -62,6 +62,7 @@
 #include <limits>
 #include <string>
 
+#include "absl/base/casts.h"
 #include "absl/numeric/int128.h"
 #include "absl/time/time.h"
 
@@ -165,14 +166,16 @@ inline Duration MakeDurationFromU128(uint128 u128, bool is_neg) {
   return time_internal::MakeDuration(rep_hi, rep_lo);
 }
 
-// Convert int64_t to uint64_t in twos-complement system.
-inline uint64_t EncodeTwosComp(int64_t v) { return static_cast<uint64_t>(v); }
-
-// Convert uint64_t to int64_t in twos-complement system.
-inline int64_t DecodeTwosComp(uint64_t v) {
-  if (v <= kint64max) return static_cast<int64_t>(v);
-  return static_cast<int64_t>(v - kint64max - 1) + kint64min;
-}
+// Convert between int64_t and uint64_t, preserving representation. This
+// allows us to do arithmetic in the unsigned domain, where overflow has
+// well-defined behavior. See operator+=() and operator-=().
+//
+// C99 7.20.1.1.1, as referenced by C++11 18.4.1.2, says, "The typedef
+// name intN_t designates a signed integer type with width N, no padding
+// bits, and a two's complement representation." So, we can convert to
+// and from the corresponding uint64_t value using a bit cast.
+inline uint64_t EncodeTwosComp(int64_t v) { return bit_cast<uint64_t>(v); }
+inline int64_t DecodeTwosComp(uint64_t v) { return bit_cast<int64_t>(v); }
 
 // Note: The overflow detection in this function is done using greater/less *or
 // equal* because kint64max/min is too large to be represented exactly in a
