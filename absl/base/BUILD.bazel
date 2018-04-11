@@ -104,6 +104,7 @@ cc_library(
         "internal/malloc_hook_mmap_linux.inc",
     ],
     hdrs = [
+        "internal/direct_mmap.h",
         "internal/low_level_alloc.h",
         "internal/malloc_hook.h",
         "internal/malloc_hook_c.h",

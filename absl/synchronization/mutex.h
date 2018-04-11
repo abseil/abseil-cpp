@@ -519,11 +519,16 @@ class SCOPED_LOCKABLE MutexLock {
   explicit MutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
     this->mu_->Lock();
   }
+
+  MutexLock(const MutexLock &) = delete;  // NOLINT(runtime/mutex)
+  MutexLock(MutexLock&&) = delete;  // NOLINT(runtime/mutex)
+  MutexLock& operator=(const MutexLock&) = delete;
+  MutexLock& operator=(MutexLock&&) = delete;
+
   ~MutexLock() UNLOCK_FUNCTION() { this->mu_->Unlock(); }
+
  private:
   Mutex *const mu_;
-  MutexLock(const MutexLock &) = delete;  // NOLINT(runtime/mutex)
-  MutexLock& operator=(const MutexLock&) = delete;
 };
 
 // ReaderMutexLock
@@ -536,13 +541,18 @@ class SCOPED_LOCKABLE ReaderMutexLock {
       :  mu_(mu) {
     mu->ReaderLock();
   }
+
+  ReaderMutexLock(const ReaderMutexLock&) = delete;
+  ReaderMutexLock(ReaderMutexLock&&) = delete;
+  ReaderMutexLock& operator=(const ReaderMutexLock&) = delete;
+  ReaderMutexLock& operator=(ReaderMutexLock&&) = delete;
+
   ~ReaderMutexLock() UNLOCK_FUNCTION() {
     this->mu_->ReaderUnlock();
   }
+
  private:
   Mutex *const mu_;
-  ReaderMutexLock(const ReaderMutexLock&) = delete;
-  ReaderMutexLock& operator=(const ReaderMutexLock&) = delete;
 };
 
 // WriterMutexLock
@@ -555,13 +565,18 @@ class SCOPED_LOCKABLE WriterMutexLock {
       : mu_(mu) {
     mu->WriterLock();
   }
+
+  WriterMutexLock(const WriterMutexLock&) = delete;
+  WriterMutexLock(WriterMutexLock&&) = delete;
+  WriterMutexLock& operator=(const WriterMutexLock&) = delete;
+  WriterMutexLock& operator=(WriterMutexLock&&) = delete;
+
   ~WriterMutexLock() UNLOCK_FUNCTION() {
     this->mu_->WriterUnlock();
   }
+
  private:
   Mutex *const mu_;
-  WriterMutexLock(const WriterMutexLock&) = delete;
-  WriterMutexLock& operator=(const WriterMutexLock&) = delete;
 };
 
 // -----------------------------------------------------------------------------
@@ -834,7 +849,9 @@ class SCOPED_LOCKABLE MutexLockMaybe {
  private:
   Mutex *const mu_;
   MutexLockMaybe(const MutexLockMaybe&) = delete;
+  MutexLockMaybe(MutexLockMaybe&&) = delete;
   MutexLockMaybe& operator=(const MutexLockMaybe&) = delete;
+  MutexLockMaybe& operator=(MutexLockMaybe&&) = delete;
 };
 
 // ReleaseableMutexLock
@@ -856,7 +873,9 @@ class SCOPED_LOCKABLE ReleasableMutexLock {
  private:
   Mutex *mu_;
   ReleasableMutexLock(const ReleasableMutexLock&) = delete;
+  ReleasableMutexLock(ReleasableMutexLock&&) = delete;
   ReleasableMutexLock& operator=(const ReleasableMutexLock&) = delete;
+  ReleasableMutexLock& operator=(ReleasableMutexLock&&) = delete;
 };
 
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
