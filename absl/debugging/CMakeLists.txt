@@ -25,6 +25,7 @@ list(APPEND DEBUGGING_INTERNAL_HEADERS
   "internal/address_is_readable.h"
   "internal/demangle.h"
   "internal/elf_mem_image.h"
+  "internal/examine_stack.h"
   "internal/stacktrace_config.h"
   "internal/symbolize.h"
   "internal/vdso_support.h"
@@ -49,6 +50,12 @@ list(APPEND SYMBOLIZE_SRC
   ${DEBUGGING_INTERNAL_HEADERS}
 )
 
+list(APPEND EXAMINE_STACK_SRC
+  "internal/examine_stack.cc"
+  ${DEBUGGING_PUBLIC_HEADERS}
+  ${DEBUGGING_INTERNAL_HEADERS}
+)
+
 absl_library(
   TARGET
     absl_stacktrace
@@ -65,6 +72,17 @@ absl_library(
     ${SYMBOLIZE_SRC}
   EXPORT_NAME
     symbolize
+)
+
+# Internal-only. Projects external to Abseil should not depend
+# directly on this library.
+absl_library(
+  TARGET
+    absl_examine_stack
+  SOURCES
+    ${EXAMINE_STACK_SRC}
+  EXPORT_NAME
+    examine_stack
 )
 
 list(APPEND LEAK_CHECK_SRC

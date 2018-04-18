@@ -18,7 +18,10 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+
 exceptions_internal::NoThrowTag no_throw_ctor;
+exceptions_internal::StrongGuaranteeTagType strong_guarantee;
+
 namespace exceptions_internal {
 
 int countdown = -1;

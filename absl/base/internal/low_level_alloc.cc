@@ -23,6 +23,7 @@
 
 #include "absl/base/call_once.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/direct_mmap.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/macros.h"
 #include "absl/base/thread_annotations.h"
@@ -49,8 +50,6 @@
 #include <new>                   // for placement-new
 
 #include "absl/base/dynamic_annotations.h"
-#include "absl/base/internal/malloc_hook.h"
-#include "absl/base/internal/malloc_hook_invoke.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 
@@ -405,7 +404,7 @@ bool LowLevelAlloc::DeleteArena(Arena *arena) {
     if ((arena->flags & LowLevelAlloc::kAsyncSignalSafe) == 0) {
       munmap_result = munmap(region, size);
     } else {
-      munmap_result = MallocHook::UnhookedMUnmap(region, size);
+      munmap_result = base_internal::DirectMunmap(region, size);
     }
     if (munmap_result != 0) {
       ABSL_RAW_LOG(FATAL, "LowLevelAlloc::DeleteArena: munmap failed: %d",
@@ -503,9 +502,6 @@ void LowLevelAlloc::Free(void *v) {
     ABSL_RAW_CHECK(f->header.magic == Magic(kMagicAllocated, &f->header),
                    "bad magic number in Free()");
     LowLevelAlloc::Arena *arena = f->header.arena;
-    if ((arena->flags & kCallMallocHook) != 0) {
-      MallocHook::InvokeDeleteHook(v);
-    }
     ArenaLock section(arena);
     AddToFreelist(v, arena);
     ABSL_RAW_CHECK(arena->allocation_count > 0, "nothing in arena to free");
@@ -550,7 +546,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
       ABSL_RAW_CHECK(new_pages != nullptr, "VirtualAlloc failed");
 #else
       if ((arena->flags & LowLevelAlloc::kAsyncSignalSafe) != 0) {
-        new_pages = MallocHook::UnhookedMMap(nullptr, new_pages_size,
+        new_pages = base_internal::DirectMmap(nullptr, new_pages_size,
             PROT_WRITE|PROT_READ, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
       } else {
         new_pages = mmap(nullptr, new_pages_size, PROT_WRITE | PROT_READ,
@@ -593,21 +589,12 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
 
 void *LowLevelAlloc::Alloc(size_t request) {
   void *result = DoAllocWithArena(request, DefaultArena());
-  // The default arena always calls the malloc hook.
-  // This call must be directly in the user-called allocator function
-  // for MallocHook::GetCallerStackTrace to work properly
-  MallocHook::InvokeNewHook(result, request);
   return result;
 }
 
 void *LowLevelAlloc::AllocWithArena(size_t request, Arena *arena) {
   ABSL_RAW_CHECK(arena != nullptr, "must pass a valid arena");
   void *result = DoAllocWithArena(request, arena);
-  if ((arena->flags & kCallMallocHook) != 0) {
-    // this call must be directly in the user-called allocator function
-    // for MallocHook::GetCallerStackTrace to work properly
-    MallocHook::InvokeNewHook(result, request);
-  }
   return result;
 }
 

@@ -174,8 +174,10 @@ inline Duration MakeDurationFromU128(uint128 u128, bool is_neg) {
 // name intN_t designates a signed integer type with width N, no padding
 // bits, and a two's complement representation." So, we can convert to
 // and from the corresponding uint64_t value using a bit cast.
-inline uint64_t EncodeTwosComp(int64_t v) { return bit_cast<uint64_t>(v); }
-inline int64_t DecodeTwosComp(uint64_t v) { return bit_cast<int64_t>(v); }
+inline uint64_t EncodeTwosComp(int64_t v) {
+  return absl::bit_cast<uint64_t>(v);
+}
+inline int64_t DecodeTwosComp(uint64_t v) { return absl::bit_cast<int64_t>(v); }
 
 // Note: The overflow detection in this function is done using greater/less *or
 // equal* because kint64max/min is too large to be represented exactly in a

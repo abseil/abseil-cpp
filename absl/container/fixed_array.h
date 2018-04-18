@@ -207,7 +207,7 @@ class FixedArray {
   // Overload of FixedArray::at() to return a const reference to the ith element
   // of the fixed array.
   const_reference at(size_type i) const {
-    if (i >= size()) {
+    if (ABSL_PREDICT_FALSE(i >= size())) {
       base_internal::ThrowStdOutOfRange("FixedArray::at failed bounds check");
     }
     return data()[i];

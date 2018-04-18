@@ -67,7 +67,7 @@ namespace base_internal {
 // Platform specific logic extracted from
 // https://chromium.googlesource.com/linux-syscall-support/+/master/linux_syscall_support.h
 inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
-                        off64_t offset) __THROW {
+                        off64_t offset) noexcept {
 #if defined(__i386__) || defined(__ARM_ARCH_3__) || defined(__ARM_EABI__) || \
     (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI32) ||                   \
     (defined(__PPC__) && !defined(__PPC64__)) ||                             \
@@ -129,6 +129,9 @@ inline int DirectMunmap(void* start, size_t length) {
 // For non-linux platforms where we have mmap, just dispatch directly to the
 // actual mmap()/munmap() methods.
 
+namespace absl {
+namespace base_internal {
+
 inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
                         off_t offset) {
   return mmap(start, length, prot, flags, fd, offset);
@@ -137,6 +140,9 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
 inline int DirectMunmap(void* start, size_t length) {
   return munmap(start, length);
 }
+
+}  // namespace base_internal
+}  // namespace absl
 
 #endif  // __linux__
 

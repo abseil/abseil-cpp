@@ -651,7 +651,7 @@ TEST(IntVec, AliasingCopyAssignment) {
     IntVec original;
     Fill(&original, len);
     IntVec dup = original;
-    dup = dup;
+    dup = *&dup;
     EXPECT_EQ(dup, original);
   }
 }

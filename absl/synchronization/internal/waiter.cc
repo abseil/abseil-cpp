@@ -40,8 +40,6 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
-
-#include "absl/base/internal/malloc_extension.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/optimization.h"
@@ -59,7 +57,6 @@ static void MaybeBecomeIdle() {
   const int wait_start = identity->wait_start.load(std::memory_order_relaxed);
   if (!is_idle && ticker - wait_start > Waiter::kIdlePeriods) {
     identity->is_idle.store(true, std::memory_order_relaxed);
-    base_internal::MallocExtension::instance()->MarkThreadIdle();
   }
 }
 

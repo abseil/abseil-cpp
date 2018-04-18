@@ -21,15 +21,21 @@
 #include "absl/base/internal/exception_safety_testing.h"
 
 using Thrower = absl::ThrowingValue<>;
+using NoThrowMoveThrower =
+    absl::ThrowingValue<absl::NoThrow::kMoveCtor | absl::NoThrow::kMoveAssign>;
 using ThrowerList = std::initializer_list<Thrower>;
 using ThrowerVec = std::vector<Thrower>;
 using ThrowingAlloc = absl::ThrowingAllocator<Thrower>;
 using ThrowingThrowerVec = std::vector<Thrower, ThrowingAlloc>;
 
-namespace absl {
+namespace {
 
-testing::AssertionResult AbslCheckInvariants(absl::any* a,
-                                             InternalAbslNamespaceFinder) {
+class AnyExceptionSafety : public ::testing::Test {
+ private:
+  absl::ConstructorTracker inspector_;
+};
+
+testing::AssertionResult AnyInvariants(absl::any* a) {
   using testing::AssertionFailure;
   using testing::AssertionSuccess;
 
@@ -69,17 +75,10 @@ testing::AssertionResult AbslCheckInvariants(absl::any* a,
   return AssertionSuccess();
 }
 
-}  // namespace absl
-
-namespace {
-
-class AnyExceptionSafety : public ::testing::Test {
- private:
-  absl::ConstructorTracker inspector_;
-};
-
 testing::AssertionResult AnyIsEmpty(absl::any* a) {
-  if (!a->has_value()) return testing::AssertionSuccess();
+  if (!a->has_value()) {
+    return testing::AssertionSuccess();
+  }
   return testing::AssertionFailure()
          << "a should be empty, but instead has value "
          << absl::any_cast<Thrower>(*a).Get();
@@ -100,101 +99,70 @@ TEST_F(AnyExceptionSafety, Ctors) {
           absl::in_place_type_t<ThrowingThrowerVec>(), {val}, ThrowingAlloc());
 }
 
-struct OneFactory {
-  std::unique_ptr<absl::any> operator()() const {
-    return absl::make_unique<absl::any>(absl::in_place_type_t<Thrower>(), 1,
-                                        absl::no_throw_ctor);
-  }
-};
-
-struct EmptyFactory {
-  std::unique_ptr<absl::any> operator()() const {
-    return absl::make_unique<absl::any>();
-  }
-};
-
 TEST_F(AnyExceptionSafety, Assignment) {
-  auto thrower_comp = [](const absl::any& l, const absl::any& r) {
-    return absl::any_cast<Thrower>(l) == absl::any_cast<Thrower>(r);
+  auto original =
+      absl::any(absl::in_place_type_t<Thrower>(), 1, absl::no_throw_ctor);
+  auto any_is_strong = [original](absl::any* ap) {
+    return testing::AssertionResult(ap->has_value() &&
+                                    absl::any_cast<Thrower>(original) ==
+                                        absl::any_cast<Thrower>(*ap));
   };
+  auto any_strong_tester = absl::MakeExceptionSafetyTester()
+                               .WithInitialValue(original)
+                               .WithInvariants(AnyInvariants, any_is_strong);
 
-  OneFactory one_factory;
-
-  absl::ThrowingValue<absl::NoThrow::kMoveCtor | absl::NoThrow::kMoveAssign>
-      moveable_val(2);
   Thrower val(2);
   absl::any any_val(val);
+  NoThrowMoveThrower mv_val(2);
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory, [&any_val](absl::any* ap) { *ap = any_val; },
-      absl::StrongGuarantee(one_factory, thrower_comp)));
+  auto assign_any = [&any_val](absl::any* ap) { *ap = any_val; };
+  auto assign_val = [&val](absl::any* ap) { *ap = val; };
+  auto move = [&val](absl::any* ap) { *ap = std::move(val); };
+  auto move_movable = [&mv_val](absl::any* ap) { *ap = std::move(mv_val); };
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory, [&val](absl::any* ap) { *ap = val; },
-      absl::StrongGuarantee(one_factory, thrower_comp)));
+  EXPECT_TRUE(any_strong_tester.Test(assign_any));
+  EXPECT_TRUE(any_strong_tester.Test(assign_val));
+  EXPECT_TRUE(any_strong_tester.Test(move));
+  EXPECT_TRUE(any_strong_tester.Test(move_movable));
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory, [&val](absl::any* ap) { *ap = std::move(val); },
-      absl::StrongGuarantee(one_factory, thrower_comp)));
-
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory,
-      [&moveable_val](absl::any* ap) { *ap = std::move(moveable_val); },
-      absl::StrongGuarantee(one_factory, thrower_comp)));
-
-  EmptyFactory empty_factory;
-  auto empty_comp = [](const absl::any& l, const absl::any& r) {
-    return !(l.has_value() || r.has_value());
+  auto empty_any_is_strong = [](absl::any* ap) {
+    return testing::AssertionResult{!ap->has_value()};
   };
+  auto strong_empty_any_tester =
+      absl::MakeExceptionSafetyTester()
+          .WithInitialValue(absl::any{})
+          .WithInvariants(AnyInvariants, empty_any_is_strong);
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      empty_factory, [&any_val](absl::any* ap) { *ap = any_val; },
-      absl::StrongGuarantee(empty_factory, empty_comp)));
-
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      empty_factory, [&val](absl::any* ap) { *ap = val; },
-      absl::StrongGuarantee(empty_factory, empty_comp)));
-
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      empty_factory, [&val](absl::any* ap) { *ap = std::move(val); },
-      absl::StrongGuarantee(empty_factory, empty_comp)));
+  EXPECT_TRUE(strong_empty_any_tester.Test(assign_any));
+  EXPECT_TRUE(strong_empty_any_tester.Test(assign_val));
+  EXPECT_TRUE(strong_empty_any_tester.Test(move));
 }
 // libstdc++ std::any fails this test
 #if !defined(ABSL_HAVE_STD_ANY)
 TEST_F(AnyExceptionSafety, Emplace) {
-  OneFactory one_factory;
+  auto initial_val =
+      absl::any{absl::in_place_type_t<Thrower>(), 1, absl::no_throw_ctor};
+  auto one_tester = absl::MakeExceptionSafetyTester()
+                        .WithInitialValue(initial_val)
+                        .WithInvariants(AnyInvariants, AnyIsEmpty);
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory, [](absl::any* ap) { ap->emplace<Thrower>(2); }, AnyIsEmpty));
+  auto emp_thrower = [](absl::any* ap) { ap->emplace<Thrower>(2); };
+  auto emp_throwervec = [](absl::any* ap) {
+    std::initializer_list<Thrower> il{Thrower(2, absl::no_throw_ctor)};
+    ap->emplace<ThrowerVec>(il);
+  };
+  auto emp_movethrower = [](absl::any* ap) {
+    ap->emplace<NoThrowMoveThrower>(2);
+  };
 
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      one_factory,
-      [](absl::any* ap) {
-        ap->emplace<absl::ThrowingValue<absl::NoThrow::kMoveCtor |
-                                        absl::NoThrow::kMoveAssign>>(2);
-      },
-      AnyIsEmpty));
+  EXPECT_TRUE(one_tester.Test(emp_thrower));
+  EXPECT_TRUE(one_tester.Test(emp_throwervec));
+  EXPECT_TRUE(one_tester.Test(emp_movethrower));
 
-  EXPECT_TRUE(absl::TestExceptionSafety(one_factory,
-                                        [](absl::any* ap) {
-                                          std::initializer_list<Thrower> il{
-                                              Thrower(2, absl::no_throw_ctor)};
-                                          ap->emplace<ThrowerVec>(il);
-                                        },
-                                        AnyIsEmpty));
+  auto empty_tester = one_tester.WithInitialValue(absl::any{});
 
-  EmptyFactory empty_factory;
-  EXPECT_TRUE(absl::TestExceptionSafety(
-      empty_factory, [](absl::any* ap) { ap->emplace<Thrower>(2); },
-      AnyIsEmpty));
-
-  EXPECT_TRUE(absl::TestExceptionSafety(empty_factory,
-                                        [](absl::any* ap) {
-                                          std::initializer_list<Thrower> il{
-                                              Thrower(2, absl::no_throw_ctor)};
-                                          ap->emplace<ThrowerVec>(il);
-                                        },
-                                        AnyIsEmpty));
+  EXPECT_TRUE(empty_tester.Test(emp_thrower));
+  EXPECT_TRUE(empty_tester.Test(emp_throwervec));
 }
 #endif  // ABSL_HAVE_STD_ANY
 

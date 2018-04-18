@@ -402,29 +402,158 @@ TEST_F(ThrowingAllocatorTest, InList) {
   for (int i = 0; i < 20; ++i) l.pop_front();
 }
 
-struct CallOperator {
+template <typename TesterInstance, typename = void>
+struct NullaryTestValidator : public std::false_type {};
+
+template <typename TesterInstance>
+struct NullaryTestValidator<
+    TesterInstance,
+    absl::void_t<decltype(std::declval<TesterInstance>().Test())>>
+    : public std::true_type {};
+
+template <typename TesterInstance>
+bool HasNullaryTest(const TesterInstance&) {
+  return NullaryTestValidator<TesterInstance>::value;
+}
+
+void DummyOp(void*) {}
+
+template <typename TesterInstance, typename = void>
+struct UnaryTestValidator : public std::false_type {};
+
+template <typename TesterInstance>
+struct UnaryTestValidator<
+    TesterInstance,
+    absl::void_t<decltype(std::declval<TesterInstance>().Test(DummyOp))>>
+    : public std::true_type {};
+
+template <typename TesterInstance>
+bool HasUnaryTest(const TesterInstance&) {
+  return UnaryTestValidator<TesterInstance>::value;
+}
+
+TEST(ExceptionSafetyTesterTest, IncompleteTypesAreNotTestable) {
+  using T = exceptions_internal::UninitializedT;
+  auto op = [](T* t) {};
+  auto inv = [](T*) { return testing::AssertionSuccess(); };
+  auto fac = []() { return absl::make_unique<T>(); };
+
+  // Test that providing operation and inveriants still does not allow for the
+  // the invocation of .Test() and .Test(op) because it lacks a factory
+  auto without_fac =
+      absl::MakeExceptionSafetyTester().WithOperation(op).WithInvariants(
+          inv, absl::strong_guarantee);
+  EXPECT_FALSE(HasNullaryTest(without_fac));
+  EXPECT_FALSE(HasUnaryTest(without_fac));
+
+  // Test that providing invariants and factory allows the invocation of
+  // .Test(op) but does not allow for .Test() because it lacks an operation
+  auto without_op = absl::MakeExceptionSafetyTester()
+                        .WithInvariants(inv, absl::strong_guarantee)
+                        .WithFactory(fac);
+  EXPECT_FALSE(HasNullaryTest(without_op));
+  EXPECT_TRUE(HasUnaryTest(without_op));
+
+  // Test that providing operation and factory still does not allow for the
+  // the invocation of .Test() and .Test(op) because it lacks invariants
+  auto without_inv =
+      absl::MakeExceptionSafetyTester().WithOperation(op).WithFactory(fac);
+  EXPECT_FALSE(HasNullaryTest(without_inv));
+  EXPECT_FALSE(HasUnaryTest(without_inv));
+}
+
+struct ExampleStruct {};
+
+std::unique_ptr<ExampleStruct> ExampleFunctionFactory() {
+  return absl::make_unique<ExampleStruct>();
+}
+
+void ExampleFunctionOperation(ExampleStruct*) {}
+
+testing::AssertionResult ExampleFunctionInvariant(ExampleStruct*) {
+  return testing::AssertionSuccess();
+}
+
+struct {
+  std::unique_ptr<ExampleStruct> operator()() const {
+    return ExampleFunctionFactory();
+  }
+} example_struct_factory;
+
+struct {
+  void operator()(ExampleStruct*) const {}
+} example_struct_operation;
+
+struct {
+  testing::AssertionResult operator()(ExampleStruct* example_struct) const {
+    return ExampleFunctionInvariant(example_struct);
+  }
+} example_struct_invariant;
+
+auto example_lambda_factory = []() { return ExampleFunctionFactory(); };
+
+auto example_lambda_operation = [](ExampleStruct*) {};
+
+auto example_lambda_invariant = [](ExampleStruct* example_struct) {
+  return ExampleFunctionInvariant(example_struct);
+};
+
+// Testing that function references, pointers, structs with operator() and
+// lambdas can all be used with ExceptionSafetyTester
+TEST(ExceptionSafetyTesterTest, MixedFunctionTypes) {
+  // function reference
+  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+                  .WithFactory(ExampleFunctionFactory)
+                  .WithOperation(ExampleFunctionOperation)
+                  .WithInvariants(ExampleFunctionInvariant)
+                  .Test());
+
+  // function pointer
+  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+                  .WithFactory(&ExampleFunctionFactory)
+                  .WithOperation(&ExampleFunctionOperation)
+                  .WithInvariants(&ExampleFunctionInvariant)
+                  .Test());
+
+  // struct
+  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+                  .WithFactory(example_struct_factory)
+                  .WithOperation(example_struct_operation)
+                  .WithInvariants(example_struct_invariant)
+                  .Test());
+
+  // lambda
+  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+                  .WithFactory(example_lambda_factory)
+                  .WithOperation(example_lambda_operation)
+                  .WithInvariants(example_lambda_invariant)
+                  .Test());
+}
+
+struct NonNegative {
+  bool operator==(const NonNegative& other) const { return i == other.i; }
+  int i;
+};
+
+testing::AssertionResult CheckNonNegativeInvariants(NonNegative* g) {
+  if (g->i >= 0) {
+    return testing::AssertionSuccess();
+  }
+  return testing::AssertionFailure()
+         << "i should be non-negative but is " << g->i;
+}
+
+struct {
   template <typename T>
   void operator()(T* t) const {
     (*t)();
   }
-};
+} invoker;
 
-struct NonNegative {
-  friend testing::AssertionResult AbslCheckInvariants(
-      NonNegative* g, absl::InternalAbslNamespaceFinder) {
-    if (g->i >= 0) return testing::AssertionSuccess();
-    return testing::AssertionFailure()
-           << "i should be non-negative but is " << g->i;
-  }
-  bool operator==(const NonNegative& other) const { return i == other.i; }
-
-  int i;
-};
-
-template <typename T>
-struct DefaultFactory {
-  std::unique_ptr<T> operator()() const { return absl::make_unique<T>(); }
-};
+auto tester =
+    absl::MakeExceptionSafetyTester().WithOperation(invoker).WithInvariants(
+        CheckNonNegativeInvariants);
+auto strong_tester = tester.WithInvariants(absl::strong_guarantee);
 
 struct FailsBasicGuarantee : public NonNegative {
   void operator()() {
@@ -435,8 +564,7 @@ struct FailsBasicGuarantee : public NonNegative {
 };
 
 TEST(ExceptionCheckTest, BasicGuaranteeFailure) {
-  EXPECT_FALSE(TestExceptionSafety(DefaultFactory<FailsBasicGuarantee>(),
-                                   CallOperator{}));
+  EXPECT_FALSE(tester.WithInitialValue(FailsBasicGuarantee{}).Test());
 }
 
 struct FollowsBasicGuarantee : public NonNegative {
@@ -447,22 +575,12 @@ struct FollowsBasicGuarantee : public NonNegative {
 };
 
 TEST(ExceptionCheckTest, BasicGuarantee) {
-  EXPECT_TRUE(TestExceptionSafety(DefaultFactory<FollowsBasicGuarantee>(),
-                                  CallOperator{}));
+  EXPECT_TRUE(tester.WithInitialValue(FollowsBasicGuarantee{}).Test());
 }
 
 TEST(ExceptionCheckTest, StrongGuaranteeFailure) {
-  {
-    DefaultFactory<FailsBasicGuarantee> factory;
-    EXPECT_FALSE(
-        TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
-  }
-
-  {
-    DefaultFactory<FollowsBasicGuarantee> factory;
-    EXPECT_FALSE(
-        TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
-  }
+  EXPECT_FALSE(strong_tester.WithInitialValue(FailsBasicGuarantee{}).Test());
+  EXPECT_FALSE(strong_tester.WithInitialValue(FollowsBasicGuarantee{}).Test());
 }
 
 struct BasicGuaranteeWithExtraInvariants : public NonNegative {
@@ -479,20 +597,21 @@ struct BasicGuaranteeWithExtraInvariants : public NonNegative {
 constexpr int BasicGuaranteeWithExtraInvariants::kExceptionSentinel;
 
 TEST(ExceptionCheckTest, BasicGuaranteeWithInvariants) {
-  DefaultFactory<BasicGuaranteeWithExtraInvariants> factory;
-
-  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
-
-  EXPECT_TRUE(TestExceptionSafety(
-      factory, CallOperator{}, [](BasicGuaranteeWithExtraInvariants* w) {
-        if (w->i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
-          return testing::AssertionSuccess();
-        }
-        return testing::AssertionFailure()
-               << "i should be "
-               << BasicGuaranteeWithExtraInvariants::kExceptionSentinel
-               << ", but is " << w->i;
-      }));
+  auto tester_with_val =
+      tester.WithInitialValue(BasicGuaranteeWithExtraInvariants{});
+  EXPECT_TRUE(tester_with_val.Test());
+  EXPECT_TRUE(
+      tester_with_val
+          .WithInvariants([](BasicGuaranteeWithExtraInvariants* w) {
+            if (w->i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
+              return testing::AssertionSuccess();
+            }
+            return testing::AssertionFailure()
+                   << "i should be "
+                   << BasicGuaranteeWithExtraInvariants::kExceptionSentinel
+                   << ", but is " << w->i;
+          })
+          .Test());
 }
 
 struct FollowsStrongGuarantee : public NonNegative {
@@ -500,10 +619,8 @@ struct FollowsStrongGuarantee : public NonNegative {
 };
 
 TEST(ExceptionCheckTest, StrongGuarantee) {
-  DefaultFactory<FollowsStrongGuarantee> factory;
-  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
-  EXPECT_TRUE(
-      TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
+  EXPECT_TRUE(tester.WithInitialValue(FollowsStrongGuarantee{}).Test());
+  EXPECT_TRUE(strong_tester.WithInitialValue(FollowsStrongGuarantee{}).Test());
 }
 
 struct HasReset : public NonNegative {
@@ -514,38 +631,36 @@ struct HasReset : public NonNegative {
   }
 
   void reset() { i = 0; }
-
-  friend bool AbslCheckInvariants(HasReset* h,
-                                  absl::InternalAbslNamespaceFinder) {
-    h->reset();
-    return h->i == 0;
-  }
 };
 
+testing::AssertionResult CheckHasResetInvariants(HasReset* h) {
+  h->reset();
+  return testing::AssertionResult(h->i == 0);
+}
+
 TEST(ExceptionCheckTest, ModifyingChecker) {
-  {
-    DefaultFactory<FollowsBasicGuarantee> factory;
-    EXPECT_FALSE(TestExceptionSafety(
-        factory, CallOperator{},
-        [](FollowsBasicGuarantee* g) {
-          g->i = 1000;
-          return true;
-        },
-        [](FollowsBasicGuarantee* g) { return g->i == 1000; }));
-  }
-  {
-    DefaultFactory<FollowsStrongGuarantee> factory;
-    EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{},
-                                    [](FollowsStrongGuarantee* g) {
-                                      ++g->i;
-                                      return true;
-                                    },
-                                    StrongGuarantee(factory)));
-  }
-  {
-    DefaultFactory<HasReset> factory;
-    EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
-  }
+  auto set_to_1000 = [](FollowsBasicGuarantee* g) {
+    g->i = 1000;
+    return testing::AssertionSuccess();
+  };
+  auto is_1000 = [](FollowsBasicGuarantee* g) {
+    return testing::AssertionResult(g->i == 1000);
+  };
+  auto increment = [](FollowsStrongGuarantee* g) {
+    ++g->i;
+    return testing::AssertionSuccess();
+  };
+
+  EXPECT_FALSE(tester.WithInitialValue(FollowsBasicGuarantee{})
+                   .WithInvariants(set_to_1000, is_1000)
+                   .Test());
+  EXPECT_TRUE(strong_tester.WithInitialValue(FollowsStrongGuarantee{})
+                  .WithInvariants(increment)
+                  .Test());
+  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+                  .WithInitialValue(HasReset{})
+                  .WithInvariants(CheckHasResetInvariants)
+                  .Test(invoker));
 }
 
 struct NonCopyable : public NonNegative {
@@ -556,10 +671,9 @@ struct NonCopyable : public NonNegative {
 };
 
 TEST(ExceptionCheckTest, NonCopyable) {
-  DefaultFactory<NonCopyable> factory;
-  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
-  EXPECT_TRUE(
-      TestExceptionSafety(factory, CallOperator{}, StrongGuarantee(factory)));
+  auto factory = []() { return absl::make_unique<NonCopyable>(); };
+  EXPECT_TRUE(tester.WithFactory(factory).Test());
+  EXPECT_TRUE(strong_tester.WithFactory(factory).Test());
 }
 
 struct NonEqualityComparable : public NonNegative {
@@ -574,15 +688,15 @@ struct NonEqualityComparable : public NonNegative {
 };
 
 TEST(ExceptionCheckTest, NonEqualityComparable) {
-  DefaultFactory<NonEqualityComparable> factory;
-  auto comp = [](const NonEqualityComparable& a,
-                 const NonEqualityComparable& b) { return a.i == b.i; };
-  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{}));
-  EXPECT_TRUE(TestExceptionSafety(factory, CallOperator{},
-                                  absl::StrongGuarantee(factory, comp)));
-  EXPECT_FALSE(TestExceptionSafety(
-      factory, [&](NonEqualityComparable* n) { n->ModifyOnThrow(); },
-      absl::StrongGuarantee(factory, comp)));
+  auto nec_is_strong = [](NonEqualityComparable* nec) {
+    return testing::AssertionResult(nec->i == NonEqualityComparable().i);
+  };
+  auto strong_nec_tester = tester.WithInitialValue(NonEqualityComparable{})
+                               .WithInvariants(nec_is_strong);
+
+  EXPECT_TRUE(strong_nec_tester.Test());
+  EXPECT_FALSE(strong_nec_tester.Test(
+      [](NonEqualityComparable* n) { n->ModifyOnThrow(); }));
 }
 
 template <typename T>
@@ -604,28 +718,32 @@ struct ExhaustivenessTester {
     return true;
   }
 
-  friend testing::AssertionResult AbslCheckInvariants(
-      ExhaustivenessTester*, absl::InternalAbslNamespaceFinder) {
-    return testing::AssertionSuccess();
-  }
-
   static unsigned char successes;
 };
+
+struct {
+  template <typename T>
+  testing::AssertionResult operator()(ExhaustivenessTester<T>*) const {
+    return testing::AssertionSuccess();
+  }
+} CheckExhaustivenessTesterInvariants;
+
 template <typename T>
 unsigned char ExhaustivenessTester<T>::successes = 0;
 
 TEST(ExceptionCheckTest, Exhaustiveness) {
-  DefaultFactory<ExhaustivenessTester<int>> int_factory;
-  EXPECT_TRUE(TestExceptionSafety(int_factory, CallOperator{}));
+  auto exhaust_tester = absl::MakeExceptionSafetyTester()
+                            .WithInvariants(CheckExhaustivenessTesterInvariants)
+                            .WithOperation(invoker);
+
+  EXPECT_TRUE(
+      exhaust_tester.WithInitialValue(ExhaustivenessTester<int>{}).Test());
   EXPECT_EQ(ExhaustivenessTester<int>::successes, 0xF);
 
-  DefaultFactory<ExhaustivenessTester<ThrowingValue<>>> bomb_factory;
-  EXPECT_TRUE(TestExceptionSafety(bomb_factory, CallOperator{}));
-  EXPECT_EQ(ExhaustivenessTester<ThrowingValue<>>::successes, 0xF);
-
-  ExhaustivenessTester<ThrowingValue<>>::successes = 0;
-  EXPECT_TRUE(TestExceptionSafety(bomb_factory, CallOperator{},
-                                  StrongGuarantee(bomb_factory)));
+  EXPECT_TRUE(
+      exhaust_tester.WithInitialValue(ExhaustivenessTester<ThrowingValue<>>{})
+          .WithInvariants(absl::strong_guarantee)
+          .Test());
   EXPECT_EQ(ExhaustivenessTester<ThrowingValue<>>::successes, 0xF);
 }
 

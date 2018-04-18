@@ -1068,6 +1068,17 @@ TEST(HugeStringView, TwoPointTwoGB) {
 TEST(NonNegativeLenTest, NonNegativeLen) {
   EXPECT_DEATH_IF_SUPPORTED(absl::string_view("xyz", -1), "len <= kMaxSize");
 }
+
+TEST(LenExceedsMaxSizeTest, LenExceedsMaxSize) {
+  auto max_size = absl::string_view().max_size();
+
+  // This should construct ok (although the view itself is obviously invalid).
+  absl::string_view ok_view("", max_size);
+
+  // Adding one to the max should trigger an assertion.
+  EXPECT_DEATH_IF_SUPPORTED(absl::string_view("", max_size + 1),
+                            "len <= kMaxSize");
+}
 #endif  // !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
 
 class StringViewStreamTest : public ::testing::Test {

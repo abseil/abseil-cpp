@@ -78,41 +78,15 @@ cc_library(
 )
 
 cc_library(
-    name = "malloc_extension",
-    srcs = ["internal/malloc_extension.cc"],
-    hdrs = [
-        "internal/malloc_extension.h",
-    ],
-    copts = ABSL_DEFAULT_COPTS,
-    visibility = [
-        "//absl:__subpackages__",
-    ],
-    deps = [
-        ":core_headers",
-        ":dynamic_annotations",
-    ],
-)
-
-# malloc_extension feels like it wants to be folded into this target, but
-# malloc_internal gets special build treatment to compile at -O3, so these
-# need to stay separate.
-cc_library(
     name = "malloc_internal",
     srcs = [
         "internal/low_level_alloc.cc",
-        "internal/malloc_hook.cc",
-        "internal/malloc_hook_mmap_linux.inc",
     ],
     hdrs = [
         "internal/direct_mmap.h",
         "internal/low_level_alloc.h",
-        "internal/malloc_hook.h",
-        "internal/malloc_hook_c.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    textual_hdrs = [
-        "internal/malloc_hook_invoke.h",
-    ],
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -416,29 +390,6 @@ cc_test(
         ":base",
         ":core_headers",
         "//absl/synchronization",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "malloc_extension_system_malloc_test",
-    size = "small",
-    srcs = ["internal/malloc_extension_test.cc"],
-    copts = select({
-        "//absl:windows": [
-            "/DABSL_MALLOC_EXTENSION_TEST_ALLOW_MISSING_EXTENSION=1",
-        ],
-        "//conditions:default": [
-            "-DABSL_MALLOC_EXTENSION_TEST_ALLOW_MISSING_EXTENSION=1",
-        ],
-    }) + ABSL_TEST_COPTS,
-    features = [
-        # This test can't be run under lsan because the test requires system
-        # malloc, and lsan provides a competing malloc implementation.
-        "-leak_sanitize",
-    ],
-    deps = [
-        ":malloc_extension",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -216,7 +216,7 @@ using EnableIfConvertibleToSpanConst =
 //   // Construct a Span implicitly from a container
 //   void MyRoutine(absl::Span<const int> a) {
 //     ...
-//   };
+//   }
 //   std::vector v = {1,2,3,4,5};
 //   MyRoutine(v)                     // convert to Span<const T>
 //
@@ -235,7 +235,7 @@ using EnableIfConvertibleToSpanConst =
 //
 //   void MyRoutine(absl::Span<const int> a) {
 //     ...
-//   };
+//   }
 //
 //   std::vector v = {1,2,3,4,5};
 //   MyRoutine(v);

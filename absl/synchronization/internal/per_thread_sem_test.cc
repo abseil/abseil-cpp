@@ -24,7 +24,6 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/cycleclock.h"
-#include "absl/base/internal/malloc_extension.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
@@ -165,79 +164,6 @@ TEST_F(PerThreadSemTest, Timeouts) {
   // The wait here has an expired timeout, but we have a wake to consume,
   // so this should succeed
   EXPECT_TRUE(Wait(negative_timeout));
-}
-
-// Test that idle threads properly register themselves as such with malloc.
-TEST_F(PerThreadSemTest, Idle) {
-  // We can't use gmock because it might use synch calls.  So we do it
-  // by hand, messily.  I don't bother hitting every one of the
-  // MallocExtension calls because most of them won't get made
-  // anyway--if they do we can add them.
-  class MockMallocExtension : public base_internal::MallocExtension {
-   public:
-    MockMallocExtension(base_internal::MallocExtension *real,
-                        base_internal::ThreadIdentity *id,
-                        std::atomic<int> *idles, std::atomic<int> *busies)
-        : real_(real), id_(id), idles_(idles), busies_(busies) {}
-    void MarkThreadIdle() override {
-      if (base_internal::CurrentThreadIdentityIfPresent() != id_) {
-        return;
-      }
-      idles_->fetch_add(1, std::memory_order_relaxed);
-    }
-
-    void MarkThreadBusy() override {
-      if (base_internal::CurrentThreadIdentityIfPresent() != id_) {
-        return;
-      }
-      busies_->fetch_add(1, std::memory_order_relaxed);
-    }
-    size_t GetAllocatedSize(const void* p) override {
-      return real_->GetAllocatedSize(p);
-    }
-
-   private:
-    MallocExtension *real_;
-    base_internal::ThreadIdentity *id_;
-    std::atomic<int>* idles_;
-    std::atomic<int>* busies_;
-  };
-
-  base_internal::ThreadIdentity *id = GetOrCreateCurrentThreadIdentity();
-  std::atomic<int> idles(0);
-  std::atomic<int> busies(0);
-  base_internal::MallocExtension *old =
-      base_internal::MallocExtension::instance();
-  MockMallocExtension mock(old, id, &idles, &busies);
-  base_internal::MallocExtension::Register(&mock);
-  std::atomic<int> sync(0);
-
-  std::thread t([id, &idles, &sync]() {
-    // Wait for the main thread to begin the wait process
-    while (0 == sync.load(std::memory_order_relaxed)) {
-      SleepFor(absl::Milliseconds(1));
-    }
-    // Wait for main thread to become idle, then wake it
-    // pretend time is passing--enough of these should cause an idling.
-    for (int i = 0; i < 100; ++i) {
-      Tick(id);
-    }
-    while (0 == idles.load(std::memory_order_relaxed)) {
-      // Keep ticking, just in case.
-      Tick(id);
-      SleepFor(absl::Milliseconds(1));
-    }
-    Post(id);
-  });
-
-  idles.store(0, std::memory_order_relaxed);  // In case we slept earlier.
-  sync.store(1, std::memory_order_relaxed);
-  Wait(KernelTimeout::Never());
-
-  // t will wake us once we become idle.
-  EXPECT_LT(0, busies.load(std::memory_order_relaxed));
-  t.join();
-  base_internal::MallocExtension::Register(old);
 }
 
 }  // namespace

@@ -20,7 +20,6 @@
 // This header file defines casting templates to fit use cases not covered by
 // the standard casts provided in the C++ standard. As with all cast operations,
 // use these with caution and only if alternatives do not exist.
-//
 
 #ifndef ABSL_BASE_CASTS_H_
 #define ABSL_BASE_CASTS_H_
@@ -122,7 +121,7 @@ inline To implicit_cast(typename absl::internal::identity_t<To> to) {
 // object in memory has one type, and a program accesses it with a different
 // type, the result is undefined behavior for most values of "different type".
 //
-// Such casting results is type punning: holding an object in memory of one type
+// Such casting results in type punning: holding an object in memory of one type
 // and reading its bits back using a different type. A `bit_cast()` avoids this
 // issue by implementating its casts using `memcpy()`, which avoids introducing
 // this undefined behavior.

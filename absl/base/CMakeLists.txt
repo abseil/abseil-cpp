@@ -41,10 +41,6 @@ list(APPEND BASE_INTERNAL_HEADERS
   "internal/inline_variable.h"
   "internal/low_level_alloc.h"
   "internal/low_level_scheduling.h"
-  "internal/malloc_extension.h"
-  "internal/malloc_hook_c.h"
-  "internal/malloc_hook.h"
-  "internal/malloc_hook_invoke.h"
   "internal/per_thread_tls.h"
   "internal/pretty_function.h"
   "internal/raw_logging.h"
@@ -69,7 +65,6 @@ list(APPEND BASE_SRC
   "internal/thread_identity.cc"
   "internal/unscaledcycleclock.cc"
   "internal/low_level_alloc.cc"
-  "internal/malloc_hook.cc"
   ${BASE_PUBLIC_HEADERS}
   ${BASE_INTERNAL_HEADERS}
 )
@@ -84,21 +79,6 @@ absl_library(
     absl_spinlock_wait
   EXPORT_NAME
     base
-)
-
-# malloc extension library
-set(MALLOC_EXTENSION_SRC "internal/malloc_extension.cc")
-set(MALLOC_EXTENSION_PUBLIC_LIBRARIES absl::base)
-
-absl_library(
-  TARGET
-    absl_malloc_extension
-  SOURCES
-    ${MALLOC_EXTENSION_SRC}
-  PUBLIC_LIBRARIES
-    ${MALLOC_EXTENSION_PUBLIC_LIBRARIES}
-  EXPORT_NAME
-    malloc_extension
 )
 
 # throw delegate library
@@ -165,8 +145,6 @@ absl_library(
 # malloc_internal library
 list(APPEND MALLOC_INTERNAL_SRC
   "internal/low_level_alloc.cc"
-  "internal/malloc_hook.cc"
-  "internal/malloc_hook_mmap_linux.inc"
 )
 
 absl_library(
@@ -378,23 +356,3 @@ absl_test(
   PRIVATE_COMPILE_FLAGS
     ${ABSL_EXCEPTIONS_FLAG}
 )
-
-# test absl_malloc_extension_system_malloc_test
-set(MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_SRC "internal/malloc_extension_test.cc")
-set(MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_PUBLIC_LIBRARIES absl::base absl_malloc_extension)
-set(MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_PRIVATE_COMPILE_FLAGS "-DABSL_MALLOC_EXTENSION_TEST_ALLOW_MISSING_EXTENSION=1")
-
-absl_test(
-  TARGET
-    absl_malloc_extension_system_malloc_test
-  SOURCES
-    ${MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${MALLOC_EXTENSION_SYSTEM_MALLOC_TEST_PRIVATE_COMPILE_FLAGS}
-)
-
-
-
-

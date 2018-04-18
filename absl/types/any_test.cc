@@ -553,7 +553,7 @@ TEST(AnyTest, Move) {
   absl::any tmp4(4);
   absl::any o4(std::move(tmp4));  // move construct
   EXPECT_EQ(4, absl::any_cast<int>(o4));
-  o4 = o4;  // self assign
+  o4 = *&o4;  // self assign
   EXPECT_EQ(4, absl::any_cast<int>(o4));
   EXPECT_TRUE(o4.has_value());
 

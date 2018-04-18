@@ -75,7 +75,6 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
-        "//absl/base:malloc_extension",
         "//absl/base:malloc_internal",
         "//absl/debugging:stacktrace",
         "//absl/time",
@@ -168,7 +167,6 @@ cc_library(
     deps = [
         ":synchronization",
         "//absl/base",
-        "//absl/base:malloc_extension",
         "//absl/strings",
         "//absl/time",
         "@com_google_googletest//:gtest",
@@ -184,7 +182,6 @@ cc_test(
         ":per_thread_sem_test_common",
         ":synchronization",
         "//absl/base",
-        "//absl/base:malloc_extension",
         "//absl/strings",
         "//absl/time",
         "@com_google_googletest//:gtest_main",

@@ -168,13 +168,13 @@ class string_view {
   string_view(  // NOLINT(runtime/explicit)
       const std::basic_string<char, std::char_traits<char>, Allocator>&
           str) noexcept
-      : ptr_(str.data()), length_(str.size()) {}
+      : ptr_(str.data()), length_(CheckLengthInternal(str.size())) {}
 
   // Implicit constructor of a `string_view` from nul-terminated `str`. When
   // accepting possibly null strings, use `absl::NullSafeStringView(str)`
   // instead (see below).
   constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
-      : ptr_(str), length_(StrLenInternal(str)) {}
+      : ptr_(str), length_(CheckLengthInternal(StrLenInternal(str))) {}
 
   // Implicit constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(const char* data, size_type len)
@@ -479,7 +479,7 @@ class string_view {
 
  private:
   static constexpr size_type kMaxSize =
-      std::numeric_limits<size_type>::max() / 2 + 1;
+      std::numeric_limits<difference_type>::max();
 
   // check whether __builtin_strlen is provided by the compiler.
   // GCC doesn't have __has_builtin()

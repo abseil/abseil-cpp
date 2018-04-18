@@ -76,6 +76,24 @@ cc_test(
 )
 
 cc_library(
+    name = "examine_stack",
+    srcs = [
+        "internal/examine_stack.cc",
+    ],
+    hdrs = [
+        "internal/examine_stack.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":stacktrace",
+        ":symbolize",
+        "//absl/base",
+        "//absl/base:core_headers",
+    ],
+)
+
+cc_library(
     name = "debugging_internal",
     srcs = [
         "internal/address_is_readable.cc",
@@ -234,11 +252,11 @@ cc_library(
     srcs = ["internal/stack_consumption.cc"],
     hdrs = ["internal/stack_consumption.h"],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
     deps = [
         "//absl/base",
         "//absl/base:core_headers",
     ],
-    visibility = ["//visibility:private"],
 )
 
 cc_test(
