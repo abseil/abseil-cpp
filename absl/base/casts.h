@@ -123,7 +123,7 @@ inline To implicit_cast(typename absl::internal::identity_t<To> to) {
 //
 // Such casting results in type punning: holding an object in memory of one type
 // and reading its bits back using a different type. A `bit_cast()` avoids this
-// issue by implementating its casts using `memcpy()`, which avoids introducing
+// issue by implementing its casts using `memcpy()`, which avoids introducing
 // this undefined behavior.
 template <typename Dest, typename Source>
 inline Dest bit_cast(const Source& source) {

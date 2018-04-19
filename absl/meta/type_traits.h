@@ -72,7 +72,7 @@ struct default_alignment_of_aligned_storage<Len,
 // `std::void_t` metafunction.
 //
 // NOTE: `absl::void_t` does not use the standard-specified implementation so
-// that it can remain compatibile with gcc < 5.1. This can introduce slightly
+// that it can remain compatible with gcc < 5.1. This can introduce slightly
 // different behavior, such as when ordering partial specializations.
 template <typename... Ts>
 using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
@@ -193,7 +193,7 @@ struct is_trivially_destructible
 // LWG issue 2116: http://cplusplus.github.io/LWG/lwg-active.html#2116.
 //
 // "T obj();" need to be well-formed and not call any nontrivial operation.
-// Nontrivally destructible types will cause the expression to be nontrivial.
+// Nontrivially destructible types will cause the expression to be nontrivial.
 template <typename T>
 struct is_trivially_default_constructible
     : std::integral_constant<bool, __has_trivial_constructor(T) &&
@@ -224,7 +224,7 @@ struct is_trivially_default_constructible
 // implementation.
 //
 // NOTE: `T obj(declval<const T&>());` needs to be well-formed and not call any
-// nontrivial operation.  Nontrivally destructible types will cause the
+// nontrivial operation.  Nontrivially destructible types will cause the
 // expression to be nontrivial.
 template <typename T>
 struct is_trivially_copy_constructible

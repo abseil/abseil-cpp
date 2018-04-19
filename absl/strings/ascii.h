@@ -34,7 +34,7 @@
 // `ascii_iscntrl()`, `ascii_isdigit()`, `ascii_isgraph()`, `ascii_islower()`,
 // `ascii_isprint()`, `ascii_ispunct()`, `ascii_isspace()`, `ascii_isupper()`,
 // `ascii_isxdigit()`
-//   Analagous to the <ctype.h> functions with similar names, these
+//   Analogous to the <ctype.h> functions with similar names, these
 //   functions take an unsigned char and return a bool, based on whether the
 //   character matches the condition specified.
 //
@@ -42,7 +42,7 @@
 //   functions return `false`.
 //
 // `ascii_tolower()`, `ascii_toupper()`
-//   Analagous to the <ctype.h> functions with similar names, these functions
+//   Analogous to the <ctype.h> functions with similar names, these functions
 //   take an unsigned char and return a char.
 //
 //   If the input character is not an ASCII {lower,upper}-case letter (including
