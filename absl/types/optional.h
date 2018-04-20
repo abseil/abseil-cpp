@@ -1,4 +1,3 @@
-//
 // Copyright 2017 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -94,7 +93,9 @@ using std::nullopt;
 
 namespace absl {
 
-// optional
+// -----------------------------------------------------------------------------
+// absl::optional
+// -----------------------------------------------------------------------------
 //
 // A value of type `absl::optional<T>` holds either a value of `T` or an
 // "empty" value.  When it holds a value of `T`, it stores it as a direct

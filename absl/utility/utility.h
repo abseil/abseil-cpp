@@ -161,7 +161,7 @@ ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
 
 #endif  // ABSL_HAVE_STD_OPTIONAL
 
-#ifdef ABSL_HAVE_STD_ANY
+#if defined(ABSL_HAVE_STD_ANY) || defined(ABSL_HAVE_STD_VARIANT)
 using std::in_place_type_t;
 #else
 
@@ -172,7 +172,11 @@ using std::in_place_type_t;
 // for C++17's `std::in_place_type_t`.
 template <typename T>
 struct in_place_type_t {};
-#endif  // ABSL_HAVE_STD_ANY
+#endif  // ABSL_HAVE_STD_ANY || ABSL_HAVE_STD_VARIANT
+
+#ifdef ABSL_HAVE_STD_VARIANT
+using std::in_place_index_t;
+#else
 
 // in_place_index_t
 //
@@ -181,6 +185,7 @@ struct in_place_type_t {};
 // for C++17's `std::in_place_index_t`.
 template <size_t I>
 struct in_place_index_t {};
+#endif  // ABSL_HAVE_STD_VARIANT
 
 // Constexpr move and forward
 

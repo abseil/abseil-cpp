@@ -165,7 +165,7 @@ DereferenceFormatter() {
 //
 // Example 1:
 //   // Joins a collection of strings. This pattern also works with a collection
-//   // of `asbl::string_view` or even `const char*`.
+//   // of `absl::string_view` or even `const char*`.
 //   std::vector<std::string> v = {"foo", "bar", "baz"};
 //   std::string s = absl::StrJoin(v, "-");
 //   EXPECT_EQ("foo-bar-baz", s);

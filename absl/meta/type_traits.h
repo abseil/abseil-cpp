@@ -36,6 +36,7 @@
 #define ABSL_META_TYPE_TRAITS_H_
 
 #include <stddef.h>
+#include <functional>
 #include <type_traits>
 
 #include "absl/base/config.h"
@@ -348,6 +349,24 @@ using underlying_type_t = typename std::underlying_type<T>::type;
 
 template <typename T>
 using result_of_t = typename std::result_of<T>::type;
+
+namespace type_traits_internal {
+template <typename Key, typename = size_t>
+struct IsHashable : std::false_type {};
+
+template <typename Key>
+struct IsHashable<Key,
+                  decltype(std::declval<std::hash<Key>>()(std::declval<Key>()))>
+    : std::true_type {};
+
+template <typename Key>
+struct IsHashEnabled
+    : absl::conjunction<std::is_default_constructible<std::hash<Key>>,
+                        std::is_copy_constructible<std::hash<Key>>,
+                        std::is_destructible<std::hash<Key>>,
+                        std::is_copy_assignable<std::hash<Key>>,
+                        IsHashable<Key>> {};
+}  // namespace type_traits_internal
 
 }  // namespace absl
 #endif  // ABSL_META_TYPE_TRAITS_H_

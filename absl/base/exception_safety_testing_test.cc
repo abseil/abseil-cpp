@@ -27,7 +27,9 @@
 
 namespace absl {
 namespace {
+using ::absl::exceptions_internal::SetCountdown;
 using ::absl::exceptions_internal::TestException;
+using ::absl::exceptions_internal::UnsetCountdown;
 
 // EXPECT_NO_THROW can't inspect the thrown inspection in general.
 template <typename F>
@@ -54,7 +56,7 @@ TEST_F(ThrowingValueTest, Throws) {
   // It's not guaranteed that every operator only throws *once*.  The default
   // ctor only throws once, though, so use it to make sure we only throw when
   // the countdown hits 0
-  exceptions_internal::countdown = 2;
+  SetCountdown(2);
   ExpectNoThrow([]() { ThrowingValue<> bomb; });
   ExpectNoThrow([]() { ThrowingValue<> bomb; });
   EXPECT_THROW(ThrowingValue<> bomb, TestException);

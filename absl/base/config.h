@@ -382,6 +382,19 @@
 #endif
 #endif
 
+// ABSL_HAVE_STD_VARIANT
+//
+// Checks whether C++17 std::optional is available.
+#ifdef ABSL_HAVE_STD_VARIANT
+#error "ABSL_HAVE_STD_VARIANT cannot be directly set."
+#endif
+
+#ifdef __has_include
+#if __has_include(<variant>) && __cplusplus >= 201703L
+#define ABSL_HAVE_STD_VARIANT 1
+#endif
+#endif
+
 // ABSL_HAVE_STD_STRING_VIEW
 //
 // Checks whether C++17 std::string_view is available.
@@ -396,17 +409,18 @@
 #endif
 
 // For MSVC, `__has_include` is supported in VS 2017 15.3, which is later than
-// the support for <optional>, <any>, <string_view>. So we use _MSC_VER to check
-// whether we have VS 2017 RTM (when <optional>, <any>, <string_view> is
-// implemented) or higher.
-// Also, `__cplusplus` is not correctly set by MSVC, so we use `_MSVC_LANG` to
-// check the language version.
+// the support for <optional>, <any>, <string_view>, <variant>. So we use
+// _MSC_VER to check whether we have VS 2017 RTM (when <optional>, <any>,
+// <string_view>, <variant> is implemented) or higher. Also, `__cplusplus` is
+// not correctly set by MSVC, so we use `_MSVC_LANG` to check the language
+// version.
 // TODO(zhangxy): fix tests before enabling aliasing for `std::any`,
 // `std::string_view`.
 #if defined(_MSC_VER) && _MSC_VER >= 1910 && \
     ((defined(_MSVC_LANG) && _MSVC_LANG > 201402) || __cplusplus > 201402)
 // #define ABSL_HAVE_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
+#define ABSL_HAVE_STD_VARIANT 1
 // #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 

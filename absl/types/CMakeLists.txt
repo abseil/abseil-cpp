@@ -20,6 +20,7 @@ list(APPEND TYPES_PUBLIC_HEADERS
   "bad_optional_access.h"
   "optional.h"
   "span.h"
+  "variant.h"
 )
 
 
@@ -95,7 +96,19 @@ absl_library(
     bad_optional_access
 )
 
-
+# variant library
+absl_library(
+  TARGET
+    absl_variant
+  SOURCES
+    "bad_variant_access.h" "bad_variant_access.cc" "variant.h" "internal/variant.h"
+  PUBLIC_LIBRARIES
+    absl::base absl::meta absl::utility
+  PRIVATE_COMPILE_FLAGS
+    ${ABSL_EXCEPTIONS_FLAG}
+  EXPORT_NAME
+    variant
+)
 
 #
 ## TESTS

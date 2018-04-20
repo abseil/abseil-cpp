@@ -172,7 +172,9 @@ const ValueType* any_cast(const any* operand) noexcept;
 template <typename ValueType>
 ValueType* any_cast(any* operand) noexcept;
 
-// any
+// -----------------------------------------------------------------------------
+// absl::any
+// -----------------------------------------------------------------------------
 //
 // An `absl::any` object provides the facility to either store an instance of a
 // type, known as the "contained object", or no value. An `absl::any` is used to

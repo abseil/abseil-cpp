@@ -47,10 +47,17 @@
 // mutex. GUARDED_BY() allows the user to specify a particular mutex that
 // should be held when accessing the annotated variable.
 //
+// Although this annotation (and PT_GUARDED_BY, below) cannot be applied to
+// local variables, a local variable and its associated mutex can often be
+// combined into a small class or struct, thereby allowing the annotation.
+//
 // Example:
 //
-//   Mutex mu;
-//   int p1 GUARDED_BY(mu);
+//   class Foo {
+//     Mutex mu_;
+//     int p1_ GUARDED_BY(mu_);
+//     ...
+//   };
 #define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
 
 // PT_GUARDED_BY()
@@ -59,17 +66,20 @@
 // by a mutex when dereferencing the pointer.
 //
 // Example:
-//   Mutex mu;
-//   int *p1 PT_GUARDED_BY(mu);
+//   class Foo {
+//     Mutex mu_;
+//     int *p1_ PT_GUARDED_BY(mu_);
+//     ...
+//   };
 //
 // Note that a pointer variable to a shared memory location could itself be a
 // shared variable.
 //
 // Example:
 //
-//     // `q`, guarded by `mu1`, points to a shared memory location that is
-//     // guarded by `mu2`:
-//     int *q GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
+//   // `q_`, guarded by `mu1_`, points to a shared memory location that is
+//   // guarded by `mu2_`:
+//   int *q_ GUARDED_BY(mu1_) PT_GUARDED_BY(mu2_);
 #define PT_GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
 
 // ACQUIRED_AFTER() / ACQUIRED_BEFORE()
@@ -80,10 +90,13 @@
 // (i.e. You don't have to annotate both locks with both ACQUIRED_AFTER
 // and ACQUIRED_BEFORE.)
 //
+// As with GUARDED_BY, this is only applicable to mutexes that are shared
+// fields or global variables.
+//
 // Example:
 //
-//   Mutex m1;
-//   Mutex m2 ACQUIRED_AFTER(m1);
+//   Mutex m1_;
+//   Mutex m2_ ACQUIRED_AFTER(m1_);
 #define ACQUIRED_AFTER(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(acquired_after(__VA_ARGS__))
 

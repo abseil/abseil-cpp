@@ -165,6 +165,17 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "bad_variant_access",
+    srcs = ["bad_variant_access.cc"],
+    hdrs = ["bad_variant_access.h"],
+    copts = ABSL_EXCEPTIONS_FLAG + ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base",
+        "//absl/base:config",
+    ],
+)
+
 cc_test(
     name = "optional_test",
     size = "small",
@@ -176,6 +187,37 @@ cc_test(
         ":optional",
         "//absl/base",
         "//absl/base:config",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "variant",
+    srcs = ["internal/variant.h"],
+    hdrs = ["variant.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":bad_variant_access",
+        "//absl/base:base_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "variant_test",
+    size = "small",
+    srcs = ["variant_test.cc"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":variant",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",

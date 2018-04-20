@@ -94,6 +94,12 @@ class TestBadAllocException : public std::bad_alloc, public TestException {
 
 extern int countdown;
 
+// Allows the countdown variable to be set manually (defaulting to the initial
+// value of 0)
+inline void SetCountdown(int i = 0) { countdown = i; }
+// Sets the countdown to the terminal value -1
+inline void UnsetCountdown() { SetCountdown(-1); }
+
 void MaybeThrow(absl::string_view msg, bool throw_bad_alloc = false);
 
 testing::AssertionResult FailureMessage(const TestException& e,
@@ -134,7 +140,7 @@ absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
     const Invariant& invariant) {
   auto t_ptr = factory();
   absl::optional<testing::AssertionResult> current_res;
-  exceptions_internal::countdown = count;
+  SetCountdown(count);
   try {
     operation(t_ptr.get());
   } catch (const exceptions_internal::TestException& e) {
@@ -143,7 +149,7 @@ absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
       *current_res << e.what() << " failed invariant check";
     }
   }
-  exceptions_internal::countdown = -1;
+  UnsetCountdown();
   return current_res;
 }
 
@@ -195,11 +201,6 @@ inline absl::optional<testing::AssertionResult> TestAllInvariantsAtCountdown(
 
 extern exceptions_internal::NoThrowTag no_throw_ctor;
 extern exceptions_internal::StrongGuaranteeTagType strong_guarantee;
-
-// These are useful for tests which just construct objects and make sure there
-// are no leaks.
-inline void SetCountdown() { exceptions_internal::countdown = 0; }
-inline void UnsetCountdown() { exceptions_internal::countdown = -1; }
 
 // A test class which is convertible to bool.  The conversion can be
 // instrumented to throw at a controlled time.
@@ -731,10 +732,10 @@ struct ConstructorTracker {
 template <typename T, typename... Args>
 T TestThrowingCtor(Args&&... args) {
   struct Cleanup {
-    ~Cleanup() { UnsetCountdown(); }
+    ~Cleanup() { exceptions_internal::UnsetCountdown(); }
   } c;
   for (int count = 0;; ++count) {
-    exceptions_internal::countdown = count;
+    exceptions_internal::SetCountdown(count);
     try {
       return T(std::forward<Args>(args)...);
     } catch (const exceptions_internal::TestException&) {

@@ -13,45 +13,52 @@
 // limitations under the License.
 //
 // -----------------------------------------------------------------------------
-// bad_any_cast.h
+// bad_variant_access.h
 // -----------------------------------------------------------------------------
 //
-// This header file defines the `absl::bad_any_cast` type.
+// This header file defines the `absl::bad_variant_access` type.
 
-#ifndef ABSL_TYPES_BAD_ANY_CAST_H_
-#define ABSL_TYPES_BAD_ANY_CAST_H_
+#ifndef ABSL_TYPES_BAD_VARIANT_ACCESS_H_
+#define ABSL_TYPES_BAD_VARIANT_ACCESS_H_
 
-#include <typeinfo>
+#include <stdexcept>
 
 namespace absl {
 
 // -----------------------------------------------------------------------------
-// bad_any_cast
+// bad_variant_access
 // -----------------------------------------------------------------------------
 //
-// An `absl::bad_any_cast` type is an exception type that is thrown when
-// failing to successfully cast the return value of an `absl::any` object.
+// An `absl::bad_variant_access` type is an exception type that is thrown in
+// the following cases:
+//
+//   * Calling `absl::get(absl::variant) with an index or type that does not
+//     match the currently selected alternative type
+//   * Calling `absl::visit on an `absl::variant` that is in the
+//     `variant::valueless_by_exception` state.
 //
 // Example:
 //
-//   auto a = absl::any(65);
-//   absl::any_cast<int>(a);         // 65
+//   absl::variant<int, std::string> v;
+//   v = 1;
 //   try {
-//     absl::any_cast<char>(a);
-//   } catch(const absl::bad_any_cast& e) {
-//     std::cout << "Bad any cast: " << e.what() << '\n';
+//     absl::get<std::string>(v);
+//   } catch(const absl::bad_variant_access& e) {
+//     std::cout << "Bad variant access: " << e.what() << '\n';
 //   }
-class bad_any_cast : public std::bad_cast {
+class bad_variant_access : public std::exception {
  public:
-  ~bad_any_cast() override;
+  bad_variant_access() noexcept = default;
+  ~bad_variant_access() override;
   const char* what() const noexcept override;
 };
 
-namespace any_internal {
+namespace variant_internal {
 
-[[noreturn]] void ThrowBadAnyCast();
+[[noreturn]] void ThrowBadVariantAccess();
+[[noreturn]] void Rethrow();
 
-}  // namespace any_internal
+}  // namespace variant_internal
 }  // namespace absl
 
-#endif  // ABSL_TYPES_BAD_ANY_CAST_H_
+#endif  // ABSL_TYPES_BAD_VARIANT_ACCESS_H_

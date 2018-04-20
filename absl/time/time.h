@@ -880,7 +880,8 @@ extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 // provided format std::string. Uses strftime()-like formatting options, with
 // the following extensions:
 //
-//   - %Ez  - RFC3339-compatible numeric time zone (+hh:mm or -hh:mm)
+//   - %Ez  - RFC3339-compatible numeric UTC offset (+hh:mm or -hh:mm)
+//   - %E*z - Full-resolution numeric UTC offset (+hh:mm:ss or -hh:mm:ss)
 //   - %E#S - Seconds with # digits of fractional precision
 //   - %E*S - Seconds with full fractional precision (a literal '*')
 //   - %E#f - Fractional seconds with # digits of precision
@@ -894,8 +895,8 @@ extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 // year.  A year outside of [-999:9999] when formatted with %E4Y will produce
 // more than four characters, just like %Y.
 //
-// We recommend that format strings include %Ez so that the result uniquely
-// identifies a time instant.
+// We recommend that format strings include the UTC offset (%z, %Ez, or %E*z)
+// so that the result uniquely identifies a time instant.
 //
 // Example:
 //
@@ -929,7 +930,8 @@ inline std::ostream& operator<<(std::ostream& os, Time t) {
 // Parses an input std::string according to the provided format std::string and
 // returns the corresponding `absl::Time`. Uses strftime()-like formatting
 // options, with the same extensions as FormatTime(), but with the
-// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f.
+// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f.  %Ez
+// and %E*z also accept the same inputs.
 //
 // %Y consumes as many numeric characters as it can, so the matching data
 // should always be terminated with a non-numeric.  %E4Y always consumes
@@ -940,10 +942,11 @@ inline std::ostream& operator<<(std::ostream& os, Time t) {
 //   "1970-01-01 00:00:00.0 +0000"
 //
 // For example, parsing a std::string of "15:45" (%H:%M) will return an absl::Time
-// that represents "1970-01-01 15:45:00.0 +0000".  Note: Since ParseTime()
-// returns time instants, it makes the most sense to parse fully-specified
-// date/time strings that include a UTC offset (%z/%Ez), such as those
-// matching RFC3339_full above.
+// that represents "1970-01-01 15:45:00.0 +0000".
+//
+// Note that since ParseTime() returns time instants, it makes the most sense
+// to parse fully-specified date/time strings that include a UTC offset (%z,
+// %Ez, or %E*z).
 //
 // Note also that `absl::ParseTime()` only heeds the fields year, month, day,
 // hour, minute, (fractional) second, and UTC offset.  Other fields, like
@@ -974,8 +977,8 @@ bool ParseTime(const std::string& format, const std::string& input, Time* time,
                std::string* err);
 
 // Like ParseTime() above, but if the format std::string does not contain a UTC
-// offset specification (%z/%Ez) then the input is interpreted in the given
-// TimeZone.  This means that the input, by itself, does not identify a
+// offset specification (%z/%Ez/%E*z) then the input is interpreted in the
+// given TimeZone.  This means that the input, by itself, does not identify a
 // unique instant.  Being time-zone dependent, it also admits the possibility
 // of ambiguity or non-existence, in which case the "pre" time (as defined
 // for ConvertDateTime()) is returned.  For these reasons we recommend that
