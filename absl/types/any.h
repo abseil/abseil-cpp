@@ -193,13 +193,13 @@ ValueType* any_cast(any* operand) noexcept;
 //   auto c = absl::any(std::move(my_foo));  // Error, not copy-constructable
 //
 // Note that `absl::any` makes use of decayed types (`absl::decay_t` in this
-// context) to remove const-volative qualifiers (known as "cv qualifiers"),
+// context) to remove const-volatile qualifiers (known as "cv qualifiers"),
 // decay functions to function pointers, etc. We essentially "decay" a given
 // type into its essential type.
 //
-// `absl::any` makes use of decayed types when determing the basic type `T` of
+// `absl::any` makes use of decayed types when determining the basic type `T` of
 // the value to store in the any's contained object. In the documentation below,
-// we explcitly denote this by using the phrase "a decayed type of `T`".
+// we explicitly denote this by using the phrase "a decayed type of `T`".
 //
 // Example:
 //
@@ -324,7 +324,7 @@ class any {
   // Overload of `any::emplace()` to emplace a value within an `absl::any`
   // object by calling `any::reset()`, initializing the contained value as if
   // direct-non-list-initializing an object of type `VT` with the arguments
-  // `initilizer_list, std::forward<Args>(args)...`, and returning a reference
+  // `initializer_list, std::forward<Args>(args)...`, and returning a reference
   // to the new contained value.
   //
   // Note: If an exception is thrown during the call to `VT`'s constructor,
@@ -356,7 +356,7 @@ class any {
   // Swaps the passed value and the value of this `absl::any` object.
   void swap(any& other) noexcept { obj_.swap(other.obj_); }
 
-  // Observors
+  // Observers
 
   // any::has_value()
   //

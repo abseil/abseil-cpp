@@ -549,7 +549,7 @@ class InlinedVector {
   }
 
   // Overload of InlinedVector::erase() for erasing all elements in the
-  // iteraror range [first, last) in the inlined vector, returning an iterator
+  // iterator range [first, last) in the inlined vector, returning an iterator
   // pointing to the first element following the range erased, or the
   // container's end if range included the container's last element.
   iterator erase(const_iterator first, const_iterator last);

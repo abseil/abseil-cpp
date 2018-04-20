@@ -1578,7 +1578,7 @@ decay_t<T> c_inner_product(const Sequence1& factors1, const Sequence2& factors2,
 }
 
 // Overload of c_inner_product() for using binary operations other than
-// `operator+` (for computing the accumlation) and `operator*` (for computing
+// `operator+` (for computing the accumulation) and `operator*` (for computing
 // the product between the two container's element pair).
 template <typename Sequence1, typename Sequence2, typename T,
           typename BinaryOp1, typename BinaryOp2>
