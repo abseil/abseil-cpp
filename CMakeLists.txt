@@ -65,15 +65,9 @@ set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
 ## pthread
 find_package(Threads REQUIRED)
 
-if(NOT ABSL_CCTZ_TARGET)
-  set(ABSL_CCTZ_TARGET cctz)
-endif()
-
 # commented: used only for standalone test
 # Don't remove these or else CMake CI will break
-#add_subdirectory(cctz)
 #add_subdirectory(googletest)
-check_target(${ABSL_CCTZ_TARGET})
 
 ## check targets
 if(BUILD_TESTING)

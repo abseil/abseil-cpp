@@ -44,8 +44,8 @@ cc_library(
         "//absl/base",
         "//absl/base:core_headers",
         "//absl/numeric:int128",
-        "@com_googlesource_code_cctz//:civil_time",
-        "@com_googlesource_code_cctz//:time_zone",
+        "//absl/time/internal/cctz:civil_time",
+        "//absl/time/internal/cctz:time_zone",
     ],
 )
 
@@ -63,7 +63,7 @@ cc_library(
     deps = [
         ":time",
         "//absl/base",
-        "@com_googlesource_code_cctz//:time_zone",
+        "//absl/time/internal/cctz:time_zone",
     ],
 )
 
@@ -91,7 +91,7 @@ cc_test(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/time/internal/cctz:time_zone",
         "@com_google_googletest//:gtest_main",
-        "@com_googlesource_code_cctz//:time_zone",
     ],
 )

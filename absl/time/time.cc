@@ -36,8 +36,10 @@
 #include <ctime>
 #include <limits>
 
-#include "cctz/civil_time.h"
-#include "cctz/time_zone.h"
+#include "absl/time/internal/cctz/include/cctz/civil_time.h"
+#include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+namespace cctz = absl::time_internal::cctz;
 namespace absl {
 
 namespace {

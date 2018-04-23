@@ -19,7 +19,9 @@
 #include <cstring>
 
 #include "absl/base/internal/raw_logging.h"
-#include "cctz/zone_info_source.h"
+#include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
+
+namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
 namespace time_internal {
@@ -33,6 +35,8 @@ TimeZone LoadTimeZone(const std::string& name) {
 }  // namespace time_internal
 }  // namespace absl
 
+namespace absl {
+namespace time_internal {
 namespace cctz_extension {
 namespace {
 
@@ -115,3 +119,5 @@ std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
 ZoneInfoSourceFactory zone_info_source_factory = TestFactory;
 
 }  // namespace cctz_extension
+}  // namespace time_internal
+}  // namespace absl

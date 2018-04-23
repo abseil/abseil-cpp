@@ -206,6 +206,8 @@ struct Mallocator {
     typedef Mallocator<U> other;
   };
   Mallocator() = default;
+  template <class U>
+  Mallocator(const Mallocator<U>&) {}  // NOLINT(runtime/explicit)
 
   T* allocate(size_t n) { return static_cast<T*>(std::malloc(n * sizeof(T))); }
   void deallocate(T* p, size_t) { std::free(p); }

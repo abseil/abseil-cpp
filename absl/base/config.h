@@ -384,7 +384,7 @@
 
 // ABSL_HAVE_STD_VARIANT
 //
-// Checks whether C++17 std::optional is available.
+// Checks whether C++17 std::variant is available.
 #ifdef ABSL_HAVE_STD_VARIANT
 #error "ABSL_HAVE_STD_VARIANT cannot be directly set."
 #endif

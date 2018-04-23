@@ -34,7 +34,7 @@ function(absl_library)
   cmake_parse_arguments(ABSL_LIB
     "DISABLE_INSTALL" # keep that in case we want to support installation one day
     "TARGET;EXPORT_NAME"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS;PRIVATE_INCLUDE_DIRS"
+    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS"
     ${ARGN}
   )
 

@@ -263,7 +263,7 @@ TEST(optionalTest, CopyConstructor) {
     constexpr absl::optional<TrivialCopyable> o1(42);
     constexpr absl::optional<TrivialCopyable> o2 = o1;
     static_assert(o2, "");
-    static_assert(o2->x == 42, "");
+    static_assert((*o2).x == 42, "");
 #ifndef ABSL_GLIBCXX_OPTIONAL_TRIVIALITY_BUG
     EXPECT_TRUE(absl::is_trivially_copy_constructible<
                 absl::optional<TrivialCopyable>>::value);
@@ -327,14 +327,14 @@ TEST(optionalTest, Destructor) {
 TEST(optionalTest, InPlaceConstructor) {
   constexpr absl::optional<ConstexprType> opt0{absl::in_place_t()};
   static_assert(opt0, "");
-  static_assert(opt0->x == ConstexprType::kCtorDefault, "");
+  static_assert((*opt0).x == ConstexprType::kCtorDefault, "");
   constexpr absl::optional<ConstexprType> opt1{absl::in_place_t(), 1};
   static_assert(opt1, "");
-  static_assert(opt1->x == ConstexprType::kCtorInt, "");
+  static_assert((*opt1).x == ConstexprType::kCtorInt, "");
 #ifndef ABSL_HAVE_NO_CONSTEXPR_INITIALIZER_LIST
   constexpr absl::optional<ConstexprType> opt2{absl::in_place_t(), {1, 2}};
   static_assert(opt2, "");
-  static_assert(opt2->x == ConstexprType::kCtorInitializerList, "");
+  static_assert((*opt2).x == ConstexprType::kCtorInitializerList, "");
 #endif
 
   // TODO(absl-team): uncomment these when std::is_constructible<T, Args&&...>
@@ -362,13 +362,13 @@ TEST(optionalTest, ValueConstructor) {
   // optional via ConstexprType::ConstexprType(const char*).
   constexpr absl::optional<ConstexprType> opt1 = {"abc"};
   static_assert(opt1, "");
-  static_assert(ConstexprType::kCtorConstChar == opt1->x, "");
+  static_assert(ConstexprType::kCtorConstChar == (*opt1).x, "");
   EXPECT_TRUE(
       (std::is_convertible<const char*, absl::optional<ConstexprType>>::value));
   // direct initialization
   constexpr absl::optional<ConstexprType> opt2{2};
   static_assert(opt2, "");
-  static_assert(ConstexprType::kCtorInt == opt2->x, "");
+  static_assert(ConstexprType::kCtorInt == (*opt2).x, "");
   EXPECT_FALSE(
       (std::is_convertible<int, absl::optional<ConstexprType>>::value));
 
@@ -934,6 +934,33 @@ TEST(optionalTest, Swap) {
   EXPECT_TRUE(noexcept(swap(opt1, opt2)));
 }
 
+template <int v>
+struct DeletedOpAddr {
+  constexpr static const int value = v;
+  constexpr DeletedOpAddr() = default;
+  constexpr const DeletedOpAddr<v>* operator&() const = delete;  // NOLINT
+  DeletedOpAddr<v>* operator&() = delete;                        // NOLINT
+};
+
+// The static_assert featuring a constexpr call to operator->() is commented out
+// to document the fact that the current implementation of absl::optional<T>
+// expects such usecases to be malformed and not compile.
+TEST(optionalTest, OperatorAddr) {
+  constexpr const int v = -1;
+  {  // constexpr
+    constexpr const absl::optional<DeletedOpAddr<v>> opt(absl::in_place_t{});
+    static_assert(opt.has_value(), "");
+    // static_assert(opt->value == v, "");
+    static_assert((*opt).value == v, "");
+  }
+  {  // non-constexpr
+    const absl::optional<DeletedOpAddr<v>> opt(absl::in_place_t{});
+    EXPECT_TRUE(opt.has_value());
+    EXPECT_TRUE(opt->value == v);
+    EXPECT_TRUE((*opt).value == v);
+  }
+}
+
 TEST(optionalTest, PointerStuff) {
   absl::optional<std::string> opt(absl::in_place, "foo");
   EXPECT_EQ("foo", *opt);
@@ -943,7 +970,7 @@ TEST(optionalTest, PointerStuff) {
   EXPECT_EQ(opt_const->size(), 3);
 
   constexpr absl::optional<ConstexprType> opt1(1);
-  static_assert(opt1->x == ConstexprType::kCtorInt, "");
+  static_assert((*opt1).x == ConstexprType::kCtorInt, "");
 }
 
 // gcc has a bug pre 4.9.1 where it doesn't do correct overload resolution
@@ -1123,13 +1150,13 @@ TEST(optionalTest, make_optional) {
 
     constexpr TrivialCopyable v;
     constexpr absl::optional<TrivialCopyable> c_opt0 = absl::make_optional(v);
-    static_assert(c_opt0->x == 0, "");
+    static_assert((*c_opt0).x == 0, "");
     constexpr absl::optional<TrivialCopyable> c_opt1 =
         absl::make_optional<TrivialCopyable>();
-    static_assert(c_opt1->x == 0, "");
+    static_assert((*c_opt1).x == 0, "");
     constexpr absl::optional<TrivialCopyable> c_opt2 =
         absl::make_optional<TrivialCopyable>(42);
-    static_assert(c_opt2->x == 42, "");
+    static_assert((*c_opt2).x == 42, "");
   }
 }
 

@@ -64,7 +64,7 @@
 #include <utility>
 
 #include "absl/base/port.h"  // Needed for string vs std::string
-#include "cctz/time_zone.h"
+#include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
 
@@ -1032,12 +1032,12 @@ std::string UnparseFlag(Time t);
 // - http://en.wikipedia.org/wiki/Zoneinfo
 class TimeZone {
  public:
-  explicit TimeZone(cctz::time_zone tz) : cz_(tz) {}
+  explicit TimeZone(time_internal::cctz::time_zone tz) : cz_(tz) {}
   TimeZone() = default;  // UTC, but prefer UTCTimeZone() to be explicit.
   TimeZone(const TimeZone&) = default;
   TimeZone& operator=(const TimeZone&) = default;
 
-  explicit operator cctz::time_zone() const { return cz_; }
+  explicit operator time_internal::cctz::time_zone() const { return cz_; }
 
   std::string name() const { return cz_.name(); }
 
@@ -1048,7 +1048,7 @@ class TimeZone {
     return os << tz.name();
   }
 
-  cctz::time_zone cz_;
+  time_internal::cctz::time_zone cz_;
 };
 
 // LoadTimeZone()
@@ -1058,11 +1058,11 @@ class TimeZone {
 // `false` and `*tz` is set to the UTC time zone.
 inline bool LoadTimeZone(const std::string& name, TimeZone* tz) {
   if (name == "localtime") {
-    *tz = TimeZone(cctz::local_time_zone());
+    *tz = TimeZone(time_internal::cctz::local_time_zone());
     return true;
   }
-  cctz::time_zone cz;
-  const bool b = cctz::load_time_zone(name, &cz);
+  time_internal::cctz::time_zone cz;
+  const bool b = time_internal::cctz::load_time_zone(name, &cz);
   *tz = TimeZone(cz);
   return b;
 }
@@ -1074,14 +1074,14 @@ inline bool LoadTimeZone(const std::string& name, TimeZone* tz) {
 // you'll get UTC (i.e., no offset) instead.
 inline TimeZone FixedTimeZone(int seconds) {
   return TimeZone(
-      cctz::fixed_time_zone(std::chrono::seconds(seconds)));
+      time_internal::cctz::fixed_time_zone(std::chrono::seconds(seconds)));
 }
 
 // UTCTimeZone()
 //
 // Convenience method returning the UTC time zone.
 inline TimeZone UTCTimeZone() {
-  return TimeZone(cctz::utc_time_zone());
+  return TimeZone(time_internal::cctz::utc_time_zone());
 }
 
 // LocalTimeZone()
@@ -1091,7 +1091,7 @@ inline TimeZone UTCTimeZone() {
 // and particularly so in a server process, as the zone configured for the
 // local machine should be irrelevant.  Prefer an explicit zone name.
 inline TimeZone LocalTimeZone() {
-  return TimeZone(cctz::local_time_zone());
+  return TimeZone(time_internal::cctz::local_time_zone());
 }
 
 // ============================================================================

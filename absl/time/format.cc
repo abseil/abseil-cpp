@@ -16,8 +16,10 @@
 #include <cctype>
 #include <cstdint>
 
+#include "absl/time/internal/cctz/include/cctz/time_zone.h"
 #include "absl/time/time.h"
-#include "cctz/time_zone.h"
+
+namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
 

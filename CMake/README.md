@@ -19,10 +19,8 @@ googletest framework
 
 ### Step-by-Step Instructions
 
-1. If you haven't done so already, integrate the Abseil dependency
-[CCTZ](https://github.com/google/cctz) into your CMake project. Consequently, the
-target 'cctz' needs to be declared in your CMake project **before** including Abseil.<br>
-Note: If you want to build the Abseil tests, you'll also need [Google Test](https://github.com/google/googletest). To disable Abseil tests, you have to pass
+1. If you want to build the Abseil tests, integrate the Abseil dependency
+[Google Test](https://github.com/google/googletest) into your CMake project. To disable Abseil tests, you have to pass
 `-DBUILD_TESTING=OFF` when configuring your project with CMake.
 
 2. Download Abseil and copy it into a subdirectory in your CMake project or add
@@ -31,8 +29,7 @@ CMake project.
 
 3. You can then use the CMake command
 [`add_subdirectory()`](https://cmake.org/cmake/help/latest/command/add_subdirectory.html)
-to include Abseil directly in your CMake project. In addition, it's possible to
-customize the name of the `cctz` target with the `-DABSL_CCTZ_TARGET=*my_cctz*` option.
+to include Abseil directly in your CMake project.
 
 4. Add the **absl::** target you wish to use to the
 [`target_link_libraries()`](https://cmake.org/cmake/help/latest/command/target_link_libraries.html)

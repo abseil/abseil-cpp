@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cctz/time_zone.h"
+#include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 #include "gtest/gtest.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
+
+namespace cctz = absl::time_internal::cctz;
 
 namespace {
 

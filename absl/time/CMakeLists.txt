@@ -22,6 +22,10 @@ list(APPEND TIME_PUBLIC_HEADERS
 
 list(APPEND TIME_INTERNAL_HEADERS
   "internal/test_util.h"
+  "internal/cctz/include/cctz/civil_time.h"
+  "internal/cctz/include/cctz/civil_time_detail.h"
+  "internal/cctz/include/cctz/time_zone.h"
+  "internal/cctz/include/cctz/zone_info_source.h"
 )
 
 list(APPEND TIME_SRC
@@ -29,10 +33,27 @@ list(APPEND TIME_SRC
   "clock.cc"
   "duration.cc"
   "format.cc"
+  "internal/cctz/src/civil_time_detail.cc"
+  "internal/cctz/src/time_zone_fixed.cc"
+  "internal/cctz/src/time_zone_fixed.h"
+  "internal/cctz/src/time_zone_format.cc"
+  "internal/cctz/src/time_zone_if.cc"
+  "internal/cctz/src/time_zone_if.h"
+  "internal/cctz/src/time_zone_impl.cc"
+  "internal/cctz/src/time_zone_impl.h"
+  "internal/cctz/src/time_zone_info.cc"
+  "internal/cctz/src/time_zone_info.h"
+  "internal/cctz/src/time_zone_libc.cc"
+  "internal/cctz/src/time_zone_libc.h"
+  "internal/cctz/src/time_zone_lookup.cc"
+  "internal/cctz/src/time_zone_posix.cc"
+  "internal/cctz/src/time_zone_posix.h"
+  "internal/cctz/src/tzfile.h"
+  "internal/cctz/src/zone_info_source.cc"
   ${TIME_PUBLIC_HEADERS}
   ${TIME_INTERNAL_HEADERS}
 )
-set(TIME_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::int128 ${ABSL_CCTZ_TARGET})
+set(TIME_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::int128)
 
 absl_library(
   TARGET
@@ -41,8 +62,6 @@ absl_library(
     ${TIME_SRC}
   PUBLIC_LIBRARIES
     ${TIME_PUBLIC_LIBRARIES}
-  PUBLIC_INCLUDE_DIRS
-    ${CCTZ_INCLUDE_DIRS}
   EXPORT_NAME
     time
 )
