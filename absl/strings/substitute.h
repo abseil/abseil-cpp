@@ -76,7 +76,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
-#include "absl/strings/str_join.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
@@ -113,10 +113,10 @@ class Arg {
   // what to do.
   Arg(char value)  // NOLINT(runtime/explicit)
       : piece_(scratch_, 1) { scratch_[0] = value; }
-  Arg(short value)  // NOLINT(runtime/explicit)
+  Arg(short value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
-  Arg(unsigned short value)  // NOLINT(runtime/explicit)
+  Arg(unsigned short value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
   Arg(int value)  // NOLINT(runtime/explicit)
@@ -125,16 +125,16 @@ class Arg {
   Arg(unsigned int value)  // NOLINT(runtime/explicit)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
-  Arg(long value)  // NOLINT(runtime/explicit)
+  Arg(long value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
-  Arg(unsigned long value)  // NOLINT(runtime/explicit)
+  Arg(unsigned long value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
-  Arg(long long value)  // NOLINT(runtime/explicit)
+  Arg(long long value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
-  Arg(unsigned long long value)  // NOLINT(runtime/explicit)
+  Arg(unsigned long long value)  // NOLINT(*)
       : piece_(scratch_,
                numbers_internal::FastIntToBuffer(value, scratch_) - scratch_) {}
   Arg(float value)  // NOLINT(runtime/explicit)
@@ -145,6 +145,10 @@ class Arg {
   }
   Arg(bool value)  // NOLINT(runtime/explicit)
       : piece_(value ? "true" : "false") {}
+
+  Arg(Hex hex);  // NOLINT(runtime/explicit)
+  Arg(Dec dec);  // NOLINT(runtime/explicit)
+
   // `void*` values, with the exception of `char*`, are printed as
   // "0x<hex value>". However, in the case of `nullptr`, "NULL" is printed.
   Arg(const void* value);  // NOLINT(runtime/explicit)

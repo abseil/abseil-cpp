@@ -90,8 +90,6 @@ static constexpr size_t kHpageSize = 1 << 21;
 const char kHpageTextPadding[kHpageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     ".text") = "";
 
-#ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
-
 static char try_symbolize_buffer[4096];
 
 // A wrapper function for absl::Symbolize() to make the unit test simple.  The
@@ -119,6 +117,8 @@ static const char *TrySymbolizeWithLimit(void *pc, int limit) {
 static const char *TrySymbolize(void *pc) {
   return TrySymbolizeWithLimit(pc, sizeof(try_symbolize_buffer));
 }
+
+#ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 
 TEST(Symbolize, Cached) {
   // Compilers should give us pointers to them.
@@ -440,6 +440,45 @@ void ABSL_ATTRIBUTE_NOINLINE TestWithReturnAddress() {
   ABSL_RAW_CHECK(strcmp(symbol, "main") == 0, "TestWithReturnAddress failed");
   std::cout << "TestWithReturnAddress passed" << std::endl;
 #endif
+}
+
+#elif defined(_WIN32) && defined(_DEBUG)
+
+TEST(Symbolize, Basics) {
+  EXPECT_STREQ("nonstatic_func", TrySymbolize((void *)(&nonstatic_func)));
+
+  // The name of an internal linkage symbol is not specified; allow either a
+  // mangled or an unmangled name here.
+  const char* static_func_symbol = TrySymbolize((void *)(&static_func));
+  ASSERT_TRUE(static_func_symbol != nullptr);
+  EXPECT_TRUE(strstr(static_func_symbol, "static_func") != nullptr);
+
+  EXPECT_TRUE(nullptr == TrySymbolize(nullptr));
+}
+
+TEST(Symbolize, Truncation) {
+  constexpr char kNonStaticFunc[] = "nonstatic_func";
+  EXPECT_STREQ("nonstatic_func",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
+                                     strlen(kNonStaticFunc) + 1));
+  EXPECT_STREQ("nonstatic_...",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
+                                     strlen(kNonStaticFunc) + 0));
+  EXPECT_STREQ("nonstatic...",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
+                                     strlen(kNonStaticFunc) - 1));
+  EXPECT_STREQ("n...", TrySymbolizeWithLimit((void *)(&nonstatic_func), 5));
+  EXPECT_STREQ("...", TrySymbolizeWithLimit((void *)(&nonstatic_func), 4));
+  EXPECT_STREQ("..", TrySymbolizeWithLimit((void *)(&nonstatic_func), 3));
+  EXPECT_STREQ(".", TrySymbolizeWithLimit((void *)(&nonstatic_func), 2));
+  EXPECT_STREQ("", TrySymbolizeWithLimit((void *)(&nonstatic_func), 1));
+  EXPECT_EQ(nullptr, TrySymbolizeWithLimit((void *)(&nonstatic_func), 0));
+}
+
+TEST(Symbolize, SymbolizeWithDemangling) {
+  const char* result = TrySymbolize((void *)(&Foo::func));
+  ASSERT_TRUE(result != nullptr);
+  EXPECT_TRUE(strstr(result, "Foo::func") != nullptr) << result;
 }
 
 #else  // Symbolizer unimplemented

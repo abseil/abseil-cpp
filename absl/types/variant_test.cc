@@ -119,19 +119,9 @@ struct ConversionException {};
 
 template <class T>
 struct ExceptionOnConversion {
-  // Suppress MSVC 2017 warning "noreturn function has a non-void return type".
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4646)
-#endif  // _MSC_VER
-
-  [[noreturn]] operator T() const {  // NOLINT(runtime/explicit)
+  operator T() const {  // NOLINT(runtime/explicit)
     throw ConversionException();
   }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif  // _MSC_VER
 };
 
 // Forces a variant into the valueless by exception state.

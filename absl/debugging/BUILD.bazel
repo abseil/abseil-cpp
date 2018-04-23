@@ -46,6 +46,7 @@ cc_library(
         "symbolize.cc",
         "symbolize_elf.inc",
         "symbolize_unimplemented.inc",
+        "symbolize_win32.inc",
     ],
     hdrs = [
         "internal/symbolize.h",

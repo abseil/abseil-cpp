@@ -45,6 +45,7 @@ list(APPEND SYMBOLIZE_SRC
   "symbolize.cc"
   "symbolize_elf.inc"
   "symbolize_unimplemented.inc"
+  "symbolize_win32.inc"
   "internal/demangle.cc"
   ${DEBUGGING_PUBLIC_HEADERS}
   ${DEBUGGING_INTERNAL_HEADERS}

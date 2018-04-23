@@ -43,6 +43,24 @@ TEST(SubstituteTest, Substitute) {
           -1234567890, 3234567890U, -1234567890L, 3234567890UL,
           -int64_t{1234567890123456789}, uint64_t{9234567890123456789u}));
 
+  // Hex format
+  EXPECT_EQ("0 1 f ffff0ffff 0123456789abcdef",
+            absl::Substitute("$0$1$2$3$4 $5",  //
+                             absl::Hex(0), absl::Hex(1, absl::kSpacePad2),
+                             absl::Hex(0xf, absl::kSpacePad2),
+                             absl::Hex(int16_t{-1}, absl::kSpacePad5),
+                             absl::Hex(int16_t{-1}, absl::kZeroPad5),
+                             absl::Hex(0x123456789abcdef, absl::kZeroPad16)));
+
+  // Dec format
+  EXPECT_EQ("0 115   -1-0001 81985529216486895",
+            absl::Substitute("$0$1$2$3$4 $5",  //
+                             absl::Dec(0), absl::Dec(1, absl::kSpacePad2),
+                             absl::Dec(0xf, absl::kSpacePad2),
+                             absl::Dec(int16_t{-1}, absl::kSpacePad5),
+                             absl::Dec(int16_t{-1}, absl::kZeroPad5),
+                             absl::Dec(0x123456789abcdef, absl::kZeroPad16)));
+
   // Pointer.
   const int* int_p = reinterpret_cast<const int*>(0x12345);
   std::string str = absl::Substitute("$0", int_p);
