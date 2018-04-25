@@ -24,6 +24,7 @@
 //   * make_index_sequence<N>        == std::make_index_sequence<N>
 //   * index_sequence_for<Ts...>     == std::index_sequence_for<Ts...>
 //   * apply<Functor, Tuple>         == std::apply<Functor, Tuple>
+//   * exchange<T>                   == std::exchange<T>
 //
 // This header file also provides the tag types `in_place_t`, `in_place_type_t`,
 // and `in_place_index_t`, as well as the constant `in_place`, and
@@ -264,6 +265,27 @@ auto apply(Functor&& functor, Tuple&& t)
       absl::make_index_sequence<std::tuple_size<
           typename std::remove_reference<Tuple>::type>::value>{});
 }
+
+// exchange
+//
+// Replaces the value of `obj` with `new_value` and returns the old value of
+// `obj`.  `absl::exchange` is designed to be a drop-in replacement for C++14's
+// `std::exchange`.
+//
+// Example:
+//
+//   Foo& operator=(Foo&& other) {
+//     ptr1_ = absl::exchange(other.ptr1_, nullptr);
+//     int1_ = absl::exchange(other.int1_, -1);
+//     return *this;
+//   }
+template <typename T, typename U = T>
+T exchange(T& obj, U&& new_value) {
+  T old_value = absl::move(obj);
+  obj = absl::forward<U>(new_value);
+  return old_value;
+}
+
 }  // namespace absl
 
 #endif  // ABSL_UTILITY_UTILITY_H_

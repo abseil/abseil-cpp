@@ -333,5 +333,13 @@ TEST(ApplyTest, FlipFlop) {
   EXPECT_EQ(42, absl::apply(&FlipFlop::member, std::make_tuple(obj)));
 }
 
+TEST(ExchangeTest, MoveOnly) {
+  auto a = Factory(1);
+  EXPECT_EQ(1, *a);
+  auto b = absl::exchange(a, Factory(2));
+  EXPECT_EQ(2, *a);
+  EXPECT_EQ(1, *b);
+}
+
 }  // namespace
 

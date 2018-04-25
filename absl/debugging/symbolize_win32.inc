@@ -40,7 +40,7 @@ void InitializeSymbolizer(const char *argv0) {
   SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
   if (!SymInitialize(process, nullptr, true)) {
     // GetLastError() returns a Win32 DWORD, but we assign to
-    // unsigned long to simplify the ABSL_RAW_LOG case below.  The uniform
+    // unsigned long long to simplify the ABSL_RAW_LOG case below.  The uniform
     // initialization guarantees this is not a narrowing conversion.
     const unsigned long long error{GetLastError()};  // NOLINT(runtime/int)
     ABSL_RAW_LOG(FATAL, "SymInitialize() failed: %llu", error);
