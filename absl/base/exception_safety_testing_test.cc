@@ -41,15 +41,7 @@ void ExpectNoThrow(const F& f) {
   }
 }
 
-class ThrowingValueTest : public ::testing::Test {
- protected:
-  void SetUp() override { UnsetCountdown(); }
-
- private:
-  ConstructorTracker clouseau_;
-};
-
-TEST_F(ThrowingValueTest, Throws) {
+TEST(ThrowingValueTest, Throws) {
   SetCountdown();
   EXPECT_THROW(ThrowingValue<> bomb, TestException);
 
@@ -60,6 +52,8 @@ TEST_F(ThrowingValueTest, Throws) {
   ExpectNoThrow([]() { ThrowingValue<> bomb; });
   ExpectNoThrow([]() { ThrowingValue<> bomb; });
   EXPECT_THROW(ThrowingValue<> bomb, TestException);
+
+  UnsetCountdown();
 }
 
 // Tests that an operation throws when the countdown is at 0, doesn't throw when
@@ -67,7 +61,6 @@ TEST_F(ThrowingValueTest, Throws) {
 // ThrowingValue if it throws
 template <typename F>
 void TestOp(const F& f) {
-  UnsetCountdown();
   ExpectNoThrow(f);
 
   SetCountdown();
@@ -75,7 +68,7 @@ void TestOp(const F& f) {
   UnsetCountdown();
 }
 
-TEST_F(ThrowingValueTest, ThrowingCtors) {
+TEST(ThrowingValueTest, ThrowingCtors) {
   ThrowingValue<> bomb;
 
   TestOp([]() { ThrowingValue<> bomb(1); });
@@ -83,14 +76,14 @@ TEST_F(ThrowingValueTest, ThrowingCtors) {
   TestOp([&]() { ThrowingValue<> bomb1 = std::move(bomb); });
 }
 
-TEST_F(ThrowingValueTest, ThrowingAssignment) {
+TEST(ThrowingValueTest, ThrowingAssignment) {
   ThrowingValue<> bomb, bomb1;
 
   TestOp([&]() { bomb = bomb1; });
   TestOp([&]() { bomb = std::move(bomb1); });
 }
 
-TEST_F(ThrowingValueTest, ThrowingComparisons) {
+TEST(ThrowingValueTest, ThrowingComparisons) {
   ThrowingValue<> bomb1, bomb2;
   TestOp([&]() { return bomb1 == bomb2; });
   TestOp([&]() { return bomb1 != bomb2; });
@@ -100,7 +93,7 @@ TEST_F(ThrowingValueTest, ThrowingComparisons) {
   TestOp([&]() { return bomb1 >= bomb2; });
 }
 
-TEST_F(ThrowingValueTest, ThrowingArithmeticOps) {
+TEST(ThrowingValueTest, ThrowingArithmeticOps) {
   ThrowingValue<> bomb1(1), bomb2(2);
 
   TestOp([&bomb1]() { +bomb1; });
@@ -118,7 +111,7 @@ TEST_F(ThrowingValueTest, ThrowingArithmeticOps) {
   TestOp([&]() { bomb1 >> 1; });
 }
 
-TEST_F(ThrowingValueTest, ThrowingLogicalOps) {
+TEST(ThrowingValueTest, ThrowingLogicalOps) {
   ThrowingValue<> bomb1, bomb2;
 
   TestOp([&bomb1]() { !bomb1; });
@@ -126,7 +119,7 @@ TEST_F(ThrowingValueTest, ThrowingLogicalOps) {
   TestOp([&]() { bomb1 || bomb2; });
 }
 
-TEST_F(ThrowingValueTest, ThrowingBitwiseOps) {
+TEST(ThrowingValueTest, ThrowingBitwiseOps) {
   ThrowingValue<> bomb1, bomb2;
 
   TestOp([&bomb1]() { ~bomb1; });
@@ -135,7 +128,7 @@ TEST_F(ThrowingValueTest, ThrowingBitwiseOps) {
   TestOp([&]() { bomb1 ^ bomb2; });
 }
 
-TEST_F(ThrowingValueTest, ThrowingCompoundAssignmentOps) {
+TEST(ThrowingValueTest, ThrowingCompoundAssignmentOps) {
   ThrowingValue<> bomb1(1), bomb2(2);
 
   TestOp([&]() { bomb1 += bomb2; });
@@ -149,7 +142,7 @@ TEST_F(ThrowingValueTest, ThrowingCompoundAssignmentOps) {
   TestOp([&]() { bomb1 *= bomb2; });
 }
 
-TEST_F(ThrowingValueTest, ThrowingStreamOps) {
+TEST(ThrowingValueTest, ThrowingStreamOps) {
   ThrowingValue<> bomb;
 
   TestOp([&]() { std::cin >> bomb; });
@@ -158,7 +151,6 @@ TEST_F(ThrowingValueTest, ThrowingStreamOps) {
 
 template <typename F>
 void TestAllocatingOp(const F& f) {
-  UnsetCountdown();
   ExpectNoThrow(f);
 
   SetCountdown();
@@ -166,32 +158,34 @@ void TestAllocatingOp(const F& f) {
   UnsetCountdown();
 }
 
-TEST_F(ThrowingValueTest, ThrowingAllocatingOps) {
+TEST(ThrowingValueTest, ThrowingAllocatingOps) {
   // make_unique calls unqualified operator new, so these exercise the
   // ThrowingValue overloads.
   TestAllocatingOp([]() { return absl::make_unique<ThrowingValue<>>(1); });
   TestAllocatingOp([]() { return absl::make_unique<ThrowingValue<>[]>(2); });
 }
 
-TEST_F(ThrowingValueTest, NonThrowingMoveCtor) {
+TEST(ThrowingValueTest, NonThrowingMoveCtor) {
   ThrowingValue<NoThrow::kMoveCtor> nothrow_ctor;
 
   SetCountdown();
   ExpectNoThrow([&nothrow_ctor]() {
     ThrowingValue<NoThrow::kMoveCtor> nothrow1 = std::move(nothrow_ctor);
   });
+  UnsetCountdown();
 }
 
-TEST_F(ThrowingValueTest, NonThrowingMoveAssign) {
+TEST(ThrowingValueTest, NonThrowingMoveAssign) {
   ThrowingValue<NoThrow::kMoveAssign> nothrow_assign1, nothrow_assign2;
 
   SetCountdown();
   ExpectNoThrow([&nothrow_assign1, &nothrow_assign2]() {
     nothrow_assign1 = std::move(nothrow_assign2);
   });
+  UnsetCountdown();
 }
 
-TEST_F(ThrowingValueTest, ThrowingSwap) {
+TEST(ThrowingValueTest, ThrowingSwap) {
   ThrowingValue<> bomb1, bomb2;
   TestOp([&]() { std::swap(bomb1, bomb2); });
 
@@ -202,12 +196,12 @@ TEST_F(ThrowingValueTest, ThrowingSwap) {
   TestOp([&]() { std::swap(bomb5, bomb6); });
 }
 
-TEST_F(ThrowingValueTest, NonThrowingSwap) {
+TEST(ThrowingValueTest, NonThrowingSwap) {
   ThrowingValue<NoThrow::kMoveAssign | NoThrow::kMoveCtor> bomb1, bomb2;
   ExpectNoThrow([&]() { std::swap(bomb1, bomb2); });
 }
 
-TEST_F(ThrowingValueTest, NonThrowingAllocation) {
+TEST(ThrowingValueTest, NonThrowingAllocation) {
   ThrowingValue<NoThrow::kAllocation>* allocated;
   ThrowingValue<NoThrow::kAllocation>* array;
 
@@ -221,7 +215,7 @@ TEST_F(ThrowingValueTest, NonThrowingAllocation) {
   });
 }
 
-TEST_F(ThrowingValueTest, NonThrowingDelete) {
+TEST(ThrowingValueTest, NonThrowingDelete) {
   auto* allocated = new ThrowingValue<>(1);
   auto* array = new ThrowingValue<>[2];
 
@@ -229,12 +223,14 @@ TEST_F(ThrowingValueTest, NonThrowingDelete) {
   ExpectNoThrow([allocated]() { delete allocated; });
   SetCountdown();
   ExpectNoThrow([array]() { delete[] array; });
+
+  UnsetCountdown();
 }
 
 using Storage =
     absl::aligned_storage_t<sizeof(ThrowingValue<>), alignof(ThrowingValue<>)>;
 
-TEST_F(ThrowingValueTest, NonThrowingPlacementDelete) {
+TEST(ThrowingValueTest, NonThrowingPlacementDelete) {
   constexpr int kArrayLen = 2;
   // We intentionally create extra space to store the tag allocated by placement
   // new[].
@@ -256,16 +252,19 @@ TEST_F(ThrowingValueTest, NonThrowingPlacementDelete) {
     for (int i = 0; i < kArrayLen; ++i) placed_array[i].~ThrowingValue<>();
     ThrowingValue<>::operator delete[](placed_array, &array_buf);
   });
+
+  UnsetCountdown();
 }
 
-TEST_F(ThrowingValueTest, NonThrowingDestructor) {
+TEST(ThrowingValueTest, NonThrowingDestructor) {
   auto* allocated = new ThrowingValue<>();
+
   SetCountdown();
   ExpectNoThrow([allocated]() { delete allocated; });
+  UnsetCountdown();
 }
 
 TEST(ThrowingBoolTest, ThrowingBool) {
-  UnsetCountdown();
   ThrowingBool t = true;
 
   // Test that it's contextually convertible to bool
@@ -276,15 +275,7 @@ TEST(ThrowingBoolTest, ThrowingBool) {
   TestOp([&]() { (void)!t; });
 }
 
-class ThrowingAllocatorTest : public ::testing::Test {
- protected:
-  void SetUp() override { UnsetCountdown(); }
-
- private:
-  ConstructorTracker borlu_;
-};
-
-TEST_F(ThrowingAllocatorTest, MemoryManagement) {
+TEST(ThrowingAllocatorTest, MemoryManagement) {
   // Just exercise the memory management capabilities under LSan to make sure we
   // don't leak.
   ThrowingAllocator<int> int_alloc;
@@ -300,7 +291,7 @@ TEST_F(ThrowingAllocatorTest, MemoryManagement) {
   ef_alloc.deallocate(ef_array, 2);
 }
 
-TEST_F(ThrowingAllocatorTest, CallsGlobalNew) {
+TEST(ThrowingAllocatorTest, CallsGlobalNew) {
   ThrowingAllocator<ThrowingValue<>, NoThrow::kNoThrow> nothrow_alloc;
   ThrowingValue<>* ptr;
 
@@ -308,9 +299,11 @@ TEST_F(ThrowingAllocatorTest, CallsGlobalNew) {
   // This will only throw if ThrowingValue::new is called.
   ExpectNoThrow([&]() { ptr = nothrow_alloc.allocate(1); });
   nothrow_alloc.deallocate(ptr, 1);
+
+  UnsetCountdown();
 }
 
-TEST_F(ThrowingAllocatorTest, ThrowingConstructors) {
+TEST(ThrowingAllocatorTest, ThrowingConstructors) {
   ThrowingAllocator<int> int_alloc;
   int* ip = nullptr;
 
@@ -323,22 +316,27 @@ TEST_F(ThrowingAllocatorTest, ThrowingConstructors) {
   EXPECT_THROW(int_alloc.construct(ip, 2), TestException);
   EXPECT_EQ(*ip, 1);
   int_alloc.deallocate(ip, 1);
+
+  UnsetCountdown();
 }
 
-TEST_F(ThrowingAllocatorTest, NonThrowingConstruction) {
+TEST(ThrowingAllocatorTest, NonThrowingConstruction) {
   {
     ThrowingAllocator<int, NoThrow::kNoThrow> int_alloc;
     int* ip = nullptr;
 
     SetCountdown();
     ExpectNoThrow([&]() { ip = int_alloc.allocate(1); });
+
     SetCountdown();
     ExpectNoThrow([&]() { int_alloc.construct(ip, 2); });
+
     EXPECT_EQ(*ip, 2);
     int_alloc.deallocate(ip, 1);
+
+    UnsetCountdown();
   }
 
-  UnsetCountdown();
   {
     ThrowingAllocator<int> int_alloc;
     int* ip = nullptr;
@@ -348,37 +346,44 @@ TEST_F(ThrowingAllocatorTest, NonThrowingConstruction) {
     int_alloc.deallocate(ip, 1);
   }
 
-  UnsetCountdown();
   {
     ThrowingAllocator<ThrowingValue<NoThrow::kIntCtor>, NoThrow::kNoThrow>
         ef_alloc;
     ThrowingValue<NoThrow::kIntCtor>* efp;
+
     SetCountdown();
     ExpectNoThrow([&]() { efp = ef_alloc.allocate(1); });
+
     SetCountdown();
     ExpectNoThrow([&]() { ef_alloc.construct(efp, 2); });
+
     EXPECT_EQ(efp->Get(), 2);
     ef_alloc.destroy(efp);
     ef_alloc.deallocate(efp, 1);
+
+    UnsetCountdown();
   }
 
-  UnsetCountdown();
   {
     ThrowingAllocator<int> a;
+
     SetCountdown();
     ExpectNoThrow([&]() { ThrowingAllocator<double> a1 = a; });
+
     SetCountdown();
     ExpectNoThrow([&]() { ThrowingAllocator<double> a1 = std::move(a); });
+
+    UnsetCountdown();
   }
 }
 
-TEST_F(ThrowingAllocatorTest, ThrowingAllocatorConstruction) {
+TEST(ThrowingAllocatorTest, ThrowingAllocatorConstruction) {
   ThrowingAllocator<int> a;
   TestOp([]() { ThrowingAllocator<int> a; });
   TestOp([&]() { a.select_on_container_copy_construction(); });
 }
 
-TEST_F(ThrowingAllocatorTest, State) {
+TEST(ThrowingAllocatorTest, State) {
   ThrowingAllocator<int> a1, a2;
   EXPECT_NE(a1, a2);
 
@@ -390,13 +395,13 @@ TEST_F(ThrowingAllocatorTest, State) {
   EXPECT_EQ(a3, a1);
 }
 
-TEST_F(ThrowingAllocatorTest, InVector) {
+TEST(ThrowingAllocatorTest, InVector) {
   std::vector<ThrowingValue<>, ThrowingAllocator<ThrowingValue<>>> v;
   for (int i = 0; i < 20; ++i) v.push_back({});
   for (int i = 0; i < 20; ++i) v.pop_back();
 }
 
-TEST_F(ThrowingAllocatorTest, InList) {
+TEST(ThrowingAllocatorTest, InList) {
   std::list<ThrowingValue<>, ThrowingAllocator<ThrowingValue<>>> l;
   for (int i = 0; i < 20; ++i) l.push_back({});
   for (int i = 0; i < 20; ++i) l.pop_back();
@@ -772,19 +777,28 @@ struct Tracked : private exceptions_internal::TrackedObject {
   Tracked() : TrackedObject(ABSL_PRETTY_FUNCTION) {}
 };
 
-TEST(ConstructorTrackerTest, Pass) {
-  ConstructorTracker javert;
-  Tracked t;
+TEST(ConstructorTrackerTest, CreatedBefore) {
+  Tracked a, b, c;
+  exceptions_internal::ConstructorTracker ct(exceptions_internal::countdown);
 }
 
-TEST(ConstructorTrackerTest, NotDestroyed) {
+TEST(ConstructorTrackerTest, CreatedAfter) {
+  exceptions_internal::ConstructorTracker ct(exceptions_internal::countdown);
+  Tracked a, b, c;
+}
+
+TEST(ConstructorTrackerTest, NotDestroyedAfter) {
   absl::aligned_storage_t<sizeof(Tracked), alignof(Tracked)> storage;
   EXPECT_NONFATAL_FAILURE(
       {
-        ConstructorTracker gadget;
+        exceptions_internal::ConstructorTracker ct(
+            exceptions_internal::countdown);
         new (&storage) Tracked;
       },
       "not destroyed");
+
+  // Manual destruction of the Tracked instance is not required because
+  // ~ConstructorTracker() handles that automatically when a leak is found
 }
 
 TEST(ConstructorTrackerTest, DestroyedTwice) {

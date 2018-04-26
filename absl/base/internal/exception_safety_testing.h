@@ -37,8 +37,6 @@
 
 namespace absl {
 
-struct ConstructorTracker;
-
 // A configuration enum for Throwing*.  Operations whose flags are set will
 // throw, everything else won't.  This isn't meant to be exhaustive, more flags
 // can always be made in the future.
@@ -105,6 +103,8 @@ void MaybeThrow(absl::string_view msg, bool throw_bad_alloc = false);
 testing::AssertionResult FailureMessage(const TestException& e,
                                         int countdown) noexcept;
 
+class ConstructorTracker;
+
 class TrackedObject {
  public:
   TrackedObject(const TrackedObject&) = delete;
@@ -112,26 +112,56 @@ class TrackedObject {
 
  protected:
   explicit TrackedObject(const char* child_ctor) {
-    if (!GetAllocs().emplace(this, child_ctor).second) {
+    if (!GetInstanceMap().emplace(this, child_ctor).second) {
       ADD_FAILURE() << "Object at address " << static_cast<void*>(this)
                     << " re-constructed in ctor " << child_ctor;
     }
   }
 
-  static std::unordered_map<TrackedObject*, absl::string_view>& GetAllocs() {
-    static auto* m =
-        new std::unordered_map<TrackedObject*, absl::string_view>();
-    return *m;
-  }
-
   ~TrackedObject() noexcept {
-    if (GetAllocs().erase(this) == 0) {
+    if (GetInstanceMap().erase(this) == 0) {
       ADD_FAILURE() << "Object at address " << static_cast<void*>(this)
                     << " destroyed improperly";
     }
   }
 
-  friend struct ::absl::ConstructorTracker;
+ private:
+  using InstanceMap = std::unordered_map<TrackedObject*, absl::string_view>;
+  static InstanceMap& GetInstanceMap() {
+    static auto* instance_map = new InstanceMap();
+    return *instance_map;
+  }
+
+  friend class ConstructorTracker;
+};
+
+// Inspects the constructions and destructions of anything inheriting from
+// TrackedObject. This allows us to safely "leak" TrackedObjects, as
+// ConstructorTracker will destroy everything left over in its destructor.
+class ConstructorTracker {
+ public:
+  explicit ConstructorTracker(int c)
+      : init_count_(c), init_instances_(TrackedObject::GetInstanceMap()) {}
+  ~ConstructorTracker() {
+    auto& cur_instances = TrackedObject::GetInstanceMap();
+    for (auto it = cur_instances.begin(); it != cur_instances.end();) {
+      if (init_instances_.count(it->first) == 0) {
+        ADD_FAILURE() << "Object at address " << static_cast<void*>(it->first)
+                      << " constructed from " << it->second
+                      << " where the exception countdown was set to "
+                      << init_count_ << " was not destroyed";
+        // Erasing an item inside an unordered_map invalidates the existing
+        // iterator. A new one is returned for iteration to continue.
+        it = cur_instances.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+ private:
+  int init_count_;
+  TrackedObject::InstanceMap init_instances_;
 };
 
 template <typename Factory, typename Operation, typename Invariant>
@@ -707,37 +737,21 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
 template <typename T, NoThrow Throws>
 int ThrowingAllocator<T, Throws>::next_id_ = 0;
 
-// Inspects the constructions and destructions of anything inheriting from
-// TrackedObject.  Place this as a member variable in a test fixture to ensure
-// that every ThrowingValue was constructed and destroyed correctly.  This also
-// allows us to safely "leak" TrackedObjects, as ConstructorTracker will destroy
-// everything left over in its destructor.
-struct ConstructorTracker {
-  ConstructorTracker() = default;
-  ~ConstructorTracker() {
-    auto& allocs = exceptions_internal::TrackedObject::GetAllocs();
-    for (const auto& kv : allocs) {
-      ADD_FAILURE() << "Object at address " << static_cast<void*>(kv.first)
-                    << " constructed from " << kv.second << " not destroyed";
-    }
-    allocs.clear();
-  }
-};
-
 // Tests for resource leaks by attempting to construct a T using args repeatedly
 // until successful, using the countdown method.  Side effects can then be
-// tested for resource leaks.  If a ConstructorTracker is present in the test
-// fixture, then this will also test that memory resources are not leaked as
-// long as T allocates TrackedObjects.
+// tested for resource leaks.
 template <typename T, typename... Args>
-T TestThrowingCtor(Args&&... args) {
+void TestThrowingCtor(Args&&... args) {
   struct Cleanup {
     ~Cleanup() { exceptions_internal::UnsetCountdown(); }
   } c;
   for (int count = 0;; ++count) {
+    exceptions_internal::ConstructorTracker ct(count);
     exceptions_internal::SetCountdown(count);
     try {
-      return T(std::forward<Args>(args)...);
+      T temp(std::forward<Args>(args)...);
+      static_cast<void>(temp);
+      break;
     } catch (const exceptions_internal::TestException&) {
     }
   }
@@ -934,6 +948,8 @@ class ExceptionSafetyTester {
     // Starting from 0 and counting upwards until one of the exit conditions is
     // hit...
     for (int count = 0;; ++count) {
+      exceptions_internal::ConstructorTracker ct(count);
+
       // Run the full exception safety test algorithm for the current countdown
       auto reduced_res =
           TestAllInvariantsAtCountdown(factory_, selected_operation, count,

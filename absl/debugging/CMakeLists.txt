@@ -15,6 +15,7 @@
 #
 
 list(APPEND DEBUGGING_PUBLIC_HEADERS
+  "failure_signal_handler.h"
   "leak_check.h"
   "stacktrace.h"
   "symbolize.h"
@@ -51,6 +52,11 @@ list(APPEND SYMBOLIZE_SRC
   ${DEBUGGING_INTERNAL_HEADERS}
 )
 
+list(APPEND FAILURE_SIGNAL_HANDLER_SRC
+  "failure_signal_handler.cc"
+  ${DEBUGGING_PUBLIC_HEADERS}
+)
+
 list(APPEND EXAMINE_STACK_SRC
   "internal/examine_stack.cc"
   ${DEBUGGING_PUBLIC_HEADERS}
@@ -73,6 +79,17 @@ absl_library(
     ${SYMBOLIZE_SRC}
   EXPORT_NAME
     symbolize
+)
+
+absl_library(
+  TARGET
+    absl_failure_signal_handler
+  SOURCES
+    ${FAILURE_SIGNAL_HANDLER_SRC}
+  PUBLIC_LIBRARIES
+    absl_base absl_synchronization
+  EXPORT_NAME
+    failure_signal_handler
 )
 
 # Internal-only. Projects external to Abseil should not depend
@@ -161,6 +178,17 @@ absl_test(
     ${SYMBOLIZE_TEST_SRC}
   PUBLIC_LIBRARIES
     absl_symbolize absl_stack_consumption
+)
+
+list(APPEND FAILURE_SIGNAL_HANDLER_TEST_SRC "failure_signal_handler_test.cc")
+
+absl_test(
+  TARGET
+    failure_signal_handler_test
+  SOURCES
+    ${FAILURE_SIGNAL_HANDLER_TEST_SRC}
+  PUBLIC_LIBRARIES
+    absl_examine_stack absl_stacktrace absl_symbolize
 )
 
 # test leak_check_test
