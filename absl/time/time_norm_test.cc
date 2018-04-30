@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/time/internal/test_util.h"
 #include "absl/time/time.h"
@@ -32,31 +33,31 @@ TEST(TimeNormCase, SimpleOverflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 16, 33, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 16, 33, 0, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16, 59 + 1, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 17, 0, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 17, 0, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 23 + 1, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 16, 0, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 16, 0, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 30 + 1, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 12, 1, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 12, 1, 16, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 12 + 1, 15, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2014, 1, 15, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2014, 1, 15, 16, 32, 14, 0, false);
 }
 
 TEST(TimeNormCase, SimpleUnderflow) {
@@ -66,31 +67,31 @@ TEST(TimeNormCase, SimpleUnderflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 16, 31, 59, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 16, 31, 59, 0, false);
 
   tc = ConvertDateTime(2013, 11, 15, 16, 0 - 1, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 15, 59, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 15, 15, 59, 14, 0, false);
 
   tc = ConvertDateTime(2013, 11, 15, 0 - 1, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 14, 23, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 14, 23, 32, 14, 0, false);
 
   tc = ConvertDateTime(2013, 11, 1 - 1, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 10, 31, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 10, 31, 16, 32, 14, 0, false);
 
   tc = ConvertDateTime(2013, 1 - 1, 15, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2012, 12, 15, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2012, 12, 15, 16, 32, 14, 0, false);
 }
 
 TEST(TimeNormCase, MultipleOverflow) {
@@ -99,7 +100,7 @@ TEST(TimeNormCase, MultipleOverflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2014, 1, 1, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2014, 1, 1, 0, 0, 0, 0, false);
 }
 
 TEST(TimeNormCase, MultipleUnderflow) {
@@ -108,7 +109,7 @@ TEST(TimeNormCase, MultipleUnderflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 12, 31, 23, 59, 59, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 12, 31, 23, 59, 59, 0, false);
 }
 
 TEST(TimeNormCase, OverflowLimits) {
@@ -122,7 +123,7 @@ TEST(TimeNormCase, OverflowLimits) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 185085715, 11, 27, 12, 21, 7, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 185085715, 11, 27, 12, 21, 7, 0, false);
 
   const int kintmin = std::numeric_limits<int>::min();
   tc = absl::ConvertDateTime(0, kintmin, kintmin, kintmin, kintmin, kintmin,
@@ -130,8 +131,7 @@ TEST(TimeNormCase, OverflowLimits) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, -185085717, 10, 31, 10, 37, 52, 0, false,
-                            "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, -185085717, 10, 31, 10, 37, 52, 0, false);
 
   const int64_t max_year = std::numeric_limits<int64_t>::max();
   tc = absl::ConvertDateTime(max_year, 12, 31, 23, 59, 59, utc);
@@ -154,31 +154,31 @@ TEST(TimeNormCase, ComplexOverflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2017, 10, 14, 14, 5, 23, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2017, 10, 14, 14, 5, 23, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16, 32 + 1234567, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2016, 3, 22, 0, 39, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2016, 3, 22, 0, 39, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16 + 123456, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2027, 12, 16, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2027, 12, 16, 16, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15 + 1234, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2017, 4, 2, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2017, 4, 2, 16, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11 + 123, 15, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2024, 2, 15, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2024, 2, 15, 16, 32, 14, 0, false);
 }
 
 TEST(TimeNormCase, ComplexUnderflow) {
@@ -189,37 +189,37 @@ TEST(TimeNormCase, ComplexUnderflow) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1999, 2, 28, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1999, 2, 28, 0, 0, 0, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16, 32, 14 - 123456789, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2009, 12, 17, 18, 59, 5, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2009, 12, 17, 18, 59, 5, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16, 32 - 1234567, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2011, 7, 12, 8, 25, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2011, 7, 12, 8, 25, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15, 16 - 123456, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1999, 10, 16, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1999, 10, 16, 16, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11, 15 - 1234, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2010, 6, 30, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2010, 6, 30, 16, 32, 14, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11 - 123, 15, 16, 32, 14, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2003, 8, 15, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2003, 8, 15, 16, 32, 14, 0, false);
 }
 
 TEST(TimeNormCase, Mishmash) {
@@ -231,14 +231,14 @@ TEST(TimeNormCase, Mishmash) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1991, 5, 9, 3, 6, 5, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1991, 5, 9, 3, 6, 5, 0, false);
 
   tc = absl::ConvertDateTime(2013, 11 + 123, 15 - 1234, 16 + 123456,
                              32 - 1234567, 14 + 123456789, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2036, 5, 24, 5, 58, 23, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2036, 5, 24, 5, 58, 23, 0, false);
 
   // Here is a normalization case we got wrong for a while.  Because the
   // day is converted to "1" within a 400-year (146097-day) period, we
@@ -247,7 +247,7 @@ TEST(TimeNormCase, Mishmash) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1613, 11, 1, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1613, 11, 1, 16, 32, 14, 0, false);
 
   // Even though the month overflow compensates for the day underflow,
   // this should still be marked as normalized.
@@ -255,7 +255,7 @@ TEST(TimeNormCase, Mishmash) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 1, 16, 32, 14, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 11, 1, 16, 32, 14, 0, false);
 }
 
 TEST(TimeNormCase, LeapYears) {
@@ -266,25 +266,25 @@ TEST(TimeNormCase, LeapYears) {
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   absl::Time::Breakdown bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 3, 1, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 3, 1, 0, 0, 0, 0, false);
 
   tc = absl::ConvertDateTime(2012, 2, 28 + 1, 0, 0, 0, utc);
   EXPECT_FALSE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2012, 2, 29, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2012, 2, 29, 0, 0, 0, 0, false);
 
   tc = absl::ConvertDateTime(2000, 2, 28 + 1, 0, 0, 0, utc);
   EXPECT_FALSE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2000, 2, 29, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2000, 2, 29, 0, 0, 0, 0, false);
 
   tc = absl::ConvertDateTime(1900, 2, 28 + 1, 0, 0, 0, utc);
   EXPECT_TRUE(tc.normalized);
   EXPECT_EQ(absl::TimeConversion::UNIQUE, tc.kind);
   bd = tc.pre.In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1900, 3, 1, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1900, 3, 1, 0, 0, 0, 0, false);
 }
 
 // Convert all the days from 1970-1-1 to 1970-1-146097 (aka 2369-12-31)

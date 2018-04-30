@@ -17,7 +17,7 @@
 #include "gtest/gtest.h"
 #include "absl/meta/type_traits.h"
 
-namespace absl {
+namespace testing {
 
 exceptions_internal::NoThrowTag no_throw_ctor;
 exceptions_internal::StrongGuaranteeTagType strong_guarantee;
@@ -37,5 +37,7 @@ testing::AssertionResult FailureMessage(const TestException& e,
                                         int countdown) noexcept {
   return testing::AssertionFailure() << "Exception thrown from " << e.what();
 }
+
 }  // namespace exceptions_internal
-}  // namespace absl
+
+}  // namespace testing

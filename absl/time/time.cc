@@ -71,7 +71,7 @@ inline absl::Time::Breakdown InfiniteFutureBreakdown() {
   bd.yearday = 365;
   bd.offset = 0;
   bd.is_dst = false;
-  bd.zone_abbr = "-0000";
+  bd.zone_abbr = "-00";
   return bd;
 }
 
@@ -88,7 +88,7 @@ inline Time::Breakdown InfinitePastBreakdown() {
   bd.yearday = 1;
   bd.offset = 0;
   bd.is_dst = false;
-  bd.zone_abbr = "-0000";
+  bd.zone_abbr = "-00";
   return bd;
 }
 

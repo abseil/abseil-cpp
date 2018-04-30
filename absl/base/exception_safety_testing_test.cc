@@ -25,11 +25,13 @@
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
 
-namespace absl {
+namespace testing {
+
 namespace {
-using ::absl::exceptions_internal::SetCountdown;
-using ::absl::exceptions_internal::TestException;
-using ::absl::exceptions_internal::UnsetCountdown;
+
+using ::testing::exceptions_internal::SetCountdown;
+using ::testing::exceptions_internal::TestException;
+using ::testing::exceptions_internal::UnsetCountdown;
 
 // EXPECT_NO_THROW can't inspect the thrown inspection in general.
 template <typename F>
@@ -166,17 +168,17 @@ TEST(ThrowingValueTest, ThrowingAllocatingOps) {
 }
 
 TEST(ThrowingValueTest, NonThrowingMoveCtor) {
-  ThrowingValue<NoThrow::kMoveCtor> nothrow_ctor;
+  ThrowingValue<TypeSpec::kNoThrowMove> nothrow_ctor;
 
   SetCountdown();
   ExpectNoThrow([&nothrow_ctor]() {
-    ThrowingValue<NoThrow::kMoveCtor> nothrow1 = std::move(nothrow_ctor);
+    ThrowingValue<TypeSpec::kNoThrowMove> nothrow1 = std::move(nothrow_ctor);
   });
   UnsetCountdown();
 }
 
 TEST(ThrowingValueTest, NonThrowingMoveAssign) {
-  ThrowingValue<NoThrow::kMoveAssign> nothrow_assign1, nothrow_assign2;
+  ThrowingValue<TypeSpec::kNoThrowMove> nothrow_assign1, nothrow_assign2;
 
   SetCountdown();
   ExpectNoThrow([&nothrow_assign1, &nothrow_assign2]() {
@@ -185,32 +187,58 @@ TEST(ThrowingValueTest, NonThrowingMoveAssign) {
   UnsetCountdown();
 }
 
+TEST(ThrowingValueTest, ThrowingCopyCtor) {
+  ThrowingValue<> tv;
+
+  TestOp([&]() { ThrowingValue<> tv_copy(tv); });
+}
+
+TEST(ThrowingValueTest, ThrowingCopyAssign) {
+  ThrowingValue<> tv1, tv2;
+
+  TestOp([&]() { tv1 = tv2; });
+}
+
+TEST(ThrowingValueTest, NonThrowingCopyCtor) {
+  ThrowingValue<TypeSpec::kNoThrowCopy> nothrow_ctor;
+
+  SetCountdown();
+  ExpectNoThrow([&nothrow_ctor]() {
+    ThrowingValue<TypeSpec::kNoThrowCopy> nothrow1(nothrow_ctor);
+  });
+  UnsetCountdown();
+}
+
+TEST(ThrowingValueTest, NonThrowingCopyAssign) {
+  ThrowingValue<TypeSpec::kNoThrowCopy> nothrow_assign1, nothrow_assign2;
+
+  SetCountdown();
+  ExpectNoThrow([&nothrow_assign1, &nothrow_assign2]() {
+    nothrow_assign1 = nothrow_assign2;
+  });
+  UnsetCountdown();
+}
+
 TEST(ThrowingValueTest, ThrowingSwap) {
   ThrowingValue<> bomb1, bomb2;
   TestOp([&]() { std::swap(bomb1, bomb2); });
-
-  ThrowingValue<NoThrow::kMoveCtor> bomb3, bomb4;
-  TestOp([&]() { std::swap(bomb3, bomb4); });
-
-  ThrowingValue<NoThrow::kMoveAssign> bomb5, bomb6;
-  TestOp([&]() { std::swap(bomb5, bomb6); });
 }
 
 TEST(ThrowingValueTest, NonThrowingSwap) {
-  ThrowingValue<NoThrow::kMoveAssign | NoThrow::kMoveCtor> bomb1, bomb2;
+  ThrowingValue<TypeSpec::kNoThrowMove> bomb1, bomb2;
   ExpectNoThrow([&]() { std::swap(bomb1, bomb2); });
 }
 
 TEST(ThrowingValueTest, NonThrowingAllocation) {
-  ThrowingValue<NoThrow::kAllocation>* allocated;
-  ThrowingValue<NoThrow::kAllocation>* array;
+  ThrowingValue<TypeSpec::kNoThrowNew>* allocated;
+  ThrowingValue<TypeSpec::kNoThrowNew>* array;
 
   ExpectNoThrow([&allocated]() {
-    allocated = new ThrowingValue<NoThrow::kAllocation>(1);
+    allocated = new ThrowingValue<TypeSpec::kNoThrowNew>(1);
     delete allocated;
   });
   ExpectNoThrow([&array]() {
-    array = new ThrowingValue<NoThrow::kAllocation>[2];
+    array = new ThrowingValue<TypeSpec::kNoThrowNew>[2];
     delete[] array;
   });
 }
@@ -284,15 +312,15 @@ TEST(ThrowingAllocatorTest, MemoryManagement) {
   int* i_array = int_alloc.allocate(2);
   int_alloc.deallocate(i_array, 2);
 
-  ThrowingAllocator<ThrowingValue<>> ef_alloc;
-  ThrowingValue<>* efp = ef_alloc.allocate(1);
-  ef_alloc.deallocate(efp, 1);
-  ThrowingValue<>* ef_array = ef_alloc.allocate(2);
-  ef_alloc.deallocate(ef_array, 2);
+  ThrowingAllocator<ThrowingValue<>> tv_alloc;
+  ThrowingValue<>* ptr = tv_alloc.allocate(1);
+  tv_alloc.deallocate(ptr, 1);
+  ThrowingValue<>* tv_array = tv_alloc.allocate(2);
+  tv_alloc.deallocate(tv_array, 2);
 }
 
 TEST(ThrowingAllocatorTest, CallsGlobalNew) {
-  ThrowingAllocator<ThrowingValue<>, NoThrow::kNoThrow> nothrow_alloc;
+  ThrowingAllocator<ThrowingValue<>, AllocSpec::kNoThrowAllocate> nothrow_alloc;
   ThrowingValue<>* ptr;
 
   SetCountdown();
@@ -322,7 +350,7 @@ TEST(ThrowingAllocatorTest, ThrowingConstructors) {
 
 TEST(ThrowingAllocatorTest, NonThrowingConstruction) {
   {
-    ThrowingAllocator<int, NoThrow::kNoThrow> int_alloc;
+    ThrowingAllocator<int, AllocSpec::kNoThrowAllocate> int_alloc;
     int* ip = nullptr;
 
     SetCountdown();
@@ -347,19 +375,20 @@ TEST(ThrowingAllocatorTest, NonThrowingConstruction) {
   }
 
   {
-    ThrowingAllocator<ThrowingValue<NoThrow::kIntCtor>, NoThrow::kNoThrow>
-        ef_alloc;
-    ThrowingValue<NoThrow::kIntCtor>* efp;
+    ThrowingAllocator<ThrowingValue<>, AllocSpec::kNoThrowAllocate>
+        nothrow_alloc;
+    ThrowingValue<>* ptr;
 
     SetCountdown();
-    ExpectNoThrow([&]() { efp = ef_alloc.allocate(1); });
+    ExpectNoThrow([&]() { ptr = nothrow_alloc.allocate(1); });
 
     SetCountdown();
-    ExpectNoThrow([&]() { ef_alloc.construct(efp, 2); });
+    ExpectNoThrow(
+        [&]() { nothrow_alloc.construct(ptr, 2, testing::no_throw_ctor); });
 
-    EXPECT_EQ(efp->Get(), 2);
-    ef_alloc.destroy(efp);
-    ef_alloc.deallocate(efp, 1);
+    EXPECT_EQ(ptr->Get(), 2);
+    nothrow_alloc.destroy(ptr);
+    nothrow_alloc.deallocate(ptr, 1);
 
     UnsetCountdown();
   }
@@ -448,15 +477,15 @@ TEST(ExceptionSafetyTesterTest, IncompleteTypesAreNotTestable) {
   // Test that providing operation and inveriants still does not allow for the
   // the invocation of .Test() and .Test(op) because it lacks a factory
   auto without_fac =
-      absl::MakeExceptionSafetyTester().WithOperation(op).WithInvariants(
-          inv, absl::strong_guarantee);
+      testing::MakeExceptionSafetyTester().WithOperation(op).WithInvariants(
+          inv, testing::strong_guarantee);
   EXPECT_FALSE(HasNullaryTest(without_fac));
   EXPECT_FALSE(HasUnaryTest(without_fac));
 
   // Test that providing invariants and factory allows the invocation of
   // .Test(op) but does not allow for .Test() because it lacks an operation
-  auto without_op = absl::MakeExceptionSafetyTester()
-                        .WithInvariants(inv, absl::strong_guarantee)
+  auto without_op = testing::MakeExceptionSafetyTester()
+                        .WithInvariants(inv, testing::strong_guarantee)
                         .WithFactory(fac);
   EXPECT_FALSE(HasNullaryTest(without_op));
   EXPECT_TRUE(HasUnaryTest(without_op));
@@ -464,7 +493,7 @@ TEST(ExceptionSafetyTesterTest, IncompleteTypesAreNotTestable) {
   // Test that providing operation and factory still does not allow for the
   // the invocation of .Test() and .Test(op) because it lacks invariants
   auto without_inv =
-      absl::MakeExceptionSafetyTester().WithOperation(op).WithFactory(fac);
+      testing::MakeExceptionSafetyTester().WithOperation(op).WithFactory(fac);
   EXPECT_FALSE(HasNullaryTest(without_inv));
   EXPECT_FALSE(HasUnaryTest(without_inv));
 }
@@ -509,28 +538,28 @@ auto example_lambda_invariant = [](ExampleStruct* example_struct) {
 // lambdas can all be used with ExceptionSafetyTester
 TEST(ExceptionSafetyTesterTest, MixedFunctionTypes) {
   // function reference
-  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
                   .WithFactory(ExampleFunctionFactory)
                   .WithOperation(ExampleFunctionOperation)
                   .WithInvariants(ExampleFunctionInvariant)
                   .Test());
 
   // function pointer
-  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
                   .WithFactory(&ExampleFunctionFactory)
                   .WithOperation(&ExampleFunctionOperation)
                   .WithInvariants(&ExampleFunctionInvariant)
                   .Test());
 
   // struct
-  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
                   .WithFactory(example_struct_factory)
                   .WithOperation(example_struct_operation)
                   .WithInvariants(example_struct_invariant)
                   .Test());
 
   // lambda
-  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
                   .WithFactory(example_lambda_factory)
                   .WithOperation(example_lambda_operation)
                   .WithInvariants(example_lambda_invariant)
@@ -558,9 +587,9 @@ struct {
 } invoker;
 
 auto tester =
-    absl::MakeExceptionSafetyTester().WithOperation(invoker).WithInvariants(
+    testing::MakeExceptionSafetyTester().WithOperation(invoker).WithInvariants(
         CheckNonNegativeInvariants);
-auto strong_tester = tester.WithInvariants(absl::strong_guarantee);
+auto strong_tester = tester.WithInvariants(testing::strong_guarantee);
 
 struct FailsBasicGuarantee : public NonNegative {
   void operator()() {
@@ -664,7 +693,7 @@ TEST(ExceptionCheckTest, ModifyingChecker) {
   EXPECT_TRUE(strong_tester.WithInitialValue(FollowsStrongGuarantee{})
                   .WithInvariants(increment)
                   .Test());
-  EXPECT_TRUE(absl::MakeExceptionSafetyTester()
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
                   .WithInitialValue(HasReset{})
                   .WithInvariants(CheckHasResetInvariants)
                   .Test(invoker));
@@ -739,7 +768,7 @@ template <typename T>
 unsigned char ExhaustivenessTester<T>::successes = 0;
 
 TEST(ExceptionCheckTest, Exhaustiveness) {
-  auto exhaust_tester = absl::MakeExceptionSafetyTester()
+  auto exhaust_tester = testing::MakeExceptionSafetyTester()
                             .WithInvariants(CheckExhaustivenessTesterInvariants)
                             .WithOperation(invoker);
 
@@ -749,7 +778,7 @@ TEST(ExceptionCheckTest, Exhaustiveness) {
 
   EXPECT_TRUE(
       exhaust_tester.WithInitialValue(ExhaustivenessTester<ThrowingValue<>>{})
-          .WithInvariants(absl::strong_guarantee)
+          .WithInvariants(testing::strong_guarantee)
           .Test());
   EXPECT_EQ(ExhaustivenessTester<ThrowingValue<>>::successes, 0xF);
 }
@@ -768,7 +797,7 @@ struct LeaksIfCtorThrows : private exceptions_internal::TrackedObject {
 int LeaksIfCtorThrows::counter = 0;
 
 TEST(ExceptionCheckTest, TestLeakyCtor) {
-  absl::TestThrowingCtor<LeaksIfCtorThrows>();
+  testing::TestThrowingCtor<LeaksIfCtorThrows>();
   EXPECT_EQ(LeaksIfCtorThrows::counter, 1);
   LeaksIfCtorThrows::counter = 0;
 }
@@ -839,4 +868,5 @@ TEST(ThrowingAllocatorTraitsTest, Assignablility) {
 }
 
 }  // namespace
-}  // namespace absl
+
+}  // namespace testing

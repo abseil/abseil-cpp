@@ -155,8 +155,7 @@ TEST(ParseTime, Basics) {
                               "2013-06-28 19:08:09 -0800", &t, &err))
       << err;
   absl::Time::Breakdown bd = t.In(absl::FixedTimeZone(-8 * 60 * 60));
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -8 * 60 * 60, false,
-                            "UTC-8");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -8 * 60 * 60, false);
   EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
 }
 
@@ -179,8 +178,7 @@ TEST(ParseTime, WithTimeZone) {
       absl::ParseTime("%Y-%m-%d %H:%M:%S", "2013-06-28 19:08:09", tz, &t, &e))
       << e;
   absl::Time::Breakdown bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -7 * 60 * 60, true,
-                            "PDT");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -7 * 60 * 60, true);
   EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
 
   // But the timezone is ignored when a UTC offset is present.
@@ -188,8 +186,7 @@ TEST(ParseTime, WithTimeZone) {
                               "2013-06-28 19:08:09 +0800", tz, &t, &e))
       << e;
   bd = t.In(absl::FixedTimeZone(8 * 60 * 60));
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, 8 * 60 * 60, false,
-                            "UTC+8");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, 8 * 60 * 60, false);
   EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
 }
 

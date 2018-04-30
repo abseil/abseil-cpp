@@ -35,37 +35,35 @@
 #include "absl/strings/substitute.h"
 #include "absl/types/optional.h"
 
-namespace absl {
+namespace testing {
 
-// A configuration enum for Throwing*.  Operations whose flags are set will
-// throw, everything else won't.  This isn't meant to be exhaustive, more flags
-// can always be made in the future.
-enum class NoThrow : uint8_t {
-  kNone = 0,
-  kMoveCtor = 1,
-  kMoveAssign = 1 << 1,
-  kAllocation = 1 << 2,
-  kIntCtor = 1 << 3,
-  kNoThrow = static_cast<uint8_t>(-1)
-};
+enum class TypeSpec;
+enum class AllocSpec;
 
-constexpr NoThrow operator|(NoThrow a, NoThrow b) {
-  using T = absl::underlying_type_t<NoThrow>;
-  return static_cast<NoThrow>(static_cast<T>(a) | static_cast<T>(b));
+constexpr TypeSpec operator|(TypeSpec a, TypeSpec b) {
+  using T = absl::underlying_type_t<TypeSpec>;
+  return static_cast<TypeSpec>(static_cast<T>(a) | static_cast<T>(b));
 }
 
-constexpr NoThrow operator&(NoThrow a, NoThrow b) {
-  using T = absl::underlying_type_t<NoThrow>;
-  return static_cast<NoThrow>(static_cast<T>(a) & static_cast<T>(b));
+constexpr TypeSpec operator&(TypeSpec a, TypeSpec b) {
+  using T = absl::underlying_type_t<TypeSpec>;
+  return static_cast<TypeSpec>(static_cast<T>(a) & static_cast<T>(b));
+}
+
+constexpr AllocSpec operator|(AllocSpec a, AllocSpec b) {
+  using T = absl::underlying_type_t<AllocSpec>;
+  return static_cast<AllocSpec>(static_cast<T>(a) | static_cast<T>(b));
+}
+
+constexpr AllocSpec operator&(AllocSpec a, AllocSpec b) {
+  using T = absl::underlying_type_t<AllocSpec>;
+  return static_cast<AllocSpec>(static_cast<T>(a) & static_cast<T>(b));
 }
 
 namespace exceptions_internal {
+
 struct NoThrowTag {};
 struct StrongGuaranteeTagType {};
-
-constexpr bool ThrowingAllowed(NoThrow flags, NoThrow flag) {
-  return !static_cast<bool>(flags & flag);
-}
 
 // A simple exception class.  We throw this so that test code can catch
 // exceptions specifically thrown by ThrowingValue.
@@ -246,47 +244,69 @@ class ThrowingBool {
   bool b_;
 };
 
-// A testing class instrumented to throw an exception at a controlled time.
-//
-// ThrowingValue implements a slightly relaxed version of the Regular concept --
-// that is it's a value type with the expected semantics.  It also implements
-// arithmetic operations.  It doesn't implement member and pointer operators
-// like operator-> or operator[].
-//
-// ThrowingValue can be instrumented to have certain operations be noexcept by
-// using compile-time bitfield flag template arguments.  That is, to make an
-// ThrowingValue which has a noexcept move constructor and noexcept move
-// assignment, use
-// ThrowingValue<absl::NoThrow::kMoveCtor | absl::NoThrow::kMoveAssign>.
-template <NoThrow Flags = NoThrow::kNone>
+/*
+ * Configuration enum for the ThrowingValue type that defines behavior for the
+ * lifetime of the instance. Use testing::no_throw_ctor to prevent the integer
+ * constructor from throwing.
+ *
+ * kEverythingThrows: Every operation can throw an exception
+ * kNoThrowCopy: Copy construction and copy assignment will not throw
+ * kNoThrowMove: Move construction and move assignment will not throw
+ * kNoThrowNew: Overloaded operators new and new[] will not throw
+ */
+enum class TypeSpec {
+  kEverythingThrows = 0,
+  kNoThrowCopy = 1,
+  kNoThrowMove = 1 << 1,
+  kNoThrowNew = 1 << 2,
+};
+
+/*
+ * A testing class instrumented to throw an exception at a controlled time.
+ *
+ * ThrowingValue implements a slightly relaxed version of the Regular concept --
+ * that is it's a value type with the expected semantics.  It also implements
+ * arithmetic operations.  It doesn't implement member and pointer operators
+ * like operator-> or operator[].
+ *
+ * ThrowingValue can be instrumented to have certain operations be noexcept by
+ * using compile-time bitfield template arguments.  That is, to make an
+ * ThrowingValue which has noexcept move construction/assignment and noexcept
+ * copy construction/assignment, use the following:
+ *   ThrowingValue<testing::kNoThrowMove | testing::kNoThrowCopy> my_thrwr{val};
+ */
+template <TypeSpec Spec = TypeSpec::kEverythingThrows>
 class ThrowingValue : private exceptions_internal::TrackedObject {
+  constexpr static bool IsSpecified(TypeSpec spec) {
+    return static_cast<bool>(Spec & spec);
+  }
+
  public:
   ThrowingValue() : TrackedObject(ABSL_PRETTY_FUNCTION) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     dummy_ = 0;
   }
 
-  ThrowingValue(const ThrowingValue& other)
+  ThrowingValue(const ThrowingValue& other) noexcept(
+      IsSpecified(TypeSpec::kNoThrowCopy))
       : TrackedObject(ABSL_PRETTY_FUNCTION) {
-    exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+    if (!IsSpecified(TypeSpec::kNoThrowCopy)) {
+      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+    }
     dummy_ = other.dummy_;
   }
 
   ThrowingValue(ThrowingValue&& other) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kMoveCtor))
+      IsSpecified(TypeSpec::kNoThrowMove))
       : TrackedObject(ABSL_PRETTY_FUNCTION) {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kMoveCtor)) {
+    if (!IsSpecified(TypeSpec::kNoThrowMove)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
     dummy_ = other.dummy_;
   }
 
-  explicit ThrowingValue(int i) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kIntCtor))
-      : TrackedObject(ABSL_PRETTY_FUNCTION) {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kIntCtor)) {
-      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    }
+  explicit ThrowingValue(int i) : TrackedObject(ABSL_PRETTY_FUNCTION) {
+    exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     dummy_ = i;
   }
 
@@ -296,15 +316,18 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // absl expects nothrow destructors
   ~ThrowingValue() noexcept = default;
 
-  ThrowingValue& operator=(const ThrowingValue& other) {
-    exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+  ThrowingValue& operator=(const ThrowingValue& other) noexcept(
+      IsSpecified(TypeSpec::kNoThrowCopy)) {
+    if (!IsSpecified(TypeSpec::kNoThrowCopy)) {
+      exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
+    }
     dummy_ = other.dummy_;
     return *this;
   }
 
   ThrowingValue& operator=(ThrowingValue&& other) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kMoveAssign)) {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kMoveAssign)) {
+      IsSpecified(TypeSpec::kNoThrowMove)) {
+    if (!IsSpecified(TypeSpec::kNoThrowMove)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
     dummy_ = other.dummy_;
@@ -533,8 +556,8 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // Args.. allows us to overload regular and placement new in one shot
   template <typename... Args>
   static void* operator new(size_t s, Args&&... args) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
+      IsSpecified(TypeSpec::kNoThrowNew)) {
+    if (!IsSpecified(TypeSpec::kNoThrowNew)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION, true);
     }
     return ::operator new(s, std::forward<Args>(args)...);
@@ -542,8 +565,8 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   template <typename... Args>
   static void* operator new[](size_t s, Args&&... args) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kAllocation)) {
+      IsSpecified(TypeSpec::kNoThrowNew)) {
+    if (!IsSpecified(TypeSpec::kNoThrowNew)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION, true);
     }
     return ::operator new[](s, std::forward<Args>(args)...);
@@ -581,20 +604,35 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 };
 // While not having to do with exceptions, explicitly delete comma operator, to
 // make sure we don't use it on user-supplied types.
-template <NoThrow N, typename T>
-void operator,(const ThrowingValue<N>& ef, T&& t) = delete;
-template <NoThrow N, typename T>
-void operator,(T&& t, const ThrowingValue<N>& ef) = delete;
+template <TypeSpec Spec, typename T>
+void operator,(const ThrowingValue<Spec>&, T&&) = delete;
+template <TypeSpec Spec, typename T>
+void operator,(T&&, const ThrowingValue<Spec>&) = delete;
 
-// An allocator type which is instrumented to throw at a controlled time, or not
-// to throw, using NoThrow.  The supported settings are the default of every
-// function which is allowed to throw in a conforming allocator possibly
-// throwing, or nothing throws, in line with the ABSL_ALLOCATOR_THROWS
-// configuration macro.
-template <typename T, NoThrow Flags = NoThrow::kNone>
+/*
+ * Configuration enum for the ThrowingAllocator type that defines behavior for
+ * the lifetime of the instance.
+ *
+ * kEverythingThrows: Calls to the member functions may throw
+ * kNoThrowAllocate: Calls to the member functions will not throw
+ */
+enum class AllocSpec {
+  kEverythingThrows = 0,
+  kNoThrowAllocate = 1,
+};
+
+/*
+ * An allocator type which is instrumented to throw at a controlled time, or not
+ * to throw, using AllocSpec. The supported settings are the default of every
+ * function which is allowed to throw in a conforming allocator possibly
+ * throwing, or nothing throws, in line with the ABSL_ALLOCATOR_THROWS
+ * configuration macro.
+ */
+template <typename T, AllocSpec Spec = AllocSpec::kEverythingThrows>
 class ThrowingAllocator : private exceptions_internal::TrackedObject {
-  static_assert(Flags == NoThrow::kNone || Flags == NoThrow::kNoThrow,
-                "Invalid flag");
+  constexpr static bool IsSpecified(AllocSpec spec) {
+    return static_cast<bool>(Spec & spec);
+  }
 
  public:
   using pointer = T*;
@@ -607,7 +645,8 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   using size_type = size_t;
   using difference_type = ptrdiff_t;
 
-  using is_nothrow = std::integral_constant<bool, Flags == NoThrow::kNoThrow>;
+  using is_nothrow =
+      std::integral_constant<bool, Spec == AllocSpec::kNoThrowAllocate>;
   using propagate_on_container_copy_assignment = std::true_type;
   using propagate_on_container_move_assignment = std::true_type;
   using propagate_on_container_swap = std::true_type;
@@ -619,8 +658,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   }
 
   template <typename U>
-  ThrowingAllocator(  // NOLINT
-      const ThrowingAllocator<U, Flags>& other) noexcept
+  ThrowingAllocator(const ThrowingAllocator<U, Spec>& other) noexcept  // NOLINT
       : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(other.State()) {}
 
   // According to C++11 standard [17.6.3.5], Table 28, the move/copy ctors of
@@ -629,8 +667,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
       : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(other.State()) {}
 
   template <typename U>
-  ThrowingAllocator(  // NOLINT
-      ThrowingAllocator<U, Flags>&& other) noexcept
+  ThrowingAllocator(ThrowingAllocator<U, Spec>&& other) noexcept  // NOLINT
       : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(std::move(other.State())) {}
 
   ThrowingAllocator(ThrowingAllocator&& other) noexcept
@@ -645,29 +682,30 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
 
   template <typename U>
   ThrowingAllocator& operator=(
-      const ThrowingAllocator<U, Flags>& other) noexcept {
+      const ThrowingAllocator<U, Spec>& other) noexcept {
     dummy_ = other.State();
     return *this;
   }
 
   template <typename U>
-  ThrowingAllocator& operator=(ThrowingAllocator<U, Flags>&& other) noexcept {
+  ThrowingAllocator& operator=(ThrowingAllocator<U, Spec>&& other) noexcept {
     dummy_ = std::move(other.State());
     return *this;
   }
 
   template <typename U>
   struct rebind {
-    using other = ThrowingAllocator<U, Flags>;
+    using other = ThrowingAllocator<U, Spec>;
   };
 
   pointer allocate(size_type n) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kNoThrow)) {
+      IsSpecified(AllocSpec::kNoThrowAllocate)) {
     ReadStateAndMaybeThrow(ABSL_PRETTY_FUNCTION);
     return static_cast<pointer>(::operator new(n * sizeof(T)));
   }
+
   pointer allocate(size_type n, const_void_pointer) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kNoThrow)) {
+      IsSpecified(AllocSpec::kNoThrowAllocate)) {
     return allocate(n);
   }
 
@@ -678,7 +716,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
 
   template <typename U, typename... Args>
   void construct(U* ptr, Args&&... args) noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kNoThrow)) {
+      IsSpecified(AllocSpec::kNoThrowAllocate)) {
     ReadStateAndMaybeThrow(ABSL_PRETTY_FUNCTION);
     ::new (static_cast<void*>(ptr)) U(std::forward<Args>(args)...);
   }
@@ -694,23 +732,23 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   }
 
   ThrowingAllocator select_on_container_copy_construction() noexcept(
-      !exceptions_internal::ThrowingAllowed(Flags, NoThrow::kNoThrow)) {
+      IsSpecified(AllocSpec::kNoThrowAllocate)) {
     auto& out = *this;
     ReadStateAndMaybeThrow(ABSL_PRETTY_FUNCTION);
     return out;
   }
 
   template <typename U>
-  bool operator==(const ThrowingAllocator<U, Flags>& other) const noexcept {
+  bool operator==(const ThrowingAllocator<U, Spec>& other) const noexcept {
     return dummy_ == other.dummy_;
   }
 
   template <typename U>
-  bool operator!=(const ThrowingAllocator<U, Flags>& other) const noexcept {
+  bool operator!=(const ThrowingAllocator<U, Spec>& other) const noexcept {
     return dummy_ != other.dummy_;
   }
 
-  template <typename U, NoThrow B>
+  template <typename, AllocSpec>
   friend class ThrowingAllocator;
 
  private:
@@ -724,7 +762,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   }
 
   void ReadStateAndMaybeThrow(absl::string_view msg) const {
-    if (exceptions_internal::ThrowingAllowed(Flags, NoThrow::kNoThrow)) {
+    if (!IsSpecified(AllocSpec::kNoThrowAllocate)) {
       exceptions_internal::MaybeThrow(
           absl::Substitute("Allocator id $0 threw from $1", *dummy_, msg));
     }
@@ -734,8 +772,8 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   std::shared_ptr<const int> dummy_;
 };
 
-template <typename T, NoThrow Throws>
-int ThrowingAllocator<T, Throws>::next_id_ = 0;
+template <typename T, AllocSpec Spec>
+int ThrowingAllocator<T, Spec>::next_id_ = 0;
 
 // Tests for resource leaks by attempting to construct a T using args repeatedly
 // until successful, using the countdown method.  Side effects can then be
@@ -873,7 +911,7 @@ class ExceptionSafetyTester {
    * created in order to get an empty Invariants... list.
    *
    * In addition to passing in custom invariant assertion callbacks, this method
-   * accepts `absl::strong_guarantee` as an argument which checks T instances
+   * accepts `testing::strong_guarantee` as an argument which checks T instances
    * post-throw against freshly created T instances via operator== to verify
    * that any state changes made during the execution of the operation were
    * properly rolled back.
@@ -934,7 +972,7 @@ class ExceptionSafetyTester {
   template <typename, typename, typename...>
   friend class ExceptionSafetyTester;
 
-  friend ExceptionSafetyTester<> absl::MakeExceptionSafetyTester();
+  friend ExceptionSafetyTester<> testing::MakeExceptionSafetyTester();
 
   ExceptionSafetyTester() {}
 
@@ -992,6 +1030,6 @@ MakeExceptionSafetyTester() {
   return {};
 }
 
-}  // namespace absl
+}  // namespace testing
 
 #endif  // ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_

@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <iostream>
 
+#include "absl/base/attributes.h"
 #include "absl/debugging/internal/address_is_readable.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
@@ -24,7 +25,7 @@ static const uintptr_t kUnknownFrameSize = 0;
 // Returns the address of the VDSO __kernel_rt_sigreturn function, if present.
 static const unsigned char* GetKernelRtSigreturnAddress() {
   constexpr uintptr_t kImpossibleAddress = 1;
-  static std::atomic<uintptr_t> memoized{kImpossibleAddress};
+  ABSL_CONST_INIT static std::atomic<uintptr_t> memoized{kImpossibleAddress};
   uintptr_t address = memoized.load(std::memory_order_relaxed);
   if (address != kImpossibleAddress) {
     return reinterpret_cast<const unsigned char*>(address);

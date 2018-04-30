@@ -41,6 +41,7 @@
 
 #include <atomic>
 
+#include "absl/base/attributes.h"
 #include "absl/debugging/internal/elf_mem_image.h"
 
 #ifdef ABSL_HAVE_ELF_MEM_IMAGE
@@ -132,7 +133,7 @@ class VDSOSupport {
 
   // This function pointer may point to InitAndGetCPU,
   // GetCPUViaSyscall, or __vdso_getcpu at different stages of initialization.
-  static std::atomic<GetCpuFn> getcpu_fn_;
+  ABSL_CONST_INIT static std::atomic<GetCpuFn> getcpu_fn_;
 
   friend int GetCPU(void);  // Needs access to getcpu_fn_.
 

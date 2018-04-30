@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "absl/time/time.h"
 
 // This helper is a macro so that failed expectations show up with the
@@ -24,21 +26,25 @@
 //
 // This is for internal testing of the Base Time library itself. This is not
 // part of a public API.
-#define ABSL_INTERNAL_EXPECT_TIME(bd, y, m, d, h, min, s, off, isdst, zone) \
-  do {                                                                      \
-    EXPECT_EQ(y, bd.year);                                                  \
-    EXPECT_EQ(m, bd.month);                                                 \
-    EXPECT_EQ(d, bd.day);                                                   \
-    EXPECT_EQ(h, bd.hour);                                                  \
-    EXPECT_EQ(min, bd.minute);                                              \
-    EXPECT_EQ(s, bd.second);                                                \
-    EXPECT_EQ(off, bd.offset);                                              \
-    EXPECT_EQ(isdst, bd.is_dst);                                            \
-    EXPECT_STREQ(zone, bd.zone_abbr);                                       \
+#define ABSL_INTERNAL_EXPECT_TIME(bd, y, m, d, h, min, s, off, isdst)     \
+  do {                                                                    \
+    EXPECT_EQ(y, bd.year);                                                \
+    EXPECT_EQ(m, bd.month);                                               \
+    EXPECT_EQ(d, bd.day);                                                 \
+    EXPECT_EQ(h, bd.hour);                                                \
+    EXPECT_EQ(min, bd.minute);                                            \
+    EXPECT_EQ(s, bd.second);                                              \
+    EXPECT_EQ(off, bd.offset);                                            \
+    EXPECT_EQ(isdst, bd.is_dst);                                          \
+    EXPECT_THAT(bd.zone_abbr,                                             \
+                testing::MatchesRegex(absl::time_internal::kZoneAbbrRE)); \
   } while (0)
 
 namespace absl {
 namespace time_internal {
+
+// A regular expression that matches all zone abbreviations (%Z).
+extern const char kZoneAbbrRE[];
 
 // Loads the named timezone, but dies on any failure.
 absl::TimeZone LoadTimeZone(const std::string& name);

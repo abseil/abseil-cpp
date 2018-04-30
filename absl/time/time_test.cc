@@ -85,7 +85,7 @@ TEST(Time, ValueSemantics) {
 
 TEST(Time, UnixEpoch) {
   absl::Time::Breakdown bd = absl::UnixEpoch().In(absl::UTCTimeZone());
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1970, 1, 1, 0, 0, 0, 0, false, "UTC");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1970, 1, 1, 0, 0, 0, 0, false);
   EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
   EXPECT_EQ(4, bd.weekday);  // Thursday
 }
@@ -96,14 +96,14 @@ TEST(Time, Breakdown) {
 
   // The Unix epoch as seen in NYC.
   absl::Time::Breakdown bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 19, 0, 0, -18000, false, "EST");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 19, 0, 0, -18000, false);
   EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
   EXPECT_EQ(3, bd.weekday);  // Wednesday
 
   // Just before the epoch.
   t -= absl::Nanoseconds(1);
   bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 18, 59, 59, -18000, false, "EST");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 18, 59, 59, -18000, false);
   EXPECT_EQ(absl::Nanoseconds(999999999), bd.subsecond);
   EXPECT_EQ(3, bd.weekday);  // Wednesday
 
@@ -112,7 +112,7 @@ TEST(Time, Breakdown) {
   t += absl::Hours(18) + absl::Minutes(30) + absl::Seconds(15) +
        absl::Nanoseconds(9);
   bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1977, 6, 28, 14, 30, 15, -14400, true, "EDT");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 1977, 6, 28, 14, 30, 15, -14400, true);
   EXPECT_EQ(8, bd.subsecond / absl::Nanoseconds(1));
   EXPECT_EQ(2, bd.weekday);  // Tuesday
 }
@@ -983,16 +983,18 @@ TEST(Time, ConversionSaturation) {
   // Checks how Time::In() saturates on infinities.
   absl::Time::Breakdown bd = absl::InfiniteFuture().In(utc);
   ABSL_INTERNAL_EXPECT_TIME(bd, std::numeric_limits<int64_t>::max(), 12, 31, 23,
-                            59, 59, 0, false, "-0000");
+                            59, 59, 0, false);
   EXPECT_EQ(absl::InfiniteDuration(), bd.subsecond);
   EXPECT_EQ(4, bd.weekday);  // Thursday
   EXPECT_EQ(365, bd.yearday);
+  EXPECT_STREQ("-00", bd.zone_abbr);  // artifact of absl::Time::In()
   bd = absl::InfinitePast().In(utc);
   ABSL_INTERNAL_EXPECT_TIME(bd, std::numeric_limits<int64_t>::min(), 1, 1, 0, 0,
-                            0, 0, false, "-0000");
+                            0, 0, false);
   EXPECT_EQ(-absl::InfiniteDuration(), bd.subsecond);
   EXPECT_EQ(7, bd.weekday);  // Sunday
   EXPECT_EQ(1, bd.yearday);
+  EXPECT_STREQ("-00", bd.zone_abbr);  // artifact of absl::Time::In()
 
   // Approach the maximal Time value from below.
   t = absl::FromDateTime(292277026596, 12, 4, 15, 30, 6, utc);
@@ -1054,13 +1056,11 @@ TEST(Time, ExtendedConversionSaturation) {
 
   // The maximal time converted in each zone.
   bd = max.In(syd);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 5, 2, 30, 7, 39600, true,
-                            "AEDT");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 5, 2, 30, 7, 39600, true);
   t = absl::FromDateTime(292277026596, 12, 5, 2, 30, 7, syd);
   EXPECT_EQ(max, t);
   bd = max.In(nyc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 4, 10, 30, 7, -18000, false,
-                            "EST");
+  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 4, 10, 30, 7, -18000, false);
   t = absl::FromDateTime(292277026596, 12, 4, 10, 30, 7, nyc);
   EXPECT_EQ(max, t);
 
