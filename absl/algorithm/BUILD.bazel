@@ -41,6 +41,18 @@ cc_test(
     ],
 )
 
+cc_binary(
+    name = "algorithm_benchmark",
+    testonly = 1,
+    srcs = ["equal_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":algorithm",
+        "//absl/base:core_headers",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
 cc_library(
     name = "container",
     hdrs = [

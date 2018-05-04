@@ -21,6 +21,12 @@
 #include <cstdint>
 #include <utility>
 
+#ifdef _MSC_FULL_VER
+#define ABSL_HAVE_WORKING_ATOMIC_POINTER 0
+#else
+#define ABSL_HAVE_WORKING_ATOMIC_POINTER 1
+#endif
+
 namespace absl {
 namespace base_internal {
 
@@ -29,8 +35,14 @@ class AtomicHook;
 
 // AtomicHook is a helper class, templatized on a raw function pointer type, for
 // implementing Abseil customization hooks.  It is a callable object that
-// dispatches to the registered hook, or performs a no-op (and returns a default
+// dispatches to the registered hook.
+//
+// A default constructed object performs a no-op (and returns a default
 // constructed object) if no hook has been registered.
+//
+// Hooks can be pre-registered via constant initialization, for example,
+// ABSL_CONST_INIT static AtomicHook<void(*)()> my_hook(DefaultAction);
+// and then changed at runtime via a call to Store().
 //
 // Reads and writes guarantee memory_order_acquire/memory_order_release
 // semantics.
@@ -39,7 +51,19 @@ class AtomicHook<ReturnType (*)(Args...)> {
  public:
   using FnPtr = ReturnType (*)(Args...);
 
-  constexpr AtomicHook() : hook_(kInitialValue) {}
+  // Constructs an object that by default performs a no-op (and
+  // returns a default constructed object) when no hook as been registered.
+  constexpr AtomicHook() : AtomicHook(DummyFunction) {}
+
+  // Constructs an object that by default dispatches to/returns the
+  // pre-registered default_fn when no hook has been registered at runtime.
+#if ABSL_HAVE_WORKING_ATOMIC_POINTER
+  explicit constexpr AtomicHook(FnPtr default_fn)
+      : hook_(default_fn), default_fn_(default_fn) {}
+#else
+  explicit constexpr AtomicHook(FnPtr default_fn)
+      : hook_(kUninitialized), default_fn_(default_fn) {}
+#endif
 
   // Stores the provided function pointer as the value for this hook.
   //
@@ -86,16 +110,7 @@ class AtomicHook<ReturnType (*)(Args...)> {
   //
   // This causes an issue when building with LLVM under Windows.  To avoid this,
   // we use a less-efficient, intptr_t-based implementation on Windows.
-
-#ifdef _MSC_FULL_VER
-#define ABSL_HAVE_WORKING_ATOMIC_POINTER 0
-#else
-#define ABSL_HAVE_WORKING_ATOMIC_POINTER 1
-#endif
-
 #if ABSL_HAVE_WORKING_ATOMIC_POINTER
-  static constexpr FnPtr kInitialValue = &DummyFunction;
-
   // Return the stored value, or DummyFunction if no value has been stored.
   FnPtr DoLoad() const { return hook_.load(std::memory_order_acquire); }
 
@@ -103,10 +118,9 @@ class AtomicHook<ReturnType (*)(Args...)> {
   // stored to this object.
   bool DoStore(FnPtr fn) {
     assert(fn);
-    FnPtr expected = DummyFunction;
-    hook_.compare_exchange_strong(expected, fn, std::memory_order_acq_rel,
-                                  std::memory_order_acquire);
-    const bool store_succeeded = (expected == DummyFunction);
+    FnPtr expected = default_fn_;
+    const bool store_succeeded = hook_.compare_exchange_strong(
+        expected, fn, std::memory_order_acq_rel, std::memory_order_acquire);
     const bool same_value_already_stored = (expected == fn);
     return store_succeeded || same_value_already_stored;
   }
@@ -114,15 +128,15 @@ class AtomicHook<ReturnType (*)(Args...)> {
   std::atomic<FnPtr> hook_;
 #else  // !ABSL_HAVE_WORKING_ATOMIC_POINTER
   // Use a sentinel value unlikely to be the address of an actual function.
-  static constexpr intptr_t kInitialValue = 0;
+  static constexpr intptr_t kUninitialized = 0;
 
   static_assert(sizeof(intptr_t) >= sizeof(FnPtr),
                 "intptr_t can't contain a function pointer");
 
   FnPtr DoLoad() const {
     const intptr_t value = hook_.load(std::memory_order_acquire);
-    if (value == 0) {
-      return DummyFunction;
+    if (value == kUninitialized) {
+      return default_fn_;
     }
     return reinterpret_cast<FnPtr>(value);
   }
@@ -130,16 +144,17 @@ class AtomicHook<ReturnType (*)(Args...)> {
   bool DoStore(FnPtr fn) {
     assert(fn);
     const auto value = reinterpret_cast<intptr_t>(fn);
-    intptr_t expected = 0;
-    hook_.compare_exchange_strong(expected, value, std::memory_order_acq_rel,
-                                  std::memory_order_acquire);
-    const bool store_succeeded = (expected == 0);
+    intptr_t expected = kUninitialized;
+    const bool store_succeeded = hook_.compare_exchange_strong(
+        expected, value, std::memory_order_acq_rel, std::memory_order_acquire);
     const bool same_value_already_stored = (expected == value);
     return store_succeeded || same_value_already_stored;
   }
 
   std::atomic<intptr_t> hook_;
 #endif
+
+  const FnPtr default_fn_;
 };
 
 #undef ABSL_HAVE_WORKING_ATOMIC_POINTER

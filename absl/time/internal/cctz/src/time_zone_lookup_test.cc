@@ -1119,18 +1119,6 @@ TEST(TimeZoneEdgeCase, AfricaMonrovia) {
   auto tp = convert(civil_second(1972, 1, 6, 23, 59, 59), tz);
   ExpectTime(tp, tz, 1972, 1, 6, 23, 59, 59, -44.5 * 60, false, "MMT");
   tp += seconds(1);
-#ifndef TZDATA_2017B_IS_UBIQUITOUS
-  // The 2017b tzdata release moved the shift from -004430 to +00
-  // from 1972-05-01 to 1972-01-07, so we temporarily accept both
-  // outcomes until 2017b is ubiquitous.
-  if (tz.lookup(tp).offset == -44.5 * 60) {
-    tp = convert(civil_second(1972, 4, 30, 23, 59, 59), tz);
-    ExpectTime(tp, tz, 1972, 4, 30, 23, 59, 59, -44.5 * 60, false, "LRT");
-    tp += seconds(1);
-    ExpectTime(tp, tz, 1972, 5, 1, 0, 44, 30, 0 * 60, false, "GMT");
-    return;
-  }
-#endif
   ExpectTime(tp, tz, 1972, 1, 7, 0, 44, 30, 0 * 60, false, "GMT");
 }
 

@@ -223,3 +223,18 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "variant_exception_safety_test",
+    size = "small",
+    srcs = [
+        "variant_exception_safety_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":variant",
+        "//absl/base:exception_safety_testing",
+        "//absl/memory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

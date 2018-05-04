@@ -99,14 +99,18 @@ absl_library(
 
 if(BUILD_TESTING)
   # exception-safety testing library
-  set(EXCEPTION_SAFETY_TESTING_SRC "internal/exception_safety_testing.cc")
+  set(EXCEPTION_SAFETY_TESTING_SRC
+    "internal/exception_safety_testing.h"
+    "internal/exception_safety_testing.cc"
+  )
   set(EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES
     ${ABSL_TEST_COMMON_LIBRARIES}
     absl::base
     absl::memory
     absl::meta
     absl::strings
-    absl::types
+    absl::optional
+    gtest
   )
 
 absl_library(
@@ -116,6 +120,8 @@ absl_library(
     ${EXCEPTION_SAFETY_TESTING_SRC}
   PUBLIC_LIBRARIES
     ${EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES}
+  PRIVATE_COMPILE_FLAGS
+    ${ABSL_EXCEPTIONS_FLAG}
 )
 endif()
 
@@ -161,6 +167,20 @@ absl_library(
 #
 ## TESTS
 #
+
+# call once test
+set(ATOMIC_HOOK_TEST_SRC "internal/atomic_hook_test.cc")
+set(ATOMIC_HOOK_TEST_PUBLIC_LIBRARIES absl::base)
+
+absl_test(
+  TARGET
+    atomic_hook_test
+  SOURCES
+    ${ATOMIC_HOOK_TEST_SRC}
+  PUBLIC_LIBRARIES
+    ${ATOMIC_HOOK_TEST_PUBLIC_LIBRARIES}
+)
+
 
 # call once test
 set(CALL_ONCE_TEST_SRC "call_once_test.cc")
@@ -344,7 +364,14 @@ absl_test(
 
 #test exceptions_safety_testing_test
 set(EXCEPTION_SAFETY_TESTING_TEST_SRC "exception_safety_testing_test.cc")
-set(EXCEPTION_SAFETY_TESTING_TEST_PUBLIC_LIBRARIES absl::base absl::memory absl::meta absl::strings absl::optional)
+set(EXCEPTION_SAFETY_TESTING_TEST_PUBLIC_LIBRARIES
+  absl::base
+  absl_base_internal_exception_safety_testing
+  absl::memory
+  absl::meta
+  absl::strings
+  absl::optional
+)
 
 absl_test(
   TARGET

@@ -52,13 +52,41 @@ if(MSVC)
   add_definitions(/DNOMINMAX /DWIN32_LEAN_AND_MEAN=1 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-add_subdirectory(googletest)
-add_subdirectory(cctz)
 add_subdirectory(abseil-cpp)
 
 add_executable(my_exe source.cpp)
 target_link_libraries(my_exe absl::base absl::synchronization absl::strings)
 ```
+
+### Running Abseil Tests with CMake
+
+Use the `-DABSL_RUN_TESTS=ON` flag to run Abseil tests.  Note that if the `-DBUILD_TESTING=OFF` flag is passed then Abseil tests will not be run.
+
+You will need to provide Abseil with a Googletest dependency.  There are two
+options for how to do this:
+
+* Use `-DABSL_USE_GOOGLETEST_HEAD`.  This will automatically download the latest
+Googletest source into the build directory at configure time.  Googletest will
+then be compiled directly alongside Abseil's tests.
+* Manually integrate Googletest with your build.  See
+https://github.com/google/googletest/blob/master/googletest/README.md#using-cmake
+for more information on using Googletest in a CMake project.
+
+For example, to run just the Abseil tests, you could use this script:
+
+```
+cd path/to/abseil-cpp
+mkdir build
+cd build
+cmake -DABSL_USE_GOOGLETEST_HEAD=ON -DABSL_RUN_TESTS=ON ..
+make -j
+ctest
+```
+
+Currently, we only run our tests with CMake in a Linux environment, but we are
+working on the rest of our supported platforms. See
+https://github.com/abseil/abseil-cpp/projects/1 and
+https://github.com/abseil/abseil-cpp/issues/109 for more information.
 
 ### Available Abseil CMake Public Targets
 

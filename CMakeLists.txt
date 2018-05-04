@@ -16,9 +16,6 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(absl)
 
-# enable ctest
-include(CTest)
-
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
 
 include(GNUInstallDirs)
@@ -65,12 +62,25 @@ set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
 ## pthread
 find_package(Threads REQUIRED)
 
-# commented: used only for standalone test
-# Don't remove these or else CMake CI will break
-#add_subdirectory(googletest)
+option(ABSL_USE_GOOGLETEST_HEAD
+  "If ON, abseil will download HEAD from googletest at config time." OFF)
+
+option(ABSL_RUN_TESTS "If ON, Abseil tests will be run." OFF)
+
+if(${ABSL_RUN_TESTS})
+  # enable CTest.  This will set BUILD_TESTING to ON unless otherwise specified
+  # on the command line
+  include(CTest)
+  enable_testing()
+endif()
 
 ## check targets
 if(BUILD_TESTING)
+
+  if(${ABSL_USE_GOOGLETEST_HEAD})
+    include(CMake/DownloadGTest.cmake)
+  endif()
+
   check_target(gtest)
   check_target(gtest_main)
   check_target(gmock)

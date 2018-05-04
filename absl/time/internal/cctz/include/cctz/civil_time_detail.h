@@ -20,8 +20,8 @@
 #include <ostream>
 #include <type_traits>
 
-// Disable constexpr support unless we are using clang in C++14 mode.
-#if __clang__ && __cpp_constexpr >= 201304
+// Disable constexpr support unless we are in C++14 mode.
+#if __cpp_constexpr >= 201304 || _MSC_VER >= 1910
 #define CONSTEXPR_D constexpr  // data
 #define CONSTEXPR_F constexpr  // function
 #define CONSTEXPR_M constexpr  // member

@@ -29,6 +29,9 @@ absl_header_library(
   TARGET
     absl_any
   PUBLIC_LIBRARIES
+    absl::bad_any_cast
+    absl::base
+    absl::meta
     absl::utility
   PRIVATE_COMPILE_FLAGS
     ${ABSL_EXCEPTIONS_FLAG}
@@ -59,7 +62,6 @@ absl_library(
   SOURCES
     ${BAD_ANY_CAST_SRC}
   PUBLIC_LIBRARIES
-    absl::base absl::any
   EXPORT_NAME
     bad_any_cast
 )
@@ -76,7 +78,11 @@ absl_library(
   SOURCES
     ${OPTIONAL_SRC}
   PUBLIC_LIBRARIES
+    absl::bad_optional_access
     absl::base
+    absl::memory
+    absl::meta
+    absl::utility
   EXPORT_NAME
     optional
 )
@@ -143,7 +149,11 @@ absl_test(
 
 # test any_exception_safety_test
 set(ANY_EXCEPTION_SAFETY_TEST_SRC "any_exception_safety_test.cc")
-set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES absl::any absl::base absl::base_internal_exception_safety_testing)
+set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
+  absl::any
+  absl::base
+  absl_base_internal_exception_safety_testing
+)
 
 absl_test(
   TARGET

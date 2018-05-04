@@ -350,7 +350,7 @@ constexpr const variant_alternative_t<I, variant<Types...>>&& get(
 // get_if()
 //
 // Returns a pointer to the value currently stored within a given variant, if
-// present, using either a unique alternative type amonst the variant's set of
+// present, using either a unique alternative type amongst the variant's set of
 // alternative types, or the variant's index value. If such a value does not
 // exist, returns `nullptr`.
 //

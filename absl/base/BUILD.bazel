@@ -148,6 +148,18 @@ cc_library(
 )
 
 cc_test(
+    name = "atomic_hook_test",
+    size = "small",
+    srcs = ["internal/atomic_hook_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":base",
+        ":core_headers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "bit_cast_test",
     size = "small",
     srcs = [
@@ -391,5 +403,18 @@ cc_test(
         ":core_headers",
         "//absl/synchronization",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "thread_identity_benchmark",
+    testonly = 1,
+    srcs = ["internal/thread_identity_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":base",
+        "//absl/synchronization",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )

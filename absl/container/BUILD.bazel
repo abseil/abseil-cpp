@@ -62,6 +62,17 @@ cc_test(
     ],
 )
 
+cc_binary(
+    name = "fixed_array_benchmark",
+    testonly = 1,
+    srcs = ["fixed_array_benchmark.cc"],
+    copts = ABSL_TEST_COPTS + ["$(STACK_FRAME_UNLIMITED)"],
+    deps = [
+        ":fixed_array",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
 cc_library(
     name = "inlined_vector",
     hdrs = ["inlined_vector.h"],
@@ -103,6 +114,19 @@ cc_test(
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "inlined_vector_benchmark",
+    testonly = 1,
+    srcs = ["inlined_vector_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":inlined_vector",
+        "//absl/base",
+        "//absl/strings",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )
 

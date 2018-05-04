@@ -83,6 +83,27 @@ TEST(ThrowingValueTest, ThrowingAssignment) {
 
   TestOp([&]() { bomb = bomb1; });
   TestOp([&]() { bomb = std::move(bomb1); });
+
+  // Test that when assignment throws, the assignment should fail (lhs != rhs)
+  // and strong guarantee fails (lhs != lhs_copy).
+  {
+    ThrowingValue<> lhs(39), rhs(42);
+    ThrowingValue<> lhs_copy(lhs);
+    SetCountdown();
+    EXPECT_THROW(lhs = rhs, TestException);
+    UnsetCountdown();
+    EXPECT_NE(lhs, rhs);
+    EXPECT_NE(lhs_copy, lhs);
+  }
+  {
+    ThrowingValue<> lhs(39), rhs(42);
+    ThrowingValue<> lhs_copy(lhs), rhs_copy(rhs);
+    SetCountdown();
+    EXPECT_THROW(lhs = std::move(rhs), TestException);
+    UnsetCountdown();
+    EXPECT_NE(lhs, rhs_copy);
+    EXPECT_NE(lhs_copy, lhs);
+  }
 }
 
 TEST(ThrowingValueTest, ThrowingComparisons) {

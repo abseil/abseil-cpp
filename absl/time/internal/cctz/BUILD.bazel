@@ -80,6 +80,7 @@ cc_test(
     name = "time_zone_format_test",
     size = "small",
     srcs = ["src/time_zone_format_test.cc"],
+    data = [":zoneinfo"],
     deps = [
         ":civil_time",
         ":time_zone",
@@ -91,6 +92,7 @@ cc_test(
     name = "time_zone_lookup_test",
     size = "small",
     srcs = ["src/time_zone_lookup_test.cc"],
+    data = [":zoneinfo"],
     deps = [
         ":civil_time",
         ":time_zone",
@@ -103,3 +105,8 @@ cc_test(
 ### examples
 
 ### binaries
+
+filegroup(
+    name = "zoneinfo",
+    srcs = glob(["testdata/zoneinfo/**"]),
+)

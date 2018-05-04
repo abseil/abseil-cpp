@@ -139,7 +139,7 @@ function(absl_test)
       PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
     )
 
-    add_test(${_NAME}_test ${_NAME}_bin)
+    add_test(${_NAME} ${_NAME}_bin)
   endif(BUILD_TESTING)
 
 endfunction()

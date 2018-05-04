@@ -164,7 +164,7 @@ class ConstructorTracker {
 
 template <typename Factory, typename Operation, typename Invariant>
 absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
-    const Factory& factory, const Operation& operation, int count,
+    const Factory& factory, Operation operation, int count,
     const Invariant& invariant) {
   auto t_ptr = factory();
   absl::optional<testing::AssertionResult> current_res;
@@ -277,9 +277,11 @@ enum class TypeSpec {
  */
 template <TypeSpec Spec = TypeSpec::kEverythingThrows>
 class ThrowingValue : private exceptions_internal::TrackedObject {
-  constexpr static bool IsSpecified(TypeSpec spec) {
+  static constexpr bool IsSpecified(TypeSpec spec) {
     return static_cast<bool>(Spec & spec);
   }
+
+  static constexpr int kBadValue = 938550620;
 
  public:
   ThrowingValue() : TrackedObject(ABSL_PRETTY_FUNCTION) {
@@ -318,6 +320,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue& operator=(const ThrowingValue& other) noexcept(
       IsSpecified(TypeSpec::kNoThrowCopy)) {
+    dummy_ = kBadValue;
     if (!IsSpecified(TypeSpec::kNoThrowCopy)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
@@ -327,6 +330,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue& operator=(ThrowingValue&& other) noexcept(
       IsSpecified(TypeSpec::kNoThrowMove)) {
+    dummy_ = kBadValue;
     if (!IsSpecified(TypeSpec::kNoThrowMove)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
@@ -630,7 +634,7 @@ enum class AllocSpec {
  */
 template <typename T, AllocSpec Spec = AllocSpec::kEverythingThrows>
 class ThrowingAllocator : private exceptions_internal::TrackedObject {
-  constexpr static bool IsSpecified(AllocSpec spec) {
+  static constexpr bool IsSpecified(AllocSpec spec) {
     return static_cast<bool>(Spec & spec);
   }
 
@@ -1028,6 +1032,12 @@ class ExceptionSafetyTester {
 inline exceptions_internal::ExceptionSafetyTester<>
 MakeExceptionSafetyTester() {
   return {};
+}
+
+// Always return false, intended to be used as a checker with
+// TestExceptionSafety() to check that no exception is thrown.
+inline bool nothrow_guarantee(const void*) {
+  return ::testing::AssertionFailure() << "Violating NoThrowGuarantee";
 }
 
 }  // namespace testing

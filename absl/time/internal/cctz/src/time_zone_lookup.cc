@@ -134,6 +134,9 @@ time_zone local_time_zone() {
 
   time_zone tz;
   load_time_zone(name, &tz);  // Falls back to UTC.
+  // TODO: Follow the RFC3339 "Unknown Local Offset Convention" and
+  // arrange for %z to generate "-0000" when we don't know the local
+  // offset because the load_time_zone() failed and we're using UTC.
   return tz;
 }
 

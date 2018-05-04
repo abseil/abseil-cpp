@@ -26,8 +26,7 @@ namespace cctz = absl::time_internal::cctz;
 namespace absl {
 namespace time_internal {
 
-// TODO(bww): Reinstate when the FixedTimeZone() abbreviations are updated.
-#if 1 || GTEST_USES_SIMPLE_RE
+#if GTEST_USES_SIMPLE_RE
 extern const char kZoneAbbrRE[] = ".*";  // just punt
 #else
 extern const char kZoneAbbrRE[] = "[A-Za-z]{3,4}|[-+][0-9]{2}([0-9]{2})?";

@@ -32,6 +32,7 @@
 #include <atomic>
 #include <cerrno>
 #include <csignal>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 

@@ -27,7 +27,7 @@ namespace cctz {
 namespace {
 
 // The prefix used for the internal names of fixed-offset zones.
-const char kFixedOffsetPrefix[] = "Fixed/";
+const char kFixedOffsetPrefix[] = "Fixed/UTC";
 
 int Parse02d(const char* p) {
   static const char kDigits[] = "0123456789";
@@ -50,13 +50,11 @@ bool FixedOffsetFromName(const std::string& name, sys_seconds* offset) {
 
   const std::size_t prefix_len = sizeof(kFixedOffsetPrefix) - 1;
   const char* const ep = kFixedOffsetPrefix + prefix_len;
-  if (name.size() != prefix_len + 12)  // "<prefix>UTC+99:99:99"
+  if (name.size() != prefix_len + 9)  // <prefix>+99:99:99
     return false;
   if (!std::equal(kFixedOffsetPrefix, ep, name.begin()))
     return false;
   const char* np = name.data() + prefix_len;
-  if (*np++ != 'U' || *np++ != 'T' || *np++ != 'C')
-    return false;
   if (np[0] != '+' && np[0] != '-')
     return false;
   if (np[3] != ':' || np[6] != ':')  // see note below about large offsets
@@ -97,8 +95,8 @@ std::string FixedOffsetToName(const sys_seconds& offset) {
   }
   int hours = minutes / 60;
   minutes %= 60;
-  char buf[sizeof(kFixedOffsetPrefix) + sizeof("UTC-24:00:00")];
-  snprintf(buf, sizeof(buf), "%sUTC%c%02d:%02d:%02d",
+  char buf[sizeof(kFixedOffsetPrefix) + sizeof("-24:00:00")];
+  snprintf(buf, sizeof(buf), "%s%c%02d:%02d:%02d",
            kFixedOffsetPrefix, sign, hours, minutes, seconds);
   return buf;
 }
@@ -106,22 +104,14 @@ std::string FixedOffsetToName(const sys_seconds& offset) {
 std::string FixedOffsetToAbbr(const sys_seconds& offset) {
   std::string abbr = FixedOffsetToName(offset);
   const std::size_t prefix_len = sizeof(kFixedOffsetPrefix) - 1;
-  const char* const ep = kFixedOffsetPrefix + prefix_len;
-  if (abbr.size() >= prefix_len) {
-    if (std::equal(kFixedOffsetPrefix, ep, abbr.begin())) {
-      abbr.erase(0, prefix_len);
-      if (abbr.size() == 12) {                     // UTC+99:99:99
-        abbr.erase(9, 1);                          // UTC+99:9999
-        abbr.erase(6, 1);                          // UTC+999999
-        if (abbr[8] == '0' && abbr[9] == '0') {    // UTC+999900
-          abbr.erase(8, 2);                        // UTC+9999
-          if (abbr[6] == '0' && abbr[7] == '0') {  // UTC+9900
-            abbr.erase(6, 2);                      // UTC+99
-            if (abbr[4] == '0') {                  // UTC+09
-              abbr.erase(4, 1);                    // UTC+9
-            }
-          }
-        }
+  if (abbr.size() == prefix_len + 9) {         // <prefix>+99:99:99
+    abbr.erase(0, prefix_len);                 // +99:99:99
+    abbr.erase(6, 1);                          // +99:9999
+    abbr.erase(3, 1);                          // +999999
+    if (abbr[5] == '0' && abbr[6] == '0') {    // +999900
+      abbr.erase(5, 2);                        // +9999
+      if (abbr[3] == '0' && abbr[4] == '0') {  // +9900
+        abbr.erase(3, 2);                      // +99
       }
     }
   }
