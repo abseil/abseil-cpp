@@ -50,6 +50,7 @@
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
+#include "absl/debugging/symbolize.h"
 #include "absl/synchronization/internal/graphcycles.h"
 #include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/time/time.h"
@@ -111,7 +112,8 @@ ABSL_CONST_INIT absl::base_internal::AtomicHook<
 ABSL_CONST_INIT absl::base_internal::AtomicHook<
     void (*)(const char *msg, const void *cv)> cond_var_tracer;
 ABSL_CONST_INIT absl::base_internal::AtomicHook<
-    bool (*)(const void *pc, char *out, int out_size)> symbolizer;
+    bool (*)(const void *pc, char *out, int out_size)>
+    symbolizer(absl::Symbolize);
 
 }  // namespace
 

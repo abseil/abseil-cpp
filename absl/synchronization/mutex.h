@@ -979,6 +979,12 @@ void RegisterCondVarTracer(void (*fn)(const char *msg, const void *cv));
 // to 'out.'
 //
 // This has the same memory ordering concerns as RegisterMutexProfiler() above.
+//
+// DEPRECATED: The default symbolizer function is absl::Symbolize() and the
+// ability to register a different hook for symbolizing stack traces will be
+// removed on or after 2023-05-01.
+ABSL_DEPRECATED("absl::RegisterSymbolizer() is deprecated and will be removed "
+                "on or after 2023-05-01")
 void RegisterSymbolizer(bool (*fn)(const void *pc, char *out, int out_size));
 
 // EnableMutexInvariantDebugging()

@@ -44,7 +44,8 @@ list(APPEND SYNCHRONIZATION_SRC
   "notification.cc"
   "mutex.cc"
 )
-set(SYNCHRONIZATION_PUBLIC_LIBRARIES absl::base absl::time)
+
+set(SYNCHRONIZATION_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::symbolize absl::time)
 
 absl_library(
   TARGET

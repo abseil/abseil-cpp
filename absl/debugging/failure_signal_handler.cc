@@ -162,8 +162,9 @@ static int MaybeSetupAlternateStack() {
 #ifndef _WIN32
   ABSL_ATTRIBUTE_UNUSED static const bool kOnce = SetupAlternateStackOnce();
   return SA_ONSTACK;
-#endif
+#else
   return 0;
+#endif
 }
 
 #ifdef ABSL_HAVE_SIGACTION

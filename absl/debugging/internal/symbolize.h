@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include "absl/base/port.h"  // Needed for string vs std::string
 
 #ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #error ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE cannot be directly set
