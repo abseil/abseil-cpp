@@ -36,7 +36,7 @@
 
 namespace absl {
 using std::string_view;
-};
+}  // namespace absl
 
 #else  // ABSL_HAVE_STD_STRING_VIEW
 

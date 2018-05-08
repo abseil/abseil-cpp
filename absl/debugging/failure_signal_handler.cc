@@ -135,6 +135,9 @@ static bool SetupAlternateStackOnce() {
 #ifndef MAP_STACK
 #define MAP_STACK 0
 #endif
+#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
   sigstk.ss_sp = mmap(nullptr, sigstk.ss_size, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
   if (sigstk.ss_sp == MAP_FAILED) {
