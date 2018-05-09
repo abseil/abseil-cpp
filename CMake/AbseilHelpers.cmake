@@ -16,6 +16,11 @@
 
 include(CMakeParseArguments)
 
+# The IDE folder for Abseil that will be used if Abseil is included in a CMake
+# project that sets
+#    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+# For example, Visual Studio supports folders.
+set(ABSL_IDE_FOLDER Abseil)
 
 #
 # create a library in the absl namespace
@@ -50,7 +55,7 @@ function(absl_library)
     PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS}
   )
   # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER Abseil)
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
   if(ABSL_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
@@ -95,7 +100,7 @@ function(absl_header_library)
     PRIVATE ${ABSL_HO_LIB_PRIVATE_INCLUDE_DIRS}
   )
   # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER Abseil)
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
   if(ABSL_HO_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
@@ -143,7 +148,7 @@ function(absl_test)
       PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
     )
     # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME}_bin PROPERTY FOLDER Abseil)
+    set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
     add_test(${_NAME} ${_NAME}_bin)
   endif(BUILD_TESTING)
