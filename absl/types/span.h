@@ -290,7 +290,8 @@ class Span {
   constexpr Span(T (&a)[N]) noexcept  // NOLINT(runtime/explicit)
       : Span(a, N) {}
 
-  // Explicit reference constructor for a mutable `Span<T>` type
+  // Explicit reference constructor for a mutable `Span<T>` type. Can be
+  // replaced with MakeSpan() to infer the type parameter.
   template <typename V, typename = EnableIfConvertibleFrom<V>,
             typename = EnableIfMutableView<V>>
   explicit Span(V& v) noexcept  // NOLINT(runtime/references)

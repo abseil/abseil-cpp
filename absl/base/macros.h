@@ -36,21 +36,20 @@
 
 // ABSL_ARRAYSIZE()
 //
-// Returns the # of elements in an array as a compile-time constant, which can
-// be used in defining new arrays. If you use this macro on a pointer by
+// Returns the number of elements in an array as a compile-time constant, which
+// can be used in defining new arrays. If you use this macro on a pointer by
 // mistake, you will get a compile-time error.
-//
-// Note: this template function declaration is used in defining arraysize.
-// Note that the function doesn't need an implementation, as we only
-// use its type.
+#define ABSL_ARRAYSIZE(array) \
+  (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
+
 namespace absl {
 namespace macros_internal {
+// Note: this internal template function declaration is used by ABSL_ARRAYSIZE.
+// The function doesn't need a definition, as we only use its type.
 template <typename T, size_t N>
 auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
 }  // namespace absl
-#define ABSL_ARRAYSIZE(array) \
-  (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
 
 // kLinkerInitialized
 //

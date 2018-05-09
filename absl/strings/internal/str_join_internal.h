@@ -234,17 +234,19 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
       result_size += it->size();
     }
 
-    STLStringResizeUninitialized(&result, result_size);
+    if (result_size > 0) {
+      STLStringResizeUninitialized(&result, result_size);
 
-    // Joins strings
-    char* result_buf = &*result.begin();
-    memcpy(result_buf, start->data(), start->size());
-    result_buf += start->size();
-    for (Iterator it = start; ++it != end;) {
-      memcpy(result_buf, s.data(), s.size());
-      result_buf += s.size();
-      memcpy(result_buf, it->data(), it->size());
-      result_buf += it->size();
+      // Joins strings
+      char* result_buf = &*result.begin();
+      memcpy(result_buf, start->data(), start->size());
+      result_buf += start->size();
+      for (Iterator it = start; ++it != end;) {
+        memcpy(result_buf, s.data(), s.size());
+        result_buf += s.size();
+        memcpy(result_buf, it->data(), it->size());
+        result_buf += it->size();
+      }
     }
   }
 
