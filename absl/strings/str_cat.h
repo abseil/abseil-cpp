@@ -80,7 +80,7 @@ struct AlphaNumBuffer {
 // `Dec` conversion and fill character to use. A `kZeroPad2` value, for example,
 // would produce hexadecimal strings such as "0A","0F" and a 'kSpacePad5' value
 // would produce hexadecimal strings such as "    A","    F".
-enum PadSpec {
+enum PadSpec : uint8_t {
   kNoPad = 1,
   kZeroPad2,
   kZeroPad3,
