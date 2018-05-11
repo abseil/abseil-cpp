@@ -776,10 +776,13 @@ class optional : private optional_internal::optional_data<T>,
   // `optional` is empty, behavior is undefined.
   //
   // If you need myOpt->foo in constexpr, use (*myOpt).foo instead.
-  const T* operator->() const { return this->pointer(); }
+  const T* operator->() const {
+    assert(this->engaged_);
+    return std::addressof(this->data_);
+  }
   T* operator->() {
     assert(this->engaged_);
-    return this->pointer();
+    return std::addressof(this->data_);
   }
 
   // optional::operator*()
@@ -871,10 +874,6 @@ class optional : private optional_internal::optional_data<T>,
   }
 
  private:
-  // Private accessors for internal storage viewed as pointer to T.
-  const T* pointer() const { return std::addressof(this->data_); }
-  T* pointer() { return std::addressof(this->data_); }
-
   // Private accessors for internal storage viewed as reference to T.
   constexpr const T& reference() const { return this->data_; }
   T& reference() { return this->data_; }
