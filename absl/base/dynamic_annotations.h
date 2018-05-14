@@ -50,25 +50,6 @@
 # define DYNAMIC_ANNOTATIONS_ENABLED 0
 #endif
 
-#if defined(__native_client__)
-  #include "nacl/dynamic_annotations.h"
-
-  // Stub out the macros missing from the NaCl version.
-  #ifndef ANNOTATE_CONTIGUOUS_CONTAINER
-    #define ANNOTATE_CONTIGUOUS_CONTAINER(beg, end, old_mid, new_mid)
-  #endif
-  #ifndef ANNOTATE_RWLOCK_CREATE_STATIC
-    #define ANNOTATE_RWLOCK_CREATE_STATIC(lock)
-  #endif
-  #ifndef ADDRESS_SANITIZER_REDZONE
-    #define ADDRESS_SANITIZER_REDZONE(name)
-  #endif
-  #ifndef ANNOTATE_MEMORY_IS_UNINITIALIZED
-    #define ANNOTATE_MEMORY_IS_UNINITIALIZED(address, size)
-  #endif
-
-#else /* !__native_client__ */
-
 #if DYNAMIC_ANNOTATIONS_ENABLED != 0
 
   /* -------------------------------------------------------------
@@ -403,7 +384,5 @@ inline T ANNOTATE_UNPROTECTED_READ(const volatile T &x) { /* NOLINT */
 #undef ANNOTATIONS_ENABLED
 #undef ATTRIBUTE_IGNORE_READS_BEGIN
 #undef ATTRIBUTE_IGNORE_READS_END
-
-#endif /* !__native_client__ */
 
 #endif  /* ABSL_BASE_DYNAMIC_ANNOTATIONS_H_ */

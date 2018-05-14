@@ -86,7 +86,7 @@
 // in May, 2010 and includes some functionality used in Google software
 // (for instance pthread_setname_np):
 // https://sourceware.org/ml/libc-alpha/2010-05/msg00000.html
-#ifdef __GLIBC_PREREQ
+#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
 #if !__GLIBC_PREREQ(2, 12)
 #error "Minimum required version of glibc is 2.12."
 #endif
