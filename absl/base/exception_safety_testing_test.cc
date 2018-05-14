@@ -405,7 +405,7 @@ TEST(ThrowingAllocatorTest, NonThrowingConstruction) {
 
     SetCountdown();
     ExpectNoThrow(
-        [&]() { nothrow_alloc.construct(ptr, 2, testing::no_throw_ctor); });
+        [&]() { nothrow_alloc.construct(ptr, 2, testing::nothrow_ctor); });
 
     EXPECT_EQ(ptr->Get(), 2);
     nothrow_alloc.destroy(ptr);

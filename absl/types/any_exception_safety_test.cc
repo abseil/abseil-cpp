@@ -99,7 +99,7 @@ TEST(AnyExceptionSafety, Ctors) {
 
 TEST(AnyExceptionSafety, Assignment) {
   auto original =
-      absl::any(absl::in_place_type_t<Thrower>(), 1, testing::no_throw_ctor);
+      absl::any(absl::in_place_type_t<Thrower>(), 1, testing::nothrow_ctor);
   auto any_is_strong = [original](absl::any* ap) {
     return testing::AssertionResult(ap->has_value() &&
                                     absl::any_cast<Thrower>(original) ==
@@ -139,14 +139,14 @@ TEST(AnyExceptionSafety, Assignment) {
 #if !defined(ABSL_HAVE_STD_ANY)
 TEST(AnyExceptionSafety, Emplace) {
   auto initial_val =
-      absl::any{absl::in_place_type_t<Thrower>(), 1, testing::no_throw_ctor};
+      absl::any{absl::in_place_type_t<Thrower>(), 1, testing::nothrow_ctor};
   auto one_tester = testing::MakeExceptionSafetyTester()
                         .WithInitialValue(initial_val)
                         .WithInvariants(AnyInvariants, AnyIsEmpty);
 
   auto emp_thrower = [](absl::any* ap) { ap->emplace<Thrower>(2); };
   auto emp_throwervec = [](absl::any* ap) {
-    std::initializer_list<Thrower> il{Thrower(2, testing::no_throw_ctor)};
+    std::initializer_list<Thrower> il{Thrower(2, testing::nothrow_ctor)};
     ap->emplace<ThrowerVec>(il);
   };
   auto emp_movethrower = [](absl::any* ap) {

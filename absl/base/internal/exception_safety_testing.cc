@@ -19,7 +19,12 @@
 
 namespace testing {
 
-exceptions_internal::NoThrowTag no_throw_ctor;
+exceptions_internal::NoThrowTag nothrow_ctor;
+
+bool nothrow_guarantee(const void*) {
+  return ::testing::AssertionFailure()
+         << "Exception thrown violating NoThrow Guarantee";
+}
 exceptions_internal::StrongGuaranteeTagType strong_guarantee;
 
 namespace exceptions_internal {

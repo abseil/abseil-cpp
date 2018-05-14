@@ -32,6 +32,7 @@
 
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/internal/bits.h"
 #include "absl/strings/internal/memutil.h"
 #include "absl/strings/str_cat.h"
 
@@ -302,18 +303,6 @@ char* numbers_internal::FastIntToBuffer(int64_t i, char* buffer) {
   return numbers_internal::FastIntToBuffer(u, buffer);
 }
 
-// Returns the number of leading 0 bits in a 64-bit value.
-// TODO(jorg): Replace with builtin_clzll if available.
-// Are we shipping util/bits in absl?
-static inline int CountLeadingZeros64(uint64_t n) {
-  int zeroes = 60;
-  if (n >> 32) zeroes -= 32, n >>= 32;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
-  return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0\0"[n] + zeroes;
-}
-
 // Given a 128-bit number expressed as a pair of uint64_t, high half first,
 // return that number multiplied by the given 32-bit value.  If the result is
 // too large to fit in a 128-bit number, divide it by 2 until it fits.
@@ -351,7 +340,7 @@ static std::pair<uint64_t, uint64_t> Mul32(std::pair<uint64_t, uint64_t> num,
   uint64_t bits128_up = (bits96_127 >> 32) + (bits64_127 < bits64_95);
   if (bits128_up == 0) return {bits64_127, bits0_63};
 
-  int shift = 64 - CountLeadingZeros64(bits128_up);
+  int shift = 64 - strings_internal::CountLeadingZeros64(bits128_up);
   uint64_t lo = (bits0_63 >> shift) + (bits64_127 << (64 - shift));
   uint64_t hi = (bits64_127 >> shift) + (bits128_up << (64 - shift));
   return {hi, lo};
@@ -382,7 +371,7 @@ static std::pair<uint64_t, uint64_t> PowFive(uint64_t num, int expfive) {
       5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5,
       5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5 * 5};
   result = Mul32(result, powers_of_five[expfive & 15]);
-  int shift = CountLeadingZeros64(result.first);
+  int shift = strings_internal::CountLeadingZeros64(result.first);
   if (shift != 0) {
     result.first = (result.first << shift) + (result.second >> (64 - shift));
     result.second = (result.second << shift);

@@ -31,6 +31,7 @@ list(APPEND STRINGS_PUBLIC_HEADERS
 
 
 list(APPEND STRINGS_INTERNAL_HEADERS
+  "internal/bits.h"
   "internal/char_map.h"
   "internal/memutil.h"
   "internal/ostringstream.h"

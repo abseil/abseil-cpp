@@ -1,5 +1,4 @@
-//
-// Copyright 2017 The Abseil Authors.
+// Copyright 2018 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
 // -----------------------------------------------------------------------------
 // File: leak_check.h
 // -----------------------------------------------------------------------------
 //
-// This package contains functions that affect leak checking behavior within
+// This file contains functions that affect leak checking behavior within
 // targets built with the LeakSanitizer (LSan), a memory leak detector that is
 // integrated within the AddressSanitizer (ASan) as an additional component, or
-// which can be used standalone. LSan and ASan are included or can be provided
+// which can be used standalone. LSan and ASan are included (or can be provided)
 // as additional components for most compilers such as Clang, gcc and MSVC.
 // Note: this leak checking API is not yet supported in MSVC.
 // Leak checking is enabled by default in all ASan builds.

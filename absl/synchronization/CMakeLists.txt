@@ -33,7 +33,7 @@ list(APPEND SYNCHRONIZATION_INTERNAL_HEADERS
 
 
 
-# syncrhonisation library
+# synchronization library
 list(APPEND SYNCHRONIZATION_SRC 
   "barrier.cc"
   "blocking_counter.cc"

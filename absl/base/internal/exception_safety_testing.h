@@ -227,7 +227,9 @@ inline absl::optional<testing::AssertionResult> TestAllInvariantsAtCountdown(
 
 }  // namespace exceptions_internal
 
-extern exceptions_internal::NoThrowTag no_throw_ctor;
+extern exceptions_internal::NoThrowTag nothrow_ctor;
+
+bool nothrow_guarantee(const void*);
 extern exceptions_internal::StrongGuaranteeTagType strong_guarantee;
 
 // A test class which is convertible to bool.  The conversion can be
@@ -246,7 +248,7 @@ class ThrowingBool {
 
 /*
  * Configuration enum for the ThrowingValue type that defines behavior for the
- * lifetime of the instance. Use testing::no_throw_ctor to prevent the integer
+ * lifetime of the instance. Use testing::nothrow_ctor to prevent the integer
  * constructor from throwing.
  *
  * kEverythingThrows: Every operation can throw an exception
@@ -341,22 +343,22 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // Arithmetic Operators
   ThrowingValue operator+(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ + other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ + other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator+() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator-(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ - other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ - other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator-() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(-dummy_, no_throw_ctor);
+    return ThrowingValue(-dummy_, nothrow_ctor);
   }
 
   ThrowingValue& operator++() {
@@ -367,7 +369,7 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue operator++(int) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    auto out = ThrowingValue(dummy_, no_throw_ctor);
+    auto out = ThrowingValue(dummy_, nothrow_ctor);
     ++dummy_;
     return out;
   }
@@ -380,34 +382,34 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue operator--(int) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    auto out = ThrowingValue(dummy_, no_throw_ctor);
+    auto out = ThrowingValue(dummy_, nothrow_ctor);
     --dummy_;
     return out;
   }
 
   ThrowingValue operator*(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ * other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ * other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator/(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ / other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ / other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator%(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ % other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ % other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator<<(int shift) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ << shift, no_throw_ctor);
+    return ThrowingValue(dummy_ << shift, nothrow_ctor);
   }
 
   ThrowingValue operator>>(int shift) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ >> shift, no_throw_ctor);
+    return ThrowingValue(dummy_ >> shift, nothrow_ctor);
   }
 
   // Comparison Operators
@@ -463,22 +465,22 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   // Bitwise Logical Operators
   ThrowingValue operator~() const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(~dummy_, no_throw_ctor);
+    return ThrowingValue(~dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator&(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ & other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ & other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator|(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ | other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ | other.dummy_, nothrow_ctor);
   }
 
   ThrowingValue operator^(const ThrowingValue& other) const {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return ThrowingValue(dummy_ ^ other.dummy_, no_throw_ctor);
+    return ThrowingValue(dummy_ ^ other.dummy_, nothrow_ctor);
   }
 
   // Compound Assignment operators
@@ -1032,12 +1034,6 @@ class ExceptionSafetyTester {
 inline exceptions_internal::ExceptionSafetyTester<>
 MakeExceptionSafetyTester() {
   return {};
-}
-
-// Always return false, intended to be used as a checker with
-// TestExceptionSafety() to check that no exception is thrown.
-inline bool nothrow_guarantee(const void*) {
-  return ::testing::AssertionFailure() << "Violating NoThrowGuarantee";
 }
 
 }  // namespace testing

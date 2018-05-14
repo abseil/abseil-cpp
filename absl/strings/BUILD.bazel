@@ -84,6 +84,7 @@ cc_library(
         "internal/utf8.cc",
     ],
     hdrs = [
+        "internal/bits.h",
         "internal/char_map.h",
         "internal/ostringstream.h",
         "internal/resize_uninitialized.h",
