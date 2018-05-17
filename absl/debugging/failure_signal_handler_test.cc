@@ -132,8 +132,17 @@ constexpr int kFailureSignals[] = {
 #endif
 };
 
+std::string SignalParamToString(const ::testing::TestParamInfo<int>& info) {
+  std::string result = absl::debugging_internal::FailureSignalToString(info.param);
+  if (result.empty()) {
+    result = absl::StrCat(info.param);
+  }
+  return result;
+}
+
 INSTANTIATE_TEST_CASE_P(AbslDeathTest, FailureSignalHandlerDeathTest,
-                        ::testing::ValuesIn(kFailureSignals));
+                        ::testing::ValuesIn(kFailureSignals),
+                        SignalParamToString);
 
 #endif  // GTEST_HAS_DEATH_TEST
 

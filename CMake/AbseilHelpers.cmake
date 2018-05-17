@@ -54,8 +54,8 @@ function(absl_library)
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
     PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS}
   )
-# Add all Abseil targets to a a folder in the IDE for organization.
-set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+  # Add all Abseil targets to a a folder in the IDE for organization.
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
   if(ABSL_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
@@ -99,8 +99,9 @@ function(absl_header_library)
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_HO_LIB_PUBLIC_INCLUDE_DIRS}
     PRIVATE ${ABSL_HO_LIB_PRIVATE_INCLUDE_DIRS}
   )
-# Add all Abseil targets to a a folder in the IDE for organization.
-set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+  # Add all Abseil targets to a a folder in the IDE for organization.
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
   if(ABSL_HO_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
@@ -147,8 +148,9 @@ function(absl_test)
       PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}
       PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
     )
-# Add all Abseil targets to a a folder in the IDE for organization.
-set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+    # Add all Abseil targets to a a folder in the IDE for organization.
+    set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
     add_test(${_NAME} ${_NAME}_bin)
   endif(BUILD_TESTING)

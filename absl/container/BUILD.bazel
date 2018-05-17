@@ -62,11 +62,11 @@ cc_test(
     ],
 )
 
-cc_binary(
+cc_test(
     name = "fixed_array_benchmark",
-    testonly = 1,
     srcs = ["fixed_array_benchmark.cc"],
     copts = ABSL_TEST_COPTS + ["$(STACK_FRAME_UNLIMITED)"],
+    tags = ["benchmark"],
     deps = [
         ":fixed_array",
         "@com_github_google_benchmark//:benchmark",
@@ -117,11 +117,11 @@ cc_test(
     ],
 )
 
-cc_binary(
+cc_test(
     name = "inlined_vector_benchmark",
-    testonly = 1,
     srcs = ["inlined_vector_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
     deps = [
         ":inlined_vector",
         "//absl/base",

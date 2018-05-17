@@ -820,6 +820,12 @@ class optional : private optional_internal::optional_data<T>,
   // only if `*this` is empty.
   constexpr bool has_value() const noexcept { return this->engaged_; }
 
+// Suppress bogus warning on MSVC: MSVC complains call to reference() after
+// throw_bad_optional_access() is unreachable.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif  // _MSC_VER
   // optional::value()
   //
   // Returns a reference to an `optional`s underlying value. The constness
@@ -848,6 +854,9 @@ class optional : private optional_internal::optional_data<T>,
             ? reference()
             : (optional_internal::throw_bad_optional_access(), reference()));
   }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif  // _MSC_VER
 
   // optional::value_or()
   //

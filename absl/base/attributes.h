@@ -52,7 +52,8 @@
 // Example:
 //
 //   // Enable branches in the Abseil code that are tagged for ASan:
-//   $ bazel -D ADDRESS_SANITIZER -fsanitize=address *target*
+//   $ bazel build --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address
+//     --linkopt=-fsanitize=address *target*
 //
 // Since these macro names are only supported by GCC and Clang, we only check
 // for `__GNUC__` (GCC or Clang) and the above macros.

@@ -43,8 +43,7 @@ namespace absl {
 //
 // Returns whether a given std::string `haystack` contains the substring `needle`.
 inline bool StrContains(absl::string_view haystack, absl::string_view needle) {
-  return static_cast<absl::string_view::size_type>(haystack.find(needle, 0)) !=
-         haystack.npos;
+  return haystack.find(needle, 0) != haystack.npos;
 }
 
 // StartsWith()

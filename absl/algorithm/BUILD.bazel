@@ -41,11 +41,11 @@ cc_test(
     ],
 )
 
-cc_binary(
+cc_test(
     name = "algorithm_benchmark",
-    testonly = 1,
     srcs = ["equal_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
     deps = [
         ":algorithm",
         "//absl/base:core_headers",

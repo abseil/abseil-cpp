@@ -17,9 +17,9 @@
 #include <string>
 #include <vector>
 
+#include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/str_cat.h"
-#include "benchmark/benchmark.h"
 
 namespace {
 
