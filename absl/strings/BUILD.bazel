@@ -173,6 +173,20 @@ cc_test(
 )
 
 cc_test(
+    name = "string_view_benchmark",
+    srcs = ["string_view_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
+cc_test(
     name = "string_view_test",
     size = "small",
     srcs = ["string_view_test.cc"],
@@ -201,6 +215,19 @@ cc_test(
 )
 
 cc_test(
+    name = "str_replace_benchmark",
+    srcs = ["str_replace_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
+cc_test(
     name = "str_replace_test",
     size = "small",
     srcs = ["str_replace_test.cc"],
@@ -222,6 +249,19 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_split_benchmark",
+    srcs = ["str_split_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )
 
@@ -268,6 +308,19 @@ cc_test(
 )
 
 cc_test(
+    name = "str_join_benchmark",
+    srcs = ["str_join_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/memory",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
+cc_test(
     name = "str_cat_test",
     size = "small",
     srcs = ["str_cat_test.cc"],
@@ -277,6 +330,18 @@ cc_test(
         ":strings",
         "//absl/base:core_headers",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_cat_benchmark",
+    srcs = ["str_cat_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )
 

@@ -854,7 +854,7 @@ class SCOPED_LOCKABLE MutexLockMaybe {
   MutexLockMaybe& operator=(MutexLockMaybe&&) = delete;
 };
 
-// ReleaseableMutexLock
+// ReleasableMutexLock
 //
 // ReleasableMutexLock is like MutexLock, but permits `Release()` of its
 // mutex before destruction. `Release()` may be called at most once.
