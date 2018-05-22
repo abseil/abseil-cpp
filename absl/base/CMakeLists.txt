@@ -36,6 +36,7 @@ list(APPEND BASE_INTERNAL_HEADERS
   "internal/endian.h"
   "internal/exception_testing.h"
   "internal/exception_safety_testing.h"
+  "internal/hide_ptr.h"
   "internal/identity.h"
   "internal/invoke.h"
   "internal/inline_variable.h"

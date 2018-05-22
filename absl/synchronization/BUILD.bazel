@@ -39,6 +39,7 @@ cc_library(
     ],
     deps = [
         "//absl/base",
+        "//absl/base:base_internal",
         "//absl/base:core_headers",
         "//absl/base:malloc_internal",
     ],
@@ -119,6 +120,20 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "graphcycles_benchmark",
+    srcs = ["internal/graphcycles_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = [
+        "benchmark",
+    ],
+    deps = [
+        ":graphcycles_internal",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
 cc_library(
     name = "thread_pool",
     testonly = 1,
@@ -145,6 +160,20 @@ cc_test(
         "//absl/memory",
         "//absl/time",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mutex_benchmark",
+    srcs = ["mutex_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":synchronization",
+        ":thread_pool",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark",
     ],
 )
 

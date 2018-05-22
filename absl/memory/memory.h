@@ -40,7 +40,8 @@ namespace absl {
 // -----------------------------------------------------------------------------
 //
 //  Adopts ownership from a raw pointer and transfers it to the returned
-//  `std::unique_ptr`, whose type is deduced.
+//  `std::unique_ptr`, whose type is deduced. DO NOT specify the template type T
+//  when calling WrapUnique.
 //
 // Example:
 //   X* NewX(int, int);

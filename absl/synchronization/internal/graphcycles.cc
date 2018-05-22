@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <array>
+#include "absl/base/internal/hide_ptr.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 
@@ -276,18 +277,6 @@ inline uint32_t NodeVersion(GraphId id) {
   return static_cast<uint32_t>(id.handle >> 32);
 }
 
-// We need to hide Mutexes (or other deadlock detection's pointers)
-// from the leak detector.  Xor with an arbitrary number with high bits set.
-static const uintptr_t kHideMask = static_cast<uintptr_t>(0xF03A5F7BF03A5F7Bll);
-
-static inline uintptr_t MaskPtr(void *ptr) {
-  return reinterpret_cast<uintptr_t>(ptr) ^ kHideMask;
-}
-
-static inline void* UnmaskPtr(uintptr_t word) {
-  return reinterpret_cast<void*>(word ^ kHideMask);
-}
-
 struct Node {
   int32_t rank;               // rank number assigned by Pearce-Kelly algorithm
   uint32_t version;           // Current version number
@@ -309,7 +298,7 @@ class PointerMap {
   }
 
   int32_t Find(void* ptr) {
-    auto masked = MaskPtr(ptr);
+    auto masked = base_internal::HidePtr(ptr);
     for (int32_t i = table_[Hash(ptr)]; i != -1;) {
       Node* n = (*nodes_)[i];
       if (n->masked_ptr == masked) return i;
@@ -327,7 +316,7 @@ class PointerMap {
   int32_t Remove(void* ptr) {
     // Advance through linked list while keeping track of the
     // predecessor slot that points to the current entry.
-    auto masked = MaskPtr(ptr);
+    auto masked = base_internal::HidePtr(ptr);
     for (int32_t* slot = &table_[Hash(ptr)]; *slot != -1; ) {
       int32_t index = *slot;
       Node* n = (*nodes_)[index];
@@ -395,7 +384,7 @@ bool GraphCycles::CheckInvariants() const {
   NodeSet ranks;  // Set of ranks seen so far.
   for (uint32_t x = 0; x < r->nodes_.size(); x++) {
     Node* nx = r->nodes_[x];
-    void* ptr = UnmaskPtr(nx->masked_ptr);
+    void* ptr = base_internal::UnhidePtr<void>(nx->masked_ptr);
     if (ptr != nullptr && static_cast<uint32_t>(r->ptrmap_.Find(ptr)) != x) {
       ABSL_RAW_LOG(FATAL, "Did not find live node in hash table %u %p", x, ptr);
     }
@@ -427,7 +416,7 @@ GraphId GraphCycles::GetId(void* ptr) {
     n->version = 1;  // Avoid 0 since it is used by InvalidGraphId()
     n->visited = false;
     n->rank = rep_->nodes_.size();
-    n->masked_ptr = MaskPtr(ptr);
+    n->masked_ptr = base_internal::HidePtr(ptr);
     n->nstack = 0;
     n->priority = 0;
     rep_->nodes_.push_back(n);
@@ -439,7 +428,7 @@ GraphId GraphCycles::GetId(void* ptr) {
     int32_t r = rep_->free_nodes_.back();
     rep_->free_nodes_.pop_back();
     Node* n = rep_->nodes_[r];
-    n->masked_ptr = MaskPtr(ptr);
+    n->masked_ptr = base_internal::HidePtr(ptr);
     n->nstack = 0;
     n->priority = 0;
     rep_->ptrmap_.Add(ptr, r);
@@ -461,7 +450,7 @@ void GraphCycles::RemoveNode(void* ptr) {
   }
   x->in.clear();
   x->out.clear();
-  x->masked_ptr = MaskPtr(nullptr);
+  x->masked_ptr = base_internal::HidePtr<void>(nullptr);
   if (x->version == std::numeric_limits<uint32_t>::max()) {
     // Cannot use x any more
   } else {
@@ -472,7 +461,8 @@ void GraphCycles::RemoveNode(void* ptr) {
 
 void* GraphCycles::Ptr(GraphId id) {
   Node* n = FindNode(rep_, id);
-  return n == nullptr ? nullptr : UnmaskPtr(n->masked_ptr);
+  return n == nullptr ? nullptr
+                      : base_internal::UnhidePtr<void>(n->masked_ptr);
 }
 
 bool GraphCycles::HasNode(GraphId node) {
