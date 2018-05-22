@@ -124,17 +124,11 @@ char* FastIntToBuffer(int_type i, char* buffer) {
   }
 }
 
-}  // namespace numbers_internal
-
-// SimpleAtoi()
-//
-// Converts a std::string to an integer, using `safe_strto?()` functions for actual
-// parsing, returning `true` if successful. The `safe_strto?()` functions apply
-// strict checking; the std::string must be a base-10 integer, optionally followed or
-// preceded by ASCII whitespace, with a value in the range of the corresponding
-// integer type.
+// Implementation of SimpleAtoi, generalized to support arbitrary base (used
+// with base different from 10 elsewhere in Abseil implementation).
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
+ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
+                                           int base) {
   static_assert(sizeof(*out) == 4 || sizeof(*out) == 8,
                 "SimpleAtoi works only with 32-bit or 64-bit integers.");
   static_assert(!std::is_floating_point<int_type>::value,
@@ -146,25 +140,39 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
   if (static_cast<int_type>(1) - 2 < 0) {  // Signed
     if (sizeof(*out) == 64 / 8) {       // 64-bit
       int64_t val;
-      parsed = numbers_internal::safe_strto64_base(s, &val, 10);
+      parsed = numbers_internal::safe_strto64_base(s, &val, base);
       *out = static_cast<int_type>(val);
     } else {  // 32-bit
       int32_t val;
-      parsed = numbers_internal::safe_strto32_base(s, &val, 10);
+      parsed = numbers_internal::safe_strto32_base(s, &val, base);
       *out = static_cast<int_type>(val);
     }
   } else {                         // Unsigned
     if (sizeof(*out) == 64 / 8) {  // 64-bit
       uint64_t val;
-      parsed = numbers_internal::safe_strtou64_base(s, &val, 10);
+      parsed = numbers_internal::safe_strtou64_base(s, &val, base);
       *out = static_cast<int_type>(val);
     } else {  // 32-bit
       uint32_t val;
-      parsed = numbers_internal::safe_strtou32_base(s, &val, 10);
+      parsed = numbers_internal::safe_strtou32_base(s, &val, base);
       *out = static_cast<int_type>(val);
     }
   }
   return parsed;
+}
+
+}  // namespace numbers_internal
+
+// SimpleAtoi()
+//
+// Converts a std::string to an integer, using `safe_strto?()` functions for actual
+// parsing, returning `true` if successful. The `safe_strto?()` functions apply
+// strict checking; the std::string must be a base-10 integer, optionally followed or
+// preceded by ASCII whitespace, with a value in the range of the corresponding
+// integer type.
+template <typename int_type>
+ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
+  return numbers_internal::safe_strtoi_base(s, out, 10);
 }
 
 }  // namespace absl

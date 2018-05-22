@@ -158,6 +158,8 @@ static bool SetupAlternateStackOnce() {
 
 #endif
 
+#ifdef ABSL_HAVE_SIGACTION
+
 // Sets up an alternate stack for signal handlers once.
 // Returns the appropriate flag for sig_action.sa_flags
 // if the system supports using an alternate stack.
@@ -169,8 +171,6 @@ static int MaybeSetupAlternateStack() {
   return 0;
 #endif
 }
-
-#ifdef ABSL_HAVE_SIGACTION
 
 static void InstallOneFailureHandler(FailureSignalData* data,
                                      void (*handler)(int, siginfo_t*, void*)) {
