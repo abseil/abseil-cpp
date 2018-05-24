@@ -119,7 +119,7 @@ TEST(ToString, PerfectDtoa) {
          {1e-300, 1e-200, 1e-100, 0.1, 1.0, 10.0, 1e100, 1e300}) {
       double d = multiplier * i;
       std::string s = PerfectDtoa(d);
-      EXPECT_EQ(d, strtod(s.c_str(), nullptr));
+      EXPECT_DOUBLE_EQ(d, strtod(s.c_str(), nullptr));
     }
   }
 }

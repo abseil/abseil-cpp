@@ -371,6 +371,11 @@ cc_test(
     size = "small",
     srcs = ["internal/sysinfo_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [
         ":base",
         "//absl/synchronization",
@@ -387,6 +392,11 @@ cc_test(
         "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [":malloc_internal"],
 )
 

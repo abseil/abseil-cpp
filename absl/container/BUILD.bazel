@@ -42,6 +42,11 @@ cc_test(
     name = "fixed_array_test",
     srcs = ["fixed_array_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [
         ":fixed_array",
         "//absl/base:exception_testing",

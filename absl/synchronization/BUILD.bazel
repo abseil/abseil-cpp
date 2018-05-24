@@ -150,6 +150,9 @@ cc_test(
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
     tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
         "no_test_loonix",  # Too slow.
     ],
     deps = [

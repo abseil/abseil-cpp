@@ -29,6 +29,15 @@
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 
+#ifdef __ANDROID__
+// Android assert messages only go to system log, so death tests cannot inspect
+// the message for matching.
+#define ABSL_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
+  EXPECT_DEATH_IF_SUPPORTED(statement, ".*")
+#else
+#define ABSL_EXPECT_DEATH_IF_SUPPORTED EXPECT_DEATH_IF_SUPPORTED
+#endif
+
 namespace {
 
 // A minimal allocator that uses malloc().
@@ -1068,7 +1077,8 @@ TEST(HugeStringView, TwoPointTwoGB) {
 
 #if !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
 TEST(NonNegativeLenTest, NonNegativeLen) {
-  EXPECT_DEATH_IF_SUPPORTED(absl::string_view("xyz", -1), "len <= kMaxSize");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("xyz", -1),
+                                 "len <= kMaxSize");
 }
 
 TEST(LenExceedsMaxSizeTest, LenExceedsMaxSize) {
@@ -1078,8 +1088,8 @@ TEST(LenExceedsMaxSizeTest, LenExceedsMaxSize) {
   absl::string_view ok_view("", max_size);
 
   // Adding one to the max should trigger an assertion.
-  EXPECT_DEATH_IF_SUPPORTED(absl::string_view("", max_size + 1),
-                            "len <= kMaxSize");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("", max_size + 1),
+                                 "len <= kMaxSize");
 }
 #endif  // !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
 

@@ -124,10 +124,31 @@ cc_test(
 )
 
 cc_test(
+    name = "escaping_benchmark",
+    srcs = [
+        "escaping_benchmark.cc",
+        "internal/escaping_test_common.inc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark",
+    ],
+)
+
+cc_test(
     name = "ascii_test",
     size = "small",
     srcs = ["ascii_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -350,6 +371,9 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
         "no_test_loonix",
     ],
     visibility = ["//visibility:private"],
@@ -377,6 +401,11 @@ cc_test(
     name = "char_map_test",
     srcs = ["internal/char_map_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [
         ":internal",
         "@com_google_googletest//:gtest_main",
