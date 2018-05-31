@@ -392,11 +392,6 @@ cc_test(
         "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
-    tags = [
-        "no_test_android_arm",
-        "no_test_android_arm64",
-        "no_test_android_x86",
-    ],
     deps = [":malloc_internal"],
 )
 
@@ -426,6 +421,6 @@ cc_test(
     deps = [
         ":base",
         "//absl/synchronization",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )

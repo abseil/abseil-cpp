@@ -111,7 +111,7 @@ cc_test(
     size = "small",
     srcs = [
         "escaping_test.cc",
-        "internal/escaping_test_common.inc",
+        "internal/escaping_test_common.h",
     ],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
@@ -127,7 +127,7 @@ cc_test(
     name = "escaping_benchmark",
     srcs = [
         "escaping_benchmark.cc",
-        "internal/escaping_test_common.inc",
+        "internal/escaping_test_common.h",
     ],
     copts = ABSL_TEST_COPTS,
     tags = ["benchmark"],
@@ -135,7 +135,7 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -199,7 +199,7 @@ cc_test(
         ":strings",
         "//absl/base",
         "//absl/base:core_headers",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -240,7 +240,7 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -278,7 +278,7 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -291,6 +291,18 @@ cc_test(
     deps = [
         ":internal",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "ostringstream_benchmark",
+    srcs = ["internal/ostringstream_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":internal",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -333,7 +345,7 @@ cc_test(
     deps = [
         ":strings",
         "//absl/memory",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -358,7 +370,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 
@@ -366,7 +378,7 @@ cc_test(
     name = "numbers_test",
     size = "small",
     srcs = [
-        "internal/numbers_test_common.inc",
+        "internal/numbers_test_common.h",
         "numbers_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
@@ -409,5 +421,16 @@ cc_test(
     deps = [
         ":internal",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "char_map_benchmark",
+    srcs = ["internal/char_map_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    deps = [
+        ":internal",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )

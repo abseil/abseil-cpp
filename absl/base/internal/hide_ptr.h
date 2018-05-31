@@ -23,9 +23,7 @@ namespace base_internal {
 // Arbitrary value with high bits set. Xor'ing with it is unlikely
 // to map one valid pointer to another valid pointer.
 constexpr uintptr_t HideMask() {
-  static_assert(sizeof(uintptr_t) == 4 || sizeof(uintptr_t) == 8,
-                "uintptr_t must be 32 or 64 bits");
-  return sizeof(uintptr_t) == 8 ? 0xF03A5F7BF03A5F7BULL : 0xF03A5F7BUL;
+  return (uintptr_t{0xF03A5F7BU} << (sizeof(uintptr_t) - 4) * 8) | 0xF03A5F7BU;
 }
 
 // Hide a pointer from the leak checker. For internal use only.

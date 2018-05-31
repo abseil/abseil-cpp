@@ -327,5 +327,3 @@ void BM_AppendToStringNative(benchmark::State& state) {
 BENCHMARK(BM_AppendToStringNative)->Range(1 << 3, 1 << 12);
 
 }  // namespace
-
-BENCHMARK_MAIN();

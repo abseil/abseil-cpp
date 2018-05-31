@@ -92,5 +92,3 @@ BENCHMARK(BM_ContendedMutex)->Threads(1);
 BENCHMARK(BM_ContendedMutex)->ThreadPerCpu();
 
 }  // namespace
-
-BENCHMARK_MAIN();

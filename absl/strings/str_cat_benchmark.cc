@@ -138,5 +138,3 @@ void BM_DoubleToString_By_SixDigits(benchmark::State& state) {
 BENCHMARK(BM_DoubleToString_By_SixDigits);
 
 }  // namespace
-
-BENCHMARK_MAIN();

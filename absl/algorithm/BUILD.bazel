@@ -49,7 +49,7 @@ cc_test(
     deps = [
         ":algorithm",
         "//absl/base:core_headers",
-        "@com_github_google_benchmark//:benchmark",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )
 

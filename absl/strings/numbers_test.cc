@@ -38,7 +38,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/str_cat.h"
 
-#include "absl/strings/internal/numbers_test_common.inc"
+#include "absl/strings/internal/numbers_test_common.h"
 
 namespace {
 
@@ -48,6 +48,9 @@ using absl::numbers_internal::safe_strto64_base;
 using absl::numbers_internal::safe_strtou32_base;
 using absl::numbers_internal::safe_strtou64_base;
 using absl::numbers_internal::SixDigitsToBuffer;
+using absl::strings_internal::Itoa;
+using absl::strings_internal::strtouint32_test_cases;
+using absl::strings_internal::strtouint64_test_cases;
 using absl::SimpleAtoi;
 using testing::Eq;
 using testing::MatchesRegex;
@@ -654,8 +657,8 @@ TEST(stringtest, safe_strtou64_random) {
 }
 
 TEST(stringtest, safe_strtou32_base) {
-  for (int i = 0; strtouint32_test_cases[i].str != nullptr; ++i) {
-    const auto& e = strtouint32_test_cases[i];
+  for (int i = 0; strtouint32_test_cases()[i].str != nullptr; ++i) {
+    const auto& e = strtouint32_test_cases()[i];
     uint32_t value;
     EXPECT_EQ(e.expect_ok, safe_strtou32_base(e.str, &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
@@ -667,8 +670,8 @@ TEST(stringtest, safe_strtou32_base) {
 }
 
 TEST(stringtest, safe_strtou32_base_length_delimited) {
-  for (int i = 0; strtouint32_test_cases[i].str != nullptr; ++i) {
-    const auto& e = strtouint32_test_cases[i];
+  for (int i = 0; strtouint32_test_cases()[i].str != nullptr; ++i) {
+    const auto& e = strtouint32_test_cases()[i];
     std::string tmp(e.str);
     tmp.append("12");  // Adds garbage at the end.
 
@@ -685,8 +688,8 @@ TEST(stringtest, safe_strtou32_base_length_delimited) {
 }
 
 TEST(stringtest, safe_strtou64_base) {
-  for (int i = 0; strtouint64_test_cases[i].str != nullptr; ++i) {
-    const auto& e = strtouint64_test_cases[i];
+  for (int i = 0; strtouint64_test_cases()[i].str != nullptr; ++i) {
+    const auto& e = strtouint64_test_cases()[i];
     uint64_t value;
     EXPECT_EQ(e.expect_ok, safe_strtou64_base(e.str, &value, e.base))
         << "str=\"" << e.str << "\" base=" << e.base;
@@ -697,8 +700,8 @@ TEST(stringtest, safe_strtou64_base) {
 }
 
 TEST(stringtest, safe_strtou64_base_length_delimited) {
-  for (int i = 0; strtouint64_test_cases[i].str != nullptr; ++i) {
-    const auto& e = strtouint64_test_cases[i];
+  for (int i = 0; strtouint64_test_cases()[i].str != nullptr; ++i) {
+    const auto& e = strtouint64_test_cases()[i];
     std::string tmp(e.str);
     tmp.append("12");  // Adds garbage at the end.
 

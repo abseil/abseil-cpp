@@ -94,5 +94,3 @@ BENCHMARK(BM_JoinStreamable)
     ->ArgPair(256, 256);
 
 }  // namespace
-
-BENCHMARK_MAIN();

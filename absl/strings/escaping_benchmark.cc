@@ -20,7 +20,7 @@
 
 #include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/strings/internal/escaping_test_common.inc"
+#include "absl/strings/internal/escaping_test_common.h"
 
 namespace {
 
@@ -39,7 +39,7 @@ BENCHMARK(BM_CUnescapeHexString);
 void BM_WebSafeBase64Escape_string(benchmark::State& state) {
   std::string raw;
   for (int i = 0; i < 10; ++i) {
-    for (const auto& test_set : base64_strings) {
+    for (const auto& test_set : absl::strings_internal::base64_strings()) {
       raw += std::string(test_set.plaintext);
     }
   }
@@ -92,5 +92,3 @@ void BM_CEscape_MostEscaped(benchmark::State& state) {
 BENCHMARK(BM_CEscape_MostEscaped)->Range(1, 1 << 14);
 
 }  // namespace
-
-BENCHMARK_MAIN();

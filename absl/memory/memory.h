@@ -179,9 +179,9 @@ typename memory_internal::MakeUniqueResult<T>::invalid make_unique(
 // useful within templates that need to handle a complement of raw pointers,
 // `std::nullptr_t`, and smart pointers.
 template <typename T>
-auto RawPtr(T&& ptr) -> decltype(&*ptr) {
+auto RawPtr(T&& ptr) -> decltype(std::addressof(*ptr)) {
   // ptr is a forwarding reference to support Ts with non-const operators.
-  return (ptr != nullptr) ? &*ptr : nullptr;
+  return (ptr != nullptr) ? std::addressof(*ptr) : nullptr;
 }
 inline std::nullptr_t RawPtr(std::nullptr_t) { return nullptr; }
 

@@ -25,7 +25,7 @@
 #include "absl/container/fixed_array.h"
 #include "absl/strings/str_cat.h"
 
-#include "absl/strings/internal/escaping_test_common.inc"
+#include "absl/strings/internal/escaping_test_common.h"
 
 namespace {
 
@@ -575,7 +575,7 @@ TEST(Base64, EscapeAndUnescape) {
   }
 
   // Now try the long strings, this tests the streaming
-  for (const auto& tc : base64_strings) {
+  for (const auto& tc : absl::strings_internal::base64_strings()) {
     std::string buffer;
     absl::WebSafeBase64Escape(tc.plaintext, &buffer);
     EXPECT_EQ(tc.cyphertext, buffer);

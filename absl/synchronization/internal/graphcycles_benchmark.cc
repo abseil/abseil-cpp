@@ -42,5 +42,3 @@ void BM_StressTest(benchmark::State& state) {
 BENCHMARK(BM_StressTest)->Range(2048, 1048576);
 
 }  // namespace
-
-BENCHMARK_MAIN();

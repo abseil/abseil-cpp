@@ -124,5 +124,3 @@ BENCHMARK_TEMPLATE(BM_absl_equal_self_benchmark, EightBits)
     ->Range(kMinBenchmarkSize, kMaxBenchmarkSize);
 
 }  // namespace
-
-BENCHMARK_MAIN();

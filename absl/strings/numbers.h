@@ -52,12 +52,16 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 //
 // Converts the given std::string (optionally followed or preceded by ASCII
 // whitespace) into a float, which may be rounded on overflow or underflow.
+// See http://en.cppreference.com/w/c/std::string/byte/strtof for details about the
+// allowed formats for `str`.
 ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* value);
 
 // SimpleAtod()
 //
 // Converts the given std::string (optionally followed or preceded by ASCII
 // whitespace) into a double, which may be rounded on overflow or underflow.
+// See http://en.cppreference.com/w/c/std::string/byte/strtof for details about the
+// allowed formats for `str`.
 ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* value);
 
 // SimpleAtob()

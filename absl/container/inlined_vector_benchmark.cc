@@ -372,5 +372,3 @@ void BM_StdVectorEmpty(benchmark::State& state) {
 BENCHMARK(BM_StdVectorEmpty);
 
 }  // namespace
-
-BENCHMARK_MAIN();

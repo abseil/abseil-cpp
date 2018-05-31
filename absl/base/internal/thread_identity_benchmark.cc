@@ -36,5 +36,3 @@ void BM_UnsafeCurrentThreadIdentity(benchmark::State& state) {
 BENCHMARK(BM_UnsafeCurrentThreadIdentity);
 
 }  // namespace
-
-BENCHMARK_MAIN();

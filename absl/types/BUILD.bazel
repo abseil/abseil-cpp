@@ -193,6 +193,20 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "optional_exception_safety_test",
+    srcs = [
+        "optional_exception_safety_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":optional",
+        "//absl/base:exception_safety_testing",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+
 cc_library(
     name = "variant",
     srcs = ["internal/variant.h"],

@@ -120,5 +120,3 @@ void BM_StrReplaceAll(benchmark::State& state) {
 BENCHMARK(BM_StrReplaceAll);
 
 }  // namespace
-
-BENCHMARK_MAIN();

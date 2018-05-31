@@ -64,5 +64,3 @@ BENCHMARK_TEMPLATE(BM_FixedArray, std::string, 256)->Range(0, 1 << 16);
 BENCHMARK_TEMPLATE(BM_FixedArray, std::string, 65536)->Range(0, 1 << 16);
 
 }  // namespace
-
-BENCHMARK_MAIN();

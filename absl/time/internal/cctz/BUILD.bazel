@@ -81,6 +81,11 @@ cc_test(
     size = "small",
     srcs = ["src/time_zone_format_test.cc"],
     data = [":zoneinfo"],
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [
         ":civil_time",
         ":time_zone",
@@ -93,6 +98,11 @@ cc_test(
     size = "small",
     srcs = ["src/time_zone_lookup_test.cc"],
     data = [":zoneinfo"],
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_arm64",
+        "no_test_android_x86",
+    ],
     deps = [
         ":civil_time",
         ":time_zone",
@@ -101,6 +111,24 @@ cc_test(
 )
 
 ### benchmarks
+
+cc_test(
+    name = "cctz_benchmark",
+    srcs = [
+        "src/cctz_benchmark.cc",
+        "src/time_zone_if.h",
+        "src/time_zone_impl.h",
+        "src/time_zone_info.h",
+        "src/tzfile.h",
+    ],
+    linkstatic = 1,
+    tags = ["benchmark"],
+    deps = [
+        ":civil_time",
+        ":time_zone",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
 
 ### examples
 

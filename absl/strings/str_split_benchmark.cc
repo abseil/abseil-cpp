@@ -154,5 +154,3 @@ BENCHMARK_TEMPLATE(BM_SplitStringWithOneCharNoVector, OneCharLiteral);
 BENCHMARK_TEMPLATE(BM_SplitStringWithOneCharNoVector, OneCharStringLiteral);
 
 }  // namespace
-
-BENCHMARK_MAIN();

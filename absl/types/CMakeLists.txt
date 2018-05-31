@@ -209,3 +209,20 @@ absl_test(
 )
 
 
+# test optional_exception_safety_test
+set(OPTIONAL_EXCEPTION_SAFETY_TEST_SRC "optional_exception_safety_test.cc")
+set(OPTIONAL_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
+  absl::optional
+  absl_base_internal_exception_safety_testing
+)
+
+absl_test(
+  TARGET
+    optional_exception_safety_test
+  SOURCES
+    ${OPTIONAL_EXCEPTION_SAFETY_TEST_SRC}
+  PUBLIC_LIBRARIES
+    ${OPTIONAL_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
+  PRIVATE_COMPILE_FLAGS
+    ${ABSL_EXCEPTIONS_FLAG}
+)

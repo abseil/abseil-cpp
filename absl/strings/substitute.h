@@ -99,7 +99,10 @@ class Arg {
   // Explicitly overload `const char*` so the compiler doesn't cast to `bool`.
   Arg(const char* value)  // NOLINT(runtime/explicit)
       : piece_(absl::NullSafeStringView(value)) {}
-  Arg(const std::string& value)  // NOLINT(runtime/explicit)
+  template <typename Allocator>
+  Arg(  // NOLINT
+      const std::basic_string<char, std::char_traits<char>, Allocator>&
+          value) noexcept
       : piece_(value) {}
   Arg(absl::string_view value)  // NOLINT(runtime/explicit)
       : piece_(value) {}
