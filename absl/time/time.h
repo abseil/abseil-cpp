@@ -82,8 +82,15 @@ constexpr Duration MakeDuration(int64_t hi, uint32_t lo);
 constexpr Duration MakeDuration(int64_t hi, int64_t lo);
 constexpr int64_t kTicksPerNanosecond = 4;
 constexpr int64_t kTicksPerSecond = 1000 * 1000 * 1000 * kTicksPerNanosecond;
+template <std::intmax_t N>
+constexpr Duration FromInt64(int64_t v, std::ratio<1, N>);
+constexpr Duration FromInt64(int64_t v, std::ratio<60>);
+constexpr Duration FromInt64(int64_t v, std::ratio<3600>);
 template <typename T>
-using IsFloatingPoint =
+using EnableIfIntegral = typename std::enable_if<
+    std::is_integral<T>::value || std::is_enum<T>::value, int>::type;
+template <typename T>
+using EnableIfFloat =
     typename std::enable_if<std::is_floating_point<T>::value, int>::type;
 }  // namespace time_internal
 
@@ -178,15 +185,15 @@ inline Duration operator-(Duration lhs, Duration rhs) { return lhs -= rhs; }
 
 // Multiplicative Operators
 template <typename T>
-inline Duration operator*(Duration lhs, T rhs) {
+Duration operator*(Duration lhs, T rhs) {
   return lhs *= rhs;
 }
 template <typename T>
-inline Duration operator*(T lhs, Duration rhs) {
+Duration operator*(T lhs, Duration rhs) {
   return rhs *= lhs;
 }
 template <typename T>
-inline Duration operator/(Duration lhs, T rhs) {
+Duration operator/(Duration lhs, T rhs) {
   return lhs /= rhs;
 }
 inline int64_t operator/(Duration lhs, Duration rhs) {
@@ -322,27 +329,27 @@ constexpr Duration Hours(int64_t n);
 // Example:
 //   auto a = absl::Seconds(1.5);        // OK
 //   auto b = absl::Milliseconds(1500);  // BETTER
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Nanoseconds(T n) {
   return n * Nanoseconds(1);
 }
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Microseconds(T n) {
   return n * Microseconds(1);
 }
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Milliseconds(T n) {
   return n * Milliseconds(1);
 }
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Seconds(T n) {
   return n * Seconds(1);
 }
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Minutes(T n) {
   return n * Minutes(1);
 }
-template <typename T, time_internal::IsFloatingPoint<T> = 0>
+template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Hours(T n) {
   return n * Hours(1);
 }
@@ -1154,10 +1161,16 @@ constexpr Duration FromInt64(int64_t v, std::ratio<1, N>) {
       v / N, v % N * kTicksPerNanosecond * 1000 * 1000 * 1000 / N);
 }
 constexpr Duration FromInt64(int64_t v, std::ratio<60>) {
-  return Minutes(v);
+  return (v <= std::numeric_limits<int64_t>::max() / 60 &&
+          v >= std::numeric_limits<int64_t>::min() / 60)
+             ? MakeDuration(v * 60)
+             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
 }
 constexpr Duration FromInt64(int64_t v, std::ratio<3600>) {
-  return Hours(v);
+  return (v <= std::numeric_limits<int64_t>::max() / 3600 &&
+          v >= std::numeric_limits<int64_t>::min() / 3600)
+             ? MakeDuration(v * 3600)
+             : v > 0 ? InfiniteDuration() : -InfiniteDuration();
 }
 
 // IsValidRep64<T>(0) is true if the expression `int64_t{std::declval<T>()}` is
@@ -1220,6 +1233,24 @@ T ToChronoDuration(Duration d) {
 }
 
 }  // namespace time_internal
+constexpr Duration Nanoseconds(int64_t n) {
+  return time_internal::FromInt64(n, std::nano{});
+}
+constexpr Duration Microseconds(int64_t n) {
+  return time_internal::FromInt64(n, std::micro{});
+}
+constexpr Duration Milliseconds(int64_t n) {
+  return time_internal::FromInt64(n, std::milli{});
+}
+constexpr Duration Seconds(int64_t n) {
+  return time_internal::FromInt64(n, std::ratio<1>{});
+}
+constexpr Duration Minutes(int64_t n) {
+  return time_internal::FromInt64(n, std::ratio<60>{});
+}
+constexpr Duration Hours(int64_t n) {
+  return time_internal::FromInt64(n, std::ratio<3600>{});
+}
 
 constexpr bool operator<(Duration lhs, Duration rhs) {
   return time_internal::GetRepHi(lhs) != time_internal::GetRepHi(rhs)
@@ -1259,39 +1290,6 @@ constexpr Duration operator-(Duration d) {
                              time_internal::GetRepHi(d)),
                          time_internal::kTicksPerSecond -
                              time_internal::GetRepLo(d));
-}
-
-constexpr Duration Nanoseconds(int64_t n) {
-  return time_internal::MakeNormalizedDuration(
-      n / (1000 * 1000 * 1000),
-      n % (1000 * 1000 * 1000) * time_internal::kTicksPerNanosecond);
-}
-
-constexpr Duration Microseconds(int64_t n) {
-  return time_internal::MakeNormalizedDuration(
-      n / (1000 * 1000),
-      n % (1000 * 1000) * (1000 * time_internal::kTicksPerNanosecond));
-}
-
-constexpr Duration Milliseconds(int64_t n) {
-  return time_internal::MakeNormalizedDuration(
-      n / 1000, n % 1000 * (1000 * 1000 * time_internal::kTicksPerNanosecond));
-}
-
-constexpr Duration Seconds(int64_t n) { return time_internal::MakeDuration(n); }
-
-constexpr Duration Minutes(int64_t n) {
-  return (n <= std::numeric_limits<int64_t>::max() / 60 &&
-          n >= std::numeric_limits<int64_t>::min() / 60)
-             ? time_internal::MakeDuration(n * 60)
-             : n > 0 ? InfiniteDuration() : -InfiniteDuration();
-}
-
-constexpr Duration Hours(int64_t n) {
-  return (n <= std::numeric_limits<int64_t>::max() / 3600 &&
-          n >= std::numeric_limits<int64_t>::min() / 3600)
-             ? time_internal::MakeDuration(n * 3600)
-             : n > 0 ? InfiniteDuration() : -InfiniteDuration();
 }
 
 constexpr Duration InfiniteDuration() {

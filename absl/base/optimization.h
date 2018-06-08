@@ -158,8 +158,8 @@
 #define ABSL_PREDICT_FALSE(x) (__builtin_expect(x, 0))
 #define ABSL_PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
 #else
-#define ABSL_PREDICT_FALSE(x) x
-#define ABSL_PREDICT_TRUE(x) x
+#define ABSL_PREDICT_FALSE(x) (x)
+#define ABSL_PREDICT_TRUE(x) (x)
 #endif
 
 #endif  // ABSL_BASE_OPTIMIZATION_H_

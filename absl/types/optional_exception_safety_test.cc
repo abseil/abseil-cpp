@@ -170,25 +170,22 @@ TEST(OptionalExceptionSafety, EverythingThrowsSwap) {
 
 TEST(OptionalExceptionSafety, NoThrowMoveSwap) {
   // Tests the nothrow guarantee for optional of T with non-throwing move
-  auto nothrow_test =
-      MakeExceptionSafetyTester().WithInvariants(testing::nothrow_guarantee);
-  auto nothrow_test_empty = nothrow_test.WithInitialValue(MoveOptional());
-  auto nothrow_test_nonempty =
-      nothrow_test.WithInitialValue(MoveOptional(kInitialInteger));
-
-  auto swap_empty = [](MoveOptional* optional_ptr) {
+  {
     auto empty = MoveOptional();
-    optional_ptr->swap(empty);
-  };
-  EXPECT_TRUE(nothrow_test_nonempty.Test(swap_empty));
-
-  auto swap_nonempty = [](MoveOptional* optional_ptr) {
-    auto nonempty =
-        MoveOptional(absl::in_place, kUpdatedInteger, testing::nothrow_ctor);
-    optional_ptr->swap(nonempty);
-  };
-  EXPECT_TRUE(nothrow_test_empty.Test(swap_nonempty));
-  EXPECT_TRUE(nothrow_test_nonempty.Test(swap_nonempty));
+    auto nonempty = MoveOptional(kInitialInteger);
+    EXPECT_TRUE(testing::TestNothrowOp([&]() { nonempty.swap(empty); }));
+  }
+  {
+    auto nonempty = MoveOptional(kUpdatedInteger);
+    auto empty = MoveOptional();
+    EXPECT_TRUE(testing::TestNothrowOp([&]() { empty.swap(nonempty); }));
+  }
+  {
+    auto nonempty_from = MoveOptional(kUpdatedInteger);
+    auto nonempty_to = MoveOptional(kInitialInteger);
+    EXPECT_TRUE(
+        testing::TestNothrowOp([&]() { nonempty_to.swap(nonempty_from); }));
+  }
 }
 
 TEST(OptionalExceptionSafety, CopyAssign) {
@@ -251,32 +248,33 @@ TEST(OptionalExceptionSafety, MoveAssign) {
 
 TEST(OptionalExceptionSafety, NothrowMoveAssign) {
   // Tests the nothrow guarantee for optional of T with non-throwing move
-  auto nothrow_test =
-      MakeExceptionSafetyTester().WithInvariants(testing::nothrow_guarantee);
-  auto nothrow_test_empty = nothrow_test.WithInitialValue(MoveOptional());
-  auto nothrow_test_nonempty =
-      nothrow_test.WithInitialValue(MoveOptional(kInitialInteger));
-
-  auto moveassign_empty = [](MoveOptional* optional_ptr) {
+  {
     auto empty = MoveOptional();
-    *optional_ptr = std::move(empty);
-  };
-  EXPECT_TRUE(nothrow_test_nonempty.Test(moveassign_empty));
-
-  auto moveassign_nonempty = [](MoveOptional* optional_ptr) {
-    auto nonempty =
-        MoveOptional(absl::in_place, kUpdatedInteger, testing::nothrow_ctor);
-    *optional_ptr = std::move(nonempty);
-  };
-  EXPECT_TRUE(nothrow_test_empty.Test(moveassign_nonempty));
-  EXPECT_TRUE(nothrow_test_nonempty.Test(moveassign_nonempty));
-
-  auto moveassign_thrower = [](MoveOptional* optional_ptr) {
-    auto thrower = MoveThrower(kUpdatedInteger, testing::nothrow_ctor);
-    *optional_ptr = std::move(thrower);
-  };
-  EXPECT_TRUE(nothrow_test_empty.Test(moveassign_thrower));
-  EXPECT_TRUE(nothrow_test_nonempty.Test(moveassign_thrower));
+    auto nonempty = MoveOptional(kInitialInteger);
+    EXPECT_TRUE(testing::TestNothrowOp([&]() { nonempty = std::move(empty); }));
+  }
+  {
+    auto nonempty = MoveOptional(kInitialInteger);
+    auto empty = MoveOptional();
+    EXPECT_TRUE(testing::TestNothrowOp([&]() { empty = std::move(nonempty); }));
+  }
+  {
+    auto nonempty_from = MoveOptional(kUpdatedInteger);
+    auto nonempty_to = MoveOptional(kInitialInteger);
+    EXPECT_TRUE(testing::TestNothrowOp(
+        [&]() { nonempty_to = std::move(nonempty_from); }));
+  }
+  {
+    auto thrower = MoveThrower(kUpdatedInteger);
+    auto empty = MoveOptional();
+    EXPECT_TRUE(testing::TestNothrowOp([&]() { empty = std::move(thrower); }));
+  }
+  {
+    auto thrower = MoveThrower(kUpdatedInteger);
+    auto nonempty = MoveOptional(kInitialInteger);
+    EXPECT_TRUE(
+        testing::TestNothrowOp([&]() { nonempty = std::move(thrower); }));
+  }
 }
 
 }  // namespace

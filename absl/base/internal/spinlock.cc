@@ -18,10 +18,12 @@
 #include <atomic>
 #include <limits>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/internal/sysinfo.h" /* For NumCPUs() */
+#include "absl/base/call_once.h"
 
 // Description of lock-word:
 //  31..00: [............................3][2][1][0]
@@ -54,29 +56,9 @@
 namespace absl {
 namespace base_internal {
 
-static int adaptive_spin_count = 0;
-
-namespace {
-struct SpinLock_InitHelper {
-  SpinLock_InitHelper() {
-    // On multi-cpu machines, spin for longer before yielding
-    // the processor or sleeping.  Reduces idle time significantly.
-    if (base_internal::NumCPUs() > 1) {
-      adaptive_spin_count = 1000;
-    }
-  }
-};
-
-// Hook into global constructor execution:
-// We do not do adaptive spinning before that,
-// but nothing lock-intensive should be going on at that time.
-static SpinLock_InitHelper init_helper;
-
 ABSL_CONST_INIT static base_internal::AtomicHook<void (*)(const void *lock,
                                                           int64_t wait_cycles)>
     submit_profile_data;
-
-}  // namespace
 
 void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
                                          int64_t wait_cycles)) {
@@ -120,6 +102,14 @@ void SpinLock::InitLinkerInitializedAndCooperative() {
 // from the lock is returned from the method.
 uint32_t SpinLock::SpinLoop(int64_t initial_wait_timestamp,
                             uint32_t *wait_cycles) {
+  // We are already in the slow path of SpinLock, initialize the
+  // adaptive_spin_count here.
+  ABSL_CONST_INIT static absl::once_flag init_adaptive_spin_count;
+  ABSL_CONST_INIT static int adaptive_spin_count = 0;
+  base_internal::LowLevelCallOnce(&init_adaptive_spin_count, []() {
+    adaptive_spin_count = base_internal::NumCPUs() > 1 ? 1000 : 1;
+  });
+
   int c = adaptive_spin_count;
   uint32_t lock_value;
   do {

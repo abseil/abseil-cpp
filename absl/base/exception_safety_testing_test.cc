@@ -168,8 +168,58 @@ TEST(ThrowingValueTest, ThrowingCompoundAssignmentOps) {
 TEST(ThrowingValueTest, ThrowingStreamOps) {
   ThrowingValue<> bomb;
 
-  TestOp([&]() { std::cin >> bomb; });
-  TestOp([&]() { std::cout << bomb; });
+  TestOp([&]() {
+    std::istringstream stream;
+    stream >> bomb;
+  });
+  TestOp([&]() {
+    std::stringstream stream;
+    stream << bomb;
+  });
+}
+
+// Tests the operator<< of ThrowingValue by forcing ConstructorTracker to emit
+// a nonfatal failure that contains the std::string representation of the Thrower
+TEST(ThrowingValueTest, StreamOpsOutput) {
+  using ::testing::TypeSpec;
+  exceptions_internal::ConstructorTracker ct(exceptions_internal::countdown);
+
+  // Test default spec list (kEverythingThrows)
+  EXPECT_NONFATAL_FAILURE(
+      {
+        using Thrower = ThrowingValue<TypeSpec{}>;
+        auto thrower = Thrower(123);
+        thrower.~Thrower();
+      },
+      "ThrowingValue<>(123)");
+
+  // Test with one item in spec list (kNoThrowCopy)
+  EXPECT_NONFATAL_FAILURE(
+      {
+        using Thrower = ThrowingValue<TypeSpec::kNoThrowCopy>;
+        auto thrower = Thrower(234);
+        thrower.~Thrower();
+      },
+      "ThrowingValue<kNoThrowCopy>(234)");
+
+  // Test with multiple items in spec list (kNoThrowMove, kNoThrowNew)
+  EXPECT_NONFATAL_FAILURE(
+      {
+        using Thrower =
+            ThrowingValue<TypeSpec::kNoThrowMove | TypeSpec::kNoThrowNew>;
+        auto thrower = Thrower(345);
+        thrower.~Thrower();
+      },
+      "ThrowingValue<kNoThrowMove | kNoThrowNew>(345)");
+
+  // Test with all items in spec list (kNoThrowCopy, kNoThrowMove, kNoThrowNew)
+  EXPECT_NONFATAL_FAILURE(
+      {
+        using Thrower = ThrowingValue<static_cast<TypeSpec>(-1)>;
+        auto thrower = Thrower(456);
+        thrower.~Thrower();
+      },
+      "ThrowingValue<kNoThrowCopy | kNoThrowMove | kNoThrowNew>(456)");
 }
 
 template <typename F>
@@ -653,20 +703,20 @@ struct BasicGuaranteeWithExtraInvariants : public NonNegative {
 };
 constexpr int BasicGuaranteeWithExtraInvariants::kExceptionSentinel;
 
-TEST(ExceptionCheckTest, BasicGuaranteeWithInvariants) {
+TEST(ExceptionCheckTest, BasicGuaranteeWithExtraInvariants) {
   auto tester_with_val =
       tester.WithInitialValue(BasicGuaranteeWithExtraInvariants{});
   EXPECT_TRUE(tester_with_val.Test());
   EXPECT_TRUE(
       tester_with_val
-          .WithInvariants([](BasicGuaranteeWithExtraInvariants* w) {
-            if (w->i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
+          .WithInvariants([](BasicGuaranteeWithExtraInvariants* o) {
+            if (o->i == BasicGuaranteeWithExtraInvariants::kExceptionSentinel) {
               return testing::AssertionSuccess();
             }
             return testing::AssertionFailure()
                    << "i should be "
                    << BasicGuaranteeWithExtraInvariants::kExceptionSentinel
-                   << ", but is " << w->i;
+                   << ", but is " << o->i;
           })
           .Test());
 }
@@ -846,29 +896,28 @@ TEST(ConstructorTrackerTest, NotDestroyedAfter) {
         new (&storage) Tracked;
       },
       "not destroyed");
-
-  // Manual destruction of the Tracked instance is not required because
-  // ~ConstructorTracker() handles that automatically when a leak is found
 }
 
 TEST(ConstructorTrackerTest, DestroyedTwice) {
+  exceptions_internal::ConstructorTracker ct(exceptions_internal::countdown);
   EXPECT_NONFATAL_FAILURE(
       {
         Tracked t;
         t.~Tracked();
       },
-      "destroyed improperly");
+      "re-destroyed");
 }
 
 TEST(ConstructorTrackerTest, ConstructedTwice) {
+  exceptions_internal::ConstructorTracker ct(exceptions_internal::countdown);
   absl::aligned_storage_t<sizeof(Tracked), alignof(Tracked)> storage;
   EXPECT_NONFATAL_FAILURE(
       {
         new (&storage) Tracked;
         new (&storage) Tracked;
+        reinterpret_cast<Tracked*>(&storage)->~Tracked();
       },
       "re-constructed");
-  reinterpret_cast<Tracked*>(&storage)->~Tracked();
 }
 
 TEST(ThrowingValueTraitsTest, RelationalOperators) {

@@ -279,7 +279,7 @@ class Span {
   using size_type = size_t;
   using difference_type = ptrdiff_t;
 
-  static const size_type npos = ~size_type{0};
+  static const size_type npos = ~(size_type(0));
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
   constexpr Span(pointer array, size_type length) noexcept

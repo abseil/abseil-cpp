@@ -330,18 +330,10 @@ TEST(Duration, ToChrono) {
   EXPECT_EQ(hours::max(), absl::ToChronoHours(inf));
 }
 
-// Used for testing the factory overloads.
-template <typename T>
-struct ImplicitlyConvertible {
-  T n_;
-  explicit ImplicitlyConvertible(T n) : n_(n) {}
-  // Marking this conversion operator with 'explicit' will cause the test to
-  // fail (as desired).
-  operator T() { return n_; }
-};
-
 TEST(Duration, FactoryOverloads) {
+  enum E { kOne = 1 };
 #define TEST_FACTORY_OVERLOADS(NAME)                                          \
+  EXPECT_EQ(1, NAME(kOne) / NAME(kOne));                                      \
   EXPECT_EQ(1, NAME(static_cast<int8_t>(1)) / NAME(1));                       \
   EXPECT_EQ(1, NAME(static_cast<int16_t>(1)) / NAME(1));                      \
   EXPECT_EQ(1, NAME(static_cast<int32_t>(1)) / NAME(1));                      \
@@ -350,14 +342,6 @@ TEST(Duration, FactoryOverloads) {
   EXPECT_EQ(1, NAME(static_cast<uint16_t>(1)) / NAME(1));                     \
   EXPECT_EQ(1, NAME(static_cast<uint32_t>(1)) / NAME(1));                     \
   EXPECT_EQ(1, NAME(static_cast<uint64_t>(1)) / NAME(1));                     \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<int8_t>(1)) / NAME(1));             \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<int16_t>(1)) / NAME(1));            \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<int32_t>(1)) / NAME(1));            \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<int64_t>(1)) / NAME(1));            \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<uint8_t>(1)) / NAME(1));            \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<uint16_t>(1)) / NAME(1));           \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<uint32_t>(1)) / NAME(1));           \
-  EXPECT_EQ(1, NAME(ImplicitlyConvertible<uint64_t>(1)) / NAME(1));           \
   EXPECT_EQ(NAME(1) / 2, NAME(static_cast<float>(0.5)));                      \
   EXPECT_EQ(NAME(1) / 2, NAME(static_cast<double>(0.5)));                     \
   EXPECT_EQ(1.5, absl::FDivDuration(NAME(static_cast<float>(1.5)), NAME(1))); \

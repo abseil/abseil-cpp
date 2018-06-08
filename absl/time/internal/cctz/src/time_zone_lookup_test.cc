@@ -693,7 +693,14 @@ TEST(TimeZones, LoadZonesConcurrently) {
 
   // Allow a small number of failures to account for skew between
   // the contents of kTimeZoneNames and the zoneinfo data source.
+#if defined(__ANDROID__)
+  // Cater to the possibility of using an even older zoneinfo data
+  // source when running on Android, where it is difficult to override
+  // the bionic tzdata provided by the test environment.
+  const std::size_t max_failures = 20;
+#else
   const std::size_t max_failures = 3;
+#endif
   std::set<std::string> failures;
   for (const auto& thread_failure : thread_failures) {
     failures.insert(thread_failure.begin(), thread_failure.end());
@@ -839,7 +846,7 @@ TEST(TimeZoneImpl, LocalTimeInFixed) {
   const time_zone tz = fixed_time_zone(offset);
   const auto tp = system_clock::from_time_t(0);
   ExpectTime(tp, tz, 1969, 12, 31, 15, 26, 13, offset.count(), false,
-             "UTC-083347");
+             "-083347");
   EXPECT_EQ(weekday::wednesday, get_weekday(civil_day(convert(tp, tz))));
 }
 
@@ -1098,6 +1105,9 @@ TEST(TimeZoneEdgeCase, PacificApia) {
 TEST(TimeZoneEdgeCase, AfricaCairo) {
   const time_zone tz = LoadZone("Africa/Cairo");
 
+#if defined(__ANDROID__) && __ANDROID_API__ < 21
+  // Only Android 'L' and beyond have this tz2014c transition.
+#else
   // An interesting case of midnight not existing.
   //
   //   1400191199 == Thu, 15 May 2014 23:59:59 +0200 (EET)
@@ -1106,11 +1116,15 @@ TEST(TimeZoneEdgeCase, AfricaCairo) {
   ExpectTime(tp, tz, 2014, 5, 15, 23, 59, 59, 2 * 3600, false, "EET");
   tp += seconds(1);
   ExpectTime(tp, tz, 2014, 5, 16, 1, 0, 0, 3 * 3600, true, "EEST");
+#endif
 }
 
 TEST(TimeZoneEdgeCase, AfricaMonrovia) {
   const time_zone tz = LoadZone("Africa/Monrovia");
 
+#if defined(__ANDROID__) && __ANDROID_API__ < 26
+  // Only Android 'O' and beyond have this tz2017b transition.
+#else
   // Strange offset change -00:44:30 -> +00:00:00 (non-DST)
   //
   //   63593069 == Thu,  6 Jan 1972 23:59:59 -0044 (MMT)
@@ -1119,6 +1133,7 @@ TEST(TimeZoneEdgeCase, AfricaMonrovia) {
   ExpectTime(tp, tz, 1972, 1, 6, 23, 59, 59, -44.5 * 60, false, "MMT");
   tp += seconds(1);
   ExpectTime(tp, tz, 1972, 1, 7, 0, 44, 30, 0 * 60, false, "GMT");
+#endif
 }
 
 TEST(TimeZoneEdgeCase, AmericaJamaica) {

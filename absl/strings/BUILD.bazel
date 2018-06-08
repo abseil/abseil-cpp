@@ -158,6 +158,22 @@ cc_test(
 )
 
 cc_test(
+    name = "memutil_benchmark",
+    srcs = [
+        "internal/memutil.h",
+        "internal/memutil_benchmark.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base:core_headers",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
     name = "memutil_test",
     size = "small",
     srcs = [

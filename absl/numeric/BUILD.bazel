@@ -53,3 +53,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "int128_benchmark",
+    srcs = ["int128_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    deps = [
+        ":int128",
+        "//absl/base:config",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)

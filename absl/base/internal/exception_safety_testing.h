@@ -62,6 +62,9 @@ constexpr AllocSpec operator&(AllocSpec a, AllocSpec b) {
 
 namespace exceptions_internal {
 
+std::string GetSpecString(TypeSpec);
+std::string GetSpecString(AllocSpec);
+
 struct NoThrowTag {};
 struct StrongGuaranteeTagType {};
 
@@ -101,36 +104,9 @@ void MaybeThrow(absl::string_view msg, bool throw_bad_alloc = false);
 testing::AssertionResult FailureMessage(const TestException& e,
                                         int countdown) noexcept;
 
-class ConstructorTracker;
-
-class TrackedObject {
- public:
-  TrackedObject(const TrackedObject&) = delete;
-  TrackedObject(TrackedObject&&) = delete;
-
- protected:
-  explicit TrackedObject(const char* child_ctor) {
-    if (!GetInstanceMap().emplace(this, child_ctor).second) {
-      ADD_FAILURE() << "Object at address " << static_cast<void*>(this)
-                    << " re-constructed in ctor " << child_ctor;
-    }
-  }
-
-  ~TrackedObject() noexcept {
-    if (GetInstanceMap().erase(this) == 0) {
-      ADD_FAILURE() << "Object at address " << static_cast<void*>(this)
-                    << " destroyed improperly";
-    }
-  }
-
- private:
-  using InstanceMap = std::unordered_map<TrackedObject*, absl::string_view>;
-  static InstanceMap& GetInstanceMap() {
-    static auto* instance_map = new InstanceMap();
-    return *instance_map;
-  }
-
-  friend class ConstructorTracker;
+struct TrackedAddress {
+  bool is_alive;
+  std::string description;
 };
 
 // Inspects the constructions and destructions of anything inheriting from
@@ -138,33 +114,86 @@ class TrackedObject {
 // ConstructorTracker will destroy everything left over in its destructor.
 class ConstructorTracker {
  public:
-  explicit ConstructorTracker(int c)
-      : init_count_(c), init_instances_(TrackedObject::GetInstanceMap()) {}
+  explicit ConstructorTracker(int count) : countdown_(count) {
+    assert(current_tracker_instance_ == nullptr);
+    current_tracker_instance_ = this;
+  }
+
   ~ConstructorTracker() {
-    auto& cur_instances = TrackedObject::GetInstanceMap();
-    for (auto it = cur_instances.begin(); it != cur_instances.end();) {
-      if (init_instances_.count(it->first) == 0) {
-        ADD_FAILURE() << "Object at address " << static_cast<void*>(it->first)
-                      << " constructed from " << it->second
-                      << " where the exception countdown was set to "
-                      << init_count_ << " was not destroyed";
-        // Erasing an item inside an unordered_map invalidates the existing
-        // iterator. A new one is returned for iteration to continue.
-        it = cur_instances.erase(it);
-      } else {
-        ++it;
+    assert(current_tracker_instance_ == this);
+    current_tracker_instance_ = nullptr;
+
+    for (auto& it : address_map_) {
+      void* address = it.first;
+      TrackedAddress& tracked_address = it.second;
+      if (tracked_address.is_alive) {
+        ADD_FAILURE() << "Object at address " << address
+                      << " with countdown of " << countdown_
+                      << " was not destroyed [" << tracked_address.description
+                      << "]";
       }
     }
   }
 
+  static void ObjectConstructed(void* address, std::string description) {
+    if (!CurrentlyTracking()) return;
+
+    TrackedAddress& tracked_address =
+        current_tracker_instance_->address_map_[address];
+    if (tracked_address.is_alive) {
+      ADD_FAILURE() << "Object at address " << address << " with countdown of "
+                    << current_tracker_instance_->countdown_
+                    << " was re-constructed. Previously: ["
+                    << tracked_address.description << "] Now: [" << description
+                    << "]";
+    }
+    tracked_address = {true, std::move(description)};
+  }
+
+  static void ObjectDestructed(void* address) {
+    if (!CurrentlyTracking()) return;
+
+    auto it = current_tracker_instance_->address_map_.find(address);
+    // Not tracked. Ignore.
+    if (it == current_tracker_instance_->address_map_.end()) return;
+
+    TrackedAddress& tracked_address = it->second;
+    if (!tracked_address.is_alive) {
+      ADD_FAILURE() << "Object at address " << address << " with countdown of "
+                    << current_tracker_instance_->countdown_
+                    << " was re-destroyed or created prior to construction "
+                    << "tracking [" << tracked_address.description << "]";
+    }
+    tracked_address.is_alive = false;
+  }
+
  private:
-  int init_count_;
-  TrackedObject::InstanceMap init_instances_;
+  static bool CurrentlyTracking() {
+    return current_tracker_instance_ != nullptr;
+  }
+
+  std::unordered_map<void*, TrackedAddress> address_map_;
+  int countdown_;
+
+  static ConstructorTracker* current_tracker_instance_;
+};
+
+class TrackedObject {
+ public:
+  TrackedObject(const TrackedObject&) = delete;
+  TrackedObject(TrackedObject&&) = delete;
+
+ protected:
+  explicit TrackedObject(std::string description) {
+    ConstructorTracker::ObjectConstructed(this, std::move(description));
+  }
+
+  ~TrackedObject() noexcept { ConstructorTracker::ObjectDestructed(this); }
 };
 
 template <typename Factory, typename Operation, typename Invariant>
 absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
-    const Factory& factory, Operation operation, int count,
+    const Factory& factory, const Operation& operation, int count,
     const Invariant& invariant) {
   auto t_ptr = factory();
   absl::optional<testing::AssertionResult> current_res;
@@ -229,7 +258,6 @@ inline absl::optional<testing::AssertionResult> TestAllInvariantsAtCountdown(
 
 extern exceptions_internal::NoThrowTag nothrow_ctor;
 
-bool nothrow_guarantee(const void*);
 extern exceptions_internal::StrongGuaranteeTagType strong_guarantee;
 
 // A test class which is convertible to bool.  The conversion can be
@@ -283,17 +311,18 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
     return static_cast<bool>(Spec & spec);
   }
 
+  static constexpr int kDefaultValue = 0;
   static constexpr int kBadValue = 938550620;
 
  public:
-  ThrowingValue() : TrackedObject(ABSL_PRETTY_FUNCTION) {
+  ThrowingValue() : TrackedObject(GetInstanceString(kDefaultValue)) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    dummy_ = 0;
+    dummy_ = kDefaultValue;
   }
 
   ThrowingValue(const ThrowingValue& other) noexcept(
       IsSpecified(TypeSpec::kNoThrowCopy))
-      : TrackedObject(ABSL_PRETTY_FUNCTION) {
+      : TrackedObject(GetInstanceString(other.dummy_)) {
     if (!IsSpecified(TypeSpec::kNoThrowCopy)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
@@ -302,20 +331,20 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
 
   ThrowingValue(ThrowingValue&& other) noexcept(
       IsSpecified(TypeSpec::kNoThrowMove))
-      : TrackedObject(ABSL_PRETTY_FUNCTION) {
+      : TrackedObject(GetInstanceString(other.dummy_)) {
     if (!IsSpecified(TypeSpec::kNoThrowMove)) {
       exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     }
     dummy_ = other.dummy_;
   }
 
-  explicit ThrowingValue(int i) : TrackedObject(ABSL_PRETTY_FUNCTION) {
+  explicit ThrowingValue(int i) : TrackedObject(GetInstanceString(i)) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     dummy_ = i;
   }
 
   ThrowingValue(int i, exceptions_internal::NoThrowTag) noexcept
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(i) {}
+      : TrackedObject(GetInstanceString(i)), dummy_(i) {}
 
   // absl expects nothrow destructors
   ~ThrowingValue() noexcept = default;
@@ -548,9 +577,9 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   void operator&() const = delete;  // NOLINT(runtime/operator)
 
   // Stream operators
-  friend std::ostream& operator<<(std::ostream& os, const ThrowingValue&) {
+  friend std::ostream& operator<<(std::ostream& os, const ThrowingValue& tv) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
-    return os;
+    return os << GetInstanceString(tv.dummy_);
   }
 
   friend std::istream& operator>>(std::istream& is, const ThrowingValue&) {
@@ -606,6 +635,12 @@ class ThrowingValue : private exceptions_internal::TrackedObject {
   const int& Get() const noexcept { return dummy_; }
 
  private:
+  static std::string GetInstanceString(int dummy) {
+    return absl::StrCat("ThrowingValue<",
+                        exceptions_internal::GetSpecString(Spec), ">(", dummy,
+                        ")");
+  }
+
   int dummy_;
 };
 // While not having to do with exceptions, explicitly delete comma operator, to
@@ -658,26 +693,30 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   using propagate_on_container_swap = std::true_type;
   using is_always_equal = std::false_type;
 
-  ThrowingAllocator() : TrackedObject(ABSL_PRETTY_FUNCTION) {
+  ThrowingAllocator() : TrackedObject(GetInstanceString(next_id_)) {
     exceptions_internal::MaybeThrow(ABSL_PRETTY_FUNCTION);
     dummy_ = std::make_shared<const int>(next_id_++);
   }
 
   template <typename U>
   ThrowingAllocator(const ThrowingAllocator<U, Spec>& other) noexcept  // NOLINT
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(other.State()) {}
+      : TrackedObject(GetInstanceString(*other.State())),
+        dummy_(other.State()) {}
 
   // According to C++11 standard [17.6.3.5], Table 28, the move/copy ctors of
   // allocator shall not exit via an exception, thus they are marked noexcept.
   ThrowingAllocator(const ThrowingAllocator& other) noexcept
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(other.State()) {}
+      : TrackedObject(GetInstanceString(*other.State())),
+        dummy_(other.State()) {}
 
   template <typename U>
   ThrowingAllocator(ThrowingAllocator<U, Spec>&& other) noexcept  // NOLINT
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(std::move(other.State())) {}
+      : TrackedObject(GetInstanceString(*other.State())),
+        dummy_(std::move(other.State())) {}
 
   ThrowingAllocator(ThrowingAllocator&& other) noexcept
-      : TrackedObject(ABSL_PRETTY_FUNCTION), dummy_(std::move(other.State())) {}
+      : TrackedObject(GetInstanceString(*other.State())),
+        dummy_(std::move(other.State())) {}
 
   ~ThrowingAllocator() noexcept = default;
 
@@ -758,6 +797,12 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   friend class ThrowingAllocator;
 
  private:
+  static std::string GetInstanceString(int dummy) {
+    return absl::StrCat("ThrowingAllocator<",
+                        exceptions_internal::GetSpecString(Spec), ">(", dummy,
+                        ")");
+  }
+
   const std::shared_ptr<const int>& State() const { return dummy_; }
   std::shared_ptr<const int>& State() { return dummy_; }
 
@@ -798,6 +843,29 @@ void TestThrowingCtor(Args&&... args) {
       break;
     } catch (const exceptions_internal::TestException&) {
     }
+  }
+}
+
+// Tests the nothrow guarantee of the provided nullary operation. If the an
+// exception is thrown, the result will be AssertionFailure(). Otherwise, it
+// will be AssertionSuccess().
+template <typename Operation>
+testing::AssertionResult TestNothrowOp(const Operation& operation) {
+  struct Cleanup {
+    Cleanup() { exceptions_internal::SetCountdown(); }
+    ~Cleanup() { exceptions_internal::UnsetCountdown(); }
+  } c;
+  try {
+    operation();
+    return testing::AssertionSuccess();
+  } catch (exceptions_internal::TestException) {
+    return testing::AssertionFailure()
+           << "TestException thrown during call to operation() when nothrow "
+              "guarantee was expected.";
+  } catch (...) {
+    return testing::AssertionFailure()
+           << "Unknown exception thrown during call to operation() when "
+              "nothrow guarantee was expected.";
   }
 }
 
