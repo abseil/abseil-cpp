@@ -18,6 +18,7 @@ load(
     "//absl:copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
+    "ABSL_EXCEPTIONS_FLAG",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -42,6 +43,19 @@ cc_test(
         ":memory",
         "//absl/base",
         "//absl/base:core_headers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "memory_exception_safety_test",
+    srcs = [
+        "memory_exception_safety_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":memory",
+        "//absl/base:exception_safety_testing",
         "@com_google_googletest//:gtest_main",
     ],
 )

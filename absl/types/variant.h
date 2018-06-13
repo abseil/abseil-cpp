@@ -416,12 +416,12 @@ constexpr absl::add_pointer_t<const T> get_if(
 template <typename Visitor, typename... Variants>
 variant_internal::VisitResult<Visitor, Variants...> visit(Visitor&& vis,
                                                           Variants&&... vars) {
-  return variant_internal::visit_indices<
-      variant_size<absl::decay_t<Variants>>::value...>(
-      variant_internal::PerformVisitation<Visitor, Variants...>{
-          std::forward_as_tuple(absl::forward<Variants>(vars)...),
-          absl::forward<Visitor>(vis)},
-      vars.index()...);
+  return variant_internal::
+      VisitIndices<variant_size<absl::decay_t<Variants> >::value...>::Run(
+          variant_internal::PerformVisitation<Visitor, Variants...>{
+              std::forward_as_tuple(absl::forward<Variants>(vars)...),
+              absl::forward<Visitor>(vis)},
+          vars.index()...);
 }
 
 // monostate
@@ -573,7 +573,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
   variant& operator=(T&& t) noexcept(
       std::is_nothrow_assignable<Tj&, T>::value&&
           std::is_nothrow_constructible<Tj, T>::value) {
-    variant_internal::visit_indices<sizeof...(Tn) + 1>(
+    variant_internal::VisitIndices<sizeof...(Tn) + 1>::Run(
         variant_internal::VariantCoreAccess::MakeConversionAssignVisitor(
             this, absl::forward<T>(t)),
         index());
@@ -682,7 +682,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
   //   true and `is_nothrow_swappable()` is same as `std::is_trivial()`.
   void swap(variant& rhs) noexcept(
       absl::conjunction<std::is_trivial<T0>, std::is_trivial<Tn>...>::value) {
-    return variant_internal::visit_indices<sizeof...(Tn) + 1>(
+    return variant_internal::VisitIndices<sizeof...(Tn) + 1>::Run(
         variant_internal::Swap<T0, Tn...>{this, &rhs}, rhs.index());
   }
 };
@@ -722,7 +722,7 @@ template <typename... Types>
 constexpr variant_internal::RequireAllHaveEqualT<Types...> operator==(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() == b.index()) &&
-         variant_internal::visit_indices<sizeof...(Types)>(
+         variant_internal::VisitIndices<sizeof...(Types)>::Run(
              variant_internal::EqualsOp<Types...>{&a, &b}, a.index());
 }
 
@@ -731,7 +731,7 @@ template <typename... Types>
 constexpr variant_internal::RequireAllHaveNotEqualT<Types...> operator!=(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index()) ||
-         variant_internal::visit_indices<sizeof...(Types)>(
+         variant_internal::VisitIndices<sizeof...(Types)>::Run(
              variant_internal::NotEqualsOp<Types...>{&a, &b}, a.index());
 }
 
@@ -741,7 +741,7 @@ constexpr variant_internal::RequireAllHaveLessThanT<Types...> operator<(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) < (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::LessThanOp<Types...>{&a, &b}, a.index());
 }
 
@@ -751,7 +751,7 @@ constexpr variant_internal::RequireAllHaveGreaterThanT<Types...> operator>(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) > (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::GreaterThanOp<Types...>{&a, &b},
                    a.index());
 }
@@ -762,7 +762,7 @@ constexpr variant_internal::RequireAllHaveLessThanOrEqualT<Types...> operator<=(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) < (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::LessThanOrEqualsOp<Types...>{&a, &b},
                    a.index());
 }
@@ -773,7 +773,7 @@ constexpr variant_internal::RequireAllHaveGreaterThanOrEqualT<Types...>
 operator>=(const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) > (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::GreaterThanOrEqualsOp<Types...>{&a, &b},
                    a.index());
 }

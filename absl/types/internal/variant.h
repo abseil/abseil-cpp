@@ -19,15 +19,19 @@
 #ifndef ABSL_TYPES_variant_internal_H_
 #define ABSL_TYPES_variant_internal_H_
 
+#include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/identity.h"
 #include "absl/base/internal/inline_variable.h"
 #include "absl/base/internal/invoke.h"
+#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_variant_access.h"
@@ -118,6 +122,8 @@ using GiveQualsToT = typename GiveQualsTo<T, U>::type;
 // Convenience alias, since size_t integral_constant is used a lot in this file.
 template <std::size_t I>
 using SizeT = std::integral_constant<std::size_t, I>;
+
+using NPos = SizeT<variant_npos>;
 
 template <class Variant, class T, class = void>
 struct IndexOfConstructedType {};
@@ -248,18 +254,269 @@ struct MakeVisitationMatrix<ReturnType, FunctionObject,
           ReturnType, FunctionObject, index_sequence<TailEndIndices...>,
           absl::make_index_sequence<HeadEndIndex>, BoundIndices...> {};
 
-template <std::size_t... EndIndices, class Op, class... SizeT>
-VisitIndicesResultT<Op, SizeT...> visit_indices(Op&& op, SizeT... indices) {
-  return AccessSimpleArray(
-      MakeVisitationMatrix<VisitIndicesResultT<Op, SizeT...>, Op,
-                           index_sequence<(EndIndices + 1)...>>::Run(),
-      (indices + 1)...)(absl::forward<Op>(op));
-}
+struct UnreachableSwitchCase {
+  template <class Op>
+  [[noreturn]] static VisitIndicesResultT<Op, std::size_t> Run(
+      Op&& /*ignored*/) {
+#if ABSL_HAVE_BUILTIN(__builtin_unreachable) || \
+    (defined(__GNUC__) && !defined(__clang__))
+    __builtin_unreachable();
+#elif defined(_MSC_VER)
+    __assume(false);
+#else
+    // Try to use assert of false being identified as an unreachable intrinsic.
+    // NOTE: We use assert directly to increase chances of exploiting an assume
+    //       intrinsic.
+    assert(false);  // NOLINT
+
+    // Hack to silence potential no return warning -- cause an infinite loop.
+    return Run(absl::forward<Op>(op));
+#endif  // Checks for __builtin_unreachable
+  }
+};
+
+template <class Op, std::size_t I>
+struct ReachableSwitchCase {
+  static VisitIndicesResultT<Op, std::size_t> Run(Op&& op) {
+    return absl::base_internal::Invoke(absl::forward<Op>(op), SizeT<I>());
+  }
+};
+
+// The number 33 is just a guess at a reasonable maximum to our switch. It is
+// not based on any analysis. The reason it is a power of 2 plus 1 instead of a
+// power of 2 is because the number was picked to correspond to a power of 2
+// amount of "normal" alternatives, plus one for the possibility of the user
+// providing "monostate" in addition to the more natural alternatives.
+ABSL_INTERNAL_INLINE_CONSTEXPR(std::size_t, MaxUnrolledVisitCases, 33);
+
+// Note: The default-definition is for unreachable cases.
+template <bool IsReachable>
+struct PickCaseImpl {
+  template <class Op, std::size_t I>
+  using Apply = UnreachableSwitchCase;
+};
+
+template <>
+struct PickCaseImpl</*IsReachable =*/true> {
+  template <class Op, std::size_t I>
+  using Apply = ReachableSwitchCase<Op, I>;
+};
+
+// Note: This form of dance with template aliases is to make sure that we
+//       instantiate a number of templates proportional to the number of variant
+//       alternatives rather than a number of templates proportional to our
+//       maximum unrolled amount of visitation cases (aliases are effectively
+//       "free" whereas other template instantiations are costly).
+template <class Op, std::size_t I, std::size_t EndIndex>
+using PickCase = typename PickCaseImpl<(I < EndIndex)>::template Apply<Op, I>;
 
 template <class ReturnType>
 [[noreturn]] ReturnType TypedThrowBadVariantAccess() {
   absl::variant_internal::ThrowBadVariantAccess();
 }
+
+// Given N variant sizes, determine the number of cases there would need to be
+// in a single switch-statement that would cover every possibility in the
+// corresponding N-ary visit operation.
+template <std::size_t... NumAlternatives>
+struct NumCasesOfSwitch;
+
+template <std::size_t HeadNumAlternatives, std::size_t... TailNumAlternatives>
+struct NumCasesOfSwitch<HeadNumAlternatives, TailNumAlternatives...> {
+  static constexpr std::size_t value =
+      (HeadNumAlternatives + 1) *
+      NumCasesOfSwitch<TailNumAlternatives...>::value;
+};
+
+template <>
+struct NumCasesOfSwitch<> {
+  static constexpr std::size_t value = 1;
+};
+
+// A switch statement optimizes better than the table of function pointers.
+template <std::size_t EndIndex>
+struct VisitIndicesSwitch {
+  static_assert(EndIndex <= MaxUnrolledVisitCases,
+                "Maximum unrolled switch size exceeded.");
+
+  template <class Op>
+  static VisitIndicesResultT<Op, std::size_t> Run(Op&& op, std::size_t i) {
+    switch (i) {
+      case 0:
+        return PickCase<Op, 0, EndIndex>::Run(absl::forward<Op>(op));
+      case 1:
+        return PickCase<Op, 1, EndIndex>::Run(absl::forward<Op>(op));
+      case 2:
+        return PickCase<Op, 2, EndIndex>::Run(absl::forward<Op>(op));
+      case 3:
+        return PickCase<Op, 3, EndIndex>::Run(absl::forward<Op>(op));
+      case 4:
+        return PickCase<Op, 4, EndIndex>::Run(absl::forward<Op>(op));
+      case 5:
+        return PickCase<Op, 5, EndIndex>::Run(absl::forward<Op>(op));
+      case 6:
+        return PickCase<Op, 6, EndIndex>::Run(absl::forward<Op>(op));
+      case 7:
+        return PickCase<Op, 7, EndIndex>::Run(absl::forward<Op>(op));
+      case 8:
+        return PickCase<Op, 8, EndIndex>::Run(absl::forward<Op>(op));
+      case 9:
+        return PickCase<Op, 9, EndIndex>::Run(absl::forward<Op>(op));
+      case 10:
+        return PickCase<Op, 10, EndIndex>::Run(absl::forward<Op>(op));
+      case 11:
+        return PickCase<Op, 11, EndIndex>::Run(absl::forward<Op>(op));
+      case 12:
+        return PickCase<Op, 12, EndIndex>::Run(absl::forward<Op>(op));
+      case 13:
+        return PickCase<Op, 13, EndIndex>::Run(absl::forward<Op>(op));
+      case 14:
+        return PickCase<Op, 14, EndIndex>::Run(absl::forward<Op>(op));
+      case 15:
+        return PickCase<Op, 15, EndIndex>::Run(absl::forward<Op>(op));
+      case 16:
+        return PickCase<Op, 16, EndIndex>::Run(absl::forward<Op>(op));
+      case 17:
+        return PickCase<Op, 17, EndIndex>::Run(absl::forward<Op>(op));
+      case 18:
+        return PickCase<Op, 18, EndIndex>::Run(absl::forward<Op>(op));
+      case 19:
+        return PickCase<Op, 19, EndIndex>::Run(absl::forward<Op>(op));
+      case 20:
+        return PickCase<Op, 20, EndIndex>::Run(absl::forward<Op>(op));
+      case 21:
+        return PickCase<Op, 21, EndIndex>::Run(absl::forward<Op>(op));
+      case 22:
+        return PickCase<Op, 22, EndIndex>::Run(absl::forward<Op>(op));
+      case 23:
+        return PickCase<Op, 23, EndIndex>::Run(absl::forward<Op>(op));
+      case 24:
+        return PickCase<Op, 24, EndIndex>::Run(absl::forward<Op>(op));
+      case 25:
+        return PickCase<Op, 25, EndIndex>::Run(absl::forward<Op>(op));
+      case 26:
+        return PickCase<Op, 26, EndIndex>::Run(absl::forward<Op>(op));
+      case 27:
+        return PickCase<Op, 27, EndIndex>::Run(absl::forward<Op>(op));
+      case 28:
+        return PickCase<Op, 28, EndIndex>::Run(absl::forward<Op>(op));
+      case 29:
+        return PickCase<Op, 29, EndIndex>::Run(absl::forward<Op>(op));
+      case 30:
+        return PickCase<Op, 30, EndIndex>::Run(absl::forward<Op>(op));
+      case 31:
+        return PickCase<Op, 31, EndIndex>::Run(absl::forward<Op>(op));
+      case 32:
+        return PickCase<Op, 32, EndIndex>::Run(absl::forward<Op>(op));
+      default:
+        ABSL_ASSERT(i == variant_npos);
+        return absl::base_internal::Invoke(absl::forward<Op>(op), NPos());
+    }
+  }
+};
+
+template <std::size_t... EndIndices>
+struct VisitIndicesFallback {
+  template <class Op, class... SizeT>
+  static VisitIndicesResultT<Op, SizeT...> Run(Op&& op, SizeT... indices) {
+    return AccessSimpleArray(
+        MakeVisitationMatrix<VisitIndicesResultT<Op, SizeT...>, Op,
+                             index_sequence<(EndIndices + 1)...>>::Run(),
+        (indices + 1)...)(absl::forward<Op>(op));
+  }
+};
+
+// Take an N-dimensional series of indices and convert them into a single index
+// without loss of information. The purpose of this is to be able to convert an
+// N-ary visit operation into a single switch statement.
+template <std::size_t...>
+struct FlattenIndices;
+
+template <std::size_t HeadSize, std::size_t... TailSize>
+struct FlattenIndices<HeadSize, TailSize...> {
+  template<class... SizeType>
+  static constexpr std::size_t Run(std::size_t head, SizeType... tail) {
+    return head + HeadSize * FlattenIndices<TailSize...>::Run(tail...);
+  }
+};
+
+template <>
+struct FlattenIndices<> {
+  static constexpr std::size_t Run() { return 0; }
+};
+
+// Take a single "flattened" index (flattened by FlattenIndices) and determine
+// the value of the index of one of the logically represented dimensions.
+template <std::size_t I, std::size_t IndexToGet, std::size_t HeadSize,
+          std::size_t... TailSize>
+struct UnflattenIndex {
+  static constexpr std::size_t value =
+      UnflattenIndex<I / HeadSize, IndexToGet - 1, TailSize...>::value;
+};
+
+template <std::size_t I, std::size_t HeadSize, std::size_t... TailSize>
+struct UnflattenIndex<I, 0, HeadSize, TailSize...> {
+  static constexpr std::size_t value = (I % HeadSize);
+};
+
+// The backend for converting an N-ary visit operation into a unary visit.
+template <class IndexSequence, std::size_t... EndIndices>
+struct VisitIndicesVariadicImpl;
+
+template <std::size_t... N, std::size_t... EndIndices>
+struct VisitIndicesVariadicImpl<absl::index_sequence<N...>, EndIndices...> {
+  // A type that can take an N-ary function object and converts it to a unary
+  // function object that takes a single, flattened index, and "unflattens" it
+  // into its individual dimensions when forwarding to the wrapped object.
+  template <class Op>
+  struct FlattenedOp {
+    template <std::size_t I>
+    VisitIndicesResultT<Op, decltype(EndIndices)...> operator()(
+        SizeT<I> /*index*/) && {
+      return base_internal::Invoke(
+          absl::forward<Op>(op),
+          SizeT<UnflattenIndex<I, N, (EndIndices + 1)...>::value -
+                std::size_t{1}>()...);
+    }
+
+    Op&& op;
+  };
+
+  template <class Op, class... SizeType>
+  static VisitIndicesResultT<Op, decltype(EndIndices)...> Run(
+      Op&& op, SizeType... i) {
+    return VisitIndicesSwitch<NumCasesOfSwitch<EndIndices...>::value>::Run(
+        FlattenedOp<Op>{absl::forward<Op>(op)},
+        FlattenIndices<(EndIndices + std::size_t{1})...>::Run(
+            (i + std::size_t{1})...));
+  }
+};
+
+template <std::size_t... EndIndices>
+struct VisitIndicesVariadic
+    : VisitIndicesVariadicImpl<absl::make_index_sequence<sizeof...(EndIndices)>,
+                               EndIndices...> {};
+
+// This implementation will flatten N-ary visit operations into a single switch
+// statement when the number of cases would be less than our maximum specified
+// switch-statement size.
+// TODO(calabrese)
+//   Based on benchmarks, determine whether the function table approach actually
+//   does optimize better than a chain of switch statements and possibly update
+//   the implementation accordingly. Also consider increasing the maximum switch
+//   size.
+template <std::size_t... EndIndices>
+struct VisitIndices
+    : absl::conditional_t<(NumCasesOfSwitch<EndIndices...>::value <=
+                           MaxUnrolledVisitCases),
+                          VisitIndicesVariadic<EndIndices...>,
+                          VisitIndicesFallback<EndIndices...>> {};
+
+template <std::size_t EndIndex>
+struct VisitIndices<EndIndex>
+    : absl::conditional_t<(EndIndex <= MaxUnrolledVisitCases),
+                          VisitIndicesSwitch<EndIndex>,
+                          VisitIndicesFallback<EndIndex>> {};
 
 // Suppress bogus warning on MSVC: MSVC complains that the `reinterpret_cast`
 // below is returning the address of a temporary or local object.
@@ -270,8 +527,10 @@ template <class ReturnType>
 
 // TODO(calabrese) std::launder
 // TODO(calabrese) constexpr
+// NOTE: DO NOT REMOVE the `inline` keyword as it is necessary to work around a
+// MSVC bug. See https://github.com/abseil/abseil-cpp/issues/129 for details.
 template <class Self, std::size_t I>
-VariantAccessResult<I, Self> AccessUnion(Self&& self, SizeT<I> /*i*/) {
+inline VariantAccessResult<I, Self> AccessUnion(Self&& self, SizeT<I> /*i*/) {
   return reinterpret_cast<VariantAccessResult<I, Self>>(self);
 }
 
@@ -313,7 +572,7 @@ struct VariantCoreAccess {
 
   template <class Variant>
   static void InitFrom(Variant& self, Variant&& other) {  // NOLINT
-    variant_internal::visit_indices<absl::variant_size<Variant>::value>(
+    VisitIndices<absl::variant_size<Variant>::value>::Run(
         InitFromVisitor<Variant, Variant&&>{&self,
                                             std::forward<Variant>(other)},
         other.index());
@@ -1049,9 +1308,7 @@ class VariantStateBaseDestructorNontrivial : protected VariantStateBase<T...> {
     VariantStateBaseDestructorNontrivial* self;
   };
 
-  void destroy() {
-    variant_internal::visit_indices<sizeof...(T)>(Destroyer{this}, index_);
-  }
+  void destroy() { VisitIndices<sizeof...(T)>::Run(Destroyer{this}, index_); }
 
   ~VariantStateBaseDestructorNontrivial() { destroy(); }
 
@@ -1087,8 +1344,7 @@ class VariantMoveBaseNontrivial : protected VariantStateBaseDestructor<T...> {
   VariantMoveBaseNontrivial(VariantMoveBaseNontrivial&& other) noexcept(
       absl::conjunction<std::is_nothrow_move_constructible<T>...>::value)
       : Base(NoopConstructorTag()) {
-    variant_internal::visit_indices<sizeof...(T)>(Construct{this, &other},
-                                                  other.index_);
+    VisitIndices<sizeof...(T)>::Run(Construct{this, &other}, other.index_);
     index_ = other.index_;
   }
 
@@ -1131,8 +1387,7 @@ class VariantCopyBaseNontrivial : protected VariantMoveBase<T...> {
 
   VariantCopyBaseNontrivial(VariantCopyBaseNontrivial const& other)
       : Base(NoopConstructorTag()) {
-    variant_internal::visit_indices<sizeof...(T)>(Construct{this, &other},
-                                                  other.index_);
+    VisitIndices<sizeof...(T)>::Run(Construct{this, &other}, other.index_);
     index_ = other.index_;
   }
 
@@ -1166,7 +1421,7 @@ class VariantMoveAssignBaseNontrivial : protected VariantCopyBase<T...> {
     operator=(VariantMoveAssignBaseNontrivial&& other) noexcept(
         absl::conjunction<std::is_nothrow_move_constructible<T>...,
                           std::is_nothrow_move_assignable<T>...>::value) {
-      variant_internal::visit_indices<sizeof...(T)>(
+      VisitIndices<sizeof...(T)>::Run(
           VariantCoreAccess::MakeMoveAssignVisitor(this, &other), other.index_);
       return *this;
     }
@@ -1195,7 +1450,7 @@ class VariantCopyAssignBaseNontrivial : protected VariantMoveAssignBase<T...> {
 
     VariantCopyAssignBaseNontrivial& operator=(
         const VariantCopyAssignBaseNontrivial& other) {
-      variant_internal::visit_indices<sizeof...(T)>(
+      VisitIndices<sizeof...(T)>::Run(
           VariantCoreAccess::MakeCopyAssignVisitor(this, other), other.index_);
       return *this;
     }
@@ -1336,7 +1591,7 @@ struct Swap {
   template <std::size_t Wi>
   void operator()(SizeT<Wi> /*w_i*/) {
     if (v->index() == Wi) {
-      visit_indices<sizeof...(Types)>(SwapSameIndex<Types...>{v, w}, Wi);
+      VisitIndices<sizeof...(Types)>::Run(SwapSameIndex<Types...>{v, w}, Wi);
     } else {
       generic_swap();
     }
@@ -1370,11 +1625,10 @@ struct VariantHashBase<Variant,
     if (var.valueless_by_exception()) {
       return 239799884;
     }
-    size_t result =
-        variant_internal::visit_indices<variant_size<Variant>::value>(
-            PerformVisitation<VariantHashVisitor, const Variant&>{
-                std::forward_as_tuple(var), VariantHashVisitor{}},
-            var.index());
+    size_t result = VisitIndices<variant_size<Variant>::value>::Run(
+        PerformVisitation<VariantHashVisitor, const Variant&>{
+            std::forward_as_tuple(var), VariantHashVisitor{}},
+        var.index());
     // Combine the index and the hash result in order to distinguish
     // std::variant<int, int> holding the same value as different alternative.
     return result ^ var.index();
