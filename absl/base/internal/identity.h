@@ -27,7 +27,7 @@ struct identity {
 template <typename T>
 using identity_t = typename identity<T>::type;
 
-}  //  namespace internal
-}  //  namespace absl
+}  // namespace internal
+}  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_IDENTITY_H_
