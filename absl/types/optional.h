@@ -48,7 +48,7 @@ using std::optional;
 using std::make_optional;
 using std::nullopt_t;
 using std::nullopt;
-}
+}  // namespace absl
 
 #else  // ABSL_HAVE_STD_OPTIONAL
 

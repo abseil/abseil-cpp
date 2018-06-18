@@ -64,6 +64,7 @@
 #include <utility>
 
 #include "absl/base/port.h"  // Needed for string vs std::string
+#include "absl/strings/string_view.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
@@ -490,9 +491,6 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 // Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
 // `ZeroDuration()`.  Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
 bool ParseDuration(const std::string& dur_string, Duration* d);
-
-// Flag Support
-// TODO(absl-team): Remove once dependencies are removed.
 
 // ParseFlag()
 //
@@ -992,8 +990,6 @@ bool ParseTime(const std::string& format, const std::string& input, Time* time,
 // all date/time strings include a UTC offset so they're context independent.
 bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
                Time* time, std::string* err);
-
-// TODO(absl-team): Remove once dependencies are removed.
 
 // ParseFlag()
 // UnparseFlag()

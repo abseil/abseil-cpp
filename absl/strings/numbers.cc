@@ -32,6 +32,7 @@
 
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/charconv.h"
 #include "absl/strings/internal/bits.h"
 #include "absl/strings/internal/memutil.h"
 #include "absl/strings/str_cat.h"
@@ -40,51 +41,54 @@ namespace absl {
 
 bool SimpleAtof(absl::string_view str, float* value) {
   *value = 0.0;
-  if (str.empty()) return false;
-  char buf[32];
-  std::unique_ptr<char[]> bigbuf;
-  char* ptr = buf;
-  if (str.size() > sizeof(buf) - 1) {
-    bigbuf.reset(new char[str.size() + 1]);
-    ptr = bigbuf.get();
+  str = StripAsciiWhitespace(str);
+  if (!str.empty() && str[0] == '+') {
+    str.remove_prefix(1);
   }
-  memcpy(ptr, str.data(), str.size());
-  ptr[str.size()] = '\0';
-
-  char* endptr;
-  *value = strtof(ptr, &endptr);
-  if (endptr != ptr) {
-    while (absl::ascii_isspace(*endptr)) ++endptr;
+  auto result = absl::from_chars(str.data(), str.data() + str.size(), *value);
+  if (result.ec == std::errc::invalid_argument) {
+    return false;
   }
-  // Ignore range errors from strtod/strtof.
-  // The values it returns on underflow and
-  // overflow are the right fallback in a
-  // robust setting.
-  return *ptr != '\0' && *endptr == '\0';
+  if (result.ptr != str.data() + str.size()) {
+    // not all non-whitespace characters consumed
+    return false;
+  }
+  // from_chars() with DR 3801's current wording will return max() on
+  // overflow.  SimpleAtof returns infinity instead.
+  if (result.ec == std::errc::result_out_of_range) {
+    if (*value > 1.0) {
+      *value = std::numeric_limits<float>::infinity();
+    } else if (*value < -1.0) {
+      *value = -std::numeric_limits<float>::infinity();
+    }
+  }
+  return true;
 }
 
 bool SimpleAtod(absl::string_view str, double* value) {
   *value = 0.0;
-  if (str.empty()) return false;
-  char buf[32];
-  std::unique_ptr<char[]> bigbuf;
-  char* ptr = buf;
-  if (str.size() > sizeof(buf) - 1) {
-    bigbuf.reset(new char[str.size() + 1]);
-    ptr = bigbuf.get();
+  str = StripAsciiWhitespace(str);
+  if (!str.empty() && str[0] == '+') {
+    str.remove_prefix(1);
   }
-  memcpy(ptr, str.data(), str.size());
-  ptr[str.size()] = '\0';
-
-  char* endptr;
-  *value = strtod(ptr, &endptr);
-  if (endptr != ptr) {
-    while (absl::ascii_isspace(*endptr)) ++endptr;
+  auto result = absl::from_chars(str.data(), str.data() + str.size(), *value);
+  if (result.ec == std::errc::invalid_argument) {
+    return false;
   }
-  // Ignore range errors from strtod.  The values it
-  // returns on underflow and overflow are the right
-  // fallback in a robust setting.
-  return *ptr != '\0' && *endptr == '\0';
+  if (result.ptr != str.data() + str.size()) {
+    // not all non-whitespace characters consumed
+    return false;
+  }
+  // from_chars() with DR 3801's current wording will return max() on
+  // overflow.  SimpleAtod returns infinity instead.
+  if (result.ec == std::errc::result_out_of_range) {
+    if (*value > 1.0) {
+      *value = std::numeric_limits<double>::infinity();
+    } else if (*value < -1.0) {
+      *value = -std::numeric_limits<double>::infinity();
+    }
+  }
+  return true;
 }
 
 namespace {

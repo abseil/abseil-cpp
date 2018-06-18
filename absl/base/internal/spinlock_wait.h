@@ -84,7 +84,7 @@ inline void absl::base_internal::SpinLockWake(std::atomic<uint32_t> *w,
 
 inline void absl::base_internal::SpinLockDelay(
     std::atomic<uint32_t> *w, uint32_t value, int loop,
-    base_internal::SchedulingMode scheduling_mode) {
+    absl::base_internal::SchedulingMode scheduling_mode) {
   AbslInternalSpinLockDelay(w, value, loop, scheduling_mode);
 }
 

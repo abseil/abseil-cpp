@@ -896,8 +896,7 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   return true;
 }
 
-// TODO(absl-team): Remove once dependencies are removed.
-bool ParseFlag(const std::string& text, Duration* dst, std::string* /* err */) {
+bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }
 

@@ -53,7 +53,7 @@ list(APPEND TIME_SRC
   ${TIME_PUBLIC_HEADERS}
   ${TIME_INTERNAL_HEADERS}
 )
-set(TIME_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::int128)
+set(TIME_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::int128 absl::strings)
 
 absl_library(
   TARGET
