@@ -3,11 +3,11 @@ workspace(name = "com_google_absl")
 http_archive(
   name = "bazel_toolchains",
   urls = [
-    "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/2cec6c9f6d12224e93d9b3f337b24e41602de3ba.tar.gz",
-    "https://github.com/bazelbuild/bazel-toolchains/archive/2cec6c9f6d12224e93d9b3f337b24e41602de3ba.tar.gz",
+    "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/287b64e0a211fb7c23b74695f8d5f5205b61f4eb.tar.gz",
+    "https://github.com/bazelbuild/bazel-toolchains/archive/287b64e0a211fb7c23b74695f8d5f5205b61f4eb.tar.gz",
   ],
-  strip_prefix = "bazel-toolchains-2cec6c9f6d12224e93d9b3f337b24e41602de3ba",
-  sha256 = "9b8d85b61d8945422e86ac31e4d4d2d967542c080d1da1b45364da7fd6bdd638",
+  strip_prefix = "bazel-toolchains-287b64e0a211fb7c23b74695f8d5f5205b61f4eb",
+  sha256 = "aca8ac6afd7745027ee4a43032b51a725a61a75a30f02cc58681ee87e4dcdf4b",
 )
 
 # GoogleTest/GoogleMock framework. Used by most unit-tests.

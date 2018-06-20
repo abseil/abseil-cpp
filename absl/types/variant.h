@@ -445,9 +445,11 @@ constexpr bool operator!=(monostate, monostate) noexcept { return false; }
 //------------------------------------------------------------------------------
 template <typename T0, typename... Tn>
 class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
+  // Intentionally not qualifing `negation` with `absl::` to work around a bug
+  // in MSVC 2015 with inline namespace and variadic template.
   static_assert(absl::conjunction<std::is_object<T0>, std::is_object<Tn>...,
-                                  absl::negation<std::is_array<T0>>,
-                                  absl::negation<std::is_array<Tn>>...,
+                                  negation<std::is_array<T0> >,
+                                  negation<std::is_array<Tn> >...,
                                   std::is_nothrow_destructible<T0>,
                                   std::is_nothrow_destructible<Tn>...>::value,
                 "Attempted to instantiate a variant with an unsupported type.");

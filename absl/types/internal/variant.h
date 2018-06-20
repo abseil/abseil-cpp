@@ -1100,49 +1100,40 @@ using EqualResult = decltype(std::declval<T>() == std::declval<T>());
 template <class T>
 using NotEqualResult = decltype(std::declval<T>() != std::declval<T>());
 
-template <class T>
-using HasLessThan = is_detected_convertible<bool, LessThanResult, T>;
-
-template <class T>
-using HasGreaterThan = is_detected_convertible<bool, GreaterThanResult, T>;
-
-template <class T>
-using HasLessThanOrEqual =
-    is_detected_convertible<bool, LessThanOrEqualResult, T>;
-
-template <class T>
-using HasGreaterThanOrEqual =
-    is_detected_convertible<bool, GreaterThanOrEqualResult, T>;
-
-template <class T>
-using HasEqual = is_detected_convertible<bool, EqualResult, T>;
-
-template <class T>
-using HasNotEqual = is_detected_convertible<bool, NotEqualResult, T>;
-
 template <class... T>
-using RequireAllHaveEqualT =
-    absl::enable_if_t<absl::conjunction<HasEqual<T>...>::value, bool>;
+using RequireAllHaveEqualT = absl::enable_if_t<
+    absl::conjunction<is_detected_convertible<bool, EqualResult, T>...>::value,
+    bool>;
 
 template <class... T>
 using RequireAllHaveNotEqualT =
-    absl::enable_if_t<absl::conjunction<HasEqual<T>...>::value, bool>;
+    absl::enable_if_t<absl::conjunction<is_detected_convertible<
+                          bool, NotEqualResult, T>...>::value,
+                      bool>;
 
 template <class... T>
 using RequireAllHaveLessThanT =
-    absl::enable_if_t<absl::conjunction<HasLessThan<T>...>::value, bool>;
+    absl::enable_if_t<absl::conjunction<is_detected_convertible<
+                          bool, LessThanResult, T>...>::value,
+                      bool>;
 
 template <class... T>
 using RequireAllHaveLessThanOrEqualT =
-    absl::enable_if_t<absl::conjunction<HasLessThan<T>...>::value, bool>;
+    absl::enable_if_t<absl::conjunction<is_detected_convertible<
+                          bool, LessThanOrEqualResult, T>...>::value,
+                      bool>;
 
 template <class... T>
 using RequireAllHaveGreaterThanOrEqualT =
-    absl::enable_if_t<absl::conjunction<HasLessThan<T>...>::value, bool>;
+    absl::enable_if_t<absl::conjunction<is_detected_convertible<
+                          bool, GreaterThanOrEqualResult, T>...>::value,
+                      bool>;
 
 template <class... T>
 using RequireAllHaveGreaterThanT =
-    absl::enable_if_t<absl::conjunction<HasLessThan<T>...>::value, bool>;
+    absl::enable_if_t<absl::conjunction<is_detected_convertible<
+                          bool, GreaterThanResult, T>...>::value,
+                      bool>;
 
 // Helper template containing implementations details of variant that can't go
 // in the private section. For convenience, this takes the variant type as a
