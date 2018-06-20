@@ -24,6 +24,7 @@
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -65,6 +66,7 @@ inline time_point<sys_seconds> FromUnixSeconds(std::int_fast64_t t) {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_IF_H_

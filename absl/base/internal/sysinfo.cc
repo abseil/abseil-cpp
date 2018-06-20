@@ -56,6 +56,7 @@
 #include "absl/base/internal/unscaledcycleclock.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 static once_flag init_system_info_once;
@@ -401,4 +402,5 @@ pid_t GetTID() {
 #endif
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

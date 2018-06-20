@@ -38,6 +38,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // StrContains()
 //
@@ -78,6 +79,7 @@ bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix);
 // in the comparison.
 bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_MATCH_H_

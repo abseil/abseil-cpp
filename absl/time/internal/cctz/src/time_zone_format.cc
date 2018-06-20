@@ -38,6 +38,7 @@
 #include "time_zone_if.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 namespace detail {
@@ -845,4 +846,5 @@ bool parse(const std::string& format, const std::string& input,
 }  // namespace detail
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -54,6 +54,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace container_algorithm_internal {
 
@@ -1637,6 +1638,7 @@ OutputIt c_partial_sum(const InputSequence& input, OutputIt output_first,
                           output_first, std::forward<BinaryOp>(op));
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_ALGORITHM_CONTAINER_H_

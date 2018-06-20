@@ -18,6 +18,7 @@
 #include "absl/base/internal/inline_variable.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace inline_variable_testing_internal {
 
 struct Foo {
@@ -39,6 +40,7 @@ const int& get_int_a();
 const int& get_int_b();
 
 }  // namespace inline_variable_testing_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INLINE_VARIABLE_TESTING_H_

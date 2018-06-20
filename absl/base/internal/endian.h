@@ -34,6 +34,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // Use compiler byte-swapping intrinsics if they are available.  32-bit
 // and 64-bit versions are available in Clang and GCC as of GCC 4.3.0.
@@ -264,6 +265,7 @@ inline void Store64(void *p, uint64_t v) {
 
 }  // namespace big_endian
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_ENDIAN_H_

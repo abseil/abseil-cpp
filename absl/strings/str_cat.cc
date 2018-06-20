@@ -23,6 +23,7 @@
 #include "absl/strings/internal/resize_uninitialized.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 AlphaNum::AlphaNum(Hex hex) {
   char* const end = &digits_[numbers_internal::kFastToBufferSize];
@@ -236,4 +237,5 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   assert(out == begin + dest->size());
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -21,6 +21,7 @@
 #include "absl/base/attributes.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // Four severity levels are defined.  Logging APIs should terminate the program
 // when a message is logged at severity `kFatal`; the other levels have no
@@ -62,6 +63,7 @@ constexpr absl::LogSeverity NormalizeLogSeverity(int s) {
   return NormalizeLogSeverity(static_cast<absl::LogSeverity>(s));
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_LOG_SEVERITY_H_

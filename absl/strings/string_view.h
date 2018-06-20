@@ -35,7 +35,9 @@
 #include <string_view>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 using std::string_view;
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_STRING_VIEW
@@ -53,6 +55,7 @@ using std::string_view;
 #include "absl/base/port.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // absl::string_view
 //
@@ -540,11 +543,13 @@ inline bool operator>=(string_view x, string_view y) noexcept {
 // IO Insertion Operator
 std::ostream& operator<<(std::ostream& o, string_view piece);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_HAVE_STD_STRING_VIEW
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // ClippedSubstr()
 //
@@ -565,6 +570,7 @@ inline string_view NullSafeStringView(const char* p) {
   return p ? string_view(p) : string_view();
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STRING_VIEW_H_

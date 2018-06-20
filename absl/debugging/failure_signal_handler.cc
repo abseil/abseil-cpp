@@ -47,6 +47,7 @@
 #endif
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 ABSL_CONST_INIT static FailureSignalHandlerOptions fsh_options;
 
@@ -353,4 +354,5 @@ void InstallFailureSignalHandler(const FailureSignalHandlerOptions& options) {
   }
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

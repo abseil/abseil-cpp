@@ -43,6 +43,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace strings_internal {
 
 //
@@ -306,6 +307,7 @@ std::string JoinRange(const Range& range, absl::string_view separator) {
 }
 
 }  // namespace strings_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_JOIN_INTERNAL_H_

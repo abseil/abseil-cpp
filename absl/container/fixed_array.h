@@ -50,6 +50,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 
@@ -494,5 +495,6 @@ constexpr size_t FixedArray<T, N>::inline_elements;
 template <typename T, size_t N>
 constexpr size_t FixedArray<T, N>::kInlineBytesDefault;
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_CONTAINER_FIXED_ARRAY_H_

@@ -18,6 +18,7 @@
 #include "absl/base/internal/exception_safety_testing.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace {
 
@@ -279,4 +280,5 @@ TEST(OptionalExceptionSafety, NothrowMoveAssign) {
 
 }  // namespace
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -248,6 +248,19 @@ cc_test(
 )
 
 cc_test(
+    name = "variant_benchmark",
+    srcs = [
+        "variant_benchmark.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":variant",
+        "//absl/utility",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
     name = "variant_exception_safety_test",
     size = "small",
     srcs = [

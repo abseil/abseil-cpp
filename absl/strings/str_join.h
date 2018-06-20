@@ -59,6 +59,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // Concept: Formatter
@@ -283,6 +284,7 @@ std::string StrJoin(const std::tuple<T...>& value, absl::string_view separator) 
   return strings_internal::JoinAlgorithm(value, separator, AlphaNumFormatter());
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_JOIN_H_

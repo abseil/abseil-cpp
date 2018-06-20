@@ -24,6 +24,7 @@
 namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 
 #if GTEST_USES_SIMPLE_RE
@@ -39,9 +40,11 @@ TimeZone LoadTimeZone(const std::string& name) {
 }
 
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz_extension {
 namespace {
@@ -126,4 +129,5 @@ ZoneInfoSourceFactory zone_info_source_factory = TestFactory;
 
 }  // namespace cctz_extension
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

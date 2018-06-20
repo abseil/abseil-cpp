@@ -23,6 +23,7 @@
 #endif
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace strings_internal {
 
 // Returns the number of leading 0 bits in a 64-bit value.
@@ -48,6 +49,7 @@ inline int CountLeadingZeros64(uint64_t n) {
 }
 
 }  // namespace strings_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_BITS_H_

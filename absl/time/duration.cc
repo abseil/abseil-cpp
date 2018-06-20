@@ -67,6 +67,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace {
 
@@ -896,8 +897,7 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   return true;
 }
 
-// TODO(absl-team): Remove once dependencies are removed.
-bool ParseFlag(const std::string& text, Duration* dst, std::string* /* err */) {
+bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }
 
@@ -905,4 +905,5 @@ std::string UnparseFlag(Duration d) {
   return FormatDuration(d);
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

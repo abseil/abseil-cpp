@@ -23,6 +23,7 @@
 #include <type_traits>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 const uint128 kuint128max = MakeUint128(std::numeric_limits<uint64_t>::max(),
                                         std::numeric_limits<uint64_t>::max());
@@ -222,4 +223,5 @@ std::ostream& operator<<(std::ostream& os, uint128 v) {
   return os << rep;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

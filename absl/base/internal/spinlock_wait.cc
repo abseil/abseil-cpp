@@ -30,6 +30,7 @@
 #endif
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 // See spinlock_wait.h for spec.
@@ -76,4 +77,5 @@ int SpinLockSuggestedDelayNS(int loop) {
 }
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

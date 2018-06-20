@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 namespace {
 
@@ -197,4 +198,5 @@ TEST(InvokeTest, SfinaeFriendly) {
 
 }  // namespace
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -54,6 +54,7 @@
 #define ABSL_DEBUGGING_INTERNAL_DEMANGLE_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace debugging_internal {
 
 // Demangle `mangled`.  On success, return true and write the
@@ -62,6 +63,7 @@ namespace debugging_internal {
 bool Demangle(const char *mangled, char *out, int out_size);
 
 }  // namespace debugging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_DEMANGLE_H_

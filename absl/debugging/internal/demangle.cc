@@ -24,6 +24,7 @@
 #include <limits>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace debugging_internal {
 
 typedef struct {
@@ -1859,4 +1860,5 @@ bool Demangle(const char *mangled, char *out, int out_size) {
 }
 
 }  // namespace debugging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

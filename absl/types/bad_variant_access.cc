@@ -21,6 +21,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 //////////////////////////
 // [variant.bad.access] //
@@ -55,4 +56,5 @@ void Rethrow() {
 }
 
 }  // namespace variant_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -37,6 +37,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace synchronization_internal {
 
 class Futex;
@@ -145,5 +146,6 @@ class KernelTimeout {
 };
 
 }  // namespace synchronization_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_

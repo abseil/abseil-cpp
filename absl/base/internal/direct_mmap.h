@@ -62,6 +62,7 @@ extern "C" void* __mmap2(void*, size_t, int, int, int, size_t);
 #endif  // __BIONIC__
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 // Platform specific logic extracted from
@@ -122,6 +123,7 @@ inline int DirectMunmap(void* start, size_t length) {
 }
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #else  // !__linux__
@@ -130,6 +132,7 @@ inline int DirectMunmap(void* start, size_t length) {
 // actual mmap()/munmap() methods.
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
@@ -142,6 +145,7 @@ inline int DirectMunmap(void* start, size_t length) {
 }
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // __linux__

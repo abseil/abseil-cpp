@@ -82,6 +82,7 @@
 #include "absl/strings/strip.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace substitute_internal {
 
 // Arg
@@ -666,6 +667,7 @@ std::string Substitute(
                      "format std::string doesn't contain all of $0 through $9");
 #endif  // ABSL_BAD_CALL_IF
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_SUBSTITUTE_H_

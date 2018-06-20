@@ -34,6 +34,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // Function Template: WrapUnique()
@@ -636,6 +637,7 @@ struct default_allocator_is_nothrow : std::true_type {};
 struct default_allocator_is_nothrow : std::false_type {};
 #endif
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_MEMORY_MEMORY_H_

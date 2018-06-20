@@ -24,6 +24,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace {
 
 const uint64_t kInitialNumber{0x0123456789abcdef};
@@ -276,4 +277,5 @@ TEST(EndianessTest, big_endian) {
 }
 
 }  // namespace
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

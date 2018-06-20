@@ -43,12 +43,14 @@
 #include <optional>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 using std::bad_optional_access;
 using std::optional;
 using std::make_optional;
 using std::nullopt_t;
 using std::nullopt;
-}
+}  // inline namespace lts_2018_06_20
+}  // namespace absl
 
 #else  // ABSL_HAVE_STD_OPTIONAL
 
@@ -92,6 +94,7 @@ using std::nullopt;
 #endif
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // absl::optional
@@ -1122,6 +1125,7 @@ constexpr auto operator>=(const U& v, const optional<T>& x)
   return static_cast<bool>(x) ? static_cast<bool>(v >= *x) : true;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 namespace std {

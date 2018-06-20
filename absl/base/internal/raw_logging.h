@@ -65,6 +65,7 @@
   ::absl::NormalizeLogSeverity(severity)
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace raw_logging_internal {
 
 // Helper function to implement ABSL_RAW_LOG
@@ -132,6 +133,7 @@ using AbortHook = void (*)(const char* file, int line, const char* buf_start,
                            const char* prefix_end, const char* buf_end);
 
 }  // namespace raw_logging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_RAW_LOGGING_H_

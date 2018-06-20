@@ -50,6 +50,7 @@
 #include <variant>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 using std::bad_variant_access;
 using std::get;
 using std::get_if;
@@ -62,6 +63,7 @@ using std::variant_npos;
 using std::variant_size;
 using std::variant_size_v;
 using std::visit;
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_VARIANT
@@ -77,6 +79,7 @@ using std::visit;
 #include "absl/types/internal/variant.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // absl::variant
@@ -416,12 +419,12 @@ constexpr absl::add_pointer_t<const T> get_if(
 template <typename Visitor, typename... Variants>
 variant_internal::VisitResult<Visitor, Variants...> visit(Visitor&& vis,
                                                           Variants&&... vars) {
-  return variant_internal::visit_indices<
-      variant_size<absl::decay_t<Variants>>::value...>(
-      variant_internal::PerformVisitation<Visitor, Variants...>{
-          std::forward_as_tuple(absl::forward<Variants>(vars)...),
-          absl::forward<Visitor>(vis)},
-      vars.index()...);
+  return variant_internal::
+      VisitIndices<variant_size<absl::decay_t<Variants> >::value...>::Run(
+          variant_internal::PerformVisitation<Visitor, Variants...>{
+              std::forward_as_tuple(absl::forward<Variants>(vars)...),
+              absl::forward<Visitor>(vis)},
+          vars.index()...);
 }
 
 // monostate
@@ -445,9 +448,11 @@ constexpr bool operator!=(monostate, monostate) noexcept { return false; }
 //------------------------------------------------------------------------------
 template <typename T0, typename... Tn>
 class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
+  // Intentionally not qualifing `negation` with `absl::` to work around a bug
+  // in MSVC 2015 with inline namespace and variadic template.
   static_assert(absl::conjunction<std::is_object<T0>, std::is_object<Tn>...,
-                                  absl::negation<std::is_array<T0>>,
-                                  absl::negation<std::is_array<Tn>>...,
+                                  negation<std::is_array<T0> >,
+                                  negation<std::is_array<Tn> >...,
                                   std::is_nothrow_destructible<T0>,
                                   std::is_nothrow_destructible<Tn>...>::value,
                 "Attempted to instantiate a variant with an unsupported type.");
@@ -573,7 +578,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
   variant& operator=(T&& t) noexcept(
       std::is_nothrow_assignable<Tj&, T>::value&&
           std::is_nothrow_constructible<Tj, T>::value) {
-    variant_internal::visit_indices<sizeof...(Tn) + 1>(
+    variant_internal::VisitIndices<sizeof...(Tn) + 1>::Run(
         variant_internal::VariantCoreAccess::MakeConversionAssignVisitor(
             this, absl::forward<T>(t)),
         index());
@@ -682,7 +687,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
   //   true and `is_nothrow_swappable()` is same as `std::is_trivial()`.
   void swap(variant& rhs) noexcept(
       absl::conjunction<std::is_trivial<T0>, std::is_trivial<Tn>...>::value) {
-    return variant_internal::visit_indices<sizeof...(Tn) + 1>(
+    return variant_internal::VisitIndices<sizeof...(Tn) + 1>::Run(
         variant_internal::Swap<T0, Tn...>{this, &rhs}, rhs.index());
   }
 };
@@ -722,7 +727,7 @@ template <typename... Types>
 constexpr variant_internal::RequireAllHaveEqualT<Types...> operator==(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() == b.index()) &&
-         variant_internal::visit_indices<sizeof...(Types)>(
+         variant_internal::VisitIndices<sizeof...(Types)>::Run(
              variant_internal::EqualsOp<Types...>{&a, &b}, a.index());
 }
 
@@ -731,7 +736,7 @@ template <typename... Types>
 constexpr variant_internal::RequireAllHaveNotEqualT<Types...> operator!=(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index()) ||
-         variant_internal::visit_indices<sizeof...(Types)>(
+         variant_internal::VisitIndices<sizeof...(Types)>::Run(
              variant_internal::NotEqualsOp<Types...>{&a, &b}, a.index());
 }
 
@@ -741,7 +746,7 @@ constexpr variant_internal::RequireAllHaveLessThanT<Types...> operator<(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) < (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::LessThanOp<Types...>{&a, &b}, a.index());
 }
 
@@ -751,7 +756,7 @@ constexpr variant_internal::RequireAllHaveGreaterThanT<Types...> operator>(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) > (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::GreaterThanOp<Types...>{&a, &b},
                    a.index());
 }
@@ -762,7 +767,7 @@ constexpr variant_internal::RequireAllHaveLessThanOrEqualT<Types...> operator<=(
     const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) < (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::LessThanOrEqualsOp<Types...>{&a, &b},
                    a.index());
 }
@@ -773,11 +778,12 @@ constexpr variant_internal::RequireAllHaveGreaterThanOrEqualT<Types...>
 operator>=(const variant<Types...>& a, const variant<Types...>& b) {
   return (a.index() != b.index())
              ? (a.index() + 1) > (b.index() + 1)
-             : variant_internal::visit_indices<sizeof...(Types)>(
+             : variant_internal::VisitIndices<sizeof...(Types)>::Run(
                    variant_internal::GreaterThanOrEqualsOp<Types...>{&a, &b},
                    a.index());
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 namespace std {
@@ -798,6 +804,7 @@ struct hash<absl::variant<T...>>
 #endif  // ABSL_HAVE_STD_VARIANT
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace variant_internal {
 
 // Helper visitor for converting a variant<Ts...>` into another type (mostly
@@ -833,6 +840,7 @@ To ConvertVariantTo(Variant&& variant) {
                      std::forward<Variant>(variant));
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TYPES_VARIANT_H_

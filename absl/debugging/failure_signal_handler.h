@@ -45,6 +45,7 @@
 #define ABSL_DEBUGGING_FAILURE_SIGNAL_HANDLER_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // FailureSignalHandlerOptions
 //
@@ -112,6 +113,7 @@ namespace debugging_internal {
 const char* FailureSignalToString(int signo);
 }  // namespace debugging_internal
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_FAILURE_SIGNAL_HANDLER_H_

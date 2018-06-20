@@ -72,6 +72,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 template <typename T>
 class Span;
@@ -745,5 +746,6 @@ template <int&... ExplicitArgumentBarrier, typename T, size_t N>
 constexpr Span<const T> MakeConstSpan(const T (&array)[N]) noexcept {
   return Span<const T>(array, N);
 }
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_TYPES_SPAN_H_

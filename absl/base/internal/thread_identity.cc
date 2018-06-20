@@ -28,6 +28,7 @@
 #include "absl/base/internal/spinlock.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 #if ABSL_THREAD_IDENTITY_MODE != ABSL_THREAD_IDENTITY_MODE_USE_CPP11
@@ -120,4 +121,5 @@ ThreadIdentity* CurrentThreadIdentityIfPresent() {
 #endif
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

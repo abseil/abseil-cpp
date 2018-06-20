@@ -28,6 +28,7 @@ extern "C" bool __google_disable_rescheduling(void);
 extern "C" void __google_enable_rescheduling(bool disable_result);
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 class SchedulingHelper;  // To allow use of SchedulingGuard.
@@ -100,5 +101,6 @@ inline void SchedulingGuard::EnableRescheduling(bool /* disable_result */) {
 
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_

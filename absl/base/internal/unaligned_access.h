@@ -65,6 +65,7 @@ void __sanitizer_unaligned_store64(void *p, uint64_t v);
 }  // extern "C"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 inline uint16_t UnalignedLoad16(const void *p) {
   return __sanitizer_unaligned_load16(p);
@@ -90,6 +91,7 @@ inline void UnalignedStore64(void *p, uint64_t v) {
   __sanitizer_unaligned_store64(p, v);
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #define ABSL_INTERNAL_UNALIGNED_LOAD16(_p) (absl::UnalignedLoad16(_p))
@@ -158,6 +160,7 @@ inline void UnalignedStore64(void *p, uint64_t v) {
 // so we do that.
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace internal {
 
 struct Unaligned16Struct {
@@ -171,6 +174,7 @@ struct Unaligned32Struct {
 } ABSL_ATTRIBUTE_PACKED;
 
 }  // namespace internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #define ABSL_INTERNAL_UNALIGNED_LOAD16(_p) \
@@ -186,6 +190,7 @@ struct Unaligned32Struct {
        (_val))
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 inline uint64_t UnalignedLoad64(const void *p) {
   uint64_t t;
@@ -195,6 +200,7 @@ inline uint64_t UnalignedLoad64(const void *p) {
 
 inline void UnalignedStore64(void *p, uint64_t v) { memcpy(p, &v, sizeof v); }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #define ABSL_INTERNAL_UNALIGNED_LOAD64(_p) (absl::UnalignedLoad64(_p))
@@ -211,6 +217,7 @@ inline void UnalignedStore64(void *p, uint64_t v) { memcpy(p, &v, sizeof v); }
 // unaligned loads and stores.
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 inline uint16_t UnalignedLoad16(const void *p) {
   uint16_t t;
@@ -236,6 +243,7 @@ inline void UnalignedStore32(void *p, uint32_t v) { memcpy(p, &v, sizeof v); }
 
 inline void UnalignedStore64(void *p, uint64_t v) { memcpy(p, &v, sizeof v); }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #define ABSL_INTERNAL_UNALIGNED_LOAD16(_p) (absl::UnalignedLoad16(_p))

@@ -15,6 +15,7 @@
 #include "absl/base/internal/inline_variable_testing.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace inline_variable_testing_internal {
 
 const Foo& get_foo_a() { return inline_variable_foo; }
@@ -22,4 +23,5 @@ const Foo& get_foo_a() { return inline_variable_foo; }
 const int& get_int_a() { return inline_variable_int; }
 
 }  // namespace inline_variable_testing_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -63,6 +63,7 @@
 #endif  // __APPLE__
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 // A first-fit allocator with amortized logarithmic free() time.
@@ -599,6 +600,7 @@ void *LowLevelAlloc::AllocWithArena(size_t request, Arena *arena) {
 }
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING

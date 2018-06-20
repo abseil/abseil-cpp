@@ -32,6 +32,7 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 class Mutex;
 
@@ -80,6 +81,7 @@ class PerThreadSem {
 };
 
 }  // namespace synchronization_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // In some build configurations we pass --detect-odr-violations to the

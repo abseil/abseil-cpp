@@ -27,6 +27,7 @@
 #include "absl/base/internal/sysinfo.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 #if defined(__i386__)
@@ -96,6 +97,7 @@ double UnscaledCycleClock::Frequency() {
 #endif
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_USE_UNSCALED_CYCLECLOCK

@@ -32,7 +32,12 @@ cc_library(
     name = "strings",
     srcs = [
         "ascii.cc",
+        "charconv.cc",
         "escaping.cc",
+        "internal/charconv_bigint.cc",
+        "internal/charconv_bigint.h",
+        "internal/charconv_parse.cc",
+        "internal/charconv_parse.h",
         "internal/memutil.cc",
         "internal/memutil.h",
         "internal/stl_type_traits.h",
@@ -48,6 +53,7 @@ cc_library(
     ],
     hdrs = [
         "ascii.h",
+        "charconv.h",
         "escaping.h",
         "match.h",
         "numbers.h",
@@ -144,11 +150,6 @@ cc_test(
     size = "small",
     srcs = ["ascii_test.cc"],
     copts = ABSL_TEST_COPTS,
-    tags = [
-        "no_test_android_arm",
-        "no_test_android_arm64",
-        "no_test_android_x86",
-    ],
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -398,12 +399,6 @@ cc_test(
         "numbers_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    tags = [
-        "no_test_android_arm",
-        "no_test_android_arm64",
-        "no_test_android_x86",
-        "no_test_loonix",
-    ],
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -429,11 +424,6 @@ cc_test(
     name = "char_map_test",
     srcs = ["internal/char_map_test.cc"],
     copts = ABSL_TEST_COPTS,
-    tags = [
-        "no_test_android_arm",
-        "no_test_android_arm64",
-        "no_test_android_x86",
-    ],
     deps = [
         ":internal",
         "@com_google_googletest//:gtest_main",
@@ -447,6 +437,58 @@ cc_test(
     tags = ["benchmark"],
     deps = [
         ":internal",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
+    name = "charconv_test",
+    srcs = ["charconv_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "charconv_parse_test",
+    srcs = [
+        "internal/charconv_parse.h",
+        "internal/charconv_parse_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "charconv_bigint_test",
+    srcs = [
+        "internal/charconv_bigint.h",
+        "internal/charconv_bigint_test.cc",
+        "internal/charconv_parse.h",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "charconv_benchmark",
+    srcs = [
+        "charconv_benchmark.cc",
+    ],
+    deps = [
+        ":strings",
+        "//absl/base",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )

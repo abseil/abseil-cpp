@@ -18,6 +18,7 @@
 #include "absl/time/internal/cctz/include/cctz/civil_time_detail.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -324,6 +325,7 @@ using detail::get_yearday;
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_CIVIL_TIME_H_

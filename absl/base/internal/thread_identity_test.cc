@@ -25,6 +25,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 namespace {
 
@@ -123,4 +124,5 @@ TEST(ThreadIdentityTest, ReusedThreadIdentityMutexTest) {
 
 }  // namespace
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

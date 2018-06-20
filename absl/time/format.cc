@@ -22,6 +22,7 @@
 namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 extern const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
 extern const char RFC3339_sec[] =  "%Y-%m-%dT%H:%M:%S%Ez";
@@ -129,7 +130,6 @@ bool ParseTime(const std::string& format, const std::string& input, absl::TimeZo
   return b;
 }
 
-// TODO(absl-team): Remove once dependencies are removed.
 // Functions required to support absl::Time flags.
 bool ParseFlag(const std::string& text, absl::Time* t, std::string* error) {
   return absl::ParseTime(RFC3339_full, text, absl::UTCTimeZone(), t, error);
@@ -139,4 +139,5 @@ std::string UnparseFlag(absl::Time t) {
   return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

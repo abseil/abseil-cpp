@@ -17,6 +17,7 @@
 #define ABSL_BASE_INTERNAL_IDENTITY_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace internal {
 
 template <typename T>
@@ -27,7 +28,8 @@ struct identity {
 template <typename T>
 using identity_t = typename identity<T>::type;
 
-}  //  namespace internal
-}  //  namespace absl
+}  // namespace internal
+}  // inline namespace lts_2018_06_20
+}  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_IDENTITY_H_

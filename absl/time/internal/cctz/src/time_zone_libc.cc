@@ -27,6 +27,7 @@
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -153,4 +154,5 @@ bool TimeZoneLibC::PrevTransition(time_point<sys_seconds>* tp) const {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -30,6 +30,7 @@
 #include "absl/base/internal/identity.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // implicit_cast()
 //
@@ -135,6 +136,7 @@ inline Dest bit_cast(const Source& source) {
   return dest;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_CASTS_H_

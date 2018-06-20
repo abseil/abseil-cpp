@@ -19,6 +19,7 @@
 #include <sstream>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 namespace detail {
@@ -87,4 +88,5 @@ std::ostream& operator<<(std::ostream& os, weekday wd) {
 }  // namespace detail
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

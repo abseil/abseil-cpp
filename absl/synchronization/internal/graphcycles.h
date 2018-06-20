@@ -41,6 +41,7 @@
 #include <cstdint>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace synchronization_internal {
 
 // Opaque identifier for a graph node.
@@ -132,6 +133,7 @@ class GraphCycles {
 };
 
 }  // namespace synchronization_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif

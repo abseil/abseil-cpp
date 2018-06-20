@@ -28,6 +28,7 @@
 #include "tzfile.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -127,6 +128,7 @@ class TimeZoneInfo : public TimeZoneIf {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_INFO_H_

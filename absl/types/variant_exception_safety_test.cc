@@ -24,6 +24,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace {
 
 using ::testing::MakeExceptionSafetyTester;
@@ -505,4 +506,5 @@ TEST(VariantExceptionSafetyTest, Swap) {
 }
 
 }  // namespace
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

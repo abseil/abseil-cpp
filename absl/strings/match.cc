@@ -17,6 +17,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace {
 bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
@@ -37,4 +38,5 @@ bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix) {
          CaseEqual(text.substr(text.size() - suffix.size()), suffix);
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

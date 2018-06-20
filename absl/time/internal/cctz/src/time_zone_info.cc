@@ -50,6 +50,7 @@
 #include "time_zone_posix.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -953,4 +954,5 @@ bool TimeZoneInfo::PrevTransition(time_point<sys_seconds>* tp) const {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

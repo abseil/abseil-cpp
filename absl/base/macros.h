@@ -43,12 +43,14 @@
   (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace macros_internal {
 // Note: this internal template function declaration is used by ABSL_ARRAYSIZE.
 // The function doesn't need a definition, as we only use its type.
 template <typename T, size_t N>
 auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // kLinkerInitialized
@@ -72,11 +74,13 @@ auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 //       // Invocation
 //       static MyClass my_global(absl::base_internal::kLinkerInitialized);
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 enum LinkerInitialized {
   kLinkerInitialized = 0,
 };
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // ABSL_FALLTHROUGH_INTENDED
@@ -194,8 +198,9 @@ enum LinkerInitialized {
 #if defined(NDEBUG)
 #define ABSL_ASSERT(expr) (false ? (void)(expr) : (void)0)
 #else
-#define ABSL_ASSERT(expr) \
-  (ABSL_PREDICT_TRUE((expr)) ? (void)0 : [] { assert(false && #expr); }())
+#define ABSL_ASSERT(expr)              \
+  (ABSL_PREDICT_TRUE((expr)) ? (void)0 \
+                             : [] { assert(false && #expr); }())  // NOLINT
 #endif
 
 #endif  // ABSL_BASE_MACROS_H_

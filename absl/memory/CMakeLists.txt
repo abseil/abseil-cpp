@@ -49,4 +49,23 @@ absl_test(
 )
 
 
+# test memory_exception_safety_test
+set(MEMORY_EXCEPTION_SAFETY_TEST_SRC "memory_exception_safety_test.cc")
+set(MEMORY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
+  absl::memory
+  absl_base_internal_exception_safety_testing
+)
+
+absl_test(
+  TARGET
+    memory_exception_safety_test
+  SOURCES
+    ${MEMORY_EXCEPTION_SAFETY_TEST_SRC}
+  PUBLIC_LIBRARIES
+    ${MEMORY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
+  PRIVATE_COMPILE_FLAGS
+    ${ABSL_EXCEPTIONS_FLAG}
+)
+
+
 

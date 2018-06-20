@@ -51,6 +51,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // integer_sequence
 //
@@ -286,6 +287,7 @@ T exchange(T& obj, U&& new_value) {
   return old_value;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_UTILITY_UTILITY_H_

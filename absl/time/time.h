@@ -64,9 +64,11 @@
 #include <utility>
 
 #include "absl/base/port.h"  // Needed for string vs std::string
+#include "absl/strings/string_view.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 class Duration;  // Defined below
 class Time;      // Defined below
@@ -490,9 +492,6 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 // Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
 // `ZeroDuration()`.  Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
 bool ParseDuration(const std::string& dur_string, Duration* d);
-
-// Flag Support
-// TODO(absl-team): Remove once dependencies are removed.
 
 // ParseFlag()
 //
@@ -993,8 +992,6 @@ bool ParseTime(const std::string& format, const std::string& input, Time* time,
 bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
                Time* time, std::string* err);
 
-// TODO(absl-team): Remove once dependencies are removed.
-
 // ParseFlag()
 // UnparseFlag()
 //
@@ -1335,6 +1332,7 @@ constexpr Time FromTimeT(time_t t) {
   return time_internal::FromUnixDuration(Seconds(t));
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_TIME_H_

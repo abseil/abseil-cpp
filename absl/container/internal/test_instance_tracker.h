@@ -19,6 +19,7 @@
 #include <ostream>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace test_internal {
 
 // A type that counts number of occurences of the type, the live occurrences of
@@ -215,6 +216,7 @@ class MovableOnlyInstance : public BaseCountedInstance {
 };
 
 }  // namespace test_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_TEST_INSTANCE_TRACKER_H_

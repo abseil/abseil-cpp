@@ -23,6 +23,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace substitute_internal {
 
 void SubstituteAndAppendArray(std::string* output, absl::string_view format,
@@ -167,4 +168,5 @@ Arg::Arg(Dec dec) {
 }
 
 }  // namespace substitute_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -4,6 +4,7 @@
 #include <cstdint>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 
 static int64_t GetCurrentTimeNanosFromSystem() {
@@ -14,4 +15,5 @@ static int64_t GetCurrentTimeNanosFromSystem() {
 }
 
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

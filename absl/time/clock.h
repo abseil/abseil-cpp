@@ -26,6 +26,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // Now()
 //
@@ -49,6 +50,7 @@ int64_t GetCurrentTimeNanos();
 // * Returns immediately when passed a nonpositive duration.
 void SleepFor(absl::Duration duration);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // -----------------------------------------------------------------------------

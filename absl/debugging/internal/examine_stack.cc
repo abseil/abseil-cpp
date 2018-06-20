@@ -30,6 +30,7 @@
 #include "absl/debugging/symbolize.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace debugging_internal {
 
 // Returns the program counter from signal context, nullptr if
@@ -146,4 +147,5 @@ void DumpPCAndFrameSizesAndStackTrace(
 }
 
 }  // namespace debugging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

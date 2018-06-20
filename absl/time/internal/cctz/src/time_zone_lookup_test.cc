@@ -34,6 +34,7 @@ using std::chrono::minutes;
 using std::chrono::hours;
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -1258,4 +1259,5 @@ TEST(TimeZoneEdgeCase, UTC5DigitYear) {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

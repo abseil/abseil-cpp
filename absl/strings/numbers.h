@@ -38,6 +38,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // SimpleAtoi()
 //
@@ -72,11 +73,13 @@ ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* value);
 // are interpreted as boolean `false`: "false", "f", "no", "n", "0".
 ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* value);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // End of public API.  Implementation details follow.
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace numbers_internal {
 
 // safe_strto?() functions for implementing SimpleAtoi()
@@ -179,6 +182,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
   return numbers_internal::safe_strtoi_base(s, out, 10);
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_NUMBERS_H_

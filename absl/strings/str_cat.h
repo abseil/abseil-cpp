@@ -63,6 +63,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace strings_internal {
 // AlphaNumBuffer allows a way to pass a std::string to StrCat without having to do
@@ -380,6 +381,7 @@ SixDigits(double d) {
   return result;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_CAT_H_

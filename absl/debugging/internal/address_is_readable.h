@@ -17,6 +17,7 @@
 #define ABSL_DEBUGGING_INTERNAL_ADDRESS_IS_READABLE_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace debugging_internal {
 
 // Return whether the byte at *addr is readable, without faulting.
@@ -24,6 +25,7 @@ namespace debugging_internal {
 bool AddressIsReadable(const void *addr);
 
 }  // namespace debugging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_ADDRESS_IS_READABLE_H_

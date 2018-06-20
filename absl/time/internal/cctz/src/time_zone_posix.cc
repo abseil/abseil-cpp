@@ -20,6 +20,7 @@
 #include <string>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -152,4 +153,5 @@ bool ParsePosixSpec(const std::string& spec, PosixTimeZone* res) {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

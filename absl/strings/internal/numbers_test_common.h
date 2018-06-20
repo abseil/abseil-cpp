@@ -24,6 +24,7 @@
 #include <string>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace strings_internal {
 
 template <typename IntType>
@@ -173,6 +174,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
 }
 
 }  // namespace strings_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_NUMBERS_TEST_COMMON_H_

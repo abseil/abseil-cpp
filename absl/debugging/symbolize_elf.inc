@@ -76,6 +76,7 @@
 #include "absl/debugging/internal/vdso_support.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // Value of argv[0]. Used by MaybeInitializeObjFile().
 static char *argv0_value = nullptr;
@@ -1470,4 +1471,5 @@ bool Symbolize(const void *pc, char *out, int out_size) {
   return ok;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

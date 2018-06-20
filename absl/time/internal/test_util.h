@@ -41,6 +41,7 @@
   } while (0)
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 
 // A regular expression that matches all zone abbreviations (%Z).
@@ -50,6 +51,7 @@ extern const char kZoneAbbrRE[];
 absl::TimeZone LoadTimeZone(const std::string& name);
 
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_TEST_UTIL_H_

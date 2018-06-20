@@ -34,6 +34,7 @@ using std::chrono::hours;
 using testing::HasSubstr;
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -1409,4 +1410,5 @@ TEST(FormatParse, RoundTripDistantPast) {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -30,6 +30,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // ConsumePrefix()
 //
@@ -84,6 +85,7 @@ ABSL_MUST_USE_RESULT inline absl::string_view StripSuffix(
   return str;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STRIP_H_

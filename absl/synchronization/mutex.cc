@@ -71,6 +71,7 @@ ABSL_ATTRIBUTE_WEAK void AbslInternalMutexYield() { std::this_thread::yield(); }
 }  // extern "C"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace {
 
@@ -2684,4 +2685,5 @@ bool Condition::GuaranteedEqual(const Condition *a, const Condition *b) {
          a->arg_ == b->arg_ && a->method_ == b->method_;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

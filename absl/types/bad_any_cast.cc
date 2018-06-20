@@ -20,6 +20,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 bad_any_cast::~bad_any_cast() = default;
 
@@ -37,4 +38,5 @@ void ThrowBadAnyCast() {
 }
 
 }  // namespace any_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

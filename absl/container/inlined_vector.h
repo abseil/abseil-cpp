@@ -53,6 +53,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // InlinedVector
@@ -1379,6 +1380,7 @@ auto InlinedVector<T, N, A>::InsertWithRange(const_iterator position,
   return it_pair.first;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INLINED_VECTOR_H_

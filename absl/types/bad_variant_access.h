@@ -24,6 +24,7 @@
 #include <stdexcept>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // -----------------------------------------------------------------------------
 // bad_variant_access
@@ -59,6 +60,7 @@ namespace variant_internal {
 [[noreturn]] void Rethrow();
 
 }  // namespace variant_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TYPES_BAD_VARIANT_ACCESS_H_

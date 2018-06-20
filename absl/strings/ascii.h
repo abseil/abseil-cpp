@@ -59,6 +59,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace ascii_internal {
 
 // Declaration for an array of bitfields holding character information.
@@ -234,6 +235,7 @@ inline void StripAsciiWhitespace(std::string* str) {
 // Removes leading, trailing, and consecutive internal whitespace.
 void RemoveExtraAsciiWhitespace(std::string*);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_ASCII_H_

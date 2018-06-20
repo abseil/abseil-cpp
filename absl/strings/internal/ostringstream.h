@@ -23,6 +23,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace strings_internal {
 
 // The same as std::ostringstream but appends to a user-specified std::string,
@@ -82,6 +83,7 @@ class OStringStream : private std::basic_streambuf<char>, public std::ostream {
 };
 
 }  // namespace strings_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_OSTRINGSTREAM_H_

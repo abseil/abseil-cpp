@@ -40,6 +40,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace strings_internal {
 
 template <typename C, template <typename...> class T>
@@ -242,5 +243,6 @@ struct IsStrictlyBaseOfAndConvertibleToSTLContainer
                         IsConvertibleToSTLContainer<C>> {};
 
 }  // namespace strings_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_STRINGS_INTERNAL_STL_TYPE_TRAITS_H_

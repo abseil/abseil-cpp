@@ -18,6 +18,7 @@
 #include <cstdint>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 // Arbitrary value with high bits set. Xor'ing with it is unlikely
@@ -42,6 +43,7 @@ inline T* UnhidePtr(uintptr_t hidden) {
 }
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_HIDE_PTR_H_

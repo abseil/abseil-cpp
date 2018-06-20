@@ -22,6 +22,7 @@
 #include "absl/base/macros.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace {
 
 template <int N>
@@ -104,4 +105,5 @@ TEST(BitCast, Double) {
 }
 
 }  // namespace
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

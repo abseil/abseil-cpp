@@ -21,6 +21,7 @@
 #include <string>
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -35,9 +36,11 @@ class ZoneInfoSource {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz_extension {
 
@@ -86,6 +89,7 @@ extern ZoneInfoSourceFactory zone_info_source_factory;
 
 }  // namespace cctz_extension
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_ZONE_INFO_SOURCE_H_

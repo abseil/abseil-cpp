@@ -42,6 +42,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace type_traits_internal {
 template <typename... Ts>
@@ -368,5 +369,6 @@ struct IsHashEnabled
                         IsHashable<Key>> {};
 }  // namespace type_traits_internal
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_META_TYPE_TRAITS_H_

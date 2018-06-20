@@ -181,6 +181,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 }  // namespace
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace raw_logging_internal {
 void SafeWriteToStderr(const char *s, size_t len) {
 #if defined(ABSL_HAVE_SYSCALL_WRITE)
@@ -215,4 +216,5 @@ bool RawLoggingFullySupported() {
 }
 
 }  // namespace raw_logging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

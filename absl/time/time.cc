@@ -41,6 +41,7 @@
 
 namespace cctz = absl::time_internal::cctz;
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 namespace {
 
@@ -382,4 +383,5 @@ std::chrono::system_clock::time_point ToChronoTime(absl::Time t) {
          time_internal::ToChronoDuration<D>(d);
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

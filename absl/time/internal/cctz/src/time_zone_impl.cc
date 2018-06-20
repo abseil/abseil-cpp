@@ -22,6 +22,7 @@
 #include "time_zone_fixed.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -114,4 +115,5 @@ const time_zone::Impl* time_zone::Impl::UTCImpl() {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

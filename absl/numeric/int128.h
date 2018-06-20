@@ -37,6 +37,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 
 // uint128
@@ -651,6 +652,7 @@ inline uint128& uint128::operator--() {
 #include "absl/numeric/int128_no_intrinsic.inc"
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_NUMERIC_INT128_H_

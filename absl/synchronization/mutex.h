@@ -81,6 +81,7 @@
 #endif
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 class Condition;
 struct SynchWaitParams;
@@ -1014,6 +1015,7 @@ enum class OnDeadlockCycle {
 // the manner chosen here.
 void SetMutexDeadlockDetectionMode(OnDeadlockCycle mode);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 // In some build configurations we pass --detect-odr-violations to the

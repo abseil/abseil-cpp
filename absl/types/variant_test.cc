@@ -67,6 +67,7 @@ struct hash<Hashable> {
 struct NonHashable {};
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace {
 
 using ::testing::DoubleEq;
@@ -2609,4 +2610,5 @@ TEST(VariantTest, MoveCtorBug) {
 }
 
 }  // namespace
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

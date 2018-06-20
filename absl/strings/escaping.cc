@@ -33,6 +33,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace {
 
 // Digit conversion.
@@ -1106,4 +1107,5 @@ std::string BytesToHexString(absl::string_view from) {
   return result;
 }
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

@@ -55,6 +55,7 @@
 #include "absl/debugging/internal/symbolize.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // InitializeSymbolizer()
 //
@@ -92,6 +93,7 @@ void InitializeSymbolizer(const char* argv0);
 //  }
 bool Symbolize(const void *pc, char *out, int out_size);
 
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_SYMBOLIZE_H_

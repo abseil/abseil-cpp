@@ -28,6 +28,7 @@
 #include "time_zone_impl.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 namespace cctz {
 
@@ -142,4 +143,5 @@ time_zone local_time_zone() {
 
 }  // namespace cctz
 }  // namespace time_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

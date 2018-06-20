@@ -20,6 +20,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 bad_optional_access::~bad_optional_access() = default;
 
@@ -39,4 +40,5 @@ void throw_bad_optional_access() {
 }
 
 }  // namespace optional_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl

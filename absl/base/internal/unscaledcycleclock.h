@@ -84,6 +84,7 @@
 #define ABSL_INTERNAL_UNSCALED_CYCLECLOCK_FREQUENCY_IS_CPU_FREQUENCY
 #endif
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace time_internal {
 class UnscaledCycleClockWrapperForGetCurrentTime;
 }  // namespace time_internal
@@ -113,6 +114,7 @@ class UnscaledCycleClock {
 };
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 #endif  // ABSL_USE_UNSCALED_CYCLECLOCK
 

@@ -19,6 +19,7 @@
 #define ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 namespace base_internal {
 
 // Used to describe how a thread may be scheduled.  Typically associated with
@@ -49,6 +50,7 @@ enum SchedulingMode {
 };
 
 }  // namespace base_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_

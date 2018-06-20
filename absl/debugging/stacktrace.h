@@ -32,6 +32,7 @@
 #define ABSL_DEBUGGING_STACKTRACE_H_
 
 namespace absl {
+inline namespace lts_2018_06_20 {
 
 // GetStackFrames()
 //
@@ -220,6 +221,7 @@ namespace debugging_internal {
 // working.
 extern bool StackTraceWorksForTest();
 }  // namespace debugging_internal
+}  // inline namespace lts_2018_06_20
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_STACKTRACE_H_
