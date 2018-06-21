@@ -65,7 +65,7 @@ std::string time_zone::name() const {
 }
 
 time_zone::absolute_lookup time_zone::lookup(
-    const time_point<sys_seconds>& tp) const {
+    const time_point<seconds>& tp) const {
   return time_zone::Impl::get(*this).BreakTime(tp);
 }
 
@@ -85,7 +85,7 @@ time_zone utc_time_zone() {
   return time_zone::Impl::UTC();  // avoid name lookup
 }
 
-time_zone fixed_time_zone(const sys_seconds& offset) {
+time_zone fixed_time_zone(const seconds& offset) {
   time_zone tz;
   load_time_zone(FixedOffsetToName(offset), &tz);
   return tz;

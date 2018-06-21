@@ -34,15 +34,13 @@ namespace {
 const char kInfiniteFutureStr[] = "infinite-future";
 const char kInfinitePastStr[] = "infinite-past";
 
-using cctz_sec = cctz::time_point<cctz::sys_seconds>;
-using cctz_fem = cctz::detail::femtoseconds;
 struct cctz_parts {
-  cctz_sec sec;
-  cctz_fem fem;
+  cctz::time_point<cctz::seconds> sec;
+  cctz::detail::femtoseconds fem;
 };
 
-inline cctz_sec unix_epoch() {
-  return std::chrono::time_point_cast<cctz::sys_seconds>(
+inline cctz::time_point<cctz::seconds> unix_epoch() {
+  return std::chrono::time_point_cast<cctz::seconds>(
       std::chrono::system_clock::from_time_t(0));
 }
 
@@ -53,8 +51,8 @@ cctz_parts Split(absl::Time t) {
   const auto d = time_internal::ToUnixDuration(t);
   const int64_t rep_hi = time_internal::GetRepHi(d);
   const int64_t rep_lo = time_internal::GetRepLo(d);
-  const auto sec = unix_epoch() + cctz::sys_seconds(rep_hi);
-  const auto fem = cctz_fem(rep_lo * (1000 * 1000 / 4));
+  const auto sec = unix_epoch() + cctz::seconds(rep_hi);
+  const auto fem = cctz::detail::femtoseconds(rep_lo * (1000 * 1000 / 4));
   return {sec, fem};
 }
 

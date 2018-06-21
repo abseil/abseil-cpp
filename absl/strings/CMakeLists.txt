@@ -81,6 +81,58 @@ absl_library(
     strings
 )
 
+# add str_format library
+absl_library(
+  TARGET
+    absl_str_format
+  SOURCES
+    "str_format.h"
+  PUBLIC_LIBRARIES
+    str_format_internal
+  EXPORT_NAME
+    str_format
+)
+
+# str_format_internal
+ absl_library(
+  TARGET
+    str_format_internal
+  SOURCES
+    "internal/str_format/arg.cc"
+    "internal/str_format/bind.cc"
+    "internal/str_format/extension.cc"
+    "internal/str_format/float_conversion.cc"
+    "internal/str_format/output.cc"
+    "internal/str_format/parser.cc"
+    "internal/str_format/arg.h"
+    "internal/str_format/bind.h"
+    "internal/str_format/checker.h"
+    "internal/str_format/extension.h"
+    "internal/str_format/float_conversion.h"
+    "internal/str_format/output.h"
+    "internal/str_format/parser.h"
+  PUBLIC_LIBRARIES
+    str_format_extension_internal
+    absl::strings
+    absl::base
+    absl::numeric
+    absl::container
+    absl::span
+)
+
+# str_format_extension_internal
+absl_library(
+  TARGET
+  str_format_extension_internal
+  SOURCES
+    "internal/str_format/extension.cc"
+    "internal/str_format/extension.h"
+    "internal/str_format/output.cc"
+    "internal/str_format/output.h"
+  PUBLIC_LIBRARIES
+    absl::base
+    absl::strings
+)
 
 #
 ## TESTS
@@ -347,3 +399,68 @@ absl_test(
   PUBLIC_LIBRARIES
     ${CHARCONV_BIGINT_TEST_PUBLIC_LIBRARIES}
 )
+# test str_format_test
+absl_test(
+  TARGET
+    str_format_test
+  SOURCES
+    "str_format_test.cc"
+  PUBLIC_LIBRARIES
+    absl::base
+    absl::str_format
+    absl::strings
+)
+
+# test str_format_bind_test
+absl_test(
+  TARGET
+    str_format_bind_test
+  SOURCES
+    "internal/str_format/bind_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+)
+
+# test str_format_checker_test
+absl_test(
+  TARGET
+    str_format_checker_test
+  SOURCES
+    "internal/str_format/checker_test.cc"
+  PUBLIC_LIBRARIES
+    absl::str_format
+)
+
+# test str_format_convert_test
+absl_test(
+  TARGET
+    str_format_convert_test
+  SOURCES
+    "internal/str_format/convert_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+    absl::numeric
+)
+
+# test str_format_output_test
+absl_test(
+  TARGET
+    str_format_output_test
+  SOURCES
+    "internal/str_format/output_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_extension_internal
+)
+
+# test str_format_parser_test
+absl_test(
+  TARGET
+    str_format_parser_test
+  SOURCES
+    "internal/str_format/parser_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+    absl::base
+)
+
+

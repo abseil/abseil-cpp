@@ -1763,4 +1763,30 @@ TEST(AllocatorSupportTest, ScopedAllocatorWorks) {
   EXPECT_EQ(allocated, 0);
 }
 
+TEST(AllocatorSupportTest, SizeAllocConstructor) {
+  constexpr int inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocVec = absl::InlinedVector<int, inlined_size, Alloc>;
+
+  {
+    auto len = inlined_size / 2;
+    int64_t allocated = 0;
+    auto v = AllocVec(len, Alloc(&allocated));
+
+    // Inline storage used; allocator should not be invoked
+    EXPECT_THAT(allocated, 0);
+    EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
+  }
+
+  {
+    auto len = inlined_size * 2;
+    int64_t allocated = 0;
+    auto v = AllocVec(len, Alloc(&allocated));
+
+    // Out of line storage used; allocation of 8 elements expected
+    EXPECT_THAT(allocated, len * sizeof(int));
+    EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
+  }
+}
+
 }  // anonymous namespace

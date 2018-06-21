@@ -42,9 +42,9 @@ int Parse02d(const char* p) {
 
 }  // namespace
 
-bool FixedOffsetFromName(const std::string& name, sys_seconds* offset) {
+bool FixedOffsetFromName(const std::string& name, seconds* offset) {
   if (name.compare(0, std::string::npos, "UTC", 3) == 0) {
-    *offset = sys_seconds::zero();
+    *offset = seconds::zero();
     return true;
   }
 
@@ -69,12 +69,12 @@ bool FixedOffsetFromName(const std::string& name, sys_seconds* offset) {
 
   secs += ((hours * 60) + mins) * 60;
   if (secs > 24 * 60 * 60) return false;  // outside supported offset range
-  *offset = sys_seconds(secs * (np[0] == '-' ? -1 : 1));  // "-" means west
+  *offset = seconds(secs * (np[0] == '-' ? -1 : 1));  // "-" means west
   return true;
 }
 
-std::string FixedOffsetToName(const sys_seconds& offset) {
-  if (offset == sys_seconds::zero()) return "UTC";
+std::string FixedOffsetToName(const seconds& offset) {
+  if (offset == seconds::zero()) return "UTC";
   if (offset < std::chrono::hours(-24) || offset > std::chrono::hours(24)) {
     // We don't support fixed-offset zones more than 24 hours
     // away from UTC to avoid complications in rendering such
@@ -101,7 +101,7 @@ std::string FixedOffsetToName(const sys_seconds& offset) {
   return buf;
 }
 
-std::string FixedOffsetToAbbr(const sys_seconds& offset) {
+std::string FixedOffsetToAbbr(const seconds& offset) {
   std::string abbr = FixedOffsetToName(offset);
   const std::size_t prefix_len = sizeof(kFixedOffsetPrefix) - 1;
   if (abbr.size() == prefix_len + 9) {         // <prefix>+99:99:99

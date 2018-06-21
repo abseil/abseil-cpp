@@ -48,8 +48,7 @@ class time_zone::Impl {
   const std::string& name() const { return name_; }
 
   // Breaks a time_point down to civil-time components in this time zone.
-  time_zone::absolute_lookup BreakTime(
-      const time_point<sys_seconds>& tp) const {
+  time_zone::absolute_lookup BreakTime(const time_point<seconds>& tp) const {
     return zone_->BreakTime(tp);
   }
 
@@ -75,10 +74,10 @@ class time_zone::Impl {
   // to NextTransition()/PrevTransition() will eventually return false,
   // but it is unspecified exactly when NextTransition(&tp) jumps to false,
   // or what time is set by PrevTransition(&tp) for a very distant tp.
-  bool NextTransition(time_point<sys_seconds>* tp) const {
+  bool NextTransition(time_point<seconds>* tp) const {
     return zone_->NextTransition(tp);
   }
-  bool PrevTransition(time_point<sys_seconds>* tp) const {
+  bool PrevTransition(time_point<seconds>* tp) const {
     return zone_->PrevTransition(tp);
   }
 

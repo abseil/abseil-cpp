@@ -44,8 +44,8 @@ namespace absl {
 
 namespace {
 
-inline cctz::time_point<cctz::sys_seconds> unix_epoch() {
-  return std::chrono::time_point_cast<cctz::sys_seconds>(
+inline cctz::time_point<cctz::seconds> unix_epoch() {
+  return std::chrono::time_point_cast<cctz::seconds>(
       std::chrono::system_clock::from_time_t(0));
 }
 
@@ -110,12 +110,12 @@ inline TimeConversion InfinitePastTimeConversion() {
 
 // Makes a Time from sec, overflowing to InfiniteFuture/InfinitePast as
 // necessary. If sec is min/max, then consult cs+tz to check for overlow.
-Time MakeTimeWithOverflow(const cctz::time_point<cctz::sys_seconds>& sec,
+Time MakeTimeWithOverflow(const cctz::time_point<cctz::seconds>& sec,
                           const cctz::civil_second& cs,
                           const cctz::time_zone& tz,
                           bool* normalized = nullptr) {
-  const auto max = cctz::time_point<cctz::sys_seconds>::max();
-  const auto min = cctz::time_point<cctz::sys_seconds>::min();
+  const auto max = cctz::time_point<cctz::seconds>::max();
+  const auto min = cctz::time_point<cctz::seconds>::min();
   if (sec == max) {
     const auto al = tz.lookup(max);
     if (cs > al.cs) {
@@ -174,8 +174,7 @@ absl::Time::Breakdown Time::In(absl::TimeZone tz) const {
   if (*this == absl::InfiniteFuture()) return absl::InfiniteFutureBreakdown();
   if (*this == absl::InfinitePast()) return absl::InfinitePastBreakdown();
 
-  const auto tp =
-      unix_epoch() + cctz::sys_seconds(time_internal::GetRepHi(rep_));
+  const auto tp = unix_epoch() + cctz::seconds(time_internal::GetRepHi(rep_));
   const auto al = cctz::time_zone(tz).lookup(tp);
   const auto cs = al.cs;
   const auto cd = cctz::civil_day(cs);

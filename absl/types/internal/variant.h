@@ -579,18 +579,25 @@ struct VariantCoreAccess {
     self.index_ = other.index();
   }
 
+  // Access a variant alternative, assuming the index is correct.
   template <std::size_t I, class Variant>
   static VariantAccessResult<I, Variant> Access(Variant&& self) {
-    if (ABSL_PREDICT_FALSE(self.index_ != I)) {
-      TypedThrowBadVariantAccess<VariantAccessResult<I, Variant>>();
-    }
-
     // This cast instead of invocation of AccessUnion with an rvalue is a
     // workaround for msvc. Without this there is a runtime failure when dealing
     // with rvalues.
     // TODO(calabrese) Reduce test case and find a simpler workaround.
     return static_cast<VariantAccessResult<I, Variant>>(
         variant_internal::AccessUnion(self.state_, SizeT<I>()));
+  }
+
+  // Access a variant alternative, throwing if the index is incorrect.
+  template <std::size_t I, class Variant>
+  static VariantAccessResult<I, Variant> CheckedAccess(Variant&& self) {
+    if (ABSL_PREDICT_FALSE(self.index_ != I)) {
+      TypedThrowBadVariantAccess<VariantAccessResult<I, Variant>>();
+    }
+
+    return Access<I>(absl::forward<Variant>(self));
   }
 
   // The implementation of the move-assignment operation for a variant.

@@ -89,7 +89,9 @@ class InlinedVector {
       : allocator_and_tag_(alloc) {}
 
   // Create a vector with n copies of value_type().
-  explicit InlinedVector(size_type n) : allocator_and_tag_(allocator_type()) {
+  explicit InlinedVector(size_type n,
+                         const allocator_type& alloc = allocator_type())
+      : allocator_and_tag_(alloc) {
     InitAssign(n);
   }
 

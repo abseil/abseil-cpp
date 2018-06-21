@@ -32,12 +32,12 @@ class TimeZoneLibC : public TimeZoneIf {
 
   // TimeZoneIf implementations.
   time_zone::absolute_lookup BreakTime(
-      const time_point<sys_seconds>& tp) const override;
+      const time_point<seconds>& tp) const override;
   time_zone::civil_lookup MakeTime(
       const civil_second& cs) const override;
   std::string Description() const override;
-  bool NextTransition(time_point<sys_seconds>* tp) const override;
-  bool PrevTransition(time_point<sys_seconds>* tp) const override;
+  bool NextTransition(time_point<seconds>* tp) const override;
+  bool PrevTransition(time_point<seconds>* tp) const override;
 
  private:
   const bool local_;  // localtime or UTC

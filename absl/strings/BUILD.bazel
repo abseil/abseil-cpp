@@ -492,3 +492,142 @@ cc_test(
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
+
+cc_library(
+    name = "str_format",
+    hdrs = [
+        "str_format.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":str_format_internal",
+    ],
+)
+
+cc_library(
+    name = "str_format_internal",
+    srcs = [
+        "internal/str_format/arg.cc",
+        "internal/str_format/bind.cc",
+        "internal/str_format/extension.cc",
+        "internal/str_format/float_conversion.cc",
+        "internal/str_format/output.cc",
+        "internal/str_format/parser.cc",
+    ],
+    hdrs = [
+        "internal/str_format/arg.h",
+        "internal/str_format/bind.h",
+        "internal/str_format/checker.h",
+        "internal/str_format/extension.h",
+        "internal/str_format/float_conversion.h",
+        "internal/str_format/output.h",
+        "internal/str_format/parser.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base:core_headers",
+        "//absl/container:inlined_vector",
+        "//absl/meta:type_traits",
+        "//absl/numeric:int128",
+        "//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "str_format_test",
+    srcs = ["str_format_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format",
+        ":strings",
+        "//absl/base:core_headers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_extension_test",
+    srcs = [
+        "internal/str_format/extension_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format",
+        ":str_format_internal",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_arg_test",
+    srcs = ["internal/str_format/arg_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format",
+        ":str_format_internal",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_bind_test",
+    srcs = ["internal/str_format/bind_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format_internal",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_checker_test",
+    srcs = ["internal/str_format/checker_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_convert_test",
+    size = "small",
+    srcs = ["internal/str_format/convert_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format_internal",
+        "//absl/numeric:int128",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_output_test",
+    srcs = ["internal/str_format/output_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format_internal",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "str_format_parser_test",
+    srcs = ["internal/str_format/parser_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":str_format_internal",
+        "//absl/base:core_headers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

@@ -277,7 +277,7 @@ const std::int_fast64_t kExp10[kDigits10_64 + 1] = {
 // not support the tm_gmtoff and tm_zone extensions to std::tm.
 //
 // Requires that zero() <= fs < seconds(1).
-std::string format(const std::string& format, const time_point<sys_seconds>& tp,
+std::string format(const std::string& format, const time_point<seconds>& tp,
                    const detail::femtoseconds& fs, const time_zone& tz) {
   std::string result;
   result.reserve(format.size());  // A reasonable guess for the result size.
@@ -555,7 +555,7 @@ const char* ParseTM(const char* dp, const char* fmt, std::tm* tm) {
 // We also handle the %z specifier to accommodate platforms that do not
 // support the tm_gmtoff extension to std::tm.  %Z is parsed but ignored.
 bool parse(const std::string& format, const std::string& input,
-           const time_zone& tz, time_point<sys_seconds>* sec,
+           const time_zone& tz, time_point<seconds>* sec,
            detail::femtoseconds* fs, std::string* err) {
   // The unparsed input.
   const char* data = input.c_str();  // NUL terminated
@@ -822,15 +822,15 @@ bool parse(const std::string& format, const std::string& input,
 
   const auto tp = ptz.lookup(cs).pre;
   // Checks for overflow/underflow and returns an error as necessary.
-  if (tp == time_point<sys_seconds>::max()) {
-    const auto al = ptz.lookup(time_point<sys_seconds>::max());
+  if (tp == time_point<seconds>::max()) {
+    const auto al = ptz.lookup(time_point<seconds>::max());
     if (cs > al.cs) {
       if (err != nullptr) *err = "Out-of-range field";
       return false;
     }
   }
-  if (tp == time_point<sys_seconds>::min()) {
-    const auto al = ptz.lookup(time_point<sys_seconds>::min());
+  if (tp == time_point<seconds>::min()) {
+    const auto al = ptz.lookup(time_point<seconds>::min());
     if (cs < al.cs) {
       if (err != nullptr) *err = "Out-of-range field";
       return false;

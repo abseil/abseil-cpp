@@ -60,9 +60,17 @@ ZoneInfoSourceFactory default_factory = DefaultFactory;
 #else
 #error Unsupported MSVC platform
 #endif
-#else
+#else  // _MSC_VER
+#if !defined(__has_attribute)
+#define __has_attribute(x) 0
+#endif
+#if __has_attribute(weak) || defined(__GNUC__)
 ZoneInfoSourceFactory zone_info_source_factory
     __attribute__((weak)) = DefaultFactory;
+#else
+// Make it a "strong" definition if we have no other choice.
+ZoneInfoSourceFactory zone_info_source_factory = DefaultFactory;
+#endif
 #endif  // _MSC_VER
 
 }  // namespace cctz_extension

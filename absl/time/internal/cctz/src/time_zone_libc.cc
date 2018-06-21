@@ -91,7 +91,7 @@ TimeZoneLibC::TimeZoneLibC(const std::string& name)
     : local_(name == "localtime") {}
 
 time_zone::absolute_lookup TimeZoneLibC::BreakTime(
-    const time_point<sys_seconds>& tp) const {
+    const time_point<seconds>& tp) const {
   time_zone::absolute_lookup al;
   std::time_t t = ToUnixSeconds(tp);
   std::tm tm;
@@ -143,11 +143,11 @@ std::string TimeZoneLibC::Description() const {
   return local_ ? "localtime" : "UTC";
 }
 
-bool TimeZoneLibC::NextTransition(time_point<sys_seconds>* tp) const {
+bool TimeZoneLibC::NextTransition(time_point<seconds>* tp) const {
   return false;
 }
 
-bool TimeZoneLibC::PrevTransition(time_point<sys_seconds>* tp) const {
+bool TimeZoneLibC::PrevTransition(time_point<seconds>* tp) const {
   return false;
 }
 
