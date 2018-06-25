@@ -31,7 +31,6 @@
 // that evaluate to a concrete mutex object whenever possible. If the mutex
 // you want to refer to is not in scope, you may use a member pointer
 // (e.g. &MyClass::mutex_) to refer to a mutex in some (unknown) object.
-//
 
 #ifndef ABSL_BASE_THREAD_ANNOTATIONS_H_
 #define ABSL_BASE_THREAD_ANNOTATIONS_H_

@@ -428,4 +428,15 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
 }
 
+TEST(Uint128, NumericLimitsTest) {
+  static_assert(std::numeric_limits<absl::uint128>::is_specialized, "");
+  static_assert(!std::numeric_limits<absl::uint128>::is_signed, "");
+  static_assert(std::numeric_limits<absl::uint128>::is_integer, "");
+  EXPECT_EQ(static_cast<int>(128 * std::log10(2)),
+            std::numeric_limits<absl::uint128>::digits10);
+  EXPECT_EQ(0, std::numeric_limits<absl::uint128>::min());
+  EXPECT_EQ(0, std::numeric_limits<absl::uint128>::lowest());
+  EXPECT_EQ(absl::Uint128Max(), std::numeric_limits<absl::uint128>::max());
+}
+
 }  // namespace

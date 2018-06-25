@@ -108,33 +108,46 @@ class FixedArray {
           ? kInlineBytesDefault / sizeof(value_type)
           : inlined;
 
-  FixedArray(const FixedArray& other) : rep_(other.begin(), other.end()) {}
+  FixedArray(const FixedArray& other)
+      : FixedArray(other.begin(), other.end()) {}
+
   FixedArray(FixedArray&& other) noexcept(
   // clang-format off
       absl::allocator_is_nothrow<std::allocator<value_type>>::value &&
   // clang-format on
           std::is_nothrow_move_constructible<value_type>::value)
-      : rep_(std::make_move_iterator(other.begin()),
-             std::make_move_iterator(other.end())) {}
+      : FixedArray(std::make_move_iterator(other.begin()),
+                   std::make_move_iterator(other.end())) {}
 
   // Creates an array object that can store `n` elements.
   // Note that trivially constructible elements will be uninitialized.
-  explicit FixedArray(size_type n) : rep_(n) {}
+  explicit FixedArray(size_type n) : rep_(n) {
+    absl::memory_internal::uninitialized_default_construct_n(rep_.begin(),
+                                                             size());
+  }
 
   // Creates an array initialized with `n` copies of `val`.
-  FixedArray(size_type n, const value_type& val) : rep_(n, val) {}
+  FixedArray(size_type n, const value_type& val) : rep_(n) {
+    std::uninitialized_fill_n(data(), size(), val);
+  }
 
   // Creates an array initialized with the elements from the input
   // range. The array's size will always be `std::distance(first, last)`.
   // REQUIRES: Iter must be a forward_iterator or better.
   template <typename Iter, EnableIfForwardIterator<Iter> = 0>
-  FixedArray(Iter first, Iter last) : rep_(first, last) {}
+  FixedArray(Iter first, Iter last) : rep_(std::distance(first, last)) {
+    std::uninitialized_copy(first, last, data());
+  }
 
   // Creates the array from an initializer_list.
   FixedArray(std::initializer_list<T> init_list)
       : FixedArray(init_list.begin(), init_list.end()) {}
 
-  ~FixedArray() {}
+  ~FixedArray() noexcept {
+    for (Holder* cur = rep_.begin(); cur != rep_.end(); ++cur) {
+      cur->~Holder();
+    }
+  }
 
   // Assignments are deleted because they break the invariant that the size of a
   // `FixedArray` never changes.
@@ -431,32 +444,13 @@ class FixedArray {
 
   // Rep
   //
-  // A const Rep object holds FixedArray's size and data pointer.
+  // An instance of Rep manages the inline and out-of-line memory for FixedArray
   //
   class Rep : public InlineSpace<inline_elements> {
    public:
-    Rep(size_type n, const value_type& val) : n_(n), p_(MakeHolder(n)) {
-      std::uninitialized_fill_n(p_, n, val);
-    }
+    explicit Rep(size_type n) : n_(n), p_(MakeHolder(n)) {}
 
-    explicit Rep(size_type n) : n_(n), p_(MakeHolder(n)) {
-      // Loop optimizes to nothing for trivially constructible T.
-      for (Holder* p = p_; p != p_ + n; ++p)
-        // Note: no parens: default init only.
-        // Also note '::' to avoid Holder class placement new operator.
-        ::new (static_cast<void*>(p)) Holder;
-    }
-
-    template <typename Iter>
-    Rep(Iter first, Iter last)
-        : n_(std::distance(first, last)), p_(MakeHolder(n_)) {
-      std::uninitialized_copy(first, last, AsValue(p_));
-    }
-
-    ~Rep() {
-      // Destruction must be in reverse order.
-      // Loop optimizes to nothing for trivially destructible T.
-      for (Holder* p = end(); p != begin();) (--p)->~Holder();
+    ~Rep() noexcept {
       if (IsAllocated(size())) {
         std::allocator<Holder>().deallocate(p_, n_);
       } else {

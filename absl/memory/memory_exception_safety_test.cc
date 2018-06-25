@@ -20,11 +20,14 @@
 namespace absl {
 namespace {
 
-using Thrower = ::testing::ThrowingValue<>;
+constexpr int kLength = 50;
+using Thrower = testing::ThrowingValue<testing::TypeSpec::kEverythingThrows>;
+using ThrowerStorage =
+    absl::aligned_storage_t<sizeof(Thrower), alignof(Thrower)>;
+using ThrowerList = std::array<ThrowerStorage, kLength>;
 
 TEST(MakeUnique, CheckForLeaks) {
   constexpr int kValue = 321;
-  constexpr size_t kLength = 10;
   auto tester = testing::MakeExceptionSafetyTester()
                     .WithInitialValue(Thrower(kValue))
                     // Ensures make_unique does not modify the input. The real
@@ -43,6 +46,17 @@ TEST(MakeUnique, CheckForLeaks) {
   EXPECT_TRUE(tester.Test([&](Thrower*) {
     static_cast<void>(absl::make_unique<Thrower[]>(kLength));
   }));
+}
+
+TEST(MemoryInternal, UninitDefaultConstructNNonTrivial) {
+  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
+                  .WithInitialValue(ThrowerList{})
+                  .WithOperation([&](ThrowerList* list_ptr) {
+                    absl::memory_internal::uninitialized_default_construct_n(
+                        list_ptr->data(), kLength);
+                  })
+                  .WithInvariants([&](...) { return true; })
+                  .Test());
 }
 
 }  // namespace

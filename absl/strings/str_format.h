@@ -344,13 +344,13 @@ ABSL_MUST_USE_RESULT str_format_internal::Streamable StreamFormat(
 // PrintF()
 //
 // Writes to stdout given a format std::string and zero or more arguments. This
-// function is functionally equivalent to `std::print()` (and type-safe); prefer
-// `absl::PrintF()` over `std::printf()`.
+// function is functionally equivalent to `std::printf()` (and type-safe);
+// prefer `absl::PrintF()` over `std::printf()`.
 //
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
-//   absl::PrintF("The capital of Mongolia is: %s \n", s);
+//   absl::PrintF("The capital of Mongolia is %s", s);
 //
 //   Outputs: "The capital of Mongolia is Ulaanbaatar"
 //
@@ -364,13 +364,13 @@ int PrintF(const FormatSpec<Args...>& format, const Args&... args) {
 // FPrintF()
 //
 // Writes to a file given a format std::string and zero or more arguments. This
-// function is functionally equivalent to `std::fprint()` (and type-safe);
+// function is functionally equivalent to `std::fprintf()` (and type-safe);
 // prefer `absl::FPrintF()` over `std::fprintf()`.
 //
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
-//   absl::FPrintF("The capital of Mongolia is: %s \n", s);
+//   absl::FPrintF("The capital of Mongolia is %s", s);
 //
 //   Outputs: "The capital of Mongolia is Ulaanbaatar"
 //
@@ -385,15 +385,17 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 // SNPrintF()
 //
 // Writes to a sized buffer given a format std::string and zero or more arguments.
-// This function is functionally equivalent to `std::snprint()` (and type-safe);
-// prefer `absl::SNPrintF()` over `std::snprintf()`.
+// This function is functionally equivalent to `std::snprintf()` (and
+// type-safe); prefer `absl::SNPrintF()` over `std::snprintf()`.
 //
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
-//   absl::FPrintF("The capital of Mongolia is: %s \n", s);
+//   char output[128];
+//   absl::SNPrintF(output, sizeof(output),
+//                  "The capital of Mongolia is %s", s);
 //
-//   Outputs: "The capital of Mongolia is Ulaanbaatar"
+//   Post-condition: output == "The capital of Mongolia is Ulaanbaatar"
 //
 template <typename... Args>
 int SNPrintF(char* output, std::size_t size, const FormatSpec<Args...>& format,

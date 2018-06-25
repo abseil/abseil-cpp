@@ -42,7 +42,10 @@ cc_library(
     name = "bad_any_cast",
     hdrs = ["bad_any_cast.h"],
     copts = ABSL_DEFAULT_COPTS,
-    deps = [":bad_any_cast_impl"],
+    deps = [
+        ":bad_any_cast_impl",
+        "//absl/base:config",
+    ],
 )
 
 cc_library(

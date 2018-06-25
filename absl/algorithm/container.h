@@ -634,7 +634,7 @@ container_algorithm_internal::ContainerIter<C> c_generate_n(C& c, Size n,
 
 // Note: `c_xx()` <algorithm> container versions for `remove()`, `remove_if()`,
 // and `unique()` are omitted, because it's not clear whether or not such
-// functions should call erase their supplied sequences afterwards. Either
+// functions should call erase on their supplied sequences afterwards. Either
 // behavior would be surprising for a different set of users.
 //
 

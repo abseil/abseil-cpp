@@ -14,6 +14,8 @@
 
 #include "absl/types/bad_any_cast.h"
 
+#ifndef ABSL_HAVE_STD_ANY
+
 #include <cstdlib>
 
 #include "absl/base/config.h"
@@ -38,3 +40,5 @@ void ThrowBadAnyCast() {
 
 }  // namespace any_internal
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_ANY

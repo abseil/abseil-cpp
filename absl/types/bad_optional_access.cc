@@ -14,6 +14,8 @@
 
 #include "absl/types/bad_optional_access.h"
 
+#ifndef ABSL_HAVE_STD_OPTIONAL
+
 #include <cstdlib>
 
 #include "absl/base/config.h"
@@ -40,3 +42,5 @@ void throw_bad_optional_access() {
 
 }  // namespace optional_internal
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_OPTIONAL

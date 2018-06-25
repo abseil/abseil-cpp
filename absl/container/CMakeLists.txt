@@ -84,6 +84,25 @@ absl_test(
 )
 
 
+# test fixed_array_exception_safety_test
+set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_SRC "fixed_array_exception_safety_test.cc")
+set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
+  absl::container
+  absl_base_internal_exception_safety_testing
+)
+
+absl_test(
+  TARGET
+    fixed_array_exception_safety_test
+  SOURCES
+    ${FIXED_ARRAY_EXCEPTION_SAFETY_TEST_SRC}
+  PUBLIC_LIBRARIES
+    ${FIXED_ARRAY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
+  PRIVATE_COMPILE_FLAGS
+    ${ABSL_EXCEPTIONS_FLAG}
+)
+
+
 # test inlined_vector_test
 set(INLINED_VECTOR_TEST_SRC "inlined_vector_test.cc")
 set(INLINED_VECTOR_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate test_instance_tracker_lib)

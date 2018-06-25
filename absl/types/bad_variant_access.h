@@ -23,6 +23,18 @@
 
 #include <stdexcept>
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_STD_VARIANT
+
+#include <variant>
+
+namespace absl {
+using std::bad_variant_access;
+}  // namespace absl
+
+#else  // ABSL_HAVE_STD_VARIANT
+
 namespace absl {
 
 // -----------------------------------------------------------------------------
@@ -60,5 +72,7 @@ namespace variant_internal {
 
 }  // namespace variant_internal
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_VARIANT
 
 #endif  // ABSL_TYPES_BAD_VARIANT_ACCESS_H_
