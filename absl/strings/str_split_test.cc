@@ -37,6 +37,34 @@ using ::testing::ElementsAre;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
+TEST(Split, TraitsTest) {
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<int>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<std::string>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::vector<std::string>>::value,
+                "");
+  static_assert(
+      !absl::strings_internal::SplitterIsConvertibleTo<std::vector<int>>::value,
+      "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::vector<absl::string_view>>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<std::string, std::string>>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<absl::string_view, absl::string_view>>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<int, std::string>>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<std::string, int>>::value,
+                "");
+}
+
 // This tests the overall split API, which is made up of the absl::StrSplit()
 // function and the Delimiter objects in the absl:: namespace.
 // This TEST macro is outside of any namespace to require full specification of

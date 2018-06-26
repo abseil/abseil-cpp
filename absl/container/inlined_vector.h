@@ -645,12 +645,12 @@ class InlinedVector {
   class AllocatorAndTag : private allocator_type {
    public:
     explicit AllocatorAndTag(const allocator_type& a, Tag t = Tag())
-        : allocator_type(a), tag_(t) {
-    }
+        : allocator_type(a), tag_(t) {}
     Tag& tag() { return tag_; }
     const Tag& tag() const { return tag_; }
     allocator_type& allocator() { return *this; }
     const allocator_type& allocator() const { return *this; }
+
    private:
     Tag tag_;
   };
@@ -696,19 +696,13 @@ class InlinedVector {
     return reinterpret_cast<const value_type*>(&rep_.inlined_storage.inlined);
   }
 
-  value_type* allocated_space() {
-    return allocation().buffer();
-  }
-  const value_type* allocated_space() const {
-    return allocation().buffer();
-  }
+  value_type* allocated_space() { return allocation().buffer(); }
+  const value_type* allocated_space() const { return allocation().buffer(); }
 
   const allocator_type& allocator() const {
     return allocator_and_tag_.allocator();
   }
-  allocator_type& allocator() {
-    return allocator_and_tag_.allocator();
-  }
+  allocator_type& allocator() { return allocator_and_tag_.allocator(); }
 
   bool allocated() const { return tag().allocated(); }
 
@@ -1128,8 +1122,7 @@ void InlinedVector<T, N, A>::swap(InlinedVector& other) {
     const size_type b_size = b->size();
     assert(a_size >= b_size);
     // 'a' is larger. Swap the elements up to the smaller array size.
-    std::swap_ranges(a->inlined_space(),
-                     a->inlined_space() + b_size,
+    std::swap_ranges(a->inlined_space(), a->inlined_space() + b_size,
                      b->inlined_space());
 
     // Move the remaining elements: A[b_size,a_size) -> B[b_size,a_size)
@@ -1273,8 +1266,7 @@ void InlinedVector<T, N, A>::Destroy(value_type* ptr, value_type* ptr_last) {
   // scribbling on a vtable pointer.
 #ifndef NDEBUG
   if (ptr != ptr_last) {
-    memset(reinterpret_cast<void*>(ptr), 0xab,
-           sizeof(*ptr) * (ptr_last - ptr));
+    memset(reinterpret_cast<void*>(ptr), 0xab, sizeof(*ptr) * (ptr_last - ptr));
   }
 #endif
 }
@@ -1302,8 +1294,9 @@ void InlinedVector<T, N, A>::AssignRange(Iter first, Iter last,
   // Optimized to avoid reallocation.
   // Prefer reassignment to copy construction for elements.
   iterator out = begin();
-  for ( ; first != last && out != end(); ++first, ++out)
+  for (; first != last && out != end(); ++first, ++out) {
     *out = *first;
+  }
   erase(out, end());
   std::copy(first, last, std::back_inserter(*this));
 }

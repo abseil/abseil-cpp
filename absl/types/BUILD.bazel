@@ -256,6 +256,7 @@ cc_test(
         "variant_benchmark.cc",
     ],
     copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
     deps = [
         ":variant",
         "//absl/utility",

@@ -387,6 +387,7 @@ cc_test(
         "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
+    tags = ["no_test_ios_x86_64"],
     deps = [":malloc_internal"],
 )
 

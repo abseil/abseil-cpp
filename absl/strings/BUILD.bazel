@@ -486,6 +486,9 @@ cc_test(
     srcs = [
         "charconv_benchmark.cc",
     ],
+    tags = [
+        "benchmark",
+    ],
     deps = [
         ":strings",
         "//absl/base",

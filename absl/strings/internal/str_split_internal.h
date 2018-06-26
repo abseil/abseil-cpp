@@ -228,14 +228,31 @@ struct IsInitializerList
 // compiled in C++11 will get an error due to ambiguous conversion paths (in
 // C++11 std::vector<T>::operator= is overloaded to take either a std::vector<T>
 // or an std::initializer_list<T>).
+
+template <typename C, bool has_value_type, bool has_mapped_type>
+struct SplitterIsConvertibleToImpl : std::false_type {};
+
+template <typename C>
+struct SplitterIsConvertibleToImpl<C, true, false>
+    : std::is_constructible<typename C::value_type, absl::string_view> {};
+
+template <typename C>
+struct SplitterIsConvertibleToImpl<C, true, true>
+    : absl::conjunction<
+          std::is_constructible<typename C::key_type, absl::string_view>,
+          std::is_constructible<typename C::mapped_type, absl::string_view>> {};
+
 template <typename C>
 struct SplitterIsConvertibleTo
-    : std::enable_if<
+    : SplitterIsConvertibleToImpl<
+          C,
 #ifdef _GLIBCXX_DEBUG
           !IsStrictlyBaseOfAndConvertibleToSTLContainer<C>::value &&
 #endif  // _GLIBCXX_DEBUG
-          !IsInitializerList<C>::value && HasValueType<C>::value &&
-          HasConstIterator<C>::value> {
+              !IsInitializerList<
+                  typename std::remove_reference<C>::type>::value &&
+              HasValueType<C>::value && HasConstIterator<C>::value,
+          HasMappedType<C>::value> {
 };
 
 // This class implements the range that is returned by absl::StrSplit(). This
@@ -281,7 +298,8 @@ class Splitter {
   // An implicit conversion operator that is restricted to only those containers
   // that the splitter is convertible to.
   template <typename Container,
-            typename OnlyIf = typename SplitterIsConvertibleTo<Container>::type>
+            typename = typename std::enable_if<
+                SplitterIsConvertibleTo<Container>::value>::type>
   operator Container() const {  // NOLINT(runtime/explicit)
     return ConvertToContainer<Container, typename Container::value_type,
                               HasMappedType<Container>::value>()(*this);
