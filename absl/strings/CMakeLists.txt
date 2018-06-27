@@ -82,11 +82,9 @@ absl_library(
 )
 
 # add str_format library
-absl_library(
+absl_header_library(
   TARGET
     absl_str_format
-  SOURCES
-    "str_format.h"
   PUBLIC_LIBRARIES
     str_format_internal
   EXPORT_NAME
@@ -94,7 +92,7 @@ absl_library(
 )
 
 # str_format_internal
- absl_library(
+absl_library(
   TARGET
     str_format_internal
   SOURCES
@@ -123,7 +121,7 @@ absl_library(
 # str_format_extension_internal
 absl_library(
   TARGET
-  str_format_extension_internal
+    str_format_extension_internal
   SOURCES
     "internal/str_format/extension.cc"
     "internal/str_format/extension.h"
