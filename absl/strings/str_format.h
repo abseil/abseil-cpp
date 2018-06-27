@@ -244,8 +244,6 @@ template <typename... Args>
 using FormatSpec =
     typename str_format_internal::FormatSpecDeductionBarrier<Args...>::type;
 
-using absl::str_format_internal::ExtendedParsedFormat;
-
 // ParsedFormat
 //
 // A `ParsedFormat` is a class template representing a preparsed `FormatSpec`,

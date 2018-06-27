@@ -409,6 +409,19 @@ cc_test(
 )
 
 cc_test(
+    name = "numbers_benchmark",
+    srcs = ["numbers_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
     name = "strip_test",
     size = "small",
     srcs = ["strip_test.cc"],
