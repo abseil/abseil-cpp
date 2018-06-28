@@ -403,20 +403,16 @@ class civil_time {
   }
 
   // Binary arithmetic operators.
-  inline friend CONSTEXPR_M civil_time operator+(civil_time a,
-                                                 diff_t n) noexcept {
+  friend CONSTEXPR_F civil_time operator+(civil_time a, diff_t n) noexcept {
     return a += n;
   }
-  inline friend CONSTEXPR_M civil_time operator+(diff_t n,
-                                                 civil_time a) noexcept {
+  friend CONSTEXPR_F civil_time operator+(diff_t n, civil_time a) noexcept {
     return a += n;
   }
-  inline friend CONSTEXPR_M civil_time operator-(civil_time a,
-                                                 diff_t n) noexcept {
+  friend CONSTEXPR_F civil_time operator-(civil_time a, diff_t n) noexcept {
     return a -= n;
   }
-  inline friend CONSTEXPR_M diff_t operator-(const civil_time& lhs,
-                                             const civil_time& rhs) noexcept {
+  friend CONSTEXPR_F diff_t operator-(civil_time lhs, civil_time rhs) noexcept {
     return difference(T{}, lhs.f_, rhs.f_);
   }
 
@@ -434,8 +430,8 @@ class civil_time {
 
 // Disallows difference between differently aligned types.
 // auto n = civil_day(...) - civil_hour(...);  // would be confusing.
-template <typename Tag1, typename Tag2>
-CONSTEXPR_F diff_t operator-(civil_time<Tag1>, civil_time<Tag2>) = delete;
+template <typename T, typename U>
+CONSTEXPR_F diff_t operator-(civil_time<T>, civil_time<U>) = delete;
 
 using civil_year = civil_time<year_tag>;
 using civil_month = civil_time<month_tag>;

@@ -78,6 +78,8 @@ constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 // operators.
 template <typename T, size_t inlined = kFixedArrayUseDefault>
 class FixedArray {
+  static_assert(!std::is_array<T>::value || std::extent<T>::value > 0,
+                "Arrays with unknown bounds cannot be used with FixedArray.");
   static constexpr size_t kInlineBytesDefault = 256;
 
   // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
@@ -337,11 +339,12 @@ class FixedArray {
   }
 
  private:
-  // HolderTraits
+  // Holder
   //
-  // Wrapper to hold elements of type T for the case where T is an array type.
-  // If 'T' is an array type, HolderTraits::type is a struct with a 'T v;'.
-  // Otherwise, HolderTraits::type is simply 'T'.
+  // Wrapper for holding elements of type T for both the case where T is a
+  // C-style array type and the general case where it is not. This is needed for
+  // construction and destruction of the entire array regardless of how many
+  // dimensions it has.
   //
   // Maintainer's Note: The simpler solution would be to simply wrap T in a
   // struct whether it's an array or not: 'struct Holder { T v; };', but
@@ -356,35 +359,23 @@ class FixedArray {
   //     error: call to int __builtin___sprintf_chk(etc...)
   //     will always overflow destination buffer [-Werror]
   //
-  class HolderTraits {
-    template <typename U>
-    struct SelectImpl {
-      using type = U;
-      static pointer AsValue(type* p) { return p; }
-    };
-
-    // Partial specialization for elements of array type.
-    template <typename U, size_t N>
-    struct SelectImpl<U[N]> {
-      struct Holder { U v[N]; };
-      using type = Holder;
-      static pointer AsValue(type* p) { return &p->v; }
-    };
-    using Impl = SelectImpl<value_type>;
-
-   public:
-    using type = typename Impl::type;
-
-    static pointer AsValue(type *p) { return Impl::AsValue(p); }
-
-    // TODO(billydonahue): fix the type aliasing violation
-    // this assertion hints at.
-    static_assert(sizeof(type) == sizeof(value_type),
-                  "Holder must be same size as value_type");
+  template <typename OuterT = value_type,
+            typename InnerT = absl::remove_extent_t<OuterT>,
+            size_t InnerN = std::extent<OuterT>::value>
+  struct ArrayHolder {
+    InnerT array[InnerN];
   };
 
-  using Holder = typename HolderTraits::type;
-  static pointer AsValue(Holder *p) { return HolderTraits::AsValue(p); }
+  using Holder = absl::conditional_t<std::is_array<value_type>::value,
+                                     ArrayHolder<value_type>, value_type>;
+
+  static_assert(sizeof(Holder) == sizeof(value_type), "");
+  static_assert(alignof(Holder) == alignof(value_type), "");
+
+  static pointer AsValue(pointer ptr) { return ptr; }
+  static pointer AsValue(ArrayHolder<value_type>* ptr) {
+    return std::addressof(ptr->array);
+  }
 
   // InlineSpace
   //
