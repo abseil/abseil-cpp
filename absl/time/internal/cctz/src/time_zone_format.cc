@@ -141,6 +141,9 @@ char* Format02d(char* ep, int v) {
 
 // Formats a UTC offset, like +00:00.
 char* FormatOffset(char* ep, int offset, const char* mode) {
+  // TODO: Follow the RFC3339 "Unknown Local Offset Convention" and
+  // generate a "negative zero" when we're formatting a zero offset
+  // as the result of a failed load_time_zone().
   char sign = '+';
   if (offset < 0) {
     offset = -offset;  // bounded by 24h so no overflow

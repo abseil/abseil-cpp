@@ -83,15 +83,6 @@ bool time_zone::Impl::LoadTimeZone(const std::string& name, time_zone* tz) {
   return impl != utc_impl;
 }
 
-const time_zone::Impl& time_zone::Impl::get(const time_zone& tz) {
-  if (tz.impl_ == nullptr) {
-    // Dereferencing an implicit-UTC time_zone is expected to be
-    // rare, so we don't mind paying a small synchronization cost.
-    return *UTCImpl();
-  }
-  return *tz.impl_;
-}
-
 void time_zone::Impl::ClearTimeZoneMapTestOnly() {
   std::lock_guard<std::mutex> lock(time_zone_mutex);
   if (time_zone_map != nullptr) {

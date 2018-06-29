@@ -64,6 +64,17 @@ void TestFormatSpecifier(time_point<D> tp, time_zone tz, const std::string& fmt,
   EXPECT_EQ("xxx " + ans + " yyy", format("xxx " + fmt + " yyy", tp, tz));
 }
 
+// These tests sometimes run on platforms that have zoneinfo data so old
+// that the transition we are attempting to check does not exist, most
+// notably Android emulators.  Fortunately, AndroidZoneInfoSource supports
+// time_zone::version() so, in cases where we've learned that it matters,
+// we can make the check conditionally.
+int VersionCmp(time_zone tz, const std::string& target) {
+  std::string version = tz.version();
+  if (version.empty() && !target.empty()) return 1;  // unknown > known
+  return version.compare(target);
+}
+
 }  // namespace
 
 //
@@ -453,8 +464,8 @@ TEST(Format, ExtendedSecondOffset) {
   EXPECT_TRUE(load_time_zone("America/New_York", &tz));
   tp = convert(civil_second(1883, 11, 18, 16, 59, 59), utc);
   if (tz.lookup(tp).offset == -5 * 60 * 60) {
-    // We're likely dealing with zoneinfo that doesn't support really old
-    // timestamps, so America/New_York never looks to be on local mean time.
+    // It looks like the tzdata is only 32 bit (probably macOS),
+    // which bottoms out at 1901-12-13T20:45:52+00:00.
   } else {
     TestFormatSpecifier(tp, tz, "%E*z", "-04:56:02");
     TestFormatSpecifier(tp, tz, "%Ez", "-04:56");
@@ -464,12 +475,10 @@ TEST(Format, ExtendedSecondOffset) {
 
   EXPECT_TRUE(load_time_zone("Europe/Moscow", &tz));
   tp = convert(civil_second(1919, 6, 30, 23, 59, 59), utc);
-#if defined(__ANDROID__) && __ANDROID_API__ < 25
-  // Only Android 'N'.1 and beyond have this tz2016g transition.
-#else
-  TestFormatSpecifier(tp, tz, "%E*z", "+04:31:19");
-  TestFormatSpecifier(tp, tz, "%Ez", "+04:31");
-#endif
+  if (VersionCmp(tz, "2016g") >= 0) {
+    TestFormatSpecifier(tp, tz, "%E*z", "+04:31:19");
+    TestFormatSpecifier(tp, tz, "%Ez", "+04:31");
+  }
   tp += chrono::seconds(1);
   TestFormatSpecifier(tp, tz, "%E*z", "+04:00:00");
 }

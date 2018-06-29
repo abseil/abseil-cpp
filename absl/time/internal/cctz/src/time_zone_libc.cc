@@ -139,16 +139,22 @@ time_zone::civil_lookup TimeZoneLibC::MakeTime(const civil_second& cs) const {
   return cl;
 }
 
+bool TimeZoneLibC::NextTransition(const time_point<seconds>& tp,
+                                  time_zone::civil_transition* trans) const {
+  return false;
+}
+
+bool TimeZoneLibC::PrevTransition(const time_point<seconds>& tp,
+                                  time_zone::civil_transition* trans) const {
+  return false;
+}
+
+std::string TimeZoneLibC::Version() const {
+  return std::string();  // unknown
+}
+
 std::string TimeZoneLibC::Description() const {
   return local_ ? "localtime" : "UTC";
-}
-
-bool TimeZoneLibC::NextTransition(time_point<seconds>* tp) const {
-  return false;
-}
-
-bool TimeZoneLibC::PrevTransition(time_point<seconds>* tp) const {
-  return false;
 }
 
 }  // namespace cctz

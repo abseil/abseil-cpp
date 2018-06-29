@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2018 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,13 +57,13 @@ constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 // FixedArray
 // -----------------------------------------------------------------------------
 //
-// A `FixedArray` provides a run-time fixed-size array, allocating small arrays
-// inline for efficiency and correctness.
+// A `FixedArray` provides a run-time fixed-size array, allocating a small array
+// inline for efficiency.
 //
 // Most users should not specify an `inline_elements` argument and let
-// `FixedArray<>` automatically determine the number of elements
+// `FixedArray` automatically determine the number of elements
 // to store inline based on `sizeof(T)`. If `inline_elements` is specified, the
-// `FixedArray<>` implementation will inline arrays of
+// `FixedArray` implementation will use inline storage for arrays with a
 // length <= `inline_elements`.
 //
 // Note that a `FixedArray` constructed with a `size_type` argument will
@@ -84,15 +84,12 @@ class FixedArray {
 
   // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
   // but this seems to be mostly pedantic.
-  template <typename Iter>
-  using EnableIfForwardIterator = typename std::enable_if<
-      std::is_convertible<
-          typename std::iterator_traits<Iter>::iterator_category,
-          std::forward_iterator_tag>::value,
-      int>::type;
+  template <typename Iterator>
+  using EnableIfForwardIterator = absl::enable_if_t<std::is_convertible<
+      typename std::iterator_traits<Iterator>::iterator_category,
+      std::forward_iterator_tag>::value>;
 
  public:
-  // For playing nicely with stl:
   using value_type = T;
   using iterator = T*;
   using const_iterator = const T*;
@@ -114,40 +111,38 @@ class FixedArray {
       : FixedArray(other.begin(), other.end()) {}
 
   FixedArray(FixedArray&& other) noexcept(
-  // clang-format off
-      absl::allocator_is_nothrow<std::allocator<value_type>>::value &&
-  // clang-format on
-          std::is_nothrow_move_constructible<value_type>::value)
+      absl::conjunction<absl::allocator_is_nothrow<std::allocator<value_type>>,
+                        std::is_nothrow_move_constructible<value_type>>::value)
       : FixedArray(std::make_move_iterator(other.begin()),
                    std::make_move_iterator(other.end())) {}
 
   // Creates an array object that can store `n` elements.
   // Note that trivially constructible elements will be uninitialized.
-  explicit FixedArray(size_type n) : rep_(n) {
-    absl::memory_internal::uninitialized_default_construct_n(rep_.begin(),
+  explicit FixedArray(size_type n) : storage_(n) {
+    absl::memory_internal::uninitialized_default_construct_n(storage_.begin(),
                                                              size());
   }
 
   // Creates an array initialized with `n` copies of `val`.
-  FixedArray(size_type n, const value_type& val) : rep_(n) {
+  FixedArray(size_type n, const value_type& val) : storage_(n) {
     std::uninitialized_fill_n(data(), size(), val);
   }
 
   // Creates an array initialized with the elements from the input
   // range. The array's size will always be `std::distance(first, last)`.
-  // REQUIRES: Iter must be a forward_iterator or better.
-  template <typename Iter, EnableIfForwardIterator<Iter> = 0>
-  FixedArray(Iter first, Iter last) : rep_(std::distance(first, last)) {
+  // REQUIRES: Iterator must be a forward_iterator or better.
+  template <typename Iterator, EnableIfForwardIterator<Iterator>* = nullptr>
+  FixedArray(Iterator first, Iterator last)
+      : storage_(std::distance(first, last)) {
     std::uninitialized_copy(first, last, data());
   }
 
-  // Creates the array from an initializer_list.
-  FixedArray(std::initializer_list<T> init_list)
+  FixedArray(std::initializer_list<value_type> init_list)
       : FixedArray(init_list.begin(), init_list.end()) {}
 
   ~FixedArray() noexcept {
-    for (Holder* cur = rep_.begin(); cur != rep_.end(); ++cur) {
-      cur->~Holder();
+    for (const StorageElement& cur : storage_) {
+      cur.~StorageElement();
     }
   }
 
@@ -159,7 +154,7 @@ class FixedArray {
   // FixedArray::size()
   //
   // Returns the length of the fixed array.
-  size_type size() const { return rep_.size(); }
+  size_type size() const { return storage_.size(); }
 
   // FixedArray::max_size()
   //
@@ -184,12 +179,12 @@ class FixedArray {
   //
   // Returns a const T* pointer to elements of the `FixedArray`. This pointer
   // can be used to access (but not modify) the contained elements.
-  const_pointer data() const { return AsValue(rep_.begin()); }
+  const_pointer data() const { return AsValueType(storage_.begin()); }
 
   // Overload of FixedArray::data() to return a T* pointer to elements of the
   // fixed array. This pointer can be used to access and modify the contained
   // elements.
-  pointer data() { return AsValue(rep_.begin()); }
+  pointer data() { return AsValueType(storage_.begin()); }
 
   // FixedArray::operator[]
   //
@@ -309,7 +304,7 @@ class FixedArray {
   // FixedArray::fill()
   //
   // Assigns the given `value` to all elements in the fixed array.
-  void fill(const T& value) { std::fill(begin(), end(), value); }
+  void fill(const value_type& val) { std::fill(begin(), end(), val); }
 
   // Relational operators. Equality operators are elementwise using
   // `operator==`, while order operators order FixedArrays lexicographically.
@@ -339,18 +334,18 @@ class FixedArray {
   }
 
  private:
-  // Holder
+  // StorageElement
   //
-  // Wrapper for holding elements of type T for both the case where T is a
-  // C-style array type and the general case where it is not. This is needed for
-  // construction and destruction of the entire array regardless of how many
-  // dimensions it has.
+  // For FixedArrays with a C-style-array value_type, StorageElement is a POD
+  // wrapper struct called StorageElementWrapper that holds the value_type
+  // instance inside. This is needed for construction and destruction of the
+  // entire array regardless of how many dimensions it has. For all other cases,
+  // StorageElement is just an alias of value_type.
   //
-  // Maintainer's Note: The simpler solution would be to simply wrap T in a
-  // struct whether it's an array or not: 'struct Holder { T v; };', but
-  // that causes some paranoid diagnostics to misfire about uses of data(),
-  // believing that 'data()' (aka '&rep_.begin().v') is a pointer to a single
-  // element, rather than the packed array that it really is.
+  // Maintainer's Note: The simpler solution would be to simply wrap value_type
+  // in a struct whether it's an array or not. That causes some paranoid
+  // diagnostics to misfire, believing that 'data()' returns a pointer to a
+  // single element, rather than the packed array that it really is.
   // e.g.:
   //
   //     FixedArray<char> buf(1);
@@ -362,115 +357,95 @@ class FixedArray {
   template <typename OuterT = value_type,
             typename InnerT = absl::remove_extent_t<OuterT>,
             size_t InnerN = std::extent<OuterT>::value>
-  struct ArrayHolder {
+  struct StorageElementWrapper {
     InnerT array[InnerN];
   };
 
-  using Holder = absl::conditional_t<std::is_array<value_type>::value,
-                                     ArrayHolder<value_type>, value_type>;
+  using StorageElement =
+      absl::conditional_t<std::is_array<value_type>::value,
+                          StorageElementWrapper<value_type>, value_type>;
 
-  static_assert(sizeof(Holder) == sizeof(value_type), "");
-  static_assert(alignof(Holder) == alignof(value_type), "");
-
-  static pointer AsValue(pointer ptr) { return ptr; }
-  static pointer AsValue(ArrayHolder<value_type>* ptr) {
+  static pointer AsValueType(pointer ptr) { return ptr; }
+  static pointer AsValueType(StorageElementWrapper<value_type>* ptr) {
     return std::addressof(ptr->array);
   }
 
-  // InlineSpace
-  //
-  // Allocate some space, not an array of elements of type T, so that we can
-  // skip calling the T constructors and destructors for space we never use.
-  // How many elements should we store inline?
-  //   a. If not specified, use a default of kInlineBytesDefault bytes (This is
-  //   currently 256 bytes, which seems small enough to not cause stack overflow
-  //   or unnecessary stack pollution, while still allowing stack allocation for
-  //   reasonably long character arrays).
-  //   b. Never use 0 length arrays (not ISO C++)
-  //
-  template <size_type N, typename = void>
-  class InlineSpace {
-   public:
-    Holder* data() { return reinterpret_cast<Holder*>(space_.data()); }
-    void AnnotateConstruct(size_t n) const { Annotate(n, true); }
-    void AnnotateDestruct(size_t n) const { Annotate(n, false); }
+  static_assert(sizeof(StorageElement) == sizeof(value_type), "");
+  static_assert(alignof(StorageElement) == alignof(value_type), "");
 
-   private:
-#ifndef ADDRESS_SANITIZER
-    void Annotate(size_t, bool) const { }
-#else
-    void Annotate(size_t n, bool creating) const {
-      if (!n) return;
-      const void* bot = &left_redzone_;
-      const void* beg = space_.data();
-      const void* end = space_.data() + n;
-      const void* top = &right_redzone_ + 1;
-      // args: (beg, end, old_mid, new_mid)
-      if (creating) {
-        ANNOTATE_CONTIGUOUS_CONTAINER(beg, top, top, end);
-        ANNOTATE_CONTIGUOUS_CONTAINER(bot, beg, beg, bot);
-      } else {
-        ANNOTATE_CONTIGUOUS_CONTAINER(beg, top, end, top);
-        ANNOTATE_CONTIGUOUS_CONTAINER(bot, beg, bot, beg);
-      }
+  struct NonEmptyInlinedStorage {
+    using StorageElementBuffer =
+        absl::aligned_storage_t<sizeof(StorageElement),
+                                alignof(StorageElement)>;
+    StorageElement* data() {
+      return reinterpret_cast<StorageElement*>(inlined_storage_.data());
     }
+
+#ifdef ADDRESS_SANITIZER
+    void* RedzoneBegin() { return &redzone_begin_; }
+    void* RedzoneEnd() { return &redzone_end_ + 1; }
 #endif  // ADDRESS_SANITIZER
 
-    using Buffer =
-        typename std::aligned_storage<sizeof(Holder), alignof(Holder)>::type;
+    void AnnotateConstruct(size_t);
+    void AnnotateDestruct(size_t);
 
-    ADDRESS_SANITIZER_REDZONE(left_redzone_);
-    std::array<Buffer, N> space_;
-    ADDRESS_SANITIZER_REDZONE(right_redzone_);
+    ADDRESS_SANITIZER_REDZONE(redzone_begin_);
+    std::array<StorageElementBuffer, inline_elements> inlined_storage_;
+    ADDRESS_SANITIZER_REDZONE(redzone_end_);
   };
 
-  // specialization when N = 0.
-  template <typename U>
-  class InlineSpace<0, U> {
-   public:
-    Holder* data() { return nullptr; }
-    void AnnotateConstruct(size_t) const {}
-    void AnnotateDestruct(size_t) const {}
+  struct EmptyInlinedStorage {
+    StorageElement* data() { return nullptr; }
+    void AnnotateConstruct(size_t) {}
+    void AnnotateDestruct(size_t) {}
   };
 
-  // Rep
-  //
-  // An instance of Rep manages the inline and out-of-line memory for FixedArray
-  //
-  class Rep : public InlineSpace<inline_elements> {
-   public:
-    explicit Rep(size_type n) : n_(n), p_(MakeHolder(n)) {}
+  using InlinedStorage =
+      absl::conditional_t<inline_elements == 0, EmptyInlinedStorage,
+                          NonEmptyInlinedStorage>;
 
-    ~Rep() noexcept {
-      if (IsAllocated(size())) {
-        std::allocator<Holder>().deallocate(p_, n_);
-      } else {
+  // Storage
+  //
+  // An instance of Storage manages the inline and out-of-line memory for
+  // instances of FixedArray. This guarantees that even when construction of
+  // individual elements fails in the FixedArray constructor body, the
+  // destructor for Storage will still be called and out-of-line memory will be
+  // properly deallocated.
+  //
+  class Storage : public InlinedStorage {
+   public:
+    explicit Storage(size_type n) : data_(CreateStorage(n)), size_(n) {}
+    ~Storage() noexcept {
+      if (UsingInlinedStorage(size())) {
         this->AnnotateDestruct(size());
+      } else {
+        std::allocator<StorageElement>().deallocate(begin(), size());
       }
     }
-    Holder* begin() const { return p_; }
-    Holder* end() const { return p_ + n_; }
-    size_type size() const { return n_; }
+
+    size_type size() const { return size_; }
+    StorageElement* begin() const { return data_; }
+    StorageElement* end() const { return begin() + size(); }
 
    private:
-    Holder* MakeHolder(size_type n) {
-      if (IsAllocated(n)) {
-        return std::allocator<Holder>().allocate(n);
-      } else {
+    static bool UsingInlinedStorage(size_type n) {
+      return n <= inline_elements;
+    }
+
+    StorageElement* CreateStorage(size_type n) {
+      if (UsingInlinedStorage(n)) {
         this->AnnotateConstruct(n);
-        return this->data();
+        return InlinedStorage::data();
+      } else {
+        return std::allocator<StorageElement>().allocate(n);
       }
     }
 
-    bool IsAllocated(size_type n) const { return n > inline_elements; }
-
-    const size_type n_;
-    Holder* const p_;
+    StorageElement* const data_;
+    const size_type size_;
   };
 
-
-  // Data members
-  Rep rep_;
+  const Storage storage_;
 };
 
 template <typename T, size_t N>
@@ -478,6 +453,26 @@ constexpr size_t FixedArray<T, N>::inline_elements;
 
 template <typename T, size_t N>
 constexpr size_t FixedArray<T, N>::kInlineBytesDefault;
+
+template <typename T, size_t N>
+void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateConstruct(size_t n) {
+#ifdef ADDRESS_SANITIZER
+  if (!n) return;
+  ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), RedzoneEnd(), data() + n);
+  ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), data(), RedzoneBegin());
+#endif                   // ADDRESS_SANITIZER
+  static_cast<void>(n);  // Mark used when not in asan mode
+}
+
+template <typename T, size_t N>
+void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateDestruct(size_t n) {
+#ifdef ADDRESS_SANITIZER
+  if (!n) return;
+  ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), data() + n, RedzoneEnd());
+  ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), RedzoneBegin(), data());
+#endif                   // ADDRESS_SANITIZER
+  static_cast<void>(n);  // Mark used when not in asan mode
+}
 
 }  // namespace absl
 #endif  // ABSL_CONTAINER_FIXED_ARRAY_H_

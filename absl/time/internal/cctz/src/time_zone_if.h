@@ -41,9 +41,13 @@ class TimeZoneIf {
   virtual time_zone::civil_lookup MakeTime(
       const civil_second& cs) const = 0;
 
+  virtual bool NextTransition(const time_point<seconds>& tp,
+                              time_zone::civil_transition* trans) const = 0;
+  virtual bool PrevTransition(const time_point<seconds>& tp,
+                              time_zone::civil_transition* trans) const = 0;
+
+  virtual std::string Version() const = 0;
   virtual std::string Description() const = 0;
-  virtual bool NextTransition(time_point<seconds>* tp) const = 0;
-  virtual bool PrevTransition(time_point<seconds>* tp) const = 0;
 
  protected:
   TimeZoneIf() {}

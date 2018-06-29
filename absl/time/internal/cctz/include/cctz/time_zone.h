@@ -119,7 +119,7 @@ class time_zone {
   // of the given civil-time argument, and the pre, trans, and post
   // members will give the absolute time answers using the pre-transition
   // offset, the transition point itself, and the post-transition offset,
-  // respectively (all three times are equal if kind == UNIQUE).  If any
+  // respectively (all three times are equal if kind == UNIQUE). If any
   // of these three absolute times is outside the representable range of a
   // time_point<seconds> the field is set to its maximum/minimum value.
   //
@@ -159,16 +159,78 @@ class time_zone {
   };
   civil_lookup lookup(const civil_second& cs) const;
 
+  // Finds the time of the next/previous offset change in this time zone.
+  //
+  // By definition, next_transition(tp, &trans) returns false when tp has
+  // its maximum value, and prev_transition(tp, &trans) returns false
+  // when tp has its minimum value. If the zone has no transitions, the
+  // result will also be false no matter what the argument.
+  //
+  // Otherwise, when tp has its minimum value, next_transition(tp, &trans)
+  // returns true and sets trans to the first recorded transition. Chains
+  // of calls to next_transition()/prev_transition() will eventually return
+  // false, but it is unspecified exactly when next_transition(tp, &trans)
+  // jumps to false, or what time is set by prev_transition(tp, &trans) for
+  // a very distant tp.
+  //
+  // Note: Enumeration of time-zone transitions is for informational purposes
+  // only. Modern time-related code should not care about when offset changes
+  // occur.
+  //
+  // Example:
+  //   cctz::time_zone nyc;
+  //   if (!cctz::load_time_zone("America/New_York", &nyc)) { ... }
+  //   const auto now = std::chrono::system_clock::now();
+  //   auto tp = cctz::time_point<cctz::seconds>::min();
+  //   cctz::time_zone::civil_transition trans;
+  //   while (tp <= now && nyc.next_transition(tp, &trans)) {
+  //     // transition: trans.from -> trans.to
+  //     tp = nyc.lookup(trans.to).trans;
+  //   }
+  struct civil_transition {
+    civil_second from;  // the civil time we jump from
+    civil_second to;    // the civil time we jump to
+  };
+  bool next_transition(const time_point<seconds>& tp,
+                       civil_transition* trans) const;
+  template <typename D>
+  bool next_transition(const time_point<D>& tp,
+                       civil_transition* trans) const {
+    return next_transition(detail::split_seconds(tp).first, trans);
+  }
+  bool prev_transition(const time_point<seconds>& tp,
+                       civil_transition* trans) const;
+  template <typename D>
+  bool prev_transition(const time_point<D>& tp,
+                       civil_transition* trans) const {
+    return prev_transition(detail::split_seconds(tp).first, trans);
+  }
+
+  // version() and description() provide additional information about the
+  // time zone. The content of each of the returned strings is unspecified,
+  // however, when the IANA Time Zone Database is the underlying data source
+  // the version() std::string will be in the familar form (e.g, "2018e") or
+  // empty when unavailable.
+  //
+  // Note: These functions are for informational or testing purposes only.
+  std::string version() const;  // empty when unknown
+  std::string description() const;
+
+  // Relational operators.
+  friend bool operator==(time_zone lhs, time_zone rhs) {
+    return &lhs.effective_impl() == &rhs.effective_impl();
+  }
+  friend bool operator!=(time_zone lhs, time_zone rhs) {
+    return !(lhs == rhs);
+  }
+
   class Impl;
 
  private:
   explicit time_zone(const Impl* impl) : impl_(impl) {}
+  const Impl& effective_impl() const;  // handles implicit UTC
   const Impl* impl_;
 };
-
-// Relational operators.
-bool operator==(time_zone lhs, time_zone rhs);
-inline bool operator!=(time_zone lhs, time_zone rhs) { return !(lhs == rhs); }
 
 // Loads the named time zone. May perform I/O on the initial load.
 // If the name is invalid, or some other kind of error occurs, returns
@@ -184,6 +246,7 @@ time_zone utc_time_zone();
 time_zone fixed_time_zone(const seconds& offset);
 
 // Returns a time zone representing the local time zone. Falls back to UTC.
+// Note: local_time_zone.name() may only be something like "localtime".
 time_zone local_time_zone();
 
 // Returns the civil time (cctz::civil_second) within the given time zone at
@@ -227,7 +290,7 @@ bool parse(const std::string&, const std::string&, const time_zone&,
 //   - %E*f - Fractional seconds with full precision (a literal '*')
 //   - %E4Y - Four-character years (-999 ... -001, 0000, 0001 ... 9999)
 //
-// Note that %E0S behaves like %S, and %E0f produces no characters.  In
+// Note that %E0S behaves like %S, and %E0f produces no characters. In
 // contrast %E*f always produces at least one digit, which may be '0'.
 //
 // Note that %Y produces as many characters as it takes to fully render the
@@ -254,7 +317,7 @@ inline std::string format(const std::string& fmt, const time_point<D>& tp,
 // Parses an input std::string according to the provided format std::string and
 // returns the corresponding time_point. Uses strftime()-like formatting
 // options, with the same extensions as cctz::format(), but with the
-// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f.  %Ez
+// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f. %Ez
 // and %E*z also accept the same inputs.
 //
 // %Y consumes as many numeric characters as it can, so the matching data

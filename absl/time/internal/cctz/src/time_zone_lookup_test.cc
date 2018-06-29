@@ -651,6 +651,17 @@ time_zone LoadZone(const std::string& name) {
     /* EXPECT_STREQ(zone, al.abbr); */                            \
   } while (0)
 
+// These tests sometimes run on platforms that have zoneinfo data so old
+// that the transition we are attempting to check does not exist, most
+// notably Android emulators.  Fortunately, AndroidZoneInfoSource supports
+// time_zone::version() so, in cases where we've learned that it matters,
+// we can make the check conditionally.
+int VersionCmp(time_zone tz, const std::string& target) {
+  std::string version = tz.version();
+  if (version.empty() && !target.empty()) return 1;  // unknown > known
+  return version.compare(target);
+}
+
 }  // namespace
 
 TEST(TimeZones, LoadZonesConcurrently) {
@@ -981,6 +992,69 @@ TEST(MakeTime, SysSecondsLimits) {
   EXPECT_EQ(time_point<absl::time_internal::cctz::seconds>::min(), tp);
 }
 
+TEST(NextTransition, UTC) {
+  const auto tz = utc_time_zone();
+  time_zone::civil_transition trans;
+
+  auto tp = time_point<absl::time_internal::cctz::seconds>::min();
+  EXPECT_FALSE(tz.next_transition(tp, &trans));
+
+  tp = time_point<absl::time_internal::cctz::seconds>::max();
+  EXPECT_FALSE(tz.next_transition(tp, &trans));
+}
+
+TEST(PrevTransition, UTC) {
+  const auto tz = utc_time_zone();
+  time_zone::civil_transition trans;
+
+  auto tp = time_point<absl::time_internal::cctz::seconds>::max();
+  EXPECT_FALSE(tz.prev_transition(tp, &trans));
+
+  tp = time_point<absl::time_internal::cctz::seconds>::min();
+  EXPECT_FALSE(tz.prev_transition(tp, &trans));
+}
+
+TEST(NextTransition, AmericaNewYork) {
+  const auto tz = LoadZone("America/New_York");
+  time_zone::civil_transition trans;
+
+  auto tp = convert(civil_second(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.next_transition(tp, &trans));
+  EXPECT_EQ(civil_second(2018, 11, 4, 2, 0, 0), trans.from);
+  EXPECT_EQ(civil_second(2018, 11, 4, 1, 0, 0), trans.to);
+
+  tp = time_point<absl::time_internal::cctz::seconds>::max();
+  EXPECT_FALSE(tz.next_transition(tp, &trans));
+
+  tp = time_point<absl::time_internal::cctz::seconds>::min();
+  EXPECT_TRUE(tz.next_transition(tp, &trans));
+  if (trans.from == civil_second(1918, 3, 31, 2, 0, 0)) {
+    // It looks like the tzdata is only 32 bit (probably macOS),
+    // which bottoms out at 1901-12-13T20:45:52+00:00.
+    EXPECT_EQ(civil_second(1918, 3, 31, 3, 0, 0), trans.to);
+  } else {
+    EXPECT_EQ(civil_second(1883, 11, 18, 12, 3, 58), trans.from);
+    EXPECT_EQ(civil_second(1883, 11, 18, 12, 0, 0), trans.to);
+  }
+}
+
+TEST(PrevTransition, AmericaNewYork) {
+  const auto tz = LoadZone("America/New_York");
+  time_zone::civil_transition trans;
+
+  auto tp = convert(civil_second(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.prev_transition(tp, &trans));
+  EXPECT_EQ(civil_second(2018, 3, 11, 2, 0, 0), trans.from);
+  EXPECT_EQ(civil_second(2018, 3, 11, 3, 0, 0), trans.to);
+
+  tp = time_point<absl::time_internal::cctz::seconds>::min();
+  EXPECT_FALSE(tz.prev_transition(tp, &trans));
+
+  tp = time_point<absl::time_internal::cctz::seconds>::max();
+  EXPECT_TRUE(tz.prev_transition(tp, &trans));
+  // We have a transition but we don't know which one.
+}
+
 TEST(TimeZoneEdgeCase, AmericaNewYork) {
   const time_zone tz = LoadZone("America/New_York");
 
@@ -1104,35 +1178,31 @@ TEST(TimeZoneEdgeCase, PacificApia) {
 TEST(TimeZoneEdgeCase, AfricaCairo) {
   const time_zone tz = LoadZone("Africa/Cairo");
 
-#if defined(__ANDROID__) && __ANDROID_API__ < 21
-  // Only Android 'L' and beyond have this tz2014c transition.
-#else
-  // An interesting case of midnight not existing.
-  //
-  //   1400191199 == Thu, 15 May 2014 23:59:59 +0200 (EET)
-  //   1400191200 == Fri, 16 May 2014 01:00:00 +0300 (EEST)
-  auto tp = convert(civil_second(2014, 5, 15, 23, 59, 59), tz);
-  ExpectTime(tp, tz, 2014, 5, 15, 23, 59, 59, 2 * 3600, false, "EET");
-  tp += absl::time_internal::cctz::seconds(1);
-  ExpectTime(tp, tz, 2014, 5, 16, 1, 0, 0, 3 * 3600, true, "EEST");
-#endif
+  if (VersionCmp(tz, "2014c") >= 0) {
+    // An interesting case of midnight not existing.
+    //
+    //   1400191199 == Thu, 15 May 2014 23:59:59 +0200 (EET)
+    //   1400191200 == Fri, 16 May 2014 01:00:00 +0300 (EEST)
+    auto tp = convert(civil_second(2014, 5, 15, 23, 59, 59), tz);
+    ExpectTime(tp, tz, 2014, 5, 15, 23, 59, 59, 2 * 3600, false, "EET");
+    tp += absl::time_internal::cctz::seconds(1);
+    ExpectTime(tp, tz, 2014, 5, 16, 1, 0, 0, 3 * 3600, true, "EEST");
+  }
 }
 
 TEST(TimeZoneEdgeCase, AfricaMonrovia) {
   const time_zone tz = LoadZone("Africa/Monrovia");
 
-#if defined(__ANDROID__) && __ANDROID_API__ < 26
-  // Only Android 'O' and beyond have this tz2017b transition.
-#else
-  // Strange offset change -00:44:30 -> +00:00:00 (non-DST)
-  //
-  //   63593069 == Thu,  6 Jan 1972 23:59:59 -0044 (MMT)
-  //   63593070 == Fri,  7 Jan 1972 00:44:30 +0000 (GMT)
-  auto tp = convert(civil_second(1972, 1, 6, 23, 59, 59), tz);
-  ExpectTime(tp, tz, 1972, 1, 6, 23, 59, 59, -44.5 * 60, false, "MMT");
-  tp += absl::time_internal::cctz::seconds(1);
-  ExpectTime(tp, tz, 1972, 1, 7, 0, 44, 30, 0 * 60, false, "GMT");
-#endif
+  if (VersionCmp(tz, "2017b") >= 0) {
+    // Strange offset change -00:44:30 -> +00:00:00 (non-DST)
+    //
+    //   63593069 == Thu,  6 Jan 1972 23:59:59 -0044 (MMT)
+    //   63593070 == Fri,  7 Jan 1972 00:44:30 +0000 (GMT)
+    auto tp = convert(civil_second(1972, 1, 6, 23, 59, 59), tz);
+    ExpectTime(tp, tz, 1972, 1, 6, 23, 59, 59, -44.5 * 60, false, "MMT");
+    tp += absl::time_internal::cctz::seconds(1);
+    ExpectTime(tp, tz, 1972, 1, 7, 0, 44, 30, 0 * 60, false, "GMT");
+  }
 }
 
 TEST(TimeZoneEdgeCase, AmericaJamaica) {
@@ -1144,28 +1214,29 @@ TEST(TimeZoneEdgeCase, AmericaJamaica) {
   const time_zone tz = LoadZone("America/Jamaica");
 
   // Before the first transition.
-  auto tp = convert(civil_second(1889, 12, 31, 0, 0, 0), tz);
-#if AMERICA_JAMAICA_PRE_1913_OFFSET_FIX
-  // Commit 907241e: Fix off-by-1 error for Jamaica and T&C before 1913.
-  // Until that commit has made its way into a full release we avoid the
-  // expectations on the -18430 offset below.  TODO: Uncomment these.
-  ExpectTime(tp, tz, 1889, 12, 31, 0, 0, 0, -18430, false,
-             tz.lookup(tp).abbr);
+  if (!tz.version().empty() && VersionCmp(tz, "2018d") >= 0) {
+    // We avoid the expectations on the -18430 offset below unless we are
+    // certain we have commit 907241e (Fix off-by-1 error for Jamaica and
+    // T&C before 1913) from 2018d.  TODO: Remove the "version() not empty"
+    // part when 2018d is generally available from /usr/share/zoneinfo.
+    auto tp = convert(civil_second(1889, 12, 31, 0, 0, 0), tz);
+    ExpectTime(tp, tz, 1889, 12, 31, 0, 0, 0, -18430, false,
+               tz.lookup(tp).abbr);
 
-  // Over the first (abbreviation-change only) transition.
-  //   -2524503170 == Tue, 31 Dec 1889 23:59:59 -0507 (LMT)
-  //   -2524503169 == Wed,  1 Jan 1890 00:00:00 -0507 (KMT)
-  tp = convert(civil_second(1889, 12, 31, 23, 59, 59), tz);
-  ExpectTime(tp, tz, 1889, 12, 31, 23, 59, 59, -18430, false,
-             tz.lookup(tp).abbr);
-  tp += absl::time_internal::cctz::seconds(1);
-  ExpectTime(tp, tz, 1890, 1, 1, 0, 0, 0, -18430, false, "KMT");
-#endif
+    // Over the first (abbreviation-change only) transition.
+    //   -2524503170 == Tue, 31 Dec 1889 23:59:59 -0507 (LMT)
+    //   -2524503169 == Wed,  1 Jan 1890 00:00:00 -0507 (KMT)
+    tp = convert(civil_second(1889, 12, 31, 23, 59, 59), tz);
+    ExpectTime(tp, tz, 1889, 12, 31, 23, 59, 59, -18430, false,
+               tz.lookup(tp).abbr);
+    tp += absl::time_internal::cctz::seconds(1);
+    ExpectTime(tp, tz, 1890, 1, 1, 0, 0, 0, -18430, false, "KMT");
+  }
 
   // Over the last (DST) transition.
   //     436341599 == Sun, 30 Oct 1983 01:59:59 -0400 (EDT)
   //     436341600 == Sun, 30 Oct 1983 01:00:00 -0500 (EST)
-  tp = convert(civil_second(1983, 10, 30, 1, 59, 59), tz);
+  auto tp = convert(civil_second(1983, 10, 30, 1, 59, 59), tz);
   ExpectTime(tp, tz, 1983, 10, 30, 1, 59, 59, -4 * 3600, true, "EDT");
   tp += absl::time_internal::cctz::seconds(1);
   ExpectTime(tp, tz, 1983, 10, 30, 1, 0, 0, -5 * 3600, false, "EST");

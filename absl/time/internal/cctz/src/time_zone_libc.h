@@ -35,9 +35,12 @@ class TimeZoneLibC : public TimeZoneIf {
       const time_point<seconds>& tp) const override;
   time_zone::civil_lookup MakeTime(
       const civil_second& cs) const override;
+  bool NextTransition(const time_point<seconds>& tp,
+                      time_zone::civil_transition* trans) const override;
+  bool PrevTransition(const time_point<seconds>& tp,
+                      time_zone::civil_transition* trans) const override;
+  std::string Version() const override;
   std::string Description() const override;
-  bool NextTransition(time_point<seconds>* tp) const override;
-  bool PrevTransition(time_point<seconds>* tp) const override;
 
  private:
   const bool local_;  // localtime or UTC

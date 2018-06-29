@@ -31,6 +31,11 @@ class ZoneInfoSource {
 
   virtual std::size_t Read(void* ptr, std::size_t size) = 0;  // like fread()
   virtual int Skip(std::size_t offset) = 0;  // like fseek()
+
+  // Until the zoneinfo data supports versioning information, we provide
+  // a way for a ZoneInfoSource to indicate it out-of-band.  The default
+  // implementation returns an empty std::string.
+  virtual std::string Version() const;
 };
 
 }  // namespace cctz

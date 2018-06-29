@@ -754,23 +754,21 @@ void BM_Zone_LoadAllTimeZonesCached(benchmark::State& state) {
 }
 BENCHMARK(BM_Zone_LoadAllTimeZonesCached);
 
-void BM_Zone_TimeZoneImplGetImplicit(benchmark::State& state) {
+void BM_Zone_TimeZoneEqualityImplicit(benchmark::State& state) {
   cctz::time_zone tz;  // implicit UTC
-  cctz::time_zone::Impl::get(tz);
   while (state.KeepRunning()) {
-    cctz::time_zone::Impl::get(tz);
+    benchmark::DoNotOptimize(tz == tz);
   }
 }
-BENCHMARK(BM_Zone_TimeZoneImplGetImplicit);
+BENCHMARK(BM_Zone_TimeZoneEqualityImplicit);
 
-void BM_Zone_TimeZoneImplGetExplicit(benchmark::State& state) {
+void BM_Zone_TimeZoneEqualityExplicit(benchmark::State& state) {
   cctz::time_zone tz = cctz::utc_time_zone();  // explicit UTC
-  cctz::time_zone::Impl::get(tz);
   while (state.KeepRunning()) {
-    cctz::time_zone::Impl::get(tz);
+    benchmark::DoNotOptimize(tz == tz);
   }
 }
-BENCHMARK(BM_Zone_TimeZoneImplGetExplicit);
+BENCHMARK(BM_Zone_TimeZoneEqualityExplicit);
 
 void BM_Zone_UTCTimeZone(benchmark::State& state) {
   cctz::time_zone tz;
