@@ -62,7 +62,114 @@ function(absl_library)
   endif()
 endfunction()
 
+#
+# CMake function to imitate Bazel's cc_library rule.
+#
+# Parameters:
+# NAME: name of target (see Note)
+# HDRS: List of public header files for the library
+# SRCS: List of source files for the library
+# DEPS: List of other libraries to be linked in to the binary targets
+# COPTS: List of private compile options
+# DEFINES: List of public defines
+# LINKOPTS: List of link options
+# VISIBILITY_PUBLIC: Add this so that this library will be exported under absl:: (see Note).
+# TESTONLY: When added, this target will only be built if user passes -DBUILD_TESTING=ON to CMake.
+#
+# Note:
+#
+# By default, absl_cc_library will always create a library named absl_${NAME},
+# which means other targets can only depend this library as absl_${NAME}, not ${NAME}.
+# This is to reduce namespace pollution.
+#
+# absl_cc_library(
+#   NAME
+#     awesome_lib
+#   HDRS
+#     "a.h"
+#   SRCS
+#     "a.cc"
+# )
+# absl_cc_library(
+#   NAME
+#     fantastic_lib
+#   SRCS
+#     "b.cc"
+#   DEPS
+#     absl_awesome_lib # not "awesome_lib"!
+# )
+#
+# If VISIBILITY_PUBLIC is set, absl_cc_library will also create an alias absl::${NAME}
+# for public use.
+#
+# absl_cc_library(
+#   NAME
+#     main_lib
+#   ...
+#   VISIBILITY_PUBLIC
+# )
+#
+# User can then use the library as absl::main_lib (although absl_main_lib is defined too).
+#
+# TODO: Implement "ALWAYSLINK"
 
+function(absl_cc_library)
+  cmake_parse_arguments(ABSL_CC_LIB
+    "DISABLE_INSTALL;VISIBILITY_PUBLIC;TESTONLY"
+    "NAME"
+    "HDRS;SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
+    ${ARGN}
+  )
+
+  if (NOT ABSL_CC_LIB_TESTONLY OR BUILD_TESTING)
+    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    string(TOUPPER ${_NAME} _UPPER_NAME)
+
+    # Check if this is a header-only library
+    if (ABSL_CC_LIB_SRCS)
+      set(_SRCS ${ABSL_CC_LIB_SRCS})
+      list(FILTER _SRCS INCLUDE REGEX "\.cc$")
+      list(LENGTH _SRCS ABSL_CC_LIB_SRCS_LEN)
+    else()
+      set(ABSL_CC_LIB_SRCS_LEN 0)
+    endif()
+
+    if(ABSL_CC_LIB_SRCS_LEN)
+      add_library(${_NAME} STATIC ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
+    else()
+      set(__dummy_header_only_lib_file "${CMAKE_CURRENT_BINARY_DIR}/${_NAME}_header_only_dummy.cc")
+
+      if(NOT EXISTS ${__dummy_header_only_lib_file})
+        file(WRITE ${__dummy_header_only_lib_file}
+          "/* generated file for header-only cmake target */
+
+          namespace absl {
+            // single meaningless symbol
+            void ${_NAME}__header_fakesym() {}
+          }  // namespace absl")
+      endif()
+
+      add_library(${_NAME} ${__dummy_header_only_lib_file} ${ABSL_CC_LIB_HDRS})
+    endif()
+
+    target_compile_options(${_NAME} PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_LIB_COPTS})
+    target_link_libraries(${_NAME}
+      PUBLIC ${ABSL_CC_LIB_DEPS}
+      PRIVATE ${ABSL_CC_LIB_LINKOPTS}
+    )
+    target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
+
+    target_include_directories(${_NAME}
+      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
+    )
+    # Add all Abseil targets to a a folder in the IDE for organization.
+    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+    if(ABSL_CC_LIB_VISIBILITY_PUBLIC)
+      add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
+    endif()
+  endif()
+endfunction()
 
 #
 # header only virtual target creation

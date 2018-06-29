@@ -99,33 +99,26 @@ absl_library(
     throw_delegate
 )
 
-if(BUILD_TESTING)
-  # exception-safety testing library
-  set(EXCEPTION_SAFETY_TESTING_SRC
+
+# exception-safety testing library
+absl_cc_library(
+  NAME
+    exception_safety_testing
+  HDRS
     "internal/exception_safety_testing.h"
+  SRCS
     "internal/exception_safety_testing.cc"
-  )
-  set(EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES
-    ${ABSL_TEST_COMMON_LIBRARIES}
+  COPTS
+    ${ABSL_EXCEPTIONS_FLAG}
+  DEPS
     absl::base
     absl::memory
     absl::meta
     absl::strings
     absl::optional
     gtest
-  )
-
-absl_library(
-  TARGET
-    absl_base_internal_exception_safety_testing
-  SOURCES
-    ${EXCEPTION_SAFETY_TESTING_SRC}
-  PUBLIC_LIBRARIES
-    ${EXCEPTION_SAFETY_TESTING_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
+  TESTONLY
 )
-endif()
 
 
 # dynamic_annotations library
@@ -368,7 +361,7 @@ absl_test(
 set(EXCEPTION_SAFETY_TESTING_TEST_SRC "exception_safety_testing_test.cc")
 set(EXCEPTION_SAFETY_TESTING_TEST_PUBLIC_LIBRARIES
   absl::base
-  absl_base_internal_exception_safety_testing
+  absl_exception_safety_testing
   absl::memory
   absl::meta
   absl::strings
