@@ -45,11 +45,11 @@ using diff_t = std::int_fast64_t;
 namespace detail {
 
 // Type aliases that indicate normalized argument values.
-using month_t = std::int_fast8_t;   // [1:12]
-using day_t = std::int_fast8_t;     // [1:31]
-using hour_t = std::int_fast8_t;    // [0:23]
-using minute_t = std::int_fast8_t;  // [0:59]
-using second_t = std::int_fast8_t;  // [0:59]
+using month_t = std::uint_fast8_t;   // [1:12]
+using day_t = std::uint_fast8_t;     // [1:31]
+using hour_t = std::uint_fast8_t;    // [0:23]
+using minute_t = std::uint_fast8_t;  // [0:59]
+using second_t = std::uint_fast8_t;  // [0:59]
 
 // Normalized civil-time fields: Y-M-D HH:MM:SS.
 struct fields {
@@ -57,11 +57,11 @@ struct fields {
                      hour_t hour, minute_t minute, second_t second)
       : y(year), m(month), d(day), hh(hour), mm(minute), ss(second) {}
   std::int_least64_t y;
-  std::int_least8_t m;
-  std::int_least8_t d;
-  std::int_least8_t hh;
-  std::int_least8_t mm;
-  std::int_least8_t ss;
+  std::uint_least8_t m;
+  std::uint_least8_t d;
+  std::uint_least8_t hh;
+  std::uint_least8_t mm;
+  std::uint_least8_t ss;
 };
 
 struct second_tag {};
