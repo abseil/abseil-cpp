@@ -50,7 +50,7 @@
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
 
-#if !defined(_WIN32)
+#if !defined(_MSC_VER)
 #include <sys/time.h>
 #else
 #include <winsock2.h>
