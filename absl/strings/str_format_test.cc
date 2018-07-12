@@ -384,8 +384,8 @@ TEST(StrFormat, BehavesAsDocumented) {
   EXPECT_EQ(StrFormat("%G", 1e10), "1E+10");
   //     a/A - lower,upper case hex    Eg: -3.0 -> "-0x1.8p+1"/"-0X1.8P+1"
 
-// On NDK r16, there is a regression in hexfloat formatting.
-#if !defined(__NDK_MAJOR__) || __NDK_MAJOR__ != 16
+// On Android platform <=21, there is a regression in hexfloat formatting.
+#if !defined(__ANDROID_API__) || __ANDROID_API__ > 21
   EXPECT_EQ(StrFormat("%.1a", -3.0), "-0x1.8p+1");  // .1 to fix MSVC output
   EXPECT_EQ(StrFormat("%.1A", -3.0), "-0X1.8P+1");  // .1 to fix MSVC output
 #endif

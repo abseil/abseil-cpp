@@ -18,11 +18,10 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-config_setting(
+load(":compiler_config_setting.bzl", "create_llvm_config")
+
+create_llvm_config(
     name = "llvm_compiler",
-    values = {
-        "compiler": "llvm",
-    },
     visibility = [":__subpackages__"],
 )
 

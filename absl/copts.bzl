@@ -31,7 +31,6 @@ GCC_TEST_FLAGS = [
     "-Wno-unused-private-field",
 ]
 
-
 # Docs on single flags is preceded by a comment.
 # Docs on groups of flags is preceded by ###.
 

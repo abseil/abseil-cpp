@@ -206,12 +206,28 @@ void RawLog(absl::LogSeverity severity, const char* file, int line,
   va_end(ap);
 }
 
+// Non-formatting version of RawLog().
+//
+// TODO(gfalcon): When string_view no longer depends on base, change this
+// interface to take its message as a string_view instead.
+static void DefaultInternalLog(absl::LogSeverity severity, const char* file,
+                               int line, const std::string& message) {
+  RawLog(severity, file, line, "%s", message.c_str());
+}
+
 bool RawLoggingFullySupported() {
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
   return true;
 #else  // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
   return false;
 #endif  // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
+}
+
+ABSL_CONST_INIT absl::base_internal::AtomicHook<InternalLogFunction>
+    internal_log_function(DefaultInternalLog);
+
+void RegisterInternalLogFunction(InternalLogFunction func) {
+  internal_log_function.Store(func);
 }
 
 }  // namespace raw_logging_internal

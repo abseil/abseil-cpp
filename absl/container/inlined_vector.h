@@ -689,11 +689,14 @@ class InlinedVector {
     new (&rep_.allocation_storage.allocation) Allocation(allocation);
   }
 
+  // TODO(absl-team): investigate whether the reinterpret_cast is appropriate.
   value_type* inlined_space() {
-    return reinterpret_cast<value_type*>(&rep_.inlined_storage.inlined);
+    return reinterpret_cast<value_type*>(
+        std::addressof(rep_.inlined_storage.inlined[0]));
   }
   const value_type* inlined_space() const {
-    return reinterpret_cast<const value_type*>(&rep_.inlined_storage.inlined);
+    return reinterpret_cast<const value_type*>(
+        std::addressof(rep_.inlined_storage.inlined[0]));
   }
 
   value_type* allocated_space() { return allocation().buffer(); }

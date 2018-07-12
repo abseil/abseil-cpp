@@ -310,7 +310,7 @@ absl_test(
 
 # test raw_logging_test
 set(RAW_LOGGING_TEST_SRC "raw_logging_test.cc")
-set(RAW_LOGGING_TEST_PUBLIC_LIBRARIES absl::base)
+set(RAW_LOGGING_TEST_PUBLIC_LIBRARIES absl::base absl::strings)
 
 absl_test(
   TARGET

@@ -248,7 +248,7 @@ using variant_alternative_t = typename variant_alternative<I, T>::type;
 //
 // Example:
 //
-//   absl::variant<int, std::string> bar = 42;
+//   absl::variant<int, std::string> foo = 42;
 //   if (absl::holds_alternative<int>(foo)) {
 //       std::cout << "The variant holds an integer";
 //   }
