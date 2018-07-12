@@ -114,9 +114,12 @@ class KernelTimeout {
   // Windows. Callers should recognize that the return value is a
   // relative duration (it should be recomputed by calling this method
   // in the case of a spurious wakeup).
-  typedef unsigned long dword;
-  dword InMillisecondsFromNow() const {
-    constexpr dword kInfinite = static_cast<dword>(-1);
+  // This header file may be included transitively by public header files,
+  // so we define our own DWORD and INFINITE instead of getting them from
+  // <intsafe.h>.
+  typedef unsigned long DWord;
+  DWord InMillisecondsFromNow() const {
+    constexpr DWord kInfinite = static_cast<DWord>(-1);
     if (!has_timeout()) {
       return kInfinite;
     }
@@ -130,10 +133,10 @@ class KernelTimeout {
           std::numeric_limits<int64_t>::max() - 999999u;
       uint64_t ms_from_now =
           (std::min<uint64_t>(max_nanos, ns_ - now) + 999999u) / 1000000u;
-      if (ms_from_now > std::numeric_limits<dword>::max()) {
+      if (ms_from_now > std::numeric_limits<DWord>::max()) {
         return kInfinite;
       }
-      return static_cast<dword>(ms_from_now);
+      return static_cast<DWord>(ms_from_now);
     }
     return 0;
   }
