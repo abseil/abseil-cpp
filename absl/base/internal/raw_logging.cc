@@ -139,7 +139,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 #endif
 
 #ifdef ABSL_MIN_LOG_LEVEL
-  if (static_cast<int>(severity) < ABSL_MIN_LOG_LEVEL &&
+  if (severity < static_cast<absl::LogSeverity>(ABSL_MIN_LOG_LEVEL) &&
       severity < absl::LogSeverity::kFatal) {
     enabled = false;
   }
