@@ -373,11 +373,11 @@ struct SkipWhitespace {
 
 // StrSplit()
 //
-// Splits a given `std::string` based on the provided `Delimiter` object,
-// returning the elements within the type specified by the caller. Optionally,
-// you may also pass a `Predicate` to `StrSplit()` indicating whether to include
-// or exclude the resulting element within the final result set. (See the
-// overviews for Delimiters and Predicates above.)
+// Splits a given std::string based on the provided `Delimiter` object, returning the
+// elements within the type specified by the caller. Optionally, you may pass a
+// `Predicate` to `StrSplit()` indicating whether to include or exclude the
+// resulting element within the final result set. (See the overviews for
+// Delimiters and Predicates above.)
 //
 // Example:
 //

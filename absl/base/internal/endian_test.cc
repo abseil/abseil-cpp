@@ -33,32 +33,16 @@ const uint16_t k16Value{0x0123};
 const int kNumValuesToTest = 1000000;
 const int kRandomSeed = 12345;
 
-#ifdef ABSL_IS_BIG_ENDIAN
+#if defined(ABSL_IS_BIG_ENDIAN)
 const uint64_t kInitialInNetworkOrder{kInitialNumber};
 const uint64_t k64ValueLE{0xefcdab8967452301};
 const uint32_t k32ValueLE{0x67452301};
 const uint16_t k16ValueLE{0x2301};
-const uint8_t k8ValueLE{k8Value};
-const uint64_t k64IValueLE{0xefcdab89674523a1};
-const uint32_t k32IValueLE{0x67452391};
-const uint16_t k16IValueLE{0x85ff};
-const uint8_t k8IValueLE{0xff};
-const uint64_t kDoubleValueLE{0x6e861bf0f9210940};
-const uint32_t kFloatValueLE{0xd00f4940};
-const uint8_t kBoolValueLE{0x1};
 
 const uint64_t k64ValueBE{kInitialNumber};
 const uint32_t k32ValueBE{k32Value};
 const uint16_t k16ValueBE{k16Value};
-const uint8_t k8ValueBE{k8Value};
-const uint64_t k64IValueBE{0xa123456789abcdef};
-const uint32_t k32IValueBE{0x91234567};
-const uint16_t k16IValueBE{0xff85};
-const uint8_t k8IValueBE{0xff};
-const uint64_t kDoubleValueBE{0x400921f9f01b866e};
-const uint32_t kFloatValueBE{0x40490fd0};
-const uint8_t kBoolValueBE{0x1};
-#elif defined ABSL_IS_LITTLE_ENDIAN
+#elif defined(ABSL_IS_LITTLE_ENDIAN)
 const uint64_t kInitialInNetworkOrder{0xefcdab8967452301};
 const uint64_t k64ValueLE{kInitialNumber};
 const uint32_t k32ValueLE{k32Value};
