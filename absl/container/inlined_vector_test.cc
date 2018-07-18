@@ -1788,5 +1788,4 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
     EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
   }
 }
-
 }  // anonymous namespace

@@ -528,6 +528,10 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   // Verify that arrays are not trivially copy assignable
   using int10 = int[10];
   EXPECT_FALSE(absl::is_trivially_copy_assignable<int10>::value);
+
+  // Verify that references are handled correctly
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&&>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&>::value);
 }
 
 #define ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(trait_name, ...)          \
