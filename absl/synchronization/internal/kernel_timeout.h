@@ -133,7 +133,7 @@ class KernelTimeout {
           std::numeric_limits<int64_t>::max() - 999999u;
       uint64_t ms_from_now =
           (std::min<uint64_t>(max_nanos, ns_ - now) + 999999u) / 1000000u;
-      if (ms_from_now > std::numeric_limits<DWord>::max()) {
+      if (ms_from_now > kInfinite) {
         return kInfinite;
       }
       return static_cast<DWord>(ms_from_now);
