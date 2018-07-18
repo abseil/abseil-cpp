@@ -116,10 +116,10 @@ class KernelTimeout {
   // in the case of a spurious wakeup).
   // This header file may be included transitively by public header files,
   // so we define our own DWORD and INFINITE instead of getting them from
-  // <intsafe.h>.
+  // <intsafe.h> and <WinBase.h>.
   typedef unsigned long DWord;
   DWord InMillisecondsFromNow() const {
-    constexpr DWord kInfinite = static_cast<DWord>(-1);
+    constexpr DWord kInfinite = std::numeric_limits<DWord>::max();
     if (!has_timeout()) {
       return kInfinite;
     }
