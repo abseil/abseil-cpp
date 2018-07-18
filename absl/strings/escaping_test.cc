@@ -281,6 +281,73 @@ TEST_F(CUnescapeTest, UnescapesMultipleUnicodeNulls) {
                    "\0", 5), result_string_);
 }
 
+TEST_F(CUnescapeTest, NonNullTerminatedOctal1) {
+  absl::string_view original_string("\\111", 2);
+  EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
+  EXPECT_EQ(result_string_, "\1");
+}
+
+TEST_F(CUnescapeTest, NonNullTerminatedOctal2) {
+  absl::string_view original_string("\\1z1", 3);
+  EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
+  EXPECT_EQ(result_string_, "\1z");
+}
+
+TEST_F(CUnescapeTest, HexUnescapingDoesNotOverrunBuffer) {
+  absl::string_view original_string("\\x11", 3);
+  EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
+  EXPECT_EQ(result_string_, "\x1");
+}
+
+TEST_F(CUnescapeTest, NonNullTerminatedInvalidHex) {
+  absl::string_view original_string("\\x1", 2);
+  EXPECT_FALSE(absl::CUnescape(original_string, &result_string_));
+}
+
+TEST_F(CUnescapeTest, ShortUnicodeUnescapingDoesNotOverrunBuffer) {
+  absl::string_view original_string("\\u11111", 5);
+  EXPECT_FALSE(absl::CUnescape(original_string, &result_string_));
+}
+
+TEST_F(CUnescapeTest, NonNullTerminatedInvalidUnicode) {
+  absl::string_view original_string("\\U0000000000000", 9);
+  EXPECT_FALSE(absl::CUnescape(original_string, &result_string_));
+}
+
+TEST_F(CUnescapeTest, InvalidHex) {
+  EXPECT_FALSE(absl::CUnescape("\\xz", &result_string_));
+}
+
+TEST_F(CUnescapeTest, InvalidLongUnicode) {
+  EXPECT_FALSE(absl::CUnescape("\\U1z111111", &result_string_));
+}
+
+TEST_F(CUnescapeTest, InvalidShortUnicode) {
+  EXPECT_FALSE(absl::CUnescape("\\u1z11", &result_string_));
+}
+
+TEST_F(CUnescapeTest, InvalidEscapedCharacter) {
+  EXPECT_FALSE(absl::CUnescape("\\z", &result_string_));
+}
+
+TEST_F(CUnescapeTest, OctalLimits) {
+  std::string original_string = "\\377";
+
+  EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
+  EXPECT_EQ(result_string_, "\377");
+
+  EXPECT_FALSE(absl::CUnescape("\\400", &result_string_));
+}
+
+TEST_F(CUnescapeTest, UnicodeLimits) {
+  std::string original_string = "\\U0010FFFF";
+
+  EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
+  EXPECT_EQ(result_string_, "\U0010FFFF");
+
+  EXPECT_FALSE(absl::CUnescape("\\U00110000", &result_string_));
+}
+
 static struct {
   absl::string_view plaintext;
   absl::string_view cyphertext;
