@@ -25,9 +25,6 @@
 #ifndef ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 #define ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 
-#ifdef _WIN32
-#include <intsafe.h>
-#endif
 #include <time.h>
 #include <algorithm>
 #include <limits>
@@ -117,9 +114,14 @@ class KernelTimeout {
   // Windows. Callers should recognize that the return value is a
   // relative duration (it should be recomputed by calling this method
   // in the case of a spurious wakeup).
-  DWORD InMillisecondsFromNow() const {
+  // This header file may be included transitively by public header files,
+  // so we define our own DWORD and INFINITE instead of getting them from
+  // <intsafe.h> and <WinBase.h>.
+  typedef unsigned long DWord;
+  DWord InMillisecondsFromNow() const {
+    constexpr DWord kInfinite = std::numeric_limits<DWord>::max();
     if (!has_timeout()) {
-      return INFINITE;
+      return kInfinite;
     }
     // The use of absl::Now() to convert from absolute time to
     // relative time means that absl::Now() cannot use anything that
@@ -131,10 +133,10 @@ class KernelTimeout {
           std::numeric_limits<int64_t>::max() - 999999u;
       uint64_t ms_from_now =
           (std::min<uint64_t>(max_nanos, ns_ - now) + 999999u) / 1000000u;
-      if (ms_from_now > std::numeric_limits<DWORD>::max()) {
-        return INFINITE;
+      if (ms_from_now > kInfinite) {
+        return kInfinite;
       }
-      return static_cast<DWORD>(ms_from_now);
+      return static_cast<DWord>(ms_from_now);
     }
     return 0;
   }
