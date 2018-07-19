@@ -626,14 +626,18 @@ class InlinedVector {
   // It holds whether the vector is allocated or not in the lowest bit.
   // The size is held in the high bits:
   //   size_ = (size << 1) | is_allocated;
+  //
+  // Maintainer's Note: size_type is user defined. The contract is limited to
+  // arithmetic operators to avoid depending on compliant overloaded bitwise
+  // operators.
   class Tag {
    public:
     Tag() : size_(0) {}
-    size_type size() const { return size_ >> 1; }
-    void add_size(size_type n) { size_ += n << 1; }
-    void set_inline_size(size_type n) { size_ = n << 1; }
-    void set_allocated_size(size_type n) { size_ = (n << 1) | 1; }
-    bool allocated() const { return size_ & 1; }
+    size_type size() const { return size_ / 2; }
+    void add_size(size_type n) { size_ += n * 2; }
+    void set_inline_size(size_type n) { size_ = n * 2; }
+    void set_allocated_size(size_type n) { size_ = (n * 2) + 1; }
+    bool allocated() const { return size_ % 2; }
 
    private:
     size_type size_;

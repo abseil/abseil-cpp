@@ -159,6 +159,18 @@ cc_test(
 )
 
 cc_test(
+    name = "ascii_benchmark",
+    srcs = ["ascii_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
     name = "memutil_benchmark",
     srcs = [
         "internal/memutil.h",
