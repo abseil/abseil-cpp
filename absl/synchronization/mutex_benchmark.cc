@@ -74,11 +74,11 @@ void BM_ConditionWaiters(benchmark::State& state) {
   mu.Unlock();
 }
 
-#ifdef THREAD_SANITIZER
-// ThreadSanitizer can't handle 8192 threads.
-constexpr int kMaxConditionWaiters = 2048;
-#else
+// Some configurations have higher thread limits than others.
+#if defined(__linux__) && !defined(THREAD_SANITIZER)
 constexpr int kMaxConditionWaiters = 8192;
+#else
+constexpr int kMaxConditionWaiters = 1024;
 #endif
 BENCHMARK(BM_ConditionWaiters)->RangePair(0, 2, 1, kMaxConditionWaiters);
 
