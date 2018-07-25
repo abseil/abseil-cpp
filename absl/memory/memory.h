@@ -83,7 +83,11 @@ struct MakeUniqueResult<T[N]> {
 
 }  // namespace memory_internal
 
-#if __cplusplus >= 201402L || defined(_MSC_VER)
+// gcc 4.8 has __cplusplus at 201301 but doesn't define make_unique.  Other
+// supported compilers either just define __cplusplus as 201103 but have
+// make_unique (msvc), or have make_unique whenever __cplusplus > 201103 (clang)
+#if (__cplusplus > 201103L || defined(_MSC_VER)) && \
+    !(defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 8)
 using std::make_unique;
 #else
 // -----------------------------------------------------------------------------
