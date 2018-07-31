@@ -139,7 +139,7 @@ void Base64Escape(absl::string_view src, std::string* dest);
 
 // WebSafeBase64Escape()
 //
-// Encodes a `src` std::string into a `dest` buffer using uses '-' instead of '+' and
+// Encodes a `src` std::string into a `dest` buffer using '-' instead of '+' and
 // '_' instead of '/', and without padding. This function conforms with RFC 4648
 // section 5 (base64url).
 void WebSafeBase64Escape(absl::string_view src, std::string* dest);
