@@ -31,6 +31,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "absl/base/attributes.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/internal/address_is_readable.h"
@@ -150,8 +152,9 @@ static void **NextStackFrame(void **old_sp, const void *uc) {
 }
 
 // This ensures that absl::GetStackTrace sets up the Link Register properly.
-void AbslStacktracePowerPCDummyFunction() __attribute__((noinline));
-void AbslStacktracePowerPCDummyFunction() { __asm__ volatile(""); }
+ABSL_ATTRIBUTE_NOINLINE static void AbslStacktracePowerPCDummyFunction() {
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
