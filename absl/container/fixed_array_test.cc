@@ -15,9 +15,11 @@
 #include "absl/container/fixed_array.h"
 
 #include <stdio.h>
+#include <cstring>
 #include <list>
 #include <memory>
 #include <numeric>
+#include <scoped_allocator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -607,6 +609,216 @@ TEST(FixedArrayTest, Fill) {
   empty.fill(fill_val);
 }
 
+// TODO(johnsoncj): Investigate InlinedStorage default initialization in GCC 4.x
+#ifndef __GNUC__
+TEST(FixedArrayTest, DefaultCtorDoesNotValueInit) {
+  using T = char;
+  constexpr auto capacity = 10;
+  using FixedArrType = absl::FixedArray<T, capacity>;
+  using FixedArrBuffType =
+      absl::aligned_storage_t<sizeof(FixedArrType), alignof(FixedArrType)>;
+  constexpr auto scrubbed_bits = 0x95;
+  constexpr auto length = capacity / 2;
+
+  FixedArrBuffType buff;
+  std::memset(std::addressof(buff), scrubbed_bits, sizeof(FixedArrBuffType));
+
+  FixedArrType* arr =
+      ::new (static_cast<void*>(std::addressof(buff))) FixedArrType(length);
+  EXPECT_THAT(*arr, testing::Each(scrubbed_bits));
+  arr->~FixedArrType();
+}
+#endif  // __GNUC__
+
+// This is a stateful allocator, but the state lives outside of the
+// allocator (in whatever test is using the allocator). This is odd
+// but helps in tests where the allocator is propagated into nested
+// containers - that chain of allocators uses the same state and is
+// thus easier to query for aggregate allocation information.
+template <typename T>
+class CountingAllocator : public std::allocator<T> {
+ public:
+  using Alloc = std::allocator<T>;
+  using pointer = typename Alloc::pointer;
+  using size_type = typename Alloc::size_type;
+
+  CountingAllocator() : bytes_used_(nullptr), instance_count_(nullptr) {}
+  explicit CountingAllocator(int64_t* b)
+      : bytes_used_(b), instance_count_(nullptr) {}
+  CountingAllocator(int64_t* b, int64_t* a)
+      : bytes_used_(b), instance_count_(a) {}
+
+  template <typename U>
+  explicit CountingAllocator(const CountingAllocator<U>& x)
+      : Alloc(x),
+        bytes_used_(x.bytes_used_),
+        instance_count_(x.instance_count_) {}
+
+  pointer allocate(size_type n, const void* const hint = nullptr) {
+    assert(bytes_used_ != nullptr);
+    *bytes_used_ += n * sizeof(T);
+    return Alloc::allocate(n, hint);
+  }
+
+  void deallocate(pointer p, size_type n) {
+    Alloc::deallocate(p, n);
+    assert(bytes_used_ != nullptr);
+    *bytes_used_ -= n * sizeof(T);
+  }
+
+  template <typename... Args>
+  void construct(pointer p, Args&&... args) {
+    Alloc::construct(p, absl::forward<Args>(args)...);
+    if (instance_count_) {
+      *instance_count_ += 1;
+    }
+  }
+
+  void destroy(pointer p) {
+    Alloc::destroy(p);
+    if (instance_count_) {
+      *instance_count_ -= 1;
+    }
+  }
+
+  template <typename U>
+  class rebind {
+   public:
+    using other = CountingAllocator<U>;
+  };
+
+  int64_t* bytes_used_;
+  int64_t* instance_count_;
+};
+
+TEST(AllocatorSupportTest, CountInlineAllocations) {
+  constexpr size_t inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
+
+  int64_t allocated = 0;
+  int64_t active_instances = 0;
+
+  {
+    const int ia[] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+    Alloc alloc(&allocated, &active_instances);
+
+    AllocFxdArr arr(ia, ia + inlined_size, alloc);
+    static_cast<void>(arr);
+  }
+
+  EXPECT_EQ(allocated, 0);
+  EXPECT_EQ(active_instances, 0);
+}
+
+TEST(AllocatorSupportTest, CountOutoflineAllocations) {
+  constexpr size_t inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
+
+  int64_t allocated = 0;
+  int64_t active_instances = 0;
+
+  {
+    const int ia[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    Alloc alloc(&allocated, &active_instances);
+
+    AllocFxdArr arr(ia, ia + ABSL_ARRAYSIZE(ia), alloc);
+
+    EXPECT_EQ(allocated, arr.size() * sizeof(int));
+    static_cast<void>(arr);
+  }
+
+  EXPECT_EQ(active_instances, 0);
+}
+
+TEST(AllocatorSupportTest, CountCopyInlineAllocations) {
+  constexpr size_t inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
+
+  int64_t allocated1 = 0;
+  int64_t allocated2 = 0;
+  int64_t active_instances = 0;
+  Alloc alloc(&allocated1, &active_instances);
+  Alloc alloc2(&allocated2, &active_instances);
+
+  {
+    int initial_value = 1;
+
+    AllocFxdArr arr1(inlined_size / 2, initial_value, alloc);
+
+    EXPECT_EQ(allocated1, 0);
+
+    AllocFxdArr arr2(arr1, alloc2);
+
+    EXPECT_EQ(allocated2, 0);
+    static_cast<void>(arr1);
+    static_cast<void>(arr2);
+  }
+
+  EXPECT_EQ(active_instances, 0);
+}
+
+TEST(AllocatorSupportTest, CountCopyOutoflineAllocations) {
+  constexpr size_t inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
+
+  int64_t allocated1 = 0;
+  int64_t allocated2 = 0;
+  int64_t active_instances = 0;
+  Alloc alloc(&allocated1, &active_instances);
+  Alloc alloc2(&allocated2, &active_instances);
+
+  {
+    int initial_value = 1;
+
+    AllocFxdArr arr1(inlined_size * 2, initial_value, alloc);
+
+    EXPECT_EQ(allocated1, arr1.size() * sizeof(int));
+
+    AllocFxdArr arr2(arr1, alloc2);
+
+    EXPECT_EQ(allocated2, inlined_size * 2 * sizeof(int));
+    static_cast<void>(arr1);
+    static_cast<void>(arr2);
+  }
+
+  EXPECT_EQ(active_instances, 0);
+}
+
+TEST(AllocatorSupportTest, SizeValAllocConstructor) {
+  using testing::AllOf;
+  using testing::Each;
+  using testing::SizeIs;
+
+  constexpr size_t inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
+
+  {
+    auto len = inlined_size / 2;
+    auto val = 0;
+    int64_t allocated = 0;
+    AllocFxdArr arr(len, val, Alloc(&allocated));
+
+    EXPECT_EQ(allocated, 0);
+    EXPECT_THAT(arr, AllOf(SizeIs(len), Each(0)));
+  }
+
+  {
+    auto len = inlined_size * 2;
+    auto val = 0;
+    int64_t allocated = 0;
+    AllocFxdArr arr(len, val, Alloc(&allocated));
+
+    EXPECT_EQ(allocated, len * sizeof(int));
+    EXPECT_THAT(arr, AllOf(SizeIs(len), Each(0)));
+  }
+}
+
 #ifdef ADDRESS_SANITIZER
 TEST(FixedArrayTest, AddressSanitizerAnnotations1) {
   absl::FixedArray<int, 32> a(10);
@@ -655,5 +867,4 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
   EXPECT_DEATH(raw[21] = ThreeInts(), "container-overflow");
 }
 #endif  // ADDRESS_SANITIZER
-
 }  // namespace

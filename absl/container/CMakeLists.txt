@@ -52,7 +52,6 @@ absl_library(
     ${TEST_INSTANCE_TRACKER_LIB_SRC}
   PUBLIC_LIBRARIES
     absl::container
-  DISABLE_INSTALL
 )
 
 

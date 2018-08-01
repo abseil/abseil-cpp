@@ -1062,32 +1062,6 @@ struct OverloadSet<> {
   static void Overload(...);
 };
 
-////////////////////////////////
-// Library Fundamentals V2 TS //
-////////////////////////////////
-
-// TODO(calabrese): Consider moving this to absl/meta/type_traits.h
-
-// The following is a rough implementation of parts of the detection idiom.
-// It is used for the comparison operator checks.
-
-template <class Enabler, class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl {
-  using type = std::false_type;
-};
-
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl<
-    absl::enable_if_t<std::is_convertible<Op<Args...>, To>::value>, To, Op,
-    Args...> {
-  using type = std::true_type;
-};
-
-// NOTE: This differs from library fundamentals by being lazy.
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible
-    : is_detected_convertible_impl<void, To, Op, Args...>::type {};
-
 template <class T>
 using LessThanResult = decltype(std::declval<T>() < std::declval<T>());
 
@@ -1106,6 +1080,8 @@ using EqualResult = decltype(std::declval<T>() == std::declval<T>());
 
 template <class T>
 using NotEqualResult = decltype(std::declval<T>() != std::declval<T>());
+
+using type_traits_internal::is_detected_convertible;
 
 template <class... T>
 using RequireAllHaveEqualT = absl::enable_if_t<

@@ -26,10 +26,30 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # Apache 2.0
 
 cc_library(
+    name = "compressed_tuple",
+    hdrs = ["internal/compressed_tuple.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "compressed_tuple_test",
+    srcs = ["internal/compressed_tuple_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":compressed_tuple",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "fixed_array",
     hdrs = ["fixed_array.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        ":compressed_tuple",
         "//absl/algorithm",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",

@@ -16,7 +16,9 @@
 #include <cmath>
 #include <cstdint>
 #include <ctime>
+#include <iomanip>
 #include <limits>
+#include <random>
 #include <string>
 
 #include "gmock/gmock.h"
@@ -105,22 +107,22 @@ TEST(Duration, Factories) {
 }
 
 TEST(Duration, ToConversion) {
-#define TEST_DURATION_CONVERSION(UNIT)                              \
-  do {                                                              \
-    const absl::Duration d = absl::UNIT(1.5);                       \
-    const absl::Duration z = absl::ZeroDuration();                  \
-    const absl::Duration inf = absl::InfiniteDuration();            \
-    const double dbl_inf = std::numeric_limits<double>::infinity(); \
-    EXPECT_EQ(kint64min, absl::ToInt64##UNIT(-inf));                \
-    EXPECT_EQ(-1, absl::ToInt64##UNIT(-d));                         \
-    EXPECT_EQ(0, absl::ToInt64##UNIT(z));                           \
-    EXPECT_EQ(1, absl::ToInt64##UNIT(d));                           \
-    EXPECT_EQ(kint64max, absl::ToInt64##UNIT(inf));                 \
-    EXPECT_EQ(-dbl_inf, absl::ToDouble##UNIT(-inf));                \
-    EXPECT_EQ(-1.5, absl::ToDouble##UNIT(-d));                      \
-    EXPECT_EQ(0, absl::ToDouble##UNIT(z));                          \
-    EXPECT_EQ(1.5, absl::ToDouble##UNIT(d));                        \
-    EXPECT_EQ(dbl_inf, absl::ToDouble##UNIT(inf));                  \
+#define TEST_DURATION_CONVERSION(UNIT)                                  \
+  do {                                                                  \
+    const absl::Duration d = absl::UNIT(1.5);                           \
+    constexpr absl::Duration z = absl::ZeroDuration();                  \
+    constexpr absl::Duration inf = absl::InfiniteDuration();            \
+    constexpr double dbl_inf = std::numeric_limits<double>::infinity(); \
+    EXPECT_EQ(kint64min, absl::ToInt64##UNIT(-inf));                    \
+    EXPECT_EQ(-1, absl::ToInt64##UNIT(-d));                             \
+    EXPECT_EQ(0, absl::ToInt64##UNIT(z));                               \
+    EXPECT_EQ(1, absl::ToInt64##UNIT(d));                               \
+    EXPECT_EQ(kint64max, absl::ToInt64##UNIT(inf));                     \
+    EXPECT_EQ(-dbl_inf, absl::ToDouble##UNIT(-inf));                    \
+    EXPECT_EQ(-1.5, absl::ToDouble##UNIT(-d));                          \
+    EXPECT_EQ(0, absl::ToDouble##UNIT(z));                              \
+    EXPECT_EQ(1.5, absl::ToDouble##UNIT(d));                            \
+    EXPECT_EQ(dbl_inf, absl::ToDouble##UNIT(inf));                      \
   } while (0)
 
   TEST_DURATION_CONVERSION(Nanoseconds);
@@ -1284,6 +1286,16 @@ TEST(Duration, SmallConversions) {
   EXPECT_EQ(absl::Nanoseconds(1), absl::Seconds(0.875e-9));
   EXPECT_EQ(absl::Nanoseconds(1), absl::Seconds(1.000e-9));
 
+  EXPECT_EQ(absl::ZeroDuration(), absl::Seconds(-0.124999999e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1) / 4, absl::Seconds(-0.125e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1) / 4, absl::Seconds(-0.250e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1) / 2, absl::Seconds(-0.375e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1) / 2, absl::Seconds(-0.500e-9));
+  EXPECT_EQ(-absl::Nanoseconds(3) / 4, absl::Seconds(-0.625e-9));
+  EXPECT_EQ(-absl::Nanoseconds(3) / 4, absl::Seconds(-0.750e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1), absl::Seconds(-0.875e-9));
+  EXPECT_EQ(-absl::Nanoseconds(1), absl::Seconds(-1.000e-9));
+
   timespec ts;
   ts.tv_sec = 0;
   ts.tv_nsec = 0;
@@ -1311,6 +1323,86 @@ TEST(Duration, SmallConversions) {
   EXPECT_THAT(ToTimeval(absl::Nanoseconds(1999)), TimevalMatcher(tv));
   tv.tv_usec = 2;
   EXPECT_THAT(ToTimeval(absl::Nanoseconds(2000)), TimevalMatcher(tv));
+}
+
+void VerifySameAsMul(double time_as_seconds, int* const misses) {
+  auto direct_seconds = absl::Seconds(time_as_seconds);
+  auto mul_by_one_second = time_as_seconds * absl::Seconds(1);
+  if (direct_seconds != mul_by_one_second) {
+    if (*misses > 10) return;
+    ASSERT_LE(++(*misses), 10) << "Too many errors, not reporting more.";
+    EXPECT_EQ(direct_seconds, mul_by_one_second)
+        << "given double time_as_seconds = " << std::setprecision(17)
+        << time_as_seconds;
+  }
+}
+
+// For a variety of interesting durations, we find the exact point
+// where one double converts to that duration, and the very next double
+// converts to the next duration.  For both of those points, verify that
+// Seconds(point) returns the same duration as point * Seconds(1.0)
+TEST(Duration, ToDoubleSecondsCheckEdgeCases) {
+  constexpr uint32_t kTicksPerSecond = absl::time_internal::kTicksPerSecond;
+  constexpr auto duration_tick = absl::time_internal::MakeDuration(0, 1u);
+  int misses = 0;
+  for (int64_t seconds = 0; seconds < 99; ++seconds) {
+    uint32_t tick_vals[] = {0, +999, +999999, +999999999, kTicksPerSecond - 1,
+                            0, 1000, 1000000, 1000000000, kTicksPerSecond,
+                            1, 1001, 1000001, 1000000001, kTicksPerSecond + 1,
+                            2, 1002, 1000002, 1000000002, kTicksPerSecond + 2,
+                            3, 1003, 1000003, 1000000003, kTicksPerSecond + 3,
+                            4, 1004, 1000004, 1000000004, kTicksPerSecond + 4,
+                            5, 6,    7,       8,          9};
+    for (uint32_t ticks : tick_vals) {
+      absl::Duration s_plus_t = absl::Seconds(seconds) + ticks * duration_tick;
+      for (absl::Duration d : {s_plus_t, -s_plus_t}) {
+        absl::Duration after_d = d + duration_tick;
+        EXPECT_NE(d, after_d);
+        EXPECT_EQ(after_d - d, duration_tick);
+
+        double low_edge = ToDoubleSeconds(d);
+        EXPECT_EQ(d, absl::Seconds(low_edge));
+
+        double high_edge = ToDoubleSeconds(after_d);
+        EXPECT_EQ(after_d, absl::Seconds(high_edge));
+
+        for (;;) {
+          double midpoint = low_edge + (high_edge - low_edge) / 2;
+          if (midpoint == low_edge || midpoint == high_edge) break;
+          absl::Duration mid_duration = absl::Seconds(midpoint);
+          if (mid_duration == d) {
+            low_edge = midpoint;
+          } else {
+            EXPECT_EQ(mid_duration, after_d);
+            high_edge = midpoint;
+          }
+        }
+        // Now low_edge is the highest double that converts to Duration d,
+        // and high_edge is the lowest double that converts to Duration after_d.
+        VerifySameAsMul(low_edge, &misses);
+        VerifySameAsMul(high_edge, &misses);
+      }
+    }
+  }
+}
+
+TEST(Duration, ToDoubleSecondsCheckRandom) {
+  std::random_device rd;
+  std::seed_seq seed({rd(), rd(), rd(), rd(), rd(), rd(), rd(), rd()});
+  std::mt19937_64 gen(seed);
+  // We want doubles distributed from 1/8ns up to 2^63, where
+  // as many values are tested from 1ns to 2ns as from 1sec to 2sec,
+  // so even distribute along a log-scale of those values, and
+  // exponentiate before using them.  (9.223377e+18 is just slightly
+  // out of bounds for absl::Duration.)
+  std::uniform_real_distribution<double> uniform(std::log(0.125e-9),
+                                                 std::log(9.223377e+18));
+  int misses = 0;
+  for (int i = 0; i < 1000000; ++i) {
+    double d = std::exp(uniform(gen));
+    VerifySameAsMul(d, &misses);
+    VerifySameAsMul(-d, &misses);
+  }
 }
 
 TEST(Duration, ConversionSaturation) {

@@ -611,47 +611,4 @@ TEST(AllocatorNoThrowTest, CustomAllocator) {
   EXPECT_FALSE(absl::allocator_is_nothrow<UnspecifiedAllocator>::value);
 }
 
-TEST(MemoryInternal, UninitDefaultConstructNTrivial) {
-  constexpr int kInitialValue = 123;
-  constexpr int kExpectedValue = kInitialValue;  // Expect no-op behavior
-  constexpr int len = 5;
-
-  struct TestObj {
-    int val;
-  };
-  static_assert(absl::is_trivially_default_constructible<TestObj>::value, "");
-  static_assert(absl::is_trivially_destructible<TestObj>::value, "");
-
-  TestObj objs[len];
-  for (auto& obj : objs) {
-    obj.val = kInitialValue;
-  }
-
-  absl::memory_internal::uninitialized_default_construct_n(objs, len);
-  for (auto& obj : objs) {
-    EXPECT_EQ(obj.val, kExpectedValue);
-  }
-}
-
-TEST(MemoryInternal, UninitDefaultConstructNNonTrivial) {
-  constexpr int kInitialValue = 123;
-  constexpr int kExpectedValue = 0;  // Expect value-construction behavior
-  constexpr int len = 5;
-
-  struct TestObj {
-    int val{kExpectedValue};
-  };
-  static_assert(absl::is_trivially_destructible<TestObj>::value, "");
-
-  TestObj objs[len];
-  for (auto& obj : objs) {
-    obj.val = kInitialValue;
-  }
-
-  absl::memory_internal::uninitialized_default_construct_n(objs, len);
-  for (auto& obj : objs) {
-    EXPECT_EQ(obj.val, kExpectedValue);
-  }
-}
-
 }  // namespace

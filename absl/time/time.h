@@ -81,6 +81,7 @@ constexpr int64_t GetRepHi(Duration d);
 constexpr uint32_t GetRepLo(Duration d);
 constexpr Duration MakeDuration(int64_t hi, uint32_t lo);
 constexpr Duration MakeDuration(int64_t hi, int64_t lo);
+inline Duration MakePosDoubleDuration(double n);
 constexpr int64_t kTicksPerNanosecond = 4;
 constexpr int64_t kTicksPerSecond = 1000 * 1000 * 1000 * kTicksPerNanosecond;
 template <std::intmax_t N>
@@ -295,6 +296,39 @@ Duration Floor(Duration d, Duration unit);
 //   absl::Duration c = absl::Ceil(d, absl::Microseconds(1));   // 123457us
 Duration Ceil(Duration d, Duration unit);
 
+// InfiniteDuration()
+//
+// Returns an infinite `Duration`.  To get a `Duration` representing negative
+// infinity, use `-InfiniteDuration()`.
+//
+// Duration arithmetic overflows to +/- infinity and saturates. In general,
+// arithmetic with `Duration` infinities is similar to IEEE 754 infinities
+// except where IEEE 754 NaN would be involved, in which case +/-
+// `InfiniteDuration()` is used in place of a "nan" Duration.
+//
+// Examples:
+//
+//   constexpr absl::Duration inf = absl::InfiniteDuration();
+//   const absl::Duration d = ... any finite duration ...
+//
+//   inf == inf + inf
+//   inf == inf + d
+//   inf == inf - inf
+//   -inf == d - inf
+//
+//   inf == d * 1e100
+//   inf == inf / 2
+//   0 == d / inf
+//   INT64_MAX == inf / d
+//
+//   // Division by zero returns infinity, or INT64_MIN/MAX where appropriate.
+//   inf == d / 0
+//   INT64_MAX == d / absl::ZeroDuration()
+//
+// The examples involving the `/` operator above also apply to `IDivDuration()`
+// and `FDivDuration()`.
+constexpr Duration InfiniteDuration();
+
 // Nanoseconds()
 // Microseconds()
 // Milliseconds()
@@ -344,7 +378,13 @@ Duration Milliseconds(T n) {
 }
 template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Seconds(T n) {
-  return n * Seconds(1);
+  if (n >= 0) {
+    if (n >= std::numeric_limits<int64_t>::max()) return InfiniteDuration();
+    return time_internal::MakePosDoubleDuration(n);
+  } else {
+    if (n <= std::numeric_limits<int64_t>::min()) return -InfiniteDuration();
+    return -time_internal::MakePosDoubleDuration(-n);
+  }
 }
 template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Minutes(T n) {
@@ -439,39 +479,6 @@ std::chrono::seconds ToChronoSeconds(Duration d);
 std::chrono::minutes ToChronoMinutes(Duration d);
 std::chrono::hours ToChronoHours(Duration d);
 
-// InfiniteDuration()
-//
-// Returns an infinite `Duration`.  To get a `Duration` representing negative
-// infinity, use `-InfiniteDuration()`.
-//
-// Duration arithmetic overflows to +/- infinity and saturates. In general,
-// arithmetic with `Duration` infinities is similar to IEEE 754 infinities
-// except where IEEE 754 NaN would be involved, in which case +/-
-// `InfiniteDuration()` is used in place of a "nan" Duration.
-//
-// Examples:
-//
-//   constexpr absl::Duration inf = absl::InfiniteDuration();
-//   const absl::Duration d = ... any finite duration ...
-//
-//   inf == inf + inf
-//   inf == inf + d
-//   inf == inf - inf
-//   -inf == d - inf
-//
-//   inf == d * 1e100
-//   inf == inf / 2
-//   0 == d / inf
-//   INT64_MAX == inf / d
-//
-//   // Division by zero returns infinity, or INT64_MIN/MAX where appropriate.
-//   inf == d / 0
-//   INT64_MAX == d / absl::ZeroDuration()
-//
-// The examples involving the `/` operator above also apply to `IDivDuration()`
-// and `FDivDuration()`.
-constexpr Duration InfiniteDuration();
-
 // FormatDuration()
 //
 // Returns a std::string representing the duration in the form "72h3m0.5s".
@@ -492,12 +499,9 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 // `ZeroDuration()`.  Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
 bool ParseDuration(const std::string& dur_string, Duration* d);
 
-// ParseFlag()
-//
+// Support for flag values of type Duration. Duration flags must be specified
+// in a format that is valid input for absl::ParseDuration().
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
-
-// UnparseFlag()
-//
 std::string UnparseFlag(Duration d);
 
 // Time
@@ -991,9 +995,6 @@ bool ParseTime(const std::string& format, const std::string& input, Time* time,
 bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
                Time* time, std::string* err);
 
-// ParseFlag()
-// UnparseFlag()
-//
 // Support for flag values of type Time. Time flags must be specified in a
 // format that matches absl::RFC3339_full. For example:
 //
@@ -1112,6 +1113,18 @@ constexpr Duration MakeDuration(int64_t hi, uint32_t lo = 0) {
 
 constexpr Duration MakeDuration(int64_t hi, int64_t lo) {
   return MakeDuration(hi, static_cast<uint32_t>(lo));
+}
+
+// Make a Duration value from a floating-point number, as long as that number
+// is in the range [ 0 .. numeric_limits<int64_t>::max ), that is, as long as
+// it's positive and can be converted to int64_t without risk of UB.
+inline Duration MakePosDoubleDuration(double n) {
+  const int64_t int_secs = static_cast<int64_t>(n);
+  const uint32_t ticks =
+      static_cast<uint32_t>((n - int_secs) * kTicksPerSecond + 0.5);
+  return ticks < kTicksPerSecond
+             ? MakeDuration(int_secs, ticks)
+             : MakeDuration(int_secs + 1, ticks - kTicksPerSecond);
 }
 
 // Creates a normalized Duration from an almost-normalized (sec,ticks)

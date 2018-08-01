@@ -47,6 +47,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/container/internal/compressed_tuple.h"
 #include "absl/memory/memory.h"
 
 namespace absl {
@@ -76,73 +77,99 @@ constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 // heap allocation, it will do so with global `::operator new[]()` and
 // `::operator delete[]()`, even if T provides class-scope overrides for these
 // operators.
-template <typename T, size_t inlined = kFixedArrayUseDefault>
+template <typename T, size_t N = kFixedArrayUseDefault,
+          typename A = std::allocator<T>>
 class FixedArray {
   static_assert(!std::is_array<T>::value || std::extent<T>::value > 0,
                 "Arrays with unknown bounds cannot be used with FixedArray.");
+
   static constexpr size_t kInlineBytesDefault = 256;
 
+  using AllocatorTraits = std::allocator_traits<A>;
   // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
   // but this seems to be mostly pedantic.
   template <typename Iterator>
   using EnableIfForwardIterator = absl::enable_if_t<std::is_convertible<
       typename std::iterator_traits<Iterator>::iterator_category,
       std::forward_iterator_tag>::value>;
+  static constexpr bool NoexceptCopyable() {
+    return std::is_nothrow_copy_constructible<StorageElement>::value &&
+           absl::allocator_is_nothrow<allocator_type>::value;
+  }
+  static constexpr bool NoexceptMovable() {
+    return std::is_nothrow_move_constructible<StorageElement>::value &&
+           absl::allocator_is_nothrow<allocator_type>::value;
+  }
+  static constexpr bool DefaultConstructorIsNonTrivial() {
+    return !absl::is_trivially_default_constructible<StorageElement>::value;
+  }
 
  public:
-  using value_type = T;
-  using iterator = T*;
-  using const_iterator = const T*;
+  using allocator_type = typename AllocatorTraits::allocator_type;
+  using value_type = typename allocator_type::value_type;
+  using pointer = typename allocator_type::pointer;
+  using const_pointer = typename allocator_type::const_pointer;
+  using reference = typename allocator_type::reference;
+  using const_reference = typename allocator_type::const_reference;
+  using size_type = typename allocator_type::size_type;
+  using difference_type = typename allocator_type::difference_type;
+  using iterator = pointer;
+  using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using reference = T&;
-  using const_reference = const T&;
-  using pointer = T*;
-  using const_pointer = const T*;
-  using difference_type = ptrdiff_t;
-  using size_type = size_t;
 
   static constexpr size_type inline_elements =
-      inlined == kFixedArrayUseDefault
-          ? kInlineBytesDefault / sizeof(value_type)
-          : inlined;
+      (N == kFixedArrayUseDefault ? kInlineBytesDefault / sizeof(value_type)
+                                  : static_cast<size_type>(N));
 
-  FixedArray(const FixedArray& other)
-      : FixedArray(other.begin(), other.end()) {}
+  FixedArray(
+      const FixedArray& other,
+      const allocator_type& a = allocator_type()) noexcept(NoexceptCopyable())
+      : FixedArray(other.begin(), other.end(), a) {}
 
-  FixedArray(FixedArray&& other) noexcept(
-      absl::conjunction<absl::allocator_is_nothrow<std::allocator<value_type>>,
-                        std::is_nothrow_move_constructible<value_type>>::value)
+  FixedArray(
+      FixedArray&& other,
+      const allocator_type& a = allocator_type()) noexcept(NoexceptMovable())
       : FixedArray(std::make_move_iterator(other.begin()),
-                   std::make_move_iterator(other.end())) {}
+                   std::make_move_iterator(other.end()), a) {}
 
   // Creates an array object that can store `n` elements.
   // Note that trivially constructible elements will be uninitialized.
-  explicit FixedArray(size_type n) : storage_(n) {
-    absl::memory_internal::uninitialized_default_construct_n(storage_.begin(),
-                                                             size());
+  explicit FixedArray(size_type n, const allocator_type& a = allocator_type())
+      : storage_(n, a) {
+    if (DefaultConstructorIsNonTrivial()) {
+      memory_internal::ConstructStorage(storage_.alloc(), storage_.begin(),
+                                        storage_.end());
+    }
   }
 
   // Creates an array initialized with `n` copies of `val`.
-  FixedArray(size_type n, const value_type& val) : storage_(n) {
-    std::uninitialized_fill_n(data(), size(), val);
+  FixedArray(size_type n, const value_type& val,
+             const allocator_type& a = allocator_type())
+      : storage_(n, a) {
+    memory_internal::ConstructStorage(storage_.alloc(), storage_.begin(),
+                                      storage_.end(), val);
   }
+
+  // Creates an array initialized with the size and contents of `init_list`.
+  FixedArray(std::initializer_list<value_type> init_list,
+             const allocator_type& a = allocator_type())
+      : FixedArray(init_list.begin(), init_list.end(), a) {}
 
   // Creates an array initialized with the elements from the input
   // range. The array's size will always be `std::distance(first, last)`.
   // REQUIRES: Iterator must be a forward_iterator or better.
   template <typename Iterator, EnableIfForwardIterator<Iterator>* = nullptr>
-  FixedArray(Iterator first, Iterator last)
-      : storage_(std::distance(first, last)) {
-    std::uninitialized_copy(first, last, data());
+  FixedArray(Iterator first, Iterator last,
+             const allocator_type& a = allocator_type())
+      : storage_(std::distance(first, last), a) {
+    memory_internal::CopyToStorageFromRange(storage_.alloc(), storage_.begin(),
+                                            first, last);
   }
 
-  FixedArray(std::initializer_list<value_type> init_list)
-      : FixedArray(init_list.begin(), init_list.end()) {}
-
   ~FixedArray() noexcept {
-    for (const StorageElement& cur : storage_) {
-      cur.~StorageElement();
+    for (auto* cur = storage_.begin(); cur != storage_.end(); ++cur) {
+      AllocatorTraits::destroy(*storage_.alloc(), cur);
     }
   }
 
@@ -332,7 +359,6 @@ class FixedArray {
   friend bool operator>=(const FixedArray& lhs, const FixedArray& rhs) {
     return !(lhs < rhs);
   }
-
  private:
   // StorageElement
   //
@@ -364,6 +390,8 @@ class FixedArray {
   using StorageElement =
       absl::conditional_t<std::is_array<value_type>::value,
                           StorageElementWrapper<value_type>, value_type>;
+  using StorageElementBuffer =
+      absl::aligned_storage_t<sizeof(StorageElement), alignof(StorageElement)>;
 
   static pointer AsValueType(pointer ptr) { return ptr; }
   static pointer AsValueType(StorageElementWrapper<value_type>* ptr) {
@@ -374,9 +402,6 @@ class FixedArray {
   static_assert(alignof(StorageElement) == alignof(value_type), "");
 
   struct NonEmptyInlinedStorage {
-    using StorageElementBuffer =
-        absl::aligned_storage_t<sizeof(StorageElement),
-                                alignof(StorageElement)>;
     StorageElement* data() {
       return reinterpret_cast<StorageElement*>(inlined_storage_.data());
     }
@@ -386,8 +411,8 @@ class FixedArray {
     void* RedzoneEnd() { return &redzone_end_ + 1; }
 #endif  // ADDRESS_SANITIZER
 
-    void AnnotateConstruct(size_t);
-    void AnnotateDestruct(size_t);
+    void AnnotateConstruct(size_type);
+    void AnnotateDestruct(size_type);
 
     ADDRESS_SANITIZER_REDZONE(redzone_begin_);
     std::array<StorageElementBuffer, inline_elements> inlined_storage_;
@@ -396,8 +421,8 @@ class FixedArray {
 
   struct EmptyInlinedStorage {
     StorageElement* data() { return nullptr; }
-    void AnnotateConstruct(size_t) {}
-    void AnnotateDestruct(size_t) {}
+    void AnnotateConstruct(size_type) {}
+    void AnnotateDestruct(size_type) {}
   };
 
   using InlinedStorage =
@@ -414,48 +439,57 @@ class FixedArray {
   //
   class Storage : public InlinedStorage {
    public:
-    explicit Storage(size_type n) : data_(CreateStorage(n)), size_(n) {}
+    Storage(size_type n, const allocator_type& a)
+        : size_alloc_(n, a), data_(InitializeData()) {}
+
     ~Storage() noexcept {
       if (UsingInlinedStorage(size())) {
-        this->AnnotateDestruct(size());
+        InlinedStorage::AnnotateDestruct(size());
       } else {
-        std::allocator<StorageElement>().deallocate(begin(), size());
+        AllocatorTraits::deallocate(*alloc(), AsValueType(begin()), size());
       }
     }
 
-    size_type size() const { return size_; }
+    size_type size() const { return size_alloc_.template get<0>(); }
     StorageElement* begin() const { return data_; }
     StorageElement* end() const { return begin() + size(); }
+    allocator_type* alloc() {
+      return std::addressof(size_alloc_.template get<1>());
+    }
 
    private:
     static bool UsingInlinedStorage(size_type n) {
       return n <= inline_elements;
     }
 
-    StorageElement* CreateStorage(size_type n) {
-      if (UsingInlinedStorage(n)) {
-        this->AnnotateConstruct(n);
+    StorageElement* InitializeData() {
+      if (UsingInlinedStorage(size())) {
+        InlinedStorage::AnnotateConstruct(size());
         return InlinedStorage::data();
       } else {
-        return std::allocator<StorageElement>().allocate(n);
+        return reinterpret_cast<StorageElement*>(
+            AllocatorTraits::allocate(*alloc(), size()));
       }
     }
 
-    StorageElement* const data_;
-    const size_type size_;
+    // `CompressedTuple` takes advantage of EBCO for stateless `allocator_type`s
+    container_internal::CompressedTuple<size_type, allocator_type> size_alloc_;
+    StorageElement* data_;
   };
 
-  const Storage storage_;
+  Storage storage_;
 };
 
-template <typename T, size_t N>
-constexpr size_t FixedArray<T, N>::inline_elements;
+template <typename T, size_t N, typename A>
+constexpr size_t FixedArray<T, N, A>::kInlineBytesDefault;
 
-template <typename T, size_t N>
-constexpr size_t FixedArray<T, N>::kInlineBytesDefault;
+template <typename T, size_t N, typename A>
+constexpr typename FixedArray<T, N, A>::size_type
+    FixedArray<T, N, A>::inline_elements;
 
-template <typename T, size_t N>
-void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateConstruct(size_t n) {
+template <typename T, size_t N, typename A>
+void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateConstruct(
+    typename FixedArray<T, N, A>::size_type n) {
 #ifdef ADDRESS_SANITIZER
   if (!n) return;
   ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), RedzoneEnd(), data() + n);
@@ -464,8 +498,9 @@ void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateConstruct(size_t n) {
   static_cast<void>(n);  // Mark used when not in asan mode
 }
 
-template <typename T, size_t N>
-void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateDestruct(size_t n) {
+template <typename T, size_t N, typename A>
+void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateDestruct(
+    typename FixedArray<T, N, A>::size_type n) {
 #ifdef ADDRESS_SANITIZER
   if (!n) return;
   ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), data() + n, RedzoneEnd());
@@ -473,6 +508,5 @@ void FixedArray<T, N>::NonEmptyInlinedStorage::AnnotateDestruct(size_t n) {
 #endif                   // ADDRESS_SANITIZER
   static_cast<void>(n);  // Mark used when not in asan mode
 }
-
 }  // namespace absl
 #endif  // ABSL_CONTAINER_FIXED_ARRAY_H_

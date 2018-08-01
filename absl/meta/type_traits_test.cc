@@ -34,6 +34,83 @@ struct simple_pair {
 
 struct Dummy {};
 
+struct ReturnType {};
+struct ConvertibleToReturnType {
+  operator ReturnType() const;  // NOLINT
+};
+
+// Unique types used as parameter types for testing the detection idiom.
+struct StructA {};
+struct StructB {};
+struct StructC {};
+
+struct TypeWithBarFunction {
+  template <class T,
+            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  ReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
+};
+
+struct TypeWithBarFunctionAndConvertibleReturnType {
+  template <class T,
+            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  ConvertibleToReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
+};
+
+template <class Class, class... Ts>
+using BarIsCallableImpl =
+    decltype(std::declval<Class>().bar(std::declval<Ts>()...));
+
+template <class Class, class... T>
+using BarIsCallable =
+    absl::type_traits_internal::is_detected<BarIsCallableImpl, Class, T...>;
+
+template <class Class, class... T>
+using BarIsCallableConv = absl::type_traits_internal::is_detected_convertible<
+    ReturnType, BarIsCallableImpl, Class, T...>;
+
+// NOTE: Test of detail type_traits_internal::is_detected.
+TEST(IsDetectedTest, BasicUsage) {
+  EXPECT_TRUE((BarIsCallable<TypeWithBarFunction, StructA&, const StructB&,
+                             StructC>::value));
+  EXPECT_TRUE(
+      (BarIsCallable<TypeWithBarFunction, StructA&, StructB&, StructC>::value));
+  EXPECT_TRUE(
+      (BarIsCallable<TypeWithBarFunction, StructA&, StructB, StructC>::value));
+
+  EXPECT_FALSE((BarIsCallable<int, StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallable<TypeWithBarFunction&, StructA&, const StructB&,
+                              StructC>::value));
+  EXPECT_FALSE((BarIsCallable<TypeWithBarFunction, StructA, const StructB&,
+                              StructC>::value));
+}
+
+// NOTE: Test of detail type_traits_internal::is_detected_convertible.
+TEST(IsDetectedConvertibleTest, BasicUsage) {
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, const StructB&,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, StructB&,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, StructB,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, const StructB&, StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, StructB&, StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, StructB, StructC>::value));
+
+  EXPECT_FALSE(
+      (BarIsCallableConv<int, StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunction&, StructA&,
+                                  const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunction, StructA, const StructB&,
+                                  StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType&,
+                                  StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                  StructA, const StructB&, StructC>::value));
+}
+
 TEST(VoidTTest, BasicUsage) {
   StaticAssertTypeEq<void, absl::void_t<Dummy>>();
   StaticAssertTypeEq<void, absl::void_t<Dummy, Dummy, Dummy>>();
@@ -718,8 +795,8 @@ TEST(TypeTraitsTest, TestDecay) {
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int[][1]);
 
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int());
-  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));
-  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(char, ...));
+  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));  // NOLINT
+  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(char, ...));  // NOLINT
 }
 
 struct TypeA {};

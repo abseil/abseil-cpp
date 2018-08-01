@@ -44,6 +44,7 @@
 namespace absl {
 
 namespace type_traits_internal {
+
 template <typename... Ts>
 struct VoidTImpl {
   using type = void;
@@ -60,6 +61,49 @@ struct default_alignment_of_aligned_storage<Len,
                                             std::aligned_storage<Len, Align>> {
   static constexpr size_t value = Align;
 };
+
+////////////////////////////////
+// Library Fundamentals V2 TS //
+////////////////////////////////
+
+// NOTE: The `is_detected` family of templates here differ from the library
+// fundamentals specification in that for library fundamentals, `Op<Args...>` is
+// evaluated as soon as the type `is_detected<Op, Args...>` undergoes
+// substitution, regardless of whether or not the `::value` is accessed. That
+// is inconsistent with all other standard traits and prevents lazy evaluation
+// in larger contexts (such as if the `is_detected` check is a trailing argument
+// of a `conjunction`. This implementation opts to instead be lazy in the same
+// way that the standard traits are (this "defect" of the detection idiom
+// specifications has been reported).
+
+template <class Enabler, template <class...> class Op, class... Args>
+struct is_detected_impl {
+  using type = std::false_type;
+};
+
+template <template <class...> class Op, class... Args>
+struct is_detected_impl<typename VoidTImpl<Op<Args...>>::type, Op, Args...> {
+  using type = std::true_type;
+};
+
+template <template <class...> class Op, class... Args>
+struct is_detected : is_detected_impl<void, Op, Args...>::type {};
+
+template <class Enabler, class To, template <class...> class Op, class... Args>
+struct is_detected_convertible_impl {
+  using type = std::false_type;
+};
+
+template <class To, template <class...> class Op, class... Args>
+struct is_detected_convertible_impl<
+    typename std::enable_if<std::is_convertible<Op<Args...>, To>::value>::type,
+    To, Op, Args...> {
+  using type = std::true_type;
+};
+
+template <class To, template <class...> class Op, class... Args>
+struct is_detected_convertible
+    : is_detected_convertible_impl<void, To, Op, Args...>::type {};
 
 }  // namespace type_traits_internal
 

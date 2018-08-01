@@ -48,16 +48,5 @@ TEST(MakeUnique, CheckForLeaks) {
   }));
 }
 
-TEST(MemoryInternal, UninitDefaultConstructNNonTrivial) {
-  EXPECT_TRUE(testing::MakeExceptionSafetyTester()
-                  .WithInitialValue(ThrowerList{})
-                  .WithOperation([&](ThrowerList* list_ptr) {
-                    absl::memory_internal::uninitialized_default_construct_n(
-                        list_ptr->data(), kLength);
-                  })
-                  .WithInvariants([&](...) { return true; })
-                  .Test());
-}
-
 }  // namespace
 }  // namespace absl

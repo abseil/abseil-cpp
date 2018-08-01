@@ -641,38 +641,56 @@ struct default_allocator_is_nothrow : std::false_type {};
 #endif
 
 namespace memory_internal {
-// TODO(b110200014): Implement proper backports
-template <typename ForwardIt>
-void DefaultConstruct(ForwardIt it) {
-  using value_type = typename std::iterator_traits<ForwardIt>::value_type;
-  ::new (static_cast<void*>(std::addressof(*it))) value_type;
-}  // namespace memory_internal
-
 #ifdef ABSL_HAVE_EXCEPTIONS
-template <typename ForwardIt, typename Size>
-void uninitialized_default_construct_n(ForwardIt first, Size size) {
-  for (ForwardIt cur = first; size > 0; static_cast<void>(++cur), --size) {
+template <typename Allocator, typename StorageElement, typename... Args>
+void ConstructStorage(Allocator* alloc, StorageElement* first,
+                      StorageElement* last, const Args&... args) {
+  for (StorageElement* cur = first; cur != last; ++cur) {
     try {
-      absl::memory_internal::DefaultConstruct(cur);
+      std::allocator_traits<Allocator>::construct(*alloc, cur, args...);
     } catch (...) {
-      using value_type = typename std::iterator_traits<ForwardIt>::value_type;
-      for (; first != cur; ++first) {
-        first->~value_type();
+      while (cur != first) {
+        --cur;
+        std::allocator_traits<Allocator>::destroy(*alloc, cur);
+      }
+      throw;
+    }
+  }
+}
+template <typename Allocator, typename StorageElement, typename Iterator>
+void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
+                            Iterator first, Iterator last) {
+  for (StorageElement* cur = destination; first != last;
+       static_cast<void>(++cur), static_cast<void>(++first)) {
+    try {
+      std::allocator_traits<Allocator>::construct(*alloc, cur, *first);
+    } catch (...) {
+      while (cur != destination) {
+        --cur;
+        std::allocator_traits<Allocator>::destroy(*alloc, cur);
       }
       throw;
     }
   }
 }
 #else   // ABSL_HAVE_EXCEPTIONS
-template <typename ForwardIt, typename Size>
-void uninitialized_default_construct_n(ForwardIt first, Size size) {
-  for (; size > 0; static_cast<void>(++first), --size) {
-    absl::memory_internal::DefaultConstruct(first);
+template <typename Allocator, typename StorageElement, typename... Args>
+void ConstructStorage(Allocator* alloc, StorageElement* first,
+                      StorageElement* last, const Args&... args) {
+  for (; first != last; ++first) {
+    std::allocator_traits<Allocator>::construct(*alloc, first, args...);
+  }
+}
+template <typename Allocator, typename StorageElement, typename Iterator>
+void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
+                            Iterator first, Iterator last) {
+  for (; first != last;
+       static_cast<void>(++destination), static_cast<void>(++first)) {
+    std::allocator_traits<Allocator>::construct(*alloc, destination, *first);
   }
 }
 #endif  // ABSL_HAVE_EXCEPTIONS
 }  // namespace memory_internal
-
 }  // namespace absl
 
 #endif  // ABSL_MEMORY_MEMORY_H_
