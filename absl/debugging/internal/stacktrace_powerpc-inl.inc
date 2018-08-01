@@ -31,6 +31,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "absl/base/attributes.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/internal/address_is_readable.h"
@@ -150,8 +152,9 @@ static void **NextStackFrame(void **old_sp, const void *uc) {
 }
 
 // This ensures that absl::GetStackTrace sets up the Link Register properly.
-void StacktracePowerPCDummyFunction() __attribute__((noinline));
-void StacktracePowerPCDummyFunction() { __asm__ volatile(""); }
+ABSL_ATTRIBUTE_NOINLINE static void AbslStacktracePowerPCDummyFunction() {
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
@@ -176,7 +179,7 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
   // want here.  While the compiler will always(?) set up LR for
   // subroutine calls, it may not for leaf functions (such as this one).
   // This routine forces the compiler (at least gcc) to push it anyway.
-  StacktracePowerPCDummyFunction();
+  AbslStacktracePowerPCDummyFunction();
 
   // The LR save area is used by the callee, so the top entry is bogus.
   skip_count++;
