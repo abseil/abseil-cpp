@@ -558,7 +558,7 @@ class SCOPED_LOCKABLE ReaderMutexLock {
 // WriterMutexLock
 //
 // The `WriterMutexLock` is a helper class, like `MutexLock`, which acquires and
-// releases a write (exclusive) lock on a `Mutex` va RAII.
+// releases a write (exclusive) lock on a `Mutex` via RAII.
 class SCOPED_LOCKABLE WriterMutexLock {
  public:
   explicit WriterMutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu)

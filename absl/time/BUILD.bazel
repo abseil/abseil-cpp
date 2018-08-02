@@ -30,9 +30,8 @@ cc_library(
         "clock.cc",
         "duration.cc",
         "format.cc",
-        "internal/get_current_time_ios.inc",
+        "internal/get_current_time_chrono.inc",
         "internal/get_current_time_posix.inc",
-        "internal/get_current_time_windows.inc",
         "time.cc",
     ],
     hdrs = [

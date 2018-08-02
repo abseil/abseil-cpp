@@ -57,10 +57,8 @@ Time Now() {
 #endif
 #endif
 
-#if defined(__APPLE__)
-#include "absl/time/internal/get_current_time_ios.inc"
-#elif defined(_WIN32)
-#include "absl/time/internal/get_current_time_windows.inc"
+#if defined(__APPLE__) || defined(_WIN32)
+#include "absl/time/internal/get_current_time_chrono.inc"
 #else
 #include "absl/time/internal/get_current_time_posix.inc"
 #endif
