@@ -116,7 +116,6 @@ LLVM_TEST_FLAGS = [
 
 MSVC_FLAGS = [
     "/W3",
-    "/WX",
     "/wd4005",  # macro-redefinition
     "/wd4068",  # unknown pragma
     "/wd4244",  # conversion from 'type1' to 'type2', possible loss of data
