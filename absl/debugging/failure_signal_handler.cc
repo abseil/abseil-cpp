@@ -252,7 +252,7 @@ ABSL_ATTRIBUTE_NOINLINE static void WriteStackTrace(
       depth, min_dropped_frames, symbolize_stacktrace, writerfn, writerfn_arg);
 }
 
-// Called by FailureSignalHandler() to write the failure info. It is
+// Called by AbslFailureSignalHandler() to write the failure info. It is
 // called once with writerfn set to WriteToStderr() and then possibly
 // with writerfn set to the user provided function.
 static void WriteFailureInfo(int signo, void* ucontext,
@@ -278,9 +278,9 @@ static void PortableSleepForSeconds(int seconds) {
 }
 
 #ifdef ABSL_HAVE_ALARM
-// FailureSignalHandler() installs this as a signal handler for
+// AbslFailureSignalHandler() installs this as a signal handler for
 // SIGALRM, then sets an alarm to be delivered to the program after a
-// set amount of time. If FailureSignalHandler() hangs for more than
+// set amount of time. If AbslFailureSignalHandler() hangs for more than
 // the alarm timeout, ImmediateAbortSignalHandler() will abort the
 // program.
 static void ImmediateAbortSignalHandler(int) {
@@ -294,11 +294,10 @@ using GetTidType = decltype(absl::base_internal::GetTID());
 ABSL_CONST_INIT static std::atomic<GetTidType> failed_tid(0);
 
 #ifndef ABSL_HAVE_SIGACTION
-static void FailureSignalHandler(int signo) {
+static void AbslFailureSignalHandler(int signo) {
   void* ucontext = nullptr;
 #else
-static void FailureSignalHandler(int signo, siginfo_t*,
-                                 void* ucontext) {
+static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
 #endif
 
   const GetTidType this_tid = absl::base_internal::GetTID();
@@ -308,10 +307,10 @@ static void FailureSignalHandler(int signo, siginfo_t*,
           std::memory_order_acq_rel, std::memory_order_relaxed)) {
     ABSL_RAW_LOG(
         ERROR,
-        "Signal %d raised at PC=%p while already in FailureSignalHandler()",
+        "Signal %d raised at PC=%p while already in AbslFailureSignalHandler()",
         signo, absl::debugging_internal::GetProgramCounter(ucontext));
     if (this_tid != previous_failed_tid) {
-      // Another thread is already in FailureSignalHandler(), so wait
+      // Another thread is already in AbslFailureSignalHandler(), so wait
       // a bit for it to finish. If the other thread doesn't kill us,
       // we do so after sleeping.
       PortableSleepForSeconds(3);
@@ -349,7 +348,7 @@ static void FailureSignalHandler(int signo, siginfo_t*,
 void InstallFailureSignalHandler(const FailureSignalHandlerOptions& options) {
   fsh_options = options;
   for (auto& it : failure_signal_data) {
-    InstallOneFailureHandler(&it, FailureSignalHandler);
+    InstallOneFailureHandler(&it, AbslFailureSignalHandler);
   }
 }
 

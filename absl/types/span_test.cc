@@ -288,7 +288,7 @@ TEST(IntSpan, Subspan) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW(absl::MakeSpan(ramp).subspan(11, 5), std::out_of_range);
 #else
-  EXPECT_DEATH(absl::MakeSpan(ramp).subspan(11, 5), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(ramp).subspan(11, 5), "");
 #endif
 }
 
