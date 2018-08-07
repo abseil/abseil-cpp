@@ -141,7 +141,7 @@ namespace absl {
 // All empty `string_view` objects whether null or not, are equal:
 //
 //   absl::string_view() == absl::string_view("", 0)
-//   absl::string_view(nullptr, 0) == absl:: string_view("abcdef"+6, 0)
+//   absl::string_view(nullptr, 0) == absl::string_view("abcdef"+6, 0)
 class string_view {
  public:
   using traits_type = std::char_traits<char>;

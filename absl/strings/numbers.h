@@ -44,7 +44,7 @@ namespace absl {
 // Converts the given std::string into an integer value, returning `true` if
 // successful. The std::string must reflect a base-10 integer (optionally followed or
 // preceded by ASCII whitespace) whose value falls within the range of the
-// integer type,
+// integer type.
 template <typename int_type>
 ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 

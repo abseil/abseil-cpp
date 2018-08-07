@@ -1227,23 +1227,23 @@ using VariantCopyBase = absl::conditional_t<
 // Base that is dependent on whether or not the move-assign can be trivial.
 template <class... T>
 using VariantMoveAssignBase = absl::conditional_t<
-    absl::disjunction<absl::conjunction<std::is_move_assignable<Union<T...>>,
+    absl::disjunction<absl::conjunction<absl::is_move_assignable<Union<T...>>,
                                         std::is_move_constructible<Union<T...>>,
                                         std::is_destructible<Union<T...>>>,
                       absl::negation<absl::conjunction<
                           std::is_move_constructible<T>...,
-                          std::is_move_assignable<T>...>>>::value,
+                          absl::is_move_assignable<T>...>>>::value,
     VariantCopyBase<T...>, VariantMoveAssignBaseNontrivial<T...>>;
 
 // Base that is dependent on whether or not the copy-assign can be trivial.
 template <class... T>
 using VariantCopyAssignBase = absl::conditional_t<
-    absl::disjunction<absl::conjunction<std::is_copy_assignable<Union<T...>>,
+    absl::disjunction<absl::conjunction<absl::is_copy_assignable<Union<T...>>,
                                         std::is_copy_constructible<Union<T...>>,
                                         std::is_destructible<Union<T...>>>,
                       absl::negation<absl::conjunction<
                           std::is_copy_constructible<T>...,
-                          std::is_copy_assignable<T>...>>>::value,
+                          absl::is_copy_assignable<T>...>>>::value,
     VariantMoveAssignBase<T...>, VariantCopyAssignBaseNontrivial<T...>>;
 
 template <class... T>
