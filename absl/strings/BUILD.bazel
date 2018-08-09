@@ -19,6 +19,7 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
+    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
 )
 
 package(
@@ -237,6 +238,7 @@ cc_test(
     size = "small",
     srcs = ["string_view_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",

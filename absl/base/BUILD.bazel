@@ -19,6 +19,7 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
+    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -179,6 +180,7 @@ cc_library(
     srcs = ["internal/throw_delegate.cc"],
     hdrs = ["internal/throw_delegate.h"],
     copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -193,6 +195,7 @@ cc_test(
     name = "throw_delegate_test",
     srcs = ["throw_delegate_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":throw_delegate",
         "@com_google_googletest//:gtest_main",
@@ -225,6 +228,7 @@ cc_library(
     srcs = ["internal/exception_safety_testing.cc"],
     hdrs = ["internal/exception_safety_testing.h"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":base",
         ":config",
@@ -241,6 +245,7 @@ cc_test(
     name = "exception_safety_testing_test",
     srcs = ["exception_safety_testing_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":exception_safety_testing",
         "//absl/memory",

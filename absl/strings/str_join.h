@@ -52,6 +52,7 @@
 #include <iterator>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/macros.h"

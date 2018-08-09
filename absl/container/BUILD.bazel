@@ -19,6 +19,7 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
+    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -62,6 +63,7 @@ cc_test(
     name = "fixed_array_test",
     srcs = ["fixed_array_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":fixed_array",
         "//absl/base:exception_testing",
@@ -86,6 +88,7 @@ cc_test(
     name = "fixed_array_exception_safety_test",
     srcs = ["fixed_array_exception_safety_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":fixed_array",
         "//absl/base:exception_safety_testing",
@@ -120,6 +123,7 @@ cc_test(
     name = "inlined_vector_test",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
         ":inlined_vector",
         ":test_instance_tracker",

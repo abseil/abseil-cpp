@@ -340,7 +340,7 @@ class string_view {
   //
   // Returns a "substring" of the `string_view` (at offset `pos` and length
   // `n`) as another string_view. This function throws `std::out_of_bounds` if
-  // `pos > size'.
+  // `pos > size`.
   string_view substr(size_type pos, size_type n = npos) const {
     if (ABSL_PREDICT_FALSE(pos > length_))
       base_internal::ThrowStdOutOfRange("absl::string_view::substr");
@@ -351,7 +351,7 @@ class string_view {
   // string_view::compare()
   //
   // Performs a lexicographical comparison between the `string_view` and
-  // another `absl::string_view), returning -1 if `this` is less than, 0 if
+  // another `absl::string_view`, returning -1 if `this` is less than, 0 if
   // `this` is equal to, and 1 if `this` is greater than the passed std::string
   // view. Note that in the case of data equality, a further comparison is made
   // on the respective sizes of the two `string_view`s to determine which is
