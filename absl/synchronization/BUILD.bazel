@@ -149,6 +149,7 @@ cc_test(
     size = "large",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
+    shard_count = 25,
     deps = [
         ":synchronization",
         ":thread_pool",
