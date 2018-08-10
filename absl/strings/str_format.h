@@ -368,7 +368,7 @@ int PrintF(const FormatSpec<Args...>& format, const Args&... args) {
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
-//   absl::FPrintF("The capital of Mongolia is %s", s);
+//   absl::FPrintF(stdout, "The capital of Mongolia is %s", s);
 //
 //   Outputs: "The capital of Mongolia is Ulaanbaatar"
 //
