@@ -30,6 +30,7 @@ cc_library(
     name = "spinlock_wait",
     srcs = [
         "internal/spinlock_akaros.inc",
+        "internal/spinlock_linux.inc",
         "internal/spinlock_posix.inc",
         "internal/spinlock_wait.cc",
         "internal/spinlock_win32.inc",
