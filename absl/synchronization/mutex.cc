@@ -298,7 +298,7 @@ static struct SynchEvent {     // this is a trivial hash table for the events
 // set "bits" in the word there (waiting until lockbit is clear before doing
 // so), and return a refcounted reference that will remain valid until
 // UnrefSynchEvent() is called.  If a new SynchEvent is allocated,
-// the std::string name is copied into it.
+// the string name is copied into it.
 // When used with a mutex, the caller should also ensure that kMuEvent
 // is set in the mutex word, and similarly for condition variables and kCVEvent.
 static SynchEvent *EnsureSynchEvent(std::atomic<intptr_t> *addr,
@@ -1827,8 +1827,8 @@ bool Mutex::LockSlowWithDeadline(MuHow how, const Condition *cond,
          cond == nullptr || EvalConditionAnnotated(cond, this, true, how);
 }
 
-// RAW_CHECK_FMT() takes a condition, a printf-style format std::string, and
-// the printf-style argument list.   The format std::string must be a literal.
+// RAW_CHECK_FMT() takes a condition, a printf-style format string, and
+// the printf-style argument list.   The format string must be a literal.
 // Arguments after the first are not evaluated unless the condition is true.
 #define RAW_CHECK_FMT(cond, ...)                                   \
   do {                                                             \

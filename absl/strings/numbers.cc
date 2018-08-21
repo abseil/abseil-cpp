@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains std::string processing functions related to
+// This file contains string processing functions related to
 // numeric values.
 
 #include "absl/strings/numbers.h"
@@ -161,8 +161,8 @@ bool SimpleAtob(absl::string_view str, bool* value) {
 // their output to the beginning of the buffer.  The caller is responsible
 // for ensuring that the buffer has enough space to hold the output.
 //
-// Returns a pointer to the end of the std::string (i.e. the null character
-// terminating the std::string).
+// Returns a pointer to the end of the string (i.e. the null character
+// terminating the string).
 // ----------------------------------------------------------------------
 
 namespace {

@@ -19,7 +19,7 @@
 //
 // This file contains the definition of the `absl::string_view` class. A
 // `string_view` points to a contiguous span of characters, often part or all of
-// another `std::string`, double-quoted std::string literal, character array, or even
+// another `std::string`, double-quoted string literal, character array, or even
 // another `string_view`.
 //
 // This `absl::string_view` abstraction is designed to be a drop-in
@@ -56,15 +56,15 @@ namespace absl {
 
 // absl::string_view
 //
-// A `string_view` provides a lightweight view into the std::string data provided by
-// a `std::string`, double-quoted std::string literal, character array, or even
-// another `string_view`. A `string_view` does *not* own the std::string to which it
+// A `string_view` provides a lightweight view into the string data provided by
+// a `std::string`, double-quoted string literal, character array, or even
+// another `string_view`. A `string_view` does *not* own the string to which it
 // points, and that data cannot be modified through the view.
 //
 // You can use `string_view` as a function or method parameter anywhere a
-// parameter can receive a double-quoted std::string literal, `const char*`,
+// parameter can receive a double-quoted string literal, `const char*`,
 // `std::string`, or another `absl::string_view` argument with no need to copy
-// the std::string data. Systematic use of `string_view` within function arguments
+// the string data. Systematic use of `string_view` within function arguments
 // reduces data copies and `strlen()` calls.
 //
 // Because of its small size, prefer passing `string_view` by value:
@@ -97,8 +97,8 @@ namespace absl {
 // `string_view` this way, it is your responsibility to ensure that the object
 // pointed to by the `string_view` outlives the `string_view`.
 //
-// A `string_view` may represent a whole std::string or just part of a std::string. For
-// example, when splitting a std::string, `std::vector<absl::string_view>` is a
+// A `string_view` may represent a whole string or just part of a string. For
+// example, when splitting a string, `std::vector<absl::string_view>` is a
 // natural data type for the output.
 //
 //

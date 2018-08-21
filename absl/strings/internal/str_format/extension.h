@@ -57,7 +57,7 @@ class FormatRawSinkImpl {
   void (*write_)(void*, string_view);
 };
 
-// An abstraction to which conversions write their std::string data.
+// An abstraction to which conversions write their string data.
 class FormatSinkImpl {
  public:
   explicit FormatSinkImpl(FormatRawSinkImpl raw) : raw_(raw) {}

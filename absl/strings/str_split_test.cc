@@ -276,7 +276,7 @@ TEST(SplitIterator, Basics) {
   EXPECT_EQ(it, end);
 }
 
-// Simple Predicate to skip a particular std::string.
+// Simple Predicate to skip a particular string.
 class Skip {
  public:
   explicit Skip(const std::string& s) : s_(s) {}
@@ -768,7 +768,7 @@ static bool IsFoundAtStartingPos(absl::string_view text, Delimiter d,
 }
 
 // Helper function for testing Delimiter objects. Returns true if the given
-// Delimiter is found in the given std::string at the given position. This function
+// Delimiter is found in the given string at the given position. This function
 // tests two cases:
 //   1. The actual text given, staring at position 0
 //   2. The text given with leading padding that should be ignored

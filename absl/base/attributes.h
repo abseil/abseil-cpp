@@ -100,7 +100,7 @@
 // ABSL_PRINTF_ATTRIBUTE
 // ABSL_SCANF_ATTRIBUTE
 //
-// Tells the compiler to perform `printf` format std::string checking if the
+// Tells the compiler to perform `printf` format string checking if the
 // compiler supports it; see the 'format' attribute in
 // <http://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Function-Attributes.html>.
 //

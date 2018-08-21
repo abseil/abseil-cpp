@@ -168,7 +168,7 @@ int FprintF(std::FILE* output, const UntypedFormatSpecImpl& format,
 int SnprintF(char* output, size_t size, const UntypedFormatSpecImpl& format,
              absl::Span<const FormatArgImpl> args);
 
-// Returned by Streamed(v). Converts via '%s' to the std::string created
+// Returned by Streamed(v). Converts via '%s' to the string created
 // by std::ostream << v.
 template <typename T>
 class StreamedWrapper {

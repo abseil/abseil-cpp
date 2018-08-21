@@ -284,7 +284,7 @@ TEST(StringViewTest, ComparisonOperatorsByCharacterPosition) {
 }
 #undef COMPARE
 
-// Sadly, our users often confuse std::string::npos with absl::string_view::npos;
+// Sadly, our users often confuse string::npos with absl::string_view::npos;
 // So much so that we test here that they are the same.  They need to
 // both be unsigned, and both be the maximum-valued integer of their type.
 
@@ -812,7 +812,7 @@ TEST(StringViewTest, FrontBackSingleChar) {
 }
 
 // `std::string_view::string_view(const char*)` calls
-// `std::char_traits<char>::length(const char*)` to get the std::string length. In
+// `std::char_traits<char>::length(const char*)` to get the string length. In
 // libc++, it doesn't allow `nullptr` in the constexpr context, with the error
 // "read of dereferenced null pointer is not allowed in a constant expression".
 // At run time, the behavior of `std::char_traits::length()` on `nullptr` is

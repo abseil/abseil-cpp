@@ -533,7 +533,7 @@ const char* ParseSubSeconds(const char* dp, detail::femtoseconds* subseconds) {
   return dp;
 }
 
-// Parses a std::string into a std::tm using strptime(3).
+// Parses a string into a std::tm using strptime(3).
 const char* ParseTM(const char* dp, const char* fmt, std::tm* tm) {
   if (dp != nullptr) {
     dp = strptime(dp, fmt, tm);
