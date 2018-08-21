@@ -70,9 +70,6 @@ option(ABSL_USE_GOOGLETEST_HEAD
 option(ABSL_RUN_TESTS "If ON, Abseil tests will be run." OFF)
 
 option(ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS "If ON, declare public Abseil headers as SYSTEM in order to mute compiler warnings." ON)
-if(${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS})
-  set(_ABSL_HEADERS_SYSTEM_KEYWORD "SYSTEM")
-endif()
 
 if(${ABSL_RUN_TESTS})
   # enable CTest.  This will set BUILD_TESTING to ON unless otherwise specified
