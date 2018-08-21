@@ -124,7 +124,7 @@ std::string Utf8SafeCHexEscape(absl::string_view src);
 // characters, `dest` is cleared and returns `false`.
 bool Base64Unescape(absl::string_view src, std::string* dest);
 
-// WebSafeBase64Unescape(absl::string_view, std::string*)
+// WebSafeBase64Unescape()
 //
 // Converts a `src` std::string encoded in Base64 to its binary equivalent, writing
 // it to a `dest` buffer, but using '-' instead of '+', and '_' instead of '/'.

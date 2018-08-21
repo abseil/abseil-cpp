@@ -641,55 +641,59 @@ struct default_allocator_is_nothrow : std::false_type {};
 #endif
 
 namespace memory_internal {
-#ifdef ABSL_HAVE_EXCEPTIONS
-template <typename Allocator, typename StorageElement, typename... Args>
-void ConstructStorage(Allocator* alloc, StorageElement* first,
-                      StorageElement* last, const Args&... args) {
-  for (StorageElement* cur = first; cur != last; ++cur) {
+#ifdef ABSL_HAVE_EXCEPTIONS  // ConstructRange
+template <typename Allocator, typename Iterator, typename... Args>
+void ConstructRange(Allocator& alloc, Iterator first, Iterator last,
+                    const Args&... args) {
+  for (Iterator cur = first; cur != last; ++cur) {
     try {
-      std::allocator_traits<Allocator>::construct(*alloc, cur, args...);
+      std::allocator_traits<Allocator>::construct(alloc, cur, args...);
     } catch (...) {
       while (cur != first) {
         --cur;
-        std::allocator_traits<Allocator>::destroy(*alloc, cur);
+        std::allocator_traits<Allocator>::destroy(alloc, cur);
       }
       throw;
     }
   }
 }
-template <typename Allocator, typename StorageElement, typename Iterator>
-void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
-                            Iterator first, Iterator last) {
-  for (StorageElement* cur = destination; first != last;
+#else   // ABSL_HAVE_EXCEPTIONS  // ConstructRange
+template <typename Allocator, typename Iterator, typename... Args>
+void ConstructRange(Allocator& alloc, Iterator first, Iterator last,
+                    const Args&... args) {
+  for (; first != last; ++first) {
+    std::allocator_traits<Allocator>::construct(alloc, first, args...);
+  }
+}
+#endif  // ABSL_HAVE_EXCEPTIONS  // ConstructRange
+
+#ifdef ABSL_HAVE_EXCEPTIONS  // CopyRange
+template <typename Allocator, typename Iterator, typename InputIterator>
+void CopyRange(Allocator& alloc, Iterator destination, InputIterator first,
+               InputIterator last) {
+  for (Iterator cur = destination; first != last;
        static_cast<void>(++cur), static_cast<void>(++first)) {
     try {
-      std::allocator_traits<Allocator>::construct(*alloc, cur, *first);
+      std::allocator_traits<Allocator>::construct(alloc, cur, *first);
     } catch (...) {
       while (cur != destination) {
         --cur;
-        std::allocator_traits<Allocator>::destroy(*alloc, cur);
+        std::allocator_traits<Allocator>::destroy(alloc, cur);
       }
       throw;
     }
   }
 }
-#else   // ABSL_HAVE_EXCEPTIONS
-template <typename Allocator, typename StorageElement, typename... Args>
-void ConstructStorage(Allocator* alloc, StorageElement* first,
-                      StorageElement* last, const Args&... args) {
-  for (; first != last; ++first) {
-    std::allocator_traits<Allocator>::construct(*alloc, first, args...);
-  }
-}
-template <typename Allocator, typename StorageElement, typename Iterator>
-void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
-                            Iterator first, Iterator last) {
+#else   // ABSL_HAVE_EXCEPTIONS  // CopyRange
+template <typename Allocator, typename Iterator, typename InputIterator>
+void CopyRange(Allocator& alloc, Iterator destination, InputIterator first,
+               InputIterator last) {
   for (; first != last;
        static_cast<void>(++destination), static_cast<void>(++first)) {
-    std::allocator_traits<Allocator>::construct(*alloc, destination, *first);
+    std::allocator_traits<Allocator>::construct(alloc, destination, *first);
   }
 }
-#endif  // ABSL_HAVE_EXCEPTIONS
+#endif  // ABSL_HAVE_EXCEPTIONS  // CopyRange
 }  // namespace memory_internal
 }  // namespace absl
 
