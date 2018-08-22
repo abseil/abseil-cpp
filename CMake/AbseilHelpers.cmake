@@ -136,34 +136,26 @@ function(absl_cc_library)
 
     if(ABSL_CC_LIB_SRCS_LEN)
       add_library(${_NAME} STATIC ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
+      target_include_directories(${_NAME}
+        PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
+      target_compile_options(${_NAME}
+        PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_LIB_COPTS})
+      target_link_libraries(${_NAME}
+        PUBLIC ${ABSL_CC_LIB_DEPS}
+        PRIVATE ${ABSL_CC_LIB_LINKOPTS}
+      )
+      target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
+
+      # Add all Abseil targets to a a folder in the IDE for organization.
+      set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
     else()
-      set(__dummy_header_only_lib_file "${CMAKE_CURRENT_BINARY_DIR}/${_NAME}_header_only_dummy.cc")
-
-      if(NOT EXISTS ${__dummy_header_only_lib_file})
-        file(WRITE ${__dummy_header_only_lib_file}
-          "/* generated file for header-only cmake target */
-
-          namespace absl {
-            // single meaningless symbol
-            void ${_NAME}__header_fakesym() {}
-          }  // namespace absl")
-      endif()
-
-      add_library(${_NAME} ${__dummy_header_only_lib_file} ${ABSL_CC_LIB_HDRS})
+      add_library(${_NAME} INTERFACE)
+      target_include_directories(${_NAME} INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+      target_link_libraries(${_NAME}
+        INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
+      )
+      target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
-
-    target_compile_options(${_NAME} PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_LIB_COPTS})
-    target_link_libraries(${_NAME}
-      PUBLIC ${ABSL_CC_LIB_DEPS}
-      PRIVATE ${ABSL_CC_LIB_LINKOPTS}
-    )
-    target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
-
-    target_include_directories(${_NAME}
-      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
-    )
-    # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
     if(ABSL_CC_LIB_VISIBILITY_PUBLIC)
       add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
