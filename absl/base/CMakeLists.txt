@@ -83,20 +83,17 @@ absl_library(
     base
 )
 
-# throw delegate library
-set(THROW_DELEGATE_SRC "internal/throw_delegate.cc")
-
-absl_library(
-  TARGET
-    absl_throw_delegate
-  SOURCES
-    ${THROW_DELEGATE_SRC}
-  PUBLIC_LIBRARIES
-    ${THROW_DELEGATE_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-  EXPORT_NAME
+absl_cc_library(
+  NAME
     throw_delegate
+  SRCS
+    "internal/throw_delegate.cc"
+  HDRS
+    "internal/throw_delegate.h"
+  COPTS
+    ${ABSL_EXCEPTIONS_FLAG}
+  DEPS
+    absl::base
 )
 
 
@@ -131,29 +128,25 @@ absl_library(
     ${DYNAMIC_ANNOTATIONS_SRC}
 )
 
-
-# spinlock_wait library
-set(SPINLOCK_WAIT_SRC "internal/spinlock_wait.cc")
-
-absl_library(
-  TARGET
-    absl_spinlock_wait
-  SOURCES
-    ${SPINLOCK_WAIT_SRC}
+absl_cc_library(
+  NAME
+    spinlock_wait
+  SRCS
+    "internal/spinlock_wait.cc"
+  HDRS
+    "internal/scheduling_mode.h"
+    "internal/spinlock_wait.h"
 )
 
-
-# malloc_internal library
-list(APPEND MALLOC_INTERNAL_SRC
-  "internal/low_level_alloc.cc"
-)
-
-absl_library(
-  TARGET
-    absl_malloc_internal
-  SOURCES
-    ${MALLOC_INTERNAL_SRC}
-  PUBLIC_LIBRARIES
+absl_cc_library(
+  NAME
+    malloc_internal
+  SRCS
+    "internal/low_level_alloc.cc"
+  HDRS
+    "internal/direct_mmap.h"
+    "internal/low_level_alloc.h"
+  DEPS
     absl_dynamic_annotations
 )
 
