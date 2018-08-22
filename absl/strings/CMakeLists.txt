@@ -14,71 +14,88 @@
 # limitations under the License.
 #
 
-absl_cc_library(
-  NAME
+
+list(APPEND STRINGS_PUBLIC_HEADERS
+  "ascii.h"
+  "charconv.h"
+  "escaping.h"
+  "match.h"
+  "numbers.h"
+  "str_cat.h"
+  "string_view.h"
+  "strip.h"
+  "str_join.h"
+  "str_replace.h"
+  "str_split.h"
+  "substitute.h"
+)
+
+
+list(APPEND STRINGS_INTERNAL_HEADERS
+  "internal/bits.h"
+  "internal/char_map.h"
+  "internal/charconv_bigint.h"
+  "internal/charconv_parse.h"
+  "internal/memutil.h"
+  "internal/ostringstream.h"
+  "internal/resize_uninitialized.h"
+  "internal/stl_type_traits.h"
+  "internal/str_join_internal.h"
+  "internal/str_split_internal.h"
+  "internal/utf8.h"
+)
+
+
+
+# add string library
+list(APPEND STRINGS_SRC
+  "ascii.cc"
+  "charconv.cc"
+  "escaping.cc"
+  "internal/charconv_bigint.cc"
+  "internal/charconv_parse.cc"
+  "internal/memutil.cc"
+  "internal/memutil.h"
+  "internal/utf8.cc"
+  "internal/ostringstream.cc"
+  "match.cc"
+  "numbers.cc"
+  "str_cat.cc"
+  "str_replace.cc"
+  "str_split.cc"
+  "string_view.cc"
+  "substitute.cc"
+  ${STRINGS_PUBLIC_HEADERS}
+  ${STRINGS_INTERNAL_HEADERS}
+)
+set(STRINGS_PUBLIC_LIBRARIES absl::base absl_throw_delegate)
+
+absl_library(
+  TARGET
+    absl_strings
+  SOURCES
+    ${STRINGS_SRC}
+  PUBLIC_LIBRARIES
+    ${STRINGS_PUBLIC_LIBRARIES}
+  EXPORT_NAME
     strings
-  HDRS
-    "ascii.h"
-    "charconv.h"
-    "escaping.h"
-    "match.h"
-    "numbers.h"
-    "str_cat.h"
-    "string_view.h"
-    "strip.h"
-    "str_join.h"
-    "str_replace.h"
-    "str_split.h"
-    "substitute.h"
-  SRCS
-    "ascii.cc"
-    "charconv.cc"
-    "escaping.cc"
-    "internal/bits.h"
-    "internal/char_map.h"
-    "internal/charconv_bigint.cc"
-    "internal/charconv_bigint.h"
-    "internal/charconv_parse.cc"
-    "internal/charconv_parse.h"
-    "internal/memutil.cc"
-    "internal/memutil.h"
-    "internal/ostringstream.cc"
-    "internal/ostringstream.h"
-    "internal/resize_uninitialized.h"
-    "internal/stl_type_traits.h"
-    "internal/str_join_internal.h"
-    "internal/str_split_internal.h"
-    "internal/utf8.cc"
-    "internal/utf8.h"
-    "match.cc"
-    "numbers.cc"
-    "str_cat.cc"
-    "str_replace.cc"
-    "str_split.cc"
-    "string_view.cc"
-    "substitute.cc"
-  DEPS
-    absl::base
-    absl_throw_delegate
-  VISIBILITY_PUBLIC
 )
 
 # add str_format library
-absl_cc_library(
-  NAME
+absl_header_library(
+  TARGET
+    absl_str_format
+  PUBLIC_LIBRARIES
+    str_format_internal
+  EXPORT_NAME
     str_format
-  HDRS
-    "str_format.h"
-  DEPS
-    absl_str_format_internal
-  VISIBILITY_PUBLIC
 )
 
 # str_format_internal
-absl_cc_library(
-  NAME
+absl_library(
+  TARGET
     str_format_internal
-  SRCS
+  SOURCES
     "internal/str_format/arg.cc"
     "internal/str_format/bind.cc"
     "internal/str_format/extension.cc"
@@ -92,7 +109,7 @@ absl_cc_library(
     "internal/str_format/float_conversion.h"
     "internal/str_format/output.h"
     "internal/str_format/parser.h"
-  DEPS
+  PUBLIC_LIBRARIES
     str_format_extension_internal
     absl::strings
     absl::base
@@ -399,7 +416,7 @@ absl_test(
   SOURCES
     "internal/str_format/bind_test.cc"
   PUBLIC_LIBRARIES
-    absl_str_format_internal
+    str_format_internal
 )
 
 # test str_format_checker_test
@@ -419,7 +436,7 @@ absl_test(
   SOURCES
     "internal/str_format/convert_test.cc"
   PUBLIC_LIBRARIES
-    absl_str_format_internal
+    str_format_internal
     absl::numeric
 )
 
@@ -440,7 +457,7 @@ absl_test(
   SOURCES
     "internal/str_format/parser_test.cc"
   PUBLIC_LIBRARIES
-    absl_str_format_internal
+    str_format_internal
     absl::base
 )
 
