@@ -121,7 +121,7 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if (NOT ABSL_CC_LIB_TESTONLY OR BUILD_TESTING)
+  if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
     set(_NAME "absl_${ABSL_CC_LIB_NAME}")
     string(TOUPPER ${_NAME} _UPPER_NAME)
 
