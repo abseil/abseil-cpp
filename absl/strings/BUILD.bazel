@@ -70,6 +70,7 @@ cc_library(
     deps = [
         ":internal",
         "//absl/base",
+        "//absl/base:bits",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
@@ -87,7 +88,6 @@ cc_library(
         "internal/utf8.cc",
     ],
     hdrs = [
-        "internal/bits.h",
         "internal/char_map.h",
         "internal/ostringstream.h",
         "internal/resize_uninitialized.h",

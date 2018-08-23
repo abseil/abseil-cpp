@@ -304,7 +304,7 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
   ptrdiff_t dest_size;
   if (!CUnescapeInternal(source,
                          leave_nulls_escaped,
-                         const_cast<char*>(dest->data()),
+                         &(*dest)[0],
                          &dest_size,
                          error)) {
     return false;

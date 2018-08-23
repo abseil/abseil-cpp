@@ -427,3 +427,23 @@ cc_test(
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
+
+cc_library(
+    name = "bits",
+    hdrs = ["internal/bits.h"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [":core_headers"],
+)
+
+cc_test(
+    name = "bits_test",
+    size = "small",
+    srcs = ["internal/bits_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":bits",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

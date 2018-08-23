@@ -25,11 +25,22 @@
 //  * `absl::TimeZone` defines geopolitical time zone regions (as collected
 //     within the IANA Time Zone database (https://www.iana.org/time-zones)).
 //
+// Note: Absolute times are distinct from civil times, which refer to the
+// human-scale time commonly represented by `YYYY-MM-DD hh:mm:ss`. The mapping
+// between absolute and civil times can be specified by use of time zones
+// (`absl::TimeZone` within this API). That is:
+//
+//    Civil Time = F(Absolute Time, Time Zone)
+//    Absolute Time = F(Civil Time, Time Zone)
+//
+// See civil_time.h for abstractions related to constructing and manipulating
+// civil time.
+//
 // Example:
 //
 //   absl::TimeZone nyc;
 //
-//   // LoadTimeZone may fail so it's always better to check for success.
+//   // LoadTimeZone() may fail so it's always better to check for success.
 //   if (!absl::LoadTimeZone("America/New_York", &nyc)) {
 //      // handle error case
 //   }
@@ -496,7 +507,7 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 // decimal numbers, each with an optional fractional part and a unit
 // suffix.  The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
 // Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
-// `ZeroDuration()`.  Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
+// `ZeroDuration()`. Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
 bool ParseDuration(const std::string& dur_string, Duration* d);
 
 // Support for flag values of type Duration. Duration flags must be specified
@@ -689,7 +700,9 @@ constexpr Time InfinitePast() {
 // Examples:
 //
 //   absl::TimeZone lax;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) { ... }
+//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) {
+//     // handle error case
+//   }
 //
 //   // A unique civil time
 //   absl::TimeConversion jan01 =
@@ -759,7 +772,9 @@ TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
 // Example:
 //
 //   absl::TimeZone seattle;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &seattle)) { ... }
+//   if (!absl::LoadTimeZone("America/Los_Angeles", &seattle)) {
+//     // handle error case
+//   }
 //   absl::Time t =  absl::FromDateTime(2017, 9, 26, 9, 30, 0, seattle);
 Time FromDateTime(int64_t year, int mon, int day, int hour, int min, int sec,
                   TimeZone tz);
@@ -910,7 +925,9 @@ extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 // Example:
 //
 //   absl::TimeZone lax;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) { ... }
+//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) {
+//     // handle error case
+//   }
 //   absl::Time t = absl::FromDateTime(2013, 1, 2, 3, 4, 5, lax);
 //
 //   string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
@@ -1028,7 +1045,9 @@ std::string UnparseFlag(Time t);
 //   absl::TimeZone pst = absl::FixedTimeZone(-8 * 60 * 60);
 //   absl::TimeZone loc = absl::LocalTimeZone();
 //   absl::TimeZone lax;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) { ... }
+//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) {
+//     // handle error case
+//   }
 //
 // See also:
 // - https://github.com/google/cctz
