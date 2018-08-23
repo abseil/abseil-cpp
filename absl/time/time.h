@@ -25,16 +25,6 @@
 //  * `absl::TimeZone` defines geopolitical time zone regions (as collected
 //     within the IANA Time Zone database (https://www.iana.org/time-zones)).
 //
-// Note: Absolute times are distinct from civil times, which refer to the
-// human-scale time commonly represented by `YYYY-MM-DD hh:mm:ss`. The mapping
-// between absolute and civil times can be specified by use of time zones
-// (`absl::TimeZone` within this API). That is:
-//
-//    Civil Time = F(Absolute Time, Time Zone)
-//    Absolute Time = F(Civil Time, Time Zone)
-//
-// See civil_time.h for abstractions related to constructing and manipulating
-// civil time.
 //
 // Example:
 //
