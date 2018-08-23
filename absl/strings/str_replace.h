@@ -21,7 +21,7 @@
 // replacement function designed for large, arbitrary text substitutions,
 // especially on strings which you are receiving from some other system for
 // further processing (e.g. processing regular expressions, escaping HTML
-// entities, etc. `StrReplaceAll` is designed to be efficient even when only
+// entities, etc.). `StrReplaceAll` is designed to be efficient even when only
 // one substitution is being performed, or when substitution is rare.
 //
 // If the string being modified is known at compile-time, and the substitutions
