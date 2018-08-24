@@ -68,7 +68,7 @@ list(APPEND STRINGS_SRC
   ${STRINGS_PUBLIC_HEADERS}
   ${STRINGS_INTERNAL_HEADERS}
 )
-set(STRINGS_PUBLIC_LIBRARIES absl::base absl_throw_delegate)
+set(STRINGS_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate)
 
 absl_library(
   TARGET
@@ -208,7 +208,7 @@ absl_test(
 
 # test string_view_test
 set(STRING_VIEW_TEST_SRC "string_view_test.cc")
-set(STRING_VIEW_TEST_PUBLIC_LIBRARIES absl::strings absl_throw_delegate absl::base)
+set(STRING_VIEW_TEST_PUBLIC_LIBRARIES absl::strings absl_internal_throw_delegate absl::base)
 
 absl_test(
   TARGET
@@ -236,7 +236,7 @@ absl_test(
 
 # test str_replace_test
 set(STR_REPLACE_TEST_SRC "str_replace_test.cc")
-set(STR_REPLACE_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_throw_delegate)
+set(STR_REPLACE_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
 
 absl_test(
   TARGET
@@ -250,7 +250,7 @@ absl_test(
 
 # test str_split_test
 set(STR_SPLIT_TEST_SRC "str_split_test.cc")
-set(STR_SPLIT_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_throw_delegate)
+set(STR_SPLIT_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
 
 absl_test(
   TARGET

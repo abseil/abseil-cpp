@@ -53,7 +53,7 @@ absl_test(
 set(MEMORY_EXCEPTION_SAFETY_TEST_SRC "memory_exception_safety_test.cc")
 set(MEMORY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
   absl::memory
-  absl_base_internal_exception_safety_testing
+  absl_internal_exception_safety_testing
 )
 
 absl_test(

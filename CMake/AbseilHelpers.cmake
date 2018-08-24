@@ -78,8 +78,8 @@ endfunction()
 #
 # Note:
 #
-# By default, absl_cc_library will always create a library named absl_${NAME},
-# which means other targets can only depend this library as absl_${NAME}, not ${NAME}.
+# By default, absl_cc_library will always create a library named absl_internal_${NAME},
+# which means other targets can only depend this library as absl_internal_${NAME}, not ${NAME}.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
@@ -96,11 +96,11 @@ endfunction()
 #   SRCS
 #     "b.cc"
 #   DEPS
-#     absl_awesome_lib # not "awesome_lib"!
+#     absl_internal_awesome_lib # not "awesome_lib"!
 # )
 #
 # If VISIBILITY_PUBLIC is set, absl_cc_library will also create an alias absl::${NAME}
-# for public use.
+# for public use in addition to absl_internal_${NAME}.
 #
 # absl_cc_library(
 #   NAME
@@ -122,7 +122,7 @@ function(absl_cc_library)
   )
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
     string(TOUPPER ${_NAME} _UPPER_NAME)
 
     # Check if this is a header-only library

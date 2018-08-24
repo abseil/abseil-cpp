@@ -78,7 +78,7 @@ absl_library(
     ${BASE_SRC}
   PUBLIC_LIBRARIES
     absl_dynamic_annotations
-    absl_spinlock_wait
+    absl_internal_spinlock_wait
   EXPORT_NAME
     base
 )
@@ -197,7 +197,7 @@ absl_test(
 
 # test absl_throw_delegate_test
 set(THROW_DELEGATE_TEST_SRC "throw_delegate_test.cc")
-set(THROW_DELEGATE_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate)
+set(THROW_DELEGATE_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate)
 
 absl_test(
   TARGET
@@ -354,7 +354,7 @@ absl_test(
 set(EXCEPTION_SAFETY_TESTING_TEST_SRC "exception_safety_testing_test.cc")
 set(EXCEPTION_SAFETY_TESTING_TEST_PUBLIC_LIBRARIES
   absl::base
-  absl_exception_safety_testing
+  absl_internal_exception_safety_testing
   absl::memory
   absl::meta
   absl::strings
