@@ -109,7 +109,7 @@ endfunction()
 #   VISIBILITY_PUBLIC
 # )
 #
-# User can then use the library as absl::main_lib (although absl_main_lib is defined too).
+# User can then use the library as absl::main_lib (although absl_internal_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
 
