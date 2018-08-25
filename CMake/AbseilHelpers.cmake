@@ -73,7 +73,7 @@ endfunction()
 # COPTS: List of private compile options
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
-# VISIBILITY_PUBLIC: Add this so that this library will be exported under absl:: (see Note).
+# PUBLIC: Add this so that this library will be exported under absl:: (see Note).
 # TESTONLY: When added, this target will only be built if user passes -DBUILD_TESTING=ON to CMake.
 #
 # Note:
@@ -99,14 +99,14 @@ endfunction()
 #     absl_internal_awesome_lib # not "awesome_lib"!
 # )
 #
-# If VISIBILITY_PUBLIC is set, absl_cc_library will also create an alias absl::${NAME}
+# If PUBLIC is set, absl_cc_library will also create an alias absl::${NAME}
 # for public use in addition to absl_internal_${NAME}.
 #
 # absl_cc_library(
 #   NAME
 #     main_lib
 #   ...
-#   VISIBILITY_PUBLIC
+#   PUBLIC
 # )
 #
 # User can then use the library as absl::main_lib (although absl_internal_main_lib is defined too).
@@ -115,7 +115,7 @@ endfunction()
 
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
-    "DISABLE_INSTALL;VISIBILITY_PUBLIC;TESTONLY"
+    "DISABLE_INSTALL;PUBLIC;TESTONLY"
     "NAME"
     "HDRS;SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
     ${ARGN}
@@ -123,7 +123,6 @@ function(absl_cc_library)
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
     set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
-    string(TOUPPER ${_NAME} _UPPER_NAME)
 
     # Check if this is a header-only library
     if (ABSL_CC_LIB_SRCS)
@@ -157,7 +156,7 @@ function(absl_cc_library)
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
 
-    if(ABSL_CC_LIB_VISIBILITY_PUBLIC)
+    if(ABSL_CC_LIB_PUBLIC)
       add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
     endif()
   endif()
