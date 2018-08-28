@@ -69,6 +69,12 @@ using std::end;
 template <typename C>
 using ContainerIter = decltype(begin(std::declval<C&>()));
 
+// The type of the reverse_iterator given by rbegin(c) (possibly std::rbegin(c)).
+// ContainerReverseIter<const vector<T>> gives vector<T>::const_reverse_iterator,
+// while ContainerReverseIter<vector<T>> gives vector<T>::reverse_iterator.
+template <typename C>
+using ContainerReverseIter = std::reverse_iterator<ContainerIter<C>>;
+
 // An MSVC bug involving template parameter substitution requires us to use
 // decltype() here instead of just std::pair.
 template <typename C1, typename C2>
@@ -100,6 +106,29 @@ ContainerIter<C> c_begin(C& c) { return begin(c); }
 
 template <typename C>
 ContainerIter<C> c_end(C& c) { return end(c); }
+
+template <typename C>
+ContainerReverseIter<C> c_rbegin(C& c) { return ContainerReverseIter<C>(end(c)); }
+
+template <typename C>
+ContainerReverseIter<C> c_rend(C& c) { return ContainerReverseIter<C>(begin(c)); }
+
+// reverse_range_impl
+//
+// Non-owning wrapper around a container, that redirects begin/end
+// to rbegin/rend
+template <typename C>
+class reverse_range_impl {
+public:
+    explicit reverse_range_impl(C& c) : data(c) {}
+
+    ContainerReverseIter<C> begin() { return c_rbegin(data); }
+    ContainerReverseIter<C> begin() const { return c_rbegin(data); }
+    ContainerReverseIter<C> end() { return c_rend(data); }
+    ContainerReverseIter<C> end() const { return c_rend(data); }
+private:
+    C& data;
+};
 
 }  // namespace container_algorithm_internal
 
@@ -1635,6 +1664,27 @@ OutputIt c_partial_sum(const InputSequence& input, OutputIt output_first,
   return std::partial_sum(container_algorithm_internal::c_begin(input),
                           container_algorithm_internal::c_end(input),
                           output_first, std::forward<BinaryOp>(op));
+}
+
+// reverse_range()
+//
+// Helper function that returns a wrapper around a container c, which redirects begin/end to rbegin/rend
+// Main usage is for range based loops in reverse order where the following is equivalent:
+//
+// vector<int> foo;
+// for (int elem : absl::reverse_range(foo)) {
+//     ...
+// }
+//
+// for (auto rit = foo.rbegin(); rit!= foo.rend(); ++rit) {
+//     int elem = *rit;
+//     ...
+// }
+//
+// Note that this requires bidirectional iterators
+template <typename C>
+container_algorithm_internal::reverse_range_impl<C> reverse_range(C& c) {
+    return container_algorithm_internal::reverse_range_impl<C>(c);
 }
 
 }  // namespace absl

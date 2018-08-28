@@ -994,4 +994,22 @@ TEST(MutatingTest, PermutationOperations) {
   EXPECT_EQ(initial, permuted);
 }
 
+TEST(ReverseRange, Vector) {
+  std::vector<int> data = {1, 2, 3, 4};
+  auto reverse = absl::reverse_range(data);
+  ASSERT_TRUE(std::equal(data.rbegin(), data.rend(), reverse.begin()));
+}
+
+TEST(ReverseRange, Set) {
+  std::set<int> data = {2, 3, 4, 7};
+  auto reverse = absl::reverse_range(data);
+  ASSERT_TRUE(std::equal(data.rbegin(), data.rend(), reverse.begin()));
+}
+
+TEST(ReverseRange, Array) {
+  std::array<int, 4> data = {3, 5, 7, 9};
+  auto reverse = absl::reverse_range(data);
+  ASSERT_TRUE(std::equal(data.rbegin(), data.rend(), reverse.begin()));
+}
+
 }  // namespace
