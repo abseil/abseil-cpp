@@ -494,6 +494,20 @@
 #define ABSL_XRAY_LOG_ARGS(N)
 #endif
 
+// ABSL_ATTRIBUTE_REINITIALIZES
+//
+// Indicates that a member function reinitializes the entire object to a known
+// state, independent of the previous state of the object.
+//
+// The clang-tidy check bugprone-use-after-move allows member functions marked
+// with this attribute to be called on objects that have been moved from;
+// without the attribute, this would result in a use-after-move warning.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::reinitializes)
+#define ABSL_ATTRIBUTE_REINITIALIZES [[clang::reinitializes]]
+#else
+#define ABSL_ATTRIBUTE_REINITIALIZES
+#endif
+
 // -----------------------------------------------------------------------------
 // Variable Attributes
 // -----------------------------------------------------------------------------

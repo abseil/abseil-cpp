@@ -138,6 +138,9 @@ cc_library(
     name = "thread_pool",
     testonly = 1,
     hdrs = ["internal/thread_pool.h"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":synchronization",
         "//absl/base:core_headers",
