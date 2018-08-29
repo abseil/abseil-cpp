@@ -876,8 +876,10 @@ std::chrono::system_clock::time_point ToChronoTime(Time);
 // FormatTime()/ParseTime() format specifiers for RFC3339 date/time strings,
 // with trailing zeros trimmed or with fractional seconds omitted altogether.
 //
-// Note that RFC3339_sec[] matches an ISO 8601 extended format for date
-// and time with UTC offset.
+// Note that RFC3339_sec[] matches an ISO 8601 extended format for date and
+// time with UTC offset.  Also note the use of "%Y": RFC3339 mandates that
+// years have exactly four digits, but we allow them to take their natural
+// width.
 extern const char RFC3339_full[];  // %Y-%m-%dT%H:%M:%E*S%Ez
 extern const char RFC3339_sec[];   // %Y-%m-%dT%H:%M:%S%Ez
 

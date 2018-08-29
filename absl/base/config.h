@@ -414,14 +414,13 @@
 // <string_view>, <variant> is implemented) or higher. Also, `__cplusplus` is
 // not correctly set by MSVC, so we use `_MSVC_LANG` to check the language
 // version.
-// TODO(zhangxy): fix tests before enabling aliasing for `std::any`,
-// `std::string_view`.
+// TODO(zhangxy): fix tests before enabling aliasing for `std::any`.
 #if defined(_MSC_VER) && _MSC_VER >= 1910 && \
     ((defined(_MSVC_LANG) && _MSVC_LANG > 201402) || __cplusplus > 201402)
 // #define ABSL_HAVE_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
-// #define ABSL_HAVE_STD_STRING_VIEW 1
+#define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
 #endif  // ABSL_BASE_CONFIG_H_

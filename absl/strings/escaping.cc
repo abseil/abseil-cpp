@@ -104,7 +104,7 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
                        char* dest, ptrdiff_t* dest_len, std::string* error) {
   char* d = dest;
   const char* p = source.data();
-  const char* end = source.end();
+  const char* end = p + source.size();
   const char* last_byte = end - 1;
 
   // Small optimization for case where source = dest and there's no escaping

@@ -763,7 +763,7 @@ template <typename Delimiter>
 static bool IsFoundAtStartingPos(absl::string_view text, Delimiter d,
                                  size_t starting_pos, int expected_pos) {
   absl::string_view found = d.Find(text, starting_pos);
-  return found.data() != text.end() &&
+  return found.data() != text.data() + text.size() &&
          expected_pos == found.data() - text.data();
 }
 

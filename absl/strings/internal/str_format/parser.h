@@ -90,7 +90,7 @@ bool ParseFormatString(string_view src, Consumer consumer) {
   int next_arg = 0;
   while (!src.empty()) {
     const char* percent =
-        static_cast<const char*>(memchr(src.begin(), '%', src.size()));
+        static_cast<const char*>(memchr(src.data(), '%', src.size()));
     if (!percent) {
       // We found the last substring.
       return consumer.Append(src);
@@ -98,7 +98,7 @@ bool ParseFormatString(string_view src, Consumer consumer) {
     // We found a percent, so push the text run then process the percent.
     size_t percent_loc = percent - src.data();
     if (!consumer.Append(string_view(src.data(), percent_loc))) return false;
-    if (percent + 1 >= src.end()) return false;
+    if (percent + 1 >= src.data() + src.size()) return false;
 
     UnboundConversion conv;
 
@@ -178,7 +178,8 @@ class ParsedFormatBase {
     const char* const base = data_.get();
     string_view text(base, 0);
     for (const auto& item : items_) {
-      text = string_view(text.end(), (base + item.text_end) - text.end());
+      const char* const end = text.data() + text.size();
+      text = string_view(end, (base + item.text_end) - end);
       if (item.is_conversion) {
         if (!consumer.ConvertOne(item.conv, text)) return false;
       } else {

@@ -261,7 +261,8 @@ class MaxSplitsImpl {
       : delimiter_(delimiter), limit_(limit), count_(0) {}
   absl::string_view Find(absl::string_view text, size_t pos) {
     if (count_++ == limit_) {
-      return absl::string_view(text.end(), 0);  // No more matches.
+      return absl::string_view(text.data() + text.size(),
+                               0);  // No more matches.
     }
     return delimiter_.Find(text, pos);
   }

@@ -81,8 +81,8 @@ static constexpr std::int8_t kIds[] = {
 template <bool is_positional>
 bool ConsumeConversion(string_view *src, UnboundConversion *conv,
                        int *next_arg) {
-  const char *pos = src->begin();
-  const char *const end = src->end();
+  const char *pos = src->data();
+  const char *const end = pos + src->size();
   char c;
   // Read the next char into `c` and update `pos`. Reads '\0' if at end.
   const auto get_char = [&] { c = pos == end ? '\0' : *pos++; };

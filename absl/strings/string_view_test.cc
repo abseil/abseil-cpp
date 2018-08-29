@@ -816,11 +816,14 @@ TEST(StringViewTest, FrontBackSingleChar) {
 // libc++, it doesn't allow `nullptr` in the constexpr context, with the error
 // "read of dereferenced null pointer is not allowed in a constant expression".
 // At run time, the behavior of `std::char_traits::length()` on `nullptr` is
-// undefined by the standard and usually results in crash with libc++. This
-// conforms to the standard, but `absl::string_view` implements a different
+// undefined by the standard and usually results in crash with libc++.
+// In MSVC, creating a constexpr string_view from nullptr also triggers an
+// "unevaluable pointer value" error. This compiler implementation conforms
+// to the standard, but `absl::string_view` implements a different
 // behavior for historical reasons. We work around tests that construct
 // `string_view` from `nullptr` when using libc++.
-#if !defined(ABSL_HAVE_STD_STRING_VIEW) || !defined(_LIBCPP_VERSION)
+#if !defined(ABSL_HAVE_STD_STRING_VIEW) || \
+    (!defined(_LIBCPP_VERSION) && !defined(_MSC_VER))
 #define ABSL_HAVE_STRING_VIEW_FROM_NULLPTR 1
 #endif  // !defined(ABSL_HAVE_STD_STRING_VIEW) || !defined(_LIBCPP_VERSION)
 

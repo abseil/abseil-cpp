@@ -66,10 +66,10 @@ class ConsumeUnboundConversionTest : public ::testing::Test {
   typedef UnboundConversion Props;
   string_view Consume(string_view* src) {
     int next = 0;
-    const char* prev_begin = src->begin();
+    const char* prev_begin = src->data();
     o = UnboundConversion();  // refresh
     ConsumeUnboundConversion(src, &o, &next);
-    return {prev_begin, static_cast<size_t>(src->begin() - prev_begin)};
+    return {prev_begin, static_cast<size_t>(src->data() - prev_begin)};
   }
 
   bool Run(const char *fmt, bool force_positional = false) {

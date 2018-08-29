@@ -195,7 +195,7 @@ ABSL_MUST_USE_RESULT inline std::string AsciiStrToUpper(absl::string_view s) {
 ABSL_MUST_USE_RESULT inline absl::string_view StripLeadingAsciiWhitespace(
     absl::string_view str) {
   auto it = std::find_if_not(str.begin(), str.end(), absl::ascii_isspace);
-  return absl::string_view(it, str.end() - it);
+  return str.substr(it - str.begin());
 }
 
 // Strips in place whitespace from the beginning of the given string.
@@ -209,7 +209,7 @@ inline void StripLeadingAsciiWhitespace(std::string* str) {
 ABSL_MUST_USE_RESULT inline absl::string_view StripTrailingAsciiWhitespace(
     absl::string_view str) {
   auto it = std::find_if_not(str.rbegin(), str.rend(), absl::ascii_isspace);
-  return absl::string_view(str.begin(), str.rend() - it);
+  return str.substr(0, str.rend() - it);
 }
 
 // Strips in place whitespace from the end of the given string
