@@ -57,9 +57,10 @@ namespace absl {
 //     0x99).
 //
 //
-// If any errors are encountered, this function returns `false` and stores the
-// first encountered error in `error`. To disable error reporting, set `error`
-// to `nullptr` or use the overload with no error reporting below.
+// If any errors are encountered, this function returns `false`, leaving the
+// `dest` output parameter in an unspecified state, and stores the first
+// encountered error in `error`. To disable error reporting, set `error` to
+// `nullptr` or use the overload with no error reporting below.
 //
 // Example:
 //
