@@ -391,7 +391,7 @@ TEST(StrFormat, BehavesAsDocumented) {
 #endif
 
   // Other conversion
-  int64_t value = 0x7ffdeb6;
+  int64_t value = 0x7ffdeb4;
   auto ptr_value = static_cast<uintptr_t>(value);
   const int& something = *reinterpret_cast<const int*>(ptr_value);
   EXPECT_EQ(StrFormat("%p", &something), StrFormat("0x%x", ptr_value));

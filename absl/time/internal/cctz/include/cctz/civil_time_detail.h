@@ -508,12 +508,8 @@ CONSTEXPR_F weekday get_weekday(const civil_day& cd) noexcept {
   CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
       -1, 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4,
   };
-  year_t wd = cd.year() - (cd.month() < 3);
-  if (wd >= 0) {
-    wd += wd / 4 - wd / 100 + wd / 400;
-  } else {
-    wd += (wd - 3) / 4 - (wd - 99) / 100 + (wd - 399) / 400;
-  }
+  year_t wd = 2400 + (cd.year() % 400) - (cd.month() < 3);
+  wd += wd / 4 - wd / 100 + wd / 400;
   wd += k_weekday_offsets[cd.month()] + cd.day();
   return k_weekday_by_sun_off[(wd % 7 + 7) % 7];
 }

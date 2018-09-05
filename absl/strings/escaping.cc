@@ -939,7 +939,8 @@ constexpr char kBase64Chars[] =
 constexpr char kWebSafeBase64Chars[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-void Base64EscapeInternal(const unsigned char* src, size_t szsrc, std::string* dest,
+template <typename String>
+void Base64EscapeInternal(const unsigned char* src, size_t szsrc, String* dest,
                           bool do_padding, const char* base64_chars) {
   const size_t calc_escaped_size =
       CalculateBase64EscapedLenInternal(szsrc, do_padding);
@@ -951,7 +952,8 @@ void Base64EscapeInternal(const unsigned char* src, size_t szsrc, std::string* d
   dest->erase(escaped_len);
 }
 
-bool Base64UnescapeInternal(const char* src, size_t slen, std::string* dest,
+template <typename String>
+bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
                             const signed char* unbase64) {
   // Determine the size of the output std::string.  Base64 encodes every 3 bytes into
   // 4 characters.  any leftover chars are added directly for good measure.

@@ -743,7 +743,7 @@ bool parse(const std::string& format, const std::string& input,
     data = ParseTM(data, spec.c_str(), &tm);
 
     // If we successfully parsed %p we need to remember whether the result
-    // was AM or PM so that we can adjust tm_hour before ConvertDateTime().
+    // was AM or PM so that we can adjust tm_hour before time_zone::lookup().
     // So reparse the input with a known AM hour, and check if it is shifted
     // to a PM hour.
     if (spec == "%p" && data != nullptr) {
