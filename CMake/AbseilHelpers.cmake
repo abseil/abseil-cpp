@@ -135,7 +135,7 @@ function(absl_test)
   )
 
 
-  if(BUILD_TESTING)
+  if(ABSL_RUN_TESTS)
 
     set(_NAME ${ABSL_TEST_TARGET})
     string(TOUPPER ${_NAME} _UPPER_NAME)
@@ -153,7 +153,7 @@ function(absl_test)
     set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
     add_test(${_NAME} ${_NAME}_bin)
-  endif(BUILD_TESTING)
+  endif(ABSL_RUN_TESTS)
 
 endfunction()
 
