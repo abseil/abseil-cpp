@@ -62,7 +62,7 @@ testing::AssertionResult AnyInvariants(absl::any* a) {
     static_cast<void>(unused);
     return AssertionFailure()
            << "A reset `any` should not be able to be any_cast";
-  } catch (absl::bad_any_cast) {
+  } catch (const absl::bad_any_cast&) {
   } catch (...) {
     return AssertionFailure()
            << "Unexpected exception thrown from absl::any_cast";

@@ -38,7 +38,7 @@ constexpr int kUpdatedInteger = 10;
 template <typename OptionalT>
 bool ValueThrowsBadOptionalAccess(const OptionalT& optional) try {
   return (static_cast<void>(optional.value()), false);
-} catch (absl::bad_optional_access) {
+} catch (const absl::bad_optional_access&) {
   return true;
 }
 

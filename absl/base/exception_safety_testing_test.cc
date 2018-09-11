@@ -38,7 +38,7 @@ template <typename F>
 void ExpectNoThrow(const F& f) {
   try {
     f();
-  } catch (TestException e) {
+  } catch (const TestException& e) {
     ADD_FAILURE() << "Unexpected exception thrown from " << e.what();
   }
 }

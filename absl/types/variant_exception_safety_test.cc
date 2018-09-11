@@ -53,7 +53,7 @@ void ToValuelessByException(ThrowingVariant& v) {  // NOLINT
   try {
     v.emplace<Thrower>();
     v.emplace<Thrower>(ExceptionOnConversion<Thrower>());
-  } catch (ConversionException& /*e*/) {
+  } catch (const ConversionException&) {
     // This space intentionally left blank.
   }
 }
@@ -100,7 +100,7 @@ testing::AssertionResult CheckInvariants(ThrowingVariant* v) {
     auto unused = absl::get<Thrower>(*v);
     static_cast<void>(unused);
     return AssertionFailure() << "Variant should not contain Thrower";
-  } catch (absl::bad_variant_access) {
+  } catch (const absl::bad_variant_access&) {
   } catch (...) {
     return AssertionFailure() << "Unexpected exception throw from absl::get";
   }

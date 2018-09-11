@@ -648,8 +648,7 @@ class InlinedVector {
   // our instance of it for free.
   class AllocatorAndTag : private allocator_type {
    public:
-    explicit AllocatorAndTag(const allocator_type& a, Tag t = Tag())
-        : allocator_type(a), tag_(t) {}
+    explicit AllocatorAndTag(const allocator_type& a) : allocator_type(a) {}
     Tag& tag() { return tag_; }
     const Tag& tag() const { return tag_; }
     allocator_type& allocator() { return *this; }

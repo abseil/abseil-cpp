@@ -858,7 +858,7 @@ testing::AssertionResult TestNothrowOp(const Operation& operation) {
   try {
     operation();
     return testing::AssertionSuccess();
-  } catch (exceptions_internal::TestException) {
+  } catch (const exceptions_internal::TestException&) {
     return testing::AssertionFailure()
            << "TestException thrown during call to operation() when nothrow "
               "guarantee was expected.";
