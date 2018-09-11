@@ -123,7 +123,7 @@ endfunction()
 #
 # all tests will be register for execution with add_test()
 #
-# test compilation and execution is disable when BUILD_TESTING=OFF
+# test compilation and execution is disable when ABSL_RUN_TESTS=OFF
 #
 function(absl_test)
 
