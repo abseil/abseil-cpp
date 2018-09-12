@@ -18,6 +18,7 @@
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 
 #include <limits.h>
+#include <cstddef>
 #include <cstring>
 #include <ostream>
 
@@ -307,7 +308,12 @@ class ConversionSpec {
  public:
   Flags flags() const { return flags_; }
   LengthMod length_mod() const { return length_mod_; }
-  ConversionChar conv() const { return conv_; }
+  ConversionChar conv() const {
+    // Keep this field first in the struct . It generates better code when
+    // accessing it when ConversionSpec is passed by value in registers.
+    static_assert(offsetof(ConversionSpec, conv_) == 0, "");
+    return conv_;
+  }
 
   // Returns the specified width. If width is unspecfied, it returns a negative
   // value.
@@ -324,9 +330,9 @@ class ConversionSpec {
   void set_left(bool b) { flags_.left = b; }
 
  private:
+  ConversionChar conv_;
   Flags flags_;
   LengthMod length_mod_;
-  ConversionChar conv_;
   int width_;
   int precision_;
 };
