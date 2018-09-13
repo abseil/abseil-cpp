@@ -14,6 +14,7 @@
 
 #include "absl/algorithm/container.h"
 
+#include <array>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -22,6 +23,7 @@
 #include <ostream>
 #include <random>
 #include <set>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <valarray>
@@ -31,7 +33,10 @@
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
 #include "absl/base/macros.h"
+#include "absl/container/fixed_array.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
 namespace {
@@ -1007,6 +1012,118 @@ TEST(MutatingTest, PermutationOperations) {
 
   absl::c_prev_permutation(permuted);
   EXPECT_EQ(initial, permuted);
+}
+
+template <typename T>
+class RBeginContainer : public ::testing::Test {};
+using ContainerTypes = ::testing::Types<std::array<int, 4>,
+                                        absl::FixedArray<int>,
+                                        absl::InlinedVector<int, 4>,
+                                        absl::InlinedVector<int, 3>,
+                                        std::set<int>,
+                                        std::vector<int>>;
+TYPED_TEST_CASE(RBeginContainer, ContainerTypes);
+
+TYPED_TEST(RBeginContainer, rbegin) {
+  TypeParam data = {1, 2, 3, 4};
+  EXPECT_EQ(absl::rbegin(data), data.rbegin());
+  EXPECT_EQ(absl::rend(data), data.rend());
+}
+
+TYPED_TEST(RBeginContainer, rbeginConst) {
+  const TypeParam data = {1, 2, 3, 4};
+  EXPECT_EQ(absl::rbegin(data), data.rbegin());
+  EXPECT_EQ(absl::rend(data), data.rend());
+}
+
+TYPED_TEST(RBeginContainer, cbegin) {
+  TypeParam data = {1, 2, 3, 4};
+  EXPECT_EQ(absl::cbegin(data), data.cbegin());
+  EXPECT_EQ(absl::cend(data), data.cend());
+}
+
+TYPED_TEST(RBeginContainer, crbegin) {
+  TypeParam data = {1, 2, 3, 4};
+  EXPECT_EQ(absl::crbegin(data), data.crbegin());
+  EXPECT_EQ(absl::crend(data), data.crend());
+}
+
+TEST(RBeginContainer, rbeginCArray) {
+    int data[4] = {1, 2, 3, 4};
+    EXPECT_EQ(absl::rbegin(data), std::reverse_iterator<const int*>(data + 4));
+    EXPECT_EQ(absl::rend(data), std::reverse_iterator<const int*>(data));
+}
+
+TEST(RBeginContainer, rbeginConstCArray) {
+    const int data[4] = {1, 2, 3, 4};
+    EXPECT_EQ(absl::rbegin(data), std::reverse_iterator<const int*>(data + 4));
+    EXPECT_EQ(absl::rend(data), std::reverse_iterator<const int*>(data));
+}
+
+TEST(RBeginContainer, cbeginCArray) {
+    int data[4] = {1, 2, 3, 4};
+    EXPECT_EQ(absl::cbegin(data), data);
+    EXPECT_EQ(absl::cend(data), data + 4);
+}
+
+TEST(RBeginContainer, crbeginCArray) {
+    int data[4] = {1, 2, 3, 4};
+    EXPECT_EQ(absl::crbegin(data), std::reverse_iterator<const int*>(data + 4));
+    EXPECT_EQ(absl::crend(data), std::reverse_iterator<const int*>(data));
+}
+
+TEST(RBeginContainer, rbeginInitializerList) {
+    std::initializer_list<int> data = {1, 2, 3, 4};
+    EXPECT_EQ(absl::rbegin(data), std::reverse_iterator<const int*>(data.end()));
+    EXPECT_EQ(absl::rend(data), std::reverse_iterator<const int*>(data.begin()));
+}
+
+TEST(RBeginContainer, rbeginConstInitializerList) {
+    const std::initializer_list<int> data = {1, 2, 3, 4};
+    EXPECT_EQ(absl::rbegin(data), std::reverse_iterator<const int*>(data.end()));
+    EXPECT_EQ(absl::rend(data), std::reverse_iterator<const int*>(data.begin()));
+}
+
+TEST(RBeginContainer, cbeginInitializerList) {
+    std::initializer_list<int> data = {1, 2, 3, 4};
+    EXPECT_EQ(absl::cbegin(data), data.begin());
+    EXPECT_EQ(absl::cend(data), data.end());
+}
+
+TEST(RBeginContainer, crbeginInitializerList) {
+    std::initializer_list<int> data = {1, 2, 3, 4};
+    EXPECT_EQ(absl::crbegin(data), std::reverse_iterator<const int*>(data.end()));
+    EXPECT_EQ(absl::crend(data), std::reverse_iterator<const int*>(data.begin()));
+}
+
+template <typename T>
+class RBeginString : public ::testing::Test {};
+using StringTypes = ::testing::Types<std::string,
+                                     absl::string_view>;
+TYPED_TEST_CASE(RBeginString, StringTypes);
+
+TYPED_TEST(RBeginString, rbegin) {
+  TypeParam data{"TestString"};
+  EXPECT_EQ(absl::rbegin(data), data.rbegin());
+  EXPECT_EQ(absl::rend(data), data.rend());
+}
+
+TYPED_TEST(RBeginString, rbeginConst) {
+  const TypeParam data{"TestString"};
+  EXPECT_EQ(absl::rbegin(data), data.rbegin());
+  EXPECT_EQ(absl::rend(data), data.rend());
+}
+
+TYPED_TEST(RBeginString, cbegin) {
+  TypeParam data{"TestString"};
+  EXPECT_EQ(absl::cbegin(data), data.cbegin());
+  EXPECT_EQ(absl::cend(data), data.cend());
+}
+
+TYPED_TEST(RBeginString, crbegin) {
+  TypeParam data{"TestString"};
+  EXPECT_EQ(absl::crbegin(data), data.crbegin());
+  EXPECT_EQ(absl::crend(data), data.crend());
 }
 
 }  // namespace

@@ -69,6 +69,12 @@ using std::end;
 template <typename C>
 using ContainerIter = decltype(begin(std::declval<C&>()));
 
+// The type of the reverse_iterator given by rbegin(c) (possibly std::rbegin(c)).
+// ContainerIter<const vector<T>> gives vector<T>::const_reverse_iterator,
+// while ContainerIter<vector<T>> gives vector<T>::reverse_iterator.
+template <typename C>
+using ContainerReverseIter = decltype(std::declval<C&>().rbegin());
+
 // An MSVC bug involving template parameter substitution requires us to use
 // decltype() here instead of just std::pair.
 template <typename C1, typename C2>
@@ -104,6 +110,103 @@ ContainerIter<C> c_end(C& c) { return end(c); }
 }  // namespace container_algorithm_internal
 
 // PUBLIC API
+
+//------------------------------------------------------------------------------
+// Abseil rbegin/rend functions
+//------------------------------------------------------------------------------
+
+#ifdef ABSL_HAVE_STD_RBEGIN
+
+using std::cbegin;
+using std::cend;
+using std::rbegin;
+using std::rend;
+using std::crbegin;
+using std::crend;
+
+#else // ABSL_HAVE_STD_RBEGIN
+
+template <class C>
+container_algorithm_internal::ContainerIter<const C> cbegin(const C& c) {
+    return container_algorithm_internal::c_begin(c);
+}
+
+template <class C>
+container_algorithm_internal::ContainerIter<const C> cend(const C& c) {
+    return container_algorithm_internal::c_end(c);
+}
+
+template <class T, size_t N>
+std::reverse_iterator<T*> rbegin(T (&a)[N]) {
+    return std::reverse_iterator<T*>(a + N);
+}
+
+template <class T, size_t N>
+std::reverse_iterator<T*> rend(T (&a)[N]) {
+    return std::reverse_iterator<T*>(a);
+}
+
+template <class T, size_t N>
+std::reverse_iterator<const T*> crbegin(T (&a)[N]) {
+    return std::reverse_iterator<const T*>(a + N);
+}
+
+template <class T, size_t N>
+std::reverse_iterator<const T*> crend(T (&a)[N]) {
+    return std::reverse_iterator<const T*>(a);
+}
+
+template <class T>
+std::reverse_iterator<const T*> rbegin(std::initializer_list<T> il) {
+    return std::reverse_iterator<const T*>(il.end());
+}
+
+template <class T>
+std::reverse_iterator<const T*> rend(std::initializer_list<T> il) {
+    return std::reverse_iterator<const T*>(il.begin());
+}
+
+template <class T>
+std::reverse_iterator<const T*> crbegin(std::initializer_list<T> il) {
+    return std::reverse_iterator<const T*>(il.end());
+}
+
+template <class T>
+std::reverse_iterator<const T*> crend(std::initializer_list<T> il) {
+    return std::reverse_iterator<const T*>(il.begin());
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<C> rbegin(C& c) {
+    return c.rbegin();
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<const C> rbegin(const C& c) {
+    return c.rbegin();
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<C> rend(C& c) {
+    return c.rend();
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<const C> rend(const C& c) {
+    return c.rend();
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<const C> crbegin(const C& c) {
+    return rbegin(c);
+}
+
+template <class C>
+container_algorithm_internal::ContainerReverseIter<const C> crend(const C& c) {
+    return rend(c);
+}
+
+#endif // ABSL_HAVE_STD_RBEGIN
 
 //------------------------------------------------------------------------------
 // Abseil algorithm.h functions

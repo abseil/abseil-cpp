@@ -356,6 +356,15 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
+// ABSL_HAVE_STD_RBEGIN
+//
+// Checks whether C++14 std::rbegin is available by for the C++ version.
+#ifdef ABSL_HAVE_STD_RBEGIN
+#error "ABSL_HAVE_STD_RBEGIN cannot be directly set."
+#elif __cplusplus >= 201402L
+#define ABSL_HAVE_STD_RBEGIN 1
+#endif
+
 // ABSL_HAVE_STD_ANY
 //
 // Checks whether C++17 std::any is available by checking whether <any> exists.
