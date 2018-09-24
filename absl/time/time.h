@@ -322,6 +322,9 @@ Duration Ceil(Duration d, Duration unit);
 //   0 == d / inf
 //   INT64_MAX == inf / d
 //
+//   d < inf
+//   -inf < d
+//
 //   // Division by zero returns infinity, or INT64_MIN/MAX where appropriate.
 //   inf == d / 0
 //   INT64_MAX == d / absl::ZeroDuration()

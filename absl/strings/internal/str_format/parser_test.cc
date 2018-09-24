@@ -84,9 +84,9 @@ class ConsumeUnboundConversionTest : public ::testing::Test {
 TEST_F(ConsumeUnboundConversionTest, ConsumeSpecification) {
   struct Expectation {
     int line;
-    const char *src;
-    const char *out;
-    const char *src_post;
+    string_view src;
+    string_view out;
+    string_view src_post;
   };
   const Expectation kExpect[] = {
     {__LINE__, "",     "",     ""  },
@@ -236,6 +236,16 @@ TEST_F(ConsumeUnboundConversionTest, WidthAndPrecision) {
   EXPECT_EQ(9, o.precision.get_from_arg());
 
   EXPECT_FALSE(Run(".*0$d")) << "no arg 0";
+
+  // Large values
+  EXPECT_TRUE(Run("999999999.999999999d"));
+  EXPECT_FALSE(o.width.is_from_arg());
+  EXPECT_EQ(999999999, o.width.value());
+  EXPECT_FALSE(o.precision.is_from_arg());
+  EXPECT_EQ(999999999, o.precision.value());
+
+  EXPECT_FALSE(Run("1000000000.999999999d"));
+  EXPECT_FALSE(Run("999999999.1000000000d"));
 }
 
 TEST_F(ConsumeUnboundConversionTest, Flags) {
