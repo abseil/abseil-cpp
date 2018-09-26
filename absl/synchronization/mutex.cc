@@ -1975,7 +1975,7 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
 // Unlock this mutex, which is held by the current thread.
 // If waitp is non-zero, it must be the wait parameters for the current thread
 // which holds the lock but is not runnable because its condition is false
-// or it n the process of blocking on a condition variable; it must requeue
+// or it is in the process of blocking on a condition variable; it must requeue
 // itself on the mutex/condvar to wait for its condition to become true.
 void Mutex::UnlockSlow(SynchWaitParams *waitp) {
   intptr_t v = mu_.load(std::memory_order_relaxed);
