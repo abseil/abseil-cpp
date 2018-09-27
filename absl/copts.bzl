@@ -117,6 +117,7 @@ MSVC_FLAGS = [
     "/W3",
     "/wd4005",  # macro-redefinition
     "/wd4068",  # unknown pragma
+    "/wd4180",  # qualifier applied to function type has no meaning; ignored
     "/wd4244",  # conversion from 'type1' to 'type2', possible loss of data
     "/wd4267",  # conversion from 'size_t' to 'type', possible loss of data
     "/wd4800",  # forcing value to bool 'true' or 'false' (performance warning)
