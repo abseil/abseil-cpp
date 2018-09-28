@@ -456,7 +456,7 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   //
   //   // int[3], 4 bytes of padding, double[4].
   //   Layout<int, double> x(3, 4);
-  //   unsigned char* p = unsigned char[x.AllocSize()];
+  //   unsigned char* p = new unsigned char[x.AllocSize()];
   //   int* ints = x.Pointer<0>(p);
   //   double* doubles = x.Pointer<1>(p);
   //
