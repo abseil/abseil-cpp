@@ -163,3 +163,13 @@ absl_test(
   PUBLIC_LIBRARIES
     ${TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES}
 )
+
+
+absl_test(
+  TARGET
+    raw_hash_set_test
+  SOURCES
+    "internal/raw_hash_set_test.cc"
+  PUBLIC_LIBRARIES
+    absl::base absl::hash absl_throw_delegate test_instance_tracker_lib
+)
