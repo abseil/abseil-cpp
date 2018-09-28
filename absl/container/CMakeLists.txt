@@ -47,10 +47,11 @@ list(APPEND CONTAINER_INTERNAL_HEADERS
   "internal/unordered_set_modifiers_test.h"
 )
 
-
-absl_header_library(
+absl_library(
   TARGET
     absl_container
+  SOURCES
+    "internal/raw_hash_set.cc"
   EXPORT_NAME
     container
 )
@@ -162,5 +163,3 @@ absl_test(
   PUBLIC_LIBRARIES
     ${TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES}
 )
-
-
