@@ -620,6 +620,12 @@ class InlinedVector {
   // Returns the allocator of this inlined vector.
   allocator_type get_allocator() const { return allocator(); }
 
+  template <typename H>
+  friend H AbslHashValue(H h, const InlinedVector& v) {
+    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
+                      v.size());
+  }
+
  private:
   static_assert(N > 0, "inlined vector with nonpositive size");
 

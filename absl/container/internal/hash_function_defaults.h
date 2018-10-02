@@ -83,11 +83,6 @@ struct StringHashEq {
     }
   };
 };
-
-#if defined(HAS_GLOBAL_STRING)
-template <>
-struct HashEq<std::string> : StringHashEq {};
-#endif
 template <>
 struct HashEq<std::string> : StringHashEq {};
 template <>

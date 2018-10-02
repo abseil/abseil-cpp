@@ -1916,7 +1916,7 @@ TEST(Table, EffectiveLoadFactorInts) {
 }
 
 // Confirm that we assert if we try to erase() end().
-TEST(Table, EraseOfEndAsserts) {
+TEST(TableDeathTest, EraseOfEndAsserts) {
   // Use an assert with side-effects to figure out if they are actually enabled.
   bool assert_enabled = false;
   assert([&]() {
@@ -1928,7 +1928,7 @@ TEST(Table, EraseOfEndAsserts) {
   IntTable t;
   // Extra simple "regexp" as regexp support is highly varied across platforms.
   constexpr char kDeathMsg[] = "it != end";
-  EXPECT_DEATH(t.erase(t.end()), kDeathMsg);
+  EXPECT_DEATH_IF_SUPPORTED(t.erase(t.end()), kDeathMsg);
 }
 
 #ifdef ADDRESS_SANITIZER

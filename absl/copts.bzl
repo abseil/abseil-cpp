@@ -53,6 +53,10 @@ LLVM_FLAGS = [
     "-Wno-packed",
     "-Wno-padded",
     ###
+    # Google style does not use unsigned integers, though STL containers
+    # have unsigned types.
+    "-Wno-sign-compare",
+    ###
     "-Wno-float-conversion",
     "-Wno-float-equal",
     "-Wno-format-nonliteral",
@@ -100,6 +104,7 @@ LLVM_TEST_FLAGS = [
     "-Wno-c99-extensions",
     "-Wno-missing-noreturn",
     "-Wno-missing-prototypes",
+    "-Wno-missing-variable-declarations",
     "-Wno-null-conversion",
     "-Wno-shadow",
     "-Wno-shift-sign-overflow",
@@ -111,6 +116,8 @@ LLVM_TEST_FLAGS = [
     "-Wno-unused-template",
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
+    # gtest depends on this GNU extension being offered.
+    "-Wno-gnu-zero-variadic-macro-arguments",
 ]
 
 MSVC_FLAGS = [

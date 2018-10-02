@@ -67,6 +67,7 @@ cc_test(
     deps = [
         ":fixed_array",
         "//absl/base:exception_testing",
+        "//absl/hash:hash_testing",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
     ],
@@ -79,6 +80,7 @@ cc_test(
     deps = [
         ":fixed_array",
         "//absl/base:exception_testing",
+        "//absl/hash:hash_testing",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
     ],
@@ -130,6 +132,7 @@ cc_test(
         "//absl/base",
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
+        "//absl/hash:hash_testing",
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -146,6 +149,7 @@ cc_test(
         "//absl/base",
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
+        "//absl/hash:hash_testing",
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",

@@ -213,7 +213,7 @@ class flat_hash_set
   //   inserted element, or to the existing element that prevented the
   //   insertion.
   //
-  // void insert(InputIterator first, InputIterator last ):
+  // void insert(InputIterator first, InputIterator last):
   //
   //   Inserts a range of values [`first`, `last`).
   //
@@ -221,7 +221,7 @@ class flat_hash_set
   //   multiple keys compare equivalently, for `flat_hash_set` we guarantee the
   //   first match is inserted.
   //
-  // void insert(std::initializer_list<T> ilist ):
+  // void insert(std::initializer_list<T> ilist):
   //
   //   Inserts the elements within the initializer list `ilist`.
   //

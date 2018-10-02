@@ -1330,8 +1330,7 @@ class raw_hash_set {
   void rehash(size_t n) {
     if (n == 0 && capacity_ == 0) return;
     if (n == 0 && size_ == 0) return destroy_slots();
-    auto m = NormalizeCapacity(std::max(
-        n, static_cast<size_t>(std::ceil(size() / kMaxLoadFactor))));
+    auto m = NormalizeCapacity(std::max(n, NumSlotsFast(size())));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
       resize(m);
@@ -1339,7 +1338,7 @@ class raw_hash_set {
   }
 
   void reserve(size_t n) {
-    rehash(static_cast<size_t>(std::ceil(n / kMaxLoadFactor)));
+    rehash(NumSlotsFast(n));
   }
 
   // Extension API: support for heterogeneous keys.
@@ -1517,6 +1516,13 @@ class raw_hash_set {
     // Constructed slot. Either moved into place or destroyed.
     slot_type&& slot;
   };
+
+  // Computes std::ceil(n / kMaxLoadFactor). Faster than calling std::ceil.
+  static inline size_t NumSlotsFast(size_t n) {
+    return static_cast<size_t>(
+        (n * kMaxLoadFactorDenominator + (kMaxLoadFactorNumerator - 1)) /
+        kMaxLoadFactorNumerator);
+  }
 
   // "erases" the object from the container, except that it doesn't actually
   // destroy the object. It only updates all the metadata of the class.
@@ -1825,7 +1831,10 @@ class raw_hash_set {
   }
 
   // On average each group has 2 empty slot (for the vectorized case).
-  static constexpr float kMaxLoadFactor = 14.0 / 16.0;
+  static constexpr int64_t kMaxLoadFactorNumerator = 14;
+  static constexpr int64_t kMaxLoadFactorDenominator = 16;
+  static constexpr float kMaxLoadFactor =
+      1.0 * kMaxLoadFactorNumerator / kMaxLoadFactorDenominator;
 
   // TODO(alkis): Investigate removing some of these fields:
   // - ctrl/slots can be derived from each other

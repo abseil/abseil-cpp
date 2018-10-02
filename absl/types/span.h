@@ -485,6 +485,13 @@ class Span {
                : (base_internal::ThrowStdOutOfRange("pos > size()"), Span());
   }
 
+  // Support for absl::Hash.
+  template <typename H>
+  friend H AbslHashValue(H h, Span v) {
+    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
+                      v.size());
+  }
+
  private:
   pointer ptr_;
   size_type len_;

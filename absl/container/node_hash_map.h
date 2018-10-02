@@ -201,7 +201,7 @@ class node_hash_map
   //   insertion) and a `bool` denoting whether the insertion took place.
   //
   // std::pair<iterator,bool> insert(T&& value):
-  // std::pair<iterator,bool> insert(init_type&& value ):
+  // std::pair<iterator,bool> insert(init_type&& value):
   //
   //   Inserts a moveable value into the `node_hash_map`. Returns a `std::pair`
   //   consisting of an iterator to the inserted element (or to the element that
@@ -210,14 +210,14 @@ class node_hash_map
   //
   // iterator insert(const_iterator hint, const init_type& value):
   // iterator insert(const_iterator hint, T&& value):
-  // iterator insert(const_iterator hint, init_type&& value );
+  // iterator insert(const_iterator hint, init_type&& value);
   //
   //   Inserts a value, using the position of `hint` as a non-binding suggestion
   //   for where to begin the insertion search. Returns an iterator to the
   //   inserted element, or to the existing element that prevented the
   //   insertion.
   //
-  // void insert(InputIterator first, InputIterator last ):
+  // void insert(InputIterator first, InputIterator last):
   //
   //   Inserts a range of values [`first`, `last`).
   //
@@ -225,7 +225,7 @@ class node_hash_map
   //   multiple keys compare equivalently, for `node_hash_map` we guarantee the
   //   first match is inserted.
   //
-  // void insert(std::initializer_list<init_type> ilist ):
+  // void insert(std::initializer_list<init_type> ilist):
   //
   //   Inserts the elements within the initializer list `ilist`.
   //
@@ -413,12 +413,12 @@ class node_hash_map
   // all iterators are invalidated. Otherwise iterators are not affected and
   // references are not invalidated. Overloads are listed below.
   //
-  // T& operator[](const Key& key ):
+  // T& operator[](const Key& key):
   //
   //   Inserts an init_type object constructed in-place if the element with the
   //   given key does not exist.
   //
-  // T& operator[]( Key&& key ):
+  // T& operator[](Key&& key):
   //
   //   Inserts an init_type object constructed in-place provided that an element
   //   with the given key does not exist.

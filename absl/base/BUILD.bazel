@@ -305,6 +305,7 @@ cc_test(
     size = "medium",
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = ["no_test_wasm"],
     deps = [
         ":base",
         ":core_headers",
@@ -343,6 +344,9 @@ cc_test(
     name = "config_test",
     srcs = ["config_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_wasm",
+    ],
     deps = [
         ":config",
         "//absl/synchronization:thread_pool",
@@ -354,6 +358,9 @@ cc_test(
     name = "call_once_test",
     srcs = ["call_once_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_wasm",
+    ],
     deps = [
         ":base",
         ":core_headers",
@@ -407,6 +414,9 @@ cc_test(
         "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
+    tags = [
+        "no_test_wasm",
+    ],
     deps = [
         ":base",
         ":core_headers",

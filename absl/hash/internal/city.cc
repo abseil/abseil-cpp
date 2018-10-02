@@ -129,6 +129,7 @@ uint32_t CityHash32(const char *s, size_t len) {
 
   // len > 24
   uint32_t h = len, g = c1 * len, f = g;
+
   uint32_t a0 = Rotate32(Fetch32(s + len - 4) * c1, 17) * c2;
   uint32_t a1 = Rotate32(Fetch32(s + len - 8) * c1, 17) * c2;
   uint32_t a2 = Rotate32(Fetch32(s + len - 16) * c1, 17) * c2;
@@ -151,28 +152,28 @@ uint32_t CityHash32(const char *s, size_t len) {
   f = f * 5 + 0xe6546b64;
   size_t iters = (len - 1) / 20;
   do {
-    uint32_t a0 = Rotate32(Fetch32(s) * c1, 17) * c2;
-    uint32_t a1 = Fetch32(s + 4);
-    uint32_t a2 = Rotate32(Fetch32(s + 8) * c1, 17) * c2;
-    uint32_t a3 = Rotate32(Fetch32(s + 12) * c1, 17) * c2;
-    uint32_t a4 = Fetch32(s + 16);
-    h ^= a0;
+    uint32_t b0 = Rotate32(Fetch32(s) * c1, 17) * c2;
+    uint32_t b1 = Fetch32(s + 4);
+    uint32_t b2 = Rotate32(Fetch32(s + 8) * c1, 17) * c2;
+    uint32_t b3 = Rotate32(Fetch32(s + 12) * c1, 17) * c2;
+    uint32_t b4 = Fetch32(s + 16);
+    h ^= b0;
     h = Rotate32(h, 18);
     h = h * 5 + 0xe6546b64;
-    f += a1;
+    f += b1;
     f = Rotate32(f, 19);
     f = f * c1;
-    g += a2;
+    g += b2;
     g = Rotate32(g, 18);
     g = g * 5 + 0xe6546b64;
-    h ^= a3 + a1;
+    h ^= b3 + b1;
     h = Rotate32(h, 19);
     h = h * 5 + 0xe6546b64;
-    g ^= a4;
+    g ^= b4;
     g = absl::gbswap_32(g) * 5;
-    h += a4 * 5;
+    h += b4 * 5;
     h = absl::gbswap_32(h);
-    f += a0;
+    f += b0;
     PERMUTE3(f, h, g);
     s += 20;
   } while (--iters != 0);

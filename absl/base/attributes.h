@@ -514,8 +514,7 @@
 
 // ABSL_ATTRIBUTE_UNUSED
 //
-// Prevents the compiler from complaining about or optimizing away variables
-// that appear unused.
+// Prevents the compiler from complaining about variables that appear unused.
 #if ABSL_HAVE_ATTRIBUTE(unused) || (defined(__GNUC__) && !defined(__clang__))
 #undef ABSL_ATTRIBUTE_UNUSED
 #define ABSL_ATTRIBUTE_UNUSED __attribute__((__unused__))
