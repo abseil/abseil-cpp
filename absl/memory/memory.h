@@ -39,16 +39,30 @@ namespace absl {
 // Function Template: WrapUnique()
 // -----------------------------------------------------------------------------
 //
-//  Adopts ownership from a raw pointer and transfers it to the returned
-//  `std::unique_ptr`, whose type is deduced. DO NOT specify the template type T
-//  when calling WrapUnique.
+// Adopts ownership from a raw pointer and transfers it to the returned
+// `std::unique_ptr`, whose type is deduced. Because of this deduction, *do not*
+// specify the template type `T` when calling `WrapUnique`.
 //
 // Example:
 //   X* NewX(int, int);
 //   auto x = WrapUnique(NewX(1, 2));  // 'x' is std::unique_ptr<X>.
 //
-// `absl::WrapUnique` is useful for capturing the output of a raw pointer
-// factory. However, prefer 'absl::make_unique<T>(args...) over
+// The purpose of WrapUnique is to automatically deduce the pointer type. If you
+// wish to make the type explicit, for readability reasons or because you prefer
+// to use a base-class pointer rather than a derived one, just use
+// `std::unique_ptr` directly.
+//
+// Example:
+//   X* Factory(int, int);
+//   auto x = std::unique_ptr<X>(Factory(1, 2));
+//                  - or -
+//   std::unique_ptr<X> x(Factory(1, 2));
+//
+// This has the added advantage of working whether Factory returns a raw
+// pointer or a `std::unique_ptr`.
+//
+// While `absl::WrapUnique` is useful for capturing the output of a raw
+// pointer factory, prefer 'absl::make_unique<T>(args...)' over
 // 'absl::WrapUnique(new T(args...))'.
 //
 //   auto x = WrapUnique(new X(1, 2));  // works, but nonideal.

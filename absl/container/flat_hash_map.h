@@ -88,7 +88,7 @@ struct FlatHashMapPolicy;
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
 //  // Insert a new element into the flat hash map
-//  ducks.insert({"d", "donald"}};
+//  ducks.insert({"d", "donald"});
 //
 //  // Force a rehash of the flat hash map
 //  ducks.rehash(0);
