@@ -416,6 +416,12 @@ class civil_time {
     return difference(T{}, lhs.f_, rhs.f_);
   }
 
+  template <typename H>
+  friend H AbslHashValue(H h, civil_time a) {
+    return H::combine(std::move(h), a.f_.y, a.f_.m, a.f_.d,
+                                    a.f_.hh, a.f_.mm, a.f_.ss);
+  }
+
  private:
   // All instantiations of this template are allowed to call the following
   // private constructor and access the private fields member.

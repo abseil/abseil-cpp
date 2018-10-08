@@ -224,6 +224,11 @@ class time_zone {
     return !(lhs == rhs);
   }
 
+  template <typename H>
+  friend H AbslHashValue(H h, time_zone tz) {
+    return H::combine(std::move(h), &tz.effective_impl());
+  }
+
   class Impl;
 
  private:
