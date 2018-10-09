@@ -137,6 +137,7 @@ function(absl_cc_library)
       add_library(${_NAME} STATIC ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
         PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
+      # TODO(rongjiecomputer): Revisit ABSL_COMPILE_CXXFLAGS when fixing GH#123
       target_compile_options(${_NAME}
         PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
@@ -148,6 +149,7 @@ function(absl_cc_library)
       # Add all Abseil targets to a a folder in the IDE for organization.
       set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
     else()
+      # Generating header-only library
       add_library(${_NAME} INTERFACE)
       target_include_directories(${_NAME} INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
       target_link_libraries(${_NAME}
