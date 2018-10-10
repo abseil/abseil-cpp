@@ -99,8 +99,8 @@ endfunction()
 #     absl_internal_awesome_lib # not "awesome_lib"!
 # )
 #
-# If PUBLIC is set, absl_cc_library will also create an alias absl::${NAME}
-# for public use in addition to absl_internal_${NAME}.
+# If PUBLIC is set, absl_cc_library will instead create a target named
+# absl_${NAME} and an alias absl::${NAME}.
 #
 # absl_cc_library(
 #   NAME
@@ -109,7 +109,7 @@ endfunction()
 #   PUBLIC
 # )
 #
-# User can then use the library as absl::main_lib (although absl_internal_main_lib is defined too).
+# User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
 
