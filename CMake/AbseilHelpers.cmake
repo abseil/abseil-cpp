@@ -122,7 +122,11 @@ function(absl_cc_library)
   )
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
+    if (ABSL_CC_LIB_PUBLIC)
+      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    else()
+      set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
+    endif()
 
     # Check if this is a header-only library
     if (ABSL_CC_LIB_SRCS)
