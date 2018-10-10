@@ -23,15 +23,6 @@
 // is Murmur3.  For 64-bit x86 code, CityHash64 is an excellent choice for hash
 // tables and most other hashing (excluding cryptography).
 //
-// For 64-bit x86 code, on long strings, the picture is more complicated.
-// On many recent Intel CPUs, such as Nehalem, Westmere, Sandy Bridge, etc.,
-// CityHashCrc128 appears to be faster than all competitors of comparable
-// quality.  CityHash128 is also good but not quite as fast.  We believe our
-// nearest competitor is Bob Jenkins' Spooky.  We don't have great data for
-// other 64-bit CPUs, but for long strings we know that Spooky is slightly
-// faster than CityHash on some relatively recent AMD x86-64 CPUs, for example.
-// Note that CityHashCrc128 is declared in citycrc.h.
-//
 // For 32-bit x86 code, we don't know of anything faster than CityHash32 that
 // is of comparable quality.  We believe our nearest competitor is Murmur3A.
 // (On 64-bit CPUs, it is typically faster to use the other CityHash variants.)
@@ -78,13 +69,6 @@ uint64_t CityHash64WithSeed(const char *s, size_t len, uint64_t seed);
 // hashed into the result.
 uint64_t CityHash64WithSeeds(const char *s, size_t len, uint64_t seed0,
                            uint64_t seed1);
-
-// Hash function for a byte array.
-uint128 CityHash128(const char *s, size_t len);
-
-// Hash function for a byte array.  For convenience, a 128-bit seed is also
-// hashed into the result.
-uint128 CityHash128WithSeed(const char *s, size_t len, uint128 seed);
 
 // Hash function for a byte array.  Most useful in 32-bit binaries.
 uint32_t CityHash32(const char *s, size_t len);

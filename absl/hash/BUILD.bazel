@@ -93,7 +93,6 @@ cc_library(
     srcs = ["internal/city.cc"],
     hdrs = [
         "internal/city.h",
-        "internal/city_crc.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     deps = [

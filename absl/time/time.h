@@ -25,18 +25,29 @@
 //  * `absl::TimeZone` defines geopolitical time zone regions (as collected
 //     within the IANA Time Zone database (https://www.iana.org/time-zones)).
 //
+// Note: Absolute times are distinct from civil times, which refer to the
+// human-scale time commonly represented by `YYYY-MM-DD hh:mm:ss`. The mapping
+// between absolute and civil times can be specified by use of time zones
+// (`absl::TimeZone` within this API). That is:
+//
+//   Civil Time = F(Absolute Time, Time Zone)
+//   Absolute Time = G(Civil Time, Time Zone)
+//
+// See civil_time.h for abstractions related to constructing and manipulating
+// civil time.
 //
 // Example:
 //
 //   absl::TimeZone nyc;
-//
 //   // LoadTimeZone() may fail so it's always better to check for success.
 //   if (!absl::LoadTimeZone("America/New_York", &nyc)) {
 //      // handle error case
 //   }
 //
 //   // My flight leaves NYC on Jan 2, 2017 at 03:04:05
-//   absl::Time takeoff = absl::FromDateTime(2017, 1, 2, 3, 4, 5, nyc);
+//   absl::CivilSecond cs(2017, 1, 2, 3, 4, 5);
+//   absl::Time takeoff = absl::FromCivil(cs, nyc);
+//
 //   absl::Duration flight_duration = absl::Hours(21) + absl::Minutes(35);
 //   absl::Time landing = takeoff + flight_duration;
 //
@@ -48,6 +59,7 @@
 //       "My flight will land in Sydney on %Y-%m-%d at %H:%M:%S",
 //       landing, syd);
 //
+
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
 
@@ -66,6 +78,7 @@
 
 #include "absl/base/port.h"  // Needed for string vs std::string
 #include "absl/strings/string_view.h"
+#include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
@@ -348,11 +361,11 @@ constexpr Duration InfiniteDuration();
 // Factory functions for constructing `Duration` values from an integral number
 // of the unit indicated by the factory function's name.
 //
-// Note: no "Days()" factory function exists because "a day" is ambiguous. Civil
-// days are not always 24 hours long, and a 24-hour duration often does not
-// correspond with a civil day. If a 24-hour duration is needed, use
-// `absl::Hours(24)`.
-//
+// Note: no "Days()" factory function exists because "a day" is ambiguous.
+// Civil days are not always 24 hours long, and a 24-hour duration often does
+// not correspond with a civil day. If a 24-hour duration is needed, use
+// `absl::Hours(24)`. (If you actually want a civil day, use absl::CivilDay
+// from civil_time.h.)
 //
 // Example:
 //
@@ -371,6 +384,7 @@ constexpr Duration Hours(int64_t n);
 // factories, which should be preferred.
 //
 // Example:
+//
 //   auto a = absl::Seconds(1.5);        // OK
 //   auto b = absl::Milliseconds(1500);  // BETTER
 template <typename T, time_internal::EnableIfFloat<T> = 0>
@@ -546,7 +560,7 @@ std::string UnparseFlag(Duration d);
 //
 // `absl::Time` uses a resolution that is high enough to avoid loss in
 // precision, and a range that is wide enough to avoid overflow, when
-// converting between tick counts in most Google time scales (i.e., precision
+// converting between tick counts in most Google time scales (i.e., resolution
 // of at least one nanosecond, and range +/-100 billion years).  Conversions
 // between the time scales are performed by truncating (towards negative
 // infinity) to the nearest representable point.
@@ -556,7 +570,6 @@ std::string UnparseFlag(Duration d);
 //   absl::Time t1 = ...;
 //   absl::Time t2 = t1 + absl::Minutes(2);
 //   absl::Duration d = t2 - t1;  // == absl::Minutes(2)
-//   absl::Time::Breakdown bd = t1.In(absl::LocalTimeZone());
 //
 class Time {
  public:
@@ -590,7 +603,10 @@ class Time {
   // intended to represent an instant in time. So, rather than passing
   // a `Time::Breakdown` to a function, pass an `absl::Time` and an
   // `absl::TimeZone`.
-  struct Breakdown {
+  //
+  // Deprecated. Use `absl::TimeZone::CivilInfo`.
+  struct
+      Breakdown {
     int64_t year;          // year (e.g., 2013)
     int month;           // month of year [1:12]
     int day;             // day of month [1:31]
@@ -614,6 +630,8 @@ class Time {
   // Time::In()
   //
   // Returns the breakdown of this instant in the given TimeZone.
+  //
+  // Deprecated. Use `absl::TimeZone::At(Time)`.
   Breakdown In(TimeZone tz) const;
 
   template <typename H>
@@ -678,126 +696,6 @@ constexpr Time InfinitePast() {
   return Time(
       time_internal::MakeDuration(std::numeric_limits<int64_t>::min(), ~0U));
 }
-
-// TimeConversion
-//
-// An `absl::TimeConversion` represents the conversion of year, month, day,
-// hour, minute, and second values (i.e., a civil time), in a particular
-// `absl::TimeZone`, to a time instant (an absolute time), as returned by
-// `absl::ConvertDateTime()`. (Subseconds must be handled separately.)
-//
-// It is possible, though, for a caller to try to convert values that
-// do not represent an actual or unique instant in time (due to a shift
-// in UTC offset in the `absl::TimeZone`, which results in a discontinuity in
-// the civil-time components). For example, a daylight-saving-time
-// transition skips or repeats civil times---in the United States, March
-// 13, 2011 02:15 never occurred, while November 6, 2011 01:15 occurred
-// twice---so requests for such times are not well-defined.
-//
-// To account for these possibilities, `absl::TimeConversion` is richer
-// than just a single `absl::Time`. When the civil time is skipped or
-// repeated, `absl::ConvertDateTime()` returns times calculated using the
-// pre-transition and post-transition UTC offsets, plus the transition
-// time itself.
-//
-// Examples:
-//
-//   absl::TimeZone lax;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) {
-//     // handle error case
-//   }
-//
-//   // A unique civil time
-//   absl::TimeConversion jan01 =
-//       absl::ConvertDateTime(2011, 1, 1, 0, 0, 0, lax);
-//   // jan01.kind == TimeConversion::UNIQUE
-//   // jan01.pre    is 2011/01/01 00:00:00 -0800
-//   // jan01.trans  is 2011/01/01 00:00:00 -0800
-//   // jan01.post   is 2011/01/01 00:00:00 -0800
-//
-//   // A Spring DST transition, when there is a gap in civil time
-//   absl::TimeConversion mar13 =
-//       absl::ConvertDateTime(2011, 3, 13, 2, 15, 0, lax);
-//   // mar13.kind == TimeConversion::SKIPPED
-//   // mar13.pre   is 2011/03/13 03:15:00 -0700
-//   // mar13.trans is 2011/03/13 03:00:00 -0700
-//   // mar13.post  is 2011/03/13 01:15:00 -0800
-//
-//   // A Fall DST transition, when civil times are repeated
-//   absl::TimeConversion nov06 =
-//       absl::ConvertDateTime(2011, 11, 6, 1, 15, 0, lax);
-//   // nov06.kind == TimeConversion::REPEATED
-//   // nov06.pre   is 2011/11/06 01:15:00 -0700
-//   // nov06.trans is 2011/11/06 01:00:00 -0800
-//   // nov06.post  is 2011/11/06 01:15:00 -0800
-//
-// The input month, day, hour, minute, and second values can also be
-// outside of their valid ranges, in which case they will be "normalized"
-// during the conversion.
-//
-// Example:
-//
-//   // "October 32" normalizes to "November 1".
-//   absl::TimeZone tz = absl::LocalTimeZone();
-//   absl::TimeConversion tc =
-//       absl::ConvertDateTime(2013, 10, 32, 8, 30, 0, tz);
-//   // tc.kind == TimeConversion::UNIQUE && tc.normalized == true
-//   // tc.pre.In(tz).month == 11 && tc.pre.In(tz).day == 1
-struct TimeConversion {
-  Time pre;    // time calculated using the pre-transition offset
-  Time trans;  // when the civil-time discontinuity occurred
-  Time post;   // time calculated using the post-transition offset
-
-  enum Kind {
-    UNIQUE,    // the civil time was singular (pre == trans == post)
-    SKIPPED,   // the civil time did not exist
-    REPEATED,  // the civil time was ambiguous
-  };
-  Kind kind;
-
-  bool normalized;  // input values were outside their valid ranges
-};
-
-// ConvertDateTime()
-//
-// The full generality of a civil time to absl::Time conversion.
-TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
-                               int min, int sec, TimeZone tz);
-
-// FromDateTime()
-//
-// A convenience wrapper for `absl::ConvertDateTime()` that simply returns the
-// "pre" `absl::Time`.  That is, the unique result, or the instant that
-// is correct using the pre-transition offset (as if the transition
-// never happened). This is typically the answer that humans expected when
-// faced with non-unique times, such as near daylight-saving time transitions.
-//
-// Example:
-//
-//   absl::TimeZone seattle;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &seattle)) {
-//     // handle error case
-//   }
-//   absl::Time t =  absl::FromDateTime(2017, 9, 26, 9, 30, 0, seattle);
-Time FromDateTime(int64_t year, int mon, int day, int hour, int min, int sec,
-                  TimeZone tz);
-
-// FromTM()
-//
-// Converts the `tm_year`, `tm_mon`, `tm_mday`, `tm_hour`, `tm_min`, and
-// `tm_sec` fields to an `absl::Time` using the given time zone. See ctime(3)
-// for a description of the expected values of the tm fields. IFF the indicated
-// time instant is not unique (see `absl::ConvertDateTime()` above), the
-// `tm_isdst` field is consulted to select the desired instant (`tm_isdst` > 0
-// means DST, `tm_isdst` == 0 means no DST, `tm_isdst` < 0 means use the default
-// like `absl::FromDateTime()`).
-Time FromTM(const struct tm& tm, TimeZone tz);
-
-// ToTM()
-//
-// Converts the given `absl::Time` to a struct tm using the given time zone.
-// See ctime(3) for a description of the values of the tm fields.
-struct tm ToTM(Time t, TimeZone tz);
 
 // FromUnixNanos()
 // FromUnixMicros()
@@ -883,140 +781,6 @@ Time FromChrono(const std::chrono::system_clock::time_point& tp);
 //   // tp == std::chrono::system_clock::from_time_t(123);
 std::chrono::system_clock::time_point ToChronoTime(Time);
 
-// RFC3339_full
-// RFC3339_sec
-//
-// FormatTime()/ParseTime() format specifiers for RFC3339 date/time strings,
-// with trailing zeros trimmed or with fractional seconds omitted altogether.
-//
-// Note that RFC3339_sec[] matches an ISO 8601 extended format for date and
-// time with UTC offset.  Also note the use of "%Y": RFC3339 mandates that
-// years have exactly four digits, but we allow them to take their natural
-// width.
-extern const char RFC3339_full[];  // %Y-%m-%dT%H:%M:%E*S%Ez
-extern const char RFC3339_sec[];   // %Y-%m-%dT%H:%M:%S%Ez
-
-// RFC1123_full
-// RFC1123_no_wday
-//
-// FormatTime()/ParseTime() format specifiers for RFC1123 date/time strings.
-extern const char RFC1123_full[];     // %a, %d %b %E4Y %H:%M:%S %z
-extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
-
-// FormatTime()
-//
-// Formats the given `absl::Time` in the `absl::TimeZone` according to the
-// provided format string. Uses strftime()-like formatting options, with
-// the following extensions:
-//
-//   - %Ez  - RFC3339-compatible numeric UTC offset (+hh:mm or -hh:mm)
-//   - %E*z - Full-resolution numeric UTC offset (+hh:mm:ss or -hh:mm:ss)
-//   - %E#S - Seconds with # digits of fractional precision
-//   - %E*S - Seconds with full fractional precision (a literal '*')
-//   - %E#f - Fractional seconds with # digits of precision
-//   - %E*f - Fractional seconds with full precision (a literal '*')
-//   - %E4Y - Four-character years (-999 ... -001, 0000, 0001 ... 9999)
-//
-// Note that %E0S behaves like %S, and %E0f produces no characters.  In
-// contrast %E*f always produces at least one digit, which may be '0'.
-//
-// Note that %Y produces as many characters as it takes to fully render the
-// year.  A year outside of [-999:9999] when formatted with %E4Y will produce
-// more than four characters, just like %Y.
-//
-// We recommend that format strings include the UTC offset (%z, %Ez, or %E*z)
-// so that the result uniquely identifies a time instant.
-//
-// Example:
-//
-//   absl::TimeZone lax;
-//   if (!absl::LoadTimeZone("America/Los_Angeles", &lax)) {
-//     // handle error case
-//   }
-//   absl::Time t = absl::FromDateTime(2013, 1, 2, 3, 4, 5, lax);
-//
-//   string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
-//   f = absl::FormatTime("%H:%M:%E3S", t, lax);  // "03:04:05.000"
-//
-// Note: If the given `absl::Time` is `absl::InfiniteFuture()`, the returned
-// string will be exactly "infinite-future". If the given `absl::Time` is
-// `absl::InfinitePast()`, the returned string will be exactly "infinite-past".
-// In both cases the given format string and `absl::TimeZone` are ignored.
-//
-std::string FormatTime(const std::string& format, Time t, TimeZone tz);
-
-// Convenience functions that format the given time using the RFC3339_full
-// format.  The first overload uses the provided TimeZone, while the second
-// uses LocalTimeZone().
-std::string FormatTime(Time t, TimeZone tz);
-std::string FormatTime(Time t);
-
-// Output stream operator.
-inline std::ostream& operator<<(std::ostream& os, Time t) {
-  return os << FormatTime(t);
-}
-
-// ParseTime()
-//
-// Parses an input string according to the provided format string and
-// returns the corresponding `absl::Time`. Uses strftime()-like formatting
-// options, with the same extensions as FormatTime(), but with the
-// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f.  %Ez
-// and %E*z also accept the same inputs.
-//
-// %Y consumes as many numeric characters as it can, so the matching data
-// should always be terminated with a non-numeric.  %E4Y always consumes
-// exactly four characters, including any sign.
-//
-// Unspecified fields are taken from the default date and time of ...
-//
-//   "1970-01-01 00:00:00.0 +0000"
-//
-// For example, parsing a string of "15:45" (%H:%M) will return an absl::Time
-// that represents "1970-01-01 15:45:00.0 +0000".
-//
-// Note that since ParseTime() returns time instants, it makes the most sense
-// to parse fully-specified date/time strings that include a UTC offset (%z,
-// %Ez, or %E*z).
-//
-// Note also that `absl::ParseTime()` only heeds the fields year, month, day,
-// hour, minute, (fractional) second, and UTC offset.  Other fields, like
-// weekday (%a or %A), while parsed for syntactic validity, are ignored
-// in the conversion.
-//
-// Date and time fields that are out-of-range will be treated as errors
-// rather than normalizing them like `absl::FromDateTime()` does.  For example,
-// it is an error to parse the date "Oct 32, 2013" because 32 is out of range.
-//
-// A leap second of ":60" is normalized to ":00" of the following minute
-// with fractional seconds discarded.  The following table shows how the
-// given seconds and subseconds will be parsed:
-//
-//   "59.x" -> 59.x  // exact
-//   "60.x" -> 00.0  // normalized
-//   "00.x" -> 00.x  // exact
-//
-// Errors are indicated by returning false and assigning an error message
-// to the "err" out param if it is non-null.
-//
-// Note: If the input string is exactly "infinite-future", the returned
-// `absl::Time` will be `absl::InfiniteFuture()` and `true` will be returned.
-// If the input string is "infinite-past", the returned `absl::Time` will be
-// `absl::InfinitePast()` and `true` will be returned.
-//
-bool ParseTime(const std::string& format, const std::string& input, Time* time,
-               std::string* err);
-
-// Like ParseTime() above, but if the format string does not contain a UTC
-// offset specification (%z/%Ez/%E*z) then the input is interpreted in the
-// given TimeZone.  This means that the input, by itself, does not identify a
-// unique instant.  Being time-zone dependent, it also admits the possibility
-// of ambiguity or non-existence, in which case the "pre" time (as defined
-// for ConvertDateTime()) is returned.  For these reasons we recommend that
-// all date/time strings include a UTC offset so they're context independent.
-bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
-               Time* time, std::string* err);
-
 // Support for flag values of type Time. Time flags must be specified in a
 // format that matches absl::RFC3339_full. For example:
 //
@@ -1068,6 +832,98 @@ class TimeZone {
   explicit operator time_internal::cctz::time_zone() const { return cz_; }
 
   std::string name() const { return cz_.name(); }
+
+  // TimeZone::CivilInfo
+  //
+  // Information about the civil time corresponding to an absolute time.
+  // This struct is not intended to represent an instant in time. So, rather
+  // than passing a `TimeZone::CivilInfo` to a function, pass an `absl::Time`
+  // and an `absl::TimeZone`.
+  struct CivilInfo {
+    CivilSecond cs;
+    Duration subsecond;
+
+    // Note: The following fields exist for backward compatibility
+    // with older APIs.  Accessing these fields directly is a sign of
+    // imprudent logic in the calling code.  Modern time-related code
+    // should only access this data indirectly by way of FormatTime().
+    // These fields are undefined for InfiniteFuture() and InfinitePast().
+    int offset;             // seconds east of UTC
+    bool is_dst;            // is offset non-standard?
+    const char* zone_abbr;  // time-zone abbreviation (e.g., "PST")
+  };
+
+  // TimeZone::At(Time)
+  //
+  // Returns the civil time for this TimeZone at a certain `absl::Time`.
+  // If the input time is infinite, the output civil second will be set to
+  // CivilSecond::max() or min(), and the subsecond will be infinite.
+  //
+  // Example:
+  //
+  //   const auto epoch = lax.At(absl::UnixEpoch());
+  //   // epoch.cs == 1969-12-31 16:00:00
+  //   // epoch.subsecond == absl::ZeroDuration()
+  //   // epoch.offset == -28800
+  //   // epoch.is_dst == false
+  //   // epoch.abbr == "PST"
+  CivilInfo At(Time t) const;
+
+  // TimeZone::TimeInfo
+  //
+  // Information about the absolute times corresponding to a civil time.
+  // (Subseconds must be handled separately.)
+  //
+  // It is possible for a caller to pass a civil-time value that does
+  // not represent an actual or unique instant in time (due to a shift
+  // in UTC offset in the TimeZone, which results in a discontinuity in
+  // the civil-time components). For example, a daylight-saving-time
+  // transition skips or repeats civil times---in the United States,
+  // March 13, 2011 02:15 never occurred, while November 6, 2011 01:15
+  // occurred twice---so requests for such times are not well-defined.
+  // To account for these possibilities, `absl::TimeZone::TimeInfo` is
+  // richer than just a single `absl::Time`.
+  struct TimeInfo {
+    enum CivilKind {
+      UNIQUE,    // the civil time was singular (pre == trans == post)
+      SKIPPED,   // the civil time did not exist (pre => trans > post)
+      REPEATED,  // the civil time was ambiguous (pre < trans <= post)
+    } kind;
+    Time pre;    // time calculated using the pre-transition offset
+    Time trans;  // when the civil-time discontinuity occurred
+    Time post;   // time calculated using the post-transition offset
+  };
+
+  // TimeZone::At(CivilSecond)
+  //
+  // Returns an `absl::TimeInfo` containing the absolute time(s) for this
+  // TimeZone at an `absl::CivilSecond`. When the civil time is skipped or
+  // repeated, returns times calculated using the pre-transition and post-
+  // transition UTC offsets, plus the transition time itself.
+  //
+  // Examples:
+  //
+  //   // A unique civil time
+  //   const auto jan01 = lax.At(absl::CivilSecond(2011, 1, 1, 0, 0, 0));
+  //   // jan01.kind == TimeZone::TimeInfo::UNIQUE
+  //   // jan01.pre    is 2011-01-01 00:00:00 -0800
+  //   // jan01.trans  is 2011-01-01 00:00:00 -0800
+  //   // jan01.post   is 2011-01-01 00:00:00 -0800
+  //
+  //   // A Spring DST transition, when there is a gap in civil time
+  //   const auto mar13 = lax.At(absl::CivilSecond(2011, 3, 13, 2, 15, 0));
+  //   // mar13.kind == TimeZone::TimeInfo::SKIPPED
+  //   // mar13.pre   is 2011-03-13 03:15:00 -0700
+  //   // mar13.trans is 2011-03-13 03:00:00 -0700
+  //   // mar13.post  is 2011-03-13 01:15:00 -0800
+  //
+  //   // A Fall DST transition, when civil times are repeated
+  //   const auto nov06 = lax.At(absl::CivilSecond(2011, 11, 6, 1, 15, 0));
+  //   // nov06.kind == TimeZone::TimeInfo::REPEATED
+  //   // nov06.pre   is 2011-11-06 01:15:00 -0700
+  //   // nov06.trans is 2011-11-06 01:00:00 -0800
+  //   // nov06.post  is 2011-11-06 01:15:00 -0800
+  TimeInfo At(CivilSecond ct) const;
 
   template <typename H>
   friend H AbslHashValue(H h, TimeZone tz) {
@@ -1126,6 +982,268 @@ inline TimeZone UTCTimeZone() {
 inline TimeZone LocalTimeZone() {
   return TimeZone(time_internal::cctz::local_time_zone());
 }
+
+// ToCivilSecond()
+// ToCivilMinute()
+// ToCivilHour()
+// ToCivilDay()
+// ToCivilMonth()
+// ToCivilYear()
+//
+// Helpers for TimeZone::At(Time) to return particularly aligned civil times.
+//
+// Example:
+//
+//   absl::Time t = ...;
+//   absl::TimeZone tz = ...;
+//   const auto cd = absl::ToCivilDay(t, tz);
+inline CivilSecond ToCivilSecond(Time t, TimeZone tz) {
+  return tz.At(t).cs;  // already a CivilSecond
+}
+inline CivilMinute ToCivilMinute(Time t, TimeZone tz) {
+  return CivilMinute(tz.At(t).cs);
+}
+inline CivilHour ToCivilHour(Time t, TimeZone tz) {
+  return CivilHour(tz.At(t).cs);
+}
+inline CivilDay ToCivilDay(Time t, TimeZone tz) {
+  return CivilDay(tz.At(t).cs);
+}
+inline CivilMonth ToCivilMonth(Time t, TimeZone tz) {
+  return CivilMonth(tz.At(t).cs);
+}
+inline CivilYear ToCivilYear(Time t, TimeZone tz) {
+  return CivilYear(tz.At(t).cs);
+}
+
+// FromCivil()
+//
+// Helper for TimeZone::At(CivilSecond) that provides "order-preserving
+// semantics." If the civil time maps to a unique time, that time is
+// returned. If the civil time is repeated in the given time zone, the
+// time using the pre-transition offset is returned. Otherwise, the
+// civil time is skipped in the given time zone, and the transition time
+// is returned. This means that for any two civil times, ct1 and ct2,
+// (ct1 < ct2) => (FromCivil(ct1) <= FromCivil(ct2)), the equal case
+// being when two non-existent civil times map to the same transition time.
+//
+// Note: Accepts civil times of any alignment.
+inline Time FromCivil(CivilSecond ct, TimeZone tz) {
+  const auto ti = tz.At(ct);
+  if (ti.kind == TimeZone::TimeInfo::SKIPPED) return ti.trans;
+  return ti.pre;
+}
+
+// TimeConversion
+//
+// An `absl::TimeConversion` represents the conversion of year, month, day,
+// hour, minute, and second values (i.e., a civil time), in a particular
+// `absl::TimeZone`, to a time instant (an absolute time), as returned by
+// `absl::ConvertDateTime()`. Lecacy version of `absl::TimeZone::TimeInfo`.
+//
+// Deprecated. Use `absl::TimeZone::TimeInfo`.
+struct
+    TimeConversion {
+  Time pre;    // time calculated using the pre-transition offset
+  Time trans;  // when the civil-time discontinuity occurred
+  Time post;   // time calculated using the post-transition offset
+
+  enum Kind {
+    UNIQUE,    // the civil time was singular (pre == trans == post)
+    SKIPPED,   // the civil time did not exist
+    REPEATED,  // the civil time was ambiguous
+  };
+  Kind kind;
+
+  bool normalized;  // input values were outside their valid ranges
+};
+
+// ConvertDateTime()
+//
+// Legacy version of `absl::TimeZone::At(absl::CivilSecond)` that takes
+// the civil time as six, separate values (YMDHMS).
+//
+// The input month, day, hour, minute, and second values can be outside
+// of their valid ranges, in which case they will be "normalized" during
+// the conversion.
+//
+// Example:
+//
+//   // "October 32" normalizes to "November 1".
+//   absl::TimeConversion tc =
+//       absl::ConvertDateTime(2013, 10, 32, 8, 30, 0, lax);
+//   // tc.kind == TimeConversion::UNIQUE && tc.normalized == true
+//   // absl::ToCivilDay(tc.pre, tz).month() == 11
+//   // absl::ToCivilDay(tc.pre, tz).day() == 1
+//
+// Deprecated. Use `absl::TimeZone::At(CivilSecond)`.
+TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
+                               int min, int sec, TimeZone tz);
+
+// FromDateTime()
+//
+// A convenience wrapper for `absl::ConvertDateTime()` that simply returns
+// the "pre" `absl::Time`.  That is, the unique result, or the instant that
+// is correct using the pre-transition offset (as if the transition never
+// happened).
+//
+// Example:
+//
+//   absl::Time t = absl::FromDateTime(2017, 9, 26, 9, 30, 0, lax);
+//   // t = 2017-09-26 09:30:00 -0700
+//
+// Deprecated. Use `absl::TimeZone::At(CivilSecond).pre`.
+inline Time FromDateTime(int64_t year, int mon, int day, int hour,
+                         int min, int sec, TimeZone tz) {
+  return ConvertDateTime(year, mon, day, hour, min, sec, tz).pre;
+}
+
+// FromTM()
+//
+// Converts the `tm_year`, `tm_mon`, `tm_mday`, `tm_hour`, `tm_min`, and
+// `tm_sec` fields to an `absl::Time` using the given time zone. See ctime(3)
+// for a description of the expected values of the tm fields. If the indicated
+// time instant is not unique (see `absl::TimeZone::At(absl::CivilSecond)`
+// above), the `tm_isdst` field is consulted to select the desired instant
+// (`tm_isdst` > 0 means DST, `tm_isdst` == 0 means no DST, `tm_isdst` < 0
+// means use the post-transition offset).
+Time FromTM(const struct tm& tm, TimeZone tz);
+
+// ToTM()
+//
+// Converts the given `absl::Time` to a struct tm using the given time zone.
+// See ctime(3) for a description of the values of the tm fields.
+struct tm ToTM(Time t, TimeZone tz);
+
+// RFC3339_full
+// RFC3339_sec
+//
+// FormatTime()/ParseTime() format specifiers for RFC3339 date/time strings,
+// with trailing zeros trimmed or with fractional seconds omitted altogether.
+//
+// Note that RFC3339_sec[] matches an ISO 8601 extended format for date and
+// time with UTC offset.  Also note the use of "%Y": RFC3339 mandates that
+// years have exactly four digits, but we allow them to take their natural
+// width.
+extern const char RFC3339_full[];  // %Y-%m-%dT%H:%M:%E*S%Ez
+extern const char RFC3339_sec[];   // %Y-%m-%dT%H:%M:%S%Ez
+
+// RFC1123_full
+// RFC1123_no_wday
+//
+// FormatTime()/ParseTime() format specifiers for RFC1123 date/time strings.
+extern const char RFC1123_full[];     // %a, %d %b %E4Y %H:%M:%S %z
+extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
+
+// FormatTime()
+//
+// Formats the given `absl::Time` in the `absl::TimeZone` according to the
+// provided format string. Uses strftime()-like formatting options, with
+// the following extensions:
+//
+//   - %Ez  - RFC3339-compatible numeric UTC offset (+hh:mm or -hh:mm)
+//   - %E*z - Full-resolution numeric UTC offset (+hh:mm:ss or -hh:mm:ss)
+//   - %E#S - Seconds with # digits of fractional precision
+//   - %E*S - Seconds with full fractional precision (a literal '*')
+//   - %E#f - Fractional seconds with # digits of precision
+//   - %E*f - Fractional seconds with full precision (a literal '*')
+//   - %E4Y - Four-character years (-999 ... -001, 0000, 0001 ... 9999)
+//
+// Note that %E0S behaves like %S, and %E0f produces no characters.  In
+// contrast %E*f always produces at least one digit, which may be '0'.
+//
+// Note that %Y produces as many characters as it takes to fully render the
+// year.  A year outside of [-999:9999] when formatted with %E4Y will produce
+// more than four characters, just like %Y.
+//
+// We recommend that format strings include the UTC offset (%z, %Ez, or %E*z)
+// so that the result uniquely identifies a time instant.
+//
+// Example:
+//
+//   absl::CivilSecond cs(2013, 1, 2, 3, 4, 5);
+//   absl::Time t = absl::FromCivil(cs, lax);
+//   string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
+//   f = absl::FormatTime("%H:%M:%E3S", t, lax);  // "03:04:05.000"
+//
+// Note: If the given `absl::Time` is `absl::InfiniteFuture()`, the returned
+// string will be exactly "infinite-future". If the given `absl::Time` is
+// `absl::InfinitePast()`, the returned string will be exactly "infinite-past".
+// In both cases the given format string and `absl::TimeZone` are ignored.
+//
+std::string FormatTime(const std::string& format, Time t, TimeZone tz);
+
+// Convenience functions that format the given time using the RFC3339_full
+// format.  The first overload uses the provided TimeZone, while the second
+// uses LocalTimeZone().
+std::string FormatTime(Time t, TimeZone tz);
+std::string FormatTime(Time t);
+
+// Output stream operator.
+inline std::ostream& operator<<(std::ostream& os, Time t) {
+  return os << FormatTime(t);
+}
+
+// ParseTime()
+//
+// Parses an input string according to the provided format string and
+// returns the corresponding `absl::Time`. Uses strftime()-like formatting
+// options, with the same extensions as FormatTime(), but with the
+// exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f.  %Ez
+// and %E*z also accept the same inputs.
+//
+// %Y consumes as many numeric characters as it can, so the matching data
+// should always be terminated with a non-numeric.  %E4Y always consumes
+// exactly four characters, including any sign.
+//
+// Unspecified fields are taken from the default date and time of ...
+//
+//   "1970-01-01 00:00:00.0 +0000"
+//
+// For example, parsing a string of "15:45" (%H:%M) will return an absl::Time
+// that represents "1970-01-01 15:45:00.0 +0000".
+//
+// Note that since ParseTime() returns time instants, it makes the most sense
+// to parse fully-specified date/time strings that include a UTC offset (%z,
+// %Ez, or %E*z).
+//
+// Note also that `absl::ParseTime()` only heeds the fields year, month, day,
+// hour, minute, (fractional) second, and UTC offset.  Other fields, like
+// weekday (%a or %A), while parsed for syntactic validity, are ignored
+// in the conversion.
+//
+// Date and time fields that are out-of-range will be treated as errors
+// rather than normalizing them like `absl::CivilSecond` does.  For example,
+// it is an error to parse the date "Oct 32, 2013" because 32 is out of range.
+//
+// A leap second of ":60" is normalized to ":00" of the following minute
+// with fractional seconds discarded.  The following table shows how the
+// given seconds and subseconds will be parsed:
+//
+//   "59.x" -> 59.x  // exact
+//   "60.x" -> 00.0  // normalized
+//   "00.x" -> 00.x  // exact
+//
+// Errors are indicated by returning false and assigning an error message
+// to the "err" out param if it is non-null.
+//
+// Note: If the input string is exactly "infinite-future", the returned
+// `absl::Time` will be `absl::InfiniteFuture()` and `true` will be returned.
+// If the input string is "infinite-past", the returned `absl::Time` will be
+// `absl::InfinitePast()` and `true` will be returned.
+//
+bool ParseTime(const std::string& format, const std::string& input, Time* time,
+               std::string* err);
+
+// Like ParseTime() above, but if the format string does not contain a UTC
+// offset specification (%z/%Ez/%E*z) then the input is interpreted in the
+// given TimeZone.  This means that the input, by itself, does not identify a
+// unique instant.  Being time-zone dependent, it also admits the possibility
+// of ambiguity or non-existence, in which case the "pre" time (as defined
+// by TimeZone::TimeInfo) is returned.  For these reasons we recommend that
+// all date/time strings include a UTC offset so they're context independent.
+bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
+               Time* time, std::string* err);
 
 // ============================================================================
 // Implementation Details Follow

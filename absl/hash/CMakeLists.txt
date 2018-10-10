@@ -20,7 +20,6 @@ list(APPEND HASH_PUBLIC_HEADERS
 
 list(APPEND HASH_INTERNAL_HEADERS
   "internal/city.h"
-  "internal/city_crc.h"
   "internal/hash.h"
 )
 

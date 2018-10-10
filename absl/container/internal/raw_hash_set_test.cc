@@ -1029,7 +1029,6 @@ ExpectedStats XorSeedExpectedStats() {
           {{0.95, 0.1}},
           {{0.95, 0}, {0.99, 2}, {0.999, 4}, {0.9999, 10}}};
       }
-      break;
     case 16:
       if (kRandomizesInserts) {
         return {0.1,
@@ -1042,10 +1041,8 @@ ExpectedStats XorSeedExpectedStats() {
                 {{0.95, 0.05}},
                 {{0.95, 0}, {0.99, 1}, {0.999, 4}, {0.9999, 10}}};
       }
-      break;
-    default:
-      ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   }
+  ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   return {};
 }
 TEST(Table, DISABLED_EnsureNonQuadraticTopNXorSeedByProbeSeqLength) {
@@ -1125,7 +1122,6 @@ ExpectedStats LinearTransformExpectedStats() {
                 {{0.95, 0.3}},
                 {{0.95, 0}, {0.99, 3}, {0.999, 15}, {0.9999, 25}}};
       }
-      break;
     case 16:
       if (kRandomizesInserts) {
         return {0.1,
@@ -1138,10 +1134,8 @@ ExpectedStats LinearTransformExpectedStats() {
                 {{0.95, 0.1}},
                 {{0.95, 0}, {0.99, 1}, {0.999, 6}, {0.9999, 10}}};
       }
-      break;
-    default:
-      ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   }
+  ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   return {};
 }
 TEST(Table, DISABLED_EnsureNonQuadraticTopNLinearTransformByProbeSeqLength) {
@@ -1834,18 +1828,15 @@ std::vector<std::pair<double, double>> StringTablePefectRatios() {
       } else {
         return {{0.995, 0.01}, {0.97, 0.01}, {0.89, 0.02}};
       }
-      break;
     case 16:
       if (kRandomizesInserts) {
         return {{0.973, 0.01}, {0.965, 0.01}, {0.92, 0.02}};
       } else {
         return {{0.995, 0.005}, {0.99, 0.005}, {0.94, 0.01}};
       }
-      break;
-    default:
-      // Ignore anything else.
-      return {};
   }
+  ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
+  return {};
 }
 
 // This is almost a change detector, but it allows us to know how we are
@@ -1884,18 +1875,15 @@ std::vector<std::pair<double, double>> IntTablePefectRatios() {
       } else {
         return {{0.99, 0.01}, {0.99, 0.01}, {0.95, 0.02}};
       }
-      break;
     case 16:
       if (kRandomizesInserts) {
         return {{0.98, 0.02}, {0.978, 0.02}, {0.96, 0.02}};
       } else {
         return {{0.998, 0.003}, {0.995, 0.01}, {0.975, 0.02}};
       }
-      break;
-    default:
-      // Ignore anything else.
-      return {};
   }
+  ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
+  return {};
 }
 
 // This is almost a change detector, but it allows us to know how we are

@@ -26,12 +26,6 @@ namespace cctz = absl::time_internal::cctz;
 namespace absl {
 namespace time_internal {
 
-#if GTEST_USES_SIMPLE_RE
-extern const char kZoneAbbrRE[] = ".*";  // just punt
-#else
-extern const char kZoneAbbrRE[] = "[A-Za-z]{3,4}|[-+][0-9]{2}([0-9]{2})?";
-#endif
-
 TimeZone LoadTimeZone(const std::string& name) {
   TimeZone tz;
   ABSL_RAW_CHECK(LoadTimeZone(name, &tz), name.c_str());

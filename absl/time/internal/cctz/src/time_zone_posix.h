@@ -68,25 +68,35 @@ namespace cctz {
 // it would take us to another day, and perhaps week, or even month.
 struct PosixTransition {
   enum DateFormat { J, N, M };
-  struct {
-    DateFormat fmt;
-    union {
-      struct {
-        std::int_fast16_t day;  // day of non-leap year [1:365]
-      } j;
-      struct {
-        std::int_fast16_t day;  // day of year [0:365]
-      } n;
-      struct {
-        std::int_fast8_t month;    // month of year [1:12]
-        std::int_fast8_t week;     // week of month [1:5] (5==last)
-        std::int_fast8_t weekday;  // 0==Sun, ..., 6=Sat
-      } m;
+
+  struct Date {
+    struct NonLeapDay {
+      std::int_fast16_t day;  // day of non-leap year [1:365]
     };
-  } date;
-  struct {
+    struct Day {
+      std::int_fast16_t day;  // day of year [0:365]
+    };
+    struct MonthWeekWeekday {
+      std::int_fast8_t month;    // month of year [1:12]
+      std::int_fast8_t week;     // week of month [1:5] (5==last)
+      std::int_fast8_t weekday;  // 0==Sun, ..., 6=Sat
+    };
+
+    DateFormat fmt;
+
+    union {
+      NonLeapDay j;
+      Day n;
+      MonthWeekWeekday m;
+    };
+  };
+
+  struct Time {
     std::int_fast32_t offset;  // seconds before/after 00:00:00
-  } time;
+  };
+
+  Date date;
+  Time time;
 };
 
 // The entirety of a POSIX-string specified time-zone rule. The standard
