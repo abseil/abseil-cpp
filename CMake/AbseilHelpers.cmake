@@ -129,16 +129,15 @@ function(absl_cc_library)
     endif()
 
     # Check if this is a header-only library
-    if (ABSL_CC_LIB_SRCS)
-      set(_SRCS ${ABSL_CC_LIB_SRCS})
-      list(FILTER _SRCS INCLUDE REGEX "\.cc$")
-      list(LENGTH _SRCS ABSL_CC_LIB_SRCS_LEN)
+    if ("${ABSL_CC_LIB_SRCS}" STREQUAL "")
+      set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
-      set(ABSL_CC_LIB_SRCS_LEN 0)
+      set(ABSL_CC_LIB_IS_INTERFACE 0)
     endif()
 
-    if(ABSL_CC_LIB_SRCS_LEN)
-      add_library(${_NAME} STATIC ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
+    if(NOT ABSL_CC_LIB_IS_INTERFACE)
+      add_library(${_NAME} STATIC "")
+      target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
         PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
       # TODO(rongjiecomputer): Revisit ABSL_COMPILE_CXXFLAGS when fixing GH#123
