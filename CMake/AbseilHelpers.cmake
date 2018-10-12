@@ -74,7 +74,7 @@ endfunction()
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
 # PUBLIC: Add this so that this library will be exported under absl:: (see Note).
-# TESTONLY: When added, this target will only be built if user passes -DBUILD_TESTING=ON to CMake.
+# TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
 #
