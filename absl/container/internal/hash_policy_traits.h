@@ -84,7 +84,7 @@ struct hash_policy_traits {
   }
 
   // Transfers the `old_slot` to `new_slot`. Any memory allocated by the
-  // allocator inside `old_slot` to `new_slot` can be transfered.
+  // allocator inside `old_slot` to `new_slot` can be transferred.
   //
   // OPTIONAL: defaults to:
   //

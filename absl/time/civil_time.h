@@ -73,7 +73,6 @@
 
 #include <string>
 
-#include "absl/base/port.h"  // Needed for string vs std::string
 #include "absl/strings/string_view.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 

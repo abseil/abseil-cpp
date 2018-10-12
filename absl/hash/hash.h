@@ -25,8 +25,8 @@
 //   * `AbslHashValue`, an extension point that allows you to extend types to
 //     support Abseil hashing without requiring you to define a hashing
 //     algorithm.
-//   * `HashState`, a type-erased class which implement the manipulation of the
-//     hash state (H) itself. containing member functions `combine()` and
+//   * `HashState`, a type-erased class which implements the manipulation of the
+//     hash state (H) itself, contains member functions `combine()` and
 //     `combine_contiguous()`, which you can use to contribute to an existing
 //     hash state when hashing your types.
 //
@@ -69,7 +69,7 @@ namespace absl {
 // `absl::Hash`
 // -----------------------------------------------------------------------------
 //
-// `absl::Hash<T>` is a convenient general-purpose hash functor for a type `T`
+// `absl::Hash<T>` is a convenient general-purpose hash functor for any type `T`
 // satisfying any of the following conditions (in order):
 //
 //  * T is an arithmetic or pointer type
@@ -142,7 +142,7 @@ namespace absl {
 //
 // The "hash state" concept contains two member functions for mixing hash state:
 //
-// * `H::combine()`
+// * `H::combine(state, values...)`
 //
 //   Combines an arbitrary number of values into a hash state, returning the
 //   updated state. Note that the existing hash state is move-only and must be
@@ -160,7 +160,7 @@ namespace absl {
 //     state = H::combine(std::move(state), value2);
 //     state = H::combine(std::move(state), value3);
 //
-// * `H::combine_contiguous()`
+// * `H::combine_contiguous(state, data, size)`
 //
 //    Combines a contiguous array of `size` elements into a hash state,
 //    returning the updated state. Note that the existing hash state is

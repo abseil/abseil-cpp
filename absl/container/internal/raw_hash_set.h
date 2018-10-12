@@ -662,7 +662,7 @@ class raw_hash_set {
       allocator_type>::template rebind_traits<value_type>::const_pointer;
 
   // Alias used for heterogeneous lookup functions.
-  // `key_arg<K>` evaluates to `K` when the functors are tranparent and to
+  // `key_arg<K>` evaluates to `K` when the functors are transparent and to
   // `key_type` otherwise. It permits template argument deduction on `K` for the
   // transparent case.
   template <class K>

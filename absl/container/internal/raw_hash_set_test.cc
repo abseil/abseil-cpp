@@ -687,7 +687,7 @@ TEST(Table, RehashWithNoResize) {
   Modulo1000HashTable t;
   // Adding the same length (and the same hash) strings
   // to have at least kMinFullGroups groups
-  // with Group::kWidth collisions. Then feel upto MaxDensitySize;
+  // with Group::kWidth collisions. Then fill up to MaxDensitySize;
   const size_t kMinFullGroups = 7;
   std::vector<int> keys;
   for (size_t i = 0; i < MaxDensitySize(Group::kWidth * kMinFullGroups); ++i) {

@@ -111,7 +111,7 @@ time_zone::absolute_lookup TimeZoneLibC::BreakTime(
     al.offset = 0;
     al.abbr = "UTC";
   }
-  al.cs = civil_second(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+  al.cs = civil_second(tm.tm_year + year_t{1900}, tm.tm_mon + 1, tm.tm_mday,
                        tm.tm_hour, tm.tm_min, tm.tm_sec);
   al.is_dst = tm.tm_isdst > 0;
   return al;

@@ -94,7 +94,7 @@ TEST(FlatHashMap, IteratesMsan) {
   }
 }
 
-// Demonstration of the "Lazy Key" pattern.  This uses heterogenous insert to
+// Demonstration of the "Lazy Key" pattern.  This uses heterogeneous insert to
 // avoid creating expensive key elements when the item is already present in the
 // map.
 struct LazyInt {
