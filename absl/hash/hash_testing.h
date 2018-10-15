@@ -90,7 +90,7 @@ namespace absl {
 //   template <typename H>
 //   friend H AbslHashValue(H state, Bad2 x) {
 //     // Uses a and b.
-//     return H::combine(x.a, x.b);
+//     return H::combine(std::move(state), x.a, x.b);
 //   }
 //   friend bool operator==(Bad2 x, Bad2 y) {
 //     // Only uses a.
@@ -107,7 +107,7 @@ namespace absl {
 //   template <typename H>
 //   friend H AbslHashValue(H state, Bad3 x) {
 //     // Only uses a.
-//     return H::combine(x.a);
+//     return H::combine(std::move(state), x.a);
 //   }
 //   friend bool operator==(Bad3 x, Bad3 y) {
 //     // Uses a and b.
@@ -123,19 +123,21 @@ namespace absl {
 //   int *p, size;
 //   template <typename H>
 //   friend H AbslHashValue(H state, Bad4 x) {
-//     return H::combine_range(x.p, x.p + x.size);
+//     return H::combine_contiguous(std::move(state), x.p, x.p + x.size);
 //   }
 //   friend bool operator==(Bad4 x, Bad4 y) {
-//     return std::equal(x.p, x.p + x.size, y.p, y.p + y.size);
+//    // Compare two ranges for equality. C++14 code can instead use std::equal.
+//     return absl::equal(x.p, x.p + x.size, y.p, y.p + y.size);
 //   }
 // };
 //
 // An easy solution to this is to combine the size after combining the range,
 // like so:
-//   template <typename H>
-//   friend H AbslHashValue(H state, Bad4 x) {
-//     return H::combine(H::combine_range(x.p, x.p + x.size), x.size);
-//   }
+// template <typename H>
+// friend H AbslHashValue(H state, Bad4 x) {
+//   return H::combine(
+//       H::combine_contiguous(std::move(state), x.p, x.p + x.size), x.size);
+// }
 //
 template <int&... ExplicitBarrier, typename Container>
 ABSL_MUST_USE_RESULT testing::AssertionResult
@@ -227,7 +229,8 @@ VerifyTypeImplementsAbslHashCorrectly(const Container& values, Eq equals) {
   // Now we verify that AbslHashValue is also correctly implemented.
 
   for (const auto& c : classes) {
-    // All elements of the equivalence class must have the same hash expansion.
+    // All elements of the equivalence class must have the same hash
+    // expansion.
     const SpyHashState expected = c[0].expand();
     for (const Info& v : c) {
       if (v.expand() != v.expand()) {
@@ -285,7 +288,7 @@ struct TypeSet {
 };
 
 template <typename... T>
-struct MakeTypeSet : TypeSet<>{};
+struct MakeTypeSet : TypeSet<> {};
 template <typename T, typename... Ts>
 struct MakeTypeSet<T, Ts...> : MakeTypeSet<Ts...>::template Insert<T>::type {};
 
@@ -346,8 +349,7 @@ template <int&..., typename Container, typename Eq>
 ABSL_MUST_USE_RESULT testing::AssertionResult
 VerifyTypeImplementsAbslHashCorrectly(const Container& values, Eq equals) {
   return hash_internal::VerifyTypeImplementsAbslHashCorrectly(
-      hash_internal::ContainerAsVector<Container>::Do(values),
-      equals);
+      hash_internal::ContainerAsVector<Container>::Do(values), equals);
 }
 
 template <int&..., typename T>

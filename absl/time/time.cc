@@ -176,6 +176,20 @@ inline int MapWeekday(const cctz::weekday& wd) {
   return 1;
 }
 
+bool FindTransition(const cctz::time_zone& tz,
+                    bool (cctz::time_zone::*find_transition)(
+                        const cctz::time_point<cctz::seconds>& tp,
+                        cctz::time_zone::civil_transition* trans) const,
+                    Time t, TimeZone::CivilTransition* trans) {
+  // Transitions are second-aligned, so we can discard any fractional part.
+  const auto tp = unix_epoch() + cctz::seconds(ToUnixSeconds(t));
+  cctz::time_zone::civil_transition tr;
+  if (!(tz.*find_transition)(tp, &tr)) return false;
+  trans->from = CivilSecond(tr.from);
+  trans->to = CivilSecond(tr.to);
+  return true;
+}
+
 }  // namespace
 
 //
@@ -364,6 +378,14 @@ absl::TimeZone::TimeInfo TimeZone::At(CivilSecond ct) const {
   ti.trans = MakeTimeWithOverflow(cl.trans, cs, cz_);
   ti.post = MakeTimeWithOverflow(cl.post, cs, cz_);
   return ti;
+}
+
+bool TimeZone::NextTransition(Time t, CivilTransition* trans) const {
+  return FindTransition(cz_, &cctz::time_zone::next_transition, t, trans);
+}
+
+bool TimeZone::PrevTransition(Time t, CivilTransition* trans) const {
+  return FindTransition(cz_, &cctz::time_zone::prev_transition, t, trans);
 }
 
 //

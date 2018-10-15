@@ -886,7 +886,7 @@ class TimeZone {
   struct TimeInfo {
     enum CivilKind {
       UNIQUE,    // the civil time was singular (pre == trans == post)
-      SKIPPED,   // the civil time did not exist (pre => trans > post)
+      SKIPPED,   // the civil time did not exist (pre >= trans > post)
       REPEATED,  // the civil time was ambiguous (pre < trans <= post)
     } kind;
     Time pre;    // time calculated using the pre-transition offset
@@ -924,6 +924,44 @@ class TimeZone {
   //   // nov06.trans is 2011-11-06 01:00:00 -0800
   //   // nov06.post  is 2011-11-06 01:15:00 -0800
   TimeInfo At(CivilSecond ct) const;
+
+  // TimeZone::NextTransition()
+  // TimeZone::PrevTransition()
+  //
+  // Finds the time of the next/previous offset change in this time zone.
+  //
+  // By definition, `NextTransition(t, &trans)` returns false when `t` is
+  // `InfiniteFuture()`, and `PrevTransition(t, &trans)` returns false
+  // when `t` is `InfinitePast()`. If the zone has no transitions, the
+  // result will also be false no matter what the argument.
+  //
+  // Otherwise, when `t` is `InfinitePast()`, `NextTransition(t, &trans)`
+  // returns true and sets `trans` to the first recorded transition. Chains
+  // of calls to `NextTransition()/PrevTransition()` will eventually return
+  // false, but it is unspecified exactly when `NextTransition(t, &trans)`
+  // jumps to false, or what time is set by `PrevTransition(t, &trans)` for
+  // a very distant `t`.
+  //
+  // Note: Enumeration of time-zone transitions is for informational purposes
+  // only. Modern time-related code should not care about when offset changes
+  // occur.
+  //
+  // Example:
+  //   absl::TimeZone nyc;
+  //   if (!absl::LoadTimeZone("America/New_York", &nyc)) { ... }
+  //   const auto now = absl::Now();
+  //   auto t = absl::InfinitePast();
+  //   absl::TimeZone::CivilTransition trans;
+  //   while (t <= now && nyc.NextTransition(t, &trans)) {
+  //     // transition: trans.from -> trans.to
+  //     t = nyc.At(trans.to).trans;
+  //   }
+  struct CivilTransition {
+    CivilSecond from;  // the civil time we jump from
+    CivilSecond to;    // the civil time we jump to
+  };
+  bool NextTransition(Time t, CivilTransition* trans) const;
+  bool PrevTransition(Time t, CivilTransition* trans) const;
 
   template <typename H>
   friend H AbslHashValue(H h, TimeZone tz) {

@@ -1135,4 +1135,67 @@ TEST(Time, LegacyDateTime) {
   EXPECT_EQ("2014-10-29 22:58:59", absl::FormatTime(ymdhms, t, utc));
 }
 
+TEST(Time, NextTransitionUTC) {
+  const auto tz = absl::UTCTimeZone();
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::InfinitePast();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+
+  t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+}
+
+TEST(Time, PrevTransitionUTC) {
+  const auto tz = absl::UTCTimeZone();
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+
+  t = absl::InfinitePast();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+}
+
+TEST(Time, NextTransitionNYC) {
+  const auto tz = absl::time_internal::LoadTimeZone("America/New_York");
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::FromCivil(absl::CivilSecond(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.NextTransition(t, &trans));
+  EXPECT_EQ(absl::CivilSecond(2018, 11, 4, 2, 0, 0), trans.from);
+  EXPECT_EQ(absl::CivilSecond(2018, 11, 4, 1, 0, 0), trans.to);
+
+  t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+
+  t = absl::InfinitePast();
+  EXPECT_TRUE(tz.NextTransition(t, &trans));
+  if (trans.from == absl::CivilSecond(1918, 03, 31, 2, 0, 0)) {
+    // It looks like the tzdata is only 32 bit (probably macOS),
+    // which bottoms out at 1901-12-13T20:45:52+00:00.
+    EXPECT_EQ(absl::CivilSecond(1918, 3, 31, 3, 0, 0), trans.to);
+  } else {
+    EXPECT_EQ(absl::CivilSecond(1883, 11, 18, 12, 3, 58), trans.from);
+    EXPECT_EQ(absl::CivilSecond(1883, 11, 18, 12, 0, 0), trans.to);
+  }
+}
+
+TEST(Time, PrevTransitionNYC) {
+  const auto tz = absl::time_internal::LoadTimeZone("America/New_York");
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::FromCivil(absl::CivilSecond(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.PrevTransition(t, &trans));
+  EXPECT_EQ(absl::CivilSecond(2018, 3, 11, 2, 0, 0), trans.from);
+  EXPECT_EQ(absl::CivilSecond(2018, 3, 11, 3, 0, 0), trans.to);
+
+  t = absl::InfinitePast();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+
+  t = absl::InfiniteFuture();
+  EXPECT_TRUE(tz.PrevTransition(t, &trans));
+  // We have a transition but we don't know which one.
+}
+
 }  // namespace

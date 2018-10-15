@@ -991,15 +991,17 @@ TEST(MakeTime, SysSecondsLimits) {
   tp = convert(civil_second::min(), west);
   EXPECT_EQ(time_point<absl::time_internal::cctz::seconds>::min(), tp);
 
-  // Checks that "tm_year + 1900", as used by the "libc" implementation,
-  // can produce year values beyond the range on an int without overflow.
+  if (sizeof(std::time_t) >= 8) {
+    // Checks that "tm_year + 1900", as used by the "libc" implementation,
+    // can produce year values beyond the range on an int without overflow.
 #if defined(_WIN32) || defined(_WIN64)
-  // localtime_s() and gmtime_s() don't believe in years past 3000.
+    // localtime_s() and gmtime_s() don't believe in years past 3000.
 #else
-  const time_zone libc_utc = LoadZone("libc:UTC");
-  tp = convert(civil_year(year_t{2147483648}), libc_utc);
-  EXPECT_EQ("2147483648-01-01T00:00:00+00:00", format(RFC3339, tp, libc_utc));
+    const time_zone libc_utc = LoadZone("libc:UTC");
+    tp = convert(civil_year(year_t{2147483648}), libc_utc);
+    EXPECT_EQ("2147483648-01-01T00:00:00+00:00", format(RFC3339, tp, libc_utc));
 #endif
+  }
 }
 
 TEST(NextTransition, UTC) {
