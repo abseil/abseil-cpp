@@ -84,7 +84,7 @@ struct FlatHashSetPolicy;
 //     {"huey", "dewey", "louie"};
 //
 //  // Insert a new element into the flat hash set
-//  ducks.insert("donald"};
+//  ducks.insert("donald");
 //
 //  // Force a rehash of the flat hash set
 //  ducks.rehash(0);
