@@ -1,0 +1,58 @@
+# see https://docs.travis-ci.com/user/reference/trusty/#container-based-with-sudo-false
+sudo: false
+
+# see https://docs.travis-ci.com/user/languages/cpp/
+language: cpp
+
+# For build environment setup
+# see https://docs.travis-ci.com/user/reference/overview/
+matrix:
+  include:
+    # see https://docs.travis-ci.com/user/languages/cpp/#gcc-on-linux
+    - os: linux
+      dist: trusty
+      compiler: gcc
+      env:
+        - BUILD_TYPE=Release
+    - os: linux
+      dist: trusty
+      compiler: gcc
+      env:
+        - BUILD_TYPE=Debug
+
+    # see https://docs.travis-ci.com/user/languages/cpp/#clang
+    - os: linux
+      dist: trusty
+      compiler: clang
+      env:
+        - BUILD_TYPE=Release
+        # Need to patch CPATH when using clang on linux
+        # see https://github.com/travis-ci/travis-ci/issues/9550
+        - CPATH=/usr/local/clang-5.0.0/include/c++/v1
+        - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
+    - os: linux
+      dist: trusty
+      compiler: clang
+      env:
+        - BUILD_TYPE=Debug
+        # Need to patch CPATH when using clang on linux
+        # see https://github.com/travis-ci/travis-ci/issues/9550
+        - CPATH=/usr/local/clang-5.0.0/include/c++/v1
+        - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
+
+    - os: osx
+      osx_image: xcode9.4
+      compiler: clang
+      env:
+        - BUILD_TYPE=Release
+    - os: osx
+      osx_image: xcode9.4
+      compiler: clang
+      env:
+        - BUILD_TYPE=Debug
+
+script:
+  - cmake --version
+  - cmake -H. -Bbuild -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DABSL_RUN_TESTS=ON -DABSL_USE_GOOGLETEST_HEAD=ON
+  - cmake --build build --target all
+  - CTEST_OUTPUT_ON_FAILURE=1 cmake --build build --target test
