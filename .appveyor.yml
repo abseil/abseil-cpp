@@ -1,0 +1,58 @@
+# Use the Appveyor build number for naming the build.
+# src: https://www.appveyor.com/docs/build-configuration/#build-versioning
+version: '{build}'
+# see https://www.appveyor.com/docs/how-to/repository-shallow-clone/
+shallow_clone: true
+
+platform: x64
+
+environment:
+  matrix:
+# CMake
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    VS: 2017
+    CONFIG: Release
+    TEST: OFF
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    VS: 2017
+    CONFIG: Release
+    TEST: ON
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    VS: 2017
+    CONFIG: Debug
+    TEST: ON
+
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    VS: 2015
+    CONFIG: Release
+    TEST: OFF
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    VS: 2015
+    CONFIG: Release
+    TEST: ON
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    VS: 2015
+    CONFIG: Debug
+    TEST: ON
+
+matrix:
+  fast_finish: false
+
+before_build:
+  # see https://www.appveyor.com/docs/lang/cpp/#visual-studio-2017
+  - if "%VS%"=="2017" call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+  - if "%VS%"=="2017" set CMAKE_GENERATOR="Visual Studio 15 2017 Win64"
+  # see https://www.appveyor.com/docs/lang/cpp/#visual-studio-2015
+  - if "%VS%"=="2015" call "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64
+  - if "%VS%"=="2015" call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
+  - if "%VS%"=="2015" set CMAKE_GENERATOR="Visual Studio 14 2015 Win64"
+
+build_script:
+  - cmake --version
+  - cmake -H. -Bbuild -DABSL_RUN_TESTS=%TEST% -DABSL_USE_GOOGLETEST_HEAD=%TEST% -G %CMAKE_GENERATOR%
+  - cmake --build build --config %CONFIG% --target ALL_BUILD -- /maxcpucount
+
+test_script:
+  - if "%TEST%"=="ON" set CTEST_OUTPUT_ON_FAILURE=1
+  - if "%TEST%"=="ON" cmake --build build --config %CONFIG% --target RUN_TESTS
+
