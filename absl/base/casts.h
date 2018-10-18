@@ -105,7 +105,7 @@ struct is_bitcastable
 //
 // Such implicit cast chaining may be useful within template logic.
 template <typename To>
-inline To implicit_cast(typename absl::internal::identity_t<To> to) {
+constexpr To implicit_cast(typename absl::internal::identity_t<To> to) {
   return to;
 }
 
