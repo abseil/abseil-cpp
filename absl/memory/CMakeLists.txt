@@ -66,6 +66,3 @@ absl_test(
   PRIVATE_COMPILE_FLAGS
     ${ABSL_EXCEPTIONS_FLAG}
 )
-
-
-

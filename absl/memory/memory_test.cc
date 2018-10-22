@@ -145,7 +145,7 @@ TEST(Make_UniqueTest, NotAmbiguousWithStdMakeUnique) {
     explicit TakesStdType(const std::vector<int> &vec) {}
   };
   using absl::make_unique;
-  make_unique<TakesStdType>(std::vector<int>());
+  (void)make_unique<TakesStdType>(std::vector<int>());
 }
 
 #if 0

@@ -17,7 +17,7 @@
 #include <stddef.h>
 #include <cassert>
 #include <iomanip>
-#include <iostream>  // NOLINT(readability/streams)
+#include <ostream>  // NOLINT(readability/streams)
 #include <sstream>
 #include <string>
 #include <type_traits>

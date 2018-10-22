@@ -1,35 +1,35 @@
-# tz zone descriptions
+# tzdb timezone descriptions
 #
 # This file is in the public domain.
 #
-# From Paul Eggert (2017-10-01):
-# This file contains a table where each row stands for a zone where
-# civil time stamps have agreed since 1970.  Columns are separated by
+# From Paul Eggert (2018-06-27):
+# This file contains a table where each row stands for a timezone where
+# civil timestamps have agreed since 1970.  Columns are separated by
 # a single tab.  Lines beginning with '#' are comments.  All text uses
 # UTF-8 encoding.  The columns of the table are as follows:
 #
-# 1.  The countries that overlap the zone, as a comma-separated list
+# 1.  The countries that overlap the timezone, as a comma-separated list
 #     of ISO 3166 2-character country codes.  See the file 'iso3166.tab'.
-# 2.  Latitude and longitude of the zone's principal location
+# 2.  Latitude and longitude of the timezone's principal location
 #     in ISO 6709 sign-degrees-minutes-seconds format,
 #     either ±DDMM±DDDMM or ±DDMMSS±DDDMMSS,
 #     first latitude (+ is north), then longitude (+ is east).
-# 3.  Zone name used in value of TZ environment variable.
-#     Please see the theory.html file for how zone names are chosen.
-#     If multiple zones overlap a country, each has a row in the
+# 3.  Timezone name used in value of TZ environment variable.
+#     Please see the theory.html file for how these names are chosen.
+#     If multiple timezones overlap a country, each has a row in the
 #     table, with each column 1 containing the country code.
-# 4.  Comments; present if and only if a country has multiple zones.
+# 4.  Comments; present if and only if a country has multiple timezones.
 #
-# If a zone covers multiple countries, the most-populous city is used,
+# If a timezone covers multiple countries, the most-populous city is used,
 # and that country is listed first in column 1; any other countries
 # are listed alphabetically by country code.  The table is sorted
 # first by country code, then (if possible) by an order within the
 # country that (1) makes some geographical sense, and (2) puts the
-# most populous zones first, where that does not contradict (1).
+# most populous timezones first, where that does not contradict (1).
 #
-# This table is intended as an aid for users, to help them select time
-# zone data entries appropriate for their practical needs.  It is not
-# intended to take or endorse any position on legal or territorial claims.
+# This table is intended as an aid for users, to help them select timezones
+# appropriate for their practical needs.  It is not intended to take or
+# endorse any position on legal or territorial claims.
 #
 #country-
 #codes	coordinates	TZ	comments
@@ -231,7 +231,7 @@ MM	+1647+09610	Asia/Yangon
 MN	+4755+10653	Asia/Ulaanbaatar	Mongolia (most areas)
 MN	+4801+09139	Asia/Hovd	Bayan-Ölgii, Govi-Altai, Hovd, Uvs, Zavkhan
 MN	+4804+11430	Asia/Choibalsan	Dornod, Sükhbaatar
-MO	+2214+11335	Asia/Macau
+MO	+221150+1133230	Asia/Macau
 MQ	+1436-06105	America/Martinique
 MT	+3554+01431	Europe/Malta
 MU	-2010+05730	Indian/Mauritius
