@@ -82,7 +82,7 @@ absl_library(
 
 # test fixed_array_test
 set(FIXED_ARRAY_TEST_SRC "fixed_array_test.cc")
-set(FIXED_ARRAY_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate test_instance_tracker_lib)
+set(FIXED_ARRAY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
 
 absl_test(
   TARGET
@@ -111,7 +111,7 @@ absl_test(
 set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_SRC "fixed_array_exception_safety_test.cc")
 set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
   absl::container
-  absl_base_internal_exception_safety_testing
+  absl_internal_exception_safety_testing
 )
 
 absl_test(
@@ -128,7 +128,7 @@ absl_test(
 
 # test inlined_vector_test
 set(INLINED_VECTOR_TEST_SRC "inlined_vector_test.cc")
-set(INLINED_VECTOR_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate test_instance_tracker_lib)
+set(INLINED_VECTOR_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
 
 absl_test(
   TARGET
@@ -153,7 +153,7 @@ absl_test(
 
 # test test_instance_tracker_test
 set(TEST_INSTANCE_TRACKER_TEST_SRC "internal/test_instance_tracker_test.cc")
-set(TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES absl::base absl_throw_delegate test_instance_tracker_lib)
+set(TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
 
 
 absl_test(

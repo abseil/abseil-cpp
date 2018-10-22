@@ -85,7 +85,7 @@ absl_library(
     ${SYMBOLIZE_SRC}
   PUBLIC_LIBRARIES
     absl::base
-    absl_malloc_internal
+    absl_internal_malloc_internal
   EXPORT_NAME
     symbolize
 )
