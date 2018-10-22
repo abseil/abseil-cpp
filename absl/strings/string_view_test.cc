@@ -678,9 +678,9 @@ TEST(StringViewTest, STL2Substr) {
   EXPECT_EQ(a.substr(23, absl::string_view::npos), c);
   // throw exception
 #ifdef ABSL_HAVE_EXCEPTIONS
-  EXPECT_THROW(a.substr(99, 2), std::out_of_range);
+  EXPECT_THROW((void)a.substr(99, 2), std::out_of_range);
 #else
-  EXPECT_DEATH(a.substr(99, 2), "absl::string_view::substr");
+  EXPECT_DEATH((void)a.substr(99, 2), "absl::string_view::substr");
 #endif
 }
 

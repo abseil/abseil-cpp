@@ -63,10 +63,14 @@ Abseil contains the following C++ library components:
   <br /> The `algorithm` library contains additions to the C++ `<algorithm>`
   library and container-based versions of such algorithms.
 * [`container`](absl/container/)
-  <br /> The `container` library contains additional STL-style containers.
+  <br /> The `container` library contains additional STL-style containers,
+  including Abseil's unordered "Swiss table" containers.
 * [`debugging`](absl/debugging/)
   <br /> The `debugging` library contains code useful for enabling leak
-  checks. Future updates will add stacktrace and symbolization utilities.
+  checks, and stacktrace and symbolization utilities.
+* [`hash`](absl/hash/)
+  <br /> The `hash` library contains the hashing framework and default hash
+  functor implementations for hashable types in Abseil.
 * [`memory`](absl/memory/)
   <br /> The `memory` library contains C++11-compatible versions of
   `std::make_unique()` and related memory management facilities.
@@ -90,6 +94,8 @@ Abseil contains the following C++ library components:
 * [`types`](absl/types/)
   <br /> The `types` library contains non-container utility types, like a
   C++11-compatible version of the C++17 `std::optional` type.
+* [`utility`](absl/utility/)
+  <br /> The `utility` library contains utility and helper code.
 
 ## License
 

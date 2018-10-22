@@ -342,7 +342,7 @@ using CivilYear =
 //
 //   absl::CivilSecond cs = ...;
 //   absl::civil_year_t y = cs.year();
-//   cs = absl::CivilSecond(y, 1, 1, 0, 0 0);  // CivilSecond(CivilYear(cs))
+//   cs = absl::CivilSecond(y, 1, 1, 0, 0, 0);  // CivilSecond(CivilYear(cs))
 //
 using civil_year_t = time_internal::cctz::year_t;
 

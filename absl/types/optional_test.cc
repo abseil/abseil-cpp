@@ -1042,9 +1042,9 @@ TEST(optionalTest, Value) {
   // test exception throw on value()
   absl::optional<int> empty;
 #ifdef ABSL_HAVE_EXCEPTIONS
-  EXPECT_THROW(empty.value(), absl::bad_optional_access);
+  EXPECT_THROW((void)empty.value(), absl::bad_optional_access);
 #else
-  EXPECT_DEATH(empty.value(), "Bad optional access");
+  EXPECT_DEATH((void)empty.value(), "Bad optional access");
 #endif
 
   // test constexpr value()

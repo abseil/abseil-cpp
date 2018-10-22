@@ -151,7 +151,7 @@ void BM_find_string_view_len_one(benchmark::State& state) {
   std::string haystack(state.range(0), '0');
   absl::string_view s(haystack);
   for (auto _ : state) {
-    s.find("x");  // not present; length 1
+    benchmark::DoNotOptimize(s.find("x"));  // not present; length 1
   }
 }
 BENCHMARK(BM_find_string_view_len_one)->Range(1, 1 << 20);
@@ -160,7 +160,7 @@ void BM_find_string_view_len_two(benchmark::State& state) {
   std::string haystack(state.range(0), '0');
   absl::string_view s(haystack);
   for (auto _ : state) {
-    s.find("xx");  // not present; length 2
+    benchmark::DoNotOptimize(s.find("xx"));  // not present; length 2
   }
 }
 BENCHMARK(BM_find_string_view_len_two)->Range(1, 1 << 20);
@@ -169,7 +169,7 @@ void BM_find_one_char(benchmark::State& state) {
   std::string haystack(state.range(0), '0');
   absl::string_view s(haystack);
   for (auto _ : state) {
-    s.find('x');  // not present
+    benchmark::DoNotOptimize(s.find('x'));  // not present
   }
 }
 BENCHMARK(BM_find_one_char)->Range(1, 1 << 20);
@@ -178,7 +178,7 @@ void BM_rfind_one_char(benchmark::State& state) {
   std::string haystack(state.range(0), '0');
   absl::string_view s(haystack);
   for (auto _ : state) {
-    s.rfind('x');  // not present
+    benchmark::DoNotOptimize(s.rfind('x'));  // not present
   }
 }
 BENCHMARK(BM_rfind_one_char)->Range(1, 1 << 20);
@@ -193,7 +193,7 @@ void BM_worst_case_find_first_of(benchmark::State& state, int haystack_len) {
 
   absl::string_view s(haystack);
   for (auto _ : state) {
-    s.find_first_of(needle);
+    benchmark::DoNotOptimize(s.find_first_of(needle));
   }
 }
 
