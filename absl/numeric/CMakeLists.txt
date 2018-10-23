@@ -14,49 +14,34 @@
 # limitations under the License.
 #
 
-list(APPEND NUMERIC_PUBLIC_HEADERS
-  "int128.h"
-)
-
-
-# library 128
-list(APPEND INT128_SRC
+set(INT128_SRCS
   "int128.cc"
-  ${NUMERIC_PUBLIC_HEADERS}
-)
-absl_library(
-  TARGET
-    absl_int128
-  SOURCES
-    ${INT128_SRC}
-  PUBLIC_LIBRARIES
-    ${INT128_PUBLIC_LIBRARIES}
-  EXPORT_NAME
-    int128
+  "int128_have_intrinsic.inc"
+  "int128_no_intrinsic.inc"
 )
 
+absl_cc_library(
+  NAME int128
+  SRCS ${INT128_SRCS}
+  HDRS "int128.h"
+  DEPS
+    absl::config
+    absl::core_headers
+  PUBLIC
+)
 
-absl_header_library(
-  TARGET
-    absl_numeric
-  PUBLIC_LIBRARIES
+absl_cc_test(
+  NAME int128_test
+  SRCS
+    "int128_stream_test.cc"
+    "int128_test.cc"
+  DEPS
     absl::int128
-  EXPORT_NAME
-    numeric
+    absl::base
+    absl::core_headers
+    absl::hash_testing
+    absl::type_traits
+    gmock
+    gtest_main
 )
-
-# test int128_test
-set(INT128_TEST_SRC "int128_test.cc")
-set(INT128_TEST_PUBLIC_LIBRARIES absl::numeric absl::base)
-
-absl_test(
-  TARGET
-    int128_test
-  SOURCES
-    ${INT128_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${INT128_TEST_PUBLIC_LIBRARIES}
-)
-
-
 
