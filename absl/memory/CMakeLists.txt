@@ -14,55 +14,34 @@
 # limitations under the License.
 #
 
-list(APPEND MEMORY_PUBLIC_HEADERS
-  "memory.h"
+absl_cc_library(
+  NAME memory
+  HDRS "memory.h"
+  DEPS
+    absl::core_headers
+    absl::type_traits
+  PUBLIC
 )
 
-
-absl_header_library(
-  TARGET
-    absl_memory
-  EXPORT_NAME
-    memory
+absl_cc_test(
+  NAME memory_test
+  SRCS "memory_test.cc"
+  DEPS
+    absl::memory
+    absl::base
+    absl::core_headers
+    gmock
+    gtest_main
 )
 
-#
-## TESTS
-#
-
-# test memory_test
-list(APPEND MEMORY_TEST_SRC
-  "memory_test.cc"
-  ${MEMORY_PUBLIC_HEADERS}
-)
-set(MEMORY_TEST_PUBLIC_LIBRARIES absl::base absl::memory)
-
-
-
-absl_test(
-  TARGET
-    memory_test
-  SOURCES
-    ${MEMORY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${MEMORY_TEST_PUBLIC_LIBRARIES}
+absl_cc_test(
+  NAME memory_exception_safety_test
+  SRCS "memory_exception_safety_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::memory
+    absl::exception_safety_testing
+    gtest_main
 )
 
-
-# test memory_exception_safety_test
-set(MEMORY_EXCEPTION_SAFETY_TEST_SRC "memory_exception_safety_test.cc")
-set(MEMORY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
-  absl::memory
-  absl_internal_exception_safety_testing
-)
-
-absl_test(
-  TARGET
-    memory_exception_safety_test
-  SOURCES
-    ${MEMORY_EXCEPTION_SAFETY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${MEMORY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-)
