@@ -159,6 +159,55 @@ function(absl_cc_library)
   endif()
 endfunction()
 
+# CMake function to imitate Bazel's cc_test rule.
+#
+# Parameters:
+# NAME: name of target (see Note)
+# SRCS: List of source files for the binary
+# DEPS: List of other libraries to be linked in to the binary targets
+# COPTS: List of private compile options
+# DEFINES: List of public defines
+# LINKOPTS: List of link options
+#
+# Note:
+# absl_cc_test_library(
+#   NAME awesome_test
+#   SRCS "awesome_test.cc"
+# )
+function(absl_cc_test)
+  cmake_parse_arguments(ABSL_CC_TEST
+    ""
+    "NAME"
+    "SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
+    ${ARGN}
+  )
+
+  if(ABSL_RUN_TESTS)
+    set(_NAME "absl_${ABSL_CC_TEST_NAME}")
+    add_executable(${_NAME} "")
+    target_sources(${_NAME} PRIVATE ${ABSL_CC_TEST_SRCS})
+    target_include_directories(${_NAME}
+      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
+      PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
+    )
+    # TODO(rongjiecomputer): Revisit ABSL_COMPILE_CXXFLAGS when fixing GH#123
+    target_compile_definitions(${_NAME}
+      PUBLIC ${ABSL_CC_TEST_DEFINES}
+    )
+    target_compile_options(${_NAME}
+      PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_TEST_COPTS}
+    )
+    target_link_libraries(${_NAME}
+      PUBLIC ${ABSL_CC_TEST_DEPS}
+      PRIVATE ${ABSL_CC_TEST_LINKOPTS}
+    )
+    # Add all Abseil targets to a a folder in the IDE for organization.
+    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+    add_test(gtest_${_NAME} ${_NAME})
+  endif()
+endfunction()
+
 #
 # header only virtual target creation
 #
