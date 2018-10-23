@@ -62,7 +62,6 @@ function(absl_library)
   endif()
 endfunction()
 
-#
 # CMake function to imitate Bazel's cc_library rule.
 #
 # Parameters:
@@ -77,26 +76,19 @@ endfunction()
 # TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
-#
 # By default, absl_cc_library will always create a library named absl_internal_${NAME},
 # which means other targets can only depend this library as absl_internal_${NAME}, not ${NAME}.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
-#   NAME
-#     awesome_lib
-#   HDRS
-#     "a.h"
-#   SRCS
-#     "a.cc"
+#   NAME awesome_lib
+#   HDRS "a.h"
+#   SRCS "a.cc"
 # )
 # absl_cc_library(
-#   NAME
-#     fantastic_lib
-#   SRCS
-#     "b.cc"
-#   DEPS
-#     absl_internal_awesome_lib # not "awesome_lib"!
+#   NAME fantastic_lib
+#   SRCS "b.cc"
+#   DEPS absl_internal_awesome_lib # not "awesome_lib"!
 # )
 #
 # If PUBLIC is set, absl_cc_library will instead create a target named
@@ -112,7 +104,6 @@ endfunction()
 # User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
-
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
@@ -154,7 +145,8 @@ function(absl_cc_library)
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
-      target_include_directories(${_NAME} INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+      target_include_directories(${_NAME}
+        INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
       target_link_libraries(${_NAME}
         INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
       )
@@ -211,7 +203,6 @@ function(absl_header_library)
   endif()
 
 endfunction()
-
 
 #
 # create an abseil unit_test and add it to the executed test list
