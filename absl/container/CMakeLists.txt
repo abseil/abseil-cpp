@@ -14,151 +14,534 @@
 # limitations under the License.
 #
 
-
-list(APPEND CONTAINER_PUBLIC_HEADERS
-  "fixed_array.h"
-  "flat_hash_map.h"
-  "flat_hash_set.h"
-  "inlined_vector.h"
-  "node_hash_map.h"
-  "node_hash_set.h"
+# compressed_tuple library
+absl_cc_library(
+  NAME compressed_tuple
+  HDRS "internal/compressed_tuple.h"
+  DEPS
+    absl::utility
+  PUBLIC
 )
 
-
-list(APPEND CONTAINER_INTERNAL_HEADERS
-  "internal/compressed_tuple.h"
-  "internal/container_memory.h"
-  "internal/hash_function_defaults.h"
-  "internal/hash_generator_testing.h"
-  "internal/hash_policy_testing.h"
-  "internal/hash_policy_traits.h"
-  "internal/hashtable_debug.h"
-  "internal/layout.h"
-  "internal/node_hash_policy.h"
-  "internal/raw_hash_map.h"
-  "internal/raw_hash_set.h"
-  "internal/test_instance_tracker.h"
-  "internal/tracked.h"
-  "internal/unordered_map_constructor_test.h"
-  "internal/unordered_map_lookup_test.h"
-  "internal/unordered_map_modifiers_test.h"
-  "internal/unordered_set_constructor_test.h"
-  "internal/unordered_set_lookup_test.h"
-  "internal/unordered_set_modifiers_test.h"
+# compressed_tuple test
+absl_cc_test(
+  NAME compressed_tuple_test
+  SRCS "internal/compressed_tuple_test.cc"
+  DEPS
+    absl::compressed_tuple
+    gmock
+    gtest_main
 )
 
-
-absl_header_library(
-  TARGET
-    absl_container
-  EXPORT_NAME
-    container
+# fixed array library
+absl_cc_library(
+  NAME fixed_array
+  HDRS "fixed_array.h"
+  DEPS
+    absl::compressed_tuple
+    absl::algorithm
+    absl::core_headers
+    absl::dynamic_annotations
+    absl::throw_delegate
+    absl::memory
+  PUBLIC
 )
 
-
-#
-## TESTS
-#
-
-list(APPEND TEST_INSTANCE_TRACKER_LIB_SRC
-  "internal/test_instance_tracker.cc"
-  ${CONTAINER_PUBLIC_HEADERS}
-  ${CONTAINER_INTERNAL_HEADERS}
+# fixed_array test
+absl_cc_test(
+  NAME fixed_array_test
+  SRCS "fixed_array_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::fixed_array
+    absl::exception_testing
+    absl::hash_testing
+    absl::memory
+    gmock
+    gtest_main
 )
 
-
-absl_library(
-  TARGET
-    test_instance_tracker_lib
-  SOURCES
-    ${TEST_INSTANCE_TRACKER_LIB_SRC}
-  PUBLIC_LIBRARIES
-    absl::container
+# fixed_array_test_noexceptions test
+absl_cc_test(
+  NAME fixed_array_test_noexceptions
+  SRCS "fixed_array_test.cc"
+  DEPS
+    absl::fixed_array
+    absl::exception_testing
+    absl::hash_testing
+    absl::memory
+    gmock
+    gtest_main
 )
 
-
-
-# test fixed_array_test
-set(FIXED_ARRAY_TEST_SRC "fixed_array_test.cc")
-set(FIXED_ARRAY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
-
-absl_test(
-  TARGET
-    fixed_array_test
-  SOURCES
-    ${FIXED_ARRAY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${FIXED_ARRAY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
+# fixed_array_exception_safety test
+absl_cc_test(
+  NAME fixed_array_exception_safety_test
+  SRCS "fixed_array_exception_safety_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::fixed_array
+    absl::exception_safety_testing
+    gtest_main
 )
 
-
-
-absl_test(
-  TARGET
-    fixed_array_test_noexceptions
-  SOURCES
-    ${FIXED_ARRAY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${FIXED_ARRAY_TEST_PUBLIC_LIBRARIES}
+# inlined_vector library
+absl_cc_library(
+  NAME inlined_vector
+  HDRS "inlined_vector.h"
+  DEPS
+    absl::algorithm
+    absl::core_headers
+    absl::throw_delegate
+    absl::memory
+  PUBLIC
 )
 
-
-# test fixed_array_exception_safety_test
-set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_SRC "fixed_array_exception_safety_test.cc")
-set(FIXED_ARRAY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
-  absl::container
-  absl_internal_exception_safety_testing
+# inlined_vector test
+absl_cc_test(
+  NAME inlined_vector_test
+  SRCS "inlined_vector_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::inlined_vector
+    absl::test_instance_tracker
+    absl::base
+    absl::core_headers
+    absl::exception_testing
+    absl::hash_testing
+    absl::memory
+    absl::strings
+    gmock
+    gtest_main
 )
 
-absl_test(
-  TARGET
-    fixed_array_exception_safety_test
-  SOURCES
-    ${FIXED_ARRAY_EXCEPTION_SAFETY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${FIXED_ARRAY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
+# inlined_vector_test_noexceptions test
+absl_cc_test(
+  NAME inlined_vector_test_noexceptions
+  SRCS "inlined_vector_test.cc"
+  DEPS
+    absl::inlined_vector
+    absl::test_instance_tracker
+    absl::base
+    absl::core_headers
+    absl::exception_testing
+    absl::hash_testing
+    absl::memory
+    absl::strings
+    gmock
+    gtest_main
 )
 
-
-# test inlined_vector_test
-set(INLINED_VECTOR_TEST_SRC "inlined_vector_test.cc")
-set(INLINED_VECTOR_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
-
-absl_test(
-  TARGET
-    inlined_vector_test
-  SOURCES
-    ${INLINED_VECTOR_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${INLINED_VECTOR_TEST_PUBLIC_LIBRARIES}
+# test_instance library
+absl_cc_library(
+  NAME test_instance_tracker
+  SRCS "internal/test_instance_tracker.cc"
+  HDRS "internal/test_instance_tracker.h"
+  TESTONLY
 )
 
-absl_test(
-  TARGET
-    inlined_vector_test_noexceptions
-  SOURCES
-    ${INLINED_VECTOR_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${INLINED_VECTOR_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_NOEXCEPTION_CXXFLAGS}
+absl_cc_test(
+  NAME test_instance_tracker_test
+  SRCS "internal/test_instance_tracker_test.cc"
+  DEPS
+    absl::test_instance_tracker
+    gtest_main
 )
 
+# flat_hash_map library
+absl_cc_library(
+  NAME flat_hash_map
+  HDRS "flat_hash_map.h"
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::raw_hash_map
+    absl::memory
+  PUBLIC
+)
 
-# test test_instance_tracker_test
-set(TEST_INSTANCE_TRACKER_TEST_SRC "internal/test_instance_tracker_test.cc")
-set(TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate test_instance_tracker_lib)
+absl_cc_test(
+  NAME flat_hash_map_test
+  SRCS "flat_hash_map_test.cc"
+  COPTS "-DUNORDERED_MAP_CXX17"
+  DEPS
+    absl::flat_hash_map
+    absl::hash_generator_testing
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    absl::any
+    gmock
+    gtest_main
+)
 
+# flat_hash_set library
+absl_cc_library(
+  NAME flat_hash_set
+  HDRS "flat_hash_set.h"
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::raw_hash_set
+    absl::core_headers
+    absl::memory
+  PUBLIC
+)
 
-absl_test(
-  TARGET
-    test_instance_tracker_test
-  SOURCES
-    ${TEST_INSTANCE_TRACKER_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES}
+absl_cc_test(
+  NAME flat_hash_set_test
+  SRCS "flat_hash_set_test.cc"
+  COPTS "-DUNORDERED_SET_CXX17"
+  DEPS
+    absl::flat_hash_set
+    absl::hash_generator_testing
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    absl::memory
+    absl::strings
+    gmock
+    gtest_main
+)
+
+# node_hash_map library
+absl_cc_library(
+  NAME node_hash_map
+  HDRS "node_hash_map.h"
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::node_hash_policy
+    absl::raw_hash_map
+    absl::memory
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME node_hash_map_test
+  SRCS "node_hash_map_test.cc"
+  COPTS "-DUNORDERED_MAP_CXX17"
+  DEPS
+    absl::node_hash_map
+    absl::hash_generator_testing
+    absl::tracked
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    gmock
+    gtest_main
+)
+
+# node_hash_set library
+absl_cc_library(
+  NAME node_hash_set
+  HDRS "node_hash_set.h"
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::node_hash_policy
+    absl::raw_hash_set
+    absl::memory
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME node_hash_set_test
+  SRCS "node_hash_set_test.cc"
+  COPTS "-DUNORDERED_SET_CXX17"
+  DEPS
+    absl::node_hash_set
+    absl::hash_generator_testing
+    absl::unordered_set_constructor_test
+    absl::unordered_set_lookup_test
+    absl::unordered_set_modifiers_test
+    gtest_main
+)
+
+# container_memory library
+absl_cc_library(
+  NAME container_memory
+  HDRS "internal/container_memory.h"
+  DEPS
+    absl::memory
+    absl::utility
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME container_memory_test
+  SRCS "internal/container_memory_test.cc"
+  DEPS
+    absl::container_memory
+    absl::strings
+    gmock
+    gtest_main
+)
+
+# hash_function_defaults library
+absl_cc_library(
+  NAME hash_function_defaults
+  HDRS "internal/hash_function_defaults.h"
+  DEPS
+    absl::config
+    absl::hash
+    absl::strings
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME hash_function_defaults_test
+  SRCS "internal/hash_function_defaults_test.cc"
+  DEPS
+    absl::hash_function_defaults
+    absl::hash
+    absl::strings
+    gtest_main
+)
+
+absl_cc_library(
+  NAME hash_generator_testing
+  SRCS "internal/hash_generator_testing.cc"
+  HDRS "internal/hash_generator_testing.h"
+  DEPS
+    absl::hash_policy_testing
+    absl::type_traits
+    absl::strings
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME hash_policy_testing
+  HDRS "internal/hash_policy_testing.h"
+  DEPS
+    absl::hash
+    absl::strings
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME hash_policy_testing_test
+  SRCS "internal/hash_policy_testing_test.cc"
+  DEPS
+    absl::hash_policy_testing
+    gtest_main
+)
+
+absl_cc_library(
+  NAME hash_policy_traits
+  HDRS "internal/hash_policy_traits.h"
+  DEPS
+    absl::type_traits
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME hash_policy_traits_test
+  SRCS "internal/hash_policy_traits_test.cc"
+  DEPS
+    absl::hash_policy_traits
+    gmock
+    gtest_main
+)
+
+absl_cc_library(
+  NAME hashtable_debug
+  HDRS "internal/hashtable_debug.h"
+  DEPS
+    absl::hashtable_debug_hooks
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME hashtable_debug_hooks
+  HDRS "internal/hashtable_debug_hooks.h"
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME node_hash_policy
+  HDRS "internal/node_hash_policy.h"
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME node_hash_policy_test
+  SRCS "internal/node_hash_policy_test.cc"
+  DEPS
+    absl::hash_policy_traits
+    absl::node_hash_policy
+    gmock
+    gtest_main
+)
+
+absl_cc_library(
+  NAME raw_hash_map
+  HDRS "internal/raw_hash_map.h"
+  DEPS
+    absl::container_memory
+    absl::raw_hash_set
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME raw_hash_set
+  SRCS "internal/raw_hash_set.cc"
+  HDRS "internal/raw_hash_set.h"
+  DEPS
+    absl::compressed_tuple
+    absl::container_memory
+    absl::hash_policy_traits
+    absl::hashtable_debug_hooks
+    absl::layout
+    absl::bits
+    absl::config
+    absl::core_headers
+    absl::endian
+    absl::memory
+    absl::type_traits
+    absl::optional
+    absl::utility
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME raw_hash_set_test
+  SRCS "internal/raw_hash_set_test.cc"
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::hash_policy_testing
+    absl::hashtable_debug
+    absl::raw_hash_set
+    absl::base
+    absl::core_headers
+    absl::strings
+    gmock
+    gtest_main
+)
+
+absl_cc_test(
+  NAME raw_hash_set_allocator_test
+  SRCS "internal/raw_hash_set_allocator_test.cc"
+  DEPS
+    absl::raw_hash_set
+    absl::tracked
+    absl::core_headers
+    gtest_main
+)
+
+absl_cc_library(
+  NAME layout
+  HDRS "internal/layout.h"
+  DEPS
+    absl::core_headers
+    absl::type_traits
+    absl::strings
+    absl::span
+    absl::utility
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME layout_test
+  SRCS "internal/layout_test.cc"
+  DEPS
+    absl::layout
+    absl::base
+    absl::core_headers
+    absl::span
+    gmock
+    gtest_main
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME tracked
+  HDRS "internal/tracked.h"
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_map_constructor_test
+  HDRS "internal/unordered_map_constructor_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gtest
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_map_lookup_test
+  HDRS "internal/unordered_map_lookup_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gtest
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_map_modifiers_test
+  HDRS "internal/unordered_map_modifiers_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gtest
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_set_constructor_test
+  HDRS "internal/unordered_set_constructor_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gmock
+    gtest
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_set_lookup_test
+  HDRS "internal/unordered_set_lookup_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gtest
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME unordered_set_modifiers_test
+  HDRS "internal/unordered_set_modifiers_test.h"
+  DEPS
+    absl::hash_generator_testing
+    absl::hash_policy_testing
+    gtest
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME unordered_set_test
+  SRCS "internal/unordered_set_test.cc"
+  DEPS
+    absl::unordered_set_constructor_test
+    absl::unordered_set_lookup_test
+    absl::unordered_set_modifiers_test
+    gtest_main
+)
+
+absl_cc_test(
+  NAME unordered_map_test
+  SRCS "internal/unordered_map_test.cc"
+  DEPS
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    gmock
+    gtest_main
 )
