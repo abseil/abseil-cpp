@@ -14,39 +14,20 @@
 # limitations under the License.
 #
 
-list(APPEND META_PUBLIC_HEADERS
-  "type_traits.h"
+absl_cc_library(
+  NAME type_traits
+  HDRS "type_traits.h"
+  DEPS
+    absl::config
+  PUBLIC
 )
 
-
-#
-## TESTS
-#
-
-# test type_traits_test
-list(APPEND TYPE_TRAITS_TEST_SRC
-  "type_traits_test.cc"
-  ${META_PUBLIC_HEADERS}
+absl_cc_test(
+  NAME type_traits_test
+  SRCS "type_traits_test.cc"
+  DEPS
+    absl::type_traits
+    absl::core_headers
+    gtest_main
 )
-
-absl_header_library(
-  TARGET
-    absl_meta
-  PUBLIC_LIBRARIES
-    absl::base
-  EXPORT_NAME
-    meta
- )
-
-absl_test(
-  TARGET
-    type_traits_test
-  SOURCES
-    ${TYPE_TRAITS_TEST_SRC}
-  PUBLIC_LIBRARIES
-    absl::base
-    absl::meta
-)
-
-
 
