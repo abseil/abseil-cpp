@@ -112,26 +112,30 @@ endfunction()
 # User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
- function(absl_cc_library)
+
+function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
     "NAME"
     "HDRS;SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
     ${ARGN}
   )
-   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
+
+  if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
     if (ABSL_CC_LIB_PUBLIC)
       set(_NAME "absl_${ABSL_CC_LIB_NAME}")
     else()
       set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
     endif()
-     # Check if this is a header-only library
+
+    # Check if this is a header-only library
     if ("${ABSL_CC_LIB_SRCS}" STREQUAL "")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
       set(ABSL_CC_LIB_IS_INTERFACE 0)
     endif()
-     if(NOT ABSL_CC_LIB_IS_INTERFACE)
+
+    if(NOT ABSL_CC_LIB_IS_INTERFACE)
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
@@ -144,7 +148,8 @@ endfunction()
         PRIVATE ${ABSL_CC_LIB_LINKOPTS}
       )
       target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
-       # Add all Abseil targets to a a folder in the IDE for organization.
+
+      # Add all Abseil targets to a a folder in the IDE for organization.
       set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
     else()
       # Generating header-only library
@@ -155,7 +160,8 @@ endfunction()
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
-     if(ABSL_CC_LIB_PUBLIC)
+
+    if(ABSL_CC_LIB_PUBLIC)
       add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
     endif()
   endif()

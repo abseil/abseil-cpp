@@ -108,13 +108,23 @@
 // The mutex is expected to be held both on entry to, and exit from, the
 // function.
 //
+// An exclusive lock allows read-write access to the guarded data member(s), and
+// only one thread can acquire a lock exclusively at any one time. A shared lock
+// allows read-only access, and any number of threads can acquire a shared lock
+// concurrently.
+//
+// Generally, non-const methods should be annotated with
+// EXCLUSIVE_LOCKS_REQUIRED, while const methods should be annotated with
+// SHARED_LOCKS_REQUIRED.
+//
 // Example:
 //
 //   Mutex mu1, mu2;
 //   int a GUARDED_BY(mu1);
 //   int b GUARDED_BY(mu2);
 //
-//   void foo() EXCLUSIVE_LOCKS_REQUIRED(mu1, mu2) { ... };
+//   void foo() EXCLUSIVE_LOCKS_REQUIRED(mu1, mu2) { ... }
+//   void bar() const SHARED_LOCKS_REQUIRED(mu1, mu2) { ... }
 #define EXCLUSIVE_LOCKS_REQUIRED(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(exclusive_locks_required(__VA_ARGS__))
 

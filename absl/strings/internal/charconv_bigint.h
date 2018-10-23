@@ -57,17 +57,10 @@ class BigUnsigned {
                 "unsupported max_words value");
 
   BigUnsigned() : size_(0), words_{} {}
-  explicit BigUnsigned(uint32_t v) : size_(v > 0 ? 1 : 0), words_{v} {}
-  explicit BigUnsigned(uint64_t v)
-      : size_(0),
-        words_{static_cast<uint32_t>(v & 0xffffffff),
-               static_cast<uint32_t>(v >> 32)} {
-    if (words_[1]) {
-      size_ = 2;
-    } else if (words_[0]) {
-      size_ = 1;
-    }
-  }
+  explicit constexpr BigUnsigned(uint64_t v)
+      : size_((v >> 32) ? 2 : v ? 1 : 0),
+        words_{static_cast<uint32_t>(v & 0xffffffffu),
+               static_cast<uint32_t>(v >> 32)} {}
 
   // Constructs a BigUnsigned from the given string_view containing a decimal
   // value.  If the input std::string is not a decimal integer, constructs a 0

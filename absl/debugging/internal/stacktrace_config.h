@@ -41,8 +41,9 @@
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_aarch64-inl.inc"
 # elif defined(__arm__)
+// Note: When using glibc this may require -funwind-tables to function properly.
 #define ABSL_STACKTRACE_INL_HEADER \
-    "absl/debugging/internal/stacktrace_arm-inl.inc"
+  "absl/debugging/internal/stacktrace_generic-inl.inc"
 # else
 #define ABSL_STACKTRACE_INL_HEADER \
    "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
