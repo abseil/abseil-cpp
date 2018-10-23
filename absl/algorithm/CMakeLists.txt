@@ -14,50 +14,47 @@
 # limitations under the License.
 #
 
-list(APPEND ALGORITHM_PUBLIC_HEADERS
-  "algorithm.h"
-  "container.h"
+absl_cc_library(
+  NAME algorithm
+  HDRS "algorithm.h"
+  PUBLIC
 )
 
+# Avoid collision with absl::container in absl/container/
+absl_cc_library(
+  NAME algorithm_container
+  HDRS "container.h"
+  DEPS
+    absl::algorithm
+    absl::core_headers
+    absl::type_traits
+  PUBLIC
+)
 
 #
 ## TESTS
 #
 
-# test algorithm_test
-list(APPEND ALGORITHM_TEST_SRC
-  "algorithm_test.cc"
-  ${ALGORITHM_PUBLIC_HEADERS}
-  ${ALGORITHM_INTERNAL_HEADERS}
-)
-
-absl_header_library(
-  TARGET
-    absl_algorithm
-  EXPORT_NAME
-    algorithm
-)
-
-absl_test(
-  TARGET
-    algorithm_test
-  SOURCES
-    ${ALGORITHM_TEST_SRC}
-  PUBLIC_LIBRARIES
+# algorithm test
+absl_cc_test(
+  NAME algorithm_test
+  SRCS "algorithm_test.cc"
+  DEPS
     absl::algorithm
+    gmock
+    gtest_main
 )
 
-
-
-
-# test container_test
-set(CONTAINER_TEST_SRC "container_test.cc")
-
-absl_test(
-  TARGET
-    container_test
-  SOURCES
-    ${CONTAINER_TEST_SRC}
-  PUBLIC_LIBRARIES
-    absl::algorithm
+# container test
+absl_cc_test(
+  NAME container_test
+  SRCS "container_test.cc"
+  DEPS
+    absl::algorithm_container
+    absl::base
+    absl::core_headers
+    absl::memory
+    absl::span
+    gmock
+    gtest_main
 )
