@@ -22,20 +22,30 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Compiler id for Apple Clang is now AppleClang.
-if (POLICY CMP0025)
+if(POLICY CMP0025)
   cmake_policy(SET CMP0025 NEW)
 endif()
 
-project(absl)
+# Enable MACOSX_RPATH by default.
+if(POLICY CMP0042)
+  cmake_policy (SET CMP0042 NEW)
+endif()
+
+project(absl VERSION 1.0.0 LANGUAGES CXX)
+
+option(ABSL_ENABLE_INSTALL "If ON, Abseil enable install rules." ON)
+# when absl is included as subproject (i.e. using add_subdirectory(abseil-cpp))
+# in the source tree of a project that uses it, install rules are disabled.
+if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
+  set(ABSL_ENABLE_INSTALL OFF)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_LIST_DIR}/CMake
   ${CMAKE_CURRENT_LIST_DIR}/absl/copts
 )
 
-include(GNUInstallDirs)
 include(AbseilHelpers)
-
 
 ##
 ## Using absl targets
@@ -46,7 +56,6 @@ include(AbseilHelpers)
 ## e.g absl::base absl::synchronization absl::strings ....
 ##
 ## DO NOT rely on the internal targets outside of the prefix
-
 
 # include current path
 list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
@@ -75,7 +84,6 @@ endif()
 
 ## check targets
 if(BUILD_TESTING)
-
   if(${ABSL_USE_GOOGLETEST_HEAD})
     include(CMake/DownloadGTest.cmake)
   endif()
@@ -93,3 +101,44 @@ if(BUILD_TESTING)
 endif()
 
 add_subdirectory(absl)
+
+# install rules
+if(ABSL_ENABLE_INSTALL)
+  # See https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html
+  include(GNUInstallDirs)
+  # See https://cmake.org/cmake/help/latest/command/find_package.html#search-procedure
+  set(CMAKE_INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+  install(
+    EXPORT ${PROJECT_NAME}Targets
+    NAMESPACE absl::
+    DESTINATION ${CMAKE_INSTALL_CONFIGDIR}
+  )
+  install(
+    DIRECTORY absl
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT Devel
+    FILES_MATCHING
+    PATTERN "*.inc"
+    PATTERN "*.h"
+  )
+
+  # See https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(
+    CMake/abslConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_CONFIGDIR}"
+    NO_CHECK_REQUIRED_COMPONENTS_MACRO
+  )
+  write_basic_package_version_file(
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    COMPATIBILITY ExactVersion
+  )
+  install(
+    FILES
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION "${CMAKE_INSTALL_CONFIGDIR}"
+    COMPONENT Devel
+  )
+endif()

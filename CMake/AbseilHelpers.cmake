@@ -58,11 +58,11 @@ set(ABSL_IDE_FOLDER Abseil)
 #   SRCS
 #     "b.cc"
 #   DEPS
-#     absl_internal_awesome # not "awesome"!
+#     absl::awesome
 # )
 #
-# If PUBLIC is set, absl_cc_library will instead create a target named
-# absl_${NAME} and still an alias absl::${NAME}.
+# Warning: Only libraries with the PUBLIC flag set can be used by user.
+# Otherwise they are internal absl targets that shouldn't be used externally.
 #
 # absl_cc_library(
 #   NAME
@@ -76,14 +76,18 @@ set(ABSL_IDE_FOLDER Abseil)
 # TODO: Implement "ALWAYSLINK"
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
-    "DISABLE_INSTALL;PUBLIC;TESTONLY"
+    "PUBLIC;TESTONLY"
     "NAME"
     "HDRS;SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
     ${ARGN}
   )
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    if(NOT ABSL_ENABLE_INSTALL)
+      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    else()
+      set(_NAME "${ABSL_CC_LIB_NAME}")
+    endif()
 
     # Check if this is a header-only library
     # Note that as of February 2019, many popular OS's (for example, Ubuntu
@@ -103,9 +107,14 @@ function(absl_cc_library)
 
     if(NOT ABSL_CC_LIB_IS_INTERFACE)
       add_library(${_NAME} STATIC "")
+      set_target_properties(${_NAME} PROPERTIES
+        OUTPUT_NAME "absl_${_NAME}"
+      )
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
-      target_include_directories(${_NAME}
-        PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
+      target_include_directories(${_NAME} PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>  # <prefix>/include
+      )
       target_compile_options(${_NAME}
         PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
@@ -129,8 +138,10 @@ function(absl_cc_library)
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
-      target_include_directories(${_NAME}
-        INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+      target_include_directories(${_NAME} INTERFACE
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>  # <prefix>/include
+      )
       target_link_libraries(${_NAME}
         INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
       )
@@ -138,6 +149,16 @@ function(absl_cc_library)
     endif()
 
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
+
+    # install rules
+    if(ABSL_ENABLE_INSTALL)
+      install(TARGETS ${_NAME}
+        EXPORT ${PROJECT_NAME}Targets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      )
+    endif()
   endif()
 endfunction()
 
@@ -194,7 +215,7 @@ function(absl_cc_test)
   add_executable(${_NAME} "")
   target_sources(${_NAME} PRIVATE ${ABSL_CC_TEST_SRCS})
   target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
   )
   target_compile_definitions(${_NAME}
