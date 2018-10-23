@@ -14,66 +14,78 @@
 # limitations under the License.
 #
 
-list(APPEND HASH_PUBLIC_HEADERS
-  "hash.h"
+absl_cc_library(
+  NAME hash
+  SRCS
+    "internal/hash.h"
+    "internal/hash.cc"
+  HDRS "hash.h"
+  DEPS
+    absl::city
+    absl::core_headers
+    absl::endian
+    absl::fixed_array
+    absl::type_traits
+    absl::int128
+    absl::strings
+    absl::optional
+    absl::variant
+    absl::utility
+  PUBLIC
 )
 
-list(APPEND HASH_INTERNAL_HEADERS
-  "internal/city.h"
-  "internal/hash.h"
+absl_cc_library(
+  NAME hash_testing
+  HDRS "hash_testing.h"
+  DEPS
+    absl::spy_hash_state
+    absl::type_traits
+    absl::strings
+    absl::variant
+    gtest
+  TESTONLY
 )
 
-# absl_hash library
-list(APPEND HASH_SRC
-  "internal/city.cc"
-  "internal/hash.cc"
-  ${HASH_PUBLIC_HEADERS}
-  ${HASH_INTERNAL_HEADERS}
+absl_cc_test(
+  NAME hash_test
+  SRCS "hash_test.cc"
+  DEPS
+    absl::hash
+    absl::hash_testing
+    absl::core_headers
+    absl::flat_hash_set
+    absl::spy_hash_state
+    absl::type_traits
+    absl::int128
+    gmock
+    gtest_main
 )
 
-set(HASH_PUBLIC_LIBRARIES absl::hash absl::container absl::strings absl::str_format absl::utility)
-
-absl_library(
-  TARGET
-    absl_hash
-  SOURCES
-    ${HASH_SRC}
-  PUBLIC_LIBRARIES
-    ${HASH_PUBLIC_LIBRARIES}
-  EXPORT_NAME
-    hash
+absl_cc_library(
+  NAME spy_hash_state
+  HDRS "internal/spy_hash_state.h"
+  DEPS
+    absl::hash
+    absl::strings
+    absl::str_format
+  TESTONLY
 )
 
-#
-## TESTS
-#
-
-# testing support
-set(HASH_TEST_HEADERS hash_testing.h internal/spy_hash_state.h)
-set(HASH_TEST_PUBLIC_LIBRARIES absl::hash absl::container absl::numeric absl::strings absl::str_format)
-
-# hash_test
-set(HASH_TEST_SRC "hash_test.cc" ${HASH_TEST_HEADERS})
-
-absl_test(
-  TARGET
-    hash_test
-  SOURCES
-    ${HASH_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${HASH_TEST_PUBLIC_LIBRARIES}
+absl_cc_library(
+  NAME city
+  SRCS "internal/city.cc"
+  HDRS "internal/city.h"
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::endian
+  PUBLIC
 )
 
-# hash_test
-set(CITY_TEST_SRC "internal/city_test.cc")
-
-absl_test(
-  TARGET
-    city_test
-  SOURCES
-    ${CITY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${HASH_TEST_PUBLIC_LIBRARIES}
+absl_cc_test(
+  NAME city_test
+  SRCS "internal/city_test.cc"
+  DEPS
+    absl::city
+    gtest_main
 )
-
-
