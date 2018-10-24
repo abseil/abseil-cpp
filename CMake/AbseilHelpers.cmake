@@ -168,57 +168,6 @@ function(absl_cc_test)
   endif()
 endfunction()
 
-
-#
-# create an abseil unit_test and add it to the executed test list
-#
-# parameters
-# TARGET: target name prefix
-# SOURCES: sources files for the tests
-# PUBLIC_LIBRARIES: targets and flags for linking phase.
-# PRIVATE_COMPILE_FLAGS: compile flags for the test. Will not be exported.
-#
-# create a target associated to <NAME>_bin
-#
-# all tests will be register for execution with add_test()
-#
-# test compilation and execution is disable when ABSL_RUN_TESTS=OFF
-#
-function(absl_test)
-
-  cmake_parse_arguments(ABSL_TEST
-    ""
-    "TARGET"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-
-  if(ABSL_RUN_TESTS)
-
-    set(_NAME ${ABSL_TEST_TARGET})
-    string(TOUPPER ${_NAME} _UPPER_NAME)
-
-    add_executable(${_NAME}_bin ${ABSL_TEST_SOURCES})
-
-    target_compile_options(${_NAME}_bin PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_TEST_PRIVATE_COMPILE_FLAGS})
-    target_link_libraries(${_NAME}_bin PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
-    target_include_directories(${_NAME}_bin
-      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}
-      PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
-    )
-
-    # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-    add_test(${_NAME} ${_NAME}_bin)
-  endif(ABSL_RUN_TESTS)
-
-endfunction()
-
-
-
-
 function(check_target my_target)
 
   if(NOT TARGET ${my_target})
