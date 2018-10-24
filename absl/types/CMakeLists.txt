@@ -14,215 +14,235 @@
 # limitations under the License.
 #
 
-list(APPEND TYPES_PUBLIC_HEADERS
-  "any.h"
-  "bad_any_cast.h"
-  "bad_optional_access.h"
-  "optional.h"
-  "span.h"
-  "variant.h"
+# any library
+absl_cc_library(
+  NAME any
+  HDRS "any.h"
+  DEPS
+    absl::bad_any_cast
+    absl::config
+    absl::core_headers
+    absl::type_traits
+    absl::utility
+  PUBLIC
 )
 
+# bad_any_cast library
+absl_cc_library(
+  NAME bad_any_cast
+  HDRS "bad_any_cast.h"
+  DEPS
+    absl::bad_any_cast_impl
+    absl::config
+  PUBLIC
+)
 
-# any library
-absl_header_library(
-  TARGET
-    absl_any
-  PUBLIC_LIBRARIES
-    absl::bad_any_cast
+absl_cc_library(
+  NAME bad_any_cast_impl
+  SRCS
+    "bad_any_cast.cc"
+    "bad_any_cast.h"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
     absl::base
-    absl::meta
-    absl::utility
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-  EXPORT_NAME
-    any
+    absl::config
+  PUBLIC
+)
+
+# any test
+absl_cc_test(
+  NAME any_test
+  SRCS "any_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::any
+    absl::base
+    absl::config
+    absl::exception_testing
+    absl::test_instance_tracker
+    gtest_main
+)
+
+# any_test_noexceptions test
+absl_cc_test(
+  NAME any_test_noexceptions
+  SRCS "any_test.cc"
+  DEPS
+    absl::any
+    absl::base
+    absl::config
+    absl::exception_testing
+    absl::test_instance_tracker
+    gtest_main
+)
+
+# any_exception_safety_test
+absl_cc_test(
+  NAME any_exception_safety_test
+  SRCS "any_exception_safety_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::any
+    absl::exception_safety_testing
+    gtest_main
 )
 
 # span library
-absl_header_library(
-  TARGET
-    absl_span
-  PUBLIC_LIBRARIES
-    absl::utility
-  EXPORT_NAME
-    span
+absl_cc_library(
+  NAME span
+  HDRS "span.h"
+  DEPS
+    absl::algorithm
+    absl::core_headers
+    absl::throw_delegate
+    absl::type_traits
+  PUBLIC
 )
 
-
-# bad_any_cast library
-list(APPEND BAD_ANY_CAST_SRC
-  "bad_any_cast.cc"
-  ${TYPES_PUBLIC_HEADERS}
+absl_cc_test(
+  NAME span_test
+  SRCS "span_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::span
+    absl::config
+    absl::core_headers
+    absl::exception_testing
+    absl::fixed_array
+    absl::inlined_vector
+    absl::hash_testing
+    absl::strings
+    gmock
+    gtest_main
 )
 
-absl_library(
-  TARGET
-    absl_bad_any_cast
-  SOURCES
-    ${BAD_ANY_CAST_SRC}
-  PUBLIC_LIBRARIES
-  EXPORT_NAME
-    bad_any_cast
+# test span_test_noexceptions
+absl_cc_test(
+  NAME span_test_noexceptions
+  SRCS "span_test.cc"
+  DEPS
+    absl::span
+    absl::config
+    absl::core_headers
+    absl::exception_testing
+    absl::fixed_array
+    absl::inlined_vector
+    absl::hash_testing
+    absl::strings
+    gmock
+    gtest_main
 )
-
 
 # optional library
-list(APPEND OPTIONAL_SRC
-  "optional.cc"
-)
-
-absl_library(
-  TARGET
-    absl_optional
-  SOURCES
-    ${OPTIONAL_SRC}
-  PUBLIC_LIBRARIES
+absl_cc_library(
+  NAME optional
+  SRCS "optional.cc"
+  HDRS "optional.h"
+  DEPS
     absl::bad_optional_access
-    absl::base
+    absl::config
     absl::memory
-    absl::meta
+    absl::type_traits
     absl::utility
-  EXPORT_NAME
-    optional
+  PUBLIC
 )
 
+absl_cc_library(
+  NAME bad_optional_access
+  SRCS "bad_optional_access.cc"
+  HDRS "bad_optional_access.h"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::base
+    absl::config
+  PUBLIC
+)
 
-set(BAD_OPTIONAL_ACCESS_SRC "bad_optional_access.cc")
-set(BAD_OPTIONAL_ACCESS_LIBRARIES absl::base)
+absl_cc_library(
+  NAME bad_variant_access
+  SRCS "bad_variant_access.cc"
+  HDRS "bad_variant_access.h"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::base
+    absl::config
+  PUBLIC
+)
 
-absl_library(
-  TARGET
-    absl_bad_optional_access
-  SOURCES
-    ${BAD_OPTIONAL_ACCESS_SRC}
-  PUBLIC_LIBRARIES
-    ${BAD_OPTIONAL_ACCESS_PUBLIC_LIBRARIES}
-  EXPORT_NAME
-    bad_optional_access
+# optional test
+absl_cc_test(
+  NAME optional_test
+  SRCS "optional_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::optional
+    absl::base
+    absl::config
+    absl::type_traits
+    absl::strings
+    gtest_main
+)
+
+absl_cc_test(
+  NAME optional_exception_safety_test
+  SRCS "optional_exception_safety_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::optional
+    absl::exception_safety_testing
+    gtest_main
 )
 
 # variant library
-absl_library(
-  TARGET
-    absl_variant
-  SOURCES
-    "bad_variant_access.h" "bad_variant_access.cc" "variant.h" "internal/variant.h"
-  PUBLIC_LIBRARIES
-    absl::base absl::meta absl::utility
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-  EXPORT_NAME
-    variant
+absl_cc_library(
+  NAME variant
+  HDRS
+    "variant.h"
+    "internal/variant.h"
+  DEPS
+    absl::bad_variant_access
+    absl::base_internal
+    absl::config
+    absl::core_headers
+    absl::type_traits
+    absl::utility
+  PUBLIC
 )
 
-#
-## TESTS
-#
-
-
-# test any_test
-set(ANY_TEST_SRC "any_test.cc")
-set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::any absl::bad_any_cast test_instance_tracker_lib)
-
-absl_test(
-  TARGET
-    any_test
-  SOURCES
-    ${ANY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${ANY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
+# variant test
+absl_cc_test(
+  NAME variant_test
+  SRCS "variant_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::variant
+    absl::config
+    absl::core_headers
+    absl::memory
+    absl::type_traits
+    absl::strings
+    gmock
+    gtest_main
 )
 
-
-# test any_test_noexceptions
-absl_test(
-  TARGET
-    any_test_noexceptions
-  SOURCES
-    ${ANY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${ANY_TEST_PUBLIC_LIBRARIES}
-)
-
-# test any_exception_safety_test
-set(ANY_EXCEPTION_SAFETY_TEST_SRC "any_exception_safety_test.cc")
-set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
-  absl::any
-  absl::base
-  absl_internal_exception_safety_testing
-)
-
-absl_test(
-  TARGET
-    any_exception_safety_test
-  SOURCES
-    ${ANY_EXCEPTION_SAFETY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-)
-
-
-# test span_test
-set(SPAN_TEST_SRC "span_test.cc")
-set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl_internal_throw_delegate absl::span test_instance_tracker_lib)
-
-absl_test(
-  TARGET
-    span_test
-  SOURCES
-    ${SPAN_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${SPAN_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
-)
-
-
-# test span_test_noexceptions
-absl_test(
-  TARGET
-    span_test_noexceptions
-  SOURCES
-    ${SPAN_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${SPAN_TEST_PUBLIC_LIBRARIES}
-)
-
-
-
-# test optional_test
-set(OPTIONAL_TEST_SRC "optional_test.cc")
-set(OPTIONAL_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::optional absl_bad_optional_access)
-
-absl_test(
-  TARGET
-    optional_test
-  SOURCES
-    ${OPTIONAL_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${OPTIONAL_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test optional_exception_safety_test
-set(OPTIONAL_EXCEPTION_SAFETY_TEST_SRC "optional_exception_safety_test.cc")
-set(OPTIONAL_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
-  absl::optional
-  absl_internal_exception_safety_testing
-)
-
-absl_test(
-  TARGET
-    optional_exception_safety_test
-  SOURCES
-    ${OPTIONAL_EXCEPTION_SAFETY_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${OPTIONAL_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES}
-  PRIVATE_COMPILE_FLAGS
-    ${ABSL_EXCEPTIONS_FLAG}
+absl_cc_test(
+  NAME variant_exception_safety_test
+  SRCS "variant_exception_safety_test.cc"
+  COPTS ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::variant
+    absl::exception_safety_testing
+    absl::memory
+    gmock
+    gtest_main
 )
