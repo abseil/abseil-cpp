@@ -14,27 +14,24 @@
 # limitations under the License.
 #
 
-list(APPEND TIME_PUBLIC_HEADERS
+set(TIME_HDRS
   "civil_time.h"
   "clock.h"
   "time.h"
-)
-
-
-list(APPEND TIME_INTERNAL_HEADERS
-  "internal/test_util.h"
   "internal/cctz/include/cctz/civil_time.h"
   "internal/cctz/include/cctz/civil_time_detail.h"
   "internal/cctz/include/cctz/time_zone.h"
   "internal/cctz/include/cctz/zone_info_source.h"
 )
 
-list(APPEND TIME_SRC
+set(TIME_SRCS
   "civil_time.cc"
-  "time.cc"
   "clock.cc"
   "duration.cc"
   "format.cc"
+  "internal/get_current_time_chrono.inc"
+  "internal/get_current_time_posix.inc"
+  "time.cc"
   "internal/cctz/src/civil_time_detail.cc"
   "internal/cctz/src/time_zone_fixed.cc"
   "internal/cctz/src/time_zone_fixed.h"
@@ -52,47 +49,57 @@ list(APPEND TIME_SRC
   "internal/cctz/src/time_zone_posix.h"
   "internal/cctz/src/tzfile.h"
   "internal/cctz/src/zone_info_source.cc"
-  ${TIME_PUBLIC_HEADERS}
-  ${TIME_INTERNAL_HEADERS}
-)
-set(TIME_PUBLIC_LIBRARIES absl::base absl::stacktrace absl::int128 absl::strings)
-
-absl_library(
-  TARGET
-    absl_time
-  SOURCES
-    ${TIME_SRC}
-  PUBLIC_LIBRARIES
-    ${TIME_PUBLIC_LIBRARIES}
-  EXPORT_NAME
-    time
 )
 
-
+absl_cc_library(
+  NAME time
+  SRCS ${TIME_SRCS}
+  HDRS ${TIME_HDRS}
+  DEPS
+    absl::base
+    absl::core_headers
+    absl::int128
+    absl::strings
+  PUBLIC
+)
 
 #
 ## TESTS
 #
 
+absl_cc_library(
+  NAME test_util
+  SRCS
+    "internal/test_util.cc"
+    "internal/zoneinfo.inc"
+  HDRS "internal/test_util.h"
+  DEPS
+    absl::time
+    absl::base
+    gtest
+  TESTONLY
+)
+
 # test time_test
-list(APPEND TIME_TEST_SRC
+set(TIME_TEST_SRCS
   "civil_time_test.cc"
-  "time_test.cc"
   "clock_test.cc"
   "duration_test.cc"
   "format_test.cc"
   "time_test.cc"
   "time_zone_test.cc"
-  "internal/test_util.cc"
 )
-set(TIME_TEST_PUBLIC_LIBRARIES absl::time)
 
-absl_test(
-  TARGET
-    time_test
-  SOURCES
-    ${TIME_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${TIME_TEST_PUBLIC_LIBRARIES}
+absl_cc_test(
+  NAME time_test
+  SRCS ${TIME_TEST_SRCS}
+  DEPS
+    absl::test_util
+    absl::time
+    absl::base
+    absl::config
+    absl::core_headers
+    gmock
+    gtest_main
 )
 
