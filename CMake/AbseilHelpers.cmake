@@ -168,50 +168,6 @@ function(absl_cc_test)
   endif()
 endfunction()
 
-#
-# header only virtual target creation
-#
-function(absl_header_library)
-  cmake_parse_arguments(ABSL_HO_LIB
-    "DISABLE_INSTALL"
-    "EXPORT_NAME;TARGET"
-    "PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS;PRIVATE_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_HO_LIB_TARGET})
-
-  set(__dummy_header_only_lib_file "${CMAKE_CURRENT_BINARY_DIR}/${_NAME}_header_only_dummy.cc")
-
-  if(NOT EXISTS ${__dummy_header_only_lib_file})
-    file(WRITE ${__dummy_header_only_lib_file}
-      "/* generated file for header-only cmake target */
-
-      namespace absl {
-
-       // single meaningless symbol
-       void ${_NAME}__header_fakesym() {}
-      }  // namespace absl
-      "
-    )
-  endif()
-
-
-  add_library(${_NAME} ${__dummy_header_only_lib_file})
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_HO_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_HO_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_HO_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  if(ABSL_HO_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-
-endfunction()
 
 #
 # create an abseil unit_test and add it to the executed test list
