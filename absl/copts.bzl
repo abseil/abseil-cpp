@@ -130,7 +130,9 @@ MSVC_FLAGS = [
     "/wd4800",  # forcing value to bool 'true' or 'false' (performance warning)
     "/DNOMINMAX",  # Don't define min and max macros (windows.h)
     "/DWIN32_LEAN_AND_MEAN",  # Don't bloat namespace with incompatible winsock versions.
-    "/D_CRT_SECURE_NO_WARNINGS",  # Don't warn about usage of insecure C functions
+    "/D_CRT_SECURE_NO_WARNINGS",  # Don't warn about usage of insecure C functions.
+    "/D_ENABLE_EXTENDED_ALIGNED_STORAGE", # Introduced in VS 2017 15.8,
+    # before the member type would non-conformingly have an alignment of only alignof(max_align_t).
 ]
 
 MSVC_TEST_FLAGS = [
