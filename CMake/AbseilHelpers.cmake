@@ -153,7 +153,7 @@ function(absl_cc_library)
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
 
-    if(ABSL_CC_LIB_PUBLIC)
+    if(ABSL_CC_LIB_PUBLIC OR ABSL_CC_LIB_TESTONLY)
       add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
     endif()
   endif()
