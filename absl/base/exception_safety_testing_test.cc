@@ -770,6 +770,18 @@ TEST(ExceptionCheckTest, ModifyingChecker) {
                   .Test(invoker));
 }
 
+TEST(ExceptionSafetyTesterTest, ResetsCountdown) {
+  auto test =
+      testing::MakeExceptionSafetyTester()
+          .WithInitialValue(ThrowingValue<>())
+          .WithContracts([](ThrowingValue<>*) { return AssertionSuccess(); })
+          .WithOperation([](ThrowingValue<>*) {});
+  ASSERT_TRUE(test.Test());
+  // If the countdown isn't reset because there were no exceptions thrown, then
+  // this will fail with a termination from an unhandled exception
+  EXPECT_TRUE(test.Test());
+}
+
 struct NonCopyable : public NonNegative {
   NonCopyable(const NonCopyable&) = delete;
   NonCopyable() : NonNegative{0} {}
