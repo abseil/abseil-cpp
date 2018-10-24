@@ -22,46 +22,6 @@ include(CMakeParseArguments)
 # For example, Visual Studio supports folders.
 set(ABSL_IDE_FOLDER Abseil)
 
-#
-# create a library in the absl namespace
-#
-# parameters
-# SOURCES : sources files for the library
-# PUBLIC_LIBRARIES: targets and flags for linking phase
-# PRIVATE_COMPILE_FLAGS: compile flags for the library. Will not be exported.
-# EXPORT_NAME: export name for the absl:: target export
-# TARGET: target name
-#
-# create a target associated to <NAME>
-# libraries are installed under CMAKE_INSTALL_FULL_LIBDIR by default
-#
-function(absl_library)
-  cmake_parse_arguments(ABSL_LIB
-    "DISABLE_INSTALL" # keep that in case we want to support installation one day
-    "TARGET;EXPORT_NAME"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_LIB_TARGET})
-  string(TOUPPER ${_NAME} _UPPER_NAME)
-
-  add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
-
-  target_compile_options(${_NAME} PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_LIB_PRIVATE_COMPILE_FLAGS})
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  if(ABSL_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-endfunction()
-
 # CMake function to imitate Bazel's cc_library rule.
 #
 # Parameters:
