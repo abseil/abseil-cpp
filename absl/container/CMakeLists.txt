@@ -48,9 +48,16 @@ list(APPEND CONTAINER_INTERNAL_HEADERS
 )
 
 
-absl_header_library(
+list(APPEND CONTAINER_LIB_SRC
+  "internal/raw_hash_set.cc"
+)
+
+
+absl_library(
   TARGET
     absl_container
+  SOURCES
+    ${CONTAINER_LIB_SRC}
   EXPORT_NAME
     container
 )
