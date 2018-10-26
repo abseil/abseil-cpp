@@ -6,6 +6,10 @@
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
+  <PropertyGroup>
+    <ConfigurationType Condition="$(ProjectName) == benchmarks or
+                                  $(ProjectName) == tests">Application</ConfigurationType>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
