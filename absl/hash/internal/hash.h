@@ -494,6 +494,15 @@ AbslHashValue(H hash_state, const absl::variant<T...>& v) {
   }
   return H::combine(std::move(hash_state), v.index());
 }
+
+// -----------------------------------------------------------------------------
+// AbslHashValue for Other Types
+// -----------------------------------------------------------------------------
+
+// AbslHashValue for hashing std::bitset is not defined, for the same reason as
+// for vector<bool> (see std::vector above): It does not expose the raw bytes,
+// and a fallback to std::hash<> is most likely faster.
+
 // -----------------------------------------------------------------------------
 
 // hash_range_or_bytes()
