@@ -30,6 +30,8 @@ matrix:
         # see https://github.com/travis-ci/travis-ci/issues/9550
         - CPATH=/usr/local/clang-5.0.0/include/c++/v1
         - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
+        # Trusty only provides libc++ installed for clang
+        - EXTRA_FLAGS="-stdlib=libc++"
     - os: linux
       dist: trusty
       compiler: clang
@@ -39,6 +41,8 @@ matrix:
         # see https://github.com/travis-ci/travis-ci/issues/9550
         - CPATH=/usr/local/clang-5.0.0/include/c++/v1
         - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
+        # Trusty only provides libc++ installed for clang
+        - EXTRA_FLAGS="-stdlib=libc++"
 
     - os: osx
       osx_image: xcode9.4
@@ -53,6 +57,11 @@ matrix:
 
 script:
   - cmake --version
-  - cmake -H. -Bbuild -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DABSL_RUN_TESTS=ON -DABSL_USE_GOOGLETEST_HEAD=ON
+  - cmake -H. -Bbuild
+    -DCMAKE_CXX_FLAGS="${EXTRA_FLAGS}"
+    -DCMAKE_VERBOSE_MAKEFILE=ON
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+    -DABSL_RUN_TESTS=ON
+    -DABSL_USE_GOOGLETEST_HEAD=ON
   - cmake --build build --target all
   - CTEST_OUTPUT_ON_FAILURE=1 cmake --build build --target test
