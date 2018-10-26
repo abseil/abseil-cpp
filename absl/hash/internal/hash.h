@@ -764,6 +764,7 @@ class CityHashState : public HashStateBase<CityHashState> {
   }
 
   ABSL_ATTRIBUTE_ALWAYS_INLINE static uint64_t Mix(uint64_t state, uint64_t v) {
+#if !defined(_MSC_VER) || !defined(_WIN64)
     using MultType =
         absl::conditional_t<sizeof(size_t) == 4, uint64_t, uint128>;
     // We do the addition in 64-bit space to make sure the 128-bit
@@ -773,6 +774,11 @@ class CityHashState : public HashStateBase<CityHashState> {
     MultType m = state + v;
     m *= kMul;
     return static_cast<uint64_t>(m ^ (m >> (sizeof(m) * 8 / 2)));
+#else
+    uint64_t high;
+    uint64_t low = _umul128(state + v, kMul, &high);
+    return low ^ high;
+#endif
   }
 
   // Seed()
