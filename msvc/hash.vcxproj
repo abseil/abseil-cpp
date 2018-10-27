@@ -8,13 +8,13 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\hash\hash.h" />
-    <ClInclude Include="..\absl\hash\internal\city.h" />
-    <ClInclude Include="..\absl\hash\internal\spy_hash_state.h" />
+    <ClInclude Include="..\..\absl\hash\hash.h" />
+    <ClInclude Include="..\..\absl\hash\internal\city.h" />
+    <ClInclude Include="..\..\absl\hash\internal\spy_hash_state.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\hash\internal\city.cc" />
-    <ClCompile Include="..\absl\hash\internal\hash.cc" />
-    <ClCompile Include="..\absl\hash\internal\print_hash_of.cc" />
+    <ClCompile Include="..\..\absl\hash\internal\city.cc" />
+    <ClCompile Include="..\..\absl\hash\internal\hash.cc" />
+    <ClCompile Include="..\..\absl\hash\internal\print_hash_of.cc" />
   </ItemGroup>
 </Project>

@@ -8,19 +8,19 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\types\any.h" />
-    <ClInclude Include="..\absl\types\bad_any_cast.h" />
-    <ClInclude Include="..\absl\types\bad_optional_access.h" />
-    <ClInclude Include="..\absl\types\bad_variant_access.h" />
-    <ClInclude Include="..\absl\types\internal\variant.h" />
-    <ClInclude Include="..\absl\types\optional.h" />
-    <ClInclude Include="..\absl\types\span.h" />
-    <ClInclude Include="..\absl\types\variant.h" />
+    <ClInclude Include="..\..\absl\types\any.h" />
+    <ClInclude Include="..\..\absl\types\bad_any_cast.h" />
+    <ClInclude Include="..\..\absl\types\bad_optional_access.h" />
+    <ClInclude Include="..\..\absl\types\bad_variant_access.h" />
+    <ClInclude Include="..\..\absl\types\internal\variant.h" />
+    <ClInclude Include="..\..\absl\types\optional.h" />
+    <ClInclude Include="..\..\absl\types\span.h" />
+    <ClInclude Include="..\..\absl\types\variant.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\types\bad_any_cast.cc" />
-    <ClCompile Include="..\absl\types\bad_optional_access.cc" />
-    <ClCompile Include="..\absl\types\bad_variant_access.cc" />
-    <ClCompile Include="..\absl\types\optional.cc" />
+    <ClCompile Include="..\..\absl\types\bad_any_cast.cc" />
+    <ClCompile Include="..\..\absl\types\bad_optional_access.cc" />
+    <ClCompile Include="..\..\absl\types\bad_variant_access.cc" />
+    <ClCompile Include="..\..\absl\types\optional.cc" />
   </ItemGroup>
 </Project>

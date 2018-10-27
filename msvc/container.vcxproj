@@ -8,26 +8,26 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\container\fixed_array.h" />
-    <ClInclude Include="..\absl\container\flat_hash_map.h" />
-    <ClInclude Include="..\absl\container\flat_hash_set.h" />
-    <ClInclude Include="..\absl\container\inlined_vector.h" />
-    <ClInclude Include="..\absl\container\internal\compressed_tuple.h" />
-    <ClInclude Include="..\absl\container\internal\container_memory.h" />
-    <ClInclude Include="..\absl\container\internal\hashtable_debug.h" />
-    <ClInclude Include="..\absl\container\internal\hashtable_debug_hooks.h" />
-    <ClInclude Include="..\absl\container\internal\hash_function_defaults.h" />
-    <ClInclude Include="..\absl\container\internal\hash_policy_traits.h" />
-    <ClInclude Include="..\absl\container\internal\layout.h" />
-    <ClInclude Include="..\absl\container\internal\node_hash_policy.h" />
-    <ClInclude Include="..\absl\container\internal\raw_hash_map.h" />
-    <ClInclude Include="..\absl\container\internal\raw_hash_set.h" />
-    <ClInclude Include="..\absl\container\internal\test_instance_tracker.h" />
-    <ClInclude Include="..\absl\container\internal\tracked.h" />
-    <ClInclude Include="..\absl\container\node_hash_map.h" />
-    <ClInclude Include="..\absl\container\node_hash_set.h" />
+    <ClInclude Include="..\..\absl\container\fixed_array.h" />
+    <ClInclude Include="..\..\absl\container\flat_hash_map.h" />
+    <ClInclude Include="..\..\absl\container\flat_hash_set.h" />
+    <ClInclude Include="..\..\absl\container\inlined_vector.h" />
+    <ClInclude Include="..\..\absl\container\internal\compressed_tuple.h" />
+    <ClInclude Include="..\..\absl\container\internal\container_memory.h" />
+    <ClInclude Include="..\..\absl\container\internal\hashtable_debug.h" />
+    <ClInclude Include="..\..\absl\container\internal\hashtable_debug_hooks.h" />
+    <ClInclude Include="..\..\absl\container\internal\hash_function_defaults.h" />
+    <ClInclude Include="..\..\absl\container\internal\hash_policy_traits.h" />
+    <ClInclude Include="..\..\absl\container\internal\layout.h" />
+    <ClInclude Include="..\..\absl\container\internal\node_hash_policy.h" />
+    <ClInclude Include="..\..\absl\container\internal\raw_hash_map.h" />
+    <ClInclude Include="..\..\absl\container\internal\raw_hash_set.h" />
+    <ClInclude Include="..\..\absl\container\internal\test_instance_tracker.h" />
+    <ClInclude Include="..\..\absl\container\internal\tracked.h" />
+    <ClInclude Include="..\..\absl\container\node_hash_map.h" />
+    <ClInclude Include="..\..\absl\container\node_hash_set.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\container\internal\raw_hash_set.cc" />
+    <ClCompile Include="..\..\absl\container\internal\raw_hash_set.cc" />
   </ItemGroup>
 </Project>

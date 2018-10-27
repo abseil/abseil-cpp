@@ -8,26 +8,26 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\synchronization\barrier.h" />
-    <ClInclude Include="..\absl\synchronization\blocking_counter.h" />
-    <ClInclude Include="..\absl\synchronization\internal\create_thread_identity.h" />
-    <ClInclude Include="..\absl\synchronization\internal\graphcycles.h" />
-    <ClInclude Include="..\absl\synchronization\internal\kernel_timeout.h" />
-    <ClInclude Include="..\absl\synchronization\internal\per_thread_sem.h" />
-    <ClInclude Include="..\absl\synchronization\internal\thread_pool.h" />
-    <ClInclude Include="..\absl\synchronization\internal\waiter.h" />
-    <ClInclude Include="..\absl\synchronization\mutex.h" />
-    <ClInclude Include="..\absl\synchronization\notification.h" />
+    <ClInclude Include="..\..\absl\synchronization\barrier.h" />
+    <ClInclude Include="..\..\absl\synchronization\blocking_counter.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\create_thread_identity.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\graphcycles.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\kernel_timeout.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\per_thread_sem.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\thread_pool.h" />
+    <ClInclude Include="..\..\absl\synchronization\internal\waiter.h" />
+    <ClInclude Include="..\..\absl\synchronization\mutex.h" />
+    <ClInclude Include="..\..\absl\synchronization\notification.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\synchronization\barrier.cc" />
-    <ClCompile Include="..\absl\synchronization\blocking_counter.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\create_thread_identity.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\graphcycles.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\mutex_nonprod.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\per_thread_sem.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\waiter.cc" />
-    <ClCompile Include="..\absl\synchronization\mutex.cc" />
-    <ClCompile Include="..\absl\synchronization\notification.cc" />
+    <ClCompile Include="..\..\absl\synchronization\barrier.cc" />
+    <ClCompile Include="..\..\absl\synchronization\blocking_counter.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\create_thread_identity.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\graphcycles.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\mutex_nonprod.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\per_thread_sem.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\waiter.cc" />
+    <ClCompile Include="..\..\absl\synchronization\mutex.cc" />
+    <ClCompile Include="..\..\absl\synchronization\notification.cc" />
   </ItemGroup>
 </Project>

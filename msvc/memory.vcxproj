@@ -8,6 +8,6 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\memory\memory.h" />
+    <ClInclude Include="..\..\absl\memory\memory.h" />
   </ItemGroup>
 </Project>

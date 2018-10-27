@@ -8,30 +8,30 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClCompile Include="..\absl\algorithm\equal_benchmark.cc" />
-    <ClCompile Include="..\absl\base\internal\thread_identity_benchmark.cc" />
-    <ClCompile Include="..\absl\container\fixed_array_benchmark.cc" />
-    <ClCompile Include="..\absl\container\inlined_vector_benchmark.cc" />
-    <ClCompile Include="..\absl\numeric\int128_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\ascii_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\charconv_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\escaping_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\internal\char_map_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\internal\memutil_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\internal\ostringstream_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\numbers_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\string_view_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\str_cat_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\str_join_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\str_replace_benchmark.cc" />
-    <ClCompile Include="..\absl\strings\str_split_benchmark.cc" />
-    <ClCompile Include="..\absl\synchronization\internal\graphcycles_benchmark.cc" />
-    <ClCompile Include="..\absl\synchronization\mutex_benchmark.cc" />
-    <ClCompile Include="..\absl\time\civil_time_benchmark.cc" />
-    <ClCompile Include="..\absl\time\clock_benchmark.cc" />
-    <ClCompile Include="..\absl\time\duration_benchmark.cc" />
-    <ClCompile Include="..\absl\time\format_benchmark.cc" />
-    <ClCompile Include="..\absl\time\time_benchmark.cc" />
-    <ClCompile Include="..\absl\types\variant_benchmark.cc" />
+    <ClCompile Include="..\..\absl\algorithm\equal_benchmark.cc" />
+    <ClCompile Include="..\..\absl\base\internal\thread_identity_benchmark.cc" />
+    <ClCompile Include="..\..\absl\container\fixed_array_benchmark.cc" />
+    <ClCompile Include="..\..\absl\container\inlined_vector_benchmark.cc" />
+    <ClCompile Include="..\..\absl\numeric\int128_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\ascii_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\charconv_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\escaping_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\internal\char_map_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\internal\memutil_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\internal\ostringstream_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\numbers_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\string_view_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\str_cat_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\str_join_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\str_replace_benchmark.cc" />
+    <ClCompile Include="..\..\absl\strings\str_split_benchmark.cc" />
+    <ClCompile Include="..\..\absl\synchronization\internal\graphcycles_benchmark.cc" />
+    <ClCompile Include="..\..\absl\synchronization\mutex_benchmark.cc" />
+    <ClCompile Include="..\..\absl\time\civil_time_benchmark.cc" />
+    <ClCompile Include="..\..\absl\time\clock_benchmark.cc" />
+    <ClCompile Include="..\..\absl\time\duration_benchmark.cc" />
+    <ClCompile Include="..\..\absl\time\format_benchmark.cc" />
+    <ClCompile Include="..\..\absl\time\time_benchmark.cc" />
+    <ClCompile Include="..\..\absl\types\variant_benchmark.cc" />
   </ItemGroup>
 </Project>

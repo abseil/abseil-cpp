@@ -8,6 +8,6 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\utility\utility.h" />
+    <ClInclude Include="..\..\absl\utility\utility.h" />
   </ItemGroup>
 </Project>

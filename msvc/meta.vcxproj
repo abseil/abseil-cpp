@@ -8,6 +8,6 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\meta\type_traits.h" />
+    <ClInclude Include="..\..\absl\meta\type_traits.h" />
   </ItemGroup>
 </Project>

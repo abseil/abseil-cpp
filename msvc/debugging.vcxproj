@@ -8,30 +8,30 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\debugging\failure_signal_handler.h" />
-    <ClInclude Include="..\absl\debugging\internal\address_is_readable.h" />
-    <ClInclude Include="..\absl\debugging\internal\demangle.h" />
-    <ClInclude Include="..\absl\debugging\internal\elf_mem_image.h" />
-    <ClInclude Include="..\absl\debugging\internal\examine_stack.h" />
-    <ClInclude Include="..\absl\debugging\internal\stacktrace_config.h" />
-    <ClInclude Include="..\absl\debugging\internal\stack_consumption.h" />
-    <ClInclude Include="..\absl\debugging\internal\symbolize.h" />
-    <ClInclude Include="..\absl\debugging\internal\vdso_support.h" />
-    <ClInclude Include="..\absl\debugging\leak_check.h" />
-    <ClInclude Include="..\absl\debugging\stacktrace.h" />
-    <ClInclude Include="..\absl\debugging\symbolize.h" />
+    <ClInclude Include="..\..\absl\debugging\failure_signal_handler.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\address_is_readable.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\demangle.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\elf_mem_image.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\examine_stack.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\stacktrace_config.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\stack_consumption.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\symbolize.h" />
+    <ClInclude Include="..\..\absl\debugging\internal\vdso_support.h" />
+    <ClInclude Include="..\..\absl\debugging\leak_check.h" />
+    <ClInclude Include="..\..\absl\debugging\stacktrace.h" />
+    <ClInclude Include="..\..\absl\debugging\symbolize.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\debugging\failure_signal_handler.cc" />
-    <ClCompile Include="..\absl\debugging\internal\address_is_readable.cc" />
-    <ClCompile Include="..\absl\debugging\internal\demangle.cc" />
-    <ClCompile Include="..\absl\debugging\internal\elf_mem_image.cc" />
-    <ClCompile Include="..\absl\debugging\internal\examine_stack.cc" />
-    <ClCompile Include="..\absl\debugging\internal\stack_consumption.cc" />
-    <ClCompile Include="..\absl\debugging\internal\vdso_support.cc" />
-    <ClCompile Include="..\absl\debugging\leak_check.cc" />
-    <ClCompile Include="..\absl\debugging\leak_check_disable.cc" />
-    <ClCompile Include="..\absl\debugging\stacktrace.cc" />
-    <ClCompile Include="..\absl\debugging\symbolize.cc" />
+    <ClCompile Include="..\..\absl\debugging\failure_signal_handler.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\address_is_readable.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\demangle.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\elf_mem_image.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\examine_stack.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\stack_consumption.cc" />
+    <ClCompile Include="..\..\absl\debugging\internal\vdso_support.cc" />
+    <ClCompile Include="..\..\absl\debugging\leak_check.cc" />
+    <ClCompile Include="..\..\absl\debugging\leak_check_disable.cc" />
+    <ClCompile Include="..\..\absl\debugging\stacktrace.cc" />
+    <ClCompile Include="..\..\absl\debugging\symbolize.cc" />
   </ItemGroup>
 </Project>

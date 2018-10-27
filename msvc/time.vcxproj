@@ -8,20 +8,20 @@
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\time\civil_time.h" />
-    <ClInclude Include="..\absl\time\clock.h" />
-    <ClInclude Include="..\absl\time\time.h" />
+    <ClInclude Include="..\..\absl\time\civil_time.h" />
+    <ClInclude Include="..\..\absl\time\clock.h" />
+    <ClInclude Include="..\..\absl\time\time.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\time\civil_time.cc" />
-    <ClCompile Include="..\absl\time\clock.cc" />
-    <ClCompile Include="..\absl\time\duration.cc" />
-    <ClCompile Include="..\absl\time\format.cc" />
-    <ClCompile Include="..\absl\time\time.cc" />
+    <ClCompile Include="..\..\absl\time\civil_time.cc" />
+    <ClCompile Include="..\..\absl\time\clock.cc" />
+    <ClCompile Include="..\..\absl\time\duration.cc" />
+    <ClCompile Include="..\..\absl\time\format.cc" />
+    <ClCompile Include="..\..\absl\time\time.cc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\absl\time\internal\get_current_time_chrono.inc" />
-    <None Include="..\absl\time\internal\get_current_time_posix.inc" />
-    <None Include="..\absl\time\internal\zoneinfo.inc" />
+    <None Include="..\..\absl\time\internal\get_current_time_chrono.inc" />
+    <None Include="..\..\absl\time\internal\get_current_time_posix.inc" />
+    <None Include="..\..\absl\time\internal\zoneinfo.inc" />
   </ItemGroup>
 </Project>
