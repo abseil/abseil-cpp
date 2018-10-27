@@ -127,9 +127,6 @@
     <ClCompile Include="..\..\absl\strings\str_split.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\absl\strings\string_view.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\absl\strings\substitute.cc">
       <Filter>Source Files</Filter>
     </ClCompile>

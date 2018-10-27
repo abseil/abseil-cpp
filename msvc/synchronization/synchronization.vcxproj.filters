@@ -61,9 +61,6 @@
     <ClCompile Include="..\..\absl\synchronization\internal\graphcycles.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\absl\synchronization\internal\mutex_nonprod.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\absl\synchronization\internal\per_thread_sem.cc">
       <Filter>Source Files</Filter>
     </ClCompile>

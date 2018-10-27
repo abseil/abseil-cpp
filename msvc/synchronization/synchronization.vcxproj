@@ -24,7 +24,6 @@
     <ClCompile Include="..\..\absl\synchronization\blocking_counter.cc" />
     <ClCompile Include="..\..\absl\synchronization\internal\create_thread_identity.cc" />
     <ClCompile Include="..\..\absl\synchronization\internal\graphcycles.cc" />
-    <ClCompile Include="..\..\absl\synchronization\internal\mutex_nonprod.cc" />
     <ClCompile Include="..\..\absl\synchronization\internal\per_thread_sem.cc" />
     <ClCompile Include="..\..\absl\synchronization\internal\waiter.cc" />
     <ClCompile Include="..\..\absl\synchronization\mutex.cc" />
