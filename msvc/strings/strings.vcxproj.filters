@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -11,159 +11,159 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\absl\strings\ascii.h">
+    <ClInclude Include="..\..\absl\strings\ascii.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\charconv.h">
+    <ClInclude Include="..\..\absl\strings\charconv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\escaping.h">
+    <ClInclude Include="..\..\absl\strings\escaping.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\match.h">
+    <ClInclude Include="..\..\absl\strings\match.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\numbers.h">
+    <ClInclude Include="..\..\absl\strings\numbers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\str_cat.h">
+    <ClInclude Include="..\..\absl\strings\str_cat.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\str_format.h">
+    <ClInclude Include="..\..\absl\strings\str_format.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\str_join.h">
+    <ClInclude Include="..\..\absl\strings\str_join.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\str_replace.h">
+    <ClInclude Include="..\..\absl\strings\str_replace.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\str_split.h">
+    <ClInclude Include="..\..\absl\strings\str_split.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\string_view.h">
+    <ClInclude Include="..\..\absl\strings\string_view.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\strip.h">
+    <ClInclude Include="..\..\absl\strings\strip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\substitute.h">
+    <ClInclude Include="..\..\absl\strings\substitute.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\char_map.h">
+    <ClInclude Include="..\..\absl\strings\internal\char_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\charconv_bigint.h">
+    <ClInclude Include="..\..\absl\strings\internal\charconv_bigint.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\charconv_parse.h">
+    <ClInclude Include="..\..\absl\strings\internal\charconv_parse.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\memutil.h">
+    <ClInclude Include="..\..\absl\strings\internal\memutil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\ostringstream.h">
+    <ClInclude Include="..\..\absl\strings\internal\ostringstream.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\resize_uninitialized.h">
+    <ClInclude Include="..\..\absl\strings\internal\resize_uninitialized.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\stl_type_traits.h">
+    <ClInclude Include="..\..\absl\strings\internal\stl_type_traits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_join_internal.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_join_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_split_internal.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_split_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\utf8.h">
+    <ClInclude Include="..\..\absl\strings\internal\utf8.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\arg.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\arg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\bind.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\bind.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\checker.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\checker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\extension.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\extension.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\float_conversion.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\float_conversion.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\output.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\output.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\strings\internal\str_format\parser.h">
+    <ClInclude Include="..\..\absl\strings\internal\str_format\parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\strings\ascii.cc">
+    <ClCompile Include="..\..\absl\strings\ascii.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\charconv.cc">
+    <ClCompile Include="..\..\absl\strings\charconv.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\escaping.cc">
+    <ClCompile Include="..\..\absl\strings\escaping.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\match.cc">
+    <ClCompile Include="..\..\absl\strings\match.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\numbers.cc">
+    <ClCompile Include="..\..\absl\strings\numbers.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\str_cat.cc">
+    <ClCompile Include="..\..\absl\strings\str_cat.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\str_replace.cc">
+    <ClCompile Include="..\..\absl\strings\str_replace.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\str_split.cc">
+    <ClCompile Include="..\..\absl\strings\str_split.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\string_view.cc">
+    <ClCompile Include="..\..\absl\strings\string_view.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\substitute.cc">
+    <ClCompile Include="..\..\absl\strings\substitute.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\charconv_bigint.cc">
+    <ClCompile Include="..\..\absl\strings\internal\charconv_bigint.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\charconv_parse.cc">
+    <ClCompile Include="..\..\absl\strings\internal\charconv_parse.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\memutil.cc">
+    <ClCompile Include="..\..\absl\strings\internal\memutil.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\ostringstream.cc">
+    <ClCompile Include="..\..\absl\strings\internal\ostringstream.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\utf8.cc">
+    <ClCompile Include="..\..\absl\strings\internal\utf8.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\arg.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\arg.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\bind.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\bind.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\extension.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\extension.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\float_conversion.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\float_conversion.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\output.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\output.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\strings\internal\str_format\parser.cc">
+    <ClCompile Include="..\..\absl\strings\internal\str_format\parser.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

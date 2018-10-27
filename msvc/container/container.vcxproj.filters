@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -11,63 +11,63 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\absl\container\internal\compressed_tuple.h">
+    <ClInclude Include="..\..\absl\container\internal\compressed_tuple.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\container_memory.h">
+    <ClInclude Include="..\..\absl\container\internal\container_memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\hash_function_defaults.h">
+    <ClInclude Include="..\..\absl\container\internal\hash_function_defaults.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\hash_policy_traits.h">
+    <ClInclude Include="..\..\absl\container\internal\hash_policy_traits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\hashtable_debug.h">
+    <ClInclude Include="..\..\absl\container\internal\hashtable_debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\hashtable_debug_hooks.h">
+    <ClInclude Include="..\..\absl\container\internal\hashtable_debug_hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\layout.h">
+    <ClInclude Include="..\..\absl\container\internal\layout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\node_hash_policy.h">
+    <ClInclude Include="..\..\absl\container\internal\node_hash_policy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\raw_hash_map.h">
+    <ClInclude Include="..\..\absl\container\internal\raw_hash_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\raw_hash_set.h">
+    <ClInclude Include="..\..\absl\container\internal\raw_hash_set.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\test_instance_tracker.h">
+    <ClInclude Include="..\..\absl\container\internal\test_instance_tracker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\internal\tracked.h">
+    <ClInclude Include="..\..\absl\container\internal\tracked.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\fixed_array.h">
+    <ClInclude Include="..\..\absl\container\fixed_array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\flat_hash_map.h">
+    <ClInclude Include="..\..\absl\container\flat_hash_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\flat_hash_set.h">
+    <ClInclude Include="..\..\absl\container\flat_hash_set.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\inlined_vector.h">
+    <ClInclude Include="..\..\absl\container\inlined_vector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\node_hash_map.h">
+    <ClInclude Include="..\..\absl\container\node_hash_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\container\node_hash_set.h">
+    <ClInclude Include="..\..\absl\container\node_hash_set.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\container\internal\raw_hash_set.cc">
+    <ClCompile Include="..\..\absl\container\internal\raw_hash_set.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

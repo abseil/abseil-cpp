@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -11,63 +11,63 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\absl\synchronization\barrier.h">
+    <ClInclude Include="..\..\absl\synchronization\barrier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\blocking_counter.h">
+    <ClInclude Include="..\..\absl\synchronization\blocking_counter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\mutex.h">
+    <ClInclude Include="..\..\absl\synchronization\mutex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\notification.h">
+    <ClInclude Include="..\..\absl\synchronization\notification.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\create_thread_identity.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\create_thread_identity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\graphcycles.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\graphcycles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\kernel_timeout.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\kernel_timeout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\per_thread_sem.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\per_thread_sem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\thread_pool.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\thread_pool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\synchronization\internal\waiter.h">
+    <ClInclude Include="..\..\absl\synchronization\internal\waiter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\synchronization\barrier.cc">
+    <ClCompile Include="..\..\absl\synchronization\barrier.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\blocking_counter.cc">
+    <ClCompile Include="..\..\absl\synchronization\blocking_counter.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\mutex.cc">
+    <ClCompile Include="..\..\absl\synchronization\mutex.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\notification.cc">
+    <ClCompile Include="..\..\absl\synchronization\notification.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\internal\create_thread_identity.cc">
+    <ClCompile Include="..\..\absl\synchronization\internal\create_thread_identity.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\internal\graphcycles.cc">
+    <ClCompile Include="..\..\absl\synchronization\internal\graphcycles.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\internal\mutex_nonprod.cc">
+    <ClCompile Include="..\..\absl\synchronization\internal\mutex_nonprod.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\internal\per_thread_sem.cc">
+    <ClCompile Include="..\..\absl\synchronization\internal\per_thread_sem.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\synchronization\internal\waiter.cc">
+    <ClCompile Include="..\..\absl\synchronization\internal\waiter.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

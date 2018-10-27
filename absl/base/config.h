@@ -423,8 +423,4 @@
 #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
-#if defined(_MSC_VER)
-#define NOMINMAX
-#endif
-
 #endif  // ABSL_BASE_CONFIG_H_

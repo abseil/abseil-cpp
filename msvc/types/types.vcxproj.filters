@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -11,42 +11,42 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\absl\types\any.h">
+    <ClInclude Include="..\..\absl\types\any.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\bad_any_cast.h">
+    <ClInclude Include="..\..\absl\types\bad_any_cast.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\bad_optional_access.h">
+    <ClInclude Include="..\..\absl\types\bad_optional_access.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\bad_variant_access.h">
+    <ClInclude Include="..\..\absl\types\bad_variant_access.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\optional.h">
+    <ClInclude Include="..\..\absl\types\optional.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\span.h">
+    <ClInclude Include="..\..\absl\types\span.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\variant.h">
+    <ClInclude Include="..\..\absl\types\variant.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\absl\types\internal\variant.h">
+    <ClInclude Include="..\..\absl\types\internal\variant.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\absl\types\bad_any_cast.cc">
+    <ClCompile Include="..\..\absl\types\bad_any_cast.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\types\bad_optional_access.cc">
+    <ClCompile Include="..\..\absl\types\bad_optional_access.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\types\bad_variant_access.cc">
+    <ClCompile Include="..\..\absl\types\bad_variant_access.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\absl\types\optional.cc">
+    <ClCompile Include="..\..\absl\types\optional.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
