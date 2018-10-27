@@ -1,20 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ImportGroup Label="PropertySheets" />
-  <PropertyGroup Label="UserMacros" />
+  <!--Define project configurations.  Nothing interesting can happen here.-->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <!--Microsoft C++ stuff.-->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <!--Definitions.-->
   <PropertyGroup>
+    <!--Predicates.-->
+    <PrincipiaCompilerClangLLVM>false</PrincipiaCompilerClangLLVM>
+    <PrincipiaCompilerClangLLVM Condition="$(Configuration)==Release_LLVM">true</PrincipiaCompilerClangLLVM>
+    <PrincipiaOptimize>false</PrincipiaOptimize>
+    <PrincipiaOptimize Condition="$(Configuration.StartsWith('Release'))">true</PrincipiaOptimize>
+    <PrincipiaMainProject>false</PrincipiaMainProject>
+    <PrincipiaMainProject Condition="$(ProjectName) == benchmarks or
+                                     $(ProjectName) == tests">true</PrincipiaMainProject>
+    <!--Dependency paths.-->
+    <PrincipiaDependencyConfiguration>Debug</PrincipiaDependencyConfiguration>
+    <PrincipiaDependencyConfiguration Condition="$(PrincipiaOptimize)">Release</PrincipiaDependencyConfiguration>
+  </PropertyGroup>
+
+  <!--Compiler.-->
+  <PropertyGroup>
+    <PlatformToolset>v141</PlatformToolset>
     <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
+
+  <!--Target.-->
   <PropertyGroup>
-    <ConfigurationType Condition="$(ProjectName) == benchmarks or
-                                  $(ProjectName) == tests">Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType Condition="$(PrincipiaMainProject)">Application</ConfigurationType>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="$(ConfigurationType)==Application">
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!--Common options.-->
+  <PropertyGroup>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4267;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
   </ItemDefinitionGroup>
-  <ItemGroup />
+  <!--Debug options.-->
+  <PropertyGroup Condition="!$(PrincipiaOptimize)">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="!$(PrincipiaOptimize)">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link></Link>
+  </ItemDefinitionGroup>
+  <!--Release options.-->
+  <PropertyGroup Condition="$(PrincipiaOptimize)">
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="$(PrincipiaOptimize)">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!--Import our property sheets.-->
+  <ImportGroup Condition="$(ProjectName) == benchmarks">
+    <Import Project="$(SolutionDir)..\..\benchmark\msvc\portability_macros.props" />
+    <Import Project="$(SolutionDir)..\..\benchmark\msvc\windows_libraries.props" />
+    <Import Project="$(SolutionDir)google_benchmark.props" />
+  </ImportGroup>
+
+  <ImportGroup Condition="$(ProjectName) == tests">
+    <Import Project="$(SolutionDir)..\..\googletest\googletest\msvc\portability_macros.props" />
+    <Import Project="$(SolutionDir)google_googletest.props" />
+    <Import Project="$(SolutionDir)google_googlemock_main.props" />
+  </ImportGroup>
+
+
+  <!--This import must be at the end.-->
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

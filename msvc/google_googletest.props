@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <TargetName>$(ProjectName)_tests</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\googletest\googletest\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\googletest\googletest\msvc\2017\$(PrincipiaDependencyConfiguration)\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

@@ -2,19 +2,13 @@
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{36FCB0F6-A293-497F-8478-E955D175F2D0}</ProjectGuid>
-    <RootNamespace>numeric</RootNamespace>
+    <ProjectGuid>{89A23FF1-CA6A-4886-AD66-9D88A54108F3}</ProjectGuid>
+    <RootNamespace>algorithm</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(SolutionDir)abseil-cpp.props" />
   <ItemGroup>
-    <ClInclude Include="..\absl\numeric\int128.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\absl\numeric\int128.cc" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\absl\numeric\int128_have_intrinsic.inc" />
-    <None Include="..\absl\numeric\int128_no_intrinsic.inc" />
+    <ClInclude Include="..\absl\algorithm\algorithm.h" />
+    <ClInclude Include="..\absl\algorithm\container.h" />
   </ItemGroup>
 </Project>
