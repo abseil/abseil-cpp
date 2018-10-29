@@ -477,7 +477,7 @@ inline size_t NormalizeCapacity(size_t n) {
   constexpr size_t kMinCapacity = Group::kWidth - 1;
   return n <= kMinCapacity
              ? kMinCapacity
-             : std::numeric_limits<size_t>::max() >> LeadingZeros(n);
+             : (std::numeric_limits<size_t>::max)() >> LeadingZeros(n);
 }
 
 // The node_handle concept from C++17.
@@ -1022,7 +1022,7 @@ class raw_hash_set {
   bool empty() const { return !size(); }
   size_t size() const { return size_; }
   size_t capacity() const { return capacity_; }
-  size_t max_size() const { return std::numeric_limits<size_t>::max(); }
+  size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
 
   void clear() {
     // Iterating over this container is O(bucket_count()). When bucket_count()

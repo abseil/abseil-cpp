@@ -48,13 +48,14 @@ list(APPEND CONTAINER_INTERNAL_HEADERS
 )
 
 
-absl_header_library(
+absl_library(
   TARGET
     absl_container
+  SOURCES
+   "internal/raw_hash_set.cc"
   EXPORT_NAME
     container
 )
-
 
 #
 ## TESTS
@@ -161,4 +162,16 @@ absl_test(
     ${TEST_INSTANCE_TRACKER_TEST_SRC}
   PUBLIC_LIBRARIES
     ${TEST_INSTANCE_TRACKER_TEST_PUBLIC_LIBRARIES}
+)
+
+absl_test(
+  TARGET
+    raw_hash_set_test
+  SOURCES
+    "internal/raw_hash_set_test.cc"
+  PUBLIC_LIBRARIES
+    absl::base
+    absl::hash
+    absl_internal_throw_delegate
+    test_instance_tracker_lib
 )

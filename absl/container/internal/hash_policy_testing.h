@@ -139,7 +139,7 @@ struct Alloc : std::allocator<T> {
   friend bool operator!=(const Alloc& a, const Alloc& b) { return !(a == b); }
 
  private:
-  size_t id_ = std::numeric_limits<size_t>::max();
+  size_t id_ = (std::numeric_limits<size_t>::max)();
 };
 
 template <class Map>

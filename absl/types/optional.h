@@ -163,7 +163,7 @@ struct empty_struct {};
 // This class stores the data in optional<T>.
 // It is specialized based on whether T is trivially destructible.
 // This is the specialization for non trivially destructible type.
-template <typename T, bool = std::is_trivially_destructible<T>::value>
+template <typename T, bool unused = std::is_trivially_destructible<T>::value>
 class optional_data_dtor_base {
   struct dummy_type {
     static_assert(sizeof(T) % sizeof(empty_struct) == 0, "");
@@ -261,10 +261,10 @@ class optional_data_base : public optional_data_dtor_base<T> {
 // have trivial move but nontrivial copy.
 // Also, we should be checking is_trivially_copyable here, which is not
 // supported now, so we use is_trivially_* traits instead.
-template <typename T, bool = absl::is_trivially_copy_constructible<T>::value&&
-                          absl::is_trivially_copy_assignable<
-                              typename std::remove_cv<T>::type>::value&&
-                              std::is_trivially_destructible<T>::value>
+template <typename T,
+          bool unused = absl::is_trivially_copy_constructible<T>::value&&
+              absl::is_trivially_copy_assignable<typename std::remove_cv<
+                  T>::type>::value&& std::is_trivially_destructible<T>::value>
 class optional_data;
 
 // Trivially copyable types

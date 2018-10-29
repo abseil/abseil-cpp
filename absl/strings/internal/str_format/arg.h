@@ -335,12 +335,12 @@ class FormatArgImpl {
     using CommonType = typename std::conditional<std::is_signed<T>::value,
                                                  int64_t, uint64_t>::type;
     if (static_cast<CommonType>(val) >
-        static_cast<CommonType>(std::numeric_limits<int>::max())) {
-      return std::numeric_limits<int>::max();
+        static_cast<CommonType>((std::numeric_limits<int>::max)())) {
+      return (std::numeric_limits<int>::max)();
     } else if (std::is_signed<T>::value &&
                static_cast<CommonType>(val) <
-                   static_cast<CommonType>(std::numeric_limits<int>::min())) {
-      return std::numeric_limits<int>::min();
+                   static_cast<CommonType>((std::numeric_limits<int>::min)())) {
+      return (std::numeric_limits<int>::min)();
     }
     return static_cast<int>(val);
   }

@@ -264,7 +264,7 @@ class InlinedVector {
     // One bit of the size storage is used to indicate whether the inlined
     // vector is allocated; as a result, the maximum size of the container that
     // we can express is half of the max for our size type.
-    return std::numeric_limits<size_type>::max() / 2;
+    return (std::numeric_limits<size_type>::max)() / 2;
   }
 
   // InlinedVector::data()

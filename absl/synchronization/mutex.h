@@ -584,7 +584,7 @@ class SCOPED_LOCKABLE WriterMutexLock {
 // -----------------------------------------------------------------------------
 //
 // As noted above, `Mutex` contains a number of member functions which take a
-// `Condition` as a argument; clients can wait for conditions to become `true`
+// `Condition` as an argument; clients can wait for conditions to become `true`
 // before attempting to acquire the mutex. These sections are known as
 // "condition critical" sections. To use a `Condition`, you simply need to
 // construct it, and use within an appropriate `Mutex` member function;

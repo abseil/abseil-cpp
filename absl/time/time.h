@@ -402,10 +402,10 @@ Duration Milliseconds(T n) {
 template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Seconds(T n) {
   if (n >= 0) {
-    if (n >= std::numeric_limits<int64_t>::max()) return InfiniteDuration();
+    if (n >= (std::numeric_limits<int64_t>::max)()) return InfiniteDuration();
     return time_internal::MakePosDoubleDuration(n);
   } else {
-    if (n <= std::numeric_limits<int64_t>::min()) return -InfiniteDuration();
+    if (n <= (std::numeric_limits<int64_t>::min)()) return -InfiniteDuration();
     return -time_internal::MakePosDoubleDuration(-n);
   }
 }
@@ -686,7 +686,7 @@ constexpr Time UniversalEpoch() {
 // Returns an `absl::Time` that is infinitely far in the future.
 constexpr Time InfiniteFuture() {
   return Time(
-      time_internal::MakeDuration(std::numeric_limits<int64_t>::max(), ~0U));
+      time_internal::MakeDuration((std::numeric_limits<int64_t>::max)(), ~0U));
 }
 
 // InfinitePast()
@@ -694,7 +694,7 @@ constexpr Time InfiniteFuture() {
 // Returns an `absl::Time` that is infinitely far in the past.
 constexpr Time InfinitePast() {
   return Time(
-      time_internal::MakeDuration(std::numeric_limits<int64_t>::min(), ~0U));
+      time_internal::MakeDuration((std::numeric_limits<int64_t>::min)(), ~0U));
 }
 
 // FromUnixNanos()
@@ -1329,8 +1329,8 @@ constexpr bool IsInfiniteDuration(Duration d) { return GetRepLo(d) == ~0U; }
 // REQUIRES: IsInfiniteDuration(d)
 constexpr Duration OppositeInfinity(Duration d) {
   return GetRepHi(d) < 0
-             ? MakeDuration(std::numeric_limits<int64_t>::max(), ~0U)
-             : MakeDuration(std::numeric_limits<int64_t>::min(), ~0U);
+             ? MakeDuration((std::numeric_limits<int64_t>::max)(), ~0U)
+             : MakeDuration((std::numeric_limits<int64_t>::min)(), ~0U);
 }
 
 // Returns (-n)-1 (equivalently -(n+1)) without avoidable overflow.
@@ -1355,14 +1355,14 @@ constexpr Duration FromInt64(int64_t v, std::ratio<1, N>) {
       v / N, v % N * kTicksPerNanosecond * 1000 * 1000 * 1000 / N);
 }
 constexpr Duration FromInt64(int64_t v, std::ratio<60>) {
-  return (v <= std::numeric_limits<int64_t>::max() / 60 &&
-          v >= std::numeric_limits<int64_t>::min() / 60)
+  return (v <= (std::numeric_limits<int64_t>::max)() / 60 &&
+          v >= (std::numeric_limits<int64_t>::min)() / 60)
              ? MakeDuration(v * 60)
              : v > 0 ? InfiniteDuration() : -InfiniteDuration();
 }
 constexpr Duration FromInt64(int64_t v, std::ratio<3600>) {
-  return (v <= std::numeric_limits<int64_t>::max() / 3600 &&
-          v >= std::numeric_limits<int64_t>::min() / 3600)
+  return (v <= (std::numeric_limits<int64_t>::max)() / 3600 &&
+          v >= (std::numeric_limits<int64_t>::min)() / 3600)
              ? MakeDuration(v * 3600)
              : v > 0 ? InfiniteDuration() : -InfiniteDuration();
 }
@@ -1421,8 +1421,8 @@ T ToChronoDuration(Duration d) {
   if (time_internal::IsInfiniteDuration(d))
     return d < ZeroDuration() ? T::min() : T::max();
   const auto v = ToInt64(d, Period{});
-  if (v > std::numeric_limits<Rep>::max()) return T::max();
-  if (v < std::numeric_limits<Rep>::min()) return T::min();
+  if (v > (std::numeric_limits<Rep>::max)()) return T::max();
+  if (v < (std::numeric_limits<Rep>::min)()) return T::min();
   return T{v};
 }
 
@@ -1449,7 +1449,8 @@ constexpr Duration Hours(int64_t n) {
 constexpr bool operator<(Duration lhs, Duration rhs) {
   return time_internal::GetRepHi(lhs) != time_internal::GetRepHi(rhs)
              ? time_internal::GetRepHi(lhs) < time_internal::GetRepHi(rhs)
-             : time_internal::GetRepHi(lhs) == std::numeric_limits<int64_t>::min()
+             : time_internal::GetRepHi(lhs) ==
+                       (std::numeric_limits<int64_t>::min)()
                    ? time_internal::GetRepLo(lhs) + 1 <
                          time_internal::GetRepLo(rhs) + 1
                    : time_internal::GetRepLo(lhs) <
@@ -1474,7 +1475,8 @@ constexpr Duration operator-(Duration d) {
   // a second's worth of ticks and avoid overflow (as negating int64_t-min + 1
   // is safe).
   return time_internal::GetRepLo(d) == 0
-             ? time_internal::GetRepHi(d) == std::numeric_limits<int64_t>::min()
+             ? time_internal::GetRepHi(d) ==
+                       (std::numeric_limits<int64_t>::min)()
                    ? InfiniteDuration()
                    : time_internal::MakeDuration(-time_internal::GetRepHi(d))
              : time_internal::IsInfiniteDuration(d)
@@ -1487,7 +1489,8 @@ constexpr Duration operator-(Duration d) {
 }
 
 constexpr Duration InfiniteDuration() {
-  return time_internal::MakeDuration(std::numeric_limits<int64_t>::max(), ~0U);
+  return time_internal::MakeDuration((std::numeric_limits<int64_t>::max)(),
+                                     ~0U);
 }
 
 constexpr Duration FromChrono(const std::chrono::nanoseconds& d) {

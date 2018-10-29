@@ -127,10 +127,8 @@ class ConstructorTracker {
       void* address = it.first;
       TrackedAddress& tracked_address = it.second;
       if (tracked_address.is_alive) {
-        ADD_FAILURE() << "Object at address " << address
-                      << " with countdown of " << countdown_
-                      << " was not destroyed [" << tracked_address.description
-                      << "]";
+        ADD_FAILURE() << ErrorMessage(address, tracked_address.description,
+                                      countdown_, "Object was not destroyed.");
       }
     }
   }
@@ -141,11 +139,11 @@ class ConstructorTracker {
     TrackedAddress& tracked_address =
         current_tracker_instance_->address_map_[address];
     if (tracked_address.is_alive) {
-      ADD_FAILURE() << "Object at address " << address << " with countdown of "
-                    << current_tracker_instance_->countdown_
-                    << " was re-constructed. Previously: ["
-                    << tracked_address.description << "] Now: [" << description
-                    << "]";
+      ADD_FAILURE() << ErrorMessage(
+          address, tracked_address.description,
+          current_tracker_instance_->countdown_,
+          "Object was re-constructed. Current object was constructed by " +
+              description);
     }
     tracked_address = {true, std::move(description)};
   }
@@ -159,10 +157,9 @@ class ConstructorTracker {
 
     TrackedAddress& tracked_address = it->second;
     if (!tracked_address.is_alive) {
-      ADD_FAILURE() << "Object at address " << address << " with countdown of "
-                    << current_tracker_instance_->countdown_
-                    << " was re-destroyed or created prior to construction "
-                    << "tracking [" << tracked_address.description << "]";
+      ADD_FAILURE() << ErrorMessage(address, tracked_address.description,
+                                    current_tracker_instance_->countdown_,
+                                    "Object was re-destroyed.");
     }
     tracked_address.is_alive = false;
   }
@@ -170,6 +167,16 @@ class ConstructorTracker {
  private:
   static bool CurrentlyTracking() {
     return current_tracker_instance_ != nullptr;
+  }
+
+  static std::string ErrorMessage(void* address, const std::string& address_description,
+                             int countdown, const std::string& error_description) {
+    return absl::Substitute(
+        "With coundtown at $0:\n"
+        "  $1\n"
+        "  Object originally constructed by $2\n"
+        "  Object address: $3\n",
+        countdown, error_description, address_description, address);
   }
 
   std::unordered_map<void*, TrackedAddress> address_map_;
@@ -709,7 +716,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   }
 
   size_type max_size() const noexcept {
-    return std::numeric_limits<difference_type>::max() / sizeof(value_type);
+    return (std::numeric_limits<difference_type>::max)() / sizeof(value_type);
   }
 
   ThrowingAllocator select_on_container_copy_construction() noexcept(

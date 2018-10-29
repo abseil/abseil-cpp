@@ -227,8 +227,8 @@ std::ostream& operator<<(std::ostream& os, uint128 v);
 // TODO(strel) add operator>>(std::istream&, uint128)
 
 constexpr uint128 Uint128Max() {
-  return uint128(std::numeric_limits<uint64_t>::max(),
-                 std::numeric_limits<uint64_t>::max());
+  return uint128((std::numeric_limits<uint64_t>::max)(),
+                 (std::numeric_limits<uint64_t>::max)());
 }
 
 }  // namespace absl
@@ -384,13 +384,13 @@ constexpr uint128::uint128(uint64_t high, uint64_t low)
 
 constexpr uint128::uint128(int v)
     : lo_{static_cast<uint64_t>(v)},
-      hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0} {}
+      hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0} {}
 constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
     : lo_{static_cast<uint64_t>(v)},
-      hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0} {}
+      hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0} {}
 constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
     : lo_{static_cast<uint64_t>(v)},
-      hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0} {}
+      hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0} {}
 
 constexpr uint128::uint128(unsigned int v) : lo_{v}, hi_{0} {}
 // NOLINTNEXTLINE(runtime/int)
@@ -413,13 +413,13 @@ constexpr uint128::uint128(uint64_t high, uint64_t low)
     : hi_{high}, lo_{low} {}
 
 constexpr uint128::uint128(int v)
-    : hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0},
+    : hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0},
       lo_{static_cast<uint64_t>(v)} {}
 constexpr uint128::uint128(long v)  // NOLINT(runtime/int)
-    : hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0},
+    : hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0},
       lo_{static_cast<uint64_t>(v)} {}
 constexpr uint128::uint128(long long v)  // NOLINT(runtime/int)
-    : hi_{v < 0 ? std::numeric_limits<uint64_t>::max() : 0},
+    : hi_{v < 0 ? (std::numeric_limits<uint64_t>::max)() : 0},
       lo_{static_cast<uint64_t>(v)} {}
 
 constexpr uint128::uint128(unsigned int v) : hi_{0}, lo_{v} {}

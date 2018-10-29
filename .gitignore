@@ -1,2 +1,8 @@
 # Ignore all bazel-* symlinks.
 /bazel-*
+# Ignore CMake usual build directory
+build
+# Ignore Vim files
+*.swp
+# Ignore QtCreator Project file
+CMakeLists.txt.user

@@ -906,6 +906,8 @@ TYPED_TEST_P(InstanceTest, Swap) {
       InstanceTracker tracker;
       InstanceVec a, b;
       const size_t inlined_capacity = a.capacity();
+      auto min_len = std::min(l1, l2);
+      auto max_len = std::max(l1, l2);
       for (int i = 0; i < l1; i++) a.push_back(Instance(i));
       for (int i = 0; i < l2; i++) b.push_back(Instance(100+i));
       EXPECT_EQ(tracker.instances(), l1 + l2);
@@ -919,15 +921,15 @@ TYPED_TEST_P(InstanceTest, Swap) {
         EXPECT_EQ(tracker.swaps(), 0);  // Allocations are swapped.
         EXPECT_EQ(tracker.moves(), 0);
       } else if (a.size() <= inlined_capacity && b.size() <= inlined_capacity) {
-        EXPECT_EQ(tracker.swaps(), std::min(l1, l2));
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::max(l1, l2) - std::min(l1, l2));
+        EXPECT_EQ(tracker.swaps(), min_len);
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  max_len - min_len);
       } else {
         // One is allocated and the other isn't. The allocation is transferred
         // without copying elements, and the inlined instances are copied/moved.
         EXPECT_EQ(tracker.swaps(), 0);
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::min(l1, l2));
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  min_len);
       }
 
       EXPECT_EQ(l1, b.size());
