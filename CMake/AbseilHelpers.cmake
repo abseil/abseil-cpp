@@ -52,8 +52,8 @@ function(absl_library)
   target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
   target_include_directories(${_NAME} PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS})
   if(${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS})
-      target_include_directories(${_NAME} SYSTEM
-        PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS})
+    target_include_directories(${_NAME} SYSTEM
+      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS})
   else()
     target_include_directories(${_NAME}
       PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS})
