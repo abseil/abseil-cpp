@@ -149,6 +149,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     deps = [
         "//absl/base",
+        "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
     ],
 )

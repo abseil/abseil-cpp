@@ -98,7 +98,7 @@ namespace absl {
 //    * absl::string_view
 //    * absl::InlinedVector
 //    * absl::FixedArray
-//    * absl::unit128
+//    * absl::uint128
 //    * absl::Time, absl::Duration, and absl::TimeZone
 //
 // Note: the list above is not meant to be exhaustive. Additional type support

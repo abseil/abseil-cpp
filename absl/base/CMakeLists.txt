@@ -130,6 +130,29 @@ absl_library(
 
 absl_cc_library(
   NAME
+    config
+  HDRS
+    "config.h"
+    "policy_checks.h"
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME
+    core_headers
+  HDRS
+    "attributes.h"
+    "macros.h"
+    "optimization.h"
+    "port.h"
+    "thread_annotations.h"
+  DEPS
+    absl::config
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME
     spinlock_wait
   SRCS
     "internal/spinlock_wait.cc"

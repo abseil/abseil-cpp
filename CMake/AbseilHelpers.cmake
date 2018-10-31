@@ -48,7 +48,7 @@ function(absl_library)
 
   add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
 
-  target_compile_options(${_NAME} PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_LIB_PRIVATE_COMPILE_FLAGS})
+  target_compile_options(${_NAME} PRIVATE ${ABSL_LIB_PRIVATE_COMPILE_FLAGS})
   target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
   target_include_directories(${_NAME}
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
@@ -140,9 +140,8 @@ function(absl_cc_library)
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
         PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
-      # TODO(rongjiecomputer): Revisit ABSL_COMPILE_CXXFLAGS when fixing GH#123
       target_compile_options(${_NAME}
-        PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_CC_LIB_COPTS})
+        PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
         PUBLIC ${ABSL_CC_LIB_DEPS}
         PRIVATE ${ABSL_CC_LIB_LINKOPTS}
@@ -245,7 +244,7 @@ function(absl_test)
 
     add_executable(${_NAME}_bin ${ABSL_TEST_SOURCES})
 
-    target_compile_options(${_NAME}_bin PRIVATE ${ABSL_COMPILE_CXXFLAGS} ${ABSL_TEST_PRIVATE_COMPILE_FLAGS})
+    target_compile_options(${_NAME}_bin PRIVATE ${ABSL_TEST_PRIVATE_COMPILE_FLAGS})
     target_link_libraries(${_NAME}_bin PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
     target_include_directories(${_NAME}_bin
       PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}

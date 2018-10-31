@@ -168,6 +168,7 @@ cc_library(
     deps = [
         ":bad_optional_access",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/utility",
