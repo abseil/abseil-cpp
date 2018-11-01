@@ -130,45 +130,50 @@ TEST(Group, EmptyGroup) {
   for (h2_t h = 0; h != 128; ++h) EXPECT_FALSE(Group{EmptyGroup()}.Match(h));
 }
 
-#if SWISSTABLE_HAVE_SSE2
 TEST(Group, Match) {
-  ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
-                    7,      5, 3,        1, 1,      1, 1,         1};
-  EXPECT_THAT(Group{group}.Match(0), ElementsAre());
-  EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 11, 12, 13, 14, 15));
-  EXPECT_THAT(Group{group}.Match(3), ElementsAre(3, 10));
-  EXPECT_THAT(Group{group}.Match(5), ElementsAre(5, 9));
-  EXPECT_THAT(Group{group}.Match(7), ElementsAre(7, 8));
+  if (Group::kWidth == 16) {
+    ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
+                      7,      5, 3,        1, 1,      1, 1,         1};
+    EXPECT_THAT(Group{group}.Match(0), ElementsAre());
+    EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 11, 12, 13, 14, 15));
+    EXPECT_THAT(Group{group}.Match(3), ElementsAre(3, 10));
+    EXPECT_THAT(Group{group}.Match(5), ElementsAre(5, 9));
+    EXPECT_THAT(Group{group}.Match(7), ElementsAre(7, 8));
+  } else if (Group::kWidth == 8) {
+    ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
+    EXPECT_THAT(Group{group}.Match(0), ElementsAre());
+    EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 5, 7));
+    EXPECT_THAT(Group{group}.Match(2), ElementsAre(2, 4));
+  } else {
+    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+  }
 }
 
 TEST(Group, MatchEmpty) {
-  ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
-                    7,      5, 3,        1, 1,      1, 1,         1};
-  EXPECT_THAT(Group{group}.MatchEmpty(), ElementsAre(0, 4));
+  if (Group::kWidth == 16) {
+    ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
+                      7,      5, 3,        1, 1,      1, 1,         1};
+    EXPECT_THAT(Group{group}.MatchEmpty(), ElementsAre(0, 4));
+  } else if (Group::kWidth == 8) {
+    ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
+    EXPECT_THAT(Group{group}.MatchEmpty(), ElementsAre(0));
+  } else {
+    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+  }
 }
 
 TEST(Group, MatchEmptyOrDeleted) {
-  ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
-                    7,      5, 3,        1, 1,      1, 1,         1};
-  EXPECT_THAT(Group{group}.MatchEmptyOrDeleted(), ElementsAre(0, 2, 4));
+  if (Group::kWidth == 16) {
+    ctrl_t group[] = {kEmpty, 1, kDeleted, 3, kEmpty, 5, kSentinel, 7,
+                      7,      5, 3,        1, 1,      1, 1,         1};
+    EXPECT_THAT(Group{group}.MatchEmptyOrDeleted(), ElementsAre(0, 2, 4));
+  } else if (Group::kWidth == 8) {
+    ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
+    EXPECT_THAT(Group{group}.MatchEmptyOrDeleted(), ElementsAre(0, 3));
+  } else {
+    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+  }
 }
-#else
-TEST(Group, Match) {
-  ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
-  EXPECT_THAT(Group{group}.Match(0), ElementsAre());
-  EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 5, 7));
-  EXPECT_THAT(Group{group}.Match(2), ElementsAre(2, 4));
-}
-TEST(Group, MatchEmpty) {
-  ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
-  EXPECT_THAT(Group{group}.MatchEmpty(), ElementsAre(0));
-}
-
-TEST(Group, MatchEmptyOrDeleted) {
-  ctrl_t group[] = {kEmpty, 1, 2, kDeleted, 2, 1, kSentinel, 1};
-  EXPECT_THAT(Group{group}.MatchEmptyOrDeleted(), ElementsAre(0, 3));
-}
-#endif
 
 TEST(Batch, DropDeletes) {
   constexpr size_t kCapacity = 63;

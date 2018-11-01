@@ -35,16 +35,16 @@ std::string MakeTestString(int desired_length) {
   return test;
 }
 
-void BM_Split2StringPiece(benchmark::State& state) {
+void BM_Split2StringView(benchmark::State& state) {
   std::string test = MakeTestString(state.range(0));
   for (auto _ : state) {
     std::vector<absl::string_view> result = absl::StrSplit(test, ';');
     benchmark::DoNotOptimize(result);
   }
 }
-BENCHMARK_RANGE(BM_Split2StringPiece, 0, 1 << 20);
+BENCHMARK_RANGE(BM_Split2StringView, 0, 1 << 20);
 
-void BM_Split2StringPieceLifted(benchmark::State& state) {
+void BM_Split2StringViewLifted(benchmark::State& state) {
   std::string test = MakeTestString(state.range(0));
   std::vector<absl::string_view> result;
   for (auto _ : state) {
@@ -52,7 +52,7 @@ void BM_Split2StringPieceLifted(benchmark::State& state) {
   }
   benchmark::DoNotOptimize(result);
 }
-BENCHMARK_RANGE(BM_Split2StringPieceLifted, 0, 1 << 20);
+BENCHMARK_RANGE(BM_Split2StringViewLifted, 0, 1 << 20);
 
 void BM_Split2String(benchmark::State& state) {
   std::string test = MakeTestString(state.range(0));

@@ -80,7 +80,7 @@ AlphaNum::AlphaNum(Dec dec) {
 // StrCat()
 //    This merges the given strings or integers, with no delimiter.  This
 //    is designed to be the fastest possible way to construct a string out
-//    of a mix of raw C strings, StringPieces, strings, and integer values.
+//    of a mix of raw C strings, string_views, strings, and integer values.
 // ----------------------------------------------------------------------
 
 // Append is merely a version of memcpy that returns the address of the byte

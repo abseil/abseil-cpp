@@ -337,10 +337,10 @@ inline bool IsDeleted(ctrl_t c) { return c == kDeleted; }
 inline bool IsEmptyOrDeleted(ctrl_t c) { return c < kSentinel; }
 
 #if SWISSTABLE_HAVE_SSE2
-struct Group {
+struct GroupSse2Impl {
   static constexpr size_t kWidth = 16;  // the number of slots per group
 
-  explicit Group(const ctrl_t* pos) {
+  explicit GroupSse2Impl(const ctrl_t* pos) {
     ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos));
   }
 
@@ -390,11 +390,13 @@ struct Group {
 
   __m128i ctrl;
 };
-#else
-struct Group {
+#endif  // SWISSTABLE_HAVE_SSE2
+
+struct GroupPortableImpl {
   static constexpr size_t kWidth = 8;
 
-  explicit Group(const ctrl_t* pos) : ctrl(little_endian::Load64(pos)) {}
+  explicit GroupPortableImpl(const ctrl_t* pos)
+      : ctrl(little_endian::Load64(pos)) {}
 
   BitMask<uint64_t, kWidth, 3> Match(h2_t hash) const {
     // For the technique, see:
@@ -441,11 +443,23 @@ struct Group {
 
   uint64_t ctrl;
 };
-#endif  // SWISSTABLE_HAVE_SSE2
+
+#if SWISSTABLE_HAVE_SSE2 && defined(__GNUC__) && !defined(__clang__)
+// https://github.com/abseil/abseil-cpp/issues/209
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
+// _mm_cmpgt_epi8 is broken under GCC with -funsigned-char
+// Work around this by using the portable implementation of Group
+// when using -funsigned-char under GCC.
+using Group = std::conditional<std::is_signed<char>::value, GroupSse2Impl,
+                               GroupPortableImpl>::type;
+#elif SWISSTABLE_HAVE_SSE2
+using Group = GroupSse2Impl;
+#else
+using Group = GroupPortableImpl;
+#endif
 
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set;
-
 
 inline bool IsValidCapacity(size_t n) {
   return ((n + 1) & n) == 0 && n >= Group::kWidth - 1;

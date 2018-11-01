@@ -155,7 +155,12 @@
 // ABSL_ATTRIBUTE_WEAK
 //
 // Tags a function as weak for the purposes of compilation and linking.
-#if ABSL_HAVE_ATTRIBUTE(weak) || (defined(__GNUC__) && !defined(__clang__))
+// Weak attributes currently do not work properly in LLVM's Windows backend,
+// so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
+// for futher information.
+#if (ABSL_HAVE_ATTRIBUTE(weak) || \
+     (defined(__GNUC__) && !defined(__clang__))) && \
+    !(defined(__llvm__) && defined(_WIN32))
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))
 #define ABSL_HAVE_ATTRIBUTE_WEAK 1
@@ -296,13 +301,13 @@
 
 // ABSL_HAVE_ATTRIBUTE_SECTION
 //
-// Indicates whether labeled sections are supported. Labeled sections are not
-// supported on Darwin/iOS.
+// Indicates whether labeled sections are supported. Weak symbol support is
+// a prerequisite. Labeled sections are not supported on Darwin/iOS.
 #ifdef ABSL_HAVE_ATTRIBUTE_SECTION
 #error ABSL_HAVE_ATTRIBUTE_SECTION cannot be directly set
 #elif (ABSL_HAVE_ATTRIBUTE(section) ||                \
        (defined(__GNUC__) && !defined(__clang__))) && \
-    !defined(__APPLE__)
+    !defined(__APPLE__) && ABSL_HAVE_ATTRIBUTE_WEAK
 #define ABSL_HAVE_ATTRIBUTE_SECTION 1
 
 // ABSL_ATTRIBUTE_SECTION
