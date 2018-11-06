@@ -187,7 +187,6 @@ cc_library(
     deps = [
         ":base",
         ":config",
-        ":core_headers",
     ],
 )
 
@@ -236,7 +235,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
-        "//absl/types:optional",
+        "//absl/utility",
         "@com_google_googletest//:gtest",
     ],
 )

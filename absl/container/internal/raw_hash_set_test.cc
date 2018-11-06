@@ -1785,35 +1785,51 @@ TEST(Table, IterationOrderChangesForSmallTables) {
 // Fill the table to 3 different load factors (min, median, max) and evaluate
 // the percentage of perfect hits using the debug API.
 template <class Table, class AddFn>
-std::vector<double> CollectPerfectRatios(Table t, AddFn add) {
-  using Key = typename Table::key_type;
+std::vector<double> CollectPerfectRatios(Table, AddFn add) {
+  std::vector<double> results(3);
 
-  // First, fill enough to have a good distribution.
-  constexpr size_t kMinSize = 10000;
-  std::vector<Key> keys;
-  while (t.size() < kMinSize) keys.push_back(add(t));
-  // Then, insert until we reach min load factor.
-  double lf = t.load_factor();
-  while (lf <= t.load_factor()) keys.push_back(add(t));
+  constexpr size_t kNumTrials = 10;
+  std::vector<Table> tables(kNumTrials);
 
-  // We are now at min load factor. Take a snapshot.
-  size_t perfect = 0;
-  auto update_perfect = [&](Key k) {
-    perfect += GetHashtableDebugNumProbes(t, k) == 0;
-  };
-  for (const auto& k : keys) update_perfect(k);
+  for (Table& t : tables) {
+    using Key = typename Table::key_type;
 
-  std::vector<double> perfect_ratios;
-  // Keep going until we hit max load factor.
-  while (t.load_factor() < .6) {
-    perfect_ratios.push_back(1.0 * perfect / t.size());
-    update_perfect(add(t));
+    // First, fill enough to have a good distribution.
+    constexpr size_t kMinSize = 10000;
+    std::vector<Key> keys;
+    while (t.size() < kMinSize) keys.push_back(add(t));
+    // Then, insert until we reach min load factor.
+    double lf = t.load_factor();
+    while (lf <= t.load_factor()) keys.push_back(add(t));
+
+    // We are now at min load factor. Take a snapshot.
+    size_t perfect = 0;
+    auto update_perfect = [&](Key k) {
+      perfect += GetHashtableDebugNumProbes(t, k) == 0;
+    };
+    for (const auto& k : keys) update_perfect(k);
+
+    std::vector<double> perfect_ratios;
+    // Keep going until we hit max load factor.
+    while (t.load_factor() < .6) {
+      perfect_ratios.push_back(1.0 * perfect / t.size());
+      update_perfect(add(t));
+    }
+    while (t.load_factor() > .5) {
+      perfect_ratios.push_back(1.0 * perfect / t.size());
+      update_perfect(add(t));
+    }
+
+    results[0] += perfect_ratios.front();
+    results[1] += perfect_ratios[perfect_ratios.size() / 2];
+    results[2] += perfect_ratios.back();
   }
-  while (t.load_factor() > .5) {
-    perfect_ratios.push_back(1.0 * perfect / t.size());
-    update_perfect(add(t));
-  }
-  return perfect_ratios;
+
+  results[0] /= kNumTrials;
+  results[1] /= kNumTrials;
+  results[2] /= kNumTrials;
+
+  return results;
 }
 
 std::vector<std::pair<double, double>> StringTablePefectRatios() {
@@ -1854,13 +1870,10 @@ TEST(Table, EffectiveLoadFactorStrings) {
 
   auto ratios = StringTablePefectRatios();
   if (ratios.empty()) return;
-
-  EXPECT_THAT(perfect_ratios.front(),
-              DoubleNear(ratios[0].first, ratios[0].second));
-  EXPECT_THAT(perfect_ratios[perfect_ratios.size() / 2],
-              DoubleNear(ratios[1].first, ratios[1].second));
-  EXPECT_THAT(perfect_ratios.back(),
-              DoubleNear(ratios[2].first, ratios[2].second));
+  EXPECT_THAT(perfect_ratios,
+              ElementsAre(DoubleNear(ratios[0].first, ratios[0].second),
+                          DoubleNear(ratios[1].first, ratios[1].second),
+                          DoubleNear(ratios[2].first, ratios[2].second)));
 }
 
 std::vector<std::pair<double, double>> IntTablePefectRatios() {
@@ -1900,12 +1913,10 @@ TEST(Table, EffectiveLoadFactorInts) {
   auto ratios = IntTablePefectRatios();
   if (ratios.empty()) return;
 
-  EXPECT_THAT(perfect_ratios.front(),
-              DoubleNear(ratios[0].first, ratios[0].second));
-  EXPECT_THAT(perfect_ratios[perfect_ratios.size() / 2],
-              DoubleNear(ratios[1].first, ratios[1].second));
-  EXPECT_THAT(perfect_ratios.back(),
-              DoubleNear(ratios[2].first, ratios[2].second));
+  EXPECT_THAT(perfect_ratios,
+              ElementsAre(DoubleNear(ratios[0].first, ratios[0].second),
+                          DoubleNear(ratios[1].first, ratios[1].second),
+                          DoubleNear(ratios[2].first, ratios[2].second)));
 }
 
 // Confirm that we assert if we try to erase() end().

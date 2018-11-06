@@ -109,6 +109,46 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   using Base = typename flat_hash_map::raw_hash_map;
 
  public:
+  // Constructors and Assignment Operators
+  //
+  // A flat_hash_map supports the same overload set as `std::unordered_map`
+  // for construction and assignment:
+  //
+  // *  Default constructor
+  //
+  //    // No allocation for the table's elements is made.
+  //    absl::flat_hash_map<int, std::string> map1;
+  //
+  // * Initializer List constructor
+  //
+  //   absl::flat_hash_map<int, std::string> map2 =
+  //       {{1, "huey"}, {2, "dewey"}, {3, "louie"},};
+  //
+  // * Copy constructor
+  //
+  //   absl::flat_hash_map<int, std::string> map3(map2);
+  //
+  // * Copy assignment operator
+  //
+  //  // Hash functor and Comparator are copied as well
+  //  absl::flat_hash_map<int, std::string> map4;
+  //  map4 = map3;
+  //
+  // * Move constructor
+  //
+  //   // Move is guaranteed efficient
+  //   absl::flat_hash_map<int, std::string> map5(std::move(map4));
+  //
+  // * Move assignment operator
+  //
+  //   // May be efficient if allocators are compatible
+  //   absl::flat_hash_map<int, std::string> map6;
+  //   map6 = std::move(map5);
+  //
+  // * Range constructor
+  //
+  //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
+  //   absl::flat_hash_map<int, std::string> map7(v.begin(), v.end());
   flat_hash_map() {}
   using Base::Base;
 

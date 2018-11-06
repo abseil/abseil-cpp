@@ -85,4 +85,5 @@ REGISTER_TYPED_TEST_CASE_P(LookupTest, Count, Find, EqualRange);
 
 }  // namespace container_internal
 }  // namespace absl
+
 #endif  // ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_

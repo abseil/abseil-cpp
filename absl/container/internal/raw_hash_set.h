@@ -92,7 +92,9 @@
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
 
 #ifndef SWISSTABLE_HAVE_SSE2
-#ifdef __SSE2__
+#if defined(__SSE2__) ||  \
+    (defined(_MSC_VER) && \
+     (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2)))
 #define SWISSTABLE_HAVE_SSE2 1
 #else
 #define SWISSTABLE_HAVE_SSE2 0
@@ -112,7 +114,11 @@
 #endif
 
 #if SWISSTABLE_HAVE_SSE2
-#include <x86intrin.h>
+#include <emmintrin.h>
+#endif
+
+#if SWISSTABLE_HAVE_SSSE3
+#include <tmmintrin.h>
 #endif
 
 #include <algorithm>
@@ -337,6 +343,23 @@ inline bool IsDeleted(ctrl_t c) { return c == kDeleted; }
 inline bool IsEmptyOrDeleted(ctrl_t c) { return c < kSentinel; }
 
 #if SWISSTABLE_HAVE_SSE2
+
+// https://github.com/abseil/abseil-cpp/issues/209
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
+// _mm_cmpgt_epi8 is broken under GCC with -funsigned-char
+// Work around this by using the portable implementation of Group
+// when using -funsigned-char under GCC.
+inline __m128i _mm_cmpgt_epi8_fixed(__m128i a, __m128i b) {
+#if defined(__GNUC__) && !defined(__clang__)
+  if (std::is_unsigned<char>::value) {
+    const __m128i mask = _mm_set1_epi8(0x80);
+    const __m128i diff = _mm_subs_epi8(b, a);
+    return _mm_cmpeq_epi8(_mm_and_si128(diff, mask), mask);
+  }
+#endif
+  return _mm_cmpgt_epi8(a, b);
+}
+
 struct GroupSse2Impl {
   static constexpr size_t kWidth = 16;  // the number of slots per group
 
@@ -366,13 +389,14 @@ struct GroupSse2Impl {
   BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(kSentinel);
     return BitMask<uint32_t, kWidth>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8(special, ctrl)));
+        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)));
   }
 
   // Returns the number of trailing empty or deleted elements in the group.
   uint32_t CountLeadingEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(kSentinel);
-    return TrailingZeros(_mm_movemask_epi8(_mm_cmpgt_epi8(special, ctrl)) + 1);
+    return TrailingZeros(
+        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1);
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -382,7 +406,7 @@ struct GroupSse2Impl {
     auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
 #else
     auto zero = _mm_setzero_si128();
-    auto special_mask = _mm_cmpgt_epi8(zero, ctrl);
+    auto special_mask = _mm_cmpgt_epi8_fixed(zero, ctrl);
     auto res = _mm_or_si128(msbs, _mm_andnot_si128(special_mask, x126));
 #endif
     _mm_storeu_si128(reinterpret_cast<__m128i*>(dst), res);
@@ -444,15 +468,7 @@ struct GroupPortableImpl {
   uint64_t ctrl;
 };
 
-#if SWISSTABLE_HAVE_SSE2 && defined(__GNUC__) && !defined(__clang__)
-// https://github.com/abseil/abseil-cpp/issues/209
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
-// _mm_cmpgt_epi8 is broken under GCC with -funsigned-char
-// Work around this by using the portable implementation of Group
-// when using -funsigned-char under GCC.
-using Group = std::conditional<std::is_signed<char>::value, GroupSse2Impl,
-                               GroupPortableImpl>::type;
-#elif SWISSTABLE_HAVE_SSE2
+#if SWISSTABLE_HAVE_SSE2
 using Group = GroupSse2Impl;
 #else
 using Group = GroupPortableImpl;

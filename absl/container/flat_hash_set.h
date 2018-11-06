@@ -102,6 +102,46 @@ class flat_hash_set
   using Base = typename flat_hash_set::raw_hash_set;
 
  public:
+  // Constructors and Assignment Operators
+  //
+  // A flat_hash_set supports the same overload set as `std::unordered_map`
+  // for construction and assignment:
+  //
+  // *  Default constructor
+  //
+  //    // No allocation for the table's elements is made.
+  //    absl::flat_hash_set<std::string> set1;
+  //
+  // * Initializer List constructor
+  //
+  //   absl::flat_hash_set<std::string> set2 =
+  //       {{"huey"}, {"dewey"}, {"louie"},};
+  //
+  // * Copy constructor
+  //
+  //   absl::flat_hash_set<std::string> set3(set2);
+  //
+  // * Copy assignment operator
+  //
+  //  // Hash functor and Comparator are copied as well
+  //  absl::flat_hash_set<std::string> set4;
+  //  set4 = set3;
+  //
+  // * Move constructor
+  //
+  //   // Move is guaranteed efficient
+  //   absl::flat_hash_set<std::string> set5(std::move(set4));
+  //
+  // * Move assignment operator
+  //
+  //   // May be efficient if allocators are compatible
+  //   absl::flat_hash_set<std::string> set6;
+  //   set6 = std::move(set5);
+  //
+  // * Range constructor
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::flat_hash_set<std::string> set7(v.begin(), v.end());
   flat_hash_set() {}
   using Base::Base;
 

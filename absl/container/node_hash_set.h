@@ -96,6 +96,46 @@ class node_hash_set
   using Base = typename node_hash_set::raw_hash_set;
 
  public:
+  // Constructors and Assignment Operators
+  //
+  // A node_hash_set supports the same overload set as `std::unordered_map`
+  // for construction and assignment:
+  //
+  // *  Default constructor
+  //
+  //    // No allocation for the table's elements is made.
+  //    absl::node_hash_set<std::string> set1;
+  //
+  // * Initializer List constructor
+  //
+  //   absl::node_hash_set<std::string> set2 =
+  //       {{"huey"}, {"dewey"}, {"louie"},};
+  //
+  // * Copy constructor
+  //
+  //   absl::node_hash_set<std::string> set3(set2);
+  //
+  // * Copy assignment operator
+  //
+  //  // Hash functor and Comparator are copied as well
+  //  absl::node_hash_set<std::string> set4;
+  //  set4 = set3;
+  //
+  // * Move constructor
+  //
+  //   // Move is guaranteed efficient
+  //   absl::node_hash_set<std::string> set5(std::move(set4));
+  //
+  // * Move assignment operator
+  //
+  //   // May be efficient if allocators are compatible
+  //   absl::node_hash_set<std::string> set6;
+  //   set6 = std::move(set5);
+  //
+  // * Range constructor
+  //
+  //   std::vector<std::string> v = {"a", "b"};
+  //   absl::node_hash_set<std::string> set7(v.begin(), v.end());
   node_hash_set() {}
   using Base::Base;
 

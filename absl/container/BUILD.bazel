@@ -296,7 +296,6 @@ cc_library(
     hdrs = ["node_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
-        ":container_memory",
         ":hash_function_defaults",
         ":node_hash_policy",
         ":raw_hash_set",

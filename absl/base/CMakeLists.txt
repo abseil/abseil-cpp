@@ -381,7 +381,7 @@ set(EXCEPTION_SAFETY_TESTING_TEST_PUBLIC_LIBRARIES
   absl::memory
   absl::meta
   absl::strings
-  absl::optional
+  absl::utility
 )
 
 absl_test(

@@ -141,7 +141,7 @@ void SpinLock::SlowLock() {
       // owner to think it experienced contention.
       if (lockword_.compare_exchange_strong(
               lock_value, lock_value | kSpinLockSleeper,
-              std::memory_order_acquire, std::memory_order_relaxed)) {
+              std::memory_order_relaxed, std::memory_order_relaxed)) {
         // Successfully transitioned to kSpinLockSleeper.  Pass
         // kSpinLockSleeper to the SpinLockWait routine to properly indicate
         // the last lock_value observed.

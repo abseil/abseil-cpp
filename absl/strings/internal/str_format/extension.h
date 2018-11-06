@@ -409,4 +409,4 @@ inline size_t Excess(size_t used, size_t capacity) {
 
 }  // namespace absl
 
-#endif  // ABSL_STRINGS_STR_FORMAT_EXTENSION_H_
+#endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_

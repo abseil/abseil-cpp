@@ -33,7 +33,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
-#include "absl/types/optional.h"
+#include "absl/utility/utility.h"
 
 namespace testing {
 
