@@ -161,7 +161,7 @@ class LOCKABLE SpinLock {
   void InitLinkerInitializedAndCooperative();
   void SlowLock() ABSL_ATTRIBUTE_COLD;
   void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
-  uint32_t SpinLoop(int64_t initial_wait_timestamp, uint32_t* wait_cycles);
+  uint32_t SpinLoop();
 
   inline bool TryLockImpl() {
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);

@@ -155,7 +155,8 @@ TEST(SpinLock, WaitCyclesEncoding) {
 
   // Test corner cases
   int64_t start_time = time_distribution(generator);
-  EXPECT_EQ(0, SpinLockTest::EncodeWaitCycles(start_time, start_time));
+  EXPECT_EQ(kSpinLockSleeper,
+            SpinLockTest::EncodeWaitCycles(start_time, start_time));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(0));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(kLockwordReservedMask));
   EXPECT_EQ(kMaxCycles & ~kProfileTimestampMask,

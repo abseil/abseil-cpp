@@ -1728,39 +1728,58 @@ TEST(AllocatorSupportTest, ScopedAllocatorWorks) {
       std::scoped_allocator_adaptor<CountingAllocator<StdVector>>;
   using AllocVec = absl::InlinedVector<StdVector, 4, MyAlloc>;
 
+  // MSVC 2017's std::vector allocates different amounts of memory in debug
+  // versus opt mode.
+  int64_t test_allocated = 0;
+  StdVector v(CountingAllocator<int>{&test_allocated});
+  // The amount of memory allocated by a default constructed vector<int>
+  auto default_std_vec_allocated = test_allocated;
+  v.push_back(1);
+  // The amound of memory allocated by a copy-constructed vector<int> with one
+  // element.
+  int64_t one_element_std_vec_copy_allocated = test_allocated;
+
   int64_t allocated = 0;
   AllocVec vec(MyAlloc{CountingAllocator<StdVector>{&allocated}});
   EXPECT_EQ(allocated, 0);
 
   // This default constructs a vector<int>, but the allocator should pass itself
-  // into the vector<int>.
+  // into the vector<int>, so check allocation compared to that.
   // The absl::InlinedVector does not allocate any memory.
-  // The vector<int> does not allocate any memory.
+  // The vector<int> may allocate any memory.
+  auto expected = default_std_vec_allocated;
   vec.resize(1);
-  EXPECT_EQ(allocated, 0);
+  EXPECT_EQ(allocated, expected);
 
   // We make vector<int> allocate memory.
   // It must go through the allocator even though we didn't construct the
-  // vector directly.
+  // vector directly.  This assumes that vec[0] doesn't need to grow its
+  // allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 1);
+  EXPECT_EQ(allocated, expected);
 
   // Another allocating vector.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 2);
+  EXPECT_EQ(allocated, expected);
 
   // Overflow the inlined memory.
   // The absl::InlinedVector will now allocate.
+  expected += sizeof(StdVector) * 8 + default_std_vec_allocated * 3;
   vec.resize(5);
-  EXPECT_EQ(allocated, sizeof(int) * 2 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   // Adding one more in external mode should also work.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 3 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
-  // And extending these should still work.
+  // And extending these should still work.  This assumes that vec[0] does not
+  // need to grow its allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 4 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   vec.clear();
   EXPECT_EQ(allocated, 0);

@@ -208,14 +208,17 @@ constexpr bool IsNoThrowSwappable() {
 
 template <typename T>
 int TrailingZeros(T x) {
-  return sizeof(T) == 8 ? base_internal::CountTrailingZerosNonZero64(x)
-                        : base_internal::CountTrailingZerosNonZero32(x);
+  return sizeof(T) == 8 ? base_internal::CountTrailingZerosNonZero64(
+                              static_cast<uint64_t>(x))
+                        : base_internal::CountTrailingZerosNonZero32(
+                              static_cast<uint32_t>(x));
 }
 
 template <typename T>
 int LeadingZeros(T x) {
-  return sizeof(T) == 8 ? base_internal::CountLeadingZeros64(x)
-                        : base_internal::CountLeadingZeros32(x);
+  return sizeof(T) == 8
+             ? base_internal::CountLeadingZeros64(static_cast<uint64_t>(x))
+             : base_internal::CountLeadingZeros32(static_cast<uint32_t>(x));
 }
 
 // An abstraction over a bitmask. It provides an easy way to iterate through the
