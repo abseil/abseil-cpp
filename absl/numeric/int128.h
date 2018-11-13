@@ -37,6 +37,11 @@
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 
+#if defined(_MSC_VER) && defined(_WIN64)
+#include <intrin.h>
+#pragma intrinsic(_umul128)
+#endif  // defined(_MSC_VER) && defined(_WIN64)
+
 namespace absl {
 
 
@@ -661,6 +666,12 @@ inline uint128 operator*(uint128 lhs, uint128 rhs) {
   // can be used for uint128 storage.
   return static_cast<unsigned __int128>(lhs) *
          static_cast<unsigned __int128>(rhs);
+#elif defined(_MSC_VER) && defined(_WIN64)
+  uint64_t carry;
+  uint64_t low = _umul128(Uint128Low64(lhs), Uint128Low64(rhs), &carry);
+  return MakeUint128(Uint128Low64(lhs) * Uint128High64(rhs) +
+                         Uint128High64(lhs) * Uint128Low64(rhs) + carry,
+                     low);
 #else   // ABSL_HAVE_INTRINSIC128
   uint64_t a32 = Uint128Low64(lhs) >> 32;
   uint64_t a00 = Uint128Low64(lhs) & 0xffffffff;

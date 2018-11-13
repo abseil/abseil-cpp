@@ -212,6 +212,7 @@ cc_library(
         ":container_memory",
         ":hash_function_defaults",
         ":raw_hash_map",
+        "//absl/algorithm:container",
         "//absl/memory",
     ],
 )
@@ -240,6 +241,7 @@ cc_library(
         ":container_memory",
         ":hash_function_defaults",
         ":raw_hash_set",
+        "//absl/algorithm:container",
         "//absl/base:core_headers",
         "//absl/memory",
     ],
@@ -271,6 +273,7 @@ cc_library(
         ":hash_function_defaults",
         ":node_hash_policy",
         ":raw_hash_map",
+        "//absl/algorithm:container",
         "//absl/memory",
     ],
 )
@@ -299,6 +302,7 @@ cc_library(
         ":hash_function_defaults",
         ":node_hash_policy",
         ":raw_hash_set",
+        "//absl/algorithm:container",
         "//absl/memory",
     ],
 )

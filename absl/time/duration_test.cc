@@ -56,6 +56,17 @@ MATCHER_P(TimevalMatcher, tv, "") {
   return false;
 }
 
+TEST(Duration, ConstExpr) {
+  constexpr absl::Duration d0 = absl::ZeroDuration();
+  static_assert(d0 == absl::ZeroDuration(), "ZeroDuration()");
+  constexpr absl::Duration d1 = absl::Seconds(1);
+  static_assert(d1 == absl::Seconds(1), "Seconds(1)");
+  static_assert(d1 != absl::ZeroDuration(), "Seconds(1)");
+  constexpr absl::Duration d2 = absl::InfiniteDuration();
+  static_assert(d2 == absl::InfiniteDuration(), "InfiniteDuration()");
+  static_assert(d2 != absl::ZeroDuration(), "InfiniteDuration()");
+}
+
 TEST(Duration, ValueSemantics) {
   // If this compiles, the test passes.
   constexpr absl::Duration a;      // Default construction

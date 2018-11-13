@@ -20,17 +20,17 @@
 // vector" which behaves in an equivalent fashion to a `std::vector`, except
 // that storage for small sequences of the vector are provided inline without
 // requiring any heap allocation.
-
-// An `absl::InlinedVector<T,N>` specifies the size N at which to inline as one
-// of its template parameters. Vectors of length <= N are provided inline.
-// Typically N is very small (e.g., 4) so that sequences that are expected to be
-// short do not require allocations.
-
-// An `absl::InlinedVector` does not usually require a specific allocator; if
+//
+// An `absl::InlinedVector<T, N>` specifies the default capacity `N` as one of
+// its template parameters. Instances where `size() <= N` hold contained
+// elements in inline space. Typically `N` is very small so that sequences that
+// are expected to be short do not require allocations.
+//
+// An `absl::InlinedVector` does not usually require a specific allocator. If
 // the inlined vector grows beyond its initial constraints, it will need to
-// allocate (as any normal `std::vector` would) and it will generally use the
-// default allocator in that case; optionally, a custom allocator may be
-// specified using an `absl::InlinedVector<T,N,A>` construction.
+// allocate (as any normal `std::vector` would). This is usually performed with
+// the default allocator (defined as `std::allocator<T>`). Optionally, a custom
+// allocator type may be specified as `A` in `absl::InlinedVector<T, N, A>`.
 
 #ifndef ABSL_CONTAINER_INLINED_VECTOR_H_
 #define ABSL_CONTAINER_INLINED_VECTOR_H_
@@ -61,8 +61,8 @@ namespace absl {
 // An `absl::InlinedVector` is designed to be a drop-in replacement for
 // `std::vector` for use cases where the vector's size is sufficiently small
 // that it can be inlined. If the inlined vector does grow beyond its estimated
-// size, it will trigger an initial allocation on the heap, and will behave as a
-// `std:vector`. The API of the `absl::InlinedVector` within this file is
+// capacity, it will trigger an initial allocation on the heap, and will behave
+// as a `std:vector`. The API of the `absl::InlinedVector` within this file is
 // designed to cover the same API footprint as covered by `std::vector`.
 template <typename T, size_t N, typename A = std::allocator<T>>
 class InlinedVector {
@@ -101,7 +101,6 @@ class InlinedVector {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-
   // ---------------------------------------------------------------------------
   // InlinedVector Constructors and Destructor
   // ---------------------------------------------------------------------------
@@ -135,11 +134,12 @@ class InlinedVector {
     AppendRange(init_list.begin(), init_list.end());
   }
 
-  // Creates and initialize with the elements [`first`, `last`).
+  // Creates an inlined vector with elements constructed from the provided
+  // Iterator range [`first`, `last`).
   //
   // NOTE: The `enable_if` prevents ambiguous interpretation between a call to
-  // this constructor with two integral arguments and a call to the preceding
-  // `InlinedVector(n, v)` constructor.
+  // this constructor with two integral arguments and a call to the above
+  // `InlinedVector(size_type, const_reference)` constructor.
   template <typename InputIterator, DisableIfIntegral<InputIterator>* = nullptr>
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
@@ -153,11 +153,11 @@ class InlinedVector {
   // Creates a copy of `other` but with a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc);
 
-  // Creates an inlined vector with the contents of `other`.
+  // Creates an inlined vector by moving in the contents of `other`.
   //
   // NOTE: This move constructor does not allocate and only moves the underlying
   // objects, so its `noexcept` specification depends on whether moving the
-  // underlying objects can throw or not. We assume
+  // underlying objects can throw or not. We assume:
   //  a) move constructors should only throw due to allocation failure and
   //  b) if `value_type`'s move constructor allocates, it uses the same
   //     allocation function as the `InlinedVector`'s allocator, so the move
@@ -167,9 +167,9 @@ class InlinedVector {
       absl::allocator_is_nothrow<allocator_type>::value ||
       std::is_nothrow_move_constructible<value_type>::value);
 
-  // Creates an inlined vector with the contents of `other`.
+  // Creates an inlined vector by moving in the contents of `other`.
   //
-  // NOTE: This move constructor allocates and also moves the underlying
+  // NOTE: This move constructor allocates and subsequently moves the underlying
   // objects, so its `noexcept` specification depends on whether the allocation
   // can throw and whether moving the underlying objects can throw. Based on the
   // same assumptions as above, the `noexcept` specification is dominated by
@@ -179,7 +179,6 @@ class InlinedVector {
       absl::allocator_is_nothrow<allocator_type>::value);
 
   ~InlinedVector() { clear(); }
-
 
   // ---------------------------------------------------------------------------
   // InlinedVector Member Accessors

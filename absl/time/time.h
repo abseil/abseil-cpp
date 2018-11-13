@@ -153,6 +153,16 @@ class Duration {
   // Value semantics.
   constexpr Duration() : rep_hi_(0), rep_lo_(0) {}  // zero-length duration
 
+  // Copyable.
+#if !defined(__clang__) && defined(_MSC_VER) && _MSC_VER < 1910
+  // Explicitly defining the constexpr copy constructor avoids an MSVC bug.
+  constexpr Duration(const Duration& d)
+      : rep_hi_(d.rep_hi_), rep_lo_(d.rep_lo_) {}
+#else
+  constexpr Duration(const Duration& d) = default;
+#endif
+  Duration& operator=(const Duration& d) = default;
+
   // Compound assignment operators.
   Duration& operator+=(Duration d);
   Duration& operator-=(Duration d);
@@ -584,7 +594,11 @@ class Time {
   //   absl::Time t = absl::Now();
   //   absl::Time t = absl::TimeFromTimeval(tv);
   //   absl::Time t = absl::InfinitePast();
-  constexpr Time() {}
+  constexpr Time() = default;
+
+  // Copyable.
+  constexpr Time(const Time& t) = default;
+  Time& operator=(const Time& t) = default;
 
   // Assignment operators.
   Time& operator+=(Duration d) {
@@ -826,6 +840,8 @@ class TimeZone {
  public:
   explicit TimeZone(time_internal::cctz::time_zone tz) : cz_(tz) {}
   TimeZone() = default;  // UTC, but prefer UTCTimeZone() to be explicit.
+
+  // Copyable.
   TimeZone(const TimeZone&) = default;
   TimeZone& operator=(const TimeZone&) = default;
 

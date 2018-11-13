@@ -139,12 +139,18 @@
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
 #elif defined(__APPLE__)
-// Notes: Xcode's clang did not support `thread_local` until version
-// 8, and even then not for all iOS < 9.0. Also, Xcode 9.3 started disallowing
-// `thread_local` for 32-bit iOS simulator targeting iOS 9.x.
-// `__has_feature` is only supported by Clang so it has be inside
+// Notes:
+// * Xcode's clang did not support `thread_local` until version 8, and
+//   even then not for all iOS < 9.0.
+// * Xcode 9.3 started disallowing `thread_local` for 32-bit iOS simulator
+//   targeting iOS 9.x.
+// * Xcode 10 moves the deployment target check for iOS < 9.0 to link time
+//   making __has_feature unreliable there.
+//
+// Otherwise, `__has_feature` is only supported by Clang so it has be inside
 // `defined(__APPLE__)` check.
-#if __has_feature(cxx_thread_local)
+#if __has_feature(cxx_thread_local) && \
+    !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 #else  // !defined(__APPLE__)
@@ -421,6 +427,14 @@
 #define ABSL_HAVE_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
 #define ABSL_HAVE_STD_STRING_VIEW 1
+#endif
+
+// In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION
+// SEH exception from emplace for variant<SomeStruct> when constructing the
+// struct can throw. This defeats some of variant_test and
+// variant_exception_safety_test.
+#if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
+#define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
 
 #endif  // ABSL_BASE_CONFIG_H_

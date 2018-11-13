@@ -62,7 +62,6 @@ function(absl_library)
   endif()
 endfunction()
 
-#
 # CMake function to imitate Bazel's cc_library rule.
 #
 # Parameters:
@@ -77,14 +76,13 @@ endfunction()
 # TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
-#
 # By default, absl_cc_library will always create a library named absl_internal_${NAME},
 # which means other targets can only depend this library as absl_internal_${NAME}, not ${NAME}.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
 #   NAME
-#     awesome_lib
+#     awesome
 #   HDRS
 #     "a.h"
 #   SRCS
@@ -96,7 +94,7 @@ endfunction()
 #   SRCS
 #     "b.cc"
 #   DEPS
-#     absl_internal_awesome_lib # not "awesome_lib"!
+#     absl_internal_awesome # not "awesome"!
 # )
 #
 # If PUBLIC is set, absl_cc_library will instead create a target named
@@ -112,7 +110,6 @@ endfunction()
 # User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
-
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
@@ -153,7 +150,8 @@ function(absl_cc_library)
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
-      target_include_directories(${_NAME} INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+      target_include_directories(${_NAME}
+        INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
       target_link_libraries(${_NAME}
         INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
       )
@@ -164,6 +162,78 @@ function(absl_cc_library)
       add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
     endif()
   endif()
+endfunction()
+
+# absl_cc_test()
+#
+# CMake function to imitate Bazel's cc_test rule.
+#
+# Parameters:
+# NAME: name of target (see Usage below)
+# SRCS: List of source files for the binary
+# DEPS: List of other libraries to be linked in to the binary targets
+# COPTS: List of private compile options
+# DEFINES: List of public defines
+# LINKOPTS: List of link options
+#
+# Note:
+# By default, absl_cc_test will always create a binary named absl_${NAME}.
+# This will also add it to ctest list as absl_${NAME}.
+#
+# Usage:
+# absl_cc_library(
+#   NAME
+#     awesome
+#   HDRS
+#     "a.h"
+#   SRCS
+#     "a.cc"
+#   PUBLIC
+# )
+#
+# absl_cc_test(
+#   NAME
+#     awesome_test
+#   SRCS
+#     "awesome_test.cc"
+#   DEPS
+#     absl::awesome
+#     gmock
+#     gtest_main
+# )
+function(absl_cc_test)
+  if(NOT ABSL_RUN_TESTS)
+    return()
+  endif()
+
+  cmake_parse_arguments(ABSL_CC_TEST
+    ""
+    "NAME"
+    "SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
+    ${ARGN}
+  )
+
+  set(_NAME "absl_${ABSL_CC_TEST_NAME}")
+  add_executable(${_NAME} "")
+  target_sources(${_NAME} PRIVATE ${ABSL_CC_TEST_SRCS})
+  target_include_directories(${_NAME}
+    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
+    PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
+  )
+  target_compile_definitions(${_NAME}
+    PUBLIC ${ABSL_CC_TEST_DEFINES}
+  )
+  target_compile_options(${_NAME}
+    PRIVATE ${ABSL_CC_TEST_COPTS}
+  )
+  target_link_libraries(${_NAME}
+    PUBLIC ${ABSL_CC_TEST_DEPS}
+    PRIVATE ${ABSL_CC_TEST_LINKOPTS}
+  )
+  # Add all Abseil targets to a a folder in the IDE for organization.
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+  add_test(NAME ${_NAME} COMMAND ${_NAME})
 endfunction()
 
 #
@@ -210,7 +280,6 @@ function(absl_header_library)
   endif()
 
 endfunction()
-
 
 #
 # create an abseil unit_test and add it to the executed test list

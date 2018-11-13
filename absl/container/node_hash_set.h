@@ -37,6 +37,7 @@
 
 #include <type_traits>
 
+#include "absl/algorithm/container.h"
 #include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
 #include "absl/container/internal/node_hash_policy.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
@@ -475,5 +476,15 @@ struct NodeHashSetPolicy
   static size_t element_space_used(const T*) { return sizeof(T); }
 };
 }  // namespace container_internal
+
+namespace container_algorithm_internal {
+
+// Specialization of trait in absl/algorithm/container.h
+template <class Key, class Hash, class KeyEqual, class Allocator>
+struct IsUnorderedContainer<absl::node_hash_set<Key, Hash, KeyEqual, Allocator>>
+    : std::true_type {};
+
+}  // namespace container_algorithm_internal
 }  // namespace absl
+
 #endif  // ABSL_CONTAINER_NODE_HASH_SET_H_

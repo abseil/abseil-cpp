@@ -72,23 +72,19 @@ void ThreadTwo(absl::Mutex* mutex, absl::CondVar* condvar,
 // Launch thread 1 and thread 2, and block on their completion.
 // If any of 'mutex', 'condvar', or 'notification' is nullptr, use a locally
 // constructed instance instead.
-void RunTests(absl::Mutex* mutex, absl::CondVar* condvar,
-              absl::Notification* notification) {
+void RunTests(absl::Mutex* mutex, absl::CondVar* condvar) {
   absl::Mutex default_mutex;
   absl::CondVar default_condvar;
-  absl::Notification default_notification;
+  absl::Notification notification;
   if (!mutex) {
     mutex = &default_mutex;
   }
   if (!condvar) {
     condvar = &default_condvar;
   }
-  if (!notification) {
-    notification = &default_notification;
-  }
   bool state = false;
-  std::thread thread_one(ThreadOne, mutex, condvar, notification, &state);
-  std::thread thread_two(ThreadTwo, mutex, condvar, notification, &state);
+  std::thread thread_one(ThreadOne, mutex, condvar, &notification, &state);
+  std::thread thread_two(ThreadTwo, mutex, condvar, &notification, &state);
   thread_one.join();
   thread_two.join();
 }
@@ -96,8 +92,7 @@ void RunTests(absl::Mutex* mutex, absl::CondVar* condvar,
 void TestLocals() {
   absl::Mutex mutex;
   absl::CondVar condvar;
-  absl::Notification notification;
-  RunTests(&mutex, &condvar, &notification);
+  RunTests(&mutex, &condvar);
 }
 
 // Global variables during start and termination
