@@ -303,13 +303,13 @@ H hash_tuple(H hash_state, const Tuple& t, absl::index_sequence<Is...>) {
 
 // AbslHashValue for hashing tuples
 template <typename H, typename... Ts>
-#if _MSC_VER
+#if defined(_MSC_VER)
 // This SFINAE gets MSVC confused under some conditions. Let's just disable it
 // for now.
 H
-#else
+#else  // _MSC_VER
 typename std::enable_if<absl::conjunction<is_hashable<Ts>...>::value, H>::type
-#endif
+#endif  // _MSC_VER
 AbslHashValue(H hash_state, const std::tuple<Ts...>& t) {
   return hash_internal::hash_tuple(std::move(hash_state), t,
                                    absl::make_index_sequence<sizeof...(Ts)>());
@@ -545,7 +545,7 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
 // In MSVC we can't probe std::hash or stdext::hash because it triggers a
 // static_assert instead of failing substitution.
 #if defined(_MSC_VER)
-#undef ABSL_HASH_INTERNAL_CAN_POISON_
+#define ABSL_HASH_INTERNAL_CAN_POISON_ 0
 #else   // _MSC_VER
 #define ABSL_HASH_INTERNAL_CAN_POISON_ 1
 #endif  // _MSC_VER
@@ -553,6 +553,8 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
 #if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE) && \
     ABSL_HASH_INTERNAL_CAN_POISON_
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 1
+#else
+#define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 0
 #endif
 
 enum class InvokeHashTag {

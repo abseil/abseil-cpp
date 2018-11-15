@@ -274,7 +274,8 @@
 #error ABSL_HAVE_MMAP cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||   \
     defined(__ros__) || defined(__native_client__) || defined(__asmjs__) || \
-    defined(__wasm__) || defined(__Fuchsia__) || defined(__sun)
+    defined(__wasm__) || defined(__Fuchsia__) || defined(__sun) || \
+    defined(__ASYLO__)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -328,6 +329,8 @@
 #define ABSL_HAVE_ALARM 1
 #elif defined(_MSC_VER)
 // feature tests for Microsoft's library
+#elif defined(__EMSCRIPTEN__)
+// emscripten doesn't support signals
 #elif defined(__native_client__)
 #else
 // other standard libraries

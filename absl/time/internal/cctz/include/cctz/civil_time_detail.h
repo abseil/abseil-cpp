@@ -506,9 +506,11 @@ enum class weekday {
 };
 
 CONSTEXPR_F weekday get_weekday(const civil_day& cd) noexcept {
-  CONSTEXPR_D weekday k_weekday_by_sun_off[7] = {
-      weekday::sunday,     weekday::monday,    weekday::tuesday,
-      weekday::wednesday,  weekday::thursday,  weekday::friday,
+  CONSTEXPR_D weekday k_weekday_by_mon_off[13] = {
+      weekday::monday,    weekday::tuesday,  weekday::wednesday,
+      weekday::thursday,  weekday::friday,   weekday::saturday,
+      weekday::sunday,    weekday::monday,   weekday::tuesday,
+      weekday::wednesday, weekday::thursday, weekday::friday,
       weekday::saturday,
   };
   CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
@@ -517,7 +519,7 @@ CONSTEXPR_F weekday get_weekday(const civil_day& cd) noexcept {
   year_t wd = 2400 + (cd.year() % 400) - (cd.month() < 3);
   wd += wd / 4 - wd / 100 + wd / 400;
   wd += k_weekday_offsets[cd.month()] + cd.day();
-  return k_weekday_by_sun_off[(wd % 7 + 7) % 7];
+  return k_weekday_by_mon_off[wd % 7 + 6];
 }
 
 ////////////////////////////////////////////////////////////////////////

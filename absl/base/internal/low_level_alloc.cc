@@ -208,7 +208,7 @@ struct LowLevelAlloc::Arena {
   int32_t allocation_count GUARDED_BY(mu);
   // flags passed to NewArena
   const uint32_t flags;
-  // Result of getpagesize()
+  // Result of sysconf(_SC_PAGESIZE)
   const size_t pagesize;
   // Lowest power of two >= max(16, sizeof(AllocList))
   const size_t roundup;
@@ -325,7 +325,7 @@ size_t GetPageSize() {
   GetSystemInfo(&system_info);
   return std::max(system_info.dwPageSize, system_info.dwAllocationGranularity);
 #else
-  return getpagesize();
+  return sysconf(_SC_PAGESIZE);
 #endif
 }
 

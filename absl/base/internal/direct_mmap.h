@@ -75,7 +75,7 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
   // On these architectures, implement mmap with mmap2.
   static int pagesize = 0;
   if (pagesize == 0) {
-    pagesize = getpagesize();
+    pagesize = sysconf(_SC_PAGESIZE);
   }
   if (offset < 0 || offset % pagesize != 0) {
     errno = EINVAL;

@@ -333,7 +333,7 @@ static std::atomic<Symbolizer *> g_cached_symbolizer;
 }  // namespace
 
 static int SymbolizerSize() {
-  int pagesize = getpagesize();
+  int pagesize = sysconf(_SC_PAGESIZE);
   return ((sizeof(Symbolizer) - 1) / pagesize + 1) * pagesize;
 }
 
