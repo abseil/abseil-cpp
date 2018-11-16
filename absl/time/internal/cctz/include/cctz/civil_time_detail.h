@@ -326,6 +326,37 @@ CONSTEXPR_F fields align(year_tag, fields f) noexcept {
 
 ////////////////////////////////////////////////////////////////////////
 
+namespace impl {
+
+template <typename H>
+H AbslHashValueImpl(second_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh, f.mm, f.ss);
+}
+template <typename H>
+H AbslHashValueImpl(minute_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh, f.mm);
+}
+template <typename H>
+H AbslHashValueImpl(hour_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh);
+}
+template <typename H>
+H AbslHashValueImpl(day_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d);
+}
+template <typename H>
+H AbslHashValueImpl(month_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m);
+}
+template <typename H>
+H AbslHashValueImpl(year_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y);
+}
+
+}  // namespace impl
+
+////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 class civil_time {
  public:
@@ -418,8 +449,7 @@ class civil_time {
 
   template <typename H>
   friend H AbslHashValue(H h, civil_time a) {
-    return H::combine(std::move(h), a.f_.y, a.f_.m, a.f_.d,
-                                    a.f_.hh, a.f_.mm, a.f_.ss);
+    return impl::AbslHashValueImpl(T{}, std::move(h), a.f_);
   }
 
  private:

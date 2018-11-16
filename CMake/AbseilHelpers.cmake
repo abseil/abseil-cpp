@@ -73,11 +73,12 @@ endfunction()
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
 # PUBLIC: Add this so that this library will be exported under absl:: (see Note).
+# Also in IDE, target will appear in Abseil folder while non PUBLIC will be in Abseil/internal.
 # TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
 # By default, absl_cc_library will always create a library named absl_internal_${NAME},
-# which means other targets can only depend this library as absl_internal_${NAME}, not ${NAME}.
+# and alias target absl::${NAME}.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
@@ -98,7 +99,7 @@ endfunction()
 # )
 #
 # If PUBLIC is set, absl_cc_library will instead create a target named
-# absl_${NAME} and an alias absl::${NAME}.
+# absl_${NAME} and still an alias absl::${NAME}.
 #
 # absl_cc_library(
 #   NAME
@@ -146,7 +147,13 @@ function(absl_cc_library)
       target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
 
       # Add all Abseil targets to a a folder in the IDE for organization.
-      set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+      if(ABSL_CC_LIB_PUBLIC)
+        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+      elseif(ABSL_CC_LIB_TESTONLY)
+        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
+      else()
+        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/internal)
+      endif()
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
@@ -157,10 +164,7 @@ function(absl_cc_library)
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
-
-    if(ABSL_CC_LIB_PUBLIC)
-      add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
-    endif()
+    add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
   endif()
 endfunction()
 
@@ -231,7 +235,7 @@ function(absl_cc_test)
     PRIVATE ${ABSL_CC_TEST_LINKOPTS}
   )
   # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 
   add_test(NAME ${_NAME} COMMAND ${_NAME})
 endfunction()

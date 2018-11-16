@@ -365,6 +365,18 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
+// MacOS 10.13 doesn't let you use <any>, <optional>, or <variant> even though
+// the headers exist and are publicly noted to work.  See
+// https://github.com/abseil/abseil-cpp/issues/207 and
+// https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
+#if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
+    defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
+    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 101400
+#define ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES 1
+#else
+#define ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES 0
+#endif
+
 // ABSL_HAVE_STD_ANY
 //
 // Checks whether C++17 std::any is available by checking whether <any> exists.
@@ -373,7 +385,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<any>) && __cplusplus >= 201703L
+#if __has_include(<any>) && __cplusplus >= 201703L && \
+    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -386,7 +399,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<optional>) && __cplusplus >= 201703L
+#if __has_include(<optional>) && __cplusplus >= 201703L && \
+    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -399,7 +413,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<variant>) && __cplusplus >= 201703L
+#if __has_include(<variant>) && __cplusplus >= 201703L && \
+    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif
