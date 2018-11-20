@@ -10,3 +10,5 @@ build
 CMakeLists.txt.user
 # Ignore VS Code files
 .vscode/*
+# Ignore ctags files
+tags
