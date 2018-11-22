@@ -31,7 +31,7 @@ list(APPEND HASH_SRC
   ${HASH_INTERNAL_HEADERS}
 )
 
-set(HASH_PUBLIC_LIBRARIES absl::hash absl::container absl::strings absl::str_format absl::utility)
+set(HASH_PUBLIC_LIBRARIES absl::container absl::strings absl::str_format absl::utility)
 
 absl_library(
   TARGET

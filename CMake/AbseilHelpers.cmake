@@ -46,7 +46,24 @@ function(absl_library)
   set(_NAME ${ABSL_LIB_TARGET})
   string(TOUPPER ${_NAME} _UPPER_NAME)
 
-  add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
+  if(BUILD_SHARED_LIBS)
+    add_library(${_NAME} SHARED ${ABSL_LIB_SOURCES})
+    set_target_properties(${_NAME} PROPERTIES
+      SOVERSION ${absl_SOVERSION})
+    install(TARGETS ${_NAME} EXPORT ${_NAME}-targets
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    target_include_directories(${_NAME} INTERFACE
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
+  endif()
+
+  if(BUILD_STATIC_LIBS)
+    add_library(${_NAME}-static STATIC ${ABSL_LIB_SOURCES})
+    set_target_properties(${_NAME}-static PROPERTIES
+      OUTPUT_NAME ${_NAME})
+  endif()
 
   target_compile_options(${_NAME} PRIVATE ${ABSL_LIB_PRIVATE_COMPILE_FLAGS})
   target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})

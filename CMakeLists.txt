@@ -19,6 +19,11 @@
 cmake_minimum_required(VERSION 3.1)
 project(absl)
 
+set(absl_SOVERSION 0)
+
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_STATIC_LIBS "Build static libraries" ON)
+
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
 
 include(GNUInstallDirs)
