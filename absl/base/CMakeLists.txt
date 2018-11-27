@@ -36,6 +36,8 @@ absl_cc_library(
   HDRS
     "config.h"
     "policy_checks.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   PUBLIC
 )
 
@@ -46,6 +48,8 @@ absl_cc_library(
     "dynamic_annotations.h"
   SRCS
     "dynamic_annotations.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEFINES
     "__CLANG_SUPPORT_DYN_ANNOTATION__"
   PUBLIC
@@ -60,6 +64,8 @@ absl_cc_library(
     "optimization.h"
     "port.h"
     "thread_annotations.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
   PUBLIC
@@ -73,6 +79,8 @@ absl_cc_library(
     "internal/low_level_alloc.h"
   SRCS
     "internal/low_level_alloc.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
     absl::config
@@ -89,6 +97,8 @@ absl_cc_library(
     "internal/identity.h"
     "internal/inline_variable.h"
     "internal/invoke.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
 )
 
 absl_cc_library(
@@ -115,6 +125,8 @@ absl_cc_library(
     "internal/sysinfo.cc"
     "internal/thread_identity.cc"
     "internal/unscaledcycleclock.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base_internal
     absl::config
@@ -132,6 +144,7 @@ absl_cc_library(
   SRCS
     "internal/throw_delegate.cc"
   COPTS
+    ${ABSL_DEFAULT_COPTS}
     ${ABSL_EXCEPTIONS_FLAG}
   DEPS
     absl::base
@@ -142,6 +155,8 @@ absl_cc_library(
     exception_testing
   HDRS
     "internal/exception_testing.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
     gtest
@@ -153,6 +168,8 @@ absl_cc_library(
     pretty_function
   HDRS
     "internal/pretty_function.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
 )
 
 absl_cc_library(
@@ -163,6 +180,7 @@ absl_cc_library(
   SRCS
     "internal/exception_safety_testing.cc"
   COPTS
+    ${ABSL_DEFAULT_COPTS}
     ${ABSL_EXCEPTIONS_FLAG}
   DEPS
     absl::base
@@ -263,7 +281,7 @@ absl_cc_library(
     absl::spinlock_wait
     absl::synchronization
     gtest
-  PUBLIC
+  TESTONLY
 )
 
 # On bazel BUILD this target use "alwayslink = 1" which is not implemented here
@@ -286,6 +304,8 @@ absl_cc_library(
   HDRS
     "internal/endian.h"
     "internal/unaligned_access.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
     absl::core_headers
@@ -377,6 +397,8 @@ absl_cc_library(
     bits
   HDRS
     "internal/bits.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::core_headers
 )

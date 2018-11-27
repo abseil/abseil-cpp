@@ -15,6 +15,7 @@
 #
 
 include(CMakeParseArguments)
+include(AbseilConfigureCopts)
 
 # The IDE folder for Abseil that will be used if Abseil is included in a CMake
 # project that sets
@@ -48,7 +49,11 @@ function(absl_library)
 
   add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
 
-  target_compile_options(${_NAME} PRIVATE ${ABSL_LIB_PRIVATE_COMPILE_FLAGS})
+  target_compile_options(${_NAME}
+    PRIVATE
+      ${ABSL_LIB_PRIVATE_COMPILE_FLAGS}
+      ${ABSL_DEFAULT_COPTS}
+  )
   target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
   target_include_directories(${_NAME}
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
@@ -56,6 +61,9 @@ function(absl_library)
   )
   # Add all Abseil targets to a a folder in the IDE for organization.
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
   if(ABSL_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
@@ -154,6 +162,10 @@ function(absl_cc_library)
       else()
         set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/internal)
       endif()
+
+      # INTERFACE libraries can't have the CXX_STANDARD property set
+      set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+      set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
@@ -164,6 +176,7 @@ function(absl_cc_library)
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
+
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
   endif()
 endfunction()
@@ -237,6 +250,9 @@ function(absl_cc_test)
   # Add all Abseil targets to a a folder in the IDE for organization.
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
   add_test(NAME ${_NAME} COMMAND ${_NAME})
 endfunction()
 
@@ -279,6 +295,9 @@ function(absl_header_library)
   # Add all Abseil targets to a a folder in the IDE for organization.
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
   if(ABSL_HO_LIB_EXPORT_NAME)
     add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
   endif()
@@ -312,22 +331,29 @@ function(absl_test)
 
   if(ABSL_RUN_TESTS)
 
-    set(_NAME ${ABSL_TEST_TARGET})
+    set(_NAME "absl_${ABSL_TEST_TARGET}")
     string(TOUPPER ${_NAME} _UPPER_NAME)
 
-    add_executable(${_NAME}_bin ${ABSL_TEST_SOURCES})
+    add_executable(${_NAME} ${ABSL_TEST_SOURCES})
 
-    target_compile_options(${_NAME}_bin PRIVATE ${ABSL_TEST_PRIVATE_COMPILE_FLAGS})
-    target_link_libraries(${_NAME}_bin PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
-    target_include_directories(${_NAME}_bin
+    target_compile_options(${_NAME}
+      PRIVATE
+        ${ABSL_TEST_PRIVATE_COMPILE_FLAGS}
+        ${ABSL_TEST_COPTS}
+    )
+    target_link_libraries(${_NAME} PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
+    target_include_directories(${_NAME}
       PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}
       PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
     )
 
     # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME}_bin PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
 
-    add_test(${_NAME} ${_NAME}_bin)
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
+    add_test(NAME ${_NAME} COMMAND ${_NAME})
   endif(ABSL_RUN_TESTS)
 
 endfunction()

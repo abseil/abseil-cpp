@@ -19,6 +19,8 @@ absl_cc_library(
     algorithm
   HDRS
     "algorithm.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   PUBLIC
 )
 
@@ -37,6 +39,8 @@ absl_cc_library(
     algorithm_container
   HDRS
     "container.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::algorithm
     absl::core_headers

@@ -399,9 +399,9 @@ constexpr absl::add_pointer_t<const T> get_if(
 // Calls a provided functor on a given set of variants. `absl::visit()` is
 // commonly used to conditionally inspect the state of a given variant (or set
 // of variants).
-// Requires: The expression in the Effects: element shall be a valid expression
-// of the same type and value category, for all combinations of alternative
-// types of all variants. Otherwise, the program is ill-formed.
+//
+// The functor must return the same type when called with any of the variants'
+// alternatives.
 //
 // Example:
 //
@@ -414,6 +414,7 @@ constexpr absl::add_pointer_t<const T> get_if(
 //   };
 //
 //   // Declare our variant, and call `absl::visit()` on it.
+//   // Note that `GetVariant()` returns void in either case.
 //   absl::variant<int, std::string> foo = std::string("foo");
 //   GetVariant visitor;
 //   absl::visit(visitor, foo);  // Prints `The variant's value is: foo'

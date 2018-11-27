@@ -1336,9 +1336,12 @@ constexpr Duration MakeNormalizedDuration(int64_t sec, int64_t ticks) {
   return (ticks < 0) ? MakeDuration(sec - 1, ticks + kTicksPerSecond)
                      : MakeDuration(sec, ticks);
 }
+
 // Provide access to the Duration representation.
 constexpr int64_t GetRepHi(Duration d) { return d.rep_hi_; }
 constexpr uint32_t GetRepLo(Duration d) { return d.rep_lo_; }
+
+// Returns true iff d is positive or negative infinity.
 constexpr bool IsInfiniteDuration(Duration d) { return GetRepLo(d) == ~0U; }
 
 // Returns an infinite Duration with the opposite sign.

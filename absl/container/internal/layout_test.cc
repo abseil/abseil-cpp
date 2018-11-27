@@ -45,7 +45,17 @@ Expected Type(Actual val) {
   return val;
 }
 
-using Int128 = int64_t[2];
+// Helper class to test different size and alignments.
+struct alignas(8) Int128 {
+  uint64_t a, b;
+  friend bool operator==(Int128 lhs, Int128 rhs) {
+    return std::tie(lhs.a, lhs.b) == std::tie(rhs.a, rhs.b);
+  }
+
+  static std::string Name() {
+    return internal_layout::adl_barrier::TypeName<Int128>();
+  }
+};
 
 // Properties of types that this test relies on.
 static_assert(sizeof(int8_t) == 1, "");
@@ -1361,12 +1371,6 @@ TEST(Layout, PoisonPadding) {
 }
 
 TEST(Layout, DebugString) {
-  const std::string int64_type =
-#ifdef _MSC_VER
-  "__int64";
-#else   // _MSC_VER
-  std::is_same<int64_t, long long>::value ? "long long" : "long";  // NOLINT
-#endif  // _MSC_VER
   {
     constexpr auto x = Layout<int8_t, int32_t, int8_t, Int128>::Partial();
     EXPECT_EQ("@0<signed char>(1)", x.DebugString());
@@ -1384,24 +1388,24 @@ TEST(Layout, DebugString) {
     constexpr auto x = Layout<int8_t, int32_t, int8_t, Int128>::Partial(1, 2, 3);
     EXPECT_EQ(
         "@0<signed char>(1)[1]; @4<int>(4)[2]; @12<signed char>(1)[3]; "
-        "@16<" +
-            int64_type + " [2]>(16)",
+        "@16" +
+            Int128::Name() + "(16)",
         x.DebugString());
   }
   {
     constexpr auto x = Layout<int8_t, int32_t, int8_t, Int128>::Partial(1, 2, 3, 4);
     EXPECT_EQ(
         "@0<signed char>(1)[1]; @4<int>(4)[2]; @12<signed char>(1)[3]; "
-        "@16<" +
-            int64_type + " [2]>(16)[4]",
+        "@16" +
+            Int128::Name() + "(16)[4]",
         x.DebugString());
   }
   {
     constexpr Layout<int8_t, int32_t, int8_t, Int128> x(1, 2, 3, 4);
     EXPECT_EQ(
         "@0<signed char>(1)[1]; @4<int>(4)[2]; @12<signed char>(1)[3]; "
-        "@16<" +
-            int64_type + " [2]>(16)[4]",
+        "@16" +
+            Int128::Name() + "(16)[4]",
         x.DebugString());
   }
 }
@@ -1528,8 +1532,7 @@ class CompactString {
   const char* c_str() const {
     // Equivalent to reinterpret_cast<char*>(p.get() + sizeof(size_t)).
     // The argument in Partial(1) specifies that we have size_t[1] in front of
-    // the
-    // characters.
+    // the characters.
     return L::Partial(1).Pointer<char>(p_.get());
   }
 

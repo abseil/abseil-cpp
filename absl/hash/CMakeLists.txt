@@ -31,7 +31,7 @@ list(APPEND HASH_SRC
   ${HASH_INTERNAL_HEADERS}
 )
 
-set(HASH_PUBLIC_LIBRARIES absl::hash absl::container absl::strings absl::str_format absl::utility)
+set(HASH_PUBLIC_LIBRARIES absl::hash absl::fixed_array absl::strings absl::str_format absl::utility)
 
 absl_library(
   TARGET
@@ -48,9 +48,35 @@ absl_library(
 ## TESTS
 #
 
+absl_cc_library(
+  NAME
+    hash_testing
+  HDRS
+    "hash_testing.h"
+  DEPS
+    absl::spy_hash_state
+    absl::meta
+    absl::strings
+    absl::variant
+    gmock
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME
+    spy_hash_state
+  HDRS
+    "internal/spy_hash_state.h"
+  DEPS
+    absl::hash
+    absl::strings
+    absl::str_format
+  TESTONLY
+)
+
 # testing support
 set(HASH_TEST_HEADERS hash_testing.h internal/spy_hash_state.h)
-set(HASH_TEST_PUBLIC_LIBRARIES absl::hash absl::container absl::numeric absl::strings absl::str_format)
+set(HASH_TEST_PUBLIC_LIBRARIES absl::hash absl::flat_hash_set absl::numeric absl::strings absl::str_format)
 
 # hash_test
 set(HASH_TEST_SRC "hash_test.cc" ${HASH_TEST_HEADERS})

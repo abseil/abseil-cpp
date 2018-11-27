@@ -123,7 +123,7 @@ absl_library(
 
 # test any_test
 set(ANY_TEST_SRC "any_test.cc")
-set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::any absl::bad_any_cast test_instance_tracker_lib)
+set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::any absl::bad_any_cast absl::test_instance_tracker)
 
 absl_test(
   TARGET
@@ -169,7 +169,7 @@ absl_test(
 
 # test span_test
 set(SPAN_TEST_SRC "span_test.cc")
-set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl_internal_throw_delegate absl::span test_instance_tracker_lib)
+set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl_internal_throw_delegate absl::span absl::test_instance_tracker)
 
 absl_test(
   TARGET

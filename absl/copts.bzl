@@ -3,6 +3,8 @@
 Flags specified here must not impact ABI. Code compiled with and without these
 opts will be linked together, and in some cases headers compiled with and
 without these options will be part of the same program.
+
+DO NOT CHANGE THIS FILE WITHOUT CHANGING THE SAME FLAG IN absl/CMake/AbseilConfigureCopts.cmake!!
 """
 GCC_FLAGS = [
     "-Wall",

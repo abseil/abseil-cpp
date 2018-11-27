@@ -113,7 +113,7 @@ absl_library(
     absl::strings
     absl::base
     absl::numeric
-    absl::container
+    absl::inlined_vector
     absl::span
 )
 
