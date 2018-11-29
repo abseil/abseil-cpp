@@ -68,7 +68,7 @@ struct NodeHashSetPolicy;
 // By default, `node_hash_set` uses the `absl::Hash` hashing framework.
 // All fundamental and Abseil types that support the `absl::Hash` framework have
 // a compatible equality operator for comparing insertions into `node_hash_set`.
-// If your type is not yet supported by the `asbl::Hash` framework, see
+// If your type is not yet supported by the `absl::Hash` framework, see
 // absl/hash/hash.h for information on extending Abseil hashing to user-defined
 // types.
 //

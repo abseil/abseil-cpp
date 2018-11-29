@@ -390,7 +390,8 @@ TEST(Table, Prefetch) {
     !defined(UNDEFINED_BEHAVIOR_SANITIZER)
   const auto now = [] { return absl::base_internal::CycleClock::Now(); };
 
-  static constexpr int size = 1000000;
+  // Make size enough to not fit in L2 cache (16.7 Mb)
+  static constexpr int size = 1 << 22;
   for (int i = 0; i < size; ++i) t.insert(i);
 
   int64_t no_prefetch = 0, prefetch = 0;
