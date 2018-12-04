@@ -66,11 +66,10 @@ namespace absl {
 // designed to cover the same API footprint as covered by `std::vector`.
 template <typename T, size_t N, typename A = std::allocator<T>>
 class InlinedVector {
+  static_assert(N > 0, "InlinedVector requires inline capacity greater than 0");
   constexpr static typename A::size_type inlined_capacity() {
     return static_cast<typename A::size_type>(N);
   }
-
-  static_assert(inlined_capacity() > 0, "InlinedVector needs inlined capacity");
 
   template <typename Iterator>
   using DisableIfIntegral =
@@ -131,7 +130,8 @@ class InlinedVector {
   InlinedVector(std::initializer_list<value_type> init_list,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(init_list.begin(), init_list.end());
+    AppendRange(init_list.begin(), init_list.end(),
+                IteratorCategory<decltype(init_list.begin())>{});
   }
 
   // Creates an inlined vector with elements constructed from the provided
@@ -144,7 +144,7 @@ class InlinedVector {
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(first, last);
+    AppendRange(first, last, IteratorCategory<InputIterator>{});
   }
 
   // Creates a copy of `other` using `other`'s allocator.
@@ -366,7 +366,6 @@ class InlinedVector {
   // Returns a copy of the allocator of the inlined vector.
   allocator_type get_allocator() const { return allocator(); }
 
-
   // ---------------------------------------------------------------------------
   // InlinedVector Member Mutators
   // ---------------------------------------------------------------------------
@@ -376,7 +375,8 @@ class InlinedVector {
   // Replaces the contents of the inlined vector with copies of the elements in
   // the provided `std::initializer_list`.
   InlinedVector& operator=(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end());
+    AssignRange(init_list.begin(), init_list.end(),
+                IteratorCategory<decltype(init_list.begin())>{});
     return *this;
   }
 
@@ -453,14 +453,15 @@ class InlinedVector {
   // inlined vector with copies of the values in the provided
   // `std::initializer_list`.
   void assign(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end());
+    AssignRange(init_list.begin(), init_list.end(),
+                IteratorCategory<decltype(init_list.begin())>{});
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
   // inlined vector with values constructed from the range [`first`, `last`).
   template <typename InputIterator, DisableIfIntegral<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
-    AssignRange(first, last);
+    AssignRange(first, last, IteratorCategory<InputIterator>{});
   }
 
   // `InlinedVector::resize()`
@@ -845,39 +846,27 @@ class InlinedVector {
   void Destroy(pointer from, pointer to);
 
   template <typename Iterator>
-  void AppendRange(Iterator first, Iterator last, std::input_iterator_tag) {
-    std::copy(first, last, std::back_inserter(*this));
-  }
-
-  template <typename Iterator>
   void AppendRange(Iterator first, Iterator last, std::forward_iterator_tag);
 
   template <typename Iterator>
-  void AppendRange(Iterator first, Iterator last) {
-    AppendRange(first, last, IteratorCategory<Iterator>());
-  }
-
-  template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last, std::input_iterator_tag);
+  void AppendRange(Iterator first, Iterator last, std::input_iterator_tag);
 
   template <typename Iterator>
   void AssignRange(Iterator first, Iterator last, std::forward_iterator_tag);
 
   template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last) {
-    AssignRange(first, last, IteratorCategory<Iterator>());
-  }
+  void AssignRange(Iterator first, Iterator last, std::input_iterator_tag);
 
   iterator InsertWithCount(const_iterator position, size_type n,
                            const_reference v);
 
-  template <typename InputIterator>
-  iterator InsertWithRange(const_iterator position, InputIterator first,
-                           InputIterator last, std::input_iterator_tag);
-
   template <typename ForwardIterator>
   iterator InsertWithRange(const_iterator position, ForwardIterator first,
                            ForwardIterator last, std::forward_iterator_tag);
+
+  template <typename InputIterator>
+  iterator InsertWithRange(const_iterator position, InputIterator first,
+                           InputIterator last, std::input_iterator_tag);
 
   // Stores either the inlined or allocated representation
   union Rep {
@@ -889,7 +878,7 @@ class InlinedVector {
     // Structs wrap the buffers to perform indirection that solves a bizarre
     // compilation error on Visual Studio (all known versions).
     struct InlinedRep {
-      ValueTypeBuffer inlined[inlined_capacity()];
+      ValueTypeBuffer inlined[N];
     };
     struct AllocatedRep {
       AllocationBuffer allocation;
@@ -1364,15 +1353,8 @@ void InlinedVector<T, N, A>::AppendRange(Iterator first, Iterator last,
 
 template <typename T, size_t N, typename A>
 template <typename Iterator>
-void InlinedVector<T, N, A>::AssignRange(Iterator first, Iterator last,
+void InlinedVector<T, N, A>::AppendRange(Iterator first, Iterator last,
                                          std::input_iterator_tag) {
-  // Optimized to avoid reallocation.
-  // Prefer reassignment to copy construction for elements.
-  iterator out = begin();
-  for (; first != last && out != end(); ++first, ++out) {
-    *out = *first;
-  }
-  erase(out, end());
   std::copy(first, last, std::back_inserter(*this));
 }
 
@@ -1399,6 +1381,20 @@ void InlinedVector<T, N, A>::AssignRange(Iterator first, Iterator last,
 }
 
 template <typename T, size_t N, typename A>
+template <typename Iterator>
+void InlinedVector<T, N, A>::AssignRange(Iterator first, Iterator last,
+                                         std::input_iterator_tag) {
+  // Optimized to avoid reallocation.
+  // Prefer reassignment to copy construction for elements.
+  iterator out = begin();
+  for (; first != last && out != end(); ++first, ++out) {
+    *out = *first;
+  }
+  erase(out, end());
+  std::copy(first, last, std::back_inserter(*this));
+}
+
+template <typename T, size_t N, typename A>
 auto InlinedVector<T, N, A>::InsertWithCount(const_iterator position,
                                              size_type n, const_reference v)
     -> iterator {
@@ -1411,20 +1407,6 @@ auto InlinedVector<T, N, A>::InsertWithCount(const_iterator position,
   UninitializedFill(it_pair.second, it_pair.first + n, copy);
 
   return it_pair.first;
-}
-
-template <typename T, size_t N, typename A>
-template <typename InputIterator>
-auto InlinedVector<T, N, A>::InsertWithRange(const_iterator position,
-                                             InputIterator first,
-                                             InputIterator last,
-                                             std::input_iterator_tag)
-    -> iterator {
-  assert(position >= begin() && position <= end());
-  size_type index = position - cbegin();
-  size_type i = index;
-  while (first != last) insert(begin() + i++, *first++);
-  return begin() + index;
 }
 
 template <typename T, size_t N, typename A>
@@ -1444,6 +1426,20 @@ auto InlinedVector<T, N, A>::InsertWithRange(const_iterator position,
   std::copy(first, open_spot, it_pair.first);
   UninitializedCopy(open_spot, last, it_pair.second);
   return it_pair.first;
+}
+
+template <typename T, size_t N, typename A>
+template <typename InputIterator>
+auto InlinedVector<T, N, A>::InsertWithRange(const_iterator position,
+                                             InputIterator first,
+                                             InputIterator last,
+                                             std::input_iterator_tag)
+    -> iterator {
+  assert(position >= begin() && position <= end());
+  size_type index = position - cbegin();
+  size_type i = index;
+  while (first != last) insert(begin() + i++, *first++);
+  return begin() + index;
 }
 
 }  // namespace absl

@@ -17,6 +17,12 @@
 # We require 3.0 for modern, target-based CMake.  We require 3.1 for the use of
 # CXX_STANDARD in our targets.
 cmake_minimum_required(VERSION 3.1)
+
+# Compiler id for Apple Clang is now AppleClang.
+if (POLICY CMP0025)
+  cmake_policy(SET CMP0025 NEW)
+endif()
+
 project(absl)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMake)
@@ -67,6 +73,12 @@ set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
 
 # -fexceptions
 set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
+
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  set(ABSL_USING_CLANG ON)
+else()
+  set(ABSL_USING_CLANG OFF)
+endif()
 
 # find dependencies
 ## pthread

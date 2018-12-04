@@ -279,8 +279,7 @@ class flat_hash_set
   //
   // The element may be constructed even if there already is an element with the
   // key in the container, in which case the newly constructed element will be
-  // destroyed immediately. Prefer `try_emplace()` unless your key is not
-  // copyable or moveable.
+  // destroyed immediately.
   //
   // If rehashing occurs due to the insertion, all iterators are invalidated.
   using Base::emplace;
@@ -294,8 +293,7 @@ class flat_hash_set
   //
   // The element may be constructed even if there already is an element with the
   // key in the container, in which case the newly constructed element will be
-  // destroyed immediately. Prefer `try_emplace()` unless your key is not
-  // copyable or moveable.
+  // destroyed immediately.
   //
   // If rehashing occurs due to the insertion, all iterators are invalidated.
   using Base::emplace_hint;

@@ -253,8 +253,10 @@ template <class From, class To>
 using CopyConst =
     typename std::conditional<std::is_const<From>::value, const To, To>::type;
 
+// Note: We're not qualifying this with absl:: because it doesn't compile under
+// MSVC.
 template <class T>
-using SliceType = absl::Span<T>;
+using SliceType = Span<T>;
 
 // This namespace contains no types. It prevents functions defined in it from
 // being found by ADL.

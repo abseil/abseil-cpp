@@ -69,6 +69,7 @@
 #include <winsock2.h>
 #endif
 #include <chrono>  // NOLINT(build/c++11)
+#include <cmath>
 #include <cstdint>
 #include <ctime>
 #include <ostream>
@@ -411,10 +412,12 @@ Duration Milliseconds(T n) {
 }
 template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Seconds(T n) {
-  if (n >= 0) {
+  if (n >= 0) {  // Note: `NaN >= 0` is false.
     if (n >= (std::numeric_limits<int64_t>::max)()) return InfiniteDuration();
     return time_internal::MakePosDoubleDuration(n);
   } else {
+    if (std::isnan(n))
+      return std::signbit(n) ? -InfiniteDuration() : InfiniteDuration();
     if (n <= (std::numeric_limits<int64_t>::min)()) return -InfiniteDuration();
     return -time_internal::MakePosDoubleDuration(-n);
   }

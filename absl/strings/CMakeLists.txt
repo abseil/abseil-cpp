@@ -131,6 +131,15 @@ absl_library(
     absl::strings
 )
 
+# pow10_helper
+absl_library(
+  TARGET
+    pow10_helper
+  SOURCES
+    "internal/pow10_helper.cc"
+    "internal/pow10_helper.h"
+)
+
 #
 ## TESTS
 #
@@ -316,7 +325,7 @@ absl_test(
 
 # test numbers_test
 set(NUMBERS_TEST_SRC "numbers_test.cc")
-set(NUMBERS_TEST_PUBLIC_LIBRARIES absl::strings)
+set(NUMBERS_TEST_PUBLIC_LIBRARIES absl::strings pow10_helper)
 
 absl_test(
   TARGET
@@ -358,7 +367,7 @@ absl_test(
 
 # test charconv_test
 set(CHARCONV_TEST_SRC "charconv_test.cc")
-set(CHARCONV_TEST_PUBLIC_LIBRARIES absl::strings)
+set(CHARCONV_TEST_PUBLIC_LIBRARIES absl::strings absl::str_format pow10_helper)
 
 absl_test(
   TARGET
@@ -460,3 +469,13 @@ absl_test(
     absl::base
 )
 
+# test pow10_helper_test
+absl_test(
+  TARGET
+    pow10_helper_test
+  SOURCES
+    "internal/pow10_helper_test.cc"
+  PUBLIC_LIBRARIES
+    pow10_helper
+    absl::str_format
+)

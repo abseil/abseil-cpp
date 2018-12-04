@@ -30,7 +30,7 @@ absl_cc_library(
 absl_cc_library(
   NAME
     compressed_tuple
-  SRCS
+  HDRS
    "internal/compressed_tuple.h"
   DEPS
     absl::utility

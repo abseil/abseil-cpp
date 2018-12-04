@@ -107,6 +107,7 @@ cc_library(
         "internal/identity.h",
         "internal/inline_variable.h",
         "internal/invoke.h",
+        "internal/scheduling_mode.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     visibility = [
@@ -310,6 +311,33 @@ cc_test(
         ":spinlock_wait",
         "//absl/synchronization",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "spinlock_benchmark_common",
+    testonly = 1,
+    srcs = ["internal/spinlock_benchmark.cc"],
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl/base:__pkg__",
+    ],
+    deps = [
+        ":base",
+        ":base_internal",
+        "//absl/synchronization",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+    alwayslink = 1,
+)
+
+cc_binary(
+    name = "spinlock_benchmark",
+    testonly = 1,
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":spinlock_benchmark_common",
     ],
 )
 

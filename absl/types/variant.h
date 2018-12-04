@@ -82,7 +82,7 @@ namespace absl {
 // absl::variant
 // -----------------------------------------------------------------------------
 //
-// An 'absl::variant` type is a form of type-safe union. An `absl::variant` --
+// An `absl::variant` type is a form of type-safe union. An `absl::variant` --
 // except in exceptional cases -- always holds a value of one of its alternative
 // types.
 //
@@ -136,7 +136,7 @@ void swap(variant<Ts...>& v, variant<Ts...>& w) noexcept(noexcept(v.swap(w))) {
 
 // variant_size
 //
-// Returns the number of alterative types available for a given `absl::variant`
+// Returns the number of alternative types available for a given `absl::variant`
 // type as a compile-time constant expression. As this is a class template, it
 // is not generally useful for accessing the number of alternative types of
 // any given `absl::variant` instance.
@@ -454,7 +454,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
                                   std::is_object<Tn>...>::value,
                 "Attempted to instantiate a variant containing a non-object "
                 "type.");
-  // Intentionally not qualifing `negation` with `absl::` to work around a bug
+  // Intentionally not qualifying `negation` with `absl::` to work around a bug
   // in MSVC 2015 with inline namespace and variadic template.
   static_assert(absl::conjunction<negation<std::is_array<T0> >,
                                   negation<std::is_array<Tn> >...>::value,
@@ -562,7 +562,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
 
   // Assignment Operators
 
-  // Copy assignement operator
+  // Copy assignment operator
   variant& operator=(const variant& other) = default;
 
   // Move assignment operator
