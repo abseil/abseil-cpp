@@ -16,7 +16,6 @@ class AbseilConan(ConanFile):
     exports_sources = ["CMakeLists.txt", "CMake/*", "absl/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-    requires = "cctz/2.2@bincrafters/stable"
 
     def configure(self):
         if self.settings.os == "Windows" and \
