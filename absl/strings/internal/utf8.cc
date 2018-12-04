@@ -17,7 +17,7 @@
 #include "absl/strings/internal/utf8.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 size_t EncodeUTF8Char(char *buffer, char32_t utf8_char) {
@@ -49,5 +49,5 @@ size_t EncodeUTF8Char(char *buffer, char32_t utf8_char) {
 }
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

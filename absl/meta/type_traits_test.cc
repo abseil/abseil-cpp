@@ -34,6 +34,83 @@ struct simple_pair {
 
 struct Dummy {};
 
+struct ReturnType {};
+struct ConvertibleToReturnType {
+  operator ReturnType() const;  // NOLINT
+};
+
+// Unique types used as parameter types for testing the detection idiom.
+struct StructA {};
+struct StructB {};
+struct StructC {};
+
+struct TypeWithBarFunction {
+  template <class T,
+            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  ReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
+};
+
+struct TypeWithBarFunctionAndConvertibleReturnType {
+  template <class T,
+            absl::enable_if_t<std::is_same<T&&, StructA&>::value, int> = 0>
+  ConvertibleToReturnType bar(T&&, const StructB&, StructC&&) &&;  // NOLINT
+};
+
+template <class Class, class... Ts>
+using BarIsCallableImpl =
+    decltype(std::declval<Class>().bar(std::declval<Ts>()...));
+
+template <class Class, class... T>
+using BarIsCallable =
+    absl::type_traits_internal::is_detected<BarIsCallableImpl, Class, T...>;
+
+template <class Class, class... T>
+using BarIsCallableConv = absl::type_traits_internal::is_detected_convertible<
+    ReturnType, BarIsCallableImpl, Class, T...>;
+
+// NOTE: Test of detail type_traits_internal::is_detected.
+TEST(IsDetectedTest, BasicUsage) {
+  EXPECT_TRUE((BarIsCallable<TypeWithBarFunction, StructA&, const StructB&,
+                             StructC>::value));
+  EXPECT_TRUE(
+      (BarIsCallable<TypeWithBarFunction, StructA&, StructB&, StructC>::value));
+  EXPECT_TRUE(
+      (BarIsCallable<TypeWithBarFunction, StructA&, StructB, StructC>::value));
+
+  EXPECT_FALSE((BarIsCallable<int, StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallable<TypeWithBarFunction&, StructA&, const StructB&,
+                              StructC>::value));
+  EXPECT_FALSE((BarIsCallable<TypeWithBarFunction, StructA, const StructB&,
+                              StructC>::value));
+}
+
+// NOTE: Test of detail type_traits_internal::is_detected_convertible.
+TEST(IsDetectedConvertibleTest, BasicUsage) {
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, const StructB&,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, StructB&,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunction, StructA&, StructB,
+                                 StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, const StructB&, StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, StructB&, StructC>::value));
+  EXPECT_TRUE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                 StructA&, StructB, StructC>::value));
+
+  EXPECT_FALSE(
+      (BarIsCallableConv<int, StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunction&, StructA&,
+                                  const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunction, StructA, const StructB&,
+                                  StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType&,
+                                  StructA&, const StructB&, StructC>::value));
+  EXPECT_FALSE((BarIsCallableConv<TypeWithBarFunctionAndConvertibleReturnType,
+                                  StructA, const StructB&, StructC>::value));
+}
+
 TEST(VoidTTest, BasicUsage) {
   StaticAssertTypeEq<void, absl::void_t<Dummy>>();
   StaticAssertTypeEq<void, absl::void_t<Dummy, Dummy, Dummy>>();
@@ -528,6 +605,10 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   // Verify that arrays are not trivially copy assignable
   using int10 = int[10];
   EXPECT_FALSE(absl::is_trivially_copy_assignable<int10>::value);
+
+  // Verify that references are handled correctly
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&&>::value);
+  EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&>::value);
 }
 
 #define ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(trait_name, ...)          \
@@ -714,8 +795,8 @@ TEST(TypeTraitsTest, TestDecay) {
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int[][1]);
 
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int());
-  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));
-  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(char, ...));
+  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));  // NOLINT
+  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(char, ...));  // NOLINT
 }
 
 struct TypeA {};
@@ -794,6 +875,82 @@ TEST(TypeTraitsTest, TestResultOf) {
   EXPECT_EQ(TypeEnum::B, GetTypeExt(Wrap<TypeB>()));
   EXPECT_EQ(TypeEnum::C, GetTypeExt(Wrap<TypeC>()));
   EXPECT_EQ(TypeEnum::D, GetTypeExt(Wrap<TypeD>()));
+}
+
+template <typename T>
+bool TestCopyAssign() {
+  return absl::is_copy_assignable<T>::value ==
+         std::is_copy_assignable<T>::value;
+}
+
+TEST(TypeTraitsTest, IsCopyAssignable) {
+  EXPECT_TRUE(TestCopyAssign<int>());
+  EXPECT_TRUE(TestCopyAssign<int&>());
+  EXPECT_TRUE(TestCopyAssign<int&&>());
+
+  struct S {};
+  EXPECT_TRUE(TestCopyAssign<S>());
+  EXPECT_TRUE(TestCopyAssign<S&>());
+  EXPECT_TRUE(TestCopyAssign<S&&>());
+
+  class C {
+   public:
+    explicit C(C* c) : c_(c) {}
+    ~C() { delete c_; }
+
+   private:
+    C* c_;
+  };
+  EXPECT_TRUE(TestCopyAssign<C>());
+  EXPECT_TRUE(TestCopyAssign<C&>());
+  EXPECT_TRUE(TestCopyAssign<C&&>());
+
+  // Reason for ifndef: add_lvalue_reference<T> in libc++ breaks for these cases
+#ifndef _LIBCPP_VERSION
+  EXPECT_TRUE(TestCopyAssign<int()>());
+  EXPECT_TRUE(TestCopyAssign<int(int) const>());
+  EXPECT_TRUE(TestCopyAssign<int(...) volatile&>());
+  EXPECT_TRUE(TestCopyAssign<int(int, ...) const volatile&&>());
+#endif  // _LIBCPP_VERSION
+}
+
+template <typename T>
+bool TestMoveAssign() {
+  return absl::is_move_assignable<T>::value ==
+         std::is_move_assignable<T>::value;
+}
+
+TEST(TypeTraitsTest, IsMoveAssignable) {
+  EXPECT_TRUE(TestMoveAssign<int>());
+  EXPECT_TRUE(TestMoveAssign<int&>());
+  EXPECT_TRUE(TestMoveAssign<int&&>());
+
+  struct S {};
+  EXPECT_TRUE(TestMoveAssign<S>());
+  EXPECT_TRUE(TestMoveAssign<S&>());
+  EXPECT_TRUE(TestMoveAssign<S&&>());
+
+  class C {
+   public:
+    explicit C(C* c) : c_(c) {}
+    ~C() { delete c_; }
+    void operator=(const C&) = delete;
+    void operator=(C&&) = delete;
+
+   private:
+    C* c_;
+  };
+  EXPECT_TRUE(TestMoveAssign<C>());
+  EXPECT_TRUE(TestMoveAssign<C&>());
+  EXPECT_TRUE(TestMoveAssign<C&&>());
+
+  // Reason for ifndef: add_lvalue_reference<T> in libc++ breaks for these cases
+#ifndef _LIBCPP_VERSION
+  EXPECT_TRUE(TestMoveAssign<int()>());
+  EXPECT_TRUE(TestMoveAssign<int(int) const>());
+  EXPECT_TRUE(TestMoveAssign<int(...) volatile&>());
+  EXPECT_TRUE(TestMoveAssign<int(int, ...) const volatile&&>());
+#endif  // _LIBCPP_VERSION
 }
 
 }  // namespace

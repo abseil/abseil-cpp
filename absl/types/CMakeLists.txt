@@ -123,7 +123,7 @@ absl_library(
 
 # test any_test
 set(ANY_TEST_SRC "any_test.cc")
-set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl::throw_delegate absl::any absl::bad_any_cast test_instance_tracker_lib)
+set(ANY_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::any absl::bad_any_cast absl::test_instance_tracker)
 
 absl_test(
   TARGET
@@ -152,7 +152,7 @@ set(ANY_EXCEPTION_SAFETY_TEST_SRC "any_exception_safety_test.cc")
 set(ANY_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
   absl::any
   absl::base
-  absl_base_internal_exception_safety_testing
+  absl_internal_exception_safety_testing
 )
 
 absl_test(
@@ -169,7 +169,7 @@ absl_test(
 
 # test span_test
 set(SPAN_TEST_SRC "span_test.cc")
-set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl::throw_delegate absl::span test_instance_tracker_lib)
+set(SPAN_TEST_PUBLIC_LIBRARIES absl::base absl::strings absl_internal_throw_delegate absl::span absl::test_instance_tracker)
 
 absl_test(
   TARGET
@@ -197,7 +197,7 @@ absl_test(
 
 # test optional_test
 set(OPTIONAL_TEST_SRC "optional_test.cc")
-set(OPTIONAL_TEST_PUBLIC_LIBRARIES absl::base absl::throw_delegate absl::optional absl_bad_optional_access)
+set(OPTIONAL_TEST_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate absl::optional absl_bad_optional_access)
 
 absl_test(
   TARGET
@@ -213,7 +213,7 @@ absl_test(
 set(OPTIONAL_EXCEPTION_SAFETY_TEST_SRC "optional_exception_safety_test.cc")
 set(OPTIONAL_EXCEPTION_SAFETY_TEST_PUBLIC_LIBRARIES
   absl::optional
-  absl_base_internal_exception_safety_testing
+  absl_internal_exception_safety_testing
 )
 
 absl_test(

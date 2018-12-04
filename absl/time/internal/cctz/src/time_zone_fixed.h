@@ -20,7 +20,7 @@
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -39,13 +39,13 @@ namespace cctz {
 // Note: FixedOffsetFromName() fails on syntax errors or when the parsed
 // offset exceeds 24 hours.  FixedOffsetToName() and FixedOffsetToAbbr()
 // both produce "UTC" when the argument offset exceeds 24 hours.
-bool FixedOffsetFromName(const std::string& name, sys_seconds* offset);
-std::string FixedOffsetToName(const sys_seconds& offset);
-std::string FixedOffsetToAbbr(const sys_seconds& offset);
+bool FixedOffsetFromName(const std::string& name, seconds* offset);
+std::string FixedOffsetToName(const seconds& offset);
+std::string FixedOffsetToAbbr(const seconds& offset);
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_FIXED_H_

@@ -327,13 +327,13 @@ static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
 }
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 bool StackTraceWorksForTest() {
   return true;
 }
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_STACKTRACE_X86_INL_INC_

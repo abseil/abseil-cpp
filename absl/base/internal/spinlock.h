@@ -45,7 +45,7 @@
 #include "absl/base/thread_annotations.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 class LOCKABLE SpinLock {
@@ -102,8 +102,8 @@ class LOCKABLE SpinLock {
   inline void Unlock() UNLOCK_FUNCTION() {
     ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
-    lockword_.store(lock_value & kSpinLockCooperative,
-                    std::memory_order_release);
+    lock_value = lockword_.exchange(lock_value & kSpinLockCooperative,
+                                    std::memory_order_release);
 
     if ((lock_value & kSpinLockDisabledScheduling) != 0) {
       base_internal::SchedulingGuard::EnableRescheduling(true);
@@ -162,7 +162,7 @@ class LOCKABLE SpinLock {
   void InitLinkerInitializedAndCooperative();
   void SlowLock() ABSL_ATTRIBUTE_COLD;
   void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
-  uint32_t SpinLoop(int64_t initial_wait_timestamp, uint32_t* wait_cycles);
+  uint32_t SpinLoop();
 
   inline bool TryLockImpl() {
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
@@ -235,7 +235,7 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SPINLOCK_H_

@@ -51,7 +51,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // integer_sequence
 //
@@ -236,13 +236,13 @@ auto apply_helper(Functor&& functor, Tuple&& t, index_sequence<Indexes...>)
 // Example:
 //
 //   class Foo{void Bar(int);};
-//   void user_function(int, std::string);
+//   void user_function(int, string);
 //   void user_function(std::unique_ptr<Foo>);
 //
 //   int main()
 //   {
-//       std::tuple<int, std::string> tuple1(42, "bar");
-//       // Invokes the user function overload on int, std::string.
+//       std::tuple<int, string> tuple1(42, "bar");
+//       // Invokes the user function overload on int, string.
 //       absl::apply(&user_function, tuple1);
 //
 //       auto foo = absl::make_unique<Foo>();
@@ -287,7 +287,7 @@ T exchange(T& obj, U&& new_value) {
   return old_value;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_UTILITY_UTILITY_H_

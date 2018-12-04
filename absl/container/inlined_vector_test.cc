@@ -31,6 +31,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/test_instance_tracker.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 
@@ -905,6 +906,8 @@ TYPED_TEST_P(InstanceTest, Swap) {
       InstanceTracker tracker;
       InstanceVec a, b;
       const size_t inlined_capacity = a.capacity();
+      auto min_len = std::min(l1, l2);
+      auto max_len = std::max(l1, l2);
       for (int i = 0; i < l1; i++) a.push_back(Instance(i));
       for (int i = 0; i < l2; i++) b.push_back(Instance(100+i));
       EXPECT_EQ(tracker.instances(), l1 + l2);
@@ -918,15 +921,15 @@ TYPED_TEST_P(InstanceTest, Swap) {
         EXPECT_EQ(tracker.swaps(), 0);  // Allocations are swapped.
         EXPECT_EQ(tracker.moves(), 0);
       } else if (a.size() <= inlined_capacity && b.size() <= inlined_capacity) {
-        EXPECT_EQ(tracker.swaps(), std::min(l1, l2));
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::max(l1, l2) - std::min(l1, l2));
+        EXPECT_EQ(tracker.swaps(), min_len);
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  max_len - min_len);
       } else {
         // One is allocated and the other isn't. The allocation is transferred
         // without copying elements, and the inlined instances are copied/moved.
         EXPECT_EQ(tracker.swaps(), 0);
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::min(l1, l2));
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  min_len);
       }
 
       EXPECT_EQ(l1, b.size());
@@ -1725,42 +1728,87 @@ TEST(AllocatorSupportTest, ScopedAllocatorWorks) {
       std::scoped_allocator_adaptor<CountingAllocator<StdVector>>;
   using AllocVec = absl::InlinedVector<StdVector, 4, MyAlloc>;
 
+  // MSVC 2017's std::vector allocates different amounts of memory in debug
+  // versus opt mode.
+  int64_t test_allocated = 0;
+  StdVector v(CountingAllocator<int>{&test_allocated});
+  // The amount of memory allocated by a default constructed vector<int>
+  auto default_std_vec_allocated = test_allocated;
+  v.push_back(1);
+  // The amound of memory allocated by a copy-constructed vector<int> with one
+  // element.
+  int64_t one_element_std_vec_copy_allocated = test_allocated;
+
   int64_t allocated = 0;
   AllocVec vec(MyAlloc{CountingAllocator<StdVector>{&allocated}});
   EXPECT_EQ(allocated, 0);
 
   // This default constructs a vector<int>, but the allocator should pass itself
-  // into the vector<int>.
+  // into the vector<int>, so check allocation compared to that.
   // The absl::InlinedVector does not allocate any memory.
-  // The vector<int> does not allocate any memory.
+  // The vector<int> may allocate any memory.
+  auto expected = default_std_vec_allocated;
   vec.resize(1);
-  EXPECT_EQ(allocated, 0);
+  EXPECT_EQ(allocated, expected);
 
   // We make vector<int> allocate memory.
   // It must go through the allocator even though we didn't construct the
-  // vector directly.
+  // vector directly.  This assumes that vec[0] doesn't need to grow its
+  // allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 1);
+  EXPECT_EQ(allocated, expected);
 
   // Another allocating vector.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 2);
+  EXPECT_EQ(allocated, expected);
 
   // Overflow the inlined memory.
   // The absl::InlinedVector will now allocate.
+  expected += sizeof(StdVector) * 8 + default_std_vec_allocated * 3;
   vec.resize(5);
-  EXPECT_EQ(allocated, sizeof(int) * 2 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   // Adding one more in external mode should also work.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 3 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
-  // And extending these should still work.
+  // And extending these should still work.  This assumes that vec[0] does not
+  // need to grow its allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 4 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   vec.clear();
   EXPECT_EQ(allocated, 0);
+}
+
+TEST(AllocatorSupportTest, SizeAllocConstructor) {
+  constexpr int inlined_size = 4;
+  using Alloc = CountingAllocator<int>;
+  using AllocVec = absl::InlinedVector<int, inlined_size, Alloc>;
+
+  {
+    auto len = inlined_size / 2;
+    int64_t allocated = 0;
+    auto v = AllocVec(len, Alloc(&allocated));
+
+    // Inline storage used; allocator should not be invoked
+    EXPECT_THAT(allocated, 0);
+    EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
+  }
+
+  {
+    auto len = inlined_size * 2;
+    int64_t allocated = 0;
+    auto v = AllocVec(len, Alloc(&allocated));
+
+    // Out of line storage used; allocation of 8 elements expected
+    EXPECT_THAT(allocated, len * sizeof(int));
+    EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
+  }
 }
 
 }  // anonymous namespace

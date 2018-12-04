@@ -23,8 +23,22 @@
 
 #include <stdexcept>
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_STD_OPTIONAL
+
+#include <optional>
+
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
+using std::bad_optional_access;
+}  // inline namespace lts_2018_12_18
+}  // namespace absl
+
+#else  // ABSL_HAVE_STD_OPTIONAL
+
+namespace absl {
+inline namespace lts_2018_12_18 {
 
 // -----------------------------------------------------------------------------
 // bad_optional_access
@@ -56,7 +70,9 @@ namespace optional_internal {
 [[noreturn]] void throw_bad_optional_access();
 
 }  // namespace optional_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_OPTIONAL
 
 #endif  // ABSL_TYPES_BAD_OPTIONAL_ACCESS_H_

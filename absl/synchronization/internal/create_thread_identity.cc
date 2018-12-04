@@ -27,7 +27,7 @@
 #include "absl/synchronization/internal/per_thread_sem.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace synchronization_internal {
 
 // ThreadIdentity storage is persistent, we maintain a free-list of previously
@@ -108,7 +108,7 @@ base_internal::ThreadIdentity* CreateThreadIdentity() {
 }
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING

@@ -23,8 +23,22 @@
 
 #include <typeinfo>
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_STD_ANY
+
+#include <any>
+
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
+using std::bad_any_cast;
+}  // inline namespace lts_2018_12_18
+}  // namespace absl
+
+#else  // ABSL_HAVE_STD_ANY
+
+namespace absl {
+inline namespace lts_2018_12_18 {
 
 // -----------------------------------------------------------------------------
 // bad_any_cast
@@ -53,7 +67,9 @@ namespace any_internal {
 [[noreturn]] void ThrowBadAnyCast();
 
 }  // namespace any_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_ANY
 
 #endif  // ABSL_TYPES_BAD_ANY_CAST_H_

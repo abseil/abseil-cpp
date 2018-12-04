@@ -29,7 +29,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace synchronization_internal {
 
 // Allocates and attaches a ThreadIdentity object for the calling thread.
@@ -50,6 +50,6 @@ inline base_internal::ThreadIdentity* GetOrCreateCurrentThreadIdentity() {
 }
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_CREATE_THREAD_IDENTITY_H_

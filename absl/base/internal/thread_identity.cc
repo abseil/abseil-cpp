@@ -28,7 +28,7 @@
 #include "absl/base/internal/spinlock.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 #if ABSL_THREAD_IDENTITY_MODE != ABSL_THREAD_IDENTITY_MODE_USE_CPP11
@@ -69,6 +69,14 @@ void SetCurrentThreadIdentity(
   // NOTE: Not async-safe.  But can be open-coded.
   absl::call_once(init_thread_identity_key_once, AllocateThreadIdentityKey,
                   reclaimer);
+
+#ifdef __EMSCRIPTEN__
+  // Emscripten PThread implementation does not support signals.
+  // See https://kripken.github.io/emscripten-site/docs/porting/pthreads.html
+  // for more information.
+  pthread_setspecific(thread_identity_pthread_key,
+                      reinterpret_cast<void*>(identity));
+#else
   // We must mask signals around the call to setspecific as with current glibc,
   // a concurrent getspecific (needed for GetCurrentThreadIdentityIfPresent())
   // may zero our value.
@@ -82,6 +90,8 @@ void SetCurrentThreadIdentity(
   pthread_setspecific(thread_identity_pthread_key,
                       reinterpret_cast<void*>(identity));
   pthread_sigmask(SIG_SETMASK, &curr_signals, nullptr);
+#endif  // !__EMSCRIPTEN__
+
 #elif ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_TLS
   // NOTE: Not async-safe.  But can be open-coded.
   absl::call_once(init_thread_identity_key_once, AllocateThreadIdentityKey,
@@ -121,5 +131,5 @@ ThreadIdentity* CurrentThreadIdentityIfPresent() {
 #endif
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

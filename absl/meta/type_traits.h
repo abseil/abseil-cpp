@@ -42,9 +42,10 @@
 #include "absl/base/config.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace type_traits_internal {
+
 template <typename... Ts>
 struct VoidTImpl {
   using type = void;
@@ -62,7 +63,67 @@ struct default_alignment_of_aligned_storage<Len,
   static constexpr size_t value = Align;
 };
 
+////////////////////////////////
+// Library Fundamentals V2 TS //
+////////////////////////////////
+
+// NOTE: The `is_detected` family of templates here differ from the library
+// fundamentals specification in that for library fundamentals, `Op<Args...>` is
+// evaluated as soon as the type `is_detected<Op, Args...>` undergoes
+// substitution, regardless of whether or not the `::value` is accessed. That
+// is inconsistent with all other standard traits and prevents lazy evaluation
+// in larger contexts (such as if the `is_detected` check is a trailing argument
+// of a `conjunction`. This implementation opts to instead be lazy in the same
+// way that the standard traits are (this "defect" of the detection idiom
+// specifications has been reported).
+
+template <class Enabler, template <class...> class Op, class... Args>
+struct is_detected_impl {
+  using type = std::false_type;
+};
+
+template <template <class...> class Op, class... Args>
+struct is_detected_impl<typename VoidTImpl<Op<Args...>>::type, Op, Args...> {
+  using type = std::true_type;
+};
+
+template <template <class...> class Op, class... Args>
+struct is_detected : is_detected_impl<void, Op, Args...>::type {};
+
+template <class Enabler, class To, template <class...> class Op, class... Args>
+struct is_detected_convertible_impl {
+  using type = std::false_type;
+};
+
+template <class To, template <class...> class Op, class... Args>
+struct is_detected_convertible_impl<
+    typename std::enable_if<std::is_convertible<Op<Args...>, To>::value>::type,
+    To, Op, Args...> {
+  using type = std::true_type;
+};
+
+template <class To, template <class...> class Op, class... Args>
+struct is_detected_convertible
+    : is_detected_convertible_impl<void, To, Op, Args...>::type {};
+
+template <typename T>
+using IsCopyAssignableImpl =
+    decltype(std::declval<T&>() = std::declval<const T&>());
+
+template <typename T>
+using IsMoveAssignableImpl = decltype(std::declval<T&>() = std::declval<T&&>());
+
 }  // namespace type_traits_internal
+
+template <typename T>
+struct is_copy_assignable : type_traits_internal::is_detected<
+                                type_traits_internal::IsCopyAssignableImpl, T> {
+};
+
+template <typename T>
+struct is_move_assignable : type_traits_internal::is_detected<
+                                type_traits_internal::IsMoveAssignableImpl, T> {
+};
 
 // void_t()
 //
@@ -264,8 +325,9 @@ struct is_trivially_copy_constructible
 // `is_trivially_assignable<T&, const T&>`.
 template <typename T>
 struct is_trivially_copy_assignable
-    : std::integral_constant<bool, __has_trivial_assign(T) &&
-                                   std::is_copy_assignable<T>::value> {
+    : std::integral_constant<
+          bool, __has_trivial_assign(typename std::remove_reference<T>::type) &&
+                    absl::is_copy_assignable<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
  private:
   static constexpr bool compliant =
@@ -365,10 +427,12 @@ struct IsHashEnabled
     : absl::conjunction<std::is_default_constructible<std::hash<Key>>,
                         std::is_copy_constructible<std::hash<Key>>,
                         std::is_destructible<std::hash<Key>>,
-                        std::is_copy_assignable<std::hash<Key>>,
+                        absl::is_copy_assignable<std::hash<Key>>,
                         IsHashable<Key>> {};
+
 }  // namespace type_traits_internal
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
+
 #endif  // ABSL_META_TYPE_TRAITS_H_

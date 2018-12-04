@@ -38,7 +38,7 @@
 #include "time_zone_if.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 namespace detail {
@@ -142,6 +142,9 @@ char* Format02d(char* ep, int v) {
 
 // Formats a UTC offset, like +00:00.
 char* FormatOffset(char* ep, int offset, const char* mode) {
+  // TODO: Follow the RFC3339 "Unknown Local Offset Convention" and
+  // generate a "negative zero" when we're formatting a zero offset
+  // as the result of a failed load_time_zone().
   char sign = '+';
   if (offset < 0) {
     offset = -offset;  // bounded by 24h so no overflow
@@ -278,7 +281,7 @@ const std::int_fast64_t kExp10[kDigits10_64 + 1] = {
 // not support the tm_gmtoff and tm_zone extensions to std::tm.
 //
 // Requires that zero() <= fs < seconds(1).
-std::string format(const std::string& format, const time_point<sys_seconds>& tp,
+std::string format(const std::string& format, const time_point<seconds>& tp,
                    const detail::femtoseconds& fs, const time_zone& tz) {
   std::string result;
   result.reserve(format.size());  // A reasonable guess for the result size.
@@ -531,7 +534,7 @@ const char* ParseSubSeconds(const char* dp, detail::femtoseconds* subseconds) {
   return dp;
 }
 
-// Parses a std::string into a std::tm using strptime(3).
+// Parses a string into a std::tm using strptime(3).
 const char* ParseTM(const char* dp, const char* fmt, std::tm* tm) {
   if (dp != nullptr) {
     dp = strptime(dp, fmt, tm);
@@ -556,7 +559,7 @@ const char* ParseTM(const char* dp, const char* fmt, std::tm* tm) {
 // We also handle the %z specifier to accommodate platforms that do not
 // support the tm_gmtoff extension to std::tm.  %Z is parsed but ignored.
 bool parse(const std::string& format, const std::string& input,
-           const time_zone& tz, time_point<sys_seconds>* sec,
+           const time_zone& tz, time_point<seconds>* sec,
            detail::femtoseconds* fs, std::string* err) {
   // The unparsed input.
   const char* data = input.c_str();  // NUL terminated
@@ -741,7 +744,7 @@ bool parse(const std::string& format, const std::string& input,
     data = ParseTM(data, spec.c_str(), &tm);
 
     // If we successfully parsed %p we need to remember whether the result
-    // was AM or PM so that we can adjust tm_hour before ConvertDateTime().
+    // was AM or PM so that we can adjust tm_hour before time_zone::lookup().
     // So reparse the input with a known AM hour, and check if it is shifted
     // to a PM hour.
     if (spec == "%p" && data != nullptr) {
@@ -823,15 +826,15 @@ bool parse(const std::string& format, const std::string& input,
 
   const auto tp = ptz.lookup(cs).pre;
   // Checks for overflow/underflow and returns an error as necessary.
-  if (tp == time_point<sys_seconds>::max()) {
-    const auto al = ptz.lookup(time_point<sys_seconds>::max());
+  if (tp == time_point<seconds>::max()) {
+    const auto al = ptz.lookup(time_point<seconds>::max());
     if (cs > al.cs) {
       if (err != nullptr) *err = "Out-of-range field";
       return false;
     }
   }
-  if (tp == time_point<sys_seconds>::min()) {
-    const auto al = ptz.lookup(time_point<sys_seconds>::min());
+  if (tp == time_point<seconds>::min()) {
+    const auto al = ptz.lookup(time_point<seconds>::min());
     if (cs < al.cs) {
       if (err != nullptr) *err = "Out-of-range field";
       return false;
@@ -846,5 +849,5 @@ bool parse(const std::string& format, const std::string& input,
 }  // namespace detail
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

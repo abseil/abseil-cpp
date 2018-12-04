@@ -29,6 +29,7 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
@@ -288,7 +289,7 @@ TEST(IntSpan, Subspan) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW(absl::MakeSpan(ramp).subspan(11, 5), std::out_of_range);
 #else
-  EXPECT_DEATH(absl::MakeSpan(ramp).subspan(11, 5), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(ramp).subspan(11, 5), "");
 #endif
 }
 

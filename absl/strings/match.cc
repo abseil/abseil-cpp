@@ -17,7 +17,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace {
 bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
@@ -27,6 +27,13 @@ bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
   // memcasecmp uses ascii_tolower().
 }
 }  // namespace
+
+bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2) {
+  return (piece1.size() == piece2.size() &&
+          0 == absl::strings_internal::memcasecmp(piece1.data(), piece2.data(),
+                                                  piece1.size()));
+  // memcasecmp uses absl::ascii_tolower().
+}
 
 bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix) {
   return (text.size() >= prefix.size()) &&
@@ -38,5 +45,5 @@ bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix) {
          CaseEqual(text.substr(text.size() - suffix.size()), suffix);
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

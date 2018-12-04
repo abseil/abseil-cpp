@@ -46,7 +46,7 @@
 #include <cstdint>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // -----------------------------------------------------------------------------
@@ -73,7 +73,7 @@ class CycleClock {
 };
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_CYCLECLOCK_H_

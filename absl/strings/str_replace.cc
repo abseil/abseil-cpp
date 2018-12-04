@@ -17,7 +17,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 using FixedMapping =
@@ -77,5 +77,5 @@ int StrReplaceAll(strings_internal::FixedMapping replacements, std::string* targ
   return StrReplaceAll<strings_internal::FixedMapping>(replacements, target);
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

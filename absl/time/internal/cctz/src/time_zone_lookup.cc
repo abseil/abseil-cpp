@@ -28,7 +28,7 @@
 #include "time_zone_impl.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -62,20 +62,43 @@ int __system_property_get(const char* name, char* value) {
 #endif
 
 std::string time_zone::name() const {
-  return time_zone::Impl::get(*this).name();
+  return effective_impl().Name();
 }
 
 time_zone::absolute_lookup time_zone::lookup(
-    const time_point<sys_seconds>& tp) const {
-  return time_zone::Impl::get(*this).BreakTime(tp);
+    const time_point<seconds>& tp) const {
+  return effective_impl().BreakTime(tp);
 }
 
 time_zone::civil_lookup time_zone::lookup(const civil_second& cs) const {
-  return time_zone::Impl::get(*this).MakeTime(cs);
+  return effective_impl().MakeTime(cs);
 }
 
-bool operator==(time_zone lhs, time_zone rhs) {
-  return &time_zone::Impl::get(lhs) == &time_zone::Impl::get(rhs);
+bool time_zone::next_transition(const time_point<seconds>& tp,
+                                civil_transition* trans) const {
+  return effective_impl().NextTransition(tp, trans);
+}
+
+bool time_zone::prev_transition(const time_point<seconds>& tp,
+                                civil_transition* trans) const {
+  return effective_impl().PrevTransition(tp, trans);
+}
+
+std::string time_zone::version() const {
+  return effective_impl().Version();
+}
+
+std::string time_zone::description() const {
+  return effective_impl().Description();
+}
+
+const time_zone::Impl& time_zone::effective_impl() const {
+  if (impl_ == nullptr) {
+    // Dereferencing an implicit-UTC time_zone is expected to be
+    // rare, so we don't mind paying a small synchronization cost.
+    return *time_zone::Impl::UTC().impl_;
+  }
+  return *impl_;
 }
 
 bool load_time_zone(const std::string& name, time_zone* tz) {
@@ -86,7 +109,7 @@ time_zone utc_time_zone() {
   return time_zone::Impl::UTC();  // avoid name lookup
 }
 
-time_zone fixed_time_zone(const sys_seconds& offset) {
+time_zone fixed_time_zone(const seconds& offset) {
   time_zone tz;
   load_time_zone(FixedOffsetToName(offset), &tz);
   return tz;
@@ -143,5 +166,5 @@ time_zone local_time_zone() {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

@@ -22,7 +22,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 namespace {
@@ -31,8 +31,8 @@ template <typename T>
 #ifdef ABSL_HAVE_EXCEPTIONS
   throw error;
 #else
-  ABSL_RAW_LOG(ERROR, "%s", error.what());
-  abort();
+  ABSL_RAW_LOG(FATAL, "%s", error.what());
+  std::abort();
 #endif
 }
 }  // namespace
@@ -104,5 +104,5 @@ void ThrowStdBadFunctionCall() { Throw(std::bad_function_call()); }
 void ThrowStdBadAlloc() { Throw(std::bad_alloc()); }
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

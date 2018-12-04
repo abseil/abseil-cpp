@@ -76,7 +76,7 @@
 #include "absl/debugging/internal/vdso_support.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // Value of argv[0]. Used by MaybeInitializeObjFile().
 static char *argv0_value = nullptr;
@@ -334,7 +334,11 @@ static std::atomic<Symbolizer *> g_cached_symbolizer;
 }  // namespace
 
 static int SymbolizerSize() {
+#if defined(__wasm__) || defined(__asmjs__)
   int pagesize = getpagesize();
+#else
+  int pagesize = sysconf(_SC_PAGESIZE);
+#endif
   return ((sizeof(Symbolizer) - 1) / pagesize + 1) * pagesize;
 }
 
@@ -1471,5 +1475,5 @@ bool Symbolize(const void *pc, char *out, int out_size) {
   return ok;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

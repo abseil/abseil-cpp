@@ -88,6 +88,9 @@ cc_test(
     size = "small",
     srcs = ["barrier_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_wasm",
+    ],
     deps = [
         ":synchronization",
         "//absl/time",
@@ -100,6 +103,9 @@ cc_test(
     size = "small",
     srcs = ["blocking_counter_test.cc"],
     copts = ABSL_TEST_COPTS,
+    tags = [
+        "no_test_wasm",
+    ],
     deps = [
         ":synchronization",
         "//absl/time",
@@ -138,6 +144,9 @@ cc_library(
     name = "thread_pool",
     testonly = 1,
     hdrs = ["internal/thread_pool.h"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         ":synchronization",
         "//absl/base:core_headers",
@@ -149,6 +158,7 @@ cc_test(
     size = "large",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
+    shard_count = 25,
     deps = [
         ":synchronization",
         ":thread_pool",
@@ -160,17 +170,31 @@ cc_test(
     ],
 )
 
-cc_test(
-    name = "mutex_benchmark",
+cc_library(
+    name = "mutex_benchmark_common",
+    testonly = 1,
     srcs = ["mutex_benchmark.cc"],
-    copts = ABSL_TEST_COPTS,
-    tags = ["benchmark"],
-    visibility = ["//visibility:private"],
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = [
+        "//absl/synchronization:__pkg__",
+    ],
     deps = [
         ":synchronization",
         ":thread_pool",
         "//absl/base",
+        "//absl/base:base_internal",
         "@com_github_google_benchmark//:benchmark_main",
+    ],
+    alwayslink = 1,
+)
+
+cc_binary(
+    name = "mutex_benchmark",
+    testonly = 1,
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":mutex_benchmark_common",
     ],
 )
 
@@ -205,6 +229,7 @@ cc_test(
     name = "per_thread_sem_test",
     size = "medium",
     copts = ABSL_TEST_COPTS,
+    tags = ["no_test_wasm"],
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
@@ -225,6 +250,7 @@ cc_test(
         "//absl:windows": [],
         "//conditions:default": ["-pthread"],
     }),
+    tags = ["no_test_ios_x86_64"],
     deps = [
         ":synchronization",
         "//absl/base",

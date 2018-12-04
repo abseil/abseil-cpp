@@ -50,7 +50,7 @@
 #include <variant>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 using std::bad_variant_access;
 using std::get;
 using std::get_if;
@@ -63,7 +63,7 @@ using std::variant_npos;
 using std::variant_size;
 using std::variant_size_v;
 using std::visit;
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_VARIANT
@@ -79,13 +79,13 @@ using std::visit;
 #include "absl/types/internal/variant.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // -----------------------------------------------------------------------------
 // absl::variant
 // -----------------------------------------------------------------------------
 //
-// An 'absl::variant` type is a form of type-safe union. An `absl::variant` --
+// An `absl::variant` type is a form of type-safe union. An `absl::variant` --
 // except in exceptional cases -- always holds a value of one of its alternative
 // types.
 //
@@ -139,7 +139,7 @@ void swap(variant<Ts...>& v, variant<Ts...>& w) noexcept(noexcept(v.swap(w))) {
 
 // variant_size
 //
-// Returns the number of alterative types available for a given `absl::variant`
+// Returns the number of alternative types available for a given `absl::variant`
 // type as a compile-time constant expression. As this is a class template, it
 // is not generally useful for accessing the number of alternative types of
 // any given `absl::variant` instance.
@@ -251,7 +251,7 @@ using variant_alternative_t = typename variant_alternative<I, T>::type;
 //
 // Example:
 //
-//   absl::variant<int, std::string> bar = 42;
+//   absl::variant<int, std::string> foo = 42;
 //   if (absl::holds_alternative<int>(foo)) {
 //       std::cout << "The variant holds an integer";
 //   }
@@ -293,7 +293,7 @@ constexpr bool holds_alternative(const variant<Types...>& v) noexcept {
 // Overload for getting a variant's lvalue by type.
 template <class T, class... Types>
 constexpr T& get(variant<Types...>& v) {  // NOLINT
-  return variant_internal::VariantCoreAccess::Access<
+  return variant_internal::VariantCoreAccess::CheckedAccess<
       variant_internal::IndexOf<T, Types...>::value>(v);
 }
 
@@ -301,14 +301,14 @@ constexpr T& get(variant<Types...>& v) {  // NOLINT
 // Note: `absl::move()` is required to allow use of constexpr in C++11.
 template <class T, class... Types>
 constexpr T&& get(variant<Types...>&& v) {
-  return variant_internal::VariantCoreAccess::Access<
+  return variant_internal::VariantCoreAccess::CheckedAccess<
       variant_internal::IndexOf<T, Types...>::value>(absl::move(v));
 }
 
 // Overload for getting a variant's const lvalue by type.
 template <class T, class... Types>
 constexpr const T& get(const variant<Types...>& v) {
-  return variant_internal::VariantCoreAccess::Access<
+  return variant_internal::VariantCoreAccess::CheckedAccess<
       variant_internal::IndexOf<T, Types...>::value>(v);
 }
 
@@ -316,7 +316,7 @@ constexpr const T& get(const variant<Types...>& v) {
 // Note: `absl::move()` is required to allow use of constexpr in C++11.
 template <class T, class... Types>
 constexpr const T&& get(const variant<Types...>&& v) {
-  return variant_internal::VariantCoreAccess::Access<
+  return variant_internal::VariantCoreAccess::CheckedAccess<
       variant_internal::IndexOf<T, Types...>::value>(absl::move(v));
 }
 
@@ -324,7 +324,7 @@ constexpr const T&& get(const variant<Types...>&& v) {
 template <std::size_t I, class... Types>
 constexpr variant_alternative_t<I, variant<Types...>>& get(
     variant<Types...>& v) {  // NOLINT
-  return variant_internal::VariantCoreAccess::Access<I>(v);
+  return variant_internal::VariantCoreAccess::CheckedAccess<I>(v);
 }
 
 // Overload for getting a variant's rvalue by index.
@@ -332,14 +332,14 @@ constexpr variant_alternative_t<I, variant<Types...>>& get(
 template <std::size_t I, class... Types>
 constexpr variant_alternative_t<I, variant<Types...>>&& get(
     variant<Types...>&& v) {
-  return variant_internal::VariantCoreAccess::Access<I>(absl::move(v));
+  return variant_internal::VariantCoreAccess::CheckedAccess<I>(absl::move(v));
 }
 
 // Overload for getting a variant's const lvalue by index.
 template <std::size_t I, class... Types>
 constexpr const variant_alternative_t<I, variant<Types...>>& get(
     const variant<Types...>& v) {
-  return variant_internal::VariantCoreAccess::Access<I>(v);
+  return variant_internal::VariantCoreAccess::CheckedAccess<I>(v);
 }
 
 // Overload for getting a variant's const rvalue by index.
@@ -347,7 +347,7 @@ constexpr const variant_alternative_t<I, variant<Types...>>& get(
 template <std::size_t I, class... Types>
 constexpr const variant_alternative_t<I, variant<Types...>>&& get(
     const variant<Types...>&& v) {
-  return variant_internal::VariantCoreAccess::Access<I>(absl::move(v));
+  return variant_internal::VariantCoreAccess::CheckedAccess<I>(absl::move(v));
 }
 
 // get_if()
@@ -365,8 +365,10 @@ constexpr const variant_alternative_t<I, variant<Types...>>&& get(
 template <std::size_t I, class... Types>
 constexpr absl::add_pointer_t<variant_alternative_t<I, variant<Types...>>>
 get_if(variant<Types...>* v) noexcept {
-  return (v != nullptr && v->index() == I) ? std::addressof(absl::get<I>(*v))
-                                           : nullptr;
+  return (v != nullptr && v->index() == I)
+             ? std::addressof(
+                   variant_internal::VariantCoreAccess::Access<I>(*v))
+             : nullptr;
 }
 
 // Overload for getting a pointer to the const value stored in the given
@@ -374,8 +376,10 @@ get_if(variant<Types...>* v) noexcept {
 template <std::size_t I, class... Types>
 constexpr absl::add_pointer_t<const variant_alternative_t<I, variant<Types...>>>
 get_if(const variant<Types...>* v) noexcept {
-  return (v != nullptr && v->index() == I) ? std::addressof(absl::get<I>(*v))
-                                           : nullptr;
+  return (v != nullptr && v->index() == I)
+             ? std::addressof(
+                   variant_internal::VariantCoreAccess::Access<I>(*v))
+             : nullptr;
 }
 
 // Overload for getting a pointer to the value stored in the given variant by
@@ -398,9 +402,9 @@ constexpr absl::add_pointer_t<const T> get_if(
 // Calls a provided functor on a given set of variants. `absl::visit()` is
 // commonly used to conditionally inspect the state of a given variant (or set
 // of variants).
-// Requires: The expression in the Effects: element shall be a valid expression
-// of the same type and value category, for all combinations of alternative
-// types of all variants. Otherwise, the program is ill-formed.
+//
+// The functor must return the same type when called with any of the variants'
+// alternatives.
 //
 // Example:
 //
@@ -413,9 +417,10 @@ constexpr absl::add_pointer_t<const T> get_if(
 //   };
 //
 //   // Declare our variant, and call `absl::visit()` on it.
-//   std::variant<int, std::string> foo = std::string("foo");
+//   // Note that `GetVariant()` returns void in either case.
+//   absl::variant<int, std::string> foo = std::string("foo");
 //   GetVariant visitor;
-//   std::visit(visitor, foo);  // Prints `The variant's value is: foo'
+//   absl::visit(visitor, foo);  // Prints `The variant's value is: foo'
 template <typename Visitor, typename... Variants>
 variant_internal::VisitResult<Visitor, Variants...> visit(Visitor&& vis,
                                                           Variants&&... vars) {
@@ -448,14 +453,19 @@ constexpr bool operator!=(monostate, monostate) noexcept { return false; }
 //------------------------------------------------------------------------------
 template <typename T0, typename... Tn>
 class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
-  // Intentionally not qualifing `negation` with `absl::` to work around a bug
+  static_assert(absl::conjunction<std::is_object<T0>,
+                                  std::is_object<Tn>...>::value,
+                "Attempted to instantiate a variant containing a non-object "
+                "type.");
+  // Intentionally not qualifying `negation` with `absl::` to work around a bug
   // in MSVC 2015 with inline namespace and variadic template.
-  static_assert(absl::conjunction<std::is_object<T0>, std::is_object<Tn>...,
-                                  negation<std::is_array<T0> >,
-                                  negation<std::is_array<Tn> >...,
-                                  std::is_nothrow_destructible<T0>,
+  static_assert(absl::conjunction<negation<std::is_array<T0> >,
+                                  negation<std::is_array<Tn> >...>::value,
+                "Attempted to instantiate a variant containing an array type.");
+  static_assert(absl::conjunction<std::is_nothrow_destructible<T0>,
                                   std::is_nothrow_destructible<Tn>...>::value,
-                "Attempted to instantiate a variant with an unsupported type.");
+                "Attempted to instantiate a variant containing a non-nothrow "
+                "destructible type.");
 
   friend struct variant_internal::VariantCoreAccess;
 
@@ -555,7 +565,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
 
   // Assignment Operators
 
-  // Copy assignement operator
+  // Copy assignment operator
   variant& operator=(const variant& other) = default;
 
   // Move assignment operator
@@ -783,7 +793,7 @@ operator>=(const variant<Types...>& a, const variant<Types...>& b) {
                    a.index());
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 namespace std {
@@ -804,7 +814,7 @@ struct hash<absl::variant<T...>>
 #endif  // ABSL_HAVE_STD_VARIANT
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace variant_internal {
 
 // Helper visitor for converting a variant<Ts...>` into another type (mostly
@@ -840,7 +850,7 @@ To ConvertVariantTo(Variant&& variant) {
                      std::forward<Variant>(variant));
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_TYPES_VARIANT_H_

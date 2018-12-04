@@ -21,7 +21,7 @@
 #include <string>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -32,15 +32,20 @@ class ZoneInfoSource {
 
   virtual std::size_t Read(void* ptr, std::size_t size) = 0;  // like fread()
   virtual int Skip(std::size_t offset) = 0;  // like fseek()
+
+  // Until the zoneinfo data supports versioning information, we provide
+  // a way for a ZoneInfoSource to indicate it out-of-band.  The default
+  // implementation returns an empty std::string.
+  virtual std::string Version() const;
 };
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz_extension {
 
@@ -89,7 +94,7 @@ extern ZoneInfoSourceFactory zone_info_source_factory;
 
 }  // namespace cctz_extension
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_ZONE_INFO_SOURCE_H_

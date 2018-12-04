@@ -23,7 +23,7 @@
 #include "absl/strings/internal/resize_uninitialized.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 AlphaNum::AlphaNum(Hex hex) {
   char* const end = &digits_[numbers_internal::kFastToBufferSize];
@@ -80,8 +80,8 @@ AlphaNum::AlphaNum(Dec dec) {
 // ----------------------------------------------------------------------
 // StrCat()
 //    This merges the given strings or integers, with no delimiter.  This
-//    is designed to be the fastest possible way to construct a std::string out
-//    of a mix of raw C strings, StringPieces, strings, and integer values.
+//    is designed to be the fastest possible way to construct a string out
+//    of a mix of raw C strings, string_views, strings, and integer values.
 // ----------------------------------------------------------------------
 
 // Append is merely a version of memcpy that returns the address of the byte
@@ -155,10 +155,10 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
 }
 
 // It's possible to call StrAppend with an absl::string_view that is itself a
-// fragment of the std::string we're appending to.  However the results of this are
+// fragment of the string we're appending to.  However the results of this are
 // random. Therefore, check for this in debug mode.  Use unsigned math so we
 // only have to do one comparison. Note, there's an exception case: appending an
-// empty std::string is always allowed.
+// empty string is always allowed.
 #define ASSERT_NO_OVERLAP(dest, src) \
   assert(((src).size() == 0) ||      \
          (uintptr_t((src).data() - (dest).data()) > uintptr_t((dest).size())))
@@ -237,5 +237,5 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   assert(out == begin + dest->size());
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

@@ -39,7 +39,7 @@
 #include <link.h>  // for ElfW
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 
 // An in-memory ELF image (may not exist on disk).
@@ -124,7 +124,7 @@ class ElfMemImage {
 };
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_HAVE_ELF_MEM_IMAGE

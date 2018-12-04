@@ -20,7 +20,7 @@
 #include "absl/strings/charconv.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 // Enum indicating whether a parsed float is a number or special value.
@@ -93,6 +93,6 @@ extern template ParsedFloat ParseFloat<16>(const char* begin, const char* end,
                                            absl::chars_format format_flags);
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_STRINGS_INTERNAL_CHARCONV_PARSE_H_

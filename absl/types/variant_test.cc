@@ -52,7 +52,7 @@
 #endif  // ABSL_HAVE_EXCEPTIONS
 
 #define ABSL_VARIANT_TEST_EXPECT_BAD_VARIANT_ACCESS(...)                 \
-  ABSL_VARIANT_TEST_EXPECT_FAIL((__VA_ARGS__), absl::bad_variant_access, \
+  ABSL_VARIANT_TEST_EXPECT_FAIL((void)(__VA_ARGS__), absl::bad_variant_access, \
                                 "Bad variant access")
 
 struct Hashable {};
@@ -67,7 +67,7 @@ struct hash<Hashable> {
 struct NonHashable {};
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
 using ::testing::DoubleEq;
@@ -404,7 +404,7 @@ struct is_trivially_move_constructible
 
 template <class T>
 struct is_trivially_move_assignable
-    : std::is_move_assignable<SingleUnion<T>>::type {};
+    : absl::is_move_assignable<SingleUnion<T>>::type {};
 
 TEST(VariantTest, NothrowMoveConstructible) {
   // Verify that variant is nothrow move constructible iff its template
@@ -560,9 +560,14 @@ TEST(VariantTest, TestDtor) {
 }
 
 #ifdef ABSL_HAVE_EXCEPTIONS
-
+// See comment in absl/base/config.h
+#if defined(ABSL_INTERNAL_MSVC_2017_DBG_MODE)
+TEST(VariantTest, DISABLED_TestDtorValuelessByException)
+#else
 // Test destruction when in the valueless_by_exception state.
-TEST(VariantTest, TestDtorValuelessByException) {
+TEST(VariantTest, TestDtorValuelessByException)
+#endif
+{
   int counter = 0;
   IncrementInDtor counter_adjuster(&counter);
 
@@ -2440,14 +2445,14 @@ TEST(VariantTest, TestMoveConversionViaConvertVariantTo) {
 
 TEST(VariantTest, TestCopyAndMoveTypeTraits) {
   EXPECT_TRUE(std::is_copy_constructible<variant<std::string>>::value);
-  EXPECT_TRUE(std::is_copy_assignable<variant<std::string>>::value);
+  EXPECT_TRUE(absl::is_copy_assignable<variant<std::string>>::value);
   EXPECT_TRUE(std::is_move_constructible<variant<std::string>>::value);
-  EXPECT_TRUE(std::is_move_assignable<variant<std::string>>::value);
+  EXPECT_TRUE(absl::is_move_assignable<variant<std::string>>::value);
   EXPECT_TRUE(std::is_move_constructible<variant<std::unique_ptr<int>>>::value);
-  EXPECT_TRUE(std::is_move_assignable<variant<std::unique_ptr<int>>>::value);
+  EXPECT_TRUE(absl::is_move_assignable<variant<std::unique_ptr<int>>>::value);
   EXPECT_FALSE(
       std::is_copy_constructible<variant<std::unique_ptr<int>>>::value);
-  EXPECT_FALSE(std::is_copy_assignable<variant<std::unique_ptr<int>>>::value);
+  EXPECT_FALSE(absl::is_copy_assignable<variant<std::unique_ptr<int>>>::value);
 
   EXPECT_FALSE(
       absl::is_trivially_copy_constructible<variant<std::string>>::value);
@@ -2610,5 +2615,5 @@ TEST(VariantTest, MoveCtorBug) {
 }
 
 }  // namespace
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

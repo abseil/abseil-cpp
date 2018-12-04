@@ -53,7 +53,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 
 // NOTE: this class may be used from within tcmalloc, and can not
@@ -150,7 +150,7 @@ class VDSOSupport {
 int GetCPU();
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_HAVE_ELF_MEM_IMAGE

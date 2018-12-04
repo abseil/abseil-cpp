@@ -12,6 +12,8 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+package(features = ["-parse_headers"])
+
 licenses(["notice"])  # Apache License
 
 ### libraries
@@ -102,6 +104,7 @@ cc_test(
         "no_test_android_arm",
         "no_test_android_arm64",
         "no_test_android_x86",
+        "no_test_wasm",
     ],
     deps = [
         ":civil_time",

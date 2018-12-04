@@ -18,7 +18,7 @@
 #include "absl/time/internal/cctz/include/cctz/civil_time_detail.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -60,7 +60,7 @@ namespace cctz {
 // inferior fields to their minimum valid value (as described above). The
 // following are examples of how each of the six types would align the fields
 // representing November 22, 2015 at 12:34:56 in the afternoon. (Note: the
-// std::string format used here is not important; it's just a shorthand way of
+// string format used here is not important; it's just a shorthand way of
 // showing the six YMDHMS fields.)
 //
 //   civil_second  2015-11-22 12:34:56
@@ -325,7 +325,7 @@ using detail::get_yearday;
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_CIVIL_TIME_H_

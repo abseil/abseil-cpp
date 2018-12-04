@@ -18,19 +18,22 @@
 #include "absl/base/internal/exception_safety_testing.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
-using Thrower = ::testing::ThrowingValue<>;
+constexpr int kLength = 50;
+using Thrower = testing::ThrowingValue<testing::TypeSpec::kEverythingThrows>;
+using ThrowerStorage =
+    absl::aligned_storage_t<sizeof(Thrower), alignof(Thrower)>;
+using ThrowerList = std::array<ThrowerStorage, kLength>;
 
 TEST(MakeUnique, CheckForLeaks) {
   constexpr int kValue = 321;
-  constexpr size_t kLength = 10;
   auto tester = testing::MakeExceptionSafetyTester()
                     .WithInitialValue(Thrower(kValue))
                     // Ensures make_unique does not modify the input. The real
                     // test, though, is ConstructorTracker checking for leaks.
-                    .WithInvariants(testing::strong_guarantee);
+                    .WithContracts(testing::strong_guarantee);
 
   EXPECT_TRUE(tester.Test([](Thrower* thrower) {
     static_cast<void>(absl::make_unique<Thrower>(*thrower));
@@ -47,5 +50,5 @@ TEST(MakeUnique, CheckForLeaks) {
 }
 
 }  // namespace
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

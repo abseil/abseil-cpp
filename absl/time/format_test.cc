@@ -118,7 +118,7 @@ TEST(FormatTime, RFC1123FormatPadsYear) {  // locale specific
   absl::TimeZone tz = absl::UTCTimeZone();
 
   // A year of 77 should be padded to 0077.
-  absl::Time t = absl::FromDateTime(77, 6, 28, 9, 8, 7, tz);
+  absl::Time t = absl::FromCivil(absl::CivilSecond(77, 6, 28, 9, 8, 7), tz);
   EXPECT_EQ("Mon, 28 Jun 0077 09:08:07 +0000",
             absl::FormatTime(absl::RFC1123_full, t, tz));
   EXPECT_EQ("28 Jun 0077 09:08:07 +0000",
@@ -154,9 +154,9 @@ TEST(ParseTime, Basics) {
   EXPECT_TRUE(absl::ParseTime("%Y-%m-%d %H:%M:%S %z",
                               "2013-06-28 19:08:09 -0800", &t, &err))
       << err;
-  absl::Time::Breakdown bd = t.In(absl::FixedTimeZone(-8 * 60 * 60));
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -8 * 60 * 60, false);
-  EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
+  const auto ci = absl::FixedTimeZone(-8 * 60 * 60).At(t);
+  EXPECT_EQ(absl::CivilSecond(2013, 6, 28, 19, 8, 9), ci.cs);
+  EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
 }
 
 TEST(ParseTime, NullErrorString) {
@@ -177,17 +177,17 @@ TEST(ParseTime, WithTimeZone) {
   EXPECT_TRUE(
       absl::ParseTime("%Y-%m-%d %H:%M:%S", "2013-06-28 19:08:09", tz, &t, &e))
       << e;
-  absl::Time::Breakdown bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, -7 * 60 * 60, true);
-  EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
+  auto ci = tz.At(t);
+  EXPECT_EQ(absl::CivilSecond(2013, 6, 28, 19, 8, 9), ci.cs);
+  EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
 
   // But the timezone is ignored when a UTC offset is present.
   EXPECT_TRUE(absl::ParseTime("%Y-%m-%d %H:%M:%S %z",
                               "2013-06-28 19:08:09 +0800", tz, &t, &e))
       << e;
-  bd = t.In(absl::FixedTimeZone(8 * 60 * 60));
-  ABSL_INTERNAL_EXPECT_TIME(bd, 2013, 6, 28, 19, 8, 9, 8 * 60 * 60, false);
-  EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
+  ci = absl::FixedTimeZone(8 * 60 * 60).At(t);
+  EXPECT_EQ(absl::CivilSecond(2013, 6, 28, 19, 8, 9), ci.cs);
+  EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
 }
 
 TEST(ParseTime, ErrorCases) {
@@ -332,15 +332,15 @@ TEST(ParseTime, InfiniteTime) {
   EXPECT_TRUE(absl::ParseTime("infinite-future %H:%M", "infinite-future 03:04",
                               &t, &err));
   EXPECT_NE(absl::InfiniteFuture(), t);
-  EXPECT_EQ(3, t.In(tz).hour);
-  EXPECT_EQ(4, t.In(tz).minute);
+  EXPECT_EQ(3, tz.At(t).cs.hour());
+  EXPECT_EQ(4, tz.At(t).cs.minute());
 
   // "infinite-past" as literal std::string
   EXPECT_TRUE(
       absl::ParseTime("infinite-past %H:%M", "infinite-past 03:04", &t, &err));
   EXPECT_NE(absl::InfinitePast(), t);
-  EXPECT_EQ(3, t.In(tz).hour);
-  EXPECT_EQ(4, t.In(tz).minute);
+  EXPECT_EQ(3, tz.At(t).cs.hour());
+  EXPECT_EQ(4, tz.At(t).cs.minute());
 
   // The input doesn't match the format.
   EXPECT_FALSE(absl::ParseTime("infinite-future %H:%M", "03:04", &t, &err));
@@ -365,16 +365,17 @@ TEST(ParseTime, FailsOnUnrepresentableTime) {
 //
 
 TEST(FormatParse, RoundTrip) {
-  const absl::TimeZone gst =
+  const absl::TimeZone lax =
       absl::time_internal::LoadTimeZone("America/Los_Angeles");
-  const absl::Time in = absl::FromDateTime(1977, 6, 28, 9, 8, 7, gst);
+  const absl::Time in =
+      absl::FromCivil(absl::CivilSecond(1977, 6, 28, 9, 8, 7), lax);
   const absl::Duration subseconds = absl::Nanoseconds(654321);
   std::string err;
 
   // RFC3339, which renders subseconds.
   {
     absl::Time out;
-    const std::string s = absl::FormatTime(absl::RFC3339_full, in + subseconds, gst);
+    const std::string s = absl::FormatTime(absl::RFC3339_full, in + subseconds, lax);
     EXPECT_TRUE(absl::ParseTime(absl::RFC3339_full, s, &out, &err))
         << s << ": " << err;
     EXPECT_EQ(in + subseconds, out);  // RFC3339_full includes %Ez
@@ -383,7 +384,7 @@ TEST(FormatParse, RoundTrip) {
   // RFC1123, which only does whole seconds.
   {
     absl::Time out;
-    const std::string s = absl::FormatTime(absl::RFC1123_full, in, gst);
+    const std::string s = absl::FormatTime(absl::RFC1123_full, in, lax);
     EXPECT_TRUE(absl::ParseTime(absl::RFC1123_full, s, &out, &err))
         << s << ": " << err;
     EXPECT_EQ(in, out);  // RFC1123_full includes %z
@@ -393,7 +394,12 @@ TEST(FormatParse, RoundTrip) {
   // work. On Windows, `absl::ParseTime()` falls back to std::get_time() which
   // appears to fail on "%c" (or at least on the "%c" text produced by
   // `strftime()`). This makes it fail the round-trip test.
-#ifndef _MSC_VER
+  //
+  // Under the emscripten compiler `absl::ParseTime() falls back to
+  // `strptime()`, but that ends up using a different definition for "%c"
+  // compared to `strftime()`, also causing the round-trip test to fail
+  // (see https://github.com/kripken/emscripten/pull/7491).
+#if !defined(_MSC_VER) && !defined(__EMSCRIPTEN__)
   // Even though we don't know what %c will produce, it should roundtrip,
   // but only in the 0-offset timezone.
   {
@@ -402,7 +408,7 @@ TEST(FormatParse, RoundTrip) {
     EXPECT_TRUE(absl::ParseTime("%c", s, &out, &err)) << s << ": " << err;
     EXPECT_EQ(in, out);
   }
-#endif  // _MSC_VER
+#endif  // !_MSC_VER && !__EMSCRIPTEN__
 }
 
 TEST(FormatParse, RoundTripDistantFuture) {

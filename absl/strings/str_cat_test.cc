@@ -28,7 +28,8 @@
 #define ABSL_EXPECT_DEBUG_DEATH(statement, regex) \
   EXPECT_DEBUG_DEATH(statement, ".*")
 #else
-#define ABSL_EXPECT_DEBUG_DEATH EXPECT_DEBUG_DEATH
+#define ABSL_EXPECT_DEBUG_DEATH(statement, regex) \
+  EXPECT_DEBUG_DEATH(statement, regex)
 #endif
 
 namespace {
@@ -426,7 +427,7 @@ void CheckHex(IntType v, const char* nopad_format, const char* zeropad_format,
   snprintf(expected, sizeof(expected), nopad_format, v);
   EXPECT_EQ(expected, actual) << " decimal value " << v;
 
-  for (int spec = absl::kZeroPad2; spec <= absl::kZeroPad16; ++spec) {
+  for (int spec = absl::kZeroPad2; spec <= absl::kZeroPad20; ++spec) {
     std::string actual =
         absl::StrCat(absl::Hex(v, static_cast<absl::PadSpec>(spec)));
     snprintf(expected, sizeof(expected), zeropad_format,
@@ -434,7 +435,7 @@ void CheckHex(IntType v, const char* nopad_format, const char* zeropad_format,
     EXPECT_EQ(expected, actual) << " decimal value " << v;
   }
 
-  for (int spec = absl::kSpacePad2; spec <= absl::kSpacePad16; ++spec) {
+  for (int spec = absl::kSpacePad2; spec <= absl::kSpacePad20; ++spec) {
     std::string actual =
         absl::StrCat(absl::Hex(v, static_cast<absl::PadSpec>(spec)));
     snprintf(expected, sizeof(expected), spacepad_format,
@@ -452,7 +453,7 @@ void CheckDec(IntType v, const char* nopad_format, const char* zeropad_format,
   snprintf(expected, sizeof(expected), nopad_format, v);
   EXPECT_EQ(expected, actual) << " decimal value " << v;
 
-  for (int spec = absl::kZeroPad2; spec <= absl::kZeroPad16; ++spec) {
+  for (int spec = absl::kZeroPad2; spec <= absl::kZeroPad20; ++spec) {
     std::string actual =
         absl::StrCat(absl::Dec(v, static_cast<absl::PadSpec>(spec)));
     snprintf(expected, sizeof(expected), zeropad_format,
@@ -462,7 +463,7 @@ void CheckDec(IntType v, const char* nopad_format, const char* zeropad_format,
         << "' digits " << (spec - absl::kZeroPad2 + 2);
   }
 
-  for (int spec = absl::kSpacePad2; spec <= absl::kSpacePad16; ++spec) {
+  for (int spec = absl::kSpacePad2; spec <= absl::kSpacePad20; ++spec) {
     std::string actual =
         absl::StrCat(absl::Dec(v, static_cast<absl::PadSpec>(spec)));
     snprintf(expected, sizeof(expected), spacepad_format,

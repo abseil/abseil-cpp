@@ -38,48 +38,48 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // SimpleAtoi()
 //
-// Converts the given std::string into an integer value, returning `true` if
-// successful. The std::string must reflect a base-10 integer (optionally followed or
+// Converts the given string into an integer value, returning `true` if
+// successful. The string must reflect a base-10 integer (optionally followed or
 // preceded by ASCII whitespace) whose value falls within the range of the
-// integer type,
+// integer type.
 template <typename int_type>
 ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 
 // SimpleAtof()
 //
-// Converts the given std::string (optionally followed or preceded by ASCII
+// Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a float, which may be rounded on overflow or underflow.
-// See http://en.cppreference.com/w/c/std::string/byte/strtof for details about the
+// See http://en.cppreference.com/w/c/string/byte/strtof for details about the
 // allowed formats for `str`.
 ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* value);
 
 // SimpleAtod()
 //
-// Converts the given std::string (optionally followed or preceded by ASCII
+// Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a double, which may be rounded on overflow or underflow.
-// See http://en.cppreference.com/w/c/std::string/byte/strtof for details about the
+// See http://en.cppreference.com/w/c/string/byte/strtof for details about the
 // allowed formats for `str`.
 ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* value);
 
 // SimpleAtob()
 //
-// Converts the given std::string into a boolean, returning `true` if successful.
+// Converts the given string into a boolean, returning `true` if successful.
 // The following case-insensitive strings are interpreted as boolean `true`:
 // "true", "t", "yes", "y", "1". The following case-insensitive strings
 // are interpreted as boolean `false`: "false", "f", "no", "n", "0".
 ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* value);
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // End of public API.  Implementation details follow.
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace numbers_internal {
 
 // safe_strto?() functions for implementing SimpleAtoi()
@@ -172,9 +172,9 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
 
 // SimpleAtoi()
 //
-// Converts a std::string to an integer, using `safe_strto?()` functions for actual
+// Converts a string to an integer, using `safe_strto?()` functions for actual
 // parsing, returning `true` if successful. The `safe_strto?()` functions apply
-// strict checking; the std::string must be a base-10 integer, optionally followed or
+// strict checking; the string must be a base-10 integer, optionally followed or
 // preceded by ASCII whitespace, with a value in the range of the corresponding
 // integer type.
 template <typename int_type>
@@ -182,7 +182,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
   return numbers_internal::safe_strtoi_base(s, out, 10);
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_NUMBERS_H_

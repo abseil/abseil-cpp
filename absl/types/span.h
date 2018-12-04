@@ -72,7 +72,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 template <typename T>
 class Span;
@@ -88,7 +88,7 @@ constexpr auto GetDataImpl(C& c, char) noexcept  // NOLINT(runtime/references)
   return c.data();
 }
 
-// Before C++17, std::string::data returns a const char* in all cases.
+// Before C++17, string::data returns a const char* in all cases.
 inline char* GetDataImpl(std::string& s,  // NOLINT(runtime/references)
                          int) noexcept {
   return &s[0];
@@ -380,64 +380,70 @@ class Span {
   //
   // Returns a reference to the i'th element of this span.
   constexpr reference at(size_type i) const {
-    return ABSL_PREDICT_TRUE(i < size())
-               ? ptr_[i]
+    return ABSL_PREDICT_TRUE(i < size())  //
+               ? *(data() + i)
                : (base_internal::ThrowStdOutOfRange(
                       "Span::at failed bounds check"),
-                  ptr_[i]);
+                  *(data() + i));
   }
 
   // Span::front()
   //
   // Returns a reference to the first element of this span.
-  reference front() const noexcept { return ABSL_ASSERT(size() > 0), ptr_[0]; }
+  constexpr reference front() const noexcept {
+    return ABSL_ASSERT(size() > 0), *data();
+  }
 
   // Span::back()
   //
   // Returns a reference to the last element of this span.
-  reference back() const noexcept {
-    return ABSL_ASSERT(size() > 0), ptr_[size() - 1];
+  constexpr reference back() const noexcept {
+    return ABSL_ASSERT(size() > 0), *(data() + size() - 1);
   }
 
   // Span::begin()
   //
   // Returns an iterator to the first element of this span.
-  constexpr iterator begin() const noexcept { return ptr_; }
+  constexpr iterator begin() const noexcept { return data(); }
 
   // Span::cbegin()
   //
   // Returns a const iterator to the first element of this span.
-  constexpr const_iterator cbegin() const noexcept { return ptr_; }
+  constexpr const_iterator cbegin() const noexcept { return begin(); }
 
   // Span::end()
   //
   // Returns an iterator to the last element of this span.
-  iterator end() const noexcept { return ptr_ + len_; }
+  constexpr iterator end() const noexcept { return data() + size(); }
 
   // Span::cend()
   //
   // Returns a const iterator to the last element of this span.
-  const_iterator cend() const noexcept { return end(); }
+  constexpr const_iterator cend() const noexcept { return end(); }
 
   // Span::rbegin()
   //
   // Returns a reverse iterator starting at the last element of this span.
-  reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+  constexpr reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
 
   // Span::crbegin()
   //
   // Returns a reverse const iterator starting at the last element of this span.
-  const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+  constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
 
   // Span::rend()
   //
   // Returns a reverse iterator starting at the first element of this span.
-  reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+  constexpr reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
 
   // Span::crend()
   //
   // Returns a reverse iterator starting at the first element of this span.
-  const_reverse_iterator crend() const noexcept { return rend(); }
+  constexpr const_reverse_iterator crend() const noexcept { return rend(); }
 
   // Span mutations
 
@@ -445,7 +451,7 @@ class Span {
   //
   // Removes the first `n` elements from the span.
   void remove_prefix(size_type n) noexcept {
-    assert(len_ >= n);
+    assert(size() >= n);
     ptr_ += n;
     len_ -= n;
   }
@@ -454,7 +460,7 @@ class Span {
   //
   // Removes the last `n` elements from the span.
   void remove_suffix(size_type n) noexcept {
-    assert(len_ >= n);
+    assert(size() >= n);
     len_ -= n;
   }
 
@@ -475,9 +481,16 @@ class Span {
   //   absl::MakeSpan(vec).subspan(4);     // {}
   //   absl::MakeSpan(vec).subspan(5);     // throws std::out_of_range
   constexpr Span subspan(size_type pos = 0, size_type len = npos) const {
-    return (pos <= len_)
-               ? Span(ptr_ + pos, span_internal::Min(len_ - pos, len))
+    return (pos <= size())
+               ? Span(data() + pos, span_internal::Min(size() - pos, len))
                : (base_internal::ThrowStdOutOfRange("pos > size()"), Span());
+  }
+
+  // Support for absl::Hash.
+  template <typename H>
+  friend H AbslHashValue(H h, Span v) {
+    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
+                      v.size());
   }
 
  private:
@@ -746,6 +759,6 @@ template <int&... ExplicitArgumentBarrier, typename T, size_t N>
 constexpr Span<const T> MakeConstSpan(const T (&array)[N]) noexcept {
   return Span<const T>(array, N);
 }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_TYPES_SPAN_H_

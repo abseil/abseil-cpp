@@ -36,7 +36,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 class Condition;
 
 namespace synchronization_internal {
@@ -254,5 +254,5 @@ class SynchronizationStorage {
 };
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

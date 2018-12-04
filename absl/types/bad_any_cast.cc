@@ -14,13 +14,15 @@
 
 #include "absl/types/bad_any_cast.h"
 
+#ifndef ABSL_HAVE_STD_ANY
+
 #include <cstdlib>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 bad_any_cast::~bad_any_cast() = default;
 
@@ -38,5 +40,7 @@ void ThrowBadAnyCast() {
 }
 
 }  // namespace any_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
+
+#endif  // ABSL_HAVE_STD_ANY

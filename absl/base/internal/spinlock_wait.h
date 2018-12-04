@@ -24,7 +24,7 @@
 #include "absl/base/internal/scheduling_mode.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // SpinLockWait() waits until it can perform one of several transitions from
@@ -63,7 +63,7 @@ void SpinLockDelay(std::atomic<uint32_t> *w, uint32_t value, int loop,
 int SpinLockSuggestedDelayNS(int loop);
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // In some build configurations we pass --detect-odr-violations to the

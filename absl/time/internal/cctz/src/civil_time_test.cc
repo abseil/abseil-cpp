@@ -23,7 +23,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -621,7 +621,7 @@ TEST(CivilTime, Relational) {
   TEST_RELATIONAL(civil_second(2014, 1, 1, 1, 1, 0),
                   civil_second(2014, 1, 1, 1, 1, 1));
 
-  // Tests the relational operators of two different CivilTime types.
+  // Tests the relational operators of two different civil-time types.
   TEST_RELATIONAL(civil_day(2014, 1, 1), civil_minute(2014, 1, 1, 1, 1));
   TEST_RELATIONAL(civil_day(2014, 1, 1), civil_month(2014, 2));
 
@@ -1047,5 +1047,5 @@ TEST(CivilTime, FirstThursdayInMonth) {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

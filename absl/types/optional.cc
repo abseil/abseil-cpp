@@ -16,11 +16,11 @@
 
 #ifndef ABSL_HAVE_STD_OPTIONAL
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 nullopt_t::init_t nullopt_t::init;
 extern const nullopt_t nullopt{nullopt_t::init};
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_HAVE_STD_OPTIONAL

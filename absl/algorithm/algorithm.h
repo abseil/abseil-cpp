@@ -27,7 +27,7 @@
 #include <type_traits>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace algorithm_internal {
 
@@ -146,7 +146,7 @@ ForwardIterator rotate(ForwardIterator first, ForwardIterator middle,
                    ForwardIterator>());
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_ALGORITHM_ALGORITHM_H_

@@ -169,32 +169,32 @@ void BM_Time_ToUnixSeconds(benchmark::State& state) {
 BENCHMARK(BM_Time_ToUnixSeconds);
 
 //
-// FromDateTime
+// FromCivil
 //
-// In each "FromDateTime" benchmark we switch between two YMDhms
-// values separated by at least one transition in order to defeat any
-// internal caching of previous results (e.g., see time_local_hint_).
+// In each "FromCivil" benchmark we switch between two YMDhms values
+// separated by at least one transition in order to defeat any internal
+// caching of previous results (e.g., see time_local_hint_).
 //
 // The "UTC" variants use UTC instead of the Google/local time zone.
 // The "Day0" variants require normalization of the day of month.
 //
 
-void BM_Time_FromDateTime_Absl(benchmark::State& state) {
+void BM_Time_FromCivil_Absl(benchmark::State& state) {
   const absl::TimeZone tz =
       absl::time_internal::LoadTimeZone("America/Los_Angeles");
   int i = 0;
   while (state.KeepRunning()) {
     if ((i & 1) == 0) {
-      absl::FromDateTime(2014, 12, 18, 20, 16, 18, tz);
+      absl::FromCivil(absl::CivilSecond(2014, 12, 18, 20, 16, 18), tz);
     } else {
-      absl::FromDateTime(2013, 11, 15, 18, 30, 27, tz);
+      absl::FromCivil(absl::CivilSecond(2013, 11, 15, 18, 30, 27), tz);
     }
     ++i;
   }
 }
-BENCHMARK(BM_Time_FromDateTime_Absl);
+BENCHMARK(BM_Time_FromCivil_Absl);
 
-void BM_Time_FromDateTime_Libc(benchmark::State& state) {
+void BM_Time_FromCivil_Libc(benchmark::State& state) {
   // No timezone support, so just use localtime.
   int i = 0;
   while (state.KeepRunning()) {
@@ -219,32 +219,32 @@ void BM_Time_FromDateTime_Libc(benchmark::State& state) {
     ++i;
   }
 }
-BENCHMARK(BM_Time_FromDateTime_Libc);
+BENCHMARK(BM_Time_FromCivil_Libc);
 
-void BM_Time_FromDateTimeUTC_Absl(benchmark::State& state) {
+void BM_Time_FromCivilUTC_Absl(benchmark::State& state) {
   const absl::TimeZone tz = absl::UTCTimeZone();
   while (state.KeepRunning()) {
-    FromDateTime(2014, 12, 18, 20, 16, 18, tz);
+    absl::FromCivil(absl::CivilSecond(2014, 12, 18, 20, 16, 18), tz);
   }
 }
-BENCHMARK(BM_Time_FromDateTimeUTC_Absl);
+BENCHMARK(BM_Time_FromCivilUTC_Absl);
 
-void BM_Time_FromDateTimeDay0_Absl(benchmark::State& state) {
+void BM_Time_FromCivilDay0_Absl(benchmark::State& state) {
   const absl::TimeZone tz =
       absl::time_internal::LoadTimeZone("America/Los_Angeles");
   int i = 0;
   while (state.KeepRunning()) {
     if ((i & 1) == 0) {
-      absl::FromDateTime(2014, 12, 0, 20, 16, 18, tz);
+      absl::FromCivil(absl::CivilSecond(2014, 12, 0, 20, 16, 18), tz);
     } else {
-      absl::FromDateTime(2013, 11, 0, 18, 30, 27, tz);
+      absl::FromCivil(absl::CivilSecond(2013, 11, 0, 18, 30, 27), tz);
     }
     ++i;
   }
 }
-BENCHMARK(BM_Time_FromDateTimeDay0_Absl);
+BENCHMARK(BM_Time_FromCivilDay0_Absl);
 
-void BM_Time_FromDateTimeDay0_Libc(benchmark::State& state) {
+void BM_Time_FromCivilDay0_Libc(benchmark::State& state) {
   // No timezone support, so just use localtime.
   int i = 0;
   while (state.KeepRunning()) {
@@ -269,7 +269,7 @@ void BM_Time_FromDateTimeDay0_Libc(benchmark::State& state) {
     ++i;
   }
 }
-BENCHMARK(BM_Time_FromDateTimeDay0_Libc);
+BENCHMARK(BM_Time_FromCivilDay0_Libc);
 
 //
 // To/FromTimespec

@@ -24,7 +24,7 @@
 #include <string>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 template <typename IntType>
@@ -65,11 +65,11 @@ struct uint32_test_case {
 
 inline const std::array<uint32_test_case, 27>& strtouint32_test_cases() {
   static const std::array<uint32_test_case, 27> test_cases{{
-      {"0xffffffff", true, 16, std::numeric_limits<uint32_t>::max()},
+      {"0xffffffff", true, 16, (std::numeric_limits<uint32_t>::max)()},
       {"0x34234324", true, 16, 0x34234324},
       {"34234324", true, 16, 0x34234324},
       {"0", true, 16, 0},
-      {" \t\n 0xffffffff", true, 16, std::numeric_limits<uint32_t>::max()},
+      {" \t\n 0xffffffff", true, 16, (std::numeric_limits<uint32_t>::max)()},
       {" \f\v 46", true, 10, 46},  // must accept weird whitespace
       {" \t\n 72717222", true, 8, 072717222},
       {" \t\n 072717222", true, 8, 072717222},
@@ -78,7 +78,7 @@ inline const std::array<uint32_test_case, 27>& strtouint32_test_cases() {
 
       // Base-10 version.
       {"34234324", true, 0, 34234324},
-      {"4294967295", true, 0, std::numeric_limits<uint32_t>::max()},
+      {"4294967295", true, 0, (std::numeric_limits<uint32_t>::max)()},
       {"34234324 \n\t", true, 10, 34234324},
 
       // Unusual base
@@ -97,8 +97,8 @@ inline const std::array<uint32_test_case, 27>& strtouint32_test_cases() {
       {" \t\n -123", false, 0, 0},
 
       // Out of bounds.
-      {"4294967296", false, 0, std::numeric_limits<uint32_t>::max()},
-      {"0x100000000", false, 0, std::numeric_limits<uint32_t>::max()},
+      {"4294967296", false, 0, (std::numeric_limits<uint32_t>::max)()},
+      {"0x100000000", false, 0, (std::numeric_limits<uint32_t>::max)()},
       {nullptr, false, 0, 0},
   }};
   return test_cases;
@@ -120,7 +120,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
       {"000", true, 0, 0},
       {"0", true, 0, 0},
       {" \t\n 0xffffffffffffffff", true, 16,
-       std::numeric_limits<uint64_t>::max()},
+       (std::numeric_limits<uint64_t>::max)()},
 
       {"012345670123456701234", true, 8, int64_t{012345670123456701234}},
       {"12345670123456701234", true, 8, int64_t{012345670123456701234}},
@@ -131,7 +131,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
       {"34234324487834466", true, 0, int64_t{34234324487834466}},
 
       {" \t\n 18446744073709551615", true, 0,
-       std::numeric_limits<uint64_t>::max()},
+       (std::numeric_limits<uint64_t>::max)()},
 
       {"34234324487834466 \n\t ", true, 0, int64_t{34234324487834466}},
 
@@ -157,12 +157,13 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
       // Out of bounds.
       {"18446744073709551616", false, 10, 0},
       {"18446744073709551616", false, 0, 0},
-      {"0x10000000000000000", false, 16, std::numeric_limits<uint64_t>::max()},
+      {"0x10000000000000000", false, 16,
+       (std::numeric_limits<uint64_t>::max)()},
       {"0X10000000000000000", false, 16,
-       std::numeric_limits<uint64_t>::max()},  // 0X versus 0x.
-      {"0x10000000000000000", false, 0, std::numeric_limits<uint64_t>::max()},
+       (std::numeric_limits<uint64_t>::max)()},  // 0X versus 0x.
+      {"0x10000000000000000", false, 0, (std::numeric_limits<uint64_t>::max)()},
       {"0X10000000000000000", false, 0,
-       std::numeric_limits<uint64_t>::max()},  // 0X versus 0x.
+       (std::numeric_limits<uint64_t>::max)()},  // 0X versus 0x.
 
       {"0x1234", true, 16, 0x1234},
 
@@ -174,7 +175,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
 }
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_NUMBERS_TEST_COMMON_H_

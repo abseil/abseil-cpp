@@ -23,6 +23,10 @@ exceptions_internal::NoThrowTag nothrow_ctor;
 
 exceptions_internal::StrongGuaranteeTagType strong_guarantee;
 
+exceptions_internal::ExceptionSafetyTestBuilder<> MakeExceptionSafetyTester() {
+  return {};
+}
+
 namespace exceptions_internal {
 
 int countdown = -1;

@@ -39,7 +39,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 class once_flag;
 
@@ -151,12 +151,8 @@ void CallOnceImpl(std::atomic<uint32_t>* control,
         old_control != kOnceRunning &&
         old_control != kOnceWaiter &&
         old_control != kOnceDone) {
-      ABSL_RAW_LOG(
-          FATAL,
-          "Unexpected value for control word: %lx. Either the control word "
-          "has non-static storage duration (where GoogleOnceDynamic might "
-          "be appropriate), or there's been a memory corruption.",
-          static_cast<unsigned long>(old_control)); // NOLINT
+      ABSL_RAW_LOG(FATAL, "Unexpected value for control word: 0x%lx",
+                   static_cast<unsigned long>(old_control));  // NOLINT
     }
   }
 #endif  // NDEBUG
@@ -212,7 +208,7 @@ void call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
   }
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_CALL_ONCE_H_

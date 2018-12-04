@@ -33,7 +33,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // Nominal core processor cycles per second of each processor.   This is _not_
@@ -59,7 +59,7 @@ using pid_t = DWORD;
 pid_t GetTID();
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SYSINFO_H_

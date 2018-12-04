@@ -23,7 +23,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 namespace {
 
@@ -44,7 +44,7 @@ TEST(SignalHandlerStackConsumptionTest, MeasuresStackConsumption) {
 
 }  // namespace
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_INTERNAL_HAVE_DEBUGGING_STACK_CONSUMPTION

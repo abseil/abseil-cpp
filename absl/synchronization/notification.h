@@ -52,11 +52,12 @@
 
 #include <atomic>
 
+#include "absl/base/macros.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // -----------------------------------------------------------------------------
 // Notification
@@ -109,6 +110,6 @@ class Notification {
   std::atomic<bool> notified_yet_;  // written under mutex_
 };
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_SYNCHRONIZATION_NOTIFICATION_H_

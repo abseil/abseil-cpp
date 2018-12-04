@@ -27,15 +27,16 @@ licenses(["notice"])  # Apache 2.0
 cc_library(
     name = "time",
     srcs = [
+        "civil_time.cc",
         "clock.cc",
         "duration.cc",
         "format.cc",
-        "internal/get_current_time_ios.inc",
+        "internal/get_current_time_chrono.inc",
         "internal/get_current_time_posix.inc",
-        "internal/get_current_time_windows.inc",
         "time.cc",
     ],
     hdrs = [
+        "civil_time.h",
         "clock.h",
         "time.h",
     ],
@@ -73,10 +74,10 @@ cc_library(
 cc_test(
     name = "time_test",
     srcs = [
+        "civil_time_test.cc",
         "clock_test.cc",
         "duration_test.cc",
         "format_test.cc",
-        "time_norm_test.cc",
         "time_test.cc",
         "time_zone_test.cc",
     ],
@@ -95,6 +96,7 @@ cc_test(
 cc_test(
     name = "time_benchmark",
     srcs = [
+        "civil_time_benchmark.cc",
         "clock_benchmark.cc",
         "duration_benchmark.cc",
         "format_benchmark.cc",
@@ -108,6 +110,7 @@ cc_test(
         ":test_util",
         ":time",
         "//absl/base",
+        "//absl/hash",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )

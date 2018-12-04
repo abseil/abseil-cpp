@@ -62,7 +62,7 @@ extern "C" void* __mmap2(void*, size_t, int, int, int, size_t);
 #endif  // __BIONIC__
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // Platform specific logic extracted from
@@ -76,7 +76,11 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
   // On these architectures, implement mmap with mmap2.
   static int pagesize = 0;
   if (pagesize == 0) {
+#if defined(__wasm__) || defined(__asmjs__)
     pagesize = getpagesize();
+#else
+    pagesize = sysconf(_SC_PAGESIZE);
+#endif
   }
   if (offset < 0 || offset % pagesize != 0) {
     errno = EINVAL;
@@ -93,11 +97,13 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
 #endif
 #elif defined(__s390x__)
   // On s390x, mmap() arguments are passed in memory.
-  uint32_t buf[6] = {
-      reinterpret_cast<uint32_t>(start), static_cast<uint32_t>(length),
-      static_cast<uint32_t>(prot),       static_cast<uint32_t>(flags),
-      static_cast<uint32_t>(fd),         static_cast<uint32_t>(offset)};
-  return reintrepret_cast<void*>(syscall(SYS_mmap, buf));
+  unsigned long buf[6] = {reinterpret_cast<unsigned long>(start),  // NOLINT
+                          static_cast<unsigned long>(length),      // NOLINT
+                          static_cast<unsigned long>(prot),        // NOLINT
+                          static_cast<unsigned long>(flags),       // NOLINT
+                          static_cast<unsigned long>(fd),          // NOLINT
+                          static_cast<unsigned long>(offset)};     // NOLINT
+  return reinterpret_cast<void*>(syscall(SYS_mmap, buf));
 #elif defined(__x86_64__)
 // The x32 ABI has 32 bit longs, but the syscall interface is 64 bit.
 // We need to explicitly cast to an unsigned 64 bit type to avoid implicit
@@ -123,7 +129,7 @@ inline int DirectMunmap(void* start, size_t length) {
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #else  // !__linux__
@@ -132,7 +138,7 @@ inline int DirectMunmap(void* start, size_t length) {
 // actual mmap()/munmap() methods.
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
@@ -145,7 +151,7 @@ inline int DirectMunmap(void* start, size_t length) {
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // __linux__

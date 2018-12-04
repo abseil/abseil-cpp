@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file tests std::string processing functions related to numeric values.
+// This file tests string processing functions related to numeric values.
 
 #include "absl/strings/numbers.h"
 
@@ -39,6 +39,7 @@
 #include "absl/strings/str_cat.h"
 
 #include "absl/strings/internal/numbers_test_common.h"
+#include "absl/strings/internal/pow10_helper.h"
 
 namespace {
 
@@ -56,16 +57,11 @@ using testing::Eq;
 using testing::MatchesRegex;
 
 // Number of floats to test with.
-// 10,000,000 is a reasonable default for a test that only takes a few seconds.
+// 5,000,000 is a reasonable default for a test that only takes a few seconds.
 // 1,000,000,000+ triggers checking for all possible mantissa values for
 // double-precision tests. 2,000,000,000+ triggers checking for every possible
 // single-precision float.
-#ifdef _MSC_VER
-// Use a smaller number on MSVC to avoid test time out (1 min)
 const int kFloatNumCases = 5000000;
-#else
-const int kFloatNumCases = 10000000;
-#endif
 
 // This is a slow, brute-force routine to compute the exact base-10
 // representation of a double-precision floating-point number.  It
@@ -716,8 +712,9 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
   }
 }
 
-// feenableexcept() and fedisableexcept() are missing on Mac OS X, MSVC.
-#if defined(_MSC_VER) || defined(__APPLE__)
+// feenableexcept() and fedisableexcept() are missing on Mac OS X, MSVC,
+// and WebAssembly.
+#if defined(_MSC_VER) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 #define ABSL_MISSING_FEENABLEEXCEPT 1
 #define ABSL_MISSING_FEDISABLEEXCEPT 1
 #endif
@@ -875,7 +872,7 @@ TEST_F(SimpleDtoaTest, ExhaustiveDoubleToSixDigits) {
     }
 
     for (int exponent = -324; exponent <= 308; ++exponent) {
-      double powten = pow(10.0, exponent);
+      double powten = absl::strings_internal::Pow10(exponent);
       if (powten == 0) powten = 5e-324;
       if (kFloatNumCases >= 1e9) {
         // The exhaustive test takes a very long time, so log progress.

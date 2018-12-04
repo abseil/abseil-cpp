@@ -28,7 +28,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 template <typename T>
@@ -161,7 +161,7 @@ class AtomicHook<ReturnType (*)(Args...)> {
 #undef ABSL_HAVE_WORKING_ATOMIC_POINTER
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_

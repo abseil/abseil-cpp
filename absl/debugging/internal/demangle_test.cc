@@ -23,7 +23,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 namespace {
 
@@ -189,5 +189,5 @@ TEST(DemangleRegression, DeeplyNestedArrayType) {
 
 }  // namespace
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

@@ -35,7 +35,7 @@
   EXPECT_DEATH(expr, ".*")
 #else
 #define ABSL_BASE_INTERNAL_EXPECT_FAIL(expr, exception_t, text) \
-  EXPECT_DEATH(expr, text)
+  EXPECT_DEATH_IF_SUPPORTED(expr, text)
 
 #endif
 

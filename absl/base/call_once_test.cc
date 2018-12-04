@@ -22,7 +22,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
 absl::once_flag once;
@@ -100,5 +100,5 @@ TEST(CallOnceTest, ExecutionCount) {
 }
 
 }  // namespace
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

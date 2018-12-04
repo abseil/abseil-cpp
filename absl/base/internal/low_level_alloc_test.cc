@@ -22,7 +22,7 @@
 #include <utility>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 namespace {
 
@@ -149,7 +149,7 @@ static struct BeforeMain {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 int main(int argc, char *argv[]) {

@@ -34,7 +34,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // Use compiler byte-swapping intrinsics if they are available.  32-bit
 // and 64-bit versions are available in Clang and GCC as of GCC 4.3.0.
@@ -83,14 +83,14 @@ inline uint64_t gbswap_64(uint64_t host_int) {
 #elif defined(__GLIBC__)
   return bswap_64(host_int);
 #else
-  return (((x & uint64_t{(0xFF}) << 56) |
-          ((x & uint64_t{(0xFF00}) << 40) |
-          ((x & uint64_t{(0xFF0000}) << 24) |
-          ((x & uint64_t{(0xFF000000}) << 8) |
-          ((x & uint64_t{(0xFF00000000}) >> 8) |
-          ((x & uint64_t{(0xFF0000000000}) >> 24) |
-          ((x & uint64_t{(0xFF000000000000}) >> 40) |
-          ((x & uint64_t{(0xFF00000000000000}) >> 56));
+  return (((host_int & uint64_t{0xFF}) << 56) |
+          ((host_int & uint64_t{0xFF00}) << 40) |
+          ((host_int & uint64_t{0xFF0000}) << 24) |
+          ((host_int & uint64_t{0xFF000000}) << 8) |
+          ((host_int & uint64_t{0xFF00000000}) >> 8) |
+          ((host_int & uint64_t{0xFF0000000000}) >> 24) |
+          ((host_int & uint64_t{0xFF000000000000}) >> 40) |
+          ((host_int & uint64_t{0xFF00000000000000}) >> 56));
 #endif  // bswap_64
 }
 
@@ -98,8 +98,10 @@ inline uint32_t gbswap_32(uint32_t host_int) {
 #if defined(__GLIBC__)
   return bswap_32(host_int);
 #else
-  return (((x & 0xFF) << 24) | ((x & 0xFF00) << 8) | ((x & 0xFF0000) >> 8) |
-          ((x & 0xFF000000) >> 24));
+  return (((host_int & uint32_t{0xFF}) << 24) |
+          ((host_int & uint32_t{0xFF00}) << 8) |
+          ((host_int & uint32_t{0xFF0000}) >> 8) |
+          ((host_int & uint32_t{0xFF000000}) >> 24));
 #endif
 }
 
@@ -107,7 +109,8 @@ inline uint16_t gbswap_16(uint16_t host_int) {
 #if defined(__GLIBC__)
   return bswap_16(host_int);
 #else
-  return uint16_t{((x & 0xFF) << 8) | ((x & 0xFF00) >> 8)};
+  return (((host_int & uint16_t{0xFF}) << 8) |
+          ((host_int & uint16_t{0xFF00}) >> 8));
 #endif
 }
 
@@ -265,7 +268,7 @@ inline void Store64(void *p, uint64_t v) {
 
 }  // namespace big_endian
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_ENDIAN_H_

@@ -22,7 +22,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
 void PauseAndDecreaseCounter(BlockingCounter* counter, int* done) {
@@ -64,5 +64,5 @@ TEST(BlockingCounterTest, BasicFunctionality) {
 }
 
 }  // namespace
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

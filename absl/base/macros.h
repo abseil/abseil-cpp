@@ -43,14 +43,14 @@
   (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace macros_internal {
 // Note: this internal template function declaration is used by ABSL_ARRAYSIZE.
 // The function doesn't need a definition, as we only use its type.
 template <typename T, size_t N>
 auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // kLinkerInitialized
@@ -74,13 +74,13 @@ auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 //       // Invocation
 //       static MyClass my_global(absl::base_internal::kLinkerInitialized);
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 enum LinkerInitialized {
   kLinkerInitialized = 0,
 };
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // ABSL_FALLTHROUGH_INTENDED
@@ -202,5 +202,15 @@ enum LinkerInitialized {
   (ABSL_PREDICT_TRUE((expr)) ? (void)0 \
                              : [] { assert(false && #expr); }())  // NOLINT
 #endif
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+#define ABSL_INTERNAL_TRY try
+#define ABSL_INTERNAL_CATCH_ANY catch (...)
+#define ABSL_INTERNAL_RETHROW do { throw; } while (false)
+#else  // ABSL_HAVE_EXCEPTIONS
+#define ABSL_INTERNAL_TRY if (true)
+#define ABSL_INTERNAL_CATCH_ANY else if (false)
+#define ABSL_INTERNAL_RETHROW do {} while (false)
+#endif  // ABSL_HAVE_EXCEPTIONS
 
 #endif  // ABSL_BASE_MACROS_H_

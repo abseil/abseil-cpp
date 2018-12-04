@@ -46,7 +46,7 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace synchronization_internal {
 
 static void MaybeBecomeIdle() {
@@ -410,5 +410,5 @@ void Waiter::Poke() {
 #endif
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

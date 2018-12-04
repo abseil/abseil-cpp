@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2018 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 // Implementation details of absl/types/variant.h, pulled into a
 // separate file to avoid cluttering the top of the API header with
 // implementation details.
+//
 
 #ifndef ABSL_TYPES_variant_internal_H_
 #define ABSL_TYPES_variant_internal_H_
@@ -37,8 +38,10 @@
 #include "absl/types/bad_variant_access.h"
 #include "absl/utility/utility.h"
 
+#if !defined(ABSL_HAVE_STD_VARIANT)
+
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 template <class... Types>
 class variant;
@@ -580,18 +583,25 @@ struct VariantCoreAccess {
     self.index_ = other.index();
   }
 
+  // Access a variant alternative, assuming the index is correct.
   template <std::size_t I, class Variant>
   static VariantAccessResult<I, Variant> Access(Variant&& self) {
-    if (ABSL_PREDICT_FALSE(self.index_ != I)) {
-      TypedThrowBadVariantAccess<VariantAccessResult<I, Variant>>();
-    }
-
     // This cast instead of invocation of AccessUnion with an rvalue is a
     // workaround for msvc. Without this there is a runtime failure when dealing
     // with rvalues.
     // TODO(calabrese) Reduce test case and find a simpler workaround.
     return static_cast<VariantAccessResult<I, Variant>>(
         variant_internal::AccessUnion(self.state_, SizeT<I>()));
+  }
+
+  // Access a variant alternative, throwing if the index is incorrect.
+  template <std::size_t I, class Variant>
+  static VariantAccessResult<I, Variant> CheckedAccess(Variant&& self) {
+    if (ABSL_PREDICT_FALSE(self.index_ != I)) {
+      TypedThrowBadVariantAccess<VariantAccessResult<I, Variant>>();
+    }
+
+    return Access<I>(absl::forward<Variant>(self));
   }
 
   // The implementation of the move-assignment operation for a variant.
@@ -902,6 +912,11 @@ struct PerformVisitation {
   template <std::size_t... TupIs, std::size_t... Is>
   constexpr ReturnType Run(std::false_type /*has_valueless*/,
                            index_sequence<TupIs...>, SizeT<Is>...) const {
+    static_assert(
+        std::is_same<ReturnType,
+                     absl::result_of_t<Op(VariantAccessResult<
+                                          Is, QualifiedVariants>...)>>::value,
+        "All visitation overloads must have the same return type.");
     return absl::base_internal::Invoke(
         absl::forward<Op>(op),
         VariantCoreAccess::Access<Is>(
@@ -1056,32 +1071,6 @@ struct OverloadSet<> {
   static void Overload(...);
 };
 
-////////////////////////////////
-// Library Fundamentals V2 TS //
-////////////////////////////////
-
-// TODO(calabrese): Consider moving this to absl/meta/type_traits.h
-
-// The following is a rough implementation of parts of the detection idiom.
-// It is used for the comparison operator checks.
-
-template <class Enabler, class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl {
-  using type = std::false_type;
-};
-
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl<
-    absl::enable_if_t<std::is_convertible<Op<Args...>, To>::value>, To, Op,
-    Args...> {
-  using type = std::true_type;
-};
-
-// NOTE: This differs from library fundamentals by being lazy.
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible
-    : is_detected_convertible_impl<void, To, Op, Args...>::type {};
-
 template <class T>
 using LessThanResult = decltype(std::declval<T>() < std::declval<T>());
 
@@ -1100,6 +1089,8 @@ using EqualResult = decltype(std::declval<T>() == std::declval<T>());
 
 template <class T>
 using NotEqualResult = decltype(std::declval<T>() != std::declval<T>());
+
+using type_traits_internal::is_detected_convertible;
 
 template <class... T>
 using RequireAllHaveEqualT = absl::enable_if_t<
@@ -1245,23 +1236,29 @@ using VariantCopyBase = absl::conditional_t<
 // Base that is dependent on whether or not the move-assign can be trivial.
 template <class... T>
 using VariantMoveAssignBase = absl::conditional_t<
-    absl::disjunction<absl::conjunction<std::is_move_assignable<Union<T...>>,
-                                        std::is_move_constructible<Union<T...>>,
-                                        std::is_destructible<Union<T...>>>,
-                      absl::negation<absl::conjunction<
-                          std::is_move_constructible<T>...,
-                          std::is_move_assignable<T>...>>>::value,
+    absl::disjunction<
+        absl::conjunction<absl::is_move_assignable<Union<T...>>,
+                          std::is_move_constructible<Union<T...>>,
+                          std::is_destructible<Union<T...>>>,
+        absl::negation<absl::conjunction<std::is_move_constructible<T>...,
+                                         // Note: We're not qualifying this with
+                                         // absl:: because it doesn't compile
+                                         // under MSVC.
+                                         is_move_assignable<T>...>>>::value,
     VariantCopyBase<T...>, VariantMoveAssignBaseNontrivial<T...>>;
 
 // Base that is dependent on whether or not the copy-assign can be trivial.
 template <class... T>
 using VariantCopyAssignBase = absl::conditional_t<
-    absl::disjunction<absl::conjunction<std::is_copy_assignable<Union<T...>>,
-                                        std::is_copy_constructible<Union<T...>>,
-                                        std::is_destructible<Union<T...>>>,
-                      absl::negation<absl::conjunction<
-                          std::is_copy_constructible<T>...,
-                          std::is_copy_assignable<T>...>>>::value,
+    absl::disjunction<
+        absl::conjunction<absl::is_copy_assignable<Union<T...>>,
+                          std::is_copy_constructible<Union<T...>>,
+                          std::is_destructible<Union<T...>>>,
+        absl::negation<absl::conjunction<std::is_copy_constructible<T>...,
+                                         // Note: We're not qualifying this with
+                                         // absl:: because it doesn't compile
+                                         // under MSVC.
+                                         is_copy_assignable<T>...>>>::value,
     VariantMoveAssignBase<T...>, VariantCopyAssignBaseNontrivial<T...>>;
 
 template <class... T>
@@ -1628,7 +1625,8 @@ struct VariantHashBase<Variant,
 };
 
 }  // namespace variant_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
+#endif  // !defined(ABSL_HAVE_STD_VARIANT)
 #endif  // ABSL_TYPES_variant_internal_H_

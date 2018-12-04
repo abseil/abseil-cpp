@@ -20,14 +20,14 @@
 #ifndef LEAK_SANITIZER
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 bool HaveLeakSanitizer() { return false; }
 void DoIgnoreLeak(const void*) { }
 void RegisterLivePointers(const void*, size_t) { }
 void UnRegisterLivePointers(const void*, size_t) { }
 LeakCheckDisabler::LeakCheckDisabler() { }
 LeakCheckDisabler::~LeakCheckDisabler() { }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #else
@@ -35,7 +35,7 @@ LeakCheckDisabler::~LeakCheckDisabler() { }
 #include <sanitizer/lsan_interface.h>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 bool HaveLeakSanitizer() { return true; }
 void DoIgnoreLeak(const void* ptr) { __lsan_ignore_object(ptr); }
 void RegisterLivePointers(const void* ptr, size_t size) {
@@ -46,7 +46,7 @@ void UnRegisterLivePointers(const void* ptr, size_t size) {
 }
 LeakCheckDisabler::LeakCheckDisabler() { __lsan_disable(); }
 LeakCheckDisabler::~LeakCheckDisabler() { __lsan_enable(); }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // LEAK_SANITIZER

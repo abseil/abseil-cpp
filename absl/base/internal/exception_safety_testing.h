@@ -33,7 +33,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
-#include "absl/types/optional.h"
+#include "absl/utility/utility.h"
 
 namespace testing {
 
@@ -127,10 +127,8 @@ class ConstructorTracker {
       void* address = it.first;
       TrackedAddress& tracked_address = it.second;
       if (tracked_address.is_alive) {
-        ADD_FAILURE() << "Object at address " << address
-                      << " with countdown of " << countdown_
-                      << " was not destroyed [" << tracked_address.description
-                      << "]";
+        ADD_FAILURE() << ErrorMessage(address, tracked_address.description,
+                                      countdown_, "Object was not destroyed.");
       }
     }
   }
@@ -141,11 +139,11 @@ class ConstructorTracker {
     TrackedAddress& tracked_address =
         current_tracker_instance_->address_map_[address];
     if (tracked_address.is_alive) {
-      ADD_FAILURE() << "Object at address " << address << " with countdown of "
-                    << current_tracker_instance_->countdown_
-                    << " was re-constructed. Previously: ["
-                    << tracked_address.description << "] Now: [" << description
-                    << "]";
+      ADD_FAILURE() << ErrorMessage(
+          address, tracked_address.description,
+          current_tracker_instance_->countdown_,
+          "Object was re-constructed. Current object was constructed by " +
+              description);
     }
     tracked_address = {true, std::move(description)};
   }
@@ -159,10 +157,9 @@ class ConstructorTracker {
 
     TrackedAddress& tracked_address = it->second;
     if (!tracked_address.is_alive) {
-      ADD_FAILURE() << "Object at address " << address << " with countdown of "
-                    << current_tracker_instance_->countdown_
-                    << " was re-destroyed or created prior to construction "
-                    << "tracking [" << tracked_address.description << "]";
+      ADD_FAILURE() << ErrorMessage(address, tracked_address.description,
+                                    current_tracker_instance_->countdown_,
+                                    "Object was re-destroyed.");
     }
     tracked_address.is_alive = false;
   }
@@ -170,6 +167,16 @@ class ConstructorTracker {
  private:
   static bool CurrentlyTracking() {
     return current_tracker_instance_ != nullptr;
+  }
+
+  static std::string ErrorMessage(void* address, const std::string& address_description,
+                             int countdown, const std::string& error_description) {
+    return absl::Substitute(
+        "With coundtown at $0:\n"
+        "  $1\n"
+        "  Object originally constructed by $2\n"
+        "  Object address: $3\n",
+        countdown, error_description, address_description, address);
   }
 
   std::unordered_map<void*, TrackedAddress> address_map_;
@@ -190,70 +197,6 @@ class TrackedObject {
 
   ~TrackedObject() noexcept { ConstructorTracker::ObjectDestructed(this); }
 };
-
-template <typename Factory, typename Operation, typename Invariant>
-absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
-    const Factory& factory, const Operation& operation, int count,
-    const Invariant& invariant) {
-  auto t_ptr = factory();
-  absl::optional<testing::AssertionResult> current_res;
-  SetCountdown(count);
-  try {
-    operation(t_ptr.get());
-  } catch (const exceptions_internal::TestException& e) {
-    current_res.emplace(invariant(t_ptr.get()));
-    if (!current_res.value()) {
-      *current_res << e.what() << " failed invariant check";
-    }
-  }
-  UnsetCountdown();
-  return current_res;
-}
-
-template <typename Factory, typename Operation>
-absl::optional<testing::AssertionResult> TestSingleInvariantAtCountdownImpl(
-    const Factory& factory, const Operation& operation, int count,
-    StrongGuaranteeTagType) {
-  using TPtr = typename decltype(factory())::pointer;
-  auto t_is_strong = [&](TPtr t) { return *t == *factory(); };
-  return TestSingleInvariantAtCountdownImpl(factory, operation, count,
-                                            t_is_strong);
-}
-
-template <typename Factory, typename Operation, typename Invariant>
-int TestSingleInvariantAtCountdown(
-    const Factory& factory, const Operation& operation, int count,
-    const Invariant& invariant,
-    absl::optional<testing::AssertionResult>* reduced_res) {
-  // If reduced_res is empty, it means the current call to
-  // TestSingleInvariantAtCountdown(...) is the first test being run so we do
-  // want to run it. Alternatively, if it's not empty (meaning a previous test
-  // has run) we want to check if it passed. If the previous test did pass, we
-  // want to contine running tests so we do want to run the current one. If it
-  // failed, we want to short circuit so as not to overwrite the AssertionResult
-  // output. If that's the case, we do not run the current test and instead we
-  // simply return.
-  if (!reduced_res->has_value() || reduced_res->value()) {
-    *reduced_res = TestSingleInvariantAtCountdownImpl(factory, operation, count,
-                                                      invariant);
-  }
-  return 0;
-}
-
-template <typename Factory, typename Operation, typename... Invariants>
-inline absl::optional<testing::AssertionResult> TestAllInvariantsAtCountdown(
-    const Factory& factory, const Operation& operation, int count,
-    const Invariants&... invariants) {
-  absl::optional<testing::AssertionResult> reduced_res;
-
-  // Run each checker, short circuiting after the first failure
-  int dummy[] = {
-      0, (TestSingleInvariantAtCountdown(factory, operation, count, invariants,
-                                         &reduced_res))...};
-  static_cast<void>(dummy);
-  return reduced_res;
-}
-
 }  // namespace exceptions_internal
 
 extern exceptions_internal::NoThrowTag nothrow_ctor;
@@ -773,7 +716,7 @@ class ThrowingAllocator : private exceptions_internal::TrackedObject {
   }
 
   size_type max_size() const noexcept {
-    return std::numeric_limits<difference_type>::max() / sizeof(value_type);
+    return (std::numeric_limits<difference_type>::max)() / sizeof(value_type);
   }
 
   ThrowingAllocator select_on_container_copy_construction() noexcept(
@@ -858,7 +801,7 @@ testing::AssertionResult TestNothrowOp(const Operation& operation) {
   try {
     operation();
     return testing::AssertionSuccess();
-  } catch (exceptions_internal::TestException) {
+  } catch (const exceptions_internal::TestException&) {
     return testing::AssertionFailure()
            << "TestException thrown during call to operation() when nothrow "
               "guarantee was expected.";
@@ -871,7 +814,7 @@ testing::AssertionResult TestNothrowOp(const Operation& operation) {
 
 namespace exceptions_internal {
 
-// Dummy struct for ExceptionSafetyTester<> partial state.
+// Dummy struct for ExceptionSafetyTestBuilder<> partial state.
 struct UninitializedT {};
 
 template <typename T>
@@ -884,29 +827,106 @@ class DefaultFactory {
   T t_;
 };
 
-template <size_t LazyInvariantsCount, typename LazyFactory,
+template <size_t LazyContractsCount, typename LazyFactory,
           typename LazyOperation>
 using EnableIfTestable = typename absl::enable_if_t<
-    LazyInvariantsCount != 0 &&
+    LazyContractsCount != 0 &&
     !std::is_same<LazyFactory, UninitializedT>::value &&
     !std::is_same<LazyOperation, UninitializedT>::value>;
 
 template <typename Factory = UninitializedT,
-          typename Operation = UninitializedT, typename... Invariants>
-class ExceptionSafetyTester;
+          typename Operation = UninitializedT, typename... Contracts>
+class ExceptionSafetyTestBuilder;
 
 }  // namespace exceptions_internal
 
-exceptions_internal::ExceptionSafetyTester<> MakeExceptionSafetyTester();
+/*
+ * Constructs an empty ExceptionSafetyTestBuilder. All
+ * ExceptionSafetyTestBuilder objects are immutable and all With[thing] mutation
+ * methods return new instances of ExceptionSafetyTestBuilder.
+ *
+ * In order to test a T for exception safety, a factory for that T, a testable
+ * operation, and at least one contract callback returning an assertion
+ * result must be applied using the respective methods.
+ */
+exceptions_internal::ExceptionSafetyTestBuilder<> MakeExceptionSafetyTester();
 
 namespace exceptions_internal {
+template <typename T>
+struct IsUniquePtr : std::false_type {};
+
+template <typename T, typename D>
+struct IsUniquePtr<std::unique_ptr<T, D>> : std::true_type {};
+
+template <typename Factory>
+struct FactoryPtrTypeHelper {
+  using type = decltype(std::declval<const Factory&>()());
+
+  static_assert(IsUniquePtr<type>::value, "Factories must return a unique_ptr");
+};
+
+template <typename Factory>
+using FactoryPtrType = typename FactoryPtrTypeHelper<Factory>::type;
+
+template <typename Factory>
+using FactoryElementType = typename FactoryPtrType<Factory>::element_type;
+
+template <typename T>
+class ExceptionSafetyTest {
+  using Factory = std::function<std::unique_ptr<T>()>;
+  using Operation = std::function<void(T*)>;
+  using Contract = std::function<AssertionResult(T*)>;
+
+ public:
+  template <typename... Contracts>
+  explicit ExceptionSafetyTest(const Factory& f, const Operation& op,
+                               const Contracts&... contracts)
+      : factory_(f), operation_(op), contracts_{WrapContract(contracts)...} {}
+
+  AssertionResult Test() const {
+    for (int count = 0;; ++count) {
+      exceptions_internal::ConstructorTracker ct(count);
+
+      for (const auto& contract : contracts_) {
+        auto t_ptr = factory_();
+        try {
+          SetCountdown(count);
+          operation_(t_ptr.get());
+          // Unset for the case that the operation throws no exceptions, which
+          // would leave the countdown set and break the *next* exception safety
+          // test after this one.
+          UnsetCountdown();
+          return AssertionSuccess();
+        } catch (const exceptions_internal::TestException& e) {
+          if (!contract(t_ptr.get())) {
+            return AssertionFailure() << e.what() << " failed contract check";
+          }
+        }
+      }
+    }
+  }
+
+ private:
+  template <typename ContractFn>
+  Contract WrapContract(const ContractFn& contract) {
+    return [contract](T* t_ptr) { return AssertionResult(contract(t_ptr)); };
+  }
+
+  Contract WrapContract(StrongGuaranteeTagType) {
+    return [this](T* t_ptr) { return AssertionResult(*factory_() == *t_ptr); };
+  }
+
+  Factory factory_;
+  Operation operation_;
+  std::vector<Contract> contracts_;
+};
 
 /*
  * Builds a tester object that tests if performing a operation on a T follows
- * exception safety guarantees. Verification is done via invariant assertion
+ * exception safety guarantees. Verification is done via contract assertion
  * callbacks applied to T instances post-throw.
  *
- * Template parameters for ExceptionSafetyTester:
+ * Template parameters for ExceptionSafetyTestBuilder:
  *
  * - Factory: The factory object (passed in via tester.WithFactory(...) or
  *   tester.WithInitialValue(...)) must be invocable with the signature
@@ -921,25 +941,25 @@ namespace exceptions_internal {
  *   fresh T instance so it's free to modify and destroy the T instances as it
  *   pleases.
  *
- * - Invariants...: The invariant assertion callback objects (passed in via
- *   tester.WithInvariants(...)) must be invocable with the signature
+ * - Contracts...: The contract assertion callback objects (passed in via
+ *   tester.WithContracts(...)) must be invocable with the signature
  *   `testing::AssertionResult operator()(T*) const` where T is the type being
- *   tested. Invariant assertion callbacks are provided T instances post-throw.
- *   They must return testing::AssertionSuccess when the type invariants of the
- *   provided T instance hold. If the type invariants of the T instance do not
+ *   tested. Contract assertion callbacks are provided T instances post-throw.
+ *   They must return testing::AssertionSuccess when the type contracts of the
+ *   provided T instance hold. If the type contracts of the T instance do not
  *   hold, they must return testing::AssertionFailure. Execution order of
- *   Invariants... is unspecified. They will each individually get a fresh T
+ *   Contracts... is unspecified. They will each individually get a fresh T
  *   instance so they are free to modify and destroy the T instances as they
  *   please.
  */
-template <typename Factory, typename Operation, typename... Invariants>
-class ExceptionSafetyTester {
+template <typename Factory, typename Operation, typename... Contracts>
+class ExceptionSafetyTestBuilder {
  public:
   /*
-   * Returns a new ExceptionSafetyTester with an included T factory based on the
-   * provided T instance. The existing factory will not be included in the newly
-   * created tester instance. The created factory returns a new T instance by
-   * copy-constructing the provided const T& t.
+   * Returns a new ExceptionSafetyTestBuilder with an included T factory based
+   * on the provided T instance. The existing factory will not be included in
+   * the newly created tester instance. The created factory returns a new T
+   * instance by copy-constructing the provided const T& t.
    *
    * Preconditions for tester.WithInitialValue(const T& t):
    *
@@ -948,63 +968,63 @@ class ExceptionSafetyTester {
    *   tester.WithFactory(...).
    */
   template <typename T>
-  ExceptionSafetyTester<DefaultFactory<T>, Operation, Invariants...>
+  ExceptionSafetyTestBuilder<DefaultFactory<T>, Operation, Contracts...>
   WithInitialValue(const T& t) const {
     return WithFactory(DefaultFactory<T>(t));
   }
 
   /*
-   * Returns a new ExceptionSafetyTester with the provided T factory included.
-   * The existing factory will not be included in the newly-created tester
-   * instance. This method is intended for use with types lacking a copy
+   * Returns a new ExceptionSafetyTestBuilder with the provided T factory
+   * included. The existing factory will not be included in the newly-created
+   * tester instance. This method is intended for use with types lacking a copy
    * constructor. Types that can be copy-constructed should instead use the
    * method tester.WithInitialValue(...).
    */
   template <typename NewFactory>
-  ExceptionSafetyTester<absl::decay_t<NewFactory>, Operation, Invariants...>
+  ExceptionSafetyTestBuilder<absl::decay_t<NewFactory>, Operation, Contracts...>
   WithFactory(const NewFactory& new_factory) const {
-    return {new_factory, operation_, invariants_};
+    return {new_factory, operation_, contracts_};
   }
 
   /*
-   * Returns a new ExceptionSafetyTester with the provided testable operation
-   * included. The existing operation will not be included in the newly created
-   * tester.
+   * Returns a new ExceptionSafetyTestBuilder with the provided testable
+   * operation included. The existing operation will not be included in the
+   * newly created tester.
    */
   template <typename NewOperation>
-  ExceptionSafetyTester<Factory, absl::decay_t<NewOperation>, Invariants...>
+  ExceptionSafetyTestBuilder<Factory, absl::decay_t<NewOperation>, Contracts...>
   WithOperation(const NewOperation& new_operation) const {
-    return {factory_, new_operation, invariants_};
+    return {factory_, new_operation, contracts_};
   }
 
   /*
-   * Returns a new ExceptionSafetyTester with the provided MoreInvariants...
-   * combined with the Invariants... that were already included in the instance
-   * on which the method was called. Invariants... cannot be removed or replaced
-   * once added to an ExceptionSafetyTester instance. A fresh object must be
-   * created in order to get an empty Invariants... list.
+   * Returns a new ExceptionSafetyTestBuilder with the provided MoreContracts...
+   * combined with the Contracts... that were already included in the instance
+   * on which the method was called. Contracts... cannot be removed or replaced
+   * once added to an ExceptionSafetyTestBuilder instance. A fresh object must
+   * be created in order to get an empty Contracts... list.
    *
-   * In addition to passing in custom invariant assertion callbacks, this method
+   * In addition to passing in custom contract assertion callbacks, this method
    * accepts `testing::strong_guarantee` as an argument which checks T instances
    * post-throw against freshly created T instances via operator== to verify
    * that any state changes made during the execution of the operation were
    * properly rolled back.
    */
-  template <typename... MoreInvariants>
-  ExceptionSafetyTester<Factory, Operation, Invariants...,
-                        absl::decay_t<MoreInvariants>...>
-  WithInvariants(const MoreInvariants&... more_invariants) const {
-    return {factory_, operation_,
-            std::tuple_cat(invariants_,
-                           std::tuple<absl::decay_t<MoreInvariants>...>(
-                               more_invariants...))};
+  template <typename... MoreContracts>
+  ExceptionSafetyTestBuilder<Factory, Operation, Contracts...,
+                             absl::decay_t<MoreContracts>...>
+  WithContracts(const MoreContracts&... more_contracts) const {
+    return {
+        factory_, operation_,
+        std::tuple_cat(contracts_, std::tuple<absl::decay_t<MoreContracts>...>(
+                                       more_contracts...))};
   }
 
   /*
    * Returns a testing::AssertionResult that is the reduced result of the
    * exception safety algorithm. The algorithm short circuits and returns
-   * AssertionFailure after the first invariant callback returns an
-   * AssertionFailure. Otherwise, if all invariant callbacks return an
+   * AssertionFailure after the first contract callback returns an
+   * AssertionFailure. Otherwise, if all contract callbacks return an
    * AssertionSuccess, the reduced result is AssertionSuccess.
    *
    * The passed-in testable operation will not be saved in a new tester instance
@@ -1013,96 +1033,61 @@ class ExceptionSafetyTester {
    *
    * Preconditions for tester.Test(const NewOperation& new_operation):
    *
-   * - May only be called after at least one invariant assertion callback and a
+   * - May only be called after at least one contract assertion callback and a
    *   factory or initial value have been provided.
    */
   template <
       typename NewOperation,
-      typename = EnableIfTestable<sizeof...(Invariants), Factory, NewOperation>>
+      typename = EnableIfTestable<sizeof...(Contracts), Factory, NewOperation>>
   testing::AssertionResult Test(const NewOperation& new_operation) const {
-    return TestImpl(new_operation, absl::index_sequence_for<Invariants...>());
+    return TestImpl(new_operation, absl::index_sequence_for<Contracts...>());
   }
 
   /*
    * Returns a testing::AssertionResult that is the reduced result of the
    * exception safety algorithm. The algorithm short circuits and returns
-   * AssertionFailure after the first invariant callback returns an
-   * AssertionFailure. Otherwise, if all invariant callbacks return an
+   * AssertionFailure after the first contract callback returns an
+   * AssertionFailure. Otherwise, if all contract callbacks return an
    * AssertionSuccess, the reduced result is AssertionSuccess.
    *
    * Preconditions for tester.Test():
    *
-   * - May only be called after at least one invariant assertion callback, a
+   * - May only be called after at least one contract assertion callback, a
    *   factory or initial value and a testable operation have been provided.
    */
-  template <typename LazyOperation = Operation,
-            typename =
-                EnableIfTestable<sizeof...(Invariants), Factory, LazyOperation>>
+  template <
+      typename LazyOperation = Operation,
+      typename = EnableIfTestable<sizeof...(Contracts), Factory, LazyOperation>>
   testing::AssertionResult Test() const {
-    return TestImpl(operation_, absl::index_sequence_for<Invariants...>());
+    return Test(operation_);
   }
 
  private:
   template <typename, typename, typename...>
-  friend class ExceptionSafetyTester;
+  friend class ExceptionSafetyTestBuilder;
 
-  friend ExceptionSafetyTester<> testing::MakeExceptionSafetyTester();
+  friend ExceptionSafetyTestBuilder<> testing::MakeExceptionSafetyTester();
 
-  ExceptionSafetyTester() {}
+  ExceptionSafetyTestBuilder() {}
 
-  ExceptionSafetyTester(const Factory& f, const Operation& o,
-                        const std::tuple<Invariants...>& i)
-      : factory_(f), operation_(o), invariants_(i) {}
+  ExceptionSafetyTestBuilder(const Factory& f, const Operation& o,
+                             const std::tuple<Contracts...>& i)
+      : factory_(f), operation_(o), contracts_(i) {}
 
   template <typename SelectedOperation, size_t... Indices>
-  testing::AssertionResult TestImpl(const SelectedOperation& selected_operation,
+  testing::AssertionResult TestImpl(SelectedOperation selected_operation,
                                     absl::index_sequence<Indices...>) const {
-    // Starting from 0 and counting upwards until one of the exit conditions is
-    // hit...
-    for (int count = 0;; ++count) {
-      exceptions_internal::ConstructorTracker ct(count);
-
-      // Run the full exception safety test algorithm for the current countdown
-      auto reduced_res =
-          TestAllInvariantsAtCountdown(factory_, selected_operation, count,
-                                       std::get<Indices>(invariants_)...);
-      // If there is no value in the optional, no invariants were run because no
-      // exception was thrown. This means that the test is complete and the loop
-      // can exit successfully.
-      if (!reduced_res.has_value()) {
-        return testing::AssertionSuccess();
-      }
-      // If the optional is not empty and the value is falsy, an invariant check
-      // failed so the test must exit to propegate the failure.
-      if (!reduced_res.value()) {
-        return reduced_res.value();
-      }
-      // If the optional is not empty and the value is not falsy, it means
-      // exceptions were thrown but the invariants passed so the test must
-      // continue to run.
-    }
+    return ExceptionSafetyTest<FactoryElementType<Factory>>(
+               factory_, selected_operation, std::get<Indices>(contracts_)...)
+        .Test();
   }
 
   Factory factory_;
   Operation operation_;
-  std::tuple<Invariants...> invariants_;
+  std::tuple<Contracts...> contracts_;
 };
 
 }  // namespace exceptions_internal
-
-/*
- * Constructs an empty ExceptionSafetyTester. All ExceptionSafetyTester
- * objects are immutable and all With[thing] mutation methods return new
- * instances of ExceptionSafetyTester.
- *
- * In order to test a T for exception safety, a factory for that T, a testable
- * operation, and at least one invariant callback returning an assertion
- * result must be applied using the respective methods.
- */
-inline exceptions_internal::ExceptionSafetyTester<>
-MakeExceptionSafetyTester() {
-  return {};
-}
 
 }  // namespace testing
 

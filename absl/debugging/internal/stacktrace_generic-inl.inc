@@ -19,6 +19,7 @@
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
                       const void *ucp, int *min_dropped_frames) {
+  static_cast<void>(ucp);  // Unused.
   static const int kStackLength = 64;
   void * stack[kStackLength];
   int size;
@@ -49,13 +50,13 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
 }
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 bool StackTraceWorksForTest() {
   return true;
 }
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_STACKTRACE_GENERIC_INL_H_

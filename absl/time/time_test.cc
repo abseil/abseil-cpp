@@ -28,6 +28,27 @@
 
 namespace {
 
+#if GTEST_USES_SIMPLE_RE
+const char kZoneAbbrRE[] = ".*";  // just punt
+#else
+const char kZoneAbbrRE[] = "[A-Za-z]{3,4}|[-+][0-9]{2}([0-9]{2})?";
+#endif
+
+// This helper is a macro so that failed expectations show up with the
+// correct line numbers.
+#define EXPECT_CIVIL_INFO(ci, y, m, d, h, min, s, off, isdst)      \
+  do {                                                             \
+    EXPECT_EQ(y, ci.cs.year());                                    \
+    EXPECT_EQ(m, ci.cs.month());                                   \
+    EXPECT_EQ(d, ci.cs.day());                                     \
+    EXPECT_EQ(h, ci.cs.hour());                                    \
+    EXPECT_EQ(min, ci.cs.minute());                                \
+    EXPECT_EQ(s, ci.cs.second());                                  \
+    EXPECT_EQ(off, ci.offset);                                     \
+    EXPECT_EQ(isdst, ci.is_dst);                                   \
+    EXPECT_THAT(ci.zone_abbr, testing::MatchesRegex(kZoneAbbrRE)); \
+  } while (0)
+
 // A gMock matcher to match timespec values. Use this matcher like:
 // timespec ts1, ts2;
 // EXPECT_THAT(ts1, TimespecMatcher(ts2));
@@ -84,10 +105,10 @@ TEST(Time, ValueSemantics) {
 }
 
 TEST(Time, UnixEpoch) {
-  absl::Time::Breakdown bd = absl::UnixEpoch().In(absl::UTCTimeZone());
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1970, 1, 1, 0, 0, 0, 0, false);
-  EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
-  EXPECT_EQ(4, bd.weekday);  // Thursday
+  const auto ci = absl::UTCTimeZone().At(absl::UnixEpoch());
+  EXPECT_EQ(absl::CivilSecond(1970, 1, 1, 0, 0, 0), ci.cs);
+  EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
+  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(absl::CivilDay(ci.cs)));
 }
 
 TEST(Time, Breakdown) {
@@ -95,26 +116,26 @@ TEST(Time, Breakdown) {
   absl::Time t = absl::UnixEpoch();
 
   // The Unix epoch as seen in NYC.
-  absl::Time::Breakdown bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 19, 0, 0, -18000, false);
-  EXPECT_EQ(absl::ZeroDuration(), bd.subsecond);
-  EXPECT_EQ(3, bd.weekday);  // Wednesday
+  auto ci = tz.At(t);
+  EXPECT_CIVIL_INFO(ci, 1969, 12, 31, 19, 0, 0, -18000, false);
+  EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
+  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
 
   // Just before the epoch.
   t -= absl::Nanoseconds(1);
-  bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1969, 12, 31, 18, 59, 59, -18000, false);
-  EXPECT_EQ(absl::Nanoseconds(999999999), bd.subsecond);
-  EXPECT_EQ(3, bd.weekday);  // Wednesday
+  ci = tz.At(t);
+  EXPECT_CIVIL_INFO(ci, 1969, 12, 31, 18, 59, 59, -18000, false);
+  EXPECT_EQ(absl::Nanoseconds(999999999), ci.subsecond);
+  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
 
   // Some time later.
   t += absl::Hours(24) * 2735;
   t += absl::Hours(18) + absl::Minutes(30) + absl::Seconds(15) +
        absl::Nanoseconds(9);
-  bd = t.In(tz);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 1977, 6, 28, 14, 30, 15, -14400, true);
-  EXPECT_EQ(8, bd.subsecond / absl::Nanoseconds(1));
-  EXPECT_EQ(2, bd.weekday);  // Tuesday
+  ci = tz.At(t);
+  EXPECT_CIVIL_INFO(ci, 1977, 6, 28, 14, 30, 15, -14400, true);
+  EXPECT_EQ(8, ci.subsecond / absl::Nanoseconds(1));
+  EXPECT_EQ(absl::Weekday::tuesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
 }
 
 TEST(Time, AdditiveOperators) {
@@ -550,67 +571,63 @@ TEST(Time, ToChronoTime) {
             absl::ToChronoTime(absl::UnixEpoch() - tick));
 }
 
-TEST(Time, ConvertDateTime) {
-  const absl::TimeZone utc = absl::UTCTimeZone();
-  const absl::TimeZone goog =
-      absl::time_internal::LoadTimeZone("America/Los_Angeles");
+TEST(Time, TimeZoneAt) {
   const absl::TimeZone nyc =
       absl::time_internal::LoadTimeZone("America/New_York");
   const std::string fmt = "%a, %e %b %Y %H:%M:%S %z (%Z)";
 
-  // A simple case of normalization.
-  absl::TimeConversion oct32 = ConvertDateTime(2013, 10, 32, 8, 30, 0, goog);
-  EXPECT_TRUE(oct32.normalized);
-  EXPECT_EQ(absl::TimeConversion::UNIQUE, oct32.kind);
-  absl::TimeConversion nov01 = ConvertDateTime(2013, 11, 1, 8, 30, 0, goog);
-  EXPECT_FALSE(nov01.normalized);
-  EXPECT_EQ(absl::TimeConversion::UNIQUE, nov01.kind);
-  EXPECT_EQ(oct32.pre, nov01.pre);
-  EXPECT_EQ("Fri,  1 Nov 2013 08:30:00 -0700 (PDT)",
-            absl::FormatTime(fmt, nov01.pre, goog));
+  // A non-transition where the civil time is unique.
+  absl::CivilSecond nov01(2013, 11, 1, 8, 30, 0);
+  const auto nov01_ci = nyc.At(nov01);
+  EXPECT_EQ(absl::TimeZone::TimeInfo::UNIQUE, nov01_ci.kind);
+  EXPECT_EQ("Fri,  1 Nov 2013 08:30:00 -0400 (EDT)",
+            absl::FormatTime(fmt, nov01_ci.pre, nyc));
+  EXPECT_EQ(nov01_ci.pre, nov01_ci.trans);
+  EXPECT_EQ(nov01_ci.pre, nov01_ci.post);
+  EXPECT_EQ(nov01_ci.pre, absl::FromCivil(nov01, nyc));
 
   // A Spring DST transition, when there is a gap in civil time
   // and we prefer the later of the possible interpretations of a
   // non-existent time.
-  absl::TimeConversion mar13 = ConvertDateTime(2011, 3, 13, 2, 15, 0, nyc);
-  EXPECT_FALSE(mar13.normalized);
-  EXPECT_EQ(absl::TimeConversion::SKIPPED, mar13.kind);
+  absl::CivilSecond mar13(2011, 3, 13, 2, 15, 0);
+  const auto mar_ci = nyc.At(mar13);
+  EXPECT_EQ(absl::TimeZone::TimeInfo::SKIPPED, mar_ci.kind);
   EXPECT_EQ("Sun, 13 Mar 2011 03:15:00 -0400 (EDT)",
-            absl::FormatTime(fmt, mar13.pre, nyc));
+            absl::FormatTime(fmt, mar_ci.pre, nyc));
   EXPECT_EQ("Sun, 13 Mar 2011 03:00:00 -0400 (EDT)",
-            absl::FormatTime(fmt, mar13.trans, nyc));
+            absl::FormatTime(fmt, mar_ci.trans, nyc));
   EXPECT_EQ("Sun, 13 Mar 2011 01:15:00 -0500 (EST)",
-            absl::FormatTime(fmt, mar13.post, nyc));
-  EXPECT_EQ(mar13.pre, absl::FromDateTime(2011, 3, 13, 2, 15, 0, nyc));
+            absl::FormatTime(fmt, mar_ci.post, nyc));
+  EXPECT_EQ(mar_ci.trans, absl::FromCivil(mar13, nyc));
 
   // A Fall DST transition, when civil times are repeated and
   // we prefer the earlier of the possible interpretations of an
   // ambiguous time.
-  absl::TimeConversion nov06 = ConvertDateTime(2011, 11, 6, 1, 15, 0, nyc);
-  EXPECT_FALSE(nov06.normalized);
-  EXPECT_EQ(absl::TimeConversion::REPEATED, nov06.kind);
+  absl::CivilSecond nov06(2011, 11, 6, 1, 15, 0);
+  const auto nov06_ci = nyc.At(nov06);
+  EXPECT_EQ(absl::TimeZone::TimeInfo::REPEATED, nov06_ci.kind);
   EXPECT_EQ("Sun,  6 Nov 2011 01:15:00 -0400 (EDT)",
-            absl::FormatTime(fmt, nov06.pre, nyc));
+            absl::FormatTime(fmt, nov06_ci.pre, nyc));
   EXPECT_EQ("Sun,  6 Nov 2011 01:00:00 -0500 (EST)",
-            absl::FormatTime(fmt, nov06.trans, nyc));
+            absl::FormatTime(fmt, nov06_ci.trans, nyc));
   EXPECT_EQ("Sun,  6 Nov 2011 01:15:00 -0500 (EST)",
-            absl::FormatTime(fmt, nov06.post, nyc));
-  EXPECT_EQ(nov06.pre, absl::FromDateTime(2011, 11, 6, 1, 15, 0, nyc));
+            absl::FormatTime(fmt, nov06_ci.post, nyc));
+  EXPECT_EQ(nov06_ci.pre, absl::FromCivil(nov06, nyc));
 
   // Check that (time_t) -1 is handled correctly.
-  absl::TimeConversion minus1 = ConvertDateTime(1969, 12, 31, 18, 59, 59, nyc);
-  EXPECT_FALSE(minus1.normalized);
-  EXPECT_EQ(absl::TimeConversion::UNIQUE, minus1.kind);
-  EXPECT_EQ(-1, absl::ToTimeT(minus1.pre));
+  absl::CivilSecond minus1(1969, 12, 31, 18, 59, 59);
+  const auto minus1_cl = nyc.At(minus1);
+  EXPECT_EQ(absl::TimeZone::TimeInfo::UNIQUE, minus1_cl.kind);
+  EXPECT_EQ(-1, absl::ToTimeT(minus1_cl.pre));
   EXPECT_EQ("Wed, 31 Dec 1969 18:59:59 -0500 (EST)",
-            absl::FormatTime(fmt, minus1.pre, nyc));
+            absl::FormatTime(fmt, minus1_cl.pre, nyc));
   EXPECT_EQ("Wed, 31 Dec 1969 23:59:59 +0000 (UTC)",
-            absl::FormatTime(fmt, minus1.pre, utc));
+            absl::FormatTime(fmt, minus1_cl.pre, absl::UTCTimeZone()));
 }
 
-// FromDateTime(year, mon, day, hour, min, sec, UTCTimeZone()) has
-// a specialized fastpath implementation which we exercise here.
-TEST(Time, FromDateTimeUTC) {
+// FromCivil(CivilSecond(year, mon, day, hour, min, sec), UTCTimeZone())
+// has a specialized fastpath implementation, which we exercise here.
+TEST(Time, FromCivilUTC) {
   const absl::TimeZone utc = absl::UTCTimeZone();
   const std::string fmt = "%a, %e %b %Y %H:%M:%S %z (%Z)";
   const int kMax = std::numeric_limits<int>::max();
@@ -618,65 +635,36 @@ TEST(Time, FromDateTimeUTC) {
   absl::Time t;
 
   // 292091940881 is the last positive year to use the fastpath.
-  t = absl::FromDateTime(292091940881, kMax, kMax, kMax, kMax, kMax, utc);
+  t = absl::FromCivil(
+      absl::CivilSecond(292091940881, kMax, kMax, kMax, kMax, kMax), utc);
   EXPECT_EQ("Fri, 25 Nov 292277026596 12:21:07 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-  t = absl::FromDateTime(292091940882, kMax, kMax, kMax, kMax, kMax, utc);
-  EXPECT_EQ("infinite-future", absl::FormatTime(fmt, t, utc));  // no overflow
-  t = absl::FromDateTime(
-      std::numeric_limits<int64_t>::max(), kMax, kMax, kMax, kMax, kMax, utc);
+  t = absl::FromCivil(
+      absl::CivilSecond(292091940882, kMax, kMax, kMax, kMax, kMax), utc);
   EXPECT_EQ("infinite-future", absl::FormatTime(fmt, t, utc));  // no overflow
 
   // -292091936940 is the last negative year to use the fastpath.
-  t = absl::FromDateTime(-292091936940, kMin, kMin, kMin, kMin, kMin, utc);
+  t = absl::FromCivil(
+      absl::CivilSecond(-292091936940, kMin, kMin, kMin, kMin, kMin), utc);
   EXPECT_EQ("Fri,  1 Nov -292277022657 10:37:52 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-  t = absl::FromDateTime(-292091936941, kMin, kMin, kMin, kMin, kMin, utc);
+  t = absl::FromCivil(
+      absl::CivilSecond(-292091936941, kMin, kMin, kMin, kMin, kMin), utc);
   EXPECT_EQ("infinite-past", absl::FormatTime(fmt, t, utc));  // no underflow
-  t = absl::FromDateTime(
-      std::numeric_limits<int64_t>::min(), kMin, kMin, kMin, kMin, kMin, utc);
-  EXPECT_EQ("infinite-past", absl::FormatTime(fmt, t, utc));  // no overflow
 
   // Check that we're counting leap years correctly.
-  t = absl::FromDateTime(1900, 2, 28, 23, 59, 59, utc);
+  t = absl::FromCivil(absl::CivilSecond(1900, 2, 28, 23, 59, 59), utc);
   EXPECT_EQ("Wed, 28 Feb 1900 23:59:59 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-  t = absl::FromDateTime(1900, 3, 1, 0, 0, 0, utc);
+  t = absl::FromCivil(absl::CivilSecond(1900, 3, 1, 0, 0, 0), utc);
   EXPECT_EQ("Thu,  1 Mar 1900 00:00:00 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-  t = absl::FromDateTime(2000, 2, 29, 23, 59, 59, utc);
+  t = absl::FromCivil(absl::CivilSecond(2000, 2, 29, 23, 59, 59), utc);
   EXPECT_EQ("Tue, 29 Feb 2000 23:59:59 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-  t = absl::FromDateTime(2000, 3, 1, 0, 0, 0, utc);
+  t = absl::FromCivil(absl::CivilSecond(2000, 3, 1, 0, 0, 0), utc);
   EXPECT_EQ("Wed,  1 Mar 2000 00:00:00 +0000 (UTC)",
             absl::FormatTime(fmt, t, utc));
-
-  // Check normalization.
-  const std::string ymdhms = "%Y-%m-%d %H:%M:%S";
-  t = absl::FromDateTime(2015, 1, 1, 0, 0, 60, utc);
-  EXPECT_EQ("2015-01-01 00:01:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 1, 0, 60, 0, utc);
-  EXPECT_EQ("2015-01-01 01:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 1, 24, 0, 0, utc);
-  EXPECT_EQ("2015-01-02 00:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 32, 0, 0, 0, utc);
-  EXPECT_EQ("2015-02-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 13, 1, 0, 0, 0, utc);
-  EXPECT_EQ("2016-01-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 13, 32, 60, 60, 60, utc);
-  EXPECT_EQ("2016-02-03 13:01:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 1, 0, 0, -1, utc);
-  EXPECT_EQ("2014-12-31 23:59:59", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 1, 0, -1, 0, utc);
-  EXPECT_EQ("2014-12-31 23:59:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, 1, -1, 0, 0, utc);
-  EXPECT_EQ("2014-12-31 23:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, 1, -1, 0, 0, 0, utc);
-  EXPECT_EQ("2014-12-30 00:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, -1, 1, 0, 0, 0, utc);
-  EXPECT_EQ("2014-11-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
-  t = absl::FromDateTime(2015, -1, -1, -1, -1, -1, utc);
-  EXPECT_EQ("2014-10-29 22:58:59", absl::FormatTime(ymdhms, t, utc));
 }
 
 TEST(Time, ToTM) {
@@ -684,8 +672,10 @@ TEST(Time, ToTM) {
 
   // Compares the results of ToTM() to gmtime_r() for lots of times over the
   // course of a few days.
-  const absl::Time start = absl::FromDateTime(2014, 1, 2, 3, 4, 5, utc);
-  const absl::Time end = absl::FromDateTime(2014, 1, 5, 3, 4, 5, utc);
+  const absl::Time start =
+      absl::FromCivil(absl::CivilSecond(2014, 1, 2, 3, 4, 5), utc);
+  const absl::Time end =
+      absl::FromCivil(absl::CivilSecond(2014, 1, 5, 3, 4, 5), utc);
   for (absl::Time t = start; t < end; t += absl::Seconds(30)) {
     const struct tm tm_bt = ToTM(t, utc);
     const time_t tt = absl::ToTimeT(t);
@@ -711,12 +701,12 @@ TEST(Time, ToTM) {
   // Checks that the tm_isdst field is correct when in standard time.
   const absl::TimeZone nyc =
       absl::time_internal::LoadTimeZone("America/New_York");
-  absl::Time t = absl::FromDateTime(2014, 3, 1, 0, 0, 0, nyc);
+  absl::Time t = absl::FromCivil(absl::CivilSecond(2014, 3, 1, 0, 0, 0), nyc);
   struct tm tm = ToTM(t, nyc);
   EXPECT_FALSE(tm.tm_isdst);
 
   // Checks that the tm_isdst field is correct when in daylight time.
-  t = absl::FromDateTime(2014, 4, 1, 0, 0, 0, nyc);
+  t = absl::FromCivil(absl::CivilSecond(2014, 4, 1, 0, 0, 0), nyc);
   tm = ToTM(t, nyc);
   EXPECT_TRUE(tm.tm_isdst);
 
@@ -808,8 +798,8 @@ TEST(Time, TMRoundTrip) {
       absl::time_internal::LoadTimeZone("America/New_York");
 
   // Test round-tripping across a skipped transition
-  absl::Time start = absl::FromDateTime(2014, 3, 9, 0, 0, 0, nyc);
-  absl::Time end = absl::FromDateTime(2014, 3, 9, 4, 0, 0, nyc);
+  absl::Time start = absl::FromCivil(absl::CivilHour(2014, 3, 9, 0), nyc);
+  absl::Time end = absl::FromCivil(absl::CivilHour(2014, 3, 9, 4), nyc);
   for (absl::Time t = start; t < end; t += absl::Minutes(1)) {
     struct tm tm = ToTM(t, nyc);
     absl::Time rt = FromTM(tm, nyc);
@@ -817,8 +807,8 @@ TEST(Time, TMRoundTrip) {
   }
 
   // Test round-tripping across an ambiguous transition
-  start = absl::FromDateTime(2014, 11, 2, 0, 0, 0, nyc);
-  end = absl::FromDateTime(2014, 11, 2, 4, 0, 0, nyc);
+  start = absl::FromCivil(absl::CivilHour(2014, 11, 2, 0), nyc);
+  end = absl::FromCivil(absl::CivilHour(2014, 11, 2, 4), nyc);
   for (absl::Time t = start; t < end; t += absl::Minutes(1)) {
     struct tm tm = ToTM(t, nyc);
     absl::Time rt = FromTM(tm, nyc);
@@ -826,8 +816,8 @@ TEST(Time, TMRoundTrip) {
   }
 
   // Test round-tripping of unique instants crossing a day boundary
-  start = absl::FromDateTime(2014, 6, 27, 22, 0, 0, nyc);
-  end = absl::FromDateTime(2014, 6, 28, 4, 0, 0, nyc);
+  start = absl::FromCivil(absl::CivilHour(2014, 6, 27, 22), nyc);
+  end = absl::FromCivil(absl::CivilHour(2014, 6, 28, 4), nyc);
   for (absl::Time t = start; t < end; t += absl::Minutes(1)) {
     struct tm tm = ToTM(t, nyc);
     absl::Time rt = FromTM(tm, nyc);
@@ -980,27 +970,27 @@ TEST(Time, ConversionSaturation) {
   EXPECT_EQ(min_timespec_sec, ts.tv_sec);
   EXPECT_EQ(0, ts.tv_nsec);
 
-  // Checks how Time::In() saturates on infinities.
-  absl::Time::Breakdown bd = absl::InfiniteFuture().In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, std::numeric_limits<int64_t>::max(), 12, 31, 23,
+  // Checks how TimeZone::At() saturates on infinities.
+  auto ci = utc.At(absl::InfiniteFuture());
+  EXPECT_CIVIL_INFO(ci, std::numeric_limits<int64_t>::max(), 12, 31, 23,
                             59, 59, 0, false);
-  EXPECT_EQ(absl::InfiniteDuration(), bd.subsecond);
-  EXPECT_EQ(4, bd.weekday);  // Thursday
-  EXPECT_EQ(365, bd.yearday);
-  EXPECT_STREQ("-00", bd.zone_abbr);  // artifact of absl::Time::In()
-  bd = absl::InfinitePast().In(utc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, std::numeric_limits<int64_t>::min(), 1, 1, 0, 0,
+  EXPECT_EQ(absl::InfiniteDuration(), ci.subsecond);
+  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(365, absl::GetYearDay(absl::CivilDay(ci.cs)));
+  EXPECT_STREQ("-00", ci.zone_abbr);  // artifact of TimeZone::At()
+  ci = utc.At(absl::InfinitePast());
+  EXPECT_CIVIL_INFO(ci, std::numeric_limits<int64_t>::min(), 1, 1, 0, 0,
                             0, 0, false);
-  EXPECT_EQ(-absl::InfiniteDuration(), bd.subsecond);
-  EXPECT_EQ(7, bd.weekday);  // Sunday
-  EXPECT_EQ(1, bd.yearday);
-  EXPECT_STREQ("-00", bd.zone_abbr);  // artifact of absl::Time::In()
+  EXPECT_EQ(-absl::InfiniteDuration(), ci.subsecond);
+  EXPECT_EQ(absl::Weekday::sunday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(1, absl::GetYearDay(absl::CivilDay(ci.cs)));
+  EXPECT_STREQ("-00", ci.zone_abbr);  // artifact of TimeZone::At()
 
   // Approach the maximal Time value from below.
-  t = absl::FromDateTime(292277026596, 12, 4, 15, 30, 6, utc);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 15, 30, 6), utc);
   EXPECT_EQ("292277026596-12-04T15:30:06+00:00",
             absl::FormatTime(absl::RFC3339_full, t, utc));
-  t = absl::FromDateTime(292277026596, 12, 4, 15, 30, 7, utc);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 15, 30, 7), utc);
   EXPECT_EQ("292277026596-12-04T15:30:07+00:00",
             absl::FormatTime(absl::RFC3339_full, t, utc));
   EXPECT_EQ(
@@ -1008,21 +998,21 @@ TEST(Time, ConversionSaturation) {
 
   // Checks that we can also get the maximal Time value for a far-east zone.
   const absl::TimeZone plus14 = absl::FixedTimeZone(14 * 60 * 60);
-  t = absl::FromDateTime(292277026596, 12, 5, 5, 30, 7, plus14);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 5, 5, 30, 7), plus14);
   EXPECT_EQ("292277026596-12-05T05:30:07+14:00",
             absl::FormatTime(absl::RFC3339_full, t, plus14));
   EXPECT_EQ(
       absl::UnixEpoch() + absl::Seconds(std::numeric_limits<int64_t>::max()), t);
 
   // One second later should push us to infinity.
-  t = absl::FromDateTime(292277026596, 12, 4, 15, 30, 8, utc);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 15, 30, 8), utc);
   EXPECT_EQ("infinite-future", absl::FormatTime(absl::RFC3339_full, t, utc));
 
   // Approach the minimal Time value from above.
-  t = absl::FromDateTime(-292277022657, 1, 27, 8, 29, 53, utc);
+  t = absl::FromCivil(absl::CivilSecond(-292277022657, 1, 27, 8, 29, 53), utc);
   EXPECT_EQ("-292277022657-01-27T08:29:53+00:00",
             absl::FormatTime(absl::RFC3339_full, t, utc));
-  t = absl::FromDateTime(-292277022657, 1, 27, 8, 29, 52, utc);
+  t = absl::FromCivil(absl::CivilSecond(-292277022657, 1, 27, 8, 29, 52), utc);
   EXPECT_EQ("-292277022657-01-27T08:29:52+00:00",
             absl::FormatTime(absl::RFC3339_full, t, utc));
   EXPECT_EQ(
@@ -1030,14 +1020,15 @@ TEST(Time, ConversionSaturation) {
 
   // Checks that we can also get the minimal Time value for a far-west zone.
   const absl::TimeZone minus12 = absl::FixedTimeZone(-12 * 60 * 60);
-  t = absl::FromDateTime(-292277022657, 1, 26, 20, 29, 52, minus12);
+  t = absl::FromCivil(absl::CivilSecond(-292277022657, 1, 26, 20, 29, 52),
+                      minus12);
   EXPECT_EQ("-292277022657-01-26T20:29:52-12:00",
             absl::FormatTime(absl::RFC3339_full, t, minus12));
   EXPECT_EQ(
       absl::UnixEpoch() + absl::Seconds(std::numeric_limits<int64_t>::min()), t);
 
   // One second before should push us to -infinity.
-  t = absl::FromDateTime(-292277022657, 1, 27, 8, 29, 51, utc);
+  t = absl::FromCivil(absl::CivilSecond(-292277022657, 1, 27, 8, 29, 51), utc);
   EXPECT_EQ("infinite-past", absl::FormatTime(absl::RFC3339_full, t, utc));
 }
 
@@ -1051,38 +1042,160 @@ TEST(Time, ExtendedConversionSaturation) {
       absl::time_internal::LoadTimeZone("America/New_York");
   const absl::Time max =
       absl::FromUnixSeconds(std::numeric_limits<int64_t>::max());
-  absl::Time::Breakdown bd;
+  absl::TimeZone::CivilInfo ci;
   absl::Time t;
 
   // The maximal time converted in each zone.
-  bd = max.In(syd);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 5, 2, 30, 7, 39600, true);
-  t = absl::FromDateTime(292277026596, 12, 5, 2, 30, 7, syd);
+  ci = syd.At(max);
+  EXPECT_CIVIL_INFO(ci, 292277026596, 12, 5, 2, 30, 7, 39600, true);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 5, 2, 30, 7), syd);
   EXPECT_EQ(max, t);
-  bd = max.In(nyc);
-  ABSL_INTERNAL_EXPECT_TIME(bd, 292277026596, 12, 4, 10, 30, 7, -18000, false);
-  t = absl::FromDateTime(292277026596, 12, 4, 10, 30, 7, nyc);
+  ci = nyc.At(max);
+  EXPECT_CIVIL_INFO(ci, 292277026596, 12, 4, 10, 30, 7, -18000, false);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 10, 30, 7), nyc);
   EXPECT_EQ(max, t);
 
   // One second later should push us to infinity.
-  t = absl::FromDateTime(292277026596, 12, 5, 2, 30, 8, syd);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 5, 2, 30, 8), syd);
   EXPECT_EQ(absl::InfiniteFuture(), t);
-  t = absl::FromDateTime(292277026596, 12, 4, 10, 30, 8, nyc);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 10, 30, 8), nyc);
   EXPECT_EQ(absl::InfiniteFuture(), t);
 
   // And we should stick there.
-  t = absl::FromDateTime(292277026596, 12, 5, 2, 30, 9, syd);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 5, 2, 30, 9), syd);
   EXPECT_EQ(absl::InfiniteFuture(), t);
-  t = absl::FromDateTime(292277026596, 12, 4, 10, 30, 9, nyc);
+  t = absl::FromCivil(absl::CivilSecond(292277026596, 12, 4, 10, 30, 9), nyc);
   EXPECT_EQ(absl::InfiniteFuture(), t);
 
   // All the way up to a saturated date/time, without overflow.
-  t = absl::FromDateTime(
-      std::numeric_limits<int64_t>::max(), 12, 31, 23, 59, 59, syd);
+  t = absl::FromCivil(absl::CivilSecond::max(), syd);
   EXPECT_EQ(absl::InfiniteFuture(), t);
-  t = absl::FromDateTime(
-      std::numeric_limits<int64_t>::max(), 12, 31, 23, 59, 59, nyc);
+  t = absl::FromCivil(absl::CivilSecond::max(), nyc);
   EXPECT_EQ(absl::InfiniteFuture(), t);
+}
+
+TEST(Time, FromCivilAlignment) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const absl::CivilSecond cs(2015, 2, 3, 4, 5, 6);
+  absl::Time t = absl::FromCivil(cs, utc);
+  EXPECT_EQ("2015-02-03T04:05:06+00:00", absl::FormatTime(t, utc));
+  t = absl::FromCivil(absl::CivilMinute(cs), utc);
+  EXPECT_EQ("2015-02-03T04:05:00+00:00", absl::FormatTime(t, utc));
+  t = absl::FromCivil(absl::CivilHour(cs), utc);
+  EXPECT_EQ("2015-02-03T04:00:00+00:00", absl::FormatTime(t, utc));
+  t = absl::FromCivil(absl::CivilDay(cs), utc);
+  EXPECT_EQ("2015-02-03T00:00:00+00:00", absl::FormatTime(t, utc));
+  t = absl::FromCivil(absl::CivilMonth(cs), utc);
+  EXPECT_EQ("2015-02-01T00:00:00+00:00", absl::FormatTime(t, utc));
+  t = absl::FromCivil(absl::CivilYear(cs), utc);
+  EXPECT_EQ("2015-01-01T00:00:00+00:00", absl::FormatTime(t, utc));
+}
+
+TEST(Time, LegacyDateTime) {
+  const absl::TimeZone utc = absl::UTCTimeZone();
+  const std::string ymdhms = "%Y-%m-%d %H:%M:%S";
+  const int kMax = std::numeric_limits<int>::max();
+  const int kMin = std::numeric_limits<int>::min();
+  absl::Time t;
+
+  t = absl::FromDateTime(std::numeric_limits<absl::civil_year_t>::max(),
+                         kMax, kMax, kMax, kMax, kMax, utc);
+  EXPECT_EQ("infinite-future",
+            absl::FormatTime(ymdhms, t, utc));  // no overflow
+  t = absl::FromDateTime(std::numeric_limits<absl::civil_year_t>::min(),
+                         kMin, kMin, kMin, kMin, kMin, utc);
+  EXPECT_EQ("infinite-past",
+            absl::FormatTime(ymdhms, t, utc));  // no overflow
+
+  // Check normalization.
+  EXPECT_TRUE(absl::ConvertDateTime(2013, 10, 32, 8, 30, 0, utc).normalized);
+  t = absl::FromDateTime(2015, 1, 1, 0, 0, 60, utc);
+  EXPECT_EQ("2015-01-01 00:01:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 1, 0, 60, 0, utc);
+  EXPECT_EQ("2015-01-01 01:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 1, 24, 0, 0, utc);
+  EXPECT_EQ("2015-01-02 00:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 32, 0, 0, 0, utc);
+  EXPECT_EQ("2015-02-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 13, 1, 0, 0, 0, utc);
+  EXPECT_EQ("2016-01-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 13, 32, 60, 60, 60, utc);
+  EXPECT_EQ("2016-02-03 13:01:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 1, 0, 0, -1, utc);
+  EXPECT_EQ("2014-12-31 23:59:59", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 1, 0, -1, 0, utc);
+  EXPECT_EQ("2014-12-31 23:59:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, 1, -1, 0, 0, utc);
+  EXPECT_EQ("2014-12-31 23:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, 1, -1, 0, 0, 0, utc);
+  EXPECT_EQ("2014-12-30 00:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, -1, 1, 0, 0, 0, utc);
+  EXPECT_EQ("2014-11-01 00:00:00", absl::FormatTime(ymdhms, t, utc));
+  t = absl::FromDateTime(2015, -1, -1, -1, -1, -1, utc);
+  EXPECT_EQ("2014-10-29 22:58:59", absl::FormatTime(ymdhms, t, utc));
+}
+
+TEST(Time, NextTransitionUTC) {
+  const auto tz = absl::UTCTimeZone();
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::InfinitePast();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+
+  t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+}
+
+TEST(Time, PrevTransitionUTC) {
+  const auto tz = absl::UTCTimeZone();
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+
+  t = absl::InfinitePast();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+}
+
+TEST(Time, NextTransitionNYC) {
+  const auto tz = absl::time_internal::LoadTimeZone("America/New_York");
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::FromCivil(absl::CivilSecond(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.NextTransition(t, &trans));
+  EXPECT_EQ(absl::CivilSecond(2018, 11, 4, 2, 0, 0), trans.from);
+  EXPECT_EQ(absl::CivilSecond(2018, 11, 4, 1, 0, 0), trans.to);
+
+  t = absl::InfiniteFuture();
+  EXPECT_FALSE(tz.NextTransition(t, &trans));
+
+  t = absl::InfinitePast();
+  EXPECT_TRUE(tz.NextTransition(t, &trans));
+  if (trans.from == absl::CivilSecond(1918, 03, 31, 2, 0, 0)) {
+    // It looks like the tzdata is only 32 bit (probably macOS),
+    // which bottoms out at 1901-12-13T20:45:52+00:00.
+    EXPECT_EQ(absl::CivilSecond(1918, 3, 31, 3, 0, 0), trans.to);
+  } else {
+    EXPECT_EQ(absl::CivilSecond(1883, 11, 18, 12, 3, 58), trans.from);
+    EXPECT_EQ(absl::CivilSecond(1883, 11, 18, 12, 0, 0), trans.to);
+  }
+}
+
+TEST(Time, PrevTransitionNYC) {
+  const auto tz = absl::time_internal::LoadTimeZone("America/New_York");
+  absl::TimeZone::CivilTransition trans;
+
+  auto t = absl::FromCivil(absl::CivilSecond(2018, 6, 30, 0, 0, 0), tz);
+  EXPECT_TRUE(tz.PrevTransition(t, &trans));
+  EXPECT_EQ(absl::CivilSecond(2018, 3, 11, 2, 0, 0), trans.from);
+  EXPECT_EQ(absl::CivilSecond(2018, 3, 11, 3, 0, 0), trans.to);
+
+  t = absl::InfinitePast();
+  EXPECT_FALSE(tz.PrevTransition(t, &trans));
+
+  t = absl::InfiniteFuture();
+  EXPECT_TRUE(tz.PrevTransition(t, &trans));
+  // We have a transition but we don't know which one.
 }
 
 }  // namespace

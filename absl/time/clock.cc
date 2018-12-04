@@ -34,7 +34,7 @@
 #include "absl/base/thread_annotations.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 Time Now() {
   // TODO(bww): Get a timespec instead so we don't have to divide.
   int64_t n = absl::GetCurrentTimeNanos();
@@ -44,7 +44,7 @@ Time Now() {
   }
   return time_internal::FromUnixDuration(absl::Nanoseconds(n));
 }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // Decide if we should use the fast GetCurrentTimeNanos() algorithm
@@ -59,10 +59,8 @@ Time Now() {
 #endif
 #endif
 
-#if defined(__APPLE__)
-#include "absl/time/internal/get_current_time_ios.inc"
-#elif defined(_WIN32)
-#include "absl/time/internal/get_current_time_windows.inc"
+#if defined(__APPLE__) || defined(_WIN32)
+#include "absl/time/internal/get_current_time_chrono.inc"
 #else
 #include "absl/time/internal/get_current_time_posix.inc"
 #endif
@@ -75,11 +73,11 @@ Time Now() {
 
 #if !ABSL_USE_CYCLECLOCK_FOR_GET_CURRENT_TIME_NANOS
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 int64_t GetCurrentTimeNanos() {
   return GET_CURRENT_TIME_NANOS_FROM_SYSTEM();
 }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #else  // Use the cyclecounter-based implementation below.
 
@@ -97,7 +95,7 @@ static int64_t stats_slow_paths;
 static int64_t stats_fast_slow_paths;
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 // This is a friend wrapper around UnscaledCycleClock::Now()
 // (needed to access UnscaledCycleClock).
@@ -522,12 +520,12 @@ static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
 
   return estimated_base_ns;
 }
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_USE_CYCLECLOCK_FOR_GET_CURRENT_TIME_NANOS
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
 // Returns the maximum duration that SleepOnce() can sleep for.
@@ -555,7 +553,7 @@ void SleepOnce(absl::Duration to_sleep) {
 }
 
 }  // namespace
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 extern "C" {

@@ -33,7 +33,7 @@
 #include <cstddef>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // HaveLeakSanitizer()
 //
@@ -105,7 +105,7 @@ void RegisterLivePointers(const void* ptr, size_t size);
 // `RegisterLivePointers()`, enabling leak checking of those pointers.
 void UnRegisterLivePointers(const void* ptr, size_t size);
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_LEAK_CHECK_H_

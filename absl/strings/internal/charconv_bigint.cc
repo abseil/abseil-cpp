@@ -19,7 +19,7 @@
 #include <string>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 namespace {
@@ -355,5 +355,5 @@ template class BigUnsigned<4>;
 template class BigUnsigned<84>;
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

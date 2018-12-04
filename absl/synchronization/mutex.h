@@ -24,7 +24,7 @@
 // Unlike a `std::mutex`, the Abseil `Mutex` provides the following additional
 // features:
 //   * Conditional predicates intrinsic to the `Mutex` object
-//   * Reader/writer locks, in addition to standard exclusive/writer locks
+//   * Shared/reader locks, in addition to standard exclusive/writer locks
 //   * Deadlock detection and debug support.
 //
 // The following helper classes are also defined within this file:
@@ -81,7 +81,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 class Condition;
 struct SynchWaitParams;
@@ -291,7 +291,7 @@ class LOCKABLE Mutex {
   // Mutex::ReaderLockWhen()
   // Mutex::WriterLockWhen()
   //
-  // Blocks until simultaneously both `cond` is `true` and this` Mutex` can
+  // Blocks until simultaneously both `cond` is `true` and this `Mutex` can
   // be acquired, then atomically acquires this `Mutex`. `LockWhen()` is
   // logically equivalent to `*Lock(); Await();` though they may have different
   // performance characteristics.
@@ -559,7 +559,7 @@ class SCOPED_LOCKABLE ReaderMutexLock {
 // WriterMutexLock
 //
 // The `WriterMutexLock` is a helper class, like `MutexLock`, which acquires and
-// releases a write (exclusive) lock on a `Mutex` va RAII.
+// releases a write (exclusive) lock on a `Mutex` via RAII.
 class SCOPED_LOCKABLE WriterMutexLock {
  public:
   explicit WriterMutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu)
@@ -585,7 +585,7 @@ class SCOPED_LOCKABLE WriterMutexLock {
 // -----------------------------------------------------------------------------
 //
 // As noted above, `Mutex` contains a number of member functions which take a
-// `Condition` as a argument; clients can wait for conditions to become `true`
+// `Condition` as an argument; clients can wait for conditions to become `true`
 // before attempting to acquire the mutex. These sections are known as
 // "condition critical" sections. To use a `Condition`, you simply need to
 // construct it, and use within an appropriate `Mutex` member function;
@@ -963,7 +963,7 @@ void RegisterMutexTracer(void (*fn)(const char *msg, const void *obj,
 //
 // The function pointer registered here will be called here on various CondVar
 // events.  The callback is given an opaque handle to the CondVar object and
-// a std::string identifying the event.  This is thread-safe, but only a single
+// a string identifying the event.  This is thread-safe, but only a single
 // tracer can be registered.
 //
 // Events that can be sent are "Wait", "Unwait", "Signal wakeup", and
@@ -1015,7 +1015,7 @@ enum class OnDeadlockCycle {
 // the manner chosen here.
 void SetMutexDeadlockDetectionMode(OnDeadlockCycle mode);
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 // In some build configurations we pass --detect-odr-violations to the

@@ -27,46 +27,112 @@ namespace {
 //
 
 void BM_Duration_Factory_Nanoseconds(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Nanoseconds(1));
+    benchmark::DoNotOptimize(absl::Nanoseconds(i));
+    i += 314159;
   }
 }
 BENCHMARK(BM_Duration_Factory_Nanoseconds);
 
 void BM_Duration_Factory_Microseconds(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Microseconds(1));
+    benchmark::DoNotOptimize(absl::Microseconds(i));
+    i += 314;
   }
 }
 BENCHMARK(BM_Duration_Factory_Microseconds);
 
 void BM_Duration_Factory_Milliseconds(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Milliseconds(1));
+    benchmark::DoNotOptimize(absl::Milliseconds(i));
+    i += 1;
   }
 }
 BENCHMARK(BM_Duration_Factory_Milliseconds);
 
 void BM_Duration_Factory_Seconds(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Seconds(1));
+    benchmark::DoNotOptimize(absl::Seconds(i));
+    i += 1;
   }
 }
 BENCHMARK(BM_Duration_Factory_Seconds);
 
 void BM_Duration_Factory_Minutes(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Minutes(1));
+    benchmark::DoNotOptimize(absl::Minutes(i));
+    i += 1;
   }
 }
 BENCHMARK(BM_Duration_Factory_Minutes);
 
 void BM_Duration_Factory_Hours(benchmark::State& state) {
+  int64_t i = 0;
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(absl::Hours(1));
+    benchmark::DoNotOptimize(absl::Hours(i));
+    i += 1;
   }
 }
 BENCHMARK(BM_Duration_Factory_Hours);
+
+void BM_Duration_Factory_DoubleNanoseconds(benchmark::State& state) {
+  double d = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Nanoseconds(d));
+    d = d * 1.00000001 + 1;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleNanoseconds);
+
+void BM_Duration_Factory_DoubleMicroseconds(benchmark::State& state) {
+  double d = 1e-3;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Microseconds(d));
+    d = d * 1.00000001 + 1e-3;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleMicroseconds);
+
+void BM_Duration_Factory_DoubleMilliseconds(benchmark::State& state) {
+  double d = 1e-6;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Milliseconds(d));
+    d = d * 1.00000001 + 1e-6;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleMilliseconds);
+
+void BM_Duration_Factory_DoubleSeconds(benchmark::State& state) {
+  double d = 1e-9;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Seconds(d));
+    d = d * 1.00000001 + 1e-9;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleSeconds);
+
+void BM_Duration_Factory_DoubleMinutes(benchmark::State& state) {
+  double d = 1e-9;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Minutes(d));
+    d = d * 1.00000001 + 1e-9;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleMinutes);
+
+void BM_Duration_Factory_DoubleHours(benchmark::State& state) {
+  double d = 1e-9;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(absl::Hours(d));
+    d = d * 1.00000001 + 1e-9;
+  }
+}
+BENCHMARK(BM_Duration_Factory_DoubleHours);
 
 //
 // Arithmetic

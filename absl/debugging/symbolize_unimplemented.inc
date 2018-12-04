@@ -17,7 +17,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace debugging_internal {
 
@@ -33,5 +33,5 @@ bool RegisterFileMappingHint(const void *, const void *, uint64_t, const char *)
 void InitializeSymbolizer(const char*) {}
 bool Symbolize(const void *, char *, int) { return false; }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

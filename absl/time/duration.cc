@@ -67,7 +67,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace {
 
@@ -79,8 +79,14 @@ constexpr int64_t kint64min = std::numeric_limits<int64_t>::min();
 
 // Can't use std::isinfinite() because it doesn't exist on windows.
 inline bool IsFinite(double d) {
+  if (std::isnan(d)) return false;
   return d != std::numeric_limits<double>::infinity() &&
          d != -std::numeric_limits<double>::infinity();
+}
+
+inline bool IsValidDivisor(double d) {
+  if (std::isnan(d)) return false;
+  return d != 0.0;
 }
 
 // Can't use std::round() because it is only available in C++11.
@@ -456,7 +462,7 @@ Duration& Duration::operator/=(int64_t r) {
 }
 
 Duration& Duration::operator/=(double r) {
-  if (time_internal::IsInfiniteDuration(*this) || r == 0.0) {
+  if (time_internal::IsInfiniteDuration(*this) || !IsValidDivisor(r)) {
     const bool is_neg = (std::signbit(r) != 0) != (rep_hi_ < 0);
     return *this = is_neg ? -InfiniteDuration() : InfiniteDuration();
   }
@@ -667,7 +673,7 @@ std::chrono::hours ToChronoHours(Duration d) {
 }
 
 //
-// To/From std::string formatting.
+// To/From string formatting.
 //
 
 namespace {
@@ -745,7 +751,7 @@ void AppendNumberUnit(std::string* out, double n, DisplayUnit unit) {
 }  // namespace
 
 // From Go's doc at http://golang.org/pkg/time/#Duration.String
-//   [FormatDuration] returns a std::string representing the duration in the
+//   [FormatDuration] returns a string representing the duration in the
 //   form "72h3m0.5s".  Leading zero units are omitted.  As a special
 //   case, durations less than one second format use a smaller unit
 //   (milli-, micro-, or nanoseconds) to ensure that the leading digit
@@ -788,8 +794,8 @@ std::string FormatDuration(Duration d) {
 namespace {
 
 // A helper for ParseDuration() that parses a leading number from the given
-// std::string and stores the result in *int_part/*frac_part/*frac_scale.  The
-// given std::string pointer is modified to point to the first unconsumed char.
+// string and stores the result in *int_part/*frac_part/*frac_scale.  The
+// given string pointer is modified to point to the first unconsumed char.
 bool ConsumeDurationNumber(const char** dpp, int64_t* int_part,
                            int64_t* frac_part, int64_t* frac_scale) {
   *int_part = 0;
@@ -817,8 +823,8 @@ bool ConsumeDurationNumber(const char** dpp, int64_t* int_part,
 }
 
 // A helper for ParseDuration() that parses a leading unit designator (e.g.,
-// ns, us, ms, s, m, h) from the given std::string and stores the resulting unit
-// in "*unit".  The given std::string pointer is modified to point to the first
+// ns, us, ms, s, m, h) from the given string and stores the resulting unit
+// in "*unit".  The given string pointer is modified to point to the first
 // unconsumed char.
 bool ConsumeDurationUnit(const char** start, Duration* unit) {
   const char *s = *start;
@@ -851,7 +857,7 @@ bool ConsumeDurationUnit(const char** start, Duration* unit) {
 }  // namespace
 
 // From Go's doc at http://golang.org/pkg/time/#ParseDuration
-//   [ParseDuration] parses a duration std::string.  A duration std::string is
+//   [ParseDuration] parses a duration string.  A duration string is
 //   a possibly signed sequence of decimal numbers, each with optional
 //   fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
 //   Valid time units are "ns", "us" "ms", "s", "m", "h".
@@ -896,14 +902,11 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   *d = dur;
   return true;
 }
-
 bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }
 
-std::string UnparseFlag(Duration d) {
-  return FormatDuration(d);
-}
+std::string UnparseFlag(Duration d) { return FormatDuration(d); }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

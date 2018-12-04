@@ -100,7 +100,7 @@
 // ABSL_PRINTF_ATTRIBUTE
 // ABSL_SCANF_ATTRIBUTE
 //
-// Tells the compiler to perform `printf` format std::string checking if the
+// Tells the compiler to perform `printf` format string checking if the
 // compiler supports it; see the 'format' attribute in
 // <http://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Function-Attributes.html>.
 //
@@ -155,7 +155,12 @@
 // ABSL_ATTRIBUTE_WEAK
 //
 // Tags a function as weak for the purposes of compilation and linking.
-#if ABSL_HAVE_ATTRIBUTE(weak) || (defined(__GNUC__) && !defined(__clang__))
+// Weak attributes currently do not work properly in LLVM's Windows backend,
+// so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
+// for futher information.
+#if (ABSL_HAVE_ATTRIBUTE(weak) || \
+     (defined(__GNUC__) && !defined(__clang__))) && \
+    !(defined(__llvm__) && defined(_WIN32))
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))
 #define ABSL_HAVE_ATTRIBUTE_WEAK 1
@@ -296,13 +301,13 @@
 
 // ABSL_HAVE_ATTRIBUTE_SECTION
 //
-// Indicates whether labeled sections are supported. Labeled sections are not
-// supported on Darwin/iOS.
+// Indicates whether labeled sections are supported. Weak symbol support is
+// a prerequisite. Labeled sections are not supported on Darwin/iOS.
 #ifdef ABSL_HAVE_ATTRIBUTE_SECTION
 #error ABSL_HAVE_ATTRIBUTE_SECTION cannot be directly set
 #elif (ABSL_HAVE_ATTRIBUTE(section) ||                \
        (defined(__GNUC__) && !defined(__clang__))) && \
-    !defined(__APPLE__)
+    !defined(__APPLE__) && ABSL_HAVE_ATTRIBUTE_WEAK
 #define ABSL_HAVE_ATTRIBUTE_SECTION 1
 
 // ABSL_ATTRIBUTE_SECTION
@@ -397,17 +402,28 @@
 
 // ABSL_MUST_USE_RESULT
 //
-// Tells the compiler to warn about unused return values for functions declared
-// with this macro. The macro must appear as the very first part of a function
-// declaration or definition:
+// Tells the compiler to warn about unused results.
 //
-// Example:
+// When annotating a function, it must appear as the first part of the
+// declaration or definition. The compiler will warn if the return value from
+// such a function is unused:
 //
 //   ABSL_MUST_USE_RESULT Sprocket* AllocateSprocket();
+//   AllocateSprocket();  // Triggers a warning.
 //
-// This placement has the broadest compatibility with GCC, Clang, and MSVC, with
-// both defs and decls, and with GCC-style attributes, MSVC declspec, C++11
-// and C++17 attributes.
+// When annotating a class, it is equivalent to annotating every function which
+// returns an instance.
+//
+//   class ABSL_MUST_USE_RESULT Sprocket {};
+//   Sprocket();  // Triggers a warning.
+//
+//   Sprocket MakeSprocket();
+//   MakeSprocket();  // Triggers a warning.
+//
+// Note that references and pointers are not instances:
+//
+//   Sprocket* SprocketPointer();
+//   SprocketPointer();  // Does *not* trigger a warning.
 //
 // ABSL_MUST_USE_RESULT allows using cast-to-void to suppress the unused result
 // warning. For that, warn_unused_result is used only for clang but not for gcc.
@@ -494,14 +510,27 @@
 #define ABSL_XRAY_LOG_ARGS(N)
 #endif
 
+// ABSL_ATTRIBUTE_REINITIALIZES
+//
+// Indicates that a member function reinitializes the entire object to a known
+// state, independent of the previous state of the object.
+//
+// The clang-tidy check bugprone-use-after-move allows member functions marked
+// with this attribute to be called on objects that have been moved from;
+// without the attribute, this would result in a use-after-move warning.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::reinitializes)
+#define ABSL_ATTRIBUTE_REINITIALIZES [[clang::reinitializes]]
+#else
+#define ABSL_ATTRIBUTE_REINITIALIZES
+#endif
+
 // -----------------------------------------------------------------------------
 // Variable Attributes
 // -----------------------------------------------------------------------------
 
 // ABSL_ATTRIBUTE_UNUSED
 //
-// Prevents the compiler from complaining about or optimizing away variables
-// that appear unused.
+// Prevents the compiler from complaining about variables that appear unused.
 #if ABSL_HAVE_ATTRIBUTE(unused) || (defined(__GNUC__) && !defined(__clang__))
 #undef ABSL_ATTRIBUTE_UNUSED
 #define ABSL_ATTRIBUTE_UNUSED __attribute__((__unused__))

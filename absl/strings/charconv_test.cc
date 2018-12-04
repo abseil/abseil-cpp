@@ -19,7 +19,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/strings/internal/pow10_helper.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 
 #ifdef _MSC_FULL_VER
 #define ABSL_COMPILER_DOES_EXACT_ROUNDING 0
@@ -31,9 +33,11 @@
 
 namespace {
 
+using absl::strings_internal::Pow10;
+
 #if ABSL_COMPILER_DOES_EXACT_ROUNDING
 
-// Tests that the given std::string is accepted by absl::from_chars, and that it
+// Tests that the given string is accepted by absl::from_chars, and that it
 // converts exactly equal to the given number.
 void TestDoubleParse(absl::string_view str, double expected_number) {
   SCOPED_TRACE(str);
@@ -250,7 +254,7 @@ TEST(FromChars, NearRoundingCasesExplicit) {
   EXPECT_EQ(ToFloat("459926601011.e15"), ldexpf(12466336, 65));
 }
 
-// Common test logic for converting a std::string which lies exactly halfway between
+// Common test logic for converting a string which lies exactly halfway between
 // two target floats.
 //
 // mantissa and exponent represent the precise value between two floating point
@@ -655,7 +659,7 @@ int NextStep(int step) {
 // is correct for in-bounds values, and that overflow and underflow are done
 // correctly for out-of-bounds values.
 //
-// input_generator maps from an integer index to a std::string to test.
+// input_generator maps from an integer index to a string to test.
 // expected_generator maps from an integer index to an expected Float value.
 // from_chars conversion of input_generator(i) should result in
 // expected_generator(i).
@@ -678,7 +682,8 @@ void TestOverflowAndUnderflow(
     auto result =
         absl::from_chars(input.data(), input.data() + input.size(), actual);
     EXPECT_EQ(result.ec, std::errc());
-    EXPECT_EQ(expected, actual);
+    EXPECT_EQ(expected, actual)
+        << absl::StrFormat("%a vs %a", expected, actual);
   }
   // test legal values near upper_bound
   for (index = upper_bound, step = 1; index > lower_bound;
@@ -690,7 +695,8 @@ void TestOverflowAndUnderflow(
     auto result =
         absl::from_chars(input.data(), input.data() + input.size(), actual);
     EXPECT_EQ(result.ec, std::errc());
-    EXPECT_EQ(expected, actual);
+    EXPECT_EQ(expected, actual)
+        << absl::StrFormat("%a vs %a", expected, actual);
   }
   // Test underflow values below lower_bound
   for (index = lower_bound - 1, step = 1; index > -1000000;
@@ -747,7 +753,7 @@ TEST(FromChars, HexdecimalFloatLimits) {
 // acceptable exponents in this test.
 TEST(FromChars, DecimalDoubleLimits) {
   auto input_gen = [](int index) { return absl::StrCat("1.0e", index); };
-  auto expected_gen = [](int index) { return std::pow(10.0, index); };
+  auto expected_gen = [](int index) { return Pow10(index); };
   TestOverflowAndUnderflow<double>(input_gen, expected_gen, -323, 308);
 }
 
@@ -759,7 +765,7 @@ TEST(FromChars, DecimalDoubleLimits) {
 // acceptable exponents in this test.
 TEST(FromChars, DecimalFloatLimits) {
   auto input_gen = [](int index) { return absl::StrCat("1.0e", index); };
-  auto expected_gen = [](int index) { return std::pow(10.0, index); };
+  auto expected_gen = [](int index) { return Pow10(index); };
   TestOverflowAndUnderflow<float>(input_gen, expected_gen, -45, 38);
 }
 

@@ -23,7 +23,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // Barrier
 //
@@ -74,6 +74,6 @@ class Barrier {
   int num_to_exit_ GUARDED_BY(lock_);
 };
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_SYNCHRONIZATION_BARRIER_H_

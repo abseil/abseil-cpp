@@ -37,6 +37,34 @@ using ::testing::ElementsAre;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
+TEST(Split, TraitsTest) {
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<int>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<std::string>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::vector<std::string>>::value,
+                "");
+  static_assert(
+      !absl::strings_internal::SplitterIsConvertibleTo<std::vector<int>>::value,
+      "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::vector<absl::string_view>>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<std::string, std::string>>::value,
+                "");
+  static_assert(absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<absl::string_view, absl::string_view>>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<int, std::string>>::value,
+                "");
+  static_assert(!absl::strings_internal::SplitterIsConvertibleTo<
+                    std::map<std::string, int>>::value,
+                "");
+}
+
 // This tests the overall split API, which is made up of the absl::StrSplit()
 // function and the Delimiter objects in the absl:: namespace.
 // This TEST macro is outside of any namespace to require full specification of
@@ -248,7 +276,7 @@ TEST(SplitIterator, Basics) {
   EXPECT_EQ(it, end);
 }
 
-// Simple Predicate to skip a particular std::string.
+// Simple Predicate to skip a particular string.
 class Skip {
  public:
   explicit Skip(const std::string& s) : s_(s) {}
@@ -735,12 +763,12 @@ template <typename Delimiter>
 static bool IsFoundAtStartingPos(absl::string_view text, Delimiter d,
                                  size_t starting_pos, int expected_pos) {
   absl::string_view found = d.Find(text, starting_pos);
-  return found.data() != text.end() &&
+  return found.data() != text.data() + text.size() &&
          expected_pos == found.data() - text.data();
 }
 
 // Helper function for testing Delimiter objects. Returns true if the given
-// Delimiter is found in the given std::string at the given position. This function
+// Delimiter is found in the given string at the given position. This function
 // tests two cases:
 //   1. The actual text given, staring at position 0
 //   2. The text given with leading padding that should be ignored

@@ -24,7 +24,7 @@
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace time_internal {
 namespace cctz {
 
@@ -38,35 +38,37 @@ class TimeZoneIf {
   virtual ~TimeZoneIf();
 
   virtual time_zone::absolute_lookup BreakTime(
-      const time_point<sys_seconds>& tp) const = 0;
+      const time_point<seconds>& tp) const = 0;
   virtual time_zone::civil_lookup MakeTime(
       const civil_second& cs) const = 0;
 
+  virtual bool NextTransition(const time_point<seconds>& tp,
+                              time_zone::civil_transition* trans) const = 0;
+  virtual bool PrevTransition(const time_point<seconds>& tp,
+                              time_zone::civil_transition* trans) const = 0;
+
+  virtual std::string Version() const = 0;
   virtual std::string Description() const = 0;
-  virtual bool NextTransition(time_point<sys_seconds>* tp) const = 0;
-  virtual bool PrevTransition(time_point<sys_seconds>* tp) const = 0;
 
  protected:
   TimeZoneIf() {}
 };
 
-// Convert between time_point<sys_seconds> and a count of seconds since
-// the Unix epoch.  We assume that the std::chrono::system_clock and the
+// Convert between time_point<seconds> and a count of seconds since the
+// Unix epoch.  We assume that the std::chrono::system_clock and the
 // Unix clock are second aligned, but not that they share an epoch.
-inline std::int_fast64_t ToUnixSeconds(const time_point<sys_seconds>& tp) {
-  return (tp - std::chrono::time_point_cast<sys_seconds>(
-                   std::chrono::system_clock::from_time_t(0)))
-      .count();
+inline std::int_fast64_t ToUnixSeconds(const time_point<seconds>& tp) {
+  return (tp - std::chrono::time_point_cast<seconds>(
+                   std::chrono::system_clock::from_time_t(0))).count();
 }
-inline time_point<sys_seconds> FromUnixSeconds(std::int_fast64_t t) {
-  return std::chrono::time_point_cast<sys_seconds>(
-             std::chrono::system_clock::from_time_t(0)) +
-         sys_seconds(t);
+inline time_point<seconds> FromUnixSeconds(std::int_fast64_t t) {
+  return std::chrono::time_point_cast<seconds>(
+             std::chrono::system_clock::from_time_t(0)) + seconds(t);
 }
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_IF_H_

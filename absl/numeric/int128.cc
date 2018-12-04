@@ -17,13 +17,13 @@
 #include <stddef.h>
 #include <cassert>
 #include <iomanip>
-#include <iostream>  // NOLINT(readability/streams)
+#include <ostream>  // NOLINT(readability/streams)
 #include <sstream>
 #include <string>
 #include <type_traits>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 const uint128 kuint128max = MakeUint128(std::numeric_limits<uint64_t>::max(),
                                         std::numeric_limits<uint64_t>::max());
@@ -223,5 +223,31 @@ std::ostream& operator<<(std::ostream& os, uint128 v) {
   return os << rep;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
+
+namespace std {
+constexpr bool numeric_limits<absl::uint128>::is_specialized;
+constexpr bool numeric_limits<absl::uint128>::is_signed;
+constexpr bool numeric_limits<absl::uint128>::is_integer;
+constexpr bool numeric_limits<absl::uint128>::is_exact;
+constexpr bool numeric_limits<absl::uint128>::has_infinity;
+constexpr bool numeric_limits<absl::uint128>::has_quiet_NaN;
+constexpr bool numeric_limits<absl::uint128>::has_signaling_NaN;
+constexpr float_denorm_style numeric_limits<absl::uint128>::has_denorm;
+constexpr bool numeric_limits<absl::uint128>::has_denorm_loss;
+constexpr float_round_style numeric_limits<absl::uint128>::round_style;
+constexpr bool numeric_limits<absl::uint128>::is_iec559;
+constexpr bool numeric_limits<absl::uint128>::is_bounded;
+constexpr bool numeric_limits<absl::uint128>::is_modulo;
+constexpr int numeric_limits<absl::uint128>::digits;
+constexpr int numeric_limits<absl::uint128>::digits10;
+constexpr int numeric_limits<absl::uint128>::max_digits10;
+constexpr int numeric_limits<absl::uint128>::radix;
+constexpr int numeric_limits<absl::uint128>::min_exponent;
+constexpr int numeric_limits<absl::uint128>::min_exponent10;
+constexpr int numeric_limits<absl::uint128>::max_exponent;
+constexpr int numeric_limits<absl::uint128>::max_exponent10;
+constexpr bool numeric_limits<absl::uint128>::traps;
+constexpr bool numeric_limits<absl::uint128>::tinyness_before;
+}  // namespace std

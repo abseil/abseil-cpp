@@ -24,7 +24,7 @@
 #include <limits>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace debugging_internal {
 
 typedef struct {
@@ -341,7 +341,7 @@ static bool ZeroOrMore(ParseFunc parse_func, State *state) {
 }
 
 // Append "str" at "out_cur_idx".  If there is an overflow, out_cur_idx is
-// set to out_end_idx+1.  The output std::string is ensured to
+// set to out_end_idx+1.  The output string is ensured to
 // always terminate with '\0' as long as there is no overflow.
 static void Append(State *state, const char *const str, const int length) {
   for (int i = 0; i < length; ++i) {
@@ -841,7 +841,7 @@ static bool ParseNumber(State *state, int *number_out) {
 }
 
 // Floating-point literals are encoded using a fixed-length lowercase
-// hexadecimal std::string.
+// hexadecimal string.
 static bool ParseFloatNumber(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1637,6 +1637,15 @@ static bool ParseExpression(State *state) {
   }
   state->parse_state = copy;
 
+  // Pointer-to-member access expressions.  This parses the same as a binary
+  // operator, but it's implemented separately because "ds" shouldn't be
+  // accepted in other contexts that parse an operator name.
+  if (ParseTwoCharToken(state, "ds") && ParseExpression(state) &&
+      ParseExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
   // Parameter pack expansion
   if (ParseTwoCharToken(state, "sp") && ParseExpression(state)) {
     return true;
@@ -1860,5 +1869,5 @@ bool Demangle(const char *mangled, char *out, int out_size) {
 }
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

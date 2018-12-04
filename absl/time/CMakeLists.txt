@@ -15,6 +15,7 @@
 #
 
 list(APPEND TIME_PUBLIC_HEADERS
+  "civil_time.h"
   "clock.h"
   "time.h"
 )
@@ -29,6 +30,7 @@ list(APPEND TIME_INTERNAL_HEADERS
 )
 
 list(APPEND TIME_SRC
+  "civil_time.cc"
   "time.cc"
   "clock.cc"
   "duration.cc"
@@ -74,11 +76,11 @@ absl_library(
 
 # test time_test
 list(APPEND TIME_TEST_SRC
+  "civil_time_test.cc"
   "time_test.cc"
   "clock_test.cc"
   "duration_test.cc"
   "format_test.cc"
-  "time_norm_test.cc"
   "time_test.cc"
   "time_zone_test.cc"
   "internal/test_util.cc"

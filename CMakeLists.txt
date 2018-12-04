@@ -17,9 +17,15 @@
 # We require 3.0 for modern, target-based CMake.  We require 3.1 for the use of
 # CXX_STANDARD in our targets.
 cmake_minimum_required(VERSION 3.1)
+
+# Compiler id for Apple Clang is now AppleClang.
+if (POLICY CMP0025)
+  cmake_policy(SET CMP0025 NEW)
+endif()
+
 project(absl)
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMake)
 
 include(GNUInstallDirs)
 include(AbseilHelpers)
@@ -32,8 +38,16 @@ if (MSVC)
   # /wd4244  conversion from 'type1' to 'type2'
   # /wd4267  conversion from 'size_t' to 'type2'
   # /wd4800  force value to bool 'true' or 'false' (performance warning)
-  add_compile_options(/W3 /WX /wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
-  add_definitions(/DNOMINMAX /DWIN32_LEAN_AND_MEAN=1 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS)
+  add_compile_options(/W3 /wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
+  # /D_ENABLE_EXTENDED_ALIGNED_STORAGE Introduced in VS 2017 15.8, before the
+  # member type would non-conformingly have an alignment of only alignof(max_align_t).
+  add_definitions(
+    /DNOMINMAX
+    /DWIN32_LEAN_AND_MEAN=1
+    /D_CRT_SECURE_NO_WARNINGS
+    /D_SCL_SECURE_NO_WARNINGS
+    /D_ENABLE_EXTENDED_ALIGNED_STORAGE
+  )
 else()
   set(ABSL_STD_CXX_FLAG "-std=c++11" CACHE STRING "c++ std flag (default: c++11)")
 endif()
@@ -59,6 +73,12 @@ set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
 
 # -fexceptions
 set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
+
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  set(ABSL_USING_CLANG ON)
+else()
+  set(ABSL_USING_CLANG OFF)
+endif()
 
 # find dependencies
 ## pthread

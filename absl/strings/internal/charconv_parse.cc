@@ -22,7 +22,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace {
 
 // ParseFloat<10> will read the first 19 significant digits of the mantissa.
@@ -92,7 +92,7 @@ static_assert(std::numeric_limits<int>::digits10 >= kDecimalExponentDigitsMax,
 
 // To avoid incredibly large inputs causing integer overflow for our exponent,
 // we impose an arbitrary but very large limit on the number of significant
-// digits we will accept.  The implementation refuses to match a std::string with
+// digits we will accept.  The implementation refuses to match a string with
 // more consecutive significant mantissa digits than this.
 constexpr int kDecimalDigitLimit = 50000000;
 
@@ -494,5 +494,5 @@ template ParsedFloat ParseFloat<16>(const char* begin, const char* end,
                                     chars_format format_flags);
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

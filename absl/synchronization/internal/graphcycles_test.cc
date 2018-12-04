@@ -25,7 +25,7 @@
 #include "absl/base/macros.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace synchronization_internal {
 
 // We emulate a GraphCycles object with a node vector and an edge vector.
@@ -460,5 +460,5 @@ TEST_F(GraphCyclesTest, ManyEdges) {
 }
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

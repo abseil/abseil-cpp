@@ -19,7 +19,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace strings_internal {
 
 TEST(BigUnsigned, ShiftLeft) {
@@ -201,5 +201,5 @@ TEST(BigUnsigned, TenToTheNth) {
 
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

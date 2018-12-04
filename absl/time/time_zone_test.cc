@@ -59,7 +59,7 @@ TEST(TimeZone, DefaultTimeZones) {
 
 TEST(TimeZone, FixedTimeZone) {
   const absl::TimeZone tz = absl::FixedTimeZone(123);
-  const cctz::time_zone cz = cctz::fixed_time_zone(cctz::sys_seconds(123));
+  const cctz::time_zone cz = cctz::fixed_time_zone(cctz::seconds(123));
   EXPECT_EQ(tz, absl::TimeZone(cz));
 }
 

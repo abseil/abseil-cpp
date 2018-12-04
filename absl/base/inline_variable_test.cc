@@ -20,7 +20,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace inline_variable_testing_internal {
 namespace {
 
@@ -60,5 +60,5 @@ TEST(InlineVariableTest, FunPtrType) {
 
 }  // namespace
 }  // namespace inline_variable_testing_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

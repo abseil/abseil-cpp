@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // The OS-specific header included below must provide two calls:
-// base::subtle::SpinLockDelay() and base::subtle::SpinLockWake().
+// AbslInternalSpinLockDelay() and AbslInternalSpinLockWake().
 // See spinlock_wait.h for the specs.
 
 #include <atomic>
@@ -23,6 +23,8 @@
 
 #if defined(_WIN32)
 #include "absl/base/internal/spinlock_win32.inc"
+#elif defined(__linux__)
+#include "absl/base/internal/spinlock_linux.inc"
 #elif defined(__akaros__)
 #include "absl/base/internal/spinlock_akaros.inc"
 #else
@@ -30,21 +32,22 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // See spinlock_wait.h for spec.
 uint32_t SpinLockWait(std::atomic<uint32_t> *w, int n,
                       const SpinLockWaitTransition trans[],
                       base_internal::SchedulingMode scheduling_mode) {
-  for (int loop = 0; ; loop++) {
+  int loop = 0;
+  for (;;) {
     uint32_t v = w->load(std::memory_order_acquire);
     int i;
     for (i = 0; i != n && v != trans[i].from; i++) {
     }
     if (i == n) {
-      SpinLockDelay(w, v, loop, scheduling_mode);  // no matching transition
-    } else if (trans[i].to == v ||                 // null transition
+      SpinLockDelay(w, v, ++loop, scheduling_mode);  // no matching transition
+    } else if (trans[i].to == v ||                   // null transition
                w->compare_exchange_strong(v, trans[i].to,
                                           std::memory_order_acquire,
                                           std::memory_order_relaxed)) {
@@ -77,5 +80,5 @@ int SpinLockSuggestedDelayNS(int loop) {
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

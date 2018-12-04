@@ -22,7 +22,8 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
+
 void Notification::Notify() {
   MutexLock l(&this->mutex_);
 
@@ -82,5 +83,5 @@ bool Notification::WaitForNotificationWithDeadline(absl::Time deadline) const {
   return notified;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

@@ -21,7 +21,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // A thread-safe class that holds a counter.
 class ThreadSafeCounter {
@@ -72,10 +72,13 @@ static void BasicTests(bool notify_before_waiting, Notification* notification) {
       notification->WaitForNotificationWithTimeout(absl::Milliseconds(0)));
   EXPECT_FALSE(notification->WaitForNotificationWithDeadline(absl::Now()));
 
+  const absl::Duration delay = absl::Milliseconds(50);
+  // Allow for a slight early return, to account for quality of implementation
+  // issues on various platforms.
+  const absl::Duration slop = absl::Microseconds(200);
   absl::Time start = absl::Now();
-  EXPECT_FALSE(
-      notification->WaitForNotificationWithTimeout(absl::Milliseconds(50)));
-  EXPECT_LE(start + absl::Milliseconds(50), absl::Now());
+  EXPECT_FALSE(notification->WaitForNotificationWithTimeout(delay));
+  EXPECT_LE(start + delay, absl::Now() + slop);
 
   ThreadSafeCounter ready_counter;
   ThreadSafeCounter done_counter;
@@ -122,5 +125,5 @@ TEST(NotificationTest, SanityTest) {
   BasicTests(true, &local_notification2);
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

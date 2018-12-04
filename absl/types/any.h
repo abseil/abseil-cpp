@@ -61,12 +61,12 @@
 #include <any>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 using std::any;
 using std::any_cast;
 using std::bad_any_cast;
 using std::make_any;
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_ANY
@@ -93,7 +93,7 @@ using std::make_any;
 #endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 namespace any_internal {
 
@@ -533,7 +533,7 @@ T* any_cast(any* operand) noexcept {
              : nullptr;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #undef ABSL_ANY_DETAIL_HAS_RTTI

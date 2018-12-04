@@ -36,7 +36,7 @@ constexpr int32_t kNumThreads = 10;
 constexpr int32_t kIters = 1000;
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace base_internal {
 
 // This is defined outside of anonymous namespace so that it can be
@@ -156,7 +156,8 @@ TEST(SpinLock, WaitCyclesEncoding) {
 
   // Test corner cases
   int64_t start_time = time_distribution(generator);
-  EXPECT_EQ(0, SpinLockTest::EncodeWaitCycles(start_time, start_time));
+  EXPECT_EQ(kSpinLockSleeper,
+            SpinLockTest::EncodeWaitCycles(start_time, start_time));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(0));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(kLockwordReservedMask));
   EXPECT_EQ(kMaxCycles & ~kProfileTimestampMask,
@@ -264,5 +265,5 @@ TEST(SpinLockWithThreads, DoesNotDeadlock) {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl

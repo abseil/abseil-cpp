@@ -43,13 +43,13 @@
 #include <optional>
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 using std::bad_optional_access;
 using std::optional;
 using std::make_optional;
 using std::nullopt_t;
 using std::nullopt;
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_OPTIONAL
@@ -61,6 +61,7 @@ using std::nullopt;
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_optional_access.h"
@@ -94,7 +95,7 @@ using std::nullopt;
 #endif
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 
 // -----------------------------------------------------------------------------
 // absl::optional
@@ -165,7 +166,7 @@ struct empty_struct {};
 // This class stores the data in optional<T>.
 // It is specialized based on whether T is trivially destructible.
 // This is the specialization for non trivially destructible type.
-template <typename T, bool = std::is_trivially_destructible<T>::value>
+template <typename T, bool unused = std::is_trivially_destructible<T>::value>
 class optional_data_dtor_base {
   struct dummy_type {
     static_assert(sizeof(T) % sizeof(empty_struct) == 0, "");
@@ -263,10 +264,10 @@ class optional_data_base : public optional_data_dtor_base<T> {
 // have trivial move but nontrivial copy.
 // Also, we should be checking is_trivially_copyable here, which is not
 // supported now, so we use is_trivially_* traits instead.
-template <typename T, bool = absl::is_trivially_copy_constructible<T>::value&&
-                          absl::is_trivially_copy_assignable<
-                              typename std::remove_cv<T>::type>::value&&
-                              std::is_trivially_destructible<T>::value>
+template <typename T,
+          bool unused = absl::is_trivially_copy_constructible<T>::value&&
+              absl::is_trivially_copy_assignable<typename std::remove_cv<
+                  T>::type>::value&& std::is_trivially_destructible<T>::value>
 class optional_data;
 
 // Trivially copyable types
@@ -414,10 +415,10 @@ constexpr copy_traits get_ctor_copy_traits() {
 
 template <typename T>
 constexpr copy_traits get_assign_copy_traits() {
-  return std::is_copy_assignable<T>::value &&
+  return absl::is_copy_assignable<T>::value &&
                  std::is_copy_constructible<T>::value
              ? copy_traits::copyable
-             : std::is_move_assignable<T>::value &&
+             : absl::is_move_assignable<T>::value &&
                        std::is_move_constructible<T>::value
                    ? copy_traits::movable
                    : copy_traits::non_movable;
@@ -703,7 +704,7 @@ class optional : private optional_internal::optional_data<T>,
   // optional::reset()
   //
   // Destroys the inner `T` value of an `absl::optional` if one is present.
-  void reset() noexcept { this->destruct(); }
+  ABSL_ATTRIBUTE_REINITIALIZES void reset() noexcept { this->destruct(); }
 
   // optional::emplace()
   //
@@ -1125,7 +1126,7 @@ constexpr auto operator>=(const U& v, const optional<T>& x)
   return static_cast<bool>(x) ? static_cast<bool>(v >= *x) : true;
 }
 
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 
 namespace std {

@@ -25,9 +25,6 @@
 #ifndef ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 #define ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 
-#ifdef _WIN32
-#include <intsafe.h>
-#endif
 #include <time.h>
 #include <algorithm>
 #include <limits>
@@ -37,7 +34,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2018_06_20 {
+inline namespace lts_2018_12_18 {
 namespace synchronization_internal {
 
 class Futex;
@@ -80,7 +77,7 @@ class KernelTimeout {
     if (x <= 0) x = 1;
     // A time larger than what can be represented to the kernel is treated
     // as no timeout.
-    if (x == std::numeric_limits<int64_t>::max()) x = 0;
+    if (x == (std::numeric_limits<int64_t>::max)()) x = 0;
     return x;
   }
 
@@ -94,7 +91,7 @@ class KernelTimeout {
           ERROR,
           "Tried to create a timespec from a non-timeout; never do this.");
       // But we'll try to continue sanely.  no-timeout ~= saturated timeout.
-      n = std::numeric_limits<int64_t>::max();
+      n = (std::numeric_limits<int64_t>::max)();
     }
 
     // Kernel APIs validate timespecs as being at or after the epoch,
@@ -105,7 +102,7 @@ class KernelTimeout {
 
     struct timespec abstime;
     int64_t seconds = std::min(n / kNanosPerSecond,
-                             int64_t{std::numeric_limits<time_t>::max()});
+                             int64_t{(std::numeric_limits<time_t>::max)()});
     abstime.tv_sec = static_cast<time_t>(seconds);
     abstime.tv_nsec =
         static_cast<decltype(abstime.tv_nsec)>(n % kNanosPerSecond);
@@ -118,9 +115,14 @@ class KernelTimeout {
   // Windows. Callers should recognize that the return value is a
   // relative duration (it should be recomputed by calling this method
   // in the case of a spurious wakeup).
-  DWORD InMillisecondsFromNow() const {
+  // This header file may be included transitively by public header files,
+  // so we define our own DWORD and INFINITE instead of getting them from
+  // <intsafe.h> and <WinBase.h>.
+  typedef unsigned long DWord;  // NOLINT
+  DWord InMillisecondsFromNow() const {
+    constexpr DWord kInfinite = (std::numeric_limits<DWord>::max)();
     if (!has_timeout()) {
-      return INFINITE;
+      return kInfinite;
     }
     // The use of absl::Now() to convert from absolute time to
     // relative time means that absl::Now() cannot use anything that
@@ -129,13 +131,13 @@ class KernelTimeout {
     if (ns_ >= now) {
       // Round up so that Now() + ms_from_now >= ns_.
       constexpr uint64_t max_nanos =
-          std::numeric_limits<int64_t>::max() - 999999u;
+          (std::numeric_limits<int64_t>::max)() - 999999u;
       uint64_t ms_from_now =
           (std::min<uint64_t>(max_nanos, ns_ - now) + 999999u) / 1000000u;
-      if (ms_from_now > std::numeric_limits<DWORD>::max()) {
-        return INFINITE;
+      if (ms_from_now > kInfinite) {
+        return kInfinite;
       }
-      return static_cast<DWORD>(ms_from_now);
+      return static_cast<DWord>(ms_from_now);
     }
     return 0;
   }
@@ -146,6 +148,6 @@ class KernelTimeout {
 };
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_06_20
+}  // inline namespace lts_2018_12_18
 }  // namespace absl
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_

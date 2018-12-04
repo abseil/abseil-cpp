@@ -32,7 +32,6 @@ list(APPEND STRINGS_PUBLIC_HEADERS
 
 
 list(APPEND STRINGS_INTERNAL_HEADERS
-  "internal/bits.h"
   "internal/char_map.h"
   "internal/charconv_bigint.h"
   "internal/charconv_parse.h"
@@ -68,7 +67,7 @@ list(APPEND STRINGS_SRC
   ${STRINGS_PUBLIC_HEADERS}
   ${STRINGS_INTERNAL_HEADERS}
 )
-set(STRINGS_PUBLIC_LIBRARIES absl::base absl_throw_delegate)
+set(STRINGS_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate)
 
 absl_library(
   TARGET
@@ -81,6 +80,65 @@ absl_library(
     strings
 )
 
+# add str_format library
+absl_header_library(
+  TARGET
+    absl_str_format
+  PUBLIC_LIBRARIES
+    str_format_internal
+  EXPORT_NAME
+    str_format
+)
+
+# str_format_internal
+absl_library(
+  TARGET
+    str_format_internal
+  SOURCES
+    "internal/str_format/arg.cc"
+    "internal/str_format/bind.cc"
+    "internal/str_format/extension.cc"
+    "internal/str_format/float_conversion.cc"
+    "internal/str_format/output.cc"
+    "internal/str_format/parser.cc"
+    "internal/str_format/arg.h"
+    "internal/str_format/bind.h"
+    "internal/str_format/checker.h"
+    "internal/str_format/extension.h"
+    "internal/str_format/float_conversion.h"
+    "internal/str_format/output.h"
+    "internal/str_format/parser.h"
+  PUBLIC_LIBRARIES
+    str_format_extension_internal
+    absl::strings
+    absl::base
+    absl::numeric
+    absl::inlined_vector
+    absl::span
+)
+
+# str_format_extension_internal
+absl_library(
+  TARGET
+    str_format_extension_internal
+  SOURCES
+    "internal/str_format/extension.cc"
+    "internal/str_format/extension.h"
+    "internal/str_format/output.cc"
+    "internal/str_format/output.h"
+  PUBLIC_LIBRARIES
+    absl::base
+    absl::strings
+)
+
+# pow10_helper
+absl_library(
+  TARGET
+    pow10_helper
+  SOURCES
+    "internal/pow10_helper.cc"
+    "internal/pow10_helper.h"
+)
 
 #
 ## TESTS
@@ -158,7 +216,7 @@ absl_test(
 
 # test string_view_test
 set(STRING_VIEW_TEST_SRC "string_view_test.cc")
-set(STRING_VIEW_TEST_PUBLIC_LIBRARIES absl::strings absl_throw_delegate absl::base)
+set(STRING_VIEW_TEST_PUBLIC_LIBRARIES absl::strings absl_internal_throw_delegate absl::base)
 
 absl_test(
   TARGET
@@ -186,7 +244,7 @@ absl_test(
 
 # test str_replace_test
 set(STR_REPLACE_TEST_SRC "str_replace_test.cc")
-set(STR_REPLACE_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_throw_delegate)
+set(STR_REPLACE_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
 
 absl_test(
   TARGET
@@ -200,7 +258,7 @@ absl_test(
 
 # test str_split_test
 set(STR_SPLIT_TEST_SRC "str_split_test.cc")
-set(STR_SPLIT_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_throw_delegate)
+set(STR_SPLIT_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
 
 absl_test(
   TARGET
@@ -267,7 +325,7 @@ absl_test(
 
 # test numbers_test
 set(NUMBERS_TEST_SRC "numbers_test.cc")
-set(NUMBERS_TEST_PUBLIC_LIBRARIES absl::strings)
+set(NUMBERS_TEST_PUBLIC_LIBRARIES absl::strings pow10_helper)
 
 absl_test(
   TARGET
@@ -309,7 +367,7 @@ absl_test(
 
 # test charconv_test
 set(CHARCONV_TEST_SRC "charconv_test.cc")
-set(CHARCONV_TEST_PUBLIC_LIBRARIES absl::strings)
+set(CHARCONV_TEST_PUBLIC_LIBRARIES absl::strings absl::str_format pow10_helper)
 
 absl_test(
   TARGET
@@ -346,4 +404,78 @@ absl_test(
     ${CHARCONV_BIGINT_TEST_SRC}
   PUBLIC_LIBRARIES
     ${CHARCONV_BIGINT_TEST_PUBLIC_LIBRARIES}
+)
+# test str_format_test
+absl_test(
+  TARGET
+    str_format_test
+  SOURCES
+    "str_format_test.cc"
+  PUBLIC_LIBRARIES
+    absl::base
+    absl::str_format
+    absl::strings
+)
+
+# test str_format_bind_test
+absl_test(
+  TARGET
+    str_format_bind_test
+  SOURCES
+    "internal/str_format/bind_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+)
+
+# test str_format_checker_test
+absl_test(
+  TARGET
+    str_format_checker_test
+  SOURCES
+    "internal/str_format/checker_test.cc"
+  PUBLIC_LIBRARIES
+    absl::str_format
+)
+
+# test str_format_convert_test
+absl_test(
+  TARGET
+    str_format_convert_test
+  SOURCES
+    "internal/str_format/convert_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+    absl::numeric
+)
+
+# test str_format_output_test
+absl_test(
+  TARGET
+    str_format_output_test
+  SOURCES
+    "internal/str_format/output_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_extension_internal
+)
+
+# test str_format_parser_test
+absl_test(
+  TARGET
+    str_format_parser_test
+  SOURCES
+    "internal/str_format/parser_test.cc"
+  PUBLIC_LIBRARIES
+    str_format_internal
+    absl::base
+)
+
+# test pow10_helper_test
+absl_test(
+  TARGET
+    pow10_helper_test
+  SOURCES
+    "internal/pow10_helper_test.cc"
+  PUBLIC_LIBRARIES
+    pow10_helper
+    absl::str_format
 )

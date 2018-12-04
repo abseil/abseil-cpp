@@ -34,7 +34,7 @@ list(APPEND SYNCHRONIZATION_INTERNAL_HEADERS
 
 
 # synchronization library
-list(APPEND SYNCHRONIZATION_SRC 
+list(APPEND SYNCHRONIZATION_SRC
   "barrier.cc"
   "blocking_counter.cc"
   "internal/create_thread_identity.cc"
