@@ -386,12 +386,12 @@ class civil_time {
       : civil_time(ct.f_) {}
 
   // Factories for the maximum/minimum representable civil_time.
-  static CONSTEXPR_F civil_time max() {
-    const auto max_year = std::numeric_limits<std::int_least64_t>::max();
+  static CONSTEXPR_F civil_time (max)() {
+    const auto max_year = (std::numeric_limits<std::int_least64_t>::max)();
     return civil_time(max_year, 12, 31, 23, 59, 59);
   }
-  static CONSTEXPR_F civil_time min() {
-    const auto min_year = std::numeric_limits<std::int_least64_t>::min();
+  static CONSTEXPR_F civil_time (min)() {
+    const auto min_year = (std::numeric_limits<std::int_least64_t>::min)();
     return civil_time(min_year, 1, 1, 0, 0, 0);
   }
 
@@ -409,7 +409,7 @@ class civil_time {
     return *this;
   }
   CONSTEXPR_M civil_time& operator-=(diff_t n) noexcept {
-    if (n != std::numeric_limits<diff_t>::min()) {
+    if (n != (std::numeric_limits<diff_t>::min)()) {
       f_ = step(T{}, f_, -n);
     } else {
       f_ = step(T{}, step(T{}, f_, -(n + 1)), 1);

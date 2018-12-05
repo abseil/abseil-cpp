@@ -15,7 +15,7 @@
 #
 
 load(
-    "//absl:copts.bzl",
+    "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
@@ -230,7 +230,6 @@ cc_library(
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
-        ":base",
         ":config",
         ":pretty_function",
         "//absl/memory",

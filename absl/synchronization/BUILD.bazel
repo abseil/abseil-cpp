@@ -15,7 +15,7 @@
 #
 
 load(
-    "//absl:copts.bzl",
+    "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_TEST_COPTS",
 )
@@ -182,7 +182,6 @@ cc_library(
         ":synchronization",
         ":thread_pool",
         "//absl/base",
-        "//absl/base:base_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
     alwayslink = 1,

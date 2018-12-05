@@ -181,9 +181,9 @@ absl_cc_library(
   NAME
     leak_check
   HDRS
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:leak_check.h>"
+    "leak_check.h"
   SRCS
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:leak_check.cc>"
+    "leak_check.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS

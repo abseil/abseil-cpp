@@ -1363,7 +1363,7 @@ class raw_hash_set {
   void rehash(size_t n) {
     if (n == 0 && capacity_ == 0) return;
     if (n == 0 && size_ == 0) return destroy_slots();
-    auto m = NormalizeCapacity(std::max(n, NumSlotsFast(size())));
+    auto m = NormalizeCapacity((std::max)(n, NumSlotsFast(size())));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
       resize(m);

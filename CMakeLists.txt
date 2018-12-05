@@ -25,33 +25,13 @@ endif()
 
 project(absl)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMake)
+list(APPEND CMAKE_MODULE_PATH
+  ${CMAKE_CURRENT_LIST_DIR}/CMake
+  ${CMAKE_CURRENT_LIST_DIR}/absl/copts
+)
 
 include(GNUInstallDirs)
 include(AbseilHelpers)
-
-
-# config options
-if (MSVC)
-  # /wd4005  macro-redefinition
-  # /wd4068  unknown pragma
-  # /wd4244  conversion from 'type1' to 'type2'
-  # /wd4267  conversion from 'size_t' to 'type2'
-  # /wd4800  force value to bool 'true' or 'false' (performance warning)
-  add_compile_options(/W3 /wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
-  # /D_ENABLE_EXTENDED_ALIGNED_STORAGE Introduced in VS 2017 15.8, before the
-  # member type would non-conformingly have an alignment of only alignof(max_align_t).
-  add_definitions(
-    /DNOMINMAX
-    /DWIN32_LEAN_AND_MEAN=1
-    /D_CRT_SECURE_NO_WARNINGS
-    /D_SCL_SECURE_NO_WARNINGS
-    /D_ENABLE_EXTENDED_ALIGNED_STORAGE
-  )
-else()
-  set(ABSL_STD_CXX_FLAG "-std=c++11" CACHE STRING "c++ std flag (default: c++11)")
-endif()
-
 
 
 ##
@@ -67,9 +47,6 @@ endif()
 
 # include current path
 list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
-
-# -std=X
-set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
 
 # -fexceptions
 set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")

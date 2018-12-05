@@ -271,9 +271,9 @@ class numeric_limits<absl::uint128> {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
   static constexpr bool tinyness_before = false;
 
-  static constexpr absl::uint128 min() { return 0; }
+  static constexpr absl::uint128 (min)() { return 0; }
   static constexpr absl::uint128 lowest() { return 0; }
-  static constexpr absl::uint128 max() { return absl::Uint128Max(); }
+  static constexpr absl::uint128 (max)() { return absl::Uint128Max(); }
   static constexpr absl::uint128 epsilon() { return 0; }
   static constexpr absl::uint128 round_error() { return 0; }
   static constexpr absl::uint128 infinity() { return 0; }

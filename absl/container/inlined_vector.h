@@ -774,6 +774,39 @@ class InlinedVector {
 
   bool allocated() const { return tag().allocated(); }
 
+  void ResetAllocation(Allocation new_allocation, size_type new_size) {
+    if (allocated()) {
+      Destroy(allocated_space(), allocated_space() + size());
+      assert(begin() == allocated_space());
+      allocation().Dealloc(allocator());
+      allocation() = new_allocation;
+    } else {
+      Destroy(inlined_space(), inlined_space() + size());
+      init_allocation(new_allocation);  // bug: only init once
+    }
+    tag().set_allocated_size(new_size);
+  }
+
+  template <typename... Args>
+  reference Construct(pointer p, Args&&... args) {
+    std::allocator_traits<allocator_type>::construct(
+        allocator(), p, std::forward<Args>(args)...);
+    return *p;
+  }
+
+  template <typename Iterator>
+  void UninitializedCopy(Iterator src, Iterator src_last, pointer dst) {
+    for (; src != src_last; ++dst, ++src) Construct(dst, *src);
+  }
+
+  template <typename... Args>
+  void UninitializedFill(pointer dst, pointer dst_last, const Args&... args) {
+    for (; dst != dst_last; ++dst) Construct(dst, args...);
+  }
+
+  // Destroy [`from`, `to`) in place.
+  void Destroy(pointer from, pointer to);
+
   // Enlarge the underlying representation so we can store `size_ + delta` elems
   // in allocated space. The size is not changed, and any newly added memory is
   // not initialized.
@@ -789,19 +822,6 @@ class InlinedVector {
   // Updates the size of the InlinedVector internally.
   std::pair<iterator, iterator> ShiftRight(const_iterator position,
                                            size_type n);
-
-  void ResetAllocation(Allocation new_allocation, size_type new_size) {
-    if (allocated()) {
-      Destroy(allocated_space(), allocated_space() + size());
-      assert(begin() == allocated_space());
-      allocation().Dealloc(allocator());
-      allocation() = new_allocation;
-    } else {
-      Destroy(inlined_space(), inlined_space() + size());
-      init_allocation(new_allocation);  // bug: only init once
-    }
-    tag().set_allocated_size(new_size);
-  }
 
   template <typename... Args>
   reference GrowAndEmplaceBack(Args&&... args) {
@@ -825,37 +845,17 @@ class InlinedVector {
 
   void InitAssign(size_type n, const_reference v);
 
-  template <typename... Args>
-  reference Construct(pointer p, Args&&... args) {
-    std::allocator_traits<allocator_type>::construct(
-        allocator(), p, std::forward<Args>(args)...);
-    return *p;
-  }
+  template <typename Iterator>
+  void AssignRange(Iterator first, Iterator last, std::forward_iterator_tag);
 
   template <typename Iterator>
-  void UninitializedCopy(Iterator src, Iterator src_last, pointer dst) {
-    for (; src != src_last; ++dst, ++src) Construct(dst, *src);
-  }
-
-  template <typename... Args>
-  void UninitializedFill(pointer dst, pointer dst_last, const Args&... args) {
-    for (; dst != dst_last; ++dst) Construct(dst, args...);
-  }
-
-  // Destroy [`from`, `to`) in place.
-  void Destroy(pointer from, pointer to);
+  void AssignRange(Iterator first, Iterator last, std::input_iterator_tag);
 
   template <typename Iterator>
   void AppendRange(Iterator first, Iterator last, std::forward_iterator_tag);
 
   template <typename Iterator>
   void AppendRange(Iterator first, Iterator last, std::input_iterator_tag);
-
-  template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last, std::forward_iterator_tag);
-
-  template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last, std::input_iterator_tag);
 
   iterator InsertWithCount(const_iterator position, size_type n,
                            const_reference v);
@@ -1244,7 +1244,7 @@ void InlinedVector<T, N, A>::EnlargeBy(size_type delta) {
   const size_type s = size();
   assert(s <= capacity());
 
-  size_type target = std::max(inlined_capacity(), s + delta);
+  size_type target = (std::max)(inlined_capacity(), s + delta);
 
   // Compute new capacity by repeatedly doubling current capacity
   // TODO(psrc): Check and avoid overflow?
@@ -1299,7 +1299,7 @@ auto InlinedVector<T, N, A>::ShiftRight(const_iterator position, size_type n)
     iterator pos = const_cast<iterator>(position);
     iterator raw_space = end();
     size_type slots_in_used_space = raw_space - pos;
-    size_type new_elements_in_used_space = std::min(n, slots_in_used_space);
+    size_type new_elements_in_used_space = (std::min)(n, slots_in_used_space);
     size_type new_elements_in_raw_space = n - new_elements_in_used_space;
     size_type old_elements_in_used_space =
         slots_in_used_space - new_elements_in_used_space;
