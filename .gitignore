@@ -10,5 +10,6 @@ build
 CMakeLists.txt.user
 # Ignore VS Code files
 .vscode/*
-# Ignore generated .pyc binaries
+# Ignore generated python artifacts
 copts/copts.pyc
+copts/__pycache__/

@@ -1,6 +1,7 @@
+#!/usr/bin/python
 """Generate Abseil compile compile option configs.
 
-Usage: python absl/generate_copts.py
+Usage: <path_to_absl>/copts/generate_copts.py
 
 The configs are generated from copts.py.
 """

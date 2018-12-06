@@ -1,7 +1,7 @@
 """GENERATED! DO NOT MANUALLY EDIT THIS FILE.
 
 (1) Edit absl/copts/copts.py.
-(2) Run `python <path_to_absl>/copts/generate_copts.py`.
+(2) Run `<path_to_absl>/copts/generate_copts.py`.
 """
 
 GCC_EXCEPTIONS_FLAGS = [
