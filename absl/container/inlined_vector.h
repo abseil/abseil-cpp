@@ -149,16 +149,7 @@ class InlinedVector {
 
   // Creates a copy of `other` using `other`'s allocator.
   InlinedVector(const InlinedVector& other)
-      : allocator_and_tag_(other.allocator()) {
-    reserve(other.size());
-    if (allocated()) {
-      UninitializedCopy(other.begin(), other.end(), allocated_space());
-      tag().set_allocated_size(other.size());
-    } else {
-      UninitializedCopy(other.begin(), other.end(), inlined_space());
-      tag().set_inline_size(other.size());
-    }
-  }
+      : InlinedVector(other, other.allocator()) {}
 
   // Creates a copy of `other` but with a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
