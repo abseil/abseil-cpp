@@ -58,6 +58,7 @@ COPT_VARS = {
         # Turned off as they include valid C++ code.
         "-Wno-comma",
         "-Wno-extra-semi",
+        "-Wno-extra-semi-stmt",
         "-Wno-packed",
         "-Wno-padded",
         ###

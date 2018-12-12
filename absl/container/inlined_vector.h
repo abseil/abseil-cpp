@@ -149,7 +149,7 @@ class InlinedVector {
 
   // Creates a copy of `other` using `other`'s allocator.
   InlinedVector(const InlinedVector& other)
-      : InlinedVector(other, other.allocator()) {}
+      : InlinedVector(other, other.get_allocator()) {}
 
   // Creates a copy of `other` but with a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
@@ -793,9 +793,9 @@ class InlinedVector {
   //
   // Swaps the contents of this inlined vector with the contents of `other`.
   void swap(InlinedVector& other) {
-    using std::swap;  // Augment ADL with `std::swap`.
     if (ABSL_PREDICT_FALSE(this == &other)) return;
 
+    using std::swap;  // Augment ADL with `std::swap`.
     if (allocated() && other.allocated()) {
       // Both out of line, so just swap the tag, allocation, and allocator.
       swap(tag(), other.tag());
