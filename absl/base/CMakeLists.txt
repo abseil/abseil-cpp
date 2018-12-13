@@ -60,6 +60,7 @@ absl_cc_library(
     core_headers
   HDRS
     "attributes.h"
+    "const_init.h"
     "macros.h"
     "optimization.h"
     "port.h"

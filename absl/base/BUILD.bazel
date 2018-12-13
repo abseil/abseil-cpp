@@ -67,6 +67,7 @@ cc_library(
     name = "core_headers",
     hdrs = [
         "attributes.h",
+        "const_init.h",
         "macros.h",
         "optimization.h",
         "port.h",

@@ -41,6 +41,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":compressed_tuple",
+        "//absl/memory",
+        "//absl/utility",
         "@com_google_googletest//:gtest_main",
     ],
 )

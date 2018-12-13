@@ -17,8 +17,8 @@
 // precise values are computed across the full range of doubles. We can't rely
 // on the pow() function, because not all standard libraries ship a version
 // that is precise.
-#ifndef ABSL_STRINGS_POW10_HELPER_H_
-#define ABSL_STRINGS_POW10_HELPER_H_
+#ifndef ABSL_STRINGS_INTERNAL_POW10_HELPER_H_
+#define ABSL_STRINGS_INTERNAL_POW10_HELPER_H_
 
 #include <vector>
 
@@ -33,4 +33,4 @@ double Pow10(int exp);
 }  // namespace strings_internal
 }  // namespace absl
 
-#endif  // ABSL_STRINGS_POW10_HELPER_H_
+#endif  // ABSL_STRINGS_INTERNAL_POW10_HELPER_H_

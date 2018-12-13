@@ -44,6 +44,8 @@ absl_cc_test(
     "internal/compressed_tuple_test.cc"
   DEPS
     absl::compressed_tuple
+    absl::memory
+    absl::utility
     gmock_main
 )
 
