@@ -12,6 +12,7 @@ class AbseilConan(ConanFile):
     author = "Ashley Hedberg <ahedberg@google.com>"
     description = "Abseil Common Libraries (C++) from Google"
     license = "Apache-2.0"
+    topics = ("conan", "abseil", "abseil-cpp", "google", "common-libraries")
     exports = ["LICENSE"]
     exports_sources = ["CMakeLists.txt", "CMake/*", "absl/*"]
     generators = "cmake"
