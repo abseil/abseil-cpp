@@ -3,7 +3,8 @@
 This is the source of truth for Abseil compiler options.  To modify Abseil
 compilation options:
 
-  (1) Edit the appropriate list in this file.
+  (1) Edit the appropriate list in this file based on the platform the flag is
+      needed on.
   (2) Run `<path_to_absl>/copts/generate_copts.py`.
 
 The generated copts are consumed by configure_copts.bzl and
@@ -11,7 +12,6 @@ AbseilConfigureCopts.cmake.
 """
 
 import collections  # absl:google-only(used for internal flags)
-
 COPT_VARS = {
     "GCC_FLAGS": [
         "-Wall",

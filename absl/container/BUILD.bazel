@@ -17,9 +17,9 @@
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
     "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
+    "ABSL_TEST_COPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -464,6 +464,12 @@ cc_library(
 )
 
 cc_library(
+    name = "have_sse",
+    hdrs = ["internal/have_sse.h"],
+    copts = ABSL_DEFAULT_COPTS,
+)
+
+cc_library(
     name = "raw_hash_set",
     srcs = ["internal/raw_hash_set.cc"],
     hdrs = ["internal/raw_hash_set.h"],
@@ -473,6 +479,7 @@ cc_library(
         ":container_memory",
         ":hash_policy_traits",
         ":hashtable_debug_hooks",
+        ":have_sse",
         ":layout",
         "//absl/base:bits",
         "//absl/base:config",

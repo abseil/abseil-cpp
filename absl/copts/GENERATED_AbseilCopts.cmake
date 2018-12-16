@@ -1,7 +1,7 @@
 # GENERATED! DO NOT MANUALLY EDIT THIS FILE.
 #
 # (1) Edit absl/copts/copts.py.
-# (2) Run `<path_to_absl>/copts/generate_copts.py`.
+# (2) Run `python <path_to_absl>/copts/generate_copts.py`.
 
 list(APPEND GCC_EXCEPTIONS_FLAGS
     "-fexceptions"
@@ -48,6 +48,7 @@ list(APPEND LLVM_FLAGS
     "-Wno-double-promotion"
     "-Wno-comma"
     "-Wno-extra-semi"
+    "-Wno-extra-semi-stmt"
     "-Wno-packed"
     "-Wno-padded"
     "-Wno-sign-compare"

@@ -454,6 +454,16 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
+    have_sse
+  HDRS
+    "internal/have_sse.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME
     node_hash_policy
   HDRS
     "internal/node_hash_policy.h"
@@ -496,15 +506,16 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::compressed_tuple
-    absl::container_memory
-    absl::hash_policy_traits
-    absl::hashtable_debug_hooks
-    absl::layout
     absl::bits
+    absl::compressed_tuple
     absl::config
+    absl::container_memory
     absl::core_headers
     absl::endian
+    absl::hash_policy_traits
+    absl::hashtable_debug_hooks
+    absl::have_sse
+    absl::layout
     absl::memory
     absl::meta
     absl::optional

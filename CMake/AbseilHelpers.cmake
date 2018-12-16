@@ -135,7 +135,9 @@ function(absl_cc_library)
     endif()
 
     # Check if this is a header-only library
-    if ("${ABSL_CC_LIB_SRCS}" STREQUAL "")
+    set(ABSL_CC_SRCS "${ABSL_CC_LIB_SRCS}")
+    list(FILTER ABSL_CC_SRCS EXCLUDE REGEX ".*\\.h")
+    if ("${ABSL_CC_SRCS}" STREQUAL "")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
       set(ABSL_CC_LIB_IS_INTERFACE 0)

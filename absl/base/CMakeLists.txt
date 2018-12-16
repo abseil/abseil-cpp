@@ -181,10 +181,11 @@ absl_cc_library(
   SRCS
     "internal/exception_safety_testing.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
     ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS
+    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
-    absl::base
     absl::config
     absl::pretty_function
     absl::memory
@@ -201,6 +202,7 @@ absl_cc_test(
   SRCS
     "exception_safety_testing_test.cc"
   COPTS
+    ${ABSL_TEST_COPTS}
     ${ABSL_EXCEPTIONS_FLAG}
   LINKOPTS
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}

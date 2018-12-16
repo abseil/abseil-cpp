@@ -48,9 +48,6 @@ include(AbseilHelpers)
 # include current path
 list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
-# -fexceptions
-set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
-
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   set(ABSL_USING_CLANG ON)
 else()
