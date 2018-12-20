@@ -433,6 +433,31 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    hashtablez_sampler
+  HDRS
+    "internal/hashtablez_sampler.h"
+  SRCS
+    "internal/hashtablez_sampler.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::have_sse
+    absl::synchronization
+)
+
+absl_cc_test(
+  NAME
+    hashtablez_sampler_test
+  SRCS
+    "internal/hashtablez_sampler_test.cc"
+  DEPS
+    absl::hashtablez_sampler
+    absl::have_sse
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     hashtable_debug
   HDRS
     "internal/hashtable_debug.h"
@@ -459,7 +484,6 @@ absl_cc_library(
     "internal/have_sse.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-  PUBLIC
 )
 
 absl_cc_library(
@@ -520,6 +544,7 @@ absl_cc_library(
     absl::meta
     absl::optional
     absl::utility
+    absl::hashtablez_sampler
   PUBLIC
 )
 

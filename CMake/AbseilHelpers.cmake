@@ -23,53 +23,8 @@ include(AbseilConfigureCopts)
 # For example, Visual Studio supports folders.
 set(ABSL_IDE_FOLDER Abseil)
 
+# absl_cc_library()
 #
-# create a library in the absl namespace
-#
-# parameters
-# SOURCES : sources files for the library
-# PUBLIC_LIBRARIES: targets and flags for linking phase
-# PRIVATE_COMPILE_FLAGS: compile flags for the library. Will not be exported.
-# EXPORT_NAME: export name for the absl:: target export
-# TARGET: target name
-#
-# create a target associated to <NAME>
-# libraries are installed under CMAKE_INSTALL_FULL_LIBDIR by default
-#
-function(absl_library)
-  cmake_parse_arguments(ABSL_LIB
-    "DISABLE_INSTALL" # keep that in case we want to support installation one day
-    "TARGET;EXPORT_NAME"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_LIB_TARGET})
-  string(TOUPPER ${_NAME} _UPPER_NAME)
-
-  add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
-
-  target_compile_options(${_NAME}
-    PRIVATE
-      ${ABSL_LIB_PRIVATE_COMPILE_FLAGS}
-      ${ABSL_DEFAULT_COPTS}
-  )
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-  if(ABSL_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-endfunction()
-
 # CMake function to imitate Bazel's cc_library rule.
 #
 # Parameters:
@@ -258,116 +213,10 @@ function(absl_cc_test)
   add_test(NAME ${_NAME} COMMAND ${_NAME})
 endfunction()
 
-#
-# header only virtual target creation
-#
-function(absl_header_library)
-  cmake_parse_arguments(ABSL_HO_LIB
-    "DISABLE_INSTALL"
-    "EXPORT_NAME;TARGET"
-    "PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS;PRIVATE_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_HO_LIB_TARGET})
-
-  set(__dummy_header_only_lib_file "${CMAKE_CURRENT_BINARY_DIR}/${_NAME}_header_only_dummy.cc")
-
-  if(NOT EXISTS ${__dummy_header_only_lib_file})
-    file(WRITE ${__dummy_header_only_lib_file}
-      "/* generated file for header-only cmake target */
-
-      namespace absl {
-
-       // single meaningless symbol
-       void ${_NAME}__header_fakesym() {}
-      }  // namespace absl
-      "
-    )
-  endif()
-
-
-  add_library(${_NAME} ${__dummy_header_only_lib_file})
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_HO_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_HO_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_HO_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-  if(ABSL_HO_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-
-endfunction()
-
-#
-# create an abseil unit_test and add it to the executed test list
-#
-# parameters
-# TARGET: target name prefix
-# SOURCES: sources files for the tests
-# PUBLIC_LIBRARIES: targets and flags for linking phase.
-# PRIVATE_COMPILE_FLAGS: compile flags for the test. Will not be exported.
-#
-# create a target associated to <NAME>_bin
-#
-# all tests will be register for execution with add_test()
-#
-# test compilation and execution is disable when ABSL_RUN_TESTS=OFF
-#
-function(absl_test)
-
-  cmake_parse_arguments(ABSL_TEST
-    ""
-    "TARGET"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-
-  if(ABSL_RUN_TESTS)
-
-    set(_NAME "absl_${ABSL_TEST_TARGET}")
-    string(TOUPPER ${_NAME} _UPPER_NAME)
-
-    add_executable(${_NAME} ${ABSL_TEST_SOURCES})
-
-    target_compile_options(${_NAME}
-      PRIVATE
-        ${ABSL_TEST_PRIVATE_COMPILE_FLAGS}
-        ${ABSL_TEST_COPTS}
-    )
-    target_link_libraries(${_NAME} PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
-    target_include_directories(${_NAME}
-      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}
-      PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
-    )
-
-    # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-    add_test(NAME ${_NAME} COMMAND ${_NAME})
-  endif(ABSL_RUN_TESTS)
-
-endfunction()
-
-
-
 
 function(check_target my_target)
-
   if(NOT TARGET ${my_target})
     message(FATAL_ERROR " ABSL: compiling absl requires a ${my_target} CMake target in your project,
                    see CMake/README.md for more details")
   endif(NOT TARGET ${my_target})
-
 endfunction()

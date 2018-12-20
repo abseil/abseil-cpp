@@ -109,6 +109,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_policy_traits.h"
 #include "absl/container/internal/hashtable_debug_hooks.h"
+#include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/container/internal/have_sse.h"
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
@@ -943,9 +944,10 @@ class raw_hash_set {
     // than a full `insert`.
     for (const auto& v : that) {
       const size_t hash = PolicyTraits::apply(HashElement{hash_ref()}, v);
-      const size_t i = find_first_non_full(hash);
-      set_ctrl(i, H2(hash));
-      emplace_at(i, v);
+      auto target = find_first_non_full(hash);
+      set_ctrl(target.offset, H2(hash));
+      emplace_at(target.offset, v);
+      infoz_.RecordInsert(hash, target.probe_length);
     }
     size_ = that.size();
     growth_left() -= that.size();
@@ -959,6 +961,7 @@ class raw_hash_set {
         slots_(absl::exchange(that.slots_, nullptr)),
         size_(absl::exchange(that.size_, 0)),
         capacity_(absl::exchange(that.capacity_, 0)),
+        infoz_(absl::exchange(that.infoz_, HashtablezInfoHandle())),
         // Hash, equality and allocator are copied instead of moved because
         // `that` must be left valid. If Hash is std::function<Key>, moving it
         // would create a nullptr functor that cannot be called.
@@ -979,6 +982,7 @@ class raw_hash_set {
       std::swap(size_, that.size_);
       std::swap(capacity_, that.capacity_);
       std::swap(growth_left(), that.growth_left());
+      std::swap(infoz_, that.infoz_);
     } else {
       reserve(that.size());
       // Note: this will copy elements of dense_set and unordered_set instead of
@@ -1049,6 +1053,7 @@ class raw_hash_set {
       growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
     }
     assert(empty());
+    infoz_.RecordStorageChanged(size_, capacity_);
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -1323,6 +1328,7 @@ class raw_hash_set {
     swap(growth_left(), that.growth_left());
     swap(hash_ref(), that.hash_ref());
     swap(eq_ref(), that.eq_ref());
+    swap(infoz_, that.infoz_);
     if (AllocTraits::propagate_on_container_swap::value) {
       swap(alloc_ref(), that.alloc_ref());
     } else {
@@ -1333,7 +1339,11 @@ class raw_hash_set {
 
   void rehash(size_t n) {
     if (n == 0 && capacity_ == 0) return;
-    if (n == 0 && size_ == 0) return destroy_slots();
+    if (n == 0 && size_ == 0) {
+      destroy_slots();
+      infoz_.RecordStorageChanged(size_, capacity_);
+      return;
+    }
     auto m = NormalizeCapacity((std::max)(n, NumSlotsFast(size())));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
@@ -1550,10 +1560,15 @@ class raw_hash_set {
 
     set_ctrl(index, was_never_full ? kEmpty : kDeleted);
     growth_left() += was_never_full;
+    infoz_.RecordErase();
   }
 
   void initialize_slots() {
     assert(capacity_);
+    if (slots_ == nullptr) {
+      infoz_ = Sample();
+    }
+
     auto layout = MakeLayout(capacity_);
     char* mem = static_cast<char*>(
         Allocate<Layout::Alignment()>(&alloc_ref(), layout.AllocSize()));
@@ -1561,6 +1576,7 @@ class raw_hash_set {
     slots_ = layout.template Pointer<1>(mem);
     reset_ctrl();
     growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    infoz_.RecordStorageChanged(size_, capacity_);
   }
 
   void destroy_slots() {
@@ -1593,7 +1609,7 @@ class raw_hash_set {
       if (IsFull(old_ctrl[i])) {
         size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                           PolicyTraits::element(old_slots + i));
-        size_t new_i = find_first_non_full(hash);
+        size_t new_i = find_first_non_full(hash).offset;
         set_ctrl(new_i, H2(hash));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, old_slots + i);
       }
@@ -1633,7 +1649,7 @@ class raw_hash_set {
       if (!IsDeleted(ctrl_[i])) continue;
       size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                         PolicyTraits::element(slots_ + i));
-      size_t new_i = find_first_non_full(hash);
+      size_t new_i = find_first_non_full(hash).offset;
 
       // Verify if the old and new i fall within the same group wrt the hash.
       // If they do, we don't need to move the object as it falls already in the
@@ -1706,7 +1722,11 @@ class raw_hash_set {
   // - the input is already a set
   // - there are enough slots
   // - the element with the hash is not in the table
-  size_t find_first_non_full(size_t hash) {
+  struct FindInfo {
+    size_t offset;
+    size_t probe_length;
+  };
+  FindInfo find_first_non_full(size_t hash) {
     auto seq = probe(hash);
     while (true) {
       Group g{ctrl_ + seq.offset()};
@@ -1718,11 +1738,11 @@ class raw_hash_set {
         // the group.
         // TODO(kfm,sbenza): revisit after we do unconditional mixing
         if (ShouldInsertBackwards(hash, ctrl_))
-          return seq.offset(mask.HighestBitSet());
+          return {seq.offset(mask.HighestBitSet()), seq.index()};
         else
-          return seq.offset(mask.LowestBitSet());
+          return {seq.offset(mask.LowestBitSet()), seq.index()};
 #else
-        return seq.offset(mask.LowestBitSet());
+        return {seq.offset(mask.LowestBitSet()), seq.index()};
 #endif
       }
       assert(seq.index() < capacity_ && "full table!");
@@ -1762,15 +1782,17 @@ class raw_hash_set {
   }
 
   size_t prepare_insert(size_t hash) ABSL_ATTRIBUTE_NOINLINE {
-    size_t target = find_first_non_full(hash);
-    if (ABSL_PREDICT_FALSE(growth_left() == 0 && !IsDeleted(ctrl_[target]))) {
+    auto target = find_first_non_full(hash);
+    if (ABSL_PREDICT_FALSE(growth_left() == 0 &&
+                           !IsDeleted(ctrl_[target.offset]))) {
       rehash_and_grow_if_necessary();
       target = find_first_non_full(hash);
     }
     ++size_;
-    growth_left() -= IsEmpty(ctrl_[target]);
-    set_ctrl(target, H2(hash));
-    return target;
+    growth_left() -= IsEmpty(ctrl_[target.offset]);
+    set_ctrl(target.offset, H2(hash));
+    infoz_.RecordInsert(hash, target.probe_length);
+    return target.offset;
   }
 
   // Constructs the value in the space pointed by the iterator. This only works
@@ -1847,6 +1869,7 @@ class raw_hash_set {
   slot_type* slots_ = nullptr;     // [capacity * slot_type]
   size_t size_ = 0;                // number of full slots
   size_t capacity_ = 0;            // total number of slots
+  HashtablezInfoHandle infoz_;
   absl::container_internal::CompressedTuple<size_t /* growth_left */, hasher,
                                             key_equal, allocator_type>
       settings_{0, hasher{}, key_equal{}, allocator_type{}};

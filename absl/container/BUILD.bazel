@@ -437,6 +437,35 @@ cc_library(
 )
 
 cc_library(
+    name = "hashtablez_sampler",
+    srcs = ["internal/hashtablez_sampler.cc"],
+    hdrs = ["internal/hashtablez_sampler.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":have_sse",
+        "//absl/base:core_headers",
+        "//absl/debugging:stacktrace",
+        "//absl/memory",
+        "//absl/synchronization",
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "hashtablez_sampler_test",
+    srcs = ["internal/hashtablez_sampler_test.cc"],
+    deps = [
+        ":hashtablez_sampler",
+        ":have_sse",
+        "//absl/base:core_headers",
+        "//absl/synchronization",
+        "//absl/synchronization:thread_pool",
+        "//absl/time",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "node_hash_policy",
     hdrs = ["internal/node_hash_policy.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -467,6 +496,7 @@ cc_library(
     name = "have_sse",
     hdrs = ["internal/have_sse.h"],
     copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
 )
 
 cc_library(
@@ -479,6 +509,7 @@ cc_library(
         ":container_memory",
         ":hash_policy_traits",
         ":hashtable_debug_hooks",
+        ":hashtablez_sampler",
         ":have_sse",
         ":layout",
         "//absl/base:bits",

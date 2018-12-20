@@ -12,13 +12,47 @@
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_GENERIC_INL_H_
 
 #include <execinfo.h>
+#include <atomic>
 #include <cstring>
 
 #include "absl/debugging/stacktrace.h"
 
+// Sometimes, we can try to get a stack trace from within a stack
+// trace, because we don't block signals inside this code (which would be too
+// expensive: the two extra system calls per stack trace do matter here).
+// That can cause a self-deadlock.
+// Protect against such reentrant call by failing to get a stack trace.
+//
+// We use __thread here because the code here is extremely low level -- it is
+// called while collecting stack traces from within malloc and mmap, and thus
+// can not call anything which might call malloc or mmap itself.
+static __thread int recursive = 0;
+
+// The stack trace function might be invoked very early in the program's
+// execution (e.g. from the very first malloc if using tcmalloc). Also, the
+// glibc implementation itself will trigger malloc the first time it is called.
+// As such, we suppress usage of backtrace during this early stage of execution.
+static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
+// Waiting until static initializers run seems to be late enough.
+// This file is included into stacktrace.cc so this will only run once.
+static int stacktraces_enabler = []() {
+  void* unused_stack[1];
+  // Force the first backtrace to happen early to get the one-time shared lib
+  // loading (allocation) out of the way. After the first call it is much safer
+  // to use backtrace from a signal handler if we crash somewhere later.
+  backtrace(unused_stack, 1);
+  disable_stacktraces.store(false, std::memory_order_relaxed);
+  return 0;
+}();
+
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
                       const void *ucp, int *min_dropped_frames) {
+  if (recursive || disable_stacktraces.load(std::memory_order_relaxed)) {
+    return 0;
+  }
+  ++recursive;
+
   static_cast<void>(ucp);  // Unused.
   static const int kStackLength = 64;
   void * stack[kStackLength];
@@ -45,6 +79,8 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
       *min_dropped_frames = 0;
     }
   }
+
+  --recursive;
 
   return result_count;
 }

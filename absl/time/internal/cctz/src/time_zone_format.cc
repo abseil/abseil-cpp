@@ -149,15 +149,25 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
     offset = -offset;  // bounded by 24h so no overflow
     sign = '-';
   }
-  char sep = mode[0];
-  if (sep != '\0' && mode[1] == '*') {
-    ep = Format02d(ep, offset % 60);
+  const int seconds = offset % 60;
+  const int minutes = (offset /= 60) % 60;
+  const int hours = offset /= 60;
+  const char sep = mode[0];
+  const bool ext = (sep != '\0' && mode[1] == '*');
+  const bool ccc = (ext && mode[2] == ':');
+  if (ext && (!ccc || seconds != 0)) {
+    ep = Format02d(ep, seconds);
     *--ep = sep;
+  } else {
+    // If we're not rendering seconds, sub-minute negative offsets
+    // should get a positive sign (e.g., offset=-10s => "+00:00").
+    if (hours == 0 && minutes == 0) sign = '+';
   }
-  int minutes = offset / 60;
-  ep = Format02d(ep, minutes % 60);
-  if (sep != '\0') *--ep = sep;
-  ep = Format02d(ep, minutes / 60);
+  if (!ccc || minutes != 0 || seconds != 0) {
+    ep = Format02d(ep, minutes);
+    if (sep != '\0') *--ep = sep;
+  }
+  ep = Format02d(ep, hours);
   *--ep = sign;
   return ep;
 }
@@ -382,6 +392,44 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
       }
       pending = ++cur;
       continue;
+    }
+
+    // More complex specifiers that we handle ourselves.
+    if (*cur == ':' && cur + 1 != end) {
+      if (*(cur + 1) == 'z') {
+        // Formats %:z.
+        if (cur - 1 != pending) {
+          FormatTM(&result, std::string(pending, cur - 1), tm);
+        }
+        bp = FormatOffset(ep, al.offset, ":");
+        result.append(bp, static_cast<std::size_t>(ep - bp));
+        pending = cur += 2;
+        continue;
+      }
+      if (*(cur + 1) == ':' && cur + 2 != end) {
+        if (*(cur + 2) == 'z') {
+          // Formats %::z.
+          if (cur - 1 != pending) {
+            FormatTM(&result, std::string(pending, cur - 1), tm);
+          }
+          bp = FormatOffset(ep, al.offset, ":*");
+          result.append(bp, static_cast<std::size_t>(ep - bp));
+          pending = cur += 3;
+          continue;
+        }
+        if (*(cur + 2) == ':' && cur + 3 != end) {
+          if (*(cur + 3) == 'z') {
+            // Formats %:::z.
+            if (cur - 1 != pending) {
+              FormatTM(&result, std::string(pending, cur - 1), tm);
+            }
+            bp = FormatOffset(ep, al.offset, ":*:");
+            result.append(bp, static_cast<std::size_t>(ep - bp));
+            pending = cur += 4;
+            continue;
+          }
+        }
+      }
     }
 
     // Loop if there is no E modifier.
@@ -668,17 +716,27 @@ bool parse(const std::string& format, const std::string& input,
                         &percent_s);
         if (data != nullptr) saw_percent_s = true;
         continue;
+      case ':':
+        if (fmt[0] == 'z' ||
+            (fmt[0] == ':' &&
+             (fmt[1] == 'z' || (fmt[1] == ':' && fmt[2] == 'z')))) {
+          data = ParseOffset(data, ":", &offset);
+          if (data != nullptr) saw_offset = true;
+          fmt += (fmt[0] == 'z') ? 1 : (fmt[1] == 'z') ? 2 : 3;
+          continue;
+        }
+        break;
       case '%':
         data = (*data == '%' ? data + 1 : nullptr);
         continue;
       case 'E':
-        if (*fmt == 'z' || (*fmt == '*' && *(fmt + 1) == 'z')) {
+        if (fmt[0] == 'z' || (fmt[0] == '*' && fmt[1] == 'z')) {
           data = ParseOffset(data, ":", &offset);
           if (data != nullptr) saw_offset = true;
-          fmt += (*fmt == 'z') ? 1 : 2;
+          fmt += (fmt[0] == 'z') ? 1 : 2;
           continue;
         }
-        if (*fmt == '*' && *(fmt + 1) == 'S') {
+        if (fmt[0] == '*' && fmt[1] == 'S') {
           data = ParseInt(data, 2, 0, 60, &tm.tm_sec);
           if (data != nullptr && *data == '.') {
             data = ParseSubSeconds(data + 1, &subseconds);
@@ -686,14 +744,14 @@ bool parse(const std::string& format, const std::string& input,
           fmt += 2;
           continue;
         }
-        if (*fmt == '*' && *(fmt + 1) == 'f') {
+        if (fmt[0] == '*' && fmt[1] == 'f') {
           if (data != nullptr && std::isdigit(*data)) {
             data = ParseSubSeconds(data, &subseconds);
           }
           fmt += 2;
           continue;
         }
-        if (*fmt == '4' && *(fmt + 1) == 'Y') {
+        if (fmt[0] == '4' && fmt[1] == 'Y') {
           const char* bp = data;
           data = ParseInt(data, 4, year_t{-999}, year_t{9999}, &year);
           if (data != nullptr) {

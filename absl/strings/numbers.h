@@ -44,7 +44,8 @@ namespace absl {
 // Converts the given string into an integer value, returning `true` if
 // successful. The string must reflect a base-10 integer (optionally followed or
 // preceded by ASCII whitespace) whose value falls within the range of the
-// integer type.
+// integer type. If any errors are encountered, this function returns `false`,
+// leaving `out` in an unspecified state.
 template <typename int_type>
 ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 
@@ -53,24 +54,28 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a float, which may be rounded on overflow or underflow.
 // See http://en.cppreference.com/w/c/string/byte/strtof for details about the
-// allowed formats for `str`.
-ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* value);
+// allowed formats for `str`. If any errors are encountered, this function
+// returns `false`, leaving `out` in an unspecified state.
+ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* out);
 
 // SimpleAtod()
 //
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a double, which may be rounded on overflow or underflow.
 // See http://en.cppreference.com/w/c/string/byte/strtof for details about the
-// allowed formats for `str`.
-ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* value);
+// allowed formats for `str`. If any errors are encountered, this function
+// returns `false`, leaving `out` in an unspecified state.
+ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* out);
 
 // SimpleAtob()
 //
 // Converts the given string into a boolean, returning `true` if successful.
 // The following case-insensitive strings are interpreted as boolean `true`:
 // "true", "t", "yes", "y", "1". The following case-insensitive strings
-// are interpreted as boolean `false`: "false", "f", "no", "n", "0".
-ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* value);
+// are interpreted as boolean `false`: "false", "f", "no", "n", "0". If any
+// errors are encountered, this function returns `false`, leaving `out` in an
+// unspecified state.
+ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* out);
 
 }  // namespace absl
 
