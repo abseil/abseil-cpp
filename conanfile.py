@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+# Note: Conan is supported on a best-effort basis. Abseil doesn't use Conan
+# internally, so we won't know if it stops working. We may ask community
+# members to help us debug any problems that arise.
+
 from conans import ConanFile, CMake, tools
 from conans.errors import ConanInvalidConfiguration
 from conans.model.version import Version
