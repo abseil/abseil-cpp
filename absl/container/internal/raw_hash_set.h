@@ -784,7 +784,7 @@ class raw_hash_set {
     }
 
     ctrl_t* ctrl_ = nullptr;
-    slot_type* slot_;
+    slot_type* slot_ = nullptr;
   };
 
   class const_iterator {
