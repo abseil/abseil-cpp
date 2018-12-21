@@ -22,6 +22,7 @@ absl_cc_library(
     container
   SRCS
     "internal/raw_hash_set.cc"
+    "internal/hashtablez_sampler.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   PUBLIC
