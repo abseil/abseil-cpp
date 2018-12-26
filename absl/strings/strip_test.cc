@@ -27,9 +27,6 @@
 
 namespace {
 
-using testing::ElementsAre;
-using testing::IsEmpty;
-
 TEST(Strip, ConsumePrefixOneChar) {
   absl::string_view input("abc");
   EXPECT_TRUE(absl::ConsumePrefix(&input, "a"));

@@ -20,10 +20,6 @@
 absl_cc_library(
   NAME
     container
-  SRCS
-    "internal/raw_hash_set.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
   PUBLIC
 )
 

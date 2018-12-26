@@ -25,12 +25,12 @@ class ArgContext {
   explicit ArgContext(absl::Span<const FormatArgImpl> pack) : pack_(pack) {}
 
   // Fill 'bound' with the results of applying the context's argument pack
-  // to the specified 'props'. We synthesize a BoundConversion by
+  // to the specified 'unbound'. We synthesize a BoundConversion by
   // lining up a UnboundConversion with a user argument. We also
   // resolve any '*' specifiers for width and precision, so after
   // this call, 'bound' has all the information it needs to be formatted.
   // Returns false on failure.
-  bool Bind(const UnboundConversion *props, BoundConversion *bound);
+  bool Bind(const UnboundConversion* unbound, BoundConversion* bound);
 
  private:
   absl::Span<const FormatArgImpl> pack_;

@@ -843,8 +843,8 @@ size_t Base64EscapeInternal(const unsigned char* src, size_t szsrc, char* dest,
 
   // Three bytes of data encodes to four characters of cyphertext.
   // So we can pump through three-byte chunks atomically.
-  if (szsrc >= 3) {  // "limit_src - 3" is UB if szsrc < 3
-    while (cur_src < limit_src - 3) {  // as long as we have >= 32 bits
+  if (szsrc >= 3) {  // "limit_src - 3" is UB if szsrc < 3.
+    while (cur_src < limit_src - 3) {  // While we have >= 32 bits.
       uint32_t in = absl::big_endian::Load32(cur_src) >> 8;
 
       cur_dest[0] = base64[in >> 18];

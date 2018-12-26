@@ -95,8 +95,8 @@ Here's a non-exhaustive list of Abseil CMake public targets:
 ```cmake
 absl::base
 absl::algorithm
-absl::container
 absl::debugging
+absl::flat_hash_map
 absl::memory
 absl::meta
 absl::numeric
