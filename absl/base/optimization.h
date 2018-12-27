@@ -111,9 +111,9 @@
 // See http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0154r1.html
 // for more information.
 //
-// On some compilers, `ABSL_CACHELINE_ALIGNED` expands to
-// `__attribute__((aligned(ABSL_CACHELINE_SIZE)))`. For compilers where this is
-// not known to work, the macro expands to nothing.
+// On some compilers, `ABSL_CACHELINE_ALIGNED` expands to an `__attribute__`
+// or `__declspec` attribute. For compilers where this is not known to work,
+// the macro expands to nothing.
 //
 // No further guarantees are made here. The result of applying the macro
 // to variables and types is always implementation-defined.
@@ -121,6 +121,14 @@
 // WARNING: It is easy to use this attribute incorrectly, even to the point
 // of causing bugs that are difficult to diagnose, crash, etc. It does not
 // of itself guarantee that objects are aligned to a cache line.
+//
+// NOTE: Some compilers are picky about the locations of annotations such as
+// this attribute, so prefer to put it at the beginning of your declaration.
+// For example,
+//
+//   ABSL_CACHELINE_ALIGNED static Foo* foo = ...
+//
+//   class ABSL_CACHELINE_ALIGNED Bar { ...
 //
 // Recommendations:
 //
@@ -131,8 +139,10 @@
 // 3) Prefer applying this attribute to individual variables. Avoid
 //    applying it to types. This tends to localize the effect.
 #define ABSL_CACHELINE_ALIGNED __attribute__((aligned(ABSL_CACHELINE_SIZE)))
-
-#else  // not GCC
+#elif defined(_MSC_VER)
+#define ABSL_CACHELINE_SIZE 64
+#define ABSL_CACHELINE_ALIGNED __declspec(align(ABSL_CACHELINE_SIZE))
+#else
 #define ABSL_CACHELINE_SIZE 64
 #define ABSL_CACHELINE_ALIGNED
 #endif
