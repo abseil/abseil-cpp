@@ -1,6 +1,3 @@
-# see https://docs.travis-ci.com/user/reference/trusty/#container-based-with-sudo-false
-sudo: false
-
 # see https://docs.travis-ci.com/user/languages/cpp/
 language: cpp
 
