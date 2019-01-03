@@ -7,39 +7,27 @@ matrix:
   include:
     # see https://docs.travis-ci.com/user/languages/cpp/#gcc-on-linux
     - os: linux
-      dist: trusty
+      dist: xenial
       compiler: gcc
       env:
         - BUILD_TYPE=Release
     - os: linux
-      dist: trusty
+      dist: xenial
       compiler: gcc
       env:
         - BUILD_TYPE=Debug
 
     # see https://docs.travis-ci.com/user/languages/cpp/#clang
     - os: linux
-      dist: trusty
+      dist: xenial
       compiler: clang
       env:
         - BUILD_TYPE=Release
-        # Need to patch CPATH when using clang on linux
-        # see https://github.com/travis-ci/travis-ci/issues/9550
-        - CPATH=/usr/local/clang-5.0.0/include/c++/v1
-        - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
-        # Trusty only provides libc++ installed for clang
-        - EXTRA_FLAGS="-stdlib=libc++"
     - os: linux
-      dist: trusty
+      dist: xenial
       compiler: clang
       env:
         - BUILD_TYPE=Debug
-        # Need to patch CPATH when using clang on linux
-        # see https://github.com/travis-ci/travis-ci/issues/9550
-        - CPATH=/usr/local/clang-5.0.0/include/c++/v1
-        - LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib
-        # Trusty only provides libc++ installed for clang
-        - EXTRA_FLAGS="-stdlib=libc++"
 
     - os: osx
       osx_image: xcode10.1
@@ -55,7 +43,6 @@ matrix:
 script:
   - cmake --version
   - cmake -H. -Bbuild
-    -DCMAKE_CXX_FLAGS="${EXTRA_FLAGS}"
     -DCMAKE_VERBOSE_MAKEFILE=ON
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
     -DABSL_RUN_TESTS=ON
