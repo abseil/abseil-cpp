@@ -30,6 +30,7 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/container/internal/counting_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
@@ -37,6 +38,7 @@
 
 namespace {
 
+using absl::container_internal::CountingAllocator;
 using absl::test_internal::CopyableMovableInstance;
 using absl::test_internal::CopyableOnlyInstance;
 using absl::test_internal::InstanceTracker;
@@ -137,57 +139,6 @@ static IntVec Fill(int len, int offset = 0) {
   Fill(&v, len, offset);
   return v;
 }
-
-// This is a stateful allocator, but the state lives outside of the
-// allocator (in whatever test is using the allocator). This is odd
-// but helps in tests where the allocator is propagated into nested
-// containers - that chain of allocators uses the same state and is
-// thus easier to query for aggregate allocation information.
-template <typename T>
-class CountingAllocator : public std::allocator<T> {
- public:
-  using Alloc = std::allocator<T>;
-  using pointer = typename Alloc::pointer;
-  using size_type = typename Alloc::size_type;
-
-  CountingAllocator() : bytes_used_(nullptr) {}
-  explicit CountingAllocator(int64_t* b) : bytes_used_(b) {}
-
-  template <typename U>
-  CountingAllocator(const CountingAllocator<U>& x)
-      : Alloc(x), bytes_used_(x.bytes_used_) {}
-
-  pointer allocate(size_type n,
-                   std::allocator<void>::const_pointer hint = nullptr) {
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ += n * sizeof(T);
-    return Alloc::allocate(n, hint);
-  }
-
-  void deallocate(pointer p, size_type n) {
-    Alloc::deallocate(p, n);
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ -= n * sizeof(T);
-  }
-
-  template<typename U>
-  class rebind {
-   public:
-    using other = CountingAllocator<U>;
-  };
-
-  friend bool operator==(const CountingAllocator& a,
-                         const CountingAllocator& b) {
-    return a.bytes_used_ == b.bytes_used_;
-  }
-
-  friend bool operator!=(const CountingAllocator& a,
-                         const CountingAllocator& b) {
-    return !(a == b);
-  }
-
-  int64_t* bytes_used_;
-};
 
 TEST(IntVec, SimpleOps) {
   for (int len = 0; len < 20; len++) {

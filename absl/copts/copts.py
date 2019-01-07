@@ -10,8 +10,6 @@ compilation options:
 The generated copts are consumed by configure_copts.bzl and
 AbseilConfigureCopts.cmake.
 """
-
-import collections  # absl:google-only(used for internal flags)
 COPT_VARS = {
     "GCC_FLAGS": [
         "-Wall",

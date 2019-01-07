@@ -795,79 +795,7 @@ class InlinedVector {
   void swap(InlinedVector& other) {
     if (ABSL_PREDICT_FALSE(this == &other)) return;
 
-    using std::swap;  // Augment ADL with `std::swap`.
-    if (allocated() && other.allocated()) {
-      // Both out of line, so just swap the tag, allocation, and allocator.
-      swap(tag(), other.tag());
-      swap(allocation(), other.allocation());
-      swap(allocator(), other.allocator());
-      return;
-    }
-    if (!allocated() && !other.allocated()) {
-      // Both inlined: swap up to smaller size, then move remaining elements.
-      InlinedVector* a = this;
-      InlinedVector* b = &other;
-      if (size() < other.size()) {
-        swap(a, b);
-      }
-
-      const size_type a_size = a->size();
-      const size_type b_size = b->size();
-      assert(a_size >= b_size);
-      // `a` is larger. Swap the elements up to the smaller array size.
-      std::swap_ranges(a->inlined_space(), a->inlined_space() + b_size,
-                       b->inlined_space());
-
-      // Move the remaining elements:
-      //   [`b_size`, `a_size`) from `a` -> [`b_size`, `a_size`) from `b`
-      b->UninitializedCopy(a->inlined_space() + b_size,
-                           a->inlined_space() + a_size,
-                           b->inlined_space() + b_size);
-      a->Destroy(a->inlined_space() + b_size, a->inlined_space() + a_size);
-
-      swap(a->tag(), b->tag());
-      swap(a->allocator(), b->allocator());
-      assert(b->size() == a_size);
-      assert(a->size() == b_size);
-      return;
-    }
-
-    // One is out of line, one is inline.
-    // We first move the elements from the inlined vector into the
-    // inlined space in the other vector.  We then put the other vector's
-    // pointer/capacity into the originally inlined vector and swap
-    // the tags.
-    InlinedVector* a = this;
-    InlinedVector* b = &other;
-    if (a->allocated()) {
-      swap(a, b);
-    }
-    assert(!a->allocated());
-    assert(b->allocated());
-    const size_type a_size = a->size();
-    const size_type b_size = b->size();
-    // In an optimized build, `b_size` would be unused.
-    static_cast<void>(b_size);
-
-    // Made Local copies of `size()`, don't need `tag()` accurate anymore
-    swap(a->tag(), b->tag());
-
-    // Copy `b_allocation` out before `b`'s union gets clobbered by
-    // `inline_space`
-    Allocation b_allocation = b->allocation();
-
-    b->UninitializedCopy(a->inlined_space(), a->inlined_space() + a_size,
-                         b->inlined_space());
-    a->Destroy(a->inlined_space(), a->inlined_space() + a_size);
-
-    a->allocation() = b_allocation;
-
-    if (a->allocator() != b->allocator()) {
-      swap(a->allocator(), b->allocator());
-    }
-
-    assert(b->size() == a_size);
-    assert(a->size() == b_size);
+    SwapImpl(other);
   }
 
  private:
@@ -1236,6 +1164,83 @@ class InlinedVector {
     size_type i = index;
     while (first != last) insert(begin() + i++, *first++);
     return begin() + index;
+  }
+
+  void SwapImpl(InlinedVector& other) {
+    using std::swap;  // Augment ADL with `std::swap`.
+
+    if (allocated() && other.allocated()) {
+      // Both out of line, so just swap the tag, allocation, and allocator.
+      swap(tag(), other.tag());
+      swap(allocation(), other.allocation());
+      swap(allocator(), other.allocator());
+      return;
+    }
+    if (!allocated() && !other.allocated()) {
+      // Both inlined: swap up to smaller size, then move remaining elements.
+      InlinedVector* a = this;
+      InlinedVector* b = &other;
+      if (size() < other.size()) {
+        swap(a, b);
+      }
+
+      const size_type a_size = a->size();
+      const size_type b_size = b->size();
+      assert(a_size >= b_size);
+      // `a` is larger. Swap the elements up to the smaller array size.
+      std::swap_ranges(a->inlined_space(), a->inlined_space() + b_size,
+                       b->inlined_space());
+
+      // Move the remaining elements:
+      //   [`b_size`, `a_size`) from `a` -> [`b_size`, `a_size`) from `b`
+      b->UninitializedCopy(a->inlined_space() + b_size,
+                           a->inlined_space() + a_size,
+                           b->inlined_space() + b_size);
+      a->Destroy(a->inlined_space() + b_size, a->inlined_space() + a_size);
+
+      swap(a->tag(), b->tag());
+      swap(a->allocator(), b->allocator());
+      assert(b->size() == a_size);
+      assert(a->size() == b_size);
+      return;
+    }
+
+    // One is out of line, one is inline.
+    // We first move the elements from the inlined vector into the
+    // inlined space in the other vector.  We then put the other vector's
+    // pointer/capacity into the originally inlined vector and swap
+    // the tags.
+    InlinedVector* a = this;
+    InlinedVector* b = &other;
+    if (a->allocated()) {
+      swap(a, b);
+    }
+    assert(!a->allocated());
+    assert(b->allocated());
+    const size_type a_size = a->size();
+    const size_type b_size = b->size();
+    // In an optimized build, `b_size` would be unused.
+    static_cast<void>(b_size);
+
+    // Made Local copies of `size()`, don't need `tag()` accurate anymore
+    swap(a->tag(), b->tag());
+
+    // Copy `b_allocation` out before `b`'s union gets clobbered by
+    // `inline_space`
+    Allocation b_allocation = b->allocation();
+
+    b->UninitializedCopy(a->inlined_space(), a->inlined_space() + a_size,
+                         b->inlined_space());
+    a->Destroy(a->inlined_space(), a->inlined_space() + a_size);
+
+    a->allocation() = b_allocation;
+
+    if (a->allocator() != b->allocator()) {
+      swap(a->allocator(), b->allocator());
+    }
+
+    assert(b->size() == a_size);
+    assert(a->size() == b_size);
   }
 
   // Stores either the inlined or allocated representation

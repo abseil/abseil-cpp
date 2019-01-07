@@ -64,17 +64,6 @@ void TestFormatSpecifier(time_point<D> tp, time_zone tz, const std::string& fmt,
   EXPECT_EQ("xxx " + ans + " yyy", format("xxx " + fmt + " yyy", tp, tz));
 }
 
-// These tests sometimes run on platforms that have zoneinfo data so old
-// that the transition we are attempting to check does not exist, most
-// notably Android emulators.  Fortunately, AndroidZoneInfoSource supports
-// time_zone::version() so, in cases where we've learned that it matters,
-// we can make the check conditionally.
-int VersionCmp(time_zone tz, const std::string& target) {
-  std::string version = tz.version();
-  if (version.empty() && !target.empty()) return 1;  // unknown > known
-  return version.compare(target);
-}
-
 }  // namespace
 
 //
@@ -174,7 +163,9 @@ TEST(Format, PosixConversions) {
   TestFormatSpecifier(tp, tz, "%M", "00");
   TestFormatSpecifier(tp, tz, "%S", "00");
   TestFormatSpecifier(tp, tz, "%U", "00");
+#if !defined(__EMSCRIPTEN__)
   TestFormatSpecifier(tp, tz, "%w", "4");  // 4=Thursday
+#endif
   TestFormatSpecifier(tp, tz, "%W", "00");
   TestFormatSpecifier(tp, tz, "%y", "70");
   TestFormatSpecifier(tp, tz, "%Y", "1970");
@@ -1464,6 +1455,10 @@ TEST(FormatParse, RoundTrip) {
 #if defined(_WIN32) || defined(_WIN64)
   // Initial investigations indicate the %c does not roundtrip on Windows.
   // TODO: Figure out what is going on here (perhaps a locale problem).
+#elif defined(__EMSCRIPTEN__)
+  // strftime() and strptime() use different defintions for "%c" under
+  // emscripten (see https://github.com/kripken/emscripten/pull/7491),
+  // causing its round-trip test to fail.
 #else
   // Even though we don't know what %c will produce, it should roundtrip,
   // but only in the 0-offset timezone.

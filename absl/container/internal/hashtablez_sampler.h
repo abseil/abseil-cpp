@@ -31,6 +31,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
@@ -147,14 +148,16 @@ class HashtablezInfoHandle {
 
 // Returns an RAII sampling handle that manages registration and unregistation
 // with the global sampler.
+#if ABSL_PER_THREAD_TLS == 1
+extern ABSL_PER_THREAD_TLS_KEYWORD int64_t next_sample;
+#endif  // ABSL_PER_THREAD_TLS
+
 inline HashtablezInfoHandle Sample() {
-#if ABSL_HAVE_THREAD_LOCAL
-  thread_local int64_t next_sample = 0;
-#else   // ABSL_HAVE_THREAD_LOCAL
+#if ABSL_PER_THREAD_TLS == 0
   static auto* mu = new absl::Mutex;
   static int64_t next_sample = 0;
   absl::MutexLock l(mu);
-#endif  // ABSL_HAVE_THREAD_LOCAL
+#endif  // !ABSL_HAVE_THREAD_LOCAL
 
   if (ABSL_PREDICT_TRUE(--next_sample > 0)) {
     return HashtablezInfoHandle(nullptr);

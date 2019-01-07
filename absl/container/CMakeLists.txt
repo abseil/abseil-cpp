@@ -122,6 +122,15 @@ absl_cc_library(
   PUBLIC
 )
 
+absl_cc_library(
+  NAME
+    counting_allocator
+  HDRS
+    "internal/counting_allocator.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
 absl_cc_test(
   NAME
     inlined_vector_test
@@ -132,6 +141,7 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
+    absl::counting_allocator
     absl::inlined_vector
     absl::test_instance_tracker
     absl::base
@@ -437,6 +447,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::base
     absl::have_sse
     absl::synchronization
 )

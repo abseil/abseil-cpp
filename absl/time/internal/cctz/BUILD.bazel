@@ -98,13 +98,13 @@ cc_test(
 cc_test(
     name = "time_zone_lookup_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["src/time_zone_lookup_test.cc"],
     data = [":zoneinfo"],
     tags = [
         "no_test_android_arm",
         "no_test_android_arm64",
         "no_test_android_x86",
-        "no_test_wasm",
     ],
     deps = [
         ":civil_time",

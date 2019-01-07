@@ -89,6 +89,10 @@ cc_library(
         "internal/low_level_alloc.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:windows": [],
+        "//conditions:default": ["-pthread"],
+    }),
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -142,6 +146,10 @@ cc_library(
         "log_severity.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:windows": [],
+        "//conditions:default": ["-pthread"],
+    }),
     deps = [
         ":base_internal",
         ":config",
@@ -423,10 +431,6 @@ cc_test(
     size = "small",
     srcs = ["internal/low_level_alloc_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:windows": [],
-        "//conditions:default": ["-pthread"],
-    }),
     tags = ["no_test_ios_x86_64"],
     deps = [":malloc_internal"],
 )
@@ -436,10 +440,6 @@ cc_test(
     size = "small",
     srcs = ["internal/thread_identity_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:windows": [],
-        "//conditions:default": ["-pthread"],
-    }),
     tags = [
         "no_test_wasm",
     ],

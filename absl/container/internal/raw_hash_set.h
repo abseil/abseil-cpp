@@ -785,7 +785,11 @@ class raw_hash_set {
     }
 
     ctrl_t* ctrl_ = nullptr;
-    slot_type* slot_;
+    // To avoid uninitialized member warnigs, put slot_ in an anonymous union.
+    // The member is not initialized on singleton and end iterators.
+    union {
+      slot_type* slot_;
+    };
   };
 
   class const_iterator {
