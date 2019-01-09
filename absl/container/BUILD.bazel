@@ -511,11 +511,21 @@ cc_library(
 )
 
 cc_library(
+    name = "common",
+    hdrs = ["internal/common.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_library(
     name = "raw_hash_set",
     srcs = ["internal/raw_hash_set.cc"],
     hdrs = ["internal/raw_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        ":common",
         ":compressed_tuple",
         ":container_memory",
         ":hash_policy_traits",

@@ -286,11 +286,30 @@ struct IsLayoutCompatible {
 
 }  // namespace memory_internal
 
-// If kMutableKeys is false, only the value member is accessed.
+// The internal storage type for key-value containers like flat_hash_map.
 //
-// If kMutableKeys is true, key is accessed through all slots while value and
-// mutable_value are accessed only via INITIALIZED slots. Slots are created and
-// destroyed via mutable_value so that the key can be moved later.
+// It is convenient for the value_type of a flat_hash_map<K, V> to be
+// pair<const K, V>; the "const K" prevents accidental modification of the key
+// when dealing with the reference returned from find() and similar methods.
+// However, this creates other problems; we want to be able to emplace(K, V)
+// efficiently with move operations, and similarly be able to move a
+// pair<K, V> in insert().
+//
+// The solution is this union, which aliases the const and non-const versions
+// of the pair. This also allows flat_hash_map<const K, V> to work, even though
+// that has the same efficiency issues with move in emplace() and insert() -
+// but people do it anyway.
+//
+// If kMutableKeys is false, only the value member can be accessed.
+//
+// If kMutableKeys is true, key can be accessed through all slots while value
+// and mutable_value must be accessed only via INITIALIZED slots. Slots are
+// created and destroyed via mutable_value so that the key can be moved later.
+//
+// Accessing one of the union fields while the other is active is safe as
+// long as they are layout-compatible, which is guaranteed by the definition of
+// kMutableKeys. For C++11, the relevant section of the standard is
+// https://timsong-cpp.github.io/cppwp/n3337/class.mem#19 (9.2.19)
 template <class K, class V>
 union slot_type {
  private:

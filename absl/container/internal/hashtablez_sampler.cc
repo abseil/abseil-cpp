@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cmath>
 #include <functional>
 #include <limits>
 

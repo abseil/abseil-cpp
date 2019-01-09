@@ -39,8 +39,8 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   using MappedConstReference = decltype(P::value(
       std::addressof(std::declval<typename raw_hash_map::const_reference>())));
 
-  using KeyArgImpl = container_internal::KeyArg<IsTransparent<Eq>::value &&
-                                                IsTransparent<Hash>::value>;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
  public:
   using key_type = typename Policy::key_type;

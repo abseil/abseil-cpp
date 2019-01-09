@@ -105,6 +105,7 @@
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/port.h"
+#include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_policy_traits.h"
@@ -164,12 +165,6 @@ struct IsDecomposable<
         Policy::apply(RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
                       std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
-
-template <class, class = void>
-struct IsTransparent : std::false_type {};
-template <class T>
-struct IsTransparent<T, absl::void_t<typename T::is_transparent>>
-    : std::true_type {};
 
 // TODO(alkis): Switch to std::is_nothrow_swappable when gcc/clang supports it.
 template <class T>
@@ -605,24 +600,6 @@ struct insert_return_type {
   NodeType node;
 };
 
-// Helper trait to allow or disallow arbitrary keys when the hash and
-// eq functions are transparent.
-// It is very important that the inner template is an alias and that the type it
-// produces is not a dependent type. Otherwise, type deduction would fail.
-template <bool is_transparent>
-struct KeyArg {
-  // Transparent. Forward `K`.
-  template <typename K, typename key_type>
-  using type = K;
-};
-
-template <>
-struct KeyArg<false> {
-  // Not transparent. Always use `key_type`.
-  template <typename K, typename key_type>
-  using type = key_type;
-};
-
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -643,8 +620,8 @@ struct KeyArg<false> {
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set {
   using PolicyTraits = hash_policy_traits<Policy>;
-  using KeyArgImpl = container_internal::KeyArg<IsTransparent<Eq>::value &&
-                                                IsTransparent<Hash>::value>;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
  public:
   using init_type = typename PolicyTraits::init_type;

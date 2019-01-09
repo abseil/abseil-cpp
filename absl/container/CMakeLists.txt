@@ -529,6 +529,17 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
+    container_common
+  HDRS
+    "internal/commom.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::type_traits
+)
+
+absl_cc_library(
+  NAME
     raw_hash_set
   HDRS
     "internal/raw_hash_set.h"
@@ -540,6 +551,7 @@ absl_cc_library(
     absl::bits
     absl::compressed_tuple
     absl::config
+    absl::container_common
     absl::container_memory
     absl::core_headers
     absl::endian
