@@ -26,6 +26,9 @@ bool RemoveAllSymbolDecorators(void) { return false; }
 bool RegisterFileMappingHint(const void *, const void *, uint64_t, const char *) {
   return false;
 }
+bool GetFileMappingHint(const void **, const void **, uint64_t *, const char **) {
+  return false;
+}
 
 }  // namespace debugging_internal
 

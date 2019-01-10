@@ -799,8 +799,8 @@ class InlinedVector {
   }
 
  private:
-  template <typename Hash, typename OtherT, size_t OtherN, typename OtherA>
-  friend Hash AbslHashValue(Hash, const InlinedVector<OtherT, OtherN, OtherA>&);
+  template <typename Hash, typename TheT, size_t TheN, typename TheA>
+  friend Hash AbslHashValue(Hash, const InlinedVector<TheT, TheN, TheA>& vec);
 
   // Holds whether the vector is allocated or not in the lowest bit and the size
   // in the high bits:
@@ -1339,10 +1339,10 @@ bool operator>=(const InlinedVector<T, N, A>& a,
   return !(a < b);
 }
 
-template <typename Hash, typename T, size_t N, typename A>
-Hash AbslHashValue(Hash hash, const InlinedVector<T, N, A>& inlined_vector) {
-  auto p = inlined_vector.data();
-  auto n = inlined_vector.size();
+template <typename Hash, typename TheT, size_t TheN, typename TheA>
+Hash AbslHashValue(Hash hash, const InlinedVector<TheT, TheN, TheA>& vec) {
+  auto p = vec.data();
+  auto n = vec.size();
   return Hash::combine(Hash::combine_contiguous(std::move(hash), p, n), n);
 }
 
