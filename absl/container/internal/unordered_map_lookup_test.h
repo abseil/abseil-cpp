@@ -26,7 +26,7 @@ namespace container_internal {
 template <class UnordMap>
 class LookupTest : public ::testing::Test {};
 
-TYPED_TEST_CASE_P(LookupTest);
+TYPED_TEST_SUITE_P(LookupTest);
 
 TYPED_TEST_P(LookupTest, At) {
   using T = hash_internal::GeneratedType<TypeParam>;

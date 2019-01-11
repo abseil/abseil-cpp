@@ -28,9 +28,9 @@ using SetTypes =
                      std::unordered_set<std::string, StatefulTestingHash,
                                         StatefulTestingEqual, Alloc<std::string>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedSet, ConstructorTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedSet, LookupTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedSet, ModifiersTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, ConstructorTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, LookupTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, ModifiersTest, SetTypes);
 
 }  // namespace
 }  // namespace container_internal

@@ -34,9 +34,9 @@ using MapTypes = ::testing::Types<
                         StatefulTestingEqual,
                         Alloc<std::pair<const std::string, std::string>>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashMap, ConstructorTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashMap, LookupTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashMap, ModifiersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashMap, ConstructorTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashMap, ModifiersTest, MapTypes);
 
 using M = absl::node_hash_map<std::string, Tracked<int>>;
 

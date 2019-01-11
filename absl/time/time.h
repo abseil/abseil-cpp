@@ -1149,7 +1149,9 @@ TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
 //   absl::Time t = absl::FromDateTime(2017, 9, 26, 9, 30, 0, lax);
 //   // t = 2017-09-26 09:30:00 -0700
 //
-// Deprecated. Use `absl::TimeZone::At(CivilSecond).pre`.
+// Deprecated. Use `absl::FromCivil(CivilSecond, TimeZone)`. Note that the
+// behavior of `FromCivil()` differs from `FromDateTime()` for skipped civil
+// times. If you care about that see `absl::TimeZone::At(absl::CivilSecond)`.
 inline Time FromDateTime(int64_t year, int mon, int day, int hour,
                          int min, int sec, TimeZone tz) {
   return ConvertDateTime(year, mon, day, hour, min, sec, tz).pre;

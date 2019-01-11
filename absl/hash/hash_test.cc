@@ -50,7 +50,7 @@ using absl::hash_internal::SpyHashState;
 template <typename T>
 class HashValueIntTest : public testing::Test {
 };
-TYPED_TEST_CASE_P(HashValueIntTest);
+TYPED_TEST_SUITE_P(HashValueIntTest);
 
 template <typename T>
 SpyHashState SpyHash(const T& value) {
@@ -273,7 +273,7 @@ TEST(HashTest, NoOpsAreEquivalent) {
 template <typename T>
 class HashIntTest : public testing::Test {
 };
-TYPED_TEST_CASE_P(HashIntTest);
+TYPED_TEST_SUITE_P(HashIntTest);
 
 TYPED_TEST_P(HashIntTest, BasicUsage) {
   EXPECT_NE(Hash<NoOp>()({}), Hash<TypeParam>()(0));

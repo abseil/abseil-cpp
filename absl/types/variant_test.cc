@@ -257,7 +257,7 @@ class NonCopyable {
 // each type.
 template <typename T>
 class VariantTypesTest : public ::testing::Test {};
-TYPED_TEST_CASE(VariantTypesTest, VariantTypes);
+TYPED_TEST_SUITE(VariantTypesTest, VariantTypes);
 
 ////////////////////
 // [variant.ctor] //

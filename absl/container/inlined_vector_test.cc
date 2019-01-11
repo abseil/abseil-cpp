@@ -70,7 +70,7 @@ MATCHER_P(ValueIs, e, "") {
 // test_instance_tracker.h.
 template <typename T>
 class InstanceTest : public ::testing::Test {};
-TYPED_TEST_CASE_P(InstanceTest);
+TYPED_TEST_SUITE_P(InstanceTest);
 
 // A simple reference counted class to make sure that the proper elements are
 // destroyed in the erase(begin, end) test.

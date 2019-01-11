@@ -610,9 +610,9 @@ TEST_P(CondVarWaitDeadlock, Test) {
   waiter2.reset();  // "join" waiter2
 }
 
-INSTANTIATE_TEST_CASE_P(CondVarWaitDeadlockTest, CondVarWaitDeadlock,
-                        ::testing::Range(0, 8),
-                        ::testing::PrintToStringParamName());
+INSTANTIATE_TEST_SUITE_P(CondVarWaitDeadlockTest, CondVarWaitDeadlock,
+                         ::testing::Range(0, 8),
+                         ::testing::PrintToStringParamName());
 
 // --------------------------------------------------------
 // Test for fix of bug in DequeueAllWakeable()
@@ -1367,8 +1367,8 @@ std::vector<TimeoutTestParam> MakeTimeoutTestParamValues() {
 }
 
 // Instantiate `TimeoutTest` with `MakeTimeoutTestParamValues()`.
-INSTANTIATE_TEST_CASE_P(All, TimeoutTest,
-                        testing::ValuesIn(MakeTimeoutTestParamValues()));
+INSTANTIATE_TEST_SUITE_P(All, TimeoutTest,
+                         testing::ValuesIn(MakeTimeoutTestParamValues()));
 
 TEST_P(TimeoutTest, Await) {
   const TimeoutTestParam params = GetParam();
@@ -1548,9 +1548,9 @@ static std::vector<int> AllThreadCountValues() {
 class MutexVariableThreadCountTest : public ::testing::TestWithParam<int> {};
 
 // Instantiate the above with AllThreadCountOptions().
-INSTANTIATE_TEST_CASE_P(ThreadCounts, MutexVariableThreadCountTest,
-                        ::testing::ValuesIn(AllThreadCountValues()),
-                        ::testing::PrintToStringParamName());
+INSTANTIATE_TEST_SUITE_P(ThreadCounts, MutexVariableThreadCountTest,
+                         ::testing::ValuesIn(AllThreadCountValues()),
+                         ::testing::PrintToStringParamName());
 
 // Reduces iterations by some factor for slow platforms
 // (determined empirically).

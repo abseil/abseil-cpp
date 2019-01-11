@@ -72,17 +72,30 @@ class InlinedVector {
   }
 
   template <typename Iterator>
+  using IsAtLeastInputIterator = std::is_convertible<
+      typename std::iterator_traits<Iterator>::iterator_category,
+      std::input_iterator_tag>;
+
+  template <typename Iterator>
+  using IsAtLeastForwardIterator = std::is_convertible<
+      typename std::iterator_traits<Iterator>::iterator_category,
+      std::forward_iterator_tag>;
+
+  template <typename Iterator>
   using DisableIfIntegral =
       absl::enable_if_t<!std::is_integral<Iterator>::value>;
 
   template <typename Iterator>
-  using EnableIfInputIterator = absl::enable_if_t<std::is_convertible<
-      typename std::iterator_traits<Iterator>::iterator_category,
-      std::input_iterator_tag>::value>;
+  using EnableIfAtLeastInputIterator =
+      absl::enable_if_t<IsAtLeastInputIterator<Iterator>::value>;
 
   template <typename Iterator>
-  using IteratorCategory =
-      typename std::iterator_traits<Iterator>::iterator_category;
+  using EnableIfAtLeastForwardIterator =
+      absl::enable_if_t<IsAtLeastForwardIterator<Iterator>::value>;
+
+  template <typename Iterator>
+  using DisableIfAtLeastForwardIterator =
+      absl::enable_if_t<!IsAtLeastForwardIterator<Iterator>::value>;
 
   using rvalue_reference = typename A::value_type&&;
 
@@ -130,8 +143,7 @@ class InlinedVector {
   InlinedVector(std::initializer_list<value_type> init_list,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(init_list.begin(), init_list.end(),
-                IteratorCategory<decltype(init_list.begin())>{});
+    AppendRange(init_list.begin(), init_list.end());
   }
 
   // Creates an inlined vector with elements constructed from the provided
@@ -144,7 +156,7 @@ class InlinedVector {
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(first, last, IteratorCategory<InputIterator>{});
+    AppendRange(first, last);
   }
 
   // Creates a copy of `other` using `other`'s allocator.
@@ -422,8 +434,7 @@ class InlinedVector {
   // Replaces the contents of the inlined vector with copies of the elements in
   // the provided `std::initializer_list`.
   InlinedVector& operator=(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end(),
-                IteratorCategory<decltype(init_list.begin())>{});
+    AssignRange(init_list.begin(), init_list.end());
     return *this;
   }
 
@@ -500,15 +511,14 @@ class InlinedVector {
   // inlined vector with copies of the values in the provided
   // `std::initializer_list`.
   void assign(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end(),
-                IteratorCategory<decltype(init_list.begin())>{});
+    AssignRange(init_list.begin(), init_list.end());
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
   // inlined vector with values constructed from the range [`first`, `last`).
   template <typename InputIterator, DisableIfIntegral<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
-    AssignRange(first, last, IteratorCategory<InputIterator>{});
+    AssignRange(first, last);
   }
 
   // `InlinedVector::resize()`
@@ -593,11 +603,10 @@ class InlinedVector {
   // NOTE: The `enable_if` is intended to disambiguate the two three-argument
   // overloads of `insert()`.
   template <typename InputIterator,
-            typename = EnableIfInputIterator<InputIterator>>
+            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
   iterator insert(const_iterator position, InputIterator first,
                   InputIterator last) {
-    return InsertWithRange(position, first, last,
-                           IteratorCategory<InputIterator>());
+    return InsertWithRange(position, first, last);
   }
 
   // `InlinedVector::emplace()`
@@ -1077,8 +1086,9 @@ class InlinedVector {
     }
   }
 
-  template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last, std::forward_iterator_tag) {
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
+  void AssignRange(ForwardIterator first, ForwardIterator last) {
     auto length = std::distance(first, last);
     // Prefer reassignment to copy construction for elements.
     if (static_cast<size_type>(length) <= size()) {
@@ -1097,8 +1107,9 @@ class InlinedVector {
     }
   }
 
-  template <typename Iterator>
-  void AssignRange(Iterator first, Iterator last, std::input_iterator_tag) {
+  template <typename InputIterator,
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
+  void AssignRange(InputIterator first, InputIterator last) {
     // Optimized to avoid reallocation.
     // Prefer reassignment to copy construction for elements.
     iterator out = begin();
@@ -1109,8 +1120,9 @@ class InlinedVector {
     std::copy(first, last, std::back_inserter(*this));
   }
 
-  template <typename Iterator>
-  void AppendRange(Iterator first, Iterator last, std::forward_iterator_tag) {
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
+  void AppendRange(ForwardIterator first, ForwardIterator last) {
     auto length = std::distance(first, last);
     reserve(size() + length);
     if (allocated()) {
@@ -1122,8 +1134,9 @@ class InlinedVector {
     }
   }
 
-  template <typename Iterator>
-  void AppendRange(Iterator first, Iterator last, std::input_iterator_tag) {
+  template <typename InputIterator,
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
+  void AppendRange(InputIterator first, InputIterator last) {
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -1140,9 +1153,10 @@ class InlinedVector {
     return it_pair.first;
   }
 
-  template <typename ForwardIterator>
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
   iterator InsertWithRange(const_iterator position, ForwardIterator first,
-                           ForwardIterator last, std::forward_iterator_tag) {
+                           ForwardIterator last) {
     assert(position >= begin() && position <= end());
     if (ABSL_PREDICT_FALSE(first == last))
       return const_cast<iterator>(position);
@@ -1150,15 +1164,16 @@ class InlinedVector {
     auto n = std::distance(first, last);
     std::pair<iterator, iterator> it_pair = ShiftRight(position, n);
     size_type used_spots = it_pair.second - it_pair.first;
-    ForwardIterator open_spot = std::next(first, used_spots);
+    auto open_spot = std::next(first, used_spots);
     std::copy(first, open_spot, it_pair.first);
     UninitializedCopy(open_spot, last, it_pair.second);
     return it_pair.first;
   }
 
-  template <typename InputIterator>
+  template <typename InputIterator,
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   iterator InsertWithRange(const_iterator position, InputIterator first,
-                           InputIterator last, std::input_iterator_tag) {
+                           InputIterator last) {
     assert(position >= begin() && position <= end());
     size_type index = position - cbegin();
     size_type i = index;

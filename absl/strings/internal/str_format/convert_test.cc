@@ -232,7 +232,7 @@ TEST_F(FormatConvertTest, Enum) {
 template <typename T>
 class TypedFormatConvertTest : public FormatConvertTest { };
 
-TYPED_TEST_CASE_P(TypedFormatConvertTest);
+TYPED_TEST_SUITE_P(TypedFormatConvertTest);
 
 std::vector<std::string> AllFlagCombinations() {
   const char kFlags[] = {'-', '#', '0', '+', ' '};

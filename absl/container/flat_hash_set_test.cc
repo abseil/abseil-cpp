@@ -40,9 +40,9 @@ using Set =
 using SetTypes =
     ::testing::Types<Set<int>, Set<std::string>, Set<Enum>, Set<EnumClass>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashSet, ConstructorTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashSet, LookupTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashSet, ModifiersTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashSet, ConstructorTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashSet, LookupTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashSet, ModifiersTest, SetTypes);
 
 TEST(FlatHashSet, EmplaceString) {
   std::vector<std::string> v = {"a", "b"};
