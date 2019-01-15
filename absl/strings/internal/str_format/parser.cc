@@ -99,10 +99,11 @@ bool ConsumeConversion(string_view *src, UnboundConversion *conv,
     // digit doesn't match the expected characters.
     int num_digits = std::numeric_limits<int>::digits10;
     for (;;) {
-      if (ABSL_PREDICT_FALSE(pos == end || !num_digits)) break;
+      if (ABSL_PREDICT_FALSE(pos == end)) break;
       c = *pos++;
       if (!std::isdigit(c)) break;
       --num_digits;
+      if (ABSL_PREDICT_FALSE(!num_digits)) break;
       digits = 10 * digits + c - '0';
     }
     return digits;
