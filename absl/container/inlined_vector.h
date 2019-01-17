@@ -808,8 +808,8 @@ class InlinedVector {
   }
 
  private:
-  template <typename Hash, typename TheT, size_t TheN, typename TheA>
-  friend Hash AbslHashValue(Hash, const InlinedVector<TheT, TheN, TheA>& vec);
+  template <typename H, typename TheT, size_t TheN, typename TheA>
+  friend H AbslHashValue(H, const InlinedVector<TheT, TheN, TheA>& vector);
 
   // Holds whether the vector is allocated or not in the lowest bit and the size
   // in the high bits:
@@ -1358,11 +1358,11 @@ bool operator>=(const InlinedVector<T, N, A>& a,
 //
 // Provides `absl::Hash` support for inlined vectors. You do not normally call
 // this function directly.
-template <typename Hash, typename TheT, size_t TheN, typename TheA>
-Hash AbslHashValue(Hash hash, const InlinedVector<TheT, TheN, TheA>& vec) {
-  auto p = vec.data();
-  auto n = vec.size();
-  return Hash::combine(Hash::combine_contiguous(std::move(hash), p, n), n);
+template <typename H, typename TheT, size_t TheN, typename TheA>
+H AbslHashValue(H hash, const InlinedVector<TheT, TheN, TheA>& vector) {
+  auto p = vector.data();
+  auto n = vector.size();
+  return H::combine(H::combine_contiguous(std::move(hash), p, n), n);
 }
 
 // -----------------------------------------------------------------------------
