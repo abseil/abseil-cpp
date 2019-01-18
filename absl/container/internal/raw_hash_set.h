@@ -480,6 +480,28 @@ inline size_t NormalizeCapacity(size_t n) {
              : (std::numeric_limits<size_t>::max)() >> LeadingZeros(n);
 }
 
+// We use 7/8th as maximum load factor.
+// For 16-wide groups, that gives an average of two empty slots per group.
+inline size_t CapacityToGrowth(size_t capacity) {
+  assert(IsValidCapacity(capacity));
+  // `capacity*7/8`
+  if (Group::kWidth == 8 && capacity == 7) {
+    // x-x/8 does not work when x==7.
+    return 6;
+  }
+  return capacity - capacity / 8;
+}
+// From desired "growth" to a lowerbound of the necessary capacity.
+// Might not be a valid one and required NormalizeCapacity().
+inline size_t GrowthToLowerboundCapacity(size_t growth) {
+  // `growth*8/7`
+  if (Group::kWidth == 8 && growth == 7) {
+    // x+(x-1)/7 does not work when x==7.
+    return 8;
+  }
+  return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
+}
+
 // The node_handle concept from C++17.
 // We specialize node_handle for sets and maps. node_handle_base holds the
 // common API of both.
@@ -819,7 +841,7 @@ class raw_hash_set {
       : ctrl_(EmptyGroup()), settings_(0, hash, eq, alloc) {
     if (bucket_count) {
       capacity_ = NormalizeCapacity(bucket_count);
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
       initialize_slots();
     }
   }
@@ -1031,7 +1053,7 @@ class raw_hash_set {
       }
       size_ = 0;
       reset_ctrl();
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
     }
     assert(empty());
     infoz_.RecordStorageChanged(size_, capacity_);
@@ -1325,16 +1347,16 @@ class raw_hash_set {
       infoz_.RecordStorageChanged(size_, capacity_);
       return;
     }
-    auto m = NormalizeCapacity((std::max)(n, NumSlotsFast(size())));
+    // bitor is a faster way of doing `max` here. We will round up to the next
+    // power-of-2-minus-1, so bitor is good enough.
+    auto m = NormalizeCapacity(n | GrowthToLowerboundCapacity(size()));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
       resize(m);
     }
   }
 
-  void reserve(size_t n) {
-    rehash(NumSlotsFast(n));
-  }
+  void reserve(size_t n) { rehash(GrowthToLowerboundCapacity(n)); }
 
   // Extension API: support for heterogeneous keys.
   //
@@ -1512,13 +1534,6 @@ class raw_hash_set {
     slot_type&& slot;
   };
 
-  // Computes std::ceil(n / kMaxLoadFactor). Faster than calling std::ceil.
-  static inline size_t NumSlotsFast(size_t n) {
-    return static_cast<size_t>(
-        (n * kMaxLoadFactorDenominator + (kMaxLoadFactorNumerator - 1)) /
-        kMaxLoadFactorNumerator);
-  }
-
   // "erases" the object from the container, except that it doesn't actually
   // destroy the object. It only updates all the metadata of the class.
   // This can be used in conjunction with Policy::transfer to move the object to
@@ -1556,7 +1571,7 @@ class raw_hash_set {
     ctrl_ = reinterpret_cast<ctrl_t*>(layout.template Pointer<0>(mem));
     slots_ = layout.template Pointer<1>(mem);
     reset_ctrl();
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
     infoz_.RecordStorageChanged(size_, capacity_);
   }
 
@@ -1662,13 +1677,13 @@ class raw_hash_set {
         --i;  // repeat
       }
     }
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
   }
 
   void rehash_and_grow_if_necessary() {
     if (capacity_ == 0) {
       resize(Group::kWidth - 1);
-    } else if (size() <= kMaxLoadFactor / 2 * capacity_) {
+    } else if (size() <= CapacityToGrowth(capacity()) / 2) {
       // Squash DELETED without growing if there is enough capacity.
       drop_deletes_without_resize();
     } else {
@@ -1811,6 +1826,10 @@ class raw_hash_set {
     SanitizerPoisonMemoryRegion(slots_, sizeof(slot_type) * capacity_);
   }
 
+  void reset_growth_left() {
+    growth_left() = CapacityToGrowth(capacity()) - size_;
+  }
+
   // Sets the control byte, and if `i < Group::kWidth`, set the cloned byte at
   // the end too.
   void set_ctrl(size_t i, ctrl_t h) {
@@ -1836,12 +1855,6 @@ class raw_hash_set {
   const allocator_type& alloc_ref() const {
     return settings_.template get<3>();
   }
-
-  // On average each group has 2 empty slot (for the vectorized case).
-  static constexpr int64_t kMaxLoadFactorNumerator = 14;
-  static constexpr int64_t kMaxLoadFactorDenominator = 16;
-  static constexpr float kMaxLoadFactor =
-      1.0 * kMaxLoadFactorNumerator / kMaxLoadFactorDenominator;
 
   // TODO(alkis): Investigate removing some of these fields:
   // - ctrl/slots can be derived from each other
@@ -1903,10 +1916,9 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
   }
 
   static size_t LowerBoundAllocatedByteSize(size_t size) {
-    size_t capacity = container_internal::NormalizeCapacity(
-        std::ceil(size / Set::kMaxLoadFactor));
+    size_t capacity = GrowthToLowerboundCapacity(size);
     if (capacity == 0) return 0;
-    auto layout = Set::MakeLayout(capacity);
+    auto layout = Set::MakeLayout(NormalizeCapacity(capacity));
     size_t m = layout.AllocSize();
     size_t per_slot = Traits::space_used(static_cast<const Slot*>(nullptr));
     if (per_slot != ~size_t{}) {

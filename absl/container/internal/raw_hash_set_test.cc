@@ -48,6 +48,8 @@ namespace {
 
 using ::testing::DoubleNear;
 using ::testing::ElementsAre;
+using ::testing::Ge;
+using ::testing::Lt;
 using ::testing::Optional;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
@@ -60,6 +62,33 @@ TEST(Util, NormalizeCapacity) {
   EXPECT_EQ(kMinCapacity, NormalizeCapacity(kMinCapacity));
   EXPECT_EQ(kMinCapacity * 2 + 1, NormalizeCapacity(kMinCapacity + 1));
   EXPECT_EQ(kMinCapacity * 2 + 1, NormalizeCapacity(kMinCapacity + 2));
+}
+
+TEST(Util, GrowthAndCapacity) {
+  // Verify that GrowthToCapacity gives the minimum capacity that has enough
+  // growth.
+  for (size_t growth = 0; growth < 10000; ++growth) {
+    SCOPED_TRACE(growth);
+    size_t capacity = NormalizeCapacity(GrowthToLowerboundCapacity(growth));
+    // The capacity is large enough for `growth`
+    EXPECT_THAT(CapacityToGrowth(capacity), Ge(growth));
+    if (growth < Group::kWidth - 1) {
+      // Fits in one group, that is the minimum capacity.
+      EXPECT_EQ(capacity, Group::kWidth - 1);
+    } else {
+      // There is no smaller capacity that works.
+      EXPECT_THAT(CapacityToGrowth(capacity / 2), Lt(growth));
+    }
+  }
+
+  for (size_t capacity = Group::kWidth - 1; capacity < 10000;
+       capacity = 2 * capacity + 1) {
+    SCOPED_TRACE(capacity);
+    size_t growth = CapacityToGrowth(capacity);
+    EXPECT_THAT(growth, Lt(capacity));
+    EXPECT_LE(GrowthToLowerboundCapacity(growth), capacity);
+    EXPECT_EQ(NormalizeCapacity(GrowthToLowerboundCapacity(growth)), capacity);
+  }
 }
 
 TEST(Util, probe_seq) {
