@@ -67,7 +67,7 @@ static intptr_t RoundUp(intptr_t addr, intptr_t align) {
   return (addr + align - 1) & ~(align - 1);
 }
 
-static void ResetThreadIdetity(base_internal::ThreadIdentity* identity) {
+static void ResetThreadIdentity(base_internal::ThreadIdentity* identity) {
   base_internal::PerThreadSynch* pts = &identity->per_thread_synch;
   pts->next = nullptr;
   pts->skip = nullptr;
@@ -114,7 +114,7 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
         RoundUp(reinterpret_cast<intptr_t>(allocation),
                 base_internal::PerThreadSynch::kAlignment));
   }
-  ResetThreadIdetity(identity);
+  ResetThreadIdentity(identity);
 
   return identity;
 }
