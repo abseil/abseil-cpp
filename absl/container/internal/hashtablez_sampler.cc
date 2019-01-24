@@ -116,6 +116,11 @@ HashtablezSampler& HashtablezSampler::Global() {
   return *sampler;
 }
 
+HashtablezSampler::DisposeCallback HashtablezSampler::SetDisposeCallback(
+    DisposeCallback f) {
+  return dispose_.exchange(f, std::memory_order_relaxed);
+}
+
 HashtablezInfo::HashtablezInfo() { PrepareForSampling(); }
 HashtablezInfo::~HashtablezInfo() = default;
 
@@ -138,7 +143,7 @@ void HashtablezInfo::PrepareForSampling() {
 }
 
 HashtablezSampler::HashtablezSampler()
-    : dropped_samples_(0), size_estimate_(0), all_(nullptr) {
+    : dropped_samples_(0), size_estimate_(0), all_(nullptr), dispose_(nullptr) {
   absl::MutexLock l(&graveyard_.init_mu);
   graveyard_.dead = &graveyard_;
 }
@@ -161,6 +166,10 @@ void HashtablezSampler::PushNew(HashtablezInfo* sample) {
 }
 
 void HashtablezSampler::PushDead(HashtablezInfo* sample) {
+  if (auto* dispose = dispose_.load(std::memory_order_relaxed)) {
+    dispose(*sample);
+  }
+
   absl::MutexLock graveyard_lock(&graveyard_.init_mu);
   absl::MutexLock sample_lock(&sample->init_mu);
   sample->dead = graveyard_.dead;
@@ -220,6 +229,11 @@ int64_t HashtablezSampler::Iterate(
 }
 
 HashtablezInfo* SampleSlow(int64_t* next_sample) {
+  if (kAbslContainerInternalSampleEverything) {
+    *next_sample = 1;
+    return HashtablezSampler::Global().Register();
+  }
+
   bool first = *next_sample < 0;
   *next_sample = GetGeometricVariable(
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));

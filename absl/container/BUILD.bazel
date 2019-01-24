@@ -447,8 +447,20 @@ cc_library(
 )
 
 cc_library(
+    name = "hashtablez_force_sampling",
+    srcs = ["internal/hashtablez_force_sampling.cc"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":hashtablez_sampler",
+    ],
+)
+
+cc_library(
     name = "hashtablez_sampler",
-    srcs = ["internal/hashtablez_sampler.cc"],
+    srcs = [
+        "internal/hashtablez_sampler.cc",
+        "internal/hashtablez_sampler_force_weak_definition.cc",
+    ],
     hdrs = ["internal/hashtablez_sampler.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
@@ -472,6 +484,20 @@ cc_test(
         "//absl/synchronization",
         "//absl/synchronization:thread_pool",
         "//absl/time",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "hashtablez_force_sampling_test",
+    srcs = ["internal/hashtablez_force_sampling_test.cc"],
+    tags = [
+        "no_test_darwin_x86_64",
+        "no_test_msvc_x64",
+    ],
+    deps = [
+        ":hashtablez_force_sampling",
+        ":hashtablez_sampler",
         "@com_google_googletest//:gtest_main",
     ],
 )

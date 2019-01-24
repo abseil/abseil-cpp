@@ -379,7 +379,7 @@ static uint64_t UpdateLastSample(
 //
 // Manually mark this 'noinline' to minimize stack frame size of the fast
 // path.  Without this, sometimes a compiler may inline this big block of code
-// into the fast past.  That causes lots of register spills and reloads that
+// into the fast path.  That causes lots of register spills and reloads that
 // are unnecessary unless the slow path is taken.
 //
 // TODO(absl-team): Remove this attribute when our compiler is smart enough

@@ -444,6 +444,7 @@ absl_cc_library(
     "internal/hashtablez_sampler.h"
   SRCS
     "internal/hashtablez_sampler.cc"
+    "internal/hashtablez_sampler_force_weak_definition.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -460,6 +461,30 @@ absl_cc_test(
   DEPS
     absl::hashtablez_sampler
     absl::have_sse
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
+    hashtablez_force_sampling
+  SRCS
+    "internal/hashtablez_force_sampling.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::base
+    absl::have_sse
+    absl::synchronization
+)
+
+absl_cc_test(
+  NAME
+    hashtablez_force_sampling_test
+  SRCS
+    "internal/hashtablez_force_sampling_test.cc"
+  DEPS
+    absl::hashtablez_force_sampling
+    absl::hashtablez_sampler
     gmock_main
 )
 

@@ -82,10 +82,6 @@ class InlinedVector {
       std::forward_iterator_tag>;
 
   template <typename Iterator>
-  using DisableIfIntegral =
-      absl::enable_if_t<!std::is_integral<Iterator>::value>;
-
-  template <typename Iterator>
   using EnableIfAtLeastInputIterator =
       absl::enable_if_t<IsAtLeastInputIterator<Iterator>::value>;
 
@@ -152,7 +148,8 @@ class InlinedVector {
   // NOTE: The `enable_if` prevents ambiguous interpretation between a call to
   // this constructor with two integral arguments and a call to the above
   // `InlinedVector(size_type, const_reference)` constructor.
-  template <typename InputIterator, DisableIfIntegral<InputIterator>* = nullptr>
+  template <typename InputIterator,
+            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
@@ -516,7 +513,8 @@ class InlinedVector {
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
   // inlined vector with values constructed from the range [`first`, `last`).
-  template <typename InputIterator, DisableIfIntegral<InputIterator>* = nullptr>
+  template <typename InputIterator,
+            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
     AssignRange(first, last);
   }

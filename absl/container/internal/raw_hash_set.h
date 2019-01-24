@@ -1035,7 +1035,7 @@ class raw_hash_set {
   size_t capacity() const { return capacity_; }
   size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
 
-  void clear() {
+  ABSL_ATTRIBUTE_REINITIALIZES void clear() {
     // Iterating over this container is O(bucket_count()). When bucket_count()
     // is much greater than size(), iteration becomes prohibitively expensive.
     // For clear() it is more important to reuse the allocated array when the
