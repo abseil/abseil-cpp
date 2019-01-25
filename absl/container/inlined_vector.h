@@ -135,25 +135,35 @@ class InlinedVector {
     InitAssign(n, v);
   }
 
-  // Creates an inlined vector of copies of the values in `init_list`.
-  InlinedVector(std::initializer_list<value_type> init_list,
+  // Creates an inlined vector of copies of the values in `list`.
+  InlinedVector(std::initializer_list<value_type> list,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(init_list.begin(), init_list.end());
+    AppendForwardRange(list.begin(), list.end());
   }
 
   // Creates an inlined vector with elements constructed from the provided
-  // Iterator range [`first`, `last`).
+  // forward iterator range [`first`, `last`).
   //
   // NOTE: The `enable_if` prevents ambiguous interpretation between a call to
   // this constructor with two integral arguments and a call to the above
   // `InlinedVector(size_type, const_reference)` constructor.
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
+  InlinedVector(ForwardIterator first, ForwardIterator last,
+                const allocator_type& alloc = allocator_type())
+      : allocator_and_tag_(alloc) {
+    AppendForwardRange(first, last);
+  }
+
+  // Creates an inlined vector with elements constructed from the provided input
+  // iterator range [`first`, `last`).
   template <typename InputIterator,
-            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendRange(first, last);
+    AppendInputRange(first, last);
   }
 
   // Creates a copy of `other` using `other`'s allocator.
@@ -430,8 +440,8 @@ class InlinedVector {
   //
   // Replaces the contents of the inlined vector with copies of the elements in
   // the provided `std::initializer_list`.
-  InlinedVector& operator=(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end());
+  InlinedVector& operator=(std::initializer_list<value_type> list) {
+    AssignForwardRange(list.begin(), list.end());
     return *this;
   }
 
@@ -507,16 +517,24 @@ class InlinedVector {
   // Overload of `InlinedVector::assign()` to replace the contents of the
   // inlined vector with copies of the values in the provided
   // `std::initializer_list`.
-  void assign(std::initializer_list<value_type> init_list) {
-    AssignRange(init_list.begin(), init_list.end());
+  void assign(std::initializer_list<value_type> list) {
+    AssignForwardRange(list.begin(), list.end());
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
-  // inlined vector with values constructed from the range [`first`, `last`).
+  // inlined vector with the forward iterator range [`first`, `last`).
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
+  void assign(ForwardIterator first, ForwardIterator last) {
+    AssignForwardRange(first, last);
+  }
+
+  // Overload of `InlinedVector::assign()` to replace the contents of the
+  // inlined vector with the input iterator range [`first`, `last`).
   template <typename InputIterator,
-            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
-    AssignRange(first, last);
+    AssignInputRange(first, last);
   }
 
   // `InlinedVector::resize()`
@@ -567,62 +585,70 @@ class InlinedVector {
 
   // `InlinedVector::insert()`
   //
-  // Copies `v` into `position`, returning an `iterator` pointing to the newly
+  // Copies `v` into `pos`, returning an `iterator` pointing to the newly
   // inserted element.
-  iterator insert(const_iterator position, const_reference v) {
-    return emplace(position, v);
+  iterator insert(const_iterator pos, const_reference v) {
+    return emplace(pos, v);
   }
 
-  // Overload of `InlinedVector::insert()` for moving `v` into `position`,
-  // returning an iterator pointing to the newly inserted element.
-  iterator insert(const_iterator position, rvalue_reference v) {
-    return emplace(position, std::move(v));
+  // Overload of `InlinedVector::insert()` for moving `v` into `pos`, returning
+  // an iterator pointing to the newly inserted element.
+  iterator insert(const_iterator pos, rvalue_reference v) {
+    return emplace(pos, std::move(v));
   }
 
   // Overload of `InlinedVector::insert()` for inserting `n` contiguous copies
-  // of `v` starting at `position`. Returns an `iterator` pointing to the first
-  // of the newly inserted elements.
-  iterator insert(const_iterator position, size_type n, const_reference v) {
-    return InsertWithCount(position, n, v);
+  // of `v` starting at `pos`. Returns an `iterator` pointing to the first of
+  // the newly inserted elements.
+  iterator insert(const_iterator pos, size_type n, const_reference v) {
+    return InsertWithCount(pos, n, v);
   }
 
   // Overload of `InlinedVector::insert()` for copying the contents of the
-  // `std::initializer_list` into the vector starting at `position`. Returns an
+  // `std::initializer_list` into the vector starting at `pos`. Returns an
   // `iterator` pointing to the first of the newly inserted elements.
-  iterator insert(const_iterator position,
-                  std::initializer_list<value_type> init_list) {
-    return insert(position, init_list.begin(), init_list.end());
+  iterator insert(const_iterator pos, std::initializer_list<value_type> list) {
+    return insert(pos, list.begin(), list.end());
   }
 
   // Overload of `InlinedVector::insert()` for inserting elements constructed
-  // from the range [`first`, `last`). Returns an `iterator` pointing to the
-  // first of the newly inserted elements.
+  // from the forward iterator range [`first`, `last`). Returns an `iterator`
+  // pointing to the first of the newly inserted elements.
   //
   // NOTE: The `enable_if` is intended to disambiguate the two three-argument
   // overloads of `insert()`.
+  template <typename ForwardIterator,
+            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
+  iterator insert(const_iterator pos, ForwardIterator first,
+                  ForwardIterator last) {
+    return InsertWithForwardRange(pos, first, last);
+  }
+
+  // Overload of `InlinedVector::insert()` for inserting elements constructed
+  // from the input iterator range [`first`, `last`). Returns an `iterator`
+  // pointing to the first of the newly inserted elements.
   template <typename InputIterator,
-            EnableIfAtLeastInputIterator<InputIterator>* = nullptr>
-  iterator insert(const_iterator position, InputIterator first,
-                  InputIterator last) {
-    return InsertWithRange(position, first, last);
+            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
+  iterator insert(const_iterator pos, InputIterator first, InputIterator last) {
+    return InsertWithInputRange(pos, first, last);
   }
 
   // `InlinedVector::emplace()`
   //
-  // Constructs and inserts an object in the inlined vector at the given
-  // `position`, returning an `iterator` pointing to the newly emplaced element.
+  // Constructs and inserts an object in the inlined vector at the given `pos`,
+  // returning an `iterator` pointing to the newly emplaced element.
   template <typename... Args>
-  iterator emplace(const_iterator position, Args&&... args) {
-    assert(position >= begin());
-    assert(position <= end());
-    if (ABSL_PREDICT_FALSE(position == end())) {
+  iterator emplace(const_iterator pos, Args&&... args) {
+    assert(pos >= begin());
+    assert(pos <= end());
+    if (ABSL_PREDICT_FALSE(pos == end())) {
       emplace_back(std::forward<Args>(args)...);
       return end() - 1;
     }
 
     T new_t = T(std::forward<Args>(args)...);
 
-    auto range = ShiftRight(position, 1);
+    auto range = ShiftRight(pos, 1);
     if (range.first == range.second) {
       // constructing into uninitialized memory
       Construct(range.first, std::move(new_t));
@@ -687,18 +713,18 @@ class InlinedVector {
 
   // `InlinedVector::erase()`
   //
-  // Erases the element at `position` of the inlined vector, returning an
-  // `iterator` pointing to the first element following the erased element.
+  // Erases the element at `pos` of the inlined vector, returning an `iterator`
+  // pointing to the first element following the erased element.
   //
   // NOTE: May return the end iterator, which is not dereferencable.
-  iterator erase(const_iterator position) {
-    assert(position >= begin());
-    assert(position < end());
+  iterator erase(const_iterator pos) {
+    assert(pos >= begin());
+    assert(pos < end());
 
-    iterator pos = const_cast<iterator>(position);
-    std::move(pos + 1, end(), pos);
+    iterator position = const_cast<iterator>(pos);
+    std::move(position + 1, end(), position);
     pop_back();
-    return pos;
+    return position;
   }
 
   // Overload of `InlinedVector::erase()` for erasing all elements in the
@@ -1084,15 +1110,18 @@ class InlinedVector {
     }
   }
 
-  template <typename ForwardIterator,
-            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
-  void AssignRange(ForwardIterator first, ForwardIterator last) {
+  template <typename ForwardIterator>
+  void AssignForwardRange(ForwardIterator first, ForwardIterator last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
+
     auto length = std::distance(first, last);
+
     // Prefer reassignment to copy construction for elements.
     if (static_cast<size_type>(length) <= size()) {
       erase(std::copy(first, last, begin()), end());
       return;
     }
+
     reserve(length);
     iterator out = begin();
     for (; out != end(); ++first, ++out) *out = *first;
@@ -1105,9 +1134,10 @@ class InlinedVector {
     }
   }
 
-  template <typename InputIterator,
-            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
-  void AssignRange(InputIterator first, InputIterator last) {
+  template <typename InputIterator>
+  void AssignInputRange(InputIterator first, InputIterator last) {
+    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
+
     // Optimized to avoid reallocation.
     // Prefer reassignment to copy construction for elements.
     iterator out = begin();
@@ -1118,9 +1148,10 @@ class InlinedVector {
     std::copy(first, last, std::back_inserter(*this));
   }
 
-  template <typename ForwardIterator,
-            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
-  void AppendRange(ForwardIterator first, ForwardIterator last) {
+  template <typename ForwardIterator>
+  void AppendForwardRange(ForwardIterator first, ForwardIterator last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
+
     auto length = std::distance(first, last);
     reserve(size() + length);
     if (allocated()) {
@@ -1132,9 +1163,10 @@ class InlinedVector {
     }
   }
 
-  template <typename InputIterator,
-            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
-  void AppendRange(InputIterator first, InputIterator last) {
+  template <typename InputIterator>
+  void AppendInputRange(InputIterator first, InputIterator last) {
+    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
+
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -1151,11 +1183,12 @@ class InlinedVector {
     return it_pair.first;
   }
 
-  template <typename ForwardIterator,
-            EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
-  iterator InsertWithRange(const_iterator position, ForwardIterator first,
-                           ForwardIterator last) {
+  template <typename ForwardIterator>
+  iterator InsertWithForwardRange(const_iterator position,
+                                  ForwardIterator first, ForwardIterator last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
     assert(position >= begin() && position <= end());
+
     if (ABSL_PREDICT_FALSE(first == last))
       return const_cast<iterator>(position);
 
@@ -1168,11 +1201,12 @@ class InlinedVector {
     return it_pair.first;
   }
 
-  template <typename InputIterator,
-            DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
-  iterator InsertWithRange(const_iterator position, InputIterator first,
-                           InputIterator last) {
+  template <typename InputIterator>
+  iterator InsertWithInputRange(const_iterator position, InputIterator first,
+                                InputIterator last) {
+    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
     assert(position >= begin() && position <= end());
+
     size_type index = position - cbegin();
     size_type i = index;
     while (first != last) insert(begin() + i++, *first++);
