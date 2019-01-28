@@ -67,7 +67,7 @@ namespace absl {
 template <typename T, size_t N, typename A = std::allocator<T>>
 class InlinedVector {
   static_assert(N > 0, "InlinedVector requires inline capacity greater than 0");
-  constexpr static typename A::size_type inlined_capacity() {
+  constexpr static typename A::size_type GetInlinedCapacity() {
     return static_cast<typename A::size_type>(N);
   }
 
@@ -275,12 +275,12 @@ class InlinedVector {
   // Returns the number of elements that can be stored in the inlined vector
   // without requiring a reallocation of underlying memory.
   //
-  // NOTE: For most inlined vectors, `capacity()` should equal
-  // `inlined_capacity()`. For inlined vectors which exceed this capacity, they
+  // NOTE: For most inlined vectors, `capacity()` should equal the template
+  // parameter `N`. For inlined vectors which exceed this capacity, they
   // will no longer be inlined and `capacity()` will equal its capacity on the
   // allocated heap.
   size_type capacity() const noexcept {
-    return allocated() ? allocation().capacity() : inlined_capacity();
+    return allocated() ? allocation().capacity() : GetInlinedCapacity();
   }
 
   // `InlinedVector::data()`
@@ -667,12 +667,9 @@ class InlinedVector {
   template <typename... Args>
   reference emplace_back(Args&&... args) {
     size_type s = size();
-    assert(s <= capacity());
     if (ABSL_PREDICT_FALSE(s == capacity())) {
       return GrowAndEmplaceBack(std::forward<Args>(args)...);
     }
-    assert(s < capacity());
-
     pointer space;
     if (allocated()) {
       tag().set_allocated_size(s + 1);
@@ -790,19 +787,19 @@ class InlinedVector {
   // `InlinedVector::shrink_to_fit()`
   //
   // Reduces memory usage by freeing unused memory. After this call, calls to
-  // `capacity()` will be equal to `(std::max)(inlined_capacity(), size())`.
+  // `capacity()` will be equal to `(std::max)(GetInlinedCapacity(), size())`.
   //
-  // If `size() <= inlined_capacity()` and the elements are currently stored on
-  // the heap, they will be moved to the inlined storage and the heap memory
+  // If `size() <= GetInlinedCapacity()` and the elements are currently stored
+  // on the heap, they will be moved to the inlined storage and the heap memory
   // will be deallocated.
   //
-  // If `size() > inlined_capacity()` and `size() < capacity()` the elements
+  // If `size() > GetInlinedCapacity()` and `size() < capacity()` the elements
   // will be moved to a smaller heap allocation.
   void shrink_to_fit() {
     const auto s = size();
     if (ABSL_PREDICT_FALSE(!allocated() || s == capacity())) return;
 
-    if (s <= inlined_capacity()) {
+    if (s <= GetInlinedCapacity()) {
       // Move the elements to the inlined storage.
       // We have to do this using a temporary, because `inlined_storage` and
       // `allocation_storage` are in a union field.
@@ -833,7 +830,7 @@ class InlinedVector {
 
  private:
   template <typename H, typename TheT, size_t TheN, typename TheA>
-  friend H AbslHashValue(H, const InlinedVector<TheT, TheN, TheA>& vector);
+  friend auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H;
 
   // Holds whether the vector is allocated or not in the lowest bit and the size
   // in the high bits:
@@ -984,7 +981,7 @@ class InlinedVector {
     const size_type s = size();
     assert(s <= capacity());
 
-    size_type target = (std::max)(inlined_capacity(), s + delta);
+    size_type target = (std::max)(GetInlinedCapacity(), s + delta);
 
     // Compute new capacity by repeatedly doubling current capacity
     // TODO(psrc): Check and avoid overflow?
@@ -1087,7 +1084,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n) {
-    if (n > inlined_capacity()) {
+    if (n > GetInlinedCapacity()) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n);
@@ -1099,7 +1096,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n, const_reference v) {
-    if (n > inlined_capacity()) {
+    if (n > GetInlinedCapacity()) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n, v);
@@ -1323,8 +1320,8 @@ class InlinedVector {
 // Swaps the contents of two inlined vectors. This convenience function
 // simply calls `InlinedVector::swap()`.
 template <typename T, size_t N, typename A>
-void swap(InlinedVector<T, N, A>& a,
-          InlinedVector<T, N, A>& b) noexcept(noexcept(a.swap(b))) {
+auto swap(InlinedVector<T, N, A>& a,
+          InlinedVector<T, N, A>& b) noexcept(noexcept(a.swap(b))) -> void {
   a.swap(b);
 }
 
@@ -1332,8 +1329,8 @@ void swap(InlinedVector<T, N, A>& a,
 //
 // Tests the equivalency of the contents of two inlined vectors.
 template <typename T, size_t N, typename A>
-bool operator==(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) {
+auto operator==(const InlinedVector<T, N, A>& a,
+                const InlinedVector<T, N, A>& b) -> bool {
   return absl::equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
@@ -1341,8 +1338,8 @@ bool operator==(const InlinedVector<T, N, A>& a,
 //
 // Tests the inequality of the contents of two inlined vectors.
 template <typename T, size_t N, typename A>
-bool operator!=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) {
+auto operator!=(const InlinedVector<T, N, A>& a,
+                const InlinedVector<T, N, A>& b) -> bool {
   return !(a == b);
 }
 
@@ -1351,8 +1348,8 @@ bool operator!=(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are less than the contents
 // of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-bool operator<(const InlinedVector<T, N, A>& a,
-               const InlinedVector<T, N, A>& b) {
+auto operator<(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
+    -> bool {
   return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
 }
 
@@ -1361,8 +1358,8 @@ bool operator<(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are greater than the
 // contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-bool operator>(const InlinedVector<T, N, A>& a,
-               const InlinedVector<T, N, A>& b) {
+auto operator>(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
+    -> bool {
   return b < a;
 }
 
@@ -1371,8 +1368,8 @@ bool operator>(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are less than or equal to
 // the contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-bool operator<=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) {
+auto operator<=(const InlinedVector<T, N, A>& a,
+                const InlinedVector<T, N, A>& b) -> bool {
   return !(b < a);
 }
 
@@ -1381,8 +1378,8 @@ bool operator<=(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are greater than or equal to
 // the contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-bool operator>=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) {
+auto operator>=(const InlinedVector<T, N, A>& a,
+                const InlinedVector<T, N, A>& b) -> bool {
   return !(a < b);
 }
 
@@ -1391,10 +1388,10 @@ bool operator>=(const InlinedVector<T, N, A>& a,
 // Provides `absl::Hash` support for inlined vectors. You do not normally call
 // this function directly.
 template <typename H, typename TheT, size_t TheN, typename TheA>
-H AbslHashValue(H hash, const InlinedVector<TheT, TheN, TheA>& vector) {
-  auto p = vector.data();
-  auto n = vector.size();
-  return H::combine(H::combine_contiguous(std::move(hash), p, n), n);
+auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H {
+  auto p = v.data();
+  auto n = v.size();
+  return H::combine(H::combine_contiguous(std::move(h), p, n), n);
 }
 
 // -----------------------------------------------------------------------------
