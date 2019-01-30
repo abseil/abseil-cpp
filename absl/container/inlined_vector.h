@@ -72,18 +72,9 @@ class InlinedVector {
   }
 
   template <typename Iterator>
-  using IsAtLeastInputIterator = std::is_convertible<
-      typename std::iterator_traits<Iterator>::iterator_category,
-      std::input_iterator_tag>;
-
-  template <typename Iterator>
   using IsAtLeastForwardIterator = std::is_convertible<
       typename std::iterator_traits<Iterator>::iterator_category,
       std::forward_iterator_tag>;
-
-  template <typename Iterator>
-  using EnableIfAtLeastInputIterator =
-      absl::enable_if_t<IsAtLeastInputIterator<Iterator>::value>;
 
   template <typename Iterator>
   using EnableIfAtLeastForwardIterator =
@@ -163,7 +154,7 @@ class InlinedVector {
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
       : allocator_and_tag_(alloc) {
-    AppendInputRange(first, last);
+    std::copy(first, last, std::back_inserter(*this));
   }
 
   // Creates a copy of `other` using `other`'s allocator.
@@ -534,7 +525,13 @@ class InlinedVector {
   template <typename InputIterator,
             DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
-    AssignInputRange(first, last);
+    size_type assign_index = 0;
+    for (; (assign_index < size()) && (first != last);
+         static_cast<void>(++assign_index), static_cast<void>(++first)) {
+      *(data() + assign_index) = *first;
+    }
+    erase(data() + assign_index, data() + size());
+    std::copy(first, last, std::back_inserter(*this));
   }
 
   // `InlinedVector::resize()`
@@ -630,7 +627,12 @@ class InlinedVector {
   template <typename InputIterator,
             DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   iterator insert(const_iterator pos, InputIterator first, InputIterator last) {
-    return InsertWithInputRange(pos, first, last);
+    size_type initial_insert_index = std::distance(cbegin(), pos);
+    for (size_type insert_index = initial_insert_index; first != last;
+         static_cast<void>(++insert_index), static_cast<void>(++first)) {
+      insert(data() + insert_index, *first);
+    }
+    return iterator(data() + initial_insert_index);
   }
 
   // `InlinedVector::emplace()`
@@ -1131,20 +1133,6 @@ class InlinedVector {
     }
   }
 
-  template <typename InputIterator>
-  void AssignInputRange(InputIterator first, InputIterator last) {
-    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
-
-    // Optimized to avoid reallocation.
-    // Prefer reassignment to copy construction for elements.
-    iterator out = begin();
-    for (; first != last && out != end(); ++first, ++out) {
-      *out = *first;
-    }
-    erase(out, end());
-    std::copy(first, last, std::back_inserter(*this));
-  }
-
   template <typename ForwardIterator>
   void AppendForwardRange(ForwardIterator first, ForwardIterator last) {
     static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
@@ -1158,13 +1146,6 @@ class InlinedVector {
       UninitializedCopy(first, last, inlined_space() + size());
       tag().set_inline_size(size() + length);
     }
-  }
-
-  template <typename InputIterator>
-  void AppendInputRange(InputIterator first, InputIterator last) {
-    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
-
-    std::copy(first, last, std::back_inserter(*this));
   }
 
   iterator InsertWithCount(const_iterator position, size_type n,
@@ -1196,18 +1177,6 @@ class InlinedVector {
     std::copy(first, open_spot, it_pair.first);
     UninitializedCopy(open_spot, last, it_pair.second);
     return it_pair.first;
-  }
-
-  template <typename InputIterator>
-  iterator InsertWithInputRange(const_iterator position, InputIterator first,
-                                InputIterator last) {
-    static_assert(IsAtLeastInputIterator<InputIterator>::value, "");
-    assert(position >= begin() && position <= end());
-
-    size_type index = position - cbegin();
-    size_type i = index;
-    while (first != last) insert(begin() + i++, *first++);
-    return begin() + index;
   }
 
   void SwapImpl(InlinedVector& other) {
@@ -1393,13 +1362,12 @@ auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H {
   auto n = v.size();
   return H::combine(H::combine_contiguous(std::move(h), p, n), n);
 }
+}  // namespace absl
 
 // -----------------------------------------------------------------------------
 // Implementation of InlinedVector
 //
 // Do not depend on any below implementation details!
 // -----------------------------------------------------------------------------
-
-}  // namespace absl
 
 #endif  // ABSL_CONTAINER_INLINED_VECTOR_H_

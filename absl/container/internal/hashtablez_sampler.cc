@@ -93,7 +93,7 @@ int64_t GetGeometricVariable(int64_t mean) {
   // under piii debug for some binaries.
   double q = static_cast<uint32_t>(rng >> (prng_mod_power - 26)) + 1.0;
   // Put the computed p-value through the CDF of a geometric.
-  double interval = (std::log2(q) - 26) * (-std::log(2.0) * mean);
+  double interval = (log2(q) - 26) * (-std::log(2.0) * mean);
 
   // Very large values of interval overflow int64_t. If we happen to
   // hit such improbable condition, we simply cheat and clamp interval

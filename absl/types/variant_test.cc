@@ -1977,29 +1977,17 @@ TEST(VariantTest, MonostateHash) {
 }
 
 TEST(VariantTest, Hash) {
-  static_assert(type_traits_internal::IsHashEnabled<variant<int>>::value, "");
-  static_assert(type_traits_internal::IsHashEnabled<variant<Hashable>>::value,
+  static_assert(type_traits_internal::IsHashable<variant<int>>::value, "");
+  static_assert(type_traits_internal::IsHashable<variant<Hashable>>::value, "");
+  static_assert(type_traits_internal::IsHashable<variant<int, Hashable>>::value,
+                "");
+
+#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
+  static_assert(!type_traits_internal::IsHashable<variant<NonHashable>>::value,
                 "");
   static_assert(
-      type_traits_internal::IsHashEnabled<variant<int, Hashable>>::value, "");
-
-#if defined(_MSC_VER) ||                                   \
-    (defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 4000 && \
-     _LIBCPP_STD_VER > 11) ||                              \
-    defined(__APPLE__)
-  // For MSVC and libc++ (< 4.0 and c++14), std::hash primary template has a
-  // static_assert to catch any user-defined type T that doesn't provide a hash
-  // specialization. So instantiating std::hash<variant<T>> will result
-  // in a hard error which is not SFINAE friendly.
-#define ABSL_STD_HASH_NOT_SFINAE_FRIENDLY 1
-#endif
-
-#ifndef ABSL_STD_HASH_NOT_SFINAE_FRIENDLY
-  static_assert(
-      !type_traits_internal::IsHashEnabled<variant<NonHashable>>::value, "");
-  static_assert(!type_traits_internal::IsHashEnabled<
-                    variant<Hashable, NonHashable>>::value,
-                "");
+      !type_traits_internal::IsHashable<variant<Hashable, NonHashable>>::value,
+      "");
 #endif
 
 // MSVC std::hash<std::variant> does not use the index, thus produce the same
@@ -2023,11 +2011,10 @@ TEST(VariantTest, Hash) {
     EXPECT_GT(hashcodes.size(), 90);
 
     // test const-qualified
+    static_assert(type_traits_internal::IsHashable<variant<const int>>::value,
+                  "");
     static_assert(
-        type_traits_internal::IsHashEnabled<variant<const int>>::value, "");
-    static_assert(
-        type_traits_internal::IsHashEnabled<variant<const Hashable>>::value,
-        "");
+        type_traits_internal::IsHashable<variant<const Hashable>>::value, "");
     std::hash<absl::variant<const int>> c_hash;
     for (int i = 0; i < 100; ++i) {
       EXPECT_EQ(hash(i), c_hash(i));
