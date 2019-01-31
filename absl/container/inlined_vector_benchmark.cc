@@ -159,15 +159,14 @@ struct LargeCopyableOnly {
 
 struct LargeCopyableSwappable {
   LargeCopyableSwappable() : d(1024, 17) {}
+
   LargeCopyableSwappable(const LargeCopyableSwappable& o) = default;
-  LargeCopyableSwappable(LargeCopyableSwappable&& o) = delete;
 
   LargeCopyableSwappable& operator=(LargeCopyableSwappable o) {
     using std::swap;
     swap(*this, o);
     return *this;
   }
-  LargeCopyableSwappable& operator=(LargeCopyableSwappable&& o) = delete;
 
   friend void swap(LargeCopyableSwappable& a, LargeCopyableSwappable& b) {
     using std::swap;

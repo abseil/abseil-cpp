@@ -53,7 +53,6 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-
 // -----------------------------------------------------------------------------
 // InlinedVector
 // -----------------------------------------------------------------------------
@@ -159,7 +158,7 @@ class InlinedVector {
 
   // Creates a copy of `other` using `other`'s allocator.
   InlinedVector(const InlinedVector& other)
-      : InlinedVector(other, other.get_allocator()) {}
+      : InlinedVector(other, other.allocator()) {}
 
   // Creates a copy of `other` but with a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
@@ -187,17 +186,19 @@ class InlinedVector {
   InlinedVector(InlinedVector&& other) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value ||
       std::is_nothrow_move_constructible<value_type>::value)
-      : allocator_and_tag_(other.allocator_and_tag_) {
+      : allocator_and_tag_(other.allocator()) {
     if (other.allocated()) {
       // We can just steal the underlying buffer from the source.
       // That leaves the source empty, so we clear its size.
       init_allocation(other.allocation());
+      tag().set_allocated_size(other.size());
       other.tag() = Tag();
     } else {
       UninitializedCopy(
           std::make_move_iterator(other.inlined_space()),
           std::make_move_iterator(other.inlined_space() + other.size()),
           inlined_space());
+      tag().set_inline_size(other.size());
     }
   }
 
