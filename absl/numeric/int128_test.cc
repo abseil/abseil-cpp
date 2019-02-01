@@ -51,7 +51,7 @@ template <typename T>
 class Uint128FloatTraitsTest : public ::testing::Test {};
 typedef ::testing::Types<float, double, long double> FloatingPointTypes;
 
-TYPED_TEST_CASE(Uint128IntegerTraitsTest, IntegerTypes);
+TYPED_TEST_SUITE(Uint128IntegerTraitsTest, IntegerTypes);
 
 TYPED_TEST(Uint128IntegerTraitsTest, ConstructAssignTest) {
   static_assert(std::is_constructible<absl::uint128, TypeParam>::value,
@@ -62,7 +62,7 @@ TYPED_TEST(Uint128IntegerTraitsTest, ConstructAssignTest) {
                 "TypeParam must not be assignable from absl::uint128");
 }
 
-TYPED_TEST_CASE(Uint128FloatTraitsTest, FloatingPointTypes);
+TYPED_TEST_SUITE(Uint128FloatTraitsTest, FloatingPointTypes);
 
 TYPED_TEST(Uint128FloatTraitsTest, ConstructAssignTest) {
   static_assert(std::is_constructible<absl::uint128, TypeParam>::value,

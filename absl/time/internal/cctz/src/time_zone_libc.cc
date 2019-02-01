@@ -267,13 +267,13 @@ time_zone::civil_lookup TimeZoneLibC::MakeTime(const civil_second& cs) const {
   return {time_zone::civil_lookup::UNIQUE, tp, tp, tp};
 }
 
-bool TimeZoneLibC::NextTransition(const time_point<seconds>& tp,
-                                  time_zone::civil_transition* trans) const {
+bool TimeZoneLibC::NextTransition(const time_point<seconds>&,
+                                  time_zone::civil_transition*) const {
   return false;
 }
 
-bool TimeZoneLibC::PrevTransition(const time_point<seconds>& tp,
-                                  time_zone::civil_transition* trans) const {
+bool TimeZoneLibC::PrevTransition(const time_point<seconds>&,
+                                  time_zone::civil_transition*) const {
   return false;
 }
 

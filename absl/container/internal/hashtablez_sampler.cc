@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cmath>
 #include <functional>
 #include <limits>
 
@@ -92,7 +93,7 @@ int64_t GetGeometricVariable(int64_t mean) {
   // under piii debug for some binaries.
   double q = static_cast<uint32_t>(rng >> (prng_mod_power - 26)) + 1.0;
   // Put the computed p-value through the CDF of a geometric.
-  double interval = (std::log2(q) - 26) * (-std::log(2.0) * mean);
+  double interval = (log2(q) - 26) * (-std::log(2.0) * mean);
 
   // Very large values of interval overflow int64_t. If we happen to
   // hit such improbable condition, we simply cheat and clamp interval
@@ -113,6 +114,11 @@ int64_t GetGeometricVariable(int64_t mean) {
 HashtablezSampler& HashtablezSampler::Global() {
   static auto* sampler = new HashtablezSampler();
   return *sampler;
+}
+
+HashtablezSampler::DisposeCallback HashtablezSampler::SetDisposeCallback(
+    DisposeCallback f) {
+  return dispose_.exchange(f, std::memory_order_relaxed);
 }
 
 HashtablezInfo::HashtablezInfo() { PrepareForSampling(); }
@@ -137,7 +143,7 @@ void HashtablezInfo::PrepareForSampling() {
 }
 
 HashtablezSampler::HashtablezSampler()
-    : dropped_samples_(0), size_estimate_(0), all_(nullptr) {
+    : dropped_samples_(0), size_estimate_(0), all_(nullptr), dispose_(nullptr) {
   absl::MutexLock l(&graveyard_.init_mu);
   graveyard_.dead = &graveyard_;
 }
@@ -160,6 +166,10 @@ void HashtablezSampler::PushNew(HashtablezInfo* sample) {
 }
 
 void HashtablezSampler::PushDead(HashtablezInfo* sample) {
+  if (auto* dispose = dispose_.load(std::memory_order_relaxed)) {
+    dispose(*sample);
+  }
+
   absl::MutexLock graveyard_lock(&graveyard_.init_mu);
   absl::MutexLock sample_lock(&sample->init_mu);
   sample->dead = graveyard_.dead;
@@ -219,6 +229,11 @@ int64_t HashtablezSampler::Iterate(
 }
 
 HashtablezInfo* SampleSlow(int64_t* next_sample) {
+  if (kAbslContainerInternalSampleEverything) {
+    *next_sample = 1;
+    return HashtablezSampler::Global().Register();
+  }
+
   bool first = *next_sample < 0;
   *next_sample = GetGeometricVariable(
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
@@ -237,6 +252,10 @@ HashtablezInfo* SampleSlow(int64_t* next_sample) {
 
   return HashtablezSampler::Global().Register();
 }
+
+#if ABSL_PER_THREAD_TLS == 1
+ABSL_PER_THREAD_TLS_KEYWORD int64_t next_sample = 0;
+#endif  // ABSL_PER_THREAD_TLS == 1
 
 void UnsampleSlow(HashtablezInfo* info) {
   HashtablezSampler::Global().Unregister(info);

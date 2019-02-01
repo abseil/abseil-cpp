@@ -71,6 +71,20 @@ class CycleClock {
   CycleClock& operator=(const CycleClock&) = delete;
 };
 
+using CycleClockSourceFunc = int64_t (*)();
+
+class CycleClockSource {
+ private:
+  // CycleClockSource::Register()
+  //
+  // Register a function that provides an alternate source for the unscaled CPU
+  // cycle count value. The source function must be async signal safe, must not
+  // call CycleClock::Now(), and must have a frequency that matches that of the
+  // unscaled clock used by CycleClock. A nullptr value resets CycleClock to use
+  // the default source.
+  static void Register(CycleClockSourceFunc source);
+};
+
 }  // namespace base_internal
 }  // namespace absl
 

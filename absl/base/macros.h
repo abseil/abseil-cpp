@@ -24,7 +24,6 @@
 // This code is compiled directly on many platforms, including client
 // platforms like Windows, Mac, and embedded systems.  Before making
 // any changes here, make sure that you're not breaking any platforms.
-//
 
 #ifndef ABSL_BASE_MACROS_H_
 #define ABSL_BASE_MACROS_H_

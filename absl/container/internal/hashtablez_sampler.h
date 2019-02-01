@@ -31,6 +31,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
@@ -147,14 +148,16 @@ class HashtablezInfoHandle {
 
 // Returns an RAII sampling handle that manages registration and unregistation
 // with the global sampler.
+#if ABSL_PER_THREAD_TLS == 1
+extern ABSL_PER_THREAD_TLS_KEYWORD int64_t next_sample;
+#endif  // ABSL_PER_THREAD_TLS
+
 inline HashtablezInfoHandle Sample() {
-#if ABSL_HAVE_THREAD_LOCAL
-  thread_local int64_t next_sample = 0;
-#else   // ABSL_HAVE_THREAD_LOCAL
+#if ABSL_PER_THREAD_TLS == 0
   static auto* mu = new absl::Mutex;
   static int64_t next_sample = 0;
   absl::MutexLock l(mu);
-#endif  // ABSL_HAVE_THREAD_LOCAL
+#endif  // !ABSL_HAVE_THREAD_LOCAL
 
   if (ABSL_PREDICT_TRUE(--next_sample > 0)) {
     return HashtablezInfoHandle(nullptr);
@@ -179,6 +182,13 @@ class HashtablezSampler {
 
   // Unregisters the sample.
   void Unregister(HashtablezInfo* sample);
+
+  // The dispose callback will be called on all samples the moment they are
+  // being unregistered. Only affects samples that are unregistered after the
+  // callback has been set.
+  // Returns the previous callback.
+  using DisposeCallback = void (*)(const HashtablezInfo&);
+  DisposeCallback SetDisposeCallback(DisposeCallback f);
 
   // Iterates over all the registered `StackInfo`s.  Returning the number of
   // samples that have been dropped.
@@ -219,6 +229,8 @@ class HashtablezSampler {
   //
   std::atomic<HashtablezInfo*> all_;
   HashtablezInfo graveyard_;
+
+  std::atomic<DisposeCallback> dispose_;
 };
 
 // Enables or disables sampling for Swiss tables.
@@ -229,6 +241,13 @@ void SetHashtablezSampleParameter(int32_t rate);
 
 // Sets a soft max for the number of samples that will be kept.
 void SetHashtablezMaxSamples(int32_t max);
+
+// Configuration override.
+// This allows process-wide sampling without depending on order of
+// initialization of static storage duration objects.
+// The definition of this constant is weak, which allows us to inject a
+// different value for it at link time.
+extern "C" const bool kAbslContainerInternalSampleEverything;
 
 }  // namespace container_internal
 }  // namespace absl

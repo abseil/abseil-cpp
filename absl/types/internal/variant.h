@@ -1605,11 +1605,12 @@ struct VariantHashVisitor {
 template <typename Variant, typename... Ts>
 struct VariantHashBase<Variant,
                        absl::enable_if_t<absl::conjunction<
-                           type_traits_internal::IsHashEnabled<Ts>...>::value>,
+                           type_traits_internal::IsHashable<Ts>...>::value>,
                        Ts...> {
   using argument_type = Variant;
   using result_type = size_t;
   size_t operator()(const Variant& var) const {
+    type_traits_internal::AssertHashEnabled<Ts...>();
     if (var.valueless_by_exception()) {
       return 239799884;
     }

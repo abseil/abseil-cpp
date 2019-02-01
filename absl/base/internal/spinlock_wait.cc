@@ -65,17 +65,14 @@ int SpinLockSuggestedDelayNS(int loop) {
   r = 0x5deece66dLL * r + 0xb;   // numbers from nrand48()
   delay_rand.store(r, std::memory_order_relaxed);
 
-  r <<= 16;   // 48-bit random number now in top 48-bits.
   if (loop < 0 || loop > 32) {   // limit loop to 0..32
     loop = 32;
   }
-  // loop>>3 cannot exceed 4 because loop cannot exceed 32.
-  // Select top 20..24 bits of lower 48 bits,
-  // giving approximately 0ms to 16ms.
-  // Mean is exponential in loop for first 32 iterations, then 8ms.
-  // The futex path multiplies this by 16, since we expect explicit wakeups
-  // almost always on that path.
-  return static_cast<int>(r >> (44 - (loop >> 3)));
+  const int kMinDelay = 128 << 10;  // 128us
+  // Double delay every 8 iterations, up to 16x (2ms).
+  int delay = kMinDelay << (loop / 8);
+  // Randomize in delay..2*delay range, for resulting 128us..4ms range.
+  return delay | ((delay - 1) & static_cast<int>(r));
 }
 
 }  // namespace base_internal

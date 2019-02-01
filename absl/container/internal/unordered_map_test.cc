@@ -29,9 +29,9 @@ using MapTypes = ::testing::Types<
                        StatefulTestingEqual,
                        Alloc<std::pair<const std::string, std::string>>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, ConstructorTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, LookupTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, ModifiersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ConstructorTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ModifiersTest, MapTypes);
 
 }  // namespace
 }  // namespace container_internal

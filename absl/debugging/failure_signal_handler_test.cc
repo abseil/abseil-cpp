@@ -140,9 +140,9 @@ std::string SignalParamToString(const ::testing::TestParamInfo<int>& info) {
   return result;
 }
 
-INSTANTIATE_TEST_CASE_P(AbslDeathTest, FailureSignalHandlerDeathTest,
-                        ::testing::ValuesIn(kFailureSignals),
-                        SignalParamToString);
+INSTANTIATE_TEST_SUITE_P(AbslDeathTest, FailureSignalHandlerDeathTest,
+                         ::testing::ValuesIn(kFailureSignals),
+                         SignalParamToString);
 
 #endif  // GTEST_HAS_DEATH_TEST
 

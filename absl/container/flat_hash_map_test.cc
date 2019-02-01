@@ -40,9 +40,9 @@ using MapTypes =
                      Map<EnumClass, int>, Map<int, NonStandardLayout>,
                      Map<NonStandardLayout, int>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, ConstructorTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, LookupTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, ModifiersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {

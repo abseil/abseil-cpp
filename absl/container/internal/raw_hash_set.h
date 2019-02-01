@@ -105,6 +105,7 @@
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/port.h"
+#include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_policy_traits.h"
@@ -164,12 +165,6 @@ struct IsDecomposable<
         Policy::apply(RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
                       std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
-
-template <class, class = void>
-struct IsTransparent : std::false_type {};
-template <class T>
-struct IsTransparent<T, absl::void_t<typename T::is_transparent>>
-    : std::true_type {};
 
 // TODO(alkis): Switch to std::is_nothrow_swappable when gcc/clang supports it.
 template <class T>
@@ -485,6 +480,28 @@ inline size_t NormalizeCapacity(size_t n) {
              : (std::numeric_limits<size_t>::max)() >> LeadingZeros(n);
 }
 
+// We use 7/8th as maximum load factor.
+// For 16-wide groups, that gives an average of two empty slots per group.
+inline size_t CapacityToGrowth(size_t capacity) {
+  assert(IsValidCapacity(capacity));
+  // `capacity*7/8`
+  if (Group::kWidth == 8 && capacity == 7) {
+    // x-x/8 does not work when x==7.
+    return 6;
+  }
+  return capacity - capacity / 8;
+}
+// From desired "growth" to a lowerbound of the necessary capacity.
+// Might not be a valid one and required NormalizeCapacity().
+inline size_t GrowthToLowerboundCapacity(size_t growth) {
+  // `growth*8/7`
+  if (Group::kWidth == 8 && growth == 7) {
+    // x+(x-1)/7 does not work when x==7.
+    return 8;
+  }
+  return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
+}
+
 // The node_handle concept from C++17.
 // We specialize node_handle for sets and maps. node_handle_base holds the
 // common API of both.
@@ -605,24 +622,6 @@ struct insert_return_type {
   NodeType node;
 };
 
-// Helper trait to allow or disallow arbitrary keys when the hash and
-// eq functions are transparent.
-// It is very important that the inner template is an alias and that the type it
-// produces is not a dependent type. Otherwise, type deduction would fail.
-template <bool is_transparent>
-struct KeyArg {
-  // Transparent. Forward `K`.
-  template <typename K, typename key_type>
-  using type = K;
-};
-
-template <>
-struct KeyArg<false> {
-  // Not transparent. Always use `key_type`.
-  template <typename K, typename key_type>
-  using type = key_type;
-};
-
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -643,8 +642,8 @@ struct KeyArg<false> {
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set {
   using PolicyTraits = hash_policy_traits<Policy>;
-  using KeyArgImpl = container_internal::KeyArg<IsTransparent<Eq>::value &&
-                                                IsTransparent<Hash>::value>;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
  public:
   using init_type = typename PolicyTraits::init_type;
@@ -785,7 +784,11 @@ class raw_hash_set {
     }
 
     ctrl_t* ctrl_ = nullptr;
-    slot_type* slot_;
+    // To avoid uninitialized member warnigs, put slot_ in an anonymous union.
+    // The member is not initialized on singleton and end iterators.
+    union {
+      slot_type* slot_;
+    };
   };
 
   class const_iterator {
@@ -838,7 +841,7 @@ class raw_hash_set {
       : ctrl_(EmptyGroup()), settings_(0, hash, eq, alloc) {
     if (bucket_count) {
       capacity_ = NormalizeCapacity(bucket_count);
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
       initialize_slots();
     }
   }
@@ -1032,7 +1035,7 @@ class raw_hash_set {
   size_t capacity() const { return capacity_; }
   size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
 
-  void clear() {
+  ABSL_ATTRIBUTE_REINITIALIZES void clear() {
     // Iterating over this container is O(bucket_count()). When bucket_count()
     // is much greater than size(), iteration becomes prohibitively expensive.
     // For clear() it is more important to reuse the allocated array when the
@@ -1050,7 +1053,7 @@ class raw_hash_set {
       }
       size_ = 0;
       reset_ctrl();
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
     }
     assert(empty());
     infoz_.RecordStorageChanged(size_, capacity_);
@@ -1344,16 +1347,16 @@ class raw_hash_set {
       infoz_.RecordStorageChanged(size_, capacity_);
       return;
     }
-    auto m = NormalizeCapacity((std::max)(n, NumSlotsFast(size())));
+    // bitor is a faster way of doing `max` here. We will round up to the next
+    // power-of-2-minus-1, so bitor is good enough.
+    auto m = NormalizeCapacity(n | GrowthToLowerboundCapacity(size()));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
       resize(m);
     }
   }
 
-  void reserve(size_t n) {
-    rehash(NumSlotsFast(n));
-  }
+  void reserve(size_t n) { rehash(GrowthToLowerboundCapacity(n)); }
 
   // Extension API: support for heterogeneous keys.
   //
@@ -1531,13 +1534,6 @@ class raw_hash_set {
     slot_type&& slot;
   };
 
-  // Computes std::ceil(n / kMaxLoadFactor). Faster than calling std::ceil.
-  static inline size_t NumSlotsFast(size_t n) {
-    return static_cast<size_t>(
-        (n * kMaxLoadFactorDenominator + (kMaxLoadFactorNumerator - 1)) /
-        kMaxLoadFactorNumerator);
-  }
-
   // "erases" the object from the container, except that it doesn't actually
   // destroy the object. It only updates all the metadata of the class.
   // This can be used in conjunction with Policy::transfer to move the object to
@@ -1575,7 +1571,7 @@ class raw_hash_set {
     ctrl_ = reinterpret_cast<ctrl_t*>(layout.template Pointer<0>(mem));
     slots_ = layout.template Pointer<1>(mem);
     reset_ctrl();
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
     infoz_.RecordStorageChanged(size_, capacity_);
   }
 
@@ -1681,13 +1677,13 @@ class raw_hash_set {
         --i;  // repeat
       }
     }
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
   }
 
   void rehash_and_grow_if_necessary() {
     if (capacity_ == 0) {
       resize(Group::kWidth - 1);
-    } else if (size() <= kMaxLoadFactor / 2 * capacity_) {
+    } else if (size() <= CapacityToGrowth(capacity()) / 2) {
       // Squash DELETED without growing if there is enough capacity.
       drop_deletes_without_resize();
     } else {
@@ -1830,6 +1826,10 @@ class raw_hash_set {
     SanitizerPoisonMemoryRegion(slots_, sizeof(slot_type) * capacity_);
   }
 
+  void reset_growth_left() {
+    growth_left() = CapacityToGrowth(capacity()) - size_;
+  }
+
   // Sets the control byte, and if `i < Group::kWidth`, set the cloned byte at
   // the end too.
   void set_ctrl(size_t i, ctrl_t h) {
@@ -1855,12 +1855,6 @@ class raw_hash_set {
   const allocator_type& alloc_ref() const {
     return settings_.template get<3>();
   }
-
-  // On average each group has 2 empty slot (for the vectorized case).
-  static constexpr int64_t kMaxLoadFactorNumerator = 14;
-  static constexpr int64_t kMaxLoadFactorDenominator = 16;
-  static constexpr float kMaxLoadFactor =
-      1.0 * kMaxLoadFactorNumerator / kMaxLoadFactorDenominator;
 
   // TODO(alkis): Investigate removing some of these fields:
   // - ctrl/slots can be derived from each other
@@ -1922,10 +1916,9 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
   }
 
   static size_t LowerBoundAllocatedByteSize(size_t size) {
-    size_t capacity = container_internal::NormalizeCapacity(
-        std::ceil(size / Set::kMaxLoadFactor));
+    size_t capacity = GrowthToLowerboundCapacity(size);
     if (capacity == 0) return 0;
-    auto layout = Set::MakeLayout(capacity);
+    auto layout = Set::MakeLayout(NormalizeCapacity(capacity));
     size_t m = layout.AllocSize();
     size_t per_slot = Traits::space_used(static_cast<const Slot*>(nullptr));
     if (per_slot != ~size_t{}) {

@@ -26,7 +26,7 @@ namespace container_internal {
 template <class UnordSet>
 class ModifiersTest : public ::testing::Test {};
 
-TYPED_TEST_CASE_P(ModifiersTest);
+TYPED_TEST_SUITE_P(ModifiersTest);
 
 TYPED_TEST_P(ModifiersTest, Clear) {
   using T = hash_internal::GeneratedType<TypeParam>;

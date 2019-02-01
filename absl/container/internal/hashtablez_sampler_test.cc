@@ -302,6 +302,31 @@ TEST(HashtablezSamplerTest, MultiThreaded) {
   stop.Notify();
 }
 
+TEST(HashtablezSamplerTest, Callback) {
+  HashtablezSampler sampler;
+
+  auto* info1 = Register(&sampler, 1);
+  auto* info2 = Register(&sampler, 2);
+
+  static const HashtablezInfo* expected;
+
+  auto callback = [](const HashtablezInfo& info) {
+    // We can't use `info` outside of this callback because the object will be
+    // disposed as soon as we return from here.
+    EXPECT_EQ(&info, expected);
+  };
+
+  // Set the callback.
+  EXPECT_EQ(sampler.SetDisposeCallback(callback), nullptr);
+  expected = info1;
+  sampler.Unregister(info1);
+
+  // Unset the callback.
+  EXPECT_EQ(callback, sampler.SetDisposeCallback(nullptr));
+  expected = nullptr;  // no more calls.
+  sampler.Unregister(info2);
+}
+
 }  // namespace
 }  // namespace container_internal
 }  // namespace absl

@@ -77,14 +77,14 @@ struct EqString : ::testing::Test {
   hash_default_eq<T> key_eq;
 };
 
-TYPED_TEST_CASE(EqString, StringTypes);
+TYPED_TEST_SUITE(EqString, StringTypes);
 
 template <class T>
 struct HashString : ::testing::Test {
   hash_default_hash<T> hasher;
 };
 
-TYPED_TEST_CASE(HashString, StringTypes);
+TYPED_TEST_SUITE(HashString, StringTypes);
 
 TYPED_TEST(EqString, Works) {
   auto eq = this->key_eq;
@@ -121,14 +121,14 @@ struct EqPointer : ::testing::Test {
   hash_default_eq<T> key_eq;
 };
 
-TYPED_TEST_CASE(EqPointer, PointerTypes);
+TYPED_TEST_SUITE(EqPointer, PointerTypes);
 
 template <class T>
 struct HashPointer : ::testing::Test {
   hash_default_hash<T> hasher;
 };
 
-TYPED_TEST_CASE(HashPointer, PointerTypes);
+TYPED_TEST_SUITE(HashPointer, PointerTypes);
 
 TYPED_TEST(EqPointer, Works) {
   int dummy;
@@ -248,7 +248,7 @@ TYPED_TEST_P(StringLikeTest, HashEq) {
   EXPECT_NE(this->hash(this->a1), this->hash(this->b2));
 }
 
-TYPED_TEST_CASE(StringLikeTest, StringTypesCartesianProduct);
+TYPED_TEST_SUITE(StringLikeTest, StringTypesCartesianProduct);
 
 }  // namespace
 }  // namespace container_internal

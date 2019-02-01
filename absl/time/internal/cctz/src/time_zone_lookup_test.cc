@@ -337,6 +337,7 @@ const char* const kTimeZoneNames[] = {
   "Asia/Pontianak",
   "Asia/Pyongyang",
   "Asia/Qatar",
+  "Asia/Qostanay",
   "Asia/Qyzylorda",
   "Asia/Rangoon",
   "Asia/Riyadh",
@@ -666,6 +667,7 @@ int VersionCmp(time_zone tz, const std::string& target) {
 
 }  // namespace
 
+#if !defined(__EMSCRIPTEN__)
 TEST(TimeZones, LoadZonesConcurrently) {
   std::promise<void> ready_promise;
   std::shared_future<void> ready_future(ready_promise.get_future());
@@ -713,6 +715,7 @@ TEST(TimeZones, LoadZonesConcurrently) {
   }
   EXPECT_LE(failures.size(), max_failures) << testing::PrintToString(failures);
 }
+#endif
 
 TEST(TimeZone, NamedTimeZones) {
   const time_zone utc = utc_time_zone();
@@ -1018,7 +1021,7 @@ TEST(MakeTime, LocalTimeLibC) {
   //  1) we know how to change the time zone used by localtime()/mktime(),
   //  2) cctz and localtime()/mktime() will use similar-enough tzdata, and
   //  3) we have some idea about how mktime() behaves during transitions.
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
   const char* const ep = getenv("TZ");
   std::string tz_name = (ep != nullptr) ? ep : "";
   for (const char* const* np = kTimeZoneNames; *np != nullptr; ++np) {

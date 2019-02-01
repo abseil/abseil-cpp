@@ -34,9 +34,9 @@ using SetTypes = ::testing::Types<
     node_hash_set<EnumClass, StatefulTestingHash, StatefulTestingEqual,
                   Alloc<EnumClass>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, ConstructorTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, LookupTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, ModifiersTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, ConstructorTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, LookupTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, ModifiersTest, SetTypes);
 
 TEST(NodeHashSet, MoveableNotCopyableCompiles) {
   node_hash_set<std::unique_ptr<void*>> t;

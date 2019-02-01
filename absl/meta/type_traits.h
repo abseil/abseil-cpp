@@ -413,21 +413,73 @@ template <typename T>
 using result_of_t = typename std::result_of<T>::type;
 
 namespace type_traits_internal {
+// In MSVC we can't probe std::hash or stdext::hash because it triggers a
+// static_assert instead of failing substitution. Libc++ prior to 4.0
+// also used a static_assert.
+//
+#if defined(_MSC_VER) || (defined(_LIBCPP_VERSION) && \
+                          _LIBCPP_VERSION < 4000 && _LIBCPP_STD_VER > 11)
+#define ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_ 0
+#else
+#define ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_ 1
+#endif
+
+#if !ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 template <typename Key, typename = size_t>
+struct IsHashable : std::true_type {};
+#else   // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
+template <typename Key, typename = void>
 struct IsHashable : std::false_type {};
 
 template <typename Key>
-struct IsHashable<Key,
-                  decltype(std::declval<std::hash<Key>>()(std::declval<Key>()))>
-    : std::true_type {};
+struct IsHashable<
+    Key,
+    absl::enable_if_t<std::is_convertible<
+        decltype(std::declval<std::hash<Key>&>()(std::declval<Key const&>())),
+        std::size_t>::value>> : std::true_type {};
+#endif  // !ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
-template <typename Key>
-struct IsHashEnabled
-    : absl::conjunction<std::is_default_constructible<std::hash<Key>>,
-                        std::is_copy_constructible<std::hash<Key>>,
-                        std::is_destructible<std::hash<Key>>,
-                        absl::is_copy_assignable<std::hash<Key>>,
-                        IsHashable<Key>> {};
+struct AssertHashEnabledHelper {
+ private:
+  static void Sink(...) {}
+  struct NAT {};
+
+  template <class Key>
+  static auto GetReturnType(int)
+      -> decltype(std::declval<std::hash<Key>>()(std::declval<Key const&>()));
+  template <class Key>
+  static NAT GetReturnType(...);
+
+  template <class Key>
+  static std::nullptr_t DoIt() {
+    static_assert(IsHashable<Key>::value,
+                  "std::hash<Key> does not provide a call operator");
+    static_assert(
+        std::is_default_constructible<std::hash<Key>>::value,
+        "std::hash<Key> must be default constructible when it is enabled");
+    static_assert(
+        std::is_copy_constructible<std::hash<Key>>::value,
+        "std::hash<Key> must be copy constructible when it is enabled");
+    static_assert(absl::is_copy_assignable<std::hash<Key>>::value,
+                  "std::hash<Key> must be copy assignable when it is enabled");
+    // is_destructible is unchecked as it's implied by each of the
+    // is_constructible checks.
+    using ReturnType = decltype(GetReturnType<Key>(0));
+    static_assert(std::is_same<ReturnType, NAT>::value ||
+                      std::is_same<ReturnType, size_t>::value,
+                  "std::hash<Key> must return size_t");
+    return nullptr;
+  }
+
+  template <class... Ts>
+  friend void AssertHashEnabled();
+};
+
+template <class... Ts>
+inline void AssertHashEnabled() {
+  using Helper = AssertHashEnabledHelper;
+  Helper::Sink(Helper::DoIt<Ts>()...);
+}
 
 }  // namespace type_traits_internal
 

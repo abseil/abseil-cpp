@@ -12,27 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdint>
+#include "absl/container/internal/hashtablez_sampler.h"
 
-#include "absl/base/internal/raw_logging.h"
+#include "absl/base/attributes.h"
 
 namespace absl {
+namespace container_internal {
 
-namespace debugging_internal {
+// See hashtablez_sampler.h for details.
+extern "C" ABSL_ATTRIBUTE_WEAK const bool
+    kAbslContainerInternalSampleEverything = false;
 
-int InstallSymbolDecorator(SymbolDecorator, void*) { return -1; }
-bool RemoveSymbolDecorator(int) { return false; }
-bool RemoveAllSymbolDecorators(void) { return false; }
-bool RegisterFileMappingHint(const void *, const void *, uint64_t, const char *) {
-  return false;
-}
-bool GetFileMappingHint(const void **, const void **, uint64_t *, const char **) {
-  return false;
-}
-
-}  // namespace debugging_internal
-
-void InitializeSymbolizer(const char*) {}
-bool Symbolize(const void *, char *, int) { return false; }
-
+}  // namespace container_internal
 }  // namespace absl

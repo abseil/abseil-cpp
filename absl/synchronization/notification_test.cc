@@ -72,12 +72,16 @@ static void BasicTests(bool notify_before_waiting, Notification* notification) {
   EXPECT_FALSE(notification->WaitForNotificationWithDeadline(absl::Now()));
 
   const absl::Duration delay = absl::Milliseconds(50);
+  const absl::Time start = absl::Now();
+  EXPECT_FALSE(notification->WaitForNotificationWithTimeout(delay));
+  const absl::Duration elapsed = absl::Now() - start;
+
   // Allow for a slight early return, to account for quality of implementation
   // issues on various platforms.
   const absl::Duration slop = absl::Microseconds(200);
-  absl::Time start = absl::Now();
-  EXPECT_FALSE(notification->WaitForNotificationWithTimeout(delay));
-  EXPECT_LE(start + delay, absl::Now() + slop);
+  EXPECT_LE(delay - slop, elapsed)
+      << "WaitForNotificationWithTimeout returned " << delay - elapsed
+      << " early (with " << slop << " slop), start time was " << start;
 
   ThreadSafeCounter ready_counter;
   ThreadSafeCounter done_counter;

@@ -246,6 +246,8 @@ TEST_F(ConsumeUnboundConversionTest, WidthAndPrecision) {
 
   EXPECT_FALSE(Run("1000000000.999999999d"));
   EXPECT_FALSE(Run("999999999.1000000000d"));
+  EXPECT_FALSE(Run("9999999999d"));
+  EXPECT_FALSE(Run(".9999999999d"));
 }
 
 TEST_F(ConsumeUnboundConversionTest, Flags) {

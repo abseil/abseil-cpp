@@ -22,6 +22,7 @@
 
 #include "absl/base/internal/cycleclock.h"
 
+#include <atomic>
 #include <chrono>  // NOLINT(build/c++11)
 
 #include "absl/base/internal/unscaledcycleclock.h"
@@ -52,15 +53,24 @@ static constexpr int32_t kShift = 2;
 #endif
 
 static constexpr double kFrequencyScale = 1.0 / (1 << kShift);
+static std::atomic<CycleClockSourceFunc> cycle_clock_source;
 
 }  // namespace
 
 int64_t CycleClock::Now() {
-  return base_internal::UnscaledCycleClock::Now() >> kShift;
+  auto fn = cycle_clock_source.load(std::memory_order_relaxed);
+  if (fn == nullptr) {
+    return base_internal::UnscaledCycleClock::Now() >> kShift;
+  }
+  return fn() >> kShift;
 }
 
 double CycleClock::Frequency() {
   return kFrequencyScale * base_internal::UnscaledCycleClock::Frequency();
+}
+
+void CycleClockSource::Register(CycleClockSourceFunc source) {
+  cycle_clock_source.store(source, std::memory_order_relaxed);
 }
 
 #else

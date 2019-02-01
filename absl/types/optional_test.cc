@@ -1504,18 +1504,19 @@ TEST(optionalTest, Hash) {
 
   static_assert(is_hash_enabled_for<absl::optional<int>>::value, "");
   static_assert(is_hash_enabled_for<absl::optional<Hashable>>::value, "");
+  static_assert(
+      absl::type_traits_internal::IsHashable<absl::optional<int>>::value, "");
+  static_assert(
+      absl::type_traits_internal::IsHashable<absl::optional<Hashable>>::value,
+      "");
+  absl::type_traits_internal::AssertHashEnabled<absl::optional<int>>();
+  absl::type_traits_internal::AssertHashEnabled<absl::optional<Hashable>>();
 
-#if defined(_MSC_VER) || (defined(_LIBCPP_VERSION) && \
-                          _LIBCPP_VERSION < 4000 && _LIBCPP_STD_VER > 11)
-  // For MSVC and libc++ (< 4.0 and c++14), std::hash primary template has a
-  // static_assert to catch any user-defined type that doesn't provide a hash
-  // specialization. So instantiating std::hash<absl::optional<T>> will result
-  // in a hard error which is not SFINAE friendly.
-#define ABSL_STD_HASH_NOT_SFINAE_FRIENDLY 1
-#endif
-
-#ifndef ABSL_STD_HASH_NOT_SFINAE_FRIENDLY
+#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   static_assert(!is_hash_enabled_for<absl::optional<NonHashable>>::value, "");
+  static_assert(!absl::type_traits_internal::IsHashable<
+                    absl::optional<NonHashable>>::value,
+                "");
 #endif
 
   // libstdc++ std::optional is missing remove_const_t, i.e. it's using

@@ -123,12 +123,21 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "counting_allocator",
+    testonly = 1,
+    hdrs = ["internal/counting_allocator.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    visibility = ["//visibility:private"],
+)
+
 cc_test(
     name = "inlined_vector_test",
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
     deps = [
+        ":counting_allocator",
         ":inlined_vector",
         ":test_instance_tracker",
         "//absl/base",
@@ -146,6 +155,7 @@ cc_test(
     srcs = ["inlined_vector_test.cc"],
     copts = ABSL_TEST_COPTS,
     deps = [
+        ":counting_allocator",
         ":inlined_vector",
         ":test_instance_tracker",
         "//absl/base",
@@ -437,12 +447,25 @@ cc_library(
 )
 
 cc_library(
+    name = "hashtablez_force_sampling",
+    srcs = ["internal/hashtablez_force_sampling.cc"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":hashtablez_sampler",
+    ],
+)
+
+cc_library(
     name = "hashtablez_sampler",
-    srcs = ["internal/hashtablez_sampler.cc"],
+    srcs = [
+        "internal/hashtablez_sampler.cc",
+        "internal/hashtablez_sampler_force_weak_definition.cc",
+    ],
     hdrs = ["internal/hashtablez_sampler.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
         ":have_sse",
+        "//absl/base",
         "//absl/base:core_headers",
         "//absl/debugging:stacktrace",
         "//absl/memory",
@@ -461,6 +484,20 @@ cc_test(
         "//absl/synchronization",
         "//absl/synchronization:thread_pool",
         "//absl/time",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "hashtablez_force_sampling_test",
+    srcs = ["internal/hashtablez_force_sampling_test.cc"],
+    tags = [
+        "no_test_darwin_x86_64",
+        "no_test_msvc_x64",
+    ],
+    deps = [
+        ":hashtablez_force_sampling",
+        ":hashtablez_sampler",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -500,11 +537,21 @@ cc_library(
 )
 
 cc_library(
+    name = "common",
+    hdrs = ["internal/common.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_library(
     name = "raw_hash_set",
     srcs = ["internal/raw_hash_set.cc"],
     hdrs = ["internal/raw_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        ":common",
         ":compressed_tuple",
         ":container_memory",
         ":hash_policy_traits",

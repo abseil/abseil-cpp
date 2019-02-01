@@ -152,12 +152,16 @@ TEST_F(PerThreadSemTest, WithTimeout) {
 }
 
 TEST_F(PerThreadSemTest, Timeouts) {
-  absl::Time timeout = absl::Now() + absl::Milliseconds(50);
+  const absl::Duration delay = absl::Milliseconds(50);
+  const absl::Time start = absl::Now();
+  EXPECT_FALSE(Wait(start + delay));
+  const absl::Duration elapsed = absl::Now() - start;
   // Allow for a slight early return, to account for quality of implementation
   // issues on various platforms.
   const absl::Duration slop = absl::Microseconds(200);
-  EXPECT_FALSE(Wait(timeout));
-  EXPECT_LE(timeout, absl::Now() + slop);
+  EXPECT_LE(delay - slop, elapsed)
+      << "Wait returned " << delay - elapsed
+      << " early (with " << slop << " slop), start time was " << start;
 
   absl::Time negative_timeout = absl::UnixEpoch() - absl::Milliseconds(100);
   EXPECT_FALSE(Wait(negative_timeout));
