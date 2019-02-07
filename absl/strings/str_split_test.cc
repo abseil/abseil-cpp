@@ -647,6 +647,11 @@ TEST(Split, StringDelimiter) {
   }
 }
 
+#if !defined(__cpp_char8_t)
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc++2a-compat"
+#endif
 TEST(Split, UTF8) {
   // Tests splitting utf8 strings and utf8 delimiters.
   std::string utf8_string = u8"\u03BA\u1F79\u03C3\u03BC\u03B5";
@@ -673,6 +678,10 @@ TEST(Split, UTF8) {
     EXPECT_THAT(v, ElementsAre("Foo", u8"h\u00E4llo", u8"th\u4E1Ere"));
   }
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+#endif  // !defined(__cpp_char8_t)
 
 TEST(Split, EmptyStringDelimiter) {
   {

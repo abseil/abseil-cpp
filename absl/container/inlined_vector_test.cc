@@ -1762,4 +1762,23 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
   }
 }
 
+TEST(InlinedVectorTest, AbslHashValueWorks) {
+  using V = absl::InlinedVector<int, 4>;
+  std::vector<V> cases;
+
+  // Generate a variety of vectors some of these are small enough for the inline
+  // space but are stored out of line.
+  for (int i = 0; i < 10; ++i) {
+    V v;
+    for (int j = 0; j < i; ++j) {
+      v.push_back(j);
+    }
+    cases.push_back(v);
+    v.resize(i % 4);
+    cases.push_back(v);
+  }
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(cases));
+}
+
 }  // anonymous namespace

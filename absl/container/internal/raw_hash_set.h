@@ -115,7 +115,6 @@
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
-#include "absl/types/optional.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
@@ -502,126 +501,6 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
   return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
 }
 
-// The node_handle concept from C++17.
-// We specialize node_handle for sets and maps. node_handle_base holds the
-// common API of both.
-template <typename Policy, typename Alloc>
-class node_handle_base {
- protected:
-  using PolicyTraits = hash_policy_traits<Policy>;
-  using slot_type = typename PolicyTraits::slot_type;
-
- public:
-  using allocator_type = Alloc;
-
-  constexpr node_handle_base() {}
-  node_handle_base(node_handle_base&& other) noexcept {
-    *this = std::move(other);
-  }
-  ~node_handle_base() { destroy(); }
-  node_handle_base& operator=(node_handle_base&& other) {
-    destroy();
-    if (!other.empty()) {
-      alloc_ = other.alloc_;
-      PolicyTraits::transfer(alloc(), slot(), other.slot());
-      other.reset();
-    }
-    return *this;
-  }
-
-  bool empty() const noexcept { return !alloc_; }
-  explicit operator bool() const noexcept { return !empty(); }
-  allocator_type get_allocator() const { return *alloc_; }
-
- protected:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle_base(const allocator_type& a, slot_type* s) : alloc_(a) {
-    PolicyTraits::transfer(alloc(), slot(), s);
-  }
-
-  void destroy() {
-    if (!empty()) {
-      PolicyTraits::destroy(alloc(), slot());
-      reset();
-    }
-  }
-
-  void reset() {
-    assert(alloc_.has_value());
-    alloc_ = absl::nullopt;
-  }
-
-  slot_type* slot() const {
-    assert(!empty());
-    return reinterpret_cast<slot_type*>(std::addressof(slot_space_));
-  }
-  allocator_type* alloc() { return std::addressof(*alloc_); }
-
- private:
-  absl::optional<allocator_type> alloc_;
-  mutable absl::aligned_storage_t<sizeof(slot_type), alignof(slot_type)>
-      slot_space_;
-};
-
-// For sets.
-template <typename Policy, typename Alloc, typename = void>
-class node_handle : public node_handle_base<Policy, Alloc> {
-  using Base = typename node_handle::node_handle_base;
-
- public:
-  using value_type = typename Base::PolicyTraits::value_type;
-
-  constexpr node_handle() {}
-
-  value_type& value() const {
-    return Base::PolicyTraits::element(this->slot());
-  }
-
- private:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
-};
-
-// For maps.
-template <typename Policy, typename Alloc>
-class node_handle<Policy, Alloc, absl::void_t<typename Policy::mapped_type>>
-    : public node_handle_base<Policy, Alloc> {
-  using Base = typename node_handle::node_handle_base;
-
- public:
-  using key_type = typename Policy::key_type;
-  using mapped_type = typename Policy::mapped_type;
-
-  constexpr node_handle() {}
-
-  auto key() const -> decltype(Base::PolicyTraits::key(this->slot())) {
-    return Base::PolicyTraits::key(this->slot());
-  }
-
-  mapped_type& mapped() const {
-    return Base::PolicyTraits::value(
-        &Base::PolicyTraits::element(this->slot()));
-  }
-
- private:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
-};
-
-// Implement the insert_return_type<> concept of C++17.
-template <class Iterator, class NodeType>
-struct insert_return_type {
-  Iterator position;
-  bool inserted;
-  NodeType node;
-};
-
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -828,7 +707,8 @@ class raw_hash_set {
     iterator inner_;
   };
 
-  using node_type = container_internal::node_handle<Policy, Alloc>;
+  using node_type = node_handle<Policy, hash_policy_traits<Policy>, Alloc>;
+  using insert_return_type = InsertReturnType<iterator, node_type>;
 
   raw_hash_set() noexcept(
       std::is_nothrow_default_constructible<hasher>::value&&
@@ -1136,13 +1016,14 @@ class raw_hash_set {
     insert(ilist.begin(), ilist.end());
   }
 
-  insert_return_type<iterator, node_type> insert(node_type&& node) {
+  insert_return_type insert(node_type&& node) {
     if (!node) return {end(), false, node_type()};
-    const auto& elem = PolicyTraits::element(node.slot());
+    const auto& elem = PolicyTraits::element(CommonAccess::GetSlot(node));
     auto res = PolicyTraits::apply(
-        InsertSlot<false>{*this, std::move(*node.slot())}, elem);
+        InsertSlot<false>{*this, std::move(*CommonAccess::GetSlot(node))},
+        elem);
     if (res.second) {
-      node.reset();
+      CommonAccess::Reset(&node);
       return {res.first, true, node_type()};
     } else {
       return {res.first, false, std::move(node)};
@@ -1306,7 +1187,8 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
-    node_type node(alloc_ref(), position.inner_.slot_);
+    auto node =
+        CommonAccess::Make<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
     return node;
   }

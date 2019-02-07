@@ -392,16 +392,20 @@ TEST(Symbolize, ForEachSection) {
 extern "C" {
 inline void *ABSL_ATTRIBUTE_ALWAYS_INLINE inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }
 
 void *ABSL_ATTRIBUTE_NOINLINE non_inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }

@@ -287,6 +287,17 @@
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI
 #endif
 
+// ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK
+//
+// Tells the SafeStack to not instrument a given function.
+// See https://clang.llvm.org/docs/SafeStack.html for details.
+#if defined(__GNUC__) && defined(SAFESTACK_SANITIZER)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK \
+  __attribute__((no_sanitize("safe-stack")))
+#else
+#define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK
+#endif
+
 // ABSL_ATTRIBUTE_RETURNS_NONNULL
 //
 // Tells the compiler that a particular function never returns a null pointer.

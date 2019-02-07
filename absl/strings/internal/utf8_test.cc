@@ -22,6 +22,11 @@
 
 namespace {
 
+#if !defined(__cpp_char8_t)
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc++2a-compat"
+#endif
 TEST(EncodeUTF8Char, BasicFunction) {
   std::pair<char32_t, std::string> tests[] = {{0x0030, u8"\u0030"},
                                          {0x00A3, u8"\u00A3"},
@@ -53,5 +58,9 @@ TEST(EncodeUTF8Char, BasicFunction) {
   EXPECT_LE(absl::strings_internal::EncodeUTF8Char(buf2, -1),
             absl::strings_internal::kMaxEncodedUTF8Size);
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+#endif  // !defined(__cpp_char8_t)
 
 }  // namespace

@@ -295,7 +295,7 @@ class optional_data<T, false> : public optional_data_base<T> {
 
   optional_data() = default;
 
-  optional_data(const optional_data& rhs) {
+  optional_data(const optional_data& rhs) : optional_data_base<T>() {
     if (rhs.engaged_) {
       this->construct(rhs.data_);
     }
@@ -303,7 +303,8 @@ class optional_data<T, false> : public optional_data_base<T> {
 
   optional_data(optional_data&& rhs) noexcept(
       absl::default_allocator_is_nothrow::value ||
-      std::is_nothrow_move_constructible<T>::value) {
+      std::is_nothrow_move_constructible<T>::value)
+      : optional_data_base<T>() {
     if (rhs.engaged_) {
       this->construct(std::move(rhs.data_));
     }

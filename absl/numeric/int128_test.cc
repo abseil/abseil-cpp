@@ -440,4 +440,29 @@ TEST(Uint128, NumericLimitsTest) {
   EXPECT_EQ(absl::Uint128Max(), std::numeric_limits<absl::uint128>::max());
 }
 
+TEST(Uint128, Hash) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      // Some simple values
+      absl::uint128{0},
+      absl::uint128{1},
+      ~absl::uint128{},
+      // 64 bit limits
+      absl::uint128{std::numeric_limits<int64_t>::max()},
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 0,
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 1,
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 2,
+      // Keeping high same
+      absl::uint128{1} << 62,
+      absl::uint128{1} << 63,
+      // Keeping low same
+      absl::uint128{1} << 64,
+      absl::uint128{1} << 65,
+      // 128 bit limits
+      std::numeric_limits<absl::uint128>::max(),
+      std::numeric_limits<absl::uint128>::max() - 1,
+      std::numeric_limits<absl::uint128>::min() + 1,
+      std::numeric_limits<absl::uint128>::min(),
+  }));
+}
+
 }  // namespace

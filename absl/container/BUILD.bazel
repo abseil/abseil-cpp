@@ -542,6 +542,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     deps = [
         "//absl/meta:type_traits",
+        "//absl/types:optional",
     ],
 )
 
@@ -565,7 +566,6 @@ cc_library(
         "//absl/base:endian",
         "//absl/memory",
         "//absl/meta:type_traits",
-        "//absl/types:optional",
         "//absl/utility",
     ],
 )

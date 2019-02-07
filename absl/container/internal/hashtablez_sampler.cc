@@ -254,7 +254,7 @@ HashtablezInfo* SampleSlow(int64_t* next_sample) {
 }
 
 #if ABSL_PER_THREAD_TLS == 1
-ABSL_PER_THREAD_TLS_KEYWORD int64_t next_sample = 0;
+ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample = 0;
 #endif  // ABSL_PER_THREAD_TLS == 1
 
 void UnsampleSlow(HashtablezInfo* info) {

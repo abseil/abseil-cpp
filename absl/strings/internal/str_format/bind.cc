@@ -53,7 +53,8 @@ inline bool ArgContext::Bind(const UnboundConversion* unbound,
         // "A negative field width is taken as a '-' flag followed by a
         // positive field width."
         force_left = true;
-        width = -width;
+        // Make sure we don't overflow the width when negating it.
+        width = -std::max(width, -std::numeric_limits<int>::max());
       }
     }
 

@@ -779,4 +779,19 @@ TEST(Span, SpanSize) {
   EXPECT_LE(sizeof(absl::Span<BigStruct>), 2 * sizeof(void*));
 }
 
+TEST(Span, Hash) {
+  int array[] = {1, 2, 3, 4};
+  int array2[] = {1, 2, 3};
+  using T = absl::Span<const int>;
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      {// Empties
+       T(), T(nullptr, 0), T(array, 0), T(array2, 0),
+       // Different array with same value
+       T(array, 3), T(array2), T({1, 2, 3}),
+       // Same array, but different length
+       T(array, 1), T(array, 2),
+       // Same length, but different array
+       T(array + 1, 2), T(array + 2, 2)}));
+}
+
 }  // namespace

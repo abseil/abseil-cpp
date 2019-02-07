@@ -1,6 +1,7 @@
 #include "absl/strings/internal/str_format/bind.h"
 
 #include <string.h>
+#include <limits>
 
 #include "gtest/gtest.h"
 
@@ -89,6 +90,20 @@ TEST_F(FormatBindTest, BindSingle) {
     EXPECT_EQ(e.width, bound.width());
     EXPECT_EQ(e.precision, bound.precision());
   }
+}
+
+TEST_F(FormatBindTest, WidthUnderflowRegression) {
+  UnboundConversion props;
+  BoundConversion bound;
+  int next = 0;
+  const int args_i[] = {std::numeric_limits<int>::min(), 17};
+  const FormatArgImpl args[] = {FormatArgImpl(args_i[0]),
+                                FormatArgImpl(args_i[1])};
+  ASSERT_TRUE(Extract("*d", &props, &next));
+  ASSERT_TRUE(BindWithPack(&props, args, &bound));
+
+  EXPECT_EQ(bound.width(), std::numeric_limits<int>::max());
+  EXPECT_EQ(bound.arg(), args + 1);
 }
 
 TEST_F(FormatBindTest, FormatPack) {

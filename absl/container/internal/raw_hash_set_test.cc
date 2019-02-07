@@ -1706,7 +1706,7 @@ TEST(Nodes, ExtractInsert) {
   EXPECT_FALSE(node.empty());
 
   StringTable t2;
-  auto res = t2.insert(std::move(node));
+  StringTable::insert_return_type res = t2.insert(std::move(node));
   EXPECT_TRUE(res.inserted);
   EXPECT_THAT(*res.position, Pair(k0, ""));
   EXPECT_FALSE(res.node);
