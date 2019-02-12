@@ -15,6 +15,7 @@
 #ifndef ABSL_CONTAINER_INTERNAL_CONTAINER_H_
 #define ABSL_CONTAINER_INTERNAL_CONTAINER_H_
 
+#include <cassert>
 #include <type_traits>
 
 #include "absl/meta/type_traits.h"

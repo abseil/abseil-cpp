@@ -96,9 +96,9 @@ namespace absl {
 //     absl::string_view Find(absl::string_view text, size_t pos) {
 //       auto found = text.find(c_, pos);
 //       if (found == absl::string_view::npos)
-//         return absl::string_view(text.end(), 0);
+//         return text.substr(text.size());
 //
-//       return absl::string_view(text, found, 1);
+//       return text.substr(found, 1);
 //     }
 //   };
 
