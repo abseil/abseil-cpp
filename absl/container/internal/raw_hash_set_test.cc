@@ -34,6 +34,11 @@
 #include "absl/container/internal/hashtable_debug.h"
 #include "absl/strings/string_view.h"
 
+#ifdef _WIN32
+    #undef min
+    #undef max
+#endif
+
 namespace absl {
 namespace container_internal {
 

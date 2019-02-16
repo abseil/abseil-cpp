@@ -158,6 +158,10 @@ TEST(HashtablezSamplerTest, SmallSampleParameter) {
   }
 }
 
+#ifdef _WIN32
+#undef max
+#endif
+
 TEST(HashtablezSamplerTest, LargeSampleParameter) {
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(std::numeric_limits<int32_t>::max());

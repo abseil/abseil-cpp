@@ -32,6 +32,10 @@
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
 
+#ifdef _WIN32
+    #undef max
+#endif
+
 constexpr int32_t kNumThreads = 10;
 constexpr int32_t kIters = 1000;
 

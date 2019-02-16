@@ -262,6 +262,74 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    parallel_flat_hash_map
+  HDRS
+    "parallel_flat_hash_map.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::raw_hash_map
+    absl::algorithm_container
+    absl::memory
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    parallel_flat_hash_map_test
+  SRCS
+    "parallel_flat_hash_map_test.cc"
+  COPTS
+    "-DUNORDERED_MAP_CXX17"
+  DEPS
+    absl::parallel_flat_hash_map
+    absl::hash_generator_testing
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    absl::any
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
+    parallel_flat_hash_set
+  HDRS
+    "parallel_flat_hash_set.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::container_memory
+    absl::hash_function_defaults
+    absl::raw_hash_set
+    absl::algorithm_container
+    absl::core_headers
+    absl::memory
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    parallel_flat_hash_set_test
+  SRCS
+    "parallel_flat_hash_set_test.cc"
+  COPTS
+    "-DUNORDERED_SET_CXX17"
+  DEPS
+    absl::parallel_flat_hash_set
+    absl::hash_generator_testing
+    absl::unordered_set_constructor_test
+    absl::unordered_set_lookup_test
+    absl::unordered_set_modifiers_test
+    absl::memory
+    absl::strings
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     node_hash_map
   HDRS
     "node_hash_map.h"

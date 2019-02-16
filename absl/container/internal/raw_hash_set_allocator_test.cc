@@ -19,6 +19,10 @@
 #include "absl/container/internal/raw_hash_set.h"
 #include "absl/container/internal/tracked.h"
 
+#ifdef _WIN32
+    #undef max
+#endif
+
 namespace absl {
 namespace container_internal {
 namespace {
