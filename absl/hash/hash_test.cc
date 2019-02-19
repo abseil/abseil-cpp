@@ -135,6 +135,36 @@ TEST(HashValueTest, Pointer) {
       std::make_tuple(&i, ptr, nullptr, ptr + 1, n)));
 }
 
+TEST(HashValueTest, PointerAlignment) {
+  // We want to make sure that pointer alignment will not cause bits to be
+  // stuck.
+
+  constexpr size_t kTotalSize = 1 << 20;
+  std::unique_ptr<char[]> data(new char[kTotalSize]);
+  constexpr size_t kLog2NumValues = 5;
+  constexpr size_t kNumValues = 1 << kLog2NumValues;
+
+  for (size_t align = 1; align < kTotalSize / kNumValues;
+       align < 8 ? align += 1 : align < 1024 ? align += 8 : align += 32) {
+    SCOPED_TRACE(align);
+    ASSERT_LE(align * kNumValues, kTotalSize);
+
+    size_t bits_or = 0;
+    size_t bits_and = ~size_t{};
+
+    for (size_t i = 0; i < kNumValues; ++i) {
+      size_t hash = absl::Hash<void*>()(data.get() + i * align);
+      bits_or |= hash;
+      bits_and &= hash;
+    }
+
+    // Limit the scope to the bits we would be using for Swisstable.
+    constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
+    size_t stuck_bits = (~bits_or | bits_and) & kMask;
+    EXPECT_EQ(stuck_bits, 0) << "0x" << std::hex << stuck_bits;
+  }
+}
+
 // TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
 // SFINAE in internal/hash.h, causing this test to fail.
 #if !defined(_MSC_VER)

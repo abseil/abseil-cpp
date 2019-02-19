@@ -72,22 +72,23 @@ namespace absl {
 //   - `MaxSplits`
 //
 //
-// A Delimiter's Find() member function will be passed the input text that is to
-// be split and the position to begin searching for the next delimiter in the
-// input text. The returned absl::string_view should refer to the next
-// occurrence (after pos) of the represented delimiter; this returned
-// absl::string_view represents the next location where the input string should
-// be broken. The returned absl::string_view may be zero-length if the Delimiter
-// does not represent a part of the string (e.g., a fixed-length delimiter). If
-// no delimiter is found in the given text, a zero-length absl::string_view
-// referring to text.end() should be returned (e.g.,
-// absl::string_view(text.end(), 0)). It is important that the returned
-// absl::string_view always be within the bounds of input text given as an
+// A Delimiter's `Find()` member function will be passed an input `text` that is
+// to be split and a position (`pos`) to begin searching for the next delimiter
+// in `text`. The returned absl::string_view should refer to the next occurrence
+// (after `pos`) of the represented delimiter; this returned absl::string_view
+// represents the next location where the input `text` should be broken.
+//
+// The returned absl::string_view may be zero-length if the Delimiter does not
+// represent a part of the string (e.g., a fixed-length delimiter). If no
+// delimiter is found in the input `text`, a zero-length absl::string_view
+// referring to `text.end()` should be returned (e.g.,
+// `text.substr(text.size())`). It is important that the returned
+// absl::string_view always be within the bounds of the input `text` given as an
 // argument--it must not refer to a string that is physically located outside of
 // the given string.
 //
 // The following example is a simple Delimiter object that is created with a
-// single char and will look for that char in the text passed to the Find()
+// single char and will look for that char in the text passed to the `Find()`
 // function:
 //
 //   struct SimpleDelimiter {

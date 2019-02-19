@@ -33,6 +33,7 @@
 
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
+#include "absl/container/internal/have_sse.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
 
@@ -82,10 +83,24 @@ struct HashtablezInfo {
   void* stack[kMaxStackDepth];
 };
 
+inline void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
+#if SWISSTABLE_HAVE_SSE2
+  total_probe_length /= 16;
+#else
+  total_probe_length /= 8;
+#endif
+  info->total_probe_length.store(total_probe_length, std::memory_order_relaxed);
+  info->num_erases.store(0, std::memory_order_relaxed);
+}
+
 inline void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                                      size_t capacity) {
   info->size.store(size, std::memory_order_relaxed);
   info->capacity.store(capacity, std::memory_order_relaxed);
+  if (size == 0) {
+    // This is a clear, reset the total/num_erases too.
+    RecordRehashSlow(info, 0);
+  }
 }
 
 void RecordInsertSlow(HashtablezInfo* info, size_t hash,
@@ -124,6 +139,11 @@ class HashtablezInfoHandle {
   inline void RecordStorageChanged(size_t size, size_t capacity) {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
     RecordStorageChangedSlow(info_, size, capacity);
+  }
+
+  inline void RecordRehash(size_t total_probe_length) {
+    if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
+    RecordRehashSlow(info_, total_probe_length);
   }
 
   inline void RecordInsert(size_t hash, size_t distance_from_desired) {

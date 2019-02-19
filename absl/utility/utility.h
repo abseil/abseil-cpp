@@ -234,25 +234,33 @@ auto apply_helper(Functor&& functor, Tuple&& t, index_sequence<Indexes...>)
 //
 // Example:
 //
-//   class Foo{void Bar(int);};
-//   void user_function(int, string);
-//   void user_function(std::unique_ptr<Foo>);
+//   class Foo {
+//    public:
+//     void Bar(int);
+//   };
+//   void user_function1(int, string);
+//   void user_function2(std::unique_ptr<Foo>);
+//   auto user_lambda = [](int, int) {};
 //
 //   int main()
 //   {
 //       std::tuple<int, string> tuple1(42, "bar");
-//       // Invokes the user function overload on int, string.
-//       absl::apply(&user_function, tuple1);
+//       // Invokes the first user function on int, string.
+//       absl::apply(&user_function1, tuple1);
 //
-//       auto foo = absl::make_unique<Foo>();
-//       std::tuple<Foo*, int> tuple2(foo.get(), 42);
-//       // Invokes the method Bar on foo with one argument 42.
-//       absl::apply(&Foo::Bar, foo.get(), 42);
-//
-//       std::tuple<std::unique_ptr<Foo>> tuple3(absl::make_unique<Foo>());
+//       std::tuple<std::unique_ptr<Foo>> tuple2(absl::make_unique<Foo>());
 //       // Invokes the user function that takes ownership of the unique
 //       // pointer.
-//       absl::apply(&user_function, std::move(tuple));
+//       absl::apply(&user_function2, std::move(tuple2));
+//
+//       auto foo = absl::make_unique<Foo>();
+//       std::tuple<Foo*, int> tuple3(foo.get(), 42);
+//       // Invokes the method Bar on foo with one argument, 42.
+//       absl::apply(&Foo::Bar, tuple3);
+//
+//       std::tuple<int, int> tuple4(8, 9);
+//       // Invokes a lambda.
+//       absl::apply(user_lambda, tuple4);
 //   }
 template <typename Functor, typename Tuple>
 auto apply(Functor&& functor, Tuple&& t)

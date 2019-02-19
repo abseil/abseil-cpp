@@ -199,11 +199,6 @@ absl_cc_library(
   PUBLIC
 )
 
-# TODO(cohenjon) Move into the copts code.
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(ABSL_LSAN_LINKOPTS "-fsanitize=leak")
-endif()
-
 absl_cc_library(
   NAME
     leak_check_api_enabled_for_testing
@@ -212,7 +207,7 @@ absl_cc_library(
   SRCS
     "leak_check.cc"
   COPTS
-    $<$<BOOL:${ABSL_USING_CLANG}>:-DLEAK_SANITIZER>
+    $<$<BOOL:${ABSL_HAVE_LSAN}>:-DLEAK_SANITIZER>
   TESTONLY
 )
 
@@ -234,7 +229,7 @@ absl_cc_test(
   SRCS
     "leak_check_test.cc"
   COPTS
-    "$<$<CXX_COMPILER_ID:Clang>:-DABSL_EXPECT_LEAK_SANITIZER>"
+    "$<$<BOOL:${ABSL_HAVE_LSAN}>:-DABSL_EXPECT_LEAK_SANITIZER>"
   LINKOPTS
     "${ABSL_LSAN_LINKOPTS}"
   DEPS

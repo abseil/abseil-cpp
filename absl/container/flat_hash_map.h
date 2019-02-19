@@ -527,25 +527,26 @@ namespace container_internal {
 
 template <class K, class V>
 struct FlatHashMapPolicy {
-  using slot_type = container_internal::slot_type<K, V>;
+  using slot_policy = container_internal::map_slot_policy<K, V>;
+  using slot_type = typename slot_policy::slot_type;
   using key_type = K;
   using mapped_type = V;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    slot_type::construct(alloc, slot, std::forward<Args>(args)...);
+    slot_policy::construct(alloc, slot, std::forward<Args>(args)...);
   }
 
   template <class Allocator>
   static void destroy(Allocator* alloc, slot_type* slot) {
-    slot_type::destroy(alloc, slot);
+    slot_policy::destroy(alloc, slot);
   }
 
   template <class Allocator>
   static void transfer(Allocator* alloc, slot_type* new_slot,
                        slot_type* old_slot) {
-    slot_type::transfer(alloc, new_slot, old_slot);
+    slot_policy::transfer(alloc, new_slot, old_slot);
   }
 
   template <class F, class... Args>
