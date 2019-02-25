@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This is a low level library to sample hashtables and collect runtime
-// statistics about them.
+// -----------------------------------------------------------------------------
+// File: hashtablez_sampler.h
+// -----------------------------------------------------------------------------
+//
+// This header file defines the API for a low level library to sample hashtables
+// and collect runtime statistics about them.
 //
 // `HashtablezSampler` controls the lifecycle of `HashtablezInfo` objects which
 // store information about a single sample.
@@ -22,6 +26,16 @@
 // `Sample()` and `Unsample()` make use of a single global sampler with
 // properties controlled by the flags hashtablez_enabled,
 // hashtablez_sample_rate, and hashtablez_max_samples.
+//
+// WARNING
+//
+// Using this sampling API may cause sampled Swiss tables to use the global
+// allocator (operator `new`) in addition to any custom allocator.  If you
+// are using a table in an unusual circumstance where allocation or calling a
+// linux syscall is unacceptable, this could interfere.
+//
+//
+// This utility is internal-only. Use at your own risk.
 
 #ifndef ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_
 #define ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_
