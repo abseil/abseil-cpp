@@ -150,7 +150,7 @@ TEST(FixedArrayTest, SmallObjects) {
   }
 
   {
-    // Arrays of > default size should be on the stack
+    // Arrays of > default size should be on the heap
     absl::FixedArray<int, 100> array(101);
     EXPECT_FALSE(IsOnStack(array));
   }
