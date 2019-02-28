@@ -466,30 +466,6 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
-    hashtablez_force_sampling
-  SRCS
-    "internal/hashtablez_force_sampling.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::base
-    absl::have_sse
-    absl::synchronization
-)
-
-absl_cc_test(
-  NAME
-    hashtablez_force_sampling_test
-  SRCS
-    "internal/hashtablez_force_sampling_test.cc"
-  DEPS
-    absl::hashtablez_force_sampling
-    absl::hashtablez_sampler
-    gmock_main
-)
-
-absl_cc_library(
-  NAME
     hashtable_debug
   HDRS
     "internal/hashtable_debug.h"
