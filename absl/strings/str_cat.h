@@ -78,8 +78,8 @@ struct AlphaNumBuffer {
 
 // Enum that specifies the number of significant digits to return in a `Hex` or
 // `Dec` conversion and fill character to use. A `kZeroPad2` value, for example,
-// would produce hexadecimal strings such as "0A","0F" and a 'kSpacePad5' value
-// would produce hexadecimal strings such as "    A","    F".
+// would produce hexadecimal strings such as "0a","0f" and a 'kSpacePad5' value
+// would produce hexadecimal strings such as "    a","    f".
 enum PadSpec : uint8_t {
   kNoPad = 1,
   kZeroPad2,

@@ -16,6 +16,7 @@
 
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
+#include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 
 namespace absl {
@@ -31,6 +32,7 @@ using MapTypes = ::testing::Types<
 
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ModifiersTest, MapTypes);
 
 }  // namespace

@@ -16,6 +16,7 @@
 
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
+#include "absl/container/internal/unordered_set_members_test.h"
 #include "absl/container/internal/unordered_set_modifiers_test.h"
 
 namespace absl {
@@ -30,6 +31,7 @@ using SetTypes =
 
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, ConstructorTest, SetTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, LookupTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, MembersTest, SetTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedSet, ModifiersTest, SetTypes);
 
 }  // namespace

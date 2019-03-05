@@ -17,6 +17,7 @@
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
+#include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 #include "absl/types/any.h"
 
@@ -30,8 +31,8 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 template <class K, class V>
-using Map =
-    flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual, Alloc<>>;
+using Map = flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual,
+                          Alloc<std::pair<const K, V>>>;
 
 static_assert(!std::is_standard_layout<NonStandardLayout>(), "");
 
@@ -42,6 +43,7 @@ using MapTypes =
 
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
