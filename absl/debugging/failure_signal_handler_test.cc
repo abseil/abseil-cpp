@@ -133,7 +133,8 @@ constexpr int kFailureSignals[] = {
 };
 
 std::string SignalParamToString(const ::testing::TestParamInfo<int>& info) {
-  std::string result = absl::debugging_internal::FailureSignalToString(info.param);
+  std::string result =
+      absl::debugging_internal::FailureSignalToString(info.param);
   if (result.empty()) {
     result = absl::StrCat(info.param);
   }

@@ -279,7 +279,8 @@ void TestHalfwayValue(const std::string& mantissa, int exponent,
   absl::from_chars(low_rep.data(), low_rep.data() + low_rep.size(), actual_low);
   EXPECT_EQ(expected_low, actual_low);
 
-  std::string high_rep = absl::StrCat(mantissa, std::string(1000, '0'), "1e", exponent);
+  std::string high_rep =
+      absl::StrCat(mantissa, std::string(1000, '0'), "1e", exponent);
   FloatType actual_high = 0;
   absl::from_chars(high_rep.data(), high_rep.data() + high_rep.size(),
                    actual_high);

@@ -17,6 +17,7 @@
 #include <ctime>
 #include <string>
 
+#include "absl/base/attributes.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 

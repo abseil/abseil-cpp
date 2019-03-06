@@ -191,7 +191,8 @@ void CheckUInt64(uint64_t x) {
   EXPECT_EQ(expected, std::string(&buffer[1], actual)) << " Input " << x;
 
   char* generic_actual = absl::numbers_internal::FastIntToBuffer(x, &buffer[1]);
-  EXPECT_EQ(expected, std::string(&buffer[1], generic_actual)) << " Input " << x;
+  EXPECT_EQ(expected, std::string(&buffer[1], generic_actual))
+      << " Input " << x;
 
   char* my_actual =
       absl::numbers_internal::FastIntToBuffer(MyUInt64(x), &buffer[1]);
@@ -879,8 +880,8 @@ TEST_F(SimpleDtoaTest, ExhaustiveDoubleToSixDigits) {
         char buf[kSixDigitsToBufferSize];
         ABSL_RAW_LOG(
             INFO, "%s",
-            absl::StrCat("Exp ", exponent, " powten=", powten, "(",
-                         powten, ") (",
+            absl::StrCat("Exp ", exponent, " powten=", powten, "(", powten,
+                         ") (",
                          std::string(buf, SixDigitsToBuffer(powten, buf)), ")")
                 .c_str());
       }

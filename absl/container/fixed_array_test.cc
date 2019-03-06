@@ -365,7 +365,8 @@ TEST(IteratorConstructorTest, Inline) {
 TEST(IteratorConstructorTest, NonPod) {
   char const* kInput[] =
       { "red", "orange", "yellow", "green", "blue", "indigo", "violet" };
-  absl::FixedArray<std::string> const fixed(kInput, kInput + ABSL_ARRAYSIZE(kInput));
+  absl::FixedArray<std::string> const fixed(kInput,
+                                            kInput + ABSL_ARRAYSIZE(kInput));
   ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
   for (size_t i = 0; i < ABSL_ARRAYSIZE(kInput); ++i) {
     ASSERT_EQ(kInput[i], fixed[i]);

@@ -54,7 +54,8 @@ ConvertResult<Conv::p> FormatConvertImpl(VoidPtr v, ConversionSpec conv,
                                          FormatSinkImpl* sink);
 
 // Strings.
-ConvertResult<Conv::s> FormatConvertImpl(const std::string& v, ConversionSpec conv,
+ConvertResult<Conv::s> FormatConvertImpl(const std::string& v,
+                                         ConversionSpec conv,
                                          FormatSinkImpl* sink);
 ConvertResult<Conv::s> FormatConvertImpl(string_view v, ConversionSpec conv,
                                          FormatSinkImpl* sink);
@@ -409,7 +410,7 @@ class FormatArgImpl {
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(double, __VA_ARGS__);             \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(long double, __VA_ARGS__);        \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(const char*, __VA_ARGS__);        \
-  ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(std::string, __VA_ARGS__);             \
+  ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(std::string, __VA_ARGS__);        \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(string_view, __VA_ARGS__)
 
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);

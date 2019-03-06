@@ -38,7 +38,8 @@ std::string FormatYearAnd(string_view fmt, CivilSecond cs) {
                         cs.hour(), cs.minute(), cs.second());
   const TimeZone utc = UTCTimeZone();
   // TODO(absl-team): Avoid conversion of fmt std::string.
-  return StrCat(cs.year(), FormatTime(std::string(fmt), FromCivil(ncs, utc), utc));
+  return StrCat(cs.year(),
+                FormatTime(std::string(fmt), FromCivil(ncs, utc), utc));
 }
 
 }  // namespace
@@ -52,15 +53,9 @@ std::string FormatCivilTime(CivilMinute c) {
 std::string FormatCivilTime(CivilHour c) {
   return FormatYearAnd("-%m-%dT%H", c);
 }
-std::string FormatCivilTime(CivilDay c) {
-  return FormatYearAnd("-%m-%d", c);
-}
-std::string FormatCivilTime(CivilMonth c) {
-  return FormatYearAnd("-%m", c);
-}
-std::string FormatCivilTime(CivilYear c) {
-  return FormatYearAnd("", c);
-}
+std::string FormatCivilTime(CivilDay c) { return FormatYearAnd("-%m-%d", c); }
+std::string FormatCivilTime(CivilMonth c) { return FormatYearAnd("-%m", c); }
+std::string FormatCivilTime(CivilYear c) { return FormatYearAnd("", c); }
 
 namespace time_internal {
 

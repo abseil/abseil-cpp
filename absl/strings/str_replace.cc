@@ -68,11 +68,12 @@ int ApplySubstitutions(
 // aren't inlined.
 
 std::string StrReplaceAll(absl::string_view s,
-                     strings_internal::FixedMapping replacements) {
+                          strings_internal::FixedMapping replacements) {
   return StrReplaceAll<strings_internal::FixedMapping>(s, replacements);
 }
 
-int StrReplaceAll(strings_internal::FixedMapping replacements, std::string* target) {
+int StrReplaceAll(strings_internal::FixedMapping replacements,
+                  std::string* target) {
   return StrReplaceAll<strings_internal::FixedMapping>(replacements, target);
 }
 

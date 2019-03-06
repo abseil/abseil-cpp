@@ -77,7 +77,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/port.h"  // Needed for string vs std::string
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
@@ -1222,7 +1221,7 @@ extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 //
 //   absl::CivilSecond cs(2013, 1, 2, 3, 4, 5);
 //   absl::Time t = absl::FromCivil(cs, lax);
-//   string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
+//   std::string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
 //   f = absl::FormatTime("%H:%M:%E3S", t, lax);  // "03:04:05.000"
 //
 // Note: If the given `absl::Time` is `absl::InfiniteFuture()`, the returned

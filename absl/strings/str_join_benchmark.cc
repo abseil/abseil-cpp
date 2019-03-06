@@ -58,7 +58,8 @@ void BM_Join2_KeysAndValues(benchmark::State& state) {
   const int string_len = state.range(0);
   const int num_pairs = state.range(1);
   const std::string s(string_len, 'x');
-  const std::vector<std::pair<std::string, int>> v(num_pairs, std::make_pair(s, 42));
+  const std::vector<std::pair<std::string, int>> v(num_pairs,
+                                                   std::make_pair(s, 42));
   for (auto _ : state) {
     std::string s = absl::StrJoin(v, ",", absl::PairFormatter("="));
     benchmark::DoNotOptimize(s);

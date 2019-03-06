@@ -1476,8 +1476,8 @@ TEST(optionalTest, MoveAssignRegression) {
 
 TEST(optionalTest, ValueType) {
   EXPECT_TRUE((std::is_same<absl::optional<int>::value_type, int>::value));
-  EXPECT_TRUE(
-      (std::is_same<absl::optional<std::string>::value_type, std::string>::value));
+  EXPECT_TRUE((std::is_same<absl::optional<std::string>::value_type,
+                            std::string>::value));
   EXPECT_FALSE(
       (std::is_same<absl::optional<int>::value_type, absl::nullopt_t>::value));
 }

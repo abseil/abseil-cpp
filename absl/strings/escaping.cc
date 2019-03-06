@@ -179,7 +179,8 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
             ch = (ch << 4) + hex_digit_to_int(*++p);
           if (ch > 0xFF) {
             if (error) {
-              *error = "Value of \\" + std::string(hex_start, p + 1 - hex_start) +
+              *error = "Value of \\" +
+                       std::string(hex_start, p + 1 - hex_start) +
                        " exceeds 0xff";
             }
             return false;
@@ -294,7 +295,7 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
 // ----------------------------------------------------------------------
 // CUnescapeInternal()
 //
-//    Same as above but uses a C++ string for output. 'source' and 'dest'
+//    Same as above but uses a std::string for output. 'source' and 'dest'
 //    may be the same.
 // ----------------------------------------------------------------------
 bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
@@ -324,7 +325,8 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
 //
 //    Escaped chars: \n, \r, \t, ", ', \, and !absl::ascii_isprint().
 // ----------------------------------------------------------------------
-std::string CEscapeInternal(absl::string_view src, bool use_hex, bool utf8_safe) {
+std::string CEscapeInternal(absl::string_view src, bool use_hex,
+                            bool utf8_safe) {
   std::string dest;
   bool last_hex_escape = false;  // true if last output char was \xNN.
 
@@ -1011,7 +1013,8 @@ void HexStringToBytesInternal(const char* from, T to, ptrdiff_t num) {
   }
 }
 
-// This is a templated function so that T can be either a char* or a string.
+// This is a templated function so that T can be either a char* or a
+// std::string.
 template <typename T>
 void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
   auto dest_ptr = &dest[0];
@@ -1028,7 +1031,8 @@ void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
 //
 // See CUnescapeInternal() for implementation details.
 // ----------------------------------------------------------------------
-bool CUnescape(absl::string_view source, std::string* dest, std::string* error) {
+bool CUnescape(absl::string_view source, std::string* dest,
+               std::string* error) {
   return CUnescapeInternal(source, kUnescapeNulls, dest, error);
 }
 

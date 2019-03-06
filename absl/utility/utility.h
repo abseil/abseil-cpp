@@ -238,14 +238,14 @@ auto apply_helper(Functor&& functor, Tuple&& t, index_sequence<Indexes...>)
 //    public:
 //     void Bar(int);
 //   };
-//   void user_function1(int, string);
+//   void user_function1(int, std::string);
 //   void user_function2(std::unique_ptr<Foo>);
 //   auto user_lambda = [](int, int) {};
 //
 //   int main()
 //   {
-//       std::tuple<int, string> tuple1(42, "bar");
-//       // Invokes the first user function on int, string.
+//       std::tuple<int, std::string> tuple1(42, "bar");
+//       // Invokes the first user function on int, std::string.
 //       absl::apply(&user_function1, tuple1);
 //
 //       std::tuple<std::unique_ptr<Foo>> tuple2(absl::make_unique<Foo>());

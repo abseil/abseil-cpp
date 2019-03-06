@@ -37,9 +37,9 @@ using Map = flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual,
 static_assert(!std::is_standard_layout<NonStandardLayout>(), "");
 
 using MapTypes =
-    ::testing::Types<Map<int, int>, Map<std::string, int>, Map<Enum, std::string>,
-                     Map<EnumClass, int>, Map<int, NonStandardLayout>,
-                     Map<NonStandardLayout, int>>;
+    ::testing::Types<Map<int, int>, Map<std::string, int>,
+                     Map<Enum, std::string>, Map<EnumClass, int>,
+                     Map<int, NonStandardLayout>, Map<NonStandardLayout, int>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);

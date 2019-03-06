@@ -221,7 +221,9 @@ typename std::enable_if<std::is_enum<Enum>::value, H>::type AbslHashValue(
 }
 // AbslHashValue() for hashing floating-point values
 template <typename H, typename Float>
-typename std::enable_if<std::is_floating_point<Float>::value, H>::type
+typename std::enable_if<std::is_same<Float, float>::value ||
+                            std::is_same<Float, double>::value,
+                        H>::type
 AbslHashValue(H hash_state, Float value) {
   return hash_internal::hash_bytes(std::move(hash_state),
                                    value == 0 ? 0 : value);
@@ -231,8 +233,9 @@ AbslHashValue(H hash_state, Float value) {
 // For example, in x86 sizeof(long double)==16 but it only really uses 80-bits
 // of it. This means we can't use hash_bytes on a long double and have to
 // convert it to something else first.
-template <typename H>
-H AbslHashValue(H hash_state, long double value) {
+template <typename H, typename LongDouble>
+typename std::enable_if<std::is_same<LongDouble, long double>::value, H>::type
+AbslHashValue(H hash_state, LongDouble value) {
   const int category = std::fpclassify(value);
   switch (category) {
     case FP_INFINITE:

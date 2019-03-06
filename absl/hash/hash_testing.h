@@ -190,7 +190,9 @@ VerifyTypeImplementsAbslHashCorrectly(const Container& values, Eq equals) {
   struct Info {
     const V& value;
     size_t index;
-    std::string ToString() const { return absl::visit(PrintVisitor{index}, value); }
+    std::string ToString() const {
+      return absl::visit(PrintVisitor{index}, value);
+    }
     SpyHashState expand() const { return absl::visit(ExpandVisitor{}, value); }
   };
 

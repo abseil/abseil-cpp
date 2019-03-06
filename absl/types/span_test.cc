@@ -139,8 +139,10 @@ TEST(CharSpan, StringCtor) {
   EXPECT_THAT(s_const_abc, SpanIs(abc));
 
   EXPECT_FALSE((std::is_constructible<absl::Span<int>, std::string>::value));
-  EXPECT_FALSE((std::is_constructible<absl::Span<const int>, std::string>::value));
-  EXPECT_TRUE((std::is_convertible<std::string, absl::Span<const char>>::value));
+  EXPECT_FALSE(
+      (std::is_constructible<absl::Span<const int>, std::string>::value));
+  EXPECT_TRUE(
+      (std::is_convertible<std::string, absl::Span<const char>>::value));
 }
 
 TEST(IntSpan, FromConstPointer) {
