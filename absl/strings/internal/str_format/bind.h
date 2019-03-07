@@ -153,7 +153,7 @@ class Streamable {
 
 // for testing
 std::string Summarize(UntypedFormatSpecImpl format,
-                 absl::Span<const FormatArgImpl> args);
+                      absl::Span<const FormatArgImpl> args);
 bool BindWithPack(const UnboundConversion* props,
                   absl::Span<const FormatArgImpl> pack, BoundConversion* bound);
 
@@ -162,10 +162,10 @@ bool FormatUntyped(FormatRawSinkImpl raw_sink,
                    absl::Span<const FormatArgImpl> args);
 
 std::string& AppendPack(std::string* out, UntypedFormatSpecImpl format,
-                   absl::Span<const FormatArgImpl> args);
+                        absl::Span<const FormatArgImpl> args);
 
 inline std::string FormatPack(const UntypedFormatSpecImpl format,
-                         absl::Span<const FormatArgImpl> args) {
+                              absl::Span<const FormatArgImpl> args) {
   std::string out;
   AppendPack(&out, format, args);
   return out;
@@ -176,7 +176,7 @@ int FprintF(std::FILE* output, UntypedFormatSpecImpl format,
 int SnprintF(char* output, size_t size, UntypedFormatSpecImpl format,
              absl::Span<const FormatArgImpl> args);
 
-// Returned by Streamed(v). Converts via '%s' to the string created
+// Returned by Streamed(v). Converts via '%s' to the std::string created
 // by std::ostream << v.
 template <typename T>
 class StreamedWrapper {

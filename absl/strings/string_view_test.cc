@@ -284,9 +284,10 @@ TEST(StringViewTest, ComparisonOperatorsByCharacterPosition) {
 }
 #undef COMPARE
 
-// Sadly, our users often confuse string::npos with absl::string_view::npos;
-// So much so that we test here that they are the same.  They need to
-// both be unsigned, and both be the maximum-valued integer of their type.
+// Sadly, our users often confuse std::string::npos with
+// absl::string_view::npos; So much so that we test here that they are the same.
+// They need to both be unsigned, and both be the maximum-valued integer of
+// their type.
 
 template <typename T>
 struct is_type {
@@ -995,8 +996,8 @@ TEST(StringViewTest, ConstexprCompiles) {
 TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
                                              const std::string&>::value));
-  EXPECT_TRUE(
-      (std::is_nothrow_constructible<absl::string_view, const std::string&>::value));
+  EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
+                                             const std::string&>::value));
   EXPECT_TRUE(std::is_nothrow_constructible<absl::string_view>::value);
   constexpr absl::string_view sp;
   EXPECT_TRUE(noexcept(sp.begin()));

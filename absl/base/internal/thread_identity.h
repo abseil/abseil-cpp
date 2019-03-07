@@ -42,9 +42,9 @@ namespace base_internal {
 class SpinLock;
 struct ThreadIdentity;
 
-// Used by the implementation of base::Mutex and base::CondVar.
+// Used by the implementation of absl::Mutex and absl::CondVar.
 struct PerThreadSynch {
-  // The internal representation of base::Mutex and base::CondVar rely
+  // The internal representation of absl::Mutex and absl::CondVar rely
   // on the alignment of PerThreadSynch. Both store the address of the
   // PerThreadSynch in the high-order bits of their internal state,
   // which means the low kLowZeroBits of the address of PerThreadSynch

@@ -79,13 +79,13 @@
         absl_raw_logging_internal_basename, __LINE__, message);       \
   } while (0)
 
-#define ABSL_INTERNAL_CHECK(condition, message)               \
-  do {                                                        \
-    if (ABSL_PREDICT_FALSE(!(condition))) {                   \
+#define ABSL_INTERNAL_CHECK(condition, message)                    \
+  do {                                                             \
+    if (ABSL_PREDICT_FALSE(!(condition))) {                        \
       std::string death_message = "Check " #condition " failed: "; \
       death_message += std::string(message);                       \
-      ABSL_INTERNAL_LOG(FATAL, death_message);                \
-    }                                                         \
+      ABSL_INTERNAL_LOG(FATAL, death_message);                     \
+    }                                                              \
   } while (0)
 
 #define ABSL_RAW_LOGGING_INTERNAL_INFO ::absl::LogSeverity::kInfo

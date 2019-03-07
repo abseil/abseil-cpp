@@ -39,8 +39,8 @@
 // equal functions are still bound to T. This is important because some type U
 // can be hashed by/tested for equality differently depending on T. A notable
 // example is `const char*`. `const char*` is treated as a c-style string when
-// the hash function is hash<string> but as a pointer when the hash function is
-// hash<void*>.
+// the hash function is hash<std::string> but as a pointer when the hash
+// function is hash<void*>.
 //
 #ifndef ABSL_CONTAINER_INTERNAL_HASH_FUNCTION_DEFAULTS_H_
 #define ABSL_CONTAINER_INTERNAL_HASH_FUNCTION_DEFAULTS_H_
@@ -83,6 +83,7 @@ struct StringHashEq {
     }
   };
 };
+
 template <>
 struct HashEq<std::string> : StringHashEq {};
 template <>

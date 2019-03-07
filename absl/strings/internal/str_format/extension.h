@@ -360,7 +360,7 @@ enum class Conv : uint64_t {
   integral = d | i | u | o | x | X,
   floating = a | e | f | g | A | E | F | G,
   numeric = integral | floating,
-  string = s,  // absl:ignore(std::string)
+  string = s,
   pointer = p
 };
 

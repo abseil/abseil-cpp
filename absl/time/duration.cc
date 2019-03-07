@@ -751,7 +751,7 @@ void AppendNumberUnit(std::string* out, double n, DisplayUnit unit) {
 
 // From Go's doc at https://golang.org/pkg/time/#Duration.String
 //   [FormatDuration] returns a string representing the duration in the
-//   form "72h3m0.5s".  Leading zero units are omitted.  As a special
+//   form "72h3m0.5s". Leading zero units are omitted.  As a special
 //   case, durations less than one second format use a smaller unit
 //   (milli-, micro-, or nanoseconds) to ensure that the leading digit
 //   is non-zero.  The zero duration formats as 0, with no unit.
@@ -854,6 +854,7 @@ bool ConsumeDurationUnit(const char** start, Duration* unit) {
 }
 
 }  // namespace
+
 
 // From Go's doc at https://golang.org/pkg/time/#ParseDuration
 //   [ParseDuration] parses a duration string.  A duration string is

@@ -135,7 +135,7 @@ struct PoorStrCat {
 
 template <typename Tup, size_t... Is>
 std::vector<std::string> TupStringVecImpl(const Tup& tup,
-                                     absl::index_sequence<Is...>) {
+                                          absl::index_sequence<Is...>) {
   return {Fmt(std::get<Is>(tup))...};
 }
 

@@ -148,7 +148,7 @@ TEST(StrReplaceAll, ManyReplacementsInMap) {
   replacements["$count"] = "5";
   replacements["#Noun"] = "Apples";
   std::string s = absl::StrReplaceAll("$who bought $count #Noun. Thanks $who!",
-                                 replacements);
+                                      replacements);
   EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
 }
 

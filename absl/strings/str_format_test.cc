@@ -341,7 +341,7 @@ TEST(StrFormat, BehavesAsDocumented) {
   EXPECT_EQ(StrFormat("%c", int{'a'}), "a");
   EXPECT_EQ(StrFormat("%c", long{'a'}), "a");  // NOLINT
   EXPECT_EQ(StrFormat("%c", uint64_t{'a'}), "a");
-  //     "s" - std::string                  Eg: "C" -> "C", std::string("C++") -> "C++"
+  //     "s" - std::string       Eg: "C" -> "C", std::string("C++") -> "C++"
   //           Formats std::string, char*, string_view, and Cord.
   EXPECT_EQ(StrFormat("%s", "C"), "C");
   EXPECT_EQ(StrFormat("%s", std::string("C++")), "C++");
@@ -606,21 +606,21 @@ TEST_F(ParsedFormatTest, RegressionMixPositional) {
 // Some codegen thunks that we can use to easily dump the generated assembly for
 // different StrFormat calls.
 
-std::string CodegenAbslStrFormatInt(int i) { // NOLINT
+std::string CodegenAbslStrFormatInt(int i) {  // NOLINT
   return absl::StrFormat("%d", i);
 }
 
 std::string CodegenAbslStrFormatIntStringInt64(int i, const std::string& s,
-                                                 int64_t i64) { // NOLINT
+                                               int64_t i64) {  // NOLINT
   return absl::StrFormat("%d %s %d", i, s, i64);
 }
 
-void CodegenAbslStrAppendFormatInt(std::string* out, int i) { // NOLINT
+void CodegenAbslStrAppendFormatInt(std::string* out, int i) {  // NOLINT
   absl::StrAppendFormat(out, "%d", i);
 }
 
 void CodegenAbslStrAppendFormatIntStringInt64(std::string* out, int i,
-                                                     const std::string& s,
-                                                     int64_t i64) { // NOLINT
+                                              const std::string& s,
+                                              int64_t i64) {  // NOLINT
   absl::StrAppendFormat(out, "%d %s %d", i, s, i64);
 }

@@ -763,8 +763,8 @@ class raw_hash_set {
   // that accept std::initializer_list<T> and std::initializer_list<init_type>.
   // This is advantageous for performance.
   //
-  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then copies
-  //   // the strings into the set.
+  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then
+  //   // copies the strings into the set.
   //   std::unordered_set<std::string> s = {"abc", "def"};
   //
   //   // Turns {"abc", "def"} into std::initializer_list<const char*>, then
