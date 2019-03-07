@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -228,7 +228,7 @@ string_view::size_type string_view::find_last_not_of(char c,
 // member definitions that are required by the C++ standard, resulting in
 // LNK1169 "multiply defined" errors at link time. __declspec(selectany) asks
 // MSVC to choose only one definition for the symbol it decorates. See details
-// at http://msdn.microsoft.com/en-us/library/34h23df8(v=vs.100).aspx
+// at https://msdn.microsoft.com/en-us/library/34h23df8(v=vs.100).aspx
 #ifdef _MSC_VER
 #define ABSL_STRING_VIEW_SELECTANY __declspec(selectany)
 #else

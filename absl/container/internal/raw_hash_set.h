@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -393,7 +393,7 @@ struct GroupPortableImpl {
 
   BitMask<uint64_t, kWidth, 3> Match(h2_t hash) const {
     // For the technique, see:
-    // http://graphics.stanford.edu/~seander/bithacks.html##ValueInWord
+    // https://graphics.stanford.edu/~seander/bithacks.html##ValueInWord
     // (Determine if a word has a byte equal to n).
     //
     // Caveat: there are false positives but:
@@ -515,7 +515,7 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
 // if they are equal, false if they are not. If two keys compare equal, then
 // their hash values as defined by Hash MUST be equal.
 //
-// Allocator: an Allocator [http://devdocs.io/cpp/concept/allocator] with which
+// Allocator: an Allocator [https://devdocs.io/cpp/concept/allocator] with which
 // the storage of the hashtable will be allocated and the elements will be
 // constructed and destroyed.
 template <class Policy, class Hash, class Eq, class Alloc>

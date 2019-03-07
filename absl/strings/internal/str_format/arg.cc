@@ -1,6 +1,6 @@
 //
 // POSIX spec:
-//   http://pubs.opengroup.org/onlinepubs/009695399/functions/fprintf.html
+//   https://pubs.opengroup.org/onlinepubs/009695399/functions/fprintf.html
 //
 #include "absl/strings/internal/str_format/arg.h"
 

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,7 +63,7 @@ static SpinLock static_noncooperative_spinlock(
 
 
 // Simple integer hash function based on the public domain lookup2 hash.
-// http://burtleburtle.net/bob/c/lookup2.c
+// https://burtleburtle.net/bob/c/lookup2.c
 static uint32_t Hash32(uint32_t a, uint32_t c) {
   uint32_t b = 0x9e3779b9UL;  // The golden ratio; an arbitrary value.
   a -= b; a -= c; a ^= (c >> 13);

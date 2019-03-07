@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -130,7 +130,7 @@ struct SynchWaitParams;
 // issues that could potentially result in race conditions and deadlocks.
 //
 // For more information about the lock annotations, please see
-// [Thread Safety Analysis](http://clang.llvm.org/docs/ThreadSafetyAnalysis.html)
+// [Thread Safety Analysis](https://clang.llvm.org/docs/ThreadSafetyAnalysis.html)
 // in the Clang documentation.
 //
 // See also `MutexLock`, below, for scoped `Mutex` acquisition.

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -301,7 +301,7 @@ class Base {
 // around this issue in test. In practice, a trivially constructible type
 // should also be trivially destructible.
 // GCC bug 51452: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51452
-// LWG issue 2116: http://cplusplus.github.io/LWG/lwg-active.html#2116
+// LWG issue 2116: https://cplusplus.github.io/LWG/lwg-active.html#2116
 #ifndef _MSC_VER
 #define ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE 1
 #endif

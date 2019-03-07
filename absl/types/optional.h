@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -257,7 +257,7 @@ class optional_data_base : public optional_data_dtor_base<T> {
 
 // TODO(absl-team): Add another class using
 // std::is_trivially_move_constructible trait when available to match
-// http://cplusplus.github.io/LWG/lwg-defects.html#2900, for types that
+// https://cplusplus.github.io/LWG/lwg-defects.html#2900, for types that
 // have trivial move but nontrivial copy.
 // Also, we should be checking is_trivially_copyable here, which is not
 // supported now, so we use is_trivially_* traits instead.

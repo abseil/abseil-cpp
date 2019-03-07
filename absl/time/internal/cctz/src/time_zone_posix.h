@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,7 @@
 //   limitations under the License.
 
 // Parsing of a POSIX zone spec as described in the TZ part of section 8.3 in
-// http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html.
+// https://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html.
 //
 // The current POSIX spec for America/Los_Angeles is "PST8PDT,M3.2.0,M11.1.0",
 // which would be broken down as ...

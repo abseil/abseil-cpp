@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,8 +24,8 @@
 // of governments, so the conversion of future times needs to be taken with
 // a grain of salt.
 //
-// For more information see tzfile(5), http://www.iana.org/time-zones, or
-// http://en.wikipedia.org/wiki/Zoneinfo.
+// For more information see tzfile(5), https://www.iana.org/time-zones, or
+// https://en.wikipedia.org/wiki/Zoneinfo.
 //
 // Note that we assume the proleptic Gregorian calendar and 60-second
 // minutes throughout.

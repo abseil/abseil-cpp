@@ -120,7 +120,7 @@ using std::make_unique;
 //
 // For more background on why `std::unique_ptr<T>(new T(a,b))` is problematic,
 // see Herb Sutter's explanation on
-// (Exception-Safe Function Calls)[http://herbsutter.com/gotw/_102/].
+// (Exception-Safe Function Calls)[https://herbsutter.com/gotw/_102/].
 // (In general, reviewers should treat `new T(a,b)` with scrutiny.)
 //
 // Example usage:
@@ -224,7 +224,7 @@ inline std::nullptr_t RawPtr(std::nullptr_t) { return nullptr; }
 // by the shared pointer as well. The deleter is copied (unless it is a
 // reference).
 //
-// Implements the resolution of [LWG 2415](http://wg21.link/lwg2415), by which a
+// Implements the resolution of [LWG 2415](https://wg21.link/lwg2415), by which a
 // null shared pointer does not attempt to call the deleter.
 template <typename T, typename D>
 std::shared_ptr<T> ShareUniquePtr(std::unique_ptr<T, D>&& ptr) {

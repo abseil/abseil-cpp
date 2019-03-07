@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -71,8 +71,8 @@ split_seconds(const time_point<seconds>& tp) {
 //   if (!cctz::load_time_zone("America/Los_Angeles", &lax)) { ... }
 //
 // See also:
-// - http://www.iana.org/time-zones
-// - http://en.wikipedia.org/wiki/Zoneinfo
+// - https://www.iana.org/time-zones
+// - https://en.wikipedia.org/wiki/Zoneinfo
 class time_zone {
  public:
   time_zone() : time_zone(nullptr) {}  // Equivalent to UTC

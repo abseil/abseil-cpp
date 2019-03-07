@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,7 +77,7 @@
 // https://clang.llvm.org/docs/LanguageExtensions.html
 //
 // Note: Use this macro to avoid an extra level of #ifdef __has_builtin check.
-// http://releases.llvm.org/3.3/tools/clang/docs/LanguageExtensions.html
+// https://releases.llvm.org/3.3/tools/clang/docs/LanguageExtensions.html
 #ifdef __has_builtin
 #define ABSL_HAVE_BUILTIN(x) __has_builtin(x)
 #else
@@ -233,7 +233,7 @@
 // TODO(calabrese)
 // Switch to using __cpp_exceptions when we no longer support versions < 3.6.
 // For details on this check, see:
-//   http://releases.llvm.org/3.6.0/tools/clang/docs/ReleaseNotes.html#the-exceptions-macro
+//   https://releases.llvm.org/3.6.0/tools/clang/docs/ReleaseNotes.html#the-exceptions-macro
 #if defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
 #define ABSL_HAVE_EXCEPTIONS 1
 #endif  // defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
