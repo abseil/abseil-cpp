@@ -28,12 +28,6 @@ TEST(InvokeFlush, String) {
   std::string str = "ABC";
   str_format_internal::InvokeFlush(&str, "DEF");
   EXPECT_EQ(str, "ABCDEF");
-
-#if UTIL_FORMAT_HAS_GLOBAL_STRING
-  std::string str2 = "ABC";
-  str_format_internal::InvokeFlush(&str2, "DEF");
-  EXPECT_EQ(str2, "ABCDEF");
-#endif  // UTIL_FORMAT_HAS_GLOBAL_STRING
 }
 
 TEST(InvokeFlush, Stream) {

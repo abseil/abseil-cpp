@@ -1460,7 +1460,8 @@ TEST(Table, MoveAssign) {
 
 TEST(Table, Equality) {
   StringTable t;
-  std::vector<std::pair<std::string, std::string>> v = {{"a", "b"}, {"aa", "bb"}};
+  std::vector<std::pair<std::string, std::string>> v = {{"a", "b"},
+                                                        {"aa", "bb"}};
   t.insert(std::begin(v), std::end(v));
   StringTable u = t;
   EXPECT_EQ(u, t);
@@ -1468,20 +1469,24 @@ TEST(Table, Equality) {
 
 TEST(Table, Equality2) {
   StringTable t;
-  std::vector<std::pair<std::string, std::string>> v1 = {{"a", "b"}, {"aa", "bb"}};
+  std::vector<std::pair<std::string, std::string>> v1 = {{"a", "b"},
+                                                         {"aa", "bb"}};
   t.insert(std::begin(v1), std::end(v1));
   StringTable u;
-  std::vector<std::pair<std::string, std::string>> v2 = {{"a", "a"}, {"aa", "aa"}};
+  std::vector<std::pair<std::string, std::string>> v2 = {{"a", "a"},
+                                                         {"aa", "aa"}};
   u.insert(std::begin(v2), std::end(v2));
   EXPECT_NE(u, t);
 }
 
 TEST(Table, Equality3) {
   StringTable t;
-  std::vector<std::pair<std::string, std::string>> v1 = {{"b", "b"}, {"bb", "bb"}};
+  std::vector<std::pair<std::string, std::string>> v1 = {{"b", "b"},
+                                                         {"bb", "bb"}};
   t.insert(std::begin(v1), std::end(v1));
   StringTable u;
-  std::vector<std::pair<std::string, std::string>> v2 = {{"a", "a"}, {"aa", "aa"}};
+  std::vector<std::pair<std::string, std::string>> v2 = {{"a", "a"},
+                                                         {"aa", "aa"}};
   u.insert(std::begin(v2), std::end(v2));
   EXPECT_NE(u, t);
 }

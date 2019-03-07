@@ -243,7 +243,7 @@ using Hash = absl::hash_internal::Hash<T>;
 //       absl::HashState::combine(std::move(state), v1_, v2_);
 //     }
 //     int v1_;
-//     string v2_;
+//     std::string v2_;
 //   };
 class HashState : public hash_internal::HashStateBase<HashState> {
  public:

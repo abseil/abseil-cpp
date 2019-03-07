@@ -1771,7 +1771,7 @@ TEST(Duration, ParseDuration) {
 TEST(Duration, FormatParseRoundTrip) {
 #define TEST_PARSE_ROUNDTRIP(d)                \
   do {                                         \
-    std::string s = absl::FormatDuration(d);        \
+    std::string s = absl::FormatDuration(d);   \
     absl::Duration dur;                        \
     EXPECT_TRUE(absl::ParseDuration(s, &dur)); \
     EXPECT_EQ(d, dur);                         \

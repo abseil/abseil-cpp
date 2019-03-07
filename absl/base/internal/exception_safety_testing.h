@@ -169,8 +169,10 @@ class ConstructorTracker {
     return current_tracker_instance_ != nullptr;
   }
 
-  static std::string ErrorMessage(void* address, const std::string& address_description,
-                             int countdown, const std::string& error_description) {
+  static std::string ErrorMessage(void* address,
+                                  const std::string& address_description,
+                                  int countdown,
+                                  const std::string& error_description) {
     return absl::Substitute(
         "With coundtown at $0:\n"
         "  $1\n"

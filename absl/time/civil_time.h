@@ -451,7 +451,7 @@ inline int GetYearDay(CivilDay cd) {
 // Example:
 //
 //   absl::CivilDay d = absl::CivilDay(1969, 7, 20);
-//   string day_string = absl::FormatCivilTime(d);          // "1969-07-20"
+//   std::string day_string = absl::FormatCivilTime(d);  // "1969-07-20"
 //
 std::string FormatCivilTime(CivilSecond c);
 std::string FormatCivilTime(CivilMinute c);

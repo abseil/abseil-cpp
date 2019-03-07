@@ -275,7 +275,6 @@ struct WrapInTuple {
 
 TEST(HashValueTest, Strings) {
   EXPECT_TRUE((is_hashable<std::string>::value));
-  EXPECT_TRUE((is_hashable<std::string>::value));
 
   const std::string small = "foo";
   const std::string dup = "foofoo";
@@ -705,7 +704,8 @@ TEST(HashTest, HashNonUniquelyRepresentedType) {
 }
 
 TEST(HashTest, StandardHashContainerUsage) {
-  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"}, { 42, "bar" }};
+  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"},
+                                                         {42, "bar"}};
 
   EXPECT_NE(map.find(0), map.end());
   EXPECT_EQ(map.find(1), map.end());
@@ -773,6 +773,26 @@ TEST(HashTest, TypeErased) {
 
   EXPECT_EQ(SpyHash(std::make_pair(TypeErased{7}, 17)),
             SpyHash(std::make_pair(size_t{7}, 17)));
+}
+
+struct ValueWithBoolConversion {
+  operator bool() const { return false; }
+  int i;
+};
+
+}  // namespace
+namespace std {
+template <>
+struct hash<ValueWithBoolConversion> {
+  size_t operator()(ValueWithBoolConversion v) { return v.i; }
+};
+}  // namespace std
+
+namespace {
+
+TEST(HashTest, DoesNotUseImplicitConversionsToBool) {
+  EXPECT_NE(absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{0}),
+            absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{1}));
 }
 
 }  // namespace

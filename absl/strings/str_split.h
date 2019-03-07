@@ -132,8 +132,7 @@ class ByString {
 // ByChar
 //
 // A single character delimiter. `ByChar` is functionally equivalent to a
-// 1-char string within a `ByString` delimiter, but slightly more
-// efficient.
+// 1-char string within a `ByString` delimiter, but slightly more efficient.
 //
 // Example:
 //
@@ -414,10 +413,10 @@ struct SkipWhitespace {
 //
 // The `StrSplit()` function adapts the returned collection to the collection
 // specified by the caller (e.g. `std::vector` above). The returned collections
-// may contain `string`, `absl::string_view` (in which case the original string
-// being split must ensure that it outlives the collection), or any object that
-// can be explicitly created from an `absl::string_view`. This behavior works
-// for:
+// may contain `std::string`, `absl::string_view` (in which case the original
+// string being split must ensure that it outlives the collection), or any
+// object that can be explicitly created from an `absl::string_view`. This
+// behavior works for:
 //
 // 1) All standard STL containers including `std::vector`, `std::list`,
 //    `std::deque`, `std::set`,`std::multiset`, 'std::map`, and `std::multimap`
@@ -461,7 +460,7 @@ struct SkipWhitespace {
 // Example:
 //
 //   // Stores first two split strings as the members in a std::pair.
-//   std::pair<string, string> p = absl::StrSplit("a,b,c", ',');
+//   std::pair<std::string, std::string> p = absl::StrSplit("a,b,c", ',');
 //   // p.first == "a", p.second == "b"       // "c" is omitted.
 //
 // The `StrSplit()` function can be used multiple times to perform more
@@ -471,7 +470,7 @@ struct SkipWhitespace {
 //
 //   // The input string "a=b=c,d=e,f=,g" becomes
 //   // { "a" => "b=c", "d" => "e", "f" => "", "g" => "" }
-//   std::map<string, string> m;
+//   std::map<std::string, std::string> m;
 //   for (absl::string_view sp : absl::StrSplit("a=b=c,d=e,f=,g", ',')) {
 //     m.insert(absl::StrSplit(sp, absl::MaxSplits('=', 1)));
 //   }

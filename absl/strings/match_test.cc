@@ -19,7 +19,7 @@
 namespace {
 
 TEST(MatchTest, StartsWith) {
-  const std::string s1("123" "\0" "456", 7);
+  const std::string s1("123\0abc", 7);
   const absl::string_view a("foobar");
   const absl::string_view b(s1);
   const absl::string_view e;
@@ -36,7 +36,7 @@ TEST(MatchTest, StartsWith) {
 }
 
 TEST(MatchTest, EndsWith) {
-  const std::string s1("123" "\0" "456", 7);
+  const std::string s1("123\0abc", 7);
   const absl::string_view a("foobar");
   const absl::string_view b(s1);
   const absl::string_view e;

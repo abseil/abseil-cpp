@@ -371,10 +371,10 @@
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
     defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
-    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 101400
-#define ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES 1
+    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
+#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
 #else
-#define ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES 0
+#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
 // ABSL_HAVE_STD_ANY
@@ -386,7 +386,7 @@
 
 #ifdef __has_include
 #if __has_include(<any>) && __cplusplus >= 201703L && \
-    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -400,7 +400,7 @@
 
 #ifdef __has_include
 #if __has_include(<optional>) && __cplusplus >= 201703L && \
-    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -414,7 +414,7 @@
 
 #ifdef __has_include
 #if __has_include(<variant>) && __cplusplus >= 201703L && \
-    ABSL_INTERNAL_MACOS_HAS_CXX_17_TYPES
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif
