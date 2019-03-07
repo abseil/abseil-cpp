@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@
 // support type inference, classification, and transformation, as well as
 // make it easier to write templates based on generic type behavior.
 //
-// See http://en.cppreference.com/w/cpp/header/type_traits
+// See https://en.cppreference.com/w/cpp/header/type_traits
 //
 // WARNING: use of many of the constructs in this header will count as "complex
 // template metaprogramming", so before proceeding, please carefully consider
@@ -246,7 +246,7 @@ struct is_trivially_destructible
 // For the purposes of this check, the call to std::declval is considered
 // trivial."
 //
-// Notes from http://en.cppreference.com/w/cpp/types/is_constructible:
+// Notes from https://en.cppreference.com/w/cpp/types/is_constructible:
 // In many implementations, is_nothrow_constructible also checks if the
 // destructor throws because it is effectively noexcept(T(arg)). Same
 // applies to is_trivially_constructible, which, in these implementations, also

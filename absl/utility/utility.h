@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,8 +32,8 @@
 //
 // References:
 //
-//  http://en.cppreference.com/w/cpp/utility/integer_sequence
-//  http://en.cppreference.com/w/cpp/utility/apply
+//  https://en.cppreference.com/w/cpp/utility/integer_sequence
+//  https://en.cppreference.com/w/cpp/utility/apply
 //  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3658.html
 //
 

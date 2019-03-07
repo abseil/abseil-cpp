@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,7 +38,7 @@ namespace absl {
 // CUnescape()
 //
 // Unescapes a `source` string and copies it into `dest`, rewriting C-style
-// escape sequences (http://en.cppreference.com/w/cpp/language/escape) into
+// escape sequences (https://en.cppreference.com/w/cpp/language/escape) into
 // their proper code point equivalents, returning `true` if successful.
 //
 // The following unescape sequences can be handled:
@@ -80,7 +80,7 @@ inline bool CUnescape(absl::string_view source, std::string* dest) {
 // CEscape()
 //
 // Escapes a 'src' string using C-style escapes sequences
-// (http://en.cppreference.com/w/cpp/language/escape), escaping other
+// (https://en.cppreference.com/w/cpp/language/escape), escaping other
 // non-printable/non-whitespace bytes as octal sequences (e.g. "\377").
 //
 // Example:

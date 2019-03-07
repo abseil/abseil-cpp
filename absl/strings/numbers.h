@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,7 +53,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
 //
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a float, which may be rounded on overflow or underflow.
-// See http://en.cppreference.com/w/c/string/byte/strtof for details about the
+// See https://en.cppreference.com/w/c/string/byte/strtof for details about the
 // allowed formats for `str`. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
 ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* out);
@@ -62,7 +62,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* out);
 //
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a double, which may be rounded on overflow or underflow.
-// See http://en.cppreference.com/w/c/string/byte/strtof for details about the
+// See https://en.cppreference.com/w/c/string/byte/strtof for details about the
 // allowed formats for `str`. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
 ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* out);
