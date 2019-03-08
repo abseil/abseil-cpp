@@ -415,3 +415,26 @@ absl_cc_test(
     absl::bits
     gtest_main
 )
+
+absl_cc_library(
+  NAME
+    scoped_set_env
+  SRCS
+    "internal/scoped_set_env.cc"
+  HDRS
+    "internal/scoped_set_env.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::base
+)
+
+absl_cc_test(
+  NAME
+    scoped_set_env_test
+  SRCS
+    "internal/scoped_set_env_test.cc"
+  DEPS
+    absl::scoped_set_env
+    gtest_main
+)

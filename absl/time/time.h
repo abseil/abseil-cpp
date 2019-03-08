@@ -836,8 +836,8 @@ std::string UnparseFlag(Time t);
 //
 // See also:
 // - https://github.com/google/cctz
-// - http://www.iana.org/time-zones
-// - http://en.wikipedia.org/wiki/Zoneinfo
+// - https://www.iana.org/time-zones
+// - https://en.wikipedia.org/wiki/Zoneinfo
 class TimeZone {
  public:
   explicit TimeZone(time_internal::cctz::time_zone tz) : cz_(tz) {}

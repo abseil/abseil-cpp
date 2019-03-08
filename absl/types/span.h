@@ -515,7 +515,7 @@ class Span {
   //   absl::MakeSpan(vec).last(5);  // throws std::out_of_range
   constexpr Span last(size_type len) const {
     return (len <= size())
-               ? Span(data() + size() - len, len)
+               ? Span(size() - len + data(), len)
                : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
   }
 

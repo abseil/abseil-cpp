@@ -1168,6 +1168,12 @@ static bool ParseType(State *state) {
   }
   state->parse_state = copy;
 
+  // nullptr_t, i.e. decltype(nullptr).
+  if (ParseTwoCharToken(state, "Dn")) {
+    return true;
+  }
+  state->parse_state = copy;
+
   if (ParseOneCharToken(state, 'U') && ParseSourceName(state) &&
       ParseType(state)) {
     return true;

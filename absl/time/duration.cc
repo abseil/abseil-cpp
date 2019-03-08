@@ -856,7 +856,7 @@ bool ConsumeDurationUnit(const char** start, Duration* unit) {
 }  // namespace
 
 // From Go's doc at https://golang.org/pkg/time/#ParseDuration
-//   [ParseDuration] parses a duration string.  A duration string is
+//   [ParseDuration] parses a duration string. A duration string is
 //   a possibly signed sequence of decimal numbers, each with optional
 //   fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
 //   Valid time units are "ns", "us" "ms", "s", "m", "h".

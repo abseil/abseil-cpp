@@ -756,7 +756,6 @@ TEST(StringViewTest, Remove) {
   std::string s1("123");
   s1 += '\0';
   s1 += "456";
-  absl::string_view b(s1);
   absl::string_view e;
   std::string s2;
 

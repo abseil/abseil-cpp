@@ -165,9 +165,6 @@ TEST(HashValueTest, PointerAlignment) {
   }
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
 TEST(HashValueTest, PairAndTuple) {
   EXPECT_TRUE((is_hashable<std::pair<int, int>>::value));
   EXPECT_TRUE((is_hashable<std::pair<const int&, const int&>>::value));
@@ -196,7 +193,6 @@ TEST(HashValueTest, PairAndTuple) {
       std::forward_as_tuple(42, 0, 0), std::forward_as_tuple(3, 9, 9),
       std::forward_as_tuple(0, 0, -42))));
 }
-#endif  // !defined(_MSC_VER)
 
 TEST(HashValueTest, CombineContiguousWorks) {
   std::vector<std::tuple<int>> v1 = {std::make_tuple(1), std::make_tuple(3)};
@@ -304,16 +300,12 @@ TEST(HashValueTest, Strings) {
             SpyHash(absl::string_view("ABC")));
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
 TEST(HashValueTest, StdArray) {
   EXPECT_TRUE((is_hashable<std::array<int, 3>>::value));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
       std::make_tuple(std::array<int, 3>{}, std::array<int, 3>{{0, 23, 42}})));
 }
-#endif  // !defined(_MSC_VER)
 
 TEST(HashValueTest, StdBitset) {
   EXPECT_TRUE((is_hashable<std::bitset<257>>::value));
@@ -414,9 +406,6 @@ TEST(HashValueTest, Variant) {
 #endif
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
 TEST(HashValueTest, Maps) {
   EXPECT_TRUE((is_hashable<std::map<int, std::string>>::value));
 
@@ -433,7 +422,6 @@ TEST(HashValueTest, Maps) {
       MM{{0, "foo"}, {42, "bar"}}, MM{{1, "foo"}, {42, "bar"}},
       MM{{1, "foo"}, {1, "foo"}, {43, "bar"}}, MM{{1, "foo"}, {43, "baz"}})));
 }
-#endif  // !defined(_MSC_VER)
 
 template <typename T, typename = void>
 struct IsHashCallble : std::false_type {};
@@ -511,8 +499,16 @@ struct CombineVariadic {
                              Int(4));
   }
 };
+enum class InvokeTag {
+  kUniquelyRepresented,
+  kHashValue,
+#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kLegacyHash,
+#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kStdHash,
+  kNone
+};
 
-using InvokeTag = absl::hash_internal::InvokeHashTag;
 template <InvokeTag T>
 using InvokeTagConstant = std::integral_constant<InvokeTag, T>;
 

@@ -483,3 +483,25 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "scoped_set_env",
+    testonly = 1,
+    srcs = ["internal/scoped_set_env.cc"],
+    hdrs = ["internal/scoped_set_env.h"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [":base"],
+)
+
+cc_test(
+    name = "scoped_set_env_test",
+    size = "small",
+    srcs = ["internal/scoped_set_env_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":scoped_set_env",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
