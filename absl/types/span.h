@@ -485,6 +485,40 @@ class Span {
                : (base_internal::ThrowStdOutOfRange("pos > size()"), Span());
   }
 
+  // Span::first()
+  //
+  // Returns a `Span` containing first `len` elements. Parameter `len` is of
+  // type `size_type` and thus non-negative. `len` value must be <= size().
+  //
+  // Examples:
+  //
+  //   std::vector<int> vec = {10, 11, 12, 13};
+  //   absl::MakeSpan(vec).first(1);  // {10}
+  //   absl::MakeSpan(vec).first(3);  // {10, 11, 12}
+  //   absl::MakeSpan(vec).first(5);  // throws std::out_of_range
+  constexpr Span first(size_type len) const {
+    return (len <= size())
+               ? Span(data(), len)
+               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
+  }
+
+  // Span::last()
+  //
+  // Returns a `Span` containing last `len` elements. Parameter `len` is of
+  // type `size_type` and thus non-negative. `len` value must be <= size().
+  //
+  // Examples:
+  //
+  //   std::vector<int> vec = {10, 11, 12, 13};
+  //   absl::MakeSpan(vec).last(1);  // {13}
+  //   absl::MakeSpan(vec).last(3);  // {11, 12, 13}
+  //   absl::MakeSpan(vec).last(5);  // throws std::out_of_range
+  constexpr Span last(size_type len) const {
+    return (len <= size())
+               ? Span(data() + size() - len, len)
+               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
+  }
+
   // Support for absl::Hash.
   template <typename H>
   friend H AbslHashValue(H h, Span v) {

@@ -295,6 +295,38 @@ TEST(IntSpan, Subspan) {
 #endif
 }
 
+TEST(IntSpan, First) {
+  std::vector<int> empty;
+  EXPECT_THAT(absl::MakeSpan(empty).first(0), SpanIs(empty));
+
+  auto ramp = MakeRamp(10);
+  EXPECT_THAT(absl::MakeSpan(ramp).first(0), SpanIs(ramp.data(), 0));
+  EXPECT_THAT(absl::MakeSpan(ramp).first(10), SpanIs(ramp));
+  EXPECT_THAT(absl::MakeSpan(ramp).first(3), SpanIs(ramp.data(), 3));
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(absl::MakeSpan(ramp).first(11), std::out_of_range);
+#else
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(ramp).first(11), "");
+#endif
+}
+
+TEST(IntSpan, Last) {
+  std::vector<int> empty;
+  EXPECT_THAT(absl::MakeSpan(empty).last(0), SpanIs(empty));
+
+  auto ramp = MakeRamp(10);
+  EXPECT_THAT(absl::MakeSpan(ramp).last(0), SpanIs(ramp.data() + 10, 0));
+  EXPECT_THAT(absl::MakeSpan(ramp).last(10), SpanIs(ramp));
+  EXPECT_THAT(absl::MakeSpan(ramp).last(3), SpanIs(ramp.data() + 7, 3));
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(absl::MakeSpan(ramp).last(11), std::out_of_range);
+#else
+  EXPECT_DEATH_IF_SUPPORTED(absl::MakeSpan(ramp).last(11), "");
+#endif
+}
+
 TEST(IntSpan, MakeSpanPtrLength) {
   std::vector<int> empty;
   auto s_empty = absl::MakeSpan(empty.data(), empty.size());
@@ -769,6 +801,8 @@ TEST(ConstIntSpan, ConstexprTest) {
   ABSL_TEST_CONSTEXPR(span.begin());
   ABSL_TEST_CONSTEXPR(span.cbegin());
   ABSL_TEST_CONSTEXPR(span.subspan(0, 0));
+  ABSL_TEST_CONSTEXPR(span.first(1));
+  ABSL_TEST_CONSTEXPR(span.last(1));
   ABSL_TEST_CONSTEXPR(span[0]);
 }
 
