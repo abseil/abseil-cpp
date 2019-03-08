@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -120,7 +120,7 @@ using std::make_unique;
 //
 // For more background on why `std::unique_ptr<T>(new T(a,b))` is problematic,
 // see Herb Sutter's explanation on
-// (Exception-Safe Function Calls)[http://herbsutter.com/gotw/_102/].
+// (Exception-Safe Function Calls)[https://herbsutter.com/gotw/_102/].
 // (In general, reviewers should treat `new T(a,b)` with scrutiny.)
 //
 // Example usage:

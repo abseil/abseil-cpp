@@ -3,7 +3,7 @@
 Abseil comes with a CMake build script ([CMakeLists.txt](../CMakeLists.txt))
 that can be used on a wide range of platforms ("C" stands for cross-platform.).
 If you don't have CMake installed already, you can download it for free from
-<http://www.cmake.org/>.
+<https://www.cmake.org/>.
 
 CMake works by generating native makefiles or build projects that can
 be used in the compiler environment of your choice.

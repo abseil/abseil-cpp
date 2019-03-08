@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -788,7 +788,7 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
   // Base64 encodes three bytes of input at a time. If the input is not
   // divisible by three, we pad as appropriate.
   //
-  // (from http://tools.ietf.org/html/rfc3548)
+  // (from https://tools.ietf.org/html/rfc3548)
   // Special processing is performed if fewer than 24 bits are available
   // at the end of the data being encoded.  A full encoding quantum is
   // always completed at the end of a quantity.  When fewer than 24 input
@@ -802,12 +802,12 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
   size_t len = (input_len / 3) * 4;
 
   if (input_len % 3 == 0) {
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (1) the final quantum of encoding input is an integral multiple of 24
     // bits; here, the final unit of encoded output will be an integral
     // multiple of 4 characters with no "=" padding,
   } else if (input_len % 3 == 1) {
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (2) the final quantum of encoding input is exactly 8 bits; here, the
     // final unit of encoded output will be two characters followed by two
     // "=" padding characters, or
@@ -816,7 +816,7 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
       len += 2;
     }
   } else {  // (input_len % 3 == 2)
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (3) the final quantum of encoding input is exactly 16 bits; here, the
     // final unit of encoded output will be three characters followed by one
     // "=" padding character.
