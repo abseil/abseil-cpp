@@ -245,8 +245,9 @@
 // Disables warnings for a single read operation.  This can be used to avoid
 // warnings when it is known that the read is not actually involved in a race,
 // but the compiler cannot confirm that.
-#define TS_UNCHECKED_READ(x) thread_safety_analysis::ts_unchecked_read(x)
+#define TS_UNCHECKED_READ(x) absl::thread_safety_analysis::ts_unchecked_read(x)
 
+namespace absl {
 
 namespace thread_safety_analysis {
 
@@ -263,5 +264,7 @@ inline T& ts_unchecked_read(T& v) NO_THREAD_SAFETY_ANALYSIS {
 }
 
 }  // namespace thread_safety_analysis
+
+} // namespace absl
 
 #endif  // ABSL_BASE_THREAD_ANNOTATIONS_H_
