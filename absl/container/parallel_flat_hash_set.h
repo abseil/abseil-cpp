@@ -34,14 +34,11 @@
 #include "absl/base/macros.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
-#include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
+#include "absl/container/flat_hash_set.h"
+#include "absl/container/internal/parallel_hash_set.h"  // IWYU pragma: export
 #include "absl/memory/memory.h"
 
 namespace absl {
-namespace container_internal {
-template <typename T>
-struct FlatHashSetPolicy;
-}  // namespace container_internal
 
 // -----------------------------------------------------------------------------
 // absl::parallel_flat_hash_set
@@ -92,13 +89,18 @@ struct FlatHashSetPolicy;
 //  if (ducks.contains("dewey")) {
 //    std::cout << "We found dewey!" << std::endl;
 //  }
-template <class T, class Hash = absl::container_internal::hash_default_hash<T>,
-          class Eq = absl::container_internal::hash_default_eq<T>,
-          class Allocator = std::allocator<T>>
+template <class T,
+          class Hash      = absl::container_internal::hash_default_hash<T>,
+          class Eq        = absl::container_internal::hash_default_eq<T>,
+          class Allocator = std::allocator<T>,
+          size_t N        = 4,
+          class Mutex     = absl::NullMutex>
 class parallel_flat_hash_set
-    : public absl::container_internal::raw_hash_set<
-          absl::container_internal::FlatHashSetPolicy<T>, Hash, Eq, Allocator> {
-  using Base = typename parallel_flat_hash_set::raw_hash_set;
+    : public absl::container_internal::parallel_hash_set<
+         N, absl::container_internal::raw_hash_set, Mutex,
+         absl::container_internal::FlatHashSetPolicy<T>, 
+         Hash, Eq, Allocator> {
+  using Base = typename parallel_flat_hash_set::parallel_hash_set;
 
  public:
   // Constructors and Assignment Operators
@@ -143,6 +145,16 @@ class parallel_flat_hash_set
   //   absl::parallel_flat_hash_set<std::string> set7(v.begin(), v.end());
   parallel_flat_hash_set() {}
   using Base::Base;
+
+  // get the index of the the internal hash table used for a specific hash
+  // size_t subidx(size_t hashval);
+  //
+  using Base::subidx;
+
+  // get the number of internal hash tables used
+  // size_t subcnt();
+  //
+  using Base::subcnt;
 
   // parallel_flat_hash_set::begin()
   //
@@ -432,52 +444,11 @@ class parallel_flat_hash_set
   using Base::key_eq;
 };
 
-namespace container_internal {
-
-template <class T>
-struct FlatHashSetPolicy {
-  using slot_type = T;
-  using key_type = T;
-  using init_type = T;
-  using constant_iterators = std::true_type;
-
-  template <class Allocator, class... Args>
-  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    absl::allocator_traits<Allocator>::construct(*alloc, slot,
-                                                 std::forward<Args>(args)...);
-  }
-
-  template <class Allocator>
-  static void destroy(Allocator* alloc, slot_type* slot) {
-    absl::allocator_traits<Allocator>::destroy(*alloc, slot);
-  }
-
-  template <class Allocator>
-  static void transfer(Allocator* alloc, slot_type* new_slot,
-                       slot_type* old_slot) {
-    construct(alloc, new_slot, std::move(*old_slot));
-    destroy(alloc, old_slot);
-  }
-
-  static T& element(slot_type* slot) { return *slot; }
-
-  template <class F, class... Args>
-  static decltype(absl::container_internal::DecomposeValue(
-      std::declval<F>(), std::declval<Args>()...))
-  apply(F&& f, Args&&... args) {
-    return absl::container_internal::DecomposeValue(
-        std::forward<F>(f), std::forward<Args>(args)...);
-  }
-
-  static size_t space_used(const T*) { return 0; }
-};
-}  // namespace container_internal
-
 namespace container_algorithm_internal {
 
 // Specialization of trait in absl/algorithm/container.h
-template <class Key, class Hash, class KeyEqual, class Allocator>
-struct IsUnorderedContainer<absl::parallel_flat_hash_set<Key, Hash, KeyEqual, Allocator>>
+    template <class T, class Hash, class Eq, class Allocator, size_t N, class Mutex>
+    struct IsUnorderedContainer<absl::parallel_flat_hash_set<T, Hash, Eq, Allocator, N, Mutex>>
     : std::true_type {};
 
 }  // namespace container_algorithm_internal

@@ -1030,6 +1030,20 @@ class raw_hash_set {
     }
   }
 
+  insert_return_type insert(node_type&& node, size_t hash) {
+    if (!node) return {end(), false, node_type()};
+    const auto& elem = PolicyTraits::element(CommonAccess::GetSlot(node));
+    auto res = PolicyTraits::apply(
+        InsertSlotWithHash<false>{*this, std::move(*CommonAccess::GetSlot(node)), hash},
+        elem);
+    if (res.second) {
+      CommonAccess::Reset(&node);
+      return {res.first, true, node_type()};
+    } else {
+      return {res.first, false, std::move(node)};
+    }
+  }
+
   iterator insert(const_iterator, node_type&& node) {
     return insert(std::move(node)).first;
   }
@@ -1120,6 +1134,18 @@ class raw_hash_set {
     }
     return iterator_at(res.first);
   }
+
+  template <class K = key_type, class F>
+  iterator lazy_emplace_with_hash(const key_arg<K>& key, size_t &hash, F&& f) {
+    auto res = find_or_prepare_insert(key, hash);
+    if (res.second) {
+      slot_type* slot = slots_ + res.first;
+      std::forward<F>(f)(constructor(&alloc_ref(), &slot));
+      assert(!slot);
+    }
+    return iterator_at(res.first);
+  }
+
 
   // Extension API: support for heterogeneous keys.
   //
@@ -1259,14 +1285,18 @@ class raw_hash_set {
   //
   // NOTE: This is a very low level operation and should not be used without
   // specific benchmarks indicating its importance.
-  template <class K = key_type>
-  void prefetch(const key_arg<K>& key) const {
-    (void)key;
+  void prefetch_hash(size_t hash) const {
+    (void)hash;
 #if defined(__GNUC__)
-    auto seq = probe(hash_ref()(key));
+    auto seq = probe(hash);
     __builtin_prefetch(static_cast<const void*>(ctrl_ + seq.offset()));
     __builtin_prefetch(static_cast<const void*>(slots_ + seq.offset()));
 #endif  // __GNUC__
+  }
+
+  template <class K = key_type>
+  void prefetch(const key_arg<K>& key) const {
+    prefetch_hash(hash_ref()(key));
   }
 
   // The API of find() has two extensions.
@@ -1387,14 +1417,22 @@ class raw_hash_set {
     const key_equal& eq;
   };
 
+  template <class K, class... Args>
+  std::pair<iterator, bool> emplace_decomposable(const K& key, size_t hash, 
+                                                 Args&&... args)
+  {
+    auto res = find_or_prepare_insert(key, hash);
+    if (res.second) {
+      emplace_at(res.first, std::forward<Args>(args)...);
+    }
+    return {iterator_at(res.first), res.second};
+  }
+
   struct EmplaceDecomposable {
     template <class K, class... Args>
     std::pair<iterator, bool> operator()(const K& key, Args&&... args) const {
-      auto res = s.find_or_prepare_insert(key);
-      if (res.second) {
-        s.emplace_at(res.first, std::forward<Args>(args)...);
-      }
-      return {s.iterator_at(res.first), res.second};
+      return s.emplace_decomposable(key, s.hash_ref()(key),
+                                    std::forward<Args>(args)...);
     }
     raw_hash_set& s;
   };
@@ -1414,6 +1452,24 @@ class raw_hash_set {
     raw_hash_set& s;
     // Constructed slot. Either moved into place or destroyed.
     slot_type&& slot;
+  };
+
+  template <bool do_destroy>
+  struct InsertSlotWithHash {
+    template <class K, class... Args>
+    std::pair<iterator, bool> operator()(const K& key, Args&&...) && {
+      auto res = s.find_or_prepare_insert(key, hash);
+      if (res.second) {
+        PolicyTraits::transfer(&s.alloc_ref(), s.slots_ + res.first, &slot);
+      } else if (do_destroy) {
+        PolicyTraits::destroy(&s.alloc_ref(), &slot);
+      }
+      return {s.iterator_at(res.first), res.second};
+    }
+    raw_hash_set& s;
+    // Constructed slot. Either moved into place or destroyed.
+    slot_type&& slot;
+    size_t &hash;
   };
 
   // "erases" the object from the container, except that it doesn't actually
@@ -1574,8 +1630,7 @@ class raw_hash_set {
     }
   }
 
-  bool has_element(const value_type& elem) const {
-    size_t hash = PolicyTraits::apply(HashElement{hash_ref()}, elem);
+  bool has_element(const value_type& elem, size_t hash) const {
     auto seq = probe(hash);
     while (true) {
       Group g{ctrl_ + seq.offset()};
@@ -1589,6 +1644,11 @@ class raw_hash_set {
       assert(seq.index() < capacity_ && "full table!");
     }
     return false;
+  }
+
+  bool has_element(const value_type& elem) const {
+    size_t hash = PolicyTraits::apply(HashElement{hash_ref()}, elem);
+    return has_element(elem, hash);
   }
 
   // Probes the raw_hash_set with the probe sequence for hash and returns the
@@ -1642,8 +1702,7 @@ class raw_hash_set {
 
  protected:
   template <class K>
-  std::pair<size_t, bool> find_or_prepare_insert(const K& key) {
-    auto hash = hash_ref()(key);
+  std::pair<size_t, bool> find_or_prepare_insert(const K& key, size_t hash) {
     auto seq = probe(hash);
     while (true) {
       Group g{ctrl_ + seq.offset()};
@@ -1657,6 +1716,11 @@ class raw_hash_set {
       seq.next();
     }
     return {prepare_insert(hash), true};
+  }
+
+  template <class K>
+  std::pair<size_t, bool> find_or_prepare_insert(const K& key) {
+    return find_or_prepare_insert(key, hash_ref()(key));
   }
 
   size_t prepare_insert(size_t hash) ABSL_ATTRIBUTE_NOINLINE {
@@ -1728,6 +1792,16 @@ class raw_hash_set {
   }
 
   size_t& growth_left() { return settings_.template get<0>(); }
+
+  template <size_t N,
+            template <class, class, class, class> class RefSet,
+            class M, class P, class H, class E, class A>
+  friend class parallel_hash_set;
+
+  template <size_t N,
+            template <class, class, class, class> class RefSet,
+            class M, class P, class H, class E, class A>
+  friend class parallel_hash_map;
 
   hasher& hash_ref() { return settings_.template get<1>(); }
   const hasher& hash_ref() const { return settings_.template get<1>(); }

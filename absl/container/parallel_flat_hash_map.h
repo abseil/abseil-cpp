@@ -34,9 +34,11 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/macros.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"  // IWYU pragma: export
-#include "absl/container/internal/raw_hash_map.h"  // IWYU pragma: export
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/internal/parallel_hash_map.h"  // IWYU pragma: export
 #include "absl/memory/memory.h"
 
 namespace absl {
@@ -99,13 +101,16 @@ struct FlatHashMapPolicy;
 //    std::cout << "Result: " << result->second << std::endl;
 //  }
 template <class K, class V,
-          class Hash = absl::container_internal::hash_default_hash<K>,
-          class Eq = absl::container_internal::hash_default_eq<K>,
-          class Allocator = std::allocator<std::pair<const K, V>>>
-class parallel_flat_hash_map : public absl::container_internal::raw_hash_map<
+          class Hash      = absl::container_internal::hash_default_hash<K>,
+          class Eq        = absl::container_internal::hash_default_eq<K>,
+          class Allocator = std::allocator<std::pair<const K, V>>,
+          size_t N        = 4,                 // 2**N submaps
+          class Mutex     = absl::NullMutex>   // use absl::Mutex to enable internal locks
+class parallel_flat_hash_map : public absl::container_internal::parallel_hash_map<
+                          N, absl::container_internal::raw_hash_set, Mutex,
                           absl::container_internal::FlatHashMapPolicy<K, V>,
                           Hash, Eq, Allocator> {
-  using Base = typename parallel_flat_hash_map::raw_hash_map;
+  using Base = typename parallel_flat_hash_map::parallel_hash_map;
 
  public:
   // Constructors and Assignment Operators
@@ -150,6 +155,16 @@ class parallel_flat_hash_map : public absl::container_internal::raw_hash_map<
   //   absl::parallel_flat_hash_map<int, std::string> map7(v.begin(), v.end());
   parallel_flat_hash_map() {}
   using Base::Base;
+
+  // get the index of the the internal hash table used for a specific hash
+  // size_t subidx(size_t hashval);
+  //
+  using Base::subidx;
+
+  // get the number of internal hash tables used
+  // size_t subcnt();
+  //
+  using Base::subcnt;
 
   // parallel_flat_hash_map::begin()
   //
@@ -521,55 +536,13 @@ class parallel_flat_hash_map : public absl::container_internal::raw_hash_map<
   using Base::key_eq;
 };
 
-namespace container_internal {
-
-template <class K, class V>
-struct FlatHashMapPolicy {
-  using slot_type = container_internal::slot_type<K, V>;
-  using key_type = K;
-  using mapped_type = V;
-  using init_type = std::pair</*non const*/ key_type, mapped_type>;
-
-  template <class Allocator, class... Args>
-  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    slot_type::construct(alloc, slot, std::forward<Args>(args)...);
-  }
-
-  template <class Allocator>
-  static void destroy(Allocator* alloc, slot_type* slot) {
-    slot_type::destroy(alloc, slot);
-  }
-
-  template <class Allocator>
-  static void transfer(Allocator* alloc, slot_type* new_slot,
-                       slot_type* old_slot) {
-    slot_type::transfer(alloc, new_slot, old_slot);
-  }
-
-  template <class F, class... Args>
-  static decltype(absl::container_internal::DecomposePair(
-      std::declval<F>(), std::declval<Args>()...))
-  apply(F&& f, Args&&... args) {
-    return absl::container_internal::DecomposePair(std::forward<F>(f),
-                                                   std::forward<Args>(args)...);
-  }
-
-  static size_t space_used(const slot_type*) { return 0; }
-
-  static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }
-
-  static V& value(std::pair<const K, V>* kv) { return kv->second; }
-  static const V& value(const std::pair<const K, V>* kv) { return kv->second; }
-};
-
-}  // namespace container_internal
-
 namespace container_algorithm_internal {
 
 // Specialization of trait in absl/algorithm/container.h
-template <class Key, class T, class Hash, class KeyEqual, class Allocator>
+    template <class Key, class T, size_t N, class Hash, class KeyEqual, class Allocator>
 struct IsUnorderedContainer<
-    absl::parallel_flat_hash_map<Key, T, Hash, KeyEqual, Allocator>> : std::true_type {};
+        absl::parallel_flat_hash_map<Key, T, Hash, KeyEqual, Allocator, N, Mutex>> 
+        : std::true_type {};
 
 }  // namespace container_algorithm_internal
 

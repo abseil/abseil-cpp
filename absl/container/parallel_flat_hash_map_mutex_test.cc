@@ -31,7 +31,7 @@ using ::testing::UnorderedElementsAre;
 
 template <class K, class V>
 using Map =
-    parallel_flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual, Alloc<>>;
+    parallel_flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual, Alloc<>, 4, absl::Mutex>;
 
 static_assert(!std::is_standard_layout<NonStandardLayout>(), "");
 

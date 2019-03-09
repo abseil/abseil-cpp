@@ -118,6 +118,8 @@ class node_handle : public node_handle_base<PolicyTraits, Alloc> {
 
   value_type& value() const { return PolicyTraits::element(this->slot()); }
 
+  value_type& key() const { return PolicyTraits::element(this->slot()); }
+
  private:
   friend struct CommonAccess;
 

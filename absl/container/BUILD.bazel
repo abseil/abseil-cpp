@@ -335,6 +335,86 @@ cc_test(
 )
 
 cc_library(
+    name = "parallel_flat_hash_map",
+    hdrs = ["parallel_flat_hash_map.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":container_memory",
+        ":hash_function_defaults",
+        ":raw_hash_map",
+        ":parallel_hash_map",
+        ":flat_hash_map",
+        "//absl/algorithm:container",
+        "//absl/memory",
+    ],
+)
+
+cc_test(
+    name = "parallel_flat_hash_map_test",
+    srcs = ["parallel_flat_hash_map_test.cc"],
+    copts = ABSL_TEST_COPTS + ["-DUNORDERED_MAP_CXX17"],
+    tags = NOTEST_TAGS_NONMOBILE,
+    deps = [
+        ":parallel_flat_hash_map",
+        ":hash_generator_testing",
+        ":unordered_map_constructor_test",
+        ":unordered_map_lookup_test",
+        ":unordered_map_modifiers_test",
+        "//absl/types:any",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "parallel_flat_hash_map_mutex_test",
+    srcs = ["parallel_flat_hash_map_mutex_test.cc"],
+    copts = ABSL_TEST_COPTS + ["-DUNORDERED_MAP_CXX17"],
+    tags = NOTEST_TAGS_NONMOBILE,
+    deps = [
+        ":parallel_flat_hash_map",
+        ":hash_generator_testing",
+        ":unordered_map_constructor_test",
+        ":unordered_map_lookup_test",
+        ":unordered_map_modifiers_test",
+        "//absl/types:any",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "parallel_flat_hash_set",
+    hdrs = ["parallel_flat_hash_set.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":container_memory",
+        ":hash_function_defaults",
+        ":raw_hash_set",
+        ":parallel_hash_set",
+        ":flat_hash_set",
+        "//absl/algorithm:container",
+        "//absl/base:core_headers",
+        "//absl/memory",
+    ],
+)
+
+cc_test(
+    name = "parallel_flat_hash_set_test",
+    srcs = ["parallel_flat_hash_set_test.cc"],
+    copts = ABSL_TEST_COPTS + ["-DUNORDERED_SET_CXX17"],
+    tags = NOTEST_TAGS_NONMOBILE,
+    deps = [
+        ":parallel_flat_hash_set",
+        ":hash_generator_testing",
+        ":unordered_set_constructor_test",
+        ":unordered_set_lookup_test",
+        ":unordered_set_modifiers_test",
+        "//absl/memory",
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+) 
+
+cc_library(
     name = "container_memory",
     hdrs = ["internal/container_memory.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -530,6 +610,17 @@ cc_library(
 )
 
 cc_library(
+    name = "parallel_hash_map",
+    hdrs = ["internal/parallel_hash_map.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":container_memory",
+        ":parallel_hash_set",
+        ":raw_hash_set",
+    ],
+)
+
+cc_library(
     name = "have_sse",
     hdrs = ["internal/have_sse.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -560,6 +651,30 @@ cc_library(
         ":hashtablez_sampler",
         ":have_sse",
         ":layout",
+        "//absl/base:bits",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:endian",
+        "//absl/memory",
+        "//absl/meta:type_traits",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "parallel_hash_set",
+    hdrs = ["internal/parallel_hash_set.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        ":common",
+        ":compressed_tuple",
+        ":container_memory",
+        ":hash_policy_traits",
+        ":hashtable_debug_hooks",
+        ":hashtablez_sampler",
+        ":have_sse",
+        ":layout",
+        ":raw_hash_set", 
         "//absl/base:bits",
         "//absl/base:config",
         "//absl/base:core_headers",

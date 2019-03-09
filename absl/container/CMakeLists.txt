@@ -293,6 +293,23 @@ absl_cc_test(
     gmock_main
 )
 
+absl_cc_test(
+  NAME
+    parallel_flat_hash_map_mutex_test
+  SRCS
+    "parallel_flat_hash_map_mutex_test.cc"
+  COPTS
+    "-DUNORDERED_MAP_CXX17"
+  DEPS
+    absl::parallel_flat_hash_map
+    absl::hash_generator_testing
+    absl::unordered_map_constructor_test
+    absl::unordered_map_lookup_test
+    absl::unordered_map_modifiers_test
+    absl::any
+    gmock_main
+)
+
 absl_cc_library(
   NAME
     parallel_flat_hash_set
