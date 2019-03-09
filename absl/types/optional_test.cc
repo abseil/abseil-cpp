@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -1476,8 +1476,8 @@ TEST(optionalTest, MoveAssignRegression) {
 
 TEST(optionalTest, ValueType) {
   EXPECT_TRUE((std::is_same<absl::optional<int>::value_type, int>::value));
-  EXPECT_TRUE(
-      (std::is_same<absl::optional<std::string>::value_type, std::string>::value));
+  EXPECT_TRUE((std::is_same<absl::optional<std::string>::value_type,
+                            std::string>::value));
   EXPECT_FALSE(
       (std::is_same<absl::optional<int>::value_type, absl::nullopt_t>::value));
 }

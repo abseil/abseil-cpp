@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -87,7 +87,7 @@ constexpr auto GetDataImpl(C& c, char) noexcept  // NOLINT(runtime/references)
   return c.data();
 }
 
-// Before C++17, string::data returns a const char* in all cases.
+// Before C++17, std::string::data returns a const char* in all cases.
 inline char* GetDataImpl(std::string& s,  // NOLINT(runtime/references)
                          int) noexcept {
   return &s[0];
@@ -483,6 +483,40 @@ class Span {
     return (pos <= size())
                ? Span(data() + pos, span_internal::Min(size() - pos, len))
                : (base_internal::ThrowStdOutOfRange("pos > size()"), Span());
+  }
+
+  // Span::first()
+  //
+  // Returns a `Span` containing first `len` elements. Parameter `len` is of
+  // type `size_type` and thus non-negative. `len` value must be <= size().
+  //
+  // Examples:
+  //
+  //   std::vector<int> vec = {10, 11, 12, 13};
+  //   absl::MakeSpan(vec).first(1);  // {10}
+  //   absl::MakeSpan(vec).first(3);  // {10, 11, 12}
+  //   absl::MakeSpan(vec).first(5);  // throws std::out_of_range
+  constexpr Span first(size_type len) const {
+    return (len <= size())
+               ? Span(data(), len)
+               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
+  }
+
+  // Span::last()
+  //
+  // Returns a `Span` containing last `len` elements. Parameter `len` is of
+  // type `size_type` and thus non-negative. `len` value must be <= size().
+  //
+  // Examples:
+  //
+  //   std::vector<int> vec = {10, 11, 12, 13};
+  //   absl::MakeSpan(vec).last(1);  // {13}
+  //   absl::MakeSpan(vec).last(3);  // {11, 12, 13}
+  //   absl::MakeSpan(vec).last(5);  // throws std::out_of_range
+  constexpr Span last(size_type len) const {
+    return (len <= size())
+               ? Span(size() - len + data(), len)
+               : (base_internal::ThrowStdOutOfRange("len > size()"), Span());
   }
 
   // Support for absl::Hash.

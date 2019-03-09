@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This is a low level library to sample hashtables and collect runtime
-// statistics about them.
+// -----------------------------------------------------------------------------
+// File: hashtablez_sampler.h
+// -----------------------------------------------------------------------------
+//
+// This header file defines the API for a low level library to sample hashtables
+// and collect runtime statistics about them.
 //
 // `HashtablezSampler` controls the lifecycle of `HashtablezInfo` objects which
 // store information about a single sample.
@@ -22,6 +26,16 @@
 // `Sample()` and `Unsample()` make use of a single global sampler with
 // properties controlled by the flags hashtablez_enabled,
 // hashtablez_sample_rate, and hashtablez_max_samples.
+//
+// WARNING
+//
+// Using this sampling API may cause sampled Swiss tables to use the global
+// allocator (operator `new`) in addition to any custom allocator.  If you
+// are using a table in an unusual circumstance where allocation or calling a
+// linux syscall is unacceptable, this could interfere.
+//
+//
+// This utility is internal-only. Use at your own risk.
 
 #ifndef ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_
 #define ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_
@@ -33,6 +47,7 @@
 
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
+#include "absl/container/internal/have_sse.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
 
@@ -82,10 +97,24 @@ struct HashtablezInfo {
   void* stack[kMaxStackDepth];
 };
 
+inline void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
+#if SWISSTABLE_HAVE_SSE2
+  total_probe_length /= 16;
+#else
+  total_probe_length /= 8;
+#endif
+  info->total_probe_length.store(total_probe_length, std::memory_order_relaxed);
+  info->num_erases.store(0, std::memory_order_relaxed);
+}
+
 inline void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                                      size_t capacity) {
   info->size.store(size, std::memory_order_relaxed);
   info->capacity.store(capacity, std::memory_order_relaxed);
+  if (size == 0) {
+    // This is a clear, reset the total/num_erases too.
+    RecordRehashSlow(info, 0);
+  }
 }
 
 void RecordInsertSlow(HashtablezInfo* info, size_t hash,
@@ -124,6 +153,11 @@ class HashtablezInfoHandle {
   inline void RecordStorageChanged(size_t size, size_t capacity) {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
     RecordStorageChangedSlow(info_, size, capacity);
+  }
+
+  inline void RecordRehash(size_t total_probe_length) {
+    if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
+    RecordRehashSlow(info_, total_probe_length);
   }
 
   inline void RecordInsert(size_t hash, size_t distance_from_desired) {

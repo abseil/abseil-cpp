@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -484,7 +484,8 @@ TEST(VariantTest, InPlaceType) {
 }
 
 TEST(VariantTest, InPlaceTypeInitializerList) {
-  using Var = variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(in_place_type_t<MoveOnlyWithListConstructor>(), {1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
@@ -519,7 +520,8 @@ TEST(VariantTest, InPlaceIndex) {
 }
 
 TEST(VariantTest, InPlaceIndexInitializerList) {
-  using Var = variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(in_place_index_t<3>(), {1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
@@ -831,7 +833,8 @@ TEST(VariantTest, TestEmplaceBasic) {
 }
 
 TEST(VariantTest, TestEmplaceInitializerList) {
-  using Var = variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(absl::in_place_index_t<0>{}, 555);
   MoveOnlyWithListConstructor& emplace_result =
@@ -868,7 +871,8 @@ TEST(VariantTest, TestEmplaceIndex) {
 }
 
 TEST(VariantTest, TestEmplaceIndexInitializerList) {
-  using Var = variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(absl::in_place_index_t<0>{}, 555);
   MoveOnlyWithListConstructor& emplace_result =
@@ -1306,7 +1310,8 @@ TEST(VariantTest, BadGetType) {
         absl::get<std::string>(std::move(v)));
 
     const Var& const_v = v;
-    ABSL_VARIANT_TEST_EXPECT_BAD_VARIANT_ACCESS(absl::get<std::string>(const_v));
+    ABSL_VARIANT_TEST_EXPECT_BAD_VARIANT_ACCESS(
+        absl::get<std::string>(const_v));
     ABSL_VARIANT_TEST_EXPECT_BAD_VARIANT_ACCESS(
         absl::get<std::string>(std::move(const_v)));  // NOLINT
   }
@@ -1363,7 +1368,8 @@ TEST(VariantTest, GetIfIndex) {
       EXPECT_EQ(*elem, 0);
       {
         auto* bad_elem = absl::get_if<1>(&const_v);
-        EXPECT_TRUE((std::is_same<decltype(bad_elem), const std::string*>::value));
+        EXPECT_TRUE(
+            (std::is_same<decltype(bad_elem), const std::string*>::value));
         EXPECT_EQ(bad_elem, nullptr);
       }
       {
@@ -1472,7 +1478,8 @@ TEST(VariantTest, GetIfIndex) {
       }
       {
         auto* bad_elem = absl::get_if<1>(&const_v);
-        EXPECT_TRUE((std::is_same<decltype(bad_elem), const std::string*>::value));
+        EXPECT_TRUE(
+            (std::is_same<decltype(bad_elem), const std::string*>::value));
         EXPECT_EQ(bad_elem, nullptr);
       }
       {
@@ -1525,7 +1532,8 @@ TEST(VariantTest, GetIfIndex) {
       }
       {
         auto* bad_elem = absl::get_if<1>(&const_v);
-        EXPECT_TRUE((std::is_same<decltype(bad_elem), const std::string*>::value));
+        EXPECT_TRUE(
+            (std::is_same<decltype(bad_elem), const std::string*>::value));
         EXPECT_EQ(bad_elem, nullptr);
       }
       {
@@ -1728,9 +1736,13 @@ TEST(VariantTest, VisitRValue) {
     bool operator()(std::string&&) const { return true; }  // NOLINT
 
     int operator()(const std::string&, const std::string&) const { return 0; }
-    int operator()(const std::string&, std::string&&) const { return 1; }  // NOLINT
-    int operator()(std::string&&, const std::string&) const { return 2; }  // NOLINT
-    int operator()(std::string&&, std::string&&) const { return 3; }       // NOLINT
+    int operator()(const std::string&, std::string&&) const {
+      return 1;
+    }  // NOLINT
+    int operator()(std::string&&, const std::string&) const {
+      return 2;
+    }                                                                 // NOLINT
+    int operator()(std::string&&, std::string&&) const { return 3; }  // NOLINT
   };
   EXPECT_FALSE(absl::visit(Visitor{}, v));
   EXPECT_TRUE(absl::visit(Visitor{}, absl::move(v)));
@@ -1806,9 +1818,9 @@ TEST(VariantTest, VisitVariadic) {
   EXPECT_THAT(absl::visit(Visitor(), A(std::string("BBBBB")),
                           B(std::unique_ptr<int>(new int(7)))),
               ::testing::Pair(5, 7));
-  EXPECT_THAT(
-      absl::visit(Visitor(), A(std::string("BBBBB")), B(absl::string_view("ABC"))),
-      ::testing::Pair(5, 3));
+  EXPECT_THAT(absl::visit(Visitor(), A(std::string("BBBBB")),
+                          B(absl::string_view("ABC"))),
+              ::testing::Pair(5, 3));
 }
 
 TEST(VariantTest, VisitNoArgs) {
@@ -2163,7 +2175,8 @@ TEST(VariantTest, TestImplicitConversion) {
 
   // We still need the explicit cast for std::string, because C++ won't apply
   // two user-defined implicit conversions in a row.
-  EXPECT_TRUE(absl::holds_alternative<std::string>(PassThrough(std::string("foo"))));
+  EXPECT_TRUE(
+      absl::holds_alternative<std::string>(PassThrough(std::string("foo"))));
 }
 
 struct Convertible2;
@@ -2187,7 +2200,8 @@ struct Convertible2 {
 
 TEST(VariantTest, TestRvalueConversion) {
   variant<double, std::string> var(
-      ConvertVariantTo<variant<double, std::string>>(variant<std::string, int>(0)));
+      ConvertVariantTo<variant<double, std::string>>(
+          variant<std::string, int>(0)));
   ASSERT_TRUE(absl::holds_alternative<double>(var));
   EXPECT_EQ(0.0, absl::get<double>(var));
 
@@ -2279,7 +2293,8 @@ TEST(VariantTest, TestLvalueConversion) {
 TEST(VariantTest, TestMoveConversion) {
   using Variant =
       variant<std::unique_ptr<const int>, std::unique_ptr<const std::string>>;
-  using OtherVariant = variant<std::unique_ptr<int>, std::unique_ptr<std::string>>;
+  using OtherVariant =
+      variant<std::unique_ptr<int>, std::unique_ptr<std::string>>;
 
   Variant var(
       ConvertVariantTo<Variant>(OtherVariant{absl::make_unique<int>(0)}));
@@ -2287,8 +2302,8 @@ TEST(VariantTest, TestMoveConversion) {
   ASSERT_NE(absl::get<std::unique_ptr<const int>>(var), nullptr);
   EXPECT_EQ(0, *absl::get<std::unique_ptr<const int>>(var));
 
-  var =
-      ConvertVariantTo<Variant>(OtherVariant(absl::make_unique<std::string>("foo")));
+  var = ConvertVariantTo<Variant>(
+      OtherVariant(absl::make_unique<std::string>("foo")));
   ASSERT_TRUE(absl::holds_alternative<std::unique_ptr<const std::string>>(var));
   EXPECT_EQ("foo", *absl::get<std::unique_ptr<const std::string>>(var));
 }
@@ -2299,7 +2314,8 @@ TEST(VariantTest, DoesNotMoveFromLvalues) {
   // whether moving or copying has occurred.
   using Variant =
       variant<std::shared_ptr<const int>, std::shared_ptr<const std::string>>;
-  using OtherVariant = variant<std::shared_ptr<int>, std::shared_ptr<std::string>>;
+  using OtherVariant =
+      variant<std::shared_ptr<int>, std::shared_ptr<std::string>>;
 
   Variant v1(std::make_shared<const int>(0));
 
@@ -2328,7 +2344,8 @@ TEST(VariantTest, DoesNotMoveFromLvalues) {
 
 TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
   variant<double, std::string> var(
-      ConvertVariantTo<variant<double, std::string>>(variant<std::string, int>(3)));
+      ConvertVariantTo<variant<double, std::string>>(
+          variant<std::string, int>(3)));
   EXPECT_THAT(absl::get_if<double>(&var), Pointee(3.0));
 
   var = ConvertVariantTo<variant<double, std::string>>(
@@ -2370,7 +2387,8 @@ TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
 
   variant<const char*, float> source2 = "foo";
   destination = ConvertVariantTo<variant<double, std::string>>(source2);
-  EXPECT_THAT(absl::get_if<std::string>(&destination), Pointee(std::string("foo")));
+  EXPECT_THAT(absl::get_if<std::string>(&destination),
+              Pointee(std::string("foo")));
 
   variant<int, float> source3(42);
   variant<double> singleton(ConvertVariantTo<variant<double>>(source3));
@@ -2407,15 +2425,16 @@ TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
 TEST(VariantTest, TestMoveConversionViaConvertVariantTo) {
   using Variant =
       variant<std::unique_ptr<const int>, std::unique_ptr<const std::string>>;
-  using OtherVariant = variant<std::unique_ptr<int>, std::unique_ptr<std::string>>;
+  using OtherVariant =
+      variant<std::unique_ptr<int>, std::unique_ptr<std::string>>;
 
   Variant var(
       ConvertVariantTo<Variant>(OtherVariant{absl::make_unique<int>(3)}));
   EXPECT_THAT(absl::get_if<std::unique_ptr<const int>>(&var),
               Pointee(Pointee(3)));
 
-  var =
-      ConvertVariantTo<Variant>(OtherVariant(absl::make_unique<std::string>("foo")));
+  var = ConvertVariantTo<Variant>(
+      OtherVariant(absl::make_unique<std::string>("foo")));
   EXPECT_THAT(absl::get_if<std::unique_ptr<const std::string>>(&var),
               Pointee(Pointee(std::string("foo"))));
 }

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -106,11 +106,7 @@ TEST(StrCat, Enums) {
 TEST(StrCat, Basics) {
   std::string result;
 
-  std::string strs[] = {
-    "Hello",
-    "Cruel",
-    "World"
-  };
+  std::string strs[] = {"Hello", "Cruel", "World"};
 
   std::string stdstrs[] = {
     "std::Hello",
@@ -164,9 +160,10 @@ TEST(StrCat, Basics) {
   result = absl::StrCat(ui64s[0], ", ", ui64s[1], "!");
   EXPECT_EQ(result, "12345678910, 10987654321!");
 
-  std::string one = "1";  // Actually, it's the size of this std::string that we want; a
-                     // 64-bit build distinguishes between size_t and uint64_t,
-                     // even though they're both unsigned 64-bit values.
+  std::string one =
+      "1";  // Actually, it's the size of this std::string that we want; a
+            // 64-bit build distinguishes between size_t and uint64_t,
+            // even though they're both unsigned 64-bit values.
   result = absl::StrCat("And a ", one.size(), " and a ",
                         &result[2] - &result[0], " and a ", one, " 2 3 4", "!");
   EXPECT_EQ(result, "And a 1 and a 2 and a 1 2 3 4!");
@@ -306,11 +303,7 @@ TEST(StrCat, MaxArgs) {
 TEST(StrAppend, Basics) {
   std::string result = "existing text";
 
-  std::string strs[] = {
-    "Hello",
-    "Cruel",
-    "World"
-  };
+  std::string strs[] = {"Hello", "Cruel", "World"};
 
   std::string stdstrs[] = {
     "std::Hello",
@@ -365,9 +358,10 @@ TEST(StrAppend, Basics) {
   absl::StrAppend(&result, ui64s[0], ", ", ui64s[1], "!");
   EXPECT_EQ(result.substr(old_size), "12345678910, 10987654321!");
 
-  std::string one = "1";  // Actually, it's the size of this std::string that we want; a
-                     // 64-bit build distinguishes between size_t and uint64_t,
-                     // even though they're both unsigned 64-bit values.
+  std::string one =
+      "1";  // Actually, it's the size of this std::string that we want; a
+            // 64-bit build distinguishes between size_t and uint64_t,
+            // even though they're both unsigned 64-bit values.
   old_size = result.size();
   absl::StrAppend(&result, "And a ", one.size(), " and a ",
                   &result[2] - &result[0], " and a ", one, " 2 3 4", "!");

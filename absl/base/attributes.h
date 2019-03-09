@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -80,7 +80,7 @@
 //
 // A function-like feature checking macro that accepts C++11 style attributes.
 // It's a wrapper around `__has_cpp_attribute`, defined by ISO C++ SD-6
-// (http://en.cppreference.com/w/cpp/experimental/feature_test). If we don't
+// (https://en.cppreference.com/w/cpp/experimental/feature_test). If we don't
 // find `__has_cpp_attribute`, will evaluate to 0.
 #if defined(__cplusplus) && defined(__has_cpp_attribute)
 // NOTE: requiring __cplusplus above should not be necessary, but
@@ -102,7 +102,7 @@
 //
 // Tells the compiler to perform `printf` format string checking if the
 // compiler supports it; see the 'format' attribute in
-// <http://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Function-Attributes.html>.
+// <https://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Function-Attributes.html>.
 //
 // Note: As the GCC manual states, "[s]ince non-static C++ methods
 // have an implicit 'this' argument, the arguments of such methods

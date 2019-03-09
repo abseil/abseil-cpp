@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,7 @@
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
+#include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 #include "absl/types/any.h"
 
@@ -30,18 +31,19 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 template <class K, class V>
-using Map =
-    flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual, Alloc<>>;
+using Map = flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual,
+                          Alloc<std::pair<const K, V>>>;
 
 static_assert(!std::is_standard_layout<NonStandardLayout>(), "");
 
 using MapTypes =
-    ::testing::Types<Map<int, int>, Map<std::string, int>, Map<Enum, std::string>,
-                     Map<EnumClass, int>, Map<int, NonStandardLayout>,
-                     Map<NonStandardLayout, int>>;
+    ::testing::Types<Map<int, int>, Map<std::string, int>,
+                     Map<Enum, std::string>, Map<EnumClass, int>,
+                     Map<int, NonStandardLayout>, Map<NonStandardLayout, int>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
 
 TEST(FlatHashMap, StandardLayout) {

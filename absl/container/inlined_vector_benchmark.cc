@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -89,7 +89,7 @@ void BM_InlinedVectorFillString(benchmark::State& state) {
   const int len = state.range(0);
   const int no_sso = GetNonShortStringOptimizationSize();
   std::string strings[4] = {std::string(no_sso, 'A'), std::string(no_sso, 'B'),
-                       std::string(no_sso, 'C'), std::string(no_sso, 'D')};
+                            std::string(no_sso, 'C'), std::string(no_sso, 'D')};
 
   for (auto _ : state) {
     absl::InlinedVector<std::string, 8> v;
@@ -105,7 +105,7 @@ void BM_StdVectorFillString(benchmark::State& state) {
   const int len = state.range(0);
   const int no_sso = GetNonShortStringOptimizationSize();
   std::string strings[4] = {std::string(no_sso, 'A'), std::string(no_sso, 'B'),
-                       std::string(no_sso, 'C'), std::string(no_sso, 'D')};
+                            std::string(no_sso, 'C'), std::string(no_sso, 'D')};
 
   for (auto _ : state) {
     std::vector<std::string> v;

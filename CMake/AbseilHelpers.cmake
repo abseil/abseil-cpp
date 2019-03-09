@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#    https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -90,8 +90,15 @@ function(absl_cc_library)
     endif()
 
     # Check if this is a header-only library
+    # Note that as of February 2019, many popular OS's (for example, Ubuntu
+    # 16.04 LTS) only come with cmake 3.5 by default.  For this reason, we can't
+    # use list(FILTER...)
     set(ABSL_CC_SRCS "${ABSL_CC_LIB_SRCS}")
-    list(FILTER ABSL_CC_SRCS EXCLUDE REGEX ".*\\.h")
+    foreach(src_file IN LISTS ABSL_CC_SRCS)
+      if(${src_file} MATCHES ".*\\.(h|inc)")
+        list(REMOVE_ITEM ABSL_CC_SRCS "${src_file}")
+      endif()
+    endforeach()
     if ("${ABSL_CC_SRCS}" STREQUAL "")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()

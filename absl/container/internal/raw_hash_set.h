@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -515,7 +515,7 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
 // if they are equal, false if they are not. If two keys compare equal, then
 // their hash values as defined by Hash MUST be equal.
 //
-// Allocator: an Allocator [http://devdocs.io/cpp/concept/allocator] with which
+// Allocator: an Allocator [https://devdocs.io/cpp/concept/allocator] with which
 // the storage of the hashtable will be allocated and the elements will be
 // constructed and destroyed.
 template <class Policy, class Hash, class Eq, class Alloc>
@@ -763,8 +763,8 @@ class raw_hash_set {
   // that accept std::initializer_list<T> and std::initializer_list<init_type>.
   // This is advantageous for performance.
   //
-  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then copies
-  //   // the strings into the set.
+  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then
+  //   // copies the strings into the set.
   //   std::unordered_set<std::string> s = {"abc", "def"};
   //
   //   // Turns {"abc", "def"} into std::initializer_list<const char*>, then
@@ -936,7 +936,7 @@ class raw_hash_set {
       reset_growth_left();
     }
     assert(empty());
-    infoz_.RecordStorageChanged(size_, capacity_);
+    infoz_.RecordStorageChanged(0, capacity_);
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -1252,7 +1252,7 @@ class raw_hash_set {
     if (n == 0 && capacity_ == 0) return;
     if (n == 0 && size_ == 0) {
       destroy_slots();
-      infoz_.RecordStorageChanged(size_, capacity_);
+      infoz_.RecordStorageChanged(0, 0);
       return;
     }
     // bitor is a faster way of doing `max` here. We will round up to the next
@@ -1539,11 +1539,14 @@ class raw_hash_set {
     capacity_ = new_capacity;
     initialize_slots();
 
+    size_t total_probe_length = 0;
     for (size_t i = 0; i != old_capacity; ++i) {
       if (IsFull(old_ctrl[i])) {
         size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                           PolicyTraits::element(old_slots + i));
-        size_t new_i = find_first_non_full(hash).offset;
+        auto target = find_first_non_full(hash);
+        size_t new_i = target.offset;
+        total_probe_length += target.probe_length;
         set_ctrl(new_i, H2(hash));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, old_slots + i);
       }
@@ -1555,6 +1558,7 @@ class raw_hash_set {
       Deallocate<Layout::Alignment()>(&alloc_ref(), old_ctrl,
                                       layout.AllocSize());
     }
+    infoz_.RecordRehash(total_probe_length);
   }
 
   void drop_deletes_without_resize() ABSL_ATTRIBUTE_NOINLINE {
@@ -1578,12 +1582,15 @@ class raw_hash_set {
     ConvertDeletedToEmptyAndFullToDeleted(ctrl_, capacity_);
     typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
         raw;
+    size_t total_probe_length = 0;
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
     for (size_t i = 0; i != capacity_; ++i) {
       if (!IsDeleted(ctrl_[i])) continue;
       size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                         PolicyTraits::element(slots_ + i));
-      size_t new_i = find_first_non_full(hash).offset;
+      auto target = find_first_non_full(hash);
+      size_t new_i = target.offset;
+      total_probe_length += target.probe_length;
 
       // Verify if the old and new i fall within the same group wrt the hash.
       // If they do, we don't need to move the object as it falls already in the
@@ -1616,6 +1623,7 @@ class raw_hash_set {
       }
     }
     reset_growth_left();
+    infoz_.RecordRehash(total_probe_length);
   }
 
   void rehash_and_grow_if_necessary() {

@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -480,6 +480,28 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":bits",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "scoped_set_env",
+    testonly = 1,
+    srcs = ["internal/scoped_set_env.cc"],
+    hdrs = ["internal/scoped_set_env.h"],
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [":base"],
+)
+
+cc_test(
+    name = "scoped_set_env_test",
+    size = "small",
+    srcs = ["internal/scoped_set_env_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":scoped_set_env",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -143,6 +143,29 @@ TEST(HashtablezInfoTest, RecordErase) {
   RecordEraseSlow(&info);
   EXPECT_EQ(info.size.load(), 0);
   EXPECT_EQ(info.num_erases.load(), 1);
+}
+
+TEST(HashtablezInfoTest, RecordRehash) {
+  HashtablezInfo info;
+  absl::MutexLock l(&info.init_mu);
+  info.PrepareForSampling();
+  RecordInsertSlow(&info, 0x1, 0);
+  RecordInsertSlow(&info, 0x2, kProbeLength);
+  RecordInsertSlow(&info, 0x4, kProbeLength);
+  RecordInsertSlow(&info, 0x8, 2 * kProbeLength);
+  EXPECT_EQ(info.size.load(), 4);
+  EXPECT_EQ(info.total_probe_length.load(), 4);
+
+  RecordEraseSlow(&info);
+  RecordEraseSlow(&info);
+  EXPECT_EQ(info.size.load(), 2);
+  EXPECT_EQ(info.total_probe_length.load(), 4);
+  EXPECT_EQ(info.num_erases.load(), 2);
+
+  RecordRehashSlow(&info, 3 * kProbeLength);
+  EXPECT_EQ(info.size.load(), 2);
+  EXPECT_EQ(info.total_probe_length.load(), 3);
+  EXPECT_EQ(info.num_erases.load(), 0);
 }
 
 TEST(HashtablezSamplerTest, SmallSampleParameter) {

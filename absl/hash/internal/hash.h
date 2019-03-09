@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -221,7 +221,9 @@ typename std::enable_if<std::is_enum<Enum>::value, H>::type AbslHashValue(
 }
 // AbslHashValue() for hashing floating-point values
 template <typename H, typename Float>
-typename std::enable_if<std::is_floating_point<Float>::value, H>::type
+typename std::enable_if<std::is_same<Float, float>::value ||
+                            std::is_same<Float, double>::value,
+                        H>::type
 AbslHashValue(H hash_state, Float value) {
   return hash_internal::hash_bytes(std::move(hash_state),
                                    value == 0 ? 0 : value);
@@ -231,8 +233,9 @@ AbslHashValue(H hash_state, Float value) {
 // For example, in x86 sizeof(long double)==16 but it only really uses 80-bits
 // of it. This means we can't use hash_bytes on a long double and have to
 // convert it to something else first.
-template <typename H>
-H AbslHashValue(H hash_state, long double value) {
+template <typename H, typename LongDouble>
+typename std::enable_if<std::is_same<LongDouble, long double>::value, H>::type
+AbslHashValue(H hash_state, LongDouble value) {
   const int category = std::fpclassify(value);
   switch (category) {
     case FP_INFINITE:
@@ -264,7 +267,12 @@ H AbslHashValue(H hash_state, long double value) {
 // AbslHashValue() for hashing pointers
 template <typename H, typename T>
 H AbslHashValue(H hash_state, T* ptr) {
-  return hash_internal::hash_bytes(std::move(hash_state), ptr);
+  auto v = reinterpret_cast<uintptr_t>(ptr);
+  // Due to alignment, pointers tend to have low bits as zero, and the next few
+  // bits follow a pattern since they are also multiples of some base value.
+  // Mixing the pointer twice helps prevent stuck low bits for certain alignment
+  // values.
+  return H::combine(std::move(hash_state), v, v);
 }
 
 // AbslHashValue() for hashing nullptr_t
@@ -527,20 +535,6 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
   return hash_state;
 }
 
-// InvokeHashTag
-//
-// InvokeHash(H, const T&) invokes the appropriate hash implementation for a
-// hasher of type `H` and a value of type `T`. If `T` is not hashable, there
-// will be no matching overload of InvokeHash().
-// Note: Some platforms (eg MSVC) do not support the detect idiom on
-// std::hash. In those platforms the last fallback will be std::hash and
-// InvokeHash() will always have a valid overload even if std::hash<T> is not
-// valid.
-//
-// We try the following options in order:
-//   * If is_uniquely_represented, hash bytes directly.
-//   * ADL AbslHashValue(H, const T&) call.
-//   * std::hash<T>
 #if defined(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE) && \
     ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 1
@@ -548,23 +542,15 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 0
 #endif
 
-enum class InvokeHashTag {
-  kUniquelyRepresented,
-  kHashValue,
-#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-  kLegacyHash,
-#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-  kStdHash,
-  kNone
-};
-
 // HashSelect
 //
 // Type trait to select the appropriate hash implementation to use.
-// HashSelect<T>::value is an instance of InvokeHashTag that indicates the best
-// available hashing mechanism.
-// See `Note` above about MSVC.
-template <typename T>
+// HashSelect::type<T> will give the proper hash implementation, to be invoked
+// as:
+//   HashSelect::type<T>::Invoke(state, value)
+// Also, HashSelect::type<T>::value is a boolean equal to `true` if there is a
+// valid `Invoke` function. Types that are not hashable will have a ::value of
+// `false`.
 struct HashSelect {
  private:
   struct State : HashStateBase<State> {
@@ -573,89 +559,75 @@ struct HashSelect {
     using State::HashStateBase::combine_contiguous;
   };
 
-  // `Probe<V, Tag>::value` evaluates to `V<T>::value` if it is a valid
-  // expression, and `false` otherwise.
-  // `Probe<V, Tag>::tag` always evaluates to `Tag`.
-  template <template <typename> class V, InvokeHashTag Tag>
-  struct Probe {
+  struct UniquelyRepresentedProbe {
+    template <typename H, typename T>
+    static auto Invoke(H state, const T& value)
+        -> absl::enable_if_t<is_uniquely_represented<T>::value, H> {
+      return hash_internal::hash_bytes(std::move(state), value);
+    }
+  };
+
+  struct HashValueProbe {
+    template <typename H, typename T>
+    static auto Invoke(H state, const T& value) -> absl::enable_if_t<
+        std::is_same<H,
+                     decltype(AbslHashValue(std::move(state), value))>::value,
+        H> {
+      return AbslHashValue(std::move(state), value);
+    }
+  };
+
+  struct LegacyHashProbe {
+#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+    template <typename H, typename T>
+    static auto Invoke(H state, const T& value) -> absl::enable_if_t<
+        std::is_convertible<
+            decltype(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>()(value)),
+            size_t>::value,
+        H> {
+      return hash_internal::hash_bytes(
+          std::move(state),
+          ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>{}(value));
+    }
+#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  };
+
+  struct StdHashProbe {
+    template <typename H, typename T>
+    static auto Invoke(H state, const T& value)
+        -> absl::enable_if_t<type_traits_internal::IsHashable<T>::value, H> {
+      return hash_internal::hash_bytes(std::move(state), std::hash<T>{}(value));
+    }
+  };
+
+  template <typename Hash, typename T>
+  struct Probe : Hash {
    private:
-    template <typename U, typename std::enable_if<V<U>::value, int>::type = 0>
+    template <typename H, typename = decltype(H::Invoke(
+                              std::declval<State>(), std::declval<const T&>()))>
     static std::true_type Test(int);
     template <typename U>
     static std::false_type Test(char);
 
    public:
-    static constexpr InvokeHashTag kTag = Tag;
-    static constexpr bool value = decltype(
-        Test<absl::remove_const_t<absl::remove_reference_t<T>>>(0))::value;
+    static constexpr bool value = decltype(Test<Hash>(0))::value;
   };
-
-  template <typename U>
-  using ProbeUniquelyRepresented = is_uniquely_represented<U>;
-
-  template <typename U>
-  using ProbeHashValue =
-      std::is_same<State, decltype(AbslHashValue(std::declval<State>(),
-                                                 std::declval<const U&>()))>;
-
-#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-  template <typename U>
-  using ProbeLegacyHash =
-      std::is_convertible<decltype(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<
-                                   U>()(std::declval<const U&>())),
-                          size_t>;
-#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-
-  template <typename U>
-  using ProbeStdHash = absl::type_traits_internal::IsHashable<U>;
-
-  template <typename U>
-  using ProbeNone = std::true_type;
 
  public:
   // Probe each implementation in order.
   // disjunction provides short circuting wrt instantiation.
-  static constexpr InvokeHashTag value = absl::disjunction<
-      Probe<ProbeUniquelyRepresented, InvokeHashTag::kUniquelyRepresented>,
-      Probe<ProbeHashValue, InvokeHashTag::kHashValue>,
-#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-      Probe<ProbeLegacyHash, InvokeHashTag::kLegacyHash>,
-#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-      Probe<ProbeStdHash, InvokeHashTag::kStdHash>,
-      Probe<ProbeNone, InvokeHashTag::kNone>>::kTag;
+  template <typename T>
+  using Apply = absl::disjunction<         //
+      Probe<UniquelyRepresentedProbe, T>,  //
+      Probe<HashValueProbe, T>,            //
+      Probe<LegacyHashProbe, T>,           //
+      Probe<StdHashProbe, T>,              //
+      std::false_type>;
 };
 
 template <typename T>
-struct is_hashable : std::integral_constant<bool, HashSelect<T>::value !=
-                                                      InvokeHashTag::kNone> {};
-
-template <typename H, typename T>
-absl::enable_if_t<HashSelect<T>::value == InvokeHashTag::kUniquelyRepresented,
-                  H>
-InvokeHash(H state, const T& value) {
-  return hash_internal::hash_bytes(std::move(state), value);
-}
-
-template <typename H, typename T>
-absl::enable_if_t<HashSelect<T>::value == InvokeHashTag::kHashValue, H>
-InvokeHash(H state, const T& value) {
-  return AbslHashValue(std::move(state), value);
-}
-
-#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-template <typename H, typename T>
-absl::enable_if_t<HashSelect<T>::value == InvokeHashTag::kLegacyHash, H>
-InvokeHash(H state, const T& value) {
-  return hash_internal::hash_bytes(
-      std::move(state), ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>{}(value));
-}
-#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
-
-template <typename H, typename T>
-absl::enable_if_t<HashSelect<T>::value == InvokeHashTag::kStdHash, H>
-InvokeHash(H state, const T& value) {
-  return hash_internal::hash_bytes(std::move(state), std::hash<T>{}(value));
-}
+struct is_hashable
+    : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
 
 // CityHashState
 class CityHashState : public HashStateBase<CityHashState> {
@@ -865,7 +837,8 @@ struct Hash
 template <typename H>
 template <typename T, typename... Ts>
 H HashStateBase<H>::combine(H state, const T& value, const Ts&... values) {
-  return H::combine(hash_internal::InvokeHash(std::move(state), value),
+  return H::combine(hash_internal::HashSelect::template Apply<T>::Invoke(
+                        std::move(state), value),
                     values...);
 }
 

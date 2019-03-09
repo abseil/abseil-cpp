@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -142,9 +142,36 @@ TEST(HashValueTest, Pointer) {
       std::make_tuple(&i, ptr, nullptr, ptr + 1, n)));
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
+TEST(HashValueTest, PointerAlignment) {
+  // We want to make sure that pointer alignment will not cause bits to be
+  // stuck.
+
+  constexpr size_t kTotalSize = 1 << 20;
+  std::unique_ptr<char[]> data(new char[kTotalSize]);
+  constexpr size_t kLog2NumValues = 5;
+  constexpr size_t kNumValues = 1 << kLog2NumValues;
+
+  for (size_t align = 1; align < kTotalSize / kNumValues;
+       align < 8 ? align += 1 : align < 1024 ? align += 8 : align += 32) {
+    SCOPED_TRACE(align);
+    ASSERT_LE(align * kNumValues, kTotalSize);
+
+    size_t bits_or = 0;
+    size_t bits_and = ~size_t{};
+
+    for (size_t i = 0; i < kNumValues; ++i) {
+      size_t hash = absl::Hash<void*>()(data.get() + i * align);
+      bits_or |= hash;
+      bits_and &= hash;
+    }
+
+    // Limit the scope to the bits we would be using for Swisstable.
+    constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
+    size_t stuck_bits = (~bits_or | bits_and) & kMask;
+    EXPECT_EQ(stuck_bits, 0) << "0x" << std::hex << stuck_bits;
+  }
+}
+
 TEST(HashValueTest, PairAndTuple) {
   EXPECT_TRUE((is_hashable<std::pair<int, int>>::value));
   EXPECT_TRUE((is_hashable<std::pair<const int&, const int&>>::value));
@@ -173,7 +200,6 @@ TEST(HashValueTest, PairAndTuple) {
       std::forward_as_tuple(42, 0, 0), std::forward_as_tuple(3, 9, 9),
       std::forward_as_tuple(0, 0, -42))));
 }
-#endif  // !defined(_MSC_VER)
 
 TEST(HashValueTest, CombineContiguousWorks) {
   std::vector<std::tuple<int>> v1 = {std::make_tuple(1), std::make_tuple(3)};
@@ -252,7 +278,6 @@ struct WrapInTuple {
 
 TEST(HashValueTest, Strings) {
   EXPECT_TRUE((is_hashable<std::string>::value));
-  EXPECT_TRUE((is_hashable<std::string>::value));
 
   const std::string small = "foo";
   const std::string dup = "foofoo";
@@ -282,16 +307,12 @@ TEST(HashValueTest, Strings) {
             SpyHash(absl::string_view("ABC")));
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
 TEST(HashValueTest, StdArray) {
   EXPECT_TRUE((is_hashable<std::array<int, 3>>::value));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
       std::make_tuple(std::array<int, 3>{}, std::array<int, 3>{{0, 23, 42}})));
 }
-#endif  // !defined(_MSC_VER)
 
 TEST(HashValueTest, StdBitset) {
   EXPECT_TRUE((is_hashable<std::bitset<257>>::value));
@@ -392,9 +413,6 @@ TEST(HashValueTest, Variant) {
 #endif
 }
 
-// TODO(EricWF): MSVC 15 has a bug that causes it to incorrectly evaluate the
-// SFINAE in internal/hash.h, causing this test to fail.
-#if !defined(_MSC_VER)
 TEST(HashValueTest, Maps) {
   EXPECT_TRUE((is_hashable<std::map<int, std::string>>::value));
 
@@ -411,7 +429,6 @@ TEST(HashValueTest, Maps) {
       MM{{0, "foo"}, {42, "bar"}}, MM{{1, "foo"}, {42, "bar"}},
       MM{{1, "foo"}, {1, "foo"}, {43, "bar"}}, MM{{1, "foo"}, {43, "baz"}})));
 }
-#endif  // !defined(_MSC_VER)
 
 template <typename T, typename = void>
 struct IsHashCallble : std::false_type {};
@@ -489,8 +506,16 @@ struct CombineVariadic {
                              Int(4));
   }
 };
+enum class InvokeTag {
+  kUniquelyRepresented,
+  kHashValue,
+#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kLegacyHash,
+#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kStdHash,
+  kNone
+};
 
-using InvokeTag = absl::hash_internal::InvokeHashTag;
 template <InvokeTag T>
 using InvokeTagConstant = std::integral_constant<InvokeTag, T>;
 
@@ -682,7 +707,8 @@ TEST(HashTest, HashNonUniquelyRepresentedType) {
 }
 
 TEST(HashTest, StandardHashContainerUsage) {
-  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"}, { 42, "bar" }};
+  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"},
+                                                         {42, "bar"}};
 
   EXPECT_NE(map.find(0), map.end());
   EXPECT_EQ(map.find(1), map.end());
@@ -750,6 +776,26 @@ TEST(HashTest, TypeErased) {
 
   EXPECT_EQ(SpyHash(std::make_pair(TypeErased{7}, 17)),
             SpyHash(std::make_pair(size_t{7}, 17)));
+}
+
+struct ValueWithBoolConversion {
+  operator bool() const { return false; }
+  int i;
+};
+
+}  // namespace
+namespace std {
+template <>
+struct hash<ValueWithBoolConversion> {
+  size_t operator()(ValueWithBoolConversion v) { return v.i; }
+};
+}  // namespace std
+
+namespace {
+
+TEST(HashTest, DoesNotUseImplicitConversionsToBool) {
+  EXPECT_NE(absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{0}),
+            absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{1}));
 }
 
 }  // namespace

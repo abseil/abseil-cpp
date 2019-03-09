@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#    https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -413,5 +413,28 @@ absl_cc_test(
     "internal/bits_test.cc"
   DEPS
     absl::bits
+    gtest_main
+)
+
+absl_cc_library(
+  NAME
+    scoped_set_env
+  SRCS
+    "internal/scoped_set_env.cc"
+  HDRS
+    "internal/scoped_set_env.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::base
+)
+
+absl_cc_test(
+  NAME
+    scoped_set_env_test
+  SRCS
+    "internal/scoped_set_env_test.cc"
+  DEPS
+    absl::scoped_set_env
     gtest_main
 )

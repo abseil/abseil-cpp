@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -284,9 +284,10 @@ TEST(StringViewTest, ComparisonOperatorsByCharacterPosition) {
 }
 #undef COMPARE
 
-// Sadly, our users often confuse string::npos with absl::string_view::npos;
-// So much so that we test here that they are the same.  They need to
-// both be unsigned, and both be the maximum-valued integer of their type.
+// Sadly, our users often confuse std::string::npos with
+// absl::string_view::npos; So much so that we test here that they are the same.
+// They need to both be unsigned, and both be the maximum-valued integer of
+// their type.
 
 template <typename T>
 struct is_type {
@@ -755,7 +756,6 @@ TEST(StringViewTest, Remove) {
   std::string s1("123");
   s1 += '\0';
   s1 += "456";
-  absl::string_view b(s1);
   absl::string_view e;
   std::string s2;
 
@@ -995,8 +995,8 @@ TEST(StringViewTest, ConstexprCompiles) {
 TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
                                              const std::string&>::value));
-  EXPECT_TRUE(
-      (std::is_nothrow_constructible<absl::string_view, const std::string&>::value));
+  EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
+                                             const std::string&>::value));
   EXPECT_TRUE(std::is_nothrow_constructible<absl::string_view>::value);
   constexpr absl::string_view sp;
   EXPECT_TRUE(noexcept(sp.begin()));

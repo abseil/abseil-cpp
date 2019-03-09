@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -243,7 +243,7 @@ using Hash = absl::hash_internal::Hash<T>;
 //       absl::HashState::combine(std::move(state), v1_, v2_);
 //     }
 //     int v1_;
-//     string v2_;
+//     std::string v2_;
 //   };
 class HashState : public hash_internal::HashStateBase<HashState> {
  public:

@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -277,7 +277,7 @@ class string_view {
   // Checks if the `string_view` is empty (refers to no characters).
   constexpr bool empty() const noexcept { return length_ == 0; }
 
-  // std::string:view::operator[]
+  // string_view::operator[]
   //
   // Returns the ith element of an `string_view` using the array operator.
   // Note that this operator does not perform any bounds checking.

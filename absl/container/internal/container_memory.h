@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -311,7 +311,23 @@ struct IsLayoutCompatible {
 // kMutableKeys. For C++11, the relevant section of the standard is
 // https://timsong-cpp.github.io/cppwp/n3337/class.mem#19 (9.2.19)
 template <class K, class V>
-union slot_type {
+union map_slot_type {
+  map_slot_type() {}
+  ~map_slot_type() = delete;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type = std::pair<K, V>;
+
+  value_type value;
+  mutable_value_type mutable_value;
+  K key;
+};
+
+template <class K, class V>
+struct map_slot_policy {
+  using slot_type = map_slot_type<K, V>;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type = std::pair<K, V>;
+
  private:
   static void emplace(slot_type* slot) {
     // The construction of union doesn't do anything at runtime but it allows us
@@ -321,19 +337,17 @@ union slot_type {
   // If pair<const K, V> and pair<K, V> are layout-compatible, we can accept one
   // or the other via slot_type. We are also free to access the key via
   // slot_type::key in this case.
-  using kMutableKeys =
-      std::integral_constant<bool,
-                             memory_internal::IsLayoutCompatible<K, V>::value>;
+  using kMutableKeys = memory_internal::IsLayoutCompatible<K, V>;
 
  public:
-  slot_type() {}
-  ~slot_type() = delete;
-  using value_type = std::pair<const K, V>;
-  using mutable_value_type = std::pair<K, V>;
+  static value_type& element(slot_type* slot) { return slot->value; }
+  static const value_type& element(const slot_type* slot) {
+    return slot->value;
+  }
 
-  value_type value;
-  mutable_value_type mutable_value;
-  K key;
+  static const K& key(const slot_type* slot) {
+    return kMutableKeys::value ? slot->key : slot->value.first;
+  }
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {

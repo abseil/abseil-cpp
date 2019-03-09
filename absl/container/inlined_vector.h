@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -156,11 +156,11 @@ class InlinedVector {
     std::copy(first, last, std::back_inserter(*this));
   }
 
-  // Creates a copy of `other` using `other`'s allocator.
+  // Creates a copy of an `other` inlined vector using `other`'s allocator.
   InlinedVector(const InlinedVector& other)
       : InlinedVector(other, other.allocator()) {}
 
-  // Creates a copy of `other` but with a specified allocator.
+  // Creates a copy of an `other` inlined vector using a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
       : allocator_and_tag_(alloc) {
     reserve(other.size());
@@ -173,14 +173,19 @@ class InlinedVector {
     }
   }
 
-  // Creates an inlined vector by moving in the contents of `other`.
+  // Creates an inlined vector by moving in the contents of an `other` inlined
+  // vector without performing any allocations. If `other` contains allocated
+  // memory, the newly-created instance will take ownership of that memory
+  // (leaving `other` itself empty). However, if `other` does not contain any
+  // allocated memory, the new inlined vector will  will perform element-wise
+  // move construction of `other`s elements.
   //
-  // NOTE: This move constructor does not allocate and only moves the underlying
-  // objects, so its `noexcept` specification depends on whether moving the
-  // underlying objects can throw or not. We assume:
-  //  a) move constructors should only throw due to allocation failure and
-  //  b) if `value_type`'s move constructor allocates, it uses the same
-  //     allocation function as the `InlinedVector`'s allocator, so the move
+  // NOTE: since no allocation is performed for the inlined vector in either
+  // case, the `noexcept(...)` specification depends on whether moving the
+  // underlying objects can throw. We assume:
+  //  a) Move constructors should only throw due to allocation failure.
+  //  b) If `value_type`'s move constructor allocates, it uses the same
+  //     allocation function as the `InlinedVector`'s allocator. Thus, the move
   //     constructor is non-throwing if the allocator is non-throwing or
   //     `value_type`'s move constructor is specified as `noexcept`.
   InlinedVector(InlinedVector&& other) noexcept(
@@ -202,14 +207,19 @@ class InlinedVector {
     }
   }
 
-  // Creates an inlined vector by moving in the contents of `other`.
+  // Creates an inlined vector by moving in the contents of an `other` inlined
+  // vector, performing allocations with the specified `alloc` allocator. If
+  // `other`'s allocator is not equal to `alloc` and `other` contains allocated
+  // memory, this move constructor will create a new allocation.
   //
-  // NOTE: This move constructor allocates and subsequently moves the underlying
-  // objects, so its `noexcept` specification depends on whether the allocation
-  // can throw and whether moving the underlying objects can throw. Based on the
-  // same assumptions as above, the `noexcept` specification is dominated by
-  // whether the allocation can throw regardless of whether `value_type`'s move
-  // constructor is specified as `noexcept`.
+  // NOTE: since allocation is performed in this case, this constructor can
+  // only be `noexcept` if the specified allocator is also `noexcept`. If this
+  // is the case, or if `other` contains allocated memory, this constructor
+  // performs element-wise move construction of its contents.
+  //
+  // Only in the case where `other`'s allocator is equal to `alloc` and `other`
+  // contains allocated memory will the newly created inlined vector take
+  // ownership of `other`'s allocated memory.
   InlinedVector(InlinedVector&& other, const allocator_type& alloc) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value)
       : allocator_and_tag_(alloc) {
@@ -1110,9 +1120,9 @@ class InlinedVector {
     }
   }
 
-  template <typename ForwardIterator>
-  void AssignForwardRange(ForwardIterator first, ForwardIterator last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
+  template <typename ForwardIt>
+  void AssignForwardRange(ForwardIt first, ForwardIt last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
 
     auto length = std::distance(first, last);
 
@@ -1134,9 +1144,9 @@ class InlinedVector {
     }
   }
 
-  template <typename ForwardIterator>
-  void AppendForwardRange(ForwardIterator first, ForwardIterator last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
+  template <typename ForwardIt>
+  void AppendForwardRange(ForwardIt first, ForwardIt last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
 
     auto length = std::distance(first, last);
     reserve(size() + length);
@@ -1162,10 +1172,10 @@ class InlinedVector {
     return it_pair.first;
   }
 
-  template <typename ForwardIterator>
-  iterator InsertWithForwardRange(const_iterator position,
-                                  ForwardIterator first, ForwardIterator last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIterator>::value, "");
+  template <typename ForwardIt>
+  iterator InsertWithForwardRange(const_iterator position, ForwardIt first,
+                                  ForwardIt last) {
+    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
     assert(position >= begin() && position <= end());
 
     if (ABSL_PREDICT_FALSE(first == last))
