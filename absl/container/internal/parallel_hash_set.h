@@ -165,14 +165,14 @@ protected:
   // MutexLock with the additional set_mutex function, otherwise we could 
   // make the MutexLock from mutex.h a template and use that one.
   // --------------------------------------------------------------------
-  class MutexLock_ {
+  class SCOPED_LOCKABLE MutexLock_ {
   public:
-    explicit MutexLock_(Mutex *mu) : mu_(mu) {
+    explicit MutexLock_(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
       if (this->mu_)
         this->mu_->Lock();
     }
 
-    void set_mutex(Mutex *mu) {
+    void set_mutex(Mutex *mu) NO_THREAD_SAFETY_ANALYSIS {
       assert(mu && this->mu_ == nullptr);
       this->mu_ = mu;
       this->mu_->Lock();
@@ -183,7 +183,7 @@ protected:
     MutexLock_& operator=(const MutexLock_&) = delete;
     MutexLock_& operator=(MutexLock_&&)      = delete;
 
-    ~MutexLock_() { this->mu_->Unlock(); }
+    ~MutexLock_() UNLOCK_FUNCTION() { if (this->mu_) this->mu_->Unlock(); }
 
   private:
     Mutex * mu_;
@@ -865,9 +865,9 @@ public:
     (void)key;
 #if defined(__GNUC__)
     size_t hash = hash_ref()(key);
-    Inner& inner = sets_[subidx(hash)];
-    auto&  set   = inner.set_;
-    MutexLock_ m(&inner);
+    const Inner& inner = sets_[subidx(hash)];
+    const auto&  set   = inner.set_;
+    MutexLock_ m(const_cast<Inner *>(&inner));
     set.prefetch_hash(hash);
 #endif  // __GNUC__
   }
@@ -1006,7 +1006,7 @@ private:
   void drop_deletes_without_resize() ABSL_ATTRIBUTE_NOINLINE {
     for (auto& inner : sets_)
     {
-      MutexLock_ m(&inner)
+      MutexLock_ m(&inner);
       inner.set_.drop_deletes_without_resize();
     }
   }
@@ -1014,7 +1014,7 @@ private:
   void rehash_and_grow_if_necessary() {
     for (auto& inner : sets_)
     {
-      MutexLock_ m(&inner)
+      MutexLock_ m(&inner);
       inner.set_.rehash_and_grow_if_necessary();
     }
   }

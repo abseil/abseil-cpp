@@ -43,13 +43,6 @@
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/int128.h"
 
-#ifdef _WIN32
-    #undef min
-    #undef max
-    #undef small
-    #undef huge
-#endif
-
 namespace {
 
 using absl::Hash;
