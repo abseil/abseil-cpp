@@ -140,7 +140,7 @@ TEST(Time, Breakdown) {
 
 TEST(Time, AdditiveOperators) {
   const absl::Duration d = absl::Nanoseconds(1);
-  const absl::Time t0;
+  const absl::Time t0(absl::UnixEpoch());
   const absl::Time t1 = t0 + d;
 
   EXPECT_EQ(d, t1 - t0);
@@ -847,7 +847,7 @@ TEST(Time, Range) {
 TEST(Time, Limits) {
   // It is an implementation detail that Time().rep_ == ZeroDuration(),
   // and that the resolution of a Duration is 1/4 of a nanosecond.
-  const absl::Time zero;
+  const absl::Time zero(absl::UnixEpoch());
   const absl::Time max =
       zero + absl::Seconds(std::numeric_limits<int64_t>::max()) +
       absl::Nanoseconds(999999999) + absl::Nanoseconds(3) / 4;

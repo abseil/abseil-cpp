@@ -30,7 +30,10 @@
 //          resize in turn, which drastically reduces the high memory usage.
 //
 //   2. when the hash table is being written to, individual hash tables can 
-//      be locked, drastically reducing multithreading waits.
+//      be locked, significantly reducing multithreading waits.
+//
+//   3. multithreaded lock-free usage is possible by ensuring different 
+//      threads use different submaps
 
 // When heterogeneous lookup is enabled, functions that take key_type act as if
 // they have an overload set like:
@@ -60,8 +63,7 @@
 // weaker: all iterators and pointers are invalidated after a new element is
 // inserted.
 //
-// IMPLEMENTATION DETAILS
-//
+////////////////////////////////////////////////////////////////////////////
 
 #ifndef ABSL_CONTAINER_INTERNAL_PARALLEL_HASH_SET_H_
 #define ABSL_CONTAINER_INTERNAL_PARALLEL_HASH_SET_H_
