@@ -517,15 +517,15 @@ class LOCKABLE Mutex {
 // -----------------------------------------------------------------------------
 // A class that implements the Mutex interface, but does nothing. This is to be 
 // used as a default template parameters for classes who provide optional 
-// internal locking (like absl::parallel_flat_hash_map.
+// internal locking (like absl::parallel_flat_hash_map).
 // -----------------------------------------------------------------------------
 class LOCKABLE NullMutex {
 public:
     NullMutex() {}
     explicit constexpr NullMutex(absl::ConstInitType) {}
     ~NullMutex() {}
-    void Lock() EXCLUSIVE_LOCK_FUNCTION() {}
-    void Unlock() UNLOCK_FUNCTION() {}
+    void Lock()    EXCLUSIVE_LOCK_FUNCTION() {}
+    void Unlock()  UNLOCK_FUNCTION() {}
     bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) { return true; }
 };
 
