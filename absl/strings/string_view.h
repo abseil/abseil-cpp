@@ -32,7 +32,7 @@
 
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 
-#include <string_view>
+#include <string_view>  // IWYU pragma: export
 
 namespace absl {
 using std::string_view;

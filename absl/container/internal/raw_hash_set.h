@@ -446,9 +446,7 @@ using Group = GroupPortableImpl;
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set;
 
-inline bool IsValidCapacity(size_t n) {
-  return ((n + 1) & n) == 0 && n >= Group::kWidth - 1;
-}
+inline bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 
 // PRECONDITION:
 //   IsValidCapacity(capacity)
@@ -470,13 +468,9 @@ inline void ConvertDeletedToEmptyAndFullToDeleted(
   ctrl[capacity] = kSentinel;
 }
 
-// Rounds up the capacity to the next power of 2 minus 1 and ensures it is
-// greater or equal to Group::kWidth - 1.
+// Rounds up the capacity to the next power of 2 minus 1, with a minimum of 1.
 inline size_t NormalizeCapacity(size_t n) {
-  constexpr size_t kMinCapacity = Group::kWidth - 1;
-  return n <= kMinCapacity
-             ? kMinCapacity
-             : (std::numeric_limits<size_t>::max)() >> LeadingZeros(n);
+  return n ? ~size_t{} >> LeadingZeros(n) : 1;
 }
 
 // We use 7/8th as maximum load factor.
@@ -1563,6 +1557,7 @@ class raw_hash_set {
 
   void drop_deletes_without_resize() ABSL_ATTRIBUTE_NOINLINE {
     assert(IsValidCapacity(capacity_));
+    assert(!is_small());
     // Algorithm:
     // - mark all DELETED slots as EMPTY
     // - mark all FULL slots as DELETED
@@ -1628,7 +1623,7 @@ class raw_hash_set {
 
   void rehash_and_grow_if_necessary() {
     if (capacity_ == 0) {
-      resize(Group::kWidth - 1);
+      resize(1);
     } else if (size() <= CapacityToGrowth(capacity()) / 2) {
       // Squash DELETED without growing if there is enough capacity.
       drop_deletes_without_resize();
@@ -1679,17 +1674,15 @@ class raw_hash_set {
       auto mask = g.MatchEmptyOrDeleted();
       if (mask) {
 #if !defined(NDEBUG)
-        // We want to force small tables to have random entries too, so
-        // in debug build we will randomly insert in either the front or back of
+        // We want to add entropy even when ASLR is not enabled.
+        // In debug build we will randomly insert in either the front or back of
         // the group.
         // TODO(kfm,sbenza): revisit after we do unconditional mixing
-        if (ShouldInsertBackwards(hash, ctrl_))
+        if (!is_small() && ShouldInsertBackwards(hash, ctrl_)) {
           return {seq.offset(mask.HighestBitSet()), seq.index()};
-        else
-          return {seq.offset(mask.LowestBitSet()), seq.index()};
-#else
-        return {seq.offset(mask.LowestBitSet()), seq.index()};
+        }
 #endif
+        return {seq.offset(mask.LowestBitSet()), seq.index()};
       }
       assert(seq.index() < capacity_ && "full table!");
       seq.next();
@@ -1796,7 +1789,8 @@ class raw_hash_set {
     }
 
     ctrl_[i] = h;
-    ctrl_[((i - Group::kWidth) & capacity_) + Group::kWidth] = h;
+    ctrl_[((i - Group::kWidth) & capacity_) + 1 +
+          ((Group::kWidth - 1) & capacity_)] = h;
   }
 
   size_t& growth_left() { return settings_.template get<0>(); }
@@ -1810,6 +1804,22 @@ class raw_hash_set {
             template <class, class, class, class> class RefSet,
             class M, class P, class H, class E, class A>
   friend class parallel_hash_map;
+
+  // The representation of the object has two modes:
+  //  - small: For capacities < kWidth-1
+  //  - large: For the rest.
+  //
+  // Differences:
+  //  - In small mode we are able to use the whole capacity. The extra control
+  //  bytes give us at least one "empty" control byte to stop the iteration.
+  //  This is important to make 1 a valid capacity.
+  //
+  //  - In small mode only the first `capacity()` control bytes after the
+  //  sentinel are valid. The rest contain dummy kEmpty values that do not
+  //  represent a real slot. This is important to take into account on
+  //  find_first_non_full(), where we never try ShouldInsertBackwards() for
+  //  small tables.
+  bool is_small() const { return capacity_ < Group::kWidth - 1; }
 
   hasher& hash_ref() { return settings_.template get<1>(); }
   const hasher& hash_ref() const { return settings_.template get<1>(); }

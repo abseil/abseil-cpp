@@ -40,7 +40,7 @@
 
 #ifdef ABSL_HAVE_STD_OPTIONAL
 
-#include <optional>
+#include <optional>  // IWYU pragma: export
 
 namespace absl {
 using std::bad_optional_access;

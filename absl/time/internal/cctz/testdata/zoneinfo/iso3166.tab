@@ -10,7 +10,7 @@
 #
 # 1.  ISO 3166-1 alpha-2 country code, current as of
 #     ISO 3166-1 N905 (2016-11-15).  See: Updates on ISO 3166-1
-#     http://isotc.iso.org/livelink/livelink/Open/16944257
+#     https://isotc.iso.org/livelink/livelink/Open/16944257
 # 2.  The usual English name for the coded region,
 #     chosen so that alphabetic sorting of subsets produces helpful lists.
 #     This is not the same as the English name in the ISO 3166 tables.

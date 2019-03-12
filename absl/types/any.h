@@ -58,7 +58,7 @@
 
 #ifdef ABSL_HAVE_STD_ANY
 
-#include <any>
+#include <any>  // IWYU pragma: export
 
 namespace absl {
 using std::any;
