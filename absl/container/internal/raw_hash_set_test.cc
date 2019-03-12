@@ -55,13 +55,16 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 TEST(Util, NormalizeCapacity) {
-  constexpr size_t kMinCapacity = Group::kWidth - 1;
-  EXPECT_EQ(kMinCapacity, NormalizeCapacity(0));
-  EXPECT_EQ(kMinCapacity, NormalizeCapacity(1));
-  EXPECT_EQ(kMinCapacity, NormalizeCapacity(2));
-  EXPECT_EQ(kMinCapacity, NormalizeCapacity(kMinCapacity));
-  EXPECT_EQ(kMinCapacity * 2 + 1, NormalizeCapacity(kMinCapacity + 1));
-  EXPECT_EQ(kMinCapacity * 2 + 1, NormalizeCapacity(kMinCapacity + 2));
+  EXPECT_EQ(1, NormalizeCapacity(0));
+  EXPECT_EQ(1, NormalizeCapacity(1));
+  EXPECT_EQ(3, NormalizeCapacity(2));
+  EXPECT_EQ(3, NormalizeCapacity(3));
+  EXPECT_EQ(7, NormalizeCapacity(4));
+  EXPECT_EQ(7, NormalizeCapacity(7));
+  EXPECT_EQ(15, NormalizeCapacity(8));
+  EXPECT_EQ(15, NormalizeCapacity(15));
+  EXPECT_EQ(15 * 2 + 1, NormalizeCapacity(15 + 1));
+  EXPECT_EQ(15 * 2 + 1, NormalizeCapacity(15 + 2));
 }
 
 TEST(Util, GrowthAndCapacity) {
@@ -72,10 +75,7 @@ TEST(Util, GrowthAndCapacity) {
     size_t capacity = NormalizeCapacity(GrowthToLowerboundCapacity(growth));
     // The capacity is large enough for `growth`
     EXPECT_THAT(CapacityToGrowth(capacity), Ge(growth));
-    if (growth < Group::kWidth - 1) {
-      // Fits in one group, that is the minimum capacity.
-      EXPECT_EQ(capacity, Group::kWidth - 1);
-    } else {
+    if (growth != 0 && capacity > 1) {
       // There is no smaller capacity that works.
       EXPECT_THAT(CapacityToGrowth(capacity / 2), Lt(growth));
     }
@@ -814,7 +814,7 @@ TEST(Table, EnsureNonQuadraticAsInRust) {
 TEST(Table, ClearBug) {
   IntTable t;
   constexpr size_t capacity = container_internal::Group::kWidth - 1;
-  constexpr size_t max_size = capacity / 2;
+  constexpr size_t max_size = capacity / 2 + 1;
   for (size_t i = 0; i < max_size; ++i) {
     t.insert(i);
   }
@@ -1741,73 +1741,49 @@ TEST(Nodes, ExtractInsert) {
   EXPECT_FALSE(node);
 }
 
-StringTable MakeSimpleTable(size_t size) {
-  StringTable t;
-  for (size_t i = 0; i < size; ++i) t.emplace(std::string(1, 'A' + i), "");
+IntTable MakeSimpleTable(size_t size) {
+  IntTable t;
+  while (t.size() < size) t.insert(t.size());
   return t;
 }
 
-std::string OrderOfIteration(const StringTable& t) {
-  std::string order;
-  for (auto& p : t) order += p.first;
-  return order;
+std::vector<int> OrderOfIteration(const IntTable& t) {
+  return {t.begin(), t.end()};
 }
 
+// These IterationOrderChanges tests depend on non-deterministic behavior.
+// We are injecting non-determinism from the pointer of the table, but do so in
+// a way that only the page matters. We have to retry enough times to make sure
+// we are touching different memory pages to cause the ordering to change.
+// We also need to keep the old tables around to avoid getting the same memory
+// blocks over and over.
 TEST(Table, IterationOrderChangesByInstance) {
-  // Needs to be more than kWidth elements to be able to affect order.
-  const StringTable reference = MakeSimpleTable(20);
+  for (size_t size : {2, 6, 12, 20}) {
+    const auto reference_table = MakeSimpleTable(size);
+    const auto reference = OrderOfIteration(reference_table);
 
-  // Since order is non-deterministic we can't just try once and verify.
-  // We'll try until we find that order changed. It should not take many tries
-  // for that.
-  // Important: we have to keep the old tables around. Otherwise tcmalloc will
-  // just give us the same blocks and we would be doing the same order again.
-  std::vector<StringTable> garbage;
-  for (int i = 0; i < 10; ++i) {
-    auto trial = MakeSimpleTable(20);
-    if (OrderOfIteration(trial) != OrderOfIteration(reference)) {
-      // We are done.
-      return;
+    std::vector<IntTable> tables;
+    bool found_difference = false;
+    for (int i = 0; !found_difference && i < 500; ++i) {
+      tables.push_back(MakeSimpleTable(size));
+      found_difference = OrderOfIteration(tables.back()) != reference;
     }
-    garbage.push_back(std::move(trial));
+    if (!found_difference) {
+      FAIL()
+          << "Iteration order remained the same across many attempts with size "
+          << size;
+    }
   }
-  FAIL();
 }
 
 TEST(Table, IterationOrderChangesOnRehash) {
-  // Since order is non-deterministic we can't just try once and verify.
-  // We'll try until we find that order changed. It should not take many tries
-  // for that.
-  // Important: we have to keep the old tables around. Otherwise tcmalloc will
-  // just give us the same blocks and we would be doing the same order again.
-  std::vector<StringTable> garbage;
-  for (int i = 0; i < 10; ++i) {
-    // Needs to be more than kWidth elements to be able to affect order.
-    StringTable t = MakeSimpleTable(20);
-    const std::string reference = OrderOfIteration(t);
+  std::vector<IntTable> garbage;
+  for (int i = 0; i < 500; ++i) {
+    auto t = MakeSimpleTable(20);
+    const auto reference = OrderOfIteration(t);
     // Force rehash to the same size.
     t.rehash(0);
-    std::string trial = OrderOfIteration(t);
-    if (trial != reference) {
-      // We are done.
-      return;
-    }
-    garbage.push_back(std::move(t));
-  }
-  FAIL();
-}
-
-TEST(Table, IterationOrderChangesForSmallTables) {
-  // Since order is non-deterministic we can't just try once and verify.
-  // We'll try until we find that order changed.
-  // Important: we have to keep the old tables around. Otherwise tcmalloc will
-  // just give us the same blocks and we would be doing the same order again.
-  StringTable reference_table = MakeSimpleTable(5);
-  const std::string reference = OrderOfIteration(reference_table);
-  std::vector<StringTable> garbage;
-  for (int i = 0; i < 50; ++i) {
-    StringTable t = MakeSimpleTable(5);
-    std::string trial = OrderOfIteration(t);
+    auto trial = OrderOfIteration(t);
     if (trial != reference) {
       // We are done.
       return;
@@ -1815,6 +1791,24 @@ TEST(Table, IterationOrderChangesForSmallTables) {
     garbage.push_back(std::move(t));
   }
   FAIL() << "Iteration order remained the same across many attempts.";
+}
+
+// Verify that pointers are invalidated as soon as a second element is inserted.
+// This prevents dependency on pointer stability on small tables.
+TEST(Table, UnstablePointers) {
+  IntTable table;
+
+  const auto addr = [&](int i) {
+    return reinterpret_cast<uintptr_t>(&*table.find(i));
+  };
+
+  table.insert(0);
+  const uintptr_t old_ptr = addr(0);
+
+  // This causes a rehash.
+  table.insert(1);
+
+  EXPECT_NE(old_ptr, addr(0));
 }
 
 // Confirm that we assert if we try to erase() end().
@@ -1857,6 +1851,7 @@ TEST(RawHashSamplerTest, Sample) {
 #ifdef ADDRESS_SANITIZER
 TEST(Sanitizer, PoisoningUnused) {
   IntTable t;
+  t.reserve(5);
   // Insert something to force an allocation.
   int64_t& v1 = *t.insert(0).first;
 

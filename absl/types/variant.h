@@ -47,7 +47,7 @@
 
 #ifdef ABSL_HAVE_STD_VARIANT
 
-#include <variant>
+#include <variant>  // IWYU pragma: export
 
 namespace absl {
 using std::bad_variant_access;

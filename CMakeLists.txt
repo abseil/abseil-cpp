@@ -14,9 +14,12 @@
 # limitations under the License.
 #
 
-# We require 3.0 for modern, target-based CMake.  We require 3.1 for the use of
-# CXX_STANDARD in our targets.
-cmake_minimum_required(VERSION 3.1)
+# Most widely used distributions have cmake 3.5 or greater available as of March
+# 2019.  A notable exception is RHEL-7 (CentOS7).  You can install a current
+# version of CMake by first installing Extra Packages for Enterprise Linux
+# (https://fedoraproject.org/wiki/EPEL#Extra_Packages_for_Enterprise_Linux_.28EPEL.29)
+# and then issuing `yum install cmake3` on the command line.
+cmake_minimum_required(VERSION 3.5)
 
 # Compiler id for Apple Clang is now AppleClang.
 if (POLICY CMP0025)
