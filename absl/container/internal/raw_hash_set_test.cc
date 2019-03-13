@@ -135,14 +135,14 @@ TEST(BitMask, WithShift) {
 }
 
 TEST(BitMask, LeadingTrailing) {
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b0001101001000000).LeadingZeros()), 3);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b0001101001000000).TrailingZeros()), 6);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).LeadingZeros()), 3);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).TrailingZeros()), 6);
 
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b0000000000000001).LeadingZeros()), 15);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b0000000000000001).TrailingZeros()), 0);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).LeadingZeros()), 15);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).TrailingZeros()), 0);
 
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b1000000000000000).LeadingZeros()), 0);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0b1000000000000000).TrailingZeros()), 15);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).LeadingZeros()), 0);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).TrailingZeros()), 15);
 
   EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).LeadingZeros()), 3);
   EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).TrailingZeros()), 1);

@@ -241,7 +241,7 @@ absl_cc_test(
     "throw_delegate_test.cc"
   DEPS
     absl::base
-    absl_internal_throw_delegate
+    absl::throw_delegate
     gtest_main
 )
 

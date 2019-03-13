@@ -157,6 +157,16 @@ struct NonMovable {
   NonMovable& operator=(NonMovable&&) = delete;
 };
 
+struct NoDefault {
+  NoDefault() = delete;
+  NoDefault(const NoDefault&) {}
+  NoDefault& operator=(const NoDefault&) { return *this; }
+};
+
+struct ConvertsFromInPlaceT {
+  ConvertsFromInPlaceT(absl::in_place_t) {}  // NOLINT
+};
+
 TEST(optionalTest, DefaultConstructor) {
   absl::optional<int> empty;
   EXPECT_FALSE(empty);
@@ -337,16 +347,18 @@ TEST(optionalTest, InPlaceConstructor) {
   static_assert((*opt2).x == ConstexprType::kCtorInitializerList, "");
 #endif
 
-  // TODO(absl-team): uncomment these when std::is_constructible<T, Args&&...>
-  // SFINAE is added to optional::optional(absl::in_place_t, Args&&...).
-  // struct I {
-  //   I(absl::in_place_t);
-  // };
+  EXPECT_FALSE((std::is_constructible<absl::optional<ConvertsFromInPlaceT>,
+                                      absl::in_place_t>::value));
+  EXPECT_FALSE((std::is_constructible<absl::optional<ConvertsFromInPlaceT>,
+                                      const absl::in_place_t&>::value));
+  EXPECT_TRUE(
+      (std::is_constructible<absl::optional<ConvertsFromInPlaceT>,
+                             absl::in_place_t, absl::in_place_t>::value));
 
-  // EXPECT_FALSE((std::is_constructible<absl::optional<I>,
-  // absl::in_place_t>::value));
-  // EXPECT_FALSE((std::is_constructible<absl::optional<I>, const
-  // absl::in_place_t&>::value));
+  EXPECT_FALSE((std::is_constructible<absl::optional<NoDefault>,
+                                      absl::in_place_t>::value));
+  EXPECT_FALSE((std::is_constructible<absl::optional<NoDefault>,
+                                      absl::in_place_t&&>::value));
 }
 
 // template<U=T> optional(U&&);
@@ -1622,6 +1634,29 @@ TEST(optionalTest, AssignmentConstraints) {
       (std::is_assignable<absl::optional<AnyLike>&, const AnyLike&>::value));
   EXPECT_TRUE(std::is_move_assignable<absl::optional<AnyLike>>::value);
   EXPECT_TRUE(absl::is_copy_assignable<absl::optional<AnyLike>>::value);
+}
+
+struct NestedClassBug {
+  struct Inner {
+    bool dummy = false;
+  };
+  absl::optional<Inner> value;
+};
+
+TEST(optionalTest, InPlaceTSFINAEBug) {
+  NestedClassBug b;
+  ((void)b);
+  using Inner = NestedClassBug::Inner;
+
+  EXPECT_TRUE((std::is_default_constructible<Inner>::value));
+  EXPECT_TRUE((std::is_constructible<Inner>::value));
+  EXPECT_TRUE(
+      (std::is_constructible<absl::optional<Inner>, absl::in_place_t>::value));
+
+  absl::optional<Inner> o(absl::in_place);
+  EXPECT_TRUE(o.has_value());
+  o.emplace();
+  EXPECT_TRUE(o.has_value());
 }
 
 }  // namespace

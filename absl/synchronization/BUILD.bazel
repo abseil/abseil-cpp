@@ -178,7 +178,7 @@ cc_library(
     name = "mutex_benchmark_common",
     testonly = 1,
     srcs = ["mutex_benchmark.cc"],
-    copts = ABSL_DEFAULT_COPTS,
+    copts = ABSL_TEST_COPTS,
     visibility = [
         "//absl/synchronization:__pkg__",
     ],

@@ -785,7 +785,7 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
   if (iters_per_float == 0) iters_per_float = 1;
   for (float f : floats) {
     if (f == last) continue;
-    float testf = nextafter(last, std::numeric_limits<float>::max());
+    float testf = std::nextafter(last, std::numeric_limits<float>::max());
     runnable(testf);
     runnable(-testf);
     last = testf;
@@ -799,7 +799,7 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
         last = testf;
       }
     }
-    testf = nextafter(f, 0.0f);
+    testf = std::nextafter(f, 0.0f);
     if (testf > last) {
       runnable(testf);
       runnable(-testf);

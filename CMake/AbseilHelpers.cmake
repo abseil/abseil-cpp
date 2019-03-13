@@ -35,13 +35,13 @@ set(ABSL_IDE_FOLDER Abseil)
 # COPTS: List of private compile options
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
-# PUBLIC: Add this so that this library will be exported under absl:: (see Note).
+# PUBLIC: Add this so that this library will be exported under absl::
 # Also in IDE, target will appear in Abseil folder while non PUBLIC will be in Abseil/internal.
 # TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
-# By default, absl_cc_library will always create a library named absl_internal_${NAME},
-# and alias target absl::${NAME}.
+# By default, absl_cc_library will always create a library named absl_${NAME},
+# and alias target absl::${NAME}.  The absl:: form should always be used.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
@@ -83,11 +83,7 @@ function(absl_cc_library)
   )
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    if (ABSL_CC_LIB_PUBLIC)
-      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
-    else()
-      set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
-    endif()
+    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
 
     # Check if this is a header-only library
     # Note that as of February 2019, many popular OS's (for example, Ubuntu

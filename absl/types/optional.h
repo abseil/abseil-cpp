@@ -513,10 +513,11 @@ class optional : private optional_internal::optional_data<T>,
   // the arguments `std::forward<Args>(args)...`  within the `optional`.
   // (The `in_place_t` is a tag used to indicate that the contained object
   // should be constructed in-place.)
-  //
-  // TODO(absl-team): Add std::is_constructible<T, Args&&...> SFINAE.
-  template <typename... Args>
-  constexpr explicit optional(in_place_t, Args&&... args)
+  template <typename InPlaceT, typename... Args,
+            absl::enable_if_t<absl::conjunction<
+                std::is_same<InPlaceT, in_place_t>,
+                std::is_constructible<T, Args&&...> >::value>* = nullptr>
+  constexpr explicit optional(InPlaceT, Args&&... args)
       : data_base(in_place_t(), absl::forward<Args>(args)...) {}
 
   // Constructs a non-empty `optional` direct-initialized value of type `T` from

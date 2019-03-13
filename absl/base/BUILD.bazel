@@ -326,7 +326,7 @@ cc_library(
     name = "spinlock_benchmark_common",
     testonly = 1,
     srcs = ["internal/spinlock_benchmark.cc"],
-    copts = ABSL_DEFAULT_COPTS,
+    copts = ABSL_TEST_COPTS,
     visibility = [
         "//absl/base:__pkg__",
     ],
