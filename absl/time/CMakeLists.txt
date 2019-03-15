@@ -78,6 +78,8 @@ absl_cc_library(
     "internal/cctz/src/zone_info_source.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    "-framework CoreFoundation"
 )
 
 absl_cc_library(
