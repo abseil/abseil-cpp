@@ -135,6 +135,7 @@ TEST(AnyExceptionSafety, Assignment) {
   EXPECT_TRUE(strong_empty_any_tester.Test(assign_val));
   EXPECT_TRUE(strong_empty_any_tester.Test(move));
 }
+
 // libstdc++ std::any fails this test
 #if !defined(ABSL_HAVE_STD_ANY)
 TEST(AnyExceptionSafety, Emplace) {

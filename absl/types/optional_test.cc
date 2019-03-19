@@ -1636,6 +1636,7 @@ TEST(optionalTest, AssignmentConstraints) {
   EXPECT_TRUE(absl::is_copy_assignable<absl::optional<AnyLike>>::value);
 }
 
+#if !defined(ABSL_HAVE_STD_OPTIONAL) && !defined(_LIBCPP_VERSION)
 struct NestedClassBug {
   struct Inner {
     bool dummy = false;
@@ -1658,5 +1659,6 @@ TEST(optionalTest, InPlaceTSFINAEBug) {
   o.emplace();
   EXPECT_TRUE(o.has_value());
 }
+#endif  // !defined(ABSL_HAVE_STD_OPTIONAL) && !defined(_LIBCPP_VERSION)
 
 }  // namespace

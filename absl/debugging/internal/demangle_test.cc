@@ -176,6 +176,7 @@ static void TestOnInput(const char* input) {
 TEST(DemangleRegression, NegativeLength) {
   TestOnInput("_ZZn4");
 }
+
 TEST(DemangleRegression, DeeplyNestedArrayType) {
   const int depth = 100000;
   std::string data = "_ZStI";

@@ -513,4 +513,5 @@ ABSL_MUST_USE_RESULT inline bool FormatUntyped(
 }
 
 }  // namespace absl
+
 #endif  // ABSL_STRINGS_STR_FORMAT_H_

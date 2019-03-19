@@ -49,7 +49,6 @@
 #include <stdlib.h>  // for size_t.
 #include <utility>
 
-
 namespace absl {
 namespace hash_internal {
 

@@ -26,7 +26,18 @@ if (POLICY CMP0025)
   cmake_policy(SET CMP0025 NEW)
 endif()
 
+# if command can use IN_LIST
+cmake_policy(SET CMP0057 NEW)
+
 project(absl)
+
+# when absl is included as subproject (i.e. using add_subdirectory(abseil-cpp))
+# in the source tree of a project that uses it, install rules are disabled.
+if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
+  set(ABSL_ENABLE_INSTALL FALSE)
+else()
+  set(ABSL_ENABLE_INSTALL TRUE)
+endif()
 
 list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_LIST_DIR}/CMake
@@ -34,6 +45,7 @@ list(APPEND CMAKE_MODULE_PATH
 )
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 include(AbseilHelpers)
 
 
@@ -73,11 +85,23 @@ if(${ABSL_RUN_TESTS})
   enable_testing()
 endif()
 
+# We don't support system-wide installation
+list(APPEND SYSTEM_INSTALL_DIRS "/usr/local" "/usr" "/opt/" "/opt/local" "c:/Program Files/${PROJECT_NAME}")
+if(NOT DEFINED CMAKE_INSTALL_PREFIX OR CMAKE_INSTALL_PREFIX IN_LIST SYSTEM_INSTALL_DIRS)
+  message(WARNING "\
+The default and system-level install directories are unsupported except in LTS \
+releases of Abseil.  Please set CMAKE_INSTALL_PREFIX to install Abseil in your \
+source or build tree directly.\
+  ")
+endif()
+
 ## check targets
 if(BUILD_TESTING)
 
   if(${ABSL_USE_GOOGLETEST_HEAD})
     include(CMake/DownloadGTest.cmake)
+    set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
+    set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
   endif()
 
   check_target(gtest)
@@ -93,3 +117,26 @@ if(BUILD_TESTING)
 endif()
 
 add_subdirectory(absl)
+
+# install as a subdirectory only
+install(EXPORT ${PROJECT_NAME}Targets
+  NAMESPACE absl::
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake"
+)
+
+configure_package_config_file(
+  CMake/abslConfig.cmake.in
+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake"
+)
+
+install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+)
+
+install(DIRECTORY absl
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  FILES_MATCHING
+    PATTERN "*.inc"
+    PATTERN "*.h"
+)

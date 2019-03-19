@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 // Wrappers around lsan_interface functions.
 // When lsan is not linked in, these functions are not available,
 // therefore Abseil code which depends on these functions is conditioned on the

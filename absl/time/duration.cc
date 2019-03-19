@@ -901,6 +901,7 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   *d = dur;
   return true;
 }
+
 bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }

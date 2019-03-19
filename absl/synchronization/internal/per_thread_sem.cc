@@ -89,6 +89,7 @@ ABSL_ATTRIBUTE_WEAK bool AbslInternalPerThreadSemWait(
   if (identity->blocked_count_ptr != nullptr) {
     identity->blocked_count_ptr->fetch_sub(1, std::memory_order_relaxed);
   }
+
   identity->is_idle.store(false, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);
   return !timeout;

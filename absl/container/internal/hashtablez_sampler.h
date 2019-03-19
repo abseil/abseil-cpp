@@ -34,7 +34,6 @@
 // are using a table in an unusual circumstance where allocation or calling a
 // linux syscall is unacceptable, this could interfere.
 //
-//
 // This utility is internal-only. Use at your own risk.
 
 #ifndef ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_

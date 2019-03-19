@@ -109,6 +109,18 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    inlined_vector_internal
+  HDRS
+   "internal/inlined_vector.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::type_traits
+  PUBLIC
+)
+
+absl_cc_library(
+  NAME
     inlined_vector
   HDRS
    "inlined_vector.h"

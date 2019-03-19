@@ -58,7 +58,6 @@
 //   std::string s = absl::FormatTime(
 //       "My flight will land in Sydney on %Y-%m-%d at %H:%M:%S",
 //       landing, syd);
-//
 
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
@@ -568,7 +567,6 @@ std::string UnparseFlag(Duration d);
 //
 // The `absl::Time` class represents an instant in time as a count of clock
 // ticks of some granularity (resolution) from some starting point (epoch).
-//
 //
 // `absl::Time` uses a resolution that is high enough to avoid loss in
 // precision, and a range that is wide enough to avoid overflow, when
@@ -1450,6 +1448,7 @@ T ToChronoDuration(Duration d) {
 }
 
 }  // namespace time_internal
+
 constexpr Duration Nanoseconds(int64_t n) {
   return time_internal::FromInt64(n, std::nano{});
 }

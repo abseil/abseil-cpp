@@ -45,7 +45,6 @@
 //   SubstituteAndAppend(&s, "My name is $0 and I am $1 years old.", "Bob", 5);
 //   EXPECT_EQ("Hi. My name is Bob and I am 5 years old.", s);
 //
-//
 // Supported types:
 //   * absl::string_view, std::string, const char* (null is equivalent to "")
 //   * int32_t, int64_t, uint32_t, uint64

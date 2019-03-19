@@ -363,6 +363,7 @@ typedef ::testing::Types<
     AllIntTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
+
 TEST_F(FormatConvertTest, Uint128) {
   absl::uint128 v = static_cast<absl::uint128>(0x1234567890abcdef) * 1979;
   absl::uint128 max = absl::Uint128Max();

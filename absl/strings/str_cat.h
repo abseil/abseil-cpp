@@ -42,7 +42,6 @@
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
 //
-//
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using

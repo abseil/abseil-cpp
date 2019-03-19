@@ -35,7 +35,6 @@
 //  https://en.cppreference.com/w/cpp/utility/integer_sequence
 //  https://en.cppreference.com/w/cpp/utility/apply
 //  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3658.html
-//
 
 #ifndef ABSL_UTILITY_UTILITY_H_
 #define ABSL_UTILITY_UTILITY_H_

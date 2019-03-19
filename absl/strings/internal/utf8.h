@@ -13,7 +13,6 @@
 // limitations under the License.
 //
 // UTF8 utilities, implemented to reduce dependencies.
-//
 
 #ifndef ABSL_STRINGS_INTERNAL_UTF8_H_
 #define ABSL_STRINGS_INTERNAL_UTF8_H_

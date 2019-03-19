@@ -15,7 +15,6 @@
 // Implementation details of absl/types/variant.h, pulled into a
 // separate file to avoid cluttering the top of the API header with
 // implementation details.
-//
 
 #ifndef ABSL_TYPES_variant_internal_H_
 #define ABSL_TYPES_variant_internal_H_
@@ -1549,8 +1548,8 @@ struct SwapSameIndex {
   variant<Types...>* w;
   template <std::size_t I>
   void operator()(SizeT<I>) const {
-    using std::swap;
-    swap(VariantCoreAccess::Access<I>(*v), VariantCoreAccess::Access<I>(*w));
+    type_traits_internal::Swap(VariantCoreAccess::Access<I>(*v),
+                               VariantCoreAccess::Access<I>(*w));
   }
 
   void operator()(SizeT<variant_npos>) const {}

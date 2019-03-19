@@ -53,7 +53,6 @@
 
 namespace absl {
 
-
 // uint128
 //
 // An unsigned 128-bit integer type. The API is meant to mimic an intrinsic type

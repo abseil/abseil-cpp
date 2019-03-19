@@ -53,6 +53,7 @@ class KernelTimeout {
 
   // We explicitly do not support other custom formats: timespec, int64_t nanos.
   // Unify on this and absl::Time, please.
+
   bool has_timeout() const { return ns_ != 0; }
 
  private:
@@ -148,4 +149,5 @@ class KernelTimeout {
 
 }  // namespace synchronization_internal
 }  // namespace absl
+
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_

@@ -137,6 +137,7 @@ static void Test(bool use_new_arena, bool call_malloc_hook, int n) {
     TEST_ASSERT(LowLevelAlloc::DeleteArena(arena));
   }
 }
+
 // LowLevelAlloc is designed to be safe to call before main().
 static struct BeforeMain {
   BeforeMain() {

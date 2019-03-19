@@ -50,4 +50,5 @@ inline base_internal::ThreadIdentity* GetOrCreateCurrentThreadIdentity() {
 
 }  // namespace synchronization_internal
 }  // namespace absl
+
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_CREATE_THREAD_IDENTITY_H_

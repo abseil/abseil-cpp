@@ -86,6 +86,7 @@ class SchedulingGuard {
 //------------------------------------------------------------------------------
 // End of public interfaces.
 //------------------------------------------------------------------------------
+
 inline bool SchedulingGuard::ReschedulingIsAllowed() {
   return false;
 }
@@ -98,7 +99,7 @@ inline void SchedulingGuard::EnableRescheduling(bool /* disable_result */) {
   return;
 }
 
-
 }  // namespace base_internal
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_

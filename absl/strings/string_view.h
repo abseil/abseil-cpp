@@ -101,7 +101,6 @@ namespace absl {
 // example, when splitting a string, `std::vector<absl::string_view>` is a
 // natural data type for the output.
 //
-//
 // When constructed from a source which is nul-terminated, the `string_view`
 // itself will not include the nul-terminator unless a specific size (including
 // the nul) is passed to the constructor. As a result, common idioms that work
@@ -508,6 +507,7 @@ inline bool operator==(string_view x, string_view y) noexcept {
   if (len != y.size()) {
     return false;
   }
+
   return x.data() == y.data() || len <= 0 ||
          memcmp(x.data(), y.data(), len) == 0;
 }

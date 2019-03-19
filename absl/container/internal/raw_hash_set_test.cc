@@ -1080,6 +1080,7 @@ ExpectedStats XorSeedExpectedStats() {
   ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   return {};
 }
+
 TEST(Table, DISABLED_EnsureNonQuadraticTopNXorSeedByProbeSeqLength) {
   ProbeStatsPerSize stats;
   std::vector<size_t> sizes = {Group::kWidth << 5, Group::kWidth << 10};
@@ -1173,6 +1174,7 @@ ExpectedStats LinearTransformExpectedStats() {
   ABSL_RAW_LOG(FATAL, "%s", "Unknown Group width");
   return {};
 }
+
 TEST(Table, DISABLED_EnsureNonQuadraticTopNLinearTransformByProbeSeqLength) {
   ProbeStatsPerSize stats;
   std::vector<size_t> sizes = {Group::kWidth << 5, Group::kWidth << 10};

@@ -16,6 +16,7 @@
 
 include(CMakeParseArguments)
 include(AbseilConfigureCopts)
+include(GNUInstallDirs)
 
 # The IDE folder for Abseil that will be used if Abseil is included in a CMake
 # project that sets
@@ -59,19 +60,16 @@ set(ABSL_IDE_FOLDER Abseil)
 #     "b.cc"
 #   DEPS
 #     absl_internal_awesome # not "awesome"!
+#   PUBLIC
 # )
-#
-# If PUBLIC is set, absl_cc_library will instead create a target named
-# absl_${NAME} and still an alias absl::${NAME}.
 #
 # absl_cc_library(
 #   NAME
 #     main_lib
 #   ...
-#   PUBLIC
+#   DEPS
+#     absl::fantastic_lib # since fantastic_lib is public
 # )
-#
-# User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
 function(absl_cc_library)
@@ -83,7 +81,7 @@ function(absl_cc_library)
   )
 
   if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    set(_NAME "${ABSL_CC_LIB_NAME}")
 
     # Check if this is a header-only library
     # Note that as of February 2019, many popular OS's (for example, Ubuntu
@@ -105,7 +103,10 @@ function(absl_cc_library)
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
-        PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
+        PUBLIC
+          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+      )
       target_compile_options(${_NAME}
         PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
@@ -126,15 +127,35 @@ function(absl_cc_library)
       # INTERFACE libraries can't have the CXX_STANDARD property set
       set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
       set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
+      # When being installed, we lose the absl_ prefix.  We want to put it back
+      # to have properly named lib files.  This is a no-op when we are not being
+      # installed.
+      set_target_properties(${_NAME} PROPERTIES
+        OUTPUT_NAME "absl_${_NAME}"
+      )
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
       target_include_directories(${_NAME}
-        INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+        INTERFACE
+          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        )
       target_link_libraries(${_NAME}
         INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
+    endif()
+
+    # TODO currently we don't install googletest alongside abseil sources, so
+    # installed abseil can't be tested.
+    if (NOT ABSL_CC_LIB_TESTONLY)
+      install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      )
     endif()
 
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})

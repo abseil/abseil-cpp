@@ -19,7 +19,6 @@
 //
 // This header file contains string utilities involved in escaping and
 // unescaping strings in various ways.
-//
 
 #ifndef ABSL_STRINGS_ESCAPING_H_
 #define ABSL_STRINGS_ESCAPING_H_
@@ -55,7 +54,6 @@ namespace absl {
 //     '\Unnnnnnnn' for exactly eight hex digits, which will be encoded in
 //     UTF-8. (E.g., `\u2019` unescapes to the three bytes 0xE2, 0x80, and
 //     0x99).
-//
 //
 // If any errors are encountered, this function returns `false`, leaving the
 // `dest` output parameter in an unspecified state, and stores the first

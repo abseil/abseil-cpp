@@ -1,0 +1,6 @@
+## absl CMake configuration file.  Note that there is no corresponding
+# abslConfigVersion.cmake since non-LTS Abseil isn't versioned.
+
+@PACKAGE_INIT@
+
+include ("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")

@@ -237,4 +237,5 @@ inline ThreadIdentity* CurrentThreadIdentityIfPresent() {
 
 }  // namespace base_internal
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_

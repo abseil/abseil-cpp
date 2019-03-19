@@ -114,10 +114,6 @@ namespace absl {
 //      need the inline variable support in C++17 for external linkage.
 //    * Throws `absl::bad_optional_access` instead of
 //      `std::bad_optional_access`.
-//    * `optional::swap()` and `absl::swap()` relies on
-//      `std::is_(nothrow_)swappable()`, which has been introduced in C++17.
-//      As a workaround, we assume `is_swappable()` is always `true`
-//      and `is_nothrow_swappable()` is the same as `std::is_trivial()`.
 //    * `make_optional()` cannot be declared `constexpr` due to the absence of
 //      guaranteed copy elision.
 //    * The move constructor's `noexcept` specification is stronger, i.e. if the
@@ -753,11 +749,10 @@ class optional : private optional_internal::optional_data<T>,
   // Swap, standard semantics
   void swap(optional& rhs) noexcept(
       std::is_nothrow_move_constructible<T>::value&&
-          std::is_trivial<T>::value) {
+          type_traits_internal::IsNothrowSwappable<T>::value) {
     if (*this) {
       if (rhs) {
-        using std::swap;
-        swap(**this, *rhs);
+        type_traits_internal::Swap(**this, *rhs);
       } else {
         rhs.construct(std::move(**this));
         this->destruct();
@@ -909,12 +904,10 @@ class optional : private optional_internal::optional_data<T>,
 //
 // Performs a swap between two `absl::optional` objects, using standard
 // semantics.
-//
-// NOTE: we assume `is_swappable()` is always `true`. A compile error will
-// result if this is not the case.
-template <typename T,
-          typename std::enable_if<std::is_move_constructible<T>::value,
-                                  bool>::type = false>
+template <typename T, typename std::enable_if<
+                          std::is_move_constructible<T>::value &&
+                              type_traits_internal::IsSwappable<T>::value,
+                          bool>::type = false>
 void swap(optional<T>& a, optional<T>& b) noexcept(noexcept(a.swap(b))) {
   a.swap(b);
 }

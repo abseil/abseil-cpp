@@ -139,6 +139,7 @@
   #define ANNOTATE_MEMORY_IS_INITIALIZED(address, size) /* empty */
   #define ANNOTATE_MEMORY_IS_UNINITIALIZED(address, size) /* empty */
 #endif  /* DYNAMIC_ANNOTATIONS_ENABLED || MEMORY_SANITIZER */
+
 /* TODO(delesley) -- Replace __CLANG_SUPPORT_DYN_ANNOTATION__ with the
    appropriate feature ID. */
 #if defined(__clang__) && (!defined(SWIG)) \

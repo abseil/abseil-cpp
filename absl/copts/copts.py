@@ -10,6 +10,7 @@ compilation options:
 The generated copts are consumed by configure_copts.bzl and
 AbseilConfigureCopts.cmake.
 """
+
 COPT_VARS = {
     "GCC_FLAGS": [
         "-Wall",
@@ -24,6 +25,10 @@ COPT_VARS = {
         "-Wvarargs",
         "-Wvla",  # variable-length array
         "-Wwrite-strings",
+        # gcc-4.x has spurious missing field initializer warnings.
+        # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36750
+        # Remove when gcc-4.x is no longer supported.
+        "-Wno-missing-field-initializers",
         # Google style does not use unsigned integers, though STL containers
         # have unsigned types.
         "-Wno-sign-compare",

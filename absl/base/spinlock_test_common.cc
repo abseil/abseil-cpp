@@ -54,6 +54,7 @@ namespace {
 
 static constexpr int kArrayLength = 10;
 static uint32_t values[kArrayLength];
+
 static SpinLock static_spinlock(base_internal::kLinkerInitialized);
 static SpinLock static_cooperative_spinlock(
     base_internal::kLinkerInitialized,
@@ -189,6 +190,7 @@ TEST(SpinLock, WaitCyclesEncoding) {
     SpinLockTest::DecodeWaitCycles(before_max_value);
   EXPECT_GT(expected_max_value_decoded, before_max_value_decoded);
 }
+
 TEST(SpinLockWithThreads, StaticSpinLock) {
   ThreadedTest(&static_spinlock);
 }

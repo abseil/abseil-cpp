@@ -1,4 +1,4 @@
-// Copyright 2018 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@
 #include "absl/base/internal/throw_delegate.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/container/internal/inlined_vector.h"
 #include "absl/memory/memory.h"
 
 namespace absl {
@@ -65,10 +66,10 @@ namespace absl {
 // designed to cover the same API footprint as covered by `std::vector`.
 template <typename T, size_t N, typename A = std::allocator<T>>
 class InlinedVector {
-  static_assert(N > 0, "InlinedVector requires inline capacity greater than 0");
-  constexpr static typename A::size_type GetInlinedCapacity() {
-    return static_cast<typename A::size_type>(N);
-  }
+  using Storage = inlined_vector_internal::InlinedVectorStorage<T, N, A>;
+  using Tag = typename Storage::Tag;
+  using AllocatorAndTag = typename Storage::AllocatorAndTag;
+  using Allocation = typename Storage::Allocation;
 
   template <typename Iterator>
   using IsAtLeastForwardIterator = std::is_convertible<
@@ -83,21 +84,21 @@ class InlinedVector {
   using DisableIfAtLeastForwardIterator =
       absl::enable_if_t<!IsAtLeastForwardIterator<Iterator>::value>;
 
-  using rvalue_reference = typename A::value_type&&;
+  using rvalue_reference = typename Storage::rvalue_reference;
 
  public:
-  using allocator_type = A;
-  using value_type = typename allocator_type::value_type;
-  using pointer = typename allocator_type::pointer;
-  using const_pointer = typename allocator_type::const_pointer;
-  using reference = typename allocator_type::reference;
-  using const_reference = typename allocator_type::const_reference;
-  using size_type = typename allocator_type::size_type;
-  using difference_type = typename allocator_type::difference_type;
-  using iterator = pointer;
-  using const_iterator = const_pointer;
-  using reverse_iterator = std::reverse_iterator<iterator>;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using allocator_type = typename Storage::allocator_type;
+  using value_type = typename Storage::value_type;
+  using pointer = typename Storage::pointer;
+  using const_pointer = typename Storage::const_pointer;
+  using reference = typename Storage::reference;
+  using const_reference = typename Storage::const_reference;
+  using size_type = typename Storage::size_type;
+  using difference_type = typename Storage::difference_type;
+  using iterator = typename Storage::iterator;
+  using const_iterator = typename Storage::const_iterator;
+  using reverse_iterator = typename Storage::reverse_iterator;
+  using const_reverse_iterator = typename Storage::const_reverse_iterator;
 
   // ---------------------------------------------------------------------------
   // InlinedVector Constructors and Destructor
@@ -105,30 +106,30 @@ class InlinedVector {
 
   // Creates an empty inlined vector with a default initialized allocator.
   InlinedVector() noexcept(noexcept(allocator_type()))
-      : allocator_and_tag_(allocator_type()) {}
+      : storage_(allocator_type()) {}
 
   // Creates an empty inlined vector with a specified allocator.
   explicit InlinedVector(const allocator_type& alloc) noexcept
-      : allocator_and_tag_(alloc) {}
+      : storage_(alloc) {}
 
   // Creates an inlined vector with `n` copies of `value_type()`.
   explicit InlinedVector(size_type n,
                          const allocator_type& alloc = allocator_type())
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     InitAssign(n);
   }
 
   // Creates an inlined vector with `n` copies of `v`.
   InlinedVector(size_type n, const_reference v,
                 const allocator_type& alloc = allocator_type())
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     InitAssign(n, v);
   }
 
   // Creates an inlined vector of copies of the values in `list`.
   InlinedVector(std::initializer_list<value_type> list,
                 const allocator_type& alloc = allocator_type())
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     AppendForwardRange(list.begin(), list.end());
   }
 
@@ -142,7 +143,7 @@ class InlinedVector {
             EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
   InlinedVector(ForwardIterator first, ForwardIterator last,
                 const allocator_type& alloc = allocator_type())
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     AppendForwardRange(first, last);
   }
 
@@ -152,7 +153,7 @@ class InlinedVector {
             DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   InlinedVector(InputIterator first, InputIterator last,
                 const allocator_type& alloc = allocator_type())
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -162,7 +163,7 @@ class InlinedVector {
 
   // Creates a copy of an `other` inlined vector using a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     reserve(other.size());
     if (allocated()) {
       UninitializedCopy(other.begin(), other.end(), allocated_space());
@@ -191,7 +192,7 @@ class InlinedVector {
   InlinedVector(InlinedVector&& other) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value ||
       std::is_nothrow_move_constructible<value_type>::value)
-      : allocator_and_tag_(other.allocator()) {
+      : storage_(other.allocator()) {
     if (other.allocated()) {
       // We can just steal the underlying buffer from the source.
       // That leaves the source empty, so we clear its size.
@@ -222,7 +223,7 @@ class InlinedVector {
   // ownership of `other`'s allocated memory.
   InlinedVector(InlinedVector&& other, const allocator_type& alloc) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value)
-      : allocator_and_tag_(alloc) {
+      : storage_(alloc) {
     if (other.allocated()) {
       if (alloc == other.allocator()) {
         // We can just steal the allocation from the source.
@@ -282,7 +283,8 @@ class InlinedVector {
   // will no longer be inlined and `capacity()` will equal its capacity on the
   // allocated heap.
   size_type capacity() const noexcept {
-    return allocated() ? allocation().capacity() : GetInlinedCapacity();
+    return allocated() ? allocation().capacity()
+                       : Storage::GetInlinedCapacity();
   }
 
   // `InlinedVector::data()`
@@ -800,19 +802,19 @@ class InlinedVector {
   // `InlinedVector::shrink_to_fit()`
   //
   // Reduces memory usage by freeing unused memory. After this call, calls to
-  // `capacity()` will be equal to `(std::max)(GetInlinedCapacity(), size())`.
+  // `capacity()` will be equal to `max(Storage::GetInlinedCapacity(), size())`.
   //
-  // If `size() <= GetInlinedCapacity()` and the elements are currently stored
-  // on the heap, they will be moved to the inlined storage and the heap memory
-  // will be deallocated.
+  // If `size() <= Storage::GetInlinedCapacity()` and the elements are currently
+  // stored on the heap, they will be moved to the inlined storage and the heap
+  // memory will be deallocated.
   //
-  // If `size() > GetInlinedCapacity()` and `size() < capacity()` the elements
-  // will be moved to a smaller heap allocation.
+  // If `size() > Storage::GetInlinedCapacity()` and `size() < capacity()` the
+  // elements will be moved to a smaller heap allocation.
   void shrink_to_fit() {
     const auto s = size();
     if (ABSL_PREDICT_FALSE(!allocated() || s == capacity())) return;
 
-    if (s <= GetInlinedCapacity()) {
+    if (s <= Storage::GetInlinedCapacity()) {
       // Move the elements to the inlined storage.
       // We have to do this using a temporary, because `inlined_storage` and
       // `allocation_storage` are in a union field.
@@ -845,88 +847,33 @@ class InlinedVector {
   template <typename H, typename TheT, size_t TheN, typename TheA>
   friend auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H;
 
-  // Holds whether the vector is allocated or not in the lowest bit and the size
-  // in the high bits:
-  //   `size_ = (size << 1) | is_allocated;`
-  class Tag {
-   public:
-    Tag() : size_(0) {}
-    size_type size() const { return size_ / 2; }
-    void add_size(size_type n) { size_ += n * 2; }
-    void set_inline_size(size_type n) { size_ = n * 2; }
-    void set_allocated_size(size_type n) { size_ = (n * 2) + 1; }
-    bool allocated() const { return size_ % 2; }
+  const Tag& tag() const { return storage_.allocator_and_tag_.tag(); }
 
-   private:
-    size_type size_;
-  };
-
-  // Derives from `allocator_type` to use the empty base class optimization.
-  // If the `allocator_type` is stateless, we can store our instance for free.
-  class AllocatorAndTag : private allocator_type {
-   public:
-    explicit AllocatorAndTag(const allocator_type& a) : allocator_type(a) {}
-
-    Tag& tag() { return tag_; }
-    const Tag& tag() const { return tag_; }
-
-    allocator_type& allocator() { return *this; }
-    const allocator_type& allocator() const { return *this; }
-
-   private:
-    Tag tag_;
-  };
-
-  class Allocation {
-   public:
-    Allocation(allocator_type& a, size_type capacity)
-        : capacity_(capacity), buffer_(Create(a, capacity)) {}
-
-    void Dealloc(allocator_type& a) {
-      std::allocator_traits<allocator_type>::deallocate(a, buffer_, capacity_);
-    }
-
-    size_type capacity() const { return capacity_; }
-
-    const_pointer buffer() const { return buffer_; }
-
-    pointer buffer() { return buffer_; }
-
-   private:
-    static pointer Create(allocator_type& a, size_type n) {
-      return std::allocator_traits<allocator_type>::allocate(a, n);
-    }
-
-    size_type capacity_;
-    pointer buffer_;
-  };
-
-  const Tag& tag() const { return allocator_and_tag_.tag(); }
-
-  Tag& tag() { return allocator_and_tag_.tag(); }
+  Tag& tag() { return storage_.allocator_and_tag_.tag(); }
 
   Allocation& allocation() {
-    return reinterpret_cast<Allocation&>(rep_.allocation_storage.allocation);
+    return reinterpret_cast<Allocation&>(
+        storage_.rep_.allocation_storage.allocation);
   }
 
   const Allocation& allocation() const {
     return reinterpret_cast<const Allocation&>(
-        rep_.allocation_storage.allocation);
+        storage_.rep_.allocation_storage.allocation);
   }
 
   void init_allocation(const Allocation& allocation) {
-    new (&rep_.allocation_storage.allocation) Allocation(allocation);
+    new (&storage_.rep_.allocation_storage.allocation) Allocation(allocation);
   }
 
   // TODO(absl-team): investigate whether the reinterpret_cast is appropriate.
   pointer inlined_space() {
     return reinterpret_cast<pointer>(
-        std::addressof(rep_.inlined_storage.inlined[0]));
+        std::addressof(storage_.rep_.inlined_storage.inlined[0]));
   }
 
   const_pointer inlined_space() const {
     return reinterpret_cast<const_pointer>(
-        std::addressof(rep_.inlined_storage.inlined[0]));
+        std::addressof(storage_.rep_.inlined_storage.inlined[0]));
   }
 
   pointer allocated_space() { return allocation().buffer(); }
@@ -934,10 +881,12 @@ class InlinedVector {
   const_pointer allocated_space() const { return allocation().buffer(); }
 
   const allocator_type& allocator() const {
-    return allocator_and_tag_.allocator();
+    return storage_.allocator_and_tag_.allocator();
   }
 
-  allocator_type& allocator() { return allocator_and_tag_.allocator(); }
+  allocator_type& allocator() {
+    return storage_.allocator_and_tag_.allocator();
+  }
 
   bool allocated() const { return tag().allocated(); }
 
@@ -994,7 +943,7 @@ class InlinedVector {
     const size_type s = size();
     assert(s <= capacity());
 
-    size_type target = (std::max)(GetInlinedCapacity(), s + delta);
+    size_type target = (std::max)(Storage::GetInlinedCapacity(), s + delta);
 
     // Compute new capacity by repeatedly doubling current capacity
     // TODO(psrc): Check and avoid overflow?
@@ -1097,7 +1046,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n) {
-    if (n > GetInlinedCapacity()) {
+    if (n > Storage::GetInlinedCapacity()) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n);
@@ -1109,7 +1058,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n, const_reference v) {
-    if (n > GetInlinedCapacity()) {
+    if (n > Storage::GetInlinedCapacity()) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n, v);
@@ -1267,28 +1216,7 @@ class InlinedVector {
     assert(a->size() == b_size);
   }
 
-  // Stores either the inlined or allocated representation
-  union Rep {
-    using ValueTypeBuffer =
-        absl::aligned_storage_t<sizeof(value_type), alignof(value_type)>;
-    using AllocationBuffer =
-        absl::aligned_storage_t<sizeof(Allocation), alignof(Allocation)>;
-
-    // Structs wrap the buffers to perform indirection that solves a bizarre
-    // compilation error on Visual Studio (all known versions).
-    struct InlinedRep {
-      ValueTypeBuffer inlined[N];
-    };
-    struct AllocatedRep {
-      AllocationBuffer allocation;
-    };
-
-    InlinedRep inlined_storage;
-    AllocatedRep allocation_storage;
-  };
-
-  AllocatorAndTag allocator_and_tag_;
-  Rep rep_;
+  Storage storage_;
 };
 
 // -----------------------------------------------------------------------------

@@ -40,6 +40,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/optimization.h"
@@ -81,6 +82,7 @@ static void MaybeBecomeIdle() {
 #define FUTEX_BITSET_MATCH_ANY 0xFFFFFFFF
 #endif
 #endif
+
 class Futex {
  public:
   static int WaitUntil(std::atomic<int32_t> *v, int32_t val,

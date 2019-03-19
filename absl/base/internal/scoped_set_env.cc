@@ -33,7 +33,7 @@ const int kMaxEnvVarValueSize = 1024;
 
 void SetEnvVar(const char* name, const char* value) {
 #ifdef _WIN32
-  SetEnvironmentVariable(name, value);
+  SetEnvironmentVariableA(name, value);
 #else
   if (value == nullptr) {
     ::unsetenv(name);
@@ -49,7 +49,7 @@ ScopedSetEnv::ScopedSetEnv(const char* var_name, const char* new_value)
     : var_name_(var_name), was_unset_(false) {
 #ifdef _WIN32
   char buf[kMaxEnvVarValueSize];
-  auto get_res = GetEnvironmentVariable(var_name_.c_str(), buf, sizeof(buf));
+  auto get_res = GetEnvironmentVariableA(var_name_.c_str(), buf, sizeof(buf));
   ABSL_INTERNAL_CHECK(get_res < sizeof(buf), "value exceeds buffer size");
 
   if (get_res == 0) {
@@ -58,7 +58,7 @@ ScopedSetEnv::ScopedSetEnv(const char* var_name, const char* new_value)
     old_value_.assign(buf, get_res);
   }
 
-  SetEnvironmentVariable(var_name_.c_str(), new_value);
+  SetEnvironmentVariableA(var_name_.c_str(), new_value);
 #else
   const char* val = ::getenv(var_name_.c_str());
   if (val == nullptr) {

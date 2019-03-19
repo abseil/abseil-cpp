@@ -38,6 +38,7 @@
 //   ABSL_RAW_LOG(ERROR, "Failed foo with %i: %s", status, error);
 // This will print an almost standard log line like this to stderr only:
 //   E0821 211317 file.cc:123] RAW: Failed foo with 22: bad_file
+
 #define ABSL_RAW_LOG(severity, ...)                                            \
   do {                                                                         \
     constexpr const char* absl_raw_logging_internal_basename =                 \

@@ -71,7 +71,6 @@ namespace absl {
 //   - `ByLength`
 //   - `MaxSplits`
 //
-//
 // A Delimiter's `Find()` member function will be passed an input `text` that is
 // to be split and a position (`pos`) to begin searching for the next delimiter
 // in `text`. The returned absl::string_view should refer to the next occurrence

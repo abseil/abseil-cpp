@@ -21,6 +21,7 @@ GCC_FLAGS = [
     "-Wvarargs",
     "-Wvla",
     "-Wwrite-strings",
+    "-Wno-missing-field-initializers",
     "-Wno-sign-compare",
 ]
 

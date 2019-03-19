@@ -309,4 +309,5 @@ class HashState : public hash_internal::HashStateBase<HashState> {
 };
 
 }  // namespace absl
+
 #endif  // ABSL_HASH_HASH_H_

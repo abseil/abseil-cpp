@@ -104,4 +104,5 @@ bool absl::synchronization_internal::PerThreadSem::Wait(
     absl::synchronization_internal::KernelTimeout t) {
   return AbslInternalPerThreadSemWait(t);
 }
+
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_PER_THREAD_SEM_H_

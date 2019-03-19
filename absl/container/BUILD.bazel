@@ -112,10 +112,20 @@ cc_test(
 )
 
 cc_library(
+    name = "inlined_vector_internal",
+    hdrs = ["internal/inlined_vector.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_library(
     name = "inlined_vector",
     hdrs = ["inlined_vector.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        ":inlined_vector_internal",
         "//absl/algorithm",
         "//absl/base:core_headers",
         "//absl/base:throw_delegate",

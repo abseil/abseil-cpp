@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-//
 #ifndef ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 

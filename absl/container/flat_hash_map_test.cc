@@ -206,7 +206,9 @@ TEST(FlatHashMap, MergeExtractInsert) {
   m.insert(std::move(node));
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 17), Pair(2, 9)));
 }
-#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+
+#if (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
+    !defined(__EMSCRIPTEN__)
 TEST(FlatHashMap, Any) {
   absl::flat_hash_map<int, absl::any> m;
   m.emplace(1, 7);
@@ -237,7 +239,8 @@ TEST(FlatHashMap, Any) {
   ASSERT_NE(it2, m2.end());
   EXPECT_EQ(7, it2->second);
 }
-#endif  // __ANDROID__
+#endif  // (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
+        // !defined(__EMSCRIPTEN__)
 
 }  // namespace
 }  // namespace container_internal

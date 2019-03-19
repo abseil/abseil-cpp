@@ -276,6 +276,7 @@ TEST(HashValueTest, Strings) {
   const std::string dup = "foofoo";
   const std::string large = "large";
   const std::string huge = std::string(5000, 'a');
+
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
       std::string(), absl::string_view(),
       std::string(""), absl::string_view(""),

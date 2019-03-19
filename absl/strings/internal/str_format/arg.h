@@ -35,12 +35,14 @@ struct HasUserDefinedConvert<
     T, void_t<decltype(AbslFormatConvert(
            std::declval<const T&>(), std::declval<ConversionSpec>(),
            std::declval<FormatSink*>()))>> : std::true_type {};
+
 template <typename T>
 class StreamedWrapper;
 
 // If 'v' can be converted (in the printf sense) according to 'conv',
 // then convert it, appending to `sink` and return `true`.
 // Otherwise fail and return `false`.
+
 // Raw pointers.
 struct VoidPtr {
   VoidPtr() = default;

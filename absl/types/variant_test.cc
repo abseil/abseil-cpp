@@ -561,6 +561,7 @@ TEST(VariantTest, TestDtor) {
 }
 
 #ifdef ABSL_HAVE_EXCEPTIONS
+
 // See comment in absl/base/config.h
 #if defined(ABSL_INTERNAL_MSVC_2017_DBG_MODE)
 TEST(VariantTest, DISABLED_TestDtorValuelessByException)

@@ -60,7 +60,6 @@
 //
 // The absl::kConstInit tag should only be used to define objects with static
 // or thread_local storage duration.
-//
 
 namespace absl {
 

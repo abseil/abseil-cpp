@@ -127,7 +127,7 @@ time_zone local_time_zone() {
 #if defined(_MSC_VER)
   _dupenv_s(&tz_env, nullptr, "TZ");
 #elif defined(__APPLE__)
-  CFTimeZoneRef system_time_zone = CFTimeZoneCopySystem();
+  CFTimeZoneRef system_time_zone = CFTimeZoneCopyDefault();
   CFStringRef tz_name = CFTimeZoneGetName(system_time_zone);
   tz_env = strdup(CFStringGetCStringPtr(tz_name, CFStringGetSystemEncoding()));
   CFRelease(system_time_zone);

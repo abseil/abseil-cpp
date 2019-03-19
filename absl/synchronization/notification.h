@@ -110,4 +110,5 @@ class Notification {
 };
 
 }  // namespace absl
+
 #endif  // ABSL_SYNCHRONIZATION_NOTIFICATION_H_

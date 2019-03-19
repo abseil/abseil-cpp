@@ -66,7 +66,6 @@
 //
 //   // Valid in C++14
 //   constexpr absl::CivilDay cd(1969, 07, 20);
-//
 
 #ifndef ABSL_TIME_CIVIL_TIME_H_
 #define ABSL_TIME_CIVIL_TIME_H_

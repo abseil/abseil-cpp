@@ -515,4 +515,5 @@ void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateDestruct(
   static_cast<void>(n);  // Mark used when not in asan mode
 }
 }  // namespace absl
+
 #endif  // ABSL_CONTAINER_FIXED_ARRAY_H_

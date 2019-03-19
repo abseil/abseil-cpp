@@ -485,4 +485,65 @@ inline void AssertHashEnabled() {
 
 }  // namespace absl
 
+// An internal namespace that is required to implement the C++17 swap traits.
+//
+// NOTE: This is its own top-level namespace to avoid subtleties due to
+//       functions named "swap" that may appear in the absl namespace.
+namespace absl_internal_swap {
+
+using std::swap;
+
+template <class T>
+using IsSwappableImpl = decltype(swap(std::declval<T&>(), std::declval<T&>()));
+
+// NOTE: This dance with the default template parameter is for MSVC.
+template <class T,
+          class IsNoexcept = std::integral_constant<
+              bool, noexcept(swap(std::declval<T&>(), std::declval<T&>()))>>
+using IsNothrowSwappableImpl = typename std::enable_if<IsNoexcept::value>::type;
+
+// IsSwappable
+//
+// Determines whether the standard swap idiom is a valid expression for
+// arguments of type `T`.
+template <class T>
+struct IsSwappable
+    : absl::type_traits_internal::is_detected<IsSwappableImpl, T> {};
+
+// IsNothrowSwappable
+//
+// Determines whether the standard swap idiom is a valid expression for
+// arguments of type `T` and is noexcept.
+template <class T>
+struct IsNothrowSwappable
+    : absl::type_traits_internal::is_detected<IsNothrowSwappableImpl, T> {};
+
+// Swap()
+//
+// Performs the swap idiom from a namespace with no additional `swap` overloads.
+template <class T, absl::enable_if_t<IsSwappable<T>::value, int> = 0>
+void Swap(T& lhs, T& rhs) noexcept(IsNothrowSwappable<T>::value) {
+  swap(lhs, rhs);
+}
+
+}  // namespace absl_internal_swap
+
+namespace absl {
+namespace type_traits_internal {
+
+// Make the swap-related traits/function accessible from this namespace.
+using absl_internal_swap::IsNothrowSwappable;
+using absl_internal_swap::IsSwappable;
+using absl_internal_swap::Swap;
+
+// StdSwapIsUnconstrained
+//
+// Some standard library implementations are broken in that they do not
+// constrain `std::swap`. This will effectively tell us if we are dealing with
+// one of those implementations.
+using StdSwapIsUnconstrained = IsSwappable<void()>;
+
+}  // namespace type_traits_internal
+}  // namespace absl
+
 #endif  // ABSL_META_TYPE_TRAITS_H_
