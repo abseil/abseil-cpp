@@ -36,6 +36,7 @@
 #define ABSL_TYPES_OPTIONAL_H_
 
 #include "absl/base/config.h"
+#include "absl/memory/memory.h"
 #include "absl/utility/utility.h"
 
 #ifdef ABSL_HAVE_STD_OPTIONAL
@@ -60,7 +61,6 @@ using std::nullopt;
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_optional_access.h"
 
@@ -400,23 +400,24 @@ class optional_assign_base<copy_traits::non_movable> {
 };
 
 template <typename T>
-constexpr copy_traits get_ctor_copy_traits() {
-  return std::is_copy_constructible<T>::value
-             ? copy_traits::copyable
-             : std::is_move_constructible<T>::value ? copy_traits::movable
-                                                    : copy_traits::non_movable;
-}
+struct ctor_copy_traits {
+  static constexpr copy_traits traits =
+      std::is_copy_constructible<T>::value
+          ? copy_traits::copyable
+          : std::is_move_constructible<T>::value ? copy_traits::movable
+                                                 : copy_traits::non_movable;
+};
 
 template <typename T>
-constexpr copy_traits get_assign_copy_traits() {
-  return absl::is_copy_assignable<T>::value &&
-                 std::is_copy_constructible<T>::value
-             ? copy_traits::copyable
-             : absl::is_move_assignable<T>::value &&
-                       std::is_move_constructible<T>::value
-                   ? copy_traits::movable
-                   : copy_traits::non_movable;
-}
+struct assign_copy_traits {
+  static constexpr copy_traits traits =
+      absl::is_copy_assignable<T>::value && std::is_copy_constructible<T>::value
+          ? copy_traits::copyable
+          : absl::is_move_assignable<T>::value &&
+                    std::is_move_constructible<T>::value
+                ? copy_traits::movable
+                : copy_traits::non_movable;
+};
 
 // Whether T is constructible or convertible from optional<U>.
 template <typename T, typename U>
@@ -482,9 +483,9 @@ struct optional_hash_base<T, decltype(std::hash<absl::remove_const_t<T> >()(
 template <typename T>
 class optional : private optional_internal::optional_data<T>,
                  private optional_internal::optional_ctor_base<
-                     optional_internal::get_ctor_copy_traits<T>()>,
+                     optional_internal::ctor_copy_traits<T>::traits>,
                  private optional_internal::optional_assign_base<
-                     optional_internal::get_assign_copy_traits<T>()> {
+                     optional_internal::assign_copy_traits<T>::traits> {
   using data_base = optional_internal::optional_data<T>;
 
  public:

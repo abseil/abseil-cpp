@@ -121,17 +121,17 @@ add_subdirectory(absl)
 # install as a subdirectory only
 install(EXPORT ${PROJECT_NAME}Targets
   NAMESPACE absl::
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
 configure_package_config_file(
   CMake/abslConfig.cmake.in
   "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
 install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
 install(DIRECTORY absl
