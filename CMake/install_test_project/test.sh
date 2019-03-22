@@ -30,27 +30,32 @@ project_dir="${absl_dir}"/CMake/install_test_project
 project_build_dir=/buildfs/project-build
 install_dir="${project_build_dir}"/install
 
+mkdir -p "${absl_build_dir}"
+mkdir -p "${project_build_dir}"
+mkdir -p "${install_dir}"
+
 install_absl() {
+  pushd "${absl_build_dir}"
   if [[ "${#}" -eq 1 ]]; then
-    cmake -DCMAKE_INSTALL_PREFIX="${1}" -B "${absl_build_dir}" -S "${absl_dir}"
+    cmake -DCMAKE_INSTALL_PREFIX="${1}" "${absl_dir}"
   else
-    cmake -B "${absl_build_dir}" -S "${absl_dir}"
+    cmake "${absl_dir}"
   fi
-  cmake --build "${absl_build_dir}" --target install -- -j
+  cmake --build . --target install -- -j
+  popd
 }
 
 uninstall_absl() {
   xargs rm < "${absl_build_dir}"/install_manifest.txt
   rm -rf "${absl_build_dir}"
+  mkdir -p "${absl_build_dir}"
 }
 
 # Test build, install, and link against installed abseil
 install_absl "${install_dir}"
-cmake \
-  -H"${project_dir}" \
-  -B"${project_build_dir}" \
-  -DCMAKE_PREFIX_PATH="${install_dir}"
-cmake --build "${project_build_dir}" --target simple
+pushd "${project_build_dir}"
+cmake "${project_dir}" -DCMAKE_PREFIX_PATH="${install_dir}"
+cmake --build . --target simple
 
 output="$(${project_build_dir}/simple "printme" 2>&1)"
 if [[ "${output}" != *"Arg 1: printme"* ]]; then

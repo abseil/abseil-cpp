@@ -845,6 +845,25 @@ TEST(Table, Erase) {
   EXPECT_TRUE(t.find(0) == t.end());
 }
 
+TEST(Table, EraseMaintainsValidIterator) {
+  IntTable t;
+  const int kNumElements = 100;
+  for (int i = 0; i < kNumElements; i ++) {
+    EXPECT_TRUE(t.emplace(i).second);
+  }
+  EXPECT_EQ(t.size(), kNumElements);
+
+  int num_erase_calls = 0;
+  auto it = t.begin();
+  while (it != t.end()) {
+    t.erase(it++);
+    num_erase_calls++;
+  }
+
+  EXPECT_TRUE(t.empty());
+  EXPECT_EQ(num_erase_calls, kNumElements);
+}
+
 // Collect N bad keys by following algorithm:
 // 1. Create an empty table and reserve it to 2 * N.
 // 2. Insert N random elements.

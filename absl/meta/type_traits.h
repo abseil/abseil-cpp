@@ -483,15 +483,16 @@ inline void AssertHashEnabled() {
 
 }  // namespace type_traits_internal
 
-}  // namespace absl
-
 // An internal namespace that is required to implement the C++17 swap traits.
-//
-// NOTE: This is its own top-level namespace to avoid subtleties due to
-//       functions named "swap" that may appear in the absl namespace.
-namespace absl_internal_swap {
+// It is not further nested in type_traits_internal to avoid long symbol names.
+namespace swap_internal {
 
+// Necessary for the traits.
 using std::swap;
+
+// This declaration prevents global `swap` and `absl::swap` overloads from being
+// considered unless ADL picks them up.
+void swap();
 
 template <class T>
 using IsSwappableImpl = decltype(swap(std::declval<T&>(), std::declval<T&>()));
@@ -520,21 +521,12 @@ struct IsNothrowSwappable
 
 // Swap()
 //
-// Performs the swap idiom from a namespace with no additional `swap` overloads.
+// Performs the swap idiom from a namespace where valid candidates may only be
+// found in `std` or via ADL.
 template <class T, absl::enable_if_t<IsSwappable<T>::value, int> = 0>
 void Swap(T& lhs, T& rhs) noexcept(IsNothrowSwappable<T>::value) {
   swap(lhs, rhs);
 }
-
-}  // namespace absl_internal_swap
-
-namespace absl {
-namespace type_traits_internal {
-
-// Make the swap-related traits/function accessible from this namespace.
-using absl_internal_swap::IsNothrowSwappable;
-using absl_internal_swap::IsSwappable;
-using absl_internal_swap::Swap;
 
 // StdSwapIsUnconstrained
 //
@@ -542,6 +534,16 @@ using absl_internal_swap::Swap;
 // constrain `std::swap`. This will effectively tell us if we are dealing with
 // one of those implementations.
 using StdSwapIsUnconstrained = IsSwappable<void()>;
+
+}  // namespace swap_internal
+
+namespace type_traits_internal {
+
+// Make the swap-related traits/function accessible from this namespace.
+using swap_internal::IsNothrowSwappable;
+using swap_internal::IsSwappable;
+using swap_internal::Swap;
+using swap_internal::StdSwapIsUnconstrained;
 
 }  // namespace type_traits_internal
 }  // namespace absl

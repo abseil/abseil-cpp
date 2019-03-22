@@ -219,8 +219,12 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //   Erases the element at `position` of the `flat_hash_map`, returning
   //   `void`.
   //
-  //   NOTE: this return behavior is different than that of STL containers in
-  //   general and `std::unordered_map` in particular.
+  //   NOTE: returning `void` in this case is different than that of STL
+  //   containers in general and `std::unordered_map` in particular (which
+  //   return an iterator to the element following the erased element). If that
+  //   iterator is needed, simply post increment the iterator:
+  //
+  //     map.erase(it++);
   //
   // iterator erase(const_iterator first, const_iterator last):
   //

@@ -66,7 +66,10 @@ namespace absl {
 // designed to cover the same API footprint as covered by `std::vector`.
 template <typename T, size_t N, typename A = std::allocator<T>>
 class InlinedVector {
-  using Storage = inlined_vector_internal::InlinedVectorStorage<T, N, A>;
+  static_assert(
+      N > 0, "InlinedVector cannot be instantiated with `0` inlined elements.");
+
+  using Storage = inlined_vector_internal::Storage<InlinedVector>;
   using Tag = typename Storage::Tag;
   using AllocatorAndTag = typename Storage::AllocatorAndTag;
   using Allocation = typename Storage::Allocation;
@@ -283,8 +286,7 @@ class InlinedVector {
   // will no longer be inlined and `capacity()` will equal its capacity on the
   // allocated heap.
   size_type capacity() const noexcept {
-    return allocated() ? allocation().capacity()
-                       : Storage::GetInlinedCapacity();
+    return allocated() ? allocation().capacity() : static_cast<size_type>(N);
   }
 
   // `InlinedVector::data()`
@@ -802,19 +804,19 @@ class InlinedVector {
   // `InlinedVector::shrink_to_fit()`
   //
   // Reduces memory usage by freeing unused memory. After this call, calls to
-  // `capacity()` will be equal to `max(Storage::GetInlinedCapacity(), size())`.
+  // `capacity()` will be equal to `max(N, size())`.
   //
-  // If `size() <= Storage::GetInlinedCapacity()` and the elements are currently
-  // stored on the heap, they will be moved to the inlined storage and the heap
-  // memory will be deallocated.
+  // If `size() <= N` and the elements are currently stored on the heap, they
+  // will be moved to the inlined storage and the heap memory will be
+  // deallocated.
   //
-  // If `size() > Storage::GetInlinedCapacity()` and `size() < capacity()` the
-  // elements will be moved to a smaller heap allocation.
+  // If `size() > N` and `size() < capacity()` the elements will be moved to a
+  // smaller heap allocation.
   void shrink_to_fit() {
     const auto s = size();
     if (ABSL_PREDICT_FALSE(!allocated() || s == capacity())) return;
 
-    if (s <= Storage::GetInlinedCapacity()) {
+    if (s <= N) {
       // Move the elements to the inlined storage.
       // We have to do this using a temporary, because `inlined_storage` and
       // `allocation_storage` are in a union field.
@@ -943,7 +945,7 @@ class InlinedVector {
     const size_type s = size();
     assert(s <= capacity());
 
-    size_type target = (std::max)(Storage::GetInlinedCapacity(), s + delta);
+    size_type target = (std::max)(N, s + delta);
 
     // Compute new capacity by repeatedly doubling current capacity
     // TODO(psrc): Check and avoid overflow?
@@ -1046,7 +1048,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n) {
-    if (n > Storage::GetInlinedCapacity()) {
+    if (n > N) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n);
@@ -1058,7 +1060,7 @@ class InlinedVector {
   }
 
   void InitAssign(size_type n, const_reference v) {
-    if (n > Storage::GetInlinedCapacity()) {
+    if (n > N) {
       Allocation new_allocation(allocator(), n);
       init_allocation(new_allocation);
       UninitializedFill(allocated_space(), allocated_space() + n, v);

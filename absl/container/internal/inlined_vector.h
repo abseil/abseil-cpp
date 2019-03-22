@@ -24,11 +24,12 @@
 namespace absl {
 namespace inlined_vector_internal {
 
-template <typename T, size_t N, typename A>
-class InlinedVectorStorage {
-  static_assert(
-      N > 0, "InlinedVector cannot be instantiated with `0` inline elements.");
+template <typename InlinedVector>
+class Storage;
 
+template <template <typename, size_t, typename> class InlinedVector, typename T,
+          size_t N, typename A>
+class Storage<InlinedVector<T, N, A>> {
  public:
   using allocator_type = A;
   using value_type = typename allocator_type::value_type;
@@ -44,12 +45,7 @@ class InlinedVectorStorage {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  constexpr static size_type GetInlinedCapacity() {
-    return static_cast<size_type>(N);
-  }
-
-  explicit InlinedVectorStorage(const allocator_type& a)
-      : allocator_and_tag_(a) {}
+  explicit Storage(const allocator_type& a) : allocator_and_tag_(a) {}
 
   // TODO(johnsoncj): Make the below types and members private after migration
 
