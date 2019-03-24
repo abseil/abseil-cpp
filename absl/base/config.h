@@ -89,10 +89,8 @@
 // against libstdc++ with _GLIBCXX_HAVE_TLS defined.
 #ifdef ABSL_HAVE_TLS
 #error ABSL_HAVE_TLS cannot be directly set
-#elif defined(__linux__) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
-#define ABSL_HAVE_TLS 1
-#elif defined(__sun)
-// Clang on Solaris
+#elif defined(__linux__) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))\
+     || defined(__sun) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
 #define ABSL_HAVE_TLS 1
 #endif
 
@@ -107,7 +105,7 @@
 #elif defined(_LIBCPP_VERSION) ||                                        \
     (!defined(__clang__) && defined(__GNUC__) && defined(__GLIBCXX__) && \
      (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))) ||        \
-    defined(_MSC_VER) || defined(__sun)
+    defined(_MSC_VER)
 #define ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE 1
 #endif
 
@@ -130,7 +128,7 @@
     (!defined(__clang__) && defined(__GNUC__) &&                 \
      (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)) && \
      (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__))) ||      \
-    (defined(_MSC_VER) && !defined(__NVCC__)) || defined(__sun)
+    (defined(_MSC_VER) && !defined(__NVCC__))
 #define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
 #define ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE 1
 #endif
