@@ -262,6 +262,7 @@
 //   AsmJS                             __asmjs__
 //   WebAssembly                       __wasm__
 //   Fuchsia                           __Fuchsia__
+//   OpenBSD                           __OpenBSD__
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
 // may probe for either Linux or Android by simply testing for __linux__.
@@ -275,7 +276,7 @@
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||   \
     defined(__ros__) || defined(__native_client__) || defined(__asmjs__) || \
     defined(__wasm__) || defined(__Fuchsia__) || defined(__sun) || \
-    defined(__ASYLO__)
+    defined(__ASYLO__) || defined(__OpenBSD__)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -286,7 +287,7 @@
 #ifdef ABSL_HAVE_PTHREAD_GETSCHEDPARAM
 #error ABSL_HAVE_PTHREAD_GETSCHEDPARAM cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__ros__)
+    defined(__ros__) || defined(__OpenBSD__)
 #define ABSL_HAVE_PTHREAD_GETSCHEDPARAM 1
 #endif
 
@@ -311,7 +312,7 @@
 // platforms.
 #ifdef ABSL_HAVE_SEMAPHORE_H
 #error ABSL_HAVE_SEMAPHORE_H cannot be directly set
-#elif defined(__linux__) || defined(__ros__)
+#elif defined(__linux__) || defined(__ros__) || defined(__OpenBSD__)
 #define ABSL_HAVE_SEMAPHORE_H 1
 #endif
 
