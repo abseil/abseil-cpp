@@ -85,11 +85,14 @@
 #endif
 
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
-// We assume __thread is supported on Linux when compiled with Clang or compiled
-// against libstdc++ with _GLIBCXX_HAVE_TLS defined.
+// We assume __thread is supported on at least three major UNIX-like platforms
+// when compiled with Clang or compiled against libstdc++
+// with _GLIBCXX_HAVE_TLS defined.
 #ifdef ABSL_HAVE_TLS
 #error ABSL_HAVE_TLS cannot be directly set
-#elif defined(__linux__) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
+#elif defined(__linux__) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS)) || \
+    defined(__OpenBSD__) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS)) || \
+    defined(__sun) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
 #define ABSL_HAVE_TLS 1
 #endif
 
@@ -262,6 +265,8 @@
 //   AsmJS                             __asmjs__
 //   WebAssembly                       __wasm__
 //   Fuchsia                           __Fuchsia__
+//   OpenBSD                           __OpenBSD__
+//   Solaris 2.x                       __sun
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
 // may probe for either Linux or Android by simply testing for __linux__.
@@ -286,7 +291,7 @@
 #ifdef ABSL_HAVE_PTHREAD_GETSCHEDPARAM
 #error ABSL_HAVE_PTHREAD_GETSCHEDPARAM cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__ros__)
+    defined(__ros__) || defined(__sun) || defined(__OpenBSD__)
 #define ABSL_HAVE_PTHREAD_GETSCHEDPARAM 1
 #endif
 
@@ -296,7 +301,8 @@
 // POSIX.1-2001.
 #ifdef ABSL_HAVE_SCHED_YIELD
 #error ABSL_HAVE_SCHED_YIELD cannot be directly set
-#elif defined(__linux__) || defined(__ros__) || defined(__native_client__)
+#elif defined(__linux__) || defined(__ros__) || defined(__native_client__) || \
+    defined(__sun) || defined(__OpenBSD__)
 #define ABSL_HAVE_SCHED_YIELD 1
 #endif
 
@@ -311,7 +317,8 @@
 // platforms.
 #ifdef ABSL_HAVE_SEMAPHORE_H
 #error ABSL_HAVE_SEMAPHORE_H cannot be directly set
-#elif defined(__linux__) || defined(__ros__)
+#elif defined(__linux__) || defined(__ros__) || defined(__sun) || \
+      defined(__OpenBSD__)
 #define ABSL_HAVE_SEMAPHORE_H 1
 #endif
 
