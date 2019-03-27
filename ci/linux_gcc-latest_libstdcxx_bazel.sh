@@ -32,6 +32,20 @@ if [ -z ${COMPILATION_MODE:-} ]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-latest:20190318"
+
+# USE_BAZEL_CACHE=1 only works on Kokoro.
+# Without access to the credentials this won't work.
+if [ ${USE_BAZEL_CACHE:-0} -ne 0 ]; then
+  DOCKER_EXTRA_ARGS="--volume=${KOKORO_KEYSTORE_DIR}:/keystore:ro ${DOCKER_EXTRA_ARGS:-}"
+  # Bazel doesn't track changes to tools outside of the workspace
+  # (e.g. /usr/bin/gcc), so by appending the docker container to the
+  # remote_http_cache url, we make changes to the container part of
+  # the cache key. Hashing the key is to make it shorter and url-safe.
+  container_key=$(echo ${DOCKER_CONTAINER} | sha256sum | head -c 16)
+  BAZEL_EXTRA_ARGS="--remote_http_cache=https://storage.googleapis.com/absl-bazel-remote-cache/${container_key} --google_credentials=/keystore/73103_absl-bazel-remote-cache ${BAZEL_EXTRA_ARGS:-}"
+fi
+
 for std in ${STD}; do
   for compilation_mode in ${COMPILATION_MODE}; do
     echo "--------------------------------------------------------------------"
@@ -44,7 +58,8 @@ for std in ${STD}; do
       --rm \
       -e CC="/usr/local/bin/gcc" \
       -e BAZEL_CXXOPTS="-std=${std}" \
-      gcr.io/google.com/absl-177019/linux_gcc-latest:20190318 \
+      ${DOCKER_EXTRA_ARGS:-} \
+      ${DOCKER_CONTAINER} \
       /usr/local/bin/bazel test ... \
         --compilation_mode=${compilation_mode} \
         --copt=-Werror \
@@ -54,6 +69,7 @@ for std in ${STD}; do
         --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1" \
         --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
         --test_output=errors \
-        --test_tag_filters=-benchmark
+        --test_tag_filters=-benchmark \
+        ${BAZEL_EXTRA_ARGS:-}
   done
 done

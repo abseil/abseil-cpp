@@ -16,7 +16,7 @@
 
 include(CMakeParseArguments)
 include(AbseilConfigureCopts)
-include(GNUInstallDirs)
+include(AbseilInstallDirs)
 
 # The IDE folder for Abseil that will be used if Abseil is included in a CMake
 # project that sets
@@ -105,13 +105,15 @@ function(absl_cc_library)
       target_include_directories(${_NAME}
         PUBLIC
           $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
-          $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
       )
       target_compile_options(${_NAME}
         PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
         PUBLIC ${ABSL_CC_LIB_DEPS}
-        PRIVATE ${ABSL_CC_LIB_LINKOPTS}
+        PRIVATE
+          ${ABSL_CC_LIB_LINKOPTS}
+          ${ABSL_DEFAULT_LINKOPTS}
       )
       target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
 
@@ -140,10 +142,13 @@ function(absl_cc_library)
       target_include_directories(${_NAME}
         INTERFACE
           $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
-          $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
         )
       target_link_libraries(${_NAME}
-        INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
+        INTERFACE
+          ${ABSL_CC_LIB_DEPS}
+          ${ABSL_CC_LIB_LINKOPTS}
+          ${ABSL_DEFAULT_LINKOPTS}
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
     endif()
@@ -152,9 +157,9 @@ function(absl_cc_library)
     # installed abseil can't be tested.
     if (NOT ABSL_CC_LIB_TESTONLY)
       install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${ABSL_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${ABSL_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${ABSL_INSTALL_LIBDIR}
       )
     endif()
 

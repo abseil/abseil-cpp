@@ -14,6 +14,7 @@ load(
     "ABSL_LLVM_TEST_FLAGS",
     "ABSL_MSVC_EXCEPTIONS_FLAGS",
     "ABSL_MSVC_FLAGS",
+    "ABSL_MSVC_LINKOPTS",
     "ABSL_MSVC_TEST_FLAGS",
 )
 
@@ -38,5 +39,10 @@ ABSL_EXCEPTIONS_FLAG = select({
 })
 
 ABSL_EXCEPTIONS_FLAG_LINKOPTS = select({
+    "//conditions:default": [],
+})
+
+ABSL_DEFAULT_LINKOPTS = select({
+    "//absl:windows": ABSL_MSVC_LINKOPTS,
     "//conditions:default": [],
 })

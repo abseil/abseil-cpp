@@ -22,12 +22,13 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Compiler id for Apple Clang is now AppleClang.
-if (POLICY CMP0025)
-  cmake_policy(SET CMP0025 NEW)
-endif()
+cmake_policy(SET CMP0025 NEW)
 
 # if command can use IN_LIST
 cmake_policy(SET CMP0057 NEW)
+
+# Project version variables are the empty std::string if version is unspecified
+cmake_policy(SET CMP0048 NEW)
 
 project(absl)
 
@@ -44,7 +45,7 @@ list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_LIST_DIR}/absl/copts
 )
 
-include(GNUInstallDirs)
+include(AbseilInstallDirs)
 include(CMakePackageConfigHelpers)
 include(AbseilHelpers)
 
@@ -85,6 +86,7 @@ if(${ABSL_RUN_TESTS})
   enable_testing()
 endif()
 
+# absl:lts-remove-begin(system installation is supported for LTS releases)
 # We don't support system-wide installation
 list(APPEND SYSTEM_INSTALL_DIRS "/usr/local" "/usr" "/opt/" "/opt/local" "c:/Program Files/${PROJECT_NAME}")
 if(NOT DEFINED CMAKE_INSTALL_PREFIX OR CMAKE_INSTALL_PREFIX IN_LIST SYSTEM_INSTALL_DIRS)
@@ -94,6 +96,7 @@ releases of Abseil.  Please set CMAKE_INSTALL_PREFIX to install Abseil in your \
 source or build tree directly.\
   ")
 endif()
+# absl:lts-remove-end
 
 ## check targets
 if(BUILD_TESTING)
@@ -118,25 +121,40 @@ endif()
 
 add_subdirectory(absl)
 
-# install as a subdirectory only
-install(EXPORT ${PROJECT_NAME}Targets
-  NAMESPACE absl::
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-)
+if (ABSL_ENABLE_INSTALL)
+  # install as a subdirectory only
+  install(EXPORT ${PROJECT_NAME}Targets
+    NAMESPACE absl::
+    DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
 
-configure_package_config_file(
-  CMake/abslConfig.cmake.in
-  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-)
+  configure_package_config_file(
+    CMake/abslConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
+  install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
 
-install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-)
+  # Abseil only has a version in LTS releases.  This mechanism is accomplished
+  # Abseil's internal Copybara (https://github.com/google/copybara) workflows and
+  # isn't visible in the CMake buildsystem itself.
+  if (absl_VERSION)
+    write_basic_package_version_file(
+      "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      COMPATIBILITY ExactVersion
+    )
 
-install(DIRECTORY absl
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  FILES_MATCHING
-    PATTERN "*.inc"
-    PATTERN "*.h"
-)
+    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      DESTINATION ${ABSL_INSTALL_CONFIGDIR}
+    )
+  endif()  # absl_VERSION
+
+  install(DIRECTORY absl
+    DESTINATION ${ABSL_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+      PATTERN "*.inc"
+      PATTERN "*.h"
+  )
+endif()  # ABSL_ENABLE_INSTALL

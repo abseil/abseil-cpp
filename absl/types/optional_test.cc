@@ -179,15 +179,7 @@ TEST(optionalTest, DefaultConstructor) {
 TEST(optionalTest, nulloptConstructor) {
   absl::optional<int> empty(absl::nullopt);
   EXPECT_FALSE(empty);
-
-#ifdef ABSL_HAVE_STD_OPTIONAL
   constexpr absl::optional<int> cempty{absl::nullopt};
-#else
-  // Creating a temporary absl::nullopt_t object instead of using absl::nullopt
-  // because absl::nullopt cannot be constexpr and have external linkage at the
-  // same time.
-  constexpr absl::optional<int> cempty{absl::nullopt_t(absl::nullopt_t::init)};
-#endif
   static_assert(!cempty.has_value(), "");
   EXPECT_TRUE((std::is_nothrow_constructible<absl::optional<int>,
                                              absl::nullopt_t>::value));

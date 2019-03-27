@@ -1785,7 +1785,7 @@ TEST(Table, IterationOrderChangesByInstance) {
 
     std::vector<IntTable> tables;
     bool found_difference = false;
-    for (int i = 0; !found_difference && i < 500; ++i) {
+    for (int i = 0; !found_difference && i < 5000; ++i) {
       tables.push_back(MakeSimpleTable(size));
       found_difference = OrderOfIteration(tables.back()) != reference;
     }
@@ -1799,7 +1799,7 @@ TEST(Table, IterationOrderChangesByInstance) {
 
 TEST(Table, IterationOrderChangesOnRehash) {
   std::vector<IntTable> garbage;
-  for (int i = 0; i < 500; ++i) {
+  for (int i = 0; i < 5000; ++i) {
     auto t = MakeSimpleTable(20);
     const auto reference = OrderOfIteration(t);
     // Force rehash to the same size.

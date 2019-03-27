@@ -61,6 +61,7 @@ using std::nullopt;
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/inline_variable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_optional_access.h"
 
@@ -126,32 +127,30 @@ namespace absl {
 template <typename T>
 class optional;
 
+namespace optional_internal {
+
+// This tag type is used as a constructor parameter type for `nullopt_t`.
+struct init_t {
+  explicit init_t() = default;
+};
+
+}  // namespace optional_internal
+
 // nullopt_t
 //
 // Class type for `absl::nullopt` used to indicate an `absl::optional<T>` type
 // that does not contain a value.
 struct nullopt_t {
-  struct init_t {};
-  static init_t init;
-
   // It must not be default-constructible to avoid ambiguity for opt = {}.
-  // Note the non-const reference, which is to eliminate ambiguity for code
-  // like:
-  //
-  // struct S { int value; };
-  //
-  // void Test() {
-  //   optional<S> opt;
-  //   opt = {{}};
-  // }
-  explicit constexpr nullopt_t(init_t& /*unused*/) {}
+  explicit constexpr nullopt_t(optional_internal::init_t) noexcept {}
 };
 
 // nullopt
 //
 // A tag constant of type `absl::nullopt_t` used to indicate an empty
 // `absl::optional` in certain functions, such as construction or assignment.
-extern const nullopt_t nullopt;
+ABSL_INTERNAL_INLINE_CONSTEXPR(nullopt_t, nullopt,
+                               nullopt_t(optional_internal::init_t()));
 
 namespace optional_internal {
 

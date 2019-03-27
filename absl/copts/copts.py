@@ -153,26 +153,39 @@ COPT_VARS = {
         "-Wno-unused-private-field",
     ],
     "ABSL_GCC_EXCEPTIONS_FLAGS": ["-fexceptions"],
-    "ABSL_LLVM_FLAGS": LLVM_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS,
-    "ABSL_LLVM_TEST_FLAGS": LLVM_TEST_DISABLE_WARNINGS_FLAGS,
+    "ABSL_LLVM_FLAGS":
+        LLVM_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS,
+    "ABSL_LLVM_TEST_FLAGS":
+        LLVM_TEST_DISABLE_WARNINGS_FLAGS,
     "ABSL_LLVM_EXCEPTIONS_FLAGS": ["-fexceptions"],
-    "ABSL_CLANG_CL_FLAGS": (MSVC_BIG_WARNING_FLAGS +
-                            LLVM_DISABLE_WARNINGS_FLAGS + MSVC_DEFINES),
-    "ABSL_CLANG_CL_TEST_FLAGS": LLVM_TEST_DISABLE_WARNINGS_FLAGS,
-    "ABSL_CLANG_CL_EXCEPTIONS_FLAGS": MSVC_STYLE_EXCEPTIONS_FLAGS,
-    "ABSL_MSVC_FLAGS": MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + [
-        "/wd4005",  # macro-redefinition
-        "/wd4068",  # unknown pragma
-        "/wd4180",  # qualifier applied to function type has no meaning; ignored
-        "/wd4244",  # conversion from 'type1' to 'type2', possible loss of data
-        "/wd4267",  # conversion from 'size_t' to 'type', possible loss of data
-        # forcing value to bool 'true' or 'false' (performance warning)
-        "/wd4800",
-    ],
+    "ABSL_CLANG_CL_FLAGS": (
+        MSVC_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS + MSVC_DEFINES),
+    "ABSL_CLANG_CL_TEST_FLAGS":
+        LLVM_TEST_DISABLE_WARNINGS_FLAGS,
+    "ABSL_CLANG_CL_EXCEPTIONS_FLAGS":
+        MSVC_STYLE_EXCEPTIONS_FLAGS,
+    "ABSL_MSVC_FLAGS":
+        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + [
+            "/wd4005",  # macro-redefinition
+            "/wd4068",  # unknown pragma
+            # qualifier applied to function type has no meaning; ignored
+            "/wd4180",
+            # conversion from 'type1' to 'type2', possible loss of data
+            "/wd4244",
+            # conversion from 'size_t' to 'type', possible loss of data
+            "/wd4267",
+            # forcing value to bool 'true' or 'false' (performance warning)
+            "/wd4800",
+        ],
     "ABSL_MSVC_TEST_FLAGS": [
         "/wd4018",  # signed/unsigned mismatch
         "/wd4101",  # unreferenced local variable
         "/wd4503",  # decorated name length exceeded, name was truncated
     ],
-    "ABSL_MSVC_EXCEPTIONS_FLAGS": MSVC_STYLE_EXCEPTIONS_FLAGS,
+    "ABSL_MSVC_EXCEPTIONS_FLAGS":
+        MSVC_STYLE_EXCEPTIONS_FLAGS,
+    "ABSL_MSVC_LINKOPTS": [
+        # Object file doesn't export any previously undefined symbols
+        "/ignore:4221",
+    ],
 }

@@ -454,7 +454,7 @@ class InlinedVector {
   // Overload of `InlinedVector::operator=()` to replace the contents of the
   // inlined vector with the contents of `other`.
   InlinedVector& operator=(const InlinedVector& other) {
-    if (ABSL_PREDICT_FALSE(this == &other)) return *this;
+    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return *this;
 
     // Optimized to avoid reallocation.
     // Prefer reassignment to copy construction for elements.
@@ -475,7 +475,7 @@ class InlinedVector {
   // NOTE: As a result of calling this overload, `other` may be empty or it's
   // contents may be left in a moved-from state.
   InlinedVector& operator=(InlinedVector&& other) {
-    if (ABSL_PREDICT_FALSE(this == &other)) return *this;
+    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return *this;
 
     if (other.allocated()) {
       clear();
@@ -840,7 +840,7 @@ class InlinedVector {
   //
   // Swaps the contents of this inlined vector with the contents of `other`.
   void swap(InlinedVector& other) {
-    if (ABSL_PREDICT_FALSE(this == &other)) return;
+    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return;
 
     SwapImpl(other);
   }
@@ -864,7 +864,8 @@ class InlinedVector {
   }
 
   void init_allocation(const Allocation& allocation) {
-    new (&storage_.rep_.allocation_storage.allocation) Allocation(allocation);
+    new (static_cast<void*>(std::addressof(
+        storage_.rep_.allocation_storage.allocation))) Allocation(allocation);
   }
 
   // TODO(absl-team): investigate whether the reinterpret_cast is appropriate.
@@ -1154,7 +1155,7 @@ class InlinedVector {
     if (!allocated() && !other.allocated()) {
       // Both inlined: swap up to smaller size, then move remaining elements.
       InlinedVector* a = this;
-      InlinedVector* b = &other;
+      InlinedVector* b = std::addressof(other);
       if (size() < other.size()) {
         swap(a, b);
       }
@@ -1186,7 +1187,7 @@ class InlinedVector {
     // pointer/capacity into the originally inlined vector and swap
     // the tags.
     InlinedVector* a = this;
-    InlinedVector* b = &other;
+    InlinedVector* b = std::addressof(other);
     if (a->allocated()) {
       swap(a, b);
     }
@@ -1304,11 +1305,5 @@ auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H {
   return H::combine(H::combine_contiguous(std::move(h), p, n), n);
 }
 }  // namespace absl
-
-// -----------------------------------------------------------------------------
-// Implementation of InlinedVector
-//
-// Do not depend on any below implementation details!
-// -----------------------------------------------------------------------------
 
 #endif  // ABSL_CONTAINER_INLINED_VECTOR_H_

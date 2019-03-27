@@ -3,6 +3,7 @@ include(GENERATED_AbseilCopts)
 
 set(ABSL_LSAN_LINKOPTS "")
 set(ABSL_HAVE_LSAN OFF)
+set(ABSL_DEFAULT_LINKOPTS "")
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(ABSL_DEFAULT_COPTS "${ABSL_GCC_FLAGS}")
@@ -19,6 +20,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(ABSL_DEFAULT_COPTS "${ABSL_LLVM_FLAGS}")
     set(ABSL_TEST_COPTS "${ABSL_LLVM_FLAGS};${ABSL_LLVM_TEST_FLAGS}")
     set(ABSL_EXCEPTIONS_FLAG "${ABSL_LLVM_EXCEPTIONS_FLAGS}")
+    set(ABSL_DEFAULT_LINKOPTS "${ABSL_MSVC_LINKOPTS}")
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       # AppleClang doesn't have lsan
       # https://developer.apple.com/documentation/code_diagnostics
@@ -32,6 +34,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   set(ABSL_DEFAULT_COPTS "${ABSL_MSVC_FLAGS}")
   set(ABSL_TEST_COPTS "${ABSL_MSVC_FLAGS};${ABSL_MSVC_TEST_FLAGS}")
   set(ABSL_EXCEPTIONS_FLAG "${ABSL_MSVC_EXCEPTIONS_FLAGS}")
+  set(ABSL_DEFAULT_LINKOPTS "${ABSL_MSVC_LINKOPTS}")
 else()
   message(WARNING "Unknown compiler: ${CMAKE_CXX_COMPILER}.  Building with no default flags")
   set(ABSL_DEFAULT_COPTS "")
