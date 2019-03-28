@@ -414,10 +414,10 @@ TEST(Table, Prefetch) {
   t.prefetch(2);
 
   // Do not run in debug mode, when prefetch is not implemented, or when
-  // sanitizers are enabled.
+  // sanitizers are enabled, or on WebAssembly.
 #if defined(NDEBUG) && defined(__GNUC__) && !defined(ADDRESS_SANITIZER) && \
     !defined(MEMORY_SANITIZER) && !defined(THREAD_SANITIZER) &&            \
-    !defined(UNDEFINED_BEHAVIOR_SANITIZER)
+    !defined(UNDEFINED_BEHAVIOR_SANITIZER) && !defined(__EMSCRIPTEN__)
   const auto now = [] { return absl::base_internal::CycleClock::Now(); };
 
   // Make size enough to not fit in L2 cache (16.7 Mb)

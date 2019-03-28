@@ -847,7 +847,7 @@ class InlinedVector {
 
  private:
   template <typename H, typename TheT, size_t TheN, typename TheA>
-  friend auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H;
+  friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
 
   const Tag& tag() const { return storage_.allocator_and_tag_.tag(); }
 
@@ -1231,8 +1231,8 @@ class InlinedVector {
 // Swaps the contents of two inlined vectors. This convenience function
 // simply calls `InlinedVector::swap()`.
 template <typename T, size_t N, typename A>
-auto swap(InlinedVector<T, N, A>& a,
-          InlinedVector<T, N, A>& b) noexcept(noexcept(a.swap(b))) -> void {
+void swap(absl::InlinedVector<T, N, A>& a,
+          absl::InlinedVector<T, N, A>& b) noexcept(noexcept(a.swap(b))) {
   a.swap(b);
 }
 
@@ -1240,17 +1240,21 @@ auto swap(InlinedVector<T, N, A>& a,
 //
 // Tests the equivalency of the contents of two inlined vectors.
 template <typename T, size_t N, typename A>
-auto operator==(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) -> bool {
-  return absl::equal(a.begin(), a.end(), b.begin(), b.end());
+bool operator==(const absl::InlinedVector<T, N, A>& a,
+                const absl::InlinedVector<T, N, A>& b) {
+  auto a_data = a.data();
+  auto a_size = a.size();
+  auto b_data = b.data();
+  auto b_size = b.size();
+  return absl::equal(a_data, a_data + a_size, b_data, b_data + b_size);
 }
 
 // `operator!=()`
 //
 // Tests the inequality of the contents of two inlined vectors.
 template <typename T, size_t N, typename A>
-auto operator!=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) -> bool {
+bool operator!=(const absl::InlinedVector<T, N, A>& a,
+                const absl::InlinedVector<T, N, A>& b) {
   return !(a == b);
 }
 
@@ -1259,9 +1263,14 @@ auto operator!=(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are less than the contents
 // of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-auto operator<(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
-    -> bool {
-  return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
+bool operator<(const absl::InlinedVector<T, N, A>& a,
+               const absl::InlinedVector<T, N, A>& b) {
+  auto a_data = a.data();
+  auto a_size = a.size();
+  auto b_data = b.data();
+  auto b_size = b.size();
+  return std::lexicographical_compare(a_data, a_data + a_size, b_data,
+                                      b_data + b_size);
 }
 
 // `operator>()`
@@ -1269,8 +1278,8 @@ auto operator<(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
 // Tests whether the contents of one inlined vector are greater than the
 // contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-auto operator>(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
-    -> bool {
+bool operator>(const absl::InlinedVector<T, N, A>& a,
+               const absl::InlinedVector<T, N, A>& b) {
   return b < a;
 }
 
@@ -1279,8 +1288,8 @@ auto operator>(const InlinedVector<T, N, A>& a, const InlinedVector<T, N, A>& b)
 // Tests whether the contents of one inlined vector are less than or equal to
 // the contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-auto operator<=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) -> bool {
+bool operator<=(const absl::InlinedVector<T, N, A>& a,
+                const absl::InlinedVector<T, N, A>& b) {
   return !(b < a);
 }
 
@@ -1289,8 +1298,8 @@ auto operator<=(const InlinedVector<T, N, A>& a,
 // Tests whether the contents of one inlined vector are greater than or equal to
 // the contents of another through a lexicographical comparison operation.
 template <typename T, size_t N, typename A>
-auto operator>=(const InlinedVector<T, N, A>& a,
-                const InlinedVector<T, N, A>& b) -> bool {
+bool operator>=(const absl::InlinedVector<T, N, A>& a,
+                const absl::InlinedVector<T, N, A>& b) {
   return !(a < b);
 }
 
@@ -1299,11 +1308,13 @@ auto operator>=(const InlinedVector<T, N, A>& a,
 // Provides `absl::Hash` support for inlined vectors. You do not normally call
 // this function directly.
 template <typename H, typename TheT, size_t TheN, typename TheA>
-auto AbslHashValue(H h, const InlinedVector<TheT, TheN, TheA>& v) -> H {
-  auto p = v.data();
-  auto n = v.size();
-  return H::combine(H::combine_contiguous(std::move(h), p, n), n);
+H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a) {
+  auto a_data = a.data();
+  auto a_size = a.size();
+  return H::combine(H::combine_contiguous(std::move(h), a_data, a_size),
+                    a_size);
 }
+
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INLINED_VECTOR_H_

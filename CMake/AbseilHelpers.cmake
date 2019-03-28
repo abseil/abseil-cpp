@@ -59,7 +59,7 @@ set(ABSL_IDE_FOLDER Abseil)
 #   SRCS
 #     "b.cc"
 #   DEPS
-#     absl_internal_awesome # not "awesome"!
+#     absl::awesome # not "awesome" !
 #   PUBLIC
 # )
 #
@@ -68,7 +68,7 @@ set(ABSL_IDE_FOLDER Abseil)
 #     main_lib
 #   ...
 #   DEPS
-#     absl::fantastic_lib # since fantastic_lib is public
+#     absl::fantastic_lib
 # )
 #
 # TODO: Implement "ALWAYSLINK"
@@ -80,8 +80,12 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    set(_NAME "${ABSL_CC_LIB_NAME}")
+  if(NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
+    if(ABSL_ENABLE_INSTALL)
+      set(_NAME "${ABSL_CC_LIB_NAME}")
+    else()
+      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+    endif()
 
     # Check if this is a header-only library
     # Note that as of February 2019, many popular OS's (for example, Ubuntu
@@ -93,7 +97,7 @@ function(absl_cc_library)
         list(REMOVE_ITEM ABSL_CC_SRCS "${src_file}")
       endif()
     endforeach()
-    if ("${ABSL_CC_SRCS}" STREQUAL "")
+    if("${ABSL_CC_SRCS}" STREQUAL "")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
       set(ABSL_CC_LIB_IS_INTERFACE 0)
@@ -155,7 +159,7 @@ function(absl_cc_library)
 
     # TODO currently we don't install googletest alongside abseil sources, so
     # installed abseil can't be tested.
-    if (NOT ABSL_CC_LIB_TESTONLY)
+    if(NOT ABSL_CC_LIB_TESTONLY AND ABSL_ENABLE_INSTALL)
       install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
             RUNTIME DESTINATION ${ABSL_INSTALL_BINDIR}
             LIBRARY DESTINATION ${ABSL_INSTALL_LIBDIR}

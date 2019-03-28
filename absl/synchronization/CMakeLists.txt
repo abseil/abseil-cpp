@@ -64,6 +64,7 @@ absl_cc_library(
     absl::stacktrace
     absl::symbolize
     absl::time
+    Threads::Threads
   PUBLIC
 )
 
@@ -191,5 +192,4 @@ absl_cc_test(
     absl::synchronization
     absl::base
     absl::core_headers
-    Threads::Threads
 )

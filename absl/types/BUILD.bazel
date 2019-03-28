@@ -117,7 +117,12 @@ cc_test(
 
 cc_library(
     name = "span",
-    hdrs = ["span.h"],
+    srcs = [
+        "internal/span.h",
+    ],
+    hdrs = [
+        "span.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [

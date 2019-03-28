@@ -114,6 +114,8 @@ absl_cc_library(
     span
   HDRS
     "span.h"
+  SRCS
+    "internal/span.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS

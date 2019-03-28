@@ -1,5 +1,6 @@
-## absl CMake configuration file.  Note that there is no corresponding
-# abslConfigVersion.cmake since non-LTS Abseil isn't versioned.
+# absl CMake configuration file.
+
+include(FindThreads)
 
 @PACKAGE_INIT@
 

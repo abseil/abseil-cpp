@@ -88,6 +88,7 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::spinlock_wait
+    Threads::Threads
 )
 
 absl_cc_library(
@@ -134,6 +135,7 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::spinlock_wait
+    Threads::Threads
   PUBLIC
 )
 
@@ -437,4 +439,13 @@ absl_cc_test(
   DEPS
     absl::scoped_set_env
     gtest_main
+)
+
+absl_cc_test(
+  NAME
+    cmake_thread_test
+  SRCS
+    "internal/cmake_thread_test.cc"
+  DEPS
+    absl::base
 )

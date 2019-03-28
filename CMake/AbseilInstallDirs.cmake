@@ -6,7 +6,7 @@ include(GNUInstallDirs)
 # Abseil's internal Copybara (https://github.com/google/copybara) workflows and
 # isn't visible in the CMake buildsystem itself.
 
-if (absl_VERSION)
+if(absl_VERSION)
   set(ABSL_SUBDIR "${PROJECT_NAME}_${PROJECT_VERSION}")
   set(ABSL_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}/${ABSL_SUBDIR}")
   set(ABSL_INSTALL_CONFIGDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${ABSL_SUBDIR}")
