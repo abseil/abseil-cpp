@@ -18,6 +18,8 @@
 #include <windows.h>
 #endif
 
+#error Testing Kokoro
+
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
