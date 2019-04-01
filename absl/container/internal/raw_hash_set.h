@@ -1437,7 +1437,18 @@ class raw_hash_set {
 
   void initialize_slots() {
     assert(capacity_);
-    if (slots_ == nullptr) {
+    // Folks with custom allocators often make unwaranted assumptions about the
+    // behavior of their classes vis-a-vis trivial destructability and what
+    // calls they will or wont make.  Avoid sampling for people with custom
+    // allocators to get us out of this mess.  This is not a hard guarntee but a
+    // workaround while we plan the exact guarantee we want to provide.
+    //
+    // People are often sloppy with the exact type of their allocator (sometimes
+    // it has an extra const or is missing the pair, but rebinds made it work
+    // anyway).  To avoid the ambiguitity, we work off SlotAlloc which we have
+    // bound more carefully.
+    if (std::is_same<SlotAlloc, std::allocator<slot_type>>::value &&
+        slots_ == nullptr) {
       infoz_ = Sample();
     }
 

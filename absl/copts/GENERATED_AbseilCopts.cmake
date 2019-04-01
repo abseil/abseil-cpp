@@ -76,6 +76,7 @@ list(APPEND ABSL_CLANG_CL_TEST_FLAGS
     "-Wno-unused-template"
     "-Wno-used-but-marked-unused"
     "-Wno-zero-as-null-pointer-constant"
+    "-Wno-gnu-include-next"
     "-Wno-gnu-zero-variadic-macro-arguments"
 )
 
@@ -177,6 +178,7 @@ list(APPEND ABSL_LLVM_TEST_FLAGS
     "-Wno-unused-template"
     "-Wno-used-but-marked-unused"
     "-Wno-zero-as-null-pointer-constant"
+    "-Wno-gnu-include-next"
     "-Wno-gnu-zero-variadic-macro-arguments"
 )
 
@@ -202,7 +204,7 @@ list(APPEND ABSL_MSVC_FLAGS
 )
 
 list(APPEND ABSL_MSVC_LINKOPTS
-    "-ignore:4221"
+    "/ignore:4221"
 )
 
 list(APPEND ABSL_MSVC_TEST_FLAGS

@@ -71,8 +71,8 @@ TEST(Split, TraitsTest) {
 // namespaces just like callers will need to use.
 TEST(Split, APIExamples) {
   {
-    // Passes std::string delimiter. Assumes the default of Literal.
-    std::vector<std::string> v = absl::StrSplit("a,b,c", ',');
+    // Passes std::string delimiter. Assumes the default of ByString.
+    std::vector<std::string> v = absl::StrSplit("a,b,c", ",");  // NOLINT
     EXPECT_THAT(v, ElementsAre("a", "b", "c"));
 
     // Equivalent to...
@@ -87,17 +87,6 @@ TEST(Split, APIExamples) {
 
   {
     // Same as above, but using a single character as the delimiter.
-    std::vector<std::string> v = absl::StrSplit("a,b,c", ',');
-    EXPECT_THAT(v, ElementsAre("a", "b", "c"));
-
-    // Equivalent to...
-    using absl::ByChar;
-    v = absl::StrSplit("a,b,c", ByChar(','));
-    EXPECT_THAT(v, ElementsAre("a", "b", "c"));
-  }
-
-  {
-    // Same as above, but using std::string
     std::vector<std::string> v = absl::StrSplit("a,b,c", ',');
     EXPECT_THAT(v, ElementsAre("a", "b", "c"));
 
@@ -797,7 +786,7 @@ static bool IsFoundAt(absl::string_view text, Delimiter d, int expected_pos) {
 }
 
 //
-// Tests for Literal
+// Tests for ByString
 //
 
 // Tests using any delimiter that represents a single comma.
@@ -817,7 +806,7 @@ void TestComma(Delimiter d) {
   EXPECT_FALSE(IsFoundAt(";", d, -1));
 }
 
-TEST(Delimiter, Literal) {
+TEST(Delimiter, ByString) {
   using absl::ByString;
   TestComma(ByString(","));
 

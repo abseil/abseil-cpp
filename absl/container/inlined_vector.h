@@ -1303,10 +1303,10 @@ bool operator>=(const absl::InlinedVector<T, N, A>& a,
   return !(a < b);
 }
 
-// AbslHashValue()
+// `AbslHashValue()`
 //
-// Provides `absl::Hash` support for inlined vectors. You do not normally call
-// this function directly.
+// Provides `absl::Hash` support for `absl::InlinedVector`. You do not normally
+// call this function directly.
 template <typename H, typename TheT, size_t TheN, typename TheA>
 H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a) {
   auto a_data = a.data();

@@ -343,7 +343,25 @@ struct IntTable
     : raw_hash_set<IntPolicy, container_internal::hash_default_hash<int64_t>,
                    std::equal_to<int64_t>, std::allocator<int64_t>> {
   using Base = typename IntTable::raw_hash_set;
-  IntTable() {}
+  using Base::Base;
+};
+
+template <typename T>
+struct CustomAlloc : std::allocator<T> {
+  CustomAlloc() {}
+
+  template <typename U>
+  CustomAlloc(const CustomAlloc<U>& other) {}
+
+  template<class U> struct rebind {
+    using other = CustomAlloc<U>;
+  };
+};
+
+struct CustomAllocIntTable
+    : raw_hash_set<IntPolicy, container_internal::hash_default_hash<int64_t>,
+                   std::equal_to<int64_t>, CustomAlloc<int64_t>> {
+  using Base = typename CustomAllocIntTable::raw_hash_set;
   using Base::Base;
 };
 
@@ -1867,6 +1885,27 @@ TEST(RawHashSamplerTest, Sample) {
 
   EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
               0.01, 0.005);
+}
+
+TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
+  // Enable the feature even if the prod default is off.
+  SetHashtablezEnabled(true);
+  SetHashtablezSampleParameter(100);
+
+  auto& sampler = HashtablezSampler::Global();
+  size_t start_size = 0;
+  start_size += sampler.Iterate([&](const HashtablezInfo&) { ++start_size; });
+
+  std::vector<CustomAllocIntTable> tables;
+  for (int i = 0; i < 1000000; ++i) {
+    tables.emplace_back();
+    tables.back().insert(1);
+  }
+  size_t end_size = 0;
+  end_size += sampler.Iterate([&](const HashtablezInfo&) { ++end_size; });
+
+  EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
+              0.00, 0.001);
 }
 
 #ifdef ADDRESS_SANITIZER
