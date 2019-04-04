@@ -174,6 +174,8 @@ absl_cc_library(
     optional
   HDRS
     "optional.h"
+  SRCS
+    "internal/optional.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS

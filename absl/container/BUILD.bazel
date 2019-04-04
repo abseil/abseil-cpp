@@ -123,6 +123,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":compressed_tuple",
         "//absl/meta:type_traits",
     ],
 )

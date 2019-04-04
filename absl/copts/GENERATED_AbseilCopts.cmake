@@ -211,4 +211,5 @@ list(APPEND ABSL_MSVC_TEST_FLAGS
     "/wd4018"
     "/wd4101"
     "/wd4503"
+    "/DNOMINMAX"
 )

@@ -173,6 +173,7 @@ cc_test(
 
 cc_library(
     name = "optional",
+    srcs = ["internal/optional.h"],
     hdrs = ["optional.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

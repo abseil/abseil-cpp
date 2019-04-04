@@ -115,6 +115,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::compressed_tuple
     absl::type_traits
   PUBLIC
 )
@@ -129,6 +130,7 @@ absl_cc_library(
   DEPS
     absl::algorithm
     absl::core_headers
+    absl::inlined_vector_internal
     absl::throw_delegate
     absl::memory
   PUBLIC

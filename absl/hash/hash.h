@@ -36,6 +36,10 @@
 // framework by simply combining its state with the state of known, hashable
 // types. Hashing of that combined state is separately done by `absl::Hash`.
 //
+// One should assume that a hash algorithm is chosen randomly at the start of
+// each process.  E.g., absl::Hash<int>()(9) in one process and
+// absl::Hash<int>()(9) in another process are likely to differ.
+//
 // Example:
 //
 //   // Suppose we have a class `Circle` for which we want to add hashing

@@ -183,6 +183,7 @@ COPT_VARS = {
         "/wd4018",  # signed/unsigned mismatch
         "/wd4101",  # unreferenced local variable
         "/wd4503",  # decorated name length exceeded, name was truncated
+        "/DNOMINMAX",  # disable the min() and max() macros from <windows.h>
     ],
     "ABSL_MSVC_EXCEPTIONS_FLAGS":
         MSVC_STYLE_EXCEPTIONS_FLAGS,
