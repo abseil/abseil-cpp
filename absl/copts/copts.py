@@ -189,6 +189,6 @@ COPT_VARS = {
         MSVC_STYLE_EXCEPTIONS_FLAGS,
     "ABSL_MSVC_LINKOPTS": [
         # Object file doesn't export any previously undefined symbols
-        "/ignore:4221",
+        "-ignore:4221",
     ],
 }

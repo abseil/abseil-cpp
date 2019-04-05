@@ -70,7 +70,7 @@ class InlinedVector {
       N > 0, "InlinedVector cannot be instantiated with `0` inlined elements.");
 
   using Storage = inlined_vector_internal::Storage<InlinedVector>;
-  using Allocation = typename Storage::Allocation;
+  using AllocatorTraits = typename Storage::AllocatorTraits;
 
   template <typename Iterator>
   using IsAtLeastForwardIterator = std::is_convertible<
@@ -198,7 +198,8 @@ class InlinedVector {
     if (other.storage_.GetIsAllocated()) {
       // We can just steal the underlying buffer from the source.
       // That leaves the source empty, so we clear its size.
-      storage_.InitAllocation(other.storage_.GetAllocation());
+      storage_.SetAllocatedData(other.storage_.GetAllocatedData());
+      storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
       storage_.SetAllocatedSize(other.size());
       other.storage_.SetInlinedSize(0);
     } else {
@@ -231,7 +232,8 @@ class InlinedVector {
       if (alloc == other.storage_.GetAllocator()) {
         // We can just steal the allocation from the source.
         storage_.SetAllocatedSize(other.size());
-        storage_.InitAllocation(other.storage_.GetAllocation());
+        storage_.SetAllocatedData(other.storage_.GetAllocatedData());
+        storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
         other.storage_.SetInlinedSize(0);
       } else {
         // We need to use our own allocator
@@ -484,7 +486,8 @@ class InlinedVector {
     if (other.storage_.GetIsAllocated()) {
       clear();
       storage_.SetAllocatedSize(other.size());
-      storage_.InitAllocation(other.storage_.GetAllocation());
+      storage_.SetAllocatedData(other.storage_.GetAllocatedData());
+      storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
       other.storage_.SetInlinedSize(0);
     } else {
       if (storage_.GetIsAllocated()) clear();
@@ -789,7 +792,9 @@ class InlinedVector {
     size_type s = size();
     if (storage_.GetIsAllocated()) {
       Destroy(storage_.GetAllocatedData(), storage_.GetAllocatedData() + s);
-      storage_.GetAllocation().Dealloc(storage_.GetAllocator());
+      AllocatorTraits::deallocate(storage_.GetAllocator(),
+                                  storage_.GetAllocatedData(),
+                                  storage_.GetAllocatedCapacity());
     } else if (s != 0) {  // do nothing for empty vectors
       Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + s);
     }
@@ -841,11 +846,11 @@ class InlinedVector {
     // Reallocate storage and move elements.
     // We can't simply use the same approach as above, because `assign()` would
     // call into `reserve()` internally and reserve larger capacity than we need
-    Allocation new_allocation(storage_.GetAllocator(), s);
+    pointer new_data = AllocatorTraits::allocate(storage_.GetAllocator(), s);
     UninitializedCopy(std::make_move_iterator(storage_.GetAllocatedData()),
                       std::make_move_iterator(storage_.GetAllocatedData() + s),
-                      new_allocation.buffer());
-    ResetAllocation(new_allocation, s);
+                      new_data);
+    ResetAllocation(new_data, s, s);
   }
 
   // `InlinedVector::swap()`
@@ -861,17 +866,21 @@ class InlinedVector {
   template <typename H, typename TheT, size_t TheN, typename TheA>
   friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
 
-  void ResetAllocation(Allocation new_allocation, size_type new_size) {
+  void ResetAllocation(pointer new_data, size_type new_capacity,
+                       size_type new_size) {
     if (storage_.GetIsAllocated()) {
       Destroy(storage_.GetAllocatedData(),
               storage_.GetAllocatedData() + size());
       assert(begin() == storage_.GetAllocatedData());
-      storage_.GetAllocation().Dealloc(storage_.GetAllocator());
-      storage_.GetAllocation() = new_allocation;
+      AllocatorTraits::deallocate(storage_.GetAllocator(),
+                                  storage_.GetAllocatedData(),
+                                  storage_.GetAllocatedCapacity());
     } else {
       Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + size());
-      storage_.InitAllocation(new_allocation);  // bug: only init once
     }
+
+    storage_.SetAllocatedData(new_data);
+    storage_.SetAllocatedCapacity(new_capacity);
     storage_.SetAllocatedSize(new_size);
   }
 
@@ -925,13 +934,13 @@ class InlinedVector {
       new_capacity <<= 1;
     }
 
-    Allocation new_allocation(storage_.GetAllocator(), new_capacity);
+    pointer new_data =
+        AllocatorTraits::allocate(storage_.GetAllocator(), new_capacity);
 
     UninitializedCopy(std::make_move_iterator(data()),
-                      std::make_move_iterator(data() + s),
-                      new_allocation.buffer());
+                      std::make_move_iterator(data() + s), new_data);
 
-    ResetAllocation(new_allocation, s);
+    ResetAllocation(new_data, new_capacity, s);
   }
 
   // Shift all elements from `position` to `end()` by `n` places to the right.
@@ -957,15 +966,15 @@ class InlinedVector {
       }
       // Move everyone into the new allocation, leaving a gap of `n` for the
       // requested shift.
-      Allocation new_allocation(storage_.GetAllocator(), new_capacity);
+      pointer new_data =
+          AllocatorTraits::allocate(storage_.GetAllocator(), new_capacity);
       size_type index = position - begin();
       UninitializedCopy(std::make_move_iterator(data()),
-                        std::make_move_iterator(data() + index),
-                        new_allocation.buffer());
+                        std::make_move_iterator(data() + index), new_data);
       UninitializedCopy(std::make_move_iterator(data() + index),
                         std::make_move_iterator(data() + s),
-                        new_allocation.buffer() + index + n);
-      ResetAllocation(new_allocation, s);
+                        new_data + index + n);
+      ResetAllocation(new_data, new_capacity, s);
 
       // New allocation means our iterator is invalid, so we'll recalculate.
       // Since the entire gap is in new space, there's no used space to reuse.
@@ -1005,23 +1014,25 @@ class InlinedVector {
     assert(size() == capacity());
     const size_type s = size();
 
-    Allocation new_allocation(storage_.GetAllocator(), 2 * capacity());
+    size_type new_capacity = 2 * capacity();
+    pointer new_data =
+        AllocatorTraits::allocate(storage_.GetAllocator(), new_capacity);
 
     reference new_element =
-        Construct(new_allocation.buffer() + s, std::forward<Args>(args)...);
+        Construct(new_data + s, std::forward<Args>(args)...);
     UninitializedCopy(std::make_move_iterator(data()),
-                      std::make_move_iterator(data() + s),
-                      new_allocation.buffer());
+                      std::make_move_iterator(data() + s), new_data);
 
-    ResetAllocation(new_allocation, s + 1);
+    ResetAllocation(new_data, new_capacity, s + 1);
 
     return new_element;
   }
 
   void InitAssign(size_type n) {
     if (n > static_cast<size_type>(N)) {
-      Allocation new_allocation(storage_.GetAllocator(), n);
-      storage_.InitAllocation(new_allocation);
+      pointer new_data = AllocatorTraits::allocate(storage_.GetAllocator(), n);
+      storage_.SetAllocatedData(new_data);
+      storage_.SetAllocatedCapacity(n);
       UninitializedFill(storage_.GetAllocatedData(),
                         storage_.GetAllocatedData() + n);
       storage_.SetAllocatedSize(n);
@@ -1034,8 +1045,9 @@ class InlinedVector {
 
   void InitAssign(size_type n, const_reference v) {
     if (n > static_cast<size_type>(N)) {
-      Allocation new_allocation(storage_.GetAllocator(), n);
-      storage_.InitAllocation(new_allocation);
+      pointer new_data = AllocatorTraits::allocate(storage_.GetAllocator(), n);
+      storage_.SetAllocatedData(new_data);
+      storage_.SetAllocatedCapacity(n);
       UninitializedFill(storage_.GetAllocatedData(),
                         storage_.GetAllocatedData() + n, v);
       storage_.SetAllocatedSize(n);
@@ -1117,15 +1129,15 @@ class InlinedVector {
   }
 
   void SwapImpl(InlinedVector& other) {
-    using std::swap;  // Augment ADL with `std::swap`.
+    using std::swap;
 
     bool is_allocated = storage_.GetIsAllocated();
     bool other_is_allocated = other.storage_.GetIsAllocated();
 
     if (is_allocated && other_is_allocated) {
       // Both out of line, so just swap the tag, allocation, and allocator.
-      storage_.SwapSizeAndIsAllocated(other.storage_);
-      swap(storage_.GetAllocation(), other.storage_.GetAllocation());
+      storage_.SwapSizeAndIsAllocated(std::addressof(other.storage_));
+      storage_.SwapAllocatedSizeAndCapacity(std::addressof(other.storage_));
       swap(storage_.GetAllocator(), other.storage_.GetAllocator());
 
       return;
@@ -1155,7 +1167,7 @@ class InlinedVector {
       a->Destroy(a->storage_.GetInlinedData() + b_size,
                  a->storage_.GetInlinedData() + a_size);
 
-      storage_.SwapSizeAndIsAllocated(other.storage_);
+      storage_.SwapSizeAndIsAllocated(std::addressof(other.storage_));
       swap(storage_.GetAllocator(), other.storage_.GetAllocator());
 
       assert(b->size() == a_size);
@@ -1183,11 +1195,11 @@ class InlinedVector {
     static_cast<void>(b_size);
 
     // Made Local copies of `size()`, these can now be swapped
-    a->storage_.SwapSizeAndIsAllocated(b->storage_);
+    a->storage_.SwapSizeAndIsAllocated(std::addressof(b->storage_));
 
-    // Copy `b_allocation` out before `b`'s union gets clobbered by
-    // `inline_space`
-    Allocation b_allocation = b->storage_.GetAllocation();
+    // Copy out before `b`'s union gets clobbered by `inline_space`
+    pointer b_data = b->storage_.GetAllocatedData();
+    size_type b_capacity = b->storage_.GetAllocatedCapacity();
 
     b->UninitializedCopy(a->storage_.GetInlinedData(),
                          a->storage_.GetInlinedData() + a_size,
@@ -1195,7 +1207,8 @@ class InlinedVector {
     a->Destroy(a->storage_.GetInlinedData(),
                a->storage_.GetInlinedData() + a_size);
 
-    a->storage_.GetAllocation() = b_allocation;
+    a->storage_.SetAllocatedData(b_data);
+    a->storage_.SetAllocatedCapacity(b_capacity);
 
     if (a->storage_.GetAllocator() != b->storage_.GetAllocator()) {
       swap(a->storage_.GetAllocator(), b->storage_.GetAllocator());

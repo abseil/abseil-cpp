@@ -204,7 +204,7 @@ list(APPEND ABSL_MSVC_FLAGS
 )
 
 list(APPEND ABSL_MSVC_LINKOPTS
-    "/ignore:4221"
+    "-ignore:4221"
 )
 
 list(APPEND ABSL_MSVC_TEST_FLAGS
