@@ -55,10 +55,23 @@ static constexpr int32_t kShift = 2;
 static constexpr double kFrequencyScale = 1.0 / (1 << kShift);
 static std::atomic<CycleClockSourceFunc> cycle_clock_source;
 
+CycleClockSourceFunc LoadCycleClockSource() {
+  // Optimize for the common case (no callback) by first doing a relaxed load;
+  // this is significantly faster on non-x86 platforms.
+  if (cycle_clock_source.load(std::memory_order_relaxed) == nullptr) {
+    return nullptr;
+  }
+  // This corresponds to the store(std::memory_order_release) in
+  // CycleClockSource::Register, and makes sure that any updates made prior to
+  // registering the callback are visible to this thread before the callback is
+  // invoked.
+  return cycle_clock_source.load(std::memory_order_acquire);
+}
+
 }  // namespace
 
 int64_t CycleClock::Now() {
-  auto fn = cycle_clock_source.load(std::memory_order_relaxed);
+  auto fn = LoadCycleClockSource();
   if (fn == nullptr) {
     return base_internal::UnscaledCycleClock::Now() >> kShift;
   }
@@ -70,7 +83,8 @@ double CycleClock::Frequency() {
 }
 
 void CycleClockSource::Register(CycleClockSourceFunc source) {
-  cycle_clock_source.store(source, std::memory_order_relaxed);
+  // Corresponds to the load(std::memory_order_acquire) in LoadCycleClockSource.
+  cycle_clock_source.store(source, std::memory_order_release);
 }
 
 #else

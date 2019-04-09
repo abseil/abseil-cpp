@@ -2,7 +2,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <cmath>
-#include <limits>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -398,8 +397,8 @@ TEST_F(FormatConvertTest, Float) {
 #endif  // _MSC_VER
 
   const char *const kFormats[] = {
-      "%",  "%.3", "%8.5", "%9",     "%.5000", "%.60", "%.30",   "%03",
-      "%+", "% ",  "%-10", "%#15.3", "%#.0",   "%.0",  "%1$*2$", "%1$.*2$"};
+      "%",  "%.3",  "%8.5",   "%9",   "%.60", "%.30",   "%03",    "%+",
+      "% ", "%-10", "%#15.3", "%#.0", "%.0",  "%1$*2$", "%1$.*2$"};
 
   std::vector<double> doubles = {0.0,
                                  -0.0,
@@ -439,36 +438,12 @@ TEST_F(FormatConvertTest, Float) {
     }
   }
 
-  // Workaround libc bug.
-  // https://sourceware.org/bugzilla/show_bug.cgi?id=22142
-  if (StrPrint("%f", std::numeric_limits<double>::max()) !=
-      "1797693134862315708145274237317043567980705675258449965989174768031"
-      "5726078002853876058955863276687817154045895351438246423432132688946"
-      "4182768467546703537516986049910576551282076245490090389328944075868"
-      "5084551339423045832369032229481658085593321233482747978262041447231"
-      "68738177180919299881250404026184124858368.000000") {
-    for (auto &d : doubles) {
-      using L = std::numeric_limits<double>;
-      double d2 = std::abs(d);
-      if (d2 == L::max() || d2 == L::min() || d2 == L::denorm_min()) {
-        d = 0;
-      }
-    }
-  }
-
   for (const char *fmt : kFormats) {
     for (char f : {'f', 'F',  //
                    'g', 'G',  //
                    'a', 'A',  //
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + f;
-
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
-        // This particular test takes way too long with snprintf.
-        // Disable for the case we are not implementing natively.
-        continue;
-      }
-
       for (double d : doubles) {
         int i = -10;
         FormatArgImpl args[2] = {FormatArgImpl(d), FormatArgImpl(i)};
@@ -479,24 +454,27 @@ TEST_F(FormatConvertTest, Float) {
         ASSERT_EQ(StrPrint(fmt_str.c_str(), d, i),
                   FormatPack(format, absl::MakeSpan(args)))
             << fmt_str << " " << StrPrint("%.18g", d) << " "
-            << StrPrint("%a", d) << " " << StrPrint("%.1080f", d);
+            << StrPrint("%.999f", d);
       }
     }
   }
 }
 
 TEST_F(FormatConvertTest, LongDouble) {
-#if _MSC_VER
-  // MSVC has a different rounding policy than us so we can't test our
-  // implementation against the native one there.
-  return;
-#endif  // _MSC_VER
-  const char *const kFormats[] = {"%",    "%.3", "%8.5", "%9",  "%.5000",
+  const char *const kFormats[] = {"%",    "%.3", "%8.5", "%9",
                                   "%.60", "%+",  "% ",   "%-10"};
+
+  // This value is not representable in double, but it is in long double that
+  // uses the extended format.
+  // This is to verify that we are not truncating the value mistakenly through a
+  // double.
+  long double very_precise = 10000000000000000.25L;
 
   std::vector<long double> doubles = {
       0.0,
       -0.0,
+      very_precise,
+      1 / very_precise,
       std::numeric_limits<long double>::max(),
       -std::numeric_limits<long double>::max(),
       std::numeric_limits<long double>::min(),
@@ -504,44 +482,22 @@ TEST_F(FormatConvertTest, LongDouble) {
       std::numeric_limits<long double>::infinity(),
       -std::numeric_limits<long double>::infinity()};
 
-  for (long double base : {1.L, 12.L, 123.L, 1234.L, 12345.L, 123456.L,
-                           1234567.L, 12345678.L, 123456789.L, 1234567890.L,
-                           12345678901.L, 123456789012.L, 1234567890123.L,
-                           // This value is not representable in double, but it
-                           // is in long double that uses the extended format.
-                           // This is to verify that we are not truncating the
-                           // value mistakenly through a double.
-                           10000000000000000.25L}) {
-    for (int exp : {-1000, -500, 0, 500, 1000}) {
-      for (int sign : {1, -1}) {
-        doubles.push_back(sign * std::ldexp(base, exp));
-        doubles.push_back(sign / std::ldexp(base, exp));
-      }
-    }
-  }
-
   for (const char *fmt : kFormats) {
     for (char f : {'f', 'F',  //
                    'g', 'G',  //
                    'a', 'A',  //
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + 'L' + f;
-
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
-        // This particular test takes way too long with snprintf.
-        // Disable for the case we are not implementing natively.
-        continue;
-      }
-
       for (auto d : doubles) {
         FormatArgImpl arg(d);
         UntypedFormatSpecImpl format(fmt_str);
         // We use ASSERT_EQ here because failures are usually correlated and a
         // bug would print way too many failed expectations causing the test to
         // time out.
-        ASSERT_EQ(StrPrint(fmt_str.c_str(), d), FormatPack(format, {&arg, 1}))
+        ASSERT_EQ(StrPrint(fmt_str.c_str(), d),
+                  FormatPack(format, {&arg, 1}))
             << fmt_str << " " << StrPrint("%.18Lg", d) << " "
-            << StrPrint("%La", d) << " " << StrPrint("%.1080Lf", d);
+            << StrPrint("%.999Lf", d);
       }
     }
   }

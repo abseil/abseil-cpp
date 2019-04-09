@@ -38,13 +38,13 @@
 
 #include "absl/utility/utility.h"
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__NVCC__)
 // We need to mark these classes with this declspec to ensure that
 // CompressedTuple happens.
 #define ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC __declspec(empty_bases)
-#else  // _MSC_VER
+#else
 #define ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC
-#endif  // _MSC_VER
+#endif
 
 namespace absl {
 namespace container_internal {

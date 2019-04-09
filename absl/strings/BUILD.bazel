@@ -557,7 +557,6 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base:bits",
         "//absl/base:core_headers",
         "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
