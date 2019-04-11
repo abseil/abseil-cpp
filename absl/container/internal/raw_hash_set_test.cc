@@ -1364,37 +1364,31 @@ TEST(Table, ConstructFromInitList) {
 
 TEST(Table, CopyConstruct) {
   IntTable t;
-  t.max_load_factor(.321f);
   t.emplace(0);
   EXPECT_EQ(1, t.size());
   {
     IntTable u(t);
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(t.max_load_factor(), u.max_load_factor());
     EXPECT_THAT(*u.find(0), 0);
   }
   {
     IntTable u{t};
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(t.max_load_factor(), u.max_load_factor());
     EXPECT_THAT(*u.find(0), 0);
   }
   {
     IntTable u = t;
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(t.max_load_factor(), u.max_load_factor());
     EXPECT_THAT(*u.find(0), 0);
   }
 }
 
 TEST(Table, CopyConstructWithAlloc) {
   StringTable t;
-  t.max_load_factor(.321f);
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   StringTable u(t, Alloc<std::pair<std::string, std::string>>());
   EXPECT_EQ(1, u.size());
-  EXPECT_EQ(t.max_load_factor(), u.max_load_factor());
   EXPECT_THAT(*u.find("a"), Pair("a", "b"));
 }
 
@@ -1412,88 +1406,68 @@ TEST(Table, AllocWithExplicitCtor) {
 TEST(Table, MoveConstruct) {
   {
     StringTable t;
-    t.max_load_factor(.321f);
-    const float lf = t.max_load_factor();
     t.emplace("a", "b");
     EXPECT_EQ(1, t.size());
 
     StringTable u(std::move(t));
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(lf, u.max_load_factor());
     EXPECT_THAT(*u.find("a"), Pair("a", "b"));
   }
   {
     StringTable t;
-    t.max_load_factor(.321f);
-    const float lf = t.max_load_factor();
     t.emplace("a", "b");
     EXPECT_EQ(1, t.size());
 
     StringTable u{std::move(t)};
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(lf, u.max_load_factor());
     EXPECT_THAT(*u.find("a"), Pair("a", "b"));
   }
   {
     StringTable t;
-    t.max_load_factor(.321f);
-    const float lf = t.max_load_factor();
     t.emplace("a", "b");
     EXPECT_EQ(1, t.size());
 
     StringTable u = std::move(t);
     EXPECT_EQ(1, u.size());
-    EXPECT_EQ(lf, u.max_load_factor());
     EXPECT_THAT(*u.find("a"), Pair("a", "b"));
   }
 }
 
 TEST(Table, MoveConstructWithAlloc) {
   StringTable t;
-  t.max_load_factor(.321f);
-  const float lf = t.max_load_factor();
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   StringTable u(std::move(t), Alloc<std::pair<std::string, std::string>>());
   EXPECT_EQ(1, u.size());
-  EXPECT_EQ(lf, u.max_load_factor());
   EXPECT_THAT(*u.find("a"), Pair("a", "b"));
 }
 
 TEST(Table, CopyAssign) {
   StringTable t;
-  t.max_load_factor(.321f);
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   StringTable u;
   u = t;
   EXPECT_EQ(1, u.size());
-  EXPECT_EQ(t.max_load_factor(), u.max_load_factor());
   EXPECT_THAT(*u.find("a"), Pair("a", "b"));
 }
 
 TEST(Table, CopySelfAssign) {
   StringTable t;
-  t.max_load_factor(.321f);
-  const float lf = t.max_load_factor();
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   t = *&t;
   EXPECT_EQ(1, t.size());
-  EXPECT_EQ(lf, t.max_load_factor());
   EXPECT_THAT(*t.find("a"), Pair("a", "b"));
 }
 
 TEST(Table, MoveAssign) {
   StringTable t;
-  t.max_load_factor(.321f);
-  const float lf = t.max_load_factor();
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   StringTable u;
   u = std::move(t);
   EXPECT_EQ(1, u.size());
-  EXPECT_EQ(lf, u.max_load_factor());
   EXPECT_THAT(*u.find("a"), Pair("a", "b"));
 }
 
