@@ -26,7 +26,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":type_traits",
-        "//absl/base:core_headers",
         "@com_google_googletest//:gtest_main",
     ],
 )

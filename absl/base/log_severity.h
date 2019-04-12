@@ -16,6 +16,7 @@
 #define ABSL_BASE_INTERNAL_LOG_SEVERITY_H_
 
 #include <array>
+#include <ostream>
 
 #include "absl/base/attributes.h"
 
@@ -60,6 +61,10 @@ constexpr absl::LogSeverity NormalizeLogSeverity(absl::LogSeverity s) {
 constexpr absl::LogSeverity NormalizeLogSeverity(int s) {
   return NormalizeLogSeverity(static_cast<absl::LogSeverity>(s));
 }
+
+// The exact representation of a streamed `absl::LogSeverity` is deliberately
+// unspecified; do not rely on it.
+std::ostream& operator<<(std::ostream& os, absl::LogSeverity s);
 
 }  // namespace absl
 

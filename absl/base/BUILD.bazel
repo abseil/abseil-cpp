@@ -135,6 +135,7 @@ cc_library(
         "internal/sysinfo.cc",
         "internal/thread_identity.cc",
         "internal/unscaledcycleclock.cc",
+        "log_severity.cc",
     ],
     hdrs = [
         "call_once.h",
@@ -162,6 +163,7 @@ cc_library(
         ":core_headers",
         ":dynamic_annotations",
         ":spinlock_wait",
+        "//absl/meta:type_traits",
     ],
 )
 
@@ -520,6 +522,18 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":scoped_set_env",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "log_severity_test",
+    size = "small",
+    srcs = ["log_severity_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":base",
         "@com_google_googletest//:gtest_main",
     ],
 )

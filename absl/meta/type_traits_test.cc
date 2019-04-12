@@ -280,10 +280,20 @@ class DeletedCopyAssign {
   int n_;
 };
 
-struct NonCopyable {
-  NonCopyable() = default;
-  NonCopyable(const NonCopyable&) = delete;
-  NonCopyable& operator=(const NonCopyable&) = delete;
+struct MovableNonCopyable {
+  MovableNonCopyable() = default;
+  MovableNonCopyable(const MovableNonCopyable&) = delete;
+  MovableNonCopyable(MovableNonCopyable&&) = default;
+  MovableNonCopyable& operator=(const MovableNonCopyable&) = delete;
+  MovableNonCopyable& operator=(MovableNonCopyable&&) = default;
+};
+
+struct NonCopyableOrMovable {
+  NonCopyableOrMovable() = default;
+  NonCopyableOrMovable(const NonCopyableOrMovable&) = delete;
+  NonCopyableOrMovable(NonCopyableOrMovable&&) = delete;
+  NonCopyableOrMovable& operator=(const NonCopyableOrMovable&) = delete;
+  NonCopyableOrMovable& operator=(NonCopyableOrMovable&&) = delete;
 };
 
 class Base {
@@ -507,7 +517,9 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
       absl::is_trivially_copy_constructible<NontrivialCopyCtor>::value);
   EXPECT_FALSE(absl::is_trivially_copy_constructible<DeletedCopyCtor>::value);
   EXPECT_FALSE(
-      absl::is_trivially_copy_constructible<NonCopyable>::value);
+      absl::is_trivially_copy_constructible<MovableNonCopyable>::value);
+  EXPECT_FALSE(
+      absl::is_trivially_copy_constructible<NonCopyableOrMovable>::value);
 
 #ifdef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
   // type with nontrivial destructor are nontrivial copy construbtible
@@ -577,7 +589,8 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   // Verify that types without them (i.e. nontrivial or deleted) are not.
   EXPECT_FALSE(absl::is_trivially_copy_assignable<NontrivialCopyAssign>::value);
   EXPECT_FALSE(absl::is_trivially_copy_assignable<DeletedCopyAssign>::value);
-  EXPECT_FALSE(absl::is_trivially_copy_assignable<NonCopyable>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<MovableNonCopyable>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_assignable<NonCopyableOrMovable>::value);
 
   // types with vtables
   EXPECT_FALSE(absl::is_trivially_copy_assignable<Base>::value);
@@ -609,6 +622,116 @@ TEST(TypeTraitsTest, TestTrivialCopyAssign) {
   // Verify that references are handled correctly
   EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&&>::value);
   EXPECT_TRUE(absl::is_trivially_copy_assignable<Trivial&>::value);
+}
+
+TEST(TypeTraitsTest, TestTriviallyCopyable) {
+  // Verify that arithmetic types and pointers are trivially copyable.
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<bool>::value);
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<char>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<unsigned char>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<signed char>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<wchar_t>::value);
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<int>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<unsigned int>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<int16_t>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<uint16_t>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<int64_t>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<uint64_t>::value);
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<float>::value);
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<double>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<long double>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<std::string*>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<Trivial*>::value);
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<
+              const std::string*>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<const Trivial*>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<std::string**>::value);
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<Trivial**>::value);
+
+  // const qualified types are not assignable but are constructible
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<const int>::value);
+
+  // Trivial copy constructor/assignment and destructor.
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<Trivial>::value);
+  // Trivial copy assignment, but non-trivial copy constructor/destructor.
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               TrivialCopyAssign>::value);
+  // Trivial copy constructor, but non-trivial assignment.
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               TrivialCopyCtor>::value);
+
+  // Types with a non-trivial copy constructor/assignment
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               NontrivialCopyCtor>::value);
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               NontrivialCopyAssign>::value);
+
+  // Types without copy constructor/assignment, but with move
+  // MSVC disagrees with other compilers about this:
+  // EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<
+  //             MovableNonCopyable>::value);
+
+  // Types without copy/move constructor/assignment
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               NonCopyableOrMovable>::value);
+
+  // No copy assign, but has trivial copy constructor.
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<
+              DeletedCopyAssign>::value);
+
+  // types with vtables
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<Base>::value);
+
+  // Verify that simple_pair is trivially copyable if members are
+  EXPECT_TRUE((absl::type_traits_internal::is_trivially_copyable<
+               simple_pair<int, char*>>::value));
+  EXPECT_TRUE((absl::type_traits_internal::is_trivially_copyable<
+               simple_pair<int, Trivial>>::value));
+
+  // Verify that types not trivially copyable are
+  // correctly marked as such.
+  EXPECT_FALSE(
+      absl::type_traits_internal::is_trivially_copyable<std::string>::value);
+  EXPECT_FALSE(absl::type_traits_internal::is_trivially_copyable<
+               std::vector<int>>::value);
+
+  // Verify that simple_pairs of types not trivially copyable
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::type_traits_internal::is_trivially_copyable<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::type_traits_internal::is_trivially_copyable<
+                simple_pair<std::string, int>>::value));
+  EXPECT_FALSE((absl::type_traits_internal::is_trivially_copyable<
+                simple_pair<int, TrivialCopyAssign>>::value));
+
+  // Verify that arrays of trivially copyable types are trivially copyable
+  using int10 = int[10];
+  EXPECT_TRUE(absl::type_traits_internal::is_trivially_copyable<int10>::value);
+  using int10x10 = int[10][10];
+  EXPECT_TRUE(
+      absl::type_traits_internal::is_trivially_copyable<int10x10>::value);
+
+  // Verify that references are handled correctly
+  EXPECT_FALSE(
+      absl::type_traits_internal::is_trivially_copyable<Trivial&&>::value);
+  EXPECT_FALSE(
+      absl::type_traits_internal::is_trivially_copyable<Trivial&>::value);
 }
 
 #define ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(trait_name, ...)          \

@@ -377,7 +377,7 @@ inline T ANNOTATE_UNPROTECTED_READ(const volatile T &x) { /* NOLINT */
   struct { char x[8] __attribute__ ((aligned (8))); } name
 #else
 #define ANNOTATE_CONTIGUOUS_CONTAINER(beg, end, old_mid, new_mid)
-#define ADDRESS_SANITIZER_REDZONE(name)
+#define ADDRESS_SANITIZER_REDZONE(name) static_assert(true, "")
 #endif  // ADDRESS_SANITIZER
 
 /* Undefine the macros intended only in this file. */

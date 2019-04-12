@@ -341,6 +341,49 @@ struct is_trivially_copy_assignable
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
 };
 
+namespace type_traits_internal {
+// is_trivially_copyable()
+//
+// Determines whether the passed type `T` is trivially copyable.
+//
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_trivially_copyable()` metafunction for platforms that have
+// incomplete C++11 support (such as libstdc++ 4.x). We use the C++17 definition
+// of TriviallyCopyable.
+//
+// NOTE: `is_trivially_copyable<T>::value` is `true` if all of T's copy/move
+// constructors/assignment operators are trivial or deleted, T has at least
+// one non-deleted copy/move constructor/assignment operator, and T is trivially
+// destructible. Arrays of trivially copyable types are trivially copyable.
+//
+// We expose this metafunction only for internal use within absl.
+template <typename T>
+class is_trivially_copyable_impl {
+  using ExtentsRemoved = typename std::remove_all_extents<T>::type;
+  static constexpr bool kIsCopyOrMoveConstructible =
+      std::is_copy_constructible<ExtentsRemoved>::value ||
+      std::is_move_constructible<ExtentsRemoved>::value;
+  static constexpr bool kIsCopyOrMoveAssignable =
+      absl::is_copy_assignable<ExtentsRemoved>::value ||
+      absl::is_move_assignable<ExtentsRemoved>::value;
+
+ public:
+  static constexpr bool kValue =
+      (__has_trivial_copy(ExtentsRemoved) || !kIsCopyOrMoveConstructible) &&
+      (__has_trivial_assign(ExtentsRemoved) || !kIsCopyOrMoveAssignable) &&
+      (kIsCopyOrMoveConstructible || kIsCopyOrMoveAssignable) &&
+      is_trivially_destructible<ExtentsRemoved>::value &&
+      // We need to check for this explicitly because otherwise we'll say
+      // references are trivial copyable when compiled by MSVC.
+      !std::is_reference<ExtentsRemoved>::value;
+};
+
+template <typename T>
+struct is_trivially_copyable
+    : std::integral_constant<
+          bool, type_traits_internal::is_trivially_copyable_impl<T>::kValue> {};
+}  // namespace type_traits_internal
+
 // -----------------------------------------------------------------------------
 // C++14 "_t" trait aliases
 // -----------------------------------------------------------------------------

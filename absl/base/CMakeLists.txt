@@ -127,6 +127,7 @@ absl_cc_library(
     "internal/sysinfo.cc"
     "internal/thread_identity.cc"
     "internal/unscaledcycleclock.cc"
+    "log_severity.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -135,6 +136,7 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::spinlock_wait
+    absl::type_traits
     Threads::Threads
   PUBLIC
 )
@@ -448,4 +450,15 @@ absl_cc_test(
     "internal/cmake_thread_test.cc"
   DEPS
     absl::base
+)
+
+absl_cc_test(
+  NAME
+    log_severity_test
+  SRCS
+    "log_severity_test.cc"
+  DEPS
+    absl::base
+    gmock
+    gtest_main
 )
