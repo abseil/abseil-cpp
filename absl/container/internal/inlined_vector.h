@@ -26,6 +26,11 @@
 namespace absl {
 namespace inlined_vector_internal {
 
+template <typename Iterator>
+using IsAtLeastForwardIterator = std::is_convertible<
+    typename std::iterator_traits<Iterator>::iterator_category,
+    std::forward_iterator_tag>;
+
 template <typename InlinedVector>
 class Storage;
 
@@ -89,9 +94,7 @@ class Storage<InlinedVector<T, N, A>> {
 
   void AddSize(size_type count) { GetSizeAndIsAllocated() += count << 1; }
 
-  void SetAllocatedData(pointer data) {
-    data_.allocated.allocated_data = data;
-  }
+  void SetAllocatedData(pointer data) { data_.allocated.allocated_data = data; }
 
   void SetAllocatedCapacity(size_type capacity) {
     data_.allocated.allocated_capacity = capacity;

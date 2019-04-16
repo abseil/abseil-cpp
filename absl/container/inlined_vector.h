@@ -73,17 +73,12 @@ class InlinedVector {
   using AllocatorTraits = typename Storage::AllocatorTraits;
 
   template <typename Iterator>
-  using IsAtLeastForwardIterator = std::is_convertible<
-      typename std::iterator_traits<Iterator>::iterator_category,
-      std::forward_iterator_tag>;
+  using EnableIfAtLeastForwardIterator = absl::enable_if_t<
+      inlined_vector_internal::IsAtLeastForwardIterator<Iterator>::value>;
 
   template <typename Iterator>
-  using EnableIfAtLeastForwardIterator =
-      absl::enable_if_t<IsAtLeastForwardIterator<Iterator>::value>;
-
-  template <typename Iterator>
-  using DisableIfAtLeastForwardIterator =
-      absl::enable_if_t<!IsAtLeastForwardIterator<Iterator>::value>;
+  using DisableIfAtLeastForwardIterator = absl::enable_if_t<
+      !inlined_vector_internal::IsAtLeastForwardIterator<Iterator>::value>;
 
   using rvalue_reference = typename Storage::rvalue_reference;
 
@@ -1060,7 +1055,9 @@ class InlinedVector {
 
   template <typename ForwardIt>
   void AssignForwardRange(ForwardIt first, ForwardIt last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
+    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
+                      ForwardIt>::value,
+                  "");
 
     auto length = std::distance(first, last);
 
@@ -1084,7 +1081,9 @@ class InlinedVector {
 
   template <typename ForwardIt>
   void AppendForwardRange(ForwardIt first, ForwardIt last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
+    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
+                      ForwardIt>::value,
+                  "");
 
     auto length = std::distance(first, last);
     reserve(size() + length);
@@ -1113,7 +1112,9 @@ class InlinedVector {
   template <typename ForwardIt>
   iterator InsertWithForwardRange(const_iterator position, ForwardIt first,
                                   ForwardIt last) {
-    static_assert(IsAtLeastForwardIterator<ForwardIt>::value, "");
+    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
+                      ForwardIt>::value,
+                  "");
     assert(position >= begin() && position <= end());
 
     if (ABSL_PREDICT_FALSE(first == last))
