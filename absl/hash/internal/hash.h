@@ -615,7 +615,7 @@ struct HashSelect {
 
  public:
   // Probe each implementation in order.
-  // disjunction provides short circuting wrt instantiation.
+  // disjunction provides short circuiting wrt instantiation.
   template <typename T>
   using Apply = absl::disjunction<         //
       Probe<UniquelyRepresentedProbe, T>,  //

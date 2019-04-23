@@ -174,9 +174,9 @@ class InlinedVector {
   // Creates an inlined vector by moving in the contents of an `other` inlined
   // vector without performing any allocations. If `other` contains allocated
   // memory, the newly-created instance will take ownership of that memory
-  // (leaving `other` itself empty). However, if `other` does not contain any
-  // allocated memory, the new inlined vector will  will perform element-wise
-  // move construction of `other`s elements.
+  // (leaving `other` empty). However, if `other` does not contain allocated
+  // memory (i.e. is inlined), the new inlined vector will perform element-wise
+  // move construction of `other`'s elements.
   //
   // NOTE: since no allocation is performed for the inlined vector in either
   // case, the `noexcept(...)` specification depends on whether moving the

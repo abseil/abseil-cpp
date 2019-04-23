@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <cctype>
 #include <cmath>
 #include <string>
 
@@ -32,7 +33,9 @@ std::string LengthModFor(long long) { return "ll"; }           // NOLINT
 std::string LengthModFor(unsigned long long) { return "ll"; }  // NOLINT
 
 std::string EscCharImpl(int v) {
-  if (isprint(v)) return std::string(1, static_cast<char>(v));
+  if (std::isprint(static_cast<unsigned char>(v))) {
+    return std::string(1, static_cast<char>(v));
+  }
   char buf[64];
   int n = snprintf(buf, sizeof(buf), "\\%#.2x",
                    static_cast<unsigned>(v & 0xff));
@@ -155,7 +158,7 @@ TEST_F(FormatConvertTest, StringPrecision) {
 }
 
 TEST_F(FormatConvertTest, Pointer) {
-#if _MSC_VER
+#ifdef _MSC_VER
   // MSVC's printf implementation prints pointers differently. We can't easily
   // compare our implementation to theirs.
   return;
@@ -390,7 +393,7 @@ TEST_F(FormatConvertTest, Uint128) {
 }
 
 TEST_F(FormatConvertTest, Float) {
-#if _MSC_VER
+#ifdef _MSC_VER
   // MSVC has a different rounding policy than us so we can't test our
   // implementation against the native one there.
   return;

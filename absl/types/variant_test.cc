@@ -384,7 +384,7 @@ struct MoveOnly {
 TEST(VariantTest, TestMoveConstruct) {
   using V = variant<MoveOnly<class A>, MoveOnly<class B>, MoveOnly<class C>>;
 
-  V v(in_place_index_t<1>{}, 10);
+  V v(in_place_index<1>, 10);
   V v2 = absl::move(v);
   EXPECT_EQ(10, absl::get<1>(v2).value);
 }
@@ -483,11 +483,43 @@ TEST(VariantTest, InPlaceType) {
   EXPECT_THAT(absl::get<std::vector<int>>(v5), ::testing::ElementsAre(1, 2, 3));
 }
 
+TEST(VariantTest, InPlaceTypeVariableTemplate) {
+  using Var = variant<int, std::string, NonCopyable, std::vector<int>>;
+
+  Var v1(in_place_type<int>, 7);
+  ASSERT_TRUE(absl::holds_alternative<int>(v1));
+  EXPECT_EQ(7, absl::get<int>(v1));
+
+  Var v2(in_place_type<std::string>, "ABC");
+  ASSERT_TRUE(absl::holds_alternative<std::string>(v2));
+  EXPECT_EQ("ABC", absl::get<std::string>(v2));
+
+  Var v3(in_place_type<std::string>, "ABC", 2);
+  ASSERT_TRUE(absl::holds_alternative<std::string>(v3));
+  EXPECT_EQ("AB", absl::get<std::string>(v3));
+
+  Var v4(in_place_type<NonCopyable>);
+  ASSERT_TRUE(absl::holds_alternative<NonCopyable>(v4));
+
+  Var v5(in_place_type<std::vector<int>>, {1, 2, 3});
+  ASSERT_TRUE(absl::holds_alternative<std::vector<int>>(v5));
+  EXPECT_THAT(absl::get<std::vector<int>>(v5), ::testing::ElementsAre(1, 2, 3));
+}
+
 TEST(VariantTest, InPlaceTypeInitializerList) {
   using Var =
       variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(in_place_type_t<MoveOnlyWithListConstructor>(), {1, 2, 3, 4, 5}, 6);
+  ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
+  EXPECT_EQ(6, absl::get<MoveOnlyWithListConstructor>(v1).value);
+}
+
+TEST(VariantTest, InPlaceTypeInitializerListVariabletemplate) {
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+
+  Var v1(in_place_type<MoveOnlyWithListConstructor>, {1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
   EXPECT_EQ(6, absl::get<MoveOnlyWithListConstructor>(v1).value);
 }
@@ -519,11 +551,47 @@ TEST(VariantTest, InPlaceIndex) {
   EXPECT_THAT(absl::get<std::vector<int>>(v5), ::testing::ElementsAre(1, 2, 3));
 }
 
+TEST(VariantTest, InPlaceIndexVariableTemplate) {
+  using Var = variant<int, std::string, NonCopyable, std::vector<int>>;
+
+  Var v1(in_place_index<0>, 7);
+  ASSERT_TRUE(absl::holds_alternative<int>(v1));
+  EXPECT_EQ(7, absl::get<int>(v1));
+
+  Var v2(in_place_index<1>, "ABC");
+  ASSERT_TRUE(absl::holds_alternative<std::string>(v2));
+  EXPECT_EQ("ABC", absl::get<std::string>(v2));
+
+  Var v3(in_place_index<1>, "ABC", 2);
+  ASSERT_TRUE(absl::holds_alternative<std::string>(v3));
+  EXPECT_EQ("AB", absl::get<std::string>(v3));
+
+  Var v4(in_place_index<2>);
+  EXPECT_TRUE(absl::holds_alternative<NonCopyable>(v4));
+
+  // Verify that a variant with only non-copyables can still be constructed.
+  EXPECT_TRUE(absl::holds_alternative<NonCopyable>(
+      variant<NonCopyable>(in_place_index<0>)));
+
+  Var v5(in_place_index<3>, {1, 2, 3});
+  ASSERT_TRUE(absl::holds_alternative<std::vector<int>>(v5));
+  EXPECT_THAT(absl::get<std::vector<int>>(v5), ::testing::ElementsAre(1, 2, 3));
+}
+
 TEST(VariantTest, InPlaceIndexInitializerList) {
   using Var =
       variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
   Var v1(in_place_index_t<3>(), {1, 2, 3, 4, 5}, 6);
+  ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
+  EXPECT_EQ(6, absl::get<MoveOnlyWithListConstructor>(v1).value);
+}
+
+TEST(VariantTest, InPlaceIndexInitializerListVariableTemplate) {
+  using Var =
+      variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
+
+  Var v1(in_place_index<3>, {1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
   EXPECT_EQ(6, absl::get<MoveOnlyWithListConstructor>(v1).value);
 }
@@ -576,7 +644,7 @@ TEST(VariantTest, TestDtorValuelessByException)
   {
     using Variant = VariantFactory<IncrementInDtor>::Type;
 
-    Variant v(in_place_index_t<0>(), counter_adjuster);
+    Variant v(in_place_index<0>, counter_adjuster);
     EXPECT_EQ(0, counter);
 
     ToValuelessByException(v);
@@ -810,7 +878,7 @@ TEST(VariantTest, TestBackupAssign) {
 TEST(VariantTest, TestEmplaceBasic) {
   using Variant = variant<int, char>;
 
-  Variant v(absl::in_place_index_t<0>{}, 0);
+  Variant v(absl::in_place_index<0>, 0);
 
   {
     char& emplace_result = v.emplace<char>();
@@ -837,7 +905,7 @@ TEST(VariantTest, TestEmplaceInitializerList) {
   using Var =
       variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
-  Var v1(absl::in_place_index_t<0>{}, 555);
+  Var v1(absl::in_place_index<0>, 555);
   MoveOnlyWithListConstructor& emplace_result =
       v1.emplace<MoveOnlyWithListConstructor>({1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
@@ -848,7 +916,7 @@ TEST(VariantTest, TestEmplaceInitializerList) {
 TEST(VariantTest, TestEmplaceIndex) {
   using Variant = variant<int, char>;
 
-  Variant v(absl::in_place_index_t<0>{}, 555);
+  Variant v(absl::in_place_index<0>, 555);
 
   {
     char& emplace_result = v.emplace<1>();
@@ -875,7 +943,7 @@ TEST(VariantTest, TestEmplaceIndexInitializerList) {
   using Var =
       variant<int, std::string, NonCopyable, MoveOnlyWithListConstructor>;
 
-  Var v1(absl::in_place_index_t<0>{}, 555);
+  Var v1(absl::in_place_index<0>, 555);
   MoveOnlyWithListConstructor& emplace_result =
       v1.emplace<3>({1, 2, 3, 4, 5}, 6);
   ASSERT_TRUE(absl::holds_alternative<MoveOnlyWithListConstructor>(v1));
@@ -924,7 +992,7 @@ TEST(VariantTest, NotValuelessByException) {
 TEST(VariantTest, IndexValuelessByException) {
   using Var = variant<MoveCanThrow, std::string, double>;
 
-  Var v(absl::in_place_index_t<0>{});
+  Var v(absl::in_place_index<0>);
   EXPECT_EQ(0, v.index());
   ToValuelessByException(v);
   EXPECT_EQ(absl::variant_npos, v.index());
@@ -935,7 +1003,7 @@ TEST(VariantTest, IndexValuelessByException) {
 TEST(VariantTest, ValuelessByException) {
   using Var = variant<MoveCanThrow, std::string, double>;
 
-  Var v(absl::in_place_index_t<0>{});
+  Var v(absl::in_place_index<0>);
   EXPECT_FALSE(v.valueless_by_exception());
   ToValuelessByException(v);
   EXPECT_TRUE(v.valueless_by_exception());
@@ -966,7 +1034,7 @@ TEST(VariantTest, MemberSwap) {
   using V = variant<MoveCanThrow, std::string, int>;
   int i = 33;
   std::string s = "abc";
-  V valueless(in_place_index_t<0>{});
+  V valueless(in_place_index<0>);
   ToValuelessByException(valueless);
   {
     // lhs and rhs holds different alternative
@@ -1127,7 +1195,7 @@ TEST(VariantTest, GetIndex) {
   using Var = variant<int, std::string, double, int>;
 
   {
-    Var v(absl::in_place_index_t<0>{}, 0);
+    Var v(absl::in_place_index<0>, 0);
 
     using LValueGetType = decltype(absl::get<0>(v));
     using RValueGetType = decltype(absl::get<0>(absl::move(v)));
@@ -1187,7 +1255,7 @@ TEST(VariantTest, GetIndex) {
   }
 
   {
-    Var v(absl::in_place_index_t<0>{}, 0);
+    Var v(absl::in_place_index<0>, 0);
     v.emplace<3>(1);
 
     using LValueGetType = decltype(absl::get<3>(v));
@@ -1334,7 +1402,7 @@ TEST(VariantTest, GetIfIndex) {
   using Var = variant<int, std::string, double, int>;
 
   {
-    Var v(absl::in_place_index_t<0>{}, 0);
+    Var v(absl::in_place_index<0>, 0);
     EXPECT_TRUE(noexcept(absl::get_if<0>(&v)));
 
     {
@@ -1492,7 +1560,7 @@ TEST(VariantTest, GetIfIndex) {
   }
 
   {
-    Var v(absl::in_place_index_t<0>{}, 0);
+    Var v(absl::in_place_index<0>, 0);
     v.emplace<3>(1);
     EXPECT_TRUE(noexcept(absl::get_if<3>(&v)));
 
@@ -1638,8 +1706,8 @@ TEST(VariantTest, OperatorRelational) {
 
 TEST(VariantTest, ValuelessOperatorEquals) {
   variant<MoveCanThrow, std::string> int_v(1), string_v("Hello"),
-      valueless(absl::in_place_index_t<0>{}),
-      other_valueless(absl::in_place_index_t<0>{});
+      valueless(absl::in_place_index<0>),
+      other_valueless(absl::in_place_index<0>);
   ToValuelessByException(valueless);
   ToValuelessByException(other_valueless);
 
@@ -1660,8 +1728,8 @@ TEST(VariantTest, ValuelessOperatorEquals) {
 
 TEST(VariantTest, ValuelessOperatorRelational) {
   variant<MoveCanThrow, std::string> int_v(1), string_v("Hello"),
-      valueless(absl::in_place_index_t<0>{}),
-      other_valueless(absl::in_place_index_t<0>{});
+      valueless(absl::in_place_index<0>),
+      other_valueless(absl::in_place_index<0>);
   ToValuelessByException(valueless);
   ToValuelessByException(other_valueless);
 
@@ -2008,8 +2076,8 @@ TEST(VariantTest, Hash) {
 #if !(defined(_MSC_VER) && defined(ABSL_HAVE_STD_VARIANT))
   {
     // same value as different alternative
-    variant<int, int> v0(in_place_index_t<0>{}, 42);
-    variant<int, int> v1(in_place_index_t<1>{}, 42);
+    variant<int, int> v0(in_place_index<0>, 42);
+    variant<int, int> v1(in_place_index<1>, 42);
     std::hash<variant<int, int>> hash;
     EXPECT_NE(hash(v0), hash(v1));
   }
@@ -2605,7 +2673,7 @@ TEST(VariantTest, MoveCtorBug) {
   };
   {
     using V = absl::variant<TrivialCopyNontrivialMove, int>;
-    V v1(absl::in_place_index_t<0>{});
+    V v1(absl::in_place_index<0>);
     // this should invoke the move ctor, rather than the trivial copy ctor.
     V v2(std::move(v1));
     EXPECT_TRUE(absl::get<0>(v2).called);
@@ -2613,7 +2681,7 @@ TEST(VariantTest, MoveCtorBug) {
   {
     // this case failed to compile before our fix due to a GCC bug.
     using V = absl::variant<int, TrivialCopyNontrivialMove>;
-    V v1(absl::in_place_index_t<1>{});
+    V v1(absl::in_place_index<1>);
     // this should invoke the move ctor, rather than the trivial copy ctor.
     V v2(std::move(v1));
     EXPECT_TRUE(absl::get<1>(v2).called);

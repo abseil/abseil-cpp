@@ -28,7 +28,7 @@
 
 namespace {
 
-#if GTEST_USES_SIMPLE_RE
+#if defined(GTEST_USES_SIMPLE_RE) && GTEST_USES_SIMPLE_RE
 const char kZoneAbbrRE[] = ".*";  // just punt
 #else
 const char kZoneAbbrRE[] = "[A-Za-z]{3,4}|[-+][0-9]{2}([0-9]{2})?";

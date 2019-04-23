@@ -25,13 +25,18 @@ create_llvm_config(
     visibility = [":__subpackages__"],
 )
 
-# following configs are based on mapping defined in: https://git.io/v5Ijz
+config_setting(
+    name = "osx",
+    constraint_values = [
+        "@bazel_tools//platforms:osx",
+    ],
+)
+
 config_setting(
     name = "ios",
-    values = {
-        "cpu": "darwin",
-    },
-    visibility = [":__subpackages__"],
+    constraint_values = [
+        "@bazel_tools//platforms:ios",
+    ],
 )
 
 config_setting(

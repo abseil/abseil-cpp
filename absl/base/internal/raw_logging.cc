@@ -36,7 +36,8 @@
 // This preprocessor token is also defined in raw_io.cc.  If you need to copy
 // this, consider moving both to config.h instead.
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(__Fuchsia__) || defined(__native_client__)
+    defined(__Fuchsia__) || defined(__native_client__) || \
+    defined(__EMSCRIPTEN__)
 #include <unistd.h>
 
 

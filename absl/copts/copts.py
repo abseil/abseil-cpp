@@ -65,7 +65,6 @@ LLVM_DISABLE_WARNINGS_FLAGS = [
     "-Wno-shorten-64-to-32",
     "-Wno-switch-enum",
     "-Wno-thread-safety-negative",
-    "-Wno-undef",
     "-Wno-unknown-warning-option",
     "-Wno-unreachable-code",
     # Causes warnings on include guards
@@ -89,6 +88,7 @@ LLVM_DISABLE_WARNINGS_FLAGS = [
 
 LLVM_TEST_DISABLE_WARNINGS_FLAGS = [
     "-Wno-c99-extensions",
+    "-Wno-deprecated-declarations",
     "-Wno-missing-noreturn",
     "-Wno-missing-prototypes",
     "-Wno-missing-variable-declarations",
@@ -110,7 +110,9 @@ LLVM_TEST_DISABLE_WARNINGS_FLAGS = [
 ]
 
 MSVC_STYLE_EXCEPTIONS_FLAGS = [
-    "/U_HAS_EXCEPTIONS", "/D_HAS_EXCEPTIONS=1", "/EHsc"
+    "/U_HAS_EXCEPTIONS",
+    "/D_HAS_EXCEPTIONS=1",
+    "/EHsc"
 ]
 
 MSVC_DEFINES = [
@@ -148,6 +150,7 @@ COPT_VARS = {
     ],
     "ABSL_GCC_TEST_FLAGS": [
         "-Wno-conversion-null",
+        "-Wno-deprecated-declarations",
         "-Wno-missing-declarations",
         "-Wno-sign-compare",
         "-Wno-unused-function",
@@ -183,6 +186,7 @@ COPT_VARS = {
         "/wd4018",  # signed/unsigned mismatch
         "/wd4101",  # unreferenced local variable
         "/wd4503",  # decorated name length exceeded, name was truncated
+        "/wd4996",  # use of deprecated symbol
         "/DNOMINMAX",  # disable the min() and max() macros from <windows.h>
     ],
     "ABSL_MSVC_EXCEPTIONS_FLAGS":

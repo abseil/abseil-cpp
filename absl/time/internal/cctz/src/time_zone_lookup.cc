@@ -16,7 +16,7 @@
 
 #if defined(__ANDROID__)
 #include <sys/system_properties.h>
-#if __ANDROID_API__ >= 21
+#if defined(__ANDROID_API__) && __ANDROID_API__ >= 21
 #include <dlfcn.h>
 #endif
 #endif
@@ -37,7 +37,7 @@ namespace absl {
 namespace time_internal {
 namespace cctz {
 
-#if defined(__ANDROID__) && __ANDROID_API__ >= 21
+#if defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ >= 21
 namespace {
 // Android 'L' removes __system_property_get() from the NDK, however
 // it is still a hidden symbol in libc so we use dlsym() to access it.

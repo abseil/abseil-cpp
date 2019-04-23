@@ -113,6 +113,20 @@ struct Gen<T, 0> {
   using type = integer_sequence<T>;
 };
 
+template <typename T>
+struct InPlaceTypeTag {
+  explicit InPlaceTypeTag() = delete;
+  InPlaceTypeTag(const InPlaceTypeTag&) = delete;
+  InPlaceTypeTag& operator=(const InPlaceTypeTag&) = delete;
+};
+
+template <size_t I>
+struct InPlaceIndexTag {
+  explicit InPlaceIndexTag() = delete;
+  InPlaceIndexTag(const InPlaceIndexTag&) = delete;
+  InPlaceIndexTag& operator=(const InPlaceIndexTag&) = delete;
+};
+
 }  // namespace utility_internal
 
 // Compile-time sequences of integers
@@ -162,6 +176,7 @@ ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
 #endif  // ABSL_HAVE_STD_OPTIONAL
 
 #if defined(ABSL_HAVE_STD_ANY) || defined(ABSL_HAVE_STD_VARIANT)
+using std::in_place_type;
 using std::in_place_type_t;
 #else
 
@@ -171,10 +186,14 @@ using std::in_place_type_t;
 // be specified, such as with `absl::any`, designed to be a drop-in replacement
 // for C++17's `std::in_place_type_t`.
 template <typename T>
-struct in_place_type_t {};
+using in_place_type_t = void (*)(utility_internal::InPlaceTypeTag<T>);
+
+template <typename T>
+void in_place_type(utility_internal::InPlaceTypeTag<T>) {}
 #endif  // ABSL_HAVE_STD_ANY || ABSL_HAVE_STD_VARIANT
 
 #ifdef ABSL_HAVE_STD_VARIANT
+using std::in_place_index;
 using std::in_place_index_t;
 #else
 
@@ -184,7 +203,10 @@ using std::in_place_index_t;
 // be specified, such as with `absl::any`, designed to be a drop-in replacement
 // for C++17's `std::in_place_index_t`.
 template <size_t I>
-struct in_place_index_t {};
+using in_place_index_t = void (*)(utility_internal::InPlaceIndexTag<I>);
+
+template <size_t I>
+void in_place_index(utility_internal::InPlaceIndexTag<I>) {}
 #endif  // ABSL_HAVE_STD_VARIANT
 
 // Constexpr move and forward

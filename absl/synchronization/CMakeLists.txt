@@ -113,6 +113,8 @@ absl_cc_library(
     thread_pool
   HDRS
     "internal/thread_pool.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::synchronization
     absl::core_headers

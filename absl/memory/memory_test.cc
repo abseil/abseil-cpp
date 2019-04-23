@@ -620,7 +620,7 @@ TEST(AllocatorTraits, FunctionsFull) {
 }
 
 TEST(AllocatorNoThrowTest, DefaultAllocator) {
-#if ABSL_ALLOCATOR_NOTHROW
+#if defined(ABSL_ALLOCATOR_NOTHROW) && ABSL_ALLOCATOR_NOTHROW
   EXPECT_TRUE(absl::default_allocator_is_nothrow::value);
 #else
   EXPECT_FALSE(absl::default_allocator_is_nothrow::value);
@@ -628,7 +628,7 @@ TEST(AllocatorNoThrowTest, DefaultAllocator) {
 }
 
 TEST(AllocatorNoThrowTest, StdAllocator) {
-#if ABSL_ALLOCATOR_NOTHROW
+#if defined(ABSL_ALLOCATOR_NOTHROW) && ABSL_ALLOCATOR_NOTHROW
   EXPECT_TRUE(absl::allocator_is_nothrow<std::allocator<int>>::value);
 #else
   EXPECT_FALSE(absl::allocator_is_nothrow<std::allocator<int>>::value);

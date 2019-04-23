@@ -29,6 +29,8 @@ absl_cc_test(
     algorithm_test
   SRCS
     "algorithm_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::algorithm
     gmock_main
@@ -53,6 +55,8 @@ absl_cc_test(
     container_test
   SRCS
     "container_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::algorithm_container
     absl::base

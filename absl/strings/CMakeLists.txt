@@ -501,6 +501,8 @@ absl_cc_library(
     "internal/pow10_helper.h"
   SRCS
     "internal/pow10_helper.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   TESTONLY
 )
 
