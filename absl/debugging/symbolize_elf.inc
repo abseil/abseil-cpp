@@ -305,7 +305,7 @@ class Symbolizer {
                                            char *tmp_buf, int tmp_buf_size);
 
   enum {
-    SYMBOL_BUF_SIZE = 2048,
+    SYMBOL_BUF_SIZE = 3072,
     TMP_BUF_SIZE = 1024,
     SYMBOL_CACHE_LINES = 128,
   };

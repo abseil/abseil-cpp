@@ -35,10 +35,10 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":city",
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/container:fixed_array",
-        "//absl/hash:city",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
         "//absl/strings",
