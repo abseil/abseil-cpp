@@ -425,10 +425,10 @@ TEST(HashValueTest, Maps) {
 }
 
 template <typename T, typename = void>
-struct IsHashCallble : std::false_type {};
+struct IsHashCallable : std::false_type {};
 
 template <typename T>
-struct IsHashCallble<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
+struct IsHashCallable<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
                             std::declval<const T&>()))>> : std::true_type {};
 
 template <typename T, typename = void>
@@ -445,7 +445,7 @@ TEST(IsHashableTest, ValidHash) {
   EXPECT_TRUE(std::is_move_constructible<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_copy_assignable<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_move_assignable<absl::Hash<int>>::value);
-  EXPECT_TRUE(IsHashCallble<int>::value);
+  EXPECT_TRUE(IsHashCallable<int>::value);
   EXPECT_TRUE(IsAggregateInitializable<absl::Hash<int>>::value);
 }
 
@@ -458,7 +458,7 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(std::is_move_constructible<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
-  EXPECT_FALSE(IsHashCallble<X>::value);
+  EXPECT_FALSE(IsHashCallable<X>::value);
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
 }
 #endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
