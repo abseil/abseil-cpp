@@ -969,7 +969,7 @@ class raw_hash_set {
   // This overload kicks in when the argument is an rvalue of init_type. Its
   // purpose is to handle brace-init-list arguments.
   //
-  //   flat_hash_set<std::string, int> s;
+  //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
   std::pair<iterator, bool> insert(init_type&& value) {
     return emplace(std::move(value));

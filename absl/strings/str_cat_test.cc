@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/strings/substitute.h"
@@ -393,6 +394,18 @@ TEST(StrAppend, Basics) {
   EXPECT_EQ(result.substr(old_size),
             "12345678910abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "No limit thanks to C++11's variadic templates");
+}
+
+TEST(StrCat, VectorBoolReferenceTypes) {
+  std::vector<bool> v;
+  v.push_back(true);
+  v.push_back(false);
+  std::vector<bool> const& cv = v;
+  // Test that vector<bool>::reference and vector<bool>::const_reference
+  // are handled as if the were really bool types and not the proxy types
+  // they really are.
+  std::string result = absl::StrCat(v[0], v[1], cv[0], cv[1]); // NOLINT
+  EXPECT_EQ(result, "1010");
 }
 
 #ifdef GTEST_HAS_DEATH_TEST

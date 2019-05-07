@@ -201,6 +201,7 @@ list(APPEND ABSL_MSVC_FLAGS
     "/wd4180"
     "/wd4244"
     "/wd4267"
+    "/wd4503"
     "/wd4800"
 )
 

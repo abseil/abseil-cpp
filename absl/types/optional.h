@@ -507,7 +507,7 @@ class optional : private optional_internal::optional_data<T>,
   template <typename U>
   T value_or(U&& v) && {  // NOLINT(build/c++11)
     static_assert(std::is_move_constructible<value_type>::value,
-                  "optional<T>::value_or: T must by copy constructible");
+                  "optional<T>::value_or: T must by move constructible");
     static_assert(std::is_convertible<U&&, value_type>::value,
                   "optional<T>::value_or: U must be convertible to T");
     return static_cast<bool>(*this) ? std::move(**this)

@@ -163,8 +163,8 @@ COPT_VARS = {
     "ABSL_LLVM_TEST_FLAGS":
         LLVM_TEST_DISABLE_WARNINGS_FLAGS,
     "ABSL_LLVM_EXCEPTIONS_FLAGS": ["-fexceptions"],
-    "ABSL_CLANG_CL_FLAGS": (
-        MSVC_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS + MSVC_DEFINES),
+    "ABSL_CLANG_CL_FLAGS":
+        (MSVC_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS + MSVC_DEFINES),
     "ABSL_CLANG_CL_TEST_FLAGS":
         LLVM_TEST_DISABLE_WARNINGS_FLAGS,
     "ABSL_CLANG_CL_EXCEPTIONS_FLAGS":
@@ -179,6 +179,8 @@ COPT_VARS = {
             "/wd4244",
             # conversion from 'size_t' to 'type', possible loss of data
             "/wd4267",
+            # The decorated name was longer than the compiler limit
+            "/wd4503",
             # forcing value to bool 'true' or 'false' (performance warning)
             "/wd4800",
         ],
