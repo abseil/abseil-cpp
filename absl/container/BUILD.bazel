@@ -213,6 +213,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
+    deps = ["//absl/types:compare"],
 )
 
 cc_test(

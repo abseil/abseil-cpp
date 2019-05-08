@@ -31,12 +31,8 @@ using IsAtLeastForwardIterator = std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::forward_iterator_tag>;
 
-template <typename InlinedVector>
-class Storage;
-
-template <template <typename, size_t, typename> class InlinedVector, typename T,
-          size_t N, typename A>
-class Storage<InlinedVector<T, N, A>> {
+template <typename T, size_t N, typename A>
+class Storage {
  public:
   using allocator_type = A;
   using value_type = typename allocator_type::value_type;

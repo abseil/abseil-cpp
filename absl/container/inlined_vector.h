@@ -69,7 +69,7 @@ class InlinedVector {
   static_assert(
       N > 0, "InlinedVector cannot be instantiated with `0` inlined elements.");
 
-  using Storage = inlined_vector_internal::Storage<InlinedVector>;
+  using Storage = inlined_vector_internal::Storage<T, N, A>;
   using AllocatorTraits = typename Storage::AllocatorTraits;
 
   template <typename Iterator>

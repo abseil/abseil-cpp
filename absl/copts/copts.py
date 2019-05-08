@@ -70,6 +70,8 @@ LLVM_DISABLE_WARNINGS_FLAGS = [
     # Causes warnings on include guards
     "-Wno-unused-macros",
     "-Wno-weak-vtables",
+    # Causes warnings on usage of types/compare.h comparison operators.
+    "-Wno-zero-as-null-pointer-constant",
     ###
     # Implicit conversion warnings turned off by -Wno-conversion
     # which are re-enabled below.

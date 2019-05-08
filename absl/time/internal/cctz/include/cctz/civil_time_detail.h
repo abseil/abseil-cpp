@@ -555,13 +555,43 @@ CONSTEXPR_F weekday get_weekday(const civil_day& cd) noexcept {
 ////////////////////////////////////////////////////////////////////////
 
 CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
-  do { cd += 1; } while (get_weekday(cd) != wd);
-  return cd;
+  CONSTEXPR_D weekday k_weekdays_forw[14] = {
+      weekday::monday,    weekday::tuesday,  weekday::wednesday,
+      weekday::thursday,  weekday::friday,   weekday::saturday,
+      weekday::sunday,    weekday::monday,   weekday::tuesday,
+      weekday::wednesday, weekday::thursday, weekday::friday,
+      weekday::saturday,  weekday::sunday,
+  };
+  weekday base = get_weekday(cd);
+  for (int i = 0;; ++i) {
+    if (base == k_weekdays_forw[i]) {
+      for (int j = i + 1;; ++j) {
+        if (wd == k_weekdays_forw[j]) {
+          return cd + (j - i);
+        }
+      }
+    }
+  }
 }
 
 CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
-  do { cd -= 1; } while (get_weekday(cd) != wd);
-  return cd;
+  CONSTEXPR_D weekday k_weekdays_back[14] = {
+      weekday::sunday,   weekday::saturday,  weekday::friday,
+      weekday::thursday, weekday::wednesday, weekday::tuesday,
+      weekday::monday,   weekday::sunday,    weekday::saturday,
+      weekday::friday,   weekday::thursday,  weekday::wednesday,
+      weekday::tuesday,  weekday::monday,
+  };
+  weekday base = get_weekday(cd);
+  for (int i = 0;; ++i) {
+    if (base == k_weekdays_back[i]) {
+      for (int j = i + 1;; ++j) {
+        if (wd == k_weekdays_back[j]) {
+          return cd - (j - i);
+        }
+      }
+    }
+  }
 }
 
 CONSTEXPR_F int get_yearday(const civil_day& cd) noexcept {

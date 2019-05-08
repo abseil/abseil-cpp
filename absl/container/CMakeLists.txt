@@ -204,6 +204,8 @@ absl_cc_library(
     "internal/test_instance_tracker.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::compare
   TESTONLY
 )
 

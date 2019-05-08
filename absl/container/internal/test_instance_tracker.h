@@ -18,6 +18,8 @@
 #include <cstdlib>
 #include <ostream>
 
+#include "absl/types/compare.h"
+
 namespace absl {
 namespace test_internal {
 
@@ -94,6 +96,14 @@ class BaseCountedInstance {
   bool operator>=(const BaseCountedInstance& x) const {
     ++num_comparisons_;
     return value_ >= x.value_;
+  }
+
+  absl::weak_ordering compare(const BaseCountedInstance& x) const {
+    ++num_comparisons_;
+    return value_ < x.value_
+               ? absl::weak_ordering::less
+               : value_ == x.value_ ? absl::weak_ordering::equivalent
+                                    : absl::weak_ordering::greater;
   }
 
   int value() const {

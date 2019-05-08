@@ -308,3 +308,27 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "compare",
+    hdrs = ["compare.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "compare_test",
+    size = "small",
+    srcs = [
+        "compare_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":compare",
+        "//absl/base",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
