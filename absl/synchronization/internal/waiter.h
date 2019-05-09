@@ -38,11 +38,15 @@
 #define ABSL_WAITER_MODE_CONDVAR 2
 #define ABSL_WAITER_MODE_WIN32 3
 
+#if defined(__linux__) // Get linux kernel version
+#include <linux/version.h>
+#endif
+
 #if defined(ABSL_FORCE_WAITER_MODE)
 #define ABSL_WAITER_MODE ABSL_FORCE_WAITER_MODE
 #elif defined(_WIN32)
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_WIN32
-#elif defined(__linux__)
+#elif defined(__linux__) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28) // According to "man 2 futex" Futexes need 2.6.28 kernel
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_FUTEX
 #elif defined(ABSL_HAVE_SEMAPHORE_H)
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_SEM
