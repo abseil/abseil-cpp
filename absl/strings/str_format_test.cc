@@ -13,7 +13,7 @@ namespace absl {
 namespace {
 using str_format_internal::FormatArgImpl;
 
-class FormatEntryPointTest : public ::testing::Test { };
+using FormatEntryPointTest = ::testing::Test;
 
 TEST_F(FormatEntryPointTest, Format) {
   std::string sink;
@@ -458,7 +458,7 @@ std::string SummarizeParsedFormat(const ParsedFormatBase& pc) {
   return out;
 }
 
-class ParsedFormatTest : public testing::Test {};
+using ParsedFormatTest = ::testing::Test;
 
 TEST_F(ParsedFormatTest, SimpleChecked) {
   EXPECT_EQ("[ABC]{d:1$d}[DEF]",
@@ -598,6 +598,24 @@ TEST_F(ParsedFormatTest, UncheckedIncorrect) {
 
 TEST_F(ParsedFormatTest, RegressionMixPositional) {
   EXPECT_FALSE((ExtendedParsedFormat<Conv::d, Conv::o>::New("%1$d %o")));
+}
+
+using FormatWrapperTest = ::testing::Test;
+
+// Plain wrapper for StrFormat.
+template <typename... Args>
+std::string WrappedFormat(const absl::FormatSpec<Args...>& format,
+                          const Args&... args) {
+  return StrFormat(format, args...);
+}
+
+TEST_F(FormatWrapperTest, ConstexprStringFormat) {
+  EXPECT_EQ(WrappedFormat("%s there", "hello"), "hello there");
+}
+
+TEST_F(FormatWrapperTest, ParsedFormat) {
+  ParsedFormat<'s'> format("%s there");
+  EXPECT_EQ(WrappedFormat(format, "hello"), "hello there");
 }
 
 }  // namespace

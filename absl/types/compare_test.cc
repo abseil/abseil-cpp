@@ -200,10 +200,6 @@ TEST(CompareResultAsLessThan, SanityTest) {
   EXPECT_FALSE(absl::compare_internal::compare_result_as_less_than(false));
   EXPECT_TRUE(absl::compare_internal::compare_result_as_less_than(true));
 
-  EXPECT_TRUE(absl::compare_internal::compare_result_as_less_than(-1));
-  EXPECT_FALSE(absl::compare_internal::compare_result_as_less_than(0));
-  EXPECT_FALSE(absl::compare_internal::compare_result_as_less_than(1));
-
   EXPECT_TRUE(
       absl::compare_internal::compare_result_as_less_than(weak_ordering::less));
   EXPECT_FALSE(absl::compare_internal::compare_result_as_less_than(

@@ -198,8 +198,20 @@ cc_test(
     deps = [
         ":inlined_vector",
         "//absl/base",
+        "//absl/base:core_headers",
         "//absl/strings",
         "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
+cc_test(
+    name = "inlined_vector_exception_safety_test",
+    srcs = ["inlined_vector_exception_safety_test.cc"],
+    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
+    deps = [
+        ":inlined_vector",
+        "//absl/base:exception_safety_testing",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

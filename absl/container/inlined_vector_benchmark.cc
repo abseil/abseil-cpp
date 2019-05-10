@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/container/inlined_vector.h"
-
 #include <string>
 #include <vector>
 
 #include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
@@ -372,5 +372,73 @@ void BM_StdVectorEmpty(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_StdVectorEmpty);
+
+constexpr size_t kInlineElements = 4;
+constexpr size_t kSmallSize = kInlineElements / 2;
+constexpr size_t kLargeSize = kInlineElements * 2;
+constexpr size_t kBatchSize = 100;
+
+struct TrivialType {
+  size_t val;
+};
+
+using TrivialVec = absl::InlinedVector<TrivialType, kInlineElements>;
+
+class NontrivialType {
+ public:
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType() : val_() {}
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType(const NontrivialType& other)
+      : val_(other.val_) {}
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType& operator=(
+      const NontrivialType& other) {
+    val_ = other.val_;
+    return *this;
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE ~NontrivialType() noexcept {}
+
+ private:
+  size_t val_;
+};
+
+using NontrivialVec = absl::InlinedVector<NontrivialType, kInlineElements>;
+
+#define BENCHMARK_OPERATION(BM_Function)                      \
+  BENCHMARK_TEMPLATE(BM_Function, TrivialVec, kSmallSize);    \
+  BENCHMARK_TEMPLATE(BM_Function, TrivialVec, kLargeSize);    \
+  BENCHMARK_TEMPLATE(BM_Function, NontrivialVec, kSmallSize); \
+  BENCHMARK_TEMPLATE(BM_Function, NontrivialVec, kLargeSize)
+
+template <typename VecT, typename PrepareVec, typename TestVec>
+void BatchedBenchmark(benchmark::State& state, PrepareVec prepare_vec,
+                      TestVec test_vec) {
+  VecT vectors[kBatchSize];
+
+  while (state.KeepRunningBatch(kBatchSize)) {
+    // Prepare batch
+    state.PauseTiming();
+    for (auto& vec : vectors) {
+      prepare_vec(&vec);
+    }
+    benchmark::DoNotOptimize(vectors);
+    state.ResumeTiming();
+
+    // Test batch
+    for (auto& vec : vectors) {
+      test_vec(&vec);
+    }
+  }
+}
+
+template <typename VecT, size_t Size>
+void BM_Clear(benchmark::State& state) {
+  BatchedBenchmark<VecT>(
+      state,
+      /* prepare_vec = */ [](VecT* vec) { vec->resize(Size); },
+      /* test_vec = */ [](VecT* vec) { vec->clear(); });
+}
+BENCHMARK_OPERATION(BM_Clear);
 
 }  // namespace

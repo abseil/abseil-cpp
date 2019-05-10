@@ -815,7 +815,12 @@ TEST(Mutex, MutexReaderDecrementBug) NO_THREAD_SAFETY_ANALYSIS {
 
 // Test that we correctly handle the situation when a lock is
 // held and then destroyed (w/o unlocking).
+#ifdef THREAD_SANITIZER
+// TSAN reports errors when locked Mutexes are destroyed.
+TEST(Mutex, DISABLED_LockedMutexDestructionBug) NO_THREAD_SAFETY_ANALYSIS {
+#else
 TEST(Mutex, LockedMutexDestructionBug) NO_THREAD_SAFETY_ANALYSIS {
+#endif
   for (int i = 0; i != 10; i++) {
     // Create, lock and destroy 10 locks.
     const int kNumLocks = 10;
@@ -1062,7 +1067,12 @@ class ScopedDisableBazelTestWarnings {
 const char ScopedDisableBazelTestWarnings::kVarName[] =
     "TEST_WARNINGS_OUTPUT_FILE";
 
+#ifdef THREAD_SANITIZER
+// This test intentionally creates deadlocks to test the deadlock detector.
+TEST(Mutex, DISABLED_DeadlockDetectorBazelWarning) {
+#else
 TEST(Mutex, DeadlockDetectorBazelWarning) {
+#endif
   absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kReport);
 
   // Cause deadlock detection to detect something, if it's
@@ -1109,7 +1119,12 @@ TEST(Mutex, DeadlockDetectorStessTest) NO_THREAD_SAFETY_ANALYSIS {
   }
 }
 
+#ifdef THREAD_SANITIZER
+// TSAN reports errors when locked Mutexes are destroyed.
+TEST(Mutex, DISABLED_DeadlockIdBug) NO_THREAD_SAFETY_ANALYSIS {
+#else
 TEST(Mutex, DeadlockIdBug) NO_THREAD_SAFETY_ANALYSIS {
+#endif
   // Test a scenario where a cached deadlock graph node id in the
   // list of held locks is not invalidated when the corresponding
   // mutex is deleted.

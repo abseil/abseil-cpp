@@ -244,6 +244,7 @@ cc_test(
         "//conditions:default": [],
     }),
     linkopts = ABSL_LSAN_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
+    tags = ["notsan"],
     deps = [
         ":leak_check_api_enabled_for_testing",
         "//absl/base",
@@ -256,6 +257,7 @@ cc_test(
     srcs = ["leak_check_test.cc"],
     copts = ["-UABSL_EXPECT_LEAK_SANITIZER"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["noasan"],
     deps = [
         ":leak_check_api_disabled_for_testing",
         "//absl/base",  # for raw_logging
@@ -271,6 +273,7 @@ cc_test(
     name = "disabled_leak_check_test",
     srcs = ["leak_check_fail_test.cc"],
     linkopts = ABSL_LSAN_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
+    tags = ["notsan"],
     deps = [
         ":leak_check_api_enabled_for_testing",
         ":leak_check_disable",

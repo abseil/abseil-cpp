@@ -50,7 +50,7 @@
 //   * A `ParsedFormat` instance, which encapsulates a specific, pre-compiled
 //     format string for a specific set of type(s), and which can be passed
 //     between API boundaries. (The `FormatSpec` type should not be used
-//     directly.)
+//     directly except as an argument type for wrapper functions.)
 //
 // The `str_format` library provides the ability to output its format strings to
 // arbitrary sink types:
@@ -157,10 +157,15 @@ class FormatCountCapture {
 // FormatSpec
 //
 // The `FormatSpec` type defines the makeup of a format string within the
-// `str_format` library. You should not need to use or manipulate this type
-// directly. A `FormatSpec` is a variadic class template that is evaluated at
-// compile-time, according to the format string and arguments that are passed
-// to it.
+// `str_format` library. It is a variadic class template that is evaluated at
+// compile-time, according to the format string and arguments that are passed to
+// it.
+//
+// You should not need to manipulate this type directly. You should only name it
+// if you are writing wrapper functions which accept format arguments that will
+// be provided unmodified to functions in this library. Such a wrapper function
+// might be a class method that provides format arguments and/or internally uses
+// the result of formatting.
 //
 // For a `FormatSpec` to be valid at compile-time, it must be provided as
 // either:

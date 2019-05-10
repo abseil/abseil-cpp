@@ -195,6 +195,22 @@ absl_cc_test(
     gmock_main
 )
 
+absl_cc_test(
+  NAME
+    inlined_vector_exception_safety_test
+  SRCS
+    "inlined_vector_exception_safety_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+    ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS
+    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::inlined_vector
+    absl::exception_safety_testing
+    gmock_main
+)
+
 absl_cc_library(
   NAME
     test_instance_tracker

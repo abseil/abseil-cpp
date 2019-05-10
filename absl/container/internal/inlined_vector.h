@@ -16,6 +16,7 @@
 #define ABSL_CONTAINER_INTERNAL_INLINED_VECTOR_INTERNAL_H_
 
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <utility>
@@ -30,6 +31,33 @@ template <typename Iterator>
 using IsAtLeastForwardIterator = std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::forward_iterator_tag>;
+
+template <typename AllocatorType, typename ValueType, typename SizeType>
+void DestroyElements(AllocatorType alloc, ValueType* destroy_first,
+                     SizeType destroy_size) {
+  using AllocatorTraits = std::allocator_traits<AllocatorType>;
+
+  // Destroys `destroy_size` elements from `destroy_first`.
+  //
+  // Destroys the range
+  //   [`destroy_first`, `destroy_first + destroy_size`).
+  //
+  // NOTE: We assume destructors do not throw and thus make no attempt to roll
+  // back.
+  for (SizeType i = 0; i < destroy_size; ++i) {
+    AllocatorTraits::destroy(alloc, destroy_first + i);
+  }
+
+#ifndef NDEBUG
+  // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
+  //
+  // Cast to `void*` to tell the compiler that we don't care that we might be
+  // scribbling on a vtable pointer.
+  void* memory = reinterpret_cast<void*>(destroy_first);
+  size_t memory_size = sizeof(ValueType) * destroy_size;
+  std::memset(memory, 0xab, memory_size);
+#endif  // NDEBUG
+}
 
 template <typename T, size_t N, typename A>
 class Storage {

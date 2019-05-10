@@ -784,16 +784,20 @@ class InlinedVector {
   // Destroys all elements in the inlined vector, sets the size of `0` and
   // deallocates the heap allocation if the inlined vector was allocated.
   void clear() noexcept {
-    size_type s = size();
-    if (storage_.GetIsAllocated()) {
-      Destroy(storage_.GetAllocatedData(), storage_.GetAllocatedData() + s);
-      AllocatorTraits::deallocate(storage_.GetAllocator(),
-                                  storage_.GetAllocatedData(),
+    const bool is_allocated = storage_.GetIsAllocated();
+
+    pointer the_data =
+        is_allocated ? storage_.GetAllocatedData() : storage_.GetInlinedData();
+
+    inlined_vector_internal::DestroyElements(storage_.GetAllocator(), the_data,
+                                             storage_.GetSize());
+
+    if (is_allocated) {
+      AllocatorTraits::deallocate(storage_.GetAllocator(), the_data,
                                   storage_.GetAllocatedCapacity());
-    } else if (s != 0) {  // do nothing for empty vectors
-      Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + s);
     }
-    storage_.SetInlinedSize(0);
+
+    storage_.SetInlinedSize(/* size = */ 0);
   }
 
   // `InlinedVector::reserve()`
