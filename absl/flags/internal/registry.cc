@@ -15,7 +15,6 @@
 
 #include "absl/flags/internal/registry.h"
 
-#include "absl/base/call_once.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/flags/config.h"
@@ -151,12 +150,6 @@ class FlagRegistry {
 
   FlagPtrMap flag_ptr_map_;
 
-  static FlagRegistry* global_registry_;  // a singleton registry
-
-  static absl::once_flag global_registry_once_;
-
-  static void InitGlobalRegistry();
-
   absl::Mutex lock_;
 
   // Disallow
@@ -164,16 +157,9 @@ class FlagRegistry {
   FlagRegistry& operator=(const FlagRegistry&);
 };
 
-// Get the singleton FlagRegistry object
-FlagRegistry* FlagRegistry::global_registry_ = nullptr;
-absl::once_flag FlagRegistry::global_registry_once_;
-
-void FlagRegistry::InitGlobalRegistry() { global_registry_ = new FlagRegistry; }
-
 FlagRegistry* FlagRegistry::GlobalRegistry() {
-  absl::call_once(global_registry_once_, &InitGlobalRegistry);
-
-  return global_registry_;
+  static FlagRegistry* global_registry = new FlagRegistry;
+  return global_registry;
 }
 
 namespace {

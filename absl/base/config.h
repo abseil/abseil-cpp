@@ -191,15 +191,13 @@
 // * On Clang:
 //   * Building using Clang for Windows, where the Clang runtime library has
 //     128-bit support only on LP64 architectures, but Windows is LLP64.
-//   * Building for aarch64, where __int128 exists but has exhibits a sporadic
-//     compiler crashing bug.
 // * On Nvidia's nvcc:
 //   * nvcc also defines __GNUC__ and __SIZEOF_INT128__, but not all versions
 //     actually support __int128.
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
 #elif defined(__SIZEOF_INT128__)
-#if (defined(__clang__) && !defined(_WIN32) && !defined(__aarch64__)) || \
+#if (defined(__clang__) && !defined(_WIN32)) || \
     (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) ||                \
     (defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__))
 #define ABSL_HAVE_INTRINSIC_INT128 1

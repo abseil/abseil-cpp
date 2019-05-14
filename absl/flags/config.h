@@ -17,38 +17,32 @@
 #define ABSL_FLAGS_CONFIG_H_
 
 // Determine if we should strip string literals from the Flag objects.
+// By default we strip string literals on mobile platforms.
 #if !defined(ABSL_FLAGS_STRIP_NAMES)
 
-// Non-mobile linux platforms don't strip string literals.
-#if (defined(__linux__) || defined(__Fuchsia__)) && !defined(__ANDROID__)
-#define ABSL_FLAGS_STRIP_NAMES 0
+#if defined(__ANDROID__)
+#define ABSL_FLAGS_STRIP_NAMES 1
 
-// So do Macs (not iOS or embedded Apple platforms).
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
-#if !TARGET_OS_IPHONE && !TARGET_OS_EMBEDDED
-#define ABSL_FLAGS_STRIP_NAMES 0
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#define ABSL_FLAGS_STRIP_NAMES 1
+#elif defined(TARGET_OS_EMBEDDED) && TARGET_OS_EMBEDDED
+#define ABSL_FLAGS_STRIP_NAMES 1
+#endif  // TARGET_OS_*
 #endif
 
-// And Windows.
-#elif defined(_WIN32)
-#define ABSL_FLAGS_STRIP_NAMES 0
-
-// And Myriad.
-#elif defined(__myriad2__)
-#define ABSL_FLAGS_STRIP_NAMES 0
-
-#endif
 #endif  // !defined(ABSL_FLAGS_STRIP_NAMES)
 
-#if ABSL_FLAGS_STRIP_NAMES
-#if !defined(ABSL_FLAGS_STRIP_HELP)
-#define ABSL_FLAGS_STRIP_HELP 1
+#if !defined(ABSL_FLAGS_STRIP_NAMES)
+// If ABSL_FLAGS_STRIP_NAMES wasn't set on the command line or above,
+// the default is not to strip.
+#define ABSL_FLAGS_STRIP_NAMES 0
 #endif
-#else
+
 #if !defined(ABSL_FLAGS_STRIP_HELP)
-#define ABSL_FLAGS_STRIP_HELP 0
-#endif
+// By default, if we strip names, we also strip help.
+#define ABSL_FLAGS_STRIP_HELP ABSL_FLAGS_STRIP_NAMES
 #endif
 
 #endif  // ABSL_FLAGS_CONFIG_H_

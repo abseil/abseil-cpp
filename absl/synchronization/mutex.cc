@@ -901,11 +901,15 @@ static PerThreadSynch *Enqueue(PerThreadSynch *head,
       // base_internal::CycleClock::Now() is 0.5%.
       int policy;
       struct sched_param param;
-      pthread_getschedparam(pthread_self(), &policy, &param);
-      s->priority = param.sched_priority;
-      s->next_priority_read_cycles =
-          now_cycles +
-          static_cast<int64_t>(base_internal::CycleClock::Frequency());
+      const int err = pthread_getschedparam(pthread_self(), &policy, &param);
+      if (err != 0) {
+        ABSL_RAW_LOG(ERROR, "pthread_getschedparam failed: %d", err);
+      } else {
+        s->priority = param.sched_priority;
+        s->next_priority_read_cycles =
+            now_cycles +
+            static_cast<int64_t>(base_internal::CycleClock::Frequency());
+      }
     }
     if (s->priority > head->priority) {  // s's priority is above head's
       // try to put s in priority-fifo order, or failing that at the front.

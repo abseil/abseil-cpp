@@ -220,6 +220,20 @@ cc_test(
 )
 
 cc_test(
+    name = "config_test",
+    size = "small",
+    srcs = [
+        "config_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":config",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "flag_test",
     size = "small",
     srcs = [

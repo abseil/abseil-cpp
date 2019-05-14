@@ -203,6 +203,18 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    flags_config_test
+  SRCS
+    "config_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::flags_config
+    gtest_main
+)
+
+absl_cc_test(
+  NAME
     flags_flag_test
   SRCS
     "flag_test.cc"
