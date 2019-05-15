@@ -405,12 +405,6 @@ class NontrivialType {
 
 using NontrivialVec = absl::InlinedVector<NontrivialType, kInlineElements>;
 
-#define BENCHMARK_OPERATION(BM_Function)                      \
-  BENCHMARK_TEMPLATE(BM_Function, TrivialVec, kSmallSize);    \
-  BENCHMARK_TEMPLATE(BM_Function, TrivialVec, kLargeSize);    \
-  BENCHMARK_TEMPLATE(BM_Function, NontrivialVec, kSmallSize); \
-  BENCHMARK_TEMPLATE(BM_Function, NontrivialVec, kLargeSize)
-
 template <typename VecT, typename PrepareVec, typename TestVec>
 void BatchedBenchmark(benchmark::State& state, PrepareVec prepare_vec,
                       TestVec test_vec) {
@@ -432,13 +426,18 @@ void BatchedBenchmark(benchmark::State& state, PrepareVec prepare_vec,
   }
 }
 
-template <typename VecT, size_t Size>
+template <typename VecT, size_t FromSize>
 void BM_Clear(benchmark::State& state) {
   BatchedBenchmark<VecT>(
       state,
-      /* prepare_vec = */ [](VecT* vec) { vec->resize(Size); },
+      /* prepare_vec = */ [](VecT* vec) { vec->resize(FromSize); },
       /* test_vec = */ [](VecT* vec) { vec->clear(); });
 }
-BENCHMARK_OPERATION(BM_Clear);
+
+BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kSmallSize);
+BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kLargeSize);
+
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kSmallSize);
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kLargeSize);
 
 }  // namespace

@@ -470,7 +470,7 @@ TEST(IsHashableTest, PoisonHash) {
 struct NoOp {
   template <typename HashCode>
   friend HashCode AbslHashValue(HashCode h, NoOp n) {
-    return std::move(h);
+    return h;
   }
 };
 

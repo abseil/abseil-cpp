@@ -294,7 +294,10 @@ class SCOPED_LOCKABLE ArenaLock {
     arena_->mu.Unlock();
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
     if (mask_valid_) {
-      pthread_sigmask(SIG_SETMASK, &mask_, nullptr);
+      const int err = pthread_sigmask(SIG_SETMASK, &mask_, nullptr);
+      if (err != 0) {
+        ABSL_RAW_LOG(FATAL, "pthread_sigmask failed: %d", err);
+      }
     }
 #endif
     left_ = true;
