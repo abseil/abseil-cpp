@@ -1,0 +1,300 @@
+Device Info 1.7.7
+Date Created Thu May 16 21:38:13 GMT+07:00 2019
+
+Device
+--------------------------------------------------------
+Device Name : Galaxy A8 Star
+Model : SM-G885F
+Manufacturer : samsung
+Device : astarqlte
+Board : sdm660
+Hardware : qcom
+Brand : samsung
+Build Fingerprint : samsung/astarqltedx/astarqlte:8.0.0/R16NW/G885FDXU2ARK3:user/release-keys
+USB Host : Supported
+
+
+System
+--------------------------------------------------------
+Android Version : 8.0.0
+Version Name : Oreo
+Released Date : มกราคม 21, 2017
+Code Name : Oreo
+API Level : 26
+Security Patch Level : 2018-11-01
+Bootloader : G885FDXU2ARK3
+Build Number : R16NW.G885FDXU2ARK3
+Baseband : G885FDXU2ARK3
+Java VM : 2.1.0
+Kernel : 4.4.78-14681079
+Language : ไทย (th_TH)
+OpenGL ES : 3.2
+Root Access : No
+SELinux : Enforcing
+
+
+CPU
+--------------------------------------------------------
+Processor : AArch64 Processor rev 4 (aarch64)
+Supported ABIs : arm64-v8a, armeabi-v7a, armeabi
+CPU Hardware : Qualcomm Technologies, Inc SDM660
+CPU Governor : interactive
+Cores : 8
+CPU Frequency : 634 MHz - 1843 MHz
+GPU Renderer : Adreno (TM) 512
+GPU Vendor : Qualcomm
+GPU Version : OpenGL ES-CM 1.1
+
+
+Battery
+--------------------------------------------------------
+Health : Good
+Level : 14%
+Status : Discharging
+Power Source : Battery
+Technology : Li-ion
+Temperature : 33 ℃
+Voltage : 3598 mV
+Capacity : 3700 mAh
+
+
+Display
+--------------------------------------------------------
+Resolution : 1080 x 2220 Pixels
+Density : 420 dpi (XHDPI)
+Font Scale : 0.8
+Physical Size : 6.04 inches
+Refresh Rate : 60.0 Hz
+Brightness Level : 30%
+Brightness Mode : Manual
+Screen Timeout : 600 Seconds
+Orientation : Portrait
+
+
+Memory
+--------------------------------------------------------
+Random Access Memory
+------------------
+Total : 3705.0MB
+Available : 1595.0MB
+Used : 2118.0MB
+Used Percentage : 56%
+
+System Storage
+------------------
+Total : 3.74GB
+Available : 0.45GB
+Used : 3.30GB
+Used Percentage : 88%
+
+Internal Storage
+------------------
+Total : 51.68GB
+Available : 39.59GB
+Used : 12.09GB
+Used Percentage : 23%
+
+
+Camera
+--------------------------------------------------------
+Camera - 0
+------------------
+Position : Back
+Mega Pixels : 15.9 MP
+Resolution : 4608x3456
+Focal Length : 3.9mm
+
+Camera - 1
+------------------
+Position : Front
+Mega Pixels : 24.1 MP
+Resolution : 5664x4248
+Focal Length : 3.89mm
+
+
+Thermal
+--------------------------------------------------------
+tsens_tz_sensor3 - 43.3 ℃
+tsens_tz_sensor4 - 43.3 ℃
+tsens_tz_sensor5 - 42 ℃
+tsens_tz_sensor6 - 40.7 ℃
+tsens_tz_sensor7 - 43.7 ℃
+tsens_tz_sensor8 - 40.4 ℃
+tsens_tz_sensor9 - 40.4 ℃
+tsens_tz_sensor10 - 40.4 ℃
+tsens_tz_sensor11 - 40.4 ℃
+tsens_tz_sensor12 - 44 ℃
+tsens_tz_sensor13 - 40.1 ℃
+sm5705-fuelgauge - 36.1 ℃
+ac - 34.2 ℃
+battery - 33.8 ℃
+chg_therm - 34 ℃
+pa_therm0 - 35 ℃
+pm660_tz - 37.6 ℃
+pm660l_tz - 37 ℃
+msm_therm - 38 ℃
+quiet_therm - 34 ℃
+xo_therm - 36 ℃
+tsens_tz_sensor0 - 42.4 ℃
+tsens_tz_sensor1 - 42 ℃
+tsens_tz_sensor2 - 43 ℃
+
+
+Sensors
+--------------------------------------------------------
+LSM6DSL Accelerometer
+------------------
+Vendor : STMicroelectronics
+Type : ACCELEROMETER
+Power : 0.15mA
+
+LSM6DSL Accelerometer Uncalibrated
+------------------
+Vendor : STMicroelectronics
+Type : ACCELEROMETER UNCALIBRATED
+Power : 0.15mA
+
+AK09918 Magnetometer
+------------------
+Vendor : AKM
+Type : MAGNETIC FIELD
+Power : 1.1mA
+
+AK09918 Magnetometer Uncalibrated
+------------------
+Vendor : AKM
+Type : MAGNETIC FIELD UNCALIBRATED
+Power : 1.1mA
+
+LSM6DSL Gyroscope
+------------------
+Vendor : STMicroelectronics
+Type : GYROSCOPE
+Power : 0.45mA
+
+LSM6DSL Gyroscope Uncalibrated
+------------------
+Vendor : STMicroelectronics
+Type : GYROSCOPE UNCALIBRATED
+Power : 0.45mA
+
+TMD3725 PROX
+------------------
+Vendor : AMS TAOS
+Type : PROXIMITY
+Power : 0.1mA
+
+TMD3725 ALS
+------------------
+Vendor : AMS TAOS
+Type : LIGHT
+Power : 0.1mA
+
+Gravity
+------------------
+Vendor : QTI
+Type : GRAVITY
+Power : 0.59999084mA
+
+Linear Acceleration
+------------------
+Vendor : QTI
+Type : LINEAR ACCELERATION
+Power : 0.59999084mA
+
+Rotation Vector
+------------------
+Vendor : QTI
+Type : ROTATION VECTOR
+Power : 1.5499878mA
+
+Step Detector
+------------------
+Vendor : Samsung Electronics
+Type : STEP DETECTOR
+Power : 0.001mA
+
+Step Counter
+------------------
+Vendor : Samsung Electronics
+Type : STEP COUNTER
+Power : 0.001mA
+
+Significant Motion Detector
+------------------
+Vendor : Samsung Electronics
+Type : SIGNIFICANT MOTION
+Power : 0.1499939mA
+
+Game Rotation Vector
+------------------
+Vendor : QTI
+Type : GAME ROTATION VECTOR
+Power : 0.59999084mA
+
+Tilt Detector
+------------------
+Vendor : Samsung Electronics
+Type : TILT DETECTOR
+Power : 0.1499939mA
+
+Pick Up Gesture
+------------------
+Vendor : Samsung Electronics
+Type : PICK UP GESTURE
+Power : 0.25mA
+
+Gyro Interrupt
+------------------
+Vendor : Samsung
+Type : Unknown
+Power : 0.44999695mA
+
+SensorHub type
+------------------
+Vendor : Samsung
+Type : Unknown
+Power : 0.001mA
+
+TMD3725 ALS-CCT
+------------------
+Vendor : AMS TAOS
+Type : Unknown
+Power : 0.1mA
+
+AMD
+------------------
+Vendor : QTI
+Type : Unknown
+Power : 0.1499939mA
+
+RMD
+------------------
+Vendor : QTI
+Type : Unknown
+Power : 0.1499939mA
+
+A96T3X6 Grip sensor
+------------------
+Vendor : ABOV
+Type : Unknown
+Power : 0.75mA
+
+Screen Orientation Sensor
+------------------
+Vendor : Samsung Electronics
+Type : DEVICE ORIENTATION
+Power : 0.0mA
+
+Motion Sensor
+------------------
+Vendor : Samsung Electronics
+Type : Unknown
+Power : 0.0mA
+
+Orientation Sensor
+------------------
+Vendor : Samsung Electronics
+Type : ORIENTATION
+Power : 1.5499878mA
+
