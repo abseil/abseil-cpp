@@ -145,7 +145,7 @@ class node_hash_map
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::node_hash_map<int, std::string> map7(v.begin(), v.end());
-  node_hash_map() {}
+  node_hash_map() = default;
   using Base::Base;
 
   // node_hash_map::begin()

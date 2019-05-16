@@ -611,7 +611,7 @@ class raw_hash_set {
     using pointer = absl::remove_reference_t<reference>*;
     using difference_type = typename raw_hash_set::difference_type;
 
-    iterator() {}
+    iterator() = default;
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const { return PolicyTraits::element(slot_); }
@@ -674,7 +674,7 @@ class raw_hash_set {
     using pointer = typename raw_hash_set::const_pointer;
     using difference_type = typename raw_hash_set::difference_type;
 
-    const_iterator() {}
+    const_iterator() = default;
     // Implicit construction from iterator.
     const_iterator(iterator i) : inner_(std::move(i)) {}
 
@@ -704,10 +704,7 @@ class raw_hash_set {
   using node_type = node_handle<Policy, hash_policy_traits<Policy>, Alloc>;
   using insert_return_type = InsertReturnType<iterator, node_type>;
 
-  raw_hash_set() noexcept(
-      std::is_nothrow_default_constructible<hasher>::value&&
-          std::is_nothrow_default_constructible<key_equal>::value&&
-              std::is_nothrow_default_constructible<allocator_type>::value) {}
+  raw_hash_set() = default;
 
   explicit raw_hash_set(size_t bucket_count, const hasher& hash = hasher(),
                         const key_equal& eq = key_equal(),

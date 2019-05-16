@@ -55,7 +55,7 @@ class node_handle_base {
  public:
   using allocator_type = Alloc;
 
-  constexpr node_handle_base() {}
+  constexpr node_handle_base() = default;
   node_handle_base(node_handle_base&& other) noexcept {
     *this = std::move(other);
   }
@@ -114,7 +114,7 @@ class node_handle : public node_handle_base<PolicyTraits, Alloc> {
  public:
   using value_type = typename PolicyTraits::value_type;
 
-  constexpr node_handle() {}
+  constexpr node_handle() = default;
 
   value_type& value() const { return PolicyTraits::element(this->slot()); }
 
@@ -135,7 +135,7 @@ class node_handle<Policy, PolicyTraits, Alloc,
   using key_type = typename Policy::key_type;
   using mapped_type = typename Policy::mapped_type;
 
-  constexpr node_handle() {}
+  constexpr node_handle() = default;
 
   auto key() const -> decltype(PolicyTraits::key(this->slot())) {
     return PolicyTraits::key(this->slot());

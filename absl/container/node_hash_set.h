@@ -137,7 +137,7 @@ class node_hash_set
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::node_hash_set<std::string> set7(v.begin(), v.end());
-  node_hash_set() {}
+  node_hash_set() = default;
   using Base::Base;
 
   // node_hash_set::begin()

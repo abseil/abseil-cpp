@@ -32,17 +32,17 @@ namespace strings_internal {
 
 class Charmap {
  public:
-  constexpr Charmap() : m_() {}
+  constexpr Charmap() = default;
 
   // Initializes with a given char*.  Note that NUL is not treated as
   // a terminator, but rather a char to be flicked.
-  Charmap(const char* str, int len) : m_() {
+  Charmap(const char* str, int len) {
     while (len--) SetChar(*str++);
   }
 
   // Initializes with a given char*.  NUL is treated as a terminator
   // and will not be in the charmap.
-  explicit Charmap(const char* str) : m_() {
+  explicit Charmap(const char* str) {
     while (*str) SetChar(*str++);
   }
 
@@ -127,7 +127,7 @@ class Charmap {
     m_[c / 64] |= static_cast<uint64_t>(1) << (c % 64);
   }
 
-  uint64_t m_[4];
+  uint64_t m_[4] = {};
 };
 
 // Mirror the char-classifying predicates in <cctype>
