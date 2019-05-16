@@ -69,6 +69,8 @@
 
 #include <cstring>
 #include <string>
+#include <type_traits>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
@@ -150,6 +152,17 @@ class Arg {
 
   Arg(Hex hex);  // NOLINT(runtime/explicit)
   Arg(Dec dec);  // NOLINT(runtime/explicit)
+
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <typename T,
+            absl::enable_if_t<
+                std::is_class<T>::value &&
+                (std::is_same<T, std::vector<bool>::reference>::value ||
+                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
+                nullptr>
+  Arg(T value)  // NOLINT(google-explicit-constructor)
+      : Arg(static_cast<bool>(value)) {}
 
   // `void*` values, with the exception of `char*`, are printed as
   // "0x<hex value>". However, in the case of `nullptr`, "NULL" is printed.
