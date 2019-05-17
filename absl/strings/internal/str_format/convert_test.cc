@@ -367,6 +367,17 @@ typedef ::testing::Types<
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
 
+TEST_F(FormatConvertTest, VectorBool) {
+  // Make sure vector<bool>'s values behave as bools.
+  std::vector<bool> v = {true, false};
+  const std::vector<bool> cv = {true, false};
+  EXPECT_EQ("1,0,1,0",
+            FormatPack(UntypedFormatSpecImpl("%d,%d,%d,%d"),
+                       absl::Span<const FormatArgImpl>(
+                           {FormatArgImpl(v[0]), FormatArgImpl(v[1]),
+                            FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
+}
+
 TEST_F(FormatConvertTest, Uint128) {
   absl::uint128 v = static_cast<absl::uint128>(0x1234567890abcdef) * 1979;
   absl::uint128 max = absl::Uint128Max();
