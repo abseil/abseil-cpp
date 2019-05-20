@@ -448,24 +448,16 @@ class InlinedVector {
   // Replaces the contents of the inlined vector with copies of the elements in
   // the provided `std::initializer_list`.
   InlinedVector& operator=(std::initializer_list<value_type> list) {
-    AssignForwardRange(list.begin(), list.end());
+    assign(list.begin(), list.end());
     return *this;
   }
 
   // Overload of `InlinedVector::operator=()` to replace the contents of the
   // inlined vector with the contents of `other`.
   InlinedVector& operator=(const InlinedVector& other) {
-    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return *this;
-
-    // Optimized to avoid reallocation.
-    // Prefer reassignment to copy construction for elements.
-    if (size() < other.size()) {  // grow
-      reserve(other.size());
-      std::copy(other.begin(), other.begin() + size(), begin());
-      std::copy(other.begin() + size(), other.end(), std::back_inserter(*this));
-    } else {  // maybe shrink
-      erase(begin() + other.size(), end());
-      std::copy(other.begin(), other.end(), begin());
+    if (ABSL_PREDICT_TRUE(this != std::addressof(other))) {
+      const_pointer other_data = other.data();
+      assign(other_data, other_data + other.size());
     }
     return *this;
   }
@@ -528,7 +520,7 @@ class InlinedVector {
   // inlined vector with copies of the values in the provided
   // `std::initializer_list`.
   void assign(std::initializer_list<value_type> list) {
-    AssignForwardRange(list.begin(), list.end());
+    assign(list.begin(), list.end());
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
@@ -536,7 +528,24 @@ class InlinedVector {
   template <typename ForwardIterator,
             EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
   void assign(ForwardIterator first, ForwardIterator last) {
-    AssignForwardRange(first, last);
+    auto length = std::distance(first, last);
+
+    // Prefer reassignment to copy construction for elements.
+    if (static_cast<size_type>(length) <= size()) {
+      erase(std::copy(first, last, begin()), end());
+      return;
+    }
+
+    reserve(length);
+    iterator out = begin();
+    for (; out != end(); ++first, ++out) *out = *first;
+    if (storage_.GetIsAllocated()) {
+      UninitializedCopy(first, last, out);
+      storage_.SetAllocatedSize(length);
+    } else {
+      UninitializedCopy(first, last, out);
+      storage_.SetInlinedSize(length);
+    }
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
@@ -1054,32 +1063,6 @@ class InlinedVector {
       UninitializedFill(storage_.GetInlinedData(),
                         storage_.GetInlinedData() + n, v);
       storage_.SetInlinedSize(n);
-    }
-  }
-
-  template <typename ForwardIt>
-  void AssignForwardRange(ForwardIt first, ForwardIt last) {
-    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
-                      ForwardIt>::value,
-                  "");
-
-    auto length = std::distance(first, last);
-
-    // Prefer reassignment to copy construction for elements.
-    if (static_cast<size_type>(length) <= size()) {
-      erase(std::copy(first, last, begin()), end());
-      return;
-    }
-
-    reserve(length);
-    iterator out = begin();
-    for (; out != end(); ++first, ++out) *out = *first;
-    if (storage_.GetIsAllocated()) {
-      UninitializedCopy(first, last, out);
-      storage_.SetAllocatedSize(length);
-    } else {
-      UninitializedCopy(first, last, out);
-      storage_.SetInlinedSize(length);
     }
   }
 
