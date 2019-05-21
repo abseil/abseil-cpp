@@ -408,6 +408,18 @@ TEST(StrCat, VectorBoolReferenceTypes) {
   EXPECT_EQ(result, "1010");
 }
 
+TEST(StrCat, UBCheck) {
+  EXPECT_EQ(absl::StrCat(42, absl::string_view{}), "42");
+
+  // Cover CatPieces code.
+  EXPECT_EQ(absl::StrCat(1, 2, 3, 4, 5, absl::string_view{}), "12345");
+
+  // Cover AppendPieces.
+  std::string result;
+  absl::StrAppend(&result, 1, 2, 3, 4, 5, absl::string_view{});
+  EXPECT_EQ(result, "12345");
+}
+
 #ifdef GTEST_HAS_DEATH_TEST
 TEST(StrAppend, Death) {
   std::string s = "self";
