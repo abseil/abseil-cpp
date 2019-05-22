@@ -408,7 +408,9 @@ TEST(StrCat, VectorBoolReferenceTypes) {
   EXPECT_EQ(result, "1010");
 }
 
-TEST(StrCat, UBCheck) {
+// Passing nullptr to memcpy is undefined behavior and this test
+// provides coverage of codepaths that handle empty strings with nullptrs.
+TEST(StrCat, AvoidsMemcpyWithNullptr) {
   EXPECT_EQ(absl::StrCat(42, absl::string_view{}), "42");
 
   // Cover CatPieces code.
