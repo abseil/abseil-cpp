@@ -190,7 +190,7 @@ bool GetEnvVar(const char* var_name, std::string* var_value) {
   char buf[1024];
   auto get_res = GetEnvironmentVariableA(var_name, buf, sizeof(buf));
   if (get_res >= sizeof(buf)) {
-    return "";
+    return false;
   }
 
   if (get_res == 0) {

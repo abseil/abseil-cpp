@@ -33,7 +33,7 @@ using IsAtLeastForwardIterator = std::is_convertible<
     std::forward_iterator_tag>;
 
 template <typename AllocatorType, typename ValueType, typename SizeType>
-void DestroyElements(AllocatorType alloc, ValueType* destroy_first,
+void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
                      SizeType destroy_size) {
   using AllocatorTraits = std::allocator_traits<AllocatorType>;
 
@@ -45,7 +45,7 @@ void DestroyElements(AllocatorType alloc, ValueType* destroy_first,
   // NOTE: We assume destructors do not throw and thus make no attempt to roll
   // back.
   for (SizeType i = 0; i < destroy_size; ++i) {
-    AllocatorTraits::destroy(alloc, destroy_first + i);
+    AllocatorTraits::destroy(*alloc_ptr, destroy_first + i);
   }
 
 #ifndef NDEBUG
@@ -104,10 +104,12 @@ class Storage {
     return data_.allocated.allocated_capacity;
   }
 
-  allocator_type& GetAllocator() { return metadata_.template get<0>(); }
+  allocator_type* GetAllocPtr() {
+    return std::addressof(metadata_.template get<0>());
+  }
 
-  const allocator_type& GetAllocator() const {
-    return metadata_.template get<0>();
+  const allocator_type* GetAllocPtr() const {
+    return std::addressof(metadata_.template get<0>());
   }
 
   void SetAllocatedSize(size_type size) {

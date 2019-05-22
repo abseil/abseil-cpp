@@ -421,7 +421,9 @@ class optional : private optional_internal::optional_data<T>,
   //
   // Accesses the underlying `T` value of an `optional`. If the `optional` is
   // empty, behavior is undefined.
-  constexpr const T& operator*() const & { return reference(); }
+  constexpr const T& operator*() const& {
+    return ABSL_ASSERT(this->engaged_), reference();
+  }
   T& operator*() & {
     assert(this->engaged_);
     return reference();
