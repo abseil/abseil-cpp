@@ -524,6 +524,7 @@ struct MinTag<a> : InvokeTagConstant<a> {};
 
 template <InvokeTag... Tags>
 struct CustomHashType {
+  explicit CustomHashType(size_t val) : value(val) {}
   size_t value;
 };
 
@@ -590,7 +591,7 @@ void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>, T...) {
   EXPECT_TRUE(is_hashable<const type&>());
 
   const size_t offset = static_cast<int>(std::min({T::value...}));
-  EXPECT_EQ(SpyHash(type{7}), SpyHash(size_t{7 + offset}));
+  EXPECT_EQ(SpyHash(type(7)), SpyHash(size_t{7 + offset}));
 }
 
 void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>) {
