@@ -235,8 +235,9 @@ class AlphaNum {
   AlphaNum(double f)  // NOLINT(runtime/explicit)
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
 
-  AlphaNum(Hex hex);  // NOLINT(runtime/explicit)
-  AlphaNum(Dec dec);  // NOLINT(runtime/explicit)
+  AlphaNum(Hex hex);        // NOLINT(runtime/explicit)
+  AlphaNum(Dec dec);        // NOLINT(runtime/explicit)
+  AlphaNum(char32_t rune);  // NOTLINT(runtime/explicit)
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)

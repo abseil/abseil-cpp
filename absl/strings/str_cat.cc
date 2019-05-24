@@ -21,6 +21,7 @@
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/internal/utf8.h"
 
 namespace absl {
 
@@ -74,6 +75,11 @@ AlphaNum::AlphaNum(Dec dec) {
   }
 
   piece_ = absl::string_view(writer, end - writer);
+}
+
+AlphaNum::AlphaNum(char32_t rune) {
+  piece_ = absl::string_view(
+      digits_, absl::strings_internal::EncodeUTF8Char(digits_, rune));
 }
 
 // ----------------------------------------------------------------------
