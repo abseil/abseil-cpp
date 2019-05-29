@@ -176,7 +176,6 @@ function(absl_cc_library)
     endif()
 
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
-
   endif()
 endfunction()
 
