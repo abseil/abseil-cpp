@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -54,6 +54,7 @@ namespace {
 
 static constexpr int kArrayLength = 10;
 static uint32_t values[kArrayLength];
+
 static SpinLock static_spinlock(base_internal::kLinkerInitialized);
 static SpinLock static_cooperative_spinlock(
     base_internal::kLinkerInitialized,
@@ -155,7 +156,8 @@ TEST(SpinLock, WaitCyclesEncoding) {
 
   // Test corner cases
   int64_t start_time = time_distribution(generator);
-  EXPECT_EQ(0, SpinLockTest::EncodeWaitCycles(start_time, start_time));
+  EXPECT_EQ(kSpinLockSleeper,
+            SpinLockTest::EncodeWaitCycles(start_time, start_time));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(0));
   EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(kLockwordReservedMask));
   EXPECT_EQ(kMaxCycles & ~kProfileTimestampMask,
@@ -188,6 +190,7 @@ TEST(SpinLock, WaitCyclesEncoding) {
     SpinLockTest::DecodeWaitCycles(before_max_value);
   EXPECT_GT(expected_max_value_decoded, before_max_value_decoded);
 }
+
 TEST(SpinLockWithThreads, StaticSpinLock) {
   ThreadedTest(&static_spinlock);
 }

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -135,7 +135,7 @@ struct PoorStrCat {
 
 template <typename Tup, size_t... Is>
 std::vector<std::string> TupStringVecImpl(const Tup& tup,
-                                     absl::index_sequence<Is...>) {
+                                          absl::index_sequence<Is...>) {
   return {Fmt(std::get<Is>(tup))...};
 }
 

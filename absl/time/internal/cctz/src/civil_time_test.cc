@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,7 +37,7 @@ std::string Format(const T& t) {
 
 }  // namespace
 
-#if __cpp_constexpr >= 201304 || _MSC_VER >= 1910
+#if __cpp_constexpr >= 201304 || (defined(_MSC_VER) && _MSC_VER >= 1910)
 // Construction constexpr tests
 
 TEST(CivilTime, Normal) {
@@ -319,7 +319,7 @@ TEST(CivilTime, YearDay) {
   constexpr int yd = get_yearday(cd);
   static_assert(yd == 28, "YearDay");
 }
-#endif  // __cpp_constexpr >= 201304 || _MSC_VER >= 1910
+#endif  // __cpp_constexpr >= 201304 || (defined(_MSC_VER) && _MSC_VER >= 1910)
 
 // The remaining tests do not use constexpr.
 
@@ -620,7 +620,7 @@ TEST(CivilTime, Relational) {
   TEST_RELATIONAL(civil_second(2014, 1, 1, 1, 1, 0),
                   civil_second(2014, 1, 1, 1, 1, 1));
 
-  // Tests the relational operators of two different CivilTime types.
+  // Tests the relational operators of two different civil-time types.
   TEST_RELATIONAL(civil_day(2014, 1, 1), civil_minute(2014, 1, 1, 1, 1));
   TEST_RELATIONAL(civil_day(2014, 1, 1), civil_month(2014, 2));
 

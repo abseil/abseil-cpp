@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -158,7 +158,7 @@ BENCHMARK(BM_safe_strtou64_string)
     ->ArgPair(16, 10)
     ->ArgPair(16, 16);
 
-// Returns a vector of `num_strings` strings. Each std::string represents a
+// Returns a vector of `num_strings` strings. Each string represents a
 // floating point number with `num_digits` digits before the decimal point and
 // another `num_digits` digits after.
 std::vector<std::string> MakeFloatStrings(int num_strings, int num_digits) {

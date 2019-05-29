@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,7 @@
 // designed to be used as a parameter type that efficiently manages conversion
 // to strings and avoids copies in the above operations.
 //
-// Any routine accepting either a std::string or a number may accept `AlphaNum`.
+// Any routine accepting either a string or a number may accept `AlphaNum`.
 // The basic idea is that by accepting a `const AlphaNum &` as an argument
 // to your function, your callers will automagically convert bools, integers,
 // and floating point values to strings for you.
@@ -42,7 +42,6 @@
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
 //
-//
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using
@@ -57,6 +56,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "absl/base/port.h"
 #include "absl/strings/numbers.h"
@@ -65,7 +65,7 @@
 namespace absl {
 
 namespace strings_internal {
-// AlphaNumBuffer allows a way to pass a std::string to StrCat without having to do
+// AlphaNumBuffer allows a way to pass a string to StrCat without having to do
 // memory allocation.  It is simply a pair of a fixed-size character array, and
 // a size.  Please don't use outside of absl, yet.
 template <size_t max_size>
@@ -78,8 +78,8 @@ struct AlphaNumBuffer {
 
 // Enum that specifies the number of significant digits to return in a `Hex` or
 // `Dec` conversion and fill character to use. A `kZeroPad2` value, for example,
-// would produce hexadecimal strings such as "0A","0F" and a 'kSpacePad5' value
-// would produce hexadecimal strings such as "    A","    F".
+// would produce hexadecimal strings such as "0a","0f" and a 'kSpacePad5' value
+// would produce hexadecimal strings such as "    a","    f".
 enum PadSpec : uint8_t {
   kNoPad = 1,
   kZeroPad2,
@@ -97,6 +97,10 @@ enum PadSpec : uint8_t {
   kZeroPad14,
   kZeroPad15,
   kZeroPad16,
+  kZeroPad17,
+  kZeroPad18,
+  kZeroPad19,
+  kZeroPad20,
 
   kSpacePad2 = kZeroPad2 + 64,
   kSpacePad3,
@@ -113,14 +117,18 @@ enum PadSpec : uint8_t {
   kSpacePad14,
   kSpacePad15,
   kSpacePad16,
+  kSpacePad17,
+  kSpacePad18,
+  kSpacePad19,
+  kSpacePad20,
 };
 
 // -----------------------------------------------------------------------------
 // Hex
 // -----------------------------------------------------------------------------
 //
-// `Hex` stores a set of hexadecimal std::string conversion parameters for use
-// within `AlphaNum` std::string conversions.
+// `Hex` stores a set of hexadecimal string conversion parameters for use
+// within `AlphaNum` string conversions.
 struct Hex {
   uint64_t value;
   uint8_t width;
@@ -168,8 +176,8 @@ struct Hex {
 // Dec
 // -----------------------------------------------------------------------------
 //
-// `Dec` stores a set of decimal std::string conversion parameters for use
-// within `AlphaNum` std::string conversions.  Dec is slower than the default
+// `Dec` stores a set of decimal string conversion parameters for use
+// within `AlphaNum` string conversions.  Dec is slower than the default
 // integer conversion, so use it only if you need padding.
 struct Dec {
   uint64_t value;
@@ -237,6 +245,7 @@ class AlphaNum {
 
   AlphaNum(const char* c_str) : piece_(c_str) {}  // NOLINT(runtime/explicit)
   AlphaNum(absl::string_view pc) : piece_(pc) {}  // NOLINT(runtime/explicit)
+
   template <typename Allocator>
   AlphaNum(  // NOLINT(runtime/explicit)
       const std::basic_string<char, std::char_traits<char>, Allocator>& str)
@@ -260,6 +269,17 @@ class AlphaNum {
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(static_cast<typename std::underlying_type<T>::type>(e)) {}
 
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <
+      typename T,
+      typename std::enable_if<
+          std::is_class<T>::value &&
+          (std::is_same<T, std::vector<bool>::reference>::value ||
+           std::is_same<T, std::vector<bool>::const_reference>::value)>::type* =
+          nullptr>
+  AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
+
  private:
   absl::string_view piece_;
   char digits_[numbers_internal::kFastToBufferSize];
@@ -271,7 +291,7 @@ class AlphaNum {
 //
 // Merges given strings or numbers, using no delimiter(s).
 //
-// `StrCat()` is designed to be the fastest possible way to construct a std::string
+// `StrCat()` is designed to be the fastest possible way to construct a string
 // out of a mix of raw C strings, string_views, strings, bool values,
 // and numeric values.
 //
@@ -279,7 +299,7 @@ class AlphaNum {
 // works poorly on strings built up out of fragments.
 //
 // For clarity and performance, don't use `StrCat()` when appending to a
-// std::string. Use `StrAppend()` instead. In particular, avoid using any of these
+// string. Use `StrAppend()` instead. In particular, avoid using any of these
 // (anti-)patterns:
 //
 //   str.append(StrCat(...))
@@ -309,16 +329,15 @@ ABSL_MUST_USE_RESULT inline std::string StrCat(const AlphaNum& a) {
 
 ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b);
 ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b,
-                                   const AlphaNum& c);
+                                        const AlphaNum& c);
 ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b,
-                                   const AlphaNum& c, const AlphaNum& d);
+                                        const AlphaNum& c, const AlphaNum& d);
 
 // Support 5 or more arguments
 template <typename... AV>
-ABSL_MUST_USE_RESULT inline std::string StrCat(const AlphaNum& a, const AlphaNum& b,
-                                          const AlphaNum& c, const AlphaNum& d,
-                                          const AlphaNum& e,
-                                          const AV&... args) {
+ABSL_MUST_USE_RESULT inline std::string StrCat(
+    const AlphaNum& a, const AlphaNum& b, const AlphaNum& c, const AlphaNum& d,
+    const AlphaNum& e, const AV&... args) {
   return strings_internal::CatPieces(
       {a.Piece(), b.Piece(), c.Piece(), d.Piece(), e.Piece(),
        static_cast<const AlphaNum&>(args).Piece()...});
@@ -328,13 +347,13 @@ ABSL_MUST_USE_RESULT inline std::string StrCat(const AlphaNum& a, const AlphaNum
 // StrAppend()
 // -----------------------------------------------------------------------------
 //
-// Appends a std::string or set of strings to an existing std::string, in a similar
+// Appends a string or set of strings to an existing string, in a similar
 // fashion to `StrCat()`.
 //
 // WARNING: `StrAppend(&str, a, b, c, ...)` requires that none of the
 // a, b, c, parameters be a reference into str. For speed, `StrAppend()` does
 // not try to check each of its input arguments to be sure that they are not
-// a subset of the std::string being appended to. That is, while this will work:
+// a subset of the string being appended to. That is, while this will work:
 //
 //   std::string s = "foo";
 //   s += s;

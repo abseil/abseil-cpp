@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -118,7 +118,7 @@
 // Checks whether `std::is_trivially_copy_assignable<T>` is supported.
 
 // Notes: Clang with libc++ supports these features, as does gcc >= 5.1 with
-// either libc++ or libstdc++, and Visual Studio.
+// either libc++ or libstdc++, and Visual Studio (but not NVCC).
 #if defined(ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE)
 #error ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE cannot be directly set
 #elif defined(ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE)
@@ -127,7 +127,7 @@
     (!defined(__clang__) && defined(__GNUC__) &&                 \
      (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)) && \
      (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__))) ||      \
-    defined(_MSC_VER)
+    (defined(_MSC_VER) && !defined(__NVCC__))
 #define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
 #define ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE 1
 #endif
@@ -139,12 +139,18 @@
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
 #elif defined(__APPLE__)
-// Notes: Xcode's clang did not support `thread_local` until version
-// 8, and even then not for all iOS < 9.0. Also, Xcode 9.3 started disallowing
-// `thread_local` for 32-bit iOS simulator targeting iOS 9.x.
-// `__has_feature` is only supported by Clang so it has be inside
+// Notes:
+// * Xcode's clang did not support `thread_local` until version 8, and
+//   even then not for all iOS < 9.0.
+// * Xcode 9.3 started disallowing `thread_local` for 32-bit iOS simulator
+//   targeting iOS 9.x.
+// * Xcode 10 moves the deployment target check for iOS < 9.0 to link time
+//   making __has_feature unreliable there.
+//
+// Otherwise, `__has_feature` is only supported by Clang so it has be inside
 // `defined(__APPLE__)` check.
-#if __has_feature(cxx_thread_local)
+#if __has_feature(cxx_thread_local) && \
+    !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 #else  // !defined(__APPLE__)
@@ -185,21 +191,19 @@
 // * On Clang:
 //   * Building using Clang for Windows, where the Clang runtime library has
 //     128-bit support only on LP64 architectures, but Windows is LLP64.
-//   * Building for aarch64, where __int128 exists but has exhibits a sporadic
-//     compiler crashing bug.
 // * On Nvidia's nvcc:
 //   * nvcc also defines __GNUC__ and __SIZEOF_INT128__, but not all versions
 //     actually support __int128.
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
 #elif defined(__SIZEOF_INT128__)
-#if (defined(__clang__) && !defined(_WIN32) && !defined(__aarch64__)) || \
+#if (defined(__clang__) && !defined(_WIN32)) || \
     (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) ||                \
     (defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__))
 #define ABSL_HAVE_INTRINSIC_INT128 1
 #elif defined(__CUDACC__)
 // __CUDACC_VER__ is a full version number before CUDA 9, and is defined to a
-// std::string explaining that it has been removed starting with CUDA 9. We use
+// string explaining that it has been removed starting with CUDA 9. We use
 // nested #ifs because there is no short-circuiting in the preprocessor.
 // NOTE: `__CUDACC__` could be undefined while `__CUDACC_VER__` is defined.
 #if __CUDACC_VER__ >= 70000
@@ -268,7 +272,8 @@
 #error ABSL_HAVE_MMAP cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||   \
     defined(__ros__) || defined(__native_client__) || defined(__asmjs__) || \
-    defined(__wasm__) || defined(__Fuchsia__) || defined(__sun)
+    defined(__wasm__) || defined(__Fuchsia__) || defined(__sun) || \
+    defined(__ASYLO__)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -322,6 +327,8 @@
 #define ABSL_HAVE_ALARM 1
 #elif defined(_MSC_VER)
 // feature tests for Microsoft's library
+#elif defined(__EMSCRIPTEN__)
+// emscripten doesn't support signals
 #elif defined(__native_client__)
 #else
 // other standard libraries
@@ -356,6 +363,18 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
+// MacOS 10.13 doesn't let you use <any>, <optional>, or <variant> even though
+// the headers exist and are publicly noted to work.  See
+// https://github.com/abseil/abseil-cpp/issues/207 and
+// https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
+#if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
+    defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
+    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
+#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
+#else
+#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 0
+#endif
+
 // ABSL_HAVE_STD_ANY
 //
 // Checks whether C++17 std::any is available by checking whether <any> exists.
@@ -364,7 +383,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<any>) && __cplusplus >= 201703L
+#if __has_include(<any>) && __cplusplus >= 201703L && \
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -377,7 +397,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<optional>) && __cplusplus >= 201703L
+#if __has_include(<optional>) && __cplusplus >= 201703L && \
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -390,7 +411,8 @@
 #endif
 
 #ifdef __has_include
-#if __has_include(<variant>) && __cplusplus >= 201703L
+#if __has_include(<variant>) && __cplusplus >= 201703L && \
+    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif
@@ -414,14 +436,21 @@
 // <string_view>, <variant> is implemented) or higher. Also, `__cplusplus` is
 // not correctly set by MSVC, so we use `_MSVC_LANG` to check the language
 // version.
-// TODO(zhangxy): fix tests before enabling aliasing for `std::any`,
-// `std::string_view`.
+// TODO(zhangxy): fix tests before enabling aliasing for `std::any`.
 #if defined(_MSC_VER) && _MSC_VER >= 1910 && \
     ((defined(_MSVC_LANG) && _MSVC_LANG > 201402) || __cplusplus > 201402)
 // #define ABSL_HAVE_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
-// #define ABSL_HAVE_STD_STRING_VIEW 1
+#define ABSL_HAVE_STD_STRING_VIEW 1
+#endif
+
+// In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION
+// SEH exception from emplace for variant<SomeStruct> when constructing the
+// struct can throw. This defeats some of variant_test and
+// variant_exception_safety_test.
+#if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
+#define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
 
 #endif  // ABSL_BASE_CONFIG_H_

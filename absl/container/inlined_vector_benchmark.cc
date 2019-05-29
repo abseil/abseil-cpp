@@ -1,10 +1,10 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,28 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/container/inlined_vector.h"
-
 #include <string>
 #include <vector>
 
 #include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
 
-using IntVec = absl::InlinedVector<int, 8>;
-
 void BM_InlinedVectorFill(benchmark::State& state) {
-  const int len = state.range(0);
+  absl::InlinedVector<int, 8> v;
+  int val = 10;
   for (auto _ : state) {
-    IntVec v;
-    for (int i = 0; i < len; i++) {
-      v.push_back(i);
-    }
+    benchmark::DoNotOptimize(v);
+    v.push_back(val);
   }
-  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * len);
 }
 BENCHMARK(BM_InlinedVectorFill)->Range(0, 1024);
 
@@ -43,30 +39,32 @@ void BM_InlinedVectorFillRange(benchmark::State& state) {
   for (int i = 0; i < len; i++) {
     ia[i] = i;
   }
+  auto* from = ia.get();
+  auto* to = from + len;
   for (auto _ : state) {
-    IntVec v(ia.get(), ia.get() + len);
+    benchmark::DoNotOptimize(from);
+    benchmark::DoNotOptimize(to);
+    absl::InlinedVector<int, 8> v(from, to);
     benchmark::DoNotOptimize(v);
   }
-  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * len);
 }
 BENCHMARK(BM_InlinedVectorFillRange)->Range(0, 1024);
 
 void BM_StdVectorFill(benchmark::State& state) {
-  const int len = state.range(0);
+  std::vector<int> v;
+  int val = 10;
   for (auto _ : state) {
-    std::vector<int> v;
-    for (int i = 0; i < len; i++) {
-      v.push_back(i);
-    }
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(val);
+    v.push_back(val);
   }
-  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * len);
 }
 BENCHMARK(BM_StdVectorFill)->Range(0, 1024);
 
 // The purpose of the next two benchmarks is to verify that
 // absl::InlinedVector is efficient when moving is more efficent than
 // copying. To do so, we use strings that are larger than the short
-// std::string optimization.
+// string optimization.
 bool StringRepresentedInline(std::string s) {
   const char* chars = s.data();
   std::string s1 = std::move(s);
@@ -89,7 +87,7 @@ void BM_InlinedVectorFillString(benchmark::State& state) {
   const int len = state.range(0);
   const int no_sso = GetNonShortStringOptimizationSize();
   std::string strings[4] = {std::string(no_sso, 'A'), std::string(no_sso, 'B'),
-                       std::string(no_sso, 'C'), std::string(no_sso, 'D')};
+                            std::string(no_sso, 'C'), std::string(no_sso, 'D')};
 
   for (auto _ : state) {
     absl::InlinedVector<std::string, 8> v;
@@ -105,7 +103,7 @@ void BM_StdVectorFillString(benchmark::State& state) {
   const int len = state.range(0);
   const int no_sso = GetNonShortStringOptimizationSize();
   std::string strings[4] = {std::string(no_sso, 'A'), std::string(no_sso, 'B'),
-                       std::string(no_sso, 'C'), std::string(no_sso, 'D')};
+                            std::string(no_sso, 'C'), std::string(no_sso, 'D')};
 
   for (auto _ : state) {
     std::vector<std::string> v;
@@ -124,7 +122,7 @@ struct Buffer {  // some arbitrary structure for benchmarking.
   void* user_data;
 };
 
-void BM_InlinedVectorTenAssignments(benchmark::State& state) {
+void BM_InlinedVectorAssignments(benchmark::State& state) {
   const int len = state.range(0);
   using BufferVec = absl::InlinedVector<Buffer, 2>;
 
@@ -133,18 +131,25 @@ void BM_InlinedVectorTenAssignments(benchmark::State& state) {
 
   BufferVec dst;
   for (auto _ : state) {
-    for (int i = 0; i < 10; ++i) {
-      dst = src;
-    }
+    benchmark::DoNotOptimize(dst);
+    benchmark::DoNotOptimize(src);
+    dst = src;
   }
 }
-BENCHMARK(BM_InlinedVectorTenAssignments)
-    ->Arg(0)->Arg(1)->Arg(2)->Arg(3)->Arg(4)->Arg(20);
+BENCHMARK(BM_InlinedVectorAssignments)
+    ->Arg(0)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(3)
+    ->Arg(4)
+    ->Arg(20);
 
 void BM_CreateFromContainer(benchmark::State& state) {
   for (auto _ : state) {
-    absl::InlinedVector<int, 4> x(absl::InlinedVector<int, 4>{1, 2, 3});
-    benchmark::DoNotOptimize(x);
+    absl::InlinedVector<int, 4> src{1, 2, 3};
+    benchmark::DoNotOptimize(src);
+    absl::InlinedVector<int, 4> dst(std::move(src));
+    benchmark::DoNotOptimize(dst);
   }
 }
 BENCHMARK(BM_CreateFromContainer);
@@ -159,15 +164,14 @@ struct LargeCopyableOnly {
 
 struct LargeCopyableSwappable {
   LargeCopyableSwappable() : d(1024, 17) {}
+
   LargeCopyableSwappable(const LargeCopyableSwappable& o) = default;
-  LargeCopyableSwappable(LargeCopyableSwappable&& o) = delete;
 
   LargeCopyableSwappable& operator=(LargeCopyableSwappable o) {
     using std::swap;
     swap(*this, o);
     return *this;
   }
-  LargeCopyableSwappable& operator=(LargeCopyableSwappable&& o) = delete;
 
   friend void swap(LargeCopyableSwappable& a, LargeCopyableSwappable& b) {
     using std::swap;
@@ -215,6 +219,8 @@ void BM_SwapElements(benchmark::State& state) {
   Vec b;
   for (auto _ : state) {
     using std::swap;
+    benchmark::DoNotOptimize(a);
+    benchmark::DoNotOptimize(b);
     swap(a, b);
   }
 }
@@ -260,60 +266,44 @@ BENCHMARK_TEMPLATE(BM_Sizeof, absl::InlinedVector<std::string, 8>);
 void BM_InlinedVectorIndexInlined(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7};
   for (auto _ : state) {
-    for (int i = 0; i < 1000; ++i) {
-      benchmark::DoNotOptimize(v);
-      benchmark::DoNotOptimize(v[4]);
-    }
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v[4]);
   }
-  state.SetItemsProcessed(1000 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorIndexInlined);
 
 void BM_InlinedVectorIndexExternal(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    for (int i = 0; i < 1000; ++i) {
-      benchmark::DoNotOptimize(v);
-      benchmark::DoNotOptimize(v[4]);
-    }
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v[4]);
   }
-  state.SetItemsProcessed(1000 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorIndexExternal);
 
 void BM_StdVectorIndex(benchmark::State& state) {
   std::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    for (int i = 0; i < 1000; ++i) {
-      benchmark::DoNotOptimize(v);
-      benchmark::DoNotOptimize(v[4]);
-    }
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v[4]);
   }
-  state.SetItemsProcessed(1000 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_StdVectorIndex);
-
-#define UNROLL_2(x)            \
-  benchmark::DoNotOptimize(x); \
-  benchmark::DoNotOptimize(x);
-
-#define UNROLL_4(x) UNROLL_2(x) UNROLL_2(x)
-#define UNROLL_8(x) UNROLL_4(x) UNROLL_4(x)
-#define UNROLL_16(x) UNROLL_8(x) UNROLL_8(x);
 
 void BM_InlinedVectorDataInlined(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7};
   for (auto _ : state) {
-    UNROLL_16(v.data());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.data());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorDataInlined);
 
 void BM_InlinedVectorDataExternal(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.data());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.data());
   }
   state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
@@ -322,7 +312,8 @@ BENCHMARK(BM_InlinedVectorDataExternal);
 void BM_StdVectorData(benchmark::State& state) {
   std::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.data());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.data());
   }
   state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
@@ -331,55 +322,122 @@ BENCHMARK(BM_StdVectorData);
 void BM_InlinedVectorSizeInlined(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7};
   for (auto _ : state) {
-    UNROLL_16(v.size());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.size());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorSizeInlined);
 
 void BM_InlinedVectorSizeExternal(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.size());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.size());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorSizeExternal);
 
 void BM_StdVectorSize(benchmark::State& state) {
   std::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.size());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.size());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_StdVectorSize);
 
 void BM_InlinedVectorEmptyInlined(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7};
   for (auto _ : state) {
-    UNROLL_16(v.empty());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.empty());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorEmptyInlined);
 
 void BM_InlinedVectorEmptyExternal(benchmark::State& state) {
   absl::InlinedVector<int, 8> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.empty());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.empty());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_InlinedVectorEmptyExternal);
 
 void BM_StdVectorEmpty(benchmark::State& state) {
   std::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (auto _ : state) {
-    UNROLL_16(v.empty());
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(v.empty());
   }
-  state.SetItemsProcessed(16 * static_cast<int64_t>(state.iterations()));
 }
 BENCHMARK(BM_StdVectorEmpty);
+
+constexpr size_t kInlineElements = 4;
+constexpr size_t kSmallSize = kInlineElements / 2;
+constexpr size_t kLargeSize = kInlineElements * 2;
+constexpr size_t kBatchSize = 100;
+
+struct TrivialType {
+  size_t val;
+};
+
+using TrivialVec = absl::InlinedVector<TrivialType, kInlineElements>;
+
+class NontrivialType {
+ public:
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType() : val_() {}
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType(const NontrivialType& other)
+      : val_(other.val_) {}
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType& operator=(
+      const NontrivialType& other) {
+    val_ = other.val_;
+    return *this;
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE ~NontrivialType() noexcept {}
+
+ private:
+  size_t val_;
+};
+
+using NontrivialVec = absl::InlinedVector<NontrivialType, kInlineElements>;
+
+template <typename VecT, typename PrepareVec, typename TestVec>
+void BatchedBenchmark(benchmark::State& state, PrepareVec prepare_vec,
+                      TestVec test_vec) {
+  VecT vectors[kBatchSize];
+
+  while (state.KeepRunningBatch(kBatchSize)) {
+    // Prepare batch
+    state.PauseTiming();
+    for (auto& vec : vectors) {
+      prepare_vec(&vec);
+    }
+    benchmark::DoNotOptimize(vectors);
+    state.ResumeTiming();
+
+    // Test batch
+    for (auto& vec : vectors) {
+      test_vec(&vec);
+    }
+  }
+}
+
+template <typename VecT, size_t FromSize>
+void BM_Clear(benchmark::State& state) {
+  BatchedBenchmark<VecT>(
+      state,
+      /* prepare_vec = */ [](VecT* vec) { vec->resize(FromSize); },
+      /* test_vec = */ [](VecT* vec) { vec->clear(); });
+}
+
+BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kSmallSize);
+BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kLargeSize);
+
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kSmallSize);
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kLargeSize);
 
 }  // namespace

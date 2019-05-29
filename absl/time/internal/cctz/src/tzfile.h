@@ -1,3 +1,5 @@
+/* Layout and location of TZif files.  */
+
 #ifndef TZFILE_H
 
 #define TZFILE_H
@@ -30,6 +32,9 @@
 #ifndef TZDEFRULES
 #define TZDEFRULES	"posixrules"
 #endif /* !defined TZDEFRULES */
+
+
+/* See Internet RFC 8536 for more details about the following format.  */
 
 /*
 ** Each file begins with. . .

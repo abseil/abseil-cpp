@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file tests std::string processing functions related to numeric values.
+// This file tests string processing functions related to numeric values.
 
 #include "absl/strings/numbers.h"
 
@@ -39,6 +39,7 @@
 #include "absl/strings/str_cat.h"
 
 #include "absl/strings/internal/numbers_test_common.h"
+#include "absl/strings/internal/pow10_helper.h"
 
 namespace {
 
@@ -190,7 +191,8 @@ void CheckUInt64(uint64_t x) {
   EXPECT_EQ(expected, std::string(&buffer[1], actual)) << " Input " << x;
 
   char* generic_actual = absl::numbers_internal::FastIntToBuffer(x, &buffer[1]);
-  EXPECT_EQ(expected, std::string(&buffer[1], generic_actual)) << " Input " << x;
+  EXPECT_EQ(expected, std::string(&buffer[1], generic_actual))
+      << " Input " << x;
 
   char* my_actual =
       absl::numbers_internal::FastIntToBuffer(MyUInt64(x), &buffer[1]);
@@ -783,7 +785,7 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
   if (iters_per_float == 0) iters_per_float = 1;
   for (float f : floats) {
     if (f == last) continue;
-    float testf = nextafter(last, std::numeric_limits<float>::max());
+    float testf = std::nextafter(last, std::numeric_limits<float>::max());
     runnable(testf);
     runnable(-testf);
     last = testf;
@@ -797,7 +799,7 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
         last = testf;
       }
     }
-    testf = nextafter(f, 0.0f);
+    testf = std::nextafter(f, 0.0f);
     if (testf > last) {
       runnable(testf);
       runnable(-testf);
@@ -871,15 +873,15 @@ TEST_F(SimpleDtoaTest, ExhaustiveDoubleToSixDigits) {
     }
 
     for (int exponent = -324; exponent <= 308; ++exponent) {
-      double powten = pow(10.0, exponent);
+      double powten = absl::strings_internal::Pow10(exponent);
       if (powten == 0) powten = 5e-324;
       if (kFloatNumCases >= 1e9) {
         // The exhaustive test takes a very long time, so log progress.
         char buf[kSixDigitsToBufferSize];
         ABSL_RAW_LOG(
             INFO, "%s",
-            absl::StrCat("Exp ", exponent, " powten=", powten, "(",
-                         powten, ") (",
+            absl::StrCat("Exp ", exponent, " powten=", powten, "(", powten,
+                         ") (",
                          std::string(buf, SixDigitsToBuffer(powten, buf)), ")")
                 .c_str());
       }

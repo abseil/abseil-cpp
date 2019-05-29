@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,7 +47,7 @@
 
 #ifdef ABSL_HAVE_STD_VARIANT
 
-#include <variant>
+#include <variant>  // IWYU pragma: export
 
 namespace absl {
 using std::bad_variant_access;
@@ -82,7 +82,7 @@ namespace absl {
 // absl::variant
 // -----------------------------------------------------------------------------
 //
-// An 'absl::variant` type is a form of type-safe union. An `absl::variant` --
+// An `absl::variant` type is a form of type-safe union. An `absl::variant` --
 // except in exceptional cases -- always holds a value of one of its alternative
 // types.
 //
@@ -129,14 +129,19 @@ class variant;
 // type (in which case, they will be swapped) or to two different types (in
 // which case the values will need to be moved).
 //
-template <typename... Ts>
+template <
+    typename... Ts,
+    absl::enable_if_t<
+        absl::conjunction<std::is_move_constructible<Ts>...,
+                          type_traits_internal::IsSwappable<Ts>...>::value,
+        int> = 0>
 void swap(variant<Ts...>& v, variant<Ts...>& w) noexcept(noexcept(v.swap(w))) {
   v.swap(w);
 }
 
 // variant_size
 //
-// Returns the number of alterative types available for a given `absl::variant`
+// Returns the number of alternative types available for a given `absl::variant`
 // type as a compile-time constant expression. As this is a class template, it
 // is not generally useful for accessing the number of alternative types of
 // any given `absl::variant` instance.
@@ -399,9 +404,9 @@ constexpr absl::add_pointer_t<const T> get_if(
 // Calls a provided functor on a given set of variants. `absl::visit()` is
 // commonly used to conditionally inspect the state of a given variant (or set
 // of variants).
-// Requires: The expression in the Effects: element shall be a valid expression
-// of the same type and value category, for all combinations of alternative
-// types of all variants. Otherwise, the program is ill-formed.
+//
+// The functor must return the same type when called with any of the variants'
+// alternatives.
 //
 // Example:
 //
@@ -414,6 +419,7 @@ constexpr absl::add_pointer_t<const T> get_if(
 //   };
 //
 //   // Declare our variant, and call `absl::visit()` on it.
+//   // Note that `GetVariant()` returns void in either case.
 //   absl::variant<int, std::string> foo = std::string("foo");
 //   GetVariant visitor;
 //   absl::visit(visitor, foo);  // Prints `The variant's value is: foo'
@@ -453,7 +459,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
                                   std::is_object<Tn>...>::value,
                 "Attempted to instantiate a variant containing a non-object "
                 "type.");
-  // Intentionally not qualifing `negation` with `absl::` to work around a bug
+  // Intentionally not qualifying `negation` with `absl::` to work around a bug
   // in MSVC 2015 with inline namespace and variadic template.
   static_assert(absl::conjunction<negation<std::is_array<T0> >,
                                   negation<std::is_array<Tn> >...>::value,
@@ -561,7 +567,7 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
 
   // Assignment Operators
 
-  // Copy assignement operator
+  // Copy assignment operator
   variant& operator=(const variant& other) = default;
 
   // Move assignment operator
@@ -687,12 +693,12 @@ class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
   //
   // Swaps the values of two variant objects.
   //
-  // TODO(calabrese)
-  //   `variant::swap()` and `swap()` rely on `std::is_(nothrow)_swappable()`
-  //   which is introduced in C++17. So we assume `is_swappable()` is always
-  //   true and `is_nothrow_swappable()` is same as `std::is_trivial()`.
   void swap(variant& rhs) noexcept(
-      absl::conjunction<std::is_trivial<T0>, std::is_trivial<Tn>...>::value) {
+      absl::conjunction<
+          std::is_nothrow_move_constructible<T0>,
+          std::is_nothrow_move_constructible<Tn>...,
+          type_traits_internal::IsNothrowSwappable<T0>,
+          type_traits_internal::IsNothrowSwappable<Tn>...>::value) {
     return variant_internal::VisitIndices<sizeof...(Tn) + 1>::Run(
         variant_internal::Swap<T0, Tn...>{this, &rhs}, rhs.index());
   }

@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,7 +38,8 @@ void BM_Format_FormatTime(benchmark::State& state) {
   const absl::TimeZone lax =
       absl::time_internal::LoadTimeZone("America/Los_Angeles");
   const absl::Time t =
-      absl::FromDateTime(1977, 6, 28, 9, 8, 7, lax) + absl::Nanoseconds(1);
+      absl::FromCivil(absl::CivilSecond(1977, 6, 28, 9, 8, 7), lax) +
+      absl::Nanoseconds(1);
   while (state.KeepRunning()) {
     benchmark::DoNotOptimize(absl::FormatTime(fmt, t, lax).length());
   }
@@ -50,8 +51,8 @@ void BM_Format_ParseTime(benchmark::State& state) {
   state.SetLabel(fmt);
   const absl::TimeZone lax =
       absl::time_internal::LoadTimeZone("America/Los_Angeles");
-  absl::Time t =
-      absl::FromDateTime(1977, 6, 28, 9, 8, 7, lax) + absl::Nanoseconds(1);
+  absl::Time t = absl::FromCivil(absl::CivilSecond(1977, 6, 28, 9, 8, 7), lax) +
+                 absl::Nanoseconds(1);
   const std::string when = absl::FormatTime(fmt, t, lax);
   std::string err;
   while (state.KeepRunning()) {

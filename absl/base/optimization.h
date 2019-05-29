@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -111,9 +111,9 @@
 // See http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0154r1.html
 // for more information.
 //
-// On some compilers, `ABSL_CACHELINE_ALIGNED` expands to
-// `__attribute__((aligned(ABSL_CACHELINE_SIZE)))`. For compilers where this is
-// not known to work, the macro expands to nothing.
+// On some compilers, `ABSL_CACHELINE_ALIGNED` expands to an `__attribute__`
+// or `__declspec` attribute. For compilers where this is not known to work,
+// the macro expands to nothing.
 //
 // No further guarantees are made here. The result of applying the macro
 // to variables and types is always implementation-defined.
@@ -121,6 +121,14 @@
 // WARNING: It is easy to use this attribute incorrectly, even to the point
 // of causing bugs that are difficult to diagnose, crash, etc. It does not
 // of itself guarantee that objects are aligned to a cache line.
+//
+// NOTE: Some compilers are picky about the locations of annotations such as
+// this attribute, so prefer to put it at the beginning of your declaration.
+// For example,
+//
+//   ABSL_CACHELINE_ALIGNED static Foo* foo = ...
+//
+//   class ABSL_CACHELINE_ALIGNED Bar { ...
 //
 // Recommendations:
 //
@@ -131,8 +139,10 @@
 // 3) Prefer applying this attribute to individual variables. Avoid
 //    applying it to types. This tends to localize the effect.
 #define ABSL_CACHELINE_ALIGNED __attribute__((aligned(ABSL_CACHELINE_SIZE)))
-
-#else  // not GCC
+#elif defined(_MSC_VER)
+#define ABSL_CACHELINE_SIZE 64
+#define ABSL_CACHELINE_ALIGNED __declspec(align(ABSL_CACHELINE_SIZE))
+#else
 #define ABSL_CACHELINE_SIZE 64
 #define ABSL_CACHELINE_ALIGNED
 #endif
@@ -153,6 +163,12 @@
 // Compilers can use the information that a certain branch is not likely to be
 // taken (for instance, a CHECK failure) to optimize for the common case in
 // the absence of better information (ie. compiling gcc with `-fprofile-arcs`).
+//
+// Recommendation: Modern CPUs dynamically predict branch execution paths,
+// typically with accuracy greater than 97%. As a result, annotating every
+// branch in a codebase is likely counterproductive; however, annotating
+// specific branches that are both hot and consistently mispredicted is likely
+// to yield performance improvements.
 #if ABSL_HAVE_BUILTIN(__builtin_expect) || \
     (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_PREDICT_FALSE(x) (__builtin_expect(x, 0))

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,16 +39,25 @@ namespace absl {
 // Function Template: WrapUnique()
 // -----------------------------------------------------------------------------
 //
-//  Adopts ownership from a raw pointer and transfers it to the returned
-//  `std::unique_ptr`, whose type is deduced. DO NOT specify the template type T
-//  when calling WrapUnique.
+// Adopts ownership from a raw pointer and transfers it to the returned
+// `std::unique_ptr`, whose type is deduced. Because of this deduction, *do not*
+// specify the template type `T` when calling `WrapUnique`.
 //
 // Example:
 //   X* NewX(int, int);
 //   auto x = WrapUnique(NewX(1, 2));  // 'x' is std::unique_ptr<X>.
 //
-// `absl::WrapUnique` is useful for capturing the output of a raw pointer
-// factory. However, prefer 'absl::make_unique<T>(args...) over
+// Do not call WrapUnique with an explicit type, as in
+// `WrapUnique<X>(NewX(1, 2))`.  The purpose of WrapUnique is to automatically
+// deduce the pointer type. If you wish to make the type explicit, just use
+// `std::unique_ptr` directly.
+//
+//   auto x = std::unique_ptr<X>(NewX(1, 2));
+//                  - or -
+//   std::unique_ptr<X> x(NewX(1, 2));
+//
+// While `absl::WrapUnique` is useful for capturing the output of a raw
+// pointer factory, prefer 'absl::make_unique<T>(args...)' over
 // 'absl::WrapUnique(new T(args...))'.
 //
 //   auto x = WrapUnique(new X(1, 2));  // works, but nonideal.
@@ -106,7 +115,7 @@ using std::make_unique;
 //
 // For more background on why `std::unique_ptr<T>(new T(a,b))` is problematic,
 // see Herb Sutter's explanation on
-// (Exception-Safe Function Calls)[http://herbsutter.com/gotw/_102/].
+// (Exception-Safe Function Calls)[https://herbsutter.com/gotw/_102/].
 // (In general, reviewers should treat `new T(a,b)` with scrutiny.)
 //
 // Example usage:
@@ -585,7 +594,7 @@ struct allocator_traits {
     return a.max_size();
   }
   static size_type max_size_impl(char, const Alloc&) {
-    return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    return (std::numeric_limits<size_type>::max)() / sizeof(value_type);
   }
 
   template <typename A>
@@ -632,7 +641,7 @@ struct allocator_is_nothrow
     : memory_internal::ExtractOrT<memory_internal::GetIsNothrow, Alloc,
                                   std::false_type> {};
 
-#if ABSL_ALLOCATOR_NOTHROW
+#if defined(ABSL_ALLOCATOR_NOTHROW) && ABSL_ALLOCATOR_NOTHROW
 template <typename T>
 struct allocator_is_nothrow<std::allocator<T>> : std::true_type {};
 struct default_allocator_is_nothrow : std::true_type {};
@@ -641,55 +650,42 @@ struct default_allocator_is_nothrow : std::false_type {};
 #endif
 
 namespace memory_internal {
-#ifdef ABSL_HAVE_EXCEPTIONS
-template <typename Allocator, typename StorageElement, typename... Args>
-void ConstructStorage(Allocator* alloc, StorageElement* first,
-                      StorageElement* last, const Args&... args) {
-  for (StorageElement* cur = first; cur != last; ++cur) {
-    try {
-      std::allocator_traits<Allocator>::construct(*alloc, cur, args...);
-    } catch (...) {
+template <typename Allocator, typename Iterator, typename... Args>
+void ConstructRange(Allocator& alloc, Iterator first, Iterator last,
+                    const Args&... args) {
+  for (Iterator cur = first; cur != last; ++cur) {
+    ABSL_INTERNAL_TRY {
+      std::allocator_traits<Allocator>::construct(alloc, std::addressof(*cur),
+                                                  args...);
+    }
+    ABSL_INTERNAL_CATCH_ANY {
       while (cur != first) {
         --cur;
-        std::allocator_traits<Allocator>::destroy(*alloc, cur);
+        std::allocator_traits<Allocator>::destroy(alloc, std::addressof(*cur));
       }
-      throw;
+      ABSL_INTERNAL_RETHROW;
     }
   }
 }
-template <typename Allocator, typename StorageElement, typename Iterator>
-void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
-                            Iterator first, Iterator last) {
-  for (StorageElement* cur = destination; first != last;
+
+template <typename Allocator, typename Iterator, typename InputIterator>
+void CopyRange(Allocator& alloc, Iterator destination, InputIterator first,
+               InputIterator last) {
+  for (Iterator cur = destination; first != last;
        static_cast<void>(++cur), static_cast<void>(++first)) {
-    try {
-      std::allocator_traits<Allocator>::construct(*alloc, cur, *first);
-    } catch (...) {
+    ABSL_INTERNAL_TRY {
+      std::allocator_traits<Allocator>::construct(alloc, std::addressof(*cur),
+                                                  *first);
+    }
+    ABSL_INTERNAL_CATCH_ANY {
       while (cur != destination) {
         --cur;
-        std::allocator_traits<Allocator>::destroy(*alloc, cur);
+        std::allocator_traits<Allocator>::destroy(alloc, std::addressof(*cur));
       }
-      throw;
+      ABSL_INTERNAL_RETHROW;
     }
   }
 }
-#else   // ABSL_HAVE_EXCEPTIONS
-template <typename Allocator, typename StorageElement, typename... Args>
-void ConstructStorage(Allocator* alloc, StorageElement* first,
-                      StorageElement* last, const Args&... args) {
-  for (; first != last; ++first) {
-    std::allocator_traits<Allocator>::construct(*alloc, first, args...);
-  }
-}
-template <typename Allocator, typename StorageElement, typename Iterator>
-void CopyToStorageFromRange(Allocator* alloc, StorageElement* destination,
-                            Iterator first, Iterator last) {
-  for (; first != last;
-       static_cast<void>(++destination), static_cast<void>(++first)) {
-    std::allocator_traits<Allocator>::construct(*alloc, destination, *first);
-  }
-}
-#endif  // ABSL_HAVE_EXCEPTIONS
 }  // namespace memory_internal
 }  // namespace absl
 

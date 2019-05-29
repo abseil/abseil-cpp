@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,50 +14,54 @@
 # limitations under the License.
 #
 
-list(APPEND ALGORITHM_PUBLIC_HEADERS
-  "algorithm.h"
-  "container.h"
-)
-
-
-#
-## TESTS
-#
-
-# test algorithm_test
-list(APPEND ALGORITHM_TEST_SRC
-  "algorithm_test.cc"
-  ${ALGORITHM_PUBLIC_HEADERS}
-  ${ALGORITHM_INTERNAL_HEADERS}
-)
-
-absl_header_library(
-  TARGET
-    absl_algorithm
-  EXPORT_NAME
+absl_cc_library(
+  NAME
     algorithm
+  HDRS
+    "algorithm.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  PUBLIC
 )
 
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     algorithm_test
-  SOURCES
-    ${ALGORITHM_TEST_SRC}
-  PUBLIC_LIBRARIES
+  SRCS
+    "algorithm_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
     absl::algorithm
+    gmock_main
 )
 
-
-
-
-# test container_test
-set(CONTAINER_TEST_SRC "container_test.cc")
-
-absl_test(
-  TARGET
-    container_test
-  SOURCES
-    ${CONTAINER_TEST_SRC}
-  PUBLIC_LIBRARIES
+absl_cc_library(
+  NAME
+    algorithm_container
+  HDRS
+    "container.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
     absl::algorithm
+    absl::core_headers
+    absl::meta
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    container_test
+  SRCS
+    "container_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::algorithm_container
+    absl::base
+    absl::core_headers
+    absl::memory
+    absl::span
+    gmock_main
 )

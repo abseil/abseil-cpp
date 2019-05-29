@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,23 +18,21 @@
 
 namespace absl {
 
-namespace {
-bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
+bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2) {
   return (piece1.size() == piece2.size() &&
-          0 == strings_internal::memcasecmp(piece1.data(), piece2.data(),
-                                            piece1.size()));
-  // memcasecmp uses ascii_tolower().
+          0 == absl::strings_internal::memcasecmp(piece1.data(), piece2.data(),
+                                                  piece1.size()));
+  // memcasecmp uses absl::ascii_tolower().
 }
-}  // namespace
 
 bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix) {
   return (text.size() >= prefix.size()) &&
-         CaseEqual(text.substr(0, prefix.size()), prefix);
+         EqualsIgnoreCase(text.substr(0, prefix.size()), prefix);
 }
 
 bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix) {
   return (text.size() >= suffix.size()) &&
-         CaseEqual(text.substr(text.size() - suffix.size()), suffix);
+         EqualsIgnoreCase(text.substr(text.size() - suffix.size()), suffix);
 }
 
 }  // namespace absl

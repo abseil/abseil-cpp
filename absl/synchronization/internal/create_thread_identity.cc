@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -67,6 +67,30 @@ static intptr_t RoundUp(intptr_t addr, intptr_t align) {
   return (addr + align - 1) & ~(align - 1);
 }
 
+static void ResetThreadIdentity(base_internal::ThreadIdentity* identity) {
+  base_internal::PerThreadSynch* pts = &identity->per_thread_synch;
+  pts->next = nullptr;
+  pts->skip = nullptr;
+  pts->may_skip = false;
+  pts->waitp = nullptr;
+  pts->suppress_fatal_errors = false;
+  pts->readers = 0;
+  pts->priority = 0;
+  pts->next_priority_read_cycles = 0;
+  pts->state.store(base_internal::PerThreadSynch::State::kAvailable,
+                   std::memory_order_relaxed);
+  pts->maybe_unlocking = false;
+  pts->wake = false;
+  pts->cond_waiter = false;
+  pts->all_locks = nullptr;
+  identity->waiter_state = {};
+  identity->blocked_count_ptr = nullptr;
+  identity->ticker.store(0, std::memory_order_relaxed);
+  identity->wait_start.store(0, std::memory_order_relaxed);
+  identity->is_idle.store(false, std::memory_order_relaxed);
+  identity->next = nullptr;
+}
+
 static base_internal::ThreadIdentity* NewThreadIdentity() {
   base_internal::ThreadIdentity* identity = nullptr;
 
@@ -90,7 +114,7 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
         RoundUp(reinterpret_cast<intptr_t>(allocation),
                 base_internal::PerThreadSynch::kAlignment));
   }
-  memset(identity, 0, sizeof(*identity));
+  ResetThreadIdentity(identity);
 
   return identity;
 }

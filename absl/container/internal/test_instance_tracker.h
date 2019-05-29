@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +17,8 @@
 
 #include <cstdlib>
 #include <ostream>
+
+#include "absl/types/compare.h"
 
 namespace absl {
 namespace test_internal {
@@ -94,6 +96,14 @@ class BaseCountedInstance {
   bool operator>=(const BaseCountedInstance& x) const {
     ++num_comparisons_;
     return value_ >= x.value_;
+  }
+
+  absl::weak_ordering compare(const BaseCountedInstance& x) const {
+    ++num_comparisons_;
+    return value_ < x.value_
+               ? absl::weak_ordering::less
+               : value_ == x.value_ ? absl::weak_ordering::equivalent
+                                    : absl::weak_ordering::greater;
   }
 
   int value() const {

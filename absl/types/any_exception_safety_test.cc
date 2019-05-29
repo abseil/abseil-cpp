@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -62,7 +62,7 @@ testing::AssertionResult AnyInvariants(absl::any* a) {
     static_cast<void>(unused);
     return AssertionFailure()
            << "A reset `any` should not be able to be any_cast";
-  } catch (absl::bad_any_cast) {
+  } catch (const absl::bad_any_cast&) {
   } catch (...) {
     return AssertionFailure()
            << "Unexpected exception thrown from absl::any_cast";
@@ -107,7 +107,7 @@ TEST(AnyExceptionSafety, Assignment) {
   };
   auto any_strong_tester = testing::MakeExceptionSafetyTester()
                                .WithInitialValue(original)
-                               .WithInvariants(AnyInvariants, any_is_strong);
+                               .WithContracts(AnyInvariants, any_is_strong);
 
   Thrower val(2);
   absl::any any_val(val);
@@ -129,12 +129,13 @@ TEST(AnyExceptionSafety, Assignment) {
   auto strong_empty_any_tester =
       testing::MakeExceptionSafetyTester()
           .WithInitialValue(absl::any{})
-          .WithInvariants(AnyInvariants, empty_any_is_strong);
+          .WithContracts(AnyInvariants, empty_any_is_strong);
 
   EXPECT_TRUE(strong_empty_any_tester.Test(assign_any));
   EXPECT_TRUE(strong_empty_any_tester.Test(assign_val));
   EXPECT_TRUE(strong_empty_any_tester.Test(move));
 }
+
 // libstdc++ std::any fails this test
 #if !defined(ABSL_HAVE_STD_ANY)
 TEST(AnyExceptionSafety, Emplace) {
@@ -142,7 +143,7 @@ TEST(AnyExceptionSafety, Emplace) {
       absl::any{absl::in_place_type_t<Thrower>(), 1, testing::nothrow_ctor};
   auto one_tester = testing::MakeExceptionSafetyTester()
                         .WithInitialValue(initial_val)
-                        .WithInvariants(AnyInvariants, AnyIsEmpty);
+                        .WithContracts(AnyInvariants, AnyIsEmpty);
 
   auto emp_thrower = [](absl::any* ap) { ap->emplace<Thrower>(2); };
   auto emp_throwervec = [](absl::any* ap) {

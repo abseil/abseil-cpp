@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,17 +51,12 @@ extern "C" {
 ABSL_ATTRIBUTE_WEAK void AbslInternalSpinLockDelay(
     std::atomic<uint32_t> *w, uint32_t value, int loop,
     absl::base_internal::SchedulingMode) {
-  if (loop != 0) {
-    int save_errno = errno;
-    struct timespec tm;
-    tm.tv_sec = 0;
-    // Increase the delay; we expect (but do not rely on) explicit wakeups.
-    // We don't rely on explicit wakeups because we intentionally allow for
-    // a race on the kSpinLockSleeper bit.
-    tm.tv_nsec = 16 * absl::base_internal::SpinLockSuggestedDelayNS(loop);
-    syscall(SYS_futex, w, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, value, &tm);
-    errno = save_errno;
-  }
+  int save_errno = errno;
+  struct timespec tm;
+  tm.tv_sec = 0;
+  tm.tv_nsec = absl::base_internal::SpinLockSuggestedDelayNS(loop);
+  syscall(SYS_futex, w, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, value, &tm);
+  errno = save_errno;
 }
 
 ABSL_ATTRIBUTE_WEAK void AbslInternalSpinLockWake(std::atomic<uint32_t> *w,

@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-//
 #ifndef ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 
 #include <limits.h>
+#include <cstddef>
 #include <cstring>
 #include <ostream>
 
@@ -57,7 +57,7 @@ class FormatRawSinkImpl {
   void (*write_)(void*, string_view);
 };
 
-// An abstraction to which conversions write their std::string data.
+// An abstraction to which conversions write their string data.
 class FormatSinkImpl {
  public:
   explicit FormatSinkImpl(FormatRawSinkImpl raw) : raw_(raw) {}
@@ -307,7 +307,12 @@ class ConversionSpec {
  public:
   Flags flags() const { return flags_; }
   LengthMod length_mod() const { return length_mod_; }
-  ConversionChar conv() const { return conv_; }
+  ConversionChar conv() const {
+    // Keep this field first in the struct . It generates better code when
+    // accessing it when ConversionSpec is passed by value in registers.
+    static_assert(offsetof(ConversionSpec, conv_) == 0, "");
+    return conv_;
+  }
 
   // Returns the specified width. If width is unspecfied, it returns a negative
   // value.
@@ -324,9 +329,9 @@ class ConversionSpec {
   void set_left(bool b) { flags_.left = b; }
 
  private:
+  ConversionChar conv_;
   Flags flags_;
   LengthMod length_mod_;
-  ConversionChar conv_;
   int width_;
   int precision_;
 };
@@ -354,7 +359,7 @@ enum class Conv : uint64_t {
   integral = d | i | u | o | x | X,
   floating = a | e | f | g | A | E | F | G,
   numeric = integral | floating,
-  string = s,  // absl:ignore(std::string)
+  string = s,
   pointer = p
 };
 
@@ -403,4 +408,4 @@ inline size_t Excess(size_t used, size_t capacity) {
 
 }  // namespace absl
 
-#endif  // ABSL_STRINGS_STR_FORMAT_EXTENSION_H_
+#endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_

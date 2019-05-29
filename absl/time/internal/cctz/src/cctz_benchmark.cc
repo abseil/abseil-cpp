@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,6 +46,56 @@ void BM_Step_Days(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Step_Days);
+
+void BM_GetWeekday(benchmark::State& state) {
+  const cctz::civil_day c(2014, 8, 22);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(cctz::get_weekday(c));
+  }
+}
+BENCHMARK(BM_GetWeekday);
+
+void BM_NextWeekday(benchmark::State& state) {
+  const cctz::civil_day kStart(2014, 8, 22);
+  const cctz::civil_day kDays[7] = {
+      kStart + 0, kStart + 1, kStart + 2, kStart + 3,
+      kStart + 4, kStart + 5, kStart + 6,
+  };
+  const cctz::weekday kWeekdays[7] = {
+      cctz::weekday::monday,   cctz::weekday::tuesday, cctz::weekday::wednesday,
+      cctz::weekday::thursday, cctz::weekday::friday,  cctz::weekday::saturday,
+      cctz::weekday::sunday,
+  };
+  while (state.KeepRunningBatch(7 * 7)) {
+    for (const auto from : kDays) {
+      for (const auto to : kWeekdays) {
+        benchmark::DoNotOptimize(cctz::next_weekday(from, to));
+      }
+    }
+  }
+}
+BENCHMARK(BM_NextWeekday);
+
+void BM_PrevWeekday(benchmark::State& state) {
+  const cctz::civil_day kStart(2014, 8, 22);
+  const cctz::civil_day kDays[7] = {
+      kStart + 0, kStart + 1, kStart + 2, kStart + 3,
+      kStart + 4, kStart + 5, kStart + 6,
+  };
+  const cctz::weekday kWeekdays[7] = {
+      cctz::weekday::monday,   cctz::weekday::tuesday, cctz::weekday::wednesday,
+      cctz::weekday::thursday, cctz::weekday::friday,  cctz::weekday::saturday,
+      cctz::weekday::sunday,
+  };
+  while (state.KeepRunningBatch(7 * 7)) {
+    for (const auto from : kDays) {
+      for (const auto to : kWeekdays) {
+        benchmark::DoNotOptimize(cctz::prev_weekday(from, to));
+      }
+    }
+  }
+}
+BENCHMARK(BM_PrevWeekday);
 
 const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
 const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
@@ -357,6 +407,7 @@ const char* const kTimeZoneNames[] = {
   "Asia/Pontianak",
   "Asia/Pyongyang",
   "Asia/Qatar",
+  "Asia/Qostanay",
   "Asia/Qyzylorda",
   "Asia/Rangoon",
   "Asia/Riyadh",
@@ -778,13 +829,13 @@ void BM_Zone_UTCTimeZone(benchmark::State& state) {
 }
 BENCHMARK(BM_Zone_UTCTimeZone);
 
-// In each "ToDateTime" benchmark we switch between two instants
-// separated by at least one transition in order to defeat any
-// internal caching of previous results (e.g., see local_time_hint_).
+// In each "ToCivil" benchmark we switch between two instants separated
+// by at least one transition in order to defeat any internal caching of
+// previous results (e.g., see local_time_hint_).
 //
 // The "UTC" variants use UTC instead of the Google/local time zone.
 
-void BM_Time_ToDateTime_CCTZ(benchmark::State& state) {
+void BM_Time_ToCivil_CCTZ(benchmark::State& state) {
   const cctz::time_zone tz = TestTimeZone();
   std::chrono::system_clock::time_point tp =
       std::chrono::system_clock::from_time_t(1384569027);
@@ -796,9 +847,9 @@ void BM_Time_ToDateTime_CCTZ(benchmark::State& state) {
     benchmark::DoNotOptimize(cctz::convert(tp, tz));
   }
 }
-BENCHMARK(BM_Time_ToDateTime_CCTZ);
+BENCHMARK(BM_Time_ToCivil_CCTZ);
 
-void BM_Time_ToDateTime_Libc(benchmark::State& state) {
+void BM_Time_ToCivil_Libc(benchmark::State& state) {
   // No timezone support, so just use localtime.
   time_t t = 1384569027;
   time_t t2 = 1418962578;
@@ -813,9 +864,9 @@ void BM_Time_ToDateTime_Libc(benchmark::State& state) {
 #endif
   }
 }
-BENCHMARK(BM_Time_ToDateTime_Libc);
+BENCHMARK(BM_Time_ToCivil_Libc);
 
-void BM_Time_ToDateTimeUTC_CCTZ(benchmark::State& state) {
+void BM_Time_ToCivilUTC_CCTZ(benchmark::State& state) {
   const cctz::time_zone tz = cctz::utc_time_zone();
   std::chrono::system_clock::time_point tp =
       std::chrono::system_clock::from_time_t(1384569027);
@@ -824,9 +875,9 @@ void BM_Time_ToDateTimeUTC_CCTZ(benchmark::State& state) {
     benchmark::DoNotOptimize(cctz::convert(tp, tz));
   }
 }
-BENCHMARK(BM_Time_ToDateTimeUTC_CCTZ);
+BENCHMARK(BM_Time_ToCivilUTC_CCTZ);
 
-void BM_Time_ToDateTimeUTC_Libc(benchmark::State& state) {
+void BM_Time_ToCivilUTC_Libc(benchmark::State& state) {
   time_t t = 1384569027;
   struct tm tm;
   while (state.KeepRunning()) {
@@ -838,16 +889,16 @@ void BM_Time_ToDateTimeUTC_Libc(benchmark::State& state) {
 #endif
   }
 }
-BENCHMARK(BM_Time_ToDateTimeUTC_Libc);
+BENCHMARK(BM_Time_ToCivilUTC_Libc);
 
-// In each "FromDateTime" benchmark we switch between two YMDhms
-// values separated by at least one transition in order to defeat any
-// internal caching of previous results (e.g., see time_local_hint_).
+// In each "FromCivil" benchmark we switch between two YMDhms values
+// separated by at least one transition in order to defeat any internal
+// caching of previous results (e.g., see time_local_hint_).
 //
 // The "UTC" variants use UTC instead of the Google/local time zone.
 // The "Day0" variants require normalization of the day of month.
 
-void BM_Time_FromDateTime_CCTZ(benchmark::State& state) {
+void BM_Time_FromCivil_CCTZ(benchmark::State& state) {
   const cctz::time_zone tz = TestTimeZone();
   int i = 0;
   while (state.KeepRunning()) {
@@ -860,9 +911,9 @@ void BM_Time_FromDateTime_CCTZ(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_Time_FromDateTime_CCTZ);
+BENCHMARK(BM_Time_FromCivil_CCTZ);
 
-void BM_Time_FromDateTime_Libc(benchmark::State& state) {
+void BM_Time_FromCivil_Libc(benchmark::State& state) {
   // No timezone support, so just use localtime.
   int i = 0;
   while (state.KeepRunning()) {
@@ -886,20 +937,20 @@ void BM_Time_FromDateTime_Libc(benchmark::State& state) {
     benchmark::DoNotOptimize(mktime(&tm));
   }
 }
-BENCHMARK(BM_Time_FromDateTime_Libc);
+BENCHMARK(BM_Time_FromCivil_Libc);
 
-void BM_Time_FromDateTimeUTC_CCTZ(benchmark::State& state) {
+void BM_Time_FromCivilUTC_CCTZ(benchmark::State& state) {
   const cctz::time_zone tz = cctz::utc_time_zone();
   while (state.KeepRunning()) {
     benchmark::DoNotOptimize(
         cctz::convert(cctz::civil_second(2014, 12, 18, 20, 16, 18), tz));
   }
 }
-BENCHMARK(BM_Time_FromDateTimeUTC_CCTZ);
+BENCHMARK(BM_Time_FromCivilUTC_CCTZ);
 
-// There is no BM_Time_FromDateTimeUTC_Libc.
+// There is no BM_Time_FromCivilUTC_Libc.
 
-void BM_Time_FromDateTimeDay0_CCTZ(benchmark::State& state) {
+void BM_Time_FromCivilDay0_CCTZ(benchmark::State& state) {
   const cctz::time_zone tz = TestTimeZone();
   int i = 0;
   while (state.KeepRunning()) {
@@ -912,9 +963,9 @@ void BM_Time_FromDateTimeDay0_CCTZ(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_Time_FromDateTimeDay0_CCTZ);
+BENCHMARK(BM_Time_FromCivilDay0_CCTZ);
 
-void BM_Time_FromDateTimeDay0_Libc(benchmark::State& state) {
+void BM_Time_FromCivilDay0_Libc(benchmark::State& state) {
   // No timezone support, so just use localtime.
   int i = 0;
   while (state.KeepRunning()) {
@@ -938,7 +989,7 @@ void BM_Time_FromDateTimeDay0_Libc(benchmark::State& state) {
     benchmark::DoNotOptimize(mktime(&tm));
   }
 }
-BENCHMARK(BM_Time_FromDateTimeDay0_Libc);
+BENCHMARK(BM_Time_FromCivilDay0_Libc);
 
 const char* const kFormats[] = {
     RFC1123_full,         // 0

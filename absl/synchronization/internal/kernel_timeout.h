@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,6 +53,7 @@ class KernelTimeout {
 
   // We explicitly do not support other custom formats: timespec, int64_t nanos.
   // Unify on this and absl::Time, please.
+
   bool has_timeout() const { return ns_ != 0; }
 
  private:
@@ -76,7 +77,7 @@ class KernelTimeout {
     if (x <= 0) x = 1;
     // A time larger than what can be represented to the kernel is treated
     // as no timeout.
-    if (x == std::numeric_limits<int64_t>::max()) x = 0;
+    if (x == (std::numeric_limits<int64_t>::max)()) x = 0;
     return x;
   }
 
@@ -90,7 +91,7 @@ class KernelTimeout {
           ERROR,
           "Tried to create a timespec from a non-timeout; never do this.");
       // But we'll try to continue sanely.  no-timeout ~= saturated timeout.
-      n = std::numeric_limits<int64_t>::max();
+      n = (std::numeric_limits<int64_t>::max)();
     }
 
     // Kernel APIs validate timespecs as being at or after the epoch,
@@ -100,8 +101,8 @@ class KernelTimeout {
     if (n < 0) n = 0;
 
     struct timespec abstime;
-    int64_t seconds = std::min(n / kNanosPerSecond,
-                             int64_t{std::numeric_limits<time_t>::max()});
+    int64_t seconds = (std::min)(n / kNanosPerSecond,
+                               int64_t{(std::numeric_limits<time_t>::max)()});
     abstime.tv_sec = static_cast<time_t>(seconds);
     abstime.tv_nsec =
         static_cast<decltype(abstime.tv_nsec)>(n % kNanosPerSecond);
@@ -119,7 +120,7 @@ class KernelTimeout {
   // <intsafe.h> and <WinBase.h>.
   typedef unsigned long DWord;  // NOLINT
   DWord InMillisecondsFromNow() const {
-    constexpr DWord kInfinite = std::numeric_limits<DWord>::max();
+    constexpr DWord kInfinite = (std::numeric_limits<DWord>::max)();
     if (!has_timeout()) {
       return kInfinite;
     }
@@ -130,7 +131,7 @@ class KernelTimeout {
     if (ns_ >= now) {
       // Round up so that Now() + ms_from_now >= ns_.
       constexpr uint64_t max_nanos =
-          std::numeric_limits<int64_t>::max() - 999999u;
+          (std::numeric_limits<int64_t>::max)() - 999999u;
       uint64_t ms_from_now =
           (std::min<uint64_t>(max_nanos, ns_ - now) + 999999u) / 1000000u;
       if (ms_from_now > kInfinite) {
@@ -148,4 +149,5 @@ class KernelTimeout {
 
 }  // namespace synchronization_internal
 }  // namespace absl
+
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_

@@ -5,19 +5,19 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
   name = "bazel_toolchains",
   urls = [
-    "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/287b64e0a211fb7c23b74695f8d5f5205b61f4eb.tar.gz",
-    "https://github.com/bazelbuild/bazel-toolchains/archive/287b64e0a211fb7c23b74695f8d5f5205b61f4eb.tar.gz",
+    "https://mirror.bazel.build/github.com/bazelbuild/bazel-toolchains/archive/bc09b995c137df042bb80a395b73d7ce6f26afbe.tar.gz",
+    "https://github.com/bazelbuild/bazel-toolchains/archive/bc09b995c137df042bb80a395b73d7ce6f26afbe.tar.gz",
   ],
-  strip_prefix = "bazel-toolchains-287b64e0a211fb7c23b74695f8d5f5205b61f4eb",
-  sha256 = "aca8ac6afd7745027ee4a43032b51a725a61a75a30f02cc58681ee87e4dcdf4b",
+  strip_prefix = "bazel-toolchains-bc09b995c137df042bb80a395b73d7ce6f26afbe",
+  sha256 = "4329663fe6c523425ad4d3c989a8ac026b04e1acedeceb56aa4b190fa7f3973c",
 )
 
 # GoogleTest/GoogleMock framework. Used by most unit-tests.
 http_archive(
      name = "com_google_googletest",
-     urls = ["https://github.com/google/googletest/archive/b4d4438df9479675a632b2f11125e57133822ece.zip"],  # 2018-07-16
-     strip_prefix = "googletest-b4d4438df9479675a632b2f11125e57133822ece",
-     sha256 = "5aaa5d566517cae711e2a3505ea9a6438be1b37fcaae0ebcb96ccba9aa56f23a",
+     urls = ["https://github.com/google/googletest/archive/b6cd405286ed8635ece71c72f118e659f4ade3fb.zip"],  # 2019-01-07
+     strip_prefix = "googletest-b6cd405286ed8635ece71c72f118e659f4ade3fb",
+     sha256 = "ff7a82736e158c077e76188232eac77913a15dac0b22508c390ab3f88e6d6d86",
 )
 
 # Google benchmark.

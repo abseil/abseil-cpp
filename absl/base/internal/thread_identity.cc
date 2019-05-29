@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -68,6 +68,14 @@ void SetCurrentThreadIdentity(
   // NOTE: Not async-safe.  But can be open-coded.
   absl::call_once(init_thread_identity_key_once, AllocateThreadIdentityKey,
                   reclaimer);
+
+#ifdef __EMSCRIPTEN__
+  // Emscripten PThread implementation does not support signals.
+  // See https://kripken.github.io/emscripten-site/docs/porting/pthreads.html
+  // for more information.
+  pthread_setspecific(thread_identity_pthread_key,
+                      reinterpret_cast<void*>(identity));
+#else
   // We must mask signals around the call to setspecific as with current glibc,
   // a concurrent getspecific (needed for GetCurrentThreadIdentityIfPresent())
   // may zero our value.
@@ -81,6 +89,8 @@ void SetCurrentThreadIdentity(
   pthread_setspecific(thread_identity_pthread_key,
                       reinterpret_cast<void*>(identity));
   pthread_sigmask(SIG_SETMASK, &curr_signals, nullptr);
+#endif  // !__EMSCRIPTEN__
+
 #elif ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_TLS
   // NOTE: Not async-safe.  But can be open-coded.
   absl::call_once(init_thread_identity_key_once, AllocateThreadIdentityKey,

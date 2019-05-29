@@ -15,6 +15,44 @@
 
 namespace absl {
 namespace str_format_internal {
+
+using CC = ConversionChar::Id;
+using LM = LengthMod::Id;
+ABSL_CONST_INIT const ConvTag kTags[256] = {
+    {},    {},    {},    {},    {},    {},    {},    {},     // 00-07
+    {},    {},    {},    {},    {},    {},    {},    {},     // 08-0f
+    {},    {},    {},    {},    {},    {},    {},    {},     // 10-17
+    {},    {},    {},    {},    {},    {},    {},    {},     // 18-1f
+    {},    {},    {},    {},    {},    {},    {},    {},     // 20-27
+    {},    {},    {},    {},    {},    {},    {},    {},     // 28-2f
+    {},    {},    {},    {},    {},    {},    {},    {},     // 30-37
+    {},    {},    {},    {},    {},    {},    {},    {},     // 38-3f
+    {},    CC::A, {},    CC::C, {},    CC::E, CC::F, CC::G,  // @ABCDEFG
+    {},    {},    {},    {},    LM::L, {},    {},    {},     // HIJKLMNO
+    {},    {},    {},    CC::S, {},    {},    {},    {},     // PQRSTUVW
+    CC::X, {},    {},    {},    {},    {},    {},    {},     // XYZ[\]^_
+    {},    CC::a, {},    CC::c, CC::d, CC::e, CC::f, CC::g,  // `abcdefg
+    LM::h, CC::i, LM::j, {},    LM::l, {},    CC::n, CC::o,  // hijklmno
+    CC::p, LM::q, {},    CC::s, LM::t, CC::u, {},    {},     // pqrstuvw
+    CC::x, {},    LM::z, {},    {},    {},    {},    {},     // xyz{|}!
+    {},    {},    {},    {},    {},    {},    {},    {},     // 80-87
+    {},    {},    {},    {},    {},    {},    {},    {},     // 88-8f
+    {},    {},    {},    {},    {},    {},    {},    {},     // 90-97
+    {},    {},    {},    {},    {},    {},    {},    {},     // 98-9f
+    {},    {},    {},    {},    {},    {},    {},    {},     // a0-a7
+    {},    {},    {},    {},    {},    {},    {},    {},     // a8-af
+    {},    {},    {},    {},    {},    {},    {},    {},     // b0-b7
+    {},    {},    {},    {},    {},    {},    {},    {},     // b8-bf
+    {},    {},    {},    {},    {},    {},    {},    {},     // c0-c7
+    {},    {},    {},    {},    {},    {},    {},    {},     // c8-cf
+    {},    {},    {},    {},    {},    {},    {},    {},     // d0-d7
+    {},    {},    {},    {},    {},    {},    {},    {},     // d8-df
+    {},    {},    {},    {},    {},    {},    {},    {},     // e0-e7
+    {},    {},    {},    {},    {},    {},    {},    {},     // e8-ef
+    {},    {},    {},    {},    {},    {},    {},    {},     // f0-f7
+    {},    {},    {},    {},    {},    {},    {},    {},     // f8-ff
+};
+
 namespace {
 
 bool CheckFastPathSetting(const UnboundConversion& conv) {
@@ -36,79 +74,45 @@ bool CheckFastPathSetting(const UnboundConversion& conv) {
   return should_be_basic == conv.flags.basic;
 }
 
-// Keep a single table for all the conversion chars and length modifiers.
-// We invert the length modifiers to make them negative so that we can easily
-// test for them.
-// Everything else is `none`, which is a negative constant.
-using CC = ConversionChar::Id;
-using LM = LengthMod::Id;
-static constexpr std::int8_t none = -128;
-static constexpr std::int8_t kIds[] = {
-    none,   none,   none,   none,  none,   none,  none,  none,   // 00-07
-    none,   none,   none,   none,  none,   none,  none,  none,   // 08-0f
-    none,   none,   none,   none,  none,   none,  none,  none,   // 10-17
-    none,   none,   none,   none,  none,   none,  none,  none,   // 18-1f
-    none,   none,   none,   none,  none,   none,  none,  none,   // 20-27
-    none,   none,   none,   none,  none,   none,  none,  none,   // 28-2f
-    none,   none,   none,   none,  none,   none,  none,  none,   // 30-37
-    none,   none,   none,   none,  none,   none,  none,  none,   // 38-3f
-    none,   CC::A,  none,   CC::C, none,   CC::E, CC::F, CC::G,  // @ABCDEFG
-    none,   none,   none,   none,  ~LM::L, none,  none,  none,   // HIJKLMNO
-    none,   none,   none,   CC::S, none,   none,  none,  none,   // PQRSTUVW
-    CC::X,  none,   none,   none,  none,   none,  none,  none,   // XYZ[\]^_
-    none,   CC::a,  none,   CC::c, CC::d,  CC::e, CC::f, CC::g,  // `abcdefg
-    ~LM::h, CC::i,  ~LM::j, none,  ~LM::l, none,  CC::n, CC::o,  // hijklmno
-    CC::p,  ~LM::q, none,   CC::s, ~LM::t, CC::u, none,  none,   // pqrstuvw
-    CC::x,  none,   ~LM::z, none,  none,   none,  none,  none,   // xyz{|}~!
-    none,   none,   none,   none,  none,   none,  none,  none,   // 80-87
-    none,   none,   none,   none,  none,   none,  none,  none,   // 88-8f
-    none,   none,   none,   none,  none,   none,  none,  none,   // 90-97
-    none,   none,   none,   none,  none,   none,  none,  none,   // 98-9f
-    none,   none,   none,   none,  none,   none,  none,  none,   // a0-a7
-    none,   none,   none,   none,  none,   none,  none,  none,   // a8-af
-    none,   none,   none,   none,  none,   none,  none,  none,   // b0-b7
-    none,   none,   none,   none,  none,   none,  none,  none,   // b8-bf
-    none,   none,   none,   none,  none,   none,  none,  none,   // c0-c7
-    none,   none,   none,   none,  none,   none,  none,  none,   // c8-cf
-    none,   none,   none,   none,  none,   none,  none,  none,   // d0-d7
-    none,   none,   none,   none,  none,   none,  none,  none,   // d8-df
-    none,   none,   none,   none,  none,   none,  none,  none,   // e0-e7
-    none,   none,   none,   none,  none,   none,  none,  none,   // e8-ef
-    none,   none,   none,   none,  none,   none,  none,  none,   // f0-f7
-    none,   none,   none,   none,  none,   none,  none,  none,   // f8-ff
-};
-
 template <bool is_positional>
-bool ConsumeConversion(string_view *src, UnboundConversion *conv,
-                       int *next_arg) {
-  const char *pos = src->begin();
-  const char *const end = src->end();
+const char *ConsumeConversion(const char *pos, const char *const end,
+                              UnboundConversion *conv, int *next_arg) {
+  const char* const original_pos = pos;
   char c;
-  // Read the next char into `c` and update `pos`. Reads '\0' if at end.
-  const auto get_char = [&] { c = pos == end ? '\0' : *pos++; };
+  // Read the next char into `c` and update `pos`. Returns false if there are
+  // no more chars to read.
+#define ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR()          \
+  do {                                                  \
+    if (ABSL_PREDICT_FALSE(pos == end)) return nullptr; \
+    c = *pos++;                                         \
+  } while (0)
 
   const auto parse_digits = [&] {
     int digits = c - '0';
-    // We do not want to overflow `digits` so we consume at most digits10-1
+    // We do not want to overflow `digits` so we consume at most digits10
     // digits. If there are more digits the parsing will fail later on when the
     // digit doesn't match the expected characters.
-    int num_digits = std::numeric_limits<int>::digits10 - 2;
-    for (get_char(); num_digits && std::isdigit(c); get_char()) {
+    int num_digits = std::numeric_limits<int>::digits10;
+    for (;;) {
+      if (ABSL_PREDICT_FALSE(pos == end)) break;
+      c = *pos++;
+      if (!std::isdigit(c)) break;
       --num_digits;
+      if (ABSL_PREDICT_FALSE(!num_digits)) break;
       digits = 10 * digits + c - '0';
     }
     return digits;
   };
 
   if (is_positional) {
-    get_char();
-    if (c < '1' || c > '9') return false;
+    ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
+    if (ABSL_PREDICT_FALSE(c < '1' || c > '9')) return nullptr;
     conv->arg_position = parse_digits();
     assert(conv->arg_position > 0);
-    if (c != '$') return false;
+    if (ABSL_PREDICT_FALSE(c != '$')) return nullptr;
   }
 
-  get_char();
+  ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
 
   // We should start with the basic flag on.
   assert(conv->flags.basic);
@@ -119,46 +123,52 @@ bool ConsumeConversion(string_view *src, UnboundConversion *conv,
   if (c < 'A') {
     conv->flags.basic = false;
 
-    for (; c <= '0'; get_char()) {
+    for (; c <= '0';) {
+      // FIXME: We might be able to speed this up reusing the lookup table from
+      // above. It might require changing Flags to be a plain integer where we
+      // can |= a value.
       switch (c) {
         case '-':
           conv->flags.left = true;
-          continue;
+          break;
         case '+':
           conv->flags.show_pos = true;
-          continue;
+          break;
         case ' ':
           conv->flags.sign_col = true;
-          continue;
+          break;
         case '#':
           conv->flags.alt = true;
-          continue;
+          break;
         case '0':
           conv->flags.zero = true;
-          continue;
+          break;
+        default:
+          goto flags_done;
       }
-      break;
+      ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
     }
+flags_done:
 
     if (c <= '9') {
       if (c >= '0') {
         int maybe_width = parse_digits();
         if (!is_positional && c == '$') {
-          if (*next_arg != 0) return false;
+          if (ABSL_PREDICT_FALSE(*next_arg != 0)) return nullptr;
           // Positional conversion.
           *next_arg = -1;
           conv->flags = Flags();
           conv->flags.basic = true;
-          return ConsumeConversion<true>(src, conv, next_arg);
+          return ConsumeConversion<true>(original_pos, end, conv, next_arg);
         }
         conv->width.set_value(maybe_width);
       } else if (c == '*') {
-        get_char();
+        ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
         if (is_positional) {
-          if (c < '1' || c > '9') return false;
+          if (ABSL_PREDICT_FALSE(c < '1' || c > '9')) return nullptr;
           conv->width.set_from_arg(parse_digits());
-          if (c != '$') return false;
-          get_char();
+          if (ABSL_PREDICT_FALSE(c != '$')) return nullptr;
+          ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
         } else {
           conv->width.set_from_arg(++*next_arg);
         }
@@ -166,16 +176,16 @@ bool ConsumeConversion(string_view *src, UnboundConversion *conv,
     }
 
     if (c == '.') {
-      get_char();
+      ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
       if (std::isdigit(c)) {
         conv->precision.set_value(parse_digits());
       } else if (c == '*') {
-        get_char();
+        ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
         if (is_positional) {
-          if (c < '1' || c > '9') return false;
+          if (ABSL_PREDICT_FALSE(c < '1' || c > '9')) return nullptr;
           conv->precision.set_from_arg(parse_digits());
-          if (c != '$') return false;
-          get_char();
+          if (c != '$') return nullptr;
+          ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
         } else {
           conv->precision.set_from_arg(++*next_arg);
         }
@@ -185,43 +195,42 @@ bool ConsumeConversion(string_view *src, UnboundConversion *conv,
     }
   }
 
-  std::int8_t id = kIds[static_cast<unsigned char>(c)];
+  auto tag = GetTagForChar(c);
 
-  if (id < 0) {
-    if (id == none) return false;
+  if (ABSL_PREDICT_FALSE(!tag.is_conv())) {
+    if (ABSL_PREDICT_FALSE(!tag.is_length())) return nullptr;
 
     // It is a length modifier.
     using str_format_internal::LengthMod;
-    LengthMod length_mod = LengthMod::FromId(static_cast<LM>(~id));
-    get_char();
+    LengthMod length_mod = tag.as_length();
+    ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
     if (c == 'h' && length_mod.id() == LengthMod::h) {
       conv->length_mod = LengthMod::FromId(LengthMod::hh);
-      get_char();
+      ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
     } else if (c == 'l' && length_mod.id() == LengthMod::l) {
       conv->length_mod = LengthMod::FromId(LengthMod::ll);
-      get_char();
+      ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
     } else {
       conv->length_mod = length_mod;
     }
-    id = kIds[static_cast<unsigned char>(c)];
-    if (id < 0) return false;
+    tag = GetTagForChar(c);
+    if (ABSL_PREDICT_FALSE(!tag.is_conv())) return nullptr;
   }
 
   assert(CheckFastPathSetting(*conv));
   (void)(&CheckFastPathSetting);
 
-  conv->conv = ConversionChar::FromId(static_cast<CC>(id));
+  conv->conv = tag.as_conv();
   if (!is_positional) conv->arg_position = ++*next_arg;
-  *src = string_view(pos, end - pos);
-  return true;
+  return pos;
 }
 
 }  // namespace
 
-bool ConsumeUnboundConversion(string_view *src, UnboundConversion *conv,
-                              int *next_arg) {
-  if (*next_arg < 0) return ConsumeConversion<true>(src, conv, next_arg);
-  return ConsumeConversion<false>(src, conv, next_arg);
+const char *ConsumeUnboundConversion(const char *p, const char *end,
+                                     UnboundConversion *conv, int *next_arg) {
+  if (*next_arg < 0) return ConsumeConversion<true>(p, end, conv, next_arg);
+  return ConsumeConversion<false>(p, end, conv, next_arg);
 }
 
 struct ParsedFormatBase::ParsedFormatConsumer {

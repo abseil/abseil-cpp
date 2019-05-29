@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,7 +27,6 @@
 // frequency and should not be treated as such. That is, `CycleClock` cycles are
 // not necessarily "CPU cycles" and code should not rely on that behavior, even
 // if experimentally observed.
-//
 //
 // An arbitrary offset may have been added to the counter at power on.
 //
@@ -69,6 +68,20 @@ class CycleClock {
   CycleClock() = delete;  // no instances
   CycleClock(const CycleClock&) = delete;
   CycleClock& operator=(const CycleClock&) = delete;
+};
+
+using CycleClockSourceFunc = int64_t (*)();
+
+class CycleClockSource {
+ private:
+  // CycleClockSource::Register()
+  //
+  // Register a function that provides an alternate source for the unscaled CPU
+  // cycle count value. The source function must be async signal safe, must not
+  // call CycleClock::Now(), and must have a frequency that matches that of the
+  // unscaled clock used by CycleClock. A nullptr value resets CycleClock to use
+  // the default source.
+  static void Register(CycleClockSourceFunc source);
 };
 
 }  // namespace base_internal

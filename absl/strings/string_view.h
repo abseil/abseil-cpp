@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 //
 // This file contains the definition of the `absl::string_view` class. A
 // `string_view` points to a contiguous span of characters, often part or all of
-// another `std::string`, double-quoted std::string literal, character array, or even
+// another `std::string`, double-quoted string literal, character array, or even
 // another `string_view`.
 //
 // This `absl::string_view` abstraction is designed to be a drop-in
@@ -32,7 +32,7 @@
 
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 
-#include <string_view>
+#include <string_view>  // IWYU pragma: export
 
 namespace absl {
 using std::string_view;
@@ -56,15 +56,15 @@ namespace absl {
 
 // absl::string_view
 //
-// A `string_view` provides a lightweight view into the std::string data provided by
-// a `std::string`, double-quoted std::string literal, character array, or even
-// another `string_view`. A `string_view` does *not* own the std::string to which it
+// A `string_view` provides a lightweight view into the string data provided by
+// a `std::string`, double-quoted string literal, character array, or even
+// another `string_view`. A `string_view` does *not* own the string to which it
 // points, and that data cannot be modified through the view.
 //
 // You can use `string_view` as a function or method parameter anywhere a
-// parameter can receive a double-quoted std::string literal, `const char*`,
+// parameter can receive a double-quoted string literal, `const char*`,
 // `std::string`, or another `absl::string_view` argument with no need to copy
-// the std::string data. Systematic use of `string_view` within function arguments
+// the string data. Systematic use of `string_view` within function arguments
 // reduces data copies and `strlen()` calls.
 //
 // Because of its small size, prefer passing `string_view` by value:
@@ -97,10 +97,9 @@ namespace absl {
 // `string_view` this way, it is your responsibility to ensure that the object
 // pointed to by the `string_view` outlives the `string_view`.
 //
-// A `string_view` may represent a whole std::string or just part of a std::string. For
-// example, when splitting a std::string, `std::vector<absl::string_view>` is a
+// A `string_view` may represent a whole string or just part of a string. For
+// example, when splitting a string, `std::vector<absl::string_view>` is a
 // natural data type for the output.
-//
 //
 // When constructed from a source which is nul-terminated, the `string_view`
 // itself will not include the nul-terminator unless a specific size (including
@@ -173,8 +172,19 @@ class string_view {
   // Implicit constructor of a `string_view` from nul-terminated `str`. When
   // accepting possibly null strings, use `absl::NullSafeStringView(str)`
   // instead (see below).
+#if ABSL_HAVE_BUILTIN(__builtin_strlen) || \
+    (defined(__GNUC__) && !defined(__clang__))
+  // GCC has __builtin_strlen according to
+  // https://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Other-Builtins.html, but
+  // ABSL_HAVE_BUILTIN doesn't detect that, so we use the extra checks above.
+  // __builtin_strlen is constexpr.
   constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
-      : ptr_(str), length_(CheckLengthInternal(StrLenInternal(str))) {}
+      : ptr_(str),
+        length_(CheckLengthInternal(str ? __builtin_strlen(str) : 0)) {}
+#else
+  constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
+      : ptr_(str), length_(CheckLengthInternal(str ? strlen(str) : 0)) {}
+#endif
 
   // Implicit constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(const char* data, size_type len)
@@ -266,7 +276,7 @@ class string_view {
   // Checks if the `string_view` is empty (refers to no characters).
   constexpr bool empty() const noexcept { return length_ == 0; }
 
-  // std::string:view::operator[]
+  // string_view::operator[]
   //
   // Returns the ith element of an `string_view` using the array operator.
   // Note that this operator does not perform any bounds checking.
@@ -344,7 +354,7 @@ class string_view {
   string_view substr(size_type pos, size_type n = npos) const {
     if (ABSL_PREDICT_FALSE(pos > length_))
       base_internal::ThrowStdOutOfRange("absl::string_view::substr");
-    n = std::min(n, length_ - pos);
+    n = (std::min)(n, length_ - pos);
     return string_view(ptr_ + pos, n);
   }
 
@@ -357,7 +367,7 @@ class string_view {
   // on the respective sizes of the two `string_view`s to determine which is
   // smaller, equal, or greater.
   int compare(string_view x) const noexcept {
-    auto min_length = std::min(length_, x.length_);
+    auto min_length = (std::min)(length_, x.length_);
     if (min_length > 0) {
       int r = memcmp(ptr_, x.ptr_, min_length);
       if (r < 0) return -1;
@@ -479,23 +489,7 @@ class string_view {
 
  private:
   static constexpr size_type kMaxSize =
-      std::numeric_limits<difference_type>::max();
-
-  // check whether __builtin_strlen is provided by the compiler.
-  // GCC doesn't have __has_builtin()
-  // (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66970),
-  // but has __builtin_strlen according to
-  // https://gcc.gnu.org/onlinedocs/gcc-4.7.0/gcc/Other-Builtins.html.
-#if ABSL_HAVE_BUILTIN(__builtin_strlen) || \
-    (defined(__GNUC__) && !defined(__clang__))
-  static constexpr size_type StrLenInternal(const char* str) {
-    return str ? __builtin_strlen(str) : 0;
-  }
-#else
-  static constexpr size_type StrLenInternal(const char* str) {
-    return str ? strlen(str) : 0;
-  }
-#endif
+      (std::numeric_limits<difference_type>::max)();
 
   static constexpr size_type CheckLengthInternal(size_type len) {
     return ABSL_ASSERT(len <= kMaxSize), len;
@@ -513,6 +507,7 @@ inline bool operator==(string_view x, string_view y) noexcept {
   if (len != y.size()) {
     return false;
   }
+
   return x.data() == y.data() || len <= 0 ||
          memcmp(x.data(), y.data(), len) == 0;
 }
@@ -522,7 +517,7 @@ inline bool operator!=(string_view x, string_view y) noexcept {
 }
 
 inline bool operator<(string_view x, string_view y) noexcept {
-  auto min_size = std::min(x.size(), y.size());
+  auto min_size = (std::min)(x.size(), y.size());
   const int r = min_size == 0 ? 0 : memcmp(x.data(), y.data(), min_size);
   return (r < 0) || (r == 0 && x.size() < y.size());
 }
@@ -552,7 +547,7 @@ namespace absl {
 // Provided because std::string_view::substr throws if `pos > size()`
 inline string_view ClippedSubstr(string_view s, size_t pos,
                                  size_t n = string_view::npos) {
-  pos = std::min(pos, static_cast<size_t>(s.size()));
+  pos = (std::min)(pos, static_cast<size_t>(s.size()));
   return s.substr(pos, n);
 }
 

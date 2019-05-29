@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -78,9 +78,9 @@ AlphaNum::AlphaNum(Dec dec) {
 
 // ----------------------------------------------------------------------
 // StrCat()
-//    This merges the given strings or integers, with no delimiter.  This
-//    is designed to be the fastest possible way to construct a std::string out
-//    of a mix of raw C strings, StringPieces, strings, and integer values.
+//    This merges the given strings or integers, with no delimiter. This
+//    is designed to be the fastest possible way to construct a string out
+//    of a mix of raw C strings, string_views, strings, and integer values.
 // ----------------------------------------------------------------------
 
 // Append is merely a version of memcpy that returns the address of the byte
@@ -89,7 +89,9 @@ static char* Append(char* out, const AlphaNum& x) {
   // memcpy is allowed to overwrite arbitrary memory, so doing this after the
   // call would force an extra fetch of x.size().
   char* after = out + x.size();
-  memcpy(out, x.data(), x.size());
+  if (x.size() != 0) {
+    memcpy(out, x.data(), x.size());
+  }
   return after;
 }
 
@@ -119,7 +121,7 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c) {
 }
 
 std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c,
-              const AlphaNum& d) {
+                   const AlphaNum& d) {
   std::string result;
   strings_internal::STLStringResizeUninitialized(
       &result, a.size() + b.size() + c.size() + d.size());
@@ -146,18 +148,20 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
   char* out = begin;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
-    memcpy(out, piece.data(), this_size);
-    out += this_size;
+    if (this_size != 0) {
+      memcpy(out, piece.data(), this_size);
+      out += this_size;
+    }
   }
   assert(out == begin + result.size());
   return result;
 }
 
 // It's possible to call StrAppend with an absl::string_view that is itself a
-// fragment of the std::string we're appending to.  However the results of this are
+// fragment of the string we're appending to.  However the results of this are
 // random. Therefore, check for this in debug mode.  Use unsigned math so we
 // only have to do one comparison. Note, there's an exception case: appending an
-// empty std::string is always allowed.
+// empty string is always allowed.
 #define ASSERT_NO_OVERLAP(dest, src) \
   assert(((src).size() == 0) ||      \
          (uintptr_t((src).data() - (dest).data()) > uintptr_t((dest).size())))
@@ -176,8 +180,10 @@ void AppendPieces(std::string* dest,
   char* out = begin + old_size;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
-    memcpy(out, piece.data(), this_size);
-    out += this_size;
+    if (this_size != 0) {
+      memcpy(out, piece.data(), this_size);
+      out += this_size;
+    }
   }
   assert(out == begin + dest->size());
 }

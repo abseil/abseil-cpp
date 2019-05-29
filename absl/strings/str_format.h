@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,20 +18,21 @@
 // -----------------------------------------------------------------------------
 //
 // The `str_format` library is a typesafe replacement for the family of
-// `printf()` std::string formatting routines within the `<cstdio>` standard library
+// `printf()` string formatting routines within the `<cstdio>` standard library
 // header. Like the `printf` family, the `str_format` uses a "format string" to
 // perform argument substitutions based on types.
 //
 // Example:
 //
-//   std::string s = absl::StrFormat("%s %s You have $%d!", "Hello", name, dollars);
+//   std::string s = absl::StrFormat(
+//                      "%s %s You have $%d!", "Hello", name, dollars);
 //
 // The library consists of the following basic utilities:
 //
 //   * `absl::StrFormat()`, a type-safe replacement for `std::sprintf()`, to
-//     write a format std::string to a `string` value.
-//   * `absl::StrAppendFormat()` to append a format std::string to a `string`
-//   * `absl::StreamFormat()` to more efficiently write a format std::string to a
+//     write a format string to a `string` value.
+//   * `absl::StrAppendFormat()` to append a format string to a `string`
+//   * `absl::StreamFormat()` to more efficiently write a format string to a
 //     stream, such as`std::cout`.
 //   * `absl::PrintF()`, `absl::FPrintF()` and `absl::SNPrintF()` as
 //     replacements for `std::printf()`, `std::fprintf()` and `std::snprintf()`.
@@ -39,17 +40,17 @@
 //     Note: a version of `std::sprintf()` is not supported as it is
 //     generally unsafe due to buffer overflows.
 //
-// Additionally, you can provide a format std::string (and its associated arguments)
+// Additionally, you can provide a format string (and its associated arguments)
 // using one of the following abstractions:
 //
-//   * A `FormatSpec` class template fully encapsulates a format std::string and its
+//   * A `FormatSpec` class template fully encapsulates a format string and its
 //     type arguments and is usually provided to `str_format` functions as a
 //     variadic argument of type `FormatSpec<Arg...>`. The `FormatSpec<Args...>`
 //     template is evaluated at compile-time, providing type safety.
 //   * A `ParsedFormat` instance, which encapsulates a specific, pre-compiled
-//     format std::string for a specific set of type(s), and which can be passed
+//     format string for a specific set of type(s), and which can be passed
 //     between API boundaries. (The `FormatSpec` type should not be used
-//     directly.)
+//     directly except as an argument type for wrapper functions.)
 //
 // The `str_format` library provides the ability to output its format strings to
 // arbitrary sink types:
@@ -60,7 +61,7 @@
 //
 //   * A `FormatUntyped()` function that is similar to `Format()` except it is
 //     loosely typed. `FormatUntyped()` is not a template and does not perform
-//     any compile-time checking of the format std::string; instead, it returns a
+//     any compile-time checking of the format string; instead, it returns a
 //     boolean from a runtime check.
 //
 // In addition, the `str_format` library provides extension points for
@@ -136,7 +137,7 @@ str_format_internal::StreamedWrapper<T> FormatStreamed(const T& v) {
 //
 //   int n = 0;
 //   std::string s = absl::StrFormat("%s%d%n", "hello", 123,
-//                   absl::FormatCountCapture(&n));
+//                       absl::FormatCountCapture(&n));
 //   EXPECT_EQ(8, n);
 class FormatCountCapture {
  public:
@@ -155,23 +156,28 @@ class FormatCountCapture {
 
 // FormatSpec
 //
-// The `FormatSpec` type defines the makeup of a format std::string within the
-// `str_format` library. You should not need to use or manipulate this type
-// directly. A `FormatSpec` is a variadic class template that is evaluated at
-// compile-time, according to the format std::string and arguments that are passed
-// to it.
+// The `FormatSpec` type defines the makeup of a format string within the
+// `str_format` library. It is a variadic class template that is evaluated at
+// compile-time, according to the format string and arguments that are passed to
+// it.
+//
+// You should not need to manipulate this type directly. You should only name it
+// if you are writing wrapper functions which accept format arguments that will
+// be provided unmodified to functions in this library. Such a wrapper function
+// might be a class method that provides format arguments and/or internally uses
+// the result of formatting.
 //
 // For a `FormatSpec` to be valid at compile-time, it must be provided as
 // either:
 //
 // * A `constexpr` literal or `absl::string_view`, which is how it most often
 //   used.
-// * A `ParsedFormat` instantiation, which ensures the format std::string is
+// * A `ParsedFormat` instantiation, which ensures the format string is
 //   valid before use. (See below.)
 //
 // Example:
 //
-//   // Provided as a std::string literal.
+//   // Provided as a string literal.
 //   absl::StrFormat("Welcome to %s, Number %d!", "The Village", 6);
 //
 //   // Provided as a constexpr absl::string_view.
@@ -183,10 +189,10 @@ class FormatCountCapture {
 //   absl::ParsedFormat<'s', 'd'> formatString("Welcome to %s, Number %d!");
 //   absl::StrFormat(formatString, "TheVillage", 6);
 //
-// A format std::string generally follows the POSIX syntax as used within the POSIX
+// A format string generally follows the POSIX syntax as used within the POSIX
 // `printf` specification.
 //
-// (See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/printf.html.)
+// (See http://pubs.opengroup.org/onlinepubs/9699919799/functions/fprintf.html.)
 //
 // In specific, the `FormatSpec` supports the following type specifiers:
 //   * `c` for characters
@@ -236,7 +242,7 @@ class FormatCountCapture {
 //
 // However, in the `str_format` library, a format conversion specifies a broader
 // C++ conceptual category instead of an exact type. For example, `%s` binds to
-// any std::string-like argument, so `std::string`, `absl::string_view`, and
+// any string-like argument, so `std::string`, `absl::string_view`, and
 // `const char*` are all accepted. Likewise, `%d` accepts any integer-like
 // argument, etc.
 
@@ -248,7 +254,7 @@ using FormatSpec =
 //
 // A `ParsedFormat` is a class template representing a preparsed `FormatSpec`,
 // with template arguments specifying the conversion characters used within the
-// format std::string. Such characters must be valid format type specifiers, and
+// format string. Such characters must be valid format type specifiers, and
 // these type specifiers are checked at compile-time.
 //
 // Instances of `ParsedFormat` can be created, copied, and reused to speed up
@@ -275,18 +281,18 @@ using ParsedFormat = str_format_internal::ExtendedParsedFormat<
 
 // StrFormat()
 //
-// Returns a `string` given a `printf()`-style format std::string and zero or more
+// Returns a `string` given a `printf()`-style format string and zero or more
 // additional arguments. Use it as you would `sprintf()`. `StrFormat()` is the
 // primary formatting function within the `str_format` library, and should be
 // used in most cases where you need type-safe conversion of types into
 // formatted strings.
 //
-// The format std::string generally consists of ordinary character data along with
+// The format string generally consists of ordinary character data along with
 // one or more format conversion specifiers (denoted by the `%` character).
-// Ordinary character data is returned unchanged into the result std::string, while
+// Ordinary character data is returned unchanged into the result string, while
 // each conversion specification performs a type substitution from
 // `StrFormat()`'s other arguments. See the comments for `FormatSpec` for full
-// information on the makeup of this format std::string.
+// information on the makeup of this format string.
 //
 // Example:
 //
@@ -294,10 +300,10 @@ using ParsedFormat = str_format_internal::ExtendedParsedFormat<
 //       "Welcome to %s, Number %d!", "The Village", 6);
 //   EXPECT_EQ("Welcome to The Village, Number 6!", s);
 //
-// Returns an empty std::string in case of error.
+// Returns an empty string in case of error.
 template <typename... Args>
 ABSL_MUST_USE_RESULT std::string StrFormat(const FormatSpec<Args...>& format,
-                                      const Args&... args) {
+                                           const Args&... args) {
   return str_format_internal::FormatPack(
       str_format_internal::UntypedFormatSpecImpl::Extract(format),
       {str_format_internal::FormatArgImpl(args)...});
@@ -305,7 +311,7 @@ ABSL_MUST_USE_RESULT std::string StrFormat(const FormatSpec<Args...>& format,
 
 // StrAppendFormat()
 //
-// Appends to a `dst` std::string given a format std::string, and zero or more additional
+// Appends to a `dst` string given a format string, and zero or more additional
 // arguments, returning `*dst` as a convenience for chaining purposes. Appends
 // nothing in case of error (but possibly alters its capacity).
 //
@@ -314,8 +320,9 @@ ABSL_MUST_USE_RESULT std::string StrFormat(const FormatSpec<Args...>& format,
 //   std::string orig("For example PI is approximately ");
 //   std::cout << StrAppendFormat(&orig, "%12.6f", 3.14);
 template <typename... Args>
-std::string& StrAppendFormat(std::string* dst, const FormatSpec<Args...>& format,
-                        const Args&... args) {
+std::string& StrAppendFormat(std::string* dst,
+                             const FormatSpec<Args...>& format,
+                             const Args&... args) {
   return str_format_internal::AppendPack(
       dst, str_format_internal::UntypedFormatSpecImpl::Extract(format),
       {str_format_internal::FormatArgImpl(args)...});
@@ -323,7 +330,7 @@ std::string& StrAppendFormat(std::string* dst, const FormatSpec<Args...>& format
 
 // StreamFormat()
 //
-// Writes to an output stream given a format std::string and zero or more arguments,
+// Writes to an output stream given a format string and zero or more arguments,
 // generally in a manner that is more efficient than streaming the result of
 // `absl:: StrFormat()`. The returned object must be streamed before the full
 // expression ends.
@@ -341,7 +348,7 @@ ABSL_MUST_USE_RESULT str_format_internal::Streamable StreamFormat(
 
 // PrintF()
 //
-// Writes to stdout given a format std::string and zero or more arguments. This
+// Writes to stdout given a format string and zero or more arguments. This
 // function is functionally equivalent to `std::printf()` (and type-safe);
 // prefer `absl::PrintF()` over `std::printf()`.
 //
@@ -361,7 +368,7 @@ int PrintF(const FormatSpec<Args...>& format, const Args&... args) {
 
 // FPrintF()
 //
-// Writes to a file given a format std::string and zero or more arguments. This
+// Writes to a file given a format string and zero or more arguments. This
 // function is functionally equivalent to `std::fprintf()` (and type-safe);
 // prefer `absl::FPrintF()` over `std::fprintf()`.
 //
@@ -382,7 +389,7 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 
 // SNPrintF()
 //
-// Writes to a sized buffer given a format std::string and zero or more arguments.
+// Writes to a sized buffer given a format string and zero or more arguments.
 // This function is functionally equivalent to `std::snprintf()` (and
 // type-safe); prefer `absl::SNPrintF()` over `std::snprintf()`.
 //
@@ -430,14 +437,15 @@ class FormatRawSink {
 
 // Format()
 //
-// Writes a formatted std::string to an arbitrary sink object (implementing the
-// `absl::FormatRawSink` interface), using a format std::string and zero or more
+// Writes a formatted string to an arbitrary sink object (implementing the
+// `absl::FormatRawSink` interface), using a format string and zero or more
 // additional arguments.
 //
-// By default, `string` and `std::ostream` are supported as destination objects.
+// By default, `std::string` and `std::ostream` are supported as destination
+// objects.
 //
 // `absl::Format()` is a generic version of `absl::StrFormat(), for custom
-// sinks. The format std::string, like format strings for `StrFormat()`, is checked
+// sinks. The format string, like format strings for `StrFormat()`, is checked
 // at compile-time.
 //
 // On failure, this function returns `false` and the state of the sink is
@@ -463,13 +471,13 @@ using FormatArg = str_format_internal::FormatArgImpl;
 
 // FormatUntyped()
 //
-// Writes a formatted std::string to an arbitrary sink object (implementing the
+// Writes a formatted string to an arbitrary sink object (implementing the
 // `absl::FormatRawSink` interface), using an `UntypedFormatSpec` and zero or
 // more additional arguments.
 //
 // This function acts as the most generic formatting function in the
 // `str_format` library. The caller provides a raw sink, an unchecked format
-// std::string, and (usually) a runtime specified list of arguments; no compile-time
+// string, and (usually) a runtime specified list of arguments; no compile-time
 // checking of formatting is performed within this function. As a result, a
 // caller should check the return value to verify that no error occurred.
 // On failure, this function returns `false` and the state of the sink is
@@ -483,8 +491,9 @@ using FormatArg = str_format_internal::FormatArgImpl;
 //
 // Example:
 //
-//   std::optional<std::string> FormatDynamic(const std::string& in_format,
-//                                       const vector<std::string>& in_args) {
+//   std::optional<std::string> FormatDynamic(
+//       const std::string& in_format,
+//       const vector<std::string>& in_args) {
 //     std::string out;
 //     std::vector<absl::FormatArg> args;
 //     for (const auto& v : in_args) {
@@ -509,4 +518,5 @@ ABSL_MUST_USE_RESULT inline bool FormatUntyped(
 }
 
 }  // namespace absl
+
 #endif  // ABSL_STRINGS_STR_FORMAT_H_

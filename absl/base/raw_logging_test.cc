@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -40,7 +40,7 @@ TEST(RawLoggingCompilationTest, PassingCheck) {
 }
 
 // Not all platforms support output from raw log, so we don't verify any
-// particular output for RAW check failures (expecting the empty std::string
+// particular output for RAW check failures (expecting the empty string
 // accomplishes this).  This test is primarily a compilation test, but we
 // are verifying process death when EXPECT_DEATH works for a platform.
 const char kExpectedDeathOutput[] = "";

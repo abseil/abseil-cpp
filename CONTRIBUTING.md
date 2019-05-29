@@ -18,6 +18,53 @@ You generally only need to submit a CLA once, so if you've already submitted one
 (even if it was for a different project), you probably don't need to do it
 again.
 
+## Contribution Guidelines
+
+Potential contributors sometimes ask us if the Abseil project is the appropriate
+home for their utility library code or for specific functions implementing
+missing portions of the standard. Often, the answer to this question is "no".
+We’d like to articulate our thinking on this issue so that our choices can be
+understood by everyone and so that contributors can have a better intuition
+about whether Abseil might be interested in adopting a new library.
+
+### Priorities
+
+Although our mission is to augment the C++ standard library, our goal is not to
+provide a full forward-compatible implementation of the latest standard. For us
+to consider a library for inclusion in Abseil, it is not enough that a library
+is useful. We generally choose to release a library when it meets at least one
+of the following criteria:
+
+*   **Widespread usage** - Using our internal codebase to help gauge usage, most
+    of the libraries we've released have tens of thousands of users.
+*   **Anticipated widespread usage** - Pre-adoption of some standard-compliant
+    APIs may not have broad adoption initially but can be expected to pick up
+    usage when it replaces legacy APIs. `absl::from_chars`, for example,
+    replaces existing code that converts strings to numbers and will therefore
+    likely see usage growth.
+*   **High impact** - APIs that provide a key solution to a specific problem,
+    such as `absl::FixedArray`, have higher impact than usage numbers may signal
+    and are released because of their importance.
+*   **Direct support for a library that falls under one of the above** - When we
+    want access to a smaller library as an implementation detail for a
+    higher-priority library we plan to release, we may release it, as we did
+    with portions of `absl/meta/type_traits.h`. One consequence of this is that
+    the presence of a library in Abseil does not necessarily mean that other
+    similar libraries would be a high priority.
+
+### API Freeze Consequences
+
+Via the
+[Abseil Compatibility Guidelines](https://abseil.io/about/compatibility), we
+have promised a large degree of API stability. In particular, we will not make
+backward-incompatible changes to released APIs without also shipping a tool or
+process that can upgrade our users' code. We are not yet at the point of easily
+releasing such tools. Therefore, at this time, shipping a library establishes an
+API contract which is borderline unchangeable. (We can add new functionality,
+but we cannot easily change existing behavior.) This constraint forces us to
+very carefully review all APIs that we ship.
+
+
 ## Coding Style
 
 To keep the source consistent, readable, diffable and easy to merge, we use a

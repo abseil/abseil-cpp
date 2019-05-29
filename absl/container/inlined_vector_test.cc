@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,12 +30,15 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/container/internal/counting_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
 
+using absl::container_internal::CountingAllocator;
 using absl::test_internal::CopyableMovableInstance;
 using absl::test_internal::CopyableOnlyInstance;
 using absl::test_internal::InstanceTracker;
@@ -67,7 +70,7 @@ MATCHER_P(ValueIs, e, "") {
 // test_instance_tracker.h.
 template <typename T>
 class InstanceTest : public ::testing::Test {};
-TYPED_TEST_CASE_P(InstanceTest);
+TYPED_TEST_SUITE_P(InstanceTest);
 
 // A simple reference counted class to make sure that the proper elements are
 // destroyed in the erase(begin, end) test.
@@ -136,57 +139,6 @@ static IntVec Fill(int len, int offset = 0) {
   Fill(&v, len, offset);
   return v;
 }
-
-// This is a stateful allocator, but the state lives outside of the
-// allocator (in whatever test is using the allocator). This is odd
-// but helps in tests where the allocator is propagated into nested
-// containers - that chain of allocators uses the same state and is
-// thus easier to query for aggregate allocation information.
-template <typename T>
-class CountingAllocator : public std::allocator<T> {
- public:
-  using Alloc = std::allocator<T>;
-  using pointer = typename Alloc::pointer;
-  using size_type = typename Alloc::size_type;
-
-  CountingAllocator() : bytes_used_(nullptr) {}
-  explicit CountingAllocator(int64_t* b) : bytes_used_(b) {}
-
-  template <typename U>
-  CountingAllocator(const CountingAllocator<U>& x)
-      : Alloc(x), bytes_used_(x.bytes_used_) {}
-
-  pointer allocate(size_type n,
-                   std::allocator<void>::const_pointer hint = nullptr) {
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ += n * sizeof(T);
-    return Alloc::allocate(n, hint);
-  }
-
-  void deallocate(pointer p, size_type n) {
-    Alloc::deallocate(p, n);
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ -= n * sizeof(T);
-  }
-
-  template<typename U>
-  class rebind {
-   public:
-    using other = CountingAllocator<U>;
-  };
-
-  friend bool operator==(const CountingAllocator& a,
-                         const CountingAllocator& b) {
-    return a.bytes_used_ == b.bytes_used_;
-  }
-
-  friend bool operator!=(const CountingAllocator& a,
-                         const CountingAllocator& b) {
-    return !(a == b);
-  }
-
-  int64_t* bytes_used_;
-};
 
 TEST(IntVec, SimpleOps) {
   for (int len = 0; len < 20; len++) {
@@ -905,6 +857,8 @@ TYPED_TEST_P(InstanceTest, Swap) {
       InstanceTracker tracker;
       InstanceVec a, b;
       const size_t inlined_capacity = a.capacity();
+      auto min_len = std::min(l1, l2);
+      auto max_len = std::max(l1, l2);
       for (int i = 0; i < l1; i++) a.push_back(Instance(i));
       for (int i = 0; i < l2; i++) b.push_back(Instance(100+i));
       EXPECT_EQ(tracker.instances(), l1 + l2);
@@ -918,15 +872,15 @@ TYPED_TEST_P(InstanceTest, Swap) {
         EXPECT_EQ(tracker.swaps(), 0);  // Allocations are swapped.
         EXPECT_EQ(tracker.moves(), 0);
       } else if (a.size() <= inlined_capacity && b.size() <= inlined_capacity) {
-        EXPECT_EQ(tracker.swaps(), std::min(l1, l2));
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::max(l1, l2) - std::min(l1, l2));
+        EXPECT_EQ(tracker.swaps(), min_len);
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  max_len - min_len);
       } else {
         // One is allocated and the other isn't. The allocation is transferred
         // without copying elements, and the inlined instances are copied/moved.
         EXPECT_EQ(tracker.swaps(), 0);
-        // TODO(bsamwel): This should use moves when the type is movable.
-        EXPECT_EQ(tracker.copies(), std::min(l1, l2));
+        EXPECT_EQ((tracker.moves() ? tracker.moves() : tracker.copies()),
+                  min_len);
       }
 
       EXPECT_EQ(l1, b.size());
@@ -1725,39 +1679,58 @@ TEST(AllocatorSupportTest, ScopedAllocatorWorks) {
       std::scoped_allocator_adaptor<CountingAllocator<StdVector>>;
   using AllocVec = absl::InlinedVector<StdVector, 4, MyAlloc>;
 
+  // MSVC 2017's std::vector allocates different amounts of memory in debug
+  // versus opt mode.
+  int64_t test_allocated = 0;
+  StdVector v(CountingAllocator<int>{&test_allocated});
+  // The amount of memory allocated by a default constructed vector<int>
+  auto default_std_vec_allocated = test_allocated;
+  v.push_back(1);
+  // The amound of memory allocated by a copy-constructed vector<int> with one
+  // element.
+  int64_t one_element_std_vec_copy_allocated = test_allocated;
+
   int64_t allocated = 0;
   AllocVec vec(MyAlloc{CountingAllocator<StdVector>{&allocated}});
   EXPECT_EQ(allocated, 0);
 
   // This default constructs a vector<int>, but the allocator should pass itself
-  // into the vector<int>.
+  // into the vector<int>, so check allocation compared to that.
   // The absl::InlinedVector does not allocate any memory.
-  // The vector<int> does not allocate any memory.
+  // The vector<int> may allocate any memory.
+  auto expected = default_std_vec_allocated;
   vec.resize(1);
-  EXPECT_EQ(allocated, 0);
+  EXPECT_EQ(allocated, expected);
 
   // We make vector<int> allocate memory.
   // It must go through the allocator even though we didn't construct the
-  // vector directly.
+  // vector directly.  This assumes that vec[0] doesn't need to grow its
+  // allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 1);
+  EXPECT_EQ(allocated, expected);
 
   // Another allocating vector.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 2);
+  EXPECT_EQ(allocated, expected);
 
   // Overflow the inlined memory.
   // The absl::InlinedVector will now allocate.
+  expected += sizeof(StdVector) * 8 + default_std_vec_allocated * 3;
   vec.resize(5);
-  EXPECT_EQ(allocated, sizeof(int) * 2 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   // Adding one more in external mode should also work.
+  expected += one_element_std_vec_copy_allocated;
   vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, sizeof(int) * 3 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
-  // And extending these should still work.
+  // And extending these should still work.  This assumes that vec[0] does not
+  // need to grow its allocation.
+  expected += sizeof(int);
   vec[0].push_back(1);
-  EXPECT_EQ(allocated, sizeof(int) * 4 + sizeof(StdVector) * 8);
+  EXPECT_EQ(allocated, expected);
 
   vec.clear();
   EXPECT_EQ(allocated, 0);
@@ -1788,4 +1761,24 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
     EXPECT_THAT(v, AllOf(SizeIs(len), Each(0)));
   }
 }
+
+TEST(InlinedVectorTest, AbslHashValueWorks) {
+  using V = absl::InlinedVector<int, 4>;
+  std::vector<V> cases;
+
+  // Generate a variety of vectors some of these are small enough for the inline
+  // space but are stored out of line.
+  for (int i = 0; i < 10; ++i) {
+    V v;
+    for (int j = 0; j < i; ++j) {
+      v.push_back(j);
+    }
+    cases.push_back(v);
+    v.resize(i % 4);
+    cases.push_back(v);
+  }
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(cases));
+}
+
 }  // anonymous namespace

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 
@@ -25,7 +27,8 @@ namespace absl {
 namespace {
 
 absl::once_flag once;
-Mutex counters_mu;
+
+ABSL_CONST_INIT Mutex counters_mu(absl::kConstInit);
 
 int running_thread_count GUARDED_BY(counters_mu) = 0;
 int call_once_invoke_count GUARDED_BY(counters_mu) = 0;

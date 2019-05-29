@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -69,10 +69,10 @@ class FILERawSink {
 
 // Provide RawSink integration with common types from the STL.
 inline void AbslFormatFlush(std::string* out, string_view s) {
-  out->append(s.begin(), s.size());
+  out->append(s.data(), s.size());
 }
 inline void AbslFormatFlush(std::ostream* out, string_view s) {
-  out->write(s.begin(), s.size());
+  out->write(s.data(), s.size());
 }
 
 template <class AbslCord, typename = typename std::enable_if<

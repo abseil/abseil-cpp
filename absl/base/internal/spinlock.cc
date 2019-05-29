@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -95,13 +95,9 @@ void SpinLock::InitLinkerInitializedAndCooperative() {
 }
 
 // Monitor the lock to see if its value changes within some time period
-// (adaptive_spin_count loop iterations).  A timestamp indicating
-// when the thread initially started waiting for the lock is passed in via
-// the initial_wait_timestamp value.  The total wait time in cycles for the
-// lock is returned in the wait_cycles parameter.  The last value read
-// from the lock is returned from the method.
-uint32_t SpinLock::SpinLoop(int64_t initial_wait_timestamp,
-                            uint32_t *wait_cycles) {
+// (adaptive_spin_count loop iterations). The last value read from the lock
+// is returned from the method.
+uint32_t SpinLock::SpinLoop() {
   // We are already in the slow path of SpinLock, initialize the
   // adaptive_spin_count here.
   ABSL_CONST_INIT static absl::once_flag init_adaptive_spin_count;
@@ -115,22 +111,21 @@ uint32_t SpinLock::SpinLoop(int64_t initial_wait_timestamp,
   do {
     lock_value = lockword_.load(std::memory_order_relaxed);
   } while ((lock_value & kSpinLockHeld) != 0 && --c > 0);
-  uint32_t spin_loop_wait_cycles =
-      EncodeWaitCycles(initial_wait_timestamp, CycleClock::Now());
-  *wait_cycles = spin_loop_wait_cycles;
-
-  return TryLockInternal(lock_value, spin_loop_wait_cycles);
+  return lock_value;
 }
 
 void SpinLock::SlowLock() {
+  uint32_t lock_value = SpinLoop();
+  lock_value = TryLockInternal(lock_value, 0);
+  if ((lock_value & kSpinLockHeld) == 0) {
+    return;
+  }
   // The lock was not obtained initially, so this thread needs to wait for
   // it.  Record the current timestamp in the local variable wait_start_time
   // so the total wait time can be stored in the lockword once this thread
   // obtains the lock.
   int64_t wait_start_time = CycleClock::Now();
-  uint32_t wait_cycles;
-  uint32_t lock_value = SpinLoop(wait_start_time, &wait_cycles);
-
+  uint32_t wait_cycles = 0;
   int lock_wait_call_count = 0;
   while ((lock_value & kSpinLockHeld) != 0) {
     // If the lock is currently held, but not marked as having a sleeper, mark
@@ -141,7 +136,7 @@ void SpinLock::SlowLock() {
       // owner to think it experienced contention.
       if (lockword_.compare_exchange_strong(
               lock_value, lock_value | kSpinLockSleeper,
-              std::memory_order_acquire, std::memory_order_relaxed)) {
+              std::memory_order_relaxed, std::memory_order_relaxed)) {
         // Successfully transitioned to kSpinLockSleeper.  Pass
         // kSpinLockSleeper to the SpinLockWait routine to properly indicate
         // the last lock_value observed.
@@ -170,7 +165,9 @@ void SpinLock::SlowLock() {
     ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
     // Spin again after returning from the wait routine to give this thread
     // some chance of obtaining the lock.
-    lock_value = SpinLoop(wait_start_time, &wait_cycles);
+    lock_value = SpinLoop();
+    wait_cycles = EncodeWaitCycles(wait_start_time, CycleClock::Now());
+    lock_value = TryLockInternal(lock_value, wait_cycles);
   }
 }
 
@@ -206,14 +203,20 @@ uint32_t SpinLock::EncodeWaitCycles(int64_t wait_start_time,
       (wait_end_time - wait_start_time) >> PROFILE_TIMESTAMP_SHIFT;
 
   // Return a representation of the time spent waiting that can be stored in
-  // the lock word's upper bits.  bit_cast is required as Atomic32 is signed.
-  const uint32_t clamped = static_cast<uint32_t>(
+  // the lock word's upper bits.
+  uint32_t clamped = static_cast<uint32_t>(
       std::min(scaled_wait_time, kMaxWaitTime) << LOCKWORD_RESERVED_SHIFT);
 
-  // bump up value if necessary to avoid returning kSpinLockSleeper.
-  const uint32_t after_spinlock_sleeper =
-     kSpinLockSleeper + (1 << LOCKWORD_RESERVED_SHIFT);
-  return clamped == kSpinLockSleeper ? after_spinlock_sleeper : clamped;
+  if (clamped == 0) {
+    return kSpinLockSleeper;  // Just wake waiters, but don't record contention.
+  }
+  // Bump up value if necessary to avoid returning kSpinLockSleeper.
+  const uint32_t kMinWaitTime =
+      kSpinLockSleeper + (1 << LOCKWORD_RESERVED_SHIFT);
+  if (clamped == kSpinLockSleeper) {
+    return kMinWaitTime;
+  }
+  return clamped;
 }
 
 uint64_t SpinLock::DecodeWaitCycles(uint32_t lock_value) {

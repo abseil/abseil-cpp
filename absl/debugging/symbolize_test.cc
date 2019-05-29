@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -321,7 +321,7 @@ TEST(Symbolize, SymbolizeWithMultipleMaps) {
   }
 }
 
-// Appends std::string(*args->arg) to args->symbol_buf.
+// Appends string(*args->arg) to args->symbol_buf.
 static void DummySymbolDecorator(
     const absl::debugging_internal::SymbolDecoratorArgs *args) {
   std::string *message = static_cast<std::string *>(args->arg);
@@ -392,16 +392,20 @@ TEST(Symbolize, ForEachSection) {
 extern "C" {
 inline void *ABSL_ATTRIBUTE_ALWAYS_INLINE inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }
 
 void *ABSL_ATTRIBUTE_NOINLINE non_inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }

@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,27 +17,27 @@
 // File: substitute.h
 // -----------------------------------------------------------------------------
 //
-// This package contains functions for efficiently performing std::string
-// substitutions using a format std::string with positional notation:
+// This package contains functions for efficiently performing string
+// substitutions using a format string with positional notation:
 // `Substitute()` and `SubstituteAndAppend()`.
 //
 // Unlike printf-style format specifiers, `Substitute()` functions do not need
 // to specify the type of the substitution arguments. Supported arguments
-// following the format std::string, such as strings, string_views, ints,
+// following the format string, such as strings, string_views, ints,
 // floats, and bools, are automatically converted to strings during the
 // substitution process. (See below for a full list of supported types.)
 //
 // `Substitute()` does not allow you to specify *how* to format a value, beyond
-// the default conversion to std::string. For example, you cannot format an integer
+// the default conversion to string. For example, you cannot format an integer
 // in hex.
 //
-// The format std::string uses positional identifiers indicated by a dollar sign ($)
+// The format string uses positional identifiers indicated by a dollar sign ($)
 // and single digit positional ids to indicate which substitution arguments to
-// use at that location within the format std::string.
+// use at that location within the format string.
 //
 // Example 1:
 //   std::string s = Substitute("$1 purchased $0 $2. Thanks $1!",
-//                         5, "Bob", "Apples");
+//                              5, "Bob", "Apples");
 //   EXPECT_EQ("Bob purchased 5 Apples. Thanks Bob!", s);
 //
 // Example 2:
@@ -45,18 +45,17 @@
 //   SubstituteAndAppend(&s, "My name is $0 and I am $1 years old.", "Bob", 5);
 //   EXPECT_EQ("Hi. My name is Bob and I am 5 years old.", s);
 //
-//
 // Supported types:
 //   * absl::string_view, std::string, const char* (null is equivalent to "")
 //   * int32_t, int64_t, uint32_t, uint64
 //   * float, double
 //   * bool (Printed as "true" or "false")
-//   * pointer types other than char* (Printed as "0x<lower case hex std::string>",
+//   * pointer types other than char* (Printed as "0x<lower case hex string>",
 //     except that null is printed as "NULL")
 //
-// If an invalid format std::string is provided, Substitute returns an empty std::string
-// and SubstituteAndAppend does not change the provided output std::string.
-// A format std::string is invalid if it:
+// If an invalid format string is provided, Substitute returns an empty string
+// and SubstituteAndAppend does not change the provided output string.
+// A format string is invalid if it:
 //   * ends in an unescaped $ character,
 //     e.g. "Hello $", or
 //   * calls for a position argument which is not provided,
@@ -70,6 +69,8 @@
 
 #include <cstring>
 #include <string>
+#include <type_traits>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
@@ -88,7 +89,7 @@ namespace substitute_internal {
 //
 // This class provides an argument type for `absl::Substitute()` and
 // `absl::SubstituteAndAppend()`. `Arg` handles implicit conversion of various
-// types to a std::string. (`Arg` is very similar to the `AlphaNum` class in
+// types to a string. (`Arg` is very similar to the `AlphaNum` class in
 // `StrCat()`.)
 //
 // This class has implicit constructors.
@@ -152,6 +153,17 @@ class Arg {
   Arg(Hex hex);  // NOLINT(runtime/explicit)
   Arg(Dec dec);  // NOLINT(runtime/explicit)
 
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <typename T,
+            absl::enable_if_t<
+                std::is_class<T>::value &&
+                (std::is_same<T, std::vector<bool>::reference>::value ||
+                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
+                nullptr>
+  Arg(T value)  // NOLINT(google-explicit-constructor)
+      : Arg(static_cast<bool>(value)) {}
+
   // `void*` values, with the exception of `char*`, are printed as
   // "0x<hex value>". However, in the case of `nullptr`, "NULL" is printed.
   Arg(const void* value);  // NOLINT(runtime/explicit)
@@ -197,8 +209,8 @@ constexpr int PlaceholderBitmask(const char* format) {
 
 // SubstituteAndAppend()
 //
-// Substitutes variables into a given format std::string and appends to a given
-// output std::string. See file comments above for usage.
+// Substitutes variables into a given format string and appends to a given
+// output string. See file comments above for usage.
 //
 // The declarations of `SubstituteAndAppend()` below consist of overloads
 // for passing 0 to 10 arguments, respectively.
@@ -444,7 +456,7 @@ void SubstituteAndAppend(
 
 // Substitute()
 //
-// Substitutes variables into a given format std::string. See file comments above
+// Substitutes variables into a given format string. See file comments above
 // for usage.
 //
 // The declarations of `Substitute()` below consist of overloads for passing 0
@@ -574,70 +586,70 @@ std::string Substitute(const char* format, const substitute_internal::Arg& a0)
                      "contains one of $1-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1)
+                       const substitute_internal::Arg& a1)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 3,
                      "There were 2 substitution arguments given, but "
                      "this format std::string is either missing its $0/$1, or "
                      "contains one of $2-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 7,
                      "There were 3 substitution arguments given, but "
                      "this format std::string is either missing its $0/$1/$2, or "
                      "contains one of $3-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2,
-                  const substitute_internal::Arg& a3)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2,
+                       const substitute_internal::Arg& a3)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 15,
                      "There were 4 substitution arguments given, but "
                      "this format std::string is either missing its $0-$3, or "
                      "contains one of $4-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2,
-                  const substitute_internal::Arg& a3,
-                  const substitute_internal::Arg& a4)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2,
+                       const substitute_internal::Arg& a3,
+                       const substitute_internal::Arg& a4)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 31,
                      "There were 5 substitution arguments given, but "
                      "this format std::string is either missing its $0-$4, or "
                      "contains one of $5-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2,
-                  const substitute_internal::Arg& a3,
-                  const substitute_internal::Arg& a4,
-                  const substitute_internal::Arg& a5)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2,
+                       const substitute_internal::Arg& a3,
+                       const substitute_internal::Arg& a4,
+                       const substitute_internal::Arg& a5)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 63,
                      "There were 6 substitution arguments given, but "
                      "this format std::string is either missing its $0-$5, or "
                      "contains one of $6-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2,
-                  const substitute_internal::Arg& a3,
-                  const substitute_internal::Arg& a4,
-                  const substitute_internal::Arg& a5,
-                  const substitute_internal::Arg& a6)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2,
+                       const substitute_internal::Arg& a3,
+                       const substitute_internal::Arg& a4,
+                       const substitute_internal::Arg& a5,
+                       const substitute_internal::Arg& a6)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 127,
                      "There were 7 substitution arguments given, but "
                      "this format std::string is either missing its $0-$6, or "
                      "contains one of $7-$9");
 
 std::string Substitute(const char* format, const substitute_internal::Arg& a0,
-                  const substitute_internal::Arg& a1,
-                  const substitute_internal::Arg& a2,
-                  const substitute_internal::Arg& a3,
-                  const substitute_internal::Arg& a4,
-                  const substitute_internal::Arg& a5,
-                  const substitute_internal::Arg& a6,
-                  const substitute_internal::Arg& a7)
+                       const substitute_internal::Arg& a1,
+                       const substitute_internal::Arg& a2,
+                       const substitute_internal::Arg& a3,
+                       const substitute_internal::Arg& a4,
+                       const substitute_internal::Arg& a5,
+                       const substitute_internal::Arg& a6,
+                       const substitute_internal::Arg& a7)
     ABSL_BAD_CALL_IF(substitute_internal::PlaceholderBitmask(format) != 255,
                      "There were 8 substitution arguments given, but "
                      "this format std::string is either missing its $0-$7, or "

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@ namespace absl {
 // Workalike compatibilty version of std::chars_format from C++17.
 //
 // This is an bitfield enumerator which can be passed to absl::from_chars to
-// configure the std::string-to-float conversion.
+// configure the string-to-float conversion.
 enum class chars_format {
   scientific = 1,
   fixed = 2,
@@ -30,7 +30,7 @@ enum class chars_format {
   general = fixed | scientific,
 };
 
-// The return result of a std::string-to-number conversion.
+// The return result of a string-to-number conversion.
 //
 // `ec` will be set to `invalid_argument` if a well-formed number was not found
 // at the start of the input range, `result_out_of_range` if a well-formed
@@ -49,9 +49,9 @@ struct from_chars_result {
 // this only supports the `double` and `float` types.
 //
 // This interface incorporates the proposed resolutions for library issues
-// DR 3800 and DR 3801.  If these are adopted with different wording,
+// DR 3080 and DR 3081.  If these are adopted with different wording,
 // Abseil's behavior will change to match the standard.  (The behavior most
-// likely to change is for DR 3801, which says what `value` will be set to in
+// likely to change is for DR 3081, which says what `value` will be set to in
 // the case of overflow and underflow.  Code that wants to avoid possible
 // breaking changes in this area should not depend on `value` when the returned
 // from_chars_result indicates a range error.)
@@ -67,7 +67,7 @@ struct from_chars_result {
 // If `fmt` is set, it must be one of the enumerator values of the chars_format.
 // (This is despite the fact that chars_format is a bitmask type.)  If set to
 // `scientific`, a matching number must contain an exponent.  If set to `fixed`,
-// then an exponent will never match.  (For example, the std::string "1e5" will be
+// then an exponent will never match.  (For example, the string "1e5" will be
 // parsed as "1".)  If set to `hex`, then a hexadecimal float is parsed in the
 // format that strtod() accepts, except that a "0x" prefix is NOT matched.
 // (In particular, in `hex` mode, the input "0xff" results in the largest

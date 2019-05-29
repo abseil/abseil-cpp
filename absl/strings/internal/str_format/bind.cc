@@ -25,12 +25,12 @@ class ArgContext {
   explicit ArgContext(absl::Span<const FormatArgImpl> pack) : pack_(pack) {}
 
   // Fill 'bound' with the results of applying the context's argument pack
-  // to the specified 'props'. We synthesize a BoundConversion by
+  // to the specified 'unbound'. We synthesize a BoundConversion by
   // lining up a UnboundConversion with a user argument. We also
   // resolve any '*' specifiers for width and precision, so after
   // this call, 'bound' has all the information it needs to be formatted.
   // Returns false on failure.
-  bool Bind(const UnboundConversion *props, BoundConversion *bound);
+  bool Bind(const UnboundConversion* unbound, BoundConversion* bound);
 
  private:
   absl::Span<const FormatArgImpl> pack_;
@@ -53,7 +53,8 @@ inline bool ArgContext::Bind(const UnboundConversion* unbound,
         // "A negative field width is taken as a '-' flag followed by a
         // positive field width."
         force_left = true;
-        width = -width;
+        // Make sure we don't overflow the width when negating it.
+        width = -std::max(width, -std::numeric_limits<int>::max());
       }
     }
 
@@ -103,15 +104,15 @@ class ConverterConsumer {
 };
 
 template <typename Converter>
-bool ConvertAll(const UntypedFormatSpecImpl& format,
-                absl::Span<const FormatArgImpl> args,
-                const Converter& converter) {
-  const ParsedFormatBase* pc = format.parsed_conversion();
-  if (pc)
-    return pc->ProcessFormat(ConverterConsumer<Converter>(converter, args));
-
-  return ParseFormatString(format.str(),
-                           ConverterConsumer<Converter>(converter, args));
+bool ConvertAll(const UntypedFormatSpecImpl format,
+                absl::Span<const FormatArgImpl> args, Converter converter) {
+  if (format.has_parsed_conversion()) {
+    return format.parsed_conversion()->ProcessFormat(
+        ConverterConsumer<Converter>(converter, args));
+  } else {
+    return ParseFormatString(format.str(),
+                             ConverterConsumer<Converter>(converter, args));
+  }
 }
 
 class DefaultConverter {
@@ -158,8 +159,8 @@ bool BindWithPack(const UnboundConversion* props,
   return ArgContext(pack).Bind(props, bound);
 }
 
-std::string Summarize(const UntypedFormatSpecImpl& format,
-                 absl::Span<const FormatArgImpl> args) {
+std::string Summarize(const UntypedFormatSpecImpl format,
+                      absl::Span<const FormatArgImpl> args) {
   typedef SummarizingConverter Converter;
   std::string out;
   {
@@ -167,23 +168,18 @@ std::string Summarize(const UntypedFormatSpecImpl& format,
     // flush.
     FormatSinkImpl sink(&out);
     if (!ConvertAll(format, args, Converter(&sink))) {
-      sink.Flush();
-      out.clear();
+      return "";
     }
   }
   return out;
 }
 
 bool FormatUntyped(FormatRawSinkImpl raw_sink,
-                   const UntypedFormatSpecImpl& format,
+                   const UntypedFormatSpecImpl format,
                    absl::Span<const FormatArgImpl> args) {
   FormatSinkImpl sink(raw_sink);
   using Converter = DefaultConverter;
-  if (!ConvertAll(format, args, Converter(&sink))) {
-    sink.Flush();
-    return false;
-  }
-  return true;
+  return ConvertAll(format, args, Converter(&sink));
 }
 
 std::ostream& Streamable::Print(std::ostream& os) const {
@@ -191,14 +187,16 @@ std::ostream& Streamable::Print(std::ostream& os) const {
   return os;
 }
 
-std::string& AppendPack(std::string* out, const UntypedFormatSpecImpl& format,
-                   absl::Span<const FormatArgImpl> args) {
+std::string& AppendPack(std::string* out, const UntypedFormatSpecImpl format,
+                        absl::Span<const FormatArgImpl> args) {
   size_t orig = out->size();
-  if (!FormatUntyped(out, format, args)) out->resize(orig);
+  if (ABSL_PREDICT_FALSE(!FormatUntyped(out, format, args))) {
+    out->erase(orig);
+  }
   return *out;
 }
 
-int FprintF(std::FILE* output, const UntypedFormatSpecImpl& format,
+int FprintF(std::FILE* output, const UntypedFormatSpecImpl format,
             absl::Span<const FormatArgImpl> args) {
   FILERawSink sink(output);
   if (!FormatUntyped(&sink, format, args)) {
@@ -216,7 +214,7 @@ int FprintF(std::FILE* output, const UntypedFormatSpecImpl& format,
   return static_cast<int>(sink.count());
 }
 
-int SnprintF(char* output, size_t size, const UntypedFormatSpecImpl& format,
+int SnprintF(char* output, size_t size, const UntypedFormatSpecImpl format,
              absl::Span<const FormatArgImpl> args) {
   BufferRawSink sink(output, size ? size - 1 : 0);
   if (!FormatUntyped(&sink, format, args)) {

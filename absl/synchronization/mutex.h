@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -61,6 +61,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/base/const_init.h"
 #include "absl/base/internal/identity.h"
 #include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/thread_identity.h"
@@ -136,7 +137,27 @@ struct SynchWaitParams;
 
 class LOCKABLE Mutex {
  public:
+  // Creates a `Mutex` that is not held by anyone. This constructor is
+  // typically used for Mutexes allocated on the heap or the stack.
+  //
+  // To create `Mutex` instances with static storage duration
+  // (e.g. a namespace-scoped or global variable), see
+  // `Mutex::Mutex(absl::kConstInit)` below instead.
   Mutex();
+
+  // Creates a mutex with static storage duration.  A global variable
+  // constructed this way avoids the lifetime issues that can occur on program
+  // startup and shutdown.  (See absl/base/const_init.h.)
+  //
+  // For Mutexes allocated on the heap and stack, instead use the default
+  // constructor, which can interact more fully with the thread sanitizer.
+  //
+  // Example usage:
+  //   namespace foo {
+  //   ABSL_CONST_INIT Mutex mu(absl::kConstInit);
+  //   }
+  explicit constexpr Mutex(absl::ConstInitType);
+
   ~Mutex();
 
   // Mutex::Lock()
@@ -584,7 +605,7 @@ class SCOPED_LOCKABLE WriterMutexLock {
 // -----------------------------------------------------------------------------
 //
 // As noted above, `Mutex` contains a number of member functions which take a
-// `Condition` as a argument; clients can wait for conditions to become `true`
+// `Condition` as an argument; clients can wait for conditions to become `true`
 // before attempting to acquire the mutex. These sections are known as
 // "condition critical" sections. To use a `Condition`, you simply need to
 // construct it, and use within an appropriate `Mutex` member function;
@@ -879,10 +900,14 @@ class SCOPED_LOCKABLE ReleasableMutexLock {
 };
 
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
+inline constexpr Mutex::Mutex(absl::ConstInitType) : impl_(absl::kConstInit) {}
+
 #else
 inline Mutex::Mutex() : mu_(0) {
   ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
 }
+
+inline constexpr Mutex::Mutex(absl::ConstInitType) : mu_(0) {}
 
 inline CondVar::CondVar() : cv_(0) {}
 #endif
@@ -962,7 +987,7 @@ void RegisterMutexTracer(void (*fn)(const char *msg, const void *obj,
 //
 // The function pointer registered here will be called here on various CondVar
 // events.  The callback is given an opaque handle to the CondVar object and
-// a std::string identifying the event.  This is thread-safe, but only a single
+// a string identifying the event.  This is thread-safe, but only a single
 // tracer can be registered.
 //
 // Events that can be sent are "Wait", "Unwait", "Signal wakeup", and
@@ -1025,4 +1050,5 @@ void SetMutexDeadlockDetectionMode(OnDeadlockCycle mode);
 extern "C" {
 void AbslInternalMutexYield();
 }  // extern "C"
+
 #endif  // ABSL_SYNCHRONIZATION_MUTEX_H_

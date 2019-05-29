@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,6 @@
 // This code is compiled directly on many platforms, including client
 // platforms like Windows, Mac, and embedded systems.  Before making
 // any changes here, make sure that you're not breaking any platforms.
-//
 
 #ifndef ABSL_BASE_MACROS_H_
 #define ABSL_BASE_MACROS_H_
@@ -32,6 +31,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
 // ABSL_ARRAYSIZE()
@@ -192,11 +192,22 @@ enum LinkerInitialized {
 // This macro is inspired by
 // https://akrzemi1.wordpress.com/2017/05/18/asserts-in-constexpr-functions/
 #if defined(NDEBUG)
-#define ABSL_ASSERT(expr) (false ? (void)(expr) : (void)0)
+#define ABSL_ASSERT(expr) \
+  (false ? static_cast<void>(expr) : static_cast<void>(0))
 #else
-#define ABSL_ASSERT(expr)              \
-  (ABSL_PREDICT_TRUE((expr)) ? (void)0 \
+#define ABSL_ASSERT(expr)                           \
+  (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
                              : [] { assert(false && #expr); }())  // NOLINT
 #endif
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+#define ABSL_INTERNAL_TRY try
+#define ABSL_INTERNAL_CATCH_ANY catch (...)
+#define ABSL_INTERNAL_RETHROW do { throw; } while (false)
+#else  // ABSL_HAVE_EXCEPTIONS
+#define ABSL_INTERNAL_TRY if (true)
+#define ABSL_INTERNAL_CATCH_ANY else if (false)
+#define ABSL_INTERNAL_RETHROW do {} while (false)
+#endif  // ABSL_HAVE_EXCEPTIONS
 
 #endif  // ABSL_BASE_MACROS_H_

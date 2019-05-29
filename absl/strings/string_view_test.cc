@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -284,9 +284,10 @@ TEST(StringViewTest, ComparisonOperatorsByCharacterPosition) {
 }
 #undef COMPARE
 
-// Sadly, our users often confuse std::string::npos with absl::string_view::npos;
-// So much so that we test here that they are the same.  They need to
-// both be unsigned, and both be the maximum-valued integer of their type.
+// Sadly, our users often confuse std::string::npos with
+// absl::string_view::npos; So much so that we test here that they are the same.
+// They need to both be unsigned, and both be the maximum-valued integer of
+// their type.
 
 template <typename T>
 struct is_type {
@@ -678,9 +679,9 @@ TEST(StringViewTest, STL2Substr) {
   EXPECT_EQ(a.substr(23, absl::string_view::npos), c);
   // throw exception
 #ifdef ABSL_HAVE_EXCEPTIONS
-  EXPECT_THROW(a.substr(99, 2), std::out_of_range);
+  EXPECT_THROW((void)a.substr(99, 2), std::out_of_range);
 #else
-  EXPECT_DEATH(a.substr(99, 2), "absl::string_view::substr");
+  EXPECT_DEATH((void)a.substr(99, 2), "absl::string_view::substr");
 #endif
 }
 
@@ -755,7 +756,6 @@ TEST(StringViewTest, Remove) {
   std::string s1("123");
   s1 += '\0';
   s1 += "456";
-  absl::string_view b(s1);
   absl::string_view e;
   std::string s2;
 
@@ -812,15 +812,18 @@ TEST(StringViewTest, FrontBackSingleChar) {
 }
 
 // `std::string_view::string_view(const char*)` calls
-// `std::char_traits<char>::length(const char*)` to get the std::string length. In
+// `std::char_traits<char>::length(const char*)` to get the string length. In
 // libc++, it doesn't allow `nullptr` in the constexpr context, with the error
 // "read of dereferenced null pointer is not allowed in a constant expression".
 // At run time, the behavior of `std::char_traits::length()` on `nullptr` is
-// undefined by the standard and usually results in crash with libc++. This
-// conforms to the standard, but `absl::string_view` implements a different
+// undefined by the standard and usually results in crash with libc++.
+// In MSVC, creating a constexpr string_view from nullptr also triggers an
+// "unevaluable pointer value" error. This compiler implementation conforms
+// to the standard, but `absl::string_view` implements a different
 // behavior for historical reasons. We work around tests that construct
 // `string_view` from `nullptr` when using libc++.
-#if !defined(ABSL_HAVE_STD_STRING_VIEW) || !defined(_LIBCPP_VERSION)
+#if !defined(ABSL_HAVE_STD_STRING_VIEW) || \
+    (!defined(_LIBCPP_VERSION) && !defined(_MSC_VER))
 #define ABSL_HAVE_STRING_VIEW_FROM_NULLPTR 1
 #endif  // !defined(ABSL_HAVE_STD_STRING_VIEW) || !defined(_LIBCPP_VERSION)
 
@@ -992,8 +995,8 @@ TEST(StringViewTest, ConstexprCompiles) {
 TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
                                              const std::string&>::value));
-  EXPECT_TRUE(
-      (std::is_nothrow_constructible<absl::string_view, const std::string&>::value));
+  EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
+                                             const std::string&>::value));
   EXPECT_TRUE(std::is_nothrow_constructible<absl::string_view>::value);
   constexpr absl::string_view sp;
   EXPECT_TRUE(noexcept(sp.begin()));

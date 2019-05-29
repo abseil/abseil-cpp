@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,10 +32,9 @@
 //
 // References:
 //
-//  http://en.cppreference.com/w/cpp/utility/integer_sequence
-//  http://en.cppreference.com/w/cpp/utility/apply
+//  https://en.cppreference.com/w/cpp/utility/integer_sequence
+//  https://en.cppreference.com/w/cpp/utility/apply
 //  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3658.html
-//
 
 #ifndef ABSL_UTILITY_UTILITY_H_
 #define ABSL_UTILITY_UTILITY_H_
@@ -114,6 +113,20 @@ struct Gen<T, 0> {
   using type = integer_sequence<T>;
 };
 
+template <typename T>
+struct InPlaceTypeTag {
+  explicit InPlaceTypeTag() = delete;
+  InPlaceTypeTag(const InPlaceTypeTag&) = delete;
+  InPlaceTypeTag& operator=(const InPlaceTypeTag&) = delete;
+};
+
+template <size_t I>
+struct InPlaceIndexTag {
+  explicit InPlaceIndexTag() = delete;
+  InPlaceIndexTag(const InPlaceIndexTag&) = delete;
+  InPlaceIndexTag& operator=(const InPlaceIndexTag&) = delete;
+};
+
 }  // namespace utility_internal
 
 // Compile-time sequences of integers
@@ -163,6 +176,7 @@ ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
 #endif  // ABSL_HAVE_STD_OPTIONAL
 
 #if defined(ABSL_HAVE_STD_ANY) || defined(ABSL_HAVE_STD_VARIANT)
+using std::in_place_type;
 using std::in_place_type_t;
 #else
 
@@ -172,10 +186,14 @@ using std::in_place_type_t;
 // be specified, such as with `absl::any`, designed to be a drop-in replacement
 // for C++17's `std::in_place_type_t`.
 template <typename T>
-struct in_place_type_t {};
+using in_place_type_t = void (*)(utility_internal::InPlaceTypeTag<T>);
+
+template <typename T>
+void in_place_type(utility_internal::InPlaceTypeTag<T>) {}
 #endif  // ABSL_HAVE_STD_ANY || ABSL_HAVE_STD_VARIANT
 
 #ifdef ABSL_HAVE_STD_VARIANT
+using std::in_place_index;
 using std::in_place_index_t;
 #else
 
@@ -185,7 +203,10 @@ using std::in_place_index_t;
 // be specified, such as with `absl::any`, designed to be a drop-in replacement
 // for C++17's `std::in_place_index_t`.
 template <size_t I>
-struct in_place_index_t {};
+using in_place_index_t = void (*)(utility_internal::InPlaceIndexTag<I>);
+
+template <size_t I>
+void in_place_index(utility_internal::InPlaceIndexTag<I>) {}
 #endif  // ABSL_HAVE_STD_VARIANT
 
 // Constexpr move and forward
@@ -234,25 +255,33 @@ auto apply_helper(Functor&& functor, Tuple&& t, index_sequence<Indexes...>)
 //
 // Example:
 //
-//   class Foo{void Bar(int);};
-//   void user_function(int, std::string);
-//   void user_function(std::unique_ptr<Foo>);
+//   class Foo {
+//    public:
+//     void Bar(int);
+//   };
+//   void user_function1(int, std::string);
+//   void user_function2(std::unique_ptr<Foo>);
+//   auto user_lambda = [](int, int) {};
 //
 //   int main()
 //   {
 //       std::tuple<int, std::string> tuple1(42, "bar");
-//       // Invokes the user function overload on int, std::string.
-//       absl::apply(&user_function, tuple1);
+//       // Invokes the first user function on int, std::string.
+//       absl::apply(&user_function1, tuple1);
 //
-//       auto foo = absl::make_unique<Foo>();
-//       std::tuple<Foo*, int> tuple2(foo.get(), 42);
-//       // Invokes the method Bar on foo with one argument 42.
-//       absl::apply(&Foo::Bar, foo.get(), 42);
-//
-//       std::tuple<std::unique_ptr<Foo>> tuple3(absl::make_unique<Foo>());
+//       std::tuple<std::unique_ptr<Foo>> tuple2(absl::make_unique<Foo>());
 //       // Invokes the user function that takes ownership of the unique
 //       // pointer.
-//       absl::apply(&user_function, std::move(tuple));
+//       absl::apply(&user_function2, std::move(tuple2));
+//
+//       auto foo = absl::make_unique<Foo>();
+//       std::tuple<Foo*, int> tuple3(foo.get(), 42);
+//       // Invokes the method Bar on foo with one argument, 42.
+//       absl::apply(&Foo::Bar, tuple3);
+//
+//       std::tuple<int, int> tuple4(8, 9);
+//       // Invokes a lambda.
+//       absl::apply(user_lambda, tuple4);
 //   }
 template <typename Functor, typename Tuple>
 auto apply(Functor&& functor, Tuple&& t)

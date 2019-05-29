@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -305,7 +305,7 @@ class Symbolizer {
                                            char *tmp_buf, int tmp_buf_size);
 
   enum {
-    SYMBOL_BUF_SIZE = 2048,
+    SYMBOL_BUF_SIZE = 3072,
     TMP_BUF_SIZE = 1024,
     SYMBOL_CACHE_LINES = 128,
   };
@@ -333,7 +333,11 @@ static std::atomic<Symbolizer *> g_cached_symbolizer;
 }  // namespace
 
 static int SymbolizerSize() {
+#if defined(__wasm__) || defined(__asmjs__)
   int pagesize = getpagesize();
+#else
+  int pagesize = sysconf(_SC_PAGESIZE);
+#endif
   return ((sizeof(Symbolizer) - 1) / pagesize + 1) * pagesize;
 }
 
@@ -921,6 +925,14 @@ static const char *GetHex(const char *start, const char *end,
   return p;
 }
 
+// Normally we are only interested in "r?x" maps.
+// On the PowerPC, function pointers point to descriptors in the .opd
+// section.  The descriptors themselves are not executable code, so
+// we need to relax the check below to "r??".
+static bool ShouldUseMapping(const char *const flags) {
+  return flags[0] == 'r' && (kPlatformUsesOPDSections || flags[2] == 'x');
+}
+
 // Read /proc/self/maps and run "callback" for each mmapped file found.  If
 // "callback" returns false, stop scanning and return true. Else continue
 // scanning /proc/self/maps. Return true if no parse error is found.
@@ -990,12 +1002,8 @@ static ABSL_ATTRIBUTE_NOINLINE bool ReadAddrMap(
       return false;
     }
 
-    // Check flags.  Normally we are only interested in "r-x" maps.  On
-    // the PowerPC, function pointers point to descriptors in the .opd
-    // section.  The descriptors themselves are not executable code.  So
-    // we need to relax the check below to "r**".
-    if (memcmp(flags_start, "r-x", 3) != 0 &&  // Not a "r-x" map.
-        !(kPlatformUsesOPDSections && flags_start[0] == 'r')) {
+    // Check flags.
+    if (!ShouldUseMapping(flags_start)) {
       continue;  // We skip this map.
     }
     ++cursor;  // Skip ' '.

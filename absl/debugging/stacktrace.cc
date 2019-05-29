@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,6 +46,7 @@
 #include ABSL_STACKTRACE_INL_HEADER
 #else
 # error Cannot calculate stack trace: will need to write for your environment
+
 # include "absl/debugging/internal/stacktrace_aarch64-inl.inc"
 # include "absl/debugging/internal/stacktrace_arm-inl.inc"
 # include "absl/debugging/internal/stacktrace_generic-inl.inc"
@@ -80,25 +81,29 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, int* sizes,
 
 }  // anonymous namespace
 
-int GetStackFrames(void** result, int* sizes, int max_depth, int skip_count) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackFrames(
+    void** result, int* sizes, int max_depth, int skip_count) {
   return Unwind<true, false>(result, sizes, max_depth, skip_count, nullptr,
                              nullptr);
 }
 
-int GetStackFramesWithContext(void** result, int* sizes, int max_depth,
-                              int skip_count, const void* uc,
-                              int* min_dropped_frames) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+GetStackFramesWithContext(void** result, int* sizes, int max_depth,
+                          int skip_count, const void* uc,
+                          int* min_dropped_frames) {
   return Unwind<true, true>(result, sizes, max_depth, skip_count, uc,
                             min_dropped_frames);
 }
 
-int GetStackTrace(void** result, int max_depth, int skip_count) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(
+    void** result, int max_depth, int skip_count) {
   return Unwind<false, false>(result, nullptr, max_depth, skip_count, nullptr,
                               nullptr);
 }
 
-int GetStackTraceWithContext(void** result, int max_depth, int skip_count,
-                             const void* uc, int* min_dropped_frames) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+GetStackTraceWithContext(void** result, int max_depth, int skip_count,
+                         const void* uc, int* min_dropped_frames) {
   return Unwind<false, true>(result, nullptr, max_depth, skip_count, uc,
                              min_dropped_frames);
 }

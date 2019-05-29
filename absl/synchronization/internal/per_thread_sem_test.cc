@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -114,10 +114,9 @@ class PerThreadSemTest : public testing::Test {
       min_cycles = std::min(min_cycles, cycles);
       total_cycles += cycles;
     }
-    std::string out =
-        StrCat(msg, "min cycle count=", min_cycles, " avg cycle count=",
-               absl::SixDigits(static_cast<double>(total_cycles) /
-                               kNumIterations));
+    std::string out = StrCat(
+        msg, "min cycle count=", min_cycles, " avg cycle count=",
+        absl::SixDigits(static_cast<double>(total_cycles) / kNumIterations));
     printf("%s\n", out.c_str());
 
     partner_thread.join();
@@ -152,13 +151,20 @@ TEST_F(PerThreadSemTest, WithTimeout) {
 }
 
 TEST_F(PerThreadSemTest, Timeouts) {
-  absl::Time timeout = absl::Now() + absl::Milliseconds(50);
-  EXPECT_FALSE(Wait(timeout));
-  EXPECT_LE(timeout, absl::Now());
+  const absl::Duration delay = absl::Milliseconds(50);
+  const absl::Time start = absl::Now();
+  EXPECT_FALSE(Wait(start + delay));
+  const absl::Duration elapsed = absl::Now() - start;
+  // Allow for a slight early return, to account for quality of implementation
+  // issues on various platforms.
+  const absl::Duration slop = absl::Microseconds(200);
+  EXPECT_LE(delay - slop, elapsed)
+      << "Wait returned " << delay - elapsed
+      << " early (with " << slop << " slop), start time was " << start;
 
   absl::Time negative_timeout = absl::UnixEpoch() - absl::Milliseconds(100);
   EXPECT_FALSE(Wait(negative_timeout));
-  EXPECT_LE(negative_timeout, absl::Now());  // trivially true :)
+  EXPECT_LE(negative_timeout, absl::Now() + slop);  // trivially true :)
 
   Post(GetOrCreateCurrentThreadIdentity());
   // The wait here has an expired timeout, but we have a wake to consume,

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -634,6 +634,21 @@ TEST(MutatingTest, Move) {
   EXPECT_THAT(src, Each(IsNull()));
   EXPECT_THAT(dest, ElementsAre(Pointee(1), Pointee(2), Pointee(3), Pointee(4),
                                 Pointee(5)));
+}
+
+TEST(MutatingTest, MoveWithRvalue) {
+  auto MakeRValueSrc = [] {
+    std::vector<std::unique_ptr<int>> src;
+    src.emplace_back(absl::make_unique<int>(1));
+    src.emplace_back(absl::make_unique<int>(2));
+    src.emplace_back(absl::make_unique<int>(3));
+    return src;
+  };
+
+  std::vector<std::unique_ptr<int>> dest = MakeRValueSrc();
+  absl::c_move(MakeRValueSrc(), std::back_inserter(dest));
+  EXPECT_THAT(dest, ElementsAre(Pointee(1), Pointee(2), Pointee(3), Pointee(1),
+                                Pointee(2), Pointee(3)));
 }
 
 TEST(MutatingTest, SwapRanges) {

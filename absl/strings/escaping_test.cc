@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,18 +36,19 @@ struct epair {
 
 TEST(CEscape, EscapeAndUnescape) {
   const std::string inputs[] = {
-    std::string("foo\nxx\r\b\0023"),
-    std::string(""),
-    std::string("abc"),
-    std::string("\1chad_rules"),
-    std::string("\1arnar_drools"),
-    std::string("xxxx\r\t'\"\\"),
-    std::string("\0xx\0", 4),
-    std::string("\x01\x31"),
-    std::string("abc\xb\x42\141bc"),
-    std::string("123\1\x31\x32\x33"),
-    std::string("\xc1\xca\x1b\x62\x19o\xcc\x04"),
-    std::string("\\\"\xe8\xb0\xb7\xe6\xad\x8c\\\" is Google\\\'s Chinese name"),
+      std::string("foo\nxx\r\b\0023"),
+      std::string(""),
+      std::string("abc"),
+      std::string("\1chad_rules"),
+      std::string("\1arnar_drools"),
+      std::string("xxxx\r\t'\"\\"),
+      std::string("\0xx\0", 4),
+      std::string("\x01\x31"),
+      std::string("abc\xb\x42\141bc"),
+      std::string("123\1\x31\x32\x33"),
+      std::string("\xc1\xca\x1b\x62\x19o\xcc\x04"),
+      std::string(
+          "\\\"\xe8\xb0\xb7\xe6\xad\x8c\\\" is Google\\\'s Chinese name"),
   };
   // Do this twice, once for octal escapes and once for hex escapes.
   for (int kind = 0; kind < 4; kind++) {
@@ -159,15 +160,14 @@ TEST(Unescape, BasicFunction) {
     EXPECT_TRUE(absl::CUnescape(val.escaped, &out));
     EXPECT_EQ(out, val.unescaped);
   }
-  std::string bad[] =
-     {"\\u1",         // too short
-      "\\U1",         // too short
-      "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
-      "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
-      "\\uD835",      // surrogate character (D800-DFFF)
-      "\\U0000DD04",  // surrogate character (D800-DFFF)
-      "\\777",        // exceeds 0xff
-      "\\xABCD"};     // exceeds 0xff
+  std::string bad[] = {"\\u1",         // too short
+                       "\\U1",         // too short
+                       "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
+                       "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
+                       "\\uD835",      // surrogate character (D800-DFFF)
+                       "\\U0000DD04",  // surrogate character (D800-DFFF)
+                       "\\777",        // exceeds 0xff
+                       "\\xABCD"};     // exceeds 0xff
   for (const std::string& e : bad) {
     std::string error;
     std::string out;
@@ -258,9 +258,11 @@ TEST_F(CUnescapeTest, UnescapesMultipleOctalNulls) {
   // All escapes, including newlines and null escapes, should have been
   // converted to the equivalent characters.
   EXPECT_EQ(std::string("\0\n"
-                   "0\n"
-                   "\0\n"
-                   "\0", 7), result_string_);
+                        "0\n"
+                        "\0\n"
+                        "\0",
+                        7),
+            result_string_);
 }
 
 
@@ -268,17 +270,21 @@ TEST_F(CUnescapeTest, UnescapesMultipleHexNulls) {
   std::string original_string(kStringWithMultipleHexNulls);
   EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
   EXPECT_EQ(std::string("\0\n"
-                   "0\n"
-                   "\0\n"
-                   "\0", 7), result_string_);
+                        "0\n"
+                        "\0\n"
+                        "\0",
+                        7),
+            result_string_);
 }
 
 TEST_F(CUnescapeTest, UnescapesMultipleUnicodeNulls) {
   std::string original_string(kStringWithMultipleUnicodeNulls);
   EXPECT_TRUE(absl::CUnescape(original_string, &result_string_));
   EXPECT_EQ(std::string("\0\n"
-                   "0\n"
-                   "\0", 5), result_string_);
+                        "0\n"
+                        "\0",
+                        5),
+            result_string_);
 }
 
 static struct {
@@ -543,18 +549,20 @@ static struct {
     {"abcdefghijklmnopqrstuvwxyz", "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo="},
 };
 
-TEST(Base64, EscapeAndUnescape) {
+template <typename StringType>
+void TestEscapeAndUnescape() {
   // Check the short strings; this tests the math (and boundaries)
   for (const auto& tc : base64_tests) {
-    std::string encoded("this junk should be ignored");
+    StringType encoded("this junk should be ignored");
     absl::Base64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, tc.cyphertext);
+    EXPECT_EQ(absl::Base64Escape(tc.plaintext), tc.cyphertext);
 
-    std::string decoded("this junk should be ignored");
+    StringType decoded("this junk should be ignored");
     EXPECT_TRUE(absl::Base64Unescape(encoded, &decoded));
     EXPECT_EQ(decoded, tc.plaintext);
 
-    std::string websafe(tc.cyphertext);
+    StringType websafe(tc.cyphertext);
     for (int c = 0; c < websafe.size(); ++c) {
       if ('+' == websafe[c]) websafe[c] = '-';
       if ('/' == websafe[c]) websafe[c] = '_';
@@ -567,6 +575,7 @@ TEST(Base64, EscapeAndUnescape) {
     encoded = "this junk should be ignored";
     absl::WebSafeBase64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, websafe);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), websafe);
 
     // Let's try the std::string version of the decoder
     decoded = "this junk should be ignored";
@@ -576,9 +585,10 @@ TEST(Base64, EscapeAndUnescape) {
 
   // Now try the long strings, this tests the streaming
   for (const auto& tc : absl::strings_internal::base64_strings()) {
-    std::string buffer;
+    StringType buffer;
     absl::WebSafeBase64Escape(tc.plaintext, &buffer);
     EXPECT_EQ(tc.cyphertext, buffer);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), tc.cyphertext);
   }
 
   // Verify the behavior when decoding bad data
@@ -586,12 +596,16 @@ TEST(Base64, EscapeAndUnescape) {
     absl::string_view data_set[] = {"ab-/", absl::string_view("\0bcd", 4),
                                     absl::string_view("abc.\0", 5)};
     for (absl::string_view bad_data : data_set) {
-      std::string buf;
+      StringType buf;
       EXPECT_FALSE(absl::Base64Unescape(bad_data, &buf));
       EXPECT_FALSE(absl::WebSafeBase64Unescape(bad_data, &buf));
       EXPECT_TRUE(buf.empty());
     }
   }
+}
+
+TEST(Base64, EscapeAndUnescape) {
+  TestEscapeAndUnescape<std::string>();
 }
 
 TEST(Base64, DISABLED_HugeData) {

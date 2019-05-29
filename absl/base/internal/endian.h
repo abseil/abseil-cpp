@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -75,21 +75,21 @@ inline uint64_t gbswap_64(uint64_t host_int) {
   if (__builtin_constant_p(host_int)) {
     return __bswap_constant_64(host_int);
   } else {
-    register uint64_t result;
+    uint64_t result;
     __asm__("bswap %0" : "=r"(result) : "0"(host_int));
     return result;
   }
 #elif defined(__GLIBC__)
   return bswap_64(host_int);
 #else
-  return (((x & uint64_t{(0xFF}) << 56) |
-          ((x & uint64_t{(0xFF00}) << 40) |
-          ((x & uint64_t{(0xFF0000}) << 24) |
-          ((x & uint64_t{(0xFF000000}) << 8) |
-          ((x & uint64_t{(0xFF00000000}) >> 8) |
-          ((x & uint64_t{(0xFF0000000000}) >> 24) |
-          ((x & uint64_t{(0xFF000000000000}) >> 40) |
-          ((x & uint64_t{(0xFF00000000000000}) >> 56));
+  return (((host_int & uint64_t{0xFF}) << 56) |
+          ((host_int & uint64_t{0xFF00}) << 40) |
+          ((host_int & uint64_t{0xFF0000}) << 24) |
+          ((host_int & uint64_t{0xFF000000}) << 8) |
+          ((host_int & uint64_t{0xFF00000000}) >> 8) |
+          ((host_int & uint64_t{0xFF0000000000}) >> 24) |
+          ((host_int & uint64_t{0xFF000000000000}) >> 40) |
+          ((host_int & uint64_t{0xFF00000000000000}) >> 56));
 #endif  // bswap_64
 }
 
@@ -97,8 +97,10 @@ inline uint32_t gbswap_32(uint32_t host_int) {
 #if defined(__GLIBC__)
   return bswap_32(host_int);
 #else
-  return (((x & 0xFF) << 24) | ((x & 0xFF00) << 8) | ((x & 0xFF0000) >> 8) |
-          ((x & 0xFF000000) >> 24));
+  return (((host_int & uint32_t{0xFF}) << 24) |
+          ((host_int & uint32_t{0xFF00}) << 8) |
+          ((host_int & uint32_t{0xFF0000}) >> 8) |
+          ((host_int & uint32_t{0xFF000000}) >> 24));
 #endif
 }
 
@@ -106,7 +108,8 @@ inline uint16_t gbswap_16(uint16_t host_int) {
 #if defined(__GLIBC__)
   return bswap_16(host_int);
 #else
-  return uint16_t{((x & 0xFF) << 8) | ((x & 0xFF00) >> 8)};
+  return (((host_int & uint16_t{0xFF}) << 8) |
+          ((host_int & uint16_t{0xFF00}) >> 8));
 #endif
 }
 

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,6 +27,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_testing.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 
 using ::testing::ElementsAreArray;
@@ -149,7 +150,7 @@ TEST(FixedArrayTest, SmallObjects) {
   }
 
   {
-    // Arrays of > default size should be on the stack
+    // Arrays of > default size should be on the heap
     absl::FixedArray<int, 100> array(101);
     EXPECT_FALSE(IsOnStack(array));
   }
@@ -364,7 +365,8 @@ TEST(IteratorConstructorTest, Inline) {
 TEST(IteratorConstructorTest, NonPod) {
   char const* kInput[] =
       { "red", "orange", "yellow", "green", "blue", "indigo", "violet" };
-  absl::FixedArray<std::string> const fixed(kInput, kInput + ABSL_ARRAYSIZE(kInput));
+  absl::FixedArray<std::string> const fixed(kInput,
+                                            kInput + ABSL_ARRAYSIZE(kInput));
   ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
   for (size_t i = 0; i < ABSL_ARRAYSIZE(kInput); ++i) {
     ASSERT_EQ(kInput[i], fixed[i]);
@@ -867,4 +869,22 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
   EXPECT_DEATH(raw[21] = ThreeInts(), "container-overflow");
 }
 #endif  // ADDRESS_SANITIZER
+
+TEST(FixedArrayTest, AbslHashValueWorks) {
+  using V = absl::FixedArray<int>;
+  std::vector<V> cases;
+
+  // Generate a variety of vectors some of these are small enough for the inline
+  // space but are stored out of line.
+  for (int i = 0; i < 10; ++i) {
+    V v(i);
+    for (int j = 0; j < i; ++j) {
+      v[j] = j;
+    }
+    cases.push_back(v);
+  }
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(cases));
+}
+
 }  // namespace

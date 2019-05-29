@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -97,7 +97,7 @@ testing::AssertionResult ReadMemory(FixedArr* fixed_arr) {
 
 TEST(FixedArrayExceptionSafety, Fill) {
   auto test_fill = testing::MakeExceptionSafetyTester()
-                       .WithInvariants(ReadMemory)
+                       .WithContracts(ReadMemory)
                        .WithOperation([&](FixedArr* fixed_arr_ptr) {
                          auto thrower =
                              Thrower(kUpdatedValue, testing::nothrow_ctor);

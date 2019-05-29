@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@
 #include <type_traits>
 
 // Disable constexpr support unless we are in C++14 mode.
-#if __cpp_constexpr >= 201304 || _MSC_VER >= 1910
+#if __cpp_constexpr >= 201304 || (defined(_MSC_VER) && _MSC_VER >= 1910)
 #define CONSTEXPR_D constexpr  // data
 #define CONSTEXPR_F constexpr  // function
 #define CONSTEXPR_M constexpr  // member
@@ -326,6 +326,37 @@ CONSTEXPR_F fields align(year_tag, fields f) noexcept {
 
 ////////////////////////////////////////////////////////////////////////
 
+namespace impl {
+
+template <typename H>
+H AbslHashValueImpl(second_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh, f.mm, f.ss);
+}
+template <typename H>
+H AbslHashValueImpl(minute_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh, f.mm);
+}
+template <typename H>
+H AbslHashValueImpl(hour_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d, f.hh);
+}
+template <typename H>
+H AbslHashValueImpl(day_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m, f.d);
+}
+template <typename H>
+H AbslHashValueImpl(month_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y, f.m);
+}
+template <typename H>
+H AbslHashValueImpl(year_tag, H h, fields f) {
+  return H::combine(std::move(h), f.y);
+}
+
+}  // namespace impl
+
+////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 class civil_time {
  public:
@@ -355,12 +386,12 @@ class civil_time {
       : civil_time(ct.f_) {}
 
   // Factories for the maximum/minimum representable civil_time.
-  static CONSTEXPR_F civil_time max() {
-    const auto max_year = std::numeric_limits<std::int_least64_t>::max();
+  static CONSTEXPR_F civil_time (max)() {
+    const auto max_year = (std::numeric_limits<std::int_least64_t>::max)();
     return civil_time(max_year, 12, 31, 23, 59, 59);
   }
-  static CONSTEXPR_F civil_time min() {
-    const auto min_year = std::numeric_limits<std::int_least64_t>::min();
+  static CONSTEXPR_F civil_time (min)() {
+    const auto min_year = (std::numeric_limits<std::int_least64_t>::min)();
     return civil_time(min_year, 1, 1, 0, 0, 0);
   }
 
@@ -378,7 +409,7 @@ class civil_time {
     return *this;
   }
   CONSTEXPR_M civil_time& operator-=(diff_t n) noexcept {
-    if (n != std::numeric_limits<diff_t>::min()) {
+    if (n != (std::numeric_limits<diff_t>::min)()) {
       f_ = step(T{}, f_, -n);
     } else {
       f_ = step(T{}, step(T{}, f_, -(n + 1)), 1);
@@ -414,6 +445,11 @@ class civil_time {
   }
   friend CONSTEXPR_F diff_t operator-(civil_time lhs, civil_time rhs) noexcept {
     return difference(T{}, lhs.f_, rhs.f_);
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, civil_time a) {
+    return impl::AbslHashValueImpl(T{}, std::move(h), a.f_);
   }
 
  private:
@@ -500,34 +536,62 @@ enum class weekday {
 };
 
 CONSTEXPR_F weekday get_weekday(const civil_day& cd) noexcept {
-  CONSTEXPR_D weekday k_weekday_by_sun_off[7] = {
-      weekday::sunday,     weekday::monday,    weekday::tuesday,
-      weekday::wednesday,  weekday::thursday,  weekday::friday,
+  CONSTEXPR_D weekday k_weekday_by_mon_off[13] = {
+      weekday::monday,    weekday::tuesday,  weekday::wednesday,
+      weekday::thursday,  weekday::friday,   weekday::saturday,
+      weekday::sunday,    weekday::monday,   weekday::tuesday,
+      weekday::wednesday, weekday::thursday, weekday::friday,
       weekday::saturday,
   };
   CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
       -1, 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4,
   };
-  year_t wd = cd.year() - (cd.month() < 3);
-  if (wd >= 0) {
-    wd += wd / 4 - wd / 100 + wd / 400;
-  } else {
-    wd += (wd - 3) / 4 - (wd - 99) / 100 + (wd - 399) / 400;
-  }
+  year_t wd = 2400 + (cd.year() % 400) - (cd.month() < 3);
+  wd += wd / 4 - wd / 100 + wd / 400;
   wd += k_weekday_offsets[cd.month()] + cd.day();
-  return k_weekday_by_sun_off[(wd % 7 + 7) % 7];
+  return k_weekday_by_mon_off[wd % 7 + 6];
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
-  do { cd += 1; } while (get_weekday(cd) != wd);
-  return cd;
+  CONSTEXPR_D weekday k_weekdays_forw[14] = {
+      weekday::monday,    weekday::tuesday,  weekday::wednesday,
+      weekday::thursday,  weekday::friday,   weekday::saturday,
+      weekday::sunday,    weekday::monday,   weekday::tuesday,
+      weekday::wednesday, weekday::thursday, weekday::friday,
+      weekday::saturday,  weekday::sunday,
+  };
+  weekday base = get_weekday(cd);
+  for (int i = 0;; ++i) {
+    if (base == k_weekdays_forw[i]) {
+      for (int j = i + 1;; ++j) {
+        if (wd == k_weekdays_forw[j]) {
+          return cd + (j - i);
+        }
+      }
+    }
+  }
 }
 
 CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
-  do { cd -= 1; } while (get_weekday(cd) != wd);
-  return cd;
+  CONSTEXPR_D weekday k_weekdays_back[14] = {
+      weekday::sunday,   weekday::saturday,  weekday::friday,
+      weekday::thursday, weekday::wednesday, weekday::tuesday,
+      weekday::monday,   weekday::sunday,    weekday::saturday,
+      weekday::friday,   weekday::thursday,  weekday::wednesday,
+      weekday::tuesday,  weekday::monday,
+  };
+  weekday base = get_weekday(cd);
+  for (int i = 0;; ++i) {
+    if (base == k_weekdays_back[i]) {
+      for (int j = i + 1;; ++j) {
+        if (wd == k_weekdays_back[j]) {
+          return cd - (j - i);
+        }
+      }
+    }
+  }
 }
 
 CONSTEXPR_F int get_yearday(const civil_day& cd) noexcept {

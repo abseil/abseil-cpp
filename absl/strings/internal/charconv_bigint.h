@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -57,17 +57,10 @@ class BigUnsigned {
                 "unsupported max_words value");
 
   BigUnsigned() : size_(0), words_{} {}
-  explicit BigUnsigned(uint32_t v) : size_(v > 0 ? 1 : 0), words_{v} {}
-  explicit BigUnsigned(uint64_t v)
-      : size_(0),
-        words_{static_cast<uint32_t>(v & 0xffffffff),
-               static_cast<uint32_t>(v >> 32)} {
-    if (words_[1]) {
-      size_ = 2;
-    } else if (words_[0]) {
-      size_ = 1;
-    }
-  }
+  explicit constexpr BigUnsigned(uint64_t v)
+      : size_((v >> 32) ? 2 : v ? 1 : 0),
+        words_{static_cast<uint32_t>(v & 0xffffffffu),
+               static_cast<uint32_t>(v >> 32)} {}
 
   // Constructs a BigUnsigned from the given string_view containing a decimal
   // value.  If the input std::string is not a decimal integer, constructs a 0
@@ -110,12 +103,12 @@ class BigUnsigned {
         SetToZero();
         return;
       }
-      size_ = std::min(size_ + word_shift, max_words);
+      size_ = (std::min)(size_ + word_shift, max_words);
       count %= 32;
       if (count == 0) {
         std::copy_backward(words_, words_ + size_ - word_shift, words_ + size_);
       } else {
-        for (int i = std::min(size_, max_words - 1); i > word_shift; --i) {
+        for (int i = (std::min)(size_, max_words - 1); i > word_shift; --i) {
           words_[i] = (words_[i - word_shift] << count) |
                       (words_[i - word_shift - 1] >> (32 - count));
         }
@@ -274,7 +267,7 @@ class BigUnsigned {
   void MultiplyBy(int other_size, const uint32_t* other_words) {
     const int original_size = size_;
     const int first_step =
-        std::min(original_size + other_size - 2, max_words - 1);
+        (std::min)(original_size + other_size - 2, max_words - 1);
     for (int step = first_step; step >= 0; --step) {
       MultiplyStep(original_size, other_words, other_size, step);
     }
@@ -293,7 +286,7 @@ class BigUnsigned {
           value = 0;
         }
       }
-      size_ = std::min(max_words, std::max(index + 1, size_));
+      size_ = (std::min)(max_words, (std::max)(index + 1, size_));
     }
   }
 
@@ -316,7 +309,7 @@ class BigUnsigned {
       } else {
         // Normally 32-bit AddWithCarry() sets size_, but since we don't call
         // it when `high` is 0, do it ourselves here.
-        size_ = std::min(max_words, std::max(index + 1, size_));
+        size_ = (std::min)(max_words, (std::max)(index + 1, size_));
       }
     }
   }
@@ -355,7 +348,7 @@ class BigUnsigned {
 // Returns -1 if lhs < rhs, 0 if lhs == rhs, and 1 if lhs > rhs.
 template <int N, int M>
 int Compare(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
-  int limit = std::max(lhs.size(), rhs.size());
+  int limit = (std::max)(lhs.size(), rhs.size());
   for (int i = limit - 1; i >= 0; --i) {
     const uint32_t lhs_word = lhs.GetWord(i);
     const uint32_t rhs_word = rhs.GetWord(i);
@@ -370,7 +363,7 @@ int Compare(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
 
 template <int N, int M>
 bool operator==(const BigUnsigned<N>& lhs, const BigUnsigned<M>& rhs) {
-  int limit = std::max(lhs.size(), rhs.size());
+  int limit = (std::max)(lhs.size(), rhs.size());
   for (int i = 0; i < limit; ++i) {
     if (lhs.GetWord(i) != rhs.GetWord(i)) {
       return false;
