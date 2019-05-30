@@ -407,9 +407,9 @@ inline Weekday GetWeekday(CivilDay cd) {
 //
 //   absl::CivilDay d = ...
 //   // Gets the following Thursday if d is not already Thursday
-//   absl::CivilDay thurs1 = absl::PrevWeekday(d, absl::Weekday::thursday) + 7;
+//   absl::CivilDay thurs1 = absl::NextWeekday(d - 1, absl::Weekday::thursday);
 //   // Gets the previous Thursday if d is not already Thursday
-//   absl::CivilDay thurs2 = absl::NextWeekday(d, absl::Weekday::thursday) - 7;
+//   absl::CivilDay thurs2 = absl::PrevWeekday(d + 1, absl::Weekday::thursday);
 //
 inline CivilDay NextWeekday(CivilDay cd, Weekday wd) {
   return CivilDay(time_internal::cctz::next_weekday(cd, wd));

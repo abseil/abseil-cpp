@@ -271,7 +271,7 @@ TEST_F(FormatEntryPointTest, FPrintFError) {
   EXPECT_EQ(errno, EBADF);
 }
 
-#if __GLIBC__
+#ifdef __GLIBC__
 TEST_F(FormatEntryPointTest, FprintfTooLarge) {
   std::FILE* f = std::fopen("/dev/null", "w");
   int width = 2000000000;

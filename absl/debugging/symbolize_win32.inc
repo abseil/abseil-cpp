@@ -23,7 +23,7 @@
 #include <DbgHelp.h>
 #pragma warning(pop)
 
-#pragma comment(lib, "DbgHelp")
+#pragma comment(lib, "dbghelp.lib")
 
 #include <algorithm>
 #include <cstring>

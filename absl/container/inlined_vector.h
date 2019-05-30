@@ -890,7 +890,7 @@ class InlinedVector {
 
   template <typename... Args>
   reference Construct(pointer p, Args&&... args) {
-    std::allocator_traits<allocator_type>::construct(
+    absl::allocator_traits<allocator_type>::construct(
         *storage_.GetAllocPtr(), p, std::forward<Args>(args)...);
     return *p;
   }
@@ -908,8 +908,8 @@ class InlinedVector {
   // Destroy [`from`, `to`) in place.
   void Destroy(pointer from, pointer to) {
     for (pointer cur = from; cur != to; ++cur) {
-      std::allocator_traits<allocator_type>::destroy(*storage_.GetAllocPtr(),
-                                                     cur);
+      absl::allocator_traits<allocator_type>::destroy(*storage_.GetAllocPtr(),
+                                                      cur);
     }
 #if !defined(NDEBUG)
     // Overwrite unused memory with `0xab` so we can catch uninitialized usage.

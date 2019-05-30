@@ -124,6 +124,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::compressed_tuple
+    absl::memory
     absl::type_traits
   PUBLIC
 )

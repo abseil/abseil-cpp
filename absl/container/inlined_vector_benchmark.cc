@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -373,71 +374,75 @@ void BM_StdVectorEmpty(benchmark::State& state) {
 }
 BENCHMARK(BM_StdVectorEmpty);
 
-constexpr size_t kInlineElements = 4;
-constexpr size_t kSmallSize = kInlineElements / 2;
-constexpr size_t kLargeSize = kInlineElements * 2;
+constexpr size_t kInlinedCapacity = 4;
+constexpr size_t kLargeSize = kInlinedCapacity * 2;
+constexpr size_t kSmallSize = kInlinedCapacity / 2;
 constexpr size_t kBatchSize = 100;
+
+template <typename T>
+using InlVec = absl::InlinedVector<T, kInlinedCapacity>;
 
 struct TrivialType {
   size_t val;
 };
 
-using TrivialVec = absl::InlinedVector<TrivialType, kInlineElements>;
-
 class NontrivialType {
  public:
-  ABSL_ATTRIBUTE_NOINLINE NontrivialType() : val_() {}
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType() : val_() {
+    benchmark::DoNotOptimize(*this);
+  }
 
   ABSL_ATTRIBUTE_NOINLINE NontrivialType(const NontrivialType& other)
-      : val_(other.val_) {}
+      : val_(other.val_) {
+    benchmark::DoNotOptimize(*this);
+  }
 
   ABSL_ATTRIBUTE_NOINLINE NontrivialType& operator=(
       const NontrivialType& other) {
     val_ = other.val_;
+    benchmark::DoNotOptimize(*this);
     return *this;
   }
 
-  ABSL_ATTRIBUTE_NOINLINE ~NontrivialType() noexcept {}
+  ABSL_ATTRIBUTE_NOINLINE ~NontrivialType() noexcept {
+    benchmark::DoNotOptimize(*this);
+  }
 
  private:
   size_t val_;
 };
 
-using NontrivialVec = absl::InlinedVector<NontrivialType, kInlineElements>;
-
-template <typename VecT, typename PrepareVec, typename TestVec>
-void BatchedBenchmark(benchmark::State& state, PrepareVec prepare_vec,
-                      TestVec test_vec) {
-  VecT vectors[kBatchSize];
+template <typename T, typename PrepareVecFn, typename TestVecFn>
+void BatchedBenchmark(benchmark::State& state, PrepareVecFn prepare_vec,
+                      TestVecFn test_vec) {
+  std::array<InlVec<T>, kBatchSize> vector_batch{};
 
   while (state.KeepRunningBatch(kBatchSize)) {
     // Prepare batch
     state.PauseTiming();
-    for (auto& vec : vectors) {
+    for (auto& vec : vector_batch) {
       prepare_vec(&vec);
     }
-    benchmark::DoNotOptimize(vectors);
+    benchmark::DoNotOptimize(vector_batch);
     state.ResumeTiming();
 
     // Test batch
-    for (auto& vec : vectors) {
+    for (auto& vec : vector_batch) {
       test_vec(&vec);
     }
   }
 }
 
-template <typename VecT, size_t FromSize>
+template <typename T, size_t FromSize>
 void BM_Clear(benchmark::State& state) {
-  BatchedBenchmark<VecT>(
+  BatchedBenchmark<T>(
       state,
-      /* prepare_vec = */ [](VecT* vec) { vec->resize(FromSize); },
-      /* test_vec = */ [](VecT* vec) { vec->clear(); });
+      /* prepare_vec = */ [](InlVec<T>* vec) { vec->resize(FromSize); },
+      /* test_vec = */ [](InlVec<T>* vec) { vec->clear(); });
 }
-
-BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kSmallSize);
-BENCHMARK_TEMPLATE(BM_Clear, TrivialVec, kLargeSize);
-
-BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kSmallSize);
-BENCHMARK_TEMPLATE(BM_Clear, NontrivialVec, kLargeSize);
+BENCHMARK_TEMPLATE(BM_Clear, TrivialType, kLargeSize);
+BENCHMARK_TEMPLATE(BM_Clear, TrivialType, kSmallSize);
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialType, kLargeSize);
+BENCHMARK_TEMPLATE(BM_Clear, NontrivialType, kSmallSize);
 
 }  // namespace

@@ -20,36 +20,85 @@
 
 namespace {
 
-constexpr size_t kInlined = 4;
-constexpr size_t kSmallSize = kInlined / 2;
-constexpr size_t kLargeSize = kInlined * 2;
+constexpr size_t kInlinedCapacity = 4;
+constexpr size_t kLargeSize = kInlinedCapacity * 2;
+constexpr size_t kSmallSize = kInlinedCapacity / 2;
 
 using Thrower = testing::ThrowingValue<>;
-using ThrowerAlloc = testing::ThrowingAllocator<Thrower>;
+using MovableThrower = testing::ThrowingValue<testing::TypeSpec::kNoThrowMove>;
+using ThrowAlloc = testing::ThrowingAllocator<Thrower>;
 
-template <typename Allocator = std::allocator<Thrower>>
-using InlVec = absl::InlinedVector<Thrower, kInlined, Allocator>;
+using ThrowerVec = absl::InlinedVector<Thrower, kInlinedCapacity>;
+using MovableThrowerVec = absl::InlinedVector<MovableThrower, kInlinedCapacity>;
 
-TEST(InlinedVector, DefaultConstructor) {
-  testing::TestThrowingCtor<InlVec<>>();
+using ThrowAllocThrowerVec =
+    absl::InlinedVector<Thrower, kInlinedCapacity, ThrowAlloc>;
+using ThrowAllocMovableThrowerVec =
+    absl::InlinedVector<MovableThrower, kInlinedCapacity, ThrowAlloc>;
 
-  testing::TestThrowingCtor<InlVec<ThrowerAlloc>>();
+template <typename TheVecT, size_t... TheSizes>
+class TestParams {
+ public:
+  using VecT = TheVecT;
+  constexpr static size_t GetSizeAt(size_t i) { return kSizes[1 + i]; }
+
+ private:
+  constexpr static size_t kSizes[1 + sizeof...(TheSizes)] = {1, TheSizes...};
+};
+
+using NoSizeTestParams =
+    ::testing::Types<TestParams<ThrowerVec>, TestParams<MovableThrowerVec>,
+                     TestParams<ThrowAllocThrowerVec>,
+                     TestParams<ThrowAllocMovableThrowerVec>>;
+
+using OneSizeTestParams =
+    ::testing::Types<TestParams<ThrowerVec, kLargeSize>,
+                     TestParams<ThrowerVec, kSmallSize>,
+                     TestParams<MovableThrowerVec, kLargeSize>,
+                     TestParams<MovableThrowerVec, kSmallSize>,
+                     TestParams<ThrowAllocThrowerVec, kLargeSize>,
+                     TestParams<ThrowAllocThrowerVec, kSmallSize>,
+                     TestParams<ThrowAllocMovableThrowerVec, kLargeSize>,
+                     TestParams<ThrowAllocMovableThrowerVec, kSmallSize>>;
+
+template <typename>
+struct NoSizeTest : ::testing::Test {};
+TYPED_TEST_SUITE(NoSizeTest, NoSizeTestParams);
+
+template <typename>
+struct OneSizeTest : ::testing::Test {};
+TYPED_TEST_SUITE(OneSizeTest, OneSizeTestParams);
+
+// Function that always returns false is correct, but refactoring is required
+// for clarity. It's needed to express that, as a contract, certain operations
+// should not throw at all. Execution of this function means an exception was
+// thrown and thus the test should fail.
+// TODO(johnsoncj): Add `testing::NoThrowGuarantee` to the framework
+template <typename VecT>
+bool NoThrowGuarantee(VecT* /* vec */) {
+  return false;
 }
 
-TEST(InlinedVector, AllocConstructor) {
-  auto alloc = std::allocator<Thrower>();
-  testing::TestThrowingCtor<InlVec<>>(alloc);
+TYPED_TEST(NoSizeTest, DefaultConstructor) {
+  using VecT = typename TypeParam::VecT;
+  using allocator_type = typename VecT::allocator_type;
 
-  auto throw_alloc = ThrowerAlloc();
-  testing::TestThrowingCtor<InlVec<ThrowerAlloc>>(throw_alloc);
+  testing::TestThrowingCtor<VecT>();
+
+  testing::TestThrowingCtor<VecT>(allocator_type{});
 }
 
-TEST(InlinedVector, Clear) {
-  auto small_vec = InlVec<>(kSmallSize);
-  EXPECT_TRUE(testing::TestNothrowOp([&]() { small_vec.clear(); }));
+TYPED_TEST(OneSizeTest, Clear) {
+  using VecT = typename TypeParam::VecT;
+  constexpr static auto size = TypeParam::GetSizeAt(0);
 
-  auto large_vec = InlVec<>(kLargeSize);
-  EXPECT_TRUE(testing::TestNothrowOp([&]() { large_vec.clear(); }));
+  auto tester = testing::MakeExceptionSafetyTester()
+                    .WithInitialValue(VecT(size))
+                    .WithContracts(NoThrowGuarantee<VecT>);
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    vec->clear();  //
+  }));
 }
 
 }  // namespace

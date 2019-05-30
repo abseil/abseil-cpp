@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "absl/container/internal/compressed_tuple.h"
+#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -35,15 +36,7 @@ using IsAtLeastForwardIterator = std::is_convertible<
 template <typename AllocatorType, typename ValueType, typename SizeType>
 void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
                      SizeType destroy_size) {
-  using AllocatorTraits = std::allocator_traits<AllocatorType>;
-
-  // Destroys `destroy_size` elements from `destroy_first`.
-  //
-  // Destroys the range
-  //   [`destroy_first`, `destroy_first + destroy_size`).
-  //
-  // NOTE: We assume destructors do not throw and thus make no attempt to roll
-  // back.
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
   for (SizeType i = 0; i < destroy_size; ++i) {
     AllocatorTraits::destroy(*alloc_ptr, destroy_first + i);
   }
@@ -75,7 +68,7 @@ class Storage {
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using AllocatorTraits = std::allocator_traits<allocator_type>;
+  using AllocatorTraits = absl::allocator_traits<allocator_type>;
 
   explicit Storage(const allocator_type& alloc)
       : metadata_(alloc, /* empty and inlined */ 0) {}

@@ -69,6 +69,9 @@ cc_library(
 
 cc_library(
     name = "core_headers",
+    srcs = [
+        "internal/thread_annotations.h",
+    ],
     hdrs = [
         "attributes.h",
         "const_init.h",
@@ -385,7 +388,6 @@ cc_test(
     srcs = ["internal/endian_test.cc"],
     copts = ABSL_TEST_COPTS,
     deps = [
-        ":base",
         ":config",
         ":endian",
         "@com_google_googletest//:gtest_main",
