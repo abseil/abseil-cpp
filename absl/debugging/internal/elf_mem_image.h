@@ -34,7 +34,7 @@
 #define ABSL_HAVE_ELF_MEM_IMAGE 1
 #endif
 
-#if ABSL_HAVE_ELF_MEM_IMAGE
+#ifdef ABSL_HAVE_ELF_MEM_IMAGE
 
 #include <link.h>  // for ElfW
 
