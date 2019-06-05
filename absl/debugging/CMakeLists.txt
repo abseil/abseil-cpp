@@ -50,6 +50,7 @@ absl_cc_library(
     absl::demangle_internal
     absl::base
     absl::core_headers
+    absl::dynamic_annotations
     absl::malloc_internal
   PUBLIC
 )

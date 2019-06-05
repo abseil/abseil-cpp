@@ -61,6 +61,7 @@ cc_library(
         ":demangle_internal",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
     ],
 )

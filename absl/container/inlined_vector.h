@@ -100,9 +100,8 @@ class InlinedVector {
   // InlinedVector Constructors and Destructor
   // ---------------------------------------------------------------------------
 
-  // Creates an empty inlined vector with a default initialized allocator.
-  InlinedVector() noexcept(noexcept(allocator_type()))
-      : storage_(allocator_type()) {}
+  // Creates an empty inlined vector with a value-initialized allocator.
+  InlinedVector() noexcept(noexcept(allocator_type())) : storage_() {}
 
   // Creates an empty inlined vector with a specified allocator.
   explicit InlinedVector(const allocator_type& alloc) noexcept
@@ -112,22 +111,40 @@ class InlinedVector {
   explicit InlinedVector(size_type n,
                          const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    InitAssign(n);
+    if (n > static_cast<size_type>(N)) {
+      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
+      storage_.SetAllocatedData(new_data, n);
+      UninitializedFill(storage_.GetAllocatedData(),
+                        storage_.GetAllocatedData() + n);
+      storage_.SetAllocatedSize(n);
+    } else {
+      UninitializedFill(storage_.GetInlinedData(),
+                        storage_.GetInlinedData() + n);
+      storage_.SetInlinedSize(n);
+    }
   }
 
   // Creates an inlined vector with `n` copies of `v`.
   InlinedVector(size_type n, const_reference v,
                 const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    InitAssign(n, v);
+    if (n > static_cast<size_type>(N)) {
+      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
+      storage_.SetAllocatedData(new_data, n);
+      UninitializedFill(storage_.GetAllocatedData(),
+                        storage_.GetAllocatedData() + n, v);
+      storage_.SetAllocatedSize(n);
+    } else {
+      UninitializedFill(storage_.GetInlinedData(),
+                        storage_.GetInlinedData() + n, v);
+      storage_.SetInlinedSize(n);
+    }
   }
 
   // Creates an inlined vector of copies of the values in `list`.
   InlinedVector(std::initializer_list<value_type> list,
                 const allocator_type& alloc = allocator_type())
-      : storage_(alloc) {
-    AppendForwardRange(list.begin(), list.end());
-  }
+      : InlinedVector(list.begin(), list.end(), alloc) {}
 
   // Creates an inlined vector with elements constructed from the provided
   // forward iterator range [`first`, `last`).
@@ -140,7 +157,15 @@ class InlinedVector {
   InlinedVector(ForwardIterator first, ForwardIterator last,
                 const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    AppendForwardRange(first, last);
+    auto length = std::distance(first, last);
+    reserve(size() + length);
+    if (storage_.GetIsAllocated()) {
+      UninitializedCopy(first, last, storage_.GetAllocatedData() + size());
+      storage_.SetAllocatedSize(size() + length);
+    } else {
+      UninitializedCopy(first, last, storage_.GetInlinedData() + size());
+      storage_.SetInlinedSize(size() + length);
+    }
   }
 
   // Creates an inlined vector with elements constructed from the provided input
@@ -193,8 +218,8 @@ class InlinedVector {
     if (other.storage_.GetIsAllocated()) {
       // We can just steal the underlying buffer from the source.
       // That leaves the source empty, so we clear its size.
-      storage_.SetAllocatedData(other.storage_.GetAllocatedData());
-      storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
+      storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
+                                other.storage_.GetAllocatedCapacity());
       storage_.SetAllocatedSize(other.size());
       other.storage_.SetInlinedSize(0);
     } else {
@@ -227,8 +252,8 @@ class InlinedVector {
       if (*storage_.GetAllocPtr() == *other.storage_.GetAllocPtr()) {
         // We can just steal the allocation from the source.
         storage_.SetAllocatedSize(other.size());
-        storage_.SetAllocatedData(other.storage_.GetAllocatedData());
-        storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
+        storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
+                                  other.storage_.GetAllocatedCapacity());
         other.storage_.SetInlinedSize(0);
       } else {
         // We need to use our own allocator
@@ -248,7 +273,7 @@ class InlinedVector {
     }
   }
 
-  ~InlinedVector() { clear(); }
+  ~InlinedVector() {}
 
   // ---------------------------------------------------------------------------
   // InlinedVector Member Accessors
@@ -473,8 +498,8 @@ class InlinedVector {
     if (other.storage_.GetIsAllocated()) {
       clear();
       storage_.SetAllocatedSize(other.size());
-      storage_.SetAllocatedData(other.storage_.GetAllocatedData());
-      storage_.SetAllocatedCapacity(other.storage_.GetAllocatedCapacity());
+      storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
+                                other.storage_.GetAllocatedCapacity());
       other.storage_.SetInlinedSize(0);
     } else {
       if (storage_.GetIsAllocated()) clear();
@@ -793,16 +818,8 @@ class InlinedVector {
   // Destroys all elements in the inlined vector, sets the size of `0` and
   // deallocates the heap allocation if the inlined vector was allocated.
   void clear() noexcept {
-    const bool is_allocated = storage_.GetIsAllocated();
-    pointer the_data =
-        is_allocated ? storage_.GetAllocatedData() : storage_.GetInlinedData();
-    inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), the_data,
-                                             storage_.GetSize());
+    storage_.DestroyAndDeallocate();
     storage_.SetInlinedSize(0);
-    if (is_allocated) {
-      AllocatorTraits::deallocate(*storage_.GetAllocPtr(), the_data,
-                                  storage_.GetAllocatedCapacity());
-    }
   }
 
   // `InlinedVector::reserve()`
@@ -883,8 +900,7 @@ class InlinedVector {
       Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + size());
     }
 
-    storage_.SetAllocatedData(new_data);
-    storage_.SetAllocatedCapacity(new_capacity);
+    storage_.SetAllocatedData(new_data, new_capacity);
     storage_.SetAllocatedSize(new_size);
   }
 
@@ -1032,53 +1048,6 @@ class InlinedVector {
     return new_element;
   }
 
-  void InitAssign(size_type n) {
-    if (n > static_cast<size_type>(N)) {
-      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
-      storage_.SetAllocatedData(new_data);
-      storage_.SetAllocatedCapacity(n);
-      UninitializedFill(storage_.GetAllocatedData(),
-                        storage_.GetAllocatedData() + n);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData(),
-                        storage_.GetInlinedData() + n);
-      storage_.SetInlinedSize(n);
-    }
-  }
-
-  void InitAssign(size_type n, const_reference v) {
-    if (n > static_cast<size_type>(N)) {
-      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
-      storage_.SetAllocatedData(new_data);
-      storage_.SetAllocatedCapacity(n);
-      UninitializedFill(storage_.GetAllocatedData(),
-                        storage_.GetAllocatedData() + n, v);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData(),
-                        storage_.GetInlinedData() + n, v);
-      storage_.SetInlinedSize(n);
-    }
-  }
-
-  template <typename ForwardIt>
-  void AppendForwardRange(ForwardIt first, ForwardIt last) {
-    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
-                      ForwardIt>::value,
-                  "");
-
-    auto length = std::distance(first, last);
-    reserve(size() + length);
-    if (storage_.GetIsAllocated()) {
-      UninitializedCopy(first, last, storage_.GetAllocatedData() + size());
-      storage_.SetAllocatedSize(size() + length);
-    } else {
-      UninitializedCopy(first, last, storage_.GetInlinedData() + size());
-      storage_.SetInlinedSize(size() + length);
-    }
-  }
-
   iterator InsertWithCount(const_iterator position, size_type n,
                            const_reference v) {
     assert(position >= begin() && position <= end());
@@ -1191,8 +1160,7 @@ class InlinedVector {
     a->Destroy(a->storage_.GetInlinedData(),
                a->storage_.GetInlinedData() + a_size);
 
-    a->storage_.SetAllocatedData(b_data);
-    a->storage_.SetAllocatedCapacity(b_capacity);
+    a->storage_.SetAllocatedData(b_data, b_capacity);
 
     if (*a->storage_.GetAllocPtr() != *b->storage_.GetAllocPtr()) {
       swap(*a->storage_.GetAllocPtr(), *b->storage_.GetAllocPtr());
