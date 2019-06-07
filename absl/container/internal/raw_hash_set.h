@@ -350,7 +350,7 @@ struct GroupSse2Impl {
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
 #else
-    return Match(kEmpty);
+    return Match(static_cast<h2_t>(kEmpty));
 #endif
   }
 
