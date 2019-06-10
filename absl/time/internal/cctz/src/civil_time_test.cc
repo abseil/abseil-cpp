@@ -1035,7 +1035,7 @@ TEST(CivilTime, LeapYears) {
 
 TEST(CivilTime, FirstThursdayInMonth) {
   const civil_day nov1(2014, 11, 1);
-  const civil_day thursday = prev_weekday(nov1, weekday::thursday) + 7;
+  const civil_day thursday = next_weekday(nov1 - 1, weekday::thursday);
   EXPECT_EQ("2014-11-06", Format(thursday));
 
   // Bonus: Date of Thanksgiving in the United States

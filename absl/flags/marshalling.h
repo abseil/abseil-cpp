@@ -185,18 +185,11 @@ bool AbslParseFlag(absl::string_view, double*, std::string*);
 bool AbslParseFlag(absl::string_view, std::string*, std::string*);
 bool AbslParseFlag(absl::string_view, std::vector<std::string>*, std::string*);
 
-struct GlobalStringADLGuard {
-  explicit GlobalStringADLGuard(std::string* p) : ptr(p) {}
-  operator std::string*() { return ptr; }  // NOLINT
-  std::string* ptr;
-};
-
 template <typename T>
 bool InvokeParseFlag(absl::string_view input, T* dst, std::string* err) {
   // Comment on next line provides a good compiler error message if T
   // does not have AbslParseFlag(absl::string_view, T*, std::string*).
-  return AbslParseFlag(  // Is T missing AbslParseFlag?
-      input, dst, GlobalStringADLGuard(err));
+  return AbslParseFlag(input, dst, err);  // Is T missing AbslParseFlag?
 }
 
 // Strings and std:: containers do not have the same overload resolution

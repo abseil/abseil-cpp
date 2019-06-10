@@ -56,7 +56,7 @@ class Flag {
   // forward declared types.
   //  auto IsCopyConstructible(const T& v) -> decltype(T(v));
   //  auto HasAbslParseFlag(absl::string_view in, T* dst, std::string* err)
-  //      -> decltype(AbslParseFlag(in, dst, GlobalStringADLGuard(err)));
+  //      -> decltype(AbslParseFlag(in, dst, err));
   //  auto HasAbslUnparseFlag(const T& v) -> decltype(AbslUnparseFlag(v));
 };
 

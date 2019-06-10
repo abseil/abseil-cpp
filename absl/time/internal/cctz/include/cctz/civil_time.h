@@ -306,9 +306,9 @@ using detail::get_weekday;
 //
 //   civil_day d = ...
 //   // Gets the following Thursday if d is not already Thursday
-//   civil_day thurs1 = prev_weekday(d, weekday::thursday) + 7;
+//   civil_day thurs1 = next_weekday(d - 1, weekday::thursday);
 //   // Gets the previous Thursday if d is not already Thursday
-//   civil_day thurs2 = next_weekday(d, weekday::thursday) - 7;
+//   civil_day thurs2 = prev_weekday(d + 1, weekday::thursday);
 //
 using detail::next_weekday;
 using detail::prev_weekday;

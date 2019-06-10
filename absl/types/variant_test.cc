@@ -460,6 +460,11 @@ TYPED_TEST(VariantTypesTest, TestValueCtor) {
   EXPECT_EQ(value.value, mutable_valptr->value);
 }
 
+TEST(VariantTest, AmbiguousValueConstructor) {
+  EXPECT_FALSE((std::is_convertible<int, absl::variant<int, int>>::value));
+  EXPECT_FALSE((std::is_constructible<absl::variant<int, int>, int>::value));
+}
+
 TEST(VariantTest, InPlaceType) {
   using Var = variant<int, std::string, NonCopyable, std::vector<int>>;
 

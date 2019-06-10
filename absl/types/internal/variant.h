@@ -837,8 +837,8 @@ struct ImaginaryFun<variant<H, T...>, I> : ImaginaryFun<variant<T...>, I + 1> {
   // NOTE: const& and && are used instead of by-value due to lack of guaranteed
   // move elision of C++17. This may have other minor differences, but tests
   // pass.
-  static SizeT<I> Run(const H&);
-  static SizeT<I> Run(H&&);
+  static SizeT<I> Run(const H&, SizeT<I>);
+  static SizeT<I> Run(H&&, SizeT<I>);
 };
 
 // The following metafunctions are used in constructor and assignment
@@ -860,7 +860,8 @@ struct ConversionIsPossibleImpl : std::false_type {};
 
 template <class Variant, class T>
 struct ConversionIsPossibleImpl<
-    Variant, T, void_t<decltype(ImaginaryFun<Variant>::Run(std::declval<T>()))>>
+    Variant, T,
+    void_t<decltype(ImaginaryFun<Variant>::Run(std::declval<T>(), {}))>>
     : std::true_type {};
 
 template <class Variant, class T>
@@ -868,8 +869,9 @@ struct ConversionIsPossible : ConversionIsPossibleImpl<Variant, T>::type {};
 
 template <class Variant, class T>
 struct IndexOfConstructedType<
-    Variant, T, void_t<decltype(ImaginaryFun<Variant>::Run(std::declval<T>()))>>
-    : decltype(ImaginaryFun<Variant>::Run(std::declval<T>())) {};
+    Variant, T,
+    void_t<decltype(ImaginaryFun<Variant>::Run(std::declval<T>(), {}))>>
+    : decltype(ImaginaryFun<Variant>::Run(std::declval<T>(), {})) {};
 
 template <std::size_t... Is>
 struct ContainsVariantNPos
