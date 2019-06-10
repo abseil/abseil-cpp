@@ -105,8 +105,6 @@ LLVM_TEST_DISABLE_WARNINGS_FLAGS = [
     "-Wno-unused-template",
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
-    # For a libc++ bug fixed in r357267
-    "-Wno-gnu-include-next",
     # gtest depends on this GNU extension being offered.
     "-Wno-gnu-zero-variadic-macro-arguments",
 ]
