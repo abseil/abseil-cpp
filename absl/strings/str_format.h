@@ -20,7 +20,8 @@
 // The `str_format` library is a typesafe replacement for the family of
 // `printf()` string formatting routines within the `<cstdio>` standard library
 // header. Like the `printf` family, the `str_format` uses a "format string" to
-// perform argument substitutions based on types.
+// perform argument substitutions based on types. See the `FormatSpec` section
+// below for format string documentation.
 //
 // Example:
 //
@@ -67,6 +68,7 @@
 // In addition, the `str_format` library provides extension points for
 // augmenting formatting to new types. These extensions are fully documented
 // within the `str_format_extension.h` header file.
+
 #ifndef ABSL_STRINGS_STR_FORMAT_H_
 #define ABSL_STRINGS_STR_FORMAT_H_
 
@@ -211,6 +213,11 @@ class FormatCountCapture {
 //     written to this point. The resulting value must be captured within an
 //     `absl::FormatCountCapture` type.
 //
+// Implementation-defined behavior:
+//   * A null pointer provided to "%s" or "%p" is output as "(nil)".
+//   * A non-null pointer provided to "%p" is output in hex as if by %#x or
+//     %#lx.
+//
 // NOTE: `o`, `x\X` and `u` will convert signed values to their unsigned
 // counterpart before formatting.
 //
@@ -226,7 +233,7 @@ class FormatCountCapture {
 //     "%e", .01                -> "1.00000e-2"
 //     "%a", -3.0               -> "-0x1.8p+1"
 //     "%g", .01                -> "1e-2"
-//     "%p", *int               -> "0x7ffdeb6ad2a4"
+//     "%p", (void*)&value      -> "0x7ffdeb6ad2a4"
 //
 //     int n = 0;
 //     std::string s = absl::StrFormat(
