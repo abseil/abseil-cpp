@@ -22,7 +22,10 @@ class AbseilConan(ConanFile):
     exports_sources = ["CMakeLists.txt", "CMake/*", "absl/*"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
-
+    options = {"cxx_standard": {11, 14, 17}}
+    default_options = {"cxx_standard": 11}
+    version = "latest"
+    
     def configure(self):
         if self.settings.os == "Windows" and \
            self.settings.compiler == "Visual Studio" and \
@@ -30,9 +33,10 @@ class AbseilConan(ConanFile):
             raise ConanInvalidConfiguration("Abseil does not support MSVC < 14")
 
     def build(self):
-        tools.replace_in_file("CMakeLists.txt", "project(absl)", "project(absl)\ninclude(conanbuildinfo.cmake)\nconan_basic_setup()")
+        tools.replace_in_file("CMakeLists.txt", "project(absl CXX)", "project(absl CXX)\ninclude(conanbuildinfo.cmake)\nconan_basic_setup()")
         cmake = CMake(self)
         cmake.definitions["BUILD_TESTING"] = False
+        cmake.definitions["CMAKE_CXX_STANDARD"] = self.options.cxx_standard
         cmake.configure()
         cmake.build()
 
