@@ -24,7 +24,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       # AppleClang doesn't have lsan
       # https://developer.apple.com/documentation/code_diagnostics
-      if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 3.5)
+      if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5)
         set(ABSL_LSAN_LINKOPTS "-fsanitize=leak")
         set(ABSL_HAVE_LSAN ON)
       endif()
