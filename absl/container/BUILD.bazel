@@ -124,6 +124,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":compressed_tuple",
+        "//absl/base:core_headers",
         "//absl/memory",
         "//absl/meta:type_traits",
     ],

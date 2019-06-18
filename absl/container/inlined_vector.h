@@ -70,7 +70,16 @@ class InlinedVector {
       N > 0, "InlinedVector cannot be instantiated with `0` inlined elements.");
 
   using Storage = inlined_vector_internal::Storage<T, N, A>;
+  using rvalue_reference = typename Storage::rvalue_reference;
+  using MoveIterator = typename Storage::MoveIterator;
   using AllocatorTraits = typename Storage::AllocatorTraits;
+  using IsMemcpyOk = typename Storage::IsMemcpyOk;
+
+  template <typename Iterator>
+  using IteratorValueAdapter =
+      typename Storage::template IteratorValueAdapter<Iterator>;
+  using CopyValueAdapter = typename Storage::CopyValueAdapter;
+  using DefaultValueAdapter = typename Storage::DefaultValueAdapter;
 
   template <typename Iterator>
   using EnableIfAtLeastForwardIterator = absl::enable_if_t<
@@ -79,8 +88,6 @@ class InlinedVector {
   template <typename Iterator>
   using DisableIfAtLeastForwardIterator = absl::enable_if_t<
       !inlined_vector_internal::IsAtLeastForwardIterator<Iterator>::value>;
-
-  using rvalue_reference = typename Storage::rvalue_reference;
 
  public:
   using allocator_type = typename Storage::allocator_type;
@@ -111,34 +118,14 @@ class InlinedVector {
   explicit InlinedVector(size_type n,
                          const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    if (n > static_cast<size_type>(N)) {
-      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
-      storage_.SetAllocatedData(new_data, n);
-      UninitializedFill(storage_.GetAllocatedData(),
-                        storage_.GetAllocatedData() + n);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData(),
-                        storage_.GetInlinedData() + n);
-      storage_.SetInlinedSize(n);
-    }
+    storage_.Initialize(DefaultValueAdapter(), n);
   }
 
   // Creates an inlined vector with `n` copies of `v`.
   InlinedVector(size_type n, const_reference v,
                 const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    if (n > static_cast<size_type>(N)) {
-      pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), n);
-      storage_.SetAllocatedData(new_data, n);
-      UninitializedFill(storage_.GetAllocatedData(),
-                        storage_.GetAllocatedData() + n, v);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData(),
-                        storage_.GetInlinedData() + n, v);
-      storage_.SetInlinedSize(n);
-    }
+    storage_.Initialize(CopyValueAdapter(v), n);
   }
 
   // Creates an inlined vector of copies of the values in `list`.
@@ -157,15 +144,8 @@ class InlinedVector {
   InlinedVector(ForwardIterator first, ForwardIterator last,
                 const allocator_type& alloc = allocator_type())
       : storage_(alloc) {
-    auto length = std::distance(first, last);
-    reserve(size() + length);
-    if (storage_.GetIsAllocated()) {
-      UninitializedCopy(first, last, storage_.GetAllocatedData() + size());
-      storage_.SetAllocatedSize(size() + length);
-    } else {
-      UninitializedCopy(first, last, storage_.GetInlinedData() + size());
-      storage_.SetInlinedSize(size() + length);
-    }
+    storage_.Initialize(IteratorValueAdapter<ForwardIterator>(first),
+                        std::distance(first, last));
   }
 
   // Creates an inlined vector with elements constructed from the provided input
@@ -185,14 +165,11 @@ class InlinedVector {
   // Creates a copy of an `other` inlined vector using a specified allocator.
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
       : storage_(alloc) {
-    reserve(other.size());
-    if (storage_.GetIsAllocated()) {
-      UninitializedCopy(other.begin(), other.end(),
-                        storage_.GetAllocatedData());
-      storage_.SetAllocatedSize(other.size());
+    if (IsMemcpyOk::value && !other.storage_.GetIsAllocated()) {
+      storage_.MemcpyContents(other.storage_);
     } else {
-      UninitializedCopy(other.begin(), other.end(), storage_.GetInlinedData());
-      storage_.SetInlinedSize(other.size());
+      storage_.Initialize(IteratorValueAdapter<const_pointer>(other.data()),
+                          other.size());
     }
   }
 
@@ -215,20 +192,21 @@ class InlinedVector {
       absl::allocator_is_nothrow<allocator_type>::value ||
       std::is_nothrow_move_constructible<value_type>::value)
       : storage_(*other.storage_.GetAllocPtr()) {
-    if (other.storage_.GetIsAllocated()) {
-      // We can just steal the underlying buffer from the source.
-      // That leaves the source empty, so we clear its size.
+    if (IsMemcpyOk::value) {
+      storage_.MemcpyContents(other.storage_);
+      other.storage_.SetInlinedSize(0);
+    } else if (other.storage_.GetIsAllocated()) {
       storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
                                 other.storage_.GetAllocatedCapacity());
-      storage_.SetAllocatedSize(other.size());
+      storage_.SetAllocatedSize(other.storage_.GetSize());
       other.storage_.SetInlinedSize(0);
     } else {
-      UninitializedCopy(
-          std::make_move_iterator(other.storage_.GetInlinedData()),
-          std::make_move_iterator(other.storage_.GetInlinedData() +
-                                  other.size()),
-          storage_.GetInlinedData());
-      storage_.SetInlinedSize(other.size());
+      IteratorValueAdapter<MoveIterator> other_values(
+          MoveIterator(other.storage_.GetInlinedData()));
+      inlined_vector_internal::ConstructElements(
+          storage_.GetAllocPtr(), storage_.GetInlinedData(), &other_values,
+          other.storage_.GetSize());
+      storage_.SetInlinedSize(other.storage_.GetSize());
     }
   }
 
@@ -248,28 +226,19 @@ class InlinedVector {
   InlinedVector(InlinedVector&& other, const allocator_type& alloc) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value)
       : storage_(alloc) {
-    if (other.storage_.GetIsAllocated()) {
-      if (*storage_.GetAllocPtr() == *other.storage_.GetAllocPtr()) {
-        // We can just steal the allocation from the source.
-        storage_.SetAllocatedSize(other.size());
-        storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
-                                  other.storage_.GetAllocatedCapacity());
-        other.storage_.SetInlinedSize(0);
-      } else {
-        // We need to use our own allocator
-        reserve(other.size());
-        UninitializedCopy(std::make_move_iterator(other.begin()),
-                          std::make_move_iterator(other.end()),
-                          storage_.GetAllocatedData());
-        storage_.SetAllocatedSize(other.size());
-      }
+    if (IsMemcpyOk::value) {
+      storage_.MemcpyContents(other.storage_);
+      other.storage_.SetInlinedSize(0);
+    } else if ((*storage_.GetAllocPtr() == *other.storage_.GetAllocPtr()) &&
+               other.storage_.GetIsAllocated()) {
+      storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
+                                other.storage_.GetAllocatedCapacity());
+      storage_.SetAllocatedSize(other.storage_.GetSize());
+      other.storage_.SetInlinedSize(0);
     } else {
-      UninitializedCopy(
-          std::make_move_iterator(other.storage_.GetInlinedData()),
-          std::make_move_iterator(other.storage_.GetInlinedData() +
-                                  other.size()),
-          storage_.GetInlinedData());
-      storage_.SetInlinedSize(other.size());
+      storage_.Initialize(
+          IteratorValueAdapter<MoveIterator>(MoveIterator(other.data())),
+          other.size());
     }
   }
 
@@ -757,15 +726,8 @@ class InlinedVector {
   // by `1` (unless the inlined vector is empty, in which case this is a no-op).
   void pop_back() noexcept {
     assert(!empty());
-    size_type s = size();
-    if (storage_.GetIsAllocated()) {
-      Destroy(storage_.GetAllocatedData() + s - 1,
-              storage_.GetAllocatedData() + s);
-      storage_.SetAllocatedSize(s - 1);
-    } else {
-      Destroy(storage_.GetInlinedData() + s - 1, storage_.GetInlinedData() + s);
-      storage_.SetInlinedSize(s - 1);
-    }
+    AllocatorTraits::destroy(*storage_.GetAllocPtr(), data() + (size() - 1));
+    storage_.AddSize(-1);
   }
 
   // `InlinedVector::erase()`

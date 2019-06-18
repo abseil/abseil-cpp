@@ -21,6 +21,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
@@ -32,6 +33,14 @@ template <typename Iterator>
 using IsAtLeastForwardIterator = std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::forward_iterator_tag>;
+
+template <typename AllocatorType>
+using IsMemcpyOk = absl::conjunction<
+    std::is_same<std::allocator<typename AllocatorType::value_type>,
+                 AllocatorType>,
+    absl::is_trivially_copy_constructible<typename AllocatorType::value_type>,
+    absl::is_trivially_copy_assignable<typename AllocatorType::value_type>,
+    absl::is_trivially_destructible<typename AllocatorType::value_type>>;
 
 template <typename AllocatorType, typename ValueType, typename SizeType>
 void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
@@ -52,6 +61,23 @@ void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
 #endif  // NDEBUG
 }
 
+template <typename AllocatorType, typename ValueType, typename ValueAdapter,
+          typename SizeType>
+void ConstructElements(AllocatorType* alloc_ptr, ValueType* construct_first,
+                       ValueAdapter* values_ptr, SizeType construct_size) {
+  // If any construction fails, all completed constructions are rolled back.
+  for (SizeType i = 0; i < construct_size; ++i) {
+    ABSL_INTERNAL_TRY {
+      values_ptr->ConstructNext(alloc_ptr, construct_first + i);
+    }
+    ABSL_INTERNAL_CATCH_ANY {
+      inlined_vector_internal::DestroyElements(alloc_ptr, construct_first, i);
+
+      ABSL_INTERNAL_RETHROW;
+    }
+  }
+}
+
 template <typename AllocatorType>
 struct StorageView {
   using pointer = typename AllocatorType::pointer;
@@ -60,6 +86,55 @@ struct StorageView {
   pointer data;
   size_type size;
   size_type capacity;
+};
+
+template <typename AllocatorType, typename Iterator>
+class IteratorValueAdapter {
+  using pointer = typename AllocatorType::pointer;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+
+ public:
+  explicit IteratorValueAdapter(const Iterator& it) : it_(it) {}
+
+  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+    AllocatorTraits::construct(*alloc_ptr, construct_at, *it_);
+    ++it_;
+  }
+
+ private:
+  Iterator it_;
+};
+
+template <typename AllocatorType>
+class CopyValueAdapter {
+  using pointer = typename AllocatorType::pointer;
+  using const_pointer = typename AllocatorType::const_pointer;
+  using const_reference = typename AllocatorType::const_reference;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+
+ public:
+  explicit CopyValueAdapter(const_reference v) : ptr_(std::addressof(v)) {}
+
+  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+    AllocatorTraits::construct(*alloc_ptr, construct_at, *ptr_);
+  }
+
+ private:
+  const_pointer ptr_;
+};
+
+template <typename AllocatorType>
+class DefaultValueAdapter {
+  using pointer = typename AllocatorType::pointer;
+  using value_type = typename AllocatorType::value_type;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+
+ public:
+  explicit DefaultValueAdapter() {}
+
+  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+    AllocatorTraits::construct(*alloc_ptr, construct_at);
+  }
 };
 
 template <typename T, size_t N, typename A>
@@ -78,9 +153,19 @@ class Storage {
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using MoveIterator = std::move_iterator<iterator>;
   using AllocatorTraits = absl::allocator_traits<allocator_type>;
+  using IsMemcpyOk = inlined_vector_internal::IsMemcpyOk<allocator_type>;
 
   using StorageView = inlined_vector_internal::StorageView<allocator_type>;
+
+  template <typename Iterator>
+  using IteratorValueAdapter =
+      inlined_vector_internal::IteratorValueAdapter<allocator_type, Iterator>;
+  using CopyValueAdapter =
+      inlined_vector_internal::CopyValueAdapter<allocator_type>;
+  using DefaultValueAdapter =
+      inlined_vector_internal::DefaultValueAdapter<allocator_type>;
 
   Storage() : metadata_() {}
 
@@ -128,6 +213,8 @@ class Storage {
     return std::addressof(metadata_.template get<0>());
   }
 
+  void SetIsAllocated() { GetSizeAndIsAllocated() |= 1; }
+
   void SetAllocatedSize(size_type size) {
     GetSizeAndIsAllocated() = (size << 1) | static_cast<size_type>(1);
   }
@@ -151,7 +238,17 @@ class Storage {
     swap(data_.allocated, other->data_.allocated);
   }
 
+  void MemcpyContents(const Storage& other) {
+    assert(IsMemcpyOk::value);
+
+    GetSizeAndIsAllocated() = other.GetSizeAndIsAllocated();
+    data_ = other.data_;
+  }
+
   void DestroyAndDeallocate();
+
+  template <typename ValueAdapter>
+  void Initialize(ValueAdapter values, size_type new_size);
 
  private:
   size_type& GetSizeAndIsAllocated() { return metadata_.template get<1>(); }
@@ -185,16 +282,45 @@ class Storage {
 
 template <typename T, size_t N, typename A>
 void Storage<T, N, A>::DestroyAndDeallocate() {
-  namespace ivi = inlined_vector_internal;
-
   StorageView storage_view = MakeStorageView();
 
-  ivi::DestroyElements(GetAllocPtr(), storage_view.data, storage_view.size);
+  inlined_vector_internal::DestroyElements(GetAllocPtr(), storage_view.data,
+                                           storage_view.size);
 
   if (GetIsAllocated()) {
     AllocatorTraits::deallocate(*GetAllocPtr(), storage_view.data,
                                 storage_view.capacity);
   }
+}
+
+template <typename T, size_t N, typename A>
+template <typename ValueAdapter>
+auto Storage<T, N, A>::Initialize(ValueAdapter values, size_type new_size)
+    -> void {
+  // Only callable from constructors!
+  assert(!GetIsAllocated());
+  assert(GetSize() == 0);
+
+  pointer construct_data;
+
+  if (new_size > static_cast<size_type>(N)) {
+    // Because this is only called from the `InlinedVector` constructors, it's
+    // safe to take on the allocation with size `0`. If `ConstructElements(...)`
+    // throws, deallocation will be automatically handled by `~Storage()`.
+    construct_data = AllocatorTraits::allocate(*GetAllocPtr(), new_size);
+    SetAllocatedData(construct_data, new_size);
+    SetIsAllocated();
+  } else {
+    construct_data = GetInlinedData();
+  }
+
+  inlined_vector_internal::ConstructElements(GetAllocPtr(), construct_data,
+                                             &values, new_size);
+
+  // Since the initial size was guaranteed to be `0` and the allocated bit is
+  // already correct for either case, *adding* `new_size` gives us the correct
+  // result faster than setting it directly.
+  AddSize(new_size);
 }
 
 }  // namespace inlined_vector_internal
