@@ -1793,8 +1793,8 @@ TEST(VariantTest, VisitSimple) {
   EXPECT_EQ("B", piece);
 
   struct StrLen {
-    int operator()(const std::string& s) const { return s.size(); }
     int operator()(const char* s) const { return strlen(s); }
+    int operator()(const std::string& s) const { return s.size(); }
   };
 
   v = "SomeStr";
