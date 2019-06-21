@@ -109,7 +109,7 @@
 //      case kPlainText: return "plaintext";
 //      case kHtml: return "html";
 //    }
-//    return absl::SimpleItoa(mode);
+//    return absl::StrCat(mode);
 //  }
 //
 // Notice that neither `AbslParseFlag()` nor `AbslUnparseFlag()` are class
