@@ -33,6 +33,10 @@
 
 #include "absl/time/time.h"
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <cstring>
 #include <ctime>
 #include <limits>

@@ -32,6 +32,7 @@
 #ifndef ABSL_CONTAINER_INTERNAL_COMPRESSED_TUPLE_H_
 #define ABSL_CONTAINER_INTERNAL_COMPRESSED_TUPLE_H_
 
+#include <initializer_list>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -75,17 +76,30 @@ constexpr bool IsFinal() {
 #endif
 }
 
+// We can't use EBCO on other CompressedTuples because that would mean that we
+// derive from multiple Storage<> instantiations with the same I parameter,
+// and potentially from multiple identical Storage<> instantiations.  So anytime
+// we use type inheritance rather than encapsulation, we mark
+// CompressedTupleImpl, to make this easy to detect.
+struct uses_inheritance {};
+
 template <typename T>
 constexpr bool ShouldUseBase() {
-  return std::is_class<T>::value && std::is_empty<T>::value && !IsFinal<T>();
+  return std::is_class<T>::value && std::is_empty<T>::value && !IsFinal<T>() &&
+         !std::is_base_of<uses_inheritance, T>::value;
 }
 
 // The storage class provides two specializations:
 //  - For empty classes, it stores T as a base class.
 //  - For everything else, it stores T as a member.
-template <typename D, size_t I, bool = ShouldUseBase<ElemT<D, I>>()>
+template <typename T, size_t I,
+#if defined(_MSC_VER)
+          bool UseBase =
+              ShouldUseBase<typename std::enable_if<true, T>::type>()>
+#else
+          bool UseBase = ShouldUseBase<T>()>
+#endif
 struct Storage {
-  using T = ElemT<D, I>;
   T value;
   constexpr Storage() = default;
   explicit constexpr Storage(T&& v) : value(absl::forward<T>(v)) {}
@@ -95,10 +109,8 @@ struct Storage {
   T&& get() && { return std::move(*this).value; }
 };
 
-template <typename D, size_t I>
-struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC Storage<D, I, true>
-    : ElemT<D, I> {
-  using T = internal_compressed_tuple::ElemT<D, I>;
+template <typename T, size_t I>
+struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC Storage<T, I, true> : T {
   constexpr Storage() = default;
   explicit constexpr Storage(T&& v) : T(absl::forward<T>(v)) {}
   constexpr const T& get() const& { return *this; }
@@ -107,29 +119,54 @@ struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC Storage<D, I, true>
   T&& get() && { return std::move(*this); }
 };
 
-template <typename D, typename I>
+template <typename D, typename I, bool ShouldAnyUseBase>
 struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTupleImpl;
 
-template <typename... Ts, size_t... I>
-struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC
-    CompressedTupleImpl<CompressedTuple<Ts...>, absl::index_sequence<I...>>
+template <typename... Ts, size_t... I, bool ShouldAnyUseBase>
+struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTupleImpl<
+    CompressedTuple<Ts...>, absl::index_sequence<I...>, ShouldAnyUseBase>
     // We use the dummy identity function through std::integral_constant to
     // convince MSVC of accepting and expanding I in that context. Without it
     // you would get:
     //   error C3548: 'I': parameter pack cannot be used in this context
-    : Storage<CompressedTuple<Ts...>,
-              std::integral_constant<size_t, I>::value>... {
+    : uses_inheritance,
+      Storage<Ts, std::integral_constant<size_t, I>::value>... {
   constexpr CompressedTupleImpl() = default;
   explicit constexpr CompressedTupleImpl(Ts&&... args)
-      : Storage<CompressedTuple<Ts...>, I>(absl::forward<Ts>(args))... {}
+      : Storage<Ts, I>(absl::forward<Ts>(args))... {}
+  friend CompressedTuple<Ts...>;
 };
+
+template <typename... Ts, size_t... I>
+struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTupleImpl<
+    CompressedTuple<Ts...>, absl::index_sequence<I...>, false>
+    // We use the dummy identity function as above...
+    : Storage<Ts, std::integral_constant<size_t, I>::value, false>... {
+  constexpr CompressedTupleImpl() = default;
+  explicit constexpr CompressedTupleImpl(Ts&&... args)
+      : Storage<Ts, I, false>(absl::forward<Ts>(args))... {}
+  friend CompressedTuple<Ts...>;
+};
+
+std::false_type Or(std::initializer_list<std::false_type>);
+std::true_type Or(std::initializer_list<bool>);
+
+// MSVC requires this to be done separately rather than within the declaration
+// of CompressedTuple below.
+template <typename... Ts>
+constexpr bool ShouldAnyUseBase() {
+  return decltype(
+      Or({std::integral_constant<bool, ShouldUseBase<Ts>()>()...})){};
+}
 
 }  // namespace internal_compressed_tuple
 
 // Helper class to perform the Empty Base Class Optimization.
 // Ts can contain classes and non-classes, empty or not. For the ones that
 // are empty classes, we perform the CompressedTuple. If all types in Ts are
-// empty classes, then CompressedTuple<Ts...> is itself an empty class.
+// empty classes, then CompressedTuple<Ts...> is itself an empty class.  (This
+// does not apply when one or more of those empty classes is itself an empty
+// CompressedTuple.)
 //
 // To access the members, use member .get<N>() function.
 //
@@ -145,7 +182,8 @@ struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC
 template <typename... Ts>
 class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
     : private internal_compressed_tuple::CompressedTupleImpl<
-          CompressedTuple<Ts...>, absl::index_sequence_for<Ts...>> {
+          CompressedTuple<Ts...>, absl::index_sequence_for<Ts...>,
+          internal_compressed_tuple::ShouldAnyUseBase<Ts...>()> {
  private:
   template <int I>
   using ElemT = internal_compressed_tuple::ElemT<CompressedTuple, I>;
@@ -157,24 +195,24 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
 
   template <int I>
   ElemT<I>& get() & {
-    return internal_compressed_tuple::Storage<CompressedTuple, I>::get();
+    return internal_compressed_tuple::Storage<ElemT<I>, I>::get();
   }
 
   template <int I>
   constexpr const ElemT<I>& get() const& {
-    return internal_compressed_tuple::Storage<CompressedTuple, I>::get();
+    return internal_compressed_tuple::Storage<ElemT<I>, I>::get();
   }
 
   template <int I>
   ElemT<I>&& get() && {
     return std::move(*this)
-        .internal_compressed_tuple::template Storage<CompressedTuple, I>::get();
+        .internal_compressed_tuple::template Storage<ElemT<I>, I>::get();
   }
 
   template <int I>
   constexpr const ElemT<I>&& get() const&& {
     return absl::move(*this)
-        .internal_compressed_tuple::template Storage<CompressedTuple, I>::get();
+        .internal_compressed_tuple::template Storage<ElemT<I>, I>::get();
   }
 };
 

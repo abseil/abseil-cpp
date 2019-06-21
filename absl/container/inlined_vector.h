@@ -166,7 +166,7 @@ class InlinedVector {
   InlinedVector(const InlinedVector& other, const allocator_type& alloc)
       : storage_(alloc) {
     if (IsMemcpyOk::value && !other.storage_.GetIsAllocated()) {
-      storage_.MemcpyContents(other.storage_);
+      storage_.MemcpyFrom(other.storage_);
     } else {
       storage_.Initialize(IteratorValueAdapter<const_pointer>(other.data()),
                           other.size());
@@ -193,7 +193,7 @@ class InlinedVector {
       std::is_nothrow_move_constructible<value_type>::value)
       : storage_(*other.storage_.GetAllocPtr()) {
     if (IsMemcpyOk::value) {
-      storage_.MemcpyContents(other.storage_);
+      storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
     } else if (other.storage_.GetIsAllocated()) {
       storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
@@ -227,7 +227,7 @@ class InlinedVector {
       absl::allocator_is_nothrow<allocator_type>::value)
       : storage_(alloc) {
     if (IsMemcpyOk::value) {
-      storage_.MemcpyContents(other.storage_);
+      storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
     } else if ((*storage_.GetAllocPtr() == *other.storage_.GetAllocPtr()) &&
                other.storage_.GetIsAllocated()) {
@@ -464,26 +464,22 @@ class InlinedVector {
   InlinedVector& operator=(InlinedVector&& other) {
     if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return *this;
 
-    if (other.storage_.GetIsAllocated()) {
-      clear();
-      storage_.SetAllocatedSize(other.size());
-      storage_.SetAllocatedData(other.storage_.GetAllocatedData(),
-                                other.storage_.GetAllocatedCapacity());
+    if (IsMemcpyOk::value || other.storage_.GetIsAllocated()) {
+      inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), data(),
+                                               size());
+      if (storage_.GetIsAllocated()) {
+        AllocatorTraits::deallocate(*storage_.GetAllocPtr(),
+                                    storage_.GetAllocatedData(),
+                                    storage_.GetAllocatedCapacity());
+      }
+      storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
     } else {
-      if (storage_.GetIsAllocated()) clear();
-      // Both are inlined now.
-      if (size() < other.size()) {
-        auto mid = std::make_move_iterator(other.begin() + size());
-        std::copy(std::make_move_iterator(other.begin()), mid, begin());
-        UninitializedCopy(mid, std::make_move_iterator(other.end()), end());
-      } else {
-        auto new_end = std::copy(std::make_move_iterator(other.begin()),
-                                 std::make_move_iterator(other.end()), begin());
-        Destroy(new_end, end());
-      }
-      storage_.SetInlinedSize(other.size());
+      storage_.Assign(IteratorValueAdapter<MoveIterator>(
+                          MoveIterator(other.storage_.GetInlinedData())),
+                      other.size());
     }
+
     return *this;
   }
 
@@ -491,23 +487,7 @@ class InlinedVector {
   //
   // Replaces the contents of the inlined vector with `n` copies of `v`.
   void assign(size_type n, const_reference v) {
-    if (n <= size()) {  // Possibly shrink
-      std::fill_n(begin(), n, v);
-      erase(begin() + n, end());
-      return;
-    }
-    // Grow
-    reserve(n);
-    std::fill_n(begin(), size(), v);
-    if (storage_.GetIsAllocated()) {
-      UninitializedFill(storage_.GetAllocatedData() + size(),
-                        storage_.GetAllocatedData() + n, v);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData() + size(),
-                        storage_.GetInlinedData() + n, v);
-      storage_.SetInlinedSize(n);
-    }
+    storage_.Assign(CopyValueAdapter(v), n);
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
@@ -522,24 +502,8 @@ class InlinedVector {
   template <typename ForwardIterator,
             EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
   void assign(ForwardIterator first, ForwardIterator last) {
-    auto length = std::distance(first, last);
-
-    // Prefer reassignment to copy construction for elements.
-    if (static_cast<size_type>(length) <= size()) {
-      erase(std::copy(first, last, begin()), end());
-      return;
-    }
-
-    reserve(length);
-    iterator out = begin();
-    for (; out != end(); ++first, ++out) *out = *first;
-    if (storage_.GetIsAllocated()) {
-      UninitializedCopy(first, last, out);
-      storage_.SetAllocatedSize(length);
-    } else {
-      UninitializedCopy(first, last, out);
-      storage_.SetInlinedSize(length);
-    }
+    storage_.Assign(IteratorValueAdapter<ForwardIterator>(first),
+                    std::distance(first, last));
   }
 
   // Overload of `InlinedVector::assign()` to replace the contents of the
@@ -624,7 +588,15 @@ class InlinedVector {
   // of `v` starting at `pos`. Returns an `iterator` pointing to the first of
   // the newly inserted elements.
   iterator insert(const_iterator pos, size_type n, const_reference v) {
-    return InsertWithCount(pos, n, v);
+    assert(pos >= begin() && pos <= end());
+    if (ABSL_PREDICT_FALSE(n == 0)) {
+      return const_cast<iterator>(pos);
+    }
+    value_type copy = v;
+    std::pair<iterator, iterator> it_pair = ShiftRight(pos, n);
+    std::fill(it_pair.first, it_pair.second, copy);
+    UninitializedFill(it_pair.second, it_pair.first + n, copy);
+    return it_pair.first;
   }
 
   // Overload of `InlinedVector::insert()` for copying the contents of the
@@ -644,7 +616,17 @@ class InlinedVector {
             EnableIfAtLeastForwardIterator<ForwardIterator>* = nullptr>
   iterator insert(const_iterator pos, ForwardIterator first,
                   ForwardIterator last) {
-    return InsertWithForwardRange(pos, first, last);
+    assert(pos >= begin() && pos <= end());
+    if (ABSL_PREDICT_FALSE(first == last)) {
+      return const_cast<iterator>(pos);
+    }
+    auto n = std::distance(first, last);
+    std::pair<iterator, iterator> it_pair = ShiftRight(pos, n);
+    size_type used_spots = it_pair.second - it_pair.first;
+    auto open_spot = std::next(first, used_spots);
+    std::copy(first, open_spot, it_pair.first);
+    UninitializedCopy(open_spot, last, it_pair.second);
+    return it_pair.first;
   }
 
   // Overload of `InlinedVector::insert()` for inserting elements constructed
@@ -696,17 +678,26 @@ class InlinedVector {
   reference emplace_back(Args&&... args) {
     size_type s = size();
     if (ABSL_PREDICT_FALSE(s == capacity())) {
-      return GrowAndEmplaceBack(std::forward<Args>(args)...);
-    }
-    pointer space;
-    if (storage_.GetIsAllocated()) {
-      storage_.SetAllocatedSize(s + 1);
-      space = storage_.GetAllocatedData();
+      size_type new_capacity = 2 * capacity();
+      pointer new_data =
+          AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
+      reference new_element =
+          Construct(new_data + s, std::forward<Args>(args)...);
+      UninitializedCopy(std::make_move_iterator(data()),
+                        std::make_move_iterator(data() + s), new_data);
+      ResetAllocation(new_data, new_capacity, s + 1);
+      return new_element;
     } else {
-      storage_.SetInlinedSize(s + 1);
-      space = storage_.GetInlinedData();
+      pointer space;
+      if (storage_.GetIsAllocated()) {
+        storage_.SetAllocatedSize(s + 1);
+        space = storage_.GetAllocatedData();
+      } else {
+        storage_.SetInlinedSize(s + 1);
+        space = storage_.GetInlinedData();
+      }
+      return Construct(space + s, std::forward<Args>(args)...);
     }
-    return Construct(space + s, std::forward<Args>(args)...);
   }
 
   // `InlinedVector::push_back()`
@@ -727,7 +718,7 @@ class InlinedVector {
   void pop_back() noexcept {
     assert(!empty());
     AllocatorTraits::destroy(*storage_.GetAllocPtr(), data() + (size() - 1));
-    storage_.AddSize(-1);
+    storage_.SubtractSize(1);
   }
 
   // `InlinedVector::erase()`
@@ -794,10 +785,20 @@ class InlinedVector {
   // effects. Otherwise, `reserve()` will reallocate, performing an n-time
   // element-wise move of everything contained.
   void reserve(size_type n) {
-    if (n > capacity()) {
-      // Make room for new elements
-      EnlargeBy(n - size());
+    if (n <= capacity()) {
+      return;
     }
+    const size_type s = size();
+    size_type target = (std::max)(static_cast<size_type>(N), n);
+    size_type new_capacity = capacity();
+    while (new_capacity < target) {
+      new_capacity <<= 1;
+    }
+    pointer new_data =
+        AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
+    UninitializedCopy(std::make_move_iterator(data()),
+                      std::make_move_iterator(data() + s), new_data);
+    ResetAllocation(new_data, new_capacity, s);
   }
 
   // `InlinedVector::shrink_to_fit()`
@@ -812,239 +813,20 @@ class InlinedVector {
   // If `size() > N` and `size() < capacity()` the elements will be moved to a
   // smaller heap allocation.
   void shrink_to_fit() {
-    const auto s = size();
-    if (ABSL_PREDICT_FALSE(!storage_.GetIsAllocated() || s == capacity()))
-      return;
-
-    if (s <= N) {
-      // Move the elements to the inlined storage.
-      // We have to do this using a temporary, because `inlined_storage` and
-      // `allocation_storage` are in a union field.
-      auto temp = std::move(*this);
-      assign(std::make_move_iterator(temp.begin()),
-             std::make_move_iterator(temp.end()));
-      return;
+    if (storage_.GetIsAllocated()) {
+      storage_.ShrinkToFit();
     }
-
-    // Reallocate storage and move elements.
-    // We can't simply use the same approach as above, because `assign()` would
-    // call into `reserve()` internally and reserve larger capacity than we need
-    pointer new_data = AllocatorTraits::allocate(*storage_.GetAllocPtr(), s);
-    UninitializedCopy(std::make_move_iterator(storage_.GetAllocatedData()),
-                      std::make_move_iterator(storage_.GetAllocatedData() + s),
-                      new_data);
-    ResetAllocation(new_data, s, s);
   }
 
   // `InlinedVector::swap()`
   //
   // Swaps the contents of this inlined vector with the contents of `other`.
   void swap(InlinedVector& other) {
-    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) return;
-
-    SwapImpl(other);
-  }
-
- private:
-  template <typename H, typename TheT, size_t TheN, typename TheA>
-  friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
-
-  void ResetAllocation(pointer new_data, size_type new_capacity,
-                       size_type new_size) {
-    if (storage_.GetIsAllocated()) {
-      Destroy(storage_.GetAllocatedData(),
-              storage_.GetAllocatedData() + size());
-      assert(begin() == storage_.GetAllocatedData());
-      AllocatorTraits::deallocate(*storage_.GetAllocPtr(),
-                                  storage_.GetAllocatedData(),
-                                  storage_.GetAllocatedCapacity());
-    } else {
-      Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + size());
-    }
-
-    storage_.SetAllocatedData(new_data, new_capacity);
-    storage_.SetAllocatedSize(new_size);
-  }
-
-  template <typename... Args>
-  reference Construct(pointer p, Args&&... args) {
-    absl::allocator_traits<allocator_type>::construct(
-        *storage_.GetAllocPtr(), p, std::forward<Args>(args)...);
-    return *p;
-  }
-
-  template <typename Iterator>
-  void UninitializedCopy(Iterator src, Iterator src_last, pointer dst) {
-    for (; src != src_last; ++dst, ++src) Construct(dst, *src);
-  }
-
-  template <typename... Args>
-  void UninitializedFill(pointer dst, pointer dst_last, const Args&... args) {
-    for (; dst != dst_last; ++dst) Construct(dst, args...);
-  }
-
-  // Destroy [`from`, `to`) in place.
-  void Destroy(pointer from, pointer to) {
-    for (pointer cur = from; cur != to; ++cur) {
-      absl::allocator_traits<allocator_type>::destroy(*storage_.GetAllocPtr(),
-                                                      cur);
-    }
-#if !defined(NDEBUG)
-    // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
-    // Cast to `void*` to tell the compiler that we don't care that we might be
-    // scribbling on a vtable pointer.
-    if (from != to) {
-      auto len = sizeof(value_type) * std::distance(from, to);
-      std::memset(reinterpret_cast<void*>(from), 0xab, len);
-    }
-#endif  // !defined(NDEBUG)
-  }
-
-  // Enlarge the underlying representation so we can store `size_ + delta` elems
-  // in allocated space. The size is not changed, and any newly added memory is
-  // not initialized.
-  void EnlargeBy(size_type delta) {
-    const size_type s = size();
-    assert(s <= capacity());
-
-    size_type target = (std::max)(static_cast<size_type>(N), s + delta);
-
-    // Compute new capacity by repeatedly doubling current capacity
-    // TODO(psrc): Check and avoid overflow?
-    size_type new_capacity = capacity();
-    while (new_capacity < target) {
-      new_capacity <<= 1;
-    }
-
-    pointer new_data =
-        AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
-
-    UninitializedCopy(std::make_move_iterator(data()),
-                      std::make_move_iterator(data() + s), new_data);
-
-    ResetAllocation(new_data, new_capacity, s);
-  }
-
-  // Shift all elements from `position` to `end()` by `n` places to the right.
-  // If the vector needs to be enlarged, memory will be allocated.
-  // Returns `iterator`s pointing to the start of the previously-initialized
-  // portion and the start of the uninitialized portion of the created gap.
-  // The number of initialized spots is `pair.second - pair.first`. The number
-  // of raw spots is `n - (pair.second - pair.first)`.
-  //
-  // Updates the size of the InlinedVector internally.
-  std::pair<iterator, iterator> ShiftRight(const_iterator position,
-                                           size_type n) {
-    iterator start_used = const_cast<iterator>(position);
-    iterator start_raw = const_cast<iterator>(position);
-    size_type s = size();
-    size_type required_size = s + n;
-
-    if (required_size > capacity()) {
-      // Compute new capacity by repeatedly doubling current capacity
-      size_type new_capacity = capacity();
-      while (new_capacity < required_size) {
-        new_capacity <<= 1;
-      }
-      // Move everyone into the new allocation, leaving a gap of `n` for the
-      // requested shift.
-      pointer new_data =
-          AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
-      size_type index = position - begin();
-      UninitializedCopy(std::make_move_iterator(data()),
-                        std::make_move_iterator(data() + index), new_data);
-      UninitializedCopy(std::make_move_iterator(data() + index),
-                        std::make_move_iterator(data() + s),
-                        new_data + index + n);
-      ResetAllocation(new_data, new_capacity, s);
-
-      // New allocation means our iterator is invalid, so we'll recalculate.
-      // Since the entire gap is in new space, there's no used space to reuse.
-      start_raw = begin() + index;
-      start_used = start_raw;
-    } else {
-      // If we had enough space, it's a two-part move. Elements going into
-      // previously-unoccupied space need an `UninitializedCopy()`. Elements
-      // going into a previously-occupied space are just a `std::move()`.
-      iterator pos = const_cast<iterator>(position);
-      iterator raw_space = end();
-      size_type slots_in_used_space = raw_space - pos;
-      size_type new_elements_in_used_space = (std::min)(n, slots_in_used_space);
-      size_type new_elements_in_raw_space = n - new_elements_in_used_space;
-      size_type old_elements_in_used_space =
-          slots_in_used_space - new_elements_in_used_space;
-
-      UninitializedCopy(
-          std::make_move_iterator(pos + old_elements_in_used_space),
-          std::make_move_iterator(raw_space),
-          raw_space + new_elements_in_raw_space);
-      std::move_backward(pos, pos + old_elements_in_used_space, raw_space);
-
-      // If the gap is entirely in raw space, the used space starts where the
-      // raw space starts, leaving no elements in used space. If the gap is
-      // entirely in used space, the raw space starts at the end of the gap,
-      // leaving all elements accounted for within the used space.
-      start_used = pos;
-      start_raw = pos + new_elements_in_used_space;
-    }
-    storage_.AddSize(n);
-    return std::make_pair(start_used, start_raw);
-  }
-
-  template <typename... Args>
-  reference GrowAndEmplaceBack(Args&&... args) {
-    assert(size() == capacity());
-    const size_type s = size();
-
-    size_type new_capacity = 2 * capacity();
-    pointer new_data =
-        AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
-
-    reference new_element =
-        Construct(new_data + s, std::forward<Args>(args)...);
-    UninitializedCopy(std::make_move_iterator(data()),
-                      std::make_move_iterator(data() + s), new_data);
-
-    ResetAllocation(new_data, new_capacity, s + 1);
-
-    return new_element;
-  }
-
-  iterator InsertWithCount(const_iterator position, size_type n,
-                           const_reference v) {
-    assert(position >= begin() && position <= end());
-    if (ABSL_PREDICT_FALSE(n == 0)) return const_cast<iterator>(position);
-
-    value_type copy = v;
-    std::pair<iterator, iterator> it_pair = ShiftRight(position, n);
-    std::fill(it_pair.first, it_pair.second, copy);
-    UninitializedFill(it_pair.second, it_pair.first + n, copy);
-
-    return it_pair.first;
-  }
-
-  template <typename ForwardIt>
-  iterator InsertWithForwardRange(const_iterator position, ForwardIt first,
-                                  ForwardIt last) {
-    static_assert(absl::inlined_vector_internal::IsAtLeastForwardIterator<
-                      ForwardIt>::value,
-                  "");
-    assert(position >= begin() && position <= end());
-
-    if (ABSL_PREDICT_FALSE(first == last))
-      return const_cast<iterator>(position);
-
-    auto n = std::distance(first, last);
-    std::pair<iterator, iterator> it_pair = ShiftRight(position, n);
-    size_type used_spots = it_pair.second - it_pair.first;
-    auto open_spot = std::next(first, used_spots);
-    std::copy(first, open_spot, it_pair.first);
-    UninitializedCopy(open_spot, last, it_pair.second);
-    return it_pair.first;
-  }
-
-  void SwapImpl(InlinedVector& other) {
     using std::swap;
+
+    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) {
+      return;
+    }
 
     bool is_allocated = storage_.GetIsAllocated();
     bool other_is_allocated = other.storage_.GetIsAllocated();
@@ -1130,6 +912,127 @@ class InlinedVector {
 
     assert(b->size() == a_size);
     assert(a->size() == b_size);
+  }
+
+ private:
+  template <typename H, typename TheT, size_t TheN, typename TheA>
+  friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
+
+  void ResetAllocation(pointer new_data, size_type new_capacity,
+                       size_type new_size) {
+    if (storage_.GetIsAllocated()) {
+      Destroy(storage_.GetAllocatedData(),
+              storage_.GetAllocatedData() + size());
+      assert(begin() == storage_.GetAllocatedData());
+      AllocatorTraits::deallocate(*storage_.GetAllocPtr(),
+                                  storage_.GetAllocatedData(),
+                                  storage_.GetAllocatedCapacity());
+    } else {
+      Destroy(storage_.GetInlinedData(), storage_.GetInlinedData() + size());
+    }
+
+    storage_.SetAllocatedData(new_data, new_capacity);
+    storage_.SetAllocatedSize(new_size);
+  }
+
+  template <typename... Args>
+  reference Construct(pointer p, Args&&... args) {
+    absl::allocator_traits<allocator_type>::construct(
+        *storage_.GetAllocPtr(), p, std::forward<Args>(args)...);
+    return *p;
+  }
+
+  template <typename Iterator>
+  void UninitializedCopy(Iterator src, Iterator src_last, pointer dst) {
+    for (; src != src_last; ++dst, ++src) Construct(dst, *src);
+  }
+
+  template <typename... Args>
+  void UninitializedFill(pointer dst, pointer dst_last, const Args&... args) {
+    for (; dst != dst_last; ++dst) Construct(dst, args...);
+  }
+
+  // Destroy [`from`, `to`) in place.
+  void Destroy(pointer from, pointer to) {
+    for (pointer cur = from; cur != to; ++cur) {
+      absl::allocator_traits<allocator_type>::destroy(*storage_.GetAllocPtr(),
+                                                      cur);
+    }
+#if !defined(NDEBUG)
+    // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
+    // Cast to `void*` to tell the compiler that we don't care that we might be
+    // scribbling on a vtable pointer.
+    if (from != to) {
+      auto len = sizeof(value_type) * std::distance(from, to);
+      std::memset(reinterpret_cast<void*>(from), 0xab, len);
+    }
+#endif  // !defined(NDEBUG)
+  }
+
+  // Shift all elements from `position` to `end()` by `n` places to the right.
+  // If the vector needs to be enlarged, memory will be allocated.
+  // Returns `iterator`s pointing to the start of the previously-initialized
+  // portion and the start of the uninitialized portion of the created gap.
+  // The number of initialized spots is `pair.second - pair.first`. The number
+  // of raw spots is `n - (pair.second - pair.first)`.
+  //
+  // Updates the size of the InlinedVector internally.
+  std::pair<iterator, iterator> ShiftRight(const_iterator position,
+                                           size_type n) {
+    iterator start_used = const_cast<iterator>(position);
+    iterator start_raw = const_cast<iterator>(position);
+    size_type s = size();
+    size_type required_size = s + n;
+
+    if (required_size > capacity()) {
+      // Compute new capacity by repeatedly doubling current capacity
+      size_type new_capacity = capacity();
+      while (new_capacity < required_size) {
+        new_capacity <<= 1;
+      }
+      // Move everyone into the new allocation, leaving a gap of `n` for the
+      // requested shift.
+      pointer new_data =
+          AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
+      size_type index = position - begin();
+      UninitializedCopy(std::make_move_iterator(data()),
+                        std::make_move_iterator(data() + index), new_data);
+      UninitializedCopy(std::make_move_iterator(data() + index),
+                        std::make_move_iterator(data() + s),
+                        new_data + index + n);
+      ResetAllocation(new_data, new_capacity, s);
+
+      // New allocation means our iterator is invalid, so we'll recalculate.
+      // Since the entire gap is in new space, there's no used space to reuse.
+      start_raw = begin() + index;
+      start_used = start_raw;
+    } else {
+      // If we had enough space, it's a two-part move. Elements going into
+      // previously-unoccupied space need an `UninitializedCopy()`. Elements
+      // going into a previously-occupied space are just a `std::move()`.
+      iterator pos = const_cast<iterator>(position);
+      iterator raw_space = end();
+      size_type slots_in_used_space = raw_space - pos;
+      size_type new_elements_in_used_space = (std::min)(n, slots_in_used_space);
+      size_type new_elements_in_raw_space = n - new_elements_in_used_space;
+      size_type old_elements_in_used_space =
+          slots_in_used_space - new_elements_in_used_space;
+
+      UninitializedCopy(
+          std::make_move_iterator(pos + old_elements_in_used_space),
+          std::make_move_iterator(raw_space),
+          raw_space + new_elements_in_raw_space);
+      std::move_backward(pos, pos + old_elements_in_used_space, raw_space);
+
+      // If the gap is entirely in raw space, the used space starts where the
+      // raw space starts, leaving no elements in used space. If the gap is
+      // entirely in used space, the raw space starts at the end of the gap,
+      // leaving all elements accounted for within the used space.
+      start_used = pos;
+      start_raw = pos + new_elements_in_used_space;
+    }
+    storage_.AddSize(n);
+    return std::make_pair(start_used, start_raw);
   }
 
   Storage storage_;

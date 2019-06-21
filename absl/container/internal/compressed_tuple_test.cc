@@ -22,10 +22,8 @@
 #include "absl/memory/memory.h"
 #include "absl/utility/utility.h"
 
-namespace absl {
-namespace container_internal {
-namespace {
-
+// These are declared at global scope purely so that error messages
+// are smaller and easier to understand.
 enum class CallType { kConstRef, kConstMove };
 
 template <int>
@@ -44,6 +42,10 @@ struct TwoValues {
   T value1;
   U value2;
 };
+
+namespace absl {
+namespace container_internal {
+namespace {
 
 TEST(CompressedTupleTest, Sizeof) {
   EXPECT_EQ(sizeof(int), sizeof(CompressedTuple<int>));
@@ -120,9 +122,14 @@ TEST(CompressedTupleTest, Nested) {
   EXPECT_EQ(4 * sizeof(char),
             sizeof(CompressedTuple<CompressedTuple<char, char>,
                                    CompressedTuple<char, char>>));
-  EXPECT_TRUE(
-      (std::is_empty<CompressedTuple<CompressedTuple<Empty<0>>,
-                                     CompressedTuple<Empty<1>>>>::value));
+  EXPECT_TRUE((std::is_empty<CompressedTuple<Empty<0>, Empty<1>>>::value));
+
+  // Make sure everything still works when things are nested.
+  struct CT_Empty : CompressedTuple<Empty<0>> {};
+  CompressedTuple<Empty<0>, CT_Empty> nested_empty;
+  auto contained = nested_empty.get<0>();
+  auto nested = nested_empty.get<1>().get<0>();
+  EXPECT_TRUE((std::is_same<decltype(contained), decltype(nested)>::value));
 }
 
 TEST(CompressedTupleTest, Reference) {

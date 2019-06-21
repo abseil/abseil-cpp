@@ -14,6 +14,10 @@
 
 #include "absl/time/time.h"
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <chrono>  // NOLINT(build/c++11)
 #include <cstring>
 #include <ctime>

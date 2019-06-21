@@ -127,6 +127,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/memory",
         "//absl/meta:type_traits",
+        "//absl/types:span",
     ],
 )
 

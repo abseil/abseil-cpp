@@ -126,6 +126,7 @@ absl_cc_library(
     absl::compressed_tuple
     absl::core_headers
     absl::memory
+    absl::span
     absl::type_traits
   PUBLIC
 )

@@ -219,3 +219,21 @@ ABSL_MSVC_TEST_FLAGS = [
     "/wd4996",
     "/DNOMINMAX",
 ]
+
+ABSL_RANDOM_HWAES_ARM32_FLAGS = [
+    "-mfpu=neon",
+]
+
+ABSL_RANDOM_HWAES_ARM64_FLAGS = [
+    "-march=armv8-a+crypto",
+]
+
+ABSL_RANDOM_HWAES_MSVC_X64_FLAGS = [
+    "/O2",
+    "/Ob2",
+]
+
+ABSL_RANDOM_HWAES_X64_FLAGS = [
+    "-maes",
+    "-msse4.1",
+]

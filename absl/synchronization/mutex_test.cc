@@ -14,7 +14,7 @@
 
 #include "absl/synchronization/mutex.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -1035,7 +1035,7 @@ TEST(Mutex, DeadlockDetector) {
 class ScopedDisableBazelTestWarnings {
  public:
   ScopedDisableBazelTestWarnings() {
-#ifdef WIN32
+#ifdef _WIN32
     char file[MAX_PATH];
     if (GetEnvironmentVariableA(kVarName, file, sizeof(file)) < sizeof(file)) {
       warnings_output_file_ = file;
@@ -1052,7 +1052,7 @@ class ScopedDisableBazelTestWarnings {
 
   ~ScopedDisableBazelTestWarnings() {
     if (!warnings_output_file_.empty()) {
-#ifdef WIN32
+#ifdef _WIN32
       SetEnvironmentVariableA(kVarName, warnings_output_file_.c_str());
 #else
       setenv(kVarName, warnings_output_file_.c_str(), 0);

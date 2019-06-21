@@ -190,6 +190,12 @@ TEST(IntVec, SimpleOps) {
   }
 }
 
+TEST(IntVec, PopBackNoOverflow) {
+  IntVec v = {1};
+  v.pop_back();
+  EXPECT_EQ(v.size(), 0);
+}
+
 TEST(IntVec, AtThrows) {
   IntVec v = {1, 2, 3};
   EXPECT_EQ(v.at(2), 3);

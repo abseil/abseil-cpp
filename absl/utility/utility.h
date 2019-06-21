@@ -25,6 +25,7 @@
 //   * index_sequence_for<Ts...>     == std::index_sequence_for<Ts...>
 //   * apply<Functor, Tuple>         == std::apply<Functor, Tuple>
 //   * exchange<T>                   == std::exchange<T>
+//   * make_from_tuple<T>            == std::make_from_tuple<T>
 //
 // This header file also provides the tag types `in_place_t`, `in_place_type_t`,
 // and `in_place_index_t`, as well as the constant `in_place`, and
@@ -313,6 +314,33 @@ T exchange(T& obj, U&& new_value) {
   T old_value = absl::move(obj);
   obj = absl::forward<U>(new_value);
   return old_value;
+}
+
+namespace utility_internal {
+template <typename T, typename Tuple, size_t... I>
+T make_from_tuple_impl(Tuple&& tup, absl::index_sequence<I...>) {
+  return T(std::get<I>(std::forward<Tuple>(tup))...);
+}
+}  // namespace utility_internal
+
+// make_from_tuple
+//
+// Given the template parameter type `T` and a tuple of arguments
+// `std::tuple(arg0, arg1, ..., argN)` constructs an object of type `T` as if by
+// calling `T(arg0, arg1, ..., argN)`.
+//
+// Example:
+//
+//   std::tuple<const char*, size_t> args("hello world", 5);
+//   auto s = absl::make_from_tuple<std::string>(args);
+//   assert(s == "hello");
+//
+template <typename T, typename Tuple>
+constexpr T make_from_tuple(Tuple&& tup) {
+  return utility_internal::make_from_tuple_impl<T>(
+      std::forward<Tuple>(tup),
+      absl::make_index_sequence<
+          std::tuple_size<absl::decay_t<Tuple>>::value>{});
 }
 
 }  // namespace absl

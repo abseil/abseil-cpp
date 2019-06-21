@@ -18,7 +18,17 @@
 # endif
 #endif
 
+#if defined(HAS_STRPTIME) && HAS_STRPTIME
+# if !defined(_XOPEN_SOURCE)
+#  define _XOPEN_SOURCE  // Definedness suffices for strptime.
+# endif
+#endif
+
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+// Include time.h directly since, by C++ standards, ctime doesn't have to
+// declare strptime.
+#include <time.h>
 
 #include <cctype>
 #include <chrono>
