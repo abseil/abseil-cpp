@@ -1787,4 +1787,16 @@ TEST(InlinedVectorTest, AbslHashValueWorks) {
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(cases));
 }
 
+struct HasVector {
+  absl::InlinedVector<int, 1> foo;
+};
+
+// This code used to trigger memset with `nullptr` as starting address in builds that do not have NDEBUG set.
+// This is undefined behavior with UBSan.
+TEST(CopyAssignmentOperator, AvoidsMemsetWithNullptr) {
+    HasVector foo;
+    HasVector bar;
+    bar.foo.push_back(2);
+    foo = bar;
+}
 }  // anonymous namespace
