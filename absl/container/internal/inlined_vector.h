@@ -52,13 +52,15 @@ void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
   }
 
 #ifndef NDEBUG
-  // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
-  //
-  // Cast to `void*` to tell the compiler that we don't care that we might be
-  // scribbling on a vtable pointer.
-  void* memory = reinterpret_cast<void*>(destroy_first);
-  size_t memory_size = sizeof(ValueType) * destroy_size;
-  std::memset(memory, 0xab, memory_size);
+  if (destroy_size > 0) {
+    // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
+    //
+    // Cast to `void*` to tell the compiler that we don't care that we might be
+    // scribbling on a vtable pointer.
+    void* memory = reinterpret_cast<void*>(destroy_first);
+    size_t memory_size = sizeof(ValueType) * destroy_size;
+    std::memset(memory, 0xab, memory_size);
+  }
 #endif  // NDEBUG
 }
 
