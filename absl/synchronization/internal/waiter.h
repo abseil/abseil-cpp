@@ -40,7 +40,7 @@
 
 #if defined(ABSL_FORCE_WAITER_MODE)
 #define ABSL_WAITER_MODE ABSL_FORCE_WAITER_MODE
-#elif defined(_WIN32)
+#elif defined(_WIN32) && _WIN32_WINNT >= 0x0600
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_WIN32
 #elif defined(__linux__)
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_FUTEX
