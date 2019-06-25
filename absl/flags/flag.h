@@ -155,7 +155,7 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 //
 // where:
 //
-//   * `T` is a supported flag type (See below),
+//   * `T` is a supported flag type (see `marshalling.h`),
 //   * `name` designates the name of the flag (as a global variable
 //     `FLAGS_name`),
 //   * `default_value` is an expression holding the default value for this flag
