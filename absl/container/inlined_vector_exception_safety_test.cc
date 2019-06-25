@@ -259,6 +259,26 @@ TYPED_TEST(TwoSizeTest, Assign) {
   }));
 }
 
+TYPED_TEST(TwoSizeTest, Resize) {
+  using VecT = typename TypeParam::VecT;
+  using value_type = typename VecT::value_type;
+  constexpr static auto from_size = TypeParam::GetSizeAt(0);
+  constexpr static auto to_size = TypeParam::GetSizeAt(1);
+
+  auto tester = testing::MakeExceptionSafetyTester()
+                    .WithInitialValue(VecT{from_size})
+                    .WithContracts(InlinedVectorInvariants<VecT>,
+                                   testing::strong_guarantee);
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    vec->resize(to_size);  //
+  }));
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    vec->resize(to_size, value_type{});  //
+  }));
+}
+
 TYPED_TEST(OneSizeTest, PopBack) {
   using VecT = typename TypeParam::VecT;
   constexpr static auto size = TypeParam::GetSizeAt(0);
@@ -282,6 +302,20 @@ TYPED_TEST(OneSizeTest, Clear) {
 
   EXPECT_TRUE(tester.Test([](VecT* vec) {
     vec->clear();  //
+  }));
+}
+
+TYPED_TEST(TwoSizeTest, Reserve) {
+  using VecT = typename TypeParam::VecT;
+  constexpr static auto from_size = TypeParam::GetSizeAt(0);
+  constexpr static auto to_capacity = TypeParam::GetSizeAt(1);
+
+  auto tester = testing::MakeExceptionSafetyTester()
+                    .WithInitialValue(VecT{from_size})
+                    .WithContracts(InlinedVectorInvariants<VecT>);
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    vec->reserve(to_capacity);  //
   }));
 }
 

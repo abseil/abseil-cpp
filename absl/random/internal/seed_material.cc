@@ -44,6 +44,7 @@
 #include <windows.h>
 #define ABSL_RANDOM_USE_BCRYPT 1
 #pragma comment(lib, "bcrypt.lib")
+
 #endif
 
 #if defined(ABSL_RANDOM_USE_BCRYPT)

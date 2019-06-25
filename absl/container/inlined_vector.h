@@ -467,11 +467,7 @@ class InlinedVector {
     if (IsMemcpyOk::value || other.storage_.GetIsAllocated()) {
       inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), data(),
                                                size());
-      if (storage_.GetIsAllocated()) {
-        AllocatorTraits::deallocate(*storage_.GetAllocPtr(),
-                                    storage_.GetAllocatedData(),
-                                    storage_.GetAllocatedCapacity());
-      }
+      storage_.DeallocateIfAllocated();
       storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
     } else {
@@ -525,49 +521,13 @@ class InlinedVector {
   // Resizes the inlined vector to contain `n` elements. If `n` is smaller than
   // the inlined vector's current size, extra elements are destroyed. If `n` is
   // larger than the initial size, new elements are value-initialized.
-  void resize(size_type n) {
-    size_type s = size();
-    if (n < s) {
-      erase(begin() + n, end());
-      return;
-    }
-    reserve(n);
-    assert(capacity() >= n);
-
-    // Fill new space with elements constructed in-place.
-    if (storage_.GetIsAllocated()) {
-      UninitializedFill(storage_.GetAllocatedData() + s,
-                        storage_.GetAllocatedData() + n);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData() + s,
-                        storage_.GetInlinedData() + n);
-      storage_.SetInlinedSize(n);
-    }
-  }
+  void resize(size_type n) { storage_.Resize(DefaultValueAdapter(), n); }
 
   // Overload of `InlinedVector::resize()` to resize the inlined vector to
   // contain `n` elements where, if `n` is larger than `size()`, the new values
   // will be copy-constructed from `v`.
   void resize(size_type n, const_reference v) {
-    size_type s = size();
-    if (n < s) {
-      erase(begin() + n, end());
-      return;
-    }
-    reserve(n);
-    assert(capacity() >= n);
-
-    // Fill new space with copies of `v`.
-    if (storage_.GetIsAllocated()) {
-      UninitializedFill(storage_.GetAllocatedData() + s,
-                        storage_.GetAllocatedData() + n, v);
-      storage_.SetAllocatedSize(n);
-    } else {
-      UninitializedFill(storage_.GetInlinedData() + s,
-                        storage_.GetInlinedData() + n, v);
-      storage_.SetInlinedSize(n);
-    }
+    storage_.Resize(CopyValueAdapter(v), n);
   }
 
   // `InlinedVector::insert()`
@@ -784,22 +744,7 @@ class InlinedVector {
   // NOTE: If `n` does not exceed `capacity()`, `reserve()` will have no
   // effects. Otherwise, `reserve()` will reallocate, performing an n-time
   // element-wise move of everything contained.
-  void reserve(size_type n) {
-    if (n <= capacity()) {
-      return;
-    }
-    const size_type s = size();
-    size_type target = (std::max)(static_cast<size_type>(N), n);
-    size_type new_capacity = capacity();
-    while (new_capacity < target) {
-      new_capacity <<= 1;
-    }
-    pointer new_data =
-        AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
-    UninitializedCopy(std::make_move_iterator(data()),
-                      std::make_move_iterator(data() + s), new_data);
-    ResetAllocation(new_data, new_capacity, s);
-  }
+  void reserve(size_type n) { storage_.Reserve(n); }
 
   // `InlinedVector::shrink_to_fit()`
   //

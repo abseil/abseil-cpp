@@ -82,7 +82,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
     tm.tm_year = static_cast<int>(al.cs.year() - 1900);
   }
 
-  switch (get_weekday(civil_day(al.cs))) {
+  switch (get_weekday(al.cs)) {
     case weekday::sunday:
       tm.tm_wday = 0;
       break;
@@ -105,7 +105,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
       tm.tm_wday = 6;
       break;
   }
-  tm.tm_yday = get_yearday(civil_day(al.cs)) - 1;
+  tm.tm_yday = get_yearday(al.cs) - 1;
   tm.tm_isdst = al.is_dst ? 1 : 0;
   return tm;
 }

@@ -279,7 +279,7 @@ using civil_second = detail::civil_second;
 //
 using detail::weekday;
 
-// Returns the weekday for the given civil_day.
+// Returns the weekday for the given civil-time value.
 //
 //   civil_day a(2015, 8, 13);
 //   weekday wd = get_weekday(a);  // wd == weekday::thursday
@@ -313,7 +313,7 @@ using detail::get_weekday;
 using detail::next_weekday;
 using detail::prev_weekday;
 
-// Returns the day-of-year for the given civil_day.
+// Returns the day-of-year for the given civil-time value.
 //
 //   civil_day a(2015, 1, 1);
 //   int yd_jan_1 = get_yearday(a);   // yd_jan_1 = 1

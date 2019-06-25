@@ -8,7 +8,9 @@ load(
     "absl_random_randen_copts_init",
 )
 
-package(default_visibility = ["//absl/random:__pkg__"])
+package(default_visibility = [
+    "//absl/random:__pkg__",
+])
 
 licenses(["notice"])  # Apache 2.0
 
