@@ -275,7 +275,11 @@ class Storage {
   explicit Storage(const allocator_type& alloc)
       : metadata_(alloc, /* empty and inlined */ 0) {}
 
-  ~Storage() { DestroyAndDeallocate(); }
+  ~Storage() {
+    pointer data = GetIsAllocated() ? GetAllocatedData() : GetInlinedData();
+    inlined_vector_internal::DestroyElements(GetAllocPtr(), data, GetSize());
+    DeallocateIfAllocated();
+  }
 
   size_type GetSize() const { return GetSizeAndIsAllocated() >> 1; }
 
@@ -377,8 +381,6 @@ class Storage {
     data_ = other_storage.data_;
   }
 
-  void DestroyAndDeallocate();
-
   template <typename ValueAdapter>
   void Initialize(ValueAdapter values, size_type new_size);
 
@@ -431,14 +433,6 @@ class Storage {
   Metadata metadata_;
   Data data_;
 };
-
-template <typename T, size_t N, typename A>
-void Storage<T, N, A>::DestroyAndDeallocate() {
-  inlined_vector_internal::DestroyElements(
-      GetAllocPtr(), (GetIsAllocated() ? GetAllocatedData() : GetInlinedData()),
-      GetSize());
-  DeallocateIfAllocated();
-}
 
 template <typename T, size_t N, typename A>
 template <typename ValueAdapter>

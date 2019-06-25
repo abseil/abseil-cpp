@@ -507,12 +507,13 @@ class InlinedVector {
   template <typename InputIterator,
             DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   void assign(InputIterator first, InputIterator last) {
-    size_type assign_index = 0;
-    for (; (assign_index < size()) && (first != last);
-         static_cast<void>(++assign_index), static_cast<void>(++first)) {
-      *(data() + assign_index) = *first;
+    size_type i = 0;
+    for (; i < size() && first != last; ++i, static_cast<void>(++first)) {
+      at(i) = *first;
     }
-    erase(data() + assign_index, data() + size());
+
+    erase(data() + i, data() + size());
+
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -595,12 +596,15 @@ class InlinedVector {
   template <typename InputIterator,
             DisableIfAtLeastForwardIterator<InputIterator>* = nullptr>
   iterator insert(const_iterator pos, InputIterator first, InputIterator last) {
-    size_type initial_insert_index = std::distance(cbegin(), pos);
-    for (size_type insert_index = initial_insert_index; first != last;
-         static_cast<void>(++insert_index), static_cast<void>(++first)) {
-      insert(data() + insert_index, *first);
+    assert(pos >= begin());
+    assert(pos <= end());
+
+    size_type index = std::distance(cbegin(), pos);
+    for (size_type i = index; first != last; ++i, static_cast<void>(++first)) {
+      insert(data() + i, *first);
     }
-    return iterator(data() + initial_insert_index);
+
+    return iterator(data() + index);
   }
 
   // `InlinedVector::emplace()`
@@ -677,6 +681,7 @@ class InlinedVector {
   // by `1` (unless the inlined vector is empty, in which case this is a no-op).
   void pop_back() noexcept {
     assert(!empty());
+
     AllocatorTraits::destroy(*storage_.GetAllocPtr(), data() + (size() - 1));
     storage_.SubtractSize(1);
   }
@@ -731,7 +736,9 @@ class InlinedVector {
   // Destroys all elements in the inlined vector, sets the size of `0` and
   // deallocates the heap allocation if the inlined vector was allocated.
   void clear() noexcept {
-    storage_.DestroyAndDeallocate();
+    inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), data(),
+                                             size());
+    storage_.DeallocateIfAllocated();
     storage_.SetInlinedSize(0);
   }
 
