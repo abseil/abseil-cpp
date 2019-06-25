@@ -334,6 +334,8 @@
 #define ABSL_HAVE_ALARM 1
 #elif defined(_MSC_VER)
 // feature tests for Microsoft's library
+#elif defined(__MINGW32__)
+// feature tests for mingw
 #elif defined(__EMSCRIPTEN__)
 // emscripten doesn't support signals
 #elif defined(__native_client__)
