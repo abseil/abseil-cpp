@@ -106,10 +106,10 @@
 //  // Returns a textual flag value corresponding to the OutputMode `mode`.
 //  std::string AbslUnparseFlag(OutputMode mode) {
 //    switch (mode) {
-//     case kPlainText: return "plaintext";
-//     case kHtml: return "html";
-//     default: return SimpleItoa(mode);
+//      case kPlainText: return "plaintext";
+//      case kHtml: return "html";
 //    }
+//    return absl::StrCat(mode);
 //  }
 //
 // Notice that neither `AbslParseFlag()` nor `AbslUnparseFlag()` are class
