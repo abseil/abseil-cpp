@@ -375,7 +375,7 @@
 // https://github.com/abseil/abseil-cpp/issues/207 and
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
-    defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
+    defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
 #define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
 #else
