@@ -158,9 +158,11 @@ cc_library(
     name = "usage",
     srcs = [
         "internal/usage.cc",
+        "usage.cc",
     ],
     hdrs = [
         "internal/usage.h",
+        "usage.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

@@ -29,20 +29,6 @@
 namespace absl {
 namespace flags_internal {
 
-// Sets the "usage" message to be used by help reporting routines.
-// For example:
-//  absl::SetProgramUsageMessage(
-//      absl::StrCat("This program does nothing.  Sample usage:\n", argv[0],
-//                   " <uselessarg1> <uselessarg2>"));
-// Do not include commandline flags in the usage: we do that for you!
-// Note: Calling SetProgramUsageMessage twice will trigger a call to std::exit.
-void SetProgramUsageMessage(absl::string_view new_usage_message);
-
-// Returns the usage message set by SetProgramUsageMessage().
-absl::string_view ProgramUsageMessage();
-
-// --------------------------------------------------------------------
-
 // The format to report the help messages in.
 enum class HelpFormat {
   kHumanReadable,

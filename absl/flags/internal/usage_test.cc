@@ -13,14 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/flags/internal/usage.h"
+
 #include <sstream>
 
 #include "gtest/gtest.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/flags/internal/usage.h"
+#include "absl/flags/parse.h"
+#include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -81,11 +83,11 @@ class UsageReportingTest : public testing::Test {
 using UsageReportingDeathTest = UsageReportingTest;
 
 TEST_F(UsageReportingDeathTest, TestSetProgramUsageMessage) {
-  EXPECT_EQ(flags::ProgramUsageMessage(), "Custom usage message");
+  EXPECT_EQ(absl::ProgramUsageMessage(), "Custom usage message");
 
 #ifndef _WIN32
   // TODO(rogeeff): figure out why this does not work on Windows.
-  EXPECT_DEATH(flags::SetProgramUsageMessage("custom usage message"),
+  EXPECT_DEATH(absl::SetProgramUsageMessage("custom usage message"),
                ".*SetProgramUsageMessage\\(\\) called twice.*");
 #endif
 }
@@ -360,7 +362,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
 int main(int argc, char* argv[]) {
   absl::GetFlag(FLAGS_undefok);  // Force linking of parse.cc
   flags::SetProgramInvocationName("usage_test");
-  flags::SetProgramUsageMessage("Custom usage message");
+  absl::SetProgramUsageMessage("Custom usage message");
   ::testing::InitGoogleTest(&argc, argv);
 
   return RUN_ALL_TESTS();

@@ -81,50 +81,8 @@
 // Attribute Checks
 // -----------------------------------------------------------------------------
 
-// ABSL_HAVE_ATTRIBUTE
-#undef ABSL_HAVE_ATTRIBUTE
-#ifdef __has_attribute
-#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
-#else
-#define ABSL_HAVE_ATTRIBUTE(x) 0
-#endif
-
-// ABSL_ATTRIBUTE_ALWAYS_INLINE forces inlining of the method.
-#undef ABSL_ATTRIBUTE_ALWAYS_INLINE
-#if ABSL_HAVE_ATTRIBUTE(always_inline) || \
-    (defined(__GNUC__) && !defined(__clang__))
-#define ABSL_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-// We can achieve something similar to attribute((always_inline)) with MSVC by
-// using the __forceinline keyword, however this is not perfect. MSVC is
-// much less aggressive about inlining, and even with the __forceinline keyword.
-#define ABSL_ATTRIBUTE_ALWAYS_INLINE __forceinline
-#else
-#define ABSL_ATTRIBUTE_ALWAYS_INLINE
-#endif
-
-// ABSL_ATTRIBUTE_NEVER_INLINE prevents inlining of the method.
-#undef ABSL_ATTRIBUTE_NEVER_INLINE
-#if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
-#define ABSL_ATTRIBUTE_NEVER_INLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-#define ABSL_ATTRIBUTE_NEVER_INLINE __declspec(noinline)
-#else
-#define ABSL_ATTRIBUTE_NEVER_INLINE
-#endif
-
-// ABSL_ATTRIBUTE_FLATTEN enables much more aggressive inlining within
-// the indicated function.
-#undef ABSL_ATTRIBUTE_FLATTEN
-#if ABSL_HAVE_ATTRIBUTE(flatten) || (defined(__GNUC__) && !defined(__clang__))
-#define ABSL_ATTRIBUTE_FLATTEN __attribute__((flatten))
-#else
-#define ABSL_ATTRIBUTE_FLATTEN
-#endif
-
 // ABSL_RANDOM_INTERNAL_RESTRICT annotates whether pointers may be considered
 // to be unaliased.
-#undef ABSL_RANDOM_INTERNAL_RESTRICT
 #if defined(__clang__) || defined(__GNUC__)
 #define ABSL_RANDOM_INTERNAL_RESTRICT __restrict__
 #elif defined(_MSC_VER)

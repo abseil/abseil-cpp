@@ -59,6 +59,24 @@
 #include <time.h>  // NOLINT
 #endif
 
+// ABSL_HAVE_ATTRIBUTE
+#if !defined(ABSL_HAVE_ATTRIBUTE)
+#ifdef __has_attribute
+#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
+#else
+#define ABSL_HAVE_ATTRIBUTE(x) 0
+#endif
+#endif
+
+// ABSL_RANDOM_INTERNAL_ATTRIBUTE_NEVER_INLINE prevents inlining of the method.
+#if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_NEVER_INLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_NEVER_INLINE __declspec(noinline)
+#else
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_NEVER_INLINE
+#endif
+
 namespace absl {
 namespace random_internal_nanobenchmark {
 namespace {
@@ -658,8 +676,8 @@ Ticks TotalDuration(const Func func, const void* arg, const InputVec* inputs,
 }
 
 // (Nearly) empty Func for measuring timer overhead/resolution.
-ABSL_ATTRIBUTE_NEVER_INLINE FuncOutput EmptyFunc(const void* arg,
-                                                 const FuncInput input) {
+ABSL_RANDOM_INTERNAL_ATTRIBUTE_NEVER_INLINE FuncOutput
+EmptyFunc(const void* arg, const FuncInput input) {
   return input;
 }
 

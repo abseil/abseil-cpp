@@ -24,6 +24,37 @@
 
 #include "absl/random/internal/platform.h"
 
+// ABSL_HAVE_ATTRIBUTE
+#if !defined(ABSL_HAVE_ATTRIBUTE)
+#ifdef __has_attribute
+#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
+#else
+#define ABSL_HAVE_ATTRIBUTE(x) 0
+#endif
+#endif
+
+#if ABSL_HAVE_ATTRIBUTE(always_inline) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE \
+  __attribute__((always_inline))
+#elif defined(_MSC_VER)
+// We can achieve something similar to attribute((always_inline)) with MSVC by
+// using the __forceinline keyword, however this is not perfect. MSVC is
+// much less aggressive about inlining, and even with the __forceinline keyword.
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE __forceinline
+#else
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE
+#endif
+
+// ABSL_ATTRIBUTE_FLATTEN enables much more aggressive inlining within
+// the indicated function.
+#undef ABSL_ATTRIBUTE_FLATTEN
+#if ABSL_HAVE_ATTRIBUTE(flatten) || (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_ATTRIBUTE_FLATTEN __attribute__((flatten))
+#else
+#define ABSL_ATTRIBUTE_FLATTEN
+#endif
+
 // ABSL_RANDEN_HWAES_IMPL indicates whether this file will contain
 // a hardware accelerated implementation of randen, or whether it
 // will contain stubs that exit the process.
@@ -160,7 +191,7 @@ using Vector128 = __vector unsigned long long;  // NOLINT(runtime/int)
 
 namespace {
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 ReverseBytes(const Vector128& v) {
   // Reverses the bytes of the vector.
   const __vector unsigned char perm = {15, 14, 13, 12, 11, 10, 9, 8,
@@ -171,26 +202,26 @@ ReverseBytes(const Vector128& v) {
 // WARNING: these load/store in native byte order. It is OK to load and then
 // store an unchanged vector, but interpreting the bits as a number or input
 // to AES will have undefined results.
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
   return vec_vsx_ld(0, reinterpret_cast<const Vector128*>(from));
 }
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+Vector128Store(const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
   vec_vsx_st(v, 0, reinterpret_cast<Vector128*>(to));
 }
 
 // One round of AES. "round_key" is a public constant for breaking the
 // symmetry of AES (ensures previously equal columns differ afterwards).
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 AesRound(const Vector128& state, const Vector128& round_key) {
   return Vector128(__builtin_crypto_vcipher(state, round_key));
 }
 
 // Enables native loads in the round loop by pre-swapping.
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+SwapEndian(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
   using absl::random_internal::RandenTraits;
   constexpr size_t kLanes = 2;
   constexpr size_t kFeistelBlocks = RandenTraits::kFeistelBlocks;
@@ -242,19 +273,19 @@ using Vector128 = uint8x16_t;
 
 namespace {
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
   return vld1q_u8(reinterpret_cast<const uint8_t*>(from));
 }
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+Vector128Store(const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
   vst1q_u8(reinterpret_cast<uint8_t*>(to), v);
 }
 
 // One round of AES. "round_key" is a public constant for breaking the
 // symmetry of AES (ensures previously equal columns differ afterwards).
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 AesRound(const Vector128& state, const Vector128& round_key) {
   // It is important to always use the full round function - omitting the
   // final MixColumns reduces security [https://eprint.iacr.org/2010/041.pdf]
@@ -266,8 +297,8 @@ AesRound(const Vector128& state, const Vector128& round_key) {
   return vaesmcq_u8(vaeseq_u8(state, uint8x16_t{})) ^ round_key;
 }
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+SwapEndian(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
 
 }  // namespace
 
@@ -282,13 +313,15 @@ namespace {
 class Vector128 {
  public:
   // Convert from/to intrinsics.
-  inline ABSL_ATTRIBUTE_ALWAYS_INLINE explicit Vector128(
+  inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE explicit Vector128(
       const __m128i& Vector128)
       : data_(Vector128) {}
 
-  inline ABSL_ATTRIBUTE_ALWAYS_INLINE __m128i data() const { return data_; }
+  inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE __m128i data() const {
+    return data_;
+  }
 
-  inline ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128& operator^=(
+  inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128& operator^=(
       const Vector128& other) {
     data_ = _mm_xor_si128(data_, other.data());
     return *this;
@@ -298,20 +331,20 @@ class Vector128 {
   __m128i data_;
 };
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
   return Vector128(_mm_load_si128(reinterpret_cast<const __m128i*>(from)));
 }
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+Vector128Store(const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
   _mm_store_si128(reinterpret_cast<__m128i * ABSL_RANDOM_INTERNAL_RESTRICT>(to),
                   v.data());
 }
 
 // One round of AES. "round_key" is a public constant for breaking the
 // symmetry of AES (ensures previously equal columns differ afterwards).
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 AesRound(const Vector128& state, const Vector128& round_key) {
   // It is important to always use the full round function - omitting the
   // final MixColumns reduces security [https://eprint.iacr.org/2010/041.pdf]
@@ -319,8 +352,8 @@ AesRound(const Vector128& state, const Vector128& round_key) {
   return Vector128(_mm_aesenc_si128(state.data(), round_key.data()));
 }
 
-inline ABSL_TARGET_CRYPTO ABSL_ATTRIBUTE_ALWAYS_INLINE void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
+inline ABSL_TARGET_CRYPTO ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void
+SwapEndian(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
 
 }  // namespace
 
@@ -417,8 +450,8 @@ constexpr size_t kLanes = 2;
 
 // Block shuffles applies a shuffle to the entire state between AES rounds.
 // Improved odd-even shuffle from "New criterion for diffusion property".
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO void BlockShuffle(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO void
+BlockShuffle(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
   static_assert(kFeistelBlocks == 16, "Expecting 16 FeistelBlocks.");
 
   constexpr size_t shuffle[kFeistelBlocks] = {7,  2, 13, 4,  11, 8,  3, 6,
@@ -466,9 +499,10 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO void BlockShuffle(
 // per 16 bytes (vs. 10 for AES-CTR). Computing eight round functions in
 // parallel hides the 7-cycle AESNI latency on HSW. Note that the Feistel
 // XORs are 'free' (included in the second AES instruction).
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO const u64x2*
-FeistelRound(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
-             const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO const
+    u64x2*
+    FeistelRound(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
+                 const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
   static_assert(kFeistelBlocks == 16, "Expecting 16 FeistelBlocks.");
 
   // MSVC does a horrible job at unrolling loops.
@@ -527,9 +561,9 @@ FeistelRound(uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
 // Indistinguishable from ideal by chosen-ciphertext adversaries using less than
 // 2^64 queries if the round function is a PRF. This is similar to the b=8 case
 // of Simpira v2, but more efficient than its generic construction for b=16.
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO void Permute(
-    const void* ABSL_RANDOM_INTERNAL_RESTRICT keys,
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE ABSL_TARGET_CRYPTO void
+Permute(const void* ABSL_RANDOM_INTERNAL_RESTRICT keys,
+        uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
   const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys128 =
       static_cast<const u64x2*>(keys);
 

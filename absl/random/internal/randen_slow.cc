@@ -20,6 +20,28 @@
 
 #include "absl/random/internal/platform.h"
 
+// ABSL_HAVE_ATTRIBUTE
+#if !defined(ABSL_HAVE_ATTRIBUTE)
+#ifdef __has_attribute
+#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
+#else
+#define ABSL_HAVE_ATTRIBUTE(x) 0
+#endif
+#endif
+
+#if ABSL_HAVE_ATTRIBUTE(always_inline) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE \
+  __attribute__((always_inline))
+#elif defined(_MSC_VER)
+// We can achieve something similar to attribute((always_inline)) with MSVC by
+// using the __forceinline keyword, however this is not perfect. MSVC is
+// much less aggressive about inlining, and even with the __forceinline keyword.
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE __forceinline
+#else
+#define ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE
+#endif
+
 namespace {
 
 // AES portions based on rijndael-alg-fst.c,
@@ -222,7 +244,7 @@ struct alignas(16) u64x2 {
 // as an underlying vector register.
 //
 struct Vector128 {
-  inline ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128& operator^=(
+  inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128& operator^=(
       const Vector128& other) {
     s[0] ^= other.s[0];
     s[1] ^= other.s[1];
@@ -234,7 +256,7 @@ struct Vector128 {
   uint32_t s[4];
 };
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
   Vector128 result;
   const uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT src =
@@ -259,7 +281,7 @@ Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
   return result;
 }
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
     const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
   uint8_t* dst = reinterpret_cast<uint8_t*>(to);
   dst[0] = static_cast<uint8_t>(v.s[0] >> 24);
@@ -282,7 +304,7 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
 
 // One round of AES. "round_key" is a public constant for breaking the
 // symmetry of AES (ensures previously equal columns differ afterwards).
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE Vector128
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 AesRound(const Vector128& state, const Vector128& round_key) {
   // clang-format off
   Vector128 result;
@@ -348,7 +370,7 @@ static_assert(kKeys == kRoundKeys, "kKeys and kRoundKeys must be equal");
 static constexpr size_t kLanes = 2;
 
 // The improved Feistel block shuffle function for 16 blocks.
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void BlockShuffle(
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void BlockShuffle(
     uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state_u64) {
   static_assert(kFeistelBlocks == 16,
                 "Feistel block shuffle only works for 16 blocks.");
@@ -409,7 +431,7 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE void BlockShuffle(
 // per 16 bytes (vs. 10 for AES-CTR). Computing eight round functions in
 // parallel hides the 7-cycle AESNI latency on HSW. Note that the Feistel
 // XORs are 'free' (included in the second AES instruction).
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE const u64x2* FeistelRound(
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE const u64x2* FeistelRound(
     uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
     const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
   for (size_t branch = 0; branch < kFeistelBlocks; branch += 4) {
@@ -435,7 +457,7 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE const u64x2* FeistelRound(
 // Indistinguishable from ideal by chosen-ciphertext adversaries using less than
 // 2^64 queries if the round function is a PRF. This is similar to the b=8 case
 // of Simpira v2, but more efficient than its generic construction for b=16.
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE void Permute(
+inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Permute(
     const void* keys, uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
   const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys128 =
       static_cast<const u64x2*>(keys);

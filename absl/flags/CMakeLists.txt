@@ -144,8 +144,10 @@ absl_cc_library(
     flags_usage
   SRCS
     "internal/usage.cc"
+    "usage.cc"
   HDRS
     "internal/usage.h"
+    "usage.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS

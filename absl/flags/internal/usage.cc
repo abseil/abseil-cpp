@@ -21,6 +21,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
+#include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
@@ -204,7 +205,7 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
                    HelpFormat format = HelpFormat::kHumanReadable) {
   if (format == HelpFormat::kHumanReadable) {
     out << flags_internal::ShortProgramInvocationName() << ": "
-        << flags_internal::ProgramUsageMessage() << "\n\n";
+        << absl::ProgramUsageMessage() << "\n\n";
   } else {
     // XML schema is not a part of our public API for now.
     out << "<?xml version=\"1.0\"?>\n"
@@ -213,7 +214,7 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
         // The program name and usage.
         << XMLElement("program", flags_internal::ShortProgramInvocationName())
         << '\n'
-        << XMLElement("usage", flags_internal::ProgramUsageMessage()) << '\n';
+        << XMLElement("usage", absl::ProgramUsageMessage()) << '\n';
   }
 
   // Map of package name to
@@ -278,37 +279,7 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   }
 }
 
-ABSL_CONST_INIT absl::Mutex usage_message_guard(absl::kConstInit);
-ABSL_CONST_INIT std::string* program_usage_message
-    GUARDED_BY(usage_message_guard) = nullptr;
-
 }  // namespace
-
-// --------------------------------------------------------------------
-// Sets the "usage" message to be used by help reporting routines.
-
-void SetProgramUsageMessage(absl::string_view new_usage_message) {
-  absl::MutexLock l(&usage_message_guard);
-
-  if (flags_internal::program_usage_message != nullptr) {
-    ABSL_INTERNAL_LOG(FATAL, "SetProgramUsageMessage() called twice.");
-    std::exit(1);
-  }
-
-  program_usage_message = new std::string(new_usage_message);
-}
-
-// --------------------------------------------------------------------
-// Returns the usage message set by SetProgramUsageMessage().
-// Note: We able to return string_view here only because calling
-// SetProgramUsageMessage twice is prohibited.
-absl::string_view ProgramUsageMessage() {
-  absl::MutexLock l(&usage_message_guard);
-
-  return program_usage_message != nullptr
-             ? absl::string_view(*program_usage_message)
-             : "Warning: SetProgramUsageMessage() never called";
-}
 
 // --------------------------------------------------------------------
 // Produces the help message describing specific flag.

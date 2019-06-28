@@ -640,28 +640,7 @@ class InlinedVector {
   // returning a `reference` to the emplaced element.
   template <typename... Args>
   reference emplace_back(Args&&... args) {
-    size_type s = size();
-    if (ABSL_PREDICT_FALSE(s == capacity())) {
-      size_type new_capacity = 2 * capacity();
-      pointer new_data =
-          AllocatorTraits::allocate(*storage_.GetAllocPtr(), new_capacity);
-      reference new_element =
-          Construct(new_data + s, std::forward<Args>(args)...);
-      UninitializedCopy(std::make_move_iterator(data()),
-                        std::make_move_iterator(data() + s), new_data);
-      ResetAllocation(new_data, new_capacity, s + 1);
-      return new_element;
-    } else {
-      pointer space;
-      if (storage_.GetIsAllocated()) {
-        storage_.SetAllocatedSize(s + 1);
-        space = storage_.GetAllocatedData();
-      } else {
-        storage_.SetInlinedSize(s + 1);
-        space = storage_.GetInlinedData();
-      }
-      return Construct(space + s, std::forward<Args>(args)...);
-    }
+    return storage_.EmplaceBack(std::forward<Args>(args)...);
   }
 
   // `InlinedVector::push_back()`
@@ -696,10 +675,7 @@ class InlinedVector {
     assert(pos >= begin());
     assert(pos < end());
 
-    iterator position = const_cast<iterator>(pos);
-    std::move(position + 1, end(), position);
-    pop_back();
-    return position;
+    return storage_.Erase(pos, pos + 1);
   }
 
   // Overload of `InlinedVector::erase()` for erasing all elements in the
@@ -707,28 +683,15 @@ class InlinedVector {
   // to the first element following the range erased or the end iterator if `to`
   // was the end iterator.
   iterator erase(const_iterator from, const_iterator to) {
-    assert(begin() <= from);
+    assert(from >= begin());
     assert(from <= to);
     assert(to <= end());
 
-    iterator range_start = const_cast<iterator>(from);
-    iterator range_end = const_cast<iterator>(to);
-
-    size_type s = size();
-    ptrdiff_t erase_gap = std::distance(range_start, range_end);
-    if (erase_gap > 0) {
-      pointer space;
-      if (storage_.GetIsAllocated()) {
-        space = storage_.GetAllocatedData();
-        storage_.SetAllocatedSize(s - erase_gap);
-      } else {
-        space = storage_.GetInlinedData();
-        storage_.SetInlinedSize(s - erase_gap);
-      }
-      std::move(range_end, space + s, range_start);
-      Destroy(space + s - erase_gap, space + s);
+    if (ABSL_PREDICT_TRUE(from != to)) {
+      return storage_.Erase(from, to);
+    } else {
+      return const_cast<iterator>(from);
     }
-    return range_start;
   }
 
   // `InlinedVector::clear()`
@@ -774,96 +737,9 @@ class InlinedVector {
   //
   // Swaps the contents of this inlined vector with the contents of `other`.
   void swap(InlinedVector& other) {
-    using std::swap;
-
-    if (ABSL_PREDICT_FALSE(this == std::addressof(other))) {
-      return;
+    if (ABSL_PREDICT_TRUE(this != std::addressof(other))) {
+      storage_.Swap(std::addressof(other.storage_));
     }
-
-    bool is_allocated = storage_.GetIsAllocated();
-    bool other_is_allocated = other.storage_.GetIsAllocated();
-
-    if (is_allocated && other_is_allocated) {
-      // Both out of line, so just swap the tag, allocation, and allocator.
-      storage_.SwapSizeAndIsAllocated(std::addressof(other.storage_));
-      storage_.SwapAllocatedSizeAndCapacity(std::addressof(other.storage_));
-      swap(*storage_.GetAllocPtr(), *other.storage_.GetAllocPtr());
-
-      return;
-    }
-
-    if (!is_allocated && !other_is_allocated) {
-      // Both inlined: swap up to smaller size, then move remaining elements.
-      InlinedVector* a = this;
-      InlinedVector* b = std::addressof(other);
-      if (size() < other.size()) {
-        swap(a, b);
-      }
-
-      const size_type a_size = a->size();
-      const size_type b_size = b->size();
-      assert(a_size >= b_size);
-      // `a` is larger. Swap the elements up to the smaller array size.
-      std::swap_ranges(a->storage_.GetInlinedData(),
-                       a->storage_.GetInlinedData() + b_size,
-                       b->storage_.GetInlinedData());
-
-      // Move the remaining elements:
-      //   [`b_size`, `a_size`) from `a` -> [`b_size`, `a_size`) from `b`
-      b->UninitializedCopy(a->storage_.GetInlinedData() + b_size,
-                           a->storage_.GetInlinedData() + a_size,
-                           b->storage_.GetInlinedData() + b_size);
-      a->Destroy(a->storage_.GetInlinedData() + b_size,
-                 a->storage_.GetInlinedData() + a_size);
-
-      storage_.SwapSizeAndIsAllocated(std::addressof(other.storage_));
-      swap(*storage_.GetAllocPtr(), *other.storage_.GetAllocPtr());
-
-      assert(b->size() == a_size);
-      assert(a->size() == b_size);
-      return;
-    }
-
-    // One is out of line, one is inline.
-    // We first move the elements from the inlined vector into the
-    // inlined space in the other vector.  We then put the other vector's
-    // pointer/capacity into the originally inlined vector and swap
-    // the tags.
-    InlinedVector* a = this;
-    InlinedVector* b = std::addressof(other);
-    if (a->storage_.GetIsAllocated()) {
-      swap(a, b);
-    }
-
-    assert(!a->storage_.GetIsAllocated());
-    assert(b->storage_.GetIsAllocated());
-
-    const size_type a_size = a->size();
-    const size_type b_size = b->size();
-    // In an optimized build, `b_size` would be unused.
-    static_cast<void>(b_size);
-
-    // Made Local copies of `size()`, these can now be swapped
-    a->storage_.SwapSizeAndIsAllocated(std::addressof(b->storage_));
-
-    // Copy out before `b`'s union gets clobbered by `inline_space`
-    pointer b_data = b->storage_.GetAllocatedData();
-    size_type b_capacity = b->storage_.GetAllocatedCapacity();
-
-    b->UninitializedCopy(a->storage_.GetInlinedData(),
-                         a->storage_.GetInlinedData() + a_size,
-                         b->storage_.GetInlinedData());
-    a->Destroy(a->storage_.GetInlinedData(),
-               a->storage_.GetInlinedData() + a_size);
-
-    a->storage_.SetAllocatedData(b_data, b_capacity);
-
-    if (*a->storage_.GetAllocPtr() != *b->storage_.GetAllocPtr()) {
-      swap(*a->storage_.GetAllocPtr(), *b->storage_.GetAllocPtr());
-    }
-
-    assert(b->size() == a_size);
-    assert(a->size() == b_size);
   }
 
  private:
