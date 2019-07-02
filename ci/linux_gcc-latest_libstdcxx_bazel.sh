@@ -32,7 +32,7 @@ if [ -z ${COMPILATION_MODE:-} ]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-latest:20190318"
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-latest:20190701"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.

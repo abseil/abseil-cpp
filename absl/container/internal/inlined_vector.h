@@ -402,6 +402,16 @@ class Storage {
     return current_capacity * 2;
   }
 
+  static size_type LegacyNextCapacityFrom(size_type current_capacity,
+                                          size_type requested_capacity) {
+    // TODO(johnsoncj): Get rid of this old behavior.
+    size_type new_capacity = current_capacity;
+    while (new_capacity < requested_capacity) {
+      new_capacity *= 2;
+    }
+    return new_capacity;
+  }
+
   using Metadata =
       container_internal::CompressedTuple<allocator_type, size_type>;
 
@@ -512,7 +522,8 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   absl::Span<value_type> destroy_loop;
 
   if (new_size > storage_view.capacity) {
-    pointer new_data = allocation_tx.Allocate(new_size);
+    pointer new_data = allocation_tx.Allocate(
+        LegacyNextCapacityFrom(storage_view.capacity, new_size));
 
     // Construct new objects in `new_data`
     construct_loop = {new_data + storage_view.size,
@@ -632,7 +643,8 @@ auto Storage<T, N, A>::Reserve(size_type requested_capacity) -> void {
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
-  pointer new_data = allocation_tx.Allocate(requested_capacity);
+  pointer new_data = allocation_tx.Allocate(
+      LegacyNextCapacityFrom(storage_view.capacity, requested_capacity));
 
   inlined_vector_internal::ConstructElements(GetAllocPtr(), new_data,
                                              &move_values, storage_view.size);

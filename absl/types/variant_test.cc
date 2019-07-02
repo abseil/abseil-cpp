@@ -2112,7 +2112,8 @@ TEST(VariantTest, Hash) {
 // Miscellaneous and deprecated tests //
 ////////////////////////////////////////
 
-// Test that a set requiring a basic type conversion works correctly.
+// Test that a set requiring a basic type conversion works correctly
+#if !defined(ABSL_HAVE_STD_VARIANT)
 TEST(VariantTest, TestConvertingSet) {
   typedef variant<double> Variant;
   Variant v(1.0);
@@ -2122,6 +2123,7 @@ TEST(VariantTest, TestConvertingSet) {
   ASSERT_TRUE(nullptr != absl::get_if<double>(&v));
   EXPECT_DOUBLE_EQ(2, absl::get<double>(v));
 }
+#endif  // ABSL_HAVE_STD_VARIANT
 
 // Test that a vector of variants behaves reasonably.
 TEST(VariantTest, Container) {
@@ -2273,6 +2275,7 @@ struct Convertible2 {
 };
 
 TEST(VariantTest, TestRvalueConversion) {
+#if !defined(ABSL_HAVE_STD_VARIANT)
   variant<double, std::string> var(
       ConvertVariantTo<variant<double, std::string>>(
           variant<std::string, int>(0)));
@@ -2305,6 +2308,7 @@ TEST(VariantTest, TestRvalueConversion) {
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(variant<uint32_t>(42));
   ASSERT_TRUE(absl::holds_alternative<uint32_t>(variant2));
   EXPECT_EQ(42, absl::get<uint32_t>(variant2));
+#endif  // !ABSL_HAVE_STD_VARIANT
 
   variant<Convertible1, Convertible2> variant3(
       ConvertVariantTo<variant<Convertible1, Convertible2>>(
@@ -2317,6 +2321,7 @@ TEST(VariantTest, TestRvalueConversion) {
 }
 
 TEST(VariantTest, TestLvalueConversion) {
+#if !defined(ABSL_HAVE_STD_VARIANT)
   variant<std::string, int> source1 = 0;
   variant<double, std::string> destination(
       ConvertVariantTo<variant<double, std::string>>(source1));
@@ -2353,6 +2358,7 @@ TEST(VariantTest, TestLvalueConversion) {
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(source6);
   ASSERT_TRUE(absl::holds_alternative<uint32_t>(variant2));
   EXPECT_EQ(42, absl::get<uint32_t>(variant2));
+#endif
 
   variant<Convertible2, Convertible1> source7((Convertible1()));
   variant<Convertible1, Convertible2> variant3(
@@ -2417,6 +2423,7 @@ TEST(VariantTest, DoesNotMoveFromLvalues) {
 }
 
 TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
+#if !defined(ABSL_HAVE_STD_VARIANT)
   variant<double, std::string> var(
       ConvertVariantTo<variant<double, std::string>>(
           variant<std::string, int>(3)));
@@ -2442,6 +2449,7 @@ TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
 
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(variant<uint32_t>(42));
   EXPECT_THAT(absl::get_if<uint32_t>(&variant2), Pointee(42));
+#endif
 
   variant<Convertible1, Convertible2> variant3(
       ConvertVariantTo<variant<Convertible1, Convertible2>>(
@@ -2454,6 +2462,7 @@ TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
 }
 
 TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
+#if !defined(ABSL_HAVE_STD_VARIANT)
   variant<std::string, int> source1 = 3;
   variant<double, std::string> destination(
       ConvertVariantTo<variant<double, std::string>>(source1));
@@ -2485,6 +2494,7 @@ TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
   variant<uint32_t> source6(42);
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(source6);
   EXPECT_THAT(absl::get_if<uint32_t>(&variant2), Pointee(42));
+#endif  // !ABSL_HAVE_STD_VARIANT
 
   variant<Convertible2, Convertible1> source7((Convertible1()));
   variant<Convertible1, Convertible2> variant3(

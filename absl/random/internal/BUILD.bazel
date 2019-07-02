@@ -522,7 +522,7 @@ cc_test(
 
 cc_test(
     name = "randen_engine_test",
-    size = "small",
+    size = "medium",
     srcs = [
         "randen_engine_test.cc",
     ],
@@ -598,12 +598,12 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":distribution_impl",
+        ":fast_uniform_bits",
+        ":iostream_state_saver",
+        ":traits",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
-        "//absl/random/internal:distribution_impl",
-        "//absl/random/internal:fast_uniform_bits",
-        "//absl/random/internal:iostream_state_saver",
-        "//absl/random/internal:traits",
     ],
 )
 

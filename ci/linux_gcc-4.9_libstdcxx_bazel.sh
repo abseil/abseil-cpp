@@ -25,14 +25,14 @@ if [ -z ${ABSEIL_ROOT:-} ]; then
 fi
 
 if [ -z ${STD:-} ]; then
-  STD="c++11 c++14 c++17"
+  STD="c++11 c++14"
 fi
 
 if [ -z ${COMPILATION_MODE:-} ]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20190701"
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-4.9:20190702"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
@@ -56,28 +56,20 @@ for std in ${STD}; do
       --workdir=/abseil-cpp \
       --cap-add=SYS_PTRACE \
       --rm \
-      -e CC="/opt/llvm/clang/bin/clang" \
-      -e BAZEL_COMPILER="llvm" \
-      -e BAZEL_CXXOPTS="-std=${std}:-nostdinc++" \
-      -e BAZEL_LINKOPTS="-L/opt/llvm/libcxx-tsan/lib:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/libcxx-tsan/lib" \
-      -e CPLUS_INCLUDE_PATH="/opt/llvm/libcxx-tsan/include/c++/v1" \
+      -e CC="/usr/bin/gcc-4.9" \
+      -e BAZEL_CXXOPTS="-std=${std}" \
       ${DOCKER_EXTRA_ARGS:-} \
       ${DOCKER_CONTAINER} \
       /usr/local/bin/bazel test ... \
-        --build_tag_filters="-notsan" \
         --compilation_mode=${compilation_mode} \
-        --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
-        --copt="-DTHREAD_SANITIZER" \
-        --copt="-fsanitize=thread" \
         --copt=-Werror \
+        --define="absl=1" \
         --keep_going \
-        --linkopt="-fsanitize=thread" \
         --show_timestamps \
-        --test_env="TSAN_OPTIONS=report_atomic_races=0" \
-        --test_env="TSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
+        --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1" \
         --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
         --test_output=errors \
-        --test_tag_filters="-benchmark,-notsan" \
+        --test_tag_filters=-benchmark \
         ${BAZEL_EXTRA_ARGS:-}
   done
 done

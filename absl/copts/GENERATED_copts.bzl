@@ -78,7 +78,6 @@ ABSL_CLANG_CL_TEST_FLAGS = [
     "-Wno-unused-template",
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
-    "-Wno-gnu-include-next",
     "-Wno-gnu-zero-variadic-macro-arguments",
 ]
 
@@ -182,7 +181,6 @@ ABSL_LLVM_TEST_FLAGS = [
     "-Wno-unused-template",
     "-Wno-used-but-marked-unused",
     "-Wno-zero-as-null-pointer-constant",
-    "-Wno-gnu-include-next",
     "-Wno-gnu-zero-variadic-macro-arguments",
 ]
 

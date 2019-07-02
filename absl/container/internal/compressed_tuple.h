@@ -188,6 +188,9 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
   template <int I>
   using ElemT = internal_compressed_tuple::ElemT<CompressedTuple, I>;
 
+  template <int I>
+  using StorageT = internal_compressed_tuple::Storage<ElemT<I>, I>;
+
  public:
   constexpr CompressedTuple() = default;
   explicit constexpr CompressedTuple(Ts... base)
@@ -200,19 +203,17 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
 
   template <int I>
   constexpr const ElemT<I>& get() const& {
-    return internal_compressed_tuple::Storage<ElemT<I>, I>::get();
+    return StorageT<I>::get();
   }
 
   template <int I>
   ElemT<I>&& get() && {
-    return std::move(*this)
-        .internal_compressed_tuple::template Storage<ElemT<I>, I>::get();
+    return std::move(*this).StorageT<I>::get();
   }
 
   template <int I>
   constexpr const ElemT<I>&& get() const&& {
-    return absl::move(*this)
-        .internal_compressed_tuple::template Storage<ElemT<I>, I>::get();
+    return absl::move(*this).StorageT<I>::get();
   }
 };
 

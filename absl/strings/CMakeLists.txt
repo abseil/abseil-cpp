@@ -387,7 +387,6 @@ absl_cc_library(
     absl::strings
     absl::config
     absl::core_headers
-    absl::inlined_vector
     absl::type_traits
     absl::int128
     absl::span

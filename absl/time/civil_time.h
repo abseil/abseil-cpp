@@ -370,15 +370,15 @@ using Weekday = time_internal::cctz::weekday;
 
 // GetWeekday()
 //
-// Returns the absl::Weekday for the given absl::CivilDay.
+// Returns the absl::Weekday for the given (realigned) civil-time value.
 //
 // Example:
 //
 //   absl::CivilDay a(2015, 8, 13);
 //   absl::Weekday wd = absl::GetWeekday(a);  // wd == absl::Weekday::thursday
 //
-inline Weekday GetWeekday(CivilDay cd) {
-  return time_internal::cctz::get_weekday(cd);
+inline Weekday GetWeekday(CivilSecond cs) {
+  return time_internal::cctz::get_weekday(cs);
 }
 
 // NextWeekday()
@@ -420,7 +420,7 @@ inline CivilDay PrevWeekday(CivilDay cd, Weekday wd) {
 
 // GetYearDay()
 //
-// Returns the day-of-year for the given absl::CivilDay.
+// Returns the day-of-year for the given (realigned) civil-time value.
 //
 // Example:
 //
@@ -429,8 +429,8 @@ inline CivilDay PrevWeekday(CivilDay cd, Weekday wd) {
 //   absl::CivilDay b(2015, 12, 31);
 //   int yd_dec_31 = absl::GetYearDay(b);  // yd_dec_31 = 365
 //
-inline int GetYearDay(CivilDay cd) {
-  return time_internal::cctz::get_yearday(cd);
+inline int GetYearDay(CivilSecond cs) {
+  return time_internal::cctz::get_yearday(cs);
 }
 
 // FormatCivilTime()

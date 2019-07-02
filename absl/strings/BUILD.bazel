@@ -559,7 +559,6 @@ cc_library(
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
         "//absl/types:span",

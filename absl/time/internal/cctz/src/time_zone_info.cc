@@ -505,9 +505,9 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
   if (tzh.tzh_version[0] != '\0') {
     // Snarf up the NL-enclosed future POSIX spec. Note
     // that version '3' files utilize an extended format.
-    auto get_char = [](ZoneInfoSource* zip) -> int {
+    auto get_char = [](ZoneInfoSource* azip) -> int {
       unsigned char ch;  // all non-EOF results are positive
-      return (zip->Read(&ch, 1) == 1) ? ch : EOF;
+      return (azip->Read(&ch, 1) == 1) ? ch : EOF;
     };
     if (get_char(zip) != '\n')
       return false;

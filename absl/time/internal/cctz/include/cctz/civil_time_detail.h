@@ -535,8 +535,7 @@ enum class weekday {
   sunday,
 };
 
-template <typename T>
-CONSTEXPR_F weekday get_weekday(const civil_time<T>& ct) noexcept {
+CONSTEXPR_F weekday get_weekday(const civil_second& cs) noexcept {
   CONSTEXPR_D weekday k_weekday_by_mon_off[13] = {
       weekday::monday,    weekday::tuesday,  weekday::wednesday,
       weekday::thursday,  weekday::friday,   weekday::saturday,
@@ -547,9 +546,9 @@ CONSTEXPR_F weekday get_weekday(const civil_time<T>& ct) noexcept {
   CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
       -1, 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4,
   };
-  year_t wd = 2400 + (ct.year() % 400) - (ct.month() < 3);
+  year_t wd = 2400 + (cs.year() % 400) - (cs.month() < 3);
   wd += wd / 4 - wd / 100 + wd / 400;
-  wd += k_weekday_offsets[ct.month()] + ct.day();
+  wd += k_weekday_offsets[cs.month()] + cs.day();
   return k_weekday_by_mon_off[wd % 7 + 6];
 }
 
@@ -595,13 +594,12 @@ CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
   }
 }
 
-template <typename T>
-CONSTEXPR_F int get_yearday(const civil_time<T>& ct) noexcept {
+CONSTEXPR_F int get_yearday(const civil_second& cs) noexcept {
   CONSTEXPR_D int k_month_offsets[1 + 12] = {
       -1, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
   };
-  const int feb29 = (ct.month() > 2 && impl::is_leap_year(ct.year()));
-  return k_month_offsets[ct.month()] + feb29 + ct.day();
+  const int feb29 = (cs.month() > 2 && impl::is_leap_year(cs.year()));
+  return k_month_offsets[cs.month()] + feb29 + cs.day();
 }
 
 ////////////////////////////////////////////////////////////////////////
