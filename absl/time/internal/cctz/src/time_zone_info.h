@@ -88,7 +88,7 @@ class TimeZoneInfo : public TimeZoneIf {
     std::size_t charcnt;     // zone abbreviation characters
     std::size_t leapcnt;     // leap seconds (we expect none)
     std::size_t ttisstdcnt;  // UTC/local indicators (unused)
-    std::size_t ttisgmtcnt;  // standard/wall indicators (unused)
+    std::size_t ttisutcnt;   // standard/wall indicators (unused)
 
     bool Build(const tzhead& tzh);
     std::size_t DataLength(std::size_t time_len) const;
