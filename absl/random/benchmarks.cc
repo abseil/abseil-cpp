@@ -257,9 +257,9 @@ void BM_Thread(benchmark::State& state) {
   BENCHMARK_TEMPLATE(BM_ShuffleReuse, Engine, 100);                            \
   BENCHMARK_TEMPLATE(BM_ShuffleReuse, Engine, 1000);                           \
   BENCHMARK_TEMPLATE(BM_Dist, Engine,                                          \
-                     absl::random_internal::FastUniformBits<uint32_t, 32>);    \
+                     absl::random_internal::FastUniformBits<uint32_t>);        \
   BENCHMARK_TEMPLATE(BM_Dist, Engine,                                          \
-                     absl::random_internal::FastUniformBits<uint64_t, 64>);    \
+                     absl::random_internal::FastUniformBits<uint64_t>);        \
   BENCHMARK_TEMPLATE(BM_Dist, Engine, std::uniform_int_distribution<int32_t>); \
   BENCHMARK_TEMPLATE(BM_Dist, Engine, std::uniform_int_distribution<int64_t>); \
   BENCHMARK_TEMPLATE(BM_Dist, Engine,                                          \

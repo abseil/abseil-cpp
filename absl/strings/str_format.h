@@ -449,7 +449,7 @@ class FormatRawSink {
 // additional arguments.
 //
 // By default, `std::string` and `std::ostream` are supported as destination
-// objects.
+// objects. If a `std::string` is used the formatted string is appended to it.
 //
 // `absl::Format()` is a generic version of `absl::StrFormat(), for custom
 // sinks. The format string, like format strings for `StrFormat()`, is checked

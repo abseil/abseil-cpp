@@ -38,14 +38,12 @@ constexpr typename URBG::result_type constexpr_range() {
 // from a type which conforms to the [rand.req.urbg] concept.
 // Parameterized by:
 //  `UIntType`: the result (output) type
-//  `Width`: binary output width
 //
 // The std::independent_bits_engine [rand.adapt.ibits] adaptor can be
 // instantiated from an existing generator through a copy or a move. It does
 // not, however, facilitate the production of pseudorandom bits from an un-owned
 // generator that will outlive the std::independent_bits_engine instance.
-template <typename UIntType = uint64_t,
-          size_t Width = std::numeric_limits<UIntType>::digits>
+template <typename UIntType = uint64_t>
 class FastUniformBits {
   static_assert(std::is_unsigned<UIntType>::value,
                 "Class-template FastUniformBits<> must be parameterized using "
@@ -53,29 +51,14 @@ class FastUniformBits {
 
   // `kWidth` is the width, in binary digits, of the output. By default it is
   // the number of binary digits in the `result_type`.
-  static constexpr size_t kWidth = Width;
-  static_assert(kWidth > 0,
-                "Class-template FastUniformBits<> Width argument must be > 0");
-
-  static_assert(kWidth <= std::numeric_limits<UIntType>::digits,
-                "Class-template FastUniformBits<> Width argument must be <= "
-                "width of UIntType.");
-
-  static constexpr bool kIsMaxWidth =
-      (kWidth >= std::numeric_limits<UIntType>::digits);
-
-  // Computes a mask of `n` bits for the `UIntType`.
-  static constexpr UIntType constexpr_mask(size_t n) {
-    return (UIntType(1) << n) - 1;
-  }
+  static constexpr size_t kWidth = std::numeric_limits<UIntType>::digits;
 
  public:
   using result_type = UIntType;
 
   static constexpr result_type(min)() { return 0; }
   static constexpr result_type(max)() {
-    return kIsMaxWidth ? (std::numeric_limits<result_type>::max)()
-                       : constexpr_mask(kWidth);
+    return (std::numeric_limits<result_type>::max)();
   }
 
   template <typename URBG>
@@ -166,7 +149,6 @@ class FastUniformBitsURBGConstants {
 // URBG::result_type values are combined into an output_value.
 // Parameterized by the FastUniformBits parameters:
 //  `UIntType`: output type.
-//  `Width`: binary output width,
 //  `URNG`: The underlying UniformRandomNumberGenerator.
 //
 // The looping constants describe the sets of loop counters and mask values
@@ -177,10 +159,10 @@ class FastUniformBitsURBGConstants {
 // bit per variate.
 //
 // See [rand.adapt.ibits] for more details on the use of these constants.
-template <typename UIntType, size_t Width, typename URBG>
+template <typename UIntType, typename URBG>
 class FastUniformBitsLoopingConstants {
  private:
-  static constexpr size_t kWidth = Width;
+  static constexpr size_t kWidth = std::numeric_limits<UIntType>::digits;
   using urbg_result_type = typename URBG::result_type;
   using uint_result_type = UIntType;
 
@@ -229,19 +211,19 @@ class FastUniformBitsLoopingConstants {
       "Class-template FastUniformBitsLoopingConstants::kW0 too small.");
 };
 
-template <typename UIntType, size_t Width>
+template <typename UIntType>
 template <typename URBG>
-typename FastUniformBits<UIntType, Width>::result_type
-FastUniformBits<UIntType, Width>::operator()(
+typename FastUniformBits<UIntType>::result_type
+FastUniformBits<UIntType>::operator()(
     URBG& g) {  // NOLINT(runtime/references)
   using constants = FastUniformBitsURBGConstants<URBG>;
   return Generate(
       g, std::integral_constant<bool, constants::kRangeMask >= (max)()>{});
 }
 
-template <typename UIntType, size_t Width>
+template <typename UIntType>
 template <typename URBG>
-typename URBG::result_type FastUniformBits<UIntType, Width>::Variate(
+typename URBG::result_type FastUniformBits<UIntType>::Variate(
     URBG& g) {  // NOLINT(runtime/references)
   using constants = FastUniformBitsURBGConstants<URBG>;
   if (constants::kPowerOfTwo) {
@@ -256,10 +238,10 @@ typename URBG::result_type FastUniformBits<UIntType, Width>::Variate(
   return u;
 }
 
-template <typename UIntType, size_t Width>
+template <typename UIntType>
 template <typename URBG>
-typename FastUniformBits<UIntType, Width>::result_type
-FastUniformBits<UIntType, Width>::Generate(
+typename FastUniformBits<UIntType>::result_type
+FastUniformBits<UIntType>::Generate(
     URBG& g,  // NOLINT(runtime/references)
     std::true_type /* avoid_looping */) {
   // The width of the result_type is less than than the width of the random bits
@@ -268,10 +250,10 @@ FastUniformBits<UIntType, Width>::Generate(
   return Variate(g) & (max)();
 }
 
-template <typename UIntType, size_t Width>
+template <typename UIntType>
 template <typename URBG>
-typename FastUniformBits<UIntType, Width>::result_type
-FastUniformBits<UIntType, Width>::Generate(
+typename FastUniformBits<UIntType>::result_type
+FastUniformBits<UIntType>::Generate(
     URBG& g,  // NOLINT(runtime/references)
     std::false_type /* avoid_looping */) {
   // The width of the result_type is wider than the number of random bits
@@ -279,7 +261,7 @@ FastUniformBits<UIntType, Width>::Generate(
   // using a shift and mask.  The constants type generates the parameters used
   // ensure that the bits are distributed across all the invocations of the
   // underlying URNG.
-  using constants = FastUniformBitsLoopingConstants<UIntType, Width, URBG>;
+  using constants = FastUniformBitsLoopingConstants<UIntType, URBG>;
 
   result_type s = 0;
   for (size_t n = 0; n < constants::kN0; ++n) {
