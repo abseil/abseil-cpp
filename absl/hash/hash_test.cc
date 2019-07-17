@@ -288,7 +288,6 @@ TEST(HashValueTest, Strings) {
   // Also check that nested types maintain the same hash.
   const WrapInTuple t{};
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
-      //
       t(std::string()), t(absl::string_view()),
       t(std::string("")), t(absl::string_view("")),
       t(std::string(small)), t(absl::string_view(small)),

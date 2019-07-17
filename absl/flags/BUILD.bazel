@@ -155,14 +155,12 @@ cc_library(
 )
 
 cc_library(
-    name = "usage",
+    name = "usage_internal",
     srcs = [
         "internal/usage.cc",
-        "usage.cc",
     ],
     hdrs = [
         "internal/usage.h",
-        "usage.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -174,6 +172,23 @@ cc_library(
         ":flag",
         ":handle",
         ":internal",
+        "//absl/strings",
+        "//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "usage",
+    srcs = [
+        "usage.cc",
+    ],
+    hdrs = [
+        "usage.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":usage_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -195,6 +210,7 @@ cc_library(
         ":internal",
         ":registry",
         ":usage",
+        ":usage_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -360,6 +376,7 @@ cc_test(
         ":internal",
         ":parse",
         ":usage",
+        ":usage_internal",
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest",

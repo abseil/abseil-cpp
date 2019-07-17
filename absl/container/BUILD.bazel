@@ -44,7 +44,10 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":compressed_tuple",
+        ":test_instance_tracker",
         "//absl/memory",
+        "//absl/types:any",
+        "//absl/types:optional",
         "//absl/utility",
         "@com_google_googletest//:gtest_main",
     ],

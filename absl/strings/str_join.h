@@ -254,7 +254,7 @@ std::string StrJoin(const Range& range, absl::string_view separator,
 
 template <typename T, typename Formatter>
 std::string StrJoin(std::initializer_list<T> il, absl::string_view separator,
-               Formatter&& fmt) {
+                    Formatter&& fmt) {
   return strings_internal::JoinRange(il, separator, fmt);
 }
 
@@ -275,7 +275,8 @@ std::string StrJoin(const Range& range, absl::string_view separator) {
 }
 
 template <typename T>
-std::string StrJoin(std::initializer_list<T> il, absl::string_view separator) {
+std::string StrJoin(std::initializer_list<T> il,
+                    absl::string_view separator) {
   return strings_internal::JoinRange(il, separator);
 }
 

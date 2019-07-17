@@ -47,8 +47,8 @@ void FlagHelp(std::ostream& out, const flags_internal::CommandLineFlag& flag,
 //  .../path/to/file.<ext>
 // for any extension 'ext'. If the filter is empty this function produces help
 // messages for all flags.
-void FlagsHelp(std::ostream& out, absl::string_view filter = {},
-               HelpFormat format = HelpFormat::kHumanReadable);
+void FlagsHelp(std::ostream& out, absl::string_view filter,
+               HelpFormat format, absl::string_view program_usage_message);
 
 // --------------------------------------------------------------------
 
@@ -60,7 +60,8 @@ void FlagsHelp(std::ostream& out, absl::string_view filter = {},
 // -1 - if no usage flags were set on a commmand line.
 // Non negative return values are expected to be used as an exit code for a
 // binary.
-int HandleUsageFlags(std::ostream& out);
+int HandleUsageFlags(std::ostream& out,
+                     absl::string_view program_usage_message);
 
 }  // namespace flags_internal
 }  // namespace absl

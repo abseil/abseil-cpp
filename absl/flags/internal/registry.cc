@@ -34,19 +34,15 @@ namespace flags_internal {
 namespace {
 
 void DestroyFlag(CommandLineFlag* flag) NO_THREAD_SAFETY_ANALYSIS {
-  // Values are heap allocated for retired and Abseil Flags.
-  if (flag->IsRetired() || flag->IsAbseilFlag()) {
-    if (flag->cur) Delete(flag->op, flag->cur);
-    if (flag->def) Delete(flag->op, flag->def);
-  }
-
-  delete flag->locks;
+  flag->Destroy();
 
   // CommandLineFlag handle object is heap allocated for non Abseil Flags.
   if (!flag->IsAbseilFlag()) {
     delete flag;
   }
 }
+
+}  // namespace
 
 // --------------------------------------------------------------------
 // FlagRegistry
@@ -104,8 +100,6 @@ class FlagPtrMap {
   }
 };
 constexpr size_t FlagPtrMap::kNumBuckets;
-
-}  // namespace
 
 class FlagRegistry {
  public:
@@ -292,10 +286,10 @@ class FlagSaverImpl {
       saved.op = flag->op;
       saved.marshalling_op = flag->marshalling_op;
       {
-        absl::MutexLock l(InitFlagIfNecessary(flag));
+        absl::MutexLock l(flag->InitFlagIfNecessary());
         saved.validator = flag->validator;
         saved.modified = flag->modified;
-        saved.on_command_line = flag->IsSpecifiedOnCommandLine();
+        saved.on_command_line = flag->on_command_line;
         saved.current = Clone(saved.op, flag->cur);
         saved.default_value = Clone(saved.op, flag->def);
         saved.counter = flag->counter;
@@ -318,34 +312,34 @@ class FlagSaverImpl {
 
       bool restored = false;
       {
-        absl::Mutex* mu = InitFlagIfNecessary(flag);
-        absl::MutexLock l(mu);
+        absl::MutexLock l(flag->InitFlagIfNecessary());
         flag->validator = src.validator;
         flag->modified = src.modified;
         flag->on_command_line = src.on_command_line;
         if (flag->counter != src.counter ||
             ChangedDirectly(flag, src.default_value, flag->def)) {
-          flag->counter++;
+          restored = true;
           Copy(src.op, src.default_value, flag->def);
         }
         if (flag->counter != src.counter ||
             ChangedDirectly(flag, src.current, flag->cur)) {
           restored = true;
-          flag->counter++;
           Copy(src.op, src.current, flag->cur);
-          UpdateCopy(flag, mu);
-
-          // Revalidate the flag because the validator might store state based
-          // on the flag's value, which just changed due to the restore.
-          // Failing validation is ignored because it's assumed that the flag
-          // was valid previously and there's little that can be done about it
-          // here, anyway.
-          Validate(flag, flag->cur);
+          UpdateCopy(flag);
+          flag->InvokeCallback();
         }
       }
 
-      // Log statements must be done when no flag lock is held.
       if (restored) {
+        flag->counter++;
+
+        // Revalidate the flag because the validator might store state based
+        // on the flag's value, which just changed due to the restore.
+        // Failing validation is ignored because it's assumed that the flag
+        // was valid previously and there's little that can be done about it
+        // here, anyway.
+        flag->ValidateInputValue(flag->CurrentValue());
+
         ABSL_INTERNAL_LOG(
             INFO, absl::StrCat("Restore saved value of ", flag->Name(), ": ",
                                Unparse(src.marshalling_op, src.current)));
@@ -412,13 +406,17 @@ void FillCommandLineFlagInfo(CommandLineFlag* flag,
   result->description = flag->Help();
   result->filename = flag->Filename();
 
-  UpdateModifiedBit(flag);
+  if (!flag->IsAbseilFlag()) {
+    if (!flag->IsModified() && ChangedDirectly(flag, flag->cur, flag->def)) {
+      flag->modified = true;
+    }
+  }
 
-  absl::MutexLock l(InitFlagIfNecessary(flag));
   result->current_value = flag->CurrentValue();
   result->default_value = flag->DefaultValue();
-  result->is_default = !flag->modified;
-  result->has_validator_fn = (flag->validator != nullptr);
+  result->is_default = !flag->IsModified();
+  result->has_validator_fn = flag->HasValidatorFn();
+  absl::MutexLock l(flag->InitFlagIfNecessary());
   result->flag_ptr = flag->IsAbseilFlag() ? nullptr : flag->cur;
 }
 

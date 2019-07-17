@@ -22,16 +22,59 @@
 
 namespace absl {
 namespace random_internal {
+// Returns true if the input value is zero or a power of two. Useful for
+// determining if the range of output values in a URBG
+template <typename UIntType>
+constexpr bool IsPowerOfTwoOrZero(UIntType n) {
+  return (n == 0) || ((n & (n - 1)) == 0);
+}
+
 // Computes the length of the range of values producible by the URBG, or returns
 // zero if that would encompass the entire range of representable values in
 // URBG::result_type.
 template <typename URBG>
-constexpr typename URBG::result_type constexpr_range() {
+constexpr typename URBG::result_type RangeSize() {
   using result_type = typename URBG::result_type;
   return ((URBG::max)() == (std::numeric_limits<result_type>::max)() &&
           (URBG::min)() == std::numeric_limits<result_type>::lowest())
              ? result_type{0}
              : (URBG::max)() - (URBG::min)() + result_type{1};
+}
+
+template <typename UIntType>
+constexpr UIntType LargestPowerOfTwoLessThanOrEqualTo(UIntType n) {
+  return n < 2 ? n : 2 * LargestPowerOfTwoLessThanOrEqualTo(n / 2);
+}
+
+// Given a URBG generating values in the closed interval [Lo, Hi], returns the
+// largest power of two less than or equal to `Hi - Lo + 1`.
+template <typename URBG>
+constexpr typename URBG::result_type PowerOfTwoSubRangeSize() {
+  return LargestPowerOfTwoLessThanOrEqualTo(RangeSize<URBG>());
+}
+
+// Computes the floor of the log. (i.e., std::floor(std::log2(N));
+template <typename UIntType>
+constexpr UIntType IntegerLog2(UIntType n) {
+  return (n <= 1) ? 0 : 1 + IntegerLog2(n / 2);
+}
+
+// Returns the number of bits of randomness returned through
+// `PowerOfTwoVariate(urbg)`.
+template <typename URBG>
+constexpr size_t NumBits() {
+  return RangeSize<URBG>() == 0
+             ? std::numeric_limits<typename URBG::result_type>::digits
+             : IntegerLog2(PowerOfTwoSubRangeSize<URBG>());
+}
+
+// Given a shift value `n`, constructs a mask with exactly the low `n` bits set.
+// If `n == 0`, all bits are set.
+template <typename UIntType>
+constexpr UIntType MaskFromShift(UIntType n) {
+  return ((n % std::numeric_limits<UIntType>::digits) == 0)
+             ? ~UIntType{0}
+             : (UIntType{1} << n) - UIntType{1};
 }
 
 // FastUniformBits implements a fast path to acquire uniform independent bits
@@ -45,14 +88,6 @@ constexpr typename URBG::result_type constexpr_range() {
 // generator that will outlive the std::independent_bits_engine instance.
 template <typename UIntType = uint64_t>
 class FastUniformBits {
-  static_assert(std::is_unsigned<UIntType>::value,
-                "Class-template FastUniformBits<> must be parameterized using "
-                "an unsigned type.");
-
-  // `kWidth` is the width, in binary digits, of the output. By default it is
-  // the number of binary digits in the `result_type`.
-  static constexpr size_t kWidth = std::numeric_limits<UIntType>::digits;
-
  public:
   using result_type = UIntType;
 
@@ -65,14 +100,47 @@ class FastUniformBits {
   result_type operator()(URBG& g);  // NOLINT(runtime/references)
 
  private:
-  // Variate() generates a single random variate, always returning a value
-  // in the closed interval [0 ... FastUniformBitsURBGConstants::kRangeMask]
-  // (kRangeMask+1 is a power of 2).
-  template <typename URBG>
-  typename URBG::result_type Variate(URBG& g);  // NOLINT(runtime/references)
+  static_assert(std::is_unsigned<UIntType>::value,
+                "Class-template FastUniformBits<> must be parameterized using "
+                "an unsigned type.");
 
-  // generate() generates a random value, dispatched on whether
-  // the underlying URNG must loop over multiple calls or not.
+  // PowerOfTwoVariate() generates a single random variate, always returning a
+  // value in the half-open interval `[0, PowerOfTwoSubRangeSize<URBG>())`. If
+  // the URBG already generates values in a power-of-two range, the generator
+  // itself is used. Otherwise, we use rejection sampling on the largest
+  // possible power-of-two-sized subrange.
+  struct PowerOfTwoTag {};
+  struct RejectionSamplingTag {};
+  template <typename URBG>
+  static typename URBG::result_type PowerOfTwoVariate(
+      URBG& g) {  // NOLINT(runtime/references)
+    using tag =
+        typename std::conditional<IsPowerOfTwoOrZero(RangeSize<URBG>()),
+                                  PowerOfTwoTag, RejectionSamplingTag>::type;
+    return PowerOfTwoVariate(g, tag{});
+  }
+
+  template <typename URBG>
+  static typename URBG::result_type PowerOfTwoVariate(
+      URBG& g,  // NOLINT(runtime/references)
+      PowerOfTwoTag) {
+    return g() - (URBG::min)();
+  }
+
+  template <typename URBG>
+  static typename URBG::result_type PowerOfTwoVariate(
+      URBG& g,  // NOLINT(runtime/references)
+      RejectionSamplingTag) {
+    // Use rejection sampling to ensure uniformity across the range.
+    typename URBG::result_type u;
+    do {
+      u = g() - (URBG::min)();
+    } while (u >= PowerOfTwoSubRangeSize<URBG>());
+    return u;
+  }
+
+  // Generate() generates a random value, dispatched on whether
+  // the underlying URBG must loop over multiple calls or not.
   template <typename URBG>
   result_type Generate(URBG& g,  // NOLINT(runtime/references)
                        std::true_type /* avoid_looping */);
@@ -82,196 +150,107 @@ class FastUniformBits {
                        std::false_type /* avoid_looping */);
 };
 
-// FastUniformBitsURBGConstants computes the URBG-derived constants used
-// by FastUniformBits::Generate and FastUniformBits::Variate.
-// Parameterized by the FastUniformBits parameter:
-//   `URBG`: The underlying UniformRandomNumberGenerator.
-//
-// The values here indicate the URBG range as well as providing an indicator
-// whether the URBG output is a power of 2, and kRangeMask, which allows masking
-// the generated output to kRangeBits.
+template <typename UIntType>
 template <typename URBG>
-class FastUniformBitsURBGConstants {
-  // Computes the floor of the log. (i.e., std::floor(std::log2(N));
-  static constexpr size_t constexpr_log2(size_t n) {
-    return (n <= 1) ? 0 : 1 + constexpr_log2(n / 2);
-  }
-
-  // Computes a mask of n bits for the URBG::result_type.
-  static constexpr typename URBG::result_type constexpr_mask(size_t n) {
-    return (typename URBG::result_type(1) << n) - 1;
-  }
-
- public:
-  using result_type = typename URBG::result_type;
-
-  // The range of the URNG, max - min + 1, or zero if that result would cause
-  // overflow.
-  static constexpr result_type kRange = constexpr_range<URBG>();
-
-  static constexpr bool kPowerOfTwo =
-      (kRange == 0) || ((kRange & (kRange - 1)) == 0);
-
-  // kRangeBits describes the number number of bits suitable to mask off of URNG
-  // variate, which is:
-  // kRangeBits = floor(log2(kRange))
-  static constexpr size_t kRangeBits =
-      kRange == 0 ? std::numeric_limits<result_type>::digits
-                  : constexpr_log2(kRange);
-
-  // kRangeMask is the mask used when sampling variates from the URNG when the
-  // width of the URNG range is not a power of 2.
+typename FastUniformBits<UIntType>::result_type
+FastUniformBits<UIntType>::operator()(URBG& g) {  // NOLINT(runtime/references)
+  // kRangeMask is the mask used when sampling variates from the URBG when the
+  // width of the URBG range is not a power of 2.
   // Y = (2 ^ kRange) - 1
-  static constexpr result_type kRangeMask =
-      kRange == 0 ? (std::numeric_limits<result_type>::max)()
-                  : constexpr_mask(kRangeBits);
-
-  static_assert((URBG::max)() != (URBG::min)(),
-                "Class-template FastUniformBitsURBGConstants<> "
+  static_assert((URBG::max)() > (URBG::min)(),
                 "URBG::max and URBG::min may not be equal.");
-
-  static_assert(std::is_unsigned<result_type>::value,
-                "Class-template FastUniformBitsURBGConstants<> "
-                "URBG::result_type must be unsigned.");
-
-  static_assert(kRangeMask > 0,
-                "Class-template FastUniformBitsURBGConstants<> "
-                "URBG does not generate sufficient random bits.");
-
-  static_assert(kRange == 0 ||
-                    kRangeBits < std::numeric_limits<result_type>::digits,
-                "Class-template FastUniformBitsURBGConstants<> "
-                "URBG range computation error.");
-};
-
-// FastUniformBitsLoopingConstants computes the looping constants used
-// by FastUniformBits::Generate. These constants indicate how multiple
-// URBG::result_type values are combined into an output_value.
-// Parameterized by the FastUniformBits parameters:
-//  `UIntType`: output type.
-//  `URNG`: The underlying UniformRandomNumberGenerator.
-//
-// The looping constants describe the sets of loop counters and mask values
-// which control how individual variates are combined the final output.  The
-// algorithm ensures that the number of bits used by any individual call differs
-// by at-most one bit from any other call. This is simplified into constants
-// which describe two loops, with the second loop parameters providing one extra
-// bit per variate.
-//
-// See [rand.adapt.ibits] for more details on the use of these constants.
-template <typename UIntType, typename URBG>
-class FastUniformBitsLoopingConstants {
- private:
-  static constexpr size_t kWidth = std::numeric_limits<UIntType>::digits;
   using urbg_result_type = typename URBG::result_type;
-  using uint_result_type = UIntType;
-
- public:
-  using result_type =
-      typename std::conditional<(sizeof(urbg_result_type) <=
-                                 sizeof(uint_result_type)),
-                                uint_result_type, urbg_result_type>::type;
-
- private:
-  // Estimate N as ceil(width / urng width), and W0 as (width / N).
-  static constexpr size_t kRangeBits =
-      FastUniformBitsURBGConstants<URBG>::kRangeBits;
-
-  // The range of the URNG, max - min + 1, or zero if that result would cause
-  // overflow.
-  static constexpr result_type kRange = constexpr_range<URBG>();
-  static constexpr size_t kEstimateN =
-      kWidth / kRangeBits + (kWidth % kRangeBits != 0);
-  static constexpr size_t kEstimateW0 = kWidth / kEstimateN;
-  static constexpr result_type kEstimateY0 = (kRange >> kEstimateW0)
-                                             << kEstimateW0;
-
- public:
-  // Parameters for the two loops:
-  // kN0, kN1 are the number of underlying calls required for each loop.
-  // KW0, kW1 are shift widths for each loop.
-  //
-  static constexpr size_t kN1 = (kRange - kEstimateY0) >
-                                        (kEstimateY0 / kEstimateN)
-                                    ? kEstimateN + 1
-                                    : kEstimateN;
-  static constexpr size_t kN0 = kN1 - (kWidth % kN1);
-  static constexpr size_t kW0 = kWidth / kN1;
-  static constexpr size_t kW1 = kW0 + 1;
-
-  static constexpr result_type kM0 = (result_type(1) << kW0) - 1;
-  static constexpr result_type kM1 = (result_type(1) << kW1) - 1;
-
-  static_assert(
-      kW0 <= kRangeBits,
-      "Class-template FastUniformBitsLoopingConstants::kW0 too large.");
-
-  static_assert(
-      kW0 > 0,
-      "Class-template FastUniformBitsLoopingConstants::kW0 too small.");
-};
-
-template <typename UIntType>
-template <typename URBG>
-typename FastUniformBits<UIntType>::result_type
-FastUniformBits<UIntType>::operator()(
-    URBG& g) {  // NOLINT(runtime/references)
-  using constants = FastUniformBitsURBGConstants<URBG>;
-  return Generate(
-      g, std::integral_constant<bool, constants::kRangeMask >= (max)()>{});
-}
-
-template <typename UIntType>
-template <typename URBG>
-typename URBG::result_type FastUniformBits<UIntType>::Variate(
-    URBG& g) {  // NOLINT(runtime/references)
-  using constants = FastUniformBitsURBGConstants<URBG>;
-  if (constants::kPowerOfTwo) {
-    return g() - (URBG::min)();
-  }
-
-  // Use rejection sampling to ensure uniformity across the range.
-  typename URBG::result_type u;
-  do {
-    u = g() - (URBG::min)();
-  } while (u > constants::kRangeMask);
-  return u;
+  constexpr urbg_result_type kRangeMask =
+      RangeSize<URBG>() == 0
+          ? (std::numeric_limits<urbg_result_type>::max)()
+          : static_cast<urbg_result_type>(PowerOfTwoSubRangeSize<URBG>() - 1);
+  return Generate(g, std::integral_constant<bool, (kRangeMask >= (max)())>{});
 }
 
 template <typename UIntType>
 template <typename URBG>
 typename FastUniformBits<UIntType>::result_type
-FastUniformBits<UIntType>::Generate(
-    URBG& g,  // NOLINT(runtime/references)
-    std::true_type /* avoid_looping */) {
+FastUniformBits<UIntType>::Generate(URBG& g,  // NOLINT(runtime/references)
+                                    std::true_type /* avoid_looping */) {
   // The width of the result_type is less than than the width of the random bits
-  // provided by URNG.  Thus, generate a single value and then simply mask off
+  // provided by URBG.  Thus, generate a single value and then simply mask off
   // the required bits.
-  return Variate(g) & (max)();
+
+  return PowerOfTwoVariate(g) & (max)();
 }
 
 template <typename UIntType>
 template <typename URBG>
 typename FastUniformBits<UIntType>::result_type
-FastUniformBits<UIntType>::Generate(
-    URBG& g,  // NOLINT(runtime/references)
-    std::false_type /* avoid_looping */) {
-  // The width of the result_type is wider than the number of random bits
-  // provided by URNG. Thus we merge several variates of URNG into the result
-  // using a shift and mask.  The constants type generates the parameters used
-  // ensure that the bits are distributed across all the invocations of the
-  // underlying URNG.
-  using constants = FastUniformBitsLoopingConstants<UIntType, URBG>;
+FastUniformBits<UIntType>::Generate(URBG& g,  // NOLINT(runtime/references)
+                                    std::false_type /* avoid_looping */) {
+  // See [rand.adapt.ibits] for more details on the constants calculated below.
+  //
+  // It is preferable to use roughly the same number of bits from each generator
+  // call, however this is only possible when the number of bits provided by the
+  // URBG is a divisor of the number of bits in `result_type`. In all other
+  // cases, the number of bits used cannot always be the same, but it can be
+  // guaranteed to be off by at most 1. Thus we run two loops, one with a
+  // smaller bit-width size (`kSmallWidth`) and one with a larger width size
+  // (satisfying `kLargeWidth == kSmallWidth + 1`). The loops are run
+  // `kSmallIters` and `kLargeIters` times respectively such
+  // that
+  //
+  //    `kTotalWidth == kSmallIters * kSmallWidth
+  //                    + kLargeIters * kLargeWidth`
+  //
+  // where `kTotalWidth` is the total number of bits in `result_type`.
+  //
+  constexpr size_t kTotalWidth = std::numeric_limits<result_type>::digits;
+  constexpr size_t kUrbgWidth = NumBits<URBG>();
+  constexpr size_t kTotalIters =
+      kTotalWidth / kUrbgWidth + (kTotalWidth % kUrbgWidth != 0);
+  constexpr size_t kSmallWidth = kTotalWidth / kTotalIters;
+  constexpr size_t kLargeWidth = kSmallWidth + 1;
+  //
+  // Because `kLargeWidth == kSmallWidth + 1`, it follows that
+  //
+  //     `kTotalWidth == kTotalIters * kSmallWidth + kLargeIters`
+  //
+  // and therefore
+  //
+  //     `kLargeIters == kTotalWidth % kSmallWidth`
+  //
+  // Intuitively, each iteration with the large width accounts for one unit
+  // of the remainder when `kTotalWidth` is divided by `kSmallWidth`. As
+  // mentioned above, if the URBG width is a divisor of `kTotalWidth`, then
+  // there would be no need for any large iterations (i.e., one loop would
+  // suffice), and indeed, in this case, `kLargeIters` would be zero.
+  constexpr size_t kLargeIters = kTotalWidth % kSmallWidth;
+  constexpr size_t kSmallIters =
+      (kTotalWidth - (kLargeWidth * kLargeIters)) / kSmallWidth;
+
+  static_assert(
+      kTotalWidth == kSmallIters * kSmallWidth + kLargeIters * kLargeWidth,
+      "Error in looping constant calculations.");
 
   result_type s = 0;
-  for (size_t n = 0; n < constants::kN0; ++n) {
-    auto u = Variate(g);
-    s = (s << constants::kW0) + (u & constants::kM0);
+
+  constexpr size_t kSmallShift = kSmallWidth % kTotalWidth;
+  constexpr result_type kSmallMask = MaskFromShift(result_type{kSmallShift});
+  for (size_t n = 0; n < kSmallIters; ++n) {
+    s = (s << kSmallShift) +
+        (static_cast<result_type>(PowerOfTwoVariate(g)) & kSmallMask);
   }
-  for (size_t n = constants::kN0; n < constants::kN1; ++n) {
-    auto u = Variate(g);
-    s = (s << constants::kW1) + (u & constants::kM1);
+
+  constexpr size_t kLargeShift = kLargeWidth % kTotalWidth;
+  constexpr result_type kLargeMask = MaskFromShift(result_type{kLargeShift});
+  for (size_t n = 0; n < kLargeIters; ++n) {
+    s = (s << kLargeShift) +
+        (static_cast<result_type>(PowerOfTwoVariate(g)) & kLargeMask);
   }
+
+  static_assert(
+      kLargeShift == kSmallShift + 1 ||
+          (kLargeShift == 0 &&
+           kSmallShift == std::numeric_limits<result_type>::digits - 1),
+      "Error in looping constant calculations");
+
   return s;
 }
 

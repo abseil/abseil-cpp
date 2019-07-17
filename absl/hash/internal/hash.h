@@ -640,7 +640,8 @@ class CityHashState : public HashStateBase<CityHashState> {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
   static constexpr uint64_t kMul =
-      sizeof(size_t) == 4 ? uint64_t{0xcc9e2d51} : uint64_t{0x9ddfea08eb382d69};
+      sizeof(size_t) == 4 ? uint64_t{0xcc9e2d51}
+                          : uint64_t{0x9ddfea08eb382d69};
 
   template <typename T>
   using IntegralFastPath =

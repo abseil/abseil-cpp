@@ -67,13 +67,21 @@ for std in ${STD}; do
         --compilation_mode=${compilation_mode} \
         --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
         --copt="-DADDRESS_SANITIZER" \
+        --copt="-DUNDEFINED_BEHAVIOR_SANITIZER" \
         --copt="-fsanitize=address" \
+        --copt="-fsanitize=float-divide-by-zero" \
+        --copt="-fsanitize=nullability" \
+        --copt="-fsanitize=undefined" \
+        --copt="-fno-sanitize=vptr" \
         --copt=-Werror \
         --keep_going \
         --linkopt="-fsanitize=address" \
+        --linkopt="-fsanitize-link-c++-runtime" \
         --show_timestamps \
         --test_env="ASAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
         --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
+        --test_env="UBSAN_OPTIONS=print_stacktrace=1" \
+        --test_env="UBSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
         --test_output=errors \
         --test_tag_filters="-benchmark,-noasan" \
         ${BAZEL_EXTRA_ARGS:-}

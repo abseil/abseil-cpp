@@ -1182,7 +1182,7 @@ class raw_hash_set {
 
   node_type extract(const_iterator position) {
     auto node =
-        CommonAccess::Make<node_type>(alloc_ref(), position.inner_.slot_);
+        CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
     return node;
   }

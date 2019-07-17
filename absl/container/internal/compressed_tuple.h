@@ -102,7 +102,9 @@ template <typename T, size_t I,
 struct Storage {
   T value;
   constexpr Storage() = default;
-  explicit constexpr Storage(T&& v) : value(absl::forward<T>(v)) {}
+  template <typename V>
+  explicit constexpr Storage(absl::in_place_t, V&& v)
+      : value(absl::forward<V>(v)) {}
   constexpr const T& get() const& { return value; }
   T& get() & { return value; }
   constexpr const T&& get() const&& { return absl::move(*this).value; }
@@ -112,7 +114,11 @@ struct Storage {
 template <typename T, size_t I>
 struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC Storage<T, I, true> : T {
   constexpr Storage() = default;
-  explicit constexpr Storage(T&& v) : T(absl::forward<T>(v)) {}
+
+  template <typename V>
+  explicit constexpr Storage(absl::in_place_t, V&& v)
+      : T(absl::forward<V>(v)) {}
+
   constexpr const T& get() const& { return *this; }
   T& get() & { return *this; }
   constexpr const T&& get() const&& { return absl::move(*this); }
@@ -132,8 +138,9 @@ struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTupleImpl<
     : uses_inheritance,
       Storage<Ts, std::integral_constant<size_t, I>::value>... {
   constexpr CompressedTupleImpl() = default;
-  explicit constexpr CompressedTupleImpl(Ts&&... args)
-      : Storage<Ts, I>(absl::forward<Ts>(args))... {}
+  template <typename... Vs>
+  explicit constexpr CompressedTupleImpl(absl::in_place_t, Vs&&... args)
+      : Storage<Ts, I>(absl::in_place, absl::forward<Vs>(args))... {}
   friend CompressedTuple<Ts...>;
 };
 
@@ -143,8 +150,9 @@ struct ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTupleImpl<
     // We use the dummy identity function as above...
     : Storage<Ts, std::integral_constant<size_t, I>::value, false>... {
   constexpr CompressedTupleImpl() = default;
-  explicit constexpr CompressedTupleImpl(Ts&&... args)
-      : Storage<Ts, I, false>(absl::forward<Ts>(args))... {}
+  template <typename... Vs>
+  explicit constexpr CompressedTupleImpl(absl::in_place_t, Vs&&... args)
+      : Storage<Ts, I, false>(absl::in_place, absl::forward<Vs>(args))... {}
   friend CompressedTuple<Ts...>;
 };
 
@@ -158,6 +166,11 @@ constexpr bool ShouldAnyUseBase() {
   return decltype(
       Or({std::integral_constant<bool, ShouldUseBase<Ts>()>()...})){};
 }
+
+template <typename T, typename V>
+using TupleMoveConstructible = typename std::conditional<
+      std::is_reference<T>::value, std::is_convertible<V, T>,
+      std::is_constructible<T, V&&>>::type;
 
 }  // namespace internal_compressed_tuple
 
@@ -192,9 +205,29 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
   using StorageT = internal_compressed_tuple::Storage<ElemT<I>, I>;
 
  public:
+  // There seems to be a bug in MSVC dealing in which using '=default' here will
+  // cause the compiler to ignore the body of other constructors. The work-
+  // around is to explicitly implement the default constructor.
+#if defined(_MSC_VER)
+  constexpr CompressedTuple() : CompressedTuple::CompressedTupleImpl() {}
+#else
   constexpr CompressedTuple() = default;
-  explicit constexpr CompressedTuple(Ts... base)
-      : CompressedTuple::CompressedTupleImpl(absl::forward<Ts>(base)...) {}
+#endif
+  explicit constexpr CompressedTuple(const Ts&... base)
+      : CompressedTuple::CompressedTupleImpl(absl::in_place, base...) {}
+
+  template <typename... Vs,
+            absl::enable_if_t<
+                absl::conjunction<
+                    // Ensure we are not hiding default copy/move constructors.
+                    absl::negation<std::is_same<void(CompressedTuple),
+                                                void(absl::decay_t<Vs>...)>>,
+                    internal_compressed_tuple::TupleMoveConstructible<
+                        Ts, Vs&&>...>::value,
+                bool> = true>
+  explicit constexpr CompressedTuple(Vs&&... base)
+      : CompressedTuple::CompressedTupleImpl(absl::in_place,
+                                             absl::forward<Vs>(base)...) {}
 
   template <int I>
   ElemT<I>& get() & {

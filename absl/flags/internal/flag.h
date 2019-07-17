@@ -24,40 +24,58 @@ namespace flags_internal {
 
 // This is "unspecified" implementation of absl::Flag<T> type.
 template <typename T>
-class Flag {
+class Flag : public flags_internal::CommandLineFlag {
  public:
   constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
                  const char* filename,
-                 const flags_internal::FlagMarshallingOpFn marshalling_op,
+                 const flags_internal::FlagMarshallingOpFn marshalling_op_arg,
                  const flags_internal::InitialValGenFunc initial_value_gen)
-      : internal(name, flags_internal::HelpText::FromFunctionPointer(help_gen),
-                 filename, &flags_internal::FlagOps<T>, marshalling_op,
-                 initial_value_gen,
-                 /*retired_arg=*/false, /*def_arg=*/nullptr,
-                 /*cur_arg=*/nullptr) {}
+      : flags_internal::CommandLineFlag(
+            name, flags_internal::HelpText::FromFunctionPointer(help_gen),
+            filename, &flags_internal::FlagOps<T>, marshalling_op_arg,
+            initial_value_gen,
+            /*retired_arg=*/false, /*def_arg=*/nullptr,
+            /*cur_arg=*/nullptr) {}
 
-  // Not copyable/assignable.
-  Flag(const Flag<T>&) = delete;
-  Flag<T>& operator=(const Flag<T>&) = delete;
+  T Get() const {
+    // Implementation notes:
+    //
+    // We are wrapping a union around the value of `T` to serve three purposes:
+    //
+    //  1. `U.value` has correct size and alignment for a value of type `T`
+    //  2. The `U.value` constructor is not invoked since U's constructor does
+    //  not
+    //     do it explicitly.
+    //  3. The `U.value` destructor is invoked since U's destructor does it
+    //     explicitly. This makes `U` a kind of RAII wrapper around non default
+    //     constructible value of T, which is destructed when we leave the
+    //     scope. We do need to destroy U.value, which is constructed by
+    //     CommandLineFlag::Read even though we left it in a moved-from state
+    //     after std::move.
+    //
+    // All of this serves to avoid requiring `T` being default constructible.
+    union U {
+      T value;
+      U() {}
+      ~U() { value.~T(); }
+    };
+    U u;
 
-  absl::string_view Name() const { return internal.Name(); }
-  std::string Help() const { return internal.Help(); }
-  std::string Filename() const { return internal.Filename(); }
-
-  absl::flags_internal::CommandLineFlag internal;
-
-  void SetCallback(const flags_internal::FlagCallback mutation_callback) {
-    internal.SetCallback(mutation_callback);
+    this->Read(&u.value, &flags_internal::FlagOps<T>);
+    return std::move(u.value);
   }
 
- private:
-  // TODO(rogeeff): add these validations once UnparseFlag invocation is fixed
-  // for built-in types and when we cleanup existing code from operating on
-  // forward declared types.
-  //  auto IsCopyConstructible(const T& v) -> decltype(T(v));
-  //  auto HasAbslParseFlag(absl::string_view in, T* dst, std::string* err)
-  //      -> decltype(AbslParseFlag(in, dst, err));
-  //  auto HasAbslUnparseFlag(const T& v) -> decltype(AbslUnparseFlag(v));
+  bool AtomicGet(T* v) const {
+    const int64_t r = this->atomic.load(std::memory_order_acquire);
+    if (r != flags_internal::CommandLineFlag::kAtomicInit) {
+      memcpy(v, &r, sizeof(T));
+      return true;
+    }
+
+    return false;
+  }
+
+  void Set(const T& v) { this->Write(&v, &flags_internal::FlagOps<T>); }
 };
 
 // This class facilitates Flag object registration and tail expression-based
@@ -67,7 +85,7 @@ template <typename T, bool do_register>
 class FlagRegistrar {
  public:
   explicit FlagRegistrar(Flag<T>* flag) : flag_(flag) {
-    if (do_register) flags_internal::RegisterCommandLineFlag(&flag_->internal);
+    if (do_register) flags_internal::RegisterCommandLineFlag(flag_);
   }
 
   FlagRegistrar& OnUpdate(flags_internal::FlagCallback cb) && {

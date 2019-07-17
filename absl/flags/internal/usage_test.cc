@@ -36,6 +36,8 @@ ABSL_FLAG(double, usage_reporting_test_flag_03, 1.03,
 ABSL_FLAG(int64_t, usage_reporting_test_flag_04, 1000000000000004L,
           "usage_reporting_test_flag_04 help message");
 
+static const char kTestUsageMessage[] = "Custom usage message";
+
 struct UDT {
   UDT() = default;
   UDT(const UDT&) = default;
@@ -83,7 +85,7 @@ class UsageReportingTest : public testing::Test {
 using UsageReportingDeathTest = UsageReportingTest;
 
 TEST_F(UsageReportingDeathTest, TestSetProgramUsageMessage) {
-  EXPECT_EQ(absl::ProgramUsageMessage(), "Custom usage message");
+  EXPECT_EQ(absl::ProgramUsageMessage(), kTestUsageMessage);
 
 #ifndef _WIN32
   // TODO(rogeeff): figure out why this does not work on Windows.
@@ -175,22 +177,22 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
 
   std::stringstream test_buf_01;
   flags::FlagsHelp(test_buf_01, "usage_test.cc",
-                   flags::HelpFormat::kHumanReadable);
+                   flags::HelpFormat::kHumanReadable, kTestUsageMessage);
   EXPECT_EQ(test_buf_01.str(), usage_test_flags_out);
 
   std::stringstream test_buf_02;
   flags::FlagsHelp(test_buf_02, "flags/internal/usage_test.cc",
-                   flags::HelpFormat::kHumanReadable);
+                   flags::HelpFormat::kHumanReadable, kTestUsageMessage);
   EXPECT_EQ(test_buf_02.str(), usage_test_flags_out);
 
   std::stringstream test_buf_03;
-  flags::FlagsHelp(test_buf_03, "usage_test",
-                   flags::HelpFormat::kHumanReadable);
+  flags::FlagsHelp(test_buf_03, "usage_test", flags::HelpFormat::kHumanReadable,
+                   kTestUsageMessage);
   EXPECT_EQ(test_buf_03.str(), usage_test_flags_out);
 
   std::stringstream test_buf_04;
   flags::FlagsHelp(test_buf_04, "flags/invalid_file_name.cc",
-                   flags::HelpFormat::kHumanReadable);
+                   flags::HelpFormat::kHumanReadable, kTestUsageMessage);
   EXPECT_EQ(test_buf_04.str(),
             R"(usage_test: Custom usage message
 
@@ -198,7 +200,8 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
 )");
 
   std::stringstream test_buf_05;
-  flags::FlagsHelp(test_buf_05, "", flags::HelpFormat::kHumanReadable);
+  flags::FlagsHelp(test_buf_05, "", flags::HelpFormat::kHumanReadable,
+                   kTestUsageMessage);
   std::string test_out = test_buf_05.str();
   absl::string_view test_out_str(test_out);
   EXPECT_TRUE(
@@ -217,7 +220,7 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
 
 TEST_F(UsageReportingTest, TestNoUsageFlags) {
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), -1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), -1);
 }
 
 // --------------------------------------------------------------------
@@ -226,7 +229,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpshort) {
   absl::SetFlag(&FLAGS_helpshort, true);
 
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), 1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), 1);
   EXPECT_EQ(test_buf.str(),
             R"(usage_test: Custom usage message
 
@@ -250,7 +253,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_help) {
   absl::SetFlag(&FLAGS_help, true);
 
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), 1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), 1);
   EXPECT_EQ(test_buf.str(),
             R"(usage_test: Custom usage message
 
@@ -276,7 +279,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helppackage) {
   absl::SetFlag(&FLAGS_helppackage, true);
 
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), 1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), 1);
   EXPECT_EQ(test_buf.str(),
             R"(usage_test: Custom usage message
 
@@ -302,10 +305,9 @@ TEST_F(UsageReportingTest, TestUsageFlag_version) {
   absl::SetFlag(&FLAGS_version, true);
 
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), 0);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), 0);
 #ifndef NDEBUG
-  EXPECT_EQ(test_buf.str(),
-            "usage_test\nDebug build (NDEBUG not #defined)\n");
+  EXPECT_EQ(test_buf.str(), "usage_test\nDebug build (NDEBUG not #defined)\n");
 #else
   EXPECT_EQ(test_buf.str(), "usage_test\n");
 #endif
@@ -317,7 +319,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_only_check_args) {
   absl::SetFlag(&FLAGS_only_check_args, true);
 
   std::stringstream test_buf;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf), 0);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage), 0);
   EXPECT_EQ(test_buf.str(), "");
 }
 
@@ -327,7 +329,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
   absl::SetFlag(&FLAGS_helpon, "bla-bla");
 
   std::stringstream test_buf_01;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf_01), 1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf_01, kTestUsageMessage), 1);
   EXPECT_EQ(test_buf_01.str(),
             R"(usage_test: Custom usage message
 
@@ -337,7 +339,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
   absl::SetFlag(&FLAGS_helpon, "usage_test");
 
   std::stringstream test_buf_02;
-  EXPECT_EQ(flags::HandleUsageFlags(test_buf_02), 1);
+  EXPECT_EQ(flags::HandleUsageFlags(test_buf_02, kTestUsageMessage), 1);
   EXPECT_EQ(test_buf_02.str(),
             R"(usage_test: Custom usage message
 
@@ -362,7 +364,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
 int main(int argc, char* argv[]) {
   absl::GetFlag(FLAGS_undefok);  // Force linking of parse.cc
   flags::SetProgramInvocationName("usage_test");
-  absl::SetProgramUsageMessage("Custom usage message");
+  absl::SetProgramUsageMessage(kTestUsageMessage);
   ::testing::InitGoogleTest(&argc, argv);
 
   return RUN_ALL_TESTS();

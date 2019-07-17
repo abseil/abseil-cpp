@@ -16,6 +16,7 @@
 #include "absl/flags/parse.h"
 
 #include <stdlib.h>
+
 #include <fstream>
 #include <iostream>
 #include <tuple>
@@ -28,6 +29,7 @@
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/internal/usage.h"
+#include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/strip.h"
@@ -280,22 +282,7 @@ void CheckDefaultValuesParsingRoundtrip() {
     IGNORE_TYPE(std::vector<std::string>)
 #undef IGNORE_TYPE
 
-    absl::MutexLock lock(InitFlagIfNecessary(flag));
-
-    std::string v = flag->DefaultValue();
-    void* dst = Clone(flag->op, flag->def);
-    std::string error;
-    if (!flags_internal::Parse(flag->marshalling_op, v, dst, &error)) {
-      ABSL_INTERNAL_LOG(
-          FATAL,
-          absl::StrCat("Flag ", flag->Name(), " (from ", flag->Filename(),
-                       "): std::string form of default value '", v,
-                       "' could not be parsed; error=", error));
-    }
-
-    // We do not compare dst to def since parsing/unparsing may make
-    // small changes, e.g., precision loss for floating point types.
-    Delete(flag->op, dst);
+    flag->CheckDefaultValueParsingRoundtrip();
   });
 #endif
 }
@@ -717,12 +704,14 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
 #endif
 
   if (!success) {
-    flags_internal::HandleUsageFlags(std::cout);
+    flags_internal::HandleUsageFlags(std::cout,
+                                     ProgramUsageMessage());
     std::exit(1);
   }
 
   if (usage_flag_act == UsageFlagsAction::kHandleUsage) {
-    int exit_code = flags_internal::HandleUsageFlags(std::cout);
+    int exit_code = flags_internal::HandleUsageFlags(
+        std::cout, ProgramUsageMessage());
 
     if (exit_code != -1) {
       std::exit(exit_code);

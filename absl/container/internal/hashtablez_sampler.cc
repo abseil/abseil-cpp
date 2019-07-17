@@ -32,7 +32,7 @@ constexpr int HashtablezInfo::kMaxStackDepth;
 
 namespace {
 ABSL_CONST_INIT std::atomic<bool> g_hashtablez_enabled{
-   false
+    false
 };
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_sample_parameter{1 << 10};
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_max_samples{1 << 20};

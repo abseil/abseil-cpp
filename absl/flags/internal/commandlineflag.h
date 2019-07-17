@@ -69,10 +69,14 @@ using HelpGenFunc = std::string (*)();
 // based on default value supplied in flag's definition)
 using InitialValGenFunc = void* (*)();
 
+struct CommandLineFlagInfo;
+
 // Signature for the mutation callback used by watched Flags
 // The callback is noexcept.
 // TODO(rogeeff): add noexcept after C++17 support is added.
 using FlagCallback = void (*)();
+
+using FlagValidator = bool (*)();
 
 extern const char kStrippedFlagHelp[];
 
@@ -217,6 +221,9 @@ struct CommandLineFlag {
         atomic(kAtomicInit),
         locks(nullptr) {}
 
+  // Revert the init routine.
+  void Destroy() const;
+
   // Not copyable/assignable.
   CommandLineFlag(const CommandLineFlag&) = delete;
   CommandLineFlag& operator=(const CommandLineFlag&) = delete;
@@ -224,7 +231,9 @@ struct CommandLineFlag {
   absl::string_view Name() const { return name; }
   std::string Help() const { return help.GetHelpText(); }
   bool IsRetired() const { return this->retired; }
-  bool IsSpecifiedOnCommandLine() const { return on_command_line; }
+  bool IsModified() const;
+  void SetModified(bool is_modified);
+  bool IsSpecifiedOnCommandLine() const;
   // Returns true iff this is a handle to an Abseil Flag.
   bool IsAbseilFlag() const {
     // Set to null for V1 flags
@@ -236,6 +245,10 @@ struct CommandLineFlag {
   std::string DefaultValue() const;
   std::string CurrentValue() const;
 
+  bool HasValidatorFn() const;
+  bool SetValidatorFn(FlagValidator fn);
+  bool InvokeValidator(const void* value) const;
+
   // Return true iff flag has type T.
   template <typename T>
   inline bool IsOfType() const {
@@ -245,7 +258,7 @@ struct CommandLineFlag {
   // Attempts to retrieve the flag value. Returns value on success,
   // absl::nullopt otherwise.
   template <typename T>
-  absl::optional<T> Get() {
+  absl::optional<T> Get() const {
     if (IsRetired() || flags_internal::FlagOps<T> != this->op)
       return absl::nullopt;
 
@@ -256,6 +269,7 @@ struct CommandLineFlag {
   }
 
   void SetCallback(const flags_internal::FlagCallback mutation_callback);
+  void InvokeCallback();
 
   // Sets the value of the flag based on specified std::string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
@@ -269,27 +283,35 @@ struct CommandLineFlag {
                      flags_internal::FlagSettingMode set_mode,
                      flags_internal::ValueSource source, std::string* error);
 
+  void StoreAtomic(size_t size);
+
+  void CheckDefaultValueParsingRoundtrip() const;
+  // Invoke the flag validators for old flags.
+  // TODO(rogeeff): implement proper validators for Abseil Flags
+  bool ValidateDefaultValue() const;
+  bool ValidateInputValue(absl::string_view value) const;
+
   // Constant configuration for a particular flag.
  private:
   const char* const name;
   const HelpText help;
   const char* const filename;
 
- public:
-  const FlagOpFn op;                  // Type-specific handler
+ protected:
+  const FlagOpFn op;                         // Type-specific handler
   const FlagMarshallingOpFn marshalling_op;  // Marshalling ops handler
   const InitialValGenFunc make_init_value;   // Makes initial value for the flag
-  const bool retired;                 // Is the flag retired?
-  std::atomic<bool> inited;           // fields have been lazily initialized
+  const bool retired;                        // Is the flag retired?
+  std::atomic<bool> inited;  // fields have been lazily initialized
 
   // Mutable state (guarded by locks->primary_mu).
-  bool modified;          // Has flag value been modified?
-  bool on_command_line;   // Specified on command line.
-  bool (*validator)();    // Validator function, or nullptr
-  FlagCallback callback;  // Mutation callback, or nullptr
-  void* def;              // Lazily initialized pointer to default value
-  void* cur;              // Lazily initialized pointer to current value
-  int64_t counter;          // Mutation counter
+  bool modified;            // Has flag value been modified?
+  bool on_command_line;     // Specified on command line.
+  FlagValidator validator;  // Validator function, or nullptr
+  FlagCallback callback;    // Mutation callback, or nullptr
+  void* def;                // Lazily initialized pointer to default value
+  void* cur;                // Lazily initialized pointer to current value
+  int64_t counter;            // Mutation counter
 
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
@@ -302,24 +324,26 @@ struct CommandLineFlag {
   // TODO(rogeeff): fix it once Mutex has constexpr constructor
   struct CommandLineFlagLocks* locks;  // locks, laziliy allocated.
 
+  // Ensure that the lazily initialized fields of *flag have been initialized,
+  // and return the lock which should be locked when flag's state is mutated.
+  absl::Mutex* InitFlagIfNecessary() const;
+
   // copy construct new value of flag's type in a memory referenced by dst
   // based on current flag's value
   void Read(void* dst, const flags_internal::FlagOpFn dst_op) const;
   // updates flag's value to *src (locked)
   void Write(const void* src, const flags_internal::FlagOpFn src_op);
 
-  ABSL_DEPRECATED(
-      "temporary until FlagName call sites are migrated and validator API is "
-      "changed")
-  const char* NameAsCString() const { return name; }
-
- private:
   friend class FlagRegistry;
+  friend class FlagPtrMap;
+  friend class FlagSaverImpl;
+  friend void FillCommandLineFlagInfo(CommandLineFlag* flag,
+                                      CommandLineFlagInfo* result);
+  friend bool TryParseLocked(CommandLineFlag* flag, void* dst,
+                             absl::string_view value, std::string* err);
+  friend absl::Mutex* InitFlag(CommandLineFlag* flag);
 };
 
-// Ensure that the lazily initialized fields of *flag have been initialized,
-// and return &flag->locks->primary_mu.
-absl::Mutex* InitFlagIfNecessary(CommandLineFlag* flag);
 // Update any copy of the flag value that is stored in an atomic word.
 // In addition if flag has a mutation callback this function invokes it. While
 // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -332,15 +356,9 @@ absl::Mutex* InitFlagIfNecessary(CommandLineFlag* flag);
 // different by the time the callback invocation is completed.
 // Requires that *primary_lock be held in exclusive mode; it may be released
 // and reacquired by the implementation.
-void UpdateCopy(CommandLineFlag* flag, absl::Mutex* primary_lock);
+void UpdateCopy(CommandLineFlag* flag);
 // Return true iff flag value was changed via direct-access.
 bool ChangedDirectly(CommandLineFlag* flag, const void* a, const void* b);
-// Direct-access flags can be modified without going through the
-// flag API.  Detect such changes and updated the modified bit.
-void UpdateModifiedBit(CommandLineFlag* flag);
-// Invoke the flag validators for old flags.
-// TODO(rogeeff): implement proper validators for Abseil Flags
-bool Validate(CommandLineFlag* flag, const void* value);
 
 // This macro is the "source of truth" for the list of supported flag types we
 // expect to perform lock free operations on. Specifically it generates code,

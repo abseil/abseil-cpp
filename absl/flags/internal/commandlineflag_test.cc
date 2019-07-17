@@ -100,39 +100,39 @@ TEST_F(CommandLineFlagTest, TestSetFromStringCurrentValue) {
   std::string err;
 
   auto* flag_01 = flags::FindCommandLineFlag("int_flag");
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(flag_01->SetFromString("11", flags::SET_FLAGS_VALUE,
                                      flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(flag_01->SetFromString("-123", flags::SET_FLAGS_VALUE,
                                      flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(!flag_01->SetFromString("xyz", flags::SET_FLAGS_VALUE,
                                       flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'xyz' specified for flag 'int_flag'");
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(!flag_01->SetFromString("A1", flags::SET_FLAGS_VALUE,
                                       flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'A1' specified for flag 'int_flag'");
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(flag_01->SetFromString("0x10", flags::SET_FLAGS_VALUE,
                                      flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 16);
-  EXPECT_FALSE(flag_01->on_command_line);
+  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(flag_01->SetFromString("011", flags::SET_FLAGS_VALUE,
                                      flags::kCommandLine, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
-  EXPECT_TRUE(flag_01->on_command_line);
+  EXPECT_TRUE(flag_01->IsSpecifiedOnCommandLine());
 
   EXPECT_TRUE(!flag_01->SetFromString("", flags::SET_FLAGS_VALUE,
                                       flags::kProgrammaticChange, &err));

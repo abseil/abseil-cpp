@@ -141,13 +141,11 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
-    flags_usage
+    flags_usage_internal
   SRCS
     "internal/usage.cc"
-    "usage.cc"
   HDRS
     "internal/usage.h"
-    "usage.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -157,6 +155,23 @@ absl_cc_library(
     absl::flags
     absl::flags_handle
     absl::flags_internal
+    absl::strings
+    absl::synchronization
+)
+
+absl_cc_library(
+  NAME
+    flags_usage
+  SRCS
+    "usage.cc"
+  HDRS
+    "usage.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::flags_usage_internal
     absl::strings
     absl::synchronization
 )

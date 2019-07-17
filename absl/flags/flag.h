@@ -91,30 +91,7 @@ T GetFlag(const absl::Flag<T>& flag) {
   ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_INTERNAL_LOCK_FREE_VALIDATE)
 #undef ABSL_FLAGS_INTERNAL_LOCK_FREE_VALIDATE
 
-  // Implementation notes:
-  //
-  // We are wrapping a union around the value of `T` to serve three purposes:
-  //
-  //  1. `U.value` has correct size and alignment for a value of type `T`
-  //  2. The `U.value` constructor is not invoked since U's constructor does not
-  //     do it explicitly.
-  //  3. The `U.value` destructor is invoked since U's destructor does it
-  //     explicitly. This makes `U` a kind of RAII wrapper around non default
-  //     constructible value of T, which is destructed when we leave the scope.
-  //     We do need to destroy U.value, which is constructed by
-  //     CommandLineFlag::Read even though we left it in a moved-from state
-  //     after std::move.
-  //
-  // All of this serves to avoid requiring `T` being default constructible.
-  union U {
-    T value;
-    U() {}
-    ~U() { value.~T(); }
-  };
-  U u;
-
-  flag.internal.Read(&u.value, &flags_internal::FlagOps<T>);
-  return std::move(u.value);
+  return flag.Get();
 }
 
 // Overload for `GetFlag()` for types that support lock-free reads.
@@ -132,7 +109,7 @@ ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_INTERNAL_LOCK_FREE_EXPORT)
 // but especially within performance-critical code.
 template <typename T>
 void SetFlag(absl::Flag<T>* flag, const T& v) {
-  flag->internal.Write(&v, &flags_internal::FlagOps<T>);
+  flag->Set(v);
 }
 
 // Overload of `SetFlag()` to allow callers to pass in a value that is
@@ -141,7 +118,7 @@ void SetFlag(absl::Flag<T>* flag, const T& v) {
 template <typename T, typename V>
 void SetFlag(absl::Flag<T>* flag, const V& v) {
   T value(v);
-  SetFlag<T>(flag, value);
+  flag->Set(value);
 }
 
 }  // namespace absl
@@ -239,17 +216,17 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 // Note: Name of registrar object is not arbitrary. It is used to "grab"
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
-#define ABSL_FLAG_IMPL(Type, name, default_value, help)                   \
-  namespace absl {}                                                       \
-  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)       \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                         \
-  absl::Flag<Type> FLAGS_##name(                                          \
-      ABSL_FLAG_IMPL_FLAGNAME(#name),                                     \
-      &AbslFlagsWrapHelp##name,                                           \
-      ABSL_FLAG_IMPL_FILENAME(),                                          \
-      &absl::flags_internal::FlagMarshallingOps<Type>,                    \
-      &AbslFlagsInitFlag##name);                                          \
-  extern bool FLAGS_no##name;                                             \
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)              \
+  namespace absl {}                                                  \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)  \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                    \
+  absl::Flag<Type> FLAGS_##name(                                     \
+      ABSL_FLAG_IMPL_FLAGNAME(#name),                                \
+      &AbslFlagsWrapHelp##name,                                      \
+      ABSL_FLAG_IMPL_FILENAME(),                                     \
+      &absl::flags_internal::FlagMarshallingOps<Type>,               \
+      &AbslFlagsInitFlag##name);                                     \
+  extern bool FLAGS_no##name;                                        \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 
 // ABSL_RETIRED_FLAG

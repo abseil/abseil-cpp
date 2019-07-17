@@ -24,24 +24,16 @@ namespace absl {
 // so in debug builds we always use the slower implementation, which always
 // validates the type.
 #ifndef NDEBUG
-#define ABSL_FLAGS_ATOMIC_GET(T)                              \
-  T GetFlag(const absl::Flag<T>& flag) {                      \
-    T result;                                                 \
-    flag.internal.Read(&result, &flags_internal::FlagOps<T>); \
-    return result;                                            \
-  }
+#define ABSL_FLAGS_ATOMIC_GET(T) \
+  T GetFlag(const absl::Flag<T>& flag) { return flag.Get(); }
 #else
-#define ABSL_FLAGS_ATOMIC_GET(T)                                            \
-  T GetFlag(const absl::Flag<T>& flag) {                                    \
-    const int64_t r = flag.internal.atomic.load(std::memory_order_acquire); \
-    if (r != flags_internal::CommandLineFlag::kAtomicInit) {                \
-      T t;                                                                  \
-      memcpy(&t, &r, sizeof(T));                                            \
-      return t;                                                             \
-    }                                                                       \
-    T result;                                                               \
-    flag.internal.Read(&result, &flags_internal::FlagOps<T>);               \
-    return result;                                                          \
+#define ABSL_FLAGS_ATOMIC_GET(T)         \
+  T GetFlag(const absl::Flag<T>& flag) { \
+    T result;                            \
+    if (flag.AtomicGet(&result)) {       \
+      return result;                     \
+    }                                    \
+    return flag.Get();                   \
   }
 #endif
 
