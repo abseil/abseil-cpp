@@ -55,6 +55,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::graphcycles_internal
+    absl::atomic_hook
     absl::base
     absl::base_internal
     absl::config

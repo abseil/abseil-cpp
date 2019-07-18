@@ -16,6 +16,22 @@
 
 absl_cc_library(
   NAME
+    atomic_hook
+  HDRS
+    "internal/atomic_hook.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
+absl_cc_library(
+  NAME
+    log_severity
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+) 
+
+absl_cc_library(
+  NAME
     spinlock_wait
   HDRS
     "internal/scheduling_mode.h"
@@ -112,7 +128,6 @@ absl_cc_library(
   HDRS
     "call_once.h"
     "casts.h"
-    "internal/atomic_hook.h"
     "internal/cycleclock.h"
     "internal/low_level_scheduling.h"
     "internal/per_thread_tls.h"
@@ -134,6 +149,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::atomic_hook
     absl::base_internal
     absl::config
     absl::core_headers
@@ -227,7 +243,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::base
+    absl::atomic_hook
     absl::core_headers
     gtest_main
 )

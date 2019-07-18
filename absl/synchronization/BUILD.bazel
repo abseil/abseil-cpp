@@ -78,6 +78,7 @@ cc_library(
     deps = [
         ":graphcycles_internal",
         "//absl/base",
+        "//absl/base:atomic_hook",
         "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",

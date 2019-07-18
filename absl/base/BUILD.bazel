@@ -28,6 +28,22 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # Apache 2.0
 
 cc_library(
+    name = "atomic_hook",
+    hdrs = ["internal/atomic_hook.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+)
+
+cc_library(
+    name = "log_severity",
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+)
+
+cc_library(
     name = "spinlock_wait",
     srcs = [
         "internal/spinlock_akaros.inc",
@@ -143,7 +159,6 @@ cc_library(
     hdrs = [
         "call_once.h",
         "casts.h",
-        "internal/atomic_hook.h",
         "internal/cycleclock.h",
         "internal/low_level_scheduling.h",
         "internal/per_thread_tls.h",
@@ -161,10 +176,12 @@ cc_library(
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":atomic_hook",
         ":base_internal",
         ":config",
         ":core_headers",
         ":dynamic_annotations",
+        ":log_severity",
         ":spinlock_wait",
         "//absl/meta:type_traits",
     ],
@@ -177,7 +194,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":base",
+        ":atomic_hook",
         ":core_headers",
         "@com_google_googletest//:gtest_main",
     ],
@@ -536,6 +553,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":log_severity",
         "@com_google_googletest//:gtest_main",
     ],
 )
