@@ -370,16 +370,20 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
-// MacOS 10.13 doesn't let you use <any>, <optional>, or <variant> even though
-// the headers exist and are publicly noted to work.  See
+// MacOS 10.13 and iOS 10.11 don't let you use <any>, <optional>, or <variant>
+// even though the headers exist and are publicly noted to work.  See
 // https://github.com/abseil/abseil-cpp/issues/207 and
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
+// libc++ spells out the availability requirements in the file
+// llvm-project/libcxx/include/__config.
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
-    defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
-    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
+  ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400) || \
+  (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 101200))
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 1
 #else
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 0
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
 // ABSL_HAVE_STD_ANY
@@ -391,7 +395,7 @@
 
 #ifdef __has_include
 #if __has_include(<any>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -405,7 +409,7 @@
 
 #ifdef __has_include
 #if __has_include(<optional>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -419,7 +423,7 @@
 
 #ifdef __has_include
 #if __has_include(<variant>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif

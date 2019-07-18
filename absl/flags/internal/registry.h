@@ -57,7 +57,6 @@ void FillCommandLineFlagInfo(CommandLineFlag* flag,
 //-----------------------------------------------------------------------------
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);
-CommandLineFlag* FindCommandLineV1Flag(const void* flag_ptr);
 CommandLineFlag* FindRetiredFlag(absl::string_view name);
 
 // Executes specified visitor for each non-retired flag in the registry.
@@ -74,7 +73,7 @@ void GetAllFlags(std::vector<CommandLineFlagInfo>* OUTPUT);
 
 //-----------------------------------------------------------------------------
 
-bool RegisterCommandLineFlag(CommandLineFlag*, const void* ptr = nullptr);
+bool RegisterCommandLineFlag(CommandLineFlag*);
 
 //-----------------------------------------------------------------------------
 // Retired registrations:

@@ -216,17 +216,16 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 // Note: Name of registrar object is not arbitrary. It is used to "grab"
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
-#define ABSL_FLAG_IMPL(Type, name, default_value, help)              \
-  namespace absl {}                                                  \
-  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)  \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                    \
-  absl::Flag<Type> FLAGS_##name(                                     \
-      ABSL_FLAG_IMPL_FLAGNAME(#name),                                \
-      &AbslFlagsWrapHelp##name,                                      \
-      ABSL_FLAG_IMPL_FILENAME(),                                     \
-      &absl::flags_internal::FlagMarshallingOps<Type>,               \
-      &AbslFlagsInitFlag##name);                                     \
-  extern bool FLAGS_no##name;                                        \
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
+  namespace absl {}                                                 \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name(                    \
+      ABSL_FLAG_IMPL_FLAGNAME(#name), &AbslFlagsWrapHelp##name,     \
+      ABSL_FLAG_IMPL_FILENAME(),                                    \
+      &absl::flags_internal::FlagMarshallingOps<Type>,              \
+      &AbslFlagsInitFlag##name);                                    \
+  extern bool FLAGS_no##name;                                       \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 
 // ABSL_RETIRED_FLAG

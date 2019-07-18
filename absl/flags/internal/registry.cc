@@ -54,53 +54,6 @@ void DestroyFlag(CommandLineFlag* flag) NO_THREAD_SAFETY_ANALYSIS {
 //    the function will acquire it itself if needed.
 // --------------------------------------------------------------------
 
-// A map from flag pointer to CommandLineFlag*. Used when registering
-// validators.
-class FlagPtrMap {
- public:
-  void Register(CommandLineFlag* flag) {
-    auto& vec = buckets_[BucketForFlag(flag->cur)];
-    if (vec.size() == vec.capacity()) {
-      // Bypass default 2x growth factor with 1.25 so we have fuller vectors.
-      // This saves 4% memory compared to default growth.
-      vec.reserve(vec.size() * 1.25 + 0.5);
-    }
-    vec.push_back(flag);
-  }
-
-  CommandLineFlag* FindByPtr(const void* flag_ptr) {
-    const auto& flag_vector = buckets_[BucketForFlag(flag_ptr)];
-    for (CommandLineFlag* entry : flag_vector) {
-      if (entry->cur == flag_ptr) {
-        return entry;
-      }
-    }
-    return nullptr;
-  }
-
- private:
-  // Instead of std::map, we use a custom hash table where each bucket stores
-  // flags in a vector. This reduces memory usage 40% of the memory that would
-  // have been used by std::map.
-  //
-  // kNumBuckets was picked as a large enough prime. As of writing this code, a
-  // typical large binary has ~8k (old-style) flags, and this would gives
-  // buckets with roughly 50 elements each.
-  //
-  // Note that reads to this hash table are rare: exactly as many as we have
-  // flags with validators. As of writing, a typical binary only registers 52
-  // validated flags.
-  static constexpr size_t kNumBuckets = 163;
-  std::vector<CommandLineFlag*> buckets_[kNumBuckets];
-
-  static int BucketForFlag(const void* ptr) {
-    // Modulo a prime is good enough here. On a real program, bucket size stddev
-    // after registering 8k flags is ~5 (mean size at 51).
-    return reinterpret_cast<uintptr_t>(ptr) % kNumBuckets;
-  }
-};
-constexpr size_t FlagPtrMap::kNumBuckets;
-
 class FlagRegistry {
  public:
   FlagRegistry() = default;
@@ -111,9 +64,7 @@ class FlagRegistry {
   }
 
   // Store a flag in this registry.  Takes ownership of *flag.
-  // If ptr is non-null, the flag can later be found by calling
-  // FindFlagViaPtrLocked(ptr).
-  void RegisterFlag(CommandLineFlag* flag, const void* ptr);
+  void RegisterFlag(CommandLineFlag* flag);
 
   void Lock() EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
   void Unlock() UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
@@ -125,9 +76,6 @@ class FlagRegistry {
   // Returns the retired flag object for the specified name, or nullptr if not
   // found or not retired.  Does not emit a warning.
   CommandLineFlag* FindRetiredFlagLocked(absl::string_view name);
-
-  // Returns the flag object whose current-value is stored at flag_ptr.
-  CommandLineFlag* FindFlagViaPtrLocked(const void* flag_ptr);
 
   static FlagRegistry* GlobalRegistry();  // returns a singleton registry
 
@@ -141,8 +89,6 @@ class FlagRegistry {
   using FlagIterator = FlagMap::iterator;
   using FlagConstIterator = FlagMap::const_iterator;
   FlagMap flags_;
-
-  FlagPtrMap flag_ptr_map_;
 
   absl::Mutex lock_;
 
@@ -169,7 +115,7 @@ class FlagRegistryLock {
 
 }  // namespace
 
-void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
+void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
   FlagRegistryLock registry_lock(this);
   std::pair<FlagIterator, bool> ins =
       flags_.insert(FlagMap::value_type(flag->Name(), flag));
@@ -217,11 +163,6 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
     // All cases above are fatal, except for the retired flags.
     std::exit(1);
   }
-
-  if (ptr != nullptr) {
-    // This must be the first time we're seeing this flag.
-    flag_ptr_map_.Register(flag);
-  }
 }
 
 CommandLineFlag* FlagRegistry::FindFlagLocked(absl::string_view name) {
@@ -245,10 +186,6 @@ CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
   }
 
   return i->second;
-}
-
-CommandLineFlag* FlagRegistry::FindFlagViaPtrLocked(const void* flag_ptr) {
-  return flag_ptr_map_.FindByPtr(flag_ptr);
 }
 
 // --------------------------------------------------------------------
@@ -430,13 +367,6 @@ CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
   return registry->FindFlagLocked(name);
 }
 
-CommandLineFlag* FindCommandLineV1Flag(const void* flag_ptr) {
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
-  FlagRegistryLock frl(registry);
-
-  return registry->FindFlagViaPtrLocked(flag_ptr);
-}
-
 CommandLineFlag* FindRetiredFlag(absl::string_view name) {
   FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
   FlagRegistryLock frl(registry);
@@ -477,8 +407,8 @@ void GetAllFlags(std::vector<CommandLineFlagInfo>* OUTPUT) {
 
 // --------------------------------------------------------------------
 
-bool RegisterCommandLineFlag(CommandLineFlag* flag, const void* ptr) {
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag, ptr);
+bool RegisterCommandLineFlag(CommandLineFlag* flag) {
+  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }
 
@@ -492,7 +422,7 @@ bool Retire(FlagOpFn ops, FlagMarshallingOpFn marshalling_ops,
       /*filename_arg=*/"RETIRED", ops, marshalling_ops,
       /*initial_value_gen=*/nullptr,
       /*retired_arg=*/true, nullptr, nullptr);
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag, nullptr);
+  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }
 
