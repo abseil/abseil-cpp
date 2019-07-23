@@ -279,6 +279,82 @@ TYPED_TEST(TwoSizeTest, Resize) {
   }));
 }
 
+TYPED_TEST(OneSizeTest, Insert) {
+  using VecT = typename TypeParam::VecT;
+  using value_type = typename VecT::value_type;
+  constexpr static auto from_size = TypeParam::GetSizeAt(0);
+
+  auto tester = testing::MakeExceptionSafetyTester()
+                    .WithInitialValue(VecT{from_size})
+                    .WithContracts(InlinedVectorInvariants<VecT>);
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin();
+    vec->insert(it, value_type{});
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() / 2);
+    vec->insert(it, value_type{});
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->end();
+    vec->insert(it, value_type{});
+  }));
+}
+
+TYPED_TEST(TwoSizeTest, Insert) {
+  using VecT = typename TypeParam::VecT;
+  using value_type = typename VecT::value_type;
+  constexpr static auto from_size = TypeParam::GetSizeAt(0);
+  constexpr static auto count = TypeParam::GetSizeAt(1);
+
+  auto tester = testing::MakeExceptionSafetyTester()
+                    .WithInitialValue(VecT{from_size})
+                    .WithContracts(InlinedVectorInvariants<VecT>);
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin();
+    vec->insert(it, count, value_type{});
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() / 2);
+    vec->insert(it, count, value_type{});
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->end();
+    vec->insert(it, count, value_type{});
+  }));
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin();
+    vec->insert(it, ABSL_INTERNAL_MAKE_INIT_LIST(value_type, count));
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() / 2);
+    vec->insert(it, ABSL_INTERNAL_MAKE_INIT_LIST(value_type, count));
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->end();
+    vec->insert(it, ABSL_INTERNAL_MAKE_INIT_LIST(value_type, count));
+  }));
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin();
+    std::array<value_type, count> arr{};
+    vec->insert(it, arr.begin(), arr.end());
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() / 2);
+    std::array<value_type, count> arr{};
+    vec->insert(it, arr.begin(), arr.end());
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->end();
+    std::array<value_type, count> arr{};
+    vec->insert(it, arr.begin(), arr.end());
+  }));
+}
+
 TYPED_TEST(OneSizeTest, EmplaceBack) {
   using VecT = typename TypeParam::VecT;
   constexpr static auto size = TypeParam::GetSizeAt(0);

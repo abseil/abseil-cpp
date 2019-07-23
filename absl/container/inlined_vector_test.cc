@@ -1675,66 +1675,53 @@ TEST(AllocatorSupportTest, SwapOneAllocated) {
   EXPECT_THAT(allocated2, 0);
 }
 
-TEST(AllocatorSupportTest, ScopedAllocatorWorks) {
+TEST(AllocatorSupportTest, ScopedAllocatorWorksInlined) {
   using StdVector = std::vector<int, CountingAllocator<int>>;
-  using MyAlloc = std::scoped_allocator_adaptor<CountingAllocator<StdVector>>;
-  using AllocVec = absl::InlinedVector<StdVector, 4, MyAlloc>;
+  using Alloc = CountingAllocator<StdVector>;
+  using ScopedAlloc = std::scoped_allocator_adaptor<Alloc>;
+  using AllocVec = absl::InlinedVector<StdVector, 1, ScopedAlloc>;
 
-  // MSVC 2017's std::vector allocates different amounts of memory in debug
-  // versus opt mode.
-  int64_t test_allocated = 0;
-  StdVector v(CountingAllocator<int>{&test_allocated});
-  // The amount of memory allocated by a default constructed vector<int>
-  auto default_std_vec_allocated = test_allocated;
-  v.push_back(1);
-  // The amound of memory allocated by a copy-constructed vector<int> with one
-  // element.
-  int64_t one_element_std_vec_copy_allocated = test_allocated;
+  int64_t total_allocated_byte_count = 0;
 
-  int64_t allocated = 0;
-  AllocVec vec(MyAlloc{CountingAllocator<StdVector>{&allocated}});
-  EXPECT_EQ(allocated, 0);
+  AllocVec inlined_case(ScopedAlloc(Alloc(+&total_allocated_byte_count)));
 
-  // This default constructs a vector<int>, but the allocator should pass itself
-  // into the vector<int>, so check allocation compared to that.
-  // The absl::InlinedVector does not allocate any memory.
-  // The vector<int> may allocate any memory.
-  auto expected = default_std_vec_allocated;
-  vec.resize(1);
-  EXPECT_EQ(allocated, expected);
+  // Called only once to remain inlined
+  inlined_case.emplace_back();
 
-  // We make vector<int> allocate memory.
-  // It must go through the allocator even though we didn't construct the
-  // vector directly.  This assumes that vec[0] doesn't need to grow its
-  // allocation.
-  expected += sizeof(int);
-  vec[0].push_back(1);
-  EXPECT_EQ(allocated, expected);
+  int64_t absl_responsible_for_count = total_allocated_byte_count;
+  EXPECT_EQ(absl_responsible_for_count, 0);
 
-  // Another allocating vector.
-  expected += one_element_std_vec_copy_allocated;
-  vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, expected);
+  inlined_case[0].emplace_back();
+  EXPECT_GT(total_allocated_byte_count, absl_responsible_for_count);
 
-  // Overflow the inlined memory.
-  // The absl::InlinedVector will now allocate.
-  expected += sizeof(StdVector) * 8 + default_std_vec_allocated * 3;
-  vec.resize(5);
-  EXPECT_EQ(allocated, expected);
+  inlined_case.clear();
+  inlined_case.shrink_to_fit();
+  EXPECT_EQ(total_allocated_byte_count, 0);
+}
 
-  // Adding one more in external mode should also work.
-  expected += one_element_std_vec_copy_allocated;
-  vec.push_back(vec[0]);
-  EXPECT_EQ(allocated, expected);
+TEST(AllocatorSupportTest, ScopedAllocatorWorksAllocated) {
+  using StdVector = std::vector<int, CountingAllocator<int>>;
+  using Alloc = CountingAllocator<StdVector>;
+  using ScopedAlloc = std::scoped_allocator_adaptor<Alloc>;
+  using AllocVec = absl::InlinedVector<StdVector, 1, ScopedAlloc>;
 
-  // And extending these should still work.  This assumes that vec[0] does not
-  // need to grow its allocation.
-  expected += sizeof(int);
-  vec[0].push_back(1);
-  EXPECT_EQ(allocated, expected);
+  int64_t total_allocated_byte_count = 0;
 
-  vec.clear();
-  EXPECT_EQ(allocated, 0);
+  AllocVec allocated_case(ScopedAlloc(Alloc(+&total_allocated_byte_count)));
+
+  // Called twice to force into being allocated
+  allocated_case.emplace_back();
+  allocated_case.emplace_back();
+
+  int64_t absl_responsible_for_count = total_allocated_byte_count;
+  EXPECT_GT(absl_responsible_for_count, 0);
+
+  allocated_case[1].emplace_back();
+  EXPECT_GT(total_allocated_byte_count, absl_responsible_for_count);
+
+  allocated_case.clear();
+  allocated_case.shrink_to_fit();
+  EXPECT_EQ(total_allocated_byte_count, 0);
 }
 
 TEST(AllocatorSupportTest, SizeAllocConstructor) {

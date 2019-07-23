@@ -380,6 +380,10 @@ class Storage {
   template <typename ValueAdapter>
   void Resize(ValueAdapter values, size_type new_size);
 
+  template <typename ValueAdapter>
+  iterator Insert(const_iterator pos, ValueAdapter values,
+                  size_type insert_count);
+
   template <typename... Args>
   reference EmplaceBack(Args&&... args);
 
@@ -561,6 +565,99 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   }
 
   SetSize(new_size);
+}
+
+template <typename T, size_t N, typename A>
+template <typename ValueAdapter>
+auto Storage<T, N, A>::Insert(const_iterator pos, ValueAdapter values,
+                              size_type insert_count) -> iterator {
+  StorageView storage_view = MakeStorageView();
+
+  size_type insert_index =
+      std::distance(const_iterator(storage_view.data), pos);
+  size_type insert_end_index = insert_index + insert_count;
+  size_type new_size = storage_view.size + insert_count;
+
+  if (new_size > storage_view.capacity) {
+    AllocationTransaction allocation_tx(GetAllocPtr());
+    ConstructionTransaction construction_tx(GetAllocPtr());
+    ConstructionTransaction move_construciton_tx(GetAllocPtr());
+
+    IteratorValueAdapter<MoveIterator> move_values(
+        MoveIterator(storage_view.data));
+
+    pointer new_data = allocation_tx.Allocate(
+        LegacyNextCapacityFrom(storage_view.capacity, new_size));
+
+    construction_tx.Construct(new_data + insert_index, &values, insert_count);
+
+    move_construciton_tx.Construct(new_data, &move_values, insert_index);
+
+    inlined_vector_internal::ConstructElements(
+        GetAllocPtr(), new_data + insert_end_index, &move_values,
+        storage_view.size - insert_index);
+
+    inlined_vector_internal::DestroyElements(GetAllocPtr(), storage_view.data,
+                                             storage_view.size);
+
+    construction_tx.Commit();
+    move_construciton_tx.Commit();
+    DeallocateIfAllocated();
+    AcquireAllocation(&allocation_tx);
+
+    SetAllocatedSize(new_size);
+    return iterator(new_data + insert_index);
+  } else {
+    size_type move_construction_destination_index =
+        (std::max)(insert_end_index, storage_view.size);
+
+    ConstructionTransaction move_construction_tx(GetAllocPtr());
+
+    IteratorValueAdapter<MoveIterator> move_construction_values(
+        MoveIterator(storage_view.data +
+                     (move_construction_destination_index - insert_count)));
+    absl::Span<value_type> move_construction = {
+        storage_view.data + move_construction_destination_index,
+        new_size - move_construction_destination_index};
+
+    pointer move_assignment_values = storage_view.data + insert_index;
+    absl::Span<value_type> move_assignment = {
+        storage_view.data + insert_end_index,
+        move_construction_destination_index - insert_end_index};
+
+    absl::Span<value_type> insert_assignment = {move_assignment_values,
+                                                move_construction.size()};
+
+    absl::Span<value_type> insert_construction = {
+        insert_assignment.data() + insert_assignment.size(),
+        insert_count - insert_assignment.size()};
+
+    move_construction_tx.Construct(move_construction.data(),
+                                   &move_construction_values,
+                                   move_construction.size());
+
+    for (pointer destination = move_assignment.data() + move_assignment.size(),
+                 last_destination = move_assignment.data(),
+                 source = move_assignment_values + move_assignment.size();
+         ;) {
+      --destination;
+      --source;
+      if (destination < last_destination) break;
+      *destination = std::move(*source);
+    }
+
+    inlined_vector_internal::AssignElements(insert_assignment.data(), &values,
+                                            insert_assignment.size());
+
+    inlined_vector_internal::ConstructElements(
+        GetAllocPtr(), insert_construction.data(), &values,
+        insert_construction.size());
+
+    move_construction_tx.Commit();
+
+    AddSize(insert_count);
+    return iterator(storage_view.data + insert_index);
+  }
 }
 
 template <typename T, size_t N, typename A>
