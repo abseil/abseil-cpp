@@ -404,7 +404,7 @@ cc_test(
 
 cc_test(
     name = "numbers_test",
-    size = "small",
+    size = "medium",
     srcs = [
         "internal/numbers_test_common.h",
         "numbers_test.cc",
@@ -557,8 +557,8 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
         "//absl/types:span",
@@ -628,7 +628,7 @@ cc_test(
 
 cc_test(
     name = "str_format_convert_test",
-    size = "small",
+    size = "medium",
     srcs = ["internal/str_format/convert_test.cc"],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],

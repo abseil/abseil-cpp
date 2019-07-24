@@ -89,7 +89,9 @@ static char* Append(char* out, const AlphaNum& x) {
   // memcpy is allowed to overwrite arbitrary memory, so doing this after the
   // call would force an extra fetch of x.size().
   char* after = out + x.size();
-  memcpy(out, x.data(), x.size());
+  if (x.size() != 0) {
+    memcpy(out, x.data(), x.size());
+  }
   return after;
 }
 
@@ -146,8 +148,10 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
   char* out = begin;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
-    memcpy(out, piece.data(), this_size);
-    out += this_size;
+    if (this_size != 0) {
+      memcpy(out, piece.data(), this_size);
+      out += this_size;
+    }
   }
   assert(out == begin + result.size());
   return result;
@@ -176,8 +180,10 @@ void AppendPieces(std::string* dest,
   char* out = begin + old_size;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
-    memcpy(out, piece.data(), this_size);
-    out += this_size;
+    if (this_size != 0) {
+      memcpy(out, piece.data(), this_size);
+      out += this_size;
+    }
   }
   assert(out == begin + dest->size());
 }

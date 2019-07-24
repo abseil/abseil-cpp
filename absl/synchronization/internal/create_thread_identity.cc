@@ -31,7 +31,8 @@ namespace synchronization_internal {
 
 // ThreadIdentity storage is persistent, we maintain a free-list of previously
 // released ThreadIdentity objects.
-static base_internal::SpinLock freelist_lock(base_internal::kLinkerInitialized);
+static base_internal::SpinLock freelist_lock(
+    base_internal::kLinkerInitialized);
 static base_internal::ThreadIdentity* thread_identity_freelist;
 
 // A per-thread destructor for reclaiming associated ThreadIdentity objects.

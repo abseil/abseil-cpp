@@ -28,6 +28,6 @@ time docker run \
     --rm \
     -e CFLAGS="-Werror" \
     -e CXXFLAGS="-Werror" \
-    gcr.io/google.com/absl-177019/linux_gcc-4.8:20190316 \
+    gcr.io/google.com/absl-177019/linux_gcc-latest:20190703 \
     /bin/bash CMake/install_test_project/test.sh $@
 

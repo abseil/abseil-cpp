@@ -33,6 +33,10 @@
 
 #include "absl/time/time.h"
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <cstring>
 #include <ctime>
 #include <limits>
@@ -453,8 +457,7 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
     tm.tm_year = static_cast<int>(cs.year() - 1900);
   }
 
-  const CivilDay cd(cs);
-  switch (GetWeekday(cd)) {
+  switch (GetWeekday(cs)) {
     case Weekday::sunday:
       tm.tm_wday = 0;
       break;
@@ -477,7 +480,7 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
       tm.tm_wday = 6;
       break;
   }
-  tm.tm_yday = GetYearDay(cd) - 1;
+  tm.tm_yday = GetYearDay(cs) - 1;
   tm.tm_isdst = ci.is_dst ? 1 : 0;
 
   return tm;

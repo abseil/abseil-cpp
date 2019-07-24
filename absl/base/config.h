@@ -181,6 +181,13 @@
 #endif
 #endif  // defined(__ANDROID__) && defined(__clang__)
 
+// Emscripten doesn't yet support `thread_local` or `__thread`.
+// https://github.com/emscripten-core/emscripten/issues/3502
+#if defined(__EMSCRIPTEN__)
+#undef ABSL_HAVE_TLS
+#undef ABSL_HAVE_THREAD_LOCAL
+#endif  // defined(__EMSCRIPTEN__)
+
 // ABSL_HAVE_INTRINSIC_INT128
 //
 // Checks whether the __int128 compiler extension for a 128-bit integral type is
@@ -191,15 +198,13 @@
 // * On Clang:
 //   * Building using Clang for Windows, where the Clang runtime library has
 //     128-bit support only on LP64 architectures, but Windows is LLP64.
-//   * Building for aarch64, where __int128 exists but has exhibits a sporadic
-//     compiler crashing bug.
 // * On Nvidia's nvcc:
 //   * nvcc also defines __GNUC__ and __SIZEOF_INT128__, but not all versions
 //     actually support __int128.
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 #error ABSL_HAVE_INTRINSIC_INT128 cannot be directly set
 #elif defined(__SIZEOF_INT128__)
-#if (defined(__clang__) && !defined(_WIN32) && !defined(__aarch64__)) || \
+#if (defined(__clang__) && !defined(_WIN32)) || \
     (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) ||                \
     (defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__))
 #define ABSL_HAVE_INTRINSIC_INT128 1
@@ -365,16 +370,20 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
-// MacOS 10.13 doesn't let you use <any>, <optional>, or <variant> even though
-// the headers exist and are publicly noted to work.  See
+// MacOS 10.13 and iOS 10.11 don't let you use <any>, <optional>, or <variant>
+// even though the headers exist and are publicly noted to work.  See
 // https://github.com/abseil/abseil-cpp/issues/207 and
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
+// libc++ spells out the availability requirements in the file
+// llvm-project/libcxx/include/__config.
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
-    defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
-    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
+  ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400) || \
+  (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 101200))
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 1
 #else
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 0
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
 // ABSL_HAVE_STD_ANY
@@ -386,7 +395,7 @@
 
 #ifdef __has_include
 #if __has_include(<any>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -400,7 +409,7 @@
 
 #ifdef __has_include
 #if __has_include(<optional>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -414,7 +423,7 @@
 
 #ifdef __has_include
 #if __has_include(<variant>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif

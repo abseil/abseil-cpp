@@ -18,14 +18,30 @@ load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_DEFAULT_LINKOPTS",
-    "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
     "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
+    "ABSL_TEST_COPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
+
+cc_library(
+    name = "atomic_hook",
+    hdrs = ["internal/atomic_hook.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+)
+
+cc_library(
+    name = "log_severity",
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+)
 
 cc_library(
     name = "spinlock_wait",
@@ -69,6 +85,9 @@ cc_library(
 
 cc_library(
     name = "core_headers",
+    srcs = [
+        "internal/thread_annotations.h",
+    ],
     hdrs = [
         "attributes.h",
         "const_init.h",
@@ -140,7 +159,6 @@ cc_library(
     hdrs = [
         "call_once.h",
         "casts.h",
-        "internal/atomic_hook.h",
         "internal/cycleclock.h",
         "internal/low_level_scheduling.h",
         "internal/per_thread_tls.h",
@@ -158,10 +176,12 @@ cc_library(
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":atomic_hook",
         ":base_internal",
         ":config",
         ":core_headers",
         ":dynamic_annotations",
+        ":log_severity",
         ":spinlock_wait",
         "//absl/meta:type_traits",
     ],
@@ -174,7 +194,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":base",
+        ":atomic_hook",
         ":core_headers",
         "@com_google_googletest//:gtest_main",
     ],
@@ -385,7 +405,6 @@ cc_test(
     srcs = ["internal/endian_test.cc"],
     copts = ABSL_TEST_COPTS,
     deps = [
-        ":base",
         ":config",
         ":endian",
         "@com_google_googletest//:gtest_main",
@@ -444,7 +463,7 @@ cc_test(
 
 cc_test(
     name = "low_level_alloc_test",
-    size = "small",
+    size = "medium",
     srcs = ["internal/low_level_alloc_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -534,6 +553,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":log_severity",
         "@com_google_googletest//:gtest_main",
     ],
 )

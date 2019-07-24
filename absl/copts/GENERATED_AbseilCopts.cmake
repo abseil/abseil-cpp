@@ -37,11 +37,11 @@ list(APPEND ABSL_CLANG_CL_FLAGS
     "-Wno-shorten-64-to-32"
     "-Wno-switch-enum"
     "-Wno-thread-safety-negative"
-    "-Wno-undef"
     "-Wno-unknown-warning-option"
     "-Wno-unreachable-code"
     "-Wno-unused-macros"
     "-Wno-weak-vtables"
+    "-Wno-zero-as-null-pointer-constant"
     "-Wbitfield-enum-conversion"
     "-Wbool-conversion"
     "-Wconstant-conversion"
@@ -62,6 +62,7 @@ list(APPEND ABSL_CLANG_CL_FLAGS
 
 list(APPEND ABSL_CLANG_CL_TEST_FLAGS
     "-Wno-c99-extensions"
+    "-Wno-deprecated-declarations"
     "-Wno-missing-noreturn"
     "-Wno-missing-prototypes"
     "-Wno-missing-variable-declarations"
@@ -76,7 +77,6 @@ list(APPEND ABSL_CLANG_CL_TEST_FLAGS
     "-Wno-unused-template"
     "-Wno-used-but-marked-unused"
     "-Wno-zero-as-null-pointer-constant"
-    "-Wno-gnu-include-next"
     "-Wno-gnu-zero-variadic-macro-arguments"
 )
 
@@ -103,6 +103,7 @@ list(APPEND ABSL_GCC_FLAGS
 
 list(APPEND ABSL_GCC_TEST_FLAGS
     "-Wno-conversion-null"
+    "-Wno-deprecated-declarations"
     "-Wno-missing-declarations"
     "-Wno-sign-compare"
     "-Wno-unused-function"
@@ -144,11 +145,11 @@ list(APPEND ABSL_LLVM_FLAGS
     "-Wno-shorten-64-to-32"
     "-Wno-switch-enum"
     "-Wno-thread-safety-negative"
-    "-Wno-undef"
     "-Wno-unknown-warning-option"
     "-Wno-unreachable-code"
     "-Wno-unused-macros"
     "-Wno-weak-vtables"
+    "-Wno-zero-as-null-pointer-constant"
     "-Wbitfield-enum-conversion"
     "-Wbool-conversion"
     "-Wconstant-conversion"
@@ -164,6 +165,7 @@ list(APPEND ABSL_LLVM_FLAGS
 
 list(APPEND ABSL_LLVM_TEST_FLAGS
     "-Wno-c99-extensions"
+    "-Wno-deprecated-declarations"
     "-Wno-missing-noreturn"
     "-Wno-missing-prototypes"
     "-Wno-missing-variable-declarations"
@@ -178,7 +180,6 @@ list(APPEND ABSL_LLVM_TEST_FLAGS
     "-Wno-unused-template"
     "-Wno-used-but-marked-unused"
     "-Wno-zero-as-null-pointer-constant"
-    "-Wno-gnu-include-next"
     "-Wno-gnu-zero-variadic-macro-arguments"
 )
 
@@ -200,6 +201,7 @@ list(APPEND ABSL_MSVC_FLAGS
     "/wd4180"
     "/wd4244"
     "/wd4267"
+    "/wd4503"
     "/wd4800"
 )
 
@@ -211,5 +213,24 @@ list(APPEND ABSL_MSVC_TEST_FLAGS
     "/wd4018"
     "/wd4101"
     "/wd4503"
+    "/wd4996"
     "/DNOMINMAX"
+)
+
+list(APPEND ABSL_RANDOM_HWAES_ARM32_FLAGS
+    "-mfpu=neon"
+)
+
+list(APPEND ABSL_RANDOM_HWAES_ARM64_FLAGS
+    "-march=armv8-a+crypto"
+)
+
+list(APPEND ABSL_RANDOM_HWAES_MSVC_X64_FLAGS
+    "/O2"
+    "/Ob2"
+)
+
+list(APPEND ABSL_RANDOM_HWAES_X64_FLAGS
+    "-maes"
+    "-msse4.1"
 )

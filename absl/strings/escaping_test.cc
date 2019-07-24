@@ -556,6 +556,7 @@ void TestEscapeAndUnescape() {
     StringType encoded("this junk should be ignored");
     absl::Base64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, tc.cyphertext);
+    EXPECT_EQ(absl::Base64Escape(tc.plaintext), tc.cyphertext);
 
     StringType decoded("this junk should be ignored");
     EXPECT_TRUE(absl::Base64Unescape(encoded, &decoded));
@@ -574,6 +575,7 @@ void TestEscapeAndUnescape() {
     encoded = "this junk should be ignored";
     absl::WebSafeBase64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, websafe);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), websafe);
 
     // Let's try the std::string version of the decoder
     decoded = "this junk should be ignored";
@@ -586,6 +588,7 @@ void TestEscapeAndUnescape() {
     StringType buffer;
     absl::WebSafeBase64Escape(tc.plaintext, &buffer);
     EXPECT_EQ(tc.cyphertext, buffer);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), tc.cyphertext);
   }
 
   // Verify the behavior when decoding bad data

@@ -65,7 +65,14 @@
 #if !defined(_MSC_VER)
 #include <sys/time.h>
 #else
-#include <winsock2.h>
+// We don't include `winsock2.h` because it drags in `windows.h` and friends,
+// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
+// potential to break Abseil users.
+//
+// Instead we only forward declare `timeval` and require Windows users include
+// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
+// including 'windows.h' so we are picking the lesser of two evils here.
+struct timeval;
 #endif
 #include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
@@ -172,6 +179,7 @@ class Duration {
   Duration& operator%=(Duration rhs);
 
   // Overloads that forward to either the int64_t or double overloads above.
+  // Integer operands must be representable as int64_t.
   template <typename T>
   Duration& operator*=(T r) {
     int64_t x = r;
@@ -214,6 +222,7 @@ inline Duration operator+(Duration lhs, Duration rhs) { return lhs += rhs; }
 inline Duration operator-(Duration lhs, Duration rhs) { return lhs -= rhs; }
 
 // Multiplicative Operators
+// Integer operands must be representable as int64_t.
 template <typename T>
 Duration operator*(Duration lhs, T rhs) {
   return lhs *= rhs;
@@ -368,7 +377,8 @@ constexpr Duration InfiniteDuration();
 // Hours()
 //
 // Factory functions for constructing `Duration` values from an integral number
-// of the unit indicated by the factory function's name.
+// of the unit indicated by the factory function's name. The number must be
+// representable as int64_t.
 //
 // Note: no "Days()" factory function exists because "a day" is ambiguous.
 // Civil days are not always 24 hours long, and a 24-hour duration often does

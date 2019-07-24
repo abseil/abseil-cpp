@@ -154,7 +154,7 @@ static int Delay(int32_t c, DelayMode mode) {
   if (c < limit) {
     c++;               // spin
   } else {
-    ABSL_TSAN_MUTEX_PRE_DIVERT(0, 0);
+    ABSL_TSAN_MUTEX_PRE_DIVERT(nullptr, 0);
     if (c == limit) {  // yield once
       AbslInternalMutexYield();
       c++;
@@ -162,7 +162,7 @@ static int Delay(int32_t c, DelayMode mode) {
       absl::SleepFor(absl::Microseconds(10));
       c = 0;
     }
-    ABSL_TSAN_MUTEX_POST_DIVERT(0, 0);
+    ABSL_TSAN_MUTEX_POST_DIVERT(nullptr, 0);
   }
   return (c);
 }
@@ -901,11 +901,15 @@ static PerThreadSynch *Enqueue(PerThreadSynch *head,
       // base_internal::CycleClock::Now() is 0.5%.
       int policy;
       struct sched_param param;
-      pthread_getschedparam(pthread_self(), &policy, &param);
-      s->priority = param.sched_priority;
-      s->next_priority_read_cycles =
-          now_cycles +
-          static_cast<int64_t>(base_internal::CycleClock::Frequency());
+      const int err = pthread_getschedparam(pthread_self(), &policy, &param);
+      if (err != 0) {
+        ABSL_RAW_LOG(ERROR, "pthread_getschedparam failed: %d", err);
+      } else {
+        s->priority = param.sched_priority;
+        s->next_priority_read_cycles =
+            now_cycles +
+            static_cast<int64_t>(base_internal::CycleClock::Frequency());
+      }
     }
     if (s->priority > head->priority) {  // s's priority is above head's
       // try to put s in priority-fifo order, or failing that at the front.
@@ -2583,7 +2587,7 @@ void CondVar::Wakeup(PerThreadSynch *w) {
 }
 
 void CondVar::Signal() {
-  ABSL_TSAN_MUTEX_PRE_SIGNAL(0, 0);
+  ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
   intptr_t v;
   int c = 0;
   for (v = cv_.load(std::memory_order_relaxed); v != 0;
@@ -2612,17 +2616,17 @@ void CondVar::Signal() {
       if ((v & kCvEvent) != 0) {
         PostSynchEvent(this, SYNCH_EV_SIGNAL);
       }
-      ABSL_TSAN_MUTEX_POST_SIGNAL(0, 0);
+      ABSL_TSAN_MUTEX_POST_SIGNAL(nullptr, 0);
       return;
     } else {
       c = Delay(c, GENTLE);
     }
   }
-  ABSL_TSAN_MUTEX_POST_SIGNAL(0, 0);
+  ABSL_TSAN_MUTEX_POST_SIGNAL(nullptr, 0);
 }
 
 void CondVar::SignalAll () {
-  ABSL_TSAN_MUTEX_PRE_SIGNAL(0, 0);
+  ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
   intptr_t v;
   int c = 0;
   for (v = cv_.load(std::memory_order_relaxed); v != 0;
@@ -2649,13 +2653,13 @@ void CondVar::SignalAll () {
       if ((v & kCvEvent) != 0) {
         PostSynchEvent(this, SYNCH_EV_SIGNALALL);
       }
-      ABSL_TSAN_MUTEX_POST_SIGNAL(0, 0);
+      ABSL_TSAN_MUTEX_POST_SIGNAL(nullptr, 0);
       return;
     } else {
       c = Delay(c, GENTLE);           // try again after a delay
     }
   }
-  ABSL_TSAN_MUTEX_POST_SIGNAL(0, 0);
+  ABSL_TSAN_MUTEX_POST_SIGNAL(nullptr, 0);
 }
 
 void ReleasableMutexLock::Release() {

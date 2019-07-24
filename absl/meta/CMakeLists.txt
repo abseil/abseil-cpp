@@ -42,6 +42,8 @@ absl_cc_test(
 absl_cc_library(
   NAME
     meta
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::type_traits
   PUBLIC

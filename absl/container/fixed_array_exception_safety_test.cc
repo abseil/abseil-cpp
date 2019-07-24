@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
 
 #include <initializer_list>
 
-#include "absl/container/fixed_array.h"
-
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_safety_testing.h"
+#include "absl/container/fixed_array.h"
 
 namespace absl {
 

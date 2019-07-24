@@ -350,7 +350,7 @@ struct GroupSse2Impl {
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
 #else
-    return Match(kEmpty);
+    return Match(static_cast<h2_t>(kEmpty));
 #endif
   }
 
@@ -969,7 +969,7 @@ class raw_hash_set {
   // This overload kicks in when the argument is an rvalue of init_type. Its
   // purpose is to handle brace-init-list arguments.
   //
-  //   flat_hash_set<std::string, int> s;
+  //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
   std::pair<iterator, bool> insert(init_type&& value) {
     return emplace(std::move(value));
@@ -1182,7 +1182,7 @@ class raw_hash_set {
 
   node_type extract(const_iterator position) {
     auto node =
-        CommonAccess::Make<node_type>(alloc_ref(), position.inner_.slot_);
+        CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
     return node;
   }
@@ -1437,15 +1437,15 @@ class raw_hash_set {
 
   void initialize_slots() {
     assert(capacity_);
-    // Folks with custom allocators often make unwaranted assumptions about the
+    // Folks with custom allocators often make unwarranted assumptions about the
     // behavior of their classes vis-a-vis trivial destructability and what
     // calls they will or wont make.  Avoid sampling for people with custom
-    // allocators to get us out of this mess.  This is not a hard guarntee but a
-    // workaround while we plan the exact guarantee we want to provide.
+    // allocators to get us out of this mess.  This is not a hard guarantee but
+    // a workaround while we plan the exact guarantee we want to provide.
     //
     // People are often sloppy with the exact type of their allocator (sometimes
     // it has an extra const or is missing the pair, but rebinds made it work
-    // anyway).  To avoid the ambiguitity, we work off SlotAlloc which we have
+    // anyway).  To avoid the ambiguity, we work off SlotAlloc which we have
     // bound more carefully.
     if (std::is_same<SlotAlloc, std::allocator<slot_type>>::value &&
         slots_ == nullptr) {

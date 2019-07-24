@@ -510,6 +510,16 @@ OutputIterator c_move(C&& src, OutputIterator dest) {
                    container_algorithm_internal::c_end(src), dest);
 }
 
+// c_move_backward()
+//
+// Container-based version of the <algorithm> `std::move_backward()` function to
+// move a container's elements into an iterator in reverse order.
+template <typename C, typename BidirectionalIterator>
+BidirectionalIterator c_move_backward(C&& src, BidirectionalIterator dest) {
+  return std::move_backward(container_algorithm_internal::c_begin(src),
+                            container_algorithm_internal::c_end(src), dest);
+}
+
 // c_swap_ranges()
 //
 // Container-based version of the <algorithm> `std::swap_ranges()` function to

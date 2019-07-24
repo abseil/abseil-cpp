@@ -16,8 +16,14 @@
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms680578(v=vs.85).aspx
 
 #include <windows.h>
+
+// MSVC header DbgHelp.h has a warning for an ignored typedef.
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <DbgHelp.h>
-#pragma comment(lib, "DbgHelp")
+#pragma warning(pop)
+
+#pragma comment(lib, "dbghelp.lib")
 
 #include <algorithm>
 #include <cstring>

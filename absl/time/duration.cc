@@ -49,6 +49,10 @@
 //
 // Arithmetic overflows/underflows to +/- infinity and saturates.
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>

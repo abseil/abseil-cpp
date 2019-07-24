@@ -37,7 +37,8 @@
 // attempt to pass ':' instead of ":" might result in a 58 ending up in your
 // result.
 //
-// Bools convert to "0" or "1".
+// Bools convert to "0" or "1". Pointers to types other than `char *` are not
+// valid inputs. No output is generated for null `char *` pointers.
 //
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
@@ -56,6 +57,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "absl/base/port.h"
 #include "absl/strings/numbers.h"
@@ -267,6 +269,17 @@ class AlphaNum {
                 std::is_enum<T>{} && !std::is_convertible<T, int>{}>::type>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(static_cast<typename std::underlying_type<T>::type>(e)) {}
+
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <
+      typename T,
+      typename std::enable_if<
+          std::is_class<T>::value &&
+          (std::is_same<T, std::vector<bool>::reference>::value ||
+           std::is_same<T, std::vector<bool>::const_reference>::value)>::type* =
+          nullptr>
+  AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
 
  private:
   absl::string_view piece_;

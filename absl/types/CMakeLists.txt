@@ -299,6 +299,32 @@ absl_cc_test(
     gmock_main
 )
 
+absl_cc_library(
+  NAME
+    compare
+  HDRS
+    "compare.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::core_headers
+    absl::type_traits
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    compare_test
+  SRCS
+    "compare_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::compare
+    gmock_main
+)
+
 # TODO(cohenjon,zhangxy) Figure out why this test is failing on gcc 4.8
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
 else()

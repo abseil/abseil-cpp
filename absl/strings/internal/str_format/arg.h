@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <iomanip>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -292,7 +293,7 @@ class FormatArgImpl {
   struct Manager<T, ByPointer> {
     static Data SetValue(const T& value) {
       Data data;
-      data.ptr = &value;
+      data.ptr = std::addressof(value);
       return data;
     }
 

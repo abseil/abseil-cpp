@@ -288,7 +288,6 @@ TEST(HashValueTest, Strings) {
   // Also check that nested types maintain the same hash.
   const WrapInTuple t{};
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
-      //
       t(std::string()), t(absl::string_view()),
       t(std::string("")), t(absl::string_view("")),
       t(std::string(small)), t(absl::string_view(small)),
@@ -425,10 +424,10 @@ TEST(HashValueTest, Maps) {
 }
 
 template <typename T, typename = void>
-struct IsHashCallble : std::false_type {};
+struct IsHashCallable : std::false_type {};
 
 template <typename T>
-struct IsHashCallble<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
+struct IsHashCallable<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
                             std::declval<const T&>()))>> : std::true_type {};
 
 template <typename T, typename = void>
@@ -445,7 +444,7 @@ TEST(IsHashableTest, ValidHash) {
   EXPECT_TRUE(std::is_move_constructible<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_copy_assignable<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_move_assignable<absl::Hash<int>>::value);
-  EXPECT_TRUE(IsHashCallble<int>::value);
+  EXPECT_TRUE(IsHashCallable<int>::value);
   EXPECT_TRUE(IsAggregateInitializable<absl::Hash<int>>::value);
 }
 
@@ -458,7 +457,7 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(std::is_move_constructible<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
-  EXPECT_FALSE(IsHashCallble<X>::value);
+  EXPECT_FALSE(IsHashCallable<X>::value);
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
 }
 #endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
@@ -470,7 +469,7 @@ TEST(IsHashableTest, PoisonHash) {
 struct NoOp {
   template <typename HashCode>
   friend HashCode AbslHashValue(HashCode h, NoOp n) {
-    return std::move(h);
+    return h;
   }
 };
 
@@ -524,6 +523,7 @@ struct MinTag<a> : InvokeTagConstant<a> {};
 
 template <InvokeTag... Tags>
 struct CustomHashType {
+  explicit CustomHashType(size_t val) : value(val) {}
   size_t value;
 };
 
@@ -590,7 +590,7 @@ void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>, T...) {
   EXPECT_TRUE(is_hashable<const type&>());
 
   const size_t offset = static_cast<int>(std::min({T::value...}));
-  EXPECT_EQ(SpyHash(type{7}), SpyHash(size_t{7 + offset}));
+  EXPECT_EQ(SpyHash(type(7)), SpyHash(size_t{7 + offset}));
 }
 
 void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>) {

@@ -29,6 +29,7 @@
 #include <atomic>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/internal/invoke.h"
 #include "absl/base/internal/low_level_scheduling.h"
@@ -36,6 +37,7 @@
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
 namespace absl {

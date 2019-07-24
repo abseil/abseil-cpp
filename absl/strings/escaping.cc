@@ -1055,10 +1055,10 @@ std::string Utf8SafeCHexEscape(absl::string_view src) {
 }
 
 // ----------------------------------------------------------------------
-// ptrdiff_t Base64Unescape() - base64 decoder
-// ptrdiff_t Base64Escape() - base64 encoder
-// ptrdiff_t WebSafeBase64Unescape() - Google's variation of base64 decoder
-// ptrdiff_t WebSafeBase64Escape() - Google's variation of base64 encoder
+// Base64Unescape() - base64 decoder
+// Base64Escape() - base64 encoder
+// WebSafeBase64Unescape() - Google's variation of base64 decoder
+// WebSafeBase64Escape() - Google's variation of base64 encoder
 //
 // Check out
 // http://tools.ietf.org/html/rfc2045 for formal description, but what we
@@ -1094,6 +1094,20 @@ void Base64Escape(absl::string_view src, std::string* dest) {
 void WebSafeBase64Escape(absl::string_view src, std::string* dest) {
   Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
                        src.size(), dest, false, kWebSafeBase64Chars);
+}
+
+std::string Base64Escape(absl::string_view src) {
+  std::string dest;
+  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
+                       src.size(), &dest, true, kBase64Chars);
+  return dest;
+}
+
+std::string WebSafeBase64Escape(absl::string_view src) {
+  std::string dest;
+  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
+                       src.size(), &dest, false, kWebSafeBase64Chars);
+  return dest;
 }
 
 std::string HexStringToBytes(absl::string_view from) {

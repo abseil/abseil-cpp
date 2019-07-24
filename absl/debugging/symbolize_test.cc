@@ -107,7 +107,8 @@ static const char *TrySymbolizeWithLimit(void *pc, int limit) {
     ABSL_RAW_CHECK(strnlen(heap_buffer.get(), limit) < limit,
                    "absl::Symbolize() did not properly terminate the string");
     strncpy(try_symbolize_buffer, heap_buffer.get(),
-            sizeof(try_symbolize_buffer));
+            sizeof(try_symbolize_buffer) - 1);
+    try_symbolize_buffer[sizeof(try_symbolize_buffer) - 1] = '\0';
   }
 
   return found ? try_symbolize_buffer : nullptr;

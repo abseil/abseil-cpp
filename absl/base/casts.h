@@ -27,6 +27,7 @@
 #include <cstring>
 #include <memory>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/internal/identity.h"
 #include "absl/base/macros.h"

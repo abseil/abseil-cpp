@@ -42,23 +42,28 @@
 //
 // Example:
 //
-//   // Suppose we have a class `Circle` for which we want to add hashing
+//   // Suppose we have a class `Circle` for which we want to add hashing:
 //   class Circle {
-//     public:
-//       ...
-//     private:
-//       std::pair<int, int> center_;
-//       int radius_;
-//     };
+//    public:
+//     ...
+//    private:
+//     std::pair<int, int> center_;
+//     int radius_;
+//   };
 //
-//   // To add hashing support to `Circle`, we simply need to add an ordinary
-//   // function `AbslHashValue()`, and return the combined hash state of the
-//   // existing hash state and the class state:
-//
+//   // To add hashing support to `Circle`, we simply need to add a free
+//   // (non-member) function `AbslHashValue()`, and return the combined hash
+//   // state of the existing hash state and the class state. You can add such a
+//   // free function using a friend declaration within the body of the class:
+//   class Circle {
+//    public:
+//     ...
 //     template <typename H>
 //     friend H AbslHashValue(H h, const Circle& c) {
 //       return H::combine(std::move(h), c.center_, c.radius_);
 //     }
+//     ...
+//   };
 //
 // For more information, see Adding Type Support to `absl::Hash` below.
 //
@@ -239,7 +244,7 @@ using Hash = absl::hash_internal::Hash<T>;
 //     }
 //    private:
 //     virtual void HashValue(absl::HashState state) const = 0;
-//  };
+//   };
 //
 //   class Impl : Interface {
 //    private:

@@ -214,6 +214,29 @@ class DeletedDefaultCtor {
   int n_;
 };
 
+class TrivialMoveCtor {
+ public:
+  explicit TrivialMoveCtor(int n) : n_(n) {}
+  TrivialMoveCtor(TrivialMoveCtor&&) = default;
+  TrivialMoveCtor& operator=(const TrivialMoveCtor& t) {
+    n_ = t.n_;
+    return *this;
+  }
+
+ private:
+  int n_;
+};
+
+class NontrivialMoveCtor {
+ public:
+  explicit NontrivialMoveCtor(int n) : n_(n) {}
+  NontrivialMoveCtor(NontrivialMoveCtor&& t) noexcept : n_(t.n_) {}
+  NontrivialMoveCtor& operator=(const NontrivialMoveCtor&) = default;
+
+ private:
+  int n_;
+};
+
 class TrivialCopyCtor {
  public:
   explicit TrivialCopyCtor(int n) : n_(n) {}
@@ -242,6 +265,29 @@ class DeletedCopyCtor {
   explicit DeletedCopyCtor(int n) : n_(n) {}
   DeletedCopyCtor(const DeletedCopyCtor&) = delete;
   DeletedCopyCtor& operator=(const DeletedCopyCtor&) = default;
+
+ private:
+  int n_;
+};
+
+class TrivialMoveAssign {
+ public:
+  explicit TrivialMoveAssign(int n) : n_(n) {}
+  TrivialMoveAssign(const TrivialMoveAssign& t) : n_(t.n_) {}
+  TrivialMoveAssign& operator=(TrivialMoveAssign&&) = default;
+  ~TrivialMoveAssign() {}  // can have nontrivial destructor
+ private:
+  int n_;
+};
+
+class NontrivialMoveAssign {
+ public:
+  explicit NontrivialMoveAssign(int n) : n_(n) {}
+  NontrivialMoveAssign(const NontrivialMoveAssign&) = default;
+  NontrivialMoveAssign& operator=(NontrivialMoveAssign&& t) noexcept {
+    n_ = t.n_;
+    return *this;
+  }
 
  private:
   int n_;
@@ -484,6 +530,79 @@ TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
 #endif
 }
 
+TEST(TypeTraitsTest, TestTrivialMoveCtor) {
+  // Verify that arithmetic types and pointers have trivial move
+  // constructors.
+  EXPECT_TRUE(absl::is_trivially_move_constructible<bool>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<unsigned char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<signed char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<wchar_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<int>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<unsigned int>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<int16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<uint16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<int64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<uint64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<float>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<double>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<long double>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<Trivial**>::value);
+
+  // Reference types
+  EXPECT_TRUE(absl::is_trivially_move_constructible<int&>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<int&&>::value);
+
+  // types with compiler generated move ctors
+  EXPECT_TRUE(absl::is_trivially_move_constructible<Trivial>::value);
+  EXPECT_TRUE(absl::is_trivially_move_constructible<TrivialMoveCtor>::value);
+
+  // Verify that types without them (i.e. nontrivial or deleted) are not.
+  EXPECT_FALSE(
+      absl::is_trivially_move_constructible<NontrivialCopyCtor>::value);
+  EXPECT_FALSE(absl::is_trivially_move_constructible<DeletedCopyCtor>::value);
+  EXPECT_FALSE(
+      absl::is_trivially_move_constructible<NonCopyableOrMovable>::value);
+
+#ifdef ABSL_TRIVIALLY_CONSTRUCTIBLE_VERIFY_TRIVIALLY_DESTRUCTIBLE
+  // type with nontrivial destructor are nontrivial move construbtible
+  EXPECT_FALSE(
+      absl::is_trivially_move_constructible<NontrivialDestructor>::value);
+#endif
+
+  // types with vtables
+  EXPECT_FALSE(absl::is_trivially_move_constructible<Base>::value);
+
+  // Verify that simple_pair of such types is trivially move constructible
+  EXPECT_TRUE(
+      (absl::is_trivially_move_constructible<simple_pair<int, char*>>::value));
+  EXPECT_TRUE((
+      absl::is_trivially_move_constructible<simple_pair<int, Trivial>>::value));
+  EXPECT_TRUE((absl::is_trivially_move_constructible<
+               simple_pair<int, TrivialMoveCtor>>::value));
+
+  // Verify that types without trivial move constructors are
+  // correctly marked as such.
+  EXPECT_FALSE(absl::is_trivially_move_constructible<std::string>::value);
+  EXPECT_FALSE(absl::is_trivially_move_constructible<std::vector<int>>::value);
+
+  // Verify that simple_pairs of types without trivial move constructors
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::is_trivially_move_constructible<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::is_trivially_move_constructible<
+                simple_pair<std::string, int>>::value));
+
+  // Verify that arrays are not
+  using int10 = int[10];
+  EXPECT_FALSE(absl::is_trivially_move_constructible<int10>::value);
+}
+
 TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   // Verify that arithmetic types and pointers have trivial copy
   // constructors.
@@ -507,6 +626,10 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   EXPECT_TRUE(absl::is_trivially_copy_constructible<const Trivial*>::value);
   EXPECT_TRUE(absl::is_trivially_copy_constructible<std::string**>::value);
   EXPECT_TRUE(absl::is_trivially_copy_constructible<Trivial**>::value);
+
+  // Reference types
+  EXPECT_TRUE(absl::is_trivially_copy_constructible<int&>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<int&&>::value);
 
   // types with compiler generated copy ctors
   EXPECT_TRUE(absl::is_trivially_copy_constructible<Trivial>::value);
@@ -553,6 +676,74 @@ TEST(TypeTraitsTest, TestTrivialCopyCtor) {
   // Verify that arrays are not
   using int10 = int[10];
   EXPECT_FALSE(absl::is_trivially_copy_constructible<int10>::value);
+}
+
+TEST(TypeTraitsTest, TestTrivialMoveAssign) {
+  // Verify that arithmetic types and pointers have trivial move
+  // assignment operators.
+  EXPECT_TRUE(absl::is_trivially_move_assignable<bool>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<unsigned char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<signed char>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<wchar_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<int>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<unsigned int>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<int16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<uint16_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<int64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<uint64_t>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<float>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<double>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<long double>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<const std::string*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<const Trivial*>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<std::string**>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<Trivial**>::value);
+
+  // const qualified types are not assignable
+  EXPECT_FALSE(absl::is_trivially_move_assignable<const int>::value);
+
+  // types with compiler generated move assignment
+  EXPECT_TRUE(absl::is_trivially_move_assignable<Trivial>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<TrivialMoveAssign>::value);
+
+  // Verify that types without them (i.e. nontrivial or deleted) are not.
+  EXPECT_FALSE(absl::is_trivially_move_assignable<NontrivialCopyAssign>::value);
+  EXPECT_FALSE(absl::is_trivially_move_assignable<DeletedCopyAssign>::value);
+  EXPECT_FALSE(absl::is_trivially_move_assignable<NonCopyableOrMovable>::value);
+
+  // types with vtables
+  EXPECT_FALSE(absl::is_trivially_move_assignable<Base>::value);
+
+  // Verify that simple_pair is trivially assignable
+  EXPECT_TRUE(
+      (absl::is_trivially_move_assignable<simple_pair<int, char*>>::value));
+  EXPECT_TRUE(
+      (absl::is_trivially_move_assignable<simple_pair<int, Trivial>>::value));
+  EXPECT_TRUE((absl::is_trivially_move_assignable<
+               simple_pair<int, TrivialMoveAssign>>::value));
+
+  // Verify that types not trivially move assignable are
+  // correctly marked as such.
+  EXPECT_FALSE(absl::is_trivially_move_assignable<std::string>::value);
+  EXPECT_FALSE(absl::is_trivially_move_assignable<std::vector<int>>::value);
+
+  // Verify that simple_pairs of types not trivially move assignable
+  // are not marked as trivial.
+  EXPECT_FALSE((absl::is_trivially_move_assignable<
+                simple_pair<int, std::string>>::value));
+  EXPECT_FALSE((absl::is_trivially_move_assignable<
+                simple_pair<std::string, int>>::value));
+
+  // Verify that arrays are not trivially move assignable
+  using int10 = int[10];
+  EXPECT_FALSE(absl::is_trivially_move_assignable<int10>::value);
+
+  // Verify that references are handled correctly
+  EXPECT_TRUE(absl::is_trivially_move_assignable<Trivial&&>::value);
+  EXPECT_TRUE(absl::is_trivially_move_assignable<Trivial&>::value);
 }
 
 TEST(TypeTraitsTest, TestTrivialCopyAssign) {

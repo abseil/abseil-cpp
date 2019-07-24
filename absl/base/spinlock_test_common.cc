@@ -62,7 +62,6 @@ static SpinLock static_cooperative_spinlock(
 static SpinLock static_noncooperative_spinlock(
     base_internal::kLinkerInitialized, base_internal::SCHEDULE_KERNEL_ONLY);
 
-
 // Simple integer hash function based on the public domain lookup2 hash.
 // http://burtleburtle.net/bob/c/lookup2.c
 static uint32_t Hash32(uint32_t a, uint32_t c) {
@@ -194,6 +193,7 @@ TEST(SpinLock, WaitCyclesEncoding) {
 TEST(SpinLockWithThreads, StaticSpinLock) {
   ThreadedTest(&static_spinlock);
 }
+
 TEST(SpinLockWithThreads, StackSpinLock) {
   SpinLock spinlock;
   ThreadedTest(&spinlock);

@@ -18,9 +18,9 @@ load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_DEFAULT_LINKOPTS",
-    "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
     "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
+    "ABSL_TEST_COPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
@@ -305,6 +305,30 @@ cc_test(
         "//absl/base:config",
         "//absl/base:exception_safety_testing",
         "//absl/memory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "compare",
+    hdrs = ["compare.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    deps = [
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "compare_test",
+    size = "small",
+    srcs = [
+        "compare_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    deps = [
+        ":compare",
+        "//absl/base",
         "@com_google_googletest//:gtest_main",
     ],
 )

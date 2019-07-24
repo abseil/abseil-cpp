@@ -18,10 +18,12 @@
 #include <cstdlib>
 #include <ostream>
 
+#include "absl/types/compare.h"
+
 namespace absl {
 namespace test_internal {
 
-// A type that counts number of occurences of the type, the live occurrences of
+// A type that counts number of occurrences of the type, the live occurrences of
 // the type, as well as the number of copies, moves, swaps, and comparisons that
 // have occurred on the type. This is used as a base class for the copyable,
 // copyable+movable, and movable types below that are used in actual tests. Use
@@ -94,6 +96,14 @@ class BaseCountedInstance {
   bool operator>=(const BaseCountedInstance& x) const {
     ++num_comparisons_;
     return value_ >= x.value_;
+  }
+
+  absl::weak_ordering compare(const BaseCountedInstance& x) const {
+    ++num_comparisons_;
+    return value_ < x.value_
+               ? absl::weak_ordering::less
+               : value_ == x.value_ ? absl::weak_ordering::equivalent
+                                    : absl::weak_ordering::greater;
   }
 
   int value() const {

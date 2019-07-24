@@ -35,10 +35,13 @@
 // and single digit positional ids to indicate which substitution arguments to
 // use at that location within the format string.
 //
+// A '$$' sequence in the format string causes a literal '$' character to be
+// output.
+//
 // Example 1:
-//   std::string s = Substitute("$1 purchased $0 $2. Thanks $1!",
+//   std::string s = Substitute("$1 purchased $0 $2 for $$10. Thanks $1!",
 //                              5, "Bob", "Apples");
-//   EXPECT_EQ("Bob purchased 5 Apples. Thanks Bob!", s);
+//   EXPECT_EQ("Bob purchased 5 Apples for $10. Thanks Bob!", s);
 //
 // Example 2:
 //   std::string s = "Hi. ";
@@ -69,6 +72,8 @@
 
 #include <cstring>
 #include <string>
+#include <type_traits>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
@@ -150,6 +155,17 @@ class Arg {
 
   Arg(Hex hex);  // NOLINT(runtime/explicit)
   Arg(Dec dec);  // NOLINT(runtime/explicit)
+
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <typename T,
+            absl::enable_if_t<
+                std::is_class<T>::value &&
+                (std::is_same<T, std::vector<bool>::reference>::value ||
+                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
+                nullptr>
+  Arg(T value)  // NOLINT(google-explicit-constructor)
+      : Arg(static_cast<bool>(value)) {}
 
   // `void*` values, with the exception of `char*`, are printed as
   // "0x<hex value>". However, in the case of `nullptr`, "NULL" is printed.

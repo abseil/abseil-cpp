@@ -636,6 +636,19 @@ TEST(MutatingTest, Move) {
                                 Pointee(5)));
 }
 
+TEST(MutatingTest, MoveBackward) {
+  std::vector<std::unique_ptr<int>> actual;
+  actual.emplace_back(absl::make_unique<int>(1));
+  actual.emplace_back(absl::make_unique<int>(2));
+  actual.emplace_back(absl::make_unique<int>(3));
+  actual.emplace_back(absl::make_unique<int>(4));
+  actual.emplace_back(absl::make_unique<int>(5));
+  auto subrange = absl::MakeSpan(actual.data(), 3);
+  absl::c_move_backward(subrange, actual.end());
+  EXPECT_THAT(actual, ElementsAre(IsNull(), IsNull(), Pointee(1), Pointee(2),
+                                  Pointee(3)));
+}
+
 TEST(MutatingTest, MoveWithRvalue) {
   auto MakeRValueSrc = [] {
     std::vector<std::unique_ptr<int>> src;

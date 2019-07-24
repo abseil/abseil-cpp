@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/container/inlined_vector.h"
-
+#include <array>
 #include <string>
 #include <vector>
 
 #include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"
 
 namespace {
@@ -372,5 +373,432 @@ void BM_StdVectorEmpty(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_StdVectorEmpty);
+
+constexpr size_t kInlinedCapacity = 4;
+constexpr size_t kLargeSize = kInlinedCapacity * 2;
+constexpr size_t kSmallSize = kInlinedCapacity / 2;
+constexpr size_t kBatchSize = 100;
+
+#define ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_FunctionTemplate, T) \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kLargeSize);        \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kSmallSize)
+
+#define ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_FunctionTemplate, T)      \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kLargeSize, kLargeSize); \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kLargeSize, kSmallSize); \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kSmallSize, kLargeSize); \
+  BENCHMARK_TEMPLATE(BM_FunctionTemplate, T, kSmallSize, kSmallSize)
+
+template <typename T>
+using InlVec = absl::InlinedVector<T, kInlinedCapacity>;
+
+struct TrivialType {
+  size_t val;
+};
+
+class NontrivialType {
+ public:
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType() : val_() {
+    benchmark::DoNotOptimize(*this);
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType(const NontrivialType& other)
+      : val_(other.val_) {
+    benchmark::DoNotOptimize(*this);
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE NontrivialType& operator=(
+      const NontrivialType& other) {
+    val_ = other.val_;
+    benchmark::DoNotOptimize(*this);
+    return *this;
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE ~NontrivialType() noexcept {
+    benchmark::DoNotOptimize(*this);
+  }
+
+ private:
+  size_t val_;
+};
+
+template <typename T, typename PrepareVecFn, typename TestVecFn>
+void BatchedBenchmark(benchmark::State& state, PrepareVecFn prepare_vec,
+                      TestVecFn test_vec) {
+  std::array<InlVec<T>, kBatchSize> vector_batch{};
+
+  while (state.KeepRunningBatch(kBatchSize)) {
+    // Prepare batch
+    state.PauseTiming();
+    for (size_t i = 0; i < kBatchSize; ++i) {
+      prepare_vec(vector_batch.data() + i, i);
+    }
+    benchmark::DoNotOptimize(vector_batch);
+    state.ResumeTiming();
+
+    // Test batch
+    for (size_t i = 0; i < kBatchSize; ++i) {
+      test_vec(vector_batch.data() + i, i);
+    }
+  }
+}
+
+template <typename T, size_t ToSize>
+void BM_ConstructFromSize(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  auto size = ToSize;
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->~VecT(); },
+      /* test_vec = */
+      [&](void* ptr, size_t) {
+        benchmark::DoNotOptimize(size);
+        ::new (ptr) VecT(size);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromSize, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromSize, NontrivialType);
+
+template <typename T, size_t ToSize>
+void BM_ConstructFromSizeRef(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  auto size = ToSize;
+  auto ref = T();
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->~VecT(); },
+      /* test_vec = */
+      [&](void* ptr, size_t) {
+        benchmark::DoNotOptimize(size);
+        benchmark::DoNotOptimize(ref);
+        ::new (ptr) VecT(size, ref);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromSizeRef, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromSizeRef, NontrivialType);
+
+template <typename T, size_t ToSize>
+void BM_ConstructFromRange(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  std::array<T, ToSize> arr{};
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->~VecT(); },
+      /* test_vec = */
+      [&](void* ptr, size_t) {
+        benchmark::DoNotOptimize(arr);
+        ::new (ptr) VecT(arr.begin(), arr.end());
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromRange, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromRange, NontrivialType);
+
+template <typename T, size_t ToSize>
+void BM_ConstructFromCopy(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  VecT other_vec(ToSize);
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) { vec->~VecT(); },
+      /* test_vec = */
+      [&](void* ptr, size_t) {
+        benchmark::DoNotOptimize(other_vec);
+        ::new (ptr) VecT(other_vec);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromCopy, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromCopy, NontrivialType);
+
+template <typename T, size_t ToSize>
+void BM_ConstructFromMove(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  std::array<VecT, kBatchSize> vector_batch{};
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [&](InlVec<T>* vec, size_t i) {
+        vector_batch[i].clear();
+        vector_batch[i].resize(ToSize);
+        vec->~VecT();
+      },
+      /* test_vec = */
+      [&](void* ptr, size_t i) {
+        benchmark::DoNotOptimize(vector_batch[i]);
+        ::new (ptr) VecT(std::move(vector_batch[i]));
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromMove, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_ConstructFromMove, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_AssignSizeRef(benchmark::State& state) {
+  auto size = ToSize;
+  auto ref = T();
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->resize(FromSize); },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(size);
+        benchmark::DoNotOptimize(ref);
+        vec->assign(size, ref);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignSizeRef, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignSizeRef, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_AssignRange(benchmark::State& state) {
+  std::array<T, ToSize> arr{};
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->resize(FromSize); },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(arr);
+        vec->assign(arr.begin(), arr.end());
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignRange, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignRange, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_AssignFromCopy(benchmark::State& state) {
+  InlVec<T> other_vec(ToSize);
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->resize(FromSize); },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(other_vec);
+        *vec = other_vec;
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignFromCopy, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignFromCopy, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_AssignFromMove(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  std::array<VecT, kBatchSize> vector_batch{};
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [&](InlVec<T>* vec, size_t i) {
+        vector_batch[i].clear();
+        vector_batch[i].resize(ToSize);
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t i) {
+        benchmark::DoNotOptimize(vector_batch[i]);
+        *vec = std::move(vector_batch[i]);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignFromMove, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_AssignFromMove, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_ResizeSize(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) { vec->resize(ToSize); });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ResizeSize, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ResizeSize, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_ResizeSizeRef(benchmark::State& state) {
+  auto t = T();
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(t);
+        vec->resize(ToSize, t);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ResizeSizeRef, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ResizeSizeRef, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_InsertSizeRef(benchmark::State& state) {
+  auto t = T();
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(t);
+        auto* pos = vec->data() + (vec->size() / 2);
+        vec->insert(pos, t);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_InsertSizeRef, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_InsertSizeRef, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_InsertRange(benchmark::State& state) {
+  InlVec<T> other_vec(ToSize);
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t) {
+        benchmark::DoNotOptimize(other_vec);
+        auto* pos = vec->data() + (vec->size() / 2);
+        vec->insert(pos, other_vec.begin(), other_vec.end());
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_InsertRange, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_InsertRange, NontrivialType);
+
+template <typename T, size_t FromSize>
+void BM_EmplaceBack(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) { vec->emplace_back(); });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EmplaceBack, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EmplaceBack, NontrivialType);
+
+template <typename T, size_t FromSize>
+void BM_PopBack(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) { vec->pop_back(); });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_PopBack, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_PopBack, NontrivialType);
+
+template <typename T, size_t FromSize>
+void BM_EraseOne(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) {
+        auto* pos = vec->data() + (vec->size() / 2);
+        vec->erase(pos);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EraseOne, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EraseOne, NontrivialType);
+
+template <typename T, size_t FromSize>
+void BM_EraseRange(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) {
+        auto* pos = vec->data() + (vec->size() / 2);
+        vec->erase(pos, pos + 1);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EraseRange, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_EraseRange, NontrivialType);
+
+template <typename T, size_t FromSize>
+void BM_Clear(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */ [](InlVec<T>* vec, size_t) { vec->resize(FromSize); },
+      /* test_vec = */ [](InlVec<T>* vec, size_t) { vec->clear(); });
+}
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_Clear, TrivialType);
+ABSL_INTERNAL_BENCHMARK_ONE_SIZE(BM_Clear, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToCapacity>
+void BM_Reserve(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [](InlVec<T>* vec, size_t) { vec->reserve(ToCapacity); });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_Reserve, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_Reserve, NontrivialType);
+
+template <typename T, size_t FromCapacity, size_t ToCapacity>
+void BM_ShrinkToFit(benchmark::State& state) {
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [](InlVec<T>* vec, size_t) {
+        vec->clear();
+        vec->resize(ToCapacity);
+        vec->reserve(FromCapacity);
+      },
+      /* test_vec = */ [](InlVec<T>* vec, size_t) { vec->shrink_to_fit(); });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ShrinkToFit, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_ShrinkToFit, NontrivialType);
+
+template <typename T, size_t FromSize, size_t ToSize>
+void BM_Swap(benchmark::State& state) {
+  using VecT = InlVec<T>;
+  std::array<VecT, kBatchSize> vector_batch{};
+  BatchedBenchmark<T>(
+      state,
+      /* prepare_vec = */
+      [&](InlVec<T>* vec, size_t i) {
+        vector_batch[i].clear();
+        vector_batch[i].resize(ToSize);
+        vec->resize(FromSize);
+      },
+      /* test_vec = */
+      [&](InlVec<T>* vec, size_t i) {
+        using std::swap;
+        benchmark::DoNotOptimize(vector_batch[i]);
+        swap(*vec, vector_batch[i]);
+      });
+}
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_Swap, TrivialType);
+ABSL_INTERNAL_BENCHMARK_TWO_SIZE(BM_Swap, NontrivialType);
 
 }  // namespace
