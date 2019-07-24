@@ -7,12 +7,11 @@
 
 from conans import ConanFile, CMake, tools
 from conans.errors import ConanInvalidConfiguration
-from conans.model.version import Version
-
+from conans.tools import Version
 
 class AbseilConan(ConanFile):
     name = "abseil"
-    version = "2019041600"
+    version = "2019071800"
     url = "https://github.com/abseil/abseil-cpp"
     homepage = "https://abseil.io"
     author = "Abseil <abseil-io@googlegroups.com>"
@@ -24,7 +23,7 @@ class AbseilConan(ConanFile):
     scm = {
          "type": "git",
          "url": url,
-         "revision": "d902eb869bcfacc1bad14933ed9af4bed006d481"
+         "revision": "f3840bc5e33ce4932e35986cf3718450c6f02af2"
     }
 
     def configure(self):
@@ -40,7 +39,7 @@ class AbseilConan(ConanFile):
         return cmake
 
     def build(self):
-        tools.replace_in_file("CMakeLists.txt", "project(absl)", """project(absl)
+        tools.replace_in_file("CMakeLists.txt", "project(absl CXX)", """project(absl CXX)
                                                                     include(conanbuildinfo.cmake)
                                                                     conan_basic_setup()""")
         cmake = self._configure_cmake()
@@ -69,39 +68,56 @@ class AbseilConan(ConanFile):
             "absl_demangle_internal",
             "absl_leak_check",
             "absl_leak_check_disable",
+            "absl_flags_internal",
+            "absl_flags_config",
+            "absl_flags_marshalling",
+            "absl_flags_handle",
+            "absl_flags_registry",
+            "absl_flags",
+            "absl_flags_usage_internal",
+            "absl_flags_usage",
+            "absl_flags_parse",
             "absl_hash",
-            "absl_city",
+            "absl_city ",
             "absl_int128",
             "absl_strings",
             "absl_strings_internal",
             "absl_str_format_internal",
             "absl_graphcycles_internal",
             "absl_synchronization",
-            "absl_time",
-            "absl_civil_time",
+            "absl_time absl_civil_time",
             "absl_time_zone",
             "absl_bad_any_cast_impl",
             "absl_bad_optional_access",
             "absl_bad_variant_access",
             "absl_bad_variant_access",
             "absl_hashtablez_sampler",
+            "absl_examine_stack",
+            "absl_leak_check",
+            "absl_flags_usage",
+            "absl_flags_usage_internal",
+            "absl_flags",
+            "absl_flags_registry",
+            "absl_flags_handle",
+            "absl_flags_config",
+            "absl_flags_internal",
+            "absl_flags_marshalling",
+            "absl_str_format_internal",
+            "absl_bad_optional_access",
             "absl_synchronization",
+            "absl_stacktrace",
+            "absl_symbolize",
+            "absl_debugging_internal",
+            "absl_demangle_internal",
             "absl_graphcycles_internal",
-            "absl_time",
+            "absl_malloc_internal",
+            "absl_time absl_strings",
+            "absl_throw_delegate",
+            "absl_strings_internal",
             "absl_civil_time",
             "absl_time_zone",
-            "absl_examine_stack",
-            "absl_symbolize",
-            "absl_malloc_internal",
-            "absl_demangle_internal",
-            "absl_stacktrace",
-            "absl_debugging_internal",
-            "absl_leak_check",
-            "absl_strings",
             "absl_int128",
-            "absl_strings_internal",
-            "absl_throw_delegate",
-            "absl_base",
+            "absl_base ",
             "absl_spinlock_wait",
             "absl_dynamic_annotations"
         ]
