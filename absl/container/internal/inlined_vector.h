@@ -15,6 +15,7 @@
 #ifndef ABSL_CONTAINER_INTERNAL_INLINED_VECTOR_INTERNAL_H_
 #define ABSL_CONTAINER_INTERNAL_INLINED_VECTOR_INTERNAL_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <iterator>
@@ -301,15 +302,17 @@ class Storage {
     return data_.allocated.allocated_data;
   }
 
+  size_type GetInlinedCapacity() const { return static_cast<size_type>(N); }
+
   size_type GetAllocatedCapacity() const {
     return data_.allocated.allocated_capacity;
   }
 
   StorageView MakeStorageView() {
-    return GetIsAllocated() ? StorageView{GetAllocatedData(), GetSize(),
-                                          GetAllocatedCapacity()}
-                            : StorageView{GetInlinedData(), GetSize(),
-                                          static_cast<size_type>(N)};
+    return GetIsAllocated()
+               ? StorageView{GetAllocatedData(), GetSize(),
+                             GetAllocatedCapacity()}
+               : StorageView{GetInlinedData(), GetSize(), GetInlinedCapacity()};
   }
 
   allocator_type* GetAllocPtr() {
@@ -402,18 +405,13 @@ class Storage {
     return metadata_.template get<1>();
   }
 
-  static size_type NextCapacityFrom(size_type current_capacity) {
+  static size_type NextCapacity(size_type current_capacity) {
     return current_capacity * 2;
   }
 
-  static size_type LegacyNextCapacityFrom(size_type current_capacity,
-                                          size_type requested_capacity) {
-    // TODO(johnsoncj): Get rid of this old behavior.
-    size_type new_capacity = current_capacity;
-    while (new_capacity < requested_capacity) {
-      new_capacity *= 2;
-    }
-    return new_capacity;
+  static size_type ComputeCapacity(size_type current_capacity,
+                                   size_type requested_capacity) {
+    return (std::max)(NextCapacity(current_capacity), requested_capacity);
   }
 
   using Metadata =
@@ -449,13 +447,17 @@ auto Storage<T, N, A>::Initialize(ValueAdapter values, size_type new_size)
 
   pointer construct_data;
 
-  if (new_size > static_cast<size_type>(N)) {
+  if (new_size > GetInlinedCapacity()) {
     // Because this is only called from the `InlinedVector` constructors, it's
     // safe to take on the allocation with size `0`. If `ConstructElements(...)`
     // throws, deallocation will be automatically handled by `~Storage()`.
-    construct_data = AllocatorTraits::allocate(*GetAllocPtr(), new_size);
-    SetAllocatedData(construct_data, new_size);
+    size_type new_capacity = ComputeCapacity(GetInlinedCapacity(), new_size);
+    pointer new_data = AllocatorTraits::allocate(*GetAllocPtr(), new_capacity);
+
+    SetAllocatedData(new_data, new_capacity);
     SetIsAllocated();
+
+    construct_data = new_data;
   } else {
     construct_data = GetInlinedData();
   }
@@ -481,7 +483,10 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, size_type new_size) -> void {
   absl::Span<value_type> destroy_loop;
 
   if (new_size > storage_view.capacity) {
-    construct_loop = {allocation_tx.Allocate(new_size), new_size};
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
+
+    construct_loop = {new_data, new_size};
     destroy_loop = {storage_view.data, storage_view.size};
   } else if (new_size > storage_view.size) {
     assign_loop = {storage_view.data, storage_view.size};
@@ -526,8 +531,8 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   absl::Span<value_type> destroy_loop;
 
   if (new_size > storage_view.capacity) {
-    pointer new_data = allocation_tx.Allocate(
-        LegacyNextCapacityFrom(storage_view.capacity, new_size));
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
 
     // Construct new objects in `new_data`
     construct_loop = {new_data + storage_view.size,
@@ -586,8 +591,8 @@ auto Storage<T, N, A>::Insert(const_iterator pos, ValueAdapter values,
     IteratorValueAdapter<MoveIterator> move_values(
         MoveIterator(storage_view.data));
 
-    pointer new_data = allocation_tx.Allocate(
-        LegacyNextCapacityFrom(storage_view.capacity, new_size));
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
 
     construction_tx.Construct(new_data + insert_index, &values, insert_count);
 
@@ -670,14 +675,20 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
-  pointer construct_data =
-      (storage_view.size == storage_view.capacity
-           ? allocation_tx.Allocate(NextCapacityFrom(storage_view.capacity))
-           : storage_view.data);
+  pointer construct_data;
 
-  pointer last_ptr = construct_data + storage_view.size;
-  AllocatorTraits::construct(*GetAllocPtr(), last_ptr,
-                             std::forward<Args>(args)...);
+  if (storage_view.size == storage_view.capacity) {
+    size_type new_capacity = NextCapacity(storage_view.capacity);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
+
+    construct_data = new_data;
+  } else {
+    construct_data = storage_view.data;
+  }
+
+  pointer end = construct_data + storage_view.size;
+
+  AllocatorTraits::construct(*GetAllocPtr(), end, std::forward<Args>(args)...);
 
   if (allocation_tx.DidAllocate()) {
     ABSL_INTERNAL_TRY {
@@ -686,7 +697,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
           storage_view.size);
     }
     ABSL_INTERNAL_CATCH_ANY {
-      AllocatorTraits::destroy(*GetAllocPtr(), last_ptr);
+      AllocatorTraits::destroy(*GetAllocPtr(), end);
       ABSL_INTERNAL_RETHROW;
     }
 
@@ -699,7 +710,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
   }
 
   AddSize(1);
-  return *last_ptr;
+  return *end;
 }
 
 template <typename T, size_t N, typename A>
@@ -740,8 +751,9 @@ auto Storage<T, N, A>::Reserve(size_type requested_capacity) -> void {
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
-  pointer new_data = allocation_tx.Allocate(
-      LegacyNextCapacityFrom(storage_view.capacity, requested_capacity));
+  size_type new_capacity =
+      ComputeCapacity(storage_view.capacity, requested_capacity);
+  pointer new_data = allocation_tx.Allocate(new_capacity);
 
   inlined_vector_internal::ConstructElements(GetAllocPtr(), new_data,
                                              &move_values, storage_view.size);
@@ -762,6 +774,8 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
   StorageView storage_view{GetAllocatedData(), GetSize(),
                            GetAllocatedCapacity()};
 
+  if (ABSL_PREDICT_FALSE(storage_view.size == storage_view.capacity)) return;
+
   AllocationTransaction allocation_tx(GetAllocPtr());
 
   IteratorValueAdapter<MoveIterator> move_values(
@@ -769,12 +783,13 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
 
   pointer construct_data;
 
-  if (storage_view.size <= static_cast<size_type>(N)) {
-    construct_data = GetInlinedData();
-  } else if (storage_view.size < GetAllocatedCapacity()) {
-    construct_data = allocation_tx.Allocate(storage_view.size);
+  if (storage_view.size > GetInlinedCapacity()) {
+    size_type new_capacity = storage_view.size;
+    pointer new_data = allocation_tx.Allocate(new_capacity);
+
+    construct_data = new_data;
   } else {
-    return;
+    construct_data = GetInlinedData();
   }
 
   ABSL_INTERNAL_TRY {

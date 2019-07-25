@@ -39,8 +39,11 @@ cc_library(
 
 cc_library(
     name = "log_severity",
+    srcs = ["log_severity.cc"],
+    hdrs = ["log_severity.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [":core_headers"],
 )
 
 cc_library(
@@ -154,7 +157,6 @@ cc_library(
         "internal/sysinfo.cc",
         "internal/thread_identity.cc",
         "internal/unscaledcycleclock.cc",
-        "log_severity.cc",
     ],
     hdrs = [
         "call_once.h",
@@ -168,7 +170,6 @@ cc_library(
         "internal/thread_identity.h",
         "internal/tsan_mutex_interface.h",
         "internal/unscaledcycleclock.h",
-        "log_severity.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = select({

@@ -279,7 +279,7 @@ class InlinedVector {
   // allocated heap.
   size_type capacity() const noexcept {
     return storage_.GetIsAllocated() ? storage_.GetAllocatedCapacity()
-                                     : static_cast<size_type>(N);
+                                     : storage_.GetInlinedCapacity();
   }
 
   // `InlinedVector::data()`
