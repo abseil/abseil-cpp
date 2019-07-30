@@ -47,6 +47,15 @@ cc_library(
 )
 
 cc_library(
+    name = "raw_logging_internal",
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+)
+
+cc_library(
     name = "spinlock_wait",
     srcs = [
         "internal/spinlock_akaros.inc",

@@ -34,7 +34,14 @@ absl_cc_library(
     absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
-) 
+)
+
+absl_cc_library(
+  NAME
+    raw_logging_internal
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
 
 absl_cc_library(
   NAME

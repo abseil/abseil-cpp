@@ -72,6 +72,11 @@ TEST(CEscape, EscapeAndUnescape) {
       EXPECT_TRUE(absl::CUnescape(escaped, &unescaped_str));
       EXPECT_EQ(unescaped_str, original);
 
+      unescaped_str.erase();
+      std::string error;
+      EXPECT_TRUE(absl::CUnescape(escaped, &unescaped_str, &error));
+      EXPECT_EQ(error, "");
+
       // Check in-place unescaping
       std::string s = escaped;
       EXPECT_TRUE(absl::CUnescape(s, &s));
@@ -150,7 +155,8 @@ TEST(CEscape, BasicEscaping) {
 
 TEST(Unescape, BasicFunction) {
   epair tests[] =
-    {{"\\u0030", "0"},
+    {{"", ""},
+     {"\\u0030", "0"},
      {"\\u00A3", "\xC2\xA3"},
      {"\\u22FD", "\xE2\x8B\xBD"},
      {"\\U00010000", "\xF0\x90\x80\x80"},
@@ -173,6 +179,9 @@ TEST(Unescape, BasicFunction) {
     std::string out;
     EXPECT_FALSE(absl::CUnescape(e, &out, &error));
     EXPECT_FALSE(error.empty());
+
+    out.erase();
+    EXPECT_FALSE(absl::CUnescape(e, &out));
   }
 }
 

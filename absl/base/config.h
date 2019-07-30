@@ -375,12 +375,17 @@
 // https://github.com/abseil/abseil-cpp/issues/207 and
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
 // libc++ spells out the availability requirements in the file
-// llvm-project/libcxx/include/__config.
+// llvm-project/libcxx/include/__config via the #define
+// _LIBCPP_AVAILABILITY_BAD_OPTIONAL_ACCESS.
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
   ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400) || \
   (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && \
-   __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 101200))
+   __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 120000) || \
+  (defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ < 120000) || \
+  (defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ < 50000))
 #define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 1
 #else
 #define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
