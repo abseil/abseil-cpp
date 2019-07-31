@@ -594,6 +594,7 @@ absl_cc_library(
   DEPS
     absl::container_memory
     absl::raw_hash_set
+    absl::throw_delegate
   PUBLIC
 )
 

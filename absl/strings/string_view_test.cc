@@ -941,6 +941,11 @@ TEST(StringViewTest, ConstexprCompiles) {
 #error GCC/clang should have constexpr string_view.
 #endif
 
+// MSVC 2017+ should be able to construct a constexpr string_view from a cstr.
+#if defined(_MSC_VER) && _MSC_VER >= 1910
+#define ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR 1
+#endif
+
 #endif  // ABSL_HAVE_STD_STRING_VIEW
 
 #ifdef ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR
