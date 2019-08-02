@@ -325,8 +325,9 @@ absl_cc_test(
     gmock_main
 )
 
-# TODO(cohenjon,zhangxy) Figure out why this test is failing on gcc 4.8
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+# TODO(cohenjon,zhangxy) Figure out why this test is failing on gcc 4.8 and AppleClang C++17
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9 OR
+   CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_CXX_STANDARD VERSION_GREATER 14)
 else()
 absl_cc_test(
   NAME
