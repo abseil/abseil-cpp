@@ -155,6 +155,9 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
+    deps = [
+        "//absl/meta:type_traits",
+    ],
 )
 
 cc_library(

@@ -133,6 +133,8 @@ absl_cc_library(
     "internal/invoke.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::type_traits
 )
 
 absl_cc_library(
