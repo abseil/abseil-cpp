@@ -50,6 +50,7 @@ using std::string_view;
 
 #include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
 namespace absl {
@@ -334,7 +335,17 @@ class string_view {
   //
   // Copies the contents of the `string_view` at offset `pos` and length `n`
   // into `buf`.
-  size_type copy(char* buf, size_type n, size_type pos = 0) const;
+  size_type copy(char* buf, size_type n, size_type pos = 0) const {
+    if (ABSL_PREDICT_FALSE(pos > length_)) {
+      base_internal::ThrowStdOutOfRange("absl::string_view::copy");
+    }
+    size_type rlen = (std::min)(length_ - pos, n);
+    if (rlen > 0) {
+      const char* start = ptr_ + pos;
+      std::copy(start, start + rlen, buf);
+    }
+    return rlen;
+  }
 
   // string_view::substr()
   //

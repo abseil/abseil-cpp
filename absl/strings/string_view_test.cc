@@ -369,6 +369,11 @@ TEST(StringViewTest, STL1) {
   EXPECT_EQ(buf[1], c[1]);
   EXPECT_EQ(buf[2], c[2]);
   EXPECT_EQ(buf[3], a[3]);
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(a.copy(buf, 1, 27), std::out_of_range);
+#else
+  EXPECT_DEATH(a.copy(buf, 1, 27), "absl::string_view::copy");
+#endif
 }
 
 // Separated from STL1() because some compilers produce an overly
