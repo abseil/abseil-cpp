@@ -111,14 +111,28 @@ class FlagHelpPrettyPrinter {
 
     std::vector<absl::string_view> tokens;
     if (wrap_line) {
-      tokens = absl::StrSplit(str, absl::ByAnyChar(" \f\n\r\t\v"),
-                              absl::SkipEmpty());
+      for (auto line : absl::StrSplit(str, absl::ByAnyChar("\n\r"))) {
+        if (!tokens.empty()) {
+          // Keep line separators in the input std::string.
+          tokens.push_back("\n");
+        }
+        for (auto token :
+             absl::StrSplit(line, absl::ByAnyChar(" \t"), absl::SkipEmpty())) {
+          tokens.push_back(token);
+        }
+      }
     } else {
       tokens.push_back(str);
     }
 
     for (auto token : tokens) {
       bool new_line = (line_len_ == 0);
+
+      // Respect line separators in the input std::string.
+      if (token == "\n") {
+        EndLine();
+        continue;
+      }
 
       // Write the token, ending the std::string first if necessary/possible.
       if (!new_line && (line_len_ + token.size() >= max_line_len_)) {

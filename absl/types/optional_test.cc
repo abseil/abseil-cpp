@@ -1628,6 +1628,7 @@ TEST(optionalTest, AssignmentConstraints) {
   EXPECT_TRUE(absl::is_copy_assignable<absl::optional<AnyLike>>::value);
 }
 
+#if !defined(__EMSCRIPTEN__)
 struct NestedClassBug {
   struct Inner {
     bool dummy = false;
@@ -1650,5 +1651,6 @@ TEST(optionalTest, InPlaceTSFINAEBug) {
   o.emplace();
   EXPECT_TRUE(o.has_value());
 }
+#endif  // !defined(__EMSCRIPTEN__)
 
 }  // namespace
