@@ -25,7 +25,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/bernoulli_distribution.h"
@@ -40,6 +39,7 @@
 #include "absl/random/uniform_int_distribution.h"
 #include "absl/random/uniform_real_distribution.h"
 #include "absl/random/zipf_distribution.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 
@@ -221,12 +221,12 @@ void BM_Poisson(benchmark::State& state) {
   BM_Dist<Engine, Dist>(state, a);
 }
 
-template <typename Engine, typename Dist, int V = 1, int Q = 2>
+template <typename Engine, typename Dist, int Q = 2, int V = 1>
 void BM_Zipf(benchmark::State& state) {
   using value_type = typename Dist::result_type;
-  volatile double v = V;
   volatile double q = Q;
-  BM_Dist<Engine, Dist>(state, std::numeric_limits<value_type>::max(), v, q);
+  volatile double v = V;
+  BM_Dist<Engine, Dist>(state, std::numeric_limits<value_type>::max(), q, v);
 }
 
 template <typename Engine, typename Dist>
@@ -333,8 +333,8 @@ void BM_Thread(benchmark::State& state) {
                      absl::log_uniform_int_distribution<int64_t>);             \
   BENCHMARK_TEMPLATE(BM_Dist, Engine, std::geometric_distribution<int64_t>);   \
   BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>);      \
-  BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>, 3,    \
-                     2);                                                       \
+  BENCHMARK_TEMPLATE(BM_Zipf, Engine, absl::zipf_distribution<uint64_t>, 2,    \
+                     3);                                                       \
   BENCHMARK_TEMPLATE(BM_Bernoulli, Engine, std::bernoulli_distribution,        \
                      257305);                                                  \
   BENCHMARK_TEMPLATE(BM_Bernoulli, Engine, absl::bernoulli_distribution,       \

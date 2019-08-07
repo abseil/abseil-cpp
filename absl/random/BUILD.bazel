@@ -368,9 +368,9 @@ BENCHMARK_TAGS = [
 ]
 
 # Benchmarks for various methods / test utilities
-cc_test(
+cc_binary(
     name = "benchmarks",
-    size = "small",
+    testonly = 1,
     srcs = [
         "benchmarks.cc",
     ],

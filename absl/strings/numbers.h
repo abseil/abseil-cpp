@@ -47,7 +47,7 @@ namespace absl {
 // integer type. If any errors are encountered, this function returns `false`,
 // leaving `out` in an unspecified state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
+ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str, int_type* out);
 
 // SimpleAtof()
 //
@@ -180,8 +180,8 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
 // preceded by ASCII whitespace, with a value in the range of the corresponding
 // integer type.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
-  return numbers_internal::safe_strtoi_base(s, out, 10);
+ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str, int_type* out) {
+  return numbers_internal::safe_strtoi_base(str, out, 10);
 }
 
 }  // namespace absl

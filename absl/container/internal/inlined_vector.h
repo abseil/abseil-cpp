@@ -71,14 +71,12 @@ template <typename AllocatorType, typename ValueType, typename ValueAdapter,
           typename SizeType>
 void ConstructElements(AllocatorType* alloc_ptr, ValueType* construct_first,
                        ValueAdapter* values_ptr, SizeType construct_size) {
-  // If any construction fails, all completed constructions are rolled back.
   for (SizeType i = 0; i < construct_size; ++i) {
     ABSL_INTERNAL_TRY {
       values_ptr->ConstructNext(alloc_ptr, construct_first + i);
     }
     ABSL_INTERNAL_CATCH_ANY {
       inlined_vector_internal::DestroyElements(alloc_ptr, construct_first, i);
-
       ABSL_INTERNAL_RETHROW;
     }
   }
@@ -171,6 +169,12 @@ class AllocationTransaction {
   explicit AllocationTransaction(AllocatorType* alloc_ptr)
       : alloc_data_(*alloc_ptr, nullptr) {}
 
+  ~AllocationTransaction() {
+    if (DidAllocate()) {
+      AllocatorTraits::deallocate(GetAllocator(), GetData(), GetCapacity());
+    }
+  }
+
   AllocationTransaction(const AllocationTransaction&) = delete;
   void operator=(const AllocationTransaction&) = delete;
 
@@ -183,12 +187,6 @@ class AllocationTransaction {
     GetData() = AllocatorTraits::allocate(GetAllocator(), capacity);
     GetCapacity() = capacity;
     return GetData();
-  }
-
-  ~AllocationTransaction() {
-    if (DidAllocate()) {
-      AllocatorTraits::deallocate(GetAllocator(), GetData(), GetCapacity());
-    }
   }
 
  private:
@@ -205,9 +203,21 @@ class ConstructionTransaction {
   explicit ConstructionTransaction(AllocatorType* alloc_ptr)
       : alloc_data_(*alloc_ptr, nullptr) {}
 
+  ~ConstructionTransaction() {
+    if (DidConstruct()) {
+      inlined_vector_internal::DestroyElements(std::addressof(GetAllocator()),
+                                               GetData(), GetSize());
+    }
+  }
+
   ConstructionTransaction(const ConstructionTransaction&) = delete;
   void operator=(const ConstructionTransaction&) = delete;
 
+  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
+  pointer& GetData() { return alloc_data_.template get<1>(); }
+  size_type& GetSize() { return size_; }
+
+  bool DidConstruct() { return GetData() != nullptr; }
   template <typename ValueAdapter>
   void Construct(pointer data, ValueAdapter* values_ptr, size_type size) {
     inlined_vector_internal::ConstructElements(std::addressof(GetAllocator()),
@@ -220,18 +230,7 @@ class ConstructionTransaction {
     GetSize() = 0;
   }
 
-  ~ConstructionTransaction() {
-    if (GetData() != nullptr) {
-      inlined_vector_internal::DestroyElements(std::addressof(GetAllocator()),
-                                               GetData(), GetSize());
-    }
-  }
-
  private:
-  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
-  pointer& GetData() { return alloc_data_.template get<1>(); }
-  size_type& GetSize() { return size_; }
-
   container_internal::CompressedTuple<AllocatorType, pointer> alloc_data_;
   size_type size_ = 0;
 };
@@ -345,6 +344,7 @@ class Storage {
 
   void SubtractSize(size_type count) {
     assert(count <= GetSize());
+
     GetSizeAndIsAllocated() -= count << 1;
   }
 
@@ -533,22 +533,14 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   if (new_size > storage_view.capacity) {
     size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
     pointer new_data = allocation_tx.Allocate(new_capacity);
-
-    // Construct new objects in `new_data`
     construct_loop = {new_data + storage_view.size,
                       new_size - storage_view.size};
-
-    // Move all existing objects into `new_data`
     move_construct_loop = {new_data, storage_view.size};
-
-    // Destroy all existing objects in `storage_view.data`
     destroy_loop = {storage_view.data, storage_view.size};
   } else if (new_size > storage_view.size) {
-    // Construct new objects in `storage_view.data`
     construct_loop = {storage_view.data + storage_view.size,
                       new_size - storage_view.size};
   } else {
-    // Destroy end `storage_view.size - new_size` objects in `storage_view.data`
     destroy_loop = {storage_view.data + new_size, storage_view.size - new_size};
   }
 
@@ -797,8 +789,6 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
                                                &move_values, storage_view.size);
   }
   ABSL_INTERNAL_CATCH_ANY {
-    // Writing to inlined data will trample on the existing state, thus it needs
-    // to be restored when a construction fails.
     SetAllocatedData(storage_view.data, storage_view.capacity);
     ABSL_INTERNAL_RETHROW;
   }
@@ -822,13 +812,8 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
   assert(this != other_storage_ptr);
 
   if (GetIsAllocated() && other_storage_ptr->GetIsAllocated()) {
-    // Both are allocated, thus we can swap the allocations at the top level.
-
     swap(data_.allocated, other_storage_ptr->data_.allocated);
   } else if (!GetIsAllocated() && !other_storage_ptr->GetIsAllocated()) {
-    // Both are inlined, thus element-wise swap up to smaller size, then move
-    // the remaining elements.
-
     Storage* small_ptr = this;
     Storage* large_ptr = other_storage_ptr;
     if (small_ptr->GetSize() > large_ptr->GetSize()) swap(small_ptr, large_ptr);
@@ -850,11 +835,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
         large_ptr->GetInlinedData() + small_ptr->GetSize(),
         large_ptr->GetSize() - small_ptr->GetSize());
   } else {
-    // One is allocated and the other is inlined, thus we first move the
-    // elements from the inlined instance to the inlined space in the allocated
-    // instance and then we can finish by having the other vector take on the
-    // allocation.
-
     Storage* allocated_ptr = this;
     Storage* inlined_ptr = other_storage_ptr;
     if (!allocated_ptr->GetIsAllocated()) swap(allocated_ptr, inlined_ptr);
@@ -872,8 +852,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
           &move_values, inlined_ptr->GetSize());
     }
     ABSL_INTERNAL_CATCH_ANY {
-      // Writing to inlined data will trample on the existing state, thus it
-      // needs to be restored when a construction fails.
       allocated_ptr->SetAllocatedData(allocated_storage_view.data,
                                       allocated_storage_view.capacity);
       ABSL_INTERNAL_RETHROW;
@@ -887,7 +865,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
                                   allocated_storage_view.capacity);
   }
 
-  // All cases swap the size, `is_allocated` boolean and the allocator.
   swap(GetSizeAndIsAllocated(), other_storage_ptr->GetSizeAndIsAllocated());
   swap(*GetAllocPtr(), *other_storage_ptr->GetAllocPtr());
 }
