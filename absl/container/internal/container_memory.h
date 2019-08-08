@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,7 +34,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 
 // Allocates at least n bytes aligned to the specified alignment.
@@ -287,13 +287,48 @@ struct IsLayoutCompatible {
 
 }  // namespace memory_internal
 
-// If kMutableKeys is false, only the value member is accessed.
+// The internal storage type for key-value containers like flat_hash_map.
 //
-// If kMutableKeys is true, key is accessed through all slots while value and
-// mutable_value are accessed only via INITIALIZED slots. Slots are created and
-// destroyed via mutable_value so that the key can be moved later.
+// It is convenient for the value_type of a flat_hash_map<K, V> to be
+// pair<const K, V>; the "const K" prevents accidental modification of the key
+// when dealing with the reference returned from find() and similar methods.
+// However, this creates other problems; we want to be able to emplace(K, V)
+// efficiently with move operations, and similarly be able to move a
+// pair<K, V> in insert().
+//
+// The solution is this union, which aliases the const and non-const versions
+// of the pair. This also allows flat_hash_map<const K, V> to work, even though
+// that has the same efficiency issues with move in emplace() and insert() -
+// but people do it anyway.
+//
+// If kMutableKeys is false, only the value member can be accessed.
+//
+// If kMutableKeys is true, key can be accessed through all slots while value
+// and mutable_value must be accessed only via INITIALIZED slots. Slots are
+// created and destroyed via mutable_value so that the key can be moved later.
+//
+// Accessing one of the union fields while the other is active is safe as
+// long as they are layout-compatible, which is guaranteed by the definition of
+// kMutableKeys. For C++11, the relevant section of the standard is
+// https://timsong-cpp.github.io/cppwp/n3337/class.mem#19 (9.2.19)
 template <class K, class V>
-union slot_type {
+union map_slot_type {
+  map_slot_type() {}
+  ~map_slot_type() = delete;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type = std::pair<K, V>;
+
+  value_type value;
+  mutable_value_type mutable_value;
+  K key;
+};
+
+template <class K, class V>
+struct map_slot_policy {
+  using slot_type = map_slot_type<K, V>;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type = std::pair<K, V>;
+
  private:
   static void emplace(slot_type* slot) {
     // The construction of union doesn't do anything at runtime but it allows us
@@ -303,19 +338,17 @@ union slot_type {
   // If pair<const K, V> and pair<K, V> are layout-compatible, we can accept one
   // or the other via slot_type. We are also free to access the key via
   // slot_type::key in this case.
-  using kMutableKeys =
-      std::integral_constant<bool,
-                             memory_internal::IsLayoutCompatible<K, V>::value>;
+  using kMutableKeys = memory_internal::IsLayoutCompatible<K, V>;
 
  public:
-  slot_type() {}
-  ~slot_type() = delete;
-  using value_type = std::pair<const K, V>;
-  using mutable_value_type = std::pair<K, V>;
+  static value_type& element(slot_type* slot) { return slot->value; }
+  static const value_type& element(const slot_type* slot) {
+    return slot->value;
+  }
 
-  value_type value;
-  mutable_value_type mutable_value;
-  K key;
+  static const K& key(const slot_type* slot) {
+    return kMutableKeys::value ? slot->key : slot->value.first;
+  }
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
@@ -401,7 +434,7 @@ union slot_type {
 };
 
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_CONTAINER_MEMORY_H_

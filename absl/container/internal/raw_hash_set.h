@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -91,36 +91,6 @@
 #ifndef ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
 
-#ifndef SWISSTABLE_HAVE_SSE2
-#if defined(__SSE2__) ||  \
-    (defined(_MSC_VER) && \
-     (defined(_M_X64) || (defined(_M_IX86) && _M_IX86_FP >= 2)))
-#define SWISSTABLE_HAVE_SSE2 1
-#else
-#define SWISSTABLE_HAVE_SSE2 0
-#endif
-#endif
-
-#ifndef SWISSTABLE_HAVE_SSSE3
-#ifdef __SSSE3__
-#define SWISSTABLE_HAVE_SSSE3 1
-#else
-#define SWISSTABLE_HAVE_SSSE3 0
-#endif
-#endif
-
-#if SWISSTABLE_HAVE_SSSE3 && !SWISSTABLE_HAVE_SSE2
-#error "Bad configuration!"
-#endif
-
-#if SWISSTABLE_HAVE_SSE2
-#include <emmintrin.h>
-#endif
-
-#if SWISSTABLE_HAVE_SSSE3
-#include <tmmintrin.h>
-#endif
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -135,18 +105,20 @@
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/port.h"
+#include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_policy_traits.h"
 #include "absl/container/internal/hashtable_debug_hooks.h"
+#include "absl/container/internal/hashtablez_sampler.h"
+#include "absl/container/internal/have_sse.h"
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
-#include "absl/types/optional.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 
 template <size_t Width>
@@ -193,12 +165,6 @@ struct IsDecomposable<
         Policy::apply(RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
                       std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
-
-template <class, class = void>
-struct IsTransparent : std::false_type {};
-template <class T>
-struct IsTransparent<T, absl::void_t<typename T::is_transparent>>
-    : std::true_type {};
 
 // TODO(alkis): Switch to std::is_nothrow_swappable when gcc/clang supports it.
 template <class T>
@@ -385,7 +351,7 @@ struct GroupSse2Impl {
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
 #else
-    return Match(kEmpty);
+    return Match(static_cast<h2_t>(kEmpty));
 #endif
   }
 
@@ -481,9 +447,7 @@ using Group = GroupPortableImpl;
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set;
 
-inline bool IsValidCapacity(size_t n) {
-  return ((n + 1) & n) == 0 && n >= Group::kWidth - 1;
-}
+inline bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 
 // PRECONDITION:
 //   IsValidCapacity(capacity)
@@ -505,152 +469,32 @@ inline void ConvertDeletedToEmptyAndFullToDeleted(
   ctrl[capacity] = kSentinel;
 }
 
-// Rounds up the capacity to the next power of 2 minus 1 and ensures it is
-// greater or equal to Group::kWidth - 1.
+// Rounds up the capacity to the next power of 2 minus 1, with a minimum of 1.
 inline size_t NormalizeCapacity(size_t n) {
-  constexpr size_t kMinCapacity = Group::kWidth - 1;
-  return n <= kMinCapacity
-             ? kMinCapacity
-             : (std::numeric_limits<size_t>::max)() >> LeadingZeros(n);
+  return n ? ~size_t{} >> LeadingZeros(n) : 1;
 }
 
-// The node_handle concept from C++17.
-// We specialize node_handle for sets and maps. node_handle_base holds the
-// common API of both.
-template <typename Policy, typename Alloc>
-class node_handle_base {
- protected:
-  using PolicyTraits = hash_policy_traits<Policy>;
-  using slot_type = typename PolicyTraits::slot_type;
-
- public:
-  using allocator_type = Alloc;
-
-  constexpr node_handle_base() {}
-  node_handle_base(node_handle_base&& other) noexcept {
-    *this = std::move(other);
+// We use 7/8th as maximum load factor.
+// For 16-wide groups, that gives an average of two empty slots per group.
+inline size_t CapacityToGrowth(size_t capacity) {
+  assert(IsValidCapacity(capacity));
+  // `capacity*7/8`
+  if (Group::kWidth == 8 && capacity == 7) {
+    // x-x/8 does not work when x==7.
+    return 6;
   }
-  ~node_handle_base() { destroy(); }
-  node_handle_base& operator=(node_handle_base&& other) {
-    destroy();
-    if (!other.empty()) {
-      alloc_ = other.alloc_;
-      PolicyTraits::transfer(alloc(), slot(), other.slot());
-      other.reset();
-    }
-    return *this;
+  return capacity - capacity / 8;
+}
+// From desired "growth" to a lowerbound of the necessary capacity.
+// Might not be a valid one and required NormalizeCapacity().
+inline size_t GrowthToLowerboundCapacity(size_t growth) {
+  // `growth*8/7`
+  if (Group::kWidth == 8 && growth == 7) {
+    // x+(x-1)/7 does not work when x==7.
+    return 8;
   }
-
-  bool empty() const noexcept { return !alloc_; }
-  explicit operator bool() const noexcept { return !empty(); }
-  allocator_type get_allocator() const { return *alloc_; }
-
- protected:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle_base(const allocator_type& a, slot_type* s) : alloc_(a) {
-    PolicyTraits::transfer(alloc(), slot(), s);
-  }
-
-  void destroy() {
-    if (!empty()) {
-      PolicyTraits::destroy(alloc(), slot());
-      reset();
-    }
-  }
-
-  void reset() {
-    assert(alloc_.has_value());
-    alloc_ = absl::nullopt;
-  }
-
-  slot_type* slot() const {
-    assert(!empty());
-    return reinterpret_cast<slot_type*>(std::addressof(slot_space_));
-  }
-  allocator_type* alloc() { return std::addressof(*alloc_); }
-
- private:
-  absl::optional<allocator_type> alloc_;
-  mutable absl::aligned_storage_t<sizeof(slot_type), alignof(slot_type)>
-      slot_space_;
-};
-
-// For sets.
-template <typename Policy, typename Alloc, typename = void>
-class node_handle : public node_handle_base<Policy, Alloc> {
-  using Base = typename node_handle::node_handle_base;
-
- public:
-  using value_type = typename Base::PolicyTraits::value_type;
-
-  constexpr node_handle() {}
-
-  value_type& value() const {
-    return Base::PolicyTraits::element(this->slot());
-  }
-
- private:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
-};
-
-// For maps.
-template <typename Policy, typename Alloc>
-class node_handle<Policy, Alloc, absl::void_t<typename Policy::mapped_type>>
-    : public node_handle_base<Policy, Alloc> {
-  using Base = typename node_handle::node_handle_base;
-
- public:
-  using key_type = typename Policy::key_type;
-  using mapped_type = typename Policy::mapped_type;
-
-  constexpr node_handle() {}
-
-  auto key() const -> decltype(Base::PolicyTraits::key(this->slot())) {
-    return Base::PolicyTraits::key(this->slot());
-  }
-
-  mapped_type& mapped() const {
-    return Base::PolicyTraits::value(
-        &Base::PolicyTraits::element(this->slot()));
-  }
-
- private:
-  template <typename, typename, typename, typename>
-  friend class raw_hash_set;
-
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
-};
-
-// Implement the insert_return_type<> concept of C++17.
-template <class Iterator, class NodeType>
-struct insert_return_type {
-  Iterator position;
-  bool inserted;
-  NodeType node;
-};
-
-// Helper trait to allow or disallow arbitrary keys when the hash and
-// eq functions are transparent.
-// It is very important that the inner template is an alias and that the type it
-// produces is not a dependent type. Otherwise, type deduction would fail.
-template <bool is_transparent>
-struct KeyArg {
-  // Transparent. Forward `K`.
-  template <typename K, typename key_type>
-  using type = K;
-};
-
-template <>
-struct KeyArg<false> {
-  // Not transparent. Always use `key_type`.
-  template <typename K, typename key_type>
-  using type = key_type;
-};
+  return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
+}
 
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
@@ -666,14 +510,14 @@ struct KeyArg<false> {
 // if they are equal, false if they are not. If two keys compare equal, then
 // their hash values as defined by Hash MUST be equal.
 //
-// Allocator: an Allocator [http://devdocs.io/cpp/concept/allocator] with which
+// Allocator: an Allocator [https://devdocs.io/cpp/concept/allocator] with which
 // the storage of the hashtable will be allocated and the elements will be
 // constructed and destroyed.
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set {
   using PolicyTraits = hash_policy_traits<Policy>;
-  using KeyArgImpl = container_internal::KeyArg<IsTransparent<Eq>::value &&
-                                                IsTransparent<Hash>::value>;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
  public:
   using init_type = typename PolicyTraits::init_type;
@@ -814,7 +658,11 @@ class raw_hash_set {
     }
 
     ctrl_t* ctrl_ = nullptr;
-    slot_type* slot_;
+    // To avoid uninitialized member warnigs, put slot_ in an anonymous union.
+    // The member is not initialized on singleton and end iterators.
+    union {
+      slot_type* slot_;
+    };
   };
 
   class const_iterator {
@@ -854,7 +702,8 @@ class raw_hash_set {
     iterator inner_;
   };
 
-  using node_type = container_internal::node_handle<Policy, Alloc>;
+  using node_type = node_handle<Policy, hash_policy_traits<Policy>, Alloc>;
+  using insert_return_type = InsertReturnType<iterator, node_type>;
 
   raw_hash_set() noexcept(
       std::is_nothrow_default_constructible<hasher>::value&&
@@ -867,7 +716,7 @@ class raw_hash_set {
       : ctrl_(EmptyGroup()), settings_(0, hash, eq, alloc) {
     if (bucket_count) {
       capacity_ = NormalizeCapacity(bucket_count);
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
       initialize_slots();
     }
   }
@@ -909,8 +758,8 @@ class raw_hash_set {
   // that accept std::initializer_list<T> and std::initializer_list<init_type>.
   // This is advantageous for performance.
   //
-  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then copies
-  //   // the strings into the set.
+  //   // Turns {"abc", "def"} into std::initializer_list<std::string>, then
+  //   // copies the strings into the set.
   //   std::unordered_set<std::string> s = {"abc", "def"};
   //
   //   // Turns {"abc", "def"} into std::initializer_list<const char*>, then
@@ -973,9 +822,10 @@ class raw_hash_set {
     // than a full `insert`.
     for (const auto& v : that) {
       const size_t hash = PolicyTraits::apply(HashElement{hash_ref()}, v);
-      const size_t i = find_first_non_full(hash);
-      set_ctrl(i, H2(hash));
-      emplace_at(i, v);
+      auto target = find_first_non_full(hash);
+      set_ctrl(target.offset, H2(hash));
+      emplace_at(target.offset, v);
+      infoz_.RecordInsert(hash, target.probe_length);
     }
     size_ = that.size();
     growth_left() -= that.size();
@@ -989,6 +839,7 @@ class raw_hash_set {
         slots_(absl::exchange(that.slots_, nullptr)),
         size_(absl::exchange(that.size_, 0)),
         capacity_(absl::exchange(that.capacity_, 0)),
+        infoz_(absl::exchange(that.infoz_, HashtablezInfoHandle())),
         // Hash, equality and allocator are copied instead of moved because
         // `that` must be left valid. If Hash is std::function<Key>, moving it
         // would create a nullptr functor that cannot be called.
@@ -1009,6 +860,7 @@ class raw_hash_set {
       std::swap(size_, that.size_);
       std::swap(capacity_, that.capacity_);
       std::swap(growth_left(), that.growth_left());
+      std::swap(infoz_, that.infoz_);
     } else {
       reserve(that.size());
       // Note: this will copy elements of dense_set and unordered_set instead of
@@ -1058,7 +910,7 @@ class raw_hash_set {
   size_t capacity() const { return capacity_; }
   size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
 
-  void clear() {
+  ABSL_ATTRIBUTE_REINITIALIZES void clear() {
     // Iterating over this container is O(bucket_count()). When bucket_count()
     // is much greater than size(), iteration becomes prohibitively expensive.
     // For clear() it is more important to reuse the allocated array when the
@@ -1076,9 +928,10 @@ class raw_hash_set {
       }
       size_ = 0;
       reset_ctrl();
-      growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor);
+      reset_growth_left();
     }
     assert(empty());
+    infoz_.RecordStorageChanged(0, capacity_);
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -1117,7 +970,7 @@ class raw_hash_set {
   // This overload kicks in when the argument is an rvalue of init_type. Its
   // purpose is to handle brace-init-list arguments.
   //
-  //   flat_hash_set<std::string, int> s;
+  //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
   std::pair<iterator, bool> insert(init_type&& value) {
     return emplace(std::move(value));
@@ -1158,13 +1011,14 @@ class raw_hash_set {
     insert(ilist.begin(), ilist.end());
   }
 
-  insert_return_type<iterator, node_type> insert(node_type&& node) {
+  insert_return_type insert(node_type&& node) {
     if (!node) return {end(), false, node_type()};
-    const auto& elem = PolicyTraits::element(node.slot());
+    const auto& elem = PolicyTraits::element(CommonAccess::GetSlot(node));
     auto res = PolicyTraits::apply(
-        InsertSlot<false>{*this, std::move(*node.slot())}, elem);
+        InsertSlot<false>{*this, std::move(*CommonAccess::GetSlot(node))},
+        elem);
     if (res.second) {
-      node.reset();
+      CommonAccess::Reset(&node);
       return {res.first, true, node_type()};
     } else {
       return {res.first, false, std::move(node)};
@@ -1328,7 +1182,8 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
-    node_type node(alloc_ref(), position.inner_.slot_);
+    auto node =
+        CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
     return node;
   }
@@ -1353,6 +1208,7 @@ class raw_hash_set {
     swap(growth_left(), that.growth_left());
     swap(hash_ref(), that.hash_ref());
     swap(eq_ref(), that.eq_ref());
+    swap(infoz_, that.infoz_);
     if (AllocTraits::propagate_on_container_swap::value) {
       swap(alloc_ref(), that.alloc_ref());
     } else {
@@ -1363,17 +1219,21 @@ class raw_hash_set {
 
   void rehash(size_t n) {
     if (n == 0 && capacity_ == 0) return;
-    if (n == 0 && size_ == 0) return destroy_slots();
-    auto m = NormalizeCapacity(std::max(n, NumSlotsFast(size())));
+    if (n == 0 && size_ == 0) {
+      destroy_slots();
+      infoz_.RecordStorageChanged(0, 0);
+      return;
+    }
+    // bitor is a faster way of doing `max` here. We will round up to the next
+    // power-of-2-minus-1, so bitor is good enough.
+    auto m = NormalizeCapacity(n | GrowthToLowerboundCapacity(size()));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity_) {
       resize(m);
     }
   }
 
-  void reserve(size_t n) {
-    rehash(NumSlotsFast(n));
-  }
+  void reserve(size_t n) { rehash(GrowthToLowerboundCapacity(n)); }
 
   // Extension API: support for heterogeneous keys.
   //
@@ -1551,13 +1411,6 @@ class raw_hash_set {
     slot_type&& slot;
   };
 
-  // Computes std::ceil(n / kMaxLoadFactor). Faster than calling std::ceil.
-  static inline size_t NumSlotsFast(size_t n) {
-    return static_cast<size_t>(
-        (n * kMaxLoadFactorDenominator + (kMaxLoadFactorNumerator - 1)) /
-        kMaxLoadFactorNumerator);
-  }
-
   // "erases" the object from the container, except that it doesn't actually
   // destroy the object. It only updates all the metadata of the class.
   // This can be used in conjunction with Policy::transfer to move the object to
@@ -1580,17 +1433,34 @@ class raw_hash_set {
 
     set_ctrl(index, was_never_full ? kEmpty : kDeleted);
     growth_left() += was_never_full;
+    infoz_.RecordErase();
   }
 
   void initialize_slots() {
     assert(capacity_);
+    // Folks with custom allocators often make unwarranted assumptions about the
+    // behavior of their classes vis-a-vis trivial destructability and what
+    // calls they will or wont make.  Avoid sampling for people with custom
+    // allocators to get us out of this mess.  This is not a hard guarantee but
+    // a workaround while we plan the exact guarantee we want to provide.
+    //
+    // People are often sloppy with the exact type of their allocator (sometimes
+    // it has an extra const or is missing the pair, but rebinds made it work
+    // anyway).  To avoid the ambiguity, we work off SlotAlloc which we have
+    // bound more carefully.
+    if (std::is_same<SlotAlloc, std::allocator<slot_type>>::value &&
+        slots_ == nullptr) {
+      infoz_ = Sample();
+    }
+
     auto layout = MakeLayout(capacity_);
     char* mem = static_cast<char*>(
         Allocate<Layout::Alignment()>(&alloc_ref(), layout.AllocSize()));
     ctrl_ = reinterpret_cast<ctrl_t*>(layout.template Pointer<0>(mem));
     slots_ = layout.template Pointer<1>(mem);
     reset_ctrl();
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
+    infoz_.RecordStorageChanged(size_, capacity_);
   }
 
   void destroy_slots() {
@@ -1619,11 +1489,14 @@ class raw_hash_set {
     capacity_ = new_capacity;
     initialize_slots();
 
+    size_t total_probe_length = 0;
     for (size_t i = 0; i != old_capacity; ++i) {
       if (IsFull(old_ctrl[i])) {
         size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                           PolicyTraits::element(old_slots + i));
-        size_t new_i = find_first_non_full(hash);
+        auto target = find_first_non_full(hash);
+        size_t new_i = target.offset;
+        total_probe_length += target.probe_length;
         set_ctrl(new_i, H2(hash));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, old_slots + i);
       }
@@ -1635,10 +1508,12 @@ class raw_hash_set {
       Deallocate<Layout::Alignment()>(&alloc_ref(), old_ctrl,
                                       layout.AllocSize());
     }
+    infoz_.RecordRehash(total_probe_length);
   }
 
   void drop_deletes_without_resize() ABSL_ATTRIBUTE_NOINLINE {
     assert(IsValidCapacity(capacity_));
+    assert(!is_small());
     // Algorithm:
     // - mark all DELETED slots as EMPTY
     // - mark all FULL slots as DELETED
@@ -1658,12 +1533,15 @@ class raw_hash_set {
     ConvertDeletedToEmptyAndFullToDeleted(ctrl_, capacity_);
     typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
         raw;
+    size_t total_probe_length = 0;
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
     for (size_t i = 0; i != capacity_; ++i) {
       if (!IsDeleted(ctrl_[i])) continue;
       size_t hash = PolicyTraits::apply(HashElement{hash_ref()},
                                         PolicyTraits::element(slots_ + i));
-      size_t new_i = find_first_non_full(hash);
+      auto target = find_first_non_full(hash);
+      size_t new_i = target.offset;
+      total_probe_length += target.probe_length;
 
       // Verify if the old and new i fall within the same group wrt the hash.
       // If they do, we don't need to move the object as it falls already in the
@@ -1695,13 +1573,14 @@ class raw_hash_set {
         --i;  // repeat
       }
     }
-    growth_left() = static_cast<size_t>(capacity_ * kMaxLoadFactor) - size_;
+    reset_growth_left();
+    infoz_.RecordRehash(total_probe_length);
   }
 
   void rehash_and_grow_if_necessary() {
     if (capacity_ == 0) {
-      resize(Group::kWidth - 1);
-    } else if (size() <= kMaxLoadFactor / 2 * capacity_) {
+      resize(1);
+    } else if (size() <= CapacityToGrowth(capacity()) / 2) {
       // Squash DELETED without growing if there is enough capacity.
       drop_deletes_without_resize();
     } else {
@@ -1736,24 +1615,26 @@ class raw_hash_set {
   // - the input is already a set
   // - there are enough slots
   // - the element with the hash is not in the table
-  size_t find_first_non_full(size_t hash) {
+  struct FindInfo {
+    size_t offset;
+    size_t probe_length;
+  };
+  FindInfo find_first_non_full(size_t hash) {
     auto seq = probe(hash);
     while (true) {
       Group g{ctrl_ + seq.offset()};
       auto mask = g.MatchEmptyOrDeleted();
       if (mask) {
 #if !defined(NDEBUG)
-        // We want to force small tables to have random entries too, so
-        // in debug build we will randomly insert in either the front or back of
+        // We want to add entropy even when ASLR is not enabled.
+        // In debug build we will randomly insert in either the front or back of
         // the group.
         // TODO(kfm,sbenza): revisit after we do unconditional mixing
-        if (ShouldInsertBackwards(hash, ctrl_))
-          return seq.offset(mask.HighestBitSet());
-        else
-          return seq.offset(mask.LowestBitSet());
-#else
-        return seq.offset(mask.LowestBitSet());
+        if (!is_small() && ShouldInsertBackwards(hash, ctrl_)) {
+          return {seq.offset(mask.HighestBitSet()), seq.index()};
+        }
 #endif
+        return {seq.offset(mask.LowestBitSet()), seq.index()};
       }
       assert(seq.index() < capacity_ && "full table!");
       seq.next();
@@ -1792,15 +1673,17 @@ class raw_hash_set {
   }
 
   size_t prepare_insert(size_t hash) ABSL_ATTRIBUTE_NOINLINE {
-    size_t target = find_first_non_full(hash);
-    if (ABSL_PREDICT_FALSE(growth_left() == 0 && !IsDeleted(ctrl_[target]))) {
+    auto target = find_first_non_full(hash);
+    if (ABSL_PREDICT_FALSE(growth_left() == 0 &&
+                           !IsDeleted(ctrl_[target.offset]))) {
       rehash_and_grow_if_necessary();
       target = find_first_non_full(hash);
     }
     ++size_;
-    growth_left() -= IsEmpty(ctrl_[target]);
-    set_ctrl(target, H2(hash));
-    return target;
+    growth_left() -= IsEmpty(ctrl_[target.offset]);
+    set_ctrl(target.offset, H2(hash));
+    infoz_.RecordInsert(hash, target.probe_length);
+    return target.offset;
   }
 
   // Constructs the value in the space pointed by the iterator. This only works
@@ -1838,6 +1721,10 @@ class raw_hash_set {
     SanitizerPoisonMemoryRegion(slots_, sizeof(slot_type) * capacity_);
   }
 
+  void reset_growth_left() {
+    growth_left() = CapacityToGrowth(capacity()) - size_;
+  }
+
   // Sets the control byte, and if `i < Group::kWidth`, set the cloned byte at
   // the end too.
   void set_ctrl(size_t i, ctrl_t h) {
@@ -1850,10 +1737,27 @@ class raw_hash_set {
     }
 
     ctrl_[i] = h;
-    ctrl_[((i - Group::kWidth) & capacity_) + Group::kWidth] = h;
+    ctrl_[((i - Group::kWidth) & capacity_) + 1 +
+          ((Group::kWidth - 1) & capacity_)] = h;
   }
 
   size_t& growth_left() { return settings_.template get<0>(); }
+
+  // The representation of the object has two modes:
+  //  - small: For capacities < kWidth-1
+  //  - large: For the rest.
+  //
+  // Differences:
+  //  - In small mode we are able to use the whole capacity. The extra control
+  //  bytes give us at least one "empty" control byte to stop the iteration.
+  //  This is important to make 1 a valid capacity.
+  //
+  //  - In small mode only the first `capacity()` control bytes after the
+  //  sentinel are valid. The rest contain dummy kEmpty values that do not
+  //  represent a real slot. This is important to take into account on
+  //  find_first_non_full(), where we never try ShouldInsertBackwards() for
+  //  small tables.
+  bool is_small() const { return capacity_ < Group::kWidth - 1; }
 
   hasher& hash_ref() { return settings_.template get<1>(); }
   const hasher& hash_ref() const { return settings_.template get<1>(); }
@@ -1864,12 +1768,6 @@ class raw_hash_set {
     return settings_.template get<3>();
   }
 
-  // On average each group has 2 empty slot (for the vectorized case).
-  static constexpr int64_t kMaxLoadFactorNumerator = 14;
-  static constexpr int64_t kMaxLoadFactorDenominator = 16;
-  static constexpr float kMaxLoadFactor =
-      1.0 * kMaxLoadFactorNumerator / kMaxLoadFactorDenominator;
-
   // TODO(alkis): Investigate removing some of these fields:
   // - ctrl/slots can be derived from each other
   // - size can be moved into the slot array
@@ -1877,6 +1775,7 @@ class raw_hash_set {
   slot_type* slots_ = nullptr;     // [capacity * slot_type]
   size_t size_ = 0;                // number of full slots
   size_t capacity_ = 0;            // total number of slots
+  HashtablezInfoHandle infoz_;
   absl::container_internal::CompressedTuple<size_t /* growth_left */, hasher,
                                             key_equal, allocator_type>
       settings_{0, hasher{}, key_equal{}, allocator_type{}};
@@ -1929,10 +1828,9 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
   }
 
   static size_t LowerBoundAllocatedByteSize(size_t size) {
-    size_t capacity = container_internal::NormalizeCapacity(
-        std::ceil(size / Set::kMaxLoadFactor));
+    size_t capacity = GrowthToLowerboundCapacity(size);
     if (capacity == 0) return 0;
-    auto layout = Set::MakeLayout(capacity);
+    auto layout = Set::MakeLayout(NormalizeCapacity(capacity));
     size_t m = layout.AllocSize();
     size_t per_slot = Traits::space_used(static_cast<const Slot*>(nullptr));
     if (per_slot != ~size_t{}) {
@@ -1944,7 +1842,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 
 }  // namespace hashtable_debug_internal
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_

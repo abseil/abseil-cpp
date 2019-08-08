@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,7 +51,7 @@ template <typename T>
 class Uint128FloatTraitsTest : public ::testing::Test {};
 typedef ::testing::Types<float, double, long double> FloatingPointTypes;
 
-TYPED_TEST_CASE(Uint128IntegerTraitsTest, IntegerTypes);
+TYPED_TEST_SUITE(Uint128IntegerTraitsTest, IntegerTypes);
 
 TYPED_TEST(Uint128IntegerTraitsTest, ConstructAssignTest) {
   static_assert(std::is_constructible<absl::uint128, TypeParam>::value,
@@ -62,7 +62,7 @@ TYPED_TEST(Uint128IntegerTraitsTest, ConstructAssignTest) {
                 "TypeParam must not be assignable from absl::uint128");
 }
 
-TYPED_TEST_CASE(Uint128FloatTraitsTest, FloatingPointTypes);
+TYPED_TEST_SUITE(Uint128FloatTraitsTest, FloatingPointTypes);
 
 TYPED_TEST(Uint128FloatTraitsTest, ConstructAssignTest) {
   static_assert(std::is_constructible<absl::uint128, TypeParam>::value,
@@ -271,6 +271,20 @@ TEST(Uint128, ConversionTests) {
   EXPECT_EQ(static_cast<absl::uint128>(round_to_zero), 0);
   EXPECT_EQ(static_cast<absl::uint128>(round_to_five), 5);
   EXPECT_EQ(static_cast<absl::uint128>(round_to_nine), 9);
+
+  absl::uint128 highest_precision_in_long_double =
+      ~absl::uint128{} >> (128 - std::numeric_limits<long double>::digits);
+  EXPECT_EQ(highest_precision_in_long_double,
+            static_cast<absl::uint128>(
+                static_cast<long double>(highest_precision_in_long_double)));
+  // Apply a mask just to make sure all the bits are the right place.
+  const absl::uint128 arbitrary_mask =
+      absl::MakeUint128(0xa29f622677ded751, 0xf8ca66add076f468);
+  EXPECT_EQ(highest_precision_in_long_double & arbitrary_mask,
+            static_cast<absl::uint128>(static_cast<long double>(
+                highest_precision_in_long_double & arbitrary_mask)));
+
+  EXPECT_EQ(static_cast<absl::uint128>(-0.1L), 0);
 }
 
 TEST(Uint128, OperatorAssignReturnRef) {
@@ -438,6 +452,31 @@ TEST(Uint128, NumericLimitsTest) {
   EXPECT_EQ(0, std::numeric_limits<absl::uint128>::min());
   EXPECT_EQ(0, std::numeric_limits<absl::uint128>::lowest());
   EXPECT_EQ(absl::Uint128Max(), std::numeric_limits<absl::uint128>::max());
+}
+
+TEST(Uint128, Hash) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      // Some simple values
+      absl::uint128{0},
+      absl::uint128{1},
+      ~absl::uint128{},
+      // 64 bit limits
+      absl::uint128{std::numeric_limits<int64_t>::max()},
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 0,
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 1,
+      absl::uint128{std::numeric_limits<uint64_t>::max()} + 2,
+      // Keeping high same
+      absl::uint128{1} << 62,
+      absl::uint128{1} << 63,
+      // Keeping low same
+      absl::uint128{1} << 64,
+      absl::uint128{1} << 65,
+      // 128 bit limits
+      std::numeric_limits<absl::uint128>::max(),
+      std::numeric_limits<absl::uint128>::max() - 1,
+      std::numeric_limits<absl::uint128>::min() + 1,
+      std::numeric_limits<absl::uint128>::min(),
+  }));
 }
 
 }  // namespace

@@ -36,7 +36,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 class Condition;
 
 namespace synchronization_internal {
@@ -215,6 +215,9 @@ class SynchronizationStorage {
   // stack) should use this constructor.
   explicit SynchronizationStorage(base_internal::LinkerInitialized) {}
 
+  constexpr explicit SynchronizationStorage(absl::ConstInitType)
+      : is_dynamic_(false), once_(), space_{{0}} {}
+
   SynchronizationStorage(SynchronizationStorage&) = delete;
   SynchronizationStorage& operator=(SynchronizationStorage&) = delete;
 
@@ -254,5 +257,5 @@ class SynchronizationStorage {
 };
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

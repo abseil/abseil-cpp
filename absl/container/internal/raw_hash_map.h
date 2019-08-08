@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,11 +19,12 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/internal/throw_delegate.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 
 template <class Policy, class Hash, class Eq, class Alloc>
@@ -40,8 +41,8 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   using MappedConstReference = decltype(P::value(
       std::addressof(std::declval<typename raw_hash_map::const_reference>())));
 
-  using KeyArgImpl = container_internal::KeyArg<IsTransparent<Eq>::value &&
-                                                IsTransparent<Hash>::value>;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
  public:
   using key_type = typename Policy::key_type;
@@ -137,14 +138,20 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   template <class K = key_type, class P = Policy>
   MappedReference<P> at(const key_arg<K>& key) {
     auto it = this->find(key);
-    if (it == this->end()) std::abort();
+    if (it == this->end()) {
+      base_internal::ThrowStdOutOfRange(
+          "absl::container_internal::raw_hash_map<>::at");
+    }
     return Policy::value(&*it);
   }
 
   template <class K = key_type, class P = Policy>
   MappedConstReference<P> at(const key_arg<K>& key) const {
     auto it = this->find(key);
-    if (it == this->end()) std::abort();
+    if (it == this->end()) {
+      base_internal::ThrowStdOutOfRange(
+          "absl::container_internal::raw_hash_map<>::at");
+    }
     return Policy::value(&*it);
   }
 
@@ -181,7 +188,7 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
 };
 
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_MAP_H_

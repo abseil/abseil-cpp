@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,8 +39,8 @@
 // equal functions are still bound to T. This is important because some type U
 // can be hashed by/tested for equality differently depending on T. A notable
 // example is `const char*`. `const char*` is treated as a c-style string when
-// the hash function is hash<string> but as a pointer when the hash function is
-// hash<void*>.
+// the hash function is hash<std::string> but as a pointer when the hash
+// function is hash<void*>.
 //
 #ifndef ABSL_CONTAINER_INTERNAL_HASH_FUNCTION_DEFAULTS_H_
 #define ABSL_CONTAINER_INTERNAL_HASH_FUNCTION_DEFAULTS_H_
@@ -56,7 +56,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 
 // The hash of an object of type T is computed by using absl::Hash.
@@ -84,6 +84,7 @@ struct StringHashEq {
     }
   };
 };
+
 template <>
 struct HashEq<std::string> : StringHashEq {};
 template <>
@@ -139,7 +140,7 @@ template <class T>
 using hash_default_eq = typename container_internal::HashEq<T>::Eq;
 
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASH_FUNCTION_DEFAULTS_H_

@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,8 +19,8 @@
 //
 // This header file defines 128-bit integer types.
 //
-// Currently, this file defines `uint128`, an unsigned 128-bit integer; a signed
-// 128-bit integer is forthcoming.
+// Currently, this file defines `uint128`, an unsigned 128-bit integer;
+// a signed 128-bit integer is forthcoming.
 
 #ifndef ABSL_NUMERIC_INT128_H_
 #define ABSL_NUMERIC_INT128_H_
@@ -37,14 +37,22 @@
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 
-#if defined(_MSC_VER) && defined(_WIN64)
+#if defined(_MSC_VER)
+// In very old versions of MSVC and when the /Zc:wchar_t flag is off, wchar_t is
+// a typedef for unsigned short.  Otherwise wchar_t is mapped to the __wchar_t
+// builtin type.  We need to make sure not to define operator wchar_t()
+// alongside operator unsigned short() in these instances.
+#define ABSL_INTERNAL_WCHAR_T __wchar_t
+#if defined(_M_X64)
 #include <intrin.h>
 #pragma intrinsic(_umul128)
-#endif  // defined(_MSC_VER) && defined(_WIN64)
+#endif  // defined(_M_X64)
+#else   // defined(_MSC_VER)
+#define ABSL_INTERNAL_WCHAR_T wchar_t
+#endif  // defined(_MSC_VER)
 
 namespace absl {
-inline namespace lts_2018_12_18 {
-
+inline namespace lts_2019_08_08 {
 
 // uint128
 //
@@ -132,7 +140,7 @@ class
   constexpr explicit operator unsigned char() const;
   constexpr explicit operator char16_t() const;
   constexpr explicit operator char32_t() const;
-  constexpr explicit operator wchar_t() const;
+  constexpr explicit operator ABSL_INTERNAL_WCHAR_T() const;
   constexpr explicit operator short() const;  // NOLINT(runtime/int)
   // NOLINTNEXTLINE(runtime/int)
   constexpr explicit operator unsigned short() const;
@@ -237,7 +245,7 @@ constexpr uint128 Uint128Max() {
                  (std::numeric_limits<uint64_t>::max)());
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 // Specialized numeric_limits for uint128.
@@ -273,9 +281,9 @@ class numeric_limits<absl::uint128> {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
   static constexpr bool tinyness_before = false;
 
-  static constexpr absl::uint128 min() { return 0; }
+  static constexpr absl::uint128 (min)() { return 0; }
   static constexpr absl::uint128 lowest() { return 0; }
-  static constexpr absl::uint128 max() { return absl::Uint128Max(); }
+  static constexpr absl::uint128 (max)() { return absl::Uint128Max(); }
   static constexpr absl::uint128 epsilon() { return 0; }
   static constexpr absl::uint128 round_error() { return 0; }
   static constexpr absl::uint128 infinity() { return 0; }
@@ -291,7 +299,7 @@ class numeric_limits<absl::uint128> {
 //                      Implementation details follow
 // --------------------------------------------------------------------------
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
 constexpr uint128 MakeUint128(uint64_t high, uint64_t low) {
   return uint128(high, low);
@@ -471,8 +479,8 @@ constexpr uint128::operator char32_t() const {
   return static_cast<char32_t>(lo_);
 }
 
-constexpr uint128::operator wchar_t() const {
-  return static_cast<wchar_t>(lo_);
+constexpr uint128::operator ABSL_INTERNAL_WCHAR_T() const {
+  return static_cast<ABSL_INTERNAL_WCHAR_T>(lo_);
 }
 
 // NOLINTNEXTLINE(runtime/int)
@@ -669,7 +677,7 @@ inline uint128 operator*(uint128 lhs, uint128 rhs) {
   // can be used for uint128 storage.
   return static_cast<unsigned __int128>(lhs) *
          static_cast<unsigned __int128>(rhs);
-#elif defined(_MSC_VER) && defined(_WIN64)
+#elif defined(_MSC_VER) && defined(_M_X64)
   uint64_t carry;
   uint64_t low = _umul128(Uint128Low64(lhs), Uint128Low64(rhs), &carry);
   return MakeUint128(Uint128Low64(lhs) * Uint128High64(rhs) +
@@ -720,7 +728,9 @@ inline uint128& uint128::operator--() {
 #include "absl/numeric/int128_no_intrinsic.inc"
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
+
+#undef ABSL_INTERNAL_WCHAR_T
 
 #endif  // ABSL_NUMERIC_INT128_H_

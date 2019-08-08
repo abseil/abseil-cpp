@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
 #include "absl/hash/hash.h"
 
 #include <array>
+#include <bitset>
 #include <cstring>
 #include <deque>
 #include <forward_list>
@@ -50,7 +51,7 @@ using absl::hash_internal::SpyHashState;
 template <typename T>
 class HashValueIntTest : public testing::Test {
 };
-TYPED_TEST_CASE_P(HashValueIntTest);
+TYPED_TEST_SUITE_P(HashValueIntTest);
 
 template <typename T>
 SpyHashState SpyHash(const T& value) {
@@ -84,11 +85,349 @@ using IntTypes = testing::Types<unsigned char, char, int, int32_t, int64_t, uint
                                 uint64_t, size_t>;
 INSTANTIATE_TYPED_TEST_CASE_P(My, HashValueIntTest, IntTypes);
 
-template <typename T, typename = void>
-struct IsHashCallble : std::false_type {};
+enum LegacyEnum { kValue1, kValue2, kValue3 };
+
+enum class EnumClass { kValue4, kValue5, kValue6 };
+
+TEST(HashValueTest, EnumAndBool) {
+  EXPECT_TRUE((is_hashable<LegacyEnum>::value));
+  EXPECT_TRUE((is_hashable<EnumClass>::value));
+  EXPECT_TRUE((is_hashable<bool>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      LegacyEnum::kValue1, LegacyEnum::kValue2, LegacyEnum::kValue3)));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      EnumClass::kValue4, EnumClass::kValue5, EnumClass::kValue6)));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(true, false)));
+}
+
+TEST(HashValueTest, FloatingPoint) {
+  EXPECT_TRUE((is_hashable<float>::value));
+  EXPECT_TRUE((is_hashable<double>::value));
+  EXPECT_TRUE((is_hashable<long double>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(42.f, 0.f, -0.f, std::numeric_limits<float>::infinity(),
+                      -std::numeric_limits<float>::infinity())));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(42., 0., -0., std::numeric_limits<double>::infinity(),
+                      -std::numeric_limits<double>::infinity())));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      // Add some values with small exponent to test that NORMAL values also
+      // append their category.
+      .5L, 1.L, 2.L, 4.L, 42.L, 0.L, -0.L,
+      17 * static_cast<long double>(std::numeric_limits<double>::max()),
+      std::numeric_limits<long double>::infinity(),
+      -std::numeric_limits<long double>::infinity())));
+}
+
+TEST(HashValueTest, Pointer) {
+  EXPECT_TRUE((is_hashable<int*>::value));
+
+  int i;
+  int* ptr = &i;
+  int* n = nullptr;
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(&i, ptr, nullptr, ptr + 1, n)));
+}
+
+TEST(HashValueTest, PointerAlignment) {
+  // We want to make sure that pointer alignment will not cause bits to be
+  // stuck.
+
+  constexpr size_t kTotalSize = 1 << 20;
+  std::unique_ptr<char[]> data(new char[kTotalSize]);
+  constexpr size_t kLog2NumValues = 5;
+  constexpr size_t kNumValues = 1 << kLog2NumValues;
+
+  for (size_t align = 1; align < kTotalSize / kNumValues;
+       align < 8 ? align += 1 : align < 1024 ? align += 8 : align += 32) {
+    SCOPED_TRACE(align);
+    ASSERT_LE(align * kNumValues, kTotalSize);
+
+    size_t bits_or = 0;
+    size_t bits_and = ~size_t{};
+
+    for (size_t i = 0; i < kNumValues; ++i) {
+      size_t hash = absl::Hash<void*>()(data.get() + i * align);
+      bits_or |= hash;
+      bits_and &= hash;
+    }
+
+    // Limit the scope to the bits we would be using for Swisstable.
+    constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
+    size_t stuck_bits = (~bits_or | bits_and) & kMask;
+    EXPECT_EQ(stuck_bits, 0) << "0x" << std::hex << stuck_bits;
+  }
+}
+
+TEST(HashValueTest, PairAndTuple) {
+  EXPECT_TRUE((is_hashable<std::pair<int, int>>::value));
+  EXPECT_TRUE((is_hashable<std::pair<const int&, const int&>>::value));
+  EXPECT_TRUE((is_hashable<std::tuple<int&, int&>>::value));
+  EXPECT_TRUE((is_hashable<std::tuple<int&&, int&&>>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::make_pair(0, 42), std::make_pair(0, 42), std::make_pair(42, 0),
+      std::make_pair(0, 0), std::make_pair(42, 42), std::make_pair(1, 42))));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(std::make_tuple(0, 0, 0), std::make_tuple(0, 0, 42),
+                      std::make_tuple(0, 23, 0), std::make_tuple(17, 0, 0),
+                      std::make_tuple(42, 0, 0), std::make_tuple(3, 9, 9),
+                      std::make_tuple(0, 0, -42))));
+
+  // Test that tuples of lvalue references work (so we need a few lvalues):
+  int a = 0, b = 1, c = 17, d = 23;
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::tie(a, a), std::tie(a, b), std::tie(b, c), std::tie(c, d))));
+
+  // Test that tuples of rvalue references work:
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::forward_as_tuple(0, 0, 0), std::forward_as_tuple(0, 0, 42),
+      std::forward_as_tuple(0, 23, 0), std::forward_as_tuple(17, 0, 0),
+      std::forward_as_tuple(42, 0, 0), std::forward_as_tuple(3, 9, 9),
+      std::forward_as_tuple(0, 0, -42))));
+}
+
+TEST(HashValueTest, CombineContiguousWorks) {
+  std::vector<std::tuple<int>> v1 = {std::make_tuple(1), std::make_tuple(3)};
+  std::vector<std::tuple<int>> v2 = {std::make_tuple(1), std::make_tuple(2)};
+
+  auto vh1 = SpyHash(v1);
+  auto vh2 = SpyHash(v2);
+  EXPECT_NE(vh1, vh2);
+}
+
+struct DummyDeleter {
+  template <typename T>
+  void operator() (T* ptr) {}
+};
+
+struct SmartPointerEq {
+  template <typename T, typename U>
+  bool operator()(const T& t, const U& u) const {
+    return GetPtr(t) == GetPtr(u);
+  }
+
+  template <typename T>
+  static auto GetPtr(const T& t) -> decltype(&*t) {
+    return t ? &*t : nullptr;
+  }
+
+  static std::nullptr_t GetPtr(std::nullptr_t) { return nullptr; }
+};
+
+TEST(HashValueTest, SmartPointers) {
+  EXPECT_TRUE((is_hashable<std::unique_ptr<int>>::value));
+  EXPECT_TRUE((is_hashable<std::unique_ptr<int, DummyDeleter>>::value));
+  EXPECT_TRUE((is_hashable<std::shared_ptr<int>>::value));
+
+  int i, j;
+  std::unique_ptr<int, DummyDeleter> unique1(&i);
+  std::unique_ptr<int, DummyDeleter> unique2(&i);
+  std::unique_ptr<int, DummyDeleter> unique_other(&j);
+  std::unique_ptr<int, DummyDeleter> unique_null;
+
+  std::shared_ptr<int> shared1(&i, DummyDeleter());
+  std::shared_ptr<int> shared2(&i, DummyDeleter());
+  std::shared_ptr<int> shared_other(&j, DummyDeleter());
+  std::shared_ptr<int> shared_null;
+
+  // Sanity check of the Eq function.
+  ASSERT_TRUE(SmartPointerEq{}(unique1, shared1));
+  ASSERT_FALSE(SmartPointerEq{}(unique1, shared_other));
+  ASSERT_TRUE(SmartPointerEq{}(unique_null, nullptr));
+  ASSERT_FALSE(SmartPointerEq{}(shared2, nullptr));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::forward_as_tuple(&i, nullptr,                    //
+                            unique1, unique2, unique_null,  //
+                            absl::make_unique<int>(),       //
+                            shared1, shared2, shared_null,  //
+                            std::make_shared<int>()),
+      SmartPointerEq{}));
+}
+
+TEST(HashValueTest, FunctionPointer) {
+  using Func = int (*)();
+  EXPECT_TRUE(is_hashable<Func>::value);
+
+  Func p1 = [] { return 2; }, p2 = [] { return 1; };
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(p1, p2, nullptr)));
+}
+
+struct WrapInTuple {
+  template <typename T>
+  std::tuple<int, T, size_t> operator()(const T& t) const {
+    return std::make_tuple(7, t, 0xdeadbeef);
+  }
+};
+
+TEST(HashValueTest, Strings) {
+  EXPECT_TRUE((is_hashable<std::string>::value));
+
+  const std::string small = "foo";
+  const std::string dup = "foofoo";
+  const std::string large = "large";
+  const std::string huge = std::string(5000, 'a');
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::string(), absl::string_view(),
+      std::string(""), absl::string_view(""),
+      std::string(small), absl::string_view(small),
+      std::string(dup), absl::string_view(dup),
+      std::string(large), absl::string_view(large),
+      std::string(huge), absl::string_view(huge))));
+
+  // Also check that nested types maintain the same hash.
+  const WrapInTuple t{};
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      t(std::string()), t(absl::string_view()),
+      t(std::string("")), t(absl::string_view("")),
+      t(std::string(small)), t(absl::string_view(small)),
+      t(std::string(dup)), t(absl::string_view(dup)),
+      t(std::string(large)), t(absl::string_view(large)),
+      t(std::string(huge)), t(absl::string_view(huge)))));
+
+  // Make sure that hashing a `const char*` does not use its std::string-value.
+  EXPECT_NE(SpyHash(static_cast<const char*>("ABC")),
+            SpyHash(absl::string_view("ABC")));
+}
+
+TEST(HashValueTest, StdArray) {
+  EXPECT_TRUE((is_hashable<std::array<int, 3>>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(std::array<int, 3>{}, std::array<int, 3>{{0, 23, 42}})));
+}
+
+TEST(HashValueTest, StdBitset) {
+  EXPECT_TRUE((is_hashable<std::bitset<257>>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      {std::bitset<2>("00"), std::bitset<2>("01"), std::bitset<2>("10"),
+       std::bitset<2>("11")}));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      {std::bitset<5>("10101"), std::bitset<5>("10001"), std::bitset<5>()}));
+
+  constexpr int kNumBits = 256;
+  std::array<std::string, 6> bit_strings;
+  bit_strings.fill(std::string(kNumBits, '1'));
+  bit_strings[1][0] = '0';
+  bit_strings[2][1] = '0';
+  bit_strings[3][kNumBits / 3] = '0';
+  bit_strings[4][kNumBits - 2] = '0';
+  bit_strings[5][kNumBits - 1] = '0';
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      {std::bitset<kNumBits>(bit_strings[0].c_str()),
+       std::bitset<kNumBits>(bit_strings[1].c_str()),
+       std::bitset<kNumBits>(bit_strings[2].c_str()),
+       std::bitset<kNumBits>(bit_strings[3].c_str()),
+       std::bitset<kNumBits>(bit_strings[4].c_str()),
+       std::bitset<kNumBits>(bit_strings[5].c_str())}));
+}  // namespace
 
 template <typename T>
-struct IsHashCallble<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
+class HashValueSequenceTest : public testing::Test {
+};
+TYPED_TEST_SUITE_P(HashValueSequenceTest);
+
+TYPED_TEST_P(HashValueSequenceTest, BasicUsage) {
+  EXPECT_TRUE((is_hashable<TypeParam>::value));
+
+  using ValueType = typename TypeParam::value_type;
+  auto a = static_cast<ValueType>(0);
+  auto b = static_cast<ValueType>(23);
+  auto c = static_cast<ValueType>(42);
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(TypeParam(), TypeParam{}, TypeParam{a, b, c},
+                      TypeParam{a, b}, TypeParam{b, c})));
+}
+
+REGISTER_TYPED_TEST_CASE_P(HashValueSequenceTest, BasicUsage);
+using IntSequenceTypes =
+    testing::Types<std::deque<int>, std::forward_list<int>, std::list<int>,
+                   std::vector<int>, std::vector<bool>, std::set<int>,
+                   std::multiset<int>>;
+INSTANTIATE_TYPED_TEST_CASE_P(My, HashValueSequenceTest, IntSequenceTypes);
+
+// Private type that only supports AbslHashValue to make sure our chosen hash
+// implentation is recursive within absl::Hash.
+// It uses std::abs() on the value to provide different bitwise representations
+// of the same logical value.
+struct Private {
+  int i;
+  template <typename H>
+  friend H AbslHashValue(H h, Private p) {
+    return H::combine(std::move(h), std::abs(p.i));
+  }
+
+  friend bool operator==(Private a, Private b) {
+    return std::abs(a.i) == std::abs(b.i);
+  }
+
+  friend std::ostream& operator<<(std::ostream& o, Private p) {
+    return o << p.i;
+  }
+};
+
+TEST(HashValueTest, PrivateSanity) {
+  // Sanity check that Private is working as the tests below expect it to work.
+  EXPECT_TRUE(is_hashable<Private>::value);
+  EXPECT_NE(SpyHash(Private{0}), SpyHash(Private{1}));
+  EXPECT_EQ(SpyHash(Private{1}), SpyHash(Private{1}));
+}
+
+TEST(HashValueTest, Optional) {
+  EXPECT_TRUE(is_hashable<absl::optional<Private>>::value);
+
+  using O = absl::optional<Private>;
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(O{}, O{{1}}, O{{-1}}, O{{10}})));
+}
+
+TEST(HashValueTest, Variant) {
+  using V = absl::variant<Private, std::string>;
+  EXPECT_TRUE(is_hashable<V>::value);
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      V(Private{1}), V(Private{-1}), V(Private{2}), V("ABC"), V("BCD"))));
+
+#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
+  struct S {};
+  EXPECT_FALSE(is_hashable<absl::variant<S>>::value);
+#endif
+}
+
+TEST(HashValueTest, Maps) {
+  EXPECT_TRUE((is_hashable<std::map<int, std::string>>::value));
+
+  using M = std::map<int, std::string>;
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      M{}, M{{0, "foo"}}, M{{1, "foo"}}, M{{0, "bar"}}, M{{1, "bar"}},
+      M{{0, "foo"}, {42, "bar"}}, M{{1, "foo"}, {42, "bar"}},
+      M{{1, "foo"}, {43, "bar"}}, M{{1, "foo"}, {43, "baz"}})));
+
+  using MM = std::multimap<int, std::string>;
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      MM{}, MM{{0, "foo"}}, MM{{1, "foo"}}, MM{{0, "bar"}}, MM{{1, "bar"}},
+      MM{{0, "foo"}, {0, "bar"}}, MM{{0, "bar"}, {0, "foo"}},
+      MM{{0, "foo"}, {42, "bar"}}, MM{{1, "foo"}, {42, "bar"}},
+      MM{{1, "foo"}, {1, "foo"}, {43, "bar"}}, MM{{1, "foo"}, {43, "baz"}})));
+}
+
+template <typename T, typename = void>
+struct IsHashCallable : std::false_type {};
+
+template <typename T>
+struct IsHashCallable<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
                             std::declval<const T&>()))>> : std::true_type {};
 
 template <typename T, typename = void>
@@ -105,10 +444,11 @@ TEST(IsHashableTest, ValidHash) {
   EXPECT_TRUE(std::is_move_constructible<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_copy_assignable<absl::Hash<int>>::value);
   EXPECT_TRUE(absl::is_move_assignable<absl::Hash<int>>::value);
-  EXPECT_TRUE(IsHashCallble<int>::value);
+  EXPECT_TRUE(IsHashCallable<int>::value);
   EXPECT_TRUE(IsAggregateInitializable<absl::Hash<int>>::value);
 }
-#if ABSL_HASH_INTERNAL_CAN_POISON_ && !defined(__APPLE__)
+
+#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 TEST(IsHashableTest, PoisonHash) {
   struct X {};
   EXPECT_FALSE((is_hashable<X>::value));
@@ -117,10 +457,10 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(std::is_move_constructible<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
-  EXPECT_FALSE(IsHashCallble<X>::value);
+  EXPECT_FALSE(IsHashCallable<X>::value);
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
 }
-#endif  // ABSL_HASH_INTERNAL_CAN_POISON_
+#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
 // Hashable types
 //
@@ -129,7 +469,7 @@ TEST(IsHashableTest, PoisonHash) {
 struct NoOp {
   template <typename HashCode>
   friend HashCode AbslHashValue(HashCode h, NoOp n) {
-    return std::move(h);
+    return h;
   }
 };
 
@@ -159,8 +499,16 @@ struct CombineVariadic {
                              Int(4));
   }
 };
+enum class InvokeTag {
+  kUniquelyRepresented,
+  kHashValue,
+#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kLegacyHash,
+#endif  // ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+  kStdHash,
+  kNone
+};
 
-using InvokeTag = absl::hash_internal::InvokeHashTag;
 template <InvokeTag T>
 using InvokeTagConstant = std::integral_constant<InvokeTag, T>;
 
@@ -175,6 +523,7 @@ struct MinTag<a> : InvokeTagConstant<a> {};
 
 template <InvokeTag... Tags>
 struct CustomHashType {
+  explicit CustomHashType(size_t val) : value(val) {}
   size_t value;
 };
 
@@ -195,7 +544,7 @@ H AbslHashValue(H state, CustomHashType<Tags...> t) {
 }  // namespace
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace hash_internal {
 template <InvokeTag... Tags>
 struct is_uniquely_represented<
@@ -203,7 +552,7 @@ struct is_uniquely_represented<
     typename EnableIfContained<InvokeTag::kUniquelyRepresented, Tags...>::type>
     : std::true_type {};
 }  // namespace hash_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
@@ -243,17 +592,17 @@ void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>, T...) {
   EXPECT_TRUE(is_hashable<const type&>());
 
   const size_t offset = static_cast<int>(std::min({T::value...}));
-  EXPECT_EQ(SpyHash(type{7}), SpyHash(size_t{7 + offset}));
+  EXPECT_EQ(SpyHash(type(7)), SpyHash(size_t{7 + offset}));
 }
 
 void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>) {
-#if ABSL_HASH_INTERNAL_CAN_POISON_
+#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   // is_hashable is false if we don't support any of the hooks.
   using type = CustomHashType<>;
   EXPECT_FALSE(is_hashable<type>());
   EXPECT_FALSE(is_hashable<const type>());
   EXPECT_FALSE(is_hashable<const type&>());
-#endif  // ABSL_HASH_INTERNAL_CAN_POISON_
+#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 }
 
 template <InvokeTag Tag, typename... T>
@@ -275,7 +624,7 @@ TEST(HashTest, NoOpsAreEquivalent) {
 template <typename T>
 class HashIntTest : public testing::Test {
 };
-TYPED_TEST_CASE_P(HashIntTest);
+TYPED_TEST_SUITE_P(HashIntTest);
 
 TYPED_TEST_P(HashIntTest, BasicUsage) {
   EXPECT_NE(Hash<NoOp>()({}), Hash<TypeParam>()(0));
@@ -354,7 +703,8 @@ TEST(HashTest, HashNonUniquelyRepresentedType) {
 }
 
 TEST(HashTest, StandardHashContainerUsage) {
-  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"}, { 42, "bar" }};
+  std::unordered_map<int, std::string, Hash<int>> map = {{0, "foo"},
+                                                         {42, "bar"}};
 
   EXPECT_NE(map.find(0), map.end());
   EXPECT_EQ(map.find(1), map.end());
@@ -422,6 +772,26 @@ TEST(HashTest, TypeErased) {
 
   EXPECT_EQ(SpyHash(std::make_pair(TypeErased{7}, 17)),
             SpyHash(std::make_pair(size_t{7}, 17)));
+}
+
+struct ValueWithBoolConversion {
+  operator bool() const { return false; }
+  int i;
+};
+
+}  // namespace
+namespace std {
+template <>
+struct hash<ValueWithBoolConversion> {
+  size_t operator()(ValueWithBoolConversion v) { return v.i; }
+};
+}  // namespace std
+
+namespace {
+
+TEST(HashTest, DoesNotUseImplicitConversionsToBool) {
+  EXPECT_NE(absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{0}),
+            absl::Hash<ValueWithBoolConversion>()(ValueWithBoolConversion{1}));
 }
 
 }  // namespace

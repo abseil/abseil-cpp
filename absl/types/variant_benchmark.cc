@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace {
 
 template <std::size_t I>
@@ -218,5 +218,5 @@ BENCHMARK_TEMPLATE(BM_RedundantVisit, 4, 2)
     ->DenseRange(0, integral_pow(4, 2) - 1);
 
 }  // namespace
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

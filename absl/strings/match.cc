@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,16 +17,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
-
-namespace {
-bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
-  return (piece1.size() == piece2.size() &&
-          0 == strings_internal::memcasecmp(piece1.data(), piece2.data(),
-                                            piece1.size()));
-  // memcasecmp uses ascii_tolower().
-}
-}  // namespace
+inline namespace lts_2019_08_08 {
 
 bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2) {
   return (piece1.size() == piece2.size() &&
@@ -37,13 +28,13 @@ bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2) {
 
 bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix) {
   return (text.size() >= prefix.size()) &&
-         CaseEqual(text.substr(0, prefix.size()), prefix);
+         EqualsIgnoreCase(text.substr(0, prefix.size()), prefix);
 }
 
 bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix) {
   return (text.size() >= suffix.size()) &&
-         CaseEqual(text.substr(text.size() - suffix.size()), suffix);
+         EqualsIgnoreCase(text.substr(text.size() - suffix.size()), suffix);
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

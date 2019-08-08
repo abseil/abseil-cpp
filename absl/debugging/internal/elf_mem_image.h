@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,12 +34,12 @@
 #define ABSL_HAVE_ELF_MEM_IMAGE 1
 #endif
 
-#if ABSL_HAVE_ELF_MEM_IMAGE
+#ifdef ABSL_HAVE_ELF_MEM_IMAGE
 
 #include <link.h>  // for ElfW
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace debugging_internal {
 
 // An in-memory ELF image (may not exist on disk).
@@ -124,7 +124,7 @@ class ElfMemImage {
 };
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_HAVE_ELF_MEM_IMAGE

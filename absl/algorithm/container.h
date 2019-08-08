@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,6 @@
 // For template parameter and variable naming, `C` indicates the container type
 // to which the function is applied, `Pred` indicates the predicate object type
 // to be used by the function and `T` indicates the applicable element type.
-//
 
 #ifndef ABSL_ALGORITHM_CONTAINER_H_
 #define ABSL_ALGORITHM_CONTAINER_H_
@@ -56,7 +55,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_algorithm_internal {
 
 // NOTE: it is important to defer to ADL lookup for building with C++ modules,
@@ -512,6 +511,16 @@ OutputIterator c_move(C&& src, OutputIterator dest) {
                    container_algorithm_internal::c_end(src), dest);
 }
 
+// c_move_backward()
+//
+// Container-based version of the <algorithm> `std::move_backward()` function to
+// move a container's elements into an iterator in reverse order.
+template <typename C, typename BidirectionalIterator>
+BidirectionalIterator c_move_backward(C&& src, BidirectionalIterator dest) {
+  return std::move_backward(container_algorithm_internal::c_begin(src),
+                            container_algorithm_internal::c_end(src), dest);
+}
+
 // c_swap_ranges()
 //
 // Container-based version of the <algorithm> `std::swap_ranges()` function to
@@ -649,7 +658,6 @@ container_algorithm_internal::ContainerIter<C> c_generate_n(C& c, Size n,
 // and `unique()` are omitted, because it's not clear whether or not such
 // functions should call erase on their supplied sequences afterwards. Either
 // behavior would be surprising for a different set of users.
-//
 
 // c_remove_copy()
 //
@@ -1698,7 +1706,7 @@ OutputIt c_partial_sum(const InputSequence& input, OutputIt output_first,
                           output_first, std::forward<BinaryOp>(op));
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_ALGORITHM_CONTAINER_H_

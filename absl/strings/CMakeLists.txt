@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,93 +14,359 @@
 # limitations under the License.
 #
 
-
-list(APPEND STRINGS_PUBLIC_HEADERS
-  "ascii.h"
-  "charconv.h"
-  "escaping.h"
-  "match.h"
-  "numbers.h"
-  "str_cat.h"
-  "string_view.h"
-  "strip.h"
-  "str_join.h"
-  "str_replace.h"
-  "str_split.h"
-  "substitute.h"
-)
-
-
-list(APPEND STRINGS_INTERNAL_HEADERS
-  "internal/char_map.h"
-  "internal/charconv_bigint.h"
-  "internal/charconv_parse.h"
-  "internal/memutil.h"
-  "internal/ostringstream.h"
-  "internal/resize_uninitialized.h"
-  "internal/stl_type_traits.h"
-  "internal/str_join_internal.h"
-  "internal/str_split_internal.h"
-  "internal/utf8.h"
-)
-
-
-
-# add string library
-list(APPEND STRINGS_SRC
-  "ascii.cc"
-  "charconv.cc"
-  "escaping.cc"
-  "internal/charconv_bigint.cc"
-  "internal/charconv_parse.cc"
-  "internal/memutil.cc"
-  "internal/memutil.h"
-  "internal/utf8.cc"
-  "internal/ostringstream.cc"
-  "match.cc"
-  "numbers.cc"
-  "str_cat.cc"
-  "str_replace.cc"
-  "str_split.cc"
-  "string_view.cc"
-  "substitute.cc"
-  ${STRINGS_PUBLIC_HEADERS}
-  ${STRINGS_INTERNAL_HEADERS}
-)
-set(STRINGS_PUBLIC_LIBRARIES absl::base absl_internal_throw_delegate)
-
-absl_library(
-  TARGET
-    absl_strings
-  SOURCES
-    ${STRINGS_SRC}
-  PUBLIC_LIBRARIES
-    ${STRINGS_PUBLIC_LIBRARIES}
-  EXPORT_NAME
+absl_cc_library(
+  NAME
     strings
+  HDRS
+    "ascii.h"
+    "charconv.h"
+    "escaping.h"
+    "match.h"
+    "numbers.h"
+    "str_cat.h"
+    "str_join.h"
+    "str_replace.h"
+    "str_split.h"
+    "string_view.h"
+    "strip.h"
+    "substitute.h"
+  SRCS
+    "ascii.cc"
+    "charconv.cc"
+    "escaping.cc"
+    "internal/charconv_bigint.cc"
+    "internal/charconv_bigint.h"
+    "internal/charconv_parse.cc"
+    "internal/charconv_parse.h"
+    "internal/memutil.cc"
+    "internal/memutil.h"
+    "internal/stl_type_traits.h"
+    "internal/str_join_internal.h"
+    "internal/str_split_internal.h"
+    "match.cc"
+    "numbers.cc"
+    "str_cat.cc"
+    "str_replace.cc"
+    "str_split.cc"
+    "string_view.cc"
+    "substitute.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::strings_internal
+    absl::base
+    absl::bits
+    absl::config
+    absl::core_headers
+    absl::endian
+    absl::throw_delegate
+    absl::memory
+    absl::type_traits
+    absl::int128
+  PUBLIC
 )
 
-# add str_format library
-absl_header_library(
-  TARGET
-    absl_str_format
-  PUBLIC_LIBRARIES
-    str_format_internal
-  EXPORT_NAME
+absl_cc_library(
+  NAME
+    strings_internal
+  HDRS
+    "internal/char_map.h"
+    "internal/ostringstream.h"
+    "internal/resize_uninitialized.h"
+    "internal/utf8.h"
+  SRCS
+    "internal/ostringstream.cc"
+    "internal/utf8.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::core_headers
+    absl::endian
+    absl::type_traits
+)
+
+absl_cc_test(
+  NAME
+    match_test
+  SRCS
+    "match_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    escaping_test
+  SRCS
+    "escaping_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::core_headers
+    absl::fixed_array
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    ascii_test
+  SRCS
+    "ascii_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    memutil_test
+  SRCS
+    "internal/memutil.h"
+    "internal/memutil_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    utf8_test
+  SRCS
+    "internal/utf8_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings_internal
+    absl::base
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    string_view_test
+  SRCS
+    "string_view_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+    ${ABSL_EXCEPTIONS_FLAG}
+  LINKOPTS
+    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
+  DEPS
+    absl::strings
+    absl::config
+    absl::core_headers
+    absl::dynamic_annotations
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    substitute_test
+  SRCS
+    "substitute_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    str_replace_test
+  SRCS
+    "str_replace_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    str_split_test
+  SRCS
+    "str_split_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    absl::core_headers
+    absl::dynamic_annotations
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    ostringstream_test
+  SRCS
+    "internal/ostringstream_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings_internal
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    resize_uninitialized_test
+  SRCS
+    "internal/resize_uninitialized.h"
+    "internal/resize_uninitialized_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::core_headers
+    absl::type_traits
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    str_join_test
+  SRCS
+    "str_join_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    absl::core_headers
+    absl::memory
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    str_cat_test
+  SRCS
+    "str_cat_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    numbers_test
+  SRCS
+    "internal/numbers_test_common.h"
+    "numbers_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    absl::core_headers
+    absl::pow10_helper
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    strip_test
+  SRCS
+    "strip_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    char_map_test
+  SRCS
+    "internal/char_map_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings_internal
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    charconv_test
+  SRCS
+    "charconv_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::str_format
+    absl::base
+    absl::pow10_helper
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    charconv_parse_test
+  SRCS
+    "internal/charconv_parse.h"
+    "internal/charconv_parse_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    charconv_bigint_test
+  SRCS
+    "internal/charconv_bigint.h"
+    "internal/charconv_bigint_test.cc"
+    "internal/charconv_parse.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings
+    absl::base
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     str_format
+  HDRS
+    "str_format.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::str_format_internal
+  PUBLIC
 )
 
-# str_format_internal
-absl_library(
-  TARGET
+absl_cc_library(
+  NAME
     str_format_internal
-  SOURCES
-    "internal/str_format/arg.cc"
-    "internal/str_format/bind.cc"
-    "internal/str_format/extension.cc"
-    "internal/str_format/float_conversion.cc"
-    "internal/str_format/output.cc"
-    "internal/str_format/parser.cc"
+  HDRS
     "internal/str_format/arg.h"
     "internal/str_format/bind.h"
     "internal/str_format/checker.h"
@@ -108,374 +374,147 @@ absl_library(
     "internal/str_format/float_conversion.h"
     "internal/str_format/output.h"
     "internal/str_format/parser.h"
-  PUBLIC_LIBRARIES
-    str_format_extension_internal
+  SRCS
+    "internal/str_format/arg.cc"
+    "internal/str_format/bind.cc"
+    "internal/str_format/extension.cc"
+    "internal/str_format/float_conversion.cc"
+    "internal/str_format/output.cc"
+    "internal/str_format/parser.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
     absl::strings
-    absl::base
-    absl::numeric
-    absl::inlined_vector
+    absl::config
+    absl::core_headers
+    absl::type_traits
+    absl::int128
     absl::span
 )
 
-# str_format_extension_internal
-absl_library(
-  TARGET
-    str_format_extension_internal
-  SOURCES
-    "internal/str_format/extension.cc"
-    "internal/str_format/extension.h"
-    "internal/str_format/output.cc"
-    "internal/str_format/output.h"
-  PUBLIC_LIBRARIES
-    absl::base
-    absl::strings
-)
-
-# pow10_helper
-absl_library(
-  TARGET
-    pow10_helper
-  SOURCES
-    "internal/pow10_helper.cc"
-    "internal/pow10_helper.h"
-)
-
-#
-## TESTS
-#
-
-# test match_test
-set(MATCH_TEST_SRC "match_test.cc")
-set(MATCH_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    match_test
-  SOURCES
-    ${MATCH_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${MATCH_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test escaping_test
-set(ESCAPING_TEST_SRC "escaping_test.cc")
-set(ESCAPING_TEST_PUBLIC_LIBRARIES absl::strings absl::base)
-
-absl_test(
-  TARGET
-    escaping_test
-  SOURCES
-    ${ESCAPING_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${ESCAPING_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test ascii_test
-set(ASCII_TEST_SRC "ascii_test.cc")
-set(ASCII_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    ascii_test
-  SOURCES
-    ${ASCII_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${ASCII_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test memutil_test
-set(MEMUTIL_TEST_SRC "internal/memutil_test.cc")
-set(MEMUTIL_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    memutil_test
-  SOURCES
-    ${MEMUTIL_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${MEMUTIL_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test utf8_test
-set(UTF8_TEST_SRC "internal/utf8_test.cc")
-set(UTF8_TEST_PUBLIC_LIBRARIES absl::strings absl::base)
-
-absl_test(
-  TARGET
-    utf8_test
-  SOURCES
-    ${UTF8_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${UTF8_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test string_view_test
-set(STRING_VIEW_TEST_SRC "string_view_test.cc")
-set(STRING_VIEW_TEST_PUBLIC_LIBRARIES absl::strings absl_internal_throw_delegate absl::base)
-
-absl_test(
-  TARGET
-    string_view_test
-  SOURCES
-    ${STRING_VIEW_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STRING_VIEW_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test substitute_test
-set(SUBSTITUTE_TEST_SRC "substitute_test.cc")
-set(SUBSTITUTE_TEST_PUBLIC_LIBRARIES absl::strings absl::base)
-
-absl_test(
-  TARGET
-    substitute_test
-  SOURCES
-    ${SUBSTITUTE_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${SUBSTITUTE_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test str_replace_test
-set(STR_REPLACE_TEST_SRC "str_replace_test.cc")
-set(STR_REPLACE_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
-
-absl_test(
-  TARGET
-    str_replace_test
-  SOURCES
-    ${STR_REPLACE_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STR_REPLACE_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test str_split_test
-set(STR_SPLIT_TEST_SRC "str_split_test.cc")
-set(STR_SPLIT_TEST_PUBLIC_LIBRARIES absl::strings absl::base absl_internal_throw_delegate)
-
-absl_test(
-  TARGET
-    str_split_test
-  SOURCES
-    ${STR_SPLIT_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STR_SPLIT_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test ostringstream_test
-set(OSTRINGSTREAM_TEST_SRC "internal/ostringstream_test.cc")
-set(OSTRINGSTREAM_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    ostringstream_test
-  SOURCES
-    ${OSTRINGSTREAM_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${OSTRINGSTREAM_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test resize_uninitialized_test
-set(RESIZE_UNINITIALIZED_TEST_SRC "internal/resize_uninitialized_test.cc")
-
-absl_test(
-  TARGET
-    resize_uninitialized_test
-  SOURCES
-    ${RESIZE_UNINITIALIZED_TEST_SRC}
-)
-
-
-# test str_join_test
-set(STR_JOIN_TEST_SRC "str_join_test.cc")
-set(STR_JOIN_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    str_join_test
-  SOURCES
-    ${STR_JOIN_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STR_JOIN_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test str_cat_test
-set(STR_CAT_TEST_SRC "str_cat_test.cc")
-set(STR_CAT_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    str_cat_test
-  SOURCES
-    ${STR_CAT_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STR_CAT_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test numbers_test
-set(NUMBERS_TEST_SRC "numbers_test.cc")
-set(NUMBERS_TEST_PUBLIC_LIBRARIES absl::strings pow10_helper)
-
-absl_test(
-  TARGET
-    numbers_test
-  SOURCES
-    ${NUMBERS_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${NUMBERS_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test strip_test
-set(STRIP_TEST_SRC "strip_test.cc")
-set(STRIP_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    strip_test
-  SOURCES
-    ${STRIP_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${STRIP_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test char_map_test
-set(CHAR_MAP_TEST_SRC "internal/char_map_test.cc")
-set(CHAR_MAP_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    char_map_test
-  SOURCES
-    ${CHAR_MAP_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${CHAR_MAP_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test charconv_test
-set(CHARCONV_TEST_SRC "charconv_test.cc")
-set(CHARCONV_TEST_PUBLIC_LIBRARIES absl::strings absl::str_format pow10_helper)
-
-absl_test(
-  TARGET
-    charconv_test
-  SOURCES
-    ${CHARCONV_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${CHARCONV_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test charconv_parse_test
-set(CHARCONV_PARSE_TEST_SRC "internal/charconv_parse_test.cc")
-set(CHARCONV_PARSE_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    charconv_parse_test
-  SOURCES
-    ${CHARCONV_PARSE_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${CHARCONV_PARSE_TEST_PUBLIC_LIBRARIES}
-)
-
-
-# test charconv_bigint_test
-set(CHARCONV_BIGINT_TEST_SRC "internal/charconv_bigint_test.cc")
-set(CHARCONV_BIGINT_TEST_PUBLIC_LIBRARIES absl::strings)
-
-absl_test(
-  TARGET
-    charconv_bigint_test
-  SOURCES
-    ${CHARCONV_BIGINT_TEST_SRC}
-  PUBLIC_LIBRARIES
-    ${CHARCONV_BIGINT_TEST_PUBLIC_LIBRARIES}
-)
-# test str_format_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     str_format_test
-  SOURCES
+  SRCS
     "str_format_test.cc"
-  PUBLIC_LIBRARIES
-    absl::base
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
     absl::str_format
     absl::strings
+    absl::core_headers
+    gmock_main
 )
 
-# test str_format_bind_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
+    str_format_extension_test
+  SRCS
+    "internal/str_format/extension_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format
+    absl::str_format_internal
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    str_format_arg_test
+  SRCS
+    "internal/str_format/arg_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format
+    absl::str_format_internal
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
     str_format_bind_test
-  SOURCES
+  SRCS
     "internal/str_format/bind_test.cc"
-  PUBLIC_LIBRARIES
-    str_format_internal
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format_internal
+    gmock_main
 )
 
-# test str_format_checker_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     str_format_checker_test
-  SOURCES
+  SRCS
     "internal/str_format/checker_test.cc"
-  PUBLIC_LIBRARIES
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
     absl::str_format
+    gmock_main
 )
 
-# test str_format_convert_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     str_format_convert_test
-  SOURCES
+  SRCS
     "internal/str_format/convert_test.cc"
-  PUBLIC_LIBRARIES
-    str_format_internal
-    absl::numeric
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format_internal
+    absl::int128
+    gmock_main
 )
 
-# test str_format_output_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     str_format_output_test
-  SOURCES
+  SRCS
     "internal/str_format/output_test.cc"
-  PUBLIC_LIBRARIES
-    str_format_extension_internal
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format_internal
+    gmock_main
 )
 
-# test str_format_parser_test
-absl_test(
-  TARGET
+absl_cc_test(
+  NAME
     str_format_parser_test
-  SOURCES
+  SRCS
     "internal/str_format/parser_test.cc"
-  PUBLIC_LIBRARIES
-    str_format_internal
-    absl::base
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::str_format_internal
+    absl::core_headers
+    gmock_main
 )
 
-# test pow10_helper_test
-absl_test(
-  TARGET
-    pow10_helper_test
-  SOURCES
-    "internal/pow10_helper_test.cc"
-  PUBLIC_LIBRARIES
+absl_cc_library(
+  NAME
     pow10_helper
+  HDRS
+    "internal/pow10_helper.h"
+  SRCS
+    "internal/pow10_helper.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    pow10_helper_test
+  SRCS
+    "internal/pow10_helper_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::pow10_helper
     absl::str_format
+    gmock_main
 )

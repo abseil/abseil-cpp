@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,11 @@
 
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
+#include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 namespace {
 
@@ -30,11 +31,12 @@ using MapTypes = ::testing::Types<
                        StatefulTestingEqual,
                        Alloc<std::pair<const std::string, std::string>>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, ConstructorTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, LookupTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(UnorderedMap, ModifiersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ConstructorTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, MembersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, ModifiersTest, MapTypes);
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

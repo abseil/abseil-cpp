@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// http://code.google.com/p/cityhash/
+// https://code.google.com/p/cityhash/
 //
 // This file provides a few functions for hashing strings.  All of them are
 // high-quality functions in the sense that they pass standard tests such
@@ -49,9 +49,8 @@
 #include <stdlib.h>  // for size_t.
 #include <utility>
 
-
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace hash_internal {
 
 typedef std::pair<uint64_t, uint64_t> uint128;
@@ -88,7 +87,7 @@ inline uint64_t Hash128to64(const uint128 &x) {
 }
 
 }  // namespace hash_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_HASH_INTERNAL_CITY_H_

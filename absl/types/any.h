@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -58,15 +58,15 @@
 
 #ifdef ABSL_HAVE_STD_ANY
 
-#include <any>
+#include <any>  // IWYU pragma: export
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 using std::any;
 using std::any_cast;
 using std::bad_any_cast;
 using std::make_any;
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #else  // ABSL_HAVE_STD_ANY
@@ -93,7 +93,7 @@ using std::make_any;
 #endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
 namespace any_internal {
 
@@ -533,7 +533,7 @@ T* any_cast(any* operand) noexcept {
              : nullptr;
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #undef ABSL_ANY_DETAIL_HAS_RTTI

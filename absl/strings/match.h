@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,7 +38,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
 // StrContains()
 //
@@ -63,8 +63,7 @@ inline bool EndsWith(absl::string_view text, absl::string_view suffix) {
   return suffix.empty() ||
          (text.size() >= suffix.size() &&
           memcmp(text.data() + (text.size() - suffix.size()), suffix.data(),
-                 suffix.size()) == 0
-         );
+                 suffix.size()) == 0);
 }
 
 // EqualsIgnoreCase()
@@ -75,17 +74,17 @@ bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2);
 
 // StartsWithIgnoreCase()
 //
-// Returns whether a given ASCII string `text` starts with `starts_with`,
+// Returns whether a given ASCII string `text` starts with `prefix`,
 // ignoring case in the comparison.
 bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix);
 
 // EndsWithIgnoreCase()
 //
-// Returns whether a given ASCII string `text` ends with `ends_with`, ignoring
+// Returns whether a given ASCII string `text` ends with `suffix`, ignoring
 // case in the comparison.
 bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix);
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_MATCH_H_

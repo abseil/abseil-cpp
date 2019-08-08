@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@ extern "C" bool __google_disable_rescheduling(void);
 extern "C" void __google_enable_rescheduling(bool disable_result);
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace base_internal {
 
 class SchedulingHelper;  // To allow use of SchedulingGuard.
@@ -87,6 +87,7 @@ class SchedulingGuard {
 //------------------------------------------------------------------------------
 // End of public interfaces.
 //------------------------------------------------------------------------------
+
 inline bool SchedulingGuard::ReschedulingIsAllowed() {
   return false;
 }
@@ -99,8 +100,8 @@ inline void SchedulingGuard::EnableRescheduling(bool /* disable_result */) {
   return;
 }
 
-
 }  // namespace base_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_

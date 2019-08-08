@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,9 @@
 #
 
 load(
-    "//absl:copts.bzl",
+    "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -34,6 +35,7 @@ cc_library(
         "internal/graphcycles.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -69,9 +71,14 @@ cc_library(
         "notification.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = select({
+        "//absl:windows": [],
+        "//conditions:default": ["-pthread"],
+    }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
         "//absl/base",
+        "//absl/base:atomic_hook",
         "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -88,9 +95,7 @@ cc_test(
     size = "small",
     srcs = ["barrier_test.cc"],
     copts = ABSL_TEST_COPTS,
-    tags = [
-        "no_test_wasm",
-    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -103,9 +108,7 @@ cc_test(
     size = "small",
     srcs = ["blocking_counter_test.cc"],
     copts = ABSL_TEST_COPTS,
-    tags = [
-        "no_test_wasm",
-    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -118,6 +121,7 @@ cc_test(
     size = "medium",
     srcs = ["internal/graphcycles_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
         "//absl/base",
@@ -130,6 +134,7 @@ cc_test(
     name = "graphcycles_benchmark",
     srcs = ["internal/graphcycles_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "benchmark",
     ],
@@ -144,6 +149,7 @@ cc_library(
     name = "thread_pool",
     testonly = 1,
     hdrs = ["internal/thread_pool.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -158,6 +164,7 @@ cc_test(
     size = "large",
     srcs = ["mutex_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     shard_count = 25,
     deps = [
         ":synchronization",
@@ -174,7 +181,8 @@ cc_library(
     name = "mutex_benchmark_common",
     testonly = 1,
     srcs = ["mutex_benchmark.cc"],
-    copts = ABSL_DEFAULT_COPTS,
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/synchronization:__pkg__",
     ],
@@ -182,7 +190,6 @@ cc_library(
         ":synchronization",
         ":thread_pool",
         "//absl/base",
-        "//absl/base:base_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
     alwayslink = 1,
@@ -192,6 +199,7 @@ cc_binary(
     name = "mutex_benchmark",
     testonly = 1,
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":mutex_benchmark_common",
@@ -203,6 +211,7 @@ cc_test(
     size = "small",
     srcs = ["notification_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/time",
@@ -215,6 +224,7 @@ cc_library(
     testonly = 1,
     srcs = ["internal/per_thread_sem_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":synchronization",
         "//absl/base",
@@ -229,7 +239,7 @@ cc_test(
     name = "per_thread_sem_test",
     size = "medium",
     copts = ABSL_TEST_COPTS,
-    tags = ["no_test_wasm"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
@@ -246,10 +256,7 @@ cc_test(
         "lifetime_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//absl:windows": [],
-        "//conditions:default": ["-pthread"],
-    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_ios_x86_64"],
     deps = [
         ":synchronization",

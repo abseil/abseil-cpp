@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
 #include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace time_internal {
 namespace cctz {
 
@@ -25,11 +25,11 @@ std::string ZoneInfoSource::Version() const { return std::string(); }
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace time_internal {
 namespace cctz_extension {
 
@@ -49,35 +49,33 @@ std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource> DefaultFactory(
 // A "weak" definition for cctz_extension::zone_info_source_factory.
 // The user may override this with their own "strong" definition (see
 // zone_info_source.h).
-#if defined(_MSC_VER)
-extern ZoneInfoSourceFactory zone_info_source_factory;
-extern ZoneInfoSourceFactory default_factory;
-ZoneInfoSourceFactory default_factory = DefaultFactory;
-#if defined(_M_IX86)
-#pragma comment( \
-    linker,      \
-    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2018_12_18@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA=?default_factory@cctz_extension@time_internal@lts_2018_12_18@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA")
-#elif defined(_M_IA_64) || defined(_M_AMD64)
-#pragma comment( \
-    linker,      \
-    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2018_12_18@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA=?default_factory@cctz_extension@time_internal@lts_2018_12_18@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2018_12_18@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA")
-#else
-#error Unsupported MSVC platform
-#endif
-#else  // _MSC_VER
 #if !defined(__has_attribute)
 #define __has_attribute(x) 0
 #endif
 #if __has_attribute(weak) || defined(__GNUC__)
 ZoneInfoSourceFactory zone_info_source_factory
     __attribute__((weak)) = DefaultFactory;
+#elif defined(_MSC_VER) && !defined(_LIBCPP_VERSION)
+extern ZoneInfoSourceFactory zone_info_source_factory;
+extern ZoneInfoSourceFactory default_factory;
+ZoneInfoSourceFactory default_factory = DefaultFactory;
+#if defined(_M_IX86)
+#pragma comment( \
+    linker,      \
+    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA=?default_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA")
+#elif defined(_M_IA_64) || defined(_M_AMD64) || defined(_M_ARM64)
+#pragma comment( \
+    linker,      \
+    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA=?default_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA")
+#else
+#error Unsupported MSVC platform
+#endif  // _M_<PLATFORM>
 #else
 // Make it a "strong" definition if we have no other choice.
 ZoneInfoSourceFactory zone_info_source_factory = DefaultFactory;
 #endif
-#endif  // _MSC_VER
 
 }  // namespace cctz_extension
 }  // namespace time_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

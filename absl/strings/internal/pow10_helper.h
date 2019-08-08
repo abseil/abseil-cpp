@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,13 +17,13 @@
 // precise values are computed across the full range of doubles. We can't rely
 // on the pow() function, because not all standard libraries ship a version
 // that is precise.
-#ifndef ABSL_STRINGS_POW10_HELPER_H_
-#define ABSL_STRINGS_POW10_HELPER_H_
+#ifndef ABSL_STRINGS_INTERNAL_POW10_HELPER_H_
+#define ABSL_STRINGS_INTERNAL_POW10_HELPER_H_
 
 #include <vector>
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace strings_internal {
 
 // Computes the precise value of 10^exp. (I.e. the nearest representable
@@ -32,7 +32,7 @@ namespace strings_internal {
 double Pow10(int exp);
 
 }  // namespace strings_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
-#endif  // ABSL_STRINGS_POW10_HELPER_H_
+#endif  // ABSL_STRINGS_INTERNAL_POW10_HELPER_H_

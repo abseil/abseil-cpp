@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,7 +33,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace {
 
 // Digit conversion.
@@ -180,7 +180,8 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
             ch = (ch << 4) + hex_digit_to_int(*++p);
           if (ch > 0xFF) {
             if (error) {
-              *error = "Value of \\" + std::string(hex_start, p + 1 - hex_start) +
+              *error = "Value of \\" +
+                       std::string(hex_start, p + 1 - hex_start) +
                        " exceeds 0xff";
             }
             return false;
@@ -295,7 +296,7 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
 // ----------------------------------------------------------------------
 // CUnescapeInternal()
 //
-//    Same as above but uses a C++ string for output. 'source' and 'dest'
+//    Same as above but uses a std::string for output. 'source' and 'dest'
 //    may be the same.
 // ----------------------------------------------------------------------
 bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
@@ -325,7 +326,8 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
 //
 //    Escaped chars: \n, \r, \t, ", ', \, and !absl::ascii_isprint().
 // ----------------------------------------------------------------------
-std::string CEscapeInternal(absl::string_view src, bool use_hex, bool utf8_safe) {
+std::string CEscapeInternal(absl::string_view src, bool use_hex,
+                            bool utf8_safe) {
   std::string dest;
   bool last_hex_escape = false;  // true if last output char was \xNN.
 
@@ -787,7 +789,7 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
   // Base64 encodes three bytes of input at a time. If the input is not
   // divisible by three, we pad as appropriate.
   //
-  // (from http://tools.ietf.org/html/rfc3548)
+  // (from https://tools.ietf.org/html/rfc3548)
   // Special processing is performed if fewer than 24 bits are available
   // at the end of the data being encoded.  A full encoding quantum is
   // always completed at the end of a quantity.  When fewer than 24 input
@@ -801,12 +803,12 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
   size_t len = (input_len / 3) * 4;
 
   if (input_len % 3 == 0) {
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (1) the final quantum of encoding input is an integral multiple of 24
     // bits; here, the final unit of encoded output will be an integral
     // multiple of 4 characters with no "=" padding,
   } else if (input_len % 3 == 1) {
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (2) the final quantum of encoding input is exactly 8 bits; here, the
     // final unit of encoded output will be two characters followed by two
     // "=" padding characters, or
@@ -815,7 +817,7 @@ size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
       len += 2;
     }
   } else {  // (input_len % 3 == 2)
-    // (from http://tools.ietf.org/html/rfc3548)
+    // (from https://tools.ietf.org/html/rfc3548)
     // (3) the final quantum of encoding input is exactly 16 bits; here, the
     // final unit of encoded output will be three characters followed by one
     // "=" padding character.
@@ -844,8 +846,8 @@ size_t Base64EscapeInternal(const unsigned char* src, size_t szsrc, char* dest,
 
   // Three bytes of data encodes to four characters of cyphertext.
   // So we can pump through three-byte chunks atomically.
-  if (szsrc >= 3) {  // "limit_src - 3" is UB if szsrc < 3
-    while (cur_src < limit_src - 3) {  // as long as we have >= 32 bits
+  if (szsrc >= 3) {  // "limit_src - 3" is UB if szsrc < 3.
+    while (cur_src < limit_src - 3) {  // While we have >= 32 bits.
       uint32_t in = absl::big_endian::Load32(cur_src) >> 8;
 
       cur_dest[0] = base64[in >> 18];
@@ -1012,7 +1014,8 @@ void HexStringToBytesInternal(const char* from, T to, ptrdiff_t num) {
   }
 }
 
-// This is a templated function so that T can be either a char* or a string.
+// This is a templated function so that T can be either a char* or a
+// std::string.
 template <typename T>
 void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
   auto dest_ptr = &dest[0];
@@ -1029,7 +1032,8 @@ void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
 //
 // See CUnescapeInternal() for implementation details.
 // ----------------------------------------------------------------------
-bool CUnescape(absl::string_view source, std::string* dest, std::string* error) {
+bool CUnescape(absl::string_view source, std::string* dest,
+               std::string* error) {
   return CUnescapeInternal(source, kUnescapeNulls, dest, error);
 }
 
@@ -1052,10 +1056,10 @@ std::string Utf8SafeCHexEscape(absl::string_view src) {
 }
 
 // ----------------------------------------------------------------------
-// ptrdiff_t Base64Unescape() - base64 decoder
-// ptrdiff_t Base64Escape() - base64 encoder
-// ptrdiff_t WebSafeBase64Unescape() - Google's variation of base64 decoder
-// ptrdiff_t WebSafeBase64Escape() - Google's variation of base64 encoder
+// Base64Unescape() - base64 decoder
+// Base64Escape() - base64 encoder
+// WebSafeBase64Unescape() - Google's variation of base64 decoder
+// WebSafeBase64Escape() - Google's variation of base64 encoder
 //
 // Check out
 // http://tools.ietf.org/html/rfc2045 for formal description, but what we
@@ -1093,6 +1097,20 @@ void WebSafeBase64Escape(absl::string_view src, std::string* dest) {
                        src.size(), dest, false, kWebSafeBase64Chars);
 }
 
+std::string Base64Escape(absl::string_view src) {
+  std::string dest;
+  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
+                       src.size(), &dest, true, kBase64Chars);
+  return dest;
+}
+
+std::string WebSafeBase64Escape(absl::string_view src) {
+  std::string dest;
+  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
+                       src.size(), &dest, false, kWebSafeBase64Chars);
+  return dest;
+}
+
 std::string HexStringToBytes(absl::string_view from) {
   std::string result;
   const auto num = from.size() / 2;
@@ -1109,5 +1127,5 @@ std::string BytesToHexString(absl::string_view from) {
   return result;
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

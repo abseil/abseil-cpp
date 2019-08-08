@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "absl/base/port.h"  // Needed for string vs std::string
 
 #ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #error ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE cannot be directly set
@@ -34,7 +33,7 @@
 #include <string>
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace debugging_internal {
 
 // Iterates over all sections, invoking callback on each with the section name
@@ -43,9 +42,9 @@ namespace debugging_internal {
 // Returns true on success; otherwise returns false in case of errors.
 //
 // This is not async-signal-safe.
-bool ForEachSection(
-    int fd, const std::function<bool(const std::string& name, const ElfW(Shdr) &)>&
-                callback);
+bool ForEachSection(int fd,
+                    const std::function<bool(const std::string& name,
+                                             const ElfW(Shdr) &)>& callback);
 
 // Gets the section header for the given name, if it exists. Returns true on
 // success. Otherwise, returns false.
@@ -53,13 +52,13 @@ bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
                             ElfW(Shdr) *out);
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace debugging_internal {
 
 struct SymbolDecoratorArgs {
@@ -121,7 +120,7 @@ bool GetFileMappingHint(const void** start,
                         const char** filename);
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_

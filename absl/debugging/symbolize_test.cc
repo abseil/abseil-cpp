@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -107,7 +107,8 @@ static const char *TrySymbolizeWithLimit(void *pc, int limit) {
     ABSL_RAW_CHECK(strnlen(heap_buffer.get(), limit) < limit,
                    "absl::Symbolize() did not properly terminate the string");
     strncpy(try_symbolize_buffer, heap_buffer.get(),
-            sizeof(try_symbolize_buffer));
+            sizeof(try_symbolize_buffer) - 1);
+    try_symbolize_buffer[sizeof(try_symbolize_buffer) - 1] = '\0';
   }
 
   return found ? try_symbolize_buffer : nullptr;
@@ -392,16 +393,20 @@ TEST(Symbolize, ForEachSection) {
 extern "C" {
 inline void *ABSL_ATTRIBUTE_ALWAYS_INLINE inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }
 
 void *ABSL_ATTRIBUTE_NOINLINE non_inline_func() {
   void *pc = nullptr;
-#if defined(__i386__) || defined(__x86_64__)
-  __asm__ __volatile__("call 1f; 1: pop %0" : "=r"(pc));
+#if defined(__i386__)
+  __asm__ __volatile__("call 1f;\n 1: pop %[PC]" : [ PC ] "=r"(pc));
+#elif defined(__x86_64__)
+  __asm__ __volatile__("leaq 0(%%rip),%[PC];\n" : [ PC ] "=r"(pc));
 #endif
   return pc;
 }

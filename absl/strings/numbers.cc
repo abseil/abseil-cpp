@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,18 +35,19 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/internal/memutil.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
-bool SimpleAtof(absl::string_view str, float* value) {
-  *value = 0.0;
+bool SimpleAtof(absl::string_view str, float* out) {
+  *out = 0.0;
   str = StripAsciiWhitespace(str);
   if (!str.empty() && str[0] == '+') {
     str.remove_prefix(1);
   }
-  auto result = absl::from_chars(str.data(), str.data() + str.size(), *value);
+  auto result = absl::from_chars(str.data(), str.data() + str.size(), *out);
   if (result.ec == std::errc::invalid_argument) {
     return false;
   }
@@ -54,25 +55,25 @@ bool SimpleAtof(absl::string_view str, float* value) {
     // not all non-whitespace characters consumed
     return false;
   }
-  // from_chars() with DR 3801's current wording will return max() on
+  // from_chars() with DR 3081's current wording will return max() on
   // overflow.  SimpleAtof returns infinity instead.
   if (result.ec == std::errc::result_out_of_range) {
-    if (*value > 1.0) {
-      *value = std::numeric_limits<float>::infinity();
-    } else if (*value < -1.0) {
-      *value = -std::numeric_limits<float>::infinity();
+    if (*out > 1.0) {
+      *out = std::numeric_limits<float>::infinity();
+    } else if (*out < -1.0) {
+      *out = -std::numeric_limits<float>::infinity();
     }
   }
   return true;
 }
 
-bool SimpleAtod(absl::string_view str, double* value) {
-  *value = 0.0;
+bool SimpleAtod(absl::string_view str, double* out) {
+  *out = 0.0;
   str = StripAsciiWhitespace(str);
   if (!str.empty() && str[0] == '+') {
     str.remove_prefix(1);
   }
-  auto result = absl::from_chars(str.data(), str.data() + str.size(), *value);
+  auto result = absl::from_chars(str.data(), str.data() + str.size(), *out);
   if (result.ec == std::errc::invalid_argument) {
     return false;
   }
@@ -80,27 +81,19 @@ bool SimpleAtod(absl::string_view str, double* value) {
     // not all non-whitespace characters consumed
     return false;
   }
-  // from_chars() with DR 3801's current wording will return max() on
+  // from_chars() with DR 3081's current wording will return max() on
   // overflow.  SimpleAtod returns infinity instead.
   if (result.ec == std::errc::result_out_of_range) {
-    if (*value > 1.0) {
-      *value = std::numeric_limits<double>::infinity();
-    } else if (*value < -1.0) {
-      *value = -std::numeric_limits<double>::infinity();
+    if (*out > 1.0) {
+      *out = std::numeric_limits<double>::infinity();
+    } else if (*out < -1.0) {
+      *out = -std::numeric_limits<double>::infinity();
     }
   }
   return true;
 }
 
 namespace {
-
-// TODO(rogeeff): replace with the real released thing once we figure out what
-// it is.
-inline bool CaseEqual(absl::string_view piece1, absl::string_view piece2) {
-  return (piece1.size() == piece2.size() &&
-          0 == strings_internal::memcasecmp(piece1.data(), piece2.data(),
-                                            piece1.size()));
-}
 
 // Writes a two-character representation of 'i' to 'buf'. 'i' must be in the
 // range 0 <= i < 100, and buf must have space for two characters. Example:
@@ -137,18 +130,18 @@ inline void PutTwoDigits(size_t i, char* buf) {
 
 }  // namespace
 
-bool SimpleAtob(absl::string_view str, bool* value) {
-  ABSL_RAW_CHECK(value != nullptr, "Output pointer must not be nullptr.");
-  if (CaseEqual(str, "true") || CaseEqual(str, "t") ||
-      CaseEqual(str, "yes") || CaseEqual(str, "y") ||
-      CaseEqual(str, "1")) {
-    *value = true;
+bool SimpleAtob(absl::string_view str, bool* out) {
+  ABSL_RAW_CHECK(out != nullptr, "Output pointer must not be nullptr.");
+  if (EqualsIgnoreCase(str, "true") || EqualsIgnoreCase(str, "t") ||
+      EqualsIgnoreCase(str, "yes") || EqualsIgnoreCase(str, "y") ||
+      EqualsIgnoreCase(str, "1")) {
+    *out = true;
     return true;
   }
-  if (CaseEqual(str, "false") || CaseEqual(str, "f") ||
-      CaseEqual(str, "no") || CaseEqual(str, "n") ||
-      CaseEqual(str, "0")) {
-    *value = false;
+  if (EqualsIgnoreCase(str, "false") || EqualsIgnoreCase(str, "f") ||
+      EqualsIgnoreCase(str, "no") || EqualsIgnoreCase(str, "n") ||
+      EqualsIgnoreCase(str, "0")) {
+    *out = false;
     return true;
   }
   return false;
@@ -910,5 +903,5 @@ bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base) {
 }
 }  // namespace numbers_internal
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

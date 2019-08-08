@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,44 +14,40 @@
 # limitations under the License.
 #
 
-# We require 3.0 for modern, target-based CMake.  We require 3.1 for the use of
-# CXX_STANDARD in our targets.
-cmake_minimum_required(VERSION 3.1)
+# Most widely used distributions have cmake 3.5 or greater available as of March
+# 2019.  A notable exception is RHEL-7 (CentOS7).  You can install a current
+# version of CMake by first installing Extra Packages for Enterprise Linux
+# (https://fedoraproject.org/wiki/EPEL#Extra_Packages_for_Enterprise_Linux_.28EPEL.29)
+# and then issuing `yum install cmake3` on the command line.
+cmake_minimum_required(VERSION 3.5)
 
 # Compiler id for Apple Clang is now AppleClang.
-if (POLICY CMP0025)
-  cmake_policy(SET CMP0025 NEW)
-endif()
+cmake_policy(SET CMP0025 NEW)
 
-project(absl)
+# if command can use IN_LIST
+cmake_policy(SET CMP0057 NEW)
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMake)
+# Project version variables are the empty std::string if version is unspecified
+cmake_policy(SET CMP0048 NEW)
 
-include(GNUInstallDirs)
-include(AbseilHelpers)
+project(absl CXX)
 
-
-# config options
-if (MSVC)
-  # /wd4005  macro-redefinition
-  # /wd4068  unknown pragma
-  # /wd4244  conversion from 'type1' to 'type2'
-  # /wd4267  conversion from 'size_t' to 'type2'
-  # /wd4800  force value to bool 'true' or 'false' (performance warning)
-  add_compile_options(/W3 /wd4005 /wd4068 /wd4244 /wd4267 /wd4800)
-  # /D_ENABLE_EXTENDED_ALIGNED_STORAGE Introduced in VS 2017 15.8, before the
-  # member type would non-conformingly have an alignment of only alignof(max_align_t).
-  add_definitions(
-    /DNOMINMAX
-    /DWIN32_LEAN_AND_MEAN=1
-    /D_CRT_SECURE_NO_WARNINGS
-    /D_SCL_SECURE_NO_WARNINGS
-    /D_ENABLE_EXTENDED_ALIGNED_STORAGE
-  )
+# when absl is included as subproject (i.e. using add_subdirectory(abseil-cpp))
+# in the source tree of a project that uses it, install rules are disabled.
+if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
+  set(ABSL_ENABLE_INSTALL FALSE)
 else()
-  set(ABSL_STD_CXX_FLAG "-std=c++11" CACHE STRING "c++ std flag (default: c++11)")
+  set(ABSL_ENABLE_INSTALL TRUE)
 endif()
 
+list(APPEND CMAKE_MODULE_PATH
+  ${CMAKE_CURRENT_LIST_DIR}/CMake
+  ${CMAKE_CURRENT_LIST_DIR}/absl/copts
+)
+
+include(AbseilInstallDirs)
+include(CMakePackageConfigHelpers)
+include(AbseilHelpers)
 
 
 ##
@@ -67,12 +63,6 @@ endif()
 
 # include current path
 list(APPEND ABSL_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
-
-# -std=X
-set(CMAKE_CXX_FLAGS "${ABSL_STD_CXX_FLAG} ${CMAKE_CXX_FLAGS}")
-
-# -fexceptions
-set(ABSL_EXCEPTIONS_FLAG "${CMAKE_CXX_EXCEPTIONS}")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   set(ABSL_USING_CLANG ON)
@@ -100,7 +90,9 @@ endif()
 if(BUILD_TESTING)
 
   if(${ABSL_USE_GOOGLETEST_HEAD})
-    include(CMake/DownloadGTest.cmake)
+    include(CMake/Googletest/DownloadGTest.cmake)
+    set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
+    set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
   endif()
 
   check_target(gtest)
@@ -116,3 +108,42 @@ if(BUILD_TESTING)
 endif()
 
 add_subdirectory(absl)
+
+if(ABSL_ENABLE_INSTALL)
+
+  # install as a subdirectory only
+  install(EXPORT ${PROJECT_NAME}Targets
+    NAMESPACE absl::
+    DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
+
+  configure_package_config_file(
+    CMake/abslConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
+  install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    DESTINATION "${ABSL_INSTALL_CONFIGDIR}"
+  )
+
+  # Abseil only has a version in LTS releases.  This mechanism is accomplished
+  # Abseil's internal Copybara (https://github.com/google/copybara) workflows and
+  # isn't visible in the CMake buildsystem itself.
+  if(absl_VERSION)
+    write_basic_package_version_file(
+      "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      COMPATIBILITY ExactVersion
+    )
+
+    install(FILES "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      DESTINATION ${ABSL_INSTALL_CONFIGDIR}
+    )
+  endif()  # absl_VERSION
+
+  install(DIRECTORY absl
+    DESTINATION ${ABSL_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+      PATTERN "*.inc"
+      PATTERN "*.h"
+  )
+endif()  # ABSL_ENABLE_INSTALL

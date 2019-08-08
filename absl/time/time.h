@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -58,7 +58,6 @@
 //   std::string s = absl::FormatTime(
 //       "My flight will land in Sydney on %Y-%m-%d at %H:%M:%S",
 //       landing, syd);
-//
 
 #ifndef ABSL_TIME_TIME_H_
 #define ABSL_TIME_TIME_H_
@@ -66,7 +65,14 @@
 #if !defined(_MSC_VER)
 #include <sys/time.h>
 #else
-#include <winsock2.h>
+// We don't include `winsock2.h` because it drags in `windows.h` and friends,
+// and they define conflicting macros like OPAQUE, ERROR, and more. This has the
+// potential to break Abseil users.
+//
+// Instead we only forward declare `timeval` and require Windows users include
+// `winsock2.h` themselves. This is both inconsistent and troublesome, but so is
+// including 'windows.h' so we are picking the lesser of two evils here.
+struct timeval;
 #endif
 #include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
@@ -77,13 +83,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/port.h"  // Needed for string vs std::string
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
 class Duration;  // Defined below
 class Time;      // Defined below
@@ -175,6 +180,7 @@ class Duration {
   Duration& operator%=(Duration rhs);
 
   // Overloads that forward to either the int64_t or double overloads above.
+  // Integer operands must be representable as int64_t.
   template <typename T>
   Duration& operator*=(T r) {
     int64_t x = r;
@@ -217,6 +223,7 @@ inline Duration operator+(Duration lhs, Duration rhs) { return lhs += rhs; }
 inline Duration operator-(Duration lhs, Duration rhs) { return lhs -= rhs; }
 
 // Multiplicative Operators
+// Integer operands must be representable as int64_t.
 template <typename T>
 Duration operator*(Duration lhs, T rhs) {
   return lhs *= rhs;
@@ -371,7 +378,8 @@ constexpr Duration InfiniteDuration();
 // Hours()
 //
 // Factory functions for constructing `Duration` values from an integral number
-// of the unit indicated by the factory function's name.
+// of the unit indicated by the factory function's name. The number must be
+// representable as int64_t.
 //
 // Note: no "Days()" factory function exists because "a day" is ambiguous.
 // Civil days are not always 24 hours long, and a 24-hour duration often does
@@ -570,7 +578,6 @@ std::string UnparseFlag(Duration d);
 //
 // The `absl::Time` class represents an instant in time as a count of clock
 // ticks of some granularity (resolution) from some starting point (epoch).
-//
 //
 // `absl::Time` uses a resolution that is high enough to avoid loss in
 // precision, and a range that is wide enough to avoid overflow, when
@@ -838,8 +845,8 @@ std::string UnparseFlag(Time t);
 //
 // See also:
 // - https://github.com/google/cctz
-// - http://www.iana.org/time-zones
-// - http://en.wikipedia.org/wiki/Zoneinfo
+// - https://www.iana.org/time-zones
+// - https://en.wikipedia.org/wiki/Zoneinfo
 class TimeZone {
  public:
   explicit TimeZone(time_internal::cctz::time_zone tz) : cz_(tz) {}
@@ -1150,7 +1157,9 @@ TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
 //   absl::Time t = absl::FromDateTime(2017, 9, 26, 9, 30, 0, lax);
 //   // t = 2017-09-26 09:30:00 -0700
 //
-// Deprecated. Use `absl::TimeZone::At(CivilSecond).pre`.
+// Deprecated. Use `absl::FromCivil(CivilSecond, TimeZone)`. Note that the
+// behavior of `FromCivil()` differs from `FromDateTime()` for skipped civil
+// times. If you care about that see `absl::TimeZone::At(absl::CivilSecond)`.
 inline Time FromDateTime(int64_t year, int mon, int day, int hour,
                          int min, int sec, TimeZone tz) {
   return ConvertDateTime(year, mon, day, hour, min, sec, tz).pre;
@@ -1221,7 +1230,7 @@ extern const char RFC1123_no_wday[];  // %d %b %E4Y %H:%M:%S %z
 //
 //   absl::CivilSecond cs(2013, 1, 2, 3, 4, 5);
 //   absl::Time t = absl::FromCivil(cs, lax);
-//   string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
+//   std::string f = absl::FormatTime("%H:%M:%S", t, lax);  // "03:04:05"
 //   f = absl::FormatTime("%H:%M:%E3S", t, lax);  // "03:04:05.000"
 //
 // Note: If the given `absl::Time` is `absl::InfiniteFuture()`, the returned
@@ -1442,14 +1451,15 @@ T ToChronoDuration(Duration d) {
   using Period = typename T::period;
   static_assert(IsValidRep64<Rep>(0), "duration::rep is invalid");
   if (time_internal::IsInfiniteDuration(d))
-    return d < ZeroDuration() ? T::min() : T::max();
+    return d < ZeroDuration() ? (T::min)() : (T::max)();
   const auto v = ToInt64(d, Period{});
-  if (v > (std::numeric_limits<Rep>::max)()) return T::max();
-  if (v < (std::numeric_limits<Rep>::min)()) return T::min();
+  if (v > (std::numeric_limits<Rep>::max)()) return (T::max)();
+  if (v < (std::numeric_limits<Rep>::min)()) return (T::min)();
   return T{v};
 }
 
 }  // namespace time_internal
+
 constexpr Duration Nanoseconds(int64_t n) {
   return time_internal::FromInt64(n, std::nano{});
 }
@@ -1555,7 +1565,7 @@ constexpr Time FromTimeT(time_t t) {
   return time_internal::FromUnixDuration(Seconds(t));
 }
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_TIME_TIME_H_

@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+#      https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -43,11 +43,14 @@ absl_cc_library(
     "symbolize_win32.inc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::debugging_internal
     absl::demangle_internal
     absl::base
     absl::core_headers
+    absl::dynamic_annotations
     absl::malloc_internal
   PUBLIC
 )
@@ -181,9 +184,9 @@ absl_cc_library(
   NAME
     leak_check
   HDRS
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:leak_check.h>"
+    "leak_check.h"
   SRCS
-    "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:leak_check.cc>"
+    "leak_check.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -196,13 +199,10 @@ absl_cc_library(
     leak_check_disable
   SRCS
     "leak_check_disable.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   PUBLIC
 )
-
-# TODO(cohenjon) Move into the copts code.
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(ABSL_LSAN_LINKOPTS "-fsanitize=leak")
-endif()
 
 absl_cc_library(
   NAME
@@ -212,7 +212,8 @@ absl_cc_library(
   SRCS
     "leak_check.cc"
   COPTS
-    $<$<BOOL:${ABSL_USING_CLANG}>:-DLEAK_SANITIZER>
+    ${ABSL_DEFAULT_COPTS}
+    $<$<BOOL:${ABSL_HAVE_LSAN}>:-DLEAK_SANITIZER>
   TESTONLY
 )
 
@@ -224,6 +225,7 @@ absl_cc_library(
   SRCS
     "leak_check.cc"
   COPTS
+    ${ABSL_DEFAULT_COPTS}
     "-ULEAK_SANITIZER"
   TESTONLY
 )
@@ -234,7 +236,8 @@ absl_cc_test(
   SRCS
     "leak_check_test.cc"
   COPTS
-    "$<$<CXX_COMPILER_ID:Clang>:-DABSL_EXPECT_LEAK_SANITIZER>"
+    ${ABSL_DEFAULT_COPTS}
+    "$<$<BOOL:${ABSL_HAVE_LSAN}>:-DABSL_EXPECT_LEAK_SANITIZER>"
   LINKOPTS
     "${ABSL_LSAN_LINKOPTS}"
   DEPS
@@ -249,6 +252,7 @@ absl_cc_test(
   SRCS
     "leak_check_test.cc"
   COPTS
+    ${ABSL_TEST_COPTS}
     "-UABSL_EXPECT_LEAK_SANITIZER"
   DEPS
     absl::leak_check_api_disabled_for_testing
@@ -261,6 +265,8 @@ absl_cc_test(
     disabled_leak_check_test
   SRCS
     "leak_check_fail_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   LINKOPTS
     "${ABSL_LSAN_LINKOPTS}"
   DEPS
@@ -303,6 +309,8 @@ absl_cc_test(
 absl_cc_library(
   NAME
     debugging
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::stacktrace
     absl::leak_check

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,7 +33,7 @@
 #include "absl/base/internal/per_thread_tls.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 
 struct SynchLocksHeld;
 struct SynchWaitParams;
@@ -43,9 +43,9 @@ namespace base_internal {
 class SpinLock;
 struct ThreadIdentity;
 
-// Used by the implementation of base::Mutex and base::CondVar.
+// Used by the implementation of absl::Mutex and absl::CondVar.
 struct PerThreadSynch {
-  // The internal representation of base::Mutex and base::CondVar rely
+  // The internal representation of absl::Mutex and absl::CondVar rely
   // on the alignment of PerThreadSynch. Both store the address of the
   // PerThreadSynch in the high-order bits of their internal state,
   // which means the low kLowZeroBits of the address of PerThreadSynch
@@ -237,6 +237,7 @@ inline ThreadIdentity* CurrentThreadIdentityIfPresent() {
 #endif
 
 }  // namespace base_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_

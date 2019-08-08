@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,7 +38,7 @@
 #include "absl/container/internal/hashtable_debug_hooks.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 
 // Returns the number of probes required to lookup `key`.  Returns 0 for a
@@ -61,7 +61,7 @@ std::vector<size_t> GetHashtableDebugNumProbesHistogram(const C& container) {
     size_t num_probes = GetHashtableDebugNumProbes(
         container,
         absl::container_internal::hashtable_debug_internal::GetKey<C>(*it, 0));
-    v.resize(std::max(v.size(), num_probes + 1));
+    v.resize((std::max)(v.size(), num_probes + 1));
     v[num_probes]++;
   }
   return v;
@@ -104,7 +104,7 @@ size_t LowerBoundAllocatedByteSize(size_t num_elements) {
 }
 
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASHTABLE_DEBUG_H_

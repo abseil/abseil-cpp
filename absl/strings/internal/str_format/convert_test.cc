@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <cctype>
 #include <cmath>
 #include <string>
 
@@ -8,7 +9,7 @@
 #include "absl/strings/internal/str_format/bind.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace str_format_internal {
 namespace {
 
@@ -33,7 +34,9 @@ std::string LengthModFor(long long) { return "ll"; }           // NOLINT
 std::string LengthModFor(unsigned long long) { return "ll"; }  // NOLINT
 
 std::string EscCharImpl(int v) {
-  if (isprint(v)) return std::string(1, static_cast<char>(v));
+  if (std::isprint(static_cast<unsigned char>(v))) {
+    return std::string(1, static_cast<char>(v));
+  }
   char buf[64];
   int n = snprintf(buf, sizeof(buf), "\\%#.2x",
                    static_cast<unsigned>(v & 0xff));
@@ -156,7 +159,7 @@ TEST_F(FormatConvertTest, StringPrecision) {
 }
 
 TEST_F(FormatConvertTest, Pointer) {
-#if _MSC_VER
+#ifdef _MSC_VER
   // MSVC's printf implementation prints pointers differently. We can't easily
   // compare our implementation to theirs.
   return;
@@ -233,7 +236,7 @@ TEST_F(FormatConvertTest, Enum) {
 template <typename T>
 class TypedFormatConvertTest : public FormatConvertTest { };
 
-TYPED_TEST_CASE_P(TypedFormatConvertTest);
+TYPED_TEST_SUITE_P(TypedFormatConvertTest);
 
 std::vector<std::string> AllFlagCombinations() {
   const char kFlags[] = {'-', '#', '0', '+', ' '};
@@ -364,6 +367,18 @@ typedef ::testing::Types<
     AllIntTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
+
+TEST_F(FormatConvertTest, VectorBool) {
+  // Make sure vector<bool>'s values behave as bools.
+  std::vector<bool> v = {true, false};
+  const std::vector<bool> cv = {true, false};
+  EXPECT_EQ("1,0,1,0",
+            FormatPack(UntypedFormatSpecImpl("%d,%d,%d,%d"),
+                       absl::Span<const FormatArgImpl>(
+                           {FormatArgImpl(v[0]), FormatArgImpl(v[1]),
+                            FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
+}
+
 TEST_F(FormatConvertTest, Uint128) {
   absl::uint128 v = static_cast<absl::uint128>(0x1234567890abcdef) * 1979;
   absl::uint128 max = absl::Uint128Max();
@@ -390,7 +405,7 @@ TEST_F(FormatConvertTest, Uint128) {
 }
 
 TEST_F(FormatConvertTest, Float) {
-#if _MSC_VER
+#ifdef _MSC_VER
   // MSVC has a different rounding policy than us so we can't test our
   // implementation against the native one there.
   return;
@@ -573,5 +588,5 @@ TEST_F(FormatConvertTest, ExpectedFailures) {
 
 }  // namespace
 }  // namespace str_format_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

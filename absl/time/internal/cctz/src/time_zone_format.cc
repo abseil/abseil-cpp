@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,12 +13,22 @@
 //   limitations under the License.
 
 #if !defined(HAS_STRPTIME)
-# if !defined(_MSC_VER)
+# if !defined(_MSC_VER) && !defined(__MINGW32__)
 #  define HAS_STRPTIME 1  // assume everyone has strptime() except windows
 # endif
 #endif
 
+#if defined(HAS_STRPTIME) && HAS_STRPTIME
+# if !defined(_XOPEN_SOURCE)
+#  define _XOPEN_SOURCE  // Definedness suffices for strptime.
+# endif
+#endif
+
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+
+// Include time.h directly since, by C++ standards, ctime doesn't have to
+// declare strptime.
+#include <time.h>
 
 #include <cctype>
 #include <chrono>
@@ -38,7 +48,7 @@
 #include "time_zone_if.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace time_internal {
 namespace cctz {
 namespace detail {
@@ -73,7 +83,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
     tm.tm_year = static_cast<int>(al.cs.year() - 1900);
   }
 
-  switch (get_weekday(civil_day(al.cs))) {
+  switch (get_weekday(al.cs)) {
     case weekday::sunday:
       tm.tm_wday = 0;
       break;
@@ -96,7 +106,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
       tm.tm_wday = 6;
       break;
   }
-  tm.tm_yday = get_yearday(civil_day(al.cs)) - 1;
+  tm.tm_yday = get_yearday(al.cs) - 1;
   tm.tm_isdst = al.is_dst ? 1 : 0;
   return tm;
 }
@@ -150,15 +160,25 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
     offset = -offset;  // bounded by 24h so no overflow
     sign = '-';
   }
-  char sep = mode[0];
-  if (sep != '\0' && mode[1] == '*') {
-    ep = Format02d(ep, offset % 60);
+  const int seconds = offset % 60;
+  const int minutes = (offset /= 60) % 60;
+  const int hours = offset /= 60;
+  const char sep = mode[0];
+  const bool ext = (sep != '\0' && mode[1] == '*');
+  const bool ccc = (ext && mode[2] == ':');
+  if (ext && (!ccc || seconds != 0)) {
+    ep = Format02d(ep, seconds);
     *--ep = sep;
+  } else {
+    // If we're not rendering seconds, sub-minute negative offsets
+    // should get a positive sign (e.g., offset=-10s => "+00:00").
+    if (hours == 0 && minutes == 0) sign = '+';
   }
-  int minutes = offset / 60;
-  ep = Format02d(ep, minutes % 60);
-  if (sep != '\0') *--ep = sep;
-  ep = Format02d(ep, minutes / 60);
+  if (!ccc || minutes != 0 || seconds != 0) {
+    ep = Format02d(ep, minutes);
+    if (sep != '\0') *--ep = sep;
+  }
+  ep = Format02d(ep, hours);
   *--ep = sign;
   return ep;
 }
@@ -383,6 +403,44 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
       }
       pending = ++cur;
       continue;
+    }
+
+    // More complex specifiers that we handle ourselves.
+    if (*cur == ':' && cur + 1 != end) {
+      if (*(cur + 1) == 'z') {
+        // Formats %:z.
+        if (cur - 1 != pending) {
+          FormatTM(&result, std::string(pending, cur - 1), tm);
+        }
+        bp = FormatOffset(ep, al.offset, ":");
+        result.append(bp, static_cast<std::size_t>(ep - bp));
+        pending = cur += 2;
+        continue;
+      }
+      if (*(cur + 1) == ':' && cur + 2 != end) {
+        if (*(cur + 2) == 'z') {
+          // Formats %::z.
+          if (cur - 1 != pending) {
+            FormatTM(&result, std::string(pending, cur - 1), tm);
+          }
+          bp = FormatOffset(ep, al.offset, ":*");
+          result.append(bp, static_cast<std::size_t>(ep - bp));
+          pending = cur += 3;
+          continue;
+        }
+        if (*(cur + 2) == ':' && cur + 3 != end) {
+          if (*(cur + 3) == 'z') {
+            // Formats %:::z.
+            if (cur - 1 != pending) {
+              FormatTM(&result, std::string(pending, cur - 1), tm);
+            }
+            bp = FormatOffset(ep, al.offset, ":*:");
+            result.append(bp, static_cast<std::size_t>(ep - bp));
+            pending = cur += 4;
+            continue;
+          }
+        }
+      }
     }
 
     // Loop if there is no E modifier.
@@ -669,17 +727,27 @@ bool parse(const std::string& format, const std::string& input,
                         &percent_s);
         if (data != nullptr) saw_percent_s = true;
         continue;
+      case ':':
+        if (fmt[0] == 'z' ||
+            (fmt[0] == ':' &&
+             (fmt[1] == 'z' || (fmt[1] == ':' && fmt[2] == 'z')))) {
+          data = ParseOffset(data, ":", &offset);
+          if (data != nullptr) saw_offset = true;
+          fmt += (fmt[0] == 'z') ? 1 : (fmt[1] == 'z') ? 2 : 3;
+          continue;
+        }
+        break;
       case '%':
         data = (*data == '%' ? data + 1 : nullptr);
         continue;
       case 'E':
-        if (*fmt == 'z' || (*fmt == '*' && *(fmt + 1) == 'z')) {
+        if (fmt[0] == 'z' || (fmt[0] == '*' && fmt[1] == 'z')) {
           data = ParseOffset(data, ":", &offset);
           if (data != nullptr) saw_offset = true;
-          fmt += (*fmt == 'z') ? 1 : 2;
+          fmt += (fmt[0] == 'z') ? 1 : 2;
           continue;
         }
-        if (*fmt == '*' && *(fmt + 1) == 'S') {
+        if (fmt[0] == '*' && fmt[1] == 'S') {
           data = ParseInt(data, 2, 0, 60, &tm.tm_sec);
           if (data != nullptr && *data == '.') {
             data = ParseSubSeconds(data + 1, &subseconds);
@@ -687,14 +755,14 @@ bool parse(const std::string& format, const std::string& input,
           fmt += 2;
           continue;
         }
-        if (*fmt == '*' && *(fmt + 1) == 'f') {
+        if (fmt[0] == '*' && fmt[1] == 'f') {
           if (data != nullptr && std::isdigit(*data)) {
             data = ParseSubSeconds(data, &subseconds);
           }
           fmt += 2;
           continue;
         }
-        if (*fmt == '4' && *(fmt + 1) == 'Y') {
+        if (fmt[0] == '4' && fmt[1] == 'Y') {
           const char* bp = data;
           data = ParseInt(data, 4, year_t{-999}, year_t{9999}, &year);
           if (data != nullptr) {
@@ -849,5 +917,5 @@ bool parse(const std::string& format, const std::string& input,
 }  // namespace detail
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

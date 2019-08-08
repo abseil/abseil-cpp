@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,7 +25,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace base_internal {
 namespace {
 
@@ -71,6 +71,10 @@ struct OverloadedFunctor {
 struct Class {
   int Method(int a, int b) { return a - b; }
   int ConstMethod(int a, int b) const { return a - b; }
+  int RefMethod(int a, int b) & { return a - b; }
+  int RefRefMethod(int a, int b) && { return a - b; }
+  int NoExceptMethod(int a, int b) noexcept { return a - b; }
+  int VolatileMethod(int a, int b) volatile { return a - b; }
 
   int member;
 };
@@ -152,8 +156,18 @@ TEST(InvokeTest, ReferenceWrapper) {
 TEST(InvokeTest, MemberFunction) {
   std::unique_ptr<Class> p(new Class);
   std::unique_ptr<const Class> cp(new Class);
+  std::unique_ptr<volatile Class> vp(new Class);
+
   EXPECT_EQ(1, Invoke(&Class::Method, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::Method, p.get(), 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::Method, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, p.get(), 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefRefMethod, std::move(*p), 3, 2));  // NOLINT
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, p.get(), 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, *p, 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, p.get(), 3, 2));
@@ -162,6 +176,13 @@ TEST(InvokeTest, MemberFunction) {
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, cp, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, cp.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, *cp, 3, 2));
+
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, p.get(), 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, vp, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, vp.get(), 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, *vp, 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::Method, make_unique<Class>(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, make_unique<Class>(), 3, 2));
@@ -198,5 +219,5 @@ TEST(InvokeTest, SfinaeFriendly) {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

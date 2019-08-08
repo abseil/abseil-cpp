@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@
 #include "tzfile.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace time_internal {
 namespace cctz {
 
@@ -89,7 +89,7 @@ class TimeZoneInfo : public TimeZoneIf {
     std::size_t charcnt;     // zone abbreviation characters
     std::size_t leapcnt;     // leap seconds (we expect none)
     std::size_t ttisstdcnt;  // UTC/local indicators (unused)
-    std::size_t ttisgmtcnt;  // standard/wall indicators (unused)
+    std::size_t ttisutcnt;   // standard/wall indicators (unused)
 
     bool Build(const tzhead& tzh);
     std::size_t DataLength(std::size_t time_len) const;
@@ -132,7 +132,7 @@ class TimeZoneInfo : public TimeZoneIf {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_INFO_H_

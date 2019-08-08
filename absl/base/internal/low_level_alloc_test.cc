@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@
 #include <utility>
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace base_internal {
 namespace {
 
@@ -138,6 +138,7 @@ static void Test(bool use_new_arena, bool call_malloc_hook, int n) {
     TEST_ASSERT(LowLevelAlloc::DeleteArena(arena));
   }
 }
+
 // LowLevelAlloc is designed to be safe to call before main().
 static struct BeforeMain {
   BeforeMain() {
@@ -149,7 +150,7 @@ static struct BeforeMain {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 int main(int argc, char *argv[]) {

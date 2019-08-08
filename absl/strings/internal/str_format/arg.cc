@@ -14,7 +14,7 @@
 #include "absl/strings/internal/str_format/float_conversion.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace str_format_internal {
 namespace {
 
@@ -375,5 +375,5 @@ ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_();
 
 }  // namespace str_format_internal
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

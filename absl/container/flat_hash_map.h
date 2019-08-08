@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,7 +42,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 template <class K, class V>
 struct FlatHashMapPolicy;
@@ -78,7 +78,7 @@ struct FlatHashMapPolicy;
 // NOTE: A `flat_hash_map` stores its value types directly inside its
 // implementation array to avoid memory indirection. Because a `flat_hash_map`
 // is designed to move data when rehashed, map values will not retain pointer
-// stability. If you require pointer stability, or your values are large,
+// stability. If you require pointer stability, or if your values are large,
 // consider using `absl::flat_hash_map<Key, std::unique_ptr<Value>>` instead.
 // If your types are not moveable or you require pointer stability for keys,
 // consider `absl::node_hash_map`.
@@ -220,8 +220,12 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //   Erases the element at `position` of the `flat_hash_map`, returning
   //   `void`.
   //
-  //   NOTE: this return behavior is different than that of STL containers in
-  //   general and `std::unordered_map` in particular.
+  //   NOTE: returning `void` in this case is different than that of STL
+  //   containers in general and `std::unordered_map` in particular (which
+  //   return an iterator to the element following the erased element). If that
+  //   iterator is needed, simply post increment the iterator:
+  //
+  //     map.erase(it++);
   //
   // iterator erase(const_iterator first, const_iterator last):
   //
@@ -528,25 +532,26 @@ namespace container_internal {
 
 template <class K, class V>
 struct FlatHashMapPolicy {
-  using slot_type = container_internal::slot_type<K, V>;
+  using slot_policy = container_internal::map_slot_policy<K, V>;
+  using slot_type = typename slot_policy::slot_type;
   using key_type = K;
   using mapped_type = V;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    slot_type::construct(alloc, slot, std::forward<Args>(args)...);
+    slot_policy::construct(alloc, slot, std::forward<Args>(args)...);
   }
 
   template <class Allocator>
   static void destroy(Allocator* alloc, slot_type* slot) {
-    slot_type::destroy(alloc, slot);
+    slot_policy::destroy(alloc, slot);
   }
 
   template <class Allocator>
   static void transfer(Allocator* alloc, slot_type* new_slot,
                        slot_type* old_slot) {
-    slot_type::transfer(alloc, new_slot, old_slot);
+    slot_policy::transfer(alloc, new_slot, old_slot);
   }
 
   template <class F, class... Args>
@@ -576,7 +581,7 @@ struct IsUnorderedContainer<
 
 }  // namespace container_algorithm_internal
 
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_FLAT_HASH_MAP_H_

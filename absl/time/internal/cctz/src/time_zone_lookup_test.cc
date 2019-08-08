@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//   https://www.apache.org/licenses/LICENSE-2.0
 //
 //   Unless required by applicable law or agreed to in writing, software
 //   distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,7 +29,7 @@
 namespace chrono = std::chrono;
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace time_internal {
 namespace cctz {
 
@@ -338,6 +338,7 @@ const char* const kTimeZoneNames[] = {
   "Asia/Pontianak",
   "Asia/Pyongyang",
   "Asia/Qatar",
+  "Asia/Qostanay",
   "Asia/Qyzylorda",
   "Asia/Rangoon",
   "Asia/Riyadh",
@@ -667,6 +668,7 @@ int VersionCmp(time_zone tz, const std::string& target) {
 
 }  // namespace
 
+#if !defined(__EMSCRIPTEN__)
 TEST(TimeZones, LoadZonesConcurrently) {
   std::promise<void> ready_promise;
   std::shared_future<void> ready_future(ready_promise.get_future());
@@ -714,6 +716,7 @@ TEST(TimeZones, LoadZonesConcurrently) {
   }
   EXPECT_LE(failures.size(), max_failures) << testing::PrintToString(failures);
 }
+#endif
 
 TEST(TimeZone, NamedTimeZones) {
   const time_zone utc = utc_time_zone();
@@ -834,7 +837,7 @@ TEST(BreakTime, LocalTimeInUTC) {
   const time_zone tz = utc_time_zone();
   const auto tp = chrono::system_clock::from_time_t(0);
   ExpectTime(tp, tz, 1970, 1, 1, 0, 0, 0, 0, false, "UTC");
-  EXPECT_EQ(weekday::thursday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::thursday, get_weekday(convert(tp, tz)));
 }
 
 TEST(BreakTime, LocalTimeInUTCUnaligned) {
@@ -842,7 +845,7 @@ TEST(BreakTime, LocalTimeInUTCUnaligned) {
   const auto tp =
       chrono::system_clock::from_time_t(0) - chrono::milliseconds(500);
   ExpectTime(tp, tz, 1969, 12, 31, 23, 59, 59, 0, false, "UTC");
-  EXPECT_EQ(weekday::wednesday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::wednesday, get_weekday(convert(tp, tz)));
 }
 
 TEST(BreakTime, LocalTimePosix) {
@@ -850,7 +853,7 @@ TEST(BreakTime, LocalTimePosix) {
   const time_zone tz = utc_time_zone();
   const auto tp = chrono::system_clock::from_time_t(536457599);
   ExpectTime(tp, tz, 1986, 12, 31, 23, 59, 59, 0, false, "UTC");
-  EXPECT_EQ(weekday::wednesday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::wednesday, get_weekday(convert(tp, tz)));
 }
 
 TEST(TimeZoneImpl, LocalTimeInFixed) {
@@ -860,28 +863,28 @@ TEST(TimeZoneImpl, LocalTimeInFixed) {
   const auto tp = chrono::system_clock::from_time_t(0);
   ExpectTime(tp, tz, 1969, 12, 31, 15, 26, 13, offset.count(), false,
              "-083347");
-  EXPECT_EQ(weekday::wednesday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::wednesday, get_weekday(convert(tp, tz)));
 }
 
 TEST(BreakTime, LocalTimeInNewYork) {
   const time_zone tz = LoadZone("America/New_York");
   const auto tp = chrono::system_clock::from_time_t(45);
   ExpectTime(tp, tz, 1969, 12, 31, 19, 0, 45, -5 * 60 * 60, false, "EST");
-  EXPECT_EQ(weekday::wednesday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::wednesday, get_weekday(convert(tp, tz)));
 }
 
 TEST(BreakTime, LocalTimeInMTV) {
   const time_zone tz = LoadZone("America/Los_Angeles");
   const auto tp = chrono::system_clock::from_time_t(1380855729);
   ExpectTime(tp, tz, 2013, 10, 3, 20, 2, 9, -7 * 60 * 60, true, "PDT");
-  EXPECT_EQ(weekday::thursday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::thursday, get_weekday(convert(tp, tz)));
 }
 
 TEST(BreakTime, LocalTimeInSydney) {
   const time_zone tz = LoadZone("Australia/Sydney");
   const auto tp = chrono::system_clock::from_time_t(90);
   ExpectTime(tp, tz, 1970, 1, 1, 10, 1, 30, 10 * 60 * 60, false, "AEST");
-  EXPECT_EQ(weekday::thursday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::thursday, get_weekday(convert(tp, tz)));
 }
 
 TEST(MakeTime, TimePointResolution) {
@@ -1019,7 +1022,7 @@ TEST(MakeTime, LocalTimeLibC) {
   //  1) we know how to change the time zone used by localtime()/mktime(),
   //  2) cctz and localtime()/mktime() will use similar-enough tzdata, and
   //  3) we have some idea about how mktime() behaves during transitions.
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
   const char* const ep = getenv("TZ");
   std::string tz_name = (ep != nullptr) ? ep : "";
   for (const char* const* np = kTimeZoneNames; *np != nullptr; ++np) {
@@ -1272,10 +1275,10 @@ TEST(TimeZoneEdgeCase, PacificApia) {
   //   1325239200 == Sat, 31 Dec 2011 00:00:00 +1400 (+14)
   auto tp = convert(civil_second(2011, 12, 29, 23, 59, 59), tz);
   ExpectTime(tp, tz, 2011, 12, 29, 23, 59, 59, -10 * 3600, true, "-10");
-  EXPECT_EQ(363, get_yearday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(363, get_yearday(convert(tp, tz)));
   tp += absl::time_internal::cctz::seconds(1);
   ExpectTime(tp, tz, 2011, 12, 31, 0, 0, 0, 14 * 3600, true, "+14");
-  EXPECT_EQ(365, get_yearday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(365, get_yearday(convert(tp, tz)));
 }
 
 TEST(TimeZoneEdgeCase, AfricaCairo) {
@@ -1397,10 +1400,10 @@ TEST(TimeZoneEdgeCase, NegativeYear) {
   const time_zone tz = utc_time_zone();
   auto tp = convert(civil_second(0, 1, 1, 0, 0, 0), tz);
   ExpectTime(tp, tz, 0, 1, 1, 0, 0, 0, 0 * 3600, false, "UTC");
-  EXPECT_EQ(weekday::saturday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::saturday, get_weekday(convert(tp, tz)));
   tp -= absl::time_internal::cctz::seconds(1);
   ExpectTime(tp, tz, -1, 12, 31, 23, 59, 59, 0 * 3600, false, "UTC");
-  EXPECT_EQ(weekday::friday, get_weekday(civil_day(convert(tp, tz))));
+  EXPECT_EQ(weekday::friday, get_weekday(convert(tp, tz)));
 }
 
 TEST(TimeZoneEdgeCase, UTC32bitLimit) {
@@ -1431,5 +1434,5 @@ TEST(TimeZoneEdgeCase, UTC5DigitYear) {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

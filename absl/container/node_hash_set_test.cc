@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,11 @@
 
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
+#include "absl/container/internal/unordered_set_members_test.h"
 #include "absl/container/internal/unordered_set_modifiers_test.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 namespace {
 using ::absl::container_internal::hash_internal::Enum;
@@ -30,14 +31,15 @@ using ::testing::UnorderedElementsAre;
 using SetTypes = ::testing::Types<
     node_hash_set<int, StatefulTestingHash, StatefulTestingEqual, Alloc<int>>,
     node_hash_set<std::string, StatefulTestingHash, StatefulTestingEqual,
-                  Alloc<int>>,
+                  Alloc<std::string>>,
     node_hash_set<Enum, StatefulTestingHash, StatefulTestingEqual, Alloc<Enum>>,
     node_hash_set<EnumClass, StatefulTestingHash, StatefulTestingEqual,
                   Alloc<EnumClass>>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, ConstructorTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, LookupTest, SetTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NodeHashSet, ModifiersTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, ConstructorTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, LookupTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, MembersTest, SetTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(NodeHashSet, ModifiersTest, SetTypes);
 
 TEST(NodeHashSet, MoveableNotCopyableCompiles) {
   node_hash_set<std::unique_ptr<void*>> t;
@@ -101,5 +103,5 @@ TEST(NodeHashSet, MergeExtractInsert) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 namespace {
 
@@ -46,7 +46,7 @@ Expected Type(Actual val) {
   return val;
 }
 
-// Helper class to test different size and alignments.
+// Helper classes to test different size and alignments.
 struct alignas(8) Int128 {
   uint64_t a, b;
   friend bool operator==(Int128 lhs, Int128 rhs) {
@@ -58,6 +58,14 @@ struct alignas(8) Int128 {
   }
 };
 
+// int64_t is *not* 8-byte aligned on all platforms!
+struct alignas(8) Int64 {
+  int64_t a;
+  friend bool operator==(Int64 lhs, Int64 rhs) {
+    return lhs.a == rhs.a;
+  }
+};
+
 // Properties of types that this test relies on.
 static_assert(sizeof(int8_t) == 1, "");
 static_assert(alignof(int8_t) == 1, "");
@@ -65,6 +73,8 @@ static_assert(sizeof(int16_t) == 2, "");
 static_assert(alignof(int16_t) == 2, "");
 static_assert(sizeof(int32_t) == 4, "");
 static_assert(alignof(int32_t) == 4, "");
+static_assert(sizeof(Int64) == 8, "");
+static_assert(alignof(Int64) == 8, "");
 static_assert(sizeof(Int128) == 16, "");
 static_assert(alignof(Int128) == 8, "");
 
@@ -1282,14 +1292,14 @@ TEST(Layout, OverAligned) {
 TEST(Layout, Alignment) {
   static_assert(Layout<int8_t>::Alignment() == 1, "");
   static_assert(Layout<int32_t>::Alignment() == 4, "");
-  static_assert(Layout<int64_t>::Alignment() == 8, "");
+  static_assert(Layout<Int64>::Alignment() == 8, "");
   static_assert(Layout<Aligned<int8_t, 64>>::Alignment() == 64, "");
-  static_assert(Layout<int8_t, int32_t, int64_t>::Alignment() == 8, "");
-  static_assert(Layout<int8_t, int64_t, int32_t>::Alignment() == 8, "");
-  static_assert(Layout<int32_t, int8_t, int64_t>::Alignment() == 8, "");
-  static_assert(Layout<int32_t, int64_t, int8_t>::Alignment() == 8, "");
-  static_assert(Layout<int64_t, int8_t, int32_t>::Alignment() == 8, "");
-  static_assert(Layout<int64_t, int32_t, int8_t>::Alignment() == 8, "");
+  static_assert(Layout<int8_t, int32_t, Int64>::Alignment() == 8, "");
+  static_assert(Layout<int8_t, Int64, int32_t>::Alignment() == 8, "");
+  static_assert(Layout<int32_t, int8_t, Int64>::Alignment() == 8, "");
+  static_assert(Layout<int32_t, Int64, int8_t>::Alignment() == 8, "");
+  static_assert(Layout<Int64, int8_t, int32_t>::Alignment() == 8, "");
+  static_assert(Layout<Int64, int32_t, int8_t>::Alignment() == 8, "");
 }
 
 TEST(Layout, ConstexprPartial) {
@@ -1324,7 +1334,7 @@ void ExpectPoisoned(const unsigned char (&buf)[N],
 }
 
 TEST(Layout, PoisonPadding) {
-  using L = Layout<int8_t, int64_t, int32_t, Int128>;
+  using L = Layout<int8_t, Int64, int32_t, Int128>;
 
   constexpr size_t n = L::Partial(1, 2, 3, 4).AllocSize();
   {
@@ -1553,5 +1563,5 @@ TEST(CompactString, Works) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

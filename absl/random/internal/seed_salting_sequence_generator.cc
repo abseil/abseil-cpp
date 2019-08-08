@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/types/optional.h"
+#include <iostream>
+#include <random>
 
-#ifndef ABSL_HAVE_STD_OPTIONAL
-namespace absl {
-inline namespace lts_2018_12_18 {
+#include "absl/random/random.h"
 
-nullopt_t::init_t nullopt_t::init;
-extern const nullopt_t nullopt{nullopt_t::init};
+// This program is used in integration tests.
 
-}  // inline namespace lts_2018_12_18
-}  // namespace absl
-#endif  // ABSL_HAVE_STD_OPTIONAL
+int main() {
+  std::seed_seq seed_seq{1234};
+  absl::BitGen rng(seed_seq);
+  constexpr size_t kSequenceLength = 8;
+  for (size_t i = 0; i < kSequenceLength; i++) {
+    std::cout << rng() << "\n";
+  }
+  return 0;
+}

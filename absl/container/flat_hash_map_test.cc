@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//      https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,11 +17,12 @@
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
+#include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 #include "absl/types/any.h"
 
 namespace absl {
-inline namespace lts_2018_12_18 {
+inline namespace lts_2019_08_08 {
 namespace container_internal {
 namespace {
 using ::absl::container_internal::hash_internal::Enum;
@@ -31,19 +32,20 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 template <class K, class V>
-using Map =
-    flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual, Alloc<>>;
+using Map = flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual,
+                          Alloc<std::pair<const K, V>>>;
 
 static_assert(!std::is_standard_layout<NonStandardLayout>(), "");
 
 using MapTypes =
-    ::testing::Types<Map<int, int>, Map<std::string, int>, Map<Enum, std::string>,
-                     Map<EnumClass, int>, Map<int, NonStandardLayout>,
-                     Map<NonStandardLayout, int>>;
+    ::testing::Types<Map<int, int>, Map<std::string, int>,
+                     Map<Enum, std::string>, Map<EnumClass, int>,
+                     Map<int, NonStandardLayout>, Map<NonStandardLayout, int>>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, ConstructorTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, LookupTest, MapTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(FlatHashMap, ModifiersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {
@@ -140,6 +142,7 @@ TEST(FlatHashMap, LazyKeyPattern) {
   int conversions = 0;
   int hashes = 0;
   flat_hash_map<size_t, size_t, Hash, Eq> m(0, Hash{&hashes});
+  m.reserve(3);
 
   m[LazyInt(1, &conversions)] = 1;
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 1)));
@@ -204,7 +207,9 @@ TEST(FlatHashMap, MergeExtractInsert) {
   m.insert(std::move(node));
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 17), Pair(2, 9)));
 }
-#if !defined(__ANDROID__) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+
+#if (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
+    !defined(__EMSCRIPTEN__)
 TEST(FlatHashMap, Any) {
   absl::flat_hash_map<int, absl::any> m;
   m.emplace(1, 7);
@@ -235,9 +240,10 @@ TEST(FlatHashMap, Any) {
   ASSERT_NE(it2, m2.end());
   EXPECT_EQ(7, it2->second);
 }
-#endif  // __ANDROID__
+#endif  // (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
+        // !defined(__EMSCRIPTEN__)
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2018_12_18
+}  // inline namespace lts_2019_08_08
 }  // namespace absl

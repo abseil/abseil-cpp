@@ -5,7 +5,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#    https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 
 include(CMakeParseArguments)
 include(AbseilConfigureCopts)
+include(AbseilInstallDirs)
 
 # The IDE folder for Abseil that will be used if Abseil is included in a CMake
 # project that sets
@@ -23,53 +24,8 @@ include(AbseilConfigureCopts)
 # For example, Visual Studio supports folders.
 set(ABSL_IDE_FOLDER Abseil)
 
+# absl_cc_library()
 #
-# create a library in the absl namespace
-#
-# parameters
-# SOURCES : sources files for the library
-# PUBLIC_LIBRARIES: targets and flags for linking phase
-# PRIVATE_COMPILE_FLAGS: compile flags for the library. Will not be exported.
-# EXPORT_NAME: export name for the absl:: target export
-# TARGET: target name
-#
-# create a target associated to <NAME>
-# libraries are installed under CMAKE_INSTALL_FULL_LIBDIR by default
-#
-function(absl_library)
-  cmake_parse_arguments(ABSL_LIB
-    "DISABLE_INSTALL" # keep that in case we want to support installation one day
-    "TARGET;EXPORT_NAME"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_LIB_TARGET})
-  string(TOUPPER ${_NAME} _UPPER_NAME)
-
-  add_library(${_NAME} STATIC ${ABSL_LIB_SOURCES})
-
-  target_compile_options(${_NAME}
-    PRIVATE
-      ${ABSL_LIB_PRIVATE_COMPILE_FLAGS}
-      ${ABSL_DEFAULT_COPTS}
-  )
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-  if(ABSL_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-endfunction()
-
 # CMake function to imitate Bazel's cc_library rule.
 #
 # Parameters:
@@ -80,13 +36,13 @@ endfunction()
 # COPTS: List of private compile options
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
-# PUBLIC: Add this so that this library will be exported under absl:: (see Note).
+# PUBLIC: Add this so that this library will be exported under absl::
 # Also in IDE, target will appear in Abseil folder while non PUBLIC will be in Abseil/internal.
 # TESTONLY: When added, this target will only be built if user passes -DABSL_RUN_TESTS=ON to CMake.
 #
 # Note:
-# By default, absl_cc_library will always create a library named absl_internal_${NAME},
-# and alias target absl::${NAME}.
+# By default, absl_cc_library will always create a library named absl_${NAME},
+# and alias target absl::${NAME}.  The absl:: form should always be used.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
@@ -103,20 +59,17 @@ endfunction()
 #   SRCS
 #     "b.cc"
 #   DEPS
-#     absl_internal_awesome # not "awesome"!
+#     absl::awesome # not "awesome" !
+#   PUBLIC
 # )
-#
-# If PUBLIC is set, absl_cc_library will instead create a target named
-# absl_${NAME} and still an alias absl::${NAME}.
 #
 # absl_cc_library(
 #   NAME
 #     main_lib
 #   ...
-#   PUBLIC
+#   DEPS
+#     absl::fantastic_lib
 # )
-#
-# User can then use the library as absl::main_lib (although absl_main_lib is defined too).
 #
 # TODO: Implement "ALWAYSLINK"
 function(absl_cc_library)
@@ -127,15 +80,24 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if (NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    if (ABSL_CC_LIB_PUBLIC)
-      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+  if(NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
+    if(ABSL_ENABLE_INSTALL)
+      set(_NAME "${ABSL_CC_LIB_NAME}")
     else()
-      set(_NAME "absl_internal_${ABSL_CC_LIB_NAME}")
+      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
     endif()
 
     # Check if this is a header-only library
-    if ("${ABSL_CC_LIB_SRCS}" STREQUAL "")
+    # Note that as of February 2019, many popular OS's (for example, Ubuntu
+    # 16.04 LTS) only come with cmake 3.5 by default.  For this reason, we can't
+    # use list(FILTER...)
+    set(ABSL_CC_SRCS "${ABSL_CC_LIB_SRCS}")
+    foreach(src_file IN LISTS ABSL_CC_SRCS)
+      if(${src_file} MATCHES ".*\\.(h|inc)")
+        list(REMOVE_ITEM ABSL_CC_SRCS "${src_file}")
+      endif()
+    endforeach()
+    if("${ABSL_CC_SRCS}" STREQUAL "")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
       set(ABSL_CC_LIB_IS_INTERFACE 0)
@@ -145,12 +107,17 @@ function(absl_cc_library)
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
-        PUBLIC ${ABSL_COMMON_INCLUDE_DIRS})
+        PUBLIC
+          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
+      )
       target_compile_options(${_NAME}
         PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
         PUBLIC ${ABSL_CC_LIB_DEPS}
-        PRIVATE ${ABSL_CC_LIB_LINKOPTS}
+        PRIVATE
+          ${ABSL_CC_LIB_LINKOPTS}
+          ${ABSL_DEFAULT_LINKOPTS}
       )
       target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
 
@@ -166,15 +133,38 @@ function(absl_cc_library)
       # INTERFACE libraries can't have the CXX_STANDARD property set
       set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
       set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
+      # When being installed, we lose the absl_ prefix.  We want to put it back
+      # to have properly named lib files.  This is a no-op when we are not being
+      # installed.
+      set_target_properties(${_NAME} PROPERTIES
+        OUTPUT_NAME "absl_${_NAME}"
+      )
     else()
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
       target_include_directories(${_NAME}
-        INTERFACE ${ABSL_COMMON_INCLUDE_DIRS})
+        INTERFACE
+          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
+        )
       target_link_libraries(${_NAME}
-        INTERFACE ${ABSL_CC_LIB_DEPS} ${ABSL_CC_LIB_LINKOPTS}
+        INTERFACE
+          ${ABSL_CC_LIB_DEPS}
+          ${ABSL_CC_LIB_LINKOPTS}
+          ${ABSL_DEFAULT_LINKOPTS}
       )
       target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
+    endif()
+
+    # TODO currently we don't install googletest alongside abseil sources, so
+    # installed abseil can't be tested.
+    if(NOT ABSL_CC_LIB_TESTONLY AND ABSL_ENABLE_INSTALL)
+      install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
+            RUNTIME DESTINATION ${ABSL_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${ABSL_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${ABSL_INSTALL_LIBDIR}
+      )
     endif()
 
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
@@ -256,116 +246,10 @@ function(absl_cc_test)
   add_test(NAME ${_NAME} COMMAND ${_NAME})
 endfunction()
 
-#
-# header only virtual target creation
-#
-function(absl_header_library)
-  cmake_parse_arguments(ABSL_HO_LIB
-    "DISABLE_INSTALL"
-    "EXPORT_NAME;TARGET"
-    "PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS;PRIVATE_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-  set(_NAME ${ABSL_HO_LIB_TARGET})
-
-  set(__dummy_header_only_lib_file "${CMAKE_CURRENT_BINARY_DIR}/${_NAME}_header_only_dummy.cc")
-
-  if(NOT EXISTS ${__dummy_header_only_lib_file})
-    file(WRITE ${__dummy_header_only_lib_file}
-      "/* generated file for header-only cmake target */
-
-      namespace absl {
-
-       // single meaningless symbol
-       void ${_NAME}__header_fakesym() {}
-      }  // namespace absl
-      "
-    )
-  endif()
-
-
-  add_library(${_NAME} ${__dummy_header_only_lib_file})
-  target_link_libraries(${_NAME} PUBLIC ${ABSL_HO_LIB_PUBLIC_LIBRARIES})
-  target_include_directories(${_NAME}
-    PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_HO_LIB_PUBLIC_INCLUDE_DIRS}
-    PRIVATE ${ABSL_HO_LIB_PRIVATE_INCLUDE_DIRS}
-  )
-
-  # Add all Abseil targets to a a folder in the IDE for organization.
-  set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-  set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-  if(ABSL_HO_LIB_EXPORT_NAME)
-    add_library(absl::${ABSL_HO_LIB_EXPORT_NAME} ALIAS ${_NAME})
-  endif()
-
-endfunction()
-
-#
-# create an abseil unit_test and add it to the executed test list
-#
-# parameters
-# TARGET: target name prefix
-# SOURCES: sources files for the tests
-# PUBLIC_LIBRARIES: targets and flags for linking phase.
-# PRIVATE_COMPILE_FLAGS: compile flags for the test. Will not be exported.
-#
-# create a target associated to <NAME>_bin
-#
-# all tests will be register for execution with add_test()
-#
-# test compilation and execution is disable when ABSL_RUN_TESTS=OFF
-#
-function(absl_test)
-
-  cmake_parse_arguments(ABSL_TEST
-    ""
-    "TARGET"
-    "SOURCES;PUBLIC_LIBRARIES;PRIVATE_COMPILE_FLAGS;PUBLIC_INCLUDE_DIRS"
-    ${ARGN}
-  )
-
-
-  if(ABSL_RUN_TESTS)
-
-    set(_NAME "absl_${ABSL_TEST_TARGET}")
-    string(TOUPPER ${_NAME} _UPPER_NAME)
-
-    add_executable(${_NAME} ${ABSL_TEST_SOURCES})
-
-    target_compile_options(${_NAME}
-      PRIVATE
-        ${ABSL_TEST_PRIVATE_COMPILE_FLAGS}
-        ${ABSL_TEST_COPTS}
-    )
-    target_link_libraries(${_NAME} PUBLIC ${ABSL_TEST_PUBLIC_LIBRARIES} ${ABSL_TEST_COMMON_LIBRARIES})
-    target_include_directories(${_NAME}
-      PUBLIC ${ABSL_COMMON_INCLUDE_DIRS} ${ABSL_TEST_PUBLIC_INCLUDE_DIRS}
-      PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
-    )
-
-    # Add all Abseil targets to a a folder in the IDE for organization.
-    set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-
-    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-
-    add_test(NAME ${_NAME} COMMAND ${_NAME})
-  endif(ABSL_RUN_TESTS)
-
-endfunction()
-
-
-
 
 function(check_target my_target)
-
   if(NOT TARGET ${my_target})
     message(FATAL_ERROR " ABSL: compiling absl requires a ${my_target} CMake target in your project,
                    see CMake/README.md for more details")
   endif(NOT TARGET ${my_target})
-
 endfunction()
