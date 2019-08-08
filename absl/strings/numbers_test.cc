@@ -713,7 +713,7 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
   }
 }
 
-// feenableexcept() and fedisableexcept() are missing on Mac OS X, MSVC,
+// feenableexcept() and fedisableexcept() are missing on macOS, MSVC,
 // and WebAssembly.
 #if defined(_MSC_VER) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 #define ABSL_MISSING_FEENABLEEXCEPT 1

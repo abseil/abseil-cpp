@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -270,6 +271,19 @@ class Storage {
   using ConstructionTransaction =
       inlined_vector_internal::ConstructionTransaction<allocator_type>;
 
+  static size_type NextCapacity(size_type current_capacity) {
+    return current_capacity * 2;
+  }
+
+  static size_type ComputeCapacity(size_type current_capacity,
+                                   size_type requested_capacity) {
+    return (std::max)(NextCapacity(current_capacity), requested_capacity);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Storage Constructors and Destructor
+  // ---------------------------------------------------------------------------
+
   Storage() : metadata_() {}
 
   explicit Storage(const allocator_type& alloc)
@@ -281,9 +295,25 @@ class Storage {
     DeallocateIfAllocated();
   }
 
+  // ---------------------------------------------------------------------------
+  // Storage Member Accessors
+  // ---------------------------------------------------------------------------
+
+  size_type& GetSizeAndIsAllocated() { return metadata_.template get<1>(); }
+
+  const size_type& GetSizeAndIsAllocated() const {
+    return metadata_.template get<1>();
+  }
+
   size_type GetSize() const { return GetSizeAndIsAllocated() >> 1; }
 
   bool GetIsAllocated() const { return GetSizeAndIsAllocated() & 1; }
+
+  pointer GetAllocatedData() { return data_.allocated.allocated_data; }
+
+  const_pointer GetAllocatedData() const {
+    return data_.allocated.allocated_data;
+  }
 
   pointer GetInlinedData() {
     return reinterpret_cast<pointer>(
@@ -295,17 +325,11 @@ class Storage {
         std::addressof(data_.inlined.inlined_data[0]));
   }
 
-  pointer GetAllocatedData() { return data_.allocated.allocated_data; }
-
-  const_pointer GetAllocatedData() const {
-    return data_.allocated.allocated_data;
-  }
-
-  size_type GetInlinedCapacity() const { return static_cast<size_type>(N); }
-
   size_type GetAllocatedCapacity() const {
     return data_.allocated.allocated_capacity;
   }
+
+  size_type GetInlinedCapacity() const { return static_cast<size_type>(N); }
 
   StorageView MakeStorageView() {
     return GetIsAllocated()
@@ -322,57 +346,9 @@ class Storage {
     return std::addressof(metadata_.template get<0>());
   }
 
-  void SetIsAllocated() { GetSizeAndIsAllocated() |= 1; }
-
-  void UnsetIsAllocated() {
-    SetIsAllocated();
-    GetSizeAndIsAllocated() -= 1;
-  }
-
-  void SetAllocatedSize(size_type size) {
-    GetSizeAndIsAllocated() = (size << 1) | static_cast<size_type>(1);
-  }
-
-  void SetInlinedSize(size_type size) { GetSizeAndIsAllocated() = size << 1; }
-
-  void SetSize(size_type size) {
-    GetSizeAndIsAllocated() =
-        (size << 1) | static_cast<size_type>(GetIsAllocated());
-  }
-
-  void AddSize(size_type count) { GetSizeAndIsAllocated() += count << 1; }
-
-  void SubtractSize(size_type count) {
-    assert(count <= GetSize());
-
-    GetSizeAndIsAllocated() -= count << 1;
-  }
-
-  void SetAllocatedData(pointer data, size_type capacity) {
-    data_.allocated.allocated_data = data;
-    data_.allocated.allocated_capacity = capacity;
-  }
-
-  void DeallocateIfAllocated() {
-    if (GetIsAllocated()) {
-      AllocatorTraits::deallocate(*GetAllocPtr(), GetAllocatedData(),
-                                  GetAllocatedCapacity());
-    }
-  }
-
-  void AcquireAllocation(AllocationTransaction* allocation_tx_ptr) {
-    SetAllocatedData(allocation_tx_ptr->GetData(),
-                     allocation_tx_ptr->GetCapacity());
-    allocation_tx_ptr->GetData() = nullptr;
-    allocation_tx_ptr->GetCapacity() = 0;
-  }
-
-  void MemcpyFrom(const Storage& other_storage) {
-    assert(IsMemcpyOk::value || other_storage.GetIsAllocated());
-
-    GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
-    data_ = other_storage.data_;
-  }
+  // ---------------------------------------------------------------------------
+  // Storage Member Mutators
+  // ---------------------------------------------------------------------------
 
   template <typename ValueAdapter>
   void Initialize(ValueAdapter values, size_type new_size);
@@ -398,22 +374,64 @@ class Storage {
 
   void Swap(Storage* other_storage_ptr);
 
+  void SetIsAllocated() {
+    GetSizeAndIsAllocated() |= static_cast<size_type>(1);
+  }
+
+  void UnsetIsAllocated() {
+    GetSizeAndIsAllocated() &= ((std::numeric_limits<size_type>::max)() - 1);
+  }
+
+  void SetSize(size_type size) {
+    GetSizeAndIsAllocated() =
+        (size << 1) | static_cast<size_type>(GetIsAllocated());
+  }
+
+  void SetAllocatedSize(size_type size) {
+    GetSizeAndIsAllocated() = (size << 1) | static_cast<size_type>(1);
+  }
+
+  void SetInlinedSize(size_type size) {
+    GetSizeAndIsAllocated() = size << static_cast<size_type>(1);
+  }
+
+  void AddSize(size_type count) {
+    GetSizeAndIsAllocated() += count << static_cast<size_type>(1);
+  }
+
+  void SubtractSize(size_type count) {
+    assert(count <= GetSize());
+
+    GetSizeAndIsAllocated() -= count << static_cast<size_type>(1);
+  }
+
+  void SetAllocatedData(pointer data, size_type capacity) {
+    data_.allocated.allocated_data = data;
+    data_.allocated.allocated_capacity = capacity;
+  }
+
+  void AcquireAllocatedData(AllocationTransaction* allocation_tx_ptr) {
+    SetAllocatedData(allocation_tx_ptr->GetData(),
+                     allocation_tx_ptr->GetCapacity());
+    allocation_tx_ptr->GetData() = nullptr;
+    allocation_tx_ptr->GetCapacity() = 0;
+  }
+
+  void MemcpyFrom(const Storage& other_storage) {
+    assert(IsMemcpyOk::value || other_storage.GetIsAllocated());
+
+    GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
+    data_ = other_storage.data_;
+  }
+
+  void DeallocateIfAllocated() {
+    if (GetIsAllocated()) {
+      AllocatorTraits::deallocate(*GetAllocPtr(), GetAllocatedData(),
+                                  GetAllocatedCapacity());
+    }
+  }
+
  private:
-  size_type& GetSizeAndIsAllocated() { return metadata_.template get<1>(); }
-
-  const size_type& GetSizeAndIsAllocated() const {
-    return metadata_.template get<1>();
-  }
-
-  static size_type NextCapacity(size_type current_capacity) {
-    return current_capacity * 2;
-  }
-
-  static size_type ComputeCapacity(size_type current_capacity,
-                                   size_type requested_capacity) {
-    return (std::max)(NextCapacity(current_capacity), requested_capacity);
-  }
-
   using Metadata =
       container_internal::CompressedTuple<allocator_type, size_type>;
 
@@ -508,7 +526,7 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, size_type new_size) -> void {
 
   if (allocation_tx.DidAllocate()) {
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
@@ -557,7 +575,7 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   construction_tx.Commit();
   if (allocation_tx.DidAllocate()) {
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
@@ -600,7 +618,7 @@ auto Storage<T, N, A>::Insert(const_iterator pos, ValueAdapter values,
     construction_tx.Commit();
     move_construciton_tx.Commit();
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
 
     SetAllocatedSize(new_size);
     return iterator(new_data + insert_index);
@@ -697,7 +715,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
                                              storage_view.size);
 
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
@@ -754,7 +772,7 @@ auto Storage<T, N, A>::Reserve(size_type requested_capacity) -> void {
                                            storage_view.size);
 
   DeallocateIfAllocated();
-  AcquireAllocation(&allocation_tx);
+  AcquireAllocatedData(&allocation_tx);
   SetIsAllocated();
 }
 
@@ -800,7 +818,7 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
                               storage_view.capacity);
 
   if (allocation_tx.DidAllocate()) {
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
   } else {
     UnsetIsAllocated();
   }

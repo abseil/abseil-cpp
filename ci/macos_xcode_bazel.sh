@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is invoked on Kokoro to test Abseil on MacOS.
+# This script is invoked on Kokoro to test Abseil on macOS.
 # It is not hermetic and may break when Kokoro is updated.
 
 set -euox pipefail

@@ -201,7 +201,7 @@ TEST(ParseTime, ErrorCases) {
   err.clear();
   EXPECT_FALSE(absl::ParseTime("%Q", "x", &t, &err)) << err;
   // Exact contents of "err" are platform-dependent because of
-  // differences in the strptime implementation between OSX and Linux.
+  // differences in the strptime implementation between macOS and Linux.
   EXPECT_FALSE(err.empty());
 
   // Fails because of trailing, unparsed data "blah".

@@ -43,7 +43,7 @@ the Abseil code, running tests, and getting a simple binary working.
 ## Building Abseil
 
 [Bazel](https://bazel.build) is the official build system for Abseil,
-which is supported on most major platforms (Linux, Windows, MacOS, for example)
+which is supported on most major platforms (Linux, Windows, macOS, for example)
 and compilers. See the [quickstart](https://abseil.io/docs/cpp/quickstart) for
 more information on building Abseil using the Bazel build system.
 

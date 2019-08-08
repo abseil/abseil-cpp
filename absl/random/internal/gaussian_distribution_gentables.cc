@@ -110,8 +110,12 @@ void TableGenerator::Print(std::ostream* os) {
          "\n"
          "#include \"absl/random/gaussian_distribution.h\"\n"
          "\n"
-         "namespace absl {\n"
-         "namespace random_internal {\n"
+         // "namespace " and "absl" are broken apart so as not to conflict with
+         // script that adds the LTS inline namespace.
+         "namespace "
+         "absl {\n"
+         "namespace "
+         "random_internal {\n"
          "\n"
          "const gaussian_distribution_base::Tables\n"
          "    gaussian_distribution_base::zg_ = {\n";
@@ -120,8 +124,10 @@ void TableGenerator::Print(std::ostream* os) {
   FormatArrayContents(os, tables_.f);
   *os << "};\n"
          "\n"
-         "}  // namespace random_internal\n"
-         "}  // namespace absl\n"
+         "}  // namespace "
+         "random_internal\n"
+         "}  // namespace "
+         "absl\n"
          "\n"
          "// clang-format on\n"
          "// END GENERATED CODE";
