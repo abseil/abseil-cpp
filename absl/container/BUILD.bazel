@@ -825,3 +825,72 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "btree",
+    srcs = [
+        "internal/btree.h",
+        "internal/btree_container.h",
+    ],
+    hdrs = [
+        "btree_map.h",
+        "btree_set.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        ":compressed_tuple",
+        ":container_memory",
+        ":layout",
+        "//absl/base:core_headers",
+        "//absl/base:throw_delegate",
+        "//absl/memory",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "//absl/types:compare",
+        "//absl/utility",
+    ],
+)
+
+cc_library(
+    name = "btree_test_common",
+    testonly = 1,
+    hdrs = ["btree_test.h"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":btree",
+        ":flat_hash_set",
+        "//absl/strings",
+        "//absl/time",
+    ],
+)
+
+cc_test(
+    name = "btree_test",
+    size = "large",
+    srcs = [
+        "btree_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS + ["-fexceptions"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 10,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":btree",
+        ":btree_test_common",
+        ":counting_allocator",
+        ":test_instance_tracker",
+        "//absl/base",
+        "//absl/flags:flag",
+        "//absl/hash:hash_testing",
+        "//absl/memory",
+        "//absl/meta:type_traits",
+        "//absl/strings",
+        "//absl/types:compare",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

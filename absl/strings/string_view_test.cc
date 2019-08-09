@@ -979,8 +979,16 @@ TEST(StringViewTest, ConstexprCompiles) {
   constexpr absl::string_view::iterator const_end = cstr_len.end();
   constexpr absl::string_view::size_type const_size = cstr_len.size();
   constexpr absl::string_view::size_type const_length = cstr_len.length();
+  static_assert(const_begin + const_size == const_end,
+                "pointer arithmetic check");
+  static_assert(const_begin + const_length == const_end,
+                "pointer arithmetic check");
+#ifndef _MSC_VER
+  // MSVC has bugs doing constexpr pointer arithmetic.
+  // https://developercommunity.visualstudio.com/content/problem/482192/bad-pointer-arithmetic-in-constepxr-2019-rc1-svc1.html
   EXPECT_EQ(const_begin + const_size, const_end);
   EXPECT_EQ(const_begin + const_length, const_end);
+#endif
 
   constexpr bool isempty = sp.empty();
   EXPECT_TRUE(isempty);
