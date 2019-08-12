@@ -533,7 +533,6 @@ class InlinedVector {
     }
 
     erase(data() + i, data() + size());
-
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -713,6 +712,7 @@ class InlinedVector {
     inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), data(),
                                              size());
     storage_.DeallocateIfAllocated();
+
     storage_.SetInlinedSize(0);
   }
 
