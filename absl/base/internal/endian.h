@@ -20,7 +20,7 @@
 #ifdef _MSC_VER
 #include <stdlib.h>  // NOLINT(build/include)
 #elif defined(__APPLE__)
-// Mac OS X / Darwin features
+// macOS / Darwin features
 #include <libkern/OSByteOrder.h>
 #elif defined(__FreeBSD__)
 #include <sys/endian.h>

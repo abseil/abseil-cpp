@@ -380,11 +380,11 @@ constexpr Duration InfiniteDuration();
 // of the unit indicated by the factory function's name. The number must be
 // representable as int64_t.
 //
-// Note: no "Days()" factory function exists because "a day" is ambiguous.
+// NOTE: no "Days()" factory function exists because "a day" is ambiguous.
 // Civil days are not always 24 hours long, and a 24-hour duration often does
 // not correspond with a civil day. If a 24-hour duration is needed, use
-// `absl::Hours(24)`. (If you actually want a civil day, use absl::CivilDay
-// from civil_time.h.)
+// `absl::Hours(24)`. If you actually want a civil day, use absl::CivilDay
+// from civil_time.h.
 //
 // Example:
 //

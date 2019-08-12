@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is invoked on Kokoro to test Abseil on MacOS.
+# This script is invoked on Kokoro to test Abseil on macOS.
 # It is not hermetic and may break when Kokoro is updated.
 
 set -euox pipefail
@@ -23,16 +23,25 @@ if [ -z ${ABSEIL_ROOT:-} ]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
-# Print the default compiler and Bazel versions.
+# If we are running on Kokoro, check for a versioned Bazel binary.
+KOKORO_GFILE_BAZEL_BIN="bazel-0.28.1-darwin-x86_64"
+if [ ${KOKORO_GFILE_DIR:-} ] && [ -f ${KOKORO_GFILE_DIR}/${KOKORO_GFILE_BAZEL_BIN} ]; then
+  BAZEL_BIN="${KOKORO_GFILE_DIR}/${KOKORO_GFILE_BAZEL_BIN}"
+  chmod +x ${BAZEL_BIN}
+else
+  BAZEL_BIN="bazel"
+fi
+
+# Print the compiler and Bazel versions.
 echo "---------------"
 gcc -v
 echo "---------------"
-bazel version
+${BAZEL_BIN} version
 echo "---------------"
 
 cd ${ABSEIL_ROOT}
 
-bazel test ... \
+${BAZEL_BIN} test ... \
   --copt=-Werror \
   --keep_going \
   --show_timestamps \

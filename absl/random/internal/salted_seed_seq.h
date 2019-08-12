@@ -56,11 +56,11 @@ class SaltedSeedSeq {
   SaltedSeedSeq(std::initializer_list<T> il)
       : SaltedSeedSeq(il.begin(), il.end()) {}
 
-  SaltedSeedSeq(const SaltedSeedSeq& other) = delete;
-  SaltedSeedSeq& operator=(const SaltedSeedSeq& other) = delete;
+  SaltedSeedSeq(const SaltedSeedSeq&) = delete;
+  SaltedSeedSeq& operator=(const SaltedSeedSeq&) = delete;
 
-  SaltedSeedSeq(SaltedSeedSeq&& other) = default;
-  SaltedSeedSeq& operator=(SaltedSeedSeq&& other) = default;
+  SaltedSeedSeq(SaltedSeedSeq&&) = default;
+  SaltedSeedSeq& operator=(SaltedSeedSeq&&) = default;
 
   template <typename RandomAccessIterator>
   void generate(RandomAccessIterator begin, RandomAccessIterator end) {

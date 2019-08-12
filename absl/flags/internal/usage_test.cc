@@ -48,6 +48,14 @@ std::string AbslUnparseFlag(const UDT&) { return "UDT{}"; }
 ABSL_FLAG(UDT, usage_reporting_test_flag_05, {},
           "usage_reporting_test_flag_05 help message");
 
+ABSL_FLAG(
+    std::string, usage_reporting_test_flag_06, {},
+    "usage_reporting_test_flag_06 help message.\n"
+    "\n"
+    "Some more help.\n"
+    "Even more long long long long long long long long long long long long "
+    "help message.");
+
 namespace {
 
 namespace flags = absl::flags_internal;
@@ -173,6 +181,11 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
       default: 1000000000000004;
     -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
+    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+
+      Some more help.
+      Even more long long long long long long long long long long long long help
+      message.); default: "";
 )";
 
   std::stringstream test_buf_01;
@@ -244,6 +257,11 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpshort) {
       default: 1000000000000004;
     -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
+    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+
+      Some more help.
+      Even more long long long long long long long long long long long long help
+      message.); default: "";
 )");
 }
 
@@ -268,6 +286,11 @@ TEST_F(UsageReportingTest, TestUsageFlag_help) {
       default: 1000000000000004;
     -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
+    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+
+      Some more help.
+      Even more long long long long long long long long long long long long help
+      message.); default: "";
 
 Try --helpfull to get a list of all flags.
 )");
@@ -294,6 +317,11 @@ TEST_F(UsageReportingTest, TestUsageFlag_helppackage) {
       default: 1000000000000004;
     -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
+    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+
+      Some more help.
+      Even more long long long long long long long long long long long long help
+      message.); default: "";
 
 Try --helpfull to get a list of all flags.
 )");
@@ -354,6 +382,11 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
       default: 1000000000000004;
     -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
+    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+
+      Some more help.
+      Even more long long long long long long long long long long long long help
+      message.); default: "";
 )");
 }
 

@@ -385,6 +385,22 @@ class Base {
 #define ABSL_GCC_BUG_TRIVIALLY_CONSTRUCTIBLE_ON_ARRAY_OF_NONTRIVIAL 1
 #endif
 
+TEST(TypeTraitsTest, TestIsFunction) {
+  struct Callable {
+    void operator()() {}
+  };
+  EXPECT_TRUE(absl::is_function<void()>::value);
+  EXPECT_TRUE(absl::is_function<void()&>::value);
+  EXPECT_TRUE(absl::is_function<void() const>::value);
+  EXPECT_TRUE(absl::is_function<void() noexcept>::value);
+  EXPECT_TRUE(absl::is_function<void(...) noexcept>::value);
+
+  EXPECT_FALSE(absl::is_function<void(*)()>::value);
+  EXPECT_FALSE(absl::is_function<void(&)()>::value);
+  EXPECT_FALSE(absl::is_function<int>::value);
+  EXPECT_FALSE(absl::is_function<Callable>::value);
+}
+
 TEST(TypeTraitsTest, TestTrivialDestructor) {
   // Verify that arithmetic types and pointers have trivial destructors.
   EXPECT_TRUE(absl::is_trivially_destructible<bool>::value);

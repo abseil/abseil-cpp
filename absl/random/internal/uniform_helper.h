@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-#ifndef ABSL_RANDOM_UNIFORM_HELPER_H_
-#define ABSL_RANDOM_UNIFORM_HELPER_H_
+#ifndef ABSL_RANDOM_INTERNAL_UNIFORM_HELPER_H_
+#define ABSL_RANDOM_INTERNAL_UNIFORM_HELPER_H_
 
 #include <cmath>
 #include <limits>
@@ -147,4 +147,4 @@ struct UniformDistributionWrapper : public UniformDistribution<NumType> {
 }  // namespace random_internal
 }  // namespace absl
 
-#endif  // ABSL_RANDOM_UNIFORM_HELPER_H_
+#endif  // ABSL_RANDOM_INTERNAL_UNIFORM_HELPER_H_

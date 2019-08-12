@@ -26,9 +26,22 @@ absl_cc_library(
 absl_cc_library(
   NAME
     log_severity
+  HDRS
+    "log_severity.h"
+  SRCS
+    "log_severity.cc"
+  DEPS
+    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
-) 
+)
+
+absl_cc_library(
+  NAME
+    raw_logging_internal
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
 
 absl_cc_library(
   NAME
@@ -120,6 +133,8 @@ absl_cc_library(
     "internal/invoke.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::type_traits
 )
 
 absl_cc_library(
@@ -154,6 +169,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::dynamic_annotations
+    absl::log_severity
     absl::spinlock_wait
     absl::type_traits
     Threads::Threads
@@ -510,6 +526,7 @@ absl_cc_test(
     "log_severity_test.cc"
   DEPS
     absl::base
+    absl::log_severity
     gmock
     gtest_main
 )

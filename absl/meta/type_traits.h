@@ -224,6 +224,23 @@ struct disjunction<> : std::false_type {};
 template <typename T>
 struct negation : std::integral_constant<bool, !T::value> {};
 
+// is_function()
+//
+// Determines whether the passed type `T` is a function type.
+//
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_function()` metafunction for platforms that have incomplete C++11
+// support (such as libstdc++ 4.x).
+//
+// This metafunction works because appending `const` to a type does nothing to
+// function types and reference types (and forms a const-qualified type
+// otherwise).
+template <typename T>
+struct is_function
+    : std::integral_constant<
+          bool, !(std::is_reference<T>::value ||
+                  std::is_const<typename std::add_const<T>::type>::value)> {};
+
 // is_trivially_destructible()
 //
 // Determines whether the passed type `T` is trivially destructable.

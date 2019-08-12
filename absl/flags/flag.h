@@ -217,7 +217,7 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
 #define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
-  namespace absl {}                                                 \
+  namespace absl /* block flags in namespaces */ {}                 \
   ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
   ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
   ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name(                    \

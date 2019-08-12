@@ -28,7 +28,8 @@
 #define ABSL_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
   EXPECT_DEATH_IF_SUPPORTED(statement, ".*")
 #else
-#define ABSL_EXPECT_DEATH_IF_SUPPORTED EXPECT_DEATH_IF_SUPPORTED
+#define ABSL_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
+  EXPECT_DEATH_IF_SUPPORTED(statement, regex)
 #endif
 
 namespace {

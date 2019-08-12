@@ -437,6 +437,6 @@ IntType Zipf(URBG&& urbg,  // NOLINT(runtime/references)
       distribution_t, format_t>(&urbg, hi, q, v);
 }
 
-}  // namespace absl.
+}  // namespace absl
 
 #endif  // ABSL_RANDOM_DISTRIBUTIONS_H_

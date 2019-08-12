@@ -25,6 +25,68 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
+    btree
+  HDRS
+    "btree_map.h"
+    "btree_set.h"
+    "internal/btree.h"
+    "internal/btree_container.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::container_common
+    absl::compare
+    absl::compressed_tuple
+    absl::container_memory
+    absl::core_headers
+    absl::layout
+    absl::memory
+    absl::strings
+    absl::throw_delegate
+    absl::type_traits
+    absl::utility
+)
+
+absl_cc_library(
+  NAME
+    btree_test_common
+  hdrs
+    "btree_test.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::btree
+    absl::flat_hash_set
+    absl::strings
+    absl::time
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    btree_test
+  SRCS
+    "btree_test.cc"
+  DEPS
+    absl::base
+    absl::btree
+    absl::btree_test_common
+    absl::compare
+    absl::counting_allocator
+    absl::flags
+    absl::hash_testing
+    absl::strings
+    absl::test_instance_tracker
+    absl::type_traits
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     compressed_tuple
   HDRS
     "internal/compressed_tuple.h"
@@ -594,6 +656,7 @@ absl_cc_library(
   DEPS
     absl::container_memory
     absl::raw_hash_set
+    absl::throw_delegate
   PUBLIC
 )
 

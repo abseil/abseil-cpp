@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ABSL_RANDOM_PCG_ENGINE_H_
-#define ABSL_RANDOM_PCG_ENGINE_H_
+#ifndef ABSL_RANDOM_INTERNAL_PCG_ENGINE_H_
+#define ABSL_RANDOM_INTERNAL_PCG_ENGINE_H_
 
 #include <type_traits>
 
@@ -302,4 +302,4 @@ using pcg32_2018_engine = pcg_engine<
 }  // namespace random_internal
 }  // namespace absl
 
-#endif  // ABSL_RANDOM_PCG2018_ENGINE_H_
+#endif  // ABSL_RANDOM_INTERNAL_PCG_ENGINE_H_
