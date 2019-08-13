@@ -119,7 +119,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -168,8 +168,8 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -189,7 +189,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -214,8 +214,8 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/container:flat_hash_map",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
@@ -234,8 +234,8 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -256,8 +256,8 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -278,7 +278,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -302,7 +302,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
@@ -321,7 +321,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",

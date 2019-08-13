@@ -59,10 +59,11 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::endian
-    absl::throw_delegate
-    absl::memory
-    absl::type_traits
     absl::int128
+    absl::memory
+    absl::raw_logging_internal
+    absl::throw_delegate
+    absl::type_traits
   PUBLIC
 )
 
@@ -276,9 +277,9 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::base
     absl::core_headers
     absl::pow10_helper
+    absl::raw_logging_internal
     gmock_main
 )
 
@@ -317,7 +318,6 @@ absl_cc_test(
   DEPS
     absl::strings
     absl::str_format
-    absl::base
     absl::pow10_helper
     gmock_main
 )
@@ -332,7 +332,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::base
+    absl::raw_logging_internal
     gmock_main
 )
 
@@ -347,7 +347,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::base
     gmock_main
 )
 

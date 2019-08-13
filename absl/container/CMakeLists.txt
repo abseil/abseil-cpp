@@ -72,13 +72,13 @@ absl_cc_test(
   SRCS
     "btree_test.cc"
   DEPS
-    absl::base
     absl::btree
     absl::btree_test_common
     absl::compare
     absl::counting_allocator
     absl::flags
     absl::hash_testing
+    absl::raw_logging_internal
     absl::strings
     absl::test_instance_tracker
     absl::type_traits
@@ -235,11 +235,11 @@ absl_cc_test(
     absl::counting_allocator
     absl::inlined_vector
     absl::test_instance_tracker
-    absl::base
     absl::core_headers
     absl::exception_testing
     absl::hash_testing
     absl::memory
+    absl::raw_logging_internal
     absl::strings
     gmock_main
 )
@@ -254,11 +254,11 @@ absl_cc_test(
   DEPS
     absl::inlined_vector
     absl::test_instance_tracker
-    absl::base
     absl::core_headers
     absl::exception_testing
     absl::hash_testing
     absl::memory
+    absl::raw_logging_internal
     absl::strings
     gmock_main
 )
@@ -715,6 +715,7 @@ absl_cc_test(
     absl::raw_hash_set
     absl::base
     absl::core_headers
+    absl::raw_logging_internal
     absl::strings
     gmock_main
 )
@@ -758,8 +759,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::layout
-    absl::base
     absl::core_headers
+    absl::raw_logging_internal
     absl::span
     gmock_main
 )

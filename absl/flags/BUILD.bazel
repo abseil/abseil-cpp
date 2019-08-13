@@ -97,8 +97,8 @@ cc_library(
     deps = [
         ":config",
         ":marshalling",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/synchronization",
         "//absl/types:optional",
@@ -123,9 +123,9 @@ cc_library(
     deps = [
         ":config",
         ":handle",
-        "//absl/base",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -306,7 +306,7 @@ cc_test(
     deps = [
         ":flag",
         ":parse",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/base:scoped_set_env",
         "//absl/strings",
         "//absl/types:span",

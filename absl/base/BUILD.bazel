@@ -48,10 +48,18 @@ cc_library(
 
 cc_library(
     name = "raw_logging_internal",
+    srcs = ["internal/raw_logging.cc"],
+    hdrs = ["internal/raw_logging.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+    ],
+    deps = [
+        ":atomic_hook",
+        ":config",
+        ":core_headers",
+        ":log_severity",
     ],
 )
 
@@ -137,6 +145,7 @@ cc_library(
         ":config",
         ":core_headers",
         ":dynamic_annotations",
+        ":raw_logging_internal",
         ":spinlock_wait",
     ],
 )
@@ -164,7 +173,6 @@ cc_library(
     name = "base",
     srcs = [
         "internal/cycleclock.cc",
-        "internal/raw_logging.cc",
         "internal/spinlock.cc",
         "internal/sysinfo.cc",
         "internal/thread_identity.cc",
@@ -176,7 +184,6 @@ cc_library(
         "internal/cycleclock.h",
         "internal/low_level_scheduling.h",
         "internal/per_thread_tls.h",
-        "internal/raw_logging.h",
         "internal/spinlock.h",
         "internal/sysinfo.h",
         "internal/thread_identity.h",
@@ -195,6 +202,7 @@ cc_library(
         ":core_headers",
         ":dynamic_annotations",
         ":log_severity",
+        ":raw_logging_internal",
         ":spinlock_wait",
         "//absl/meta:type_traits",
     ],
@@ -238,8 +246,8 @@ cc_library(
         "//absl:__subpackages__",
     ],
     deps = [
-        ":base",
         ":config",
+        ":raw_logging_internal",
     ],
 )
 
@@ -382,6 +390,7 @@ cc_library(
     deps = [
         ":base",
         ":base_internal",
+        ":raw_logging_internal",
         "//absl/synchronization",
         "@com_github_google_benchmark//:benchmark_main",
     ],
@@ -455,7 +464,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":base",
+        ":raw_logging_internal",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -543,7 +552,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [":base"],
+    deps = [":raw_logging_internal"],
 )
 
 cc_test(
@@ -565,7 +574,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":base",
         ":log_severity",
         "@com_google_googletest//:gtest_main",
     ],

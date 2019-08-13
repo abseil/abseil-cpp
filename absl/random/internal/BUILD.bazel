@@ -78,8 +78,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":fast_uniform_bits",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/types:optional",
         "//absl/types:span",
@@ -107,6 +107,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:raw_logging_internal",
         "//absl/random:seed_gen_exception",
         "//absl/types:span",
     ],
@@ -255,7 +256,7 @@ cc_library(
         ":platform",
         ":randen_hwaes",
         ":randen_slow",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -334,8 +335,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/strings:str_format",
         "//absl/types:span",
@@ -531,7 +532,7 @@ cc_test(
     deps = [
         ":explicit_seed_seq",
         ":randen_engine",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/time",
         "@com_google_googletest//:gtest_main",
@@ -574,7 +575,7 @@ cc_test(
         ":platform",
         ":randen_hwaes",
         ":randen_hwaes_impl",  # build_cleaner: keep
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings:str_format",
         "@com_google_googletest//:gtest",
     ],
@@ -588,7 +589,7 @@ cc_library(
     deps = [
         ":platform",
         ":randen_engine",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -620,7 +621,7 @@ cc_test(
     ],
     deps = [
         ":nanobenchmark",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
     ],
 )
@@ -641,7 +642,7 @@ cc_test(
         ":randen_hwaes",
         ":randen_hwaes_impl",
         ":randen_slow",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
     ],
 )

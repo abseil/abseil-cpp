@@ -44,6 +44,7 @@ cc_library(
         "//absl/base:base_internal",
         "//absl/base:core_headers",
         "//absl/base:malloc_internal",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -84,6 +85,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
+        "//absl/base:raw_logging_internal",
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
         "//absl/time",
@@ -124,8 +126,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":graphcycles_internal",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -140,7 +142,7 @@ cc_test(
     ],
     deps = [
         ":graphcycles_internal",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -171,6 +173,7 @@ cc_test(
         ":thread_pool",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "//absl/time",
         "@com_google_googletest//:gtest_main",
@@ -243,7 +246,6 @@ cc_test(
     deps = [
         ":per_thread_sem_test_common",
         ":synchronization",
-        "//absl/base",
         "//absl/strings",
         "//absl/time",
         "@com_google_googletest//:gtest_main",
@@ -260,7 +262,7 @@ cc_test(
     tags = ["no_test_ios_x86_64"],
     deps = [
         ":synchronization",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )

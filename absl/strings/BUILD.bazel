@@ -73,6 +73,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
         "//absl/memory",
         "//absl/meta:type_traits",
@@ -140,7 +141,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -225,8 +226,8 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -268,7 +269,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -306,7 +307,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -414,8 +415,8 @@ cc_test(
     deps = [
         ":pow10_helper",
         ":strings",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -428,7 +429,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -474,7 +475,6 @@ cc_test(
         ":pow10_helper",
         ":str_format",
         ":strings",
-        "//absl/base",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -488,7 +488,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -503,7 +503,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
-        "//absl/base",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -518,7 +517,6 @@ cc_test(
     ],
     deps = [
         ":strings",
-        "//absl/base",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )

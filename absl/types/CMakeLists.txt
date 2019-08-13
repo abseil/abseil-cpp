@@ -54,8 +54,8 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
-    absl::base
     absl::config
+    absl::raw_logging_internal
 )
 
 absl_cc_test(
@@ -70,9 +70,9 @@ absl_cc_test(
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::any
-    absl::base
     absl::config
     absl::exception_testing
+    absl::raw_logging_internal
     absl::test_instance_tracker
     gmock_main
 )
@@ -86,9 +86,9 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::any
-    absl::base
     absl::config
     absl::exception_testing
+    absl::raw_logging_internal
     absl::test_instance_tracker
     gmock_main
 )
@@ -202,8 +202,8 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
-    absl::base
     absl::config
+    absl::raw_logging_internal
   PUBLIC
 )
 
@@ -220,8 +220,8 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
-    absl::base
     absl::config
+    absl::raw_logging_internal
   PUBLIC
 )
 
@@ -237,10 +237,10 @@ absl_cc_test(
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::optional
-    absl::base
     absl::config
-    absl::type_traits
+    absl::raw_logging_internal
     absl::strings
+    absl::type_traits
     gmock_main
 )
 

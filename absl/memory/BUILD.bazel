@@ -45,7 +45,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":memory",
-        "//absl/base",
         "//absl/base:core_headers",
         "@com_google_googletest//:gtest_main",
     ],

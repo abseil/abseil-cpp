@@ -62,8 +62,8 @@ cc_library(
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
-        "//absl/base",
         "//absl/base:config",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -77,9 +77,9 @@ cc_test(
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":any",
-        "//absl/base",
         "//absl/base:config",
         "//absl/base:exception_testing",
+        "//absl/base:raw_logging_internal",
         "//absl/container:test_instance_tracker",
         "@com_google_googletest//:gtest_main",
     ],
@@ -95,9 +95,9 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":any",
-        "//absl/base",
         "//absl/base:config",
         "//absl/base:exception_testing",
+        "//absl/base:raw_logging_internal",
         "//absl/container:test_instance_tracker",
         "@com_google_googletest//:gtest_main",
     ],
@@ -195,8 +195,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
         "//absl/base:config",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -207,8 +207,8 @@ cc_library(
     copts = ABSL_EXCEPTIONS_FLAG + ABSL_DEFAULT_COPTS,
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
         "//absl/base:config",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -222,8 +222,8 @@ cc_test(
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":optional",
-        "//absl/base",
         "//absl/base:config",
+        "//absl/base:raw_logging_internal",
         "//absl/meta:type_traits",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",

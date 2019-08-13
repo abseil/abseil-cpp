@@ -84,11 +84,11 @@ absl_cc_library(
   DEPS
     absl::flags_config
     absl::flags_marshalling
-    absl::base
     absl::core_headers
+    absl::optional
+    absl::raw_logging_internal
     absl::strings
     absl::synchronization
-    absl::optional
 )
 
 # Internal-only target, do not depend on directly.
@@ -108,9 +108,9 @@ absl_cc_library(
   DEPS
     absl::flags_config
     absl::flags_handle
-    absl::base
     absl::core_headers
     absl::dynamic_annotations
+    absl::raw_logging_internal
     absl::strings
     absl::synchronization
 )
@@ -265,8 +265,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags
-    absl::base
     absl::flags_parse
+    absl::raw_logging_internal
     absl::scoped_set_env
     absl::span
     absl::strings

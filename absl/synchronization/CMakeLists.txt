@@ -28,6 +28,7 @@ absl_cc_library(
     absl::base_internal
     absl::core_headers
     absl::malloc_internal
+    absl::raw_logging_internal
 )
 
 absl_cc_library(
@@ -62,6 +63,7 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::malloc_internal
+    absl::raw_logging_internal
     absl::stacktrace
     absl::symbolize
     absl::time
@@ -104,8 +106,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::graphcycles_internal
-    absl::base
     absl::core_headers
+    absl::raw_logging_internal
     gmock_main
 )
 
@@ -135,6 +137,7 @@ absl_cc_test(
     absl::base
     absl::core_headers
     absl::memory
+    absl::raw_logging_internal
     absl::time
     gmock_main
 )
@@ -178,7 +181,6 @@ absl_cc_test(
   DEPS
     absl::per_thread_sem_test_common
     absl::synchronization
-    absl::base
     absl::strings
     absl::time
     gmock_main
@@ -193,6 +195,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::synchronization
-    absl::base
     absl::core_headers
+    absl::raw_logging_internal
 )
