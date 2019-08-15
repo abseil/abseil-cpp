@@ -342,7 +342,7 @@ class string_view {
     size_type rlen = (std::min)(length_ - pos, n);
     if (rlen > 0) {
       const char* start = ptr_ + pos;
-      std::copy(start, start + rlen, buf);
+      traits_type::copy(buf, start, rlen);
     }
     return rlen;
   }

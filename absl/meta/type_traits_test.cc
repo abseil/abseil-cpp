@@ -546,6 +546,28 @@ TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
 #endif
 }
 
+// GCC prior to 7.4 had a bug in its trivially-constructible traits
+// (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80654).
+// This test makes sure that we do not depend on the trait in these cases when
+// implementing absl triviality traits.
+
+template <class T>
+struct BadConstructors {
+  BadConstructors() { static_assert(T::value, ""); }
+
+  BadConstructors(BadConstructors&&) { static_assert(T::value, ""); }
+
+  BadConstructors(const BadConstructors&) { static_assert(T::value, ""); }
+};
+
+TEST(TypeTraitsTest, TestTrivialityBadConstructors) {
+  using BadType = BadConstructors<int>;
+
+  EXPECT_FALSE(absl::is_trivially_default_constructible<BadType>::value);
+  EXPECT_FALSE(absl::is_trivially_move_constructible<BadType>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<BadType>::value);
+}
+
 TEST(TypeTraitsTest, TestTrivialMoveCtor) {
   // Verify that arithmetic types and pointers have trivial move
   // constructors.

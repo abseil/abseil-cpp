@@ -323,6 +323,7 @@ class unique_checker : public base_checker<TreeType, CheckerType> {
   unique_checker(const unique_checker &x) : super_type(x) {}
   template <class InputIterator>
   unique_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
+  unique_checker& operator=(const unique_checker&) = default;
 
   // Insertion routines.
   std::pair<iterator, bool> insert(const value_type &x) {
@@ -370,6 +371,7 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
   multi_checker(const multi_checker &x) : super_type(x) {}
   template <class InputIterator>
   multi_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
+  multi_checker& operator=(const multi_checker&) = default;
 
   // Insertion routines.
   iterator insert(const value_type &x) {

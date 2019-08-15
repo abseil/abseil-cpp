@@ -35,9 +35,6 @@ struct IntervalClosedClosedT {};
 struct IntervalClosedOpenT {};
 struct IntervalOpenClosedT {};
 struct IntervalOpenOpenT {};
-}  // namespace random_internal
-
-namespace random_internal {
 
 // The functions
 //    uniform_lower_bound(tag, a, b)

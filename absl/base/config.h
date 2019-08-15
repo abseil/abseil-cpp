@@ -125,7 +125,7 @@
 #error ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE cannot directly set
 #elif (defined(__clang__) && defined(_LIBCPP_VERSION)) ||        \
     (!defined(__clang__) && defined(__GNUC__) &&                 \
-     (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)) && \
+     (__GNUC__ > 7 || (__GNUC__ == 7 && __GNUC_MINOR__ >= 4)) && \
      (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__))) ||      \
     (defined(_MSC_VER) && !defined(__NVCC__))
 #define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
