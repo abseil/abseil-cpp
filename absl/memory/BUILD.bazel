@@ -14,13 +14,14 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_DEFAULT_LINKOPTS",
-    "ABSL_TEST_COPTS",
     "ABSL_EXCEPTIONS_FLAG",
     "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
+    "ABSL_TEST_COPTS",
 )
 
 package(default_visibility = ["//visibility:public"])
