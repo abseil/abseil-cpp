@@ -57,8 +57,8 @@ using ThrowAllocMovableThrowerVec =
                                                                \
        : std::initializer_list<T>{T(0, testing::nothrow_ctor), \
                                   T(1, testing::nothrow_ctor)})
-static_assert((kLargeSize == 8 || kSmallSize == 2),
-              "Must update ABSL_INTERNAL_MAKE_INIT_LIST(...).");
+static_assert(kLargeSize == 8, "Must update ABSL_INTERNAL_MAKE_INIT_LIST(...)");
+static_assert(kSmallSize == 2, "Must update ABSL_INTERNAL_MAKE_INIT_LIST(...)");
 
 template <typename TheVecT, size_t... TheSizes>
 class TestParams {
