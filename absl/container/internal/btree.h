@@ -2082,6 +2082,7 @@ auto btree<P>::rebalance_after_delete(iterator iter) -> iterator {
     if (!merged) {
       break;
     }
+    iter.position = iter.node->position();
     iter.node = iter.node->parent();
   }
 

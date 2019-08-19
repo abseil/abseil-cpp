@@ -72,7 +72,6 @@ for std in ${STD}; do
         --copt="-fsanitize=float-divide-by-zero" \
         --copt="-fsanitize=nullability" \
         --copt="-fsanitize=undefined" \
-        --copt="-fno-sanitize=vptr" \
         --copt=-Werror \
         --keep_going \
         --linkopt="-fsanitize=address" \
