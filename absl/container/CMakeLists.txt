@@ -75,6 +75,7 @@ absl_cc_test(
     absl::btree
     absl::btree_test_common
     absl::compare
+    absl::core_headers
     absl::counting_allocator
     absl::flags
     absl::hash_testing

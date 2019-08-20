@@ -25,6 +25,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/internal/counting_allocator.h"
@@ -1537,12 +1538,11 @@ TEST(Btree, MapAt) {
   const absl::btree_map<int, int> &const_map = map;
   EXPECT_EQ(const_map.at(1), 2);
   EXPECT_EQ(const_map.at(2), 8);
-  try {
-    map.at(3);
-    FAIL() << "Exception not thrown";
-  } catch (const std::out_of_range& e) {
-    EXPECT_STREQ(e.what(), "absl::btree_map::at");
-  }
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(map.at(3), std::out_of_range);
+#else
+  EXPECT_DEATH(map.at(3), "absl::btree_map::at");
+#endif
 }
 
 TEST(Btree, BtreeMultisetEmplace) {

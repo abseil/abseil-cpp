@@ -887,6 +887,7 @@ cc_test(
         ":btree_test_common",
         ":counting_allocator",
         ":test_instance_tracker",
+        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/flags:flag",
         "//absl/hash:hash_testing",
