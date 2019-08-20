@@ -445,9 +445,7 @@ class Storage {
   };
 
   struct Inlined {
-    using InlinedDataElement =
-        absl::aligned_storage_t<sizeof(value_type), alignof(value_type)>;
-    InlinedDataElement inlined_data[N];
+    alignas(value_type) char inlined_data[sizeof(value_type[N])];
   };
 
   union Data {

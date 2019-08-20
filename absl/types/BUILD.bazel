@@ -111,6 +111,7 @@ cc_test(
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":any",
+        "//absl/base:config",
         "//absl/base:exception_safety_testing",
         "@com_google_googletest//:gtest_main",
     ],
@@ -240,6 +241,7 @@ cc_test(
     linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":optional",
+        "//absl/base:config",
         "//absl/base:exception_safety_testing",
         "@com_google_googletest//:gtest_main",
     ],

@@ -19,6 +19,9 @@
 
 #include "absl/types/variant.h"
 
+// This test is a no-op when absl::variant is an alias for std::variant.
+#if !defined(ABSL_HAVE_STD_VARIANT)
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -2705,3 +2708,5 @@ TEST(VariantTest, MoveCtorBug) {
 
 }  // namespace
 }  // namespace absl
+
+#endif  // #if !defined(ABSL_HAVE_STD_VARIANT)

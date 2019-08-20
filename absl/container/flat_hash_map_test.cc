@@ -14,6 +14,8 @@
 
 #include "absl/container/flat_hash_map.h"
 
+#include <memory>
+
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
@@ -45,6 +47,11 @@ INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
+
+using UniquePtrMapTypes = ::testing::Types<Map<int, std::unique_ptr<int>>>;
+
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, UniquePtrModifiersTest,
+                               UniquePtrMapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {

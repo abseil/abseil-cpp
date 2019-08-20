@@ -14,6 +14,12 @@
 
 #include "absl/types/optional.h"
 
+#include "absl/base/config.h"
+
+// This test is a no-op when absl::optional is an alias for std::optional and
+// when exceptions are not enabled.
+#if !defined(ABSL_HAVE_STD_OPTIONAL) && defined(ABSL_HAVE_EXCEPTIONS)
+
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_safety_testing.h"
 
@@ -280,3 +286,5 @@ TEST(OptionalExceptionSafety, NothrowMoveAssign) {
 }  // namespace
 
 }  // namespace absl
+
+#endif  // #if !defined(ABSL_HAVE_STD_OPTIONAL) && defined(ABSL_HAVE_EXCEPTIONS)

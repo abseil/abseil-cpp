@@ -448,6 +448,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":hash_policy_testing",
+        "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
     ],

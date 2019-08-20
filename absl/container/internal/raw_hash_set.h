@@ -1133,15 +1133,16 @@ class raw_hash_set {
   }
 
   // Erases the element pointed to by `it`.  Unlike `std::unordered_set::erase`,
-  // this method returns void to reduce algorithmic complexity to O(1).  In
-  // order to erase while iterating across a map, use the following idiom (which
-  // also works for standard containers):
+  // this method returns void to reduce algorithmic complexity to O(1).  The
+  // iterator is invalidated, so any increment should be done before calling
+  // erase.  In order to erase while iterating across a map, use the following
+  // idiom (which also works for standard containers):
   //
   // for (auto it = m.begin(), end = m.end(); it != end;) {
+  //   // `erase()` will invalidate `it`, so advance `it` first.
+  //   auto copy_it = it++;
   //   if (<pred>) {
-  //     m.erase(it++);
-  //   } else {
-  //     ++it;
+  //     m.erase(copy_it);
   //   }
   // }
   void erase(const_iterator cit) { erase(cit.inner_); }

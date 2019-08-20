@@ -109,6 +109,9 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
     return insert_or_assign(k, v).first;
   }
 
+  // All `try_emplace()` overloads make the same guarantees regarding rvalue
+  // arguments as `std::unordered_map::try_emplace()`, namely that these
+  // functions will not move from rvalue arguments if insertions do not happen.
   template <class K = key_type, class... Args,
             typename std::enable_if<
                 !std::is_convertible<K, const_iterator>::value, int>::type = 0,

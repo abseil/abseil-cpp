@@ -105,6 +105,7 @@ absl_cc_test(
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::any
+    absl::config
     absl::exception_safety_testing
     gmock_main
 )
@@ -256,6 +257,7 @@ absl_cc_test(
     ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::optional
+    absl::config
     absl::exception_safety_testing
     gmock_main
 )

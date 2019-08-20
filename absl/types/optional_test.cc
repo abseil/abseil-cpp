@@ -14,6 +14,9 @@
 
 #include "absl/types/optional.h"
 
+// This test is a no-op when absl::optional is an alias for std::optional.
+#if !defined(ABSL_HAVE_STD_OPTIONAL)
+
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -1654,3 +1657,5 @@ TEST(optionalTest, InPlaceTSFINAEBug) {
 #endif  // !defined(__EMSCRIPTEN__)
 
 }  // namespace
+
+#endif  // #if !defined(ABSL_HAVE_STD_OPTIONAL)

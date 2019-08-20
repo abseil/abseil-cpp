@@ -510,6 +510,7 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::hash_policy_testing
+    absl::memory
     absl::meta
     absl::strings
   TESTONLY
