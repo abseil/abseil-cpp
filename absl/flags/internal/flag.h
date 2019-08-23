@@ -22,20 +22,30 @@
 namespace absl {
 namespace flags_internal {
 
+// Signature for the mutation callback used by watched Flags
+// The callback is noexcept.
+// TODO(rogeeff): add noexcept after C++17 support is added.
+using FlagCallback = void (*)();
+
+void InvokeCallback(absl::Mutex* primary_mu, absl::Mutex* callback_mu,
+                    FlagCallback cb) EXCLUSIVE_LOCKS_REQUIRED(primary_mu);
+
 // This is "unspecified" implementation of absl::Flag<T> type.
 template <typename T>
-class Flag : public flags_internal::CommandLineFlag {
+class Flag final : public flags_internal::CommandLineFlag {
  public:
-  constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
-                 const char* filename,
+  constexpr Flag(const char* name_arg,
+                 const flags_internal::HelpGenFunc help_gen,
+                 const char* filename_arg,
                  const flags_internal::FlagMarshallingOpFn marshalling_op_arg,
                  const flags_internal::InitialValGenFunc initial_value_gen)
       : flags_internal::CommandLineFlag(
-            name, flags_internal::HelpText::FromFunctionPointer(help_gen),
-            filename, &flags_internal::FlagOps<T>, marshalling_op_arg,
+            name_arg, flags_internal::HelpText::FromFunctionPointer(help_gen),
+            filename_arg, &flags_internal::FlagOps<T>, marshalling_op_arg,
             initial_value_gen,
-            /*retired_arg=*/false, /*def_arg=*/nullptr,
-            /*cur_arg=*/nullptr) {}
+            /*def_arg=*/nullptr,
+            /*cur_arg=*/nullptr),
+        callback_(nullptr) {}
 
   T Get() const {
     // Implementation notes:
@@ -76,6 +86,31 @@ class Flag : public flags_internal::CommandLineFlag {
   }
 
   void Set(const T& v) { this->Write(&v, &flags_internal::FlagOps<T>); }
+
+  void SetCallback(const flags_internal::FlagCallback mutation_callback) {
+    absl::MutexLock l(InitFlagIfNecessary());
+
+    callback_ = mutation_callback;
+
+    InvokeCallback();
+  }
+  void InvokeCallback() override
+      EXCLUSIVE_LOCKS_REQUIRED(this->locks->primary_mu) {
+    flags_internal::InvokeCallback(&this->locks->primary_mu,
+                                   &this->locks->callback_mu, callback_);
+  }
+
+ private:
+  void Destroy() const override {
+    // Values are heap allocated Abseil Flags.
+    if (this->cur) Delete(this->op, this->cur);
+    if (this->def) Delete(this->op, this->def);
+
+    delete this->locks;
+  }
+
+  // Flag's data
+  FlagCallback callback_;  // Mutation callback
 };
 
 // This class facilitates Flag object registration and tail expression-based

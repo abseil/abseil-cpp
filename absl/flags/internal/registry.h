@@ -106,29 +106,16 @@ bool RegisterCommandLineFlag(CommandLineFlag*);
 //   4: Remove the old_lib 'retired' registration.
 //   5: Eventually delete the graveyard registration entirely.
 //
-// Returns bool to enable use in namespace-scope initializers.
-// For example:
-//
-//   static const bool dummy = base::RetiredFlag<int32_t>("myflag");
-//
-// Or to declare several at once:
-//
-//   static bool dummies[] = {
-//       base::RetiredFlag<std::string>("some_string_flag"),
-//       base::RetiredFlag<double>("some_double_flag"),
-//       base::RetiredFlag<int32_t>("some_int32_flag")
-//   };
 
 // Retire flag with name "name" and type indicated by ops.
-bool Retire(FlagOpFn ops, FlagMarshallingOpFn marshalling_ops,
-            const char* name);
+bool Retire(const char* name, FlagOpFn ops,
+            FlagMarshallingOpFn marshalling_ops);
 
 // Registered a retired flag with name 'flag_name' and type 'T'.
 template <typename T>
 inline bool RetiredFlag(const char* flag_name) {
-  return flags_internal::Retire(flags_internal::FlagOps<T>,
-                                flags_internal::FlagMarshallingOps<T>,
-                                flag_name);
+  return flags_internal::Retire(flag_name, flags_internal::FlagOps<T>,
+                                flags_internal::FlagMarshallingOps<T>);
 }
 
 // If the flag is retired, returns true and indicates in |*type_is_bool|

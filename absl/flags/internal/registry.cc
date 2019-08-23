@@ -31,18 +31,6 @@
 
 namespace absl {
 namespace flags_internal {
-namespace {
-
-void DestroyFlag(CommandLineFlag* flag) NO_THREAD_SAFETY_ANALYSIS {
-  flag->Destroy();
-
-  // CommandLineFlag handle object is heap allocated for non Abseil Flags.
-  if (!flag->IsAbseilFlag()) {
-    delete flag;
-  }
-}
-
-}  // namespace
 
 // --------------------------------------------------------------------
 // FlagRegistry
@@ -59,7 +47,7 @@ class FlagRegistry {
   FlagRegistry() = default;
   ~FlagRegistry() {
     for (auto& p : flags_) {
-      DestroyFlag(p.second);
+      p.second->Destroy();
     }
   }
 
@@ -141,7 +129,7 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
           true);
     } else if (old_flag->IsRetired()) {
       // Retired definitions are idempotent. Just keep the old one.
-      DestroyFlag(flag);
+      flag->Destroy();
       return;
     } else if (old_flag->Filename() != flag->Filename()) {
       flags_internal::ReportUsageError(
@@ -224,7 +212,7 @@ class FlagSaverImpl {
       saved.marshalling_op = flag->marshalling_op;
       {
         absl::MutexLock l(flag->InitFlagIfNecessary());
-        saved.validator = flag->validator;
+        saved.validator = flag->GetValidator();
         saved.modified = flag->modified;
         saved.on_command_line = flag->on_command_line;
         saved.current = Clone(saved.op, flag->cur);
@@ -250,7 +238,7 @@ class FlagSaverImpl {
       bool restored = false;
       {
         absl::MutexLock l(flag->InitFlagIfNecessary());
-        flag->validator = src.validator;
+        flag->SetValidator(src.validator);
         flag->modified = src.modified;
         flag->on_command_line = src.on_command_line;
         if (flag->counter != src.counter ||
@@ -290,9 +278,9 @@ class FlagSaverImpl {
     FlagOpFn op;
     FlagMarshallingOpFn marshalling_op;
     int64_t counter;
+    void* validator;
     bool modified;
     bool on_command_line;
-    bool (*validator)();
     const void* current;        // nullptr after restore
     const void* default_value;  // nullptr after restore
   };
@@ -414,14 +402,38 @@ bool RegisterCommandLineFlag(CommandLineFlag* flag) {
 
 // --------------------------------------------------------------------
 
-bool Retire(FlagOpFn ops, FlagMarshallingOpFn marshalling_ops,
-            const char* name) {
-  auto* flag = new CommandLineFlag(
-      name,
-      /*help_text=*/absl::flags_internal::HelpText::FromStaticCString(nullptr),
-      /*filename_arg=*/"RETIRED", ops, marshalling_ops,
-      /*initial_value_gen=*/nullptr,
-      /*retired_arg=*/true, nullptr, nullptr);
+namespace {
+
+class RetiredFlagObj final : public flags_internal::CommandLineFlag {
+ public:
+  constexpr RetiredFlagObj(const char* name_arg, FlagOpFn ops,
+                           FlagMarshallingOpFn marshalling_ops)
+      : flags_internal::CommandLineFlag(
+            name_arg, flags_internal::HelpText::FromStaticCString(nullptr),
+            /*filename_arg=*/"RETIRED", ops, marshalling_ops,
+            /*initial_value_gen=*/nullptr,
+            /*def_arg=*/nullptr,
+            /*cur_arg=*/nullptr) {}
+
+ private:
+  bool IsRetired() const override { return true; }
+
+  void Destroy() const override {
+    // Values are heap allocated for Retired Flags.
+    if (this->cur) Delete(this->op, this->cur);
+    if (this->def) Delete(this->op, this->def);
+
+    if (this->locks) delete this->locks;
+
+    delete this;
+  }
+};
+
+}  // namespace
+
+bool Retire(const char* name, FlagOpFn ops,
+            FlagMarshallingOpFn marshalling_ops) {
+  auto* flag = new flags_internal::RetiredFlagObj(name, ops, marshalling_ops);
   FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }

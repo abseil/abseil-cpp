@@ -395,7 +395,7 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  absl::GetFlag(FLAGS_undefok);  // Force linking of parse.cc
+  (void)absl::GetFlag(FLAGS_undefok);  // Force linking of parse.cc
   flags::SetProgramInvocationName("usage_test");
   absl::SetProgramUsageMessage(kTestUsageMessage);
   ::testing::InitGoogleTest(&argc, argv);

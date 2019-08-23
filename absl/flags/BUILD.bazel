@@ -136,6 +136,7 @@ cc_library(
     name = "flag",
     srcs = [
         "flag.cc",
+        "internal/flag.cc",
     ],
     hdrs = [
         "declare.h",
@@ -152,6 +153,7 @@ cc_library(
         "//absl/base",
         "//absl/base:core_headers",
         "//absl/strings",
+        "//absl/synchronization",
     ],
 )
 

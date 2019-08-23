@@ -120,6 +120,7 @@ absl_cc_library(
     flags
   SRCS
     "flag.cc"
+    "internal/flag.cc"
   HDRS
     "declare.h"
     "flag.h"
@@ -136,6 +137,7 @@ absl_cc_library(
     absl::base
     absl::core_headers
     absl::strings
+    absl::synchronization
 )
 
 # Internal-only target, do not depend on directly.

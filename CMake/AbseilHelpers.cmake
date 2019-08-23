@@ -108,7 +108,7 @@ function(absl_cc_library)
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
         PUBLIC
-          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
           $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
       )
       target_compile_options(${_NAME}
@@ -145,7 +145,7 @@ function(absl_cc_library)
       add_library(${_NAME} INTERFACE)
       target_include_directories(${_NAME}
         INTERFACE
-          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
+          "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
           $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
         )
       target_link_libraries(${_NAME}

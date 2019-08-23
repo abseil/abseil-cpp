@@ -68,7 +68,7 @@ absl::Mutex* InitFlag(CommandLineFlag* flag) {
   {
     absl::MutexLock lock(mu);
 
-    if (!flag->retired && flag->def == nullptr) {
+    if (!flag->IsRetired() && flag->def == nullptr) {
       // Need to initialize def and cur fields.
       flag->def = (*flag->make_init_value)();
       flag->cur = Clone(flag->op, flag->def);
@@ -92,16 +92,6 @@ absl::Mutex* CommandLineFlag::InitFlagIfNecessary() const
 
   // All fields initialized; this->locks is therefore safe to read.
   return &this->locks->primary_mu;
-}
-
-void CommandLineFlag::Destroy() const {
-  // Values are heap allocated for retired and Abseil Flags.
-  if (IsRetired() || IsAbseilFlag()) {
-    if (this->cur) Delete(this->op, this->cur);
-    if (this->def) Delete(this->op, this->def);
-  }
-
-  delete this->locks;
 }
 
 bool CommandLineFlag::IsModified() const {
@@ -157,87 +147,6 @@ std::string CommandLineFlag::CurrentValue() const {
   absl::MutexLock l(InitFlagIfNecessary());
 
   return Unparse(this->marshalling_op, this->cur);
-}
-
-bool CommandLineFlag::HasValidatorFn() const {
-  absl::MutexLock l(InitFlagIfNecessary());
-
-  return this->validator != nullptr;
-}
-
-bool CommandLineFlag::SetValidatorFn(FlagValidator fn) {
-  absl::MutexLock l(InitFlagIfNecessary());
-
-  // ok to register the same function over and over again
-  if (fn == this->validator) return true;
-
-  // Can't set validator to a different function, unless reset first.
-  if (fn != nullptr && this->validator != nullptr) {
-    ABSL_INTERNAL_LOG(
-        WARNING, absl::StrCat("Ignoring SetValidatorFn() for flag '", Name(),
-                              "': validate-fn already registered"));
-
-    return false;
-  }
-
-  this->validator = fn;
-  return true;
-}
-
-bool CommandLineFlag::InvokeValidator(const void* value) const
-    EXCLUSIVE_LOCKS_REQUIRED(this->locks->primary_mu) {
-  if (!this->validator) {
-    return true;
-  }
-
-  (void)value;
-
-  ABSL_INTERNAL_LOG(
-      FATAL,
-      absl::StrCat("Flag '", Name(),
-                   "' of encapsulated type should not have a validator"));
-
-  return false;
-}
-
-void CommandLineFlag::SetCallback(
-    const flags_internal::FlagCallback mutation_callback) {
-  absl::MutexLock l(InitFlagIfNecessary());
-
-  callback = mutation_callback;
-
-  InvokeCallback();
-}
-
-// If the flag has a mutation callback this function invokes it. While the
-// callback is being invoked the primary flag's mutex is unlocked and it is
-// re-locked back after call to callback is completed. Callback invocation is
-// guarded by flag's secondary mutex instead which prevents concurrent callback
-// invocation. Note that it is possible for other thread to grab the primary
-// lock and update flag's value at any time during the callback invocation.
-// This is by design. Callback can get a value of the flag if necessary, but it
-// might be different from the value initiated the callback and it also can be
-// different by the time the callback invocation is completed.
-// Requires that *primary_lock be held in exclusive mode; it may be released
-// and reacquired by the implementation.
-void CommandLineFlag::InvokeCallback()
-    EXCLUSIVE_LOCKS_REQUIRED(this->locks->primary_mu) {
-  if (!this->callback) return;
-
-  // The callback lock is guaranteed initialized, because *locks->primary_mu
-  // exists.
-  absl::Mutex* callback_mu = &this->locks->callback_mu;
-
-  // When executing the callback we need the primary flag's mutex to be unlocked
-  // so that callback can retrieve the flag's value.
-  this->locks->primary_mu.Unlock();
-
-  {
-    absl::MutexLock lock(callback_mu);
-    this->callback();
-  }
-
-  this->locks->primary_mu.Lock();
 }
 
 // Attempts to parse supplied `value` string using parsing routine in the `flag`
