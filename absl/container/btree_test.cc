@@ -49,7 +49,6 @@ using ::absl::test_internal::InstanceTracker;
 using ::absl::test_internal::MovableOnlyInstance;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
-using ::testing::IsEmpty;
 using ::testing::Pair;
 
 template <typename T, typename U>

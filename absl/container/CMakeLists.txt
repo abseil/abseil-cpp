@@ -71,6 +71,10 @@ absl_cc_test(
     btree_test
   SRCS
     "btree_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::btree
     absl::btree_test_common

@@ -171,6 +171,8 @@ COPT_VARS = {
         MSVC_STYLE_EXCEPTIONS_FLAGS,
     "ABSL_MSVC_FLAGS":
         MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + [
+            # Increase the number of sections available in object files
+            "/bigobj",
             "/wd4005",  # macro-redefinition
             "/wd4068",  # unknown pragma
             # qualifier applied to function type has no meaning; ignored

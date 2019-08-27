@@ -196,6 +196,7 @@ list(APPEND ABSL_MSVC_FLAGS
     "/D_CRT_SECURE_NO_WARNINGS"
     "/D_SCL_SECURE_NO_WARNINGS"
     "/D_ENABLE_EXTENDED_ALIGNED_STORAGE"
+    "/bigobj"
     "/wd4005"
     "/wd4068"
     "/wd4180"
