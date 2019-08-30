@@ -21,8 +21,6 @@ load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
     "ABSL_DEFAULT_LINKOPTS",
-    "ABSL_EXCEPTIONS_FLAG",
-    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -87,8 +85,8 @@ cc_library(
     name = "seed_gen_exception",
     srcs = ["seed_gen_exception.cc"],
     hdrs = ["seed_gen_exception.h"],
-    copts = ABSL_DEFAULT_COPTS + ABSL_EXCEPTIONS_FLAG,
-    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS + ABSL_DEFAULT_LINKOPTS,
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = ["//absl/base:config"],
 )
 

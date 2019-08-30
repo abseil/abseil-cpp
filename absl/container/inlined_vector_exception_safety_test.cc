@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/container/inlined_vector.h"
+
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+
 #include <array>
 #include <initializer_list>
 #include <iterator>
@@ -20,7 +26,6 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_safety_testing.h"
-#include "absl/container/inlined_vector.h"
 
 namespace {
 
@@ -487,3 +492,5 @@ TYPED_TEST(TwoSizeTest, Swap) {
 }
 
 }  // namespace
+
+#endif  // ABSL_HAVE_EXCEPTIONS

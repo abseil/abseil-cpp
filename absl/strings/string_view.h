@@ -269,9 +269,21 @@ class string_view {
 
   // string_view::operator[]
   //
-  // Returns the ith element of an `string_view` using the array operator.
+  // Returns the ith element of the `string_view` using the array operator.
   // Note that this operator does not perform any bounds checking.
   constexpr const_reference operator[](size_type i) const { return ptr_[i]; }
+
+  // string_view::at()
+  //
+  // Returns the ith element of the `string_view`. Bounds checking is performed,
+  // and an exception of type `std::out_of_range` will be thrown on invalid
+  // access.
+  constexpr const_reference at(size_type i) const {
+    return ABSL_PREDICT_TRUE(i < size())
+               ? ptr_[i]
+               : (base_internal::ThrowStdOutOfRange("absl::string_view::at"),
+                  ptr_[i]);
+  }
 
   // string_view::front()
   //

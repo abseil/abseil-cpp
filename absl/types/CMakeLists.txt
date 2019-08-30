@@ -50,9 +50,6 @@ absl_cc_library(
    "bad_any_cast.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::config
     absl::raw_logging_internal
@@ -65,9 +62,6 @@ absl_cc_test(
     "any_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::any
     absl::config
@@ -100,9 +94,6 @@ absl_cc_test(
     "any_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::any
     absl::config
@@ -134,9 +125,6 @@ absl_cc_test(
     "span_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::span
     absl::base
@@ -199,9 +187,6 @@ absl_cc_library(
     "bad_optional_access.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::config
     absl::raw_logging_internal
@@ -217,9 +202,6 @@ absl_cc_library(
     "bad_variant_access.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::config
     absl::raw_logging_internal
@@ -233,9 +215,6 @@ absl_cc_test(
     "optional_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::optional
     absl::config
@@ -252,9 +231,6 @@ absl_cc_test(
     "optional_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::optional
     absl::config
@@ -288,9 +264,6 @@ absl_cc_test(
     "variant_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::variant
     absl::config
@@ -337,9 +310,6 @@ absl_cc_test(
     "variant_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::variant
     absl::config

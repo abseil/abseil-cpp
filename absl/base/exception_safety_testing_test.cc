@@ -14,6 +14,8 @@
 
 #include "absl/base/internal/exception_safety_testing.h"
 
+#ifdef ABSL_HAVE_EXCEPTIONS
+
 #include <cstddef>
 #include <exception>
 #include <iostream>
@@ -952,3 +954,5 @@ TEST(ThrowingAllocatorTraitsTest, Assignablility) {
 }  // namespace
 
 }  // namespace testing
+
+#endif  // ABSL_HAVE_EXCEPTIONS

@@ -1042,8 +1042,6 @@ TEST(VariantTest, MemberSwap) {
   using V = variant<MoveCanThrow, std::string, int>;
   int i = 33;
   std::string s = "abc";
-  V valueless(in_place_index<0>);
-  ToValuelessByException(valueless);
   {
     // lhs and rhs holds different alternative
     V lhs(i), rhs(s);
@@ -1051,6 +1049,9 @@ TEST(VariantTest, MemberSwap) {
     EXPECT_THAT(lhs, VariantWith<std::string>(s));
     EXPECT_THAT(rhs, VariantWith<int>(i));
   }
+#ifdef ABSL_HAVE_EXCEPTIONS
+  V valueless(in_place_index<0>);
+  ToValuelessByException(valueless);
   {
     // lhs is valueless
     V lhs(valueless), rhs(i);
@@ -1072,6 +1073,7 @@ TEST(VariantTest, MemberSwap) {
     EXPECT_TRUE(lhs.valueless_by_exception());
     EXPECT_TRUE(rhs.valueless_by_exception());
   }
+#endif  // ABSL_HAVE_EXCEPTIONS
 }
 
 //////////////////////

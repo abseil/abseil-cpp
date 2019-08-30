@@ -55,9 +55,7 @@ cc_library(
 
 cc_library(
     name = "distributions",
-    hdrs = [
-        "distributions.h",
-    ],
+    hdrs = ["distributions.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [

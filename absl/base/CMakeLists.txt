@@ -194,7 +194,6 @@ absl_cc_library(
     "internal/throw_delegate.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
   DEPS
     absl::config
     absl::raw_logging_internal
@@ -231,9 +230,6 @@ absl_cc_library(
     "internal/exception_safety_testing.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::config
     absl::pretty_function
@@ -252,9 +248,6 @@ absl_cc_test(
     "exception_safety_testing_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::exception_safety_testing
     absl::memory
@@ -296,6 +289,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::config
     absl::throw_delegate
     gtest_main
 )

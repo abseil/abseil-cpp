@@ -161,9 +161,6 @@ absl_cc_test(
     "string_view_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::strings
     absl::config

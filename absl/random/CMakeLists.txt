@@ -79,9 +79,7 @@ absl_cc_library(
     "seed_gen_exception.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
   LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config

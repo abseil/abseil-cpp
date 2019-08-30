@@ -17,8 +17,6 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_EXCEPTIONS_FLAG",
-    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -237,8 +235,7 @@ cc_test(
     name = "string_view_test",
     size = "small",
     srcs = ["string_view_test.cc"],
-    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
-    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
+    copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",

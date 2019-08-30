@@ -28,7 +28,9 @@ licenses(["notice"])  # Apache 2.0
 
 cc_library(
     name = "utility",
-    hdrs = ["utility.h"],
+    hdrs = [
+        "utility.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [

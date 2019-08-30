@@ -143,24 +143,6 @@ absl_cc_test(
     "fixed_array_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
-  DEPS
-    absl::fixed_array
-    absl::exception_testing
-    absl::hash_testing
-    absl::memory
-    gmock_main
-)
-
-absl_cc_test(
-  NAME
-    fixed_array_test_noexceptions
-  SRCS
-    "fixed_array_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
   DEPS
     absl::fixed_array
     absl::exception_testing
@@ -176,11 +158,9 @@ absl_cc_test(
     "fixed_array_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::fixed_array
+    absl::config
     absl::exception_safety_testing
     gmock_main
 )
@@ -233,30 +213,8 @@ absl_cc_test(
     "inlined_vector_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::counting_allocator
-    absl::inlined_vector
-    absl::test_instance_tracker
-    absl::core_headers
-    absl::exception_testing
-    absl::hash_testing
-    absl::memory
-    absl::raw_logging_internal
-    absl::strings
-    gmock_main
-)
-
-absl_cc_test(
-  NAME
-    inlined_vector_test_noexceptions
-  SRCS
-    "inlined_vector_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
     absl::inlined_vector
     absl::test_instance_tracker
     absl::core_headers
@@ -275,11 +233,9 @@ absl_cc_test(
     "inlined_vector_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::inlined_vector
+    absl::config
     absl::exception_safety_testing
     gmock_main
 )

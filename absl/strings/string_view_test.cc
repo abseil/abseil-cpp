@@ -29,7 +29,8 @@
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 
-#ifdef __ANDROID__
+#if defined(ABSL_HAVE_STD_STRING_VIEW) || defined(__ANDROID__)
+// We don't control the death messaging when using std::string_view.
 // Android assert messages only go to system log, so death tests cannot inspect
 // the message for matching.
 #define ABSL_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
@@ -372,7 +373,7 @@ TEST(StringViewTest, STL1) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW(a.copy(buf, 1, 27), std::out_of_range);
 #else
-  EXPECT_DEATH(a.copy(buf, 1, 27), "absl::string_view::copy");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(a.copy(buf, 1, 27), "absl::string_view::copy");
 #endif
 }
 
@@ -686,7 +687,8 @@ TEST(StringViewTest, STL2Substr) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW((void)a.substr(99, 2), std::out_of_range);
 #else
-  EXPECT_DEATH((void)a.substr(99, 2), "absl::string_view::substr");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED((void)a.substr(99, 2),
+                                 "absl::string_view::substr");
 #endif
 }
 
@@ -892,6 +894,18 @@ TEST(StringViewTest, Comparisons2) {
   EXPECT_EQ(digits.compare(3, 4, "0123456789", 3, 4), 0);     // 6
   EXPECT_LT(digits.compare(3, 4, "0123456789", 3, 5), 0);     // 6
   EXPECT_LT(digits.compare(0, npos, "0123456789", 3, 5), 0);  // 6
+}
+
+TEST(StringViewTest, At) {
+  absl::string_view abc = "abc";
+  EXPECT_EQ(abc.at(0), 'a');
+  EXPECT_EQ(abc.at(1), 'b');
+  EXPECT_EQ(abc.at(2), 'c');
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(abc.at(3), std::out_of_range);
+#else
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(abc.at(3), "absl::string_view::at");
+#endif
 }
 
 struct MyCharAlloc : std::allocator<char> {};
