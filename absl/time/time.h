@@ -1103,7 +1103,7 @@ inline Time FromCivil(CivilSecond ct, TimeZone tz) {
 // An `absl::TimeConversion` represents the conversion of year, month, day,
 // hour, minute, and second values (i.e., a civil time), in a particular
 // `absl::TimeZone`, to a time instant (an absolute time), as returned by
-// `absl::ConvertDateTime()`. Lecacy version of `absl::TimeZone::TimeInfo`.
+// `absl::ConvertDateTime()`. Legacy version of `absl::TimeZone::TimeInfo`.
 //
 // Deprecated. Use `absl::TimeZone::TimeInfo`.
 struct

@@ -44,11 +44,11 @@ namespace {
 ABSL_CONST_INIT absl::Mutex processing_checks_guard(absl::kConstInit);
 
 ABSL_CONST_INIT bool flagfile_needs_processing
-    GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(processing_checks_guard) = false;
 ABSL_CONST_INIT bool fromenv_needs_processing
-    GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(processing_checks_guard) = false;
 ABSL_CONST_INIT bool tryfromenv_needs_processing
-    GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(processing_checks_guard) = false;
 
 }  // namespace
 }  // namespace flags_internal

@@ -32,7 +32,7 @@ namespace flags_internal {
 // completed. Requires that *primary_lock be held in exclusive mode; it may be
 // released and reacquired by the implementation.
 void InvokeCallback(absl::Mutex* primary_mu, absl::Mutex* callback_mu,
-                    FlagCallback cb) EXCLUSIVE_LOCKS_REQUIRED(primary_mu) {
+                    FlagCallback cb) ABSL_EXCLUSIVE_LOCKS_REQUIRED(primary_mu) {
   if (!cb) return;
 
   // When executing the callback we need the primary flag's mutex to be

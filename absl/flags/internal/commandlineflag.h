@@ -69,8 +69,6 @@ using HelpGenFunc = std::string (*)();
 // based on default value supplied in flag's definition)
 using InitialValGenFunc = void* (*)();
 
-struct CommandLineFlagInfo;
-
 extern const char kStrippedFlagHelp[];
 
 // The per-type function
@@ -189,27 +187,28 @@ class HelpText {
 };
 
 // Holds all information for a flag.
-struct CommandLineFlag {
+class CommandLineFlag {
+ public:
   constexpr CommandLineFlag(
-      const char* name_arg, HelpText help_text, const char* filename_arg,
-      const flags_internal::FlagOpFn op_arg,
-      const flags_internal::FlagMarshallingOpFn marshalling_op_arg,
-      const flags_internal::InitialValGenFunc initial_value_gen, void* def_arg,
-      void* cur_arg)
-      : name(name_arg),
-        help(help_text),
-        filename(filename_arg),
-        op(op_arg),
-        marshalling_op(marshalling_op_arg),
-        make_init_value(initial_value_gen),
-        inited(false),
-        modified(false),
-        on_command_line(false),
-        def(def_arg),
-        cur(cur_arg),
-        counter(0),
-        atomic(kAtomicInit),
-        locks(nullptr) {}
+      const char* name, HelpText help_text, const char* filename,
+      const flags_internal::FlagOpFn op,
+      const flags_internal::FlagMarshallingOpFn marshalling_op,
+      const flags_internal::InitialValGenFunc initial_value_gen, void* def,
+      void* cur)
+      : name_(name),
+        help_(help_text),
+        filename_(filename),
+        op_(op),
+        marshalling_op_(marshalling_op),
+        make_init_value_(initial_value_gen),
+        inited_(false),
+        modified_(false),
+        on_command_line_(false),
+        def_(def),
+        cur_(cur),
+        counter_(0),
+        atomic_(kAtomicInit),
+        locks_(nullptr) {}
 
   // Virtual destructor
   virtual void Destroy() const = 0;
@@ -225,8 +224,8 @@ struct CommandLineFlag {
   // Returns true iff this is a handle to an Abseil Flag.
   virtual bool IsAbseilFlag() const { return true; }
 
-  absl::string_view Name() const { return name; }
-  std::string Help() const { return help.GetHelpText(); }
+  absl::string_view Name() const { return name_; }
+  std::string Help() const { return help_.GetHelpText(); }
   bool IsModified() const;
   void SetModified(bool is_modified);
   bool IsSpecifiedOnCommandLine() const;
@@ -247,15 +246,14 @@ struct CommandLineFlag {
   // Return true iff flag has type T.
   template <typename T>
   inline bool IsOfType() const {
-    return this->op == &flags_internal::FlagOps<T>;
+    return op_ == &flags_internal::FlagOps<T>;
   }
 
   // Attempts to retrieve the flag value. Returns value on success,
   // absl::nullopt otherwise.
   template <typename T>
   absl::optional<T> Get() const {
-    if (IsRetired() || flags_internal::FlagOps<T> != this->op)
-      return absl::nullopt;
+    if (IsRetired() || flags_internal::FlagOps<T> != op_) return absl::nullopt;
 
     T res;
     Read(&res, flags_internal::FlagOps<T>);
@@ -286,36 +284,36 @@ struct CommandLineFlag {
  protected:
   ~CommandLineFlag() = default;
 
-  const char* const name;
-  const HelpText help;
-  const char* const filename;
+  const char* const name_;
+  const HelpText help_;
+  const char* const filename_;
 
-  const FlagOpFn op;                         // Type-specific handler
-  const FlagMarshallingOpFn marshalling_op;  // Marshalling ops handler
-  const InitialValGenFunc make_init_value;   // Makes initial value for the flag
-  std::atomic<bool> inited;  // fields have been lazily initialized
+  const FlagOpFn op_;                         // Type-specific handler
+  const FlagMarshallingOpFn marshalling_op_;  // Marshalling ops handler
+  const InitialValGenFunc make_init_value_;  // Makes initial value for the flag
+  std::atomic<bool> inited_;  // fields have been lazily initialized
 
-  // Mutable state (guarded by locks->primary_mu).
-  bool modified;            // Has flag value been modified?
-  bool on_command_line;     // Specified on command line.
-  void* def;                // Lazily initialized pointer to default value
-  void* cur;                // Lazily initialized pointer to current value
-  int64_t counter;            // Mutation counter
+  // Mutable state (guarded by locks_->primary_mu).
+  bool modified_;         // Has flag value been modified?
+  bool on_command_line_;  // Specified on command line.
+  void* def_;             // Lazily initialized pointer to default value
+  void* cur_;             // Lazily initialized pointer to current value
+  int64_t counter_;         // Mutation counter
 
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
   static const int64_t kAtomicInit = 0xababababababababll;
-  std::atomic<int64_t> atomic;
+  std::atomic<int64_t> atomic_;
 
   // Lazily initialized mutexes for this flag value.  We cannot inline a
   // SpinLock or Mutex here because those have non-constexpr constructors and
   // so would prevent constant initialization of this type.
   // TODO(rogeeff): fix it once Mutex has constexpr constructor
-  struct CommandLineFlagLocks* locks;  // locks, laziliy allocated.
+  struct CommandLineFlagLocks* locks_;  // locks, laziliy allocated.
 
   // Ensure that the lazily initialized fields of *flag have been initialized,
   // and return the lock which should be locked when flag's state is mutated.
-  absl::Mutex* InitFlagIfNecessary() const LOCK_RETURNED(locks->primary_mu);
+  absl::Mutex* InitFlagIfNecessary() const ABSL_LOCK_RETURNED(locks_->primary_mu);
 
   // copy construct new value of flag's type in a memory referenced by dst
   // based on current flag's value
@@ -326,8 +324,6 @@ struct CommandLineFlag {
   friend class FlagRegistry;
   friend class FlagPtrMap;
   friend class FlagSaverImpl;
-  friend void FillCommandLineFlagInfo(CommandLineFlag* flag,
-                                      CommandLineFlagInfo* result);
   friend bool TryParseLocked(CommandLineFlag* flag, void* dst,
                              absl::string_view value, std::string* err);
   friend absl::Mutex* InitFlag(CommandLineFlag* flag);
@@ -335,7 +331,7 @@ struct CommandLineFlag {
   // This is a short term, until we completely rework persistent state
   // storage API.
   virtual void* GetValidator() const { return nullptr; }
-  virtual void SetValidator(void*) {}
+  virtual bool SetValidator(void*) { return false; }
 };
 
 // Update any copy of the flag value that is stored in an atomic word.

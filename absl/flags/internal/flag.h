@@ -28,23 +28,22 @@ namespace flags_internal {
 using FlagCallback = void (*)();
 
 void InvokeCallback(absl::Mutex* primary_mu, absl::Mutex* callback_mu,
-                    FlagCallback cb) EXCLUSIVE_LOCKS_REQUIRED(primary_mu);
+                    FlagCallback cb) ABSL_EXCLUSIVE_LOCKS_REQUIRED(primary_mu);
 
 // This is "unspecified" implementation of absl::Flag<T> type.
 template <typename T>
 class Flag final : public flags_internal::CommandLineFlag {
  public:
-  constexpr Flag(const char* name_arg,
-                 const flags_internal::HelpGenFunc help_gen,
-                 const char* filename_arg,
-                 const flags_internal::FlagMarshallingOpFn marshalling_op_arg,
+  constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
+                 const char* filename,
+                 const flags_internal::FlagMarshallingOpFn marshalling_op,
                  const flags_internal::InitialValGenFunc initial_value_gen)
       : flags_internal::CommandLineFlag(
-            name_arg, flags_internal::HelpText::FromFunctionPointer(help_gen),
-            filename_arg, &flags_internal::FlagOps<T>, marshalling_op_arg,
+            name, flags_internal::HelpText::FromFunctionPointer(help_gen),
+            filename, &flags_internal::FlagOps<T>, marshalling_op,
             initial_value_gen,
-            /*def_arg=*/nullptr,
-            /*cur_arg=*/nullptr),
+            /*def=*/nullptr,
+            /*cur=*/nullptr),
         callback_(nullptr) {}
 
   T Get() const {
@@ -71,12 +70,12 @@ class Flag final : public flags_internal::CommandLineFlag {
     };
     U u;
 
-    this->Read(&u.value, &flags_internal::FlagOps<T>);
+    Read(&u.value, &flags_internal::FlagOps<T>);
     return std::move(u.value);
   }
 
   bool AtomicGet(T* v) const {
-    const int64_t r = this->atomic.load(std::memory_order_acquire);
+    const int64_t r = atomic_.load(std::memory_order_acquire);
     if (r != flags_internal::CommandLineFlag::kAtomicInit) {
       memcpy(v, &r, sizeof(T));
       return true;
@@ -85,7 +84,7 @@ class Flag final : public flags_internal::CommandLineFlag {
     return false;
   }
 
-  void Set(const T& v) { this->Write(&v, &flags_internal::FlagOps<T>); }
+  void Set(const T& v) { Write(&v, &flags_internal::FlagOps<T>); }
 
   void SetCallback(const flags_internal::FlagCallback mutation_callback) {
     absl::MutexLock l(InitFlagIfNecessary());
@@ -95,18 +94,18 @@ class Flag final : public flags_internal::CommandLineFlag {
     InvokeCallback();
   }
   void InvokeCallback() override
-      EXCLUSIVE_LOCKS_REQUIRED(this->locks->primary_mu) {
-    flags_internal::InvokeCallback(&this->locks->primary_mu,
-                                   &this->locks->callback_mu, callback_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
+    flags_internal::InvokeCallback(&locks_->primary_mu, &locks_->callback_mu,
+                                   callback_);
   }
 
  private:
   void Destroy() const override {
     // Values are heap allocated Abseil Flags.
-    if (this->cur) Delete(this->op, this->cur);
-    if (this->def) Delete(this->op, this->def);
+    if (cur_) Delete(op_, cur_);
+    if (def_) Delete(op_, def_);
 
-    delete this->locks;
+    delete locks_;
   }
 
   // Flag's data

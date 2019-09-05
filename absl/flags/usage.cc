@@ -24,7 +24,7 @@ namespace flags_internal {
 namespace {
 ABSL_CONST_INIT absl::Mutex usage_message_guard(absl::kConstInit);
 ABSL_CONST_INIT std::string* program_usage_message
-    GUARDED_BY(usage_message_guard) = nullptr;
+    ABSL_GUARDED_BY(usage_message_guard) = nullptr;
 }  // namespace
 }  // namespace flags_internal
 

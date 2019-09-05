@@ -25,7 +25,7 @@ namespace flags_internal {
 
 ABSL_CONST_INIT static absl::Mutex program_name_guard(absl::kConstInit);
 ABSL_CONST_INIT static std::string* program_name
-    GUARDED_BY(program_name_guard) = nullptr;
+    ABSL_GUARDED_BY(program_name_guard) = nullptr;
 
 std::string ProgramInvocationName() {
   absl::MutexLock l(&program_name_guard);

@@ -29,33 +29,6 @@
 namespace absl {
 namespace flags_internal {
 
-// CommandLineFlagInfo holds all information for a flag.
-struct CommandLineFlagInfo {
-  std::string name;           // the name of the flag
-  std::string type;           // DO NOT use. Use flag->IsOfType<T>() instead.
-  std::string description;    // the "help text" associated with the flag
-  std::string current_value;  // the current value, as a std::string
-  std::string default_value;  // the default value, as a std::string
-  std::string filename;       // 'cleaned' version of filename holding the flag
-  bool has_validator_fn;  // true if RegisterFlagValidator called on this flag
-
-  bool is_default;  // true if the flag has the default value and
-                    // has not been set explicitly from the cmdline
-                    // or via SetCommandLineOption.
-
-  // nullptr for ABSL_FLAG.  A pointer to the flag's current value
-  // otherwise.  E.g., for DEFINE_int32(foo, ...), flag_ptr will be
-  // &FLAGS_foo.
-  const void* flag_ptr;
-};
-
-//-----------------------------------------------------------------------------
-
-void FillCommandLineFlagInfo(CommandLineFlag* flag,
-                             CommandLineFlagInfo* result);
-
-//-----------------------------------------------------------------------------
-
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);
 CommandLineFlag* FindRetiredFlag(absl::string_view name);
 
@@ -65,11 +38,6 @@ void ForEachFlagUnlocked(std::function<void(CommandLineFlag*)> visitor);
 // Executes specified visitor for each non-retired flag in the registry. While
 // callback are executed, the registry is locked and can't be changed.
 void ForEachFlag(std::function<void(CommandLineFlag*)> visitor);
-
-//-----------------------------------------------------------------------------
-
-// Store the list of all flags in *OUTPUT, sorted by file.
-void GetAllFlags(std::vector<CommandLineFlagInfo>* OUTPUT);
 
 //-----------------------------------------------------------------------------
 

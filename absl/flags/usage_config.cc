@@ -94,7 +94,7 @@ std::string NormalizeFilename(absl::string_view filename) {
 
 ABSL_CONST_INIT absl::Mutex custom_usage_config_guard(absl::kConstInit);
 ABSL_CONST_INIT FlagsUsageConfig* custom_usage_config
-    GUARDED_BY(custom_usage_config_guard) = nullptr;
+    ABSL_GUARDED_BY(custom_usage_config_guard) = nullptr;
 
 }  // namespace
 
