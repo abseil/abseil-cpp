@@ -261,13 +261,6 @@ bool CommandLineFlag::SetFromString(absl::string_view value,
   return true;
 }
 
-void CommandLineFlag::StoreAtomic(size_t size) {
-  int64_t t = 0;
-  assert(size <= sizeof(int64_t));
-  memcpy(&t, cur_, size);
-  atomic_.store(t, std::memory_order_release);
-}
-
 void CommandLineFlag::CheckDefaultValueParsingRoundtrip() const {
   std::string v = DefaultValue();
 
@@ -304,8 +297,6 @@ bool CommandLineFlag::ValidateInputValue(absl::string_view value) const {
   Delete(op_, obj);
   return result;
 }
-
-const int64_t CommandLineFlag::kAtomicInit;
 
 void CommandLineFlag::Read(void* dst,
                            const flags_internal::FlagOpFn dst_op) const {
@@ -369,7 +360,7 @@ std::string HelpText::GetHelpText() const {
 void UpdateCopy(CommandLineFlag* flag) {
 #define STORE_ATOMIC(T)           \
   else if (flag->IsOfType<T>()) { \
-    flag->StoreAtomic(sizeof(T)); \
+    flag->StoreAtomic();          \
   }
 
   if (false) {

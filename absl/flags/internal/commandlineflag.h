@@ -207,7 +207,6 @@ class CommandLineFlag {
         def_(def),
         cur_(cur),
         counter_(0),
-        atomic_(kAtomicInit),
         locks_(nullptr) {}
 
   // Virtual destructor
@@ -234,6 +233,10 @@ class CommandLineFlag {
   std::string Filename() const;
   std::string DefaultValue() const;
   std::string CurrentValue() const;
+
+  // Interface to store the value in atomic if one used. This is short term
+  // interface. To be reworked once cur_ is moved.
+  virtual void StoreAtomic() {}
 
   // Interfaces to operate on validators.
   virtual bool HasValidatorFn() const { return false; }
@@ -276,8 +279,6 @@ class CommandLineFlag {
                      flags_internal::FlagSettingMode set_mode,
                      flags_internal::ValueSource source, std::string* error);
 
-  void StoreAtomic(size_t size);
-
   void CheckDefaultValueParsingRoundtrip() const;
 
   // Constant configuration for a particular flag.
@@ -299,11 +300,6 @@ class CommandLineFlag {
   void* def_;             // Lazily initialized pointer to default value
   void* cur_;             // Lazily initialized pointer to current value
   int64_t counter_;         // Mutation counter
-
-  // For some types, a copy of the current value is kept in an atomically
-  // accessible field.
-  static const int64_t kAtomicInit = 0xababababababababll;
-  std::atomic<int64_t> atomic_;
 
   // Lazily initialized mutexes for this flag value.  We cannot inline a
   // SpinLock or Mutex here because those have non-constexpr constructors and

@@ -35,16 +35,6 @@ config_setting(
 ### libraries
 
 cc_library(
-    name = "includes",
-    textual_hdrs = [
-        "include/cctz/civil_time.h",
-        "include/cctz/civil_time_detail.h",
-        "include/cctz/time_zone.h",
-    ],
-    visibility = ["//absl/time:__pkg__"],
-)
-
-cc_library(
     name = "civil_time",
     srcs = ["src/civil_time_detail.cc"],
     hdrs = [

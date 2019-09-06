@@ -16,11 +16,15 @@
 #ifndef ABSL_FLAGS_INTERNAL_FLAG_H_
 #define ABSL_FLAGS_INTERNAL_FLAG_H_
 
+#include <cstring>
+
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
 
 namespace absl {
 namespace flags_internal {
+
+constexpr int64_t AtomicInit() { return 0xababababababababll; }
 
 // Signature for the mutation callback used by watched Flags
 // The callback is noexcept.
@@ -44,6 +48,7 @@ class Flag final : public flags_internal::CommandLineFlag {
             initial_value_gen,
             /*def=*/nullptr,
             /*cur=*/nullptr),
+        atomic_(flags_internal::AtomicInit()),
         callback_(nullptr) {}
 
   T Get() const {
@@ -76,8 +81,8 @@ class Flag final : public flags_internal::CommandLineFlag {
 
   bool AtomicGet(T* v) const {
     const int64_t r = atomic_.load(std::memory_order_acquire);
-    if (r != flags_internal::CommandLineFlag::kAtomicInit) {
-      memcpy(v, &r, sizeof(T));
+    if (r != flags_internal::AtomicInit()) {
+      std::memcpy(v, &r, sizeof(T));
       return true;
     }
 
@@ -108,7 +113,18 @@ class Flag final : public flags_internal::CommandLineFlag {
     delete locks_;
   }
 
+  void StoreAtomic() override {
+    if (sizeof(T) <= sizeof(int64_t)) {
+      int64_t t = 0;
+      std::memcpy(&t, cur_, (std::min)(sizeof(T), sizeof(int64_t)));
+      atomic_.store(t, std::memory_order_release);
+    }
+  }
+
   // Flag's data
+  // For some types, a copy of the current value is kept in an atomically
+  // accessible field.
+  std::atomic<int64_t> atomic_;
   FlagCallback callback_;  // Mutation callback
 };
 
