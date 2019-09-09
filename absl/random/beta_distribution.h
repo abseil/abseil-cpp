@@ -129,7 +129,7 @@ class beta_distribution {
    private:
     friend class beta_distribution;
 
-#ifdef COMPILER_MSVC
+#ifdef _MSC_VER
     // MSVC does not have constexpr implementations for std::log and std::exp
     // so they are computed at runtime.
 #define ABSL_RANDOM_INTERNAL_LOG_EXP_CONSTEXPR

@@ -36,6 +36,12 @@
 #include "absl/types/span.h"
 
 namespace absl {
+
+struct IntervalClosedClosedTag;
+struct IntervalClosedOpenTag;
+struct IntervalOpenClosedTag;
+struct IntervalOpenOpenTag;
+
 namespace random_internal {
 
 // ScalarTypeName defines a preferred hierarchy of preferred type names for
@@ -237,6 +243,39 @@ struct DistributionFormatTraits<absl::log_uniform_int_distribution<R>> {
   }
   static std::string FormatArgs(const distribution_t& d) {
     return absl::StrJoin(std::make_tuple((d.min)(), (d.max)(), d.base()), ", ");
+  }
+  static std::string FormatResults(absl::Span<const result_t> results) {
+    return absl::StrJoin(results, ", ");
+  }
+};
+
+template <typename TagType, typename NumType>
+struct UniformDistributionWrapper;
+
+template <typename TagType, typename NumType>
+struct DistributionFormatTraits<UniformDistributionWrapper<TagType, NumType>> {
+  using distribution_t = UniformDistributionWrapper<TagType, NumType>;
+  using result_t = NumType;
+
+  static constexpr const char* Name() { return "Uniform"; }
+
+  static std::string FunctionName() {
+    return absl::StrCat(Name(), "<", ScalarTypeName<NumType>(), ">");
+  }
+  static std::string FormatArgs(const distribution_t& d) {
+    absl::string_view tag;
+    if (std::is_same<TagType, IntervalClosedClosedTag>::value) {
+      tag = "IntervalClosedClosed";
+    } else if (std::is_same<TagType, IntervalClosedOpenTag>::value) {
+      tag = "IntervalClosedOpen";
+    } else if (std::is_same<TagType, IntervalOpenClosedTag>::value) {
+      tag = "IntervalOpenClosed";
+    } else if (std::is_same<TagType, IntervalOpenOpenTag>::value) {
+      tag = "IntervalOpenOpen";
+    } else {
+      tag = "[[unknown tag type]]";
+    }
+    return absl::StrCat(tag, ", ", (d.min)(), ", ", (d.max)());
   }
   static std::string FormatResults(absl::Span<const result_t> results) {
     return absl::StrJoin(results, ", ");

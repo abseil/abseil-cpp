@@ -60,13 +60,11 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distribution_caller",
-        ":fast_uniform_bits",
-        ":fastmath",
         ":traits",
         ":uniform_helper",
+        "//absl/base",
         "//absl/meta:type_traits",
         "//absl/strings",
-        "//absl/types:span",
     ],
 )
 
@@ -618,11 +616,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":distribution_impl",
-        ":fast_uniform_bits",
-        ":iostream_state_saver",
-        ":traits",
-        "//absl/base:core_headers",
         "//absl/meta:type_traits",
     ],
 )

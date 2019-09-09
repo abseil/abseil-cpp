@@ -39,22 +39,20 @@ NumType UniformImpl(TagType tag,
       "absl::Uniform<T>() must use an integer or real parameter type.");
 
   using distribution_t =
-      typename std::conditional<std::is_integral<NumType>::value,
-                                absl::uniform_int_distribution<NumType>,
-                                absl::uniform_real_distribution<NumType>>::type;
+      UniformDistributionWrapper<absl::decay_t<TagType>, NumType>;
   using format_t = random_internal::DistributionFormatTraits<distribution_t>;
+  auto a = uniform_lower_bound(tag, lo, hi);
+  auto b = uniform_upper_bound(tag, lo, hi);
 
-  auto a = random_internal::uniform_lower_bound<NumType>(tag, lo, hi);
-  auto b = random_internal::uniform_upper_bound<NumType>(tag, lo, hi);
   // TODO(lar): it doesn't make a lot of sense to ask for a random number in an
   // empty range.  Right now we just return a boundary--even though that
   // boundary is not an acceptable value!  Is there something better we can do
   // here?
+  if (a > b) return a;
 
   using gen_t = absl::decay_t<URBG>;
-  if (a > b) return a;
   return DistributionCaller<gen_t>::template Call<distribution_t, format_t>(
-      &urbg, a, b);
+      &urbg, tag, lo, hi);
 }
 
 // In the absence of an explicitly provided return-type, the template

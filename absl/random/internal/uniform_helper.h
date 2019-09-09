@@ -156,7 +156,7 @@ using UniformDistribution =
 
 template <typename TagType, typename NumType>
 struct UniformDistributionWrapper : public UniformDistribution<NumType> {
-  explicit UniformDistributionWrapper(NumType lo, NumType hi)
+  explicit UniformDistributionWrapper(TagType, NumType lo, NumType hi)
       : UniformDistribution<NumType>(
             uniform_lower_bound<NumType>(TagType{}, lo, hi),
             uniform_upper_bound<NumType>(TagType{}, lo, hi)) {}

@@ -231,6 +231,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":config",
         ":flag",
         ":handle",
         ":registry",
@@ -264,6 +265,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":config",
         ":flag",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",

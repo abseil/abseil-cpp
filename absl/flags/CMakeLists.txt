@@ -213,6 +213,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags
+    absl::flags_config
     absl::flags_handle
     absl::flags_registry
     absl::memory
@@ -242,6 +243,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags
+    absl::flags_config
     absl::strings
     gtest_main
 )

@@ -1025,6 +1025,8 @@ absl_cc_test(
     random_internal_iostream_state_saver_test
   SRCS
     "internal/iostream_state_saver_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS

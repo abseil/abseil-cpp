@@ -336,6 +336,8 @@
 // feature tests for Microsoft's library
 #elif defined(__EMSCRIPTEN__)
 // emscripten doesn't support signals
+#elif defined(__Fuchsia__)
+// Signals don't exist on fuchsia.
 #elif defined(__native_client__)
 #else
 // other standard libraries
