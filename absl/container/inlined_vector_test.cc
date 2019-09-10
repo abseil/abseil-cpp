@@ -1689,7 +1689,11 @@ TEST(AllocatorSupportTest, ScopedAllocatorWorksInlined) {
   inlined_case.emplace_back();
 
   int64_t absl_responsible_for_count = total_allocated_byte_count;
+
+  // MSVC's allocator preemptively allocates in debug mode
+#if !defined(_MSC_VER)
   EXPECT_EQ(absl_responsible_for_count, 0);
+#endif  // !defined(_MSC_VER)
 
   inlined_case[0].emplace_back();
   EXPECT_GT(total_allocated_byte_count, absl_responsible_for_count);
