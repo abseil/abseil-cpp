@@ -51,6 +51,16 @@ more information on building Abseil using the Bazel build system.
 If you require CMake support, please check the
 [CMake build instructions](CMake/README.md).
 
+Alternatively, if you're using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager, then you can install Abseil with a single command:
+
+```
+vcpkg install abseil
+```
+
+Vcpkg will build Abseil from source in your computer and provide CMake integration for your projects.
+
+See the [vcpkg repository](https://github.com/Microsoft/vcpkg) for more information.
+
 ## Codemap
 
 Abseil contains the following C++ library components:
