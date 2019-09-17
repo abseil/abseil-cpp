@@ -101,7 +101,7 @@ struct FlagsUsageConfig {
   //   normalize_filename("/my_company/some_long_path/src/project/file.cc")
   // might produce
   //   "project/file.cc".
-  std::function<std::string (absl::string_view)> normalize_filename;
+  std::function<std::string(absl::string_view)> normalize_filename;
 };
 
 // SetFlagsUsageConfig()
