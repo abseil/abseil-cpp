@@ -529,7 +529,9 @@ absl_cc_test(
   SRCS
     "log_severity_test.cc"
   DEPS
+    absl::flags_marshalling
     absl::log_severity
+    absl::strings
     gmock
     gtest_main
 )
