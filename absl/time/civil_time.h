@@ -459,6 +459,57 @@ std::string FormatCivilTime(CivilDay c);
 std::string FormatCivilTime(CivilMonth c);
 std::string FormatCivilTime(CivilYear c);
 
+// absl::ParseCivilTime()
+//
+// Parses a civil-time value from the specified `absl::string_view` into the
+// passed output parameter. Returns `true` upon successful parsing.
+//
+// The expected form of the input string is as follows:
+//
+//  Type        | Format
+//  ---------------------------------
+//  CivilSecond | YYYY-MM-DDTHH:MM:SS
+//  CivilMinute | YYYY-MM-DDTHH:MM
+//  CivilHour   | YYYY-MM-DDTHH
+//  CivilDay    | YYYY-MM-DD
+//  CivilMonth  | YYYY-MM
+//  CivilYear   | YYYY
+//
+// Example:
+//
+//   absl::CivilDay d;
+//   bool ok = absl::ParseCivilTime("2018-01-02", &d); // OK
+//
+// Note that parsing will fail if the string's format does not match the
+// expected type exactly. `ParseLenientCivilTime()` below is more lenient.
+//
+bool ParseCivilTime(absl::string_view s, CivilSecond* c);
+bool ParseCivilTime(absl::string_view s, CivilMinute* c);
+bool ParseCivilTime(absl::string_view s, CivilHour* c);
+bool ParseCivilTime(absl::string_view s, CivilDay* c);
+bool ParseCivilTime(absl::string_view s, CivilMonth* c);
+bool ParseCivilTime(absl::string_view s, CivilYear* c);
+
+// ParseLenientCivilTime()
+//
+// Parses any of the formats accepted by `absl::ParseCivilTime()`, but is more
+// lenient if the format of the string does not exactly match the associated
+// type.
+//
+// Example:
+//
+//   absl::CivilDay d;
+//   bool ok = absl::ParseLenientCivilTime("1969-07-20", &d); // OK
+//   ok = absl::ParseLenientCivilTime("1969-07-20T10", &d);   // OK: T10 floored
+//   ok = absl::ParseLenientCivilTime("1969-07", &d);   // OK: day defaults to 1
+//
+bool ParseLenientCivilTime(absl::string_view s, CivilSecond* c);
+bool ParseLenientCivilTime(absl::string_view s, CivilMinute* c);
+bool ParseLenientCivilTime(absl::string_view s, CivilHour* c);
+bool ParseLenientCivilTime(absl::string_view s, CivilDay* c);
+bool ParseLenientCivilTime(absl::string_view s, CivilMonth* c);
+bool ParseLenientCivilTime(absl::string_view s, CivilYear* c);
+
 namespace time_internal {  // For functions found via ADL on civil-time tags.
 
 // Streaming Operators
