@@ -339,6 +339,7 @@
 #elif defined(__Fuchsia__)
 // Signals don't exist on fuchsia.
 #elif defined(__native_client__)
+#elif defined(__MINGW32__)
 #else
 // other standard libraries
 #define ABSL_HAVE_ALARM 1
