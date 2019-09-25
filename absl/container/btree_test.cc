@@ -2239,6 +2239,13 @@ TEST(Btree, MoveAssignmentAllocatorPropagation) {
   }
 }
 
+TEST(Btree, EmptyTree) {
+  absl::btree_set<int> s;
+  EXPECT_TRUE(s.empty());
+  EXPECT_EQ(s.size(), 0);
+  EXPECT_GT(s.max_size(), 0);
+}
+
 }  // namespace
 }  // namespace container_internal
 }  // namespace absl

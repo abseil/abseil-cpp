@@ -1226,7 +1226,7 @@ class btree {
   // The height of the btree. An empty tree will have height 0.
   size_type height() const {
     size_type h = 0;
-    if (root()) {
+    if (!empty()) {
       // Count the length of the chain from the leftmost node up to the
       // root. We actually count from the root back around to the level below
       // the root, but the calculation is the same because of the circularity
@@ -1277,16 +1277,17 @@ class btree {
   // divided by the maximum number of elements a tree with the current number
   // of nodes could hold. A value of 1 indicates perfect space
   // utilization. Smaller values indicate space wastage.
+  // Returns 0 for empty trees.
   double fullness() const {
+    if (empty()) return 0.0;
     return static_cast<double>(size()) / (nodes() * kNodeValues);
   }
   // The overhead of the btree structure in bytes per node. Computed as the
   // total number of bytes used by the btree minus the number of bytes used for
   // storing elements divided by the number of elements.
+  // Returns 0 for empty trees.
   double overhead() const {
-    if (empty()) {
-      return 0.0;
-    }
+    if (empty()) return 0.0;
     return (bytes_used() - size() * sizeof(value_type)) /
            static_cast<double>(size());
   }

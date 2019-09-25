@@ -56,7 +56,7 @@ namespace absl {
 //
 //   // Use the distribution to produce a value between 0.0 (inclusive)
 //   // and 1.0 (exclusive).
-//   int value = absl::uniform_real_distribution<double>(0, 1)(gen);
+//   double value = absl::uniform_real_distribution<double>(0, 1)(gen);
 //
 template <typename RealType = double>
 class uniform_real_distribution {

@@ -944,7 +944,7 @@ TEST(optionalTest, Swap) {
 
 template <int v>
 struct DeletedOpAddr {
-  constexpr static const int value = v;
+  int value = v;
   constexpr DeletedOpAddr() = default;
   constexpr const DeletedOpAddr<v>* operator&() const = delete;  // NOLINT
   DeletedOpAddr<v>* operator&() = delete;                        // NOLINT
@@ -954,9 +954,9 @@ struct DeletedOpAddr {
 // to document the fact that the current implementation of absl::optional<T>
 // expects such usecases to be malformed and not compile.
 TEST(optionalTest, OperatorAddr) {
-  constexpr const int v = -1;
+  constexpr int v = -1;
   {  // constexpr
-    constexpr const absl::optional<DeletedOpAddr<v>> opt(absl::in_place_t{});
+    constexpr absl::optional<DeletedOpAddr<v>> opt(absl::in_place_t{});
     static_assert(opt.has_value(), "");
     // static_assert(opt->value == v, "");
     static_assert((*opt).value == v, "");

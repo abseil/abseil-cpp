@@ -80,6 +80,7 @@ static ABSL_PER_THREAD_TLS_KEYWORD char
     symbolize_test_thread_big[2 * 1024 * 1024];
 #endif
 
+#if !defined(__EMSCRIPTEN__)
 // Used below to hopefully inhibit some compiler/linker optimizations
 // that may remove kHpageTextPadding, kPadding0, and kPadding1 from
 // the binary.
@@ -89,6 +90,7 @@ static volatile bool volatile_bool = false;
 static constexpr size_t kHpageSize = 1 << 21;
 const char kHpageTextPadding[kHpageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     .text) = "";
+#endif  // !defined(__EMSCRIPTEN__)
 
 static char try_symbolize_buffer[4096];
 
@@ -498,10 +500,12 @@ TEST(Symbolize, Unimplemented) {
 #endif
 
 int main(int argc, char **argv) {
+#if !defined(__EMSCRIPTEN__)
   // Make sure kHpageTextPadding is linked into the binary.
   if (volatile_bool) {
     ABSL_RAW_LOG(INFO, "%s", kHpageTextPadding);
   }
+#endif  // !defined(__EMSCRIPTEN__)
 
 #if ABSL_PER_THREAD_TLS
   // Touch the per-thread variables.
