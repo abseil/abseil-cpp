@@ -96,7 +96,7 @@ ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalOpenClosedTag, IntervalOpenClosed, {});
 // the return type based on the provided endpoint arguments {A lo, B hi}.
 // Given these endpoints, one of {A, B} will be chosen as the return type, if
 // a type can be implicitly converted into the other in a lossless way. The
-// lack of any such implcit conversion between {A, B} will produce a
+// lack of any such implicit conversion between {A, B} will produce a
 // compile-time error
 //
 // See https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)

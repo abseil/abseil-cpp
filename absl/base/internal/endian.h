@@ -113,7 +113,7 @@ inline uint16_t gbswap_16(uint16_t host_int) {
 #endif
 }
 
-#endif  // intrinics available
+#endif  // intrinsics available
 
 #ifdef ABSL_IS_LITTLE_ENDIAN
 

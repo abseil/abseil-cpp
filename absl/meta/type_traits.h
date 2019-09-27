@@ -243,7 +243,7 @@ struct is_function
 
 // is_trivially_destructible()
 //
-// Determines whether the passed type `T` is trivially destructable.
+// Determines whether the passed type `T` is trivially destructible.
 //
 // This metafunction is designed to be a drop-in replacement for the C++11
 // `std::is_trivially_destructible()` metafunction for platforms that have
