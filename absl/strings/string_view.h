@@ -168,7 +168,9 @@ class string_view {
   string_view(  // NOLINT(runtime/explicit)
       const std::basic_string<char, std::char_traits<char>, Allocator>&
           str) noexcept
-      : ptr_(str.data()), length_(CheckLengthInternal(str.size())) {}
+      // This is implement in terms of `string_view(p, n)` so `str.size()`
+      // doesn't need to be reevaluated after `ptr_` is set.
+      : string_view(str.data(), str.size()) {}
 
   // Implicit constructor of a `string_view` from nul-terminated `str`. When
   // accepting possibly null strings, use `absl::NullSafeStringView(str)`
