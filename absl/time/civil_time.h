@@ -247,7 +247,7 @@ struct year_tag : month_tag, cctz::detail::year_tag {};
 // int          minute()
 // int          second()
 //
-// Recall that fields inferior to the type's aligment will be set to their
+// Recall that fields inferior to the type's alignment will be set to their
 // minimum valid value.
 //
 // Example:

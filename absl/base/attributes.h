@@ -157,7 +157,7 @@
 // Tags a function as weak for the purposes of compilation and linking.
 // Weak attributes currently do not work properly in LLVM's Windows backend,
 // so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
-// for futher information.
+// for further information.
 #if (ABSL_HAVE_ATTRIBUTE(weak) || \
      (defined(__GNUC__) && !defined(__clang__))) && \
     !(defined(__llvm__) && defined(_WIN32))

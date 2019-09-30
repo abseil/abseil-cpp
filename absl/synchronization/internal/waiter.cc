@@ -355,7 +355,7 @@ class Waiter::WinHelper {
                 "ConditionVariableStorage does not have the same "
                 "alignment as CONDITION_VARIABLE");
 
-  // The SRWLOCK and CONDITION_VARIABLE types must be trivially constuctible
+  // The SRWLOCK and CONDITION_VARIABLE types must be trivially constructible
   // and destructible because we never call their constructors or destructors.
   static_assert(std::is_trivially_constructible<SRWLOCK>::value,
                 "The SRWLOCK type must be trivially constructible");
