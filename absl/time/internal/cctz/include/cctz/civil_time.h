@@ -150,7 +150,7 @@ namespace cctz {
 //
 // All civil-time types have accessors for all six of the civil-time fields:
 // year, month, day, hour, minute, and second. Recall that fields inferior to
-// the type's aligment will be set to their minimum valid value.
+// the type's alignment will be set to their minimum valid value.
 //
 //   civil_day d(2015, 6, 28);
 //   // d.year() == 2015
