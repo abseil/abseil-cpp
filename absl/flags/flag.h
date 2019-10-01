@@ -134,9 +134,9 @@ class Flag {
   bool InvokeValidator(const void* value) const {
     return GetImpl()->InvokeValidator(value);
   }
-  template <typename T>
+  template <typename T1>
   inline bool IsOfType() const {
-    return GetImpl()->IsOftype<T>();
+    return GetImpl()->template IsOfType<T1>();
   }
   T Get() const { return GetImpl()->Get(); }
   bool AtomicGet(T* v) const { return GetImpl()->AtomicGet(v); }

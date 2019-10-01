@@ -168,7 +168,7 @@ class string_view {
   string_view(  // NOLINT(runtime/explicit)
       const std::basic_string<char, std::char_traits<char>, Allocator>&
           str) noexcept
-      // This is implement in terms of `string_view(p, n)` so `str.size()`
+      // This is implemented in terms of `string_view(p, n)` so `str.size()`
       // doesn't need to be reevaluated after `ptr_` is set.
       : string_view(str.data(), str.size()) {}
 
