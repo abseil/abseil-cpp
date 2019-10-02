@@ -19,9 +19,9 @@
 #include "absl/base/config.h"
 
 #ifdef _WIN32
-#include <pthread.h>
-#else
 #include <SdkDdkVer.h>
+#else
+#include <pthread.h>
 #endif
 
 #ifdef ABSL_HAVE_SEMAPHORE_H
