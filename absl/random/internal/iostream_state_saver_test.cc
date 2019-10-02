@@ -272,6 +272,7 @@ TEST(IOStreamStateSaver, RoundTripDoubles) {
   }
 }
 
+#if !defined(__EMSCRIPTEN__)
 TEST(IOStreamStateSaver, RoundTripLongDoubles) {
   // Technically, C++ only guarantees that long double is at least as large as a
   // double.  Practically it varies from 64-bits to 128-bits.
@@ -349,6 +350,7 @@ TEST(IOStreamStateSaver, RoundTripLongDoubles) {
     }
   }
 }
+#endif  // !defined(__EMSCRIPTEN__)
 
 TEST(StrToDTest, DoubleMin) {
   const char kV[] = "2.22507385850720138e-308";

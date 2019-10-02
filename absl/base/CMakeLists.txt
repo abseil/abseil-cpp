@@ -254,6 +254,19 @@ absl_cc_test(
     gtest_main
 )
 
+absl_cc_library(
+  NAME
+    atomic_hook_test_helper
+  SRCS
+    "internal/atomic_hook_test_helper.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::atomic_hook
+    absl::core_headers
+  TESTONLY
+)
+
 absl_cc_test(
   NAME
     atomic_hook_test
@@ -262,8 +275,10 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::atomic_hook_test_helper
     absl::atomic_hook
     absl::core_headers
+    gmock
     gtest_main
 )
 

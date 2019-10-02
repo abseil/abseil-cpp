@@ -280,7 +280,7 @@ void SetHashtablezMaxSamples(int32_t max);
 // initialization of static storage duration objects.
 // The definition of this constant is weak, which allows us to inject a
 // different value for it at link time.
-extern "C" const bool kAbslContainerInternalSampleEverything;
+extern "C" bool AbslContainerInternalSampleEverything();
 
 }  // namespace container_internal
 }  // namespace absl

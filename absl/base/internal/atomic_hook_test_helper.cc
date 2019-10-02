@@ -1,4 +1,4 @@
-// Copyright 2018 The Abseil Authors.
+// Copyright 2017 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/container/internal/hashtablez_sampler.h"
+#include "absl/base/internal/atomic_hook_test_helper.h"
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/atomic_hook.h"
 
 namespace absl {
-namespace container_internal {
+namespace atomic_hook_internal {
 
-// See hashtablez_sampler.h for details.
-extern "C" ABSL_ATTRIBUTE_WEAK bool AbslContainerInternalSampleEverything() {
-  return false;
-}
+ABSL_CONST_INIT absl::base_internal::AtomicHook<VoidF> func(DefaultFunc);
+ABSL_CONST_INIT int default_func_calls = 0;
+void DefaultFunc() { default_func_calls++; }
+void RegisterFunc(VoidF f) { func.Store(f); }
 
-}  // namespace container_internal
+}  // namespace atomic_hook_internal
 }  // namespace absl

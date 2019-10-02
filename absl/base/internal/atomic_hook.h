@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
 
 #ifndef ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_
 #define ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_
@@ -23,8 +22,10 @@
 
 #ifdef _MSC_FULL_VER
 #define ABSL_HAVE_WORKING_ATOMIC_POINTER 0
+#define ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT 0
 #else
 #define ABSL_HAVE_WORKING_ATOMIC_POINTER 1
+#define ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT 1
 #endif
 
 namespace absl {
@@ -33,16 +34,17 @@ namespace base_internal {
 template <typename T>
 class AtomicHook;
 
-// AtomicHook is a helper class, templatized on a raw function pointer type, for
-// implementing Abseil customization hooks.  It is a callable object that
-// dispatches to the registered hook.
+// `AtomicHook` is a helper class, templatized on a raw function pointer type,
+// for implementing Abseil customization hooks.  It is a callable object that
+// dispatches to the registered hook.  Objects of type `AtomicHook` must have
+// static or thread storage duration.
 //
 // A default constructed object performs a no-op (and returns a default
 // constructed object) if no hook has been registered.
 //
 // Hooks can be pre-registered via constant initialization, for example,
-// ABSL_CONST_INIT static AtomicHook<void(*)()> my_hook(DefaultAction);
-// and then changed at runtime via a call to Store().
+// `ABSL_CONST_INIT static AtomicHook<void(*)()> my_hook(DefaultAction);`
+// and then changed at runtime via a call to `Store()`.
 //
 // Reads and writes guarantee memory_order_acquire/memory_order_release
 // semantics.
@@ -57,12 +59,19 @@ class AtomicHook<ReturnType (*)(Args...)> {
 
   // Constructs an object that by default dispatches to/returns the
   // pre-registered default_fn when no hook has been registered at runtime.
-#if ABSL_HAVE_WORKING_ATOMIC_POINTER
+#if ABSL_HAVE_WORKING_ATOMIC_POINTER && ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT
   explicit constexpr AtomicHook(FnPtr default_fn)
       : hook_(default_fn), default_fn_(default_fn) {}
 #else
+  // On MSVC, this function sometimes executes after dynamic initiazliation =(.
+  // If a non-zero `hook_` has been installed by a dynamic initializer, we want
+  // to preserve it.  If not, `hook_` will be zero initialized and we have no
+  // need to set it to `kUninitialized`.
+  // https://developercommunity.visualstudio.com/content/problem/336946/class-with-constexpr-constructor-not-using-static.html
   explicit constexpr AtomicHook(FnPtr default_fn)
-      : hook_(kUninitialized), default_fn_(default_fn) {}
+      : /* hook_(deliberately omitted), */ default_fn_(default_fn) {
+    static_assert(kUninitialized == 0, "here we rely on zero-initialization");
+  }
 #endif
 
   // Stores the provided function pointer as the value for this hook.
@@ -158,6 +167,7 @@ class AtomicHook<ReturnType (*)(Args...)> {
 };
 
 #undef ABSL_HAVE_WORKING_ATOMIC_POINTER
+#undef ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT
 
 }  // namespace base_internal
 }  // namespace absl

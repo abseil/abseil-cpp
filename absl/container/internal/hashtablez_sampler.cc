@@ -228,8 +228,26 @@ int64_t HashtablezSampler::Iterate(
   return dropped_samples_.load(std::memory_order_relaxed);
 }
 
+static bool ShouldForceSampling() {
+  enum ForceState {
+    kDontForce,
+    kForce,
+    kUninitialized
+  };
+  ABSL_CONST_INIT static std::atomic<ForceState> global_state{
+      kUninitialized};
+  ForceState state = global_state.load(std::memory_order_relaxed);
+  if (ABSL_PREDICT_TRUE(state == kDontForce)) return false;
+
+  if (state == kUninitialized) {
+    state = AbslContainerInternalSampleEverything() ? kForce : kDontForce;
+    global_state.store(state, std::memory_order_relaxed);
+  }
+  return state == kForce;
+}
+
 HashtablezInfo* SampleSlow(int64_t* next_sample) {
-  if (kAbslContainerInternalSampleEverything) {
+  if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     *next_sample = 1;
     return HashtablezSampler::Global().Register();
   }
