@@ -57,9 +57,8 @@ bool Symbolize(const void *pc, char *out, int out_size) {
   if (out_size <= 0) {
     return false;
   }
-  std::aligned_storage<sizeof(SYMBOL_INFO) + MAX_SYM_NAME,
-                       alignof(SYMBOL_INFO)>::type buf;
-  SYMBOL_INFO *symbol = reinterpret_cast<SYMBOL_INFO *>(&buf);
+  alignas(SYMBOL_INFO) char buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
+  SYMBOL_INFO *symbol = reinterpret_cast<SYMBOL_INFO *>(buf);
   symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
   symbol->MaxNameLen = MAX_SYM_NAME;
   if (!SymFromAddr(process, reinterpret_cast<DWORD64>(pc), nullptr, symbol)) {
