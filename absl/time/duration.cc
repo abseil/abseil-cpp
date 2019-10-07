@@ -910,6 +910,12 @@ bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }
 
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error) {
+  return ParseFlag(std::string(text), dst, error);
+}
+
 std::string UnparseFlag(Duration d) { return FormatDuration(d); }
+
+std::string AbslUnparseFlag(const Duration& d) { return UnparseFlag(d); }
 
 }  // namespace absl

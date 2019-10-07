@@ -546,7 +546,9 @@ bool ParseDuration(const std::string& dur_string, Duration* d);
 // Support for flag values of type Duration. Duration flags must be specified
 // in a format that is valid input for absl::ParseDuration().
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
 std::string UnparseFlag(Duration d);
+std::string AbslUnparseFlag(const Duration& d);
 
 // Time
 //
@@ -816,7 +818,9 @@ std::chrono::system_clock::time_point ToChronoTime(Time);
 // seconds/milliseconds/etc from the Unix epoch, use an absl::Duration flag
 // and add that duration to absl::UnixEpoch() to get an absl::Time.
 bool ParseFlag(const std::string& text, Time* t, std::string* error);
+bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
 std::string UnparseFlag(Time t);
+std::string AbslUnparseFlag(const Time& t);
 
 // TimeZone
 //

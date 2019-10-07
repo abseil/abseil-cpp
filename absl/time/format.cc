@@ -133,8 +133,14 @@ bool ParseFlag(const std::string& text, absl::Time* t, std::string* error) {
   return absl::ParseTime(RFC3339_full, text, absl::UTCTimeZone(), t, error);
 }
 
+bool AbslParseFlag(absl::string_view text, absl::Time* t, std::string* error) {
+  return ParseFlag(std::string(text), t, error);
+}
+
 std::string UnparseFlag(absl::Time t) {
   return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
 }
+
+std::string AbslUnparseFlag(const absl::Time& t) { return UnparseFlag(t); }
 
 }  // namespace absl
