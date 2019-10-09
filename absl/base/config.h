@@ -334,6 +334,11 @@
 #define ABSL_HAVE_ALARM 1
 #elif defined(_MSC_VER)
 // feature tests for Microsoft's library
+#elif defined(__MINGW32__)
+// mingw32 doesn't provide alarm(2):
+// https://osdn.net/projects/mingw/scm/git/mingw-org-wsl/blobs/5.2-trunk/mingwrt/include/unistd.h
+// mingw-w64 provides a no-op implementation:
+// https://sourceforge.net/p/mingw-w64/mingw-w64/ci/master/tree/mingw-w64-crt/misc/alarm.c
 #elif defined(__EMSCRIPTEN__)
 // emscripten doesn't support signals
 #elif defined(__Fuchsia__)
