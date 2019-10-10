@@ -18,7 +18,9 @@
 
 #include "absl/base/config.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <SdkDdkVer.h>
+#else
 #include <pthread.h>
 #endif
 
@@ -40,7 +42,7 @@
 
 #if defined(ABSL_FORCE_WAITER_MODE)
 #define ABSL_WAITER_MODE ABSL_FORCE_WAITER_MODE
-#elif defined(_WIN32)
+#elif defined(_WIN32) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_WIN32
 #elif defined(__linux__)
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_FUTEX
