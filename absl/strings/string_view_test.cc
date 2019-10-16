@@ -974,6 +974,29 @@ TEST(StringViewTest, ConstexprCompiles) {
   EXPECT_EQ(cstr_strlen.length(), 3);
   constexpr absl::string_view cstr_strlen2 = "bar";
   EXPECT_EQ(cstr_strlen2, "bar");
+
+#if ABSL_HAVE_BUILTIN(__builtin_memcmp) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_HAVE_CONSTEXPR_STRING_VIEW_COMPARISON 1
+#endif
+#ifdef ABSL_HAVE_CONSTEXPR_STRING_VIEW_COMPARISON
+  constexpr absl::string_view foo = "foo";
+  constexpr absl::string_view bar = "bar";
+  constexpr bool foo_eq_bar = foo == bar;
+  constexpr bool foo_ne_bar = foo != bar;
+  constexpr bool foo_lt_bar = foo < bar;
+  constexpr bool foo_le_bar = foo <= bar;
+  constexpr bool foo_gt_bar = foo > bar;
+  constexpr bool foo_ge_bar = foo >= bar;
+  constexpr int foo_compare_bar = foo.compare(bar);
+  EXPECT_FALSE(foo_eq_bar);
+  EXPECT_TRUE(foo_ne_bar);
+  EXPECT_FALSE(foo_lt_bar);
+  EXPECT_FALSE(foo_le_bar);
+  EXPECT_TRUE(foo_gt_bar);
+  EXPECT_TRUE(foo_ge_bar);
+  EXPECT_GT(foo_compare_bar, 0);
+#endif
 #endif
 
 #if !defined(__clang__) || 3 < __clang_major__ || \

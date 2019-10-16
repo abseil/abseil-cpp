@@ -17,6 +17,7 @@
 #define ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 
 #include <atomic>
+#include <memory>
 
 #include "absl/base/macros.h"
 #include "absl/flags/marshalling.h"
@@ -186,6 +187,16 @@ class HelpText {
   const char* help_message_;
 };
 
+// Handle to FlagState objects. Specific flag state objects will restore state
+// of a flag produced this flag state from method CommandLineFlag::SaveState().
+class FlagStateInterface {
+ public:
+  virtual ~FlagStateInterface() {}
+
+  // Restores the flag originated this object to the saved state.
+  virtual void Restore() const = 0;
+};
+
 // Holds all information for a flag.
 class CommandLineFlag {
  public:
@@ -239,7 +250,6 @@ class CommandLineFlag {
   virtual void StoreAtomic() {}
 
   // Interfaces to operate on validators.
-  virtual bool HasValidatorFn() const { return false; }
   virtual bool InvokeValidator(const void* /*value*/) const { return true; }
   // Invoke the flag validators for old flags.
   // TODO(rogeeff): implement proper validators for Abseil Flags
@@ -264,6 +274,10 @@ class CommandLineFlag {
     return res;
   }
 
+  // Interface to save flag to some persistent state. Returns current flag state
+  // or nullptr if flag does not support saving and restoring a state.
+  virtual std::unique_ptr<FlagStateInterface> SaveState() = 0;
+
   // Interfaces to overate on callbacks.
   virtual void InvokeCallback() {}
 
@@ -284,6 +298,9 @@ class CommandLineFlag {
   // Constant configuration for a particular flag.
  protected:
   ~CommandLineFlag() = default;
+
+  // Thread safe access to mutation counter.
+  int64_t MutationCounter() const;
 
   const char* const name_;
   const HelpText help_;
@@ -323,11 +340,6 @@ class CommandLineFlag {
   friend bool TryParseLocked(CommandLineFlag* flag, void* dst,
                              absl::string_view value, std::string* err);
   friend absl::Mutex* InitFlag(CommandLineFlag* flag);
-
-  // This is a short term, until we completely rework persistent state
-  // storage API.
-  virtual void* GetValidator() const { return nullptr; }
-  virtual bool SetValidator(void*) { return false; }
 };
 
 // Update any copy of the flag value that is stored in an atomic word.

@@ -906,6 +906,11 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   return true;
 }
 
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string*) {
+  return ParseDuration(std::string(text), dst);
+}
+
+std::string AbslUnparseFlag(Duration d) { return FormatDuration(d); }
 bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }

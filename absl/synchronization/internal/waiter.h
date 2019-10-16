@@ -19,7 +19,7 @@
 #include "absl/base/config.h"
 
 #ifdef _WIN32
-#include <SdkDdkVer.h>
+#include <sdkddkver.h>
 #else
 #include <pthread.h>
 #endif

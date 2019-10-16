@@ -713,11 +713,11 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
   }
 }
 
-// feenableexcept() and fedisableexcept() are missing on macOS, MSVC,
-// and WebAssembly.
-#if defined(_MSC_VER) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
-#define ABSL_MISSING_FEENABLEEXCEPT 1
-#define ABSL_MISSING_FEDISABLEEXCEPT 1
+// feenableexcept() and fedisableexcept() are extensions supported by some libc
+// implementations.
+#if defined(__GLIBC__) || defined(__BIONIC__)
+#define ABSL_HAVE_FEENABLEEXCEPT 1
+#define ABSL_HAVE_FEDISABLEEXCEPT 1
 #endif
 
 class SimpleDtoaTest : public testing::Test {
@@ -725,7 +725,7 @@ class SimpleDtoaTest : public testing::Test {
   void SetUp() override {
     // Store the current floating point env & clear away any pending exceptions.
     feholdexcept(&fp_env_);
-#ifndef ABSL_MISSING_FEENABLEEXCEPT
+#ifdef ABSL_HAVE_FEENABLEEXCEPT
     // Turn on floating point exceptions.
     feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
@@ -735,7 +735,7 @@ class SimpleDtoaTest : public testing::Test {
     // Restore the floating point environment to the original state.
     // In theory fedisableexcept is unnecessary; fesetenv will also do it.
     // In practice, our toolchains have subtle bugs.
-#ifndef ABSL_MISSING_FEDISABLEEXCEPT
+#ifdef ABSL_HAVE_FEDISABLEEXCEPT
     fedisableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
     fesetenv(&fp_env_);

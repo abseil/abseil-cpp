@@ -249,12 +249,12 @@ struct DistributionFormatTraits<absl::log_uniform_int_distribution<R>> {
   }
 };
 
-template <typename TagType, typename NumType>
+template <typename NumType>
 struct UniformDistributionWrapper;
 
-template <typename TagType, typename NumType>
-struct DistributionFormatTraits<UniformDistributionWrapper<TagType, NumType>> {
-  using distribution_t = UniformDistributionWrapper<TagType, NumType>;
+template <typename NumType>
+struct DistributionFormatTraits<UniformDistributionWrapper<NumType>> {
+  using distribution_t = UniformDistributionWrapper<NumType>;
   using result_t = NumType;
 
   static constexpr const char* Name() { return "Uniform"; }
@@ -263,19 +263,7 @@ struct DistributionFormatTraits<UniformDistributionWrapper<TagType, NumType>> {
     return absl::StrCat(Name(), "<", ScalarTypeName<NumType>(), ">");
   }
   static std::string FormatArgs(const distribution_t& d) {
-    absl::string_view tag;
-    if (std::is_same<TagType, IntervalClosedClosedTag>::value) {
-      tag = "IntervalClosedClosed";
-    } else if (std::is_same<TagType, IntervalClosedOpenTag>::value) {
-      tag = "IntervalClosedOpen";
-    } else if (std::is_same<TagType, IntervalOpenClosedTag>::value) {
-      tag = "IntervalOpenClosed";
-    } else if (std::is_same<TagType, IntervalOpenOpenTag>::value) {
-      tag = "IntervalOpenOpen";
-    } else {
-      tag = "[[unknown tag type]]";
-    }
-    return absl::StrCat(tag, ", ", (d.min)(), ", ", (d.max)());
+    return absl::StrCat((d.min)(), ", ", (d.max)());
   }
   static std::string FormatResults(absl::Span<const result_t> results) {
     return absl::StrJoin(results, ", ");

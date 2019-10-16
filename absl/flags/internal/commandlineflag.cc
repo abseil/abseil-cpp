@@ -149,6 +149,12 @@ std::string CommandLineFlag::CurrentValue() const {
   return Unparse(marshalling_op_, cur_);
 }
 
+int64_t CommandLineFlag::MutationCounter() const {
+  absl::MutexLock l(InitFlagIfNecessary());
+
+  return counter_;
+}
+
 // Attempts to parse supplied `value` string using parsing routine in the `flag`
 // argument. If parsing is successful, it will try to validate that the parsed
 // value is valid for the specified 'flag'. Finally this function stores the

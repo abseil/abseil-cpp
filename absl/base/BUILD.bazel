@@ -71,16 +71,16 @@ cc_library(
         "internal/spinlock_wait.cc",
         "internal/spinlock_win32.inc",
     ],
-    hdrs = [
-        "internal/scheduling_mode.h",
-        "internal/spinlock_wait.h",
-    ],
+    hdrs = ["internal/spinlock_wait.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/base:__pkg__",
     ],
-    deps = [":core_headers"],
+    deps = [
+        ":base_internal",
+        ":core_headers",
+    ],
 )
 
 cc_library(
@@ -141,11 +141,11 @@ cc_library(
     ],
     deps = [
         ":base",
+        ":base_internal",
         ":config",
         ":core_headers",
         ":dynamic_annotations",
         ":raw_logging_internal",
-        ":spinlock_wait",
     ],
 )
 
@@ -369,8 +369,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":base_internal",
         ":core_headers",
-        ":spinlock_wait",
         "//absl/synchronization",
         "@com_google_googletest//:gtest",
     ],
@@ -385,8 +385,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":base_internal",
         ":core_headers",
-        ":spinlock_wait",
         "//absl/synchronization",
         "@com_google_googletest//:gtest_main",
     ],

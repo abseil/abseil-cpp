@@ -16,7 +16,7 @@
 
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_EXCEPTIONS
+#if defined(ABSL_HAVE_EXCEPTIONS)
 
 #include <array>
 #include <initializer_list>
@@ -493,4 +493,4 @@ TYPED_TEST(TwoSizeTest, Swap) {
 
 }  // namespace
 
-#endif  // ABSL_HAVE_EXCEPTIONS
+#endif  // defined(ABSL_HAVE_EXCEPTIONS)

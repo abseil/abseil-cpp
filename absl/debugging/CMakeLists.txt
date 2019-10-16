@@ -238,7 +238,7 @@ absl_cc_test(
   SRCS
     "leak_check_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
     "$<$<BOOL:${ABSL_HAVE_LSAN}>:-DABSL_EXPECT_LEAK_SANITIZER>"
   LINKOPTS
     "${ABSL_LSAN_LINKOPTS}"

@@ -938,8 +938,11 @@ class raw_hash_set {
   //
   //   flat_hash_map<std::string, int> m;
   //   m.insert(std::make_pair("abc", 42));
+  // TODO(cheshire): A type alias T2 is introduced as a workaround for the nvcc
+  // bug.
   template <class T, RequiresInsertable<T> = 0,
-            typename std::enable_if<IsDecomposable<T>::value, int>::type = 0,
+            class T2 = T,
+            typename std::enable_if<IsDecomposable<T2>::value, int>::type = 0,
             T* = nullptr>
   std::pair<iterator, bool> insert(T&& value) {
     return emplace(std::forward<T>(value));
@@ -975,8 +978,10 @@ class raw_hash_set {
     return emplace(std::move(value));
   }
 
-  template <class T, RequiresInsertable<T> = 0,
-            typename std::enable_if<IsDecomposable<T>::value, int>::type = 0,
+  // TODO(cheshire): A type alias T2 is introduced as a workaround for the nvcc
+  // bug.
+  template <class T, RequiresInsertable<T> = 0, class T2 = T,
+            typename std::enable_if<IsDecomposable<T2>::value, int>::type = 0,
             T* = nullptr>
   iterator insert(const_iterator, T&& value) {
     return insert(std::forward<T>(value)).first;

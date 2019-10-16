@@ -129,6 +129,9 @@ void Waiter::Init() {
 bool Waiter::Wait(KernelTimeout t) {
   // Loop until we can atomically decrement futex from a positive
   // value, waiting on a futex while we believe it is zero.
+  // Note that, since the thread ticker is just reset, we don't need to check
+  // whether the thread is idle on the very first pass of the loop.
+  bool first_pass = true;
   while (true) {
     int32_t x = futex_.load(std::memory_order_relaxed);
     if (x != 0) {
@@ -140,6 +143,8 @@ bool Waiter::Wait(KernelTimeout t) {
       return true;  // Consumed a wakeup, we are done.
     }
 
+
+    if (!first_pass) MaybeBecomeIdle();
     const int err = Futex::WaitUntil(&futex_, 0, t);
     if (err != 0) {
       if (err == -EINTR || err == -EWOULDBLOCK) {
@@ -150,8 +155,7 @@ bool Waiter::Wait(KernelTimeout t) {
         ABSL_RAW_LOG(FATAL, "Futex operation failed with error %d\n", err);
       }
     }
-
-    MaybeBecomeIdle();
+    first_pass = false;
   }
 }
 
@@ -219,6 +223,9 @@ bool Waiter::Wait(KernelTimeout t) {
   PthreadMutexHolder h(&mu_);
   waiter_count_.fetch_add(1, std::memory_order_relaxed);
   // Loop until we find a wakeup to consume or timeout.
+  // Note that, since the thread ticker is just reset, we don't need to check
+  // whether the thread is idle on the very first pass of the loop.
+  bool first_pass = true;
   while (true) {
     int x = wakeup_count_.load(std::memory_order_relaxed);
     if (x != 0) {
@@ -232,6 +239,7 @@ bool Waiter::Wait(KernelTimeout t) {
       return true;
     }
 
+    if (!first_pass) MaybeBecomeIdle();
     // No wakeups available, time to wait.
     if (!t.has_timeout()) {
       const int err = pthread_cond_wait(&cv_, &mu_);
@@ -248,7 +256,7 @@ bool Waiter::Wait(KernelTimeout t) {
         ABSL_RAW_LOG(FATAL, "pthread_cond_wait failed: %d", err);
       }
     }
-    MaybeBecomeIdle();
+    first_pass = false;
   }
 }
 
@@ -288,6 +296,9 @@ bool Waiter::Wait(KernelTimeout t) {
   }
 
   // Loop until we timeout or consume a wakeup.
+  // Note that, since the thread ticker is just reset, we don't need to check
+  // whether the thread is idle on the very first pass of the loop.
+  bool first_pass = true;
   while (true) {
     int x = wakeups_.load(std::memory_order_relaxed);
     if (x != 0) {
@@ -300,6 +311,7 @@ bool Waiter::Wait(KernelTimeout t) {
       return true;
     }
 
+    if (!first_pass) MaybeBecomeIdle();
     // Nothing to consume, wait (looping on EINTR).
     while (true) {
       if (!t.has_timeout()) {
@@ -313,7 +325,7 @@ bool Waiter::Wait(KernelTimeout t) {
         ABSL_RAW_LOG(FATAL, "sem_timedwait failed: %d", errno);
       }
     }
-    MaybeBecomeIdle();
+    first_pass = false;
   }
 }
 
@@ -401,6 +413,9 @@ bool Waiter::Wait(KernelTimeout t) {
   waiter_count_.fetch_add(1, std::memory_order_relaxed);
 
   // Loop until we find a wakeup to consume or timeout.
+  // Note that, since the thread ticker is just reset, we don't need to check
+  // whether the thread is idle on the very first pass of the loop.
+  bool first_pass = true;
   while (true) {
     int x = wakeup_count_.load(std::memory_order_relaxed);
     if (x != 0) {
@@ -414,6 +429,7 @@ bool Waiter::Wait(KernelTimeout t) {
       return true;
     }
 
+    if (!first_pass) MaybeBecomeIdle();
     // No wakeups available, time to wait.
     if (!SleepConditionVariableSRW(cv, mu, t.InMillisecondsFromNow(), 0)) {
       // GetLastError() returns a Win32 DWORD, but we assign to
@@ -427,8 +443,7 @@ bool Waiter::Wait(KernelTimeout t) {
         ABSL_RAW_LOG(FATAL, "SleepConditionVariableSRW failed: %lu", err);
       }
     }
-
-    MaybeBecomeIdle();
+    first_pass = false;
   }
 }
 

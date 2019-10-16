@@ -630,6 +630,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":str_format_internal",
+        "//absl/base:raw_logging_internal",
         "//absl/numeric:int128",
         "@com_google_googletest//:gtest_main",
     ],

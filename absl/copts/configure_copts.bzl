@@ -6,6 +6,8 @@ change Abseil copts, edit absl/copts/copts.py
 
 load(
     "//absl:copts/GENERATED_copts.bzl",
+    "ABSL_CLANG_CL_FLAGS",
+    "ABSL_CLANG_CL_TEST_FLAGS",
     "ABSL_GCC_FLAGS",
     "ABSL_GCC_TEST_FLAGS",
     "ABSL_LLVM_FLAGS",

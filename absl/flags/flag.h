@@ -80,8 +80,7 @@ using Flag = flags_internal::Flag<T>;
 // if two threads attempt to construct the flag concurrently only one wins.
 
 namespace flags_internal {
-void LockGlobalConstructionGuard();
-void UnlockGlobalConstructionGuard();
+absl::Mutex* GetGlobalConstructionGuard();
 }  // namespace flags_internal
 
 template <typename T>
@@ -100,7 +99,7 @@ class Flag {
 
   flags_internal::Flag<T>* GetImpl() const {
     if (!inited_.load(std::memory_order_acquire)) {
-      flags_internal::LockGlobalConstructionGuard();
+      absl::MutexLock l(flags_internal::GetGlobalConstructionGuard());
 
       if (inited_.load(std::memory_order_acquire)) {
         return impl_;
@@ -109,8 +108,6 @@ class Flag {
       impl_ = new flags_internal::Flag<T>(name_, help_gen_, filename_,
                                           marshalling_op_, initial_value_gen_);
       inited_.store(true, std::memory_order_release);
-
-      flags_internal::UnlockGlobalConstructionGuard();
     }
 
     return impl_;
@@ -130,7 +127,6 @@ class Flag {
   std::string Filename() const { return GetImpl()->Filename(); }
   std::string DefaultValue() const { return GetImpl()->DefaultValue(); }
   std::string CurrentValue() const { return GetImpl()->CurrentValue(); }
-  bool HasValidatorFn() const { return GetImpl()->HasValidatorFn(); }
   bool InvokeValidator(const void* value) const {
     return GetImpl()->InvokeValidator(value);
   }

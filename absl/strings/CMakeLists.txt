@@ -461,6 +461,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::str_format_internal
+    absl::raw_logging_internal
     absl::int128
     gmock_main
 )

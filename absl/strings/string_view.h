@@ -40,6 +40,13 @@ using std::string_view;
 
 #else  // ABSL_HAVE_STD_STRING_VIEW
 
+#if ABSL_HAVE_BUILTIN(__builtin_memcmp) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_INTERNAL_STRING_VIEW_MEMCMP __builtin_memcmp
+#else  // ABSL_HAVE_BUILTIN(__builtin_memcmp)
+#define ABSL_INTERNAL_STRING_VIEW_MEMCMP memcmp
+#endif  // ABSL_HAVE_BUILTIN(__builtin_memcmp)
+
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -381,16 +388,13 @@ class string_view {
   // view. Note that in the case of data equality, a further comparison is made
   // on the respective sizes of the two `string_view`s to determine which is
   // smaller, equal, or greater.
-  int compare(string_view x) const noexcept {
-    auto min_length = (std::min)(length_, x.length_);
-    if (min_length > 0) {
-      int r = memcmp(ptr_, x.ptr_, min_length);
-      if (r < 0) return -1;
-      if (r > 0) return 1;
-    }
-    if (length_ < x.length_) return -1;
-    if (length_ > x.length_) return 1;
-    return 0;
+  constexpr int compare(string_view x) const noexcept {
+    return CompareImpl(
+        length_, x.length_,
+        length_ == 0 || x.length_ == 0
+            ? 0
+            : ABSL_INTERNAL_STRING_VIEW_MEMCMP(
+                  ptr_, x.ptr_, length_ < x.length_ ? length_ : x.length_));
   }
 
   // Overload of `string_view::compare()` for comparing a substring of the
@@ -528,6 +532,14 @@ class string_view {
 #endif
   }
 
+  static constexpr int CompareImpl(size_type length_a, size_type length_b,
+                                   int compare_result) {
+    return compare_result == 0 ? static_cast<int>(length_a > length_b) -
+                                     static_cast<int>(length_a < length_b)
+                               : static_cast<int>(compare_result > 0) -
+                                     static_cast<int>(compare_result < 0);
+  }
+
   const char* ptr_;
   size_type length_;
 };
@@ -535,33 +547,29 @@ class string_view {
 // This large function is defined inline so that in a fairly common case where
 // one of the arguments is a literal, the compiler can elide a lot of the
 // following comparisons.
-inline bool operator==(string_view x, string_view y) noexcept {
-  auto len = x.size();
-  if (len != y.size()) {
-    return false;
-  }
-
-  return x.data() == y.data() || len <= 0 ||
-         memcmp(x.data(), y.data(), len) == 0;
+constexpr bool operator==(string_view x, string_view y) noexcept {
+  return x.size() == y.size() &&
+         (x.empty() ||
+          ABSL_INTERNAL_STRING_VIEW_MEMCMP(x.data(), y.data(), x.size()) == 0);
 }
 
-inline bool operator!=(string_view x, string_view y) noexcept {
+constexpr bool operator!=(string_view x, string_view y) noexcept {
   return !(x == y);
 }
 
-inline bool operator<(string_view x, string_view y) noexcept {
-  auto min_size = (std::min)(x.size(), y.size());
-  const int r = min_size == 0 ? 0 : memcmp(x.data(), y.data(), min_size);
-  return (r < 0) || (r == 0 && x.size() < y.size());
+constexpr bool operator<(string_view x, string_view y) noexcept {
+  return x.compare(y) < 0;
 }
 
-inline bool operator>(string_view x, string_view y) noexcept { return y < x; }
+constexpr bool operator>(string_view x, string_view y) noexcept {
+  return y < x;
+}
 
-inline bool operator<=(string_view x, string_view y) noexcept {
+constexpr bool operator<=(string_view x, string_view y) noexcept {
   return !(y < x);
 }
 
-inline bool operator>=(string_view x, string_view y) noexcept {
+constexpr bool operator>=(string_view x, string_view y) noexcept {
   return !(x < y);
 }
 
@@ -569,6 +577,8 @@ inline bool operator>=(string_view x, string_view y) noexcept {
 std::ostream& operator<<(std::ostream& o, string_view piece);
 
 }  // namespace absl
+
+#undef ABSL_INTERNAL_STRING_VIEW_MEMCMP
 
 #endif  // ABSL_HAVE_STD_STRING_VIEW
 

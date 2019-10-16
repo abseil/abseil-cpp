@@ -430,9 +430,17 @@ absl::TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
 }
 
 absl::Time FromTM(const struct tm& tm, absl::TimeZone tz) {
-  const CivilSecond cs(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                       tm.tm_hour, tm.tm_min, tm.tm_sec);
-  const auto ti = tz.At(cs);
+  civil_year_t tm_year = tm.tm_year;
+  // Avoids years that are too extreme for CivilSecond to normalize.
+  if (tm_year > 300000000000ll) return InfiniteFuture();
+  if (tm_year < -300000000000ll) return InfinitePast();
+  int tm_mon = tm.tm_mon;
+  if (tm_mon == std::numeric_limits<int>::max()) {
+    tm_mon -= 12;
+    tm_year += 1;
+  }
+  const auto ti = tz.At(CivilSecond(tm_year + 1900, tm_mon + 1, tm.tm_mday,
+                                    tm.tm_hour, tm.tm_min, tm.tm_sec));
   return tm.tm_isdst == 0 ? ti.post : ti.pre;
 }
 

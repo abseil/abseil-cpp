@@ -49,9 +49,7 @@ namespace flags_internal {
 
 ABSL_CONST_INIT static absl::Mutex construction_guard(absl::kConstInit);
 
-void LockGlobalConstructionGuard() { construction_guard.Lock(); }
-
-void UnlockGlobalConstructionGuard() { construction_guard.Unlock(); }
+absl::Mutex* GetGlobalConstructionGuard() { return &construction_guard; }
 
 }  // namespace flags_internal
 

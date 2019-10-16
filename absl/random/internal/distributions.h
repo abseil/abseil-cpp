@@ -24,36 +24,6 @@
 
 namespace absl {
 namespace random_internal {
-template <typename D>
-struct DistributionFormatTraits;
-
-// UniformImpl implements the core logic of the Uniform<T> call, which is to
-// select the correct distribution type, compute the bounds based on the
-// interval tag, and then generate a value.
-template <typename NumType, typename TagType, typename URBG>
-NumType UniformImpl(TagType tag,
-                    URBG& urbg,  // NOLINT(runtime/references)
-                    NumType lo, NumType hi) {
-  static_assert(
-      std::is_arithmetic<NumType>::value,
-      "absl::Uniform<T>() must use an integer or real parameter type.");
-
-  using distribution_t =
-      UniformDistributionWrapper<absl::decay_t<TagType>, NumType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
-  auto a = uniform_lower_bound(tag, lo, hi);
-  auto b = uniform_upper_bound(tag, lo, hi);
-
-  // TODO(lar): it doesn't make a lot of sense to ask for a random number in an
-  // empty range.  Right now we just return a boundary--even though that
-  // boundary is not an acceptable value!  Is there something better we can do
-  // here?
-  if (a > b) return a;
-
-  using gen_t = absl::decay_t<URBG>;
-  return DistributionCaller<gen_t>::template Call<distribution_t, format_t>(
-      &urbg, tag, lo, hi);
-}
 
 // In the absence of an explicitly provided return-type, the template
 // "uniform_inferred_return_t<A, B>" is used to derive a suitable type, based on

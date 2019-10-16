@@ -20,11 +20,43 @@
 
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
+#include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 
 namespace absl {
 namespace flags_internal {
 
 constexpr int64_t AtomicInit() { return 0xababababababababll; }
+
+template <typename T>
+class Flag;
+
+template <typename T>
+class FlagState : public flags_internal::FlagStateInterface {
+ public:
+  FlagState(Flag<T>* flag, T&& cur, bool modified, bool on_command_line,
+            int64_t counter)
+      : flag_(flag),
+        cur_value_(std::move(cur)),
+        modified_(modified),
+        on_command_line_(on_command_line),
+        counter_(counter) {}
+
+  ~FlagState() override = default;
+
+ private:
+  friend class Flag<T>;
+
+  // Restores the flag to the saved state.
+  void Restore() const override;
+
+  // Flag and saved flag data.
+  Flag<T>* flag_;
+  T cur_value_;
+  bool modified_;
+  bool on_command_line_;
+  int64_t counter_;
+};
 
 // Signature for the mutation callback used by watched Flags
 // The callback is noexcept.
@@ -98,15 +130,12 @@ class Flag final : public flags_internal::CommandLineFlag {
 
     InvokeCallback();
   }
-  void InvokeCallback() override
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
-    flags_internal::InvokeCallback(&locks_->primary_mu, &locks_->callback_mu,
-                                   callback_);
-  }
 
  private:
+  friend class FlagState<T>;
+
   void Destroy() const override {
-    // Values are heap allocated Abseil Flags.
+    // Values are heap allocated for Abseil Flags.
     if (cur_) Delete(op_, cur_);
     if (def_) Delete(op_, def_);
 
@@ -121,12 +150,56 @@ class Flag final : public flags_internal::CommandLineFlag {
     }
   }
 
+  // Interfaces to save and restore flags to/from persistent state.
+  // Returns current flag state or nullptr if flag does not support
+  // saving and restoring a state.
+  std::unique_ptr<flags_internal::FlagStateInterface> SaveState() override {
+    T curr_value = Get();
+
+    absl::MutexLock l(InitFlagIfNecessary());
+
+    return absl::make_unique<flags_internal::FlagState<T>>(
+        this, std::move(curr_value), modified_, on_command_line_, counter_);
+  }
+
+  // Restores the flag state to the supplied state object. If there is
+  // nothing to restore returns false. Otherwise returns true.
+  bool RestoreState(const flags_internal::FlagState<T>& flag_state) {
+    if (MutationCounter() == flag_state.counter_) return false;
+
+    Set(flag_state.cur_value_);
+
+    // Race condition here? This should disappear once we move the rest of the
+    // flag's data into Flag's internals.
+
+    absl::MutexLock l(InitFlagIfNecessary());
+    modified_ = flag_state.modified_;
+    on_command_line_ = flag_state.on_command_line_;
+    return true;
+  }
+
+  // Interfaces to overate on callbacks.
+  void InvokeCallback() override
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
+    flags_internal::InvokeCallback(&locks_->primary_mu, &locks_->callback_mu,
+                                   callback_);
+  }
+
   // Flag's data
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
   std::atomic<int64_t> atomic_;
   FlagCallback callback_;  // Mutation callback
 };
+
+template <typename T>
+inline void FlagState<T>::Restore() const {
+  if (flag_->RestoreState(*this)) {
+    ABSL_INTERNAL_LOG(INFO,
+                      absl::StrCat("Restore saved value of ", flag_->Name(),
+                                   " to: ", flag_->CurrentValue()));
+  }
+}
 
 // This class facilitates Flag object registration and tail expression-based
 // flag definition, for example:

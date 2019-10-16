@@ -188,114 +188,34 @@ CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
 
 class FlagSaverImpl {
  public:
-  // Constructs an empty FlagSaverImpl object.
-  FlagSaverImpl() {}
-  ~FlagSaverImpl() {
-    // reclaim memory from each of our CommandLineFlags
-    for (const SavedFlag& src : backup_registry_) {
-      Delete(src.op, src.current);
-      Delete(src.op, src.default_value);
-    }
-  }
+  FlagSaverImpl() = default;
+  FlagSaverImpl(const FlagSaverImpl&) = delete;
+  void operator=(const FlagSaverImpl&) = delete;
 
   // Saves the flag states from the flag registry into this object.
   // It's an error to call this more than once.
-  // Must be called when the registry mutex is not held.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
-    SavedFlag saved;
     flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
-      if (flag->IsRetired()) return;
-
-      saved.name = flag->Name();
-      saved.op = flag->op_;
-      saved.marshalling_op = flag->marshalling_op_;
-      {
-        absl::MutexLock l(flag->InitFlagIfNecessary());
-        saved.validator = flag->GetValidator();
-        saved.modified = flag->modified_;
-        saved.on_command_line = flag->on_command_line_;
-        saved.current = Clone(saved.op, flag->cur_);
-        saved.default_value = Clone(saved.op, flag->def_);
-        saved.counter = flag->counter_;
+      if (auto flag_state = flag->SaveState()) {
+        backup_registry_.emplace_back(std::move(flag_state));
       }
-      backup_registry_.push_back(saved);
     });
   }
 
-  // Restores the saved flag states into the flag registry.  We
-  // assume no flags were added or deleted from the registry since
-  // the SaveFromRegistry; if they were, that's trouble!  Must be
-  // called when the registry mutex is not held.
+  // Restores the saved flag states into the flag registry.
   void RestoreToRegistry() {
-    FlagRegistry* const global_registry = FlagRegistry::GlobalRegistry();
-    FlagRegistryLock frl(global_registry);
-    for (const SavedFlag& src : backup_registry_) {
-      CommandLineFlag* flag = global_registry->FindFlagLocked(src.name);
-      // If null, flag got deleted from registry.
-      if (!flag) continue;
-
-      bool restored = false;
-      {
-        // This function encapsulate the lock.
-        flag->SetValidator(src.validator);
-
-        absl::MutexLock l(flag->InitFlagIfNecessary());
-        flag->modified_ = src.modified;
-        flag->on_command_line_ = src.on_command_line;
-        if (flag->counter_ != src.counter ||
-            ChangedDirectly(flag, src.default_value, flag->def_)) {
-          restored = true;
-          Copy(src.op, src.default_value, flag->def_);
-        }
-        if (flag->counter_ != src.counter ||
-            ChangedDirectly(flag, src.current, flag->cur_)) {
-          restored = true;
-          Copy(src.op, src.current, flag->cur_);
-          UpdateCopy(flag);
-          flag->InvokeCallback();
-        }
-      }
-
-      if (restored) {
-        flag->counter_++;
-
-        // Revalidate the flag because the validator might store state based
-        // on the flag's value, which just changed due to the restore.
-        // Failing validation is ignored because it's assumed that the flag
-        // was valid previously and there's little that can be done about it
-        // here, anyway.
-        flag->ValidateInputValue(flag->CurrentValue());
-
-        ABSL_INTERNAL_LOG(
-            INFO, absl::StrCat("Restore saved value of ", flag->Name(), ": ",
-                               Unparse(src.marshalling_op, src.current)));
-      }
+    for (const auto& flag_state : backup_registry_) {
+      flag_state->Restore();
     }
   }
 
  private:
-  struct SavedFlag {
-    absl::string_view name;
-    FlagOpFn op;
-    FlagMarshallingOpFn marshalling_op;
-    int64_t counter;
-    void* validator;
-    bool modified;
-    bool on_command_line;
-    const void* current;        // nullptr after restore
-    const void* default_value;  // nullptr after restore
-  };
-
-  std::vector<SavedFlag> backup_registry_;
-
-  FlagSaverImpl(const FlagSaverImpl&);  // no copying!
-  void operator=(const FlagSaverImpl&);
+  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
+      backup_registry_;
 };
 
-FlagSaver::FlagSaver() : impl_(new FlagSaverImpl()) {
-  impl_->SaveFromRegistry();
-}
+FlagSaver::FlagSaver() : impl_(new FlagSaverImpl) { impl_->SaveFromRegistry(); }
 
 void FlagSaver::Ignore() {
   delete impl_;
@@ -375,6 +295,10 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
     if (locks_) delete locks_;
 
     delete this;
+  }
+
+  std::unique_ptr<flags_internal::FlagStateInterface> SaveState() override {
+    return nullptr;
   }
 };
 

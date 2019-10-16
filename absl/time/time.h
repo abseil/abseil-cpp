@@ -83,6 +83,7 @@ struct timeval;
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
@@ -545,7 +546,11 @@ bool ParseDuration(const std::string& dur_string, Duration* d);
 
 // Support for flag values of type Duration. Duration flags must be specified
 // in a format that is valid input for absl::ParseDuration().
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
+std::string AbslUnparseFlag(Duration d);
+ABSL_DEPRECATED("Use AbslParseFlag() instead.")
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
+ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
 std::string UnparseFlag(Duration d);
 
 // Time
@@ -815,7 +820,11 @@ std::chrono::system_clock::time_point ToChronoTime(Time);
 // Additionally, if you'd like to specify a time as a count of
 // seconds/milliseconds/etc from the Unix epoch, use an absl::Duration flag
 // and add that duration to absl::UnixEpoch() to get an absl::Time.
+bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
+std::string AbslUnparseFlag(Time t);
+ABSL_DEPRECATED("Use AbslParseFlag() instead.")
 bool ParseFlag(const std::string& text, Time* t, std::string* error);
+ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
 std::string UnparseFlag(Time t);
 
 // TimeZone

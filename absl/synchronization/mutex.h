@@ -628,7 +628,7 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
 // Example:
 //
 //   // assume count_ is not internal reference count
-//   int count_ GUARDED_BY(mu_);
+//   int count_ ABSL_GUARDED_BY(mu_);
 //
 //   mu_.LockWhen(Condition(+[](int* count) { return *count == 0; },
 //         &count_));

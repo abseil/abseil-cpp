@@ -56,7 +56,6 @@ absl_cc_library(
   NAME
     spinlock_wait
   HDRS
-    "internal/scheduling_mode.h"
     "internal/spinlock_wait.h"
   SRCS
     "internal/spinlock_akaros.inc"
@@ -67,6 +66,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::base_internal
     absl::core_headers
 )
 
@@ -125,11 +125,11 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
+    absl::base_internal
     absl::config
     absl::core_headers
     absl::dynamic_annotations
     absl::raw_logging_internal
-    absl::spinlock_wait
     Threads::Threads
 )
 
@@ -141,6 +141,7 @@ absl_cc_library(
     "internal/identity.h"
     "internal/inline_variable.h"
     "internal/invoke.h"
+    "internal/scheduling_mode.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -348,8 +349,8 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::base_internal
     absl::core_headers
-    absl::spinlock_wait
     absl::synchronization
     gtest
   TESTONLY
@@ -365,8 +366,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::base_internal
     absl::core_headers
-    absl::spinlock_wait
     absl::synchronization
     gtest_main
 )

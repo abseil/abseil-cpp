@@ -40,6 +40,8 @@ cc_library(
     deps = [
         ":handle",
         ":registry",
+        "//absl/memory",
+        "//absl/strings",
         "//absl/synchronization",
     ],
 )
@@ -184,6 +186,7 @@ cc_library(
         ":marshalling",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/memory",
         "//absl/strings",
     ],
 )
