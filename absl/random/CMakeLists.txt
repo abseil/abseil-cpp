@@ -65,6 +65,7 @@ absl_cc_library(
     absl::random_internal_iostream_state_saver
     absl::random_internal_traits
     absl::random_internal_uniform_helper
+    absl::random_internal_wide_multiply
     absl::strings
     absl::span
     absl::type_traits
@@ -560,6 +561,22 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
+    random_internal_wide_multiply
+  HDRS
+    "internal/wide_multiply.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::bits
+    absl::config
+    absl::int128
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
     random_internal_fastmath
   HDRS
     "internal/fastmath.h"
@@ -1031,5 +1048,22 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_internal_iostream_state_saver
+    gtest_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_test(
+  NAME
+    random_internal_wide_multiply_test
+  SRCS
+      internal/wide_multiply_test.cc
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_internal_wide_multiply
+    absl::bits
+    absl::int128
     gtest_main
 )

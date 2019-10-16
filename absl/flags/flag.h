@@ -121,7 +121,7 @@ class Flag {
   bool IsModified() const { return GetImpl()->IsModified(); }
   void SetModified(bool is_modified) { GetImpl()->SetModified(is_modified); }
   bool IsSpecifiedOnCommandLine() const {
-    GetImpl()->IsSpecifiedOnCommandLine();
+    return GetImpl()->IsSpecifiedOnCommandLine();
   }
   absl::string_view Typename() const { return GetImpl()->Typename(); }
   std::string Filename() const { return GetImpl()->Filename(); }

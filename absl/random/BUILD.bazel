@@ -76,6 +76,7 @@ cc_library(
         "//absl/random/internal:iostream_state_saver",
         "//absl/random/internal:traits",
         "//absl/random/internal:uniform_helper",
+        "//absl/random/internal:wide_multiply",
         "//absl/strings",
         "//absl/types:span",
     ],

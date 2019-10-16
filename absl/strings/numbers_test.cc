@@ -204,6 +204,9 @@ void CheckHex64(uint64_t v) {
   std::string actual = absl::StrCat(absl::Hex(v, absl::kZeroPad16));
   snprintf(expected, sizeof(expected), "%016" PRIx64, static_cast<uint64_t>(v));
   EXPECT_EQ(expected, actual) << " Input " << v;
+  actual = absl::StrCat(absl::Hex(v, absl::kSpacePad16));
+  snprintf(expected, sizeof(expected), "%16" PRIx64, static_cast<uint64_t>(v));
+  EXPECT_EQ(expected, actual) << " Input " << v;
 }
 
 TEST(Numbers, TestFastPrints) {

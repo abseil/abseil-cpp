@@ -38,6 +38,7 @@
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
+#include "absl/random/internal/wide_multiply.h"
 
 namespace absl {
 
