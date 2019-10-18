@@ -277,6 +277,8 @@ absl_cc_test(
     absl::core_headers
     absl::pow10_helper
     absl::raw_logging_internal
+    absl::random_random
+    absl::random_distributions
     gmock_main
 )
 

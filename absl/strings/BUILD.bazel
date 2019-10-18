@@ -413,8 +413,9 @@ cc_test(
     deps = [
         ":pow10_helper",
         ":strings",
-        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
+        "//absl/random",
+        "//absl/random:distributions",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -428,6 +429,8 @@ cc_test(
     deps = [
         ":strings",
         "//absl/base:raw_logging_internal",
+        "//absl/random",
+        "//absl/random:distributions",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )

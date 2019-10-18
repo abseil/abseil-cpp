@@ -15,12 +15,14 @@
 #include "absl/strings/str_cat.h"
 
 #include <assert.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/numbers.h"
 
 namespace absl {
 
@@ -28,9 +30,8 @@ AlphaNum::AlphaNum(Hex hex) {
   char* const end = &digits_[numbers_internal::kFastToBufferSize];
   char* writer = end;
   uint64_t value = hex.value;
-  static const char hexdigits[] = "0123456789abcdef";
   do {
-    *--writer = hexdigits[value & 0xF];
+    *--writer = absl::numbers_internal::kHexChar[value & 0xF];
     value >>= 4;
   } while (value != 0);
 

@@ -17,6 +17,7 @@
 #include "absl/strings/numbers.h"
 
 #include <sys/types.h>
+
 #include <cfenv>  // NOLINT(build/c++11)
 #include <cinttypes>
 #include <climits>
@@ -36,10 +37,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/strings/str_cat.h"
-
+#include "absl/random/distributions.h"
+#include "absl/random/random.h"
 #include "absl/strings/internal/numbers_test_common.h"
 #include "absl/strings/internal/pow10_helper.h"
+#include "absl/strings/str_cat.h"
 
 namespace {
 
@@ -1184,6 +1186,30 @@ TEST(StrToUint64Base, PrefixOnly) {
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }
+  }
+}
+
+void TestFastHexToBufferZeroPad16(uint64_t v) {
+  char buf[16];
+  auto digits = absl::numbers_internal::FastHexToBufferZeroPad16(v, buf);
+  absl::string_view res(buf, 16);
+  char buf2[17];
+  snprintf(buf2, sizeof(buf2), "%016" PRIx64, v);
+  EXPECT_EQ(res, buf2) << v;
+  size_t expected_digits = snprintf(buf2, sizeof(buf2), "%" PRIx64, v);
+  EXPECT_EQ(digits, expected_digits) << v;
+}
+
+TEST(FastHexToBufferZeroPad16, Smoke) {
+  TestFastHexToBufferZeroPad16(std::numeric_limits<uint64_t>::min());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<uint64_t>::max());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<int64_t>::min());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<int64_t>::max());
+  absl::BitGen rng;
+  for (int i = 0; i < 100000; ++i) {
+    TestFastHexToBufferZeroPad16(
+        absl::LogUniform(rng, std::numeric_limits<uint64_t>::min(),
+                         std::numeric_limits<uint64_t>::max()));
   }
 }
 
