@@ -76,14 +76,12 @@ bool RegisterCommandLineFlag(CommandLineFlag*);
 //
 
 // Retire flag with name "name" and type indicated by ops.
-bool Retire(const char* name, FlagOpFn ops,
-            FlagMarshallingOpFn marshalling_ops);
+bool Retire(const char* name, FlagOpFn ops);
 
 // Registered a retired flag with name 'flag_name' and type 'T'.
 template <typename T>
 inline bool RetiredFlag(const char* flag_name) {
-  return flags_internal::Retire(flag_name, flags_internal::FlagOps<T>,
-                                flags_internal::FlagMarshallingOps<T>);
+  return flags_internal::Retire(flag_name, flags_internal::FlagOps<T>);
 }
 
 // If the flag is retired, returns true and indicates in |*type_is_bool|

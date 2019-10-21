@@ -42,15 +42,14 @@ void TestCallback() {}
 template <typename T>
 bool TestConstructionFor() {
   constexpr flags::Flag<T> f1("f1", &TestHelpMsg, "file",
-                              &absl::flags_internal::FlagMarshallingOps<T>,
-                              &TestMakeDflt<T>);
+                              &flags::FlagMarshallingOps<T>, &TestMakeDflt<T>);
   EXPECT_EQ(f1.Name(), "f1");
   EXPECT_EQ(f1.Help(), "help");
   EXPECT_EQ(f1.Filename(), "file");
 
-  ABSL_CONST_INIT static flags::Flag<T> f2(
-      "f2", &TestHelpMsg, "file", &absl::flags_internal::FlagMarshallingOps<T>,
-      &TestMakeDflt<T>);
+  ABSL_CONST_INIT static flags::Flag<T> f2("f2", &TestHelpMsg, "file",
+                                           &flags::FlagMarshallingOps<T>,
+                                           &TestMakeDflt<T>);
   flags::FlagRegistrar<T, false>(&f2).OnUpdate(TestCallback);
 
   EXPECT_EQ(f2.Name(), "f2");

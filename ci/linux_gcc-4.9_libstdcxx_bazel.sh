@@ -36,7 +36,7 @@ if [ -z ${EXCEPTIONS_MODE:-} ]; then
   EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-4.9:20190702"
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-4.9:20191018"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.

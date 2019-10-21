@@ -63,7 +63,7 @@ namespace absl {
 //      ABSL_FLAG(int, count, 0, "Count of items to process");
 //
 // No public methods of `absl::Flag<T>` are part of the Abseil Flags API.
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || defined(__clang__)
 template <typename T>
 using Flag = flags_internal::Flag<T>;
 #else
@@ -119,7 +119,6 @@ class Flag {
   absl::string_view Name() const { return GetImpl()->Name(); }
   std::string Help() const { return GetImpl()->Help(); }
   bool IsModified() const { return GetImpl()->IsModified(); }
-  void SetModified(bool is_modified) { GetImpl()->SetModified(is_modified); }
   bool IsSpecifiedOnCommandLine() const {
     return GetImpl()->IsSpecifiedOnCommandLine();
   }
@@ -127,9 +126,6 @@ class Flag {
   std::string Filename() const { return GetImpl()->Filename(); }
   std::string DefaultValue() const { return GetImpl()->DefaultValue(); }
   std::string CurrentValue() const { return GetImpl()->CurrentValue(); }
-  bool InvokeValidator(const void* value) const {
-    return GetImpl()->InvokeValidator(value);
-  }
   template <typename T1>
   inline bool IsOfType() const {
     return GetImpl()->template IsOfType<T1>();
@@ -272,7 +268,7 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 #if ABSL_FLAGS_STRIP_NAMES
 #define ABSL_FLAG_IMPL_FLAGNAME(txt) ""
 #define ABSL_FLAG_IMPL_FILENAME() ""
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || defined(__clang__)
 #define ABSL_FLAG_IMPL_REGISTRAR(T, flag) \
   absl::flags_internal::FlagRegistrar<T, false>(&flag)
 #else
@@ -282,7 +278,7 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 #else
 #define ABSL_FLAG_IMPL_FLAGNAME(txt) txt
 #define ABSL_FLAG_IMPL_FILENAME() __FILE__
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || defined(__clang__)
 #define ABSL_FLAG_IMPL_REGISTRAR(T, flag) \
   absl::flags_internal::FlagRegistrar<T, true>(&flag)
 #else

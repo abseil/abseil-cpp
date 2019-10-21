@@ -118,7 +118,7 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
               (flag->IsRetired() ? old_flag->Filename() : flag->Filename()),
               "'."),
           true);
-    } else if (flag->op_ != old_flag->op_) {
+    } else if (flag->TypeId() != old_flag->TypeId()) {
       flags_internal::ReportUsageError(
           absl::StrCat("Flag '", flag->Name(),
                        "' was defined more than once but with "
@@ -275,38 +275,49 @@ namespace {
 
 class RetiredFlagObj final : public flags_internal::CommandLineFlag {
  public:
-  constexpr RetiredFlagObj(const char* name, FlagOpFn ops,
-                           FlagMarshallingOpFn marshalling_ops)
+  constexpr RetiredFlagObj(const char* name, FlagOpFn ops)
       : flags_internal::CommandLineFlag(
             name, flags_internal::HelpText::FromStaticCString(nullptr),
-            /*filename=*/"RETIRED", ops, marshalling_ops,
-            /*initial_value_gen=*/nullptr,
-            /*def=*/nullptr,
-            /*cur=*/nullptr) {}
+            /*filename=*/"RETIRED"),
+        op_(ops) {}
 
  private:
-  bool IsRetired() const override { return true; }
-
   void Destroy() const override {
     // Values are heap allocated for Retired Flags.
-    if (cur_) Delete(op_, cur_);
-    if (def_) Delete(op_, def_);
-
-    if (locks_) delete locks_;
-
     delete this;
   }
+
+  flags_internal::FlagOpFn TypeId() const override { return op_; }
+  bool IsRetired() const override { return true; }
+  bool IsModified() const override { return false; }
+  bool IsSpecifiedOnCommandLine() const override { return false; }
+  std::string DefaultValue() const override { return ""; }
+  std::string CurrentValue() const override { return ""; }
+
+  // Any input is valid
+  bool ValidateInputValue(absl::string_view) const override { return true; }
 
   std::unique_ptr<flags_internal::FlagStateInterface> SaveState() override {
     return nullptr;
   }
+
+  bool SetFromString(absl::string_view, flags_internal::FlagSettingMode,
+                     flags_internal::ValueSource, std::string*) override {
+    return false;
+  }
+
+  void CheckDefaultValueParsingRoundtrip() const override {}
+
+  void Read(void*) const override {}
+
+  // Data members
+  const FlagOpFn op_;
 };
 
 }  // namespace
 
-bool Retire(const char* name, FlagOpFn ops,
-            FlagMarshallingOpFn marshalling_ops) {
-  auto* flag = new flags_internal::RetiredFlagObj(name, ops, marshalling_ops);
+bool Retire(const char* name, FlagOpFn ops) {
+  auto* flag = new flags_internal::RetiredFlagObj(name, ops);
   FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }

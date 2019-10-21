@@ -43,7 +43,7 @@ ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_ATOMIC_GET)
 
 // This global nutex protects on-demand construction of flag objects in MSVC
 // builds.
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 
 namespace flags_internal {
 
