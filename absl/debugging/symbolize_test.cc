@@ -35,10 +35,29 @@
 
 using testing::Contains;
 
+#ifdef _WIN32
+#define ABSL_SYMBOLIZE_TEST_NOINLINE __declspec(noinline)
+#else
+#define ABSL_SYMBOLIZE_TEST_NOINLINE ABSL_ATTRIBUTE_NOINLINE
+#endif
+
 // Functions to symbolize. Use C linkage to avoid mangled names.
 extern "C" {
-void nonstatic_func() { ABSL_BLOCK_TAIL_CALL_OPTIMIZATION(); }
-static void static_func() { ABSL_BLOCK_TAIL_CALL_OPTIMIZATION(); }
+ABSL_SYMBOLIZE_TEST_NOINLINE void nonstatic_func() {
+  // The next line makes this a unique function to prevent the compiler from
+  // folding identical functions together.
+  volatile int x = __LINE__;
+  static_cast<void>(x);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+ABSL_SYMBOLIZE_TEST_NOINLINE static void static_func() {
+  // The next line makes this a unique function to prevent the compiler from
+  // folding identical functions together.
+  volatile int x = __LINE__;
+  static_cast<void>(x);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
 }  // extern "C"
 
 struct Foo {
@@ -46,7 +65,11 @@ struct Foo {
 };
 
 // A C++ method that should have a mangled name.
-void ABSL_ATTRIBUTE_NOINLINE Foo::func(int) {
+ABSL_SYMBOLIZE_TEST_NOINLINE void Foo::func(int) {
+  // The next line makes this a unique function to prevent the compiler from
+  // folding identical functions together.
+  volatile int x = __LINE__;
+  static_cast<void>(x);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
 }
 
@@ -448,74 +471,44 @@ void ABSL_ATTRIBUTE_NOINLINE TestWithReturnAddress() {
   std::cout << "TestWithReturnAddress passed" << std::endl;
 #endif
 }
+
 #elif defined(_WIN32)
 
-// Functions to symbolize. Use C linkage to avoid mangled names.
-extern "C" {
-
-__declspec(noinline) void win32_nonstatic_func() {
-  volatile int x = __LINE__;
-  static_cast<void>(x);
-  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
-}
-
-__declspec(noinline) static void win32_static_func() {
-  volatile int x = __LINE__;
-  static_cast<void>(x);
-  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
-}
-
-}  // extern "C"
-
-struct Win32Foo {
-  static void func(int x);
-};
-
-// A C++ method that should have a mangled name.
-__declspec(noinline) void Win32Foo::func(int) {
-  volatile int x = __LINE__;
-  static_cast<void>(x);
-  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
-}
-
 TEST(Symbolize, Basics) {
-  EXPECT_STREQ("win32_nonstatic_func",
-               TrySymbolize((void *)(&win32_nonstatic_func)));
+  EXPECT_STREQ("nonstatic_func", TrySymbolize((void *)(&nonstatic_func)));
 
   // The name of an internal linkage symbol is not specified; allow either a
   // mangled or an unmangled name here.
-  const char* static_func_symbol = TrySymbolize((void *)(&win32_static_func));
+  const char *static_func_symbol = TrySymbolize((void *)(&static_func));
   ASSERT_TRUE(static_func_symbol != nullptr);
-  EXPECT_TRUE(strstr(static_func_symbol, "win32_static_func") != nullptr);
+  EXPECT_TRUE(strstr(static_func_symbol, "static_func") != nullptr);
 
   EXPECT_TRUE(nullptr == TrySymbolize(nullptr));
 }
 
 TEST(Symbolize, Truncation) {
-  constexpr char kNonStaticFunc[] = "win32_nonstatic_func";
-  EXPECT_STREQ("win32_nonstatic_func",
-               TrySymbolizeWithLimit((void *)(&win32_nonstatic_func),
+  constexpr char kNonStaticFunc[] = "nonstatic_func";
+  EXPECT_STREQ("nonstatic_func",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
                                      strlen(kNonStaticFunc) + 1));
-  EXPECT_STREQ("win32_nonstatic_...",
-               TrySymbolizeWithLimit((void *)(&win32_nonstatic_func),
+  EXPECT_STREQ("nonstatic_...",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
                                      strlen(kNonStaticFunc) + 0));
-  EXPECT_STREQ("win32_nonstatic...",
-               TrySymbolizeWithLimit((void *)(&win32_nonstatic_func),
+  EXPECT_STREQ("nonstatic...",
+               TrySymbolizeWithLimit((void *)(&nonstatic_func),
                                      strlen(kNonStaticFunc) - 1));
-  EXPECT_STREQ("w...",
-               TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 5));
-  EXPECT_STREQ("...",
-               TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 4));
-  EXPECT_STREQ("..", TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 3));
-  EXPECT_STREQ(".", TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 2));
-  EXPECT_STREQ("", TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 1));
-  EXPECT_EQ(nullptr, TrySymbolizeWithLimit((void *)(&win32_nonstatic_func), 0));
+  EXPECT_STREQ("n...", TrySymbolizeWithLimit((void *)(&nonstatic_func), 5));
+  EXPECT_STREQ("...", TrySymbolizeWithLimit((void *)(&nonstatic_func), 4));
+  EXPECT_STREQ("..", TrySymbolizeWithLimit((void *)(&nonstatic_func), 3));
+  EXPECT_STREQ(".", TrySymbolizeWithLimit((void *)(&nonstatic_func), 2));
+  EXPECT_STREQ("", TrySymbolizeWithLimit((void *)(&nonstatic_func), 1));
+  EXPECT_EQ(nullptr, TrySymbolizeWithLimit((void *)(&nonstatic_func), 0));
 }
 
 TEST(Symbolize, SymbolizeWithDemangling) {
-  const char* result = TrySymbolize((void *)(&Win32Foo::func));
+  const char *result = TrySymbolize((void *)(&Foo::func));
   ASSERT_TRUE(result != nullptr);
-  EXPECT_TRUE(strstr(result, "Win32Foo::func") != nullptr) << result;
+  EXPECT_TRUE(strstr(result, "Foo::func") != nullptr) << result;
 }
 
 #else  // Symbolizer unimplemented
