@@ -539,11 +539,11 @@ template <typename ValueAdapter>
 auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   StorageView storage_view = MakeStorageView();
 
-  AllocationTransaction allocation_tx(GetAllocPtr());
-  ConstructionTransaction construction_tx(GetAllocPtr());
-
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
+
+  AllocationTransaction allocation_tx(GetAllocPtr());
+  ConstructionTransaction construction_tx(GetAllocPtr());
 
   absl::Span<value_type> construct_loop;
   absl::Span<value_type> move_construct_loop;
@@ -727,8 +727,6 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::Erase(const_iterator from, const_iterator to)
     -> iterator {
-  assert(from != to);
-
   StorageView storage_view = MakeStorageView();
 
   size_type erase_size = std::distance(from, to);

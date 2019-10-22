@@ -364,9 +364,11 @@ TYPED_TEST(OneSizeTest, EmplaceBack) {
   using VecT = typename TypeParam::VecT;
   constexpr static auto size = TypeParam::GetSizeAt(0);
 
+  // For testing calls to `emplace_back(...)` that reallocate.
   VecT full_vec{size};
   full_vec.resize(full_vec.capacity());
 
+  // For testing calls to `emplace_back(...)` that don't reallocate.
   VecT nonfull_vec{size};
   nonfull_vec.reserve(size + 1);
 
@@ -374,12 +376,11 @@ TYPED_TEST(OneSizeTest, EmplaceBack) {
       InlinedVectorInvariants<VecT>);
 
   EXPECT_TRUE(tester.WithInitialValue(nonfull_vec).Test([](VecT* vec) {
-    vec->emplace_back();  //
+    vec->emplace_back();
   }));
 
-  EXPECT_TRUE(tester.WithInitialValue(full_vec).Test([](VecT* vec) {
-    vec->emplace_back();  //
-  }));
+  EXPECT_TRUE(tester.WithInitialValue(full_vec).Test(
+      [](VecT* vec) { vec->emplace_back(); }));
 }
 
 TYPED_TEST(OneSizeTest, PopBack) {
@@ -418,6 +419,19 @@ TYPED_TEST(OneSizeTest, Erase) {
 
   EXPECT_TRUE(tester.Test([](VecT* vec) {
     auto it = vec->begin();
+    vec->erase(it, it);
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() / 2);
+    vec->erase(it, it);
+  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin() + (vec->size() - 1);
+    vec->erase(it, it);
+  }));
+
+  EXPECT_TRUE(tester.Test([](VecT* vec) {
+    auto it = vec->begin();
     vec->erase(it, it + 1);
   }));
   EXPECT_TRUE(tester.Test([](VecT* vec) {
@@ -452,9 +466,7 @@ TYPED_TEST(TwoSizeTest, Reserve) {
                     .WithInitialValue(VecT{from_size})
                     .WithContracts(InlinedVectorInvariants<VecT>);
 
-  EXPECT_TRUE(tester.Test([](VecT* vec) {
-    vec->reserve(to_capacity);  //
-  }));
+  EXPECT_TRUE(tester.Test([](VecT* vec) { vec->reserve(to_capacity); }));
 }
 
 TYPED_TEST(OneSizeTest, ShrinkToFit) {
