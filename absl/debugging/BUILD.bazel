@@ -70,8 +70,14 @@ cc_library(
 cc_test(
     name = "symbolize_test",
     srcs = ["symbolize_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    copts = ABSL_TEST_COPTS + select({
+        "//absl:windows": ["/Z7"],
+        "//conditions:default": [],
+    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["/DEBUG"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":stack_consumption",
         ":symbolize",

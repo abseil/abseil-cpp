@@ -62,6 +62,9 @@ absl_cc_test(
     "symbolize_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+    $<$<BOOL:${MSVC}>:-Z7>
+  LINKOPTS
+    $<$<BOOL:${MSVC}>:-DEBUG>
   DEPS
     absl::stack_consumption
     absl::symbolize
