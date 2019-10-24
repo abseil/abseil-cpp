@@ -505,6 +505,32 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    exponential_biased
+  SRCS
+    "internal/exponential_biased.cc"
+  HDRS
+    "internal/exponential_biased.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::core_headers
+)
+
+absl_cc_test(
+  NAME
+    exponential_biased_test
+  SRCS
+    "internal/exponential_biased_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::exponential_biased
+    absl::strings
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     scoped_set_env
   SRCS
     "internal/scoped_set_env.cc"

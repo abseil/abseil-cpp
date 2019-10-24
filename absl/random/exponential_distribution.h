@@ -21,8 +21,9 @@
 #include <limits>
 #include <type_traits>
 
-#include "absl/random/internal/distribution_impl.h"
+#include "absl/meta/type_traits.h"
 #include "absl/random/internal/fast_uniform_bits.h"
+#include "absl/random/internal/generate_real.h"
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
@@ -118,9 +119,14 @@ typename exponential_distribution<RealType>::result_type
 exponential_distribution<RealType>::operator()(
     URBG& g,  // NOLINT(runtime/references)
     const param_type& p) {
-  using random_internal::NegativeValueT;
-  const result_type u = random_internal::RandU64ToReal<
-      result_type>::template Value<NegativeValueT, false>(fast_u64_(g));
+  using random_internal::GenerateNegativeTag;
+  using random_internal::GenerateRealFromBits;
+  using real_type =
+      absl::conditional_t<std::is_same<RealType, float>::value, float, double>;
+
+  const result_type u = GenerateRealFromBits<real_type, GenerateNegativeTag,
+                                             false>(fast_u64_(g));  // U(-1, 0)
+
   // log1p(-x) is mathematically equivalent to log(1 - x) but has more
   // accuracy for x near zero.
   return p.neg_inv_lambda_ * std::log1p(u);

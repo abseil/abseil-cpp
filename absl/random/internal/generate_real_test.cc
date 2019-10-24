@@ -12,57 +12,74 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/random/internal/distribution_impl.h"
+#include "absl/random/internal/generate_real.h"
+
+#include <cfloat>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "absl/base/internal/bits.h"
 #include "absl/flags/flag.h"
-#include "absl/numeric/int128.h"
 
 ABSL_FLAG(int64_t, absl_random_test_trials, 50000,
           "Number of trials for the probability tests.");
 
-using absl::random_internal::NegativeValueT;
-using absl::random_internal::PositiveValueT;
-using absl::random_internal::RandU64ToDouble;
-using absl::random_internal::RandU64ToFloat;
-using absl::random_internal::SignedValueT;
+using absl::random_internal::GenerateNegativeTag;
+using absl::random_internal::GeneratePositiveTag;
+using absl::random_internal::GenerateRealFromBits;
+using absl::random_internal::GenerateSignedTag;
 
 namespace {
 
-TEST(DistributionImplTest, U64ToFloat_Positive_NoZero_Test) {
+TEST(GenerateRealTest, U64ToFloat_Positive_NoZero_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<PositiveValueT, false>(a);
+    return GenerateRealFromBits<float, GeneratePositiveTag, false>(a);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), 2.710505431e-20f);
   EXPECT_EQ(ToFloat(0x0000000000000001), 5.421010862e-20f);
   EXPECT_EQ(ToFloat(0x8000000000000000), 0.5);
+  EXPECT_EQ(ToFloat(0x8000000000000001), 0.5);
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), 0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloat_Positive_Zero_Test) {
+TEST(GenerateRealTest, U64ToFloat_Positive_Zero_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<PositiveValueT, true>(a);
+    return GenerateRealFromBits<float, GeneratePositiveTag, true>(a);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), 0.0);
   EXPECT_EQ(ToFloat(0x0000000000000001), 5.421010862e-20f);
   EXPECT_EQ(ToFloat(0x8000000000000000), 0.5);
+  EXPECT_EQ(ToFloat(0x8000000000000001), 0.5);
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), 0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloat_Negative_NoZero_Test) {
+TEST(GenerateRealTest, U64ToFloat_Negative_NoZero_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<NegativeValueT, false>(a);
+    return GenerateRealFromBits<float, GenerateNegativeTag, false>(a);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), -2.710505431e-20f);
   EXPECT_EQ(ToFloat(0x0000000000000001), -5.421010862e-20f);
   EXPECT_EQ(ToFloat(0x8000000000000000), -0.5);
+  EXPECT_EQ(ToFloat(0x8000000000000001), -0.5);
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), -0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloat_Signed_NoZero_Test) {
+TEST(GenerateRealTest, U64ToFloat_Negative_Zero_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<SignedValueT, false>(a);
+    return GenerateRealFromBits<float, GenerateNegativeTag, true>(a);
+  };
+  EXPECT_EQ(ToFloat(0x0000000000000000), 0.0);
+  EXPECT_EQ(ToFloat(0x0000000000000001), -5.421010862e-20f);
+  EXPECT_EQ(ToFloat(0x8000000000000000), -0.5);
+  EXPECT_EQ(ToFloat(0x8000000000000001), -0.5);
+  EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), -0.9999999404f);
+}
+
+TEST(GenerateRealTest, U64ToFloat_Signed_NoZero_Test) {
+  auto ToFloat = [](uint64_t a) {
+    return GenerateRealFromBits<float, GenerateSignedTag, false>(a);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), 5.421010862e-20f);
   EXPECT_EQ(ToFloat(0x0000000000000001), 1.084202172e-19f);
@@ -72,9 +89,9 @@ TEST(DistributionImplTest, U64ToFloat_Signed_NoZero_Test) {
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), -0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloat_Signed_Zero_Test) {
+TEST(GenerateRealTest, U64ToFloat_Signed_Zero_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<SignedValueT, true>(a);
+    return GenerateRealFromBits<float, GenerateSignedTag, true>(a);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), 0);
   EXPECT_EQ(ToFloat(0x0000000000000001), 1.084202172e-19f);
@@ -84,9 +101,9 @@ TEST(DistributionImplTest, U64ToFloat_Signed_Zero_Test) {
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), -0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloat_Signed_Bias_Test) {
+TEST(GenerateRealTest, U64ToFloat_Signed_Bias_Test) {
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<SignedValueT, true, 1>(a);
+    return GenerateRealFromBits<float, GenerateSignedTag, true>(a, 1);
   };
   EXPECT_EQ(ToFloat(0x0000000000000000), 0);
   EXPECT_EQ(ToFloat(0x0000000000000001), 2 * 1.084202172e-19f);
@@ -96,9 +113,9 @@ TEST(DistributionImplTest, U64ToFloat_Signed_Bias_Test) {
   EXPECT_EQ(ToFloat(0xFFFFFFFFFFFFFFFF), 2 * -0.9999999404f);
 }
 
-TEST(DistributionImplTest, U64ToFloatTest) {
+TEST(GenerateRealTest, U64ToFloatTest) {
   auto ToFloat = [](uint64_t a) -> float {
-    return RandU64ToFloat<PositiveValueT, true>(a);
+    return GenerateRealFromBits<float, GeneratePositiveTag, true>(a);
   };
 
   EXPECT_EQ(ToFloat(0x0000000000000000), 0.0f);
@@ -150,44 +167,60 @@ TEST(DistributionImplTest, U64ToFloatTest) {
   }
 }
 
-TEST(DistributionImplTest, U64ToDouble_Positive_NoZero_Test) {
+TEST(GenerateRealTest, U64ToDouble_Positive_NoZero_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<PositiveValueT, false>(a);
+    return GenerateRealFromBits<double, GeneratePositiveTag, false>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), 2.710505431213761085e-20);
   EXPECT_EQ(ToDouble(0x0000000000000001), 5.42101086242752217004e-20);
   EXPECT_EQ(ToDouble(0x0000000000000002), 1.084202172485504434e-19);
   EXPECT_EQ(ToDouble(0x8000000000000000), 0.5);
+  EXPECT_EQ(ToDouble(0x8000000000000001), 0.5);
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), 0.999999999999999888978);
 }
 
-TEST(DistributionImplTest, U64ToDouble_Positive_Zero_Test) {
+TEST(GenerateRealTest, U64ToDouble_Positive_Zero_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<PositiveValueT, true>(a);
+    return GenerateRealFromBits<double, GeneratePositiveTag, true>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), 0.0);
   EXPECT_EQ(ToDouble(0x0000000000000001), 5.42101086242752217004e-20);
   EXPECT_EQ(ToDouble(0x8000000000000000), 0.5);
+  EXPECT_EQ(ToDouble(0x8000000000000001), 0.5);
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), 0.999999999999999888978);
 }
 
-TEST(DistributionImplTest, U64ToDouble_Negative_NoZero_Test) {
+TEST(GenerateRealTest, U64ToDouble_Negative_NoZero_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<NegativeValueT, false>(a);
+    return GenerateRealFromBits<double, GenerateNegativeTag, false>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), -2.710505431213761085e-20);
   EXPECT_EQ(ToDouble(0x0000000000000001), -5.42101086242752217004e-20);
   EXPECT_EQ(ToDouble(0x0000000000000002), -1.084202172485504434e-19);
   EXPECT_EQ(ToDouble(0x8000000000000000), -0.5);
+  EXPECT_EQ(ToDouble(0x8000000000000001), -0.5);
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), -0.999999999999999888978);
 }
 
-TEST(DistributionImplTest, U64ToDouble_Signed_NoZero_Test) {
+TEST(GenerateRealTest, U64ToDouble_Negative_Zero_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<SignedValueT, false>(a);
+    return GenerateRealFromBits<double, GenerateNegativeTag, true>(a);
+  };
+
+  EXPECT_EQ(ToDouble(0x0000000000000000), 0.0);
+  EXPECT_EQ(ToDouble(0x0000000000000001), -5.42101086242752217004e-20);
+  EXPECT_EQ(ToDouble(0x0000000000000002), -1.084202172485504434e-19);
+  EXPECT_EQ(ToDouble(0x8000000000000000), -0.5);
+  EXPECT_EQ(ToDouble(0x8000000000000001), -0.5);
+  EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), -0.999999999999999888978);
+}
+
+TEST(GenerateRealTest, U64ToDouble_Signed_NoZero_Test) {
+  auto ToDouble = [](uint64_t a) {
+    return GenerateRealFromBits<double, GenerateSignedTag, false>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), 5.42101086242752217004e-20);
@@ -198,9 +231,9 @@ TEST(DistributionImplTest, U64ToDouble_Signed_NoZero_Test) {
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), -0.999999999999999888978);
 }
 
-TEST(DistributionImplTest, U64ToDouble_Signed_Zero_Test) {
+TEST(GenerateRealTest, U64ToDouble_Signed_Zero_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<SignedValueT, true>(a);
+    return GenerateRealFromBits<double, GenerateSignedTag, true>(a);
   };
   EXPECT_EQ(ToDouble(0x0000000000000000), 0);
   EXPECT_EQ(ToDouble(0x0000000000000001), 1.084202172485504434e-19);
@@ -210,9 +243,9 @@ TEST(DistributionImplTest, U64ToDouble_Signed_Zero_Test) {
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), -0.999999999999999888978);
 }
 
-TEST(DistributionImplTest, U64ToDouble_Signed_Bias_Test) {
+TEST(GenerateRealTest, U64ToDouble_GenerateSignedTag_Bias_Test) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<SignedValueT, true, -1>(a);
+    return GenerateRealFromBits<double, GenerateSignedTag, true>(a, -1);
   };
   EXPECT_EQ(ToDouble(0x0000000000000000), 0);
   EXPECT_EQ(ToDouble(0x0000000000000001), 1.084202172485504434e-19 / 2);
@@ -222,9 +255,9 @@ TEST(DistributionImplTest, U64ToDouble_Signed_Bias_Test) {
   EXPECT_EQ(ToDouble(0xFFFFFFFFFFFFFFFF), -0.999999999999999888978 / 2);
 }
 
-TEST(DistributionImplTest, U64ToDoubleTest) {
+TEST(GenerateRealTest, U64ToDoubleTest) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<PositiveValueT, true>(a);
+    return GenerateRealFromBits<double, GeneratePositiveTag, true>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), 0.0);
@@ -296,9 +329,9 @@ TEST(DistributionImplTest, U64ToDoubleTest) {
   }
 }
 
-TEST(DistributionImplTest, U64ToDoubleSignedTest) {
+TEST(GenerateRealTest, U64ToDoubleSignedTest) {
   auto ToDouble = [](uint64_t a) {
-    return RandU64ToDouble<SignedValueT, false>(a);
+    return GenerateRealFromBits<double, GenerateSignedTag, false>(a);
   };
 
   EXPECT_EQ(ToDouble(0x0000000000000000), 5.42101086242752217004e-20);
@@ -379,10 +412,10 @@ TEST(DistributionImplTest, U64ToDoubleSignedTest) {
   }
 }
 
-TEST(DistributionImplTest, ExhaustiveFloat) {
+TEST(GenerateRealTest, ExhaustiveFloat) {
   using absl::base_internal::CountLeadingZeros64;
   auto ToFloat = [](uint64_t a) {
-    return RandU64ToFloat<PositiveValueT, true>(a);
+    return GenerateRealFromBits<float, GeneratePositiveTag, true>(a);
   };
 
   // Rely on RandU64ToFloat generating values from greatest to least when

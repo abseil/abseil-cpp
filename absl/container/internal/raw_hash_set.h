@@ -614,13 +614,17 @@ class raw_hash_set {
     iterator() {}
 
     // PRECONDITION: not an end() iterator.
-    reference operator*() const { return PolicyTraits::element(slot_); }
+    reference operator*() const {
+      /* To be enabled: assert_is_full(); */
+      return PolicyTraits::element(slot_);
+    }
 
     // PRECONDITION: not an end() iterator.
     pointer operator->() const { return &operator*(); }
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
+      /* To be enabled: assert_is_full(); */
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -634,6 +638,8 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
+      /* To be enabled: a.assert_is_valid(); */
+      /* To be enabled: b.assert_is_valid(); */
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
@@ -643,6 +649,11 @@ class raw_hash_set {
    private:
     iterator(ctrl_t* ctrl) : ctrl_(ctrl) {}  // for end()
     iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {}
+
+    void assert_is_full() const { assert(IsFull(*ctrl_)); }
+    void assert_is_valid() const {
+      assert(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
+    }
 
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
@@ -1155,7 +1166,7 @@ class raw_hash_set {
   // This overload is necessary because otherwise erase<K>(const K&) would be
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
-    assert(it != end());
+    it.assert_is_full();
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1172,12 +1183,14 @@ class raw_hash_set {
   template <typename H, typename E>
   void merge(raw_hash_set<Policy, H, E, Alloc>& src) {  // NOLINT
     assert(this != &src);
-    for (auto it = src.begin(), e = src.end(); it != e; ++it) {
+    for (auto it = src.begin(), e = src.end(); it != e;) {
+      auto next = std::next(it);
       if (PolicyTraits::apply(InsertSlot<false>{*this, std::move(*it.slot_)},
                               PolicyTraits::element(it.slot_))
               .second) {
         src.erase_meta_only(it);
       }
+      it = next;
     }
   }
 
@@ -1187,6 +1200,7 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
+    position.inner_.assert_is_full();
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);

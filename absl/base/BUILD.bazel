@@ -558,6 +558,31 @@ cc_test(
 )
 
 cc_library(
+    name = "exponential_biased",
+    srcs = ["internal/exponential_biased.cc"],
+    hdrs = ["internal/exponential_biased.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [":core_headers"],
+)
+
+cc_test(
+    name = "exponential_biased_test",
+    size = "small",
+    srcs = ["internal/exponential_biased_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":exponential_biased",
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "scoped_set_env",
     testonly = 1,
     srcs = ["internal/scoped_set_env.cc"],

@@ -92,7 +92,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, SerializeTest) {
   for (TypeParam alpha : kValues) {
     for (TypeParam beta : kValues) {
       ABSL_INTERNAL_LOG(
-          INFO, absl::StrFormat("Smoke test for Beta(%f, %f)", alpha, beta));
+          INFO, absl::StrFormat("Smoke test for Beta(%a, %a)", alpha, beta));
 
       param_type param(alpha, beta);
       absl::beta_distribution<TypeParam> before(alpha, beta);

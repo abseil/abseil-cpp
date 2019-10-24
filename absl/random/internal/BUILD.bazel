@@ -175,9 +175,9 @@ cc_library(
 )
 
 cc_library(
-    name = "distribution_impl",
+    name = "generate_real",
     hdrs = [
-        "distribution_impl.h",
+        "generate_real.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -185,8 +185,7 @@ cc_library(
         ":fastmath",
         ":traits",
         "//absl/base:bits",
-        "//absl/base:config",
-        "//absl/numeric:int128",
+        "//absl/meta:type_traits",
     ],
 )
 
@@ -398,16 +397,17 @@ cc_test(
 )
 
 cc_test(
-    name = "distribution_impl_test",
+    name = "generate_real_test",
     size = "small",
-    srcs = ["distribution_impl_test.cc"],
+    srcs = [
+        "generate_real_test.cc",
+    ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":distribution_impl",
+        ":generate_real",
         "//absl/base:bits",
         "//absl/flags:flag",
-        "//absl/numeric:int128",
         "@com_google_googletest//:gtest_main",
     ],
 )

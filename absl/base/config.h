@@ -307,7 +307,7 @@
 
 // ABSL_HAVE_SEMAPHORE_H
 //
-// Checks whether the platform supports the <semaphore.h> header and sem_open(3)
+// Checks whether the platform supports the <semaphore.h> header and sem_init(3)
 // family of functions as standardized in POSIX.1-2001.
 //
 // Note: While Apple provides <semaphore.h> for both iOS and macOS, it is

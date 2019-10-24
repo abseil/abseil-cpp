@@ -401,7 +401,7 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   // for the past-the-end iterator, which is invalidated.
   //
   // `swap()` requires that the flat hash map's hashing and key equivalence
-  // functions be Swappable, and are exchaged using unqualified calls to
+  // functions be Swappable, and are exchanged using unqualified calls to
   // non-member `swap()`. If the map's allocator has
   // `std::allocator_traits<allocator_type>::propagate_on_container_swap::value`
   // set to `true`, the allocators are also exchanged using an unqualified call
