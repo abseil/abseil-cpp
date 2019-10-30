@@ -104,7 +104,10 @@ function(absl_cc_library)
     endif()
 
     if(NOT ABSL_CC_LIB_IS_INTERFACE)
-      add_library(${_NAME} STATIC "")
+      # CMake creates static libraries by default. Users can specify
+      # -DBUILD_SHARED_LIBS=ON during initial configuration to build shared
+      # libraries instead.
+      add_library(${_NAME} "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
         PUBLIC

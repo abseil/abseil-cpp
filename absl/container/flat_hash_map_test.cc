@@ -214,7 +214,7 @@ TEST(FlatHashMap, MergeExtractInsert) {
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 17), Pair(2, 9)));
 }
 
-#if (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
+#if (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
     !defined(__EMSCRIPTEN__)
 TEST(FlatHashMap, Any) {
   absl::flat_hash_map<int, absl::any> m;
@@ -246,7 +246,7 @@ TEST(FlatHashMap, Any) {
   ASSERT_NE(it2, m2.end());
   EXPECT_EQ(7, it2->second);
 }
-#endif  // (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
+#endif  // (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
         // !defined(__EMSCRIPTEN__)
 
 }  // namespace

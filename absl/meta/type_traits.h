@@ -145,6 +145,18 @@ using IsMoveAssignableImpl = decltype(std::declval<T&>() = std::declval<T&&>());
 
 }  // namespace type_traits_internal
 
+// MSVC 19.20 has a regression that causes our workarounds to fail, but their
+// std forms now appear to be compliant.
+#if defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER >= 1920)
+
+template <typename T>
+using is_copy_assignable = std::is_copy_assignable<T>;
+
+template <typename T>
+using is_move_assignable = std::is_move_assignable<T>;
+
+#else
+
 template <typename T>
 struct is_copy_assignable : type_traits_internal::is_detected<
                                 type_traits_internal::IsCopyAssignableImpl, T> {
@@ -154,6 +166,8 @@ template <typename T>
 struct is_move_assignable : type_traits_internal::is_detected<
                                 type_traits_internal::IsMoveAssignableImpl, T> {
 };
+
+#endif
 
 // void_t()
 //

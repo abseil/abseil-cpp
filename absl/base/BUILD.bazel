@@ -87,6 +87,7 @@ cc_library(
     name = "config",
     hdrs = [
         "config.h",
+        "options.h",
         "policy_checks.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
@@ -137,7 +138,7 @@ cc_library(
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:__subpackages__",
+        "//visibility:public",
     ],
     deps = [
         ":base",

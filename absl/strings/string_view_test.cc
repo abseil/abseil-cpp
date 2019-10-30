@@ -830,7 +830,7 @@ TEST(StringViewTest, FrontBackSingleChar) {
 // to the standard, but `absl::string_view` implements a different
 // behavior for historical reasons. We work around tests that construct
 // `string_view` from `nullptr` when using libc++.
-#if !defined(ABSL_HAVE_STD_STRING_VIEW) ||                    \
+#if !defined(ABSL_USES_STD_STRING_VIEW) ||                    \
     (!(defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 9) && \
      !defined(_LIBCPP_VERSION) && !defined(_MSC_VER))
 #define ABSL_HAVE_STRING_VIEW_FROM_NULLPTR 1
@@ -938,7 +938,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 #endif
   constexpr absl::string_view cstr_len("cstr", 4);
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
+#if defined(ABSL_USES_STD_STRING_VIEW)
   // In libstdc++ (as of 7.2), `std::string_view::string_view(const char*)`
   // calls `std::char_traits<char>::length(const char*)` to get the std::string
   // length, but it is not marked constexpr yet. See GCC bug:
@@ -952,7 +952,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 #define ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR 1
 #endif  // !__GLIBCXX__
 
-#else  // ABSL_HAVE_STD_STRING_VIEW
+#else  // ABSL_USES_STD_STRING_VIEW
 
 // This duplicates the check for __builtin_strlen in the header.
 #if ABSL_HAVE_BUILTIN(__builtin_strlen) || \
@@ -967,7 +967,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 #define ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR 1
 #endif
 
-#endif  // ABSL_HAVE_STD_STRING_VIEW
+#endif  // ABSL_USES_STD_STRING_VIEW
 
 #ifdef ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR
   constexpr absl::string_view cstr_strlen("foo");
@@ -1136,7 +1136,7 @@ TEST(HugeStringView, TwoPointTwoGB) {
 }
 #endif  // THREAD_SANITIZER
 
-#if !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
+#if !defined(NDEBUG) && !defined(ABSL_USES_STD_STRING_VIEW)
 TEST(NonNegativeLenTest, NonNegativeLen) {
   ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("xyz", -1),
                                  "len <= kMaxSize");
@@ -1152,7 +1152,7 @@ TEST(LenExceedsMaxSizeTest, LenExceedsMaxSize) {
   ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("", max_size + 1),
                                  "len <= kMaxSize");
 }
-#endif  // !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
+#endif  // !defined(NDEBUG) && !defined(ABSL_USES_STD_STRING_VIEW)
 
 class StringViewStreamTest : public ::testing::Test {
  public:

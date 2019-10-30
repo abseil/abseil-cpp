@@ -14,7 +14,7 @@
 
 #include "absl/strings/string_view.h"
 
-#ifndef ABSL_HAVE_STD_STRING_VIEW
+#ifndef ABSL_USES_STD_STRING_VIEW
 
 #include <algorithm>
 #include <climits>
@@ -230,4 +230,4 @@ constexpr string_view::size_type string_view::kMaxSize;
 
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_STRING_VIEW
+#endif  // ABSL_USES_STD_STRING_VIEW

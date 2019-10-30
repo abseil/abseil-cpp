@@ -192,13 +192,15 @@ log_uniform_int_distribution<IntType>::Generate(
     const double r = std::pow(p.base(), d);
     const double s = (r * p.base()) - 1.0;
 
-    base_e = (r > (std::numeric_limits<unsigned_type>::max)())
-                 ? (std::numeric_limits<unsigned_type>::max)()
-                 : static_cast<unsigned_type>(r);
+    base_e =
+        (r > static_cast<double>((std::numeric_limits<unsigned_type>::max)()))
+            ? (std::numeric_limits<unsigned_type>::max)()
+            : static_cast<unsigned_type>(r);
 
-    top_e = (s > (std::numeric_limits<unsigned_type>::max)())
-                ? (std::numeric_limits<unsigned_type>::max)()
-                : static_cast<unsigned_type>(s);
+    top_e =
+        (s > static_cast<double>((std::numeric_limits<unsigned_type>::max)()))
+            ? (std::numeric_limits<unsigned_type>::max)()
+            : static_cast<unsigned_type>(s);
   }
 
   const unsigned_type lo = (base_e >= p.range()) ? p.range() : base_e;

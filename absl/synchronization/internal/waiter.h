@@ -106,10 +106,13 @@ class Waiter {
   static_assert(sizeof(int32_t) == sizeof(futex_), "Wrong size for futex");
 
 #elif ABSL_WAITER_MODE == ABSL_WAITER_MODE_CONDVAR
+  // REQUIRES: mu_ must be held.
+  void InternalCondVarPoke();
+
   pthread_mutex_t mu_;
   pthread_cond_t cv_;
-  std::atomic<int> waiter_count_;
-  std::atomic<int> wakeup_count_;  // Unclaimed wakeups, written under lock.
+  int waiter_count_;
+  int wakeup_count_;  // Unclaimed wakeups.
 
 #elif ABSL_WAITER_MODE == ABSL_WAITER_MODE_SEM
   sem_t sem_;

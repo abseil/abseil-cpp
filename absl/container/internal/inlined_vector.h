@@ -471,12 +471,9 @@ auto Storage<T, N, A>::Initialize(ValueAdapter values, size_type new_size)
     // safe to take on the allocation with size `0`. If `ConstructElements(...)`
     // throws, deallocation will be automatically handled by `~Storage()`.
     size_type new_capacity = ComputeCapacity(GetInlinedCapacity(), new_size);
-    pointer new_data = AllocatorTraits::allocate(*GetAllocPtr(), new_capacity);
-
-    SetAllocatedData(new_data, new_capacity);
+    construct_data = AllocatorTraits::allocate(*GetAllocPtr(), new_capacity);
+    SetAllocatedData(construct_data, new_capacity);
     SetIsAllocated();
-
-    construct_data = new_data;
   } else {
     construct_data = GetInlinedData();
   }
@@ -503,9 +500,7 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, size_type new_size) -> void {
 
   if (new_size > storage_view.capacity) {
     size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
-    pointer new_data = allocation_tx.Allocate(new_capacity);
-
-    construct_loop = {new_data, new_size};
+    construct_loop = {allocation_tx.Allocate(new_capacity), new_size};
     destroy_loop = {storage_view.data, storage_view.size};
   } else if (new_size > storage_view.size) {
     assign_loop = {storage_view.data, storage_view.size};
@@ -552,7 +547,6 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   if (new_size > storage_view.capacity) {
     size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
     pointer new_data = allocation_tx.Allocate(new_capacity);
-
     construct_loop = {new_data + storage_view.size,
                       new_size - storage_view.size};
     move_construct_loop = {new_data, storage_view.size};
@@ -690,14 +684,14 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
   pointer construct_data;
   if (storage_view.size == storage_view.capacity) {
     size_type new_capacity = NextCapacity(storage_view.capacity);
-    pointer new_data = allocation_tx.Allocate(new_capacity);
-
-    construct_data = new_data;
+    construct_data = allocation_tx.Allocate(new_capacity);
   } else {
     construct_data = storage_view.data;
   }
 
-  AllocatorTraits::construct(*GetAllocPtr(), construct_data + storage_view.size,
+  pointer last_ptr = construct_data + storage_view.size;
+
+  AllocatorTraits::construct(*GetAllocPtr(), last_ptr,
                              std::forward<Args>(args)...);
 
   if (allocation_tx.DidAllocate()) {
@@ -707,8 +701,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
           storage_view.size);
     }
     ABSL_INTERNAL_CATCH_ANY {
-      AllocatorTraits::destroy(*GetAllocPtr(),
-                               construct_data + storage_view.size);
+      AllocatorTraits::destroy(*GetAllocPtr(), last_ptr);
       ABSL_INTERNAL_RETHROW;
     }
 
@@ -721,7 +714,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
   }
 
   AddSize(1);
-  return *(construct_data + storage_view.size);
+  return *last_ptr;
 }
 
 template <typename T, size_t N, typename A>
@@ -793,9 +786,7 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
   pointer construct_data;
   if (storage_view.size > GetInlinedCapacity()) {
     size_type new_capacity = storage_view.size;
-    pointer new_data = allocation_tx.Allocate(new_capacity);
-
-    construct_data = new_data;
+    construct_data = allocation_tx.Allocate(new_capacity);
   } else {
     construct_data = GetInlinedData();
   }

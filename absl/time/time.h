@@ -422,7 +422,9 @@ Duration Milliseconds(T n) {
 template <typename T, time_internal::EnableIfFloat<T> = 0>
 Duration Seconds(T n) {
   if (n >= 0) {  // Note: `NaN >= 0` is false.
-    if (n >= (std::numeric_limits<int64_t>::max)()) return InfiniteDuration();
+    if (n >= static_cast<T>((std::numeric_limits<int64_t>::max)())) {
+      return InfiniteDuration();
+    }
     return time_internal::MakePosDoubleDuration(n);
   } else {
     if (std::isnan(n))

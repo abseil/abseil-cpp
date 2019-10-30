@@ -38,7 +38,7 @@
 #include "absl/base/config.h"   // TODO(calabrese) IWYU removal?
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_OPTIONAL
+#ifdef ABSL_USES_STD_OPTIONAL
 
 #include <optional>  // IWYU pragma: export
 
@@ -50,7 +50,7 @@ using std::nullopt_t;
 using std::nullopt;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_OPTIONAL
+#else  // ABSL_USES_STD_OPTIONAL
 
 #include <cassert>
 #include <functional>
@@ -767,6 +767,6 @@ struct hash<absl::optional<T> >
 
 #undef ABSL_MSVC_CONSTEXPR_BUG_IN_UNION_LIKE_CLASS
 
-#endif  // ABSL_HAVE_STD_OPTIONAL
+#endif  // ABSL_USES_STD_OPTIONAL
 
 #endif  // ABSL_TYPES_OPTIONAL_H_

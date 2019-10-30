@@ -25,7 +25,7 @@
 
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_STD_OPTIONAL
+#ifdef ABSL_USES_STD_OPTIONAL
 
 #include <optional>
 
@@ -33,7 +33,7 @@ namespace absl {
 using std::bad_optional_access;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_OPTIONAL
+#else  // ABSL_USES_STD_OPTIONAL
 
 namespace absl {
 
@@ -69,6 +69,6 @@ namespace optional_internal {
 }  // namespace optional_internal
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_OPTIONAL
+#endif  // ABSL_USES_STD_OPTIONAL
 
 #endif  // ABSL_TYPES_BAD_OPTIONAL_ACCESS_H_

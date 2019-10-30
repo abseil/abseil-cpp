@@ -63,6 +63,7 @@
 #include <TargetConditionals.h>
 #endif
 
+#include "absl/base/options.h"
 #include "absl/base/policy_checks.h"
 
 // -----------------------------------------------------------------------------
@@ -466,6 +467,68 @@
 #define ABSL_HAVE_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
 #define ABSL_HAVE_STD_STRING_VIEW 1
+#endif
+
+// ABSL_USES_STD_ANY
+//
+// Indicates whether absl::any is an alias for std::any.
+#if !defined(ABSL_OPTION_USE_STD_ANY)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_ANY == 0 || \
+    (ABSL_OPTION_USE_STD_ANY == 2 && !defined(ABSL_HAVE_STD_ANY))
+#undef ABSL_USES_STD_ANY
+#elif ABSL_OPTION_USE_STD_ANY == 1 || \
+    (ABSL_OPTION_USE_STD_ANY == 2 && defined(ABSL_HAVE_STD_ANY))
+#define ABSL_USES_STD_ANY 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_OPTIONAL
+//
+// Indicates whether absl::optional is an alias for std::optional.
+#if !defined(ABSL_OPTION_USE_STD_OPTIONAL)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_OPTIONAL == 0 || \
+    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && !defined(ABSL_HAVE_STD_OPTIONAL))
+#undef ABSL_USES_STD_OPTIONAL
+#elif ABSL_OPTION_USE_STD_OPTIONAL == 1 || \
+    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && defined(ABSL_HAVE_STD_OPTIONAL))
+#define ABSL_USES_STD_OPTIONAL 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_VARIANT
+//
+// Indicates whether absl::variant is an alias for std::variant.
+#if !defined(ABSL_OPTION_USE_STD_VARIANT)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_VARIANT == 0 || \
+    (ABSL_OPTION_USE_STD_VARIANT == 2 && !defined(ABSL_HAVE_STD_VARIANT))
+#undef ABSL_USES_STD_VARIANT
+#elif ABSL_OPTION_USE_STD_VARIANT == 1 || \
+    (ABSL_OPTION_USE_STD_VARIANT == 2 && defined(ABSL_HAVE_STD_VARIANT))
+#define ABSL_USES_STD_VARIANT 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_STRING_VIEW
+//
+// Indicates whether absl::string_view is an alias for std::string_view.
+#if !defined(ABSL_OPTION_USE_STD_STRING_VIEW)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0 || \
+    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
+     !defined(ABSL_HAVE_STD_STRING_VIEW))
+#undef ABSL_USES_STD_STRING_VIEW
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 1 || \
+    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
+     defined(ABSL_HAVE_STD_STRING_VIEW))
+#define ABSL_USES_STD_STRING_VIEW 1
+#else
+#error options.h is misconfigured.
 #endif
 
 // In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION

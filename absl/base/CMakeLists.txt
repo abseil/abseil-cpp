@@ -75,6 +75,7 @@ absl_cc_library(
     config
   HDRS
     "config.h"
+    "options.h"
     "policy_checks.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}

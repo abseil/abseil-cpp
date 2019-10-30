@@ -18,7 +18,7 @@
 
 // This test is a no-op when absl::any is an alias for std::any and when
 // exceptions are not enabled.
-#if !defined(ABSL_HAVE_STD_ANY) && defined(ABSL_HAVE_EXCEPTIONS)
+#if !defined(ABSL_USES_STD_ANY) && defined(ABSL_HAVE_EXCEPTIONS)
 
 #include <typeinfo>
 #include <vector>
@@ -170,4 +170,4 @@ TEST(AnyExceptionSafety, Emplace) {
 
 }  // namespace
 
-#endif  // #if !defined(ABSL_HAVE_STD_ANY) && defined(ABSL_HAVE_EXCEPTIONS)
+#endif  // #if !defined(ABSL_USES_STD_ANY) && defined(ABSL_HAVE_EXCEPTIONS)

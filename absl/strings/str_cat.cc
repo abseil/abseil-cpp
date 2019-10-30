@@ -27,23 +27,21 @@
 namespace absl {
 
 AlphaNum::AlphaNum(Hex hex) {
+  static_assert(numbers_internal::kFastToBufferSize >= 32,
+                "This function only works when output buffer >= 32 bytes long");
   char* const end = &digits_[numbers_internal::kFastToBufferSize];
-  char* writer = end;
-  uint64_t value = hex.value;
-  do {
-    *--writer = absl::numbers_internal::kHexChar[value & 0xF];
-    value >>= 4;
-  } while (value != 0);
-
-  char* beg;
-  if (end - writer < hex.width) {
-    beg = end - hex.width;
-    std::fill_n(beg, writer - beg, hex.fill);
+  auto real_width =
+      absl::numbers_internal::FastHexToBufferZeroPad16(hex.value, end - 16);
+  if (real_width >= hex.width) {
+    piece_ = absl::string_view(end - real_width, real_width);
   } else {
-    beg = writer;
+    // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
+    // max pad width can be up to 20.
+    std::memset(end - 32, hex.fill, 16);
+    // Patch up everything else up to the real_width.
+    std::memset(end - real_width - 16, hex.fill, 16);
+    piece_ = absl::string_view(end - hex.width, hex.width);
   }
-
-  piece_ = absl::string_view(beg, end - beg);
 }
 
 AlphaNum::AlphaNum(Dec dec) {

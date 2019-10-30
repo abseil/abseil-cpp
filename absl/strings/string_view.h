@@ -30,7 +30,7 @@
 #include <algorithm>
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_STD_STRING_VIEW
+#ifdef ABSL_USES_STD_STRING_VIEW
 
 #include <string_view>  // IWYU pragma: export
 
@@ -38,7 +38,7 @@ namespace absl {
 using std::string_view;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_STRING_VIEW
+#else  // ABSL_USES_STD_STRING_VIEW
 
 #if ABSL_HAVE_BUILTIN(__builtin_memcmp) || \
     (defined(__GNUC__) && !defined(__clang__))
@@ -580,7 +580,7 @@ std::ostream& operator<<(std::ostream& o, string_view piece);
 
 #undef ABSL_INTERNAL_STRING_VIEW_MEMCMP
 
-#endif  // ABSL_HAVE_STD_STRING_VIEW
+#endif  // ABSL_USES_STD_STRING_VIEW
 
 namespace absl {
 

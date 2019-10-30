@@ -519,7 +519,7 @@ namespace time_internal {  // For functions found via ADL on civil-time tags.
 //
 // Example:
 //
-//   absl::CivilDay d = absl::CivilDay("1969-07-20");
+//   absl::CivilDay d = absl::CivilDay(1969, 7, 20);
 //   std::cout << "Date is: " << d << "\n";
 //
 std::ostream& operator<<(std::ostream& os, CivilYear y);

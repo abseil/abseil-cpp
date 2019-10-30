@@ -45,7 +45,7 @@
 #include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_VARIANT
+#ifdef ABSL_USES_STD_VARIANT
 
 #include <variant>  // IWYU pragma: export
 
@@ -64,7 +64,7 @@ using std::variant_size_v;
 using std::visit;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_VARIANT
+#else  // ABSL_USES_STD_VARIANT
 
 #include <functional>
 #include <new>
@@ -812,7 +812,7 @@ struct hash<absl::variant<T...>>
 
 }  // namespace std
 
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 namespace absl {
 namespace variant_internal {

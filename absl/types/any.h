@@ -56,7 +56,7 @@
 #include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_ANY
+#ifdef ABSL_USES_STD_ANY
 
 #include <any>  // IWYU pragma: export
 
@@ -67,7 +67,7 @@ using std::bad_any_cast;
 using std::make_any;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_ANY
+#else  // ABSL_USES_STD_ANY
 
 #include <algorithm>
 #include <cstddef>
@@ -538,6 +538,6 @@ T* any_cast(any* operand) noexcept {
 
 #undef ABSL_ANY_DETAIL_HAS_RTTI
 
-#endif  // ABSL_HAVE_STD_ANY
+#endif  // ABSL_USES_STD_ANY
 
 #endif  // ABSL_TYPES_ANY_H_
