@@ -37,16 +37,17 @@ using IsAtLeastForwardIterator = std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::forward_iterator_tag>;
 
-template <typename AllocatorType>
-using IsMemcpyOk = absl::conjunction<
-    std::is_same<std::allocator<typename AllocatorType::value_type>,
-                 AllocatorType>,
-    absl::is_trivially_copy_constructible<typename AllocatorType::value_type>,
-    absl::is_trivially_copy_assignable<typename AllocatorType::value_type>,
-    absl::is_trivially_destructible<typename AllocatorType::value_type>>;
+template <typename AllocatorType,
+          typename ValueType =
+              typename absl::allocator_traits<AllocatorType>::value_type>
+using IsMemcpyOk =
+    absl::conjunction<std::is_same<AllocatorType, std::allocator<ValueType>>,
+                      absl::is_trivially_copy_constructible<ValueType>,
+                      absl::is_trivially_copy_assignable<ValueType>,
+                      absl::is_trivially_destructible<ValueType>>;
 
-template <typename AllocatorType, typename ValueType, typename SizeType>
-void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
+template <typename AllocatorType, typename Pointer, typename SizeType>
+void DestroyElements(AllocatorType* alloc_ptr, Pointer destroy_first,
                      SizeType destroy_size) {
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
 
@@ -57,20 +58,25 @@ void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
     }
 
 #if !defined(NDEBUG)
-    // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
-    //
-    // Cast to `void*` to tell the compiler that we don't care that we might be
-    // scribbling on a vtable pointer.
-    auto* memory_ptr = static_cast<void*>(destroy_first);
-    auto memory_size = sizeof(ValueType) * destroy_size;
-    std::memset(memory_ptr, 0xab, memory_size);
+    {
+      using ValueType = typename AllocatorTraits::value_type;
+
+      // Overwrite unused memory with `0xab` so we can catch uninitialized
+      // usage.
+      //
+      // Cast to `void*` to tell the compiler that we don't care that we might
+      // be scribbling on a vtable pointer.
+      void* memory_ptr = destroy_first;
+      auto memory_size = destroy_size * sizeof(ValueType);
+      std::memset(memory_ptr, 0xab, memory_size);
+    }
 #endif  // !defined(NDEBUG)
   }
 }
 
-template <typename AllocatorType, typename ValueType, typename ValueAdapter,
+template <typename AllocatorType, typename Pointer, typename ValueAdapter,
           typename SizeType>
-void ConstructElements(AllocatorType* alloc_ptr, ValueType* construct_first,
+void ConstructElements(AllocatorType* alloc_ptr, Pointer construct_first,
                        ValueAdapter* values_ptr, SizeType construct_size) {
   for (SizeType i = 0; i < construct_size; ++i) {
     ABSL_INTERNAL_TRY {
@@ -83,8 +89,8 @@ void ConstructElements(AllocatorType* alloc_ptr, ValueType* construct_first,
   }
 }
 
-template <typename ValueType, typename ValueAdapter, typename SizeType>
-void AssignElements(ValueType* assign_first, ValueAdapter* values_ptr,
+template <typename Pointer, typename ValueAdapter, typename SizeType>
+void AssignElements(Pointer assign_first, ValueAdapter* values_ptr,
                     SizeType assign_size) {
   for (SizeType i = 0; i < assign_size; ++i) {
     values_ptr->AssignNext(assign_first + i);
@@ -93,28 +99,29 @@ void AssignElements(ValueType* assign_first, ValueAdapter* values_ptr,
 
 template <typename AllocatorType>
 struct StorageView {
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
-  pointer data;
-  size_type size;
-  size_type capacity;
+  Pointer data;
+  SizeType size;
+  SizeType capacity;
 };
 
 template <typename AllocatorType, typename Iterator>
 class IteratorValueAdapter {
-  using pointer = typename AllocatorType::pointer;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
 
  public:
   explicit IteratorValueAdapter(const Iterator& it) : it_(it) {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at, *it_);
     ++it_;
   }
 
-  void AssignNext(pointer assign_at) {
+  void AssignNext(Pointer assign_at) {
     *assign_at = *it_;
     ++it_;
   }
@@ -125,46 +132,45 @@ class IteratorValueAdapter {
 
 template <typename AllocatorType>
 class CopyValueAdapter {
-  using pointer = typename AllocatorType::pointer;
-  using const_pointer = typename AllocatorType::const_pointer;
-  using const_reference = typename AllocatorType::const_reference;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using ValueType = typename AllocatorTraits::value_type;
+  using Pointer = typename AllocatorTraits::pointer;
+  using ConstPointer = typename AllocatorTraits::const_pointer;
 
  public:
-  explicit CopyValueAdapter(const_reference v) : ptr_(std::addressof(v)) {}
+  explicit CopyValueAdapter(const ValueType& v) : ptr_(std::addressof(v)) {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at, *ptr_);
   }
 
-  void AssignNext(pointer assign_at) { *assign_at = *ptr_; }
+  void AssignNext(Pointer assign_at) { *assign_at = *ptr_; }
 
  private:
-  const_pointer ptr_;
+  ConstPointer ptr_;
 };
 
 template <typename AllocatorType>
 class DefaultValueAdapter {
-  using pointer = typename AllocatorType::pointer;
-  using value_type = typename AllocatorType::value_type;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using ValueType = typename AllocatorTraits::value_type;
+  using Pointer = typename AllocatorTraits::pointer;
 
  public:
   explicit DefaultValueAdapter() {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at);
   }
 
-  void AssignNext(pointer assign_at) { *assign_at = value_type(); }
+  void AssignNext(Pointer assign_at) { *assign_at = ValueType(); }
 };
 
 template <typename AllocatorType>
 class AllocationTransaction {
-  using value_type = typename AllocatorType::value_type;
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
  public:
   explicit AllocationTransaction(AllocatorType* alloc_ptr)
@@ -180,11 +186,11 @@ class AllocationTransaction {
   void operator=(const AllocationTransaction&) = delete;
 
   AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
-  pointer& GetData() { return alloc_data_.template get<1>(); }
-  size_type& GetCapacity() { return capacity_; }
+  Pointer& GetData() { return alloc_data_.template get<1>(); }
+  SizeType& GetCapacity() { return capacity_; }
 
   bool DidAllocate() { return GetData() != nullptr; }
-  pointer Allocate(size_type capacity) {
+  Pointer Allocate(SizeType capacity) {
     GetData() = AllocatorTraits::allocate(GetAllocator(), capacity);
     GetCapacity() = capacity;
     return GetData();
@@ -196,14 +202,15 @@ class AllocationTransaction {
   }
 
  private:
-  container_internal::CompressedTuple<AllocatorType, pointer> alloc_data_;
-  size_type capacity_ = 0;
+  container_internal::CompressedTuple<AllocatorType, Pointer> alloc_data_;
+  SizeType capacity_ = 0;
 };
 
 template <typename AllocatorType>
 class ConstructionTransaction {
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
  public:
   explicit ConstructionTransaction(AllocatorType* alloc_ptr)
@@ -220,12 +227,12 @@ class ConstructionTransaction {
   void operator=(const ConstructionTransaction&) = delete;
 
   AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
-  pointer& GetData() { return alloc_data_.template get<1>(); }
-  size_type& GetSize() { return size_; }
+  Pointer& GetData() { return alloc_data_.template get<1>(); }
+  SizeType& GetSize() { return size_; }
 
   bool DidConstruct() { return GetData() != nullptr; }
   template <typename ValueAdapter>
-  void Construct(pointer data, ValueAdapter* values_ptr, size_type size) {
+  void Construct(Pointer data, ValueAdapter* values_ptr, SizeType size) {
     inlined_vector_internal::ConstructElements(std::addressof(GetAllocator()),
                                                data, values_ptr, size);
     GetData() = data;
@@ -237,28 +244,29 @@ class ConstructionTransaction {
   }
 
  private:
-  container_internal::CompressedTuple<AllocatorType, pointer> alloc_data_;
-  size_type size_ = 0;
+  container_internal::CompressedTuple<AllocatorType, Pointer> alloc_data_;
+  SizeType size_ = 0;
 };
 
 template <typename T, size_t N, typename A>
 class Storage {
  public:
-  using allocator_type = A;
-  using value_type = typename allocator_type::value_type;
-  using pointer = typename allocator_type::pointer;
-  using const_pointer = typename allocator_type::const_pointer;
-  using reference = typename allocator_type::reference;
-  using const_reference = typename allocator_type::const_reference;
-  using rvalue_reference = typename allocator_type::value_type&&;
-  using size_type = typename allocator_type::size_type;
-  using difference_type = typename allocator_type::difference_type;
+  using AllocatorTraits = absl::allocator_traits<A>;
+  using allocator_type = typename AllocatorTraits::allocator_type;
+  using value_type = typename AllocatorTraits::value_type;
+  using pointer = typename AllocatorTraits::pointer;
+  using const_pointer = typename AllocatorTraits::const_pointer;
+  using size_type = typename AllocatorTraits::size_type;
+  using difference_type = typename AllocatorTraits::difference_type;
+
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using RValueReference = value_type&&;
   using iterator = pointer;
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using MoveIterator = std::move_iterator<iterator>;
-  using AllocatorTraits = absl::allocator_traits<allocator_type>;
   using IsMemcpyOk = inlined_vector_internal::IsMemcpyOk<allocator_type>;
 
   using StorageView = inlined_vector_internal::StorageView<allocator_type>;

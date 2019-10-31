@@ -1754,6 +1754,30 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
   }
 }
 
+TEST(InlinedVectorTest, MinimumAllocatorCompilesUsingTraits) {
+  using T = int;
+  using A = std::allocator<T>;
+  using ATraits = absl::allocator_traits<A>;
+
+  struct MinimumAllocator {
+    using value_type = T;
+
+    value_type* allocate(size_t n) {
+      A a;
+      return ATraits::allocate(a, n);
+    }
+
+    void deallocate(value_type* p, size_t n) {
+      A a;
+      ATraits::deallocate(a, p, n);
+    }
+  };
+
+  absl::InlinedVector<T, 1, MinimumAllocator> vec;
+  vec.emplace_back();
+  vec.resize(0);
+}
+
 TEST(InlinedVectorTest, AbslHashValueWorks) {
   using V = absl::InlinedVector<int, 4>;
   std::vector<V> cases;

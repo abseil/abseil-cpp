@@ -67,17 +67,20 @@ namespace absl {
 template <typename T>
 using Flag = flags_internal::Flag<T>;
 #else
-// MSVC debug builds do not implement constexpr correctly for classes with
-// virtual methods. To work around this we adding level of indirection, so that
-// the class `absl::Flag` contains an `internal::Flag*` (instead of being an
-// alias to that class) and dynamically allocates an instance when necessary.
-// We also forward all calls to internal::Flag methods via trampoline methods.
-// In this setup the `absl::Flag` class does not have virtual methods and thus
-// MSVC is able to initialize it at link time. To deal with multiple threads
-// accessing the flag for the first time concurrently we use an atomic boolean
-// indicating if flag object is constructed. We also employ the double-checked
-// locking pattern where the second level of protection is a global Mutex, so
-// if two threads attempt to construct the flag concurrently only one wins.
+// MSVC debug builds do not implement initialization with constexpr constructors
+// correctly. To work around this we add a level of indirection, so that the
+// class `absl::Flag` contains an `internal::Flag*` (instead of being an alias
+// to that class) and dynamically allocates an instance when necessary. We also
+// forward all calls to internal::Flag methods via trampoline methods. In this
+// setup the `absl::Flag` class does not have constructor and virtual methods,
+// all the data members are public and thus MSVC is able to initialize it at
+// link time. To deal with multiple threads accessing the flag for the first
+// time concurrently we use an atomic boolean indicating if flag object is
+// initialized. We also employ the double-checked locking pattern where the
+// second level of protection is a global Mutex, so if two threads attempt to
+// construct the flag concurrently only one wins.
+// This solution is based on a recomendation here:
+// https://developercommunity.visualstudio.com/content/problem/336946/class-with-constexpr-constructor-not-using-static.html?childToView=648454#comment-648454
 
 namespace flags_internal {
 absl::Mutex* GetGlobalConstructionGuard();
@@ -86,16 +89,23 @@ absl::Mutex* GetGlobalConstructionGuard();
 template <typename T>
 class Flag {
  public:
+  // No constructor and destructor to ensure this is an aggregate type.
+  // Visual Studio 2015 still requires the constructor for class to be
+  // constexpr initializable.
+#if _MSC_VER <= 1900
   constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
                  const char* filename,
                  const flags_internal::FlagMarshallingOpFn marshalling_op,
-                 const flags_internal::InitialValGenFunc initial_value_gen)
+                 const flags_internal::InitialValGenFunc initial_value_gen,
+                 bool, void*)
       : name_(name),
         help_gen_(help_gen),
         filename_(filename),
         marshalling_op_(marshalling_op),
         initial_value_gen_(initial_value_gen),
-        inited_(false) {}
+        inited_(false),
+        impl_(nullptr) {}
+#endif
 
   flags_internal::Flag<T>* GetImpl() const {
     if (!inited_.load(std::memory_order_acquire)) {
@@ -113,7 +123,8 @@ class Flag {
     return impl_;
   }
 
-  // absl::Flag API
+  // Public methods of `absl::Flag<T>` are NOT part of the Abseil Flags API.
+  // See https://abseil.io/docs/cpp/guides/flags
   bool IsRetired() const { return GetImpl()->IsRetired(); }
   bool IsAbseilFlag() const { return GetImpl()->IsAbseilFlag(); }
   absl::string_view Name() const { return GetImpl()->Name(); }
@@ -126,9 +137,9 @@ class Flag {
   std::string Filename() const { return GetImpl()->Filename(); }
   std::string DefaultValue() const { return GetImpl()->DefaultValue(); }
   std::string CurrentValue() const { return GetImpl()->CurrentValue(); }
-  template <typename T1>
+  template <typename U>
   inline bool IsOfType() const {
-    return GetImpl()->template IsOfType<T1>();
+    return GetImpl()->template IsOfType<U>();
   }
   T Get() const { return GetImpl()->Get(); }
   bool AtomicGet(T* v) const { return GetImpl()->AtomicGet(v); }
@@ -138,7 +149,8 @@ class Flag {
   }
   void InvokeCallback() { GetImpl()->InvokeCallback(); }
 
- private:
+  // The data members are logically private, but they need to be public for
+  // this to be an aggregate type.
   const char* name_;
   const flags_internal::HelpGenFunc help_gen_;
   const char* filename_;
@@ -146,7 +158,7 @@ class Flag {
   const flags_internal::InitialValGenFunc initial_value_gen_;
 
   mutable std::atomic<bool> inited_;
-  mutable flags_internal::Flag<T>* impl_ = nullptr;
+  mutable flags_internal::Flag<T>* impl_;
 };
 #endif
 
@@ -310,17 +322,35 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 // Note: Name of registrar object is not arbitrary. It is used to "grab"
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
+#if !defined(_MSC_VER) || defined(__clang__)
 #define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
   namespace absl /* block flags in namespaces */ {}                 \
   ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
   ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
-  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name(                    \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
       ABSL_FLAG_IMPL_FLAGNAME(#name), &AbslFlagsWrapHelp##name,     \
       ABSL_FLAG_IMPL_FILENAME(),                                    \
       &absl::flags_internal::FlagMarshallingOps<Type>,              \
-      &AbslFlagsInitFlag##name);                                    \
+      &AbslFlagsInitFlag##name};                                    \
   extern bool FLAGS_no##name;                                       \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
+#else
+// MSVC version uses aggregate initialization.
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
+  namespace absl /* block flags in namespaces */ {}                 \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
+      ABSL_FLAG_IMPL_FLAGNAME(#name),                               \
+      &AbslFlagsWrapHelp##name,                                     \
+      ABSL_FLAG_IMPL_FILENAME(),                                    \
+      &absl::flags_internal::FlagMarshallingOps<Type>,              \
+      &AbslFlagsInitFlag##name,                                     \
+      false,                                                        \
+      nullptr};                                                     \
+  extern bool FLAGS_no##name;                                       \
+  bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
+#endif
 
 // ABSL_RETIRED_FLAG
 //

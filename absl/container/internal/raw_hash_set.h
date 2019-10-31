@@ -615,7 +615,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      /* To be enabled: assert_is_full(); */
+      assert_is_full();
       return PolicyTraits::element(slot_);
     }
 
