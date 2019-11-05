@@ -71,9 +71,9 @@ cc_test(
     deps = [
         ":hash",
         ":hash_testing",
+        ":spy_hash_state",
         "//absl/base:core_headers",
         "//absl/container:flat_hash_set",
-        "//absl/hash:spy_hash_state",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
         "@com_google_googletest//:gtest_main",

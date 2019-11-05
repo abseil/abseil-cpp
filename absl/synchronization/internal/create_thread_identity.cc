@@ -86,7 +86,6 @@ static void ResetThreadIdentity(base_internal::ThreadIdentity* identity) {
   pts->wake = false;
   pts->cond_waiter = false;
   pts->all_locks = nullptr;
-  identity->waiter_state = {};
   identity->blocked_count_ptr = nullptr;
   identity->ticker.store(0, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);

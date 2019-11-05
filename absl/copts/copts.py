@@ -56,7 +56,6 @@ LLVM_DISABLE_WARNINGS_FLAGS = [
     "-Wno-global-constructors",
     "-Wno-exit-time-destructors",
     ###
-    "-Wno-nested-anon-types",
     "-Wno-non-modular-include-in-module",
     "-Wno-old-style-cast",
     # Warns on preferred usage of non-POD types such as string_view

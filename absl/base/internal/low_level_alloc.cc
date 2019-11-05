@@ -447,7 +447,7 @@ static inline uintptr_t RoundUp(uintptr_t addr, uintptr_t align) {
 // that the freelist is in the correct order, that it
 // consists of regions marked "unallocated", and that no two regions
 // are adjacent in memory (they should have been coalesced).
-// L < arena->mu
+// L >= arena->mu
 static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena) {
   ABSL_RAW_CHECK(i < prev->levels, "too few levels in Next()");
   AllocList *next = prev->next[i];
@@ -508,8 +508,6 @@ void LowLevelAlloc::Free(void *v) {
   if (v != nullptr) {
     AllocList *f = reinterpret_cast<AllocList *>(
                         reinterpret_cast<char *>(v) - sizeof (f->header));
-    ABSL_RAW_CHECK(f->header.magic == Magic(kMagicAllocated, &f->header),
-                   "bad magic number in Free()");
     LowLevelAlloc::Arena *arena = f->header.arena;
     ArenaLock section(arena);
     AddToFreelist(v, arena);

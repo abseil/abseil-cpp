@@ -290,7 +290,8 @@ class AlphaNum {
 // StrCat()
 // -----------------------------------------------------------------------------
 //
-// Merges given strings or numbers, using no delimiter(s).
+// Merges given strings or numbers, using no delimiter(s), returning the merged
+// result as a string.
 //
 // `StrCat()` is designed to be the fastest possible way to construct a string
 // out of a mix of raw C strings, string_views, strings, bool values,
