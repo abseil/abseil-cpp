@@ -243,7 +243,7 @@ std::string ParamName(
   return absl::StrReplaceAll(name, {{"+", "_"}, {"-", "_"}, {".", "_"}});
 }
 
-INSTANTIATE_TEST_SUITE_P(, LogUniformIntChiSquaredTest,
+INSTANTIATE_TEST_SUITE_P(All, LogUniformIntChiSquaredTest,
                          ::testing::ValuesIn(GenParams()), ParamName);
 
 // NOTE: absl::log_uniform_int_distribution is not guaranteed to be stable.

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -37,7 +38,6 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":debugging_internal",
-        "//absl/base",
         "//absl/base:core_headers",
     ],
 )
@@ -63,19 +63,27 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
 cc_test(
     name = "symbolize_test",
     srcs = ["symbolize_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    copts = ABSL_TEST_COPTS + select({
+        "//absl:windows": ["/Z7"],
+        "//conditions:default": [],
+    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["/DEBUG"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":stack_consumption",
         ":symbolize",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "@com_google_googletest//:gtest",
     ],
@@ -95,8 +103,8 @@ cc_library(
     deps = [
         ":stacktrace",
         ":symbolize",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -112,6 +120,7 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -127,7 +136,7 @@ cc_test(
         ":failure_signal_handler",
         ":stacktrace",
         ":symbolize",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "@com_google_googletest//:gtest",
     ],
@@ -156,9 +165,9 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -181,8 +190,8 @@ cc_test(
     deps = [
         ":demangle_internal",
         ":stack_consumption",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
     ],
@@ -292,8 +301,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -304,8 +313,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":stack_consumption",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )

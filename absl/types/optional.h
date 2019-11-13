@@ -38,7 +38,7 @@
 #include "absl/base/config.h"   // TODO(calabrese) IWYU removal?
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_OPTIONAL
+#ifdef ABSL_USES_STD_OPTIONAL
 
 #include <optional>  // IWYU pragma: export
 
@@ -50,7 +50,7 @@ using std::nullopt_t;
 using std::nullopt;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_OPTIONAL
+#else  // ABSL_USES_STD_OPTIONAL
 
 #include <cassert>
 #include <functional>
@@ -499,7 +499,7 @@ class optional : private optional_internal::optional_data<T>,
   template <typename U>
   constexpr T value_or(U&& v) const& {
     static_assert(std::is_copy_constructible<value_type>::value,
-                  "optional<T>::value_or: T must by copy constructible");
+                  "optional<T>::value_or: T must be copy constructible");
     static_assert(std::is_convertible<U&&, value_type>::value,
                   "optional<T>::value_or: U must be convertible to T");
     return static_cast<bool>(*this)
@@ -509,7 +509,7 @@ class optional : private optional_internal::optional_data<T>,
   template <typename U>
   T value_or(U&& v) && {  // NOLINT(build/c++11)
     static_assert(std::is_move_constructible<value_type>::value,
-                  "optional<T>::value_or: T must by move constructible");
+                  "optional<T>::value_or: T must be move constructible");
     static_assert(std::is_convertible<U&&, value_type>::value,
                   "optional<T>::value_or: U must be convertible to T");
     return static_cast<bool>(*this) ? std::move(**this)
@@ -767,6 +767,6 @@ struct hash<absl::optional<T> >
 
 #undef ABSL_MSVC_CONSTEXPR_BUG_IN_UNION_LIKE_CLASS
 
-#endif  // ABSL_HAVE_STD_OPTIONAL
+#endif  // ABSL_USES_STD_OPTIONAL
 
 #endif  // ABSL_TYPES_OPTIONAL_H_

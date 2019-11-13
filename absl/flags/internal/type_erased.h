@@ -32,17 +32,6 @@ namespace flags_internal {
 // Thread-safe.
 bool GetCommandLineOption(absl::string_view name, std::string* value);
 
-// If a flag named "name" exists, store its information in *OUTPUT
-// and return true.  Else return false without changing *OUTPUT.
-// Thread-safe.
-bool GetCommandLineFlagInfo(absl::string_view name,
-                            CommandLineFlagInfo* OUTPUT);
-
-// Returns the CommandLineFlagInfo of the flagname.  exit() with an
-// error code if name not found.
-// Thread-safe.
-CommandLineFlagInfo GetCommandLineFlagInfoOrDie(absl::string_view name);
-
 // Set the value of the flag named "name" to value.  If successful,
 // returns true.  If not successful (e.g., the flag was not found or
 // the value is not a valid value), returns false.

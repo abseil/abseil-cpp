@@ -145,6 +145,18 @@ using IsMoveAssignableImpl = decltype(std::declval<T&>() = std::declval<T&&>());
 
 }  // namespace type_traits_internal
 
+// MSVC 19.20 has a regression that causes our workarounds to fail, but their
+// std forms now appear to be compliant.
+#if defined(_MSC_VER) && !defined(__clang__) && (_MSC_VER >= 1920)
+
+template <typename T>
+using is_copy_assignable = std::is_copy_assignable<T>;
+
+template <typename T>
+using is_move_assignable = std::is_move_assignable<T>;
+
+#else
+
 template <typename T>
 struct is_copy_assignable : type_traits_internal::is_detected<
                                 type_traits_internal::IsCopyAssignableImpl, T> {
@@ -154,6 +166,8 @@ template <typename T>
 struct is_move_assignable : type_traits_internal::is_detected<
                                 type_traits_internal::IsMoveAssignableImpl, T> {
 };
+
+#endif
 
 // void_t()
 //
@@ -224,9 +238,26 @@ struct disjunction<> : std::false_type {};
 template <typename T>
 struct negation : std::integral_constant<bool, !T::value> {};
 
+// is_function()
+//
+// Determines whether the passed type `T` is a function type.
+//
+// This metafunction is designed to be a drop-in replacement for the C++11
+// `std::is_function()` metafunction for platforms that have incomplete C++11
+// support (such as libstdc++ 4.x).
+//
+// This metafunction works because appending `const` to a type does nothing to
+// function types and reference types (and forms a const-qualified type
+// otherwise).
+template <typename T>
+struct is_function
+    : std::integral_constant<
+          bool, !(std::is_reference<T>::value ||
+                  std::is_const<typename std::add_const<T>::type>::value)> {};
+
 // is_trivially_destructible()
 //
-// Determines whether the passed type `T` is trivially destructable.
+// Determines whether the passed type `T` is trivially destructible.
 //
 // This metafunction is designed to be a drop-in replacement for the C++11
 // `std::is_trivially_destructible()` metafunction for platforms that have

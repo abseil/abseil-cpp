@@ -43,4 +43,4 @@ bool HasRandenHwAesImplementation();
 }  // namespace random_internal
 }  // namespace absl
 
-#endif  // ABSL_RANDOM_INTERNAL_RANDEN_FAST_H_
+#endif  // ABSL_RANDOM_INTERNAL_RANDEN_HWAES_H_

@@ -207,8 +207,8 @@ static absl::base_internal::SpinLock deadlock_graph_mu(
     absl::base_internal::kLinkerInitialized);
 
 // graph used to detect deadlocks.
-static GraphCycles *deadlock_graph GUARDED_BY(deadlock_graph_mu)
-    PT_GUARDED_BY(deadlock_graph_mu);
+static GraphCycles *deadlock_graph ABSL_GUARDED_BY(deadlock_graph_mu)
+    ABSL_PT_GUARDED_BY(deadlock_graph_mu);
 
 //------------------------------------------------------------------
 // An event mechanism for debugging mutex use.
@@ -279,10 +279,10 @@ static const uint32_t kNSynchEvent = 1031;
 
 static struct SynchEvent {     // this is a trivial hash table for the events
   // struct is freed when refcount reaches 0
-  int refcount GUARDED_BY(synch_event_mu);
+  int refcount ABSL_GUARDED_BY(synch_event_mu);
 
   // buckets have linear, 0-terminated  chains
-  SynchEvent *next GUARDED_BY(synch_event_mu);
+  SynchEvent *next ABSL_GUARDED_BY(synch_event_mu);
 
   // Constant after initialization
   uintptr_t masked_addr;  // object at this address is called "name"
@@ -296,7 +296,7 @@ static struct SynchEvent {     // this is a trivial hash table for the events
 
   // Constant after initialization
   char name[1];         // actually longer---null-terminated std::string
-} *synch_event[kNSynchEvent] GUARDED_BY(synch_event_mu);
+} * synch_event[kNSynchEvent] ABSL_GUARDED_BY(synch_event_mu);
 
 // Ensure that the object at "addr" has a SynchEvent struct associated with it,
 // set "bits" in the word there (waiting until lockbit is clear before doing
@@ -1143,7 +1143,7 @@ PerThreadSynch *Mutex::Wakeup(PerThreadSynch *w) {
 }
 
 static GraphId GetGraphIdLocked(Mutex *mu)
-    EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
   if (!deadlock_graph) {  // (re)create the deadlock graph.
     deadlock_graph =
         new (base_internal::LowLevelAlloc::Alloc(sizeof(*deadlock_graph)))
@@ -1152,7 +1152,7 @@ static GraphId GetGraphIdLocked(Mutex *mu)
   return deadlock_graph->GetId(mu);
 }
 
-static GraphId GetGraphId(Mutex *mu) LOCKS_EXCLUDED(deadlock_graph_mu) {
+static GraphId GetGraphId(Mutex *mu) ABSL_LOCKS_EXCLUDED(deadlock_graph_mu) {
   deadlock_graph_mu.Lock();
   GraphId id = GetGraphIdLocked(mu);
   deadlock_graph_mu.Unlock();

@@ -23,6 +23,7 @@
 #include <fstream>
 
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
@@ -30,6 +31,8 @@
 #include "absl/strings/str_cat.h"
 
 namespace {
+
+using testing::StartsWith;
 
 #if GTEST_HAS_DEATH_TEST
 
@@ -113,15 +116,15 @@ TEST_P(FailureSignalHandlerDeathTest, AbslFatalSignalsWithWriterFn) {
   ASSERT_TRUE(error_output.is_open()) << file;
   std::string error_line;
   std::getline(error_output, error_line);
-  EXPECT_TRUE(absl::StartsWith(
+  EXPECT_THAT(
       error_line,
-      absl::StrCat("*** ",
-                   absl::debugging_internal::FailureSignalToString(signo),
-                   " received at ")));
+      StartsWith(absl::StrCat(
+          "*** ", absl::debugging_internal::FailureSignalToString(signo),
+          " received at ")));
 
   if (absl::debugging_internal::StackTraceWorksForTest()) {
     std::getline(error_output, error_line);
-    EXPECT_TRUE(absl::StartsWith(error_line, "PC: "));
+    EXPECT_THAT(error_line, StartsWith("PC: "));
   }
 }
 

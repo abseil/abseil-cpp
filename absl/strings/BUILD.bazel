@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
-    "ABSL_EXCEPTIONS_FLAG",
-    "ABSL_EXCEPTIONS_FLAG_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -26,7 +25,7 @@ package(
     features = ["parse_headers"],
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "strings",
@@ -73,6 +72,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
         "//absl/memory",
         "//absl/meta:type_traits",
@@ -140,7 +140,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -225,8 +225,8 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -235,8 +235,7 @@ cc_test(
     name = "string_view_test",
     size = "small",
     srcs = ["string_view_test.cc"],
-    copts = ABSL_TEST_COPTS + ABSL_EXCEPTIONS_FLAG,
-    linkopts = ABSL_EXCEPTIONS_FLAG_LINKOPTS,
+    copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -268,7 +267,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -306,7 +305,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -414,8 +413,9 @@ cc_test(
     deps = [
         ":pow10_helper",
         ":strings",
-        "//absl/base",
-        "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
+        "//absl/random",
+        "//absl/random:distributions",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -428,7 +428,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
+        "//absl/random",
+        "//absl/random:distributions",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -474,7 +476,6 @@ cc_test(
         ":pow10_helper",
         ":str_format",
         ":strings",
-        "//absl/base",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -488,7 +489,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -503,7 +504,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
-        "//absl/base",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -518,7 +518,6 @@ cc_test(
     ],
     deps = [
         ":strings",
-        "//absl/base",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
@@ -634,6 +633,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":str_format_internal",
+        "//absl/base:raw_logging_internal",
         "//absl/numeric:int128",
         "@com_google_googletest//:gtest_main",
     ],

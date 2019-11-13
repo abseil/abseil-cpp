@@ -1,4 +1,4 @@
-// Copyright 2018 The Abseil Authors.
+// Copyright 2017 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstddef>
-#include <iostream>
+#ifndef ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_
+#define ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_
 
-#include "absl/random/random.h"
+#include "absl/base/internal/atomic_hook.h"
 
-// This program is used in integration tests.
+namespace absl {
+namespace atomic_hook_internal {
 
-int main() {
-  auto seed_seq = absl::MakeTaggedSeedSeq("TEST_GENERATOR", std::cerr);
-  absl::BitGen rng(seed_seq);
-  constexpr size_t kSequenceLength = 8;
-  for (size_t i = 0; i < kSequenceLength; i++) {
-    std::cout << rng() << "\n";
-  }
-  return 0;
-}
+using VoidF = void (*)();
+extern absl::base_internal::AtomicHook<VoidF> func;
+extern int default_func_calls;
+void DefaultFunc();
+void RegisterFunc(VoidF func);
+
+}  // namespace atomic_hook_internal
+}  // namespace absl
+
+#endif  // ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_

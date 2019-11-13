@@ -631,11 +631,11 @@ class FileZoneInfoSource : public ZoneInfoSource {
 std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     const std::string& name) {
   // Use of the "file:" prefix is intended for testing purposes only.
-  if (name.compare(0, 5, "file:") == 0) return Open(name.substr(5));
+  const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
   // Map the time-zone name to a path name.
   std::string path;
-  if (name.empty() || name[0] != '/') {
+  if (pos == name.size() || name[pos] != '/') {
     const char* tzdir = "/usr/share/zoneinfo";
     char* tzdir_env = nullptr;
 #if defined(_MSC_VER)
@@ -650,7 +650,7 @@ std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     free(tzdir_env);
 #endif
   }
-  path += name;
+  path.append(name, pos, std::string::npos);
 
   // Open the zoneinfo file.
   FILE* fp = FOpen(path.c_str(), "rb");
@@ -680,7 +680,7 @@ class AndroidZoneInfoSource : public FileZoneInfoSource {
 std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
     const std::string& name) {
   // Use of the "file:" prefix is intended for testing purposes only.
-  if (name.compare(0, 5, "file:") == 0) return Open(name.substr(5));
+  const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
   // See Android's libc/tzcode/bionic.cpp for additional information.
   for (const char* tzdata : {"/data/misc/zoneinfo/current/tzdata",
@@ -709,7 +709,7 @@ std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
       const std::int_fast32_t length = Decode32(ebuf + 44);
       if (start < 0 || length < 0) break;
       ebuf[40] = '\0';  // ensure zone name is NUL terminated
-      if (strcmp(name.c_str(), ebuf) == 0) {
+      if (strcmp(name.c_str() + pos, ebuf) == 0) {
         if (fseek(fp.get(), static_cast<long>(start), SEEK_SET) != 0) break;
         return std::unique_ptr<ZoneInfoSource>(new AndroidZoneInfoSource(
             fp.release(), static_cast<std::size_t>(length), vers));

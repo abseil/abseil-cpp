@@ -30,7 +30,7 @@
 //   Linux and Linux-derived           __linux__
 //   Android                           __ANDROID__ (implies __linux__)
 //   Linux (non-Android)               __linux__ && !__ANDROID__
-//   Darwin (Mac OS X and iOS)         __APPLE__
+//   Darwin (macOS and iOS)            __APPLE__
 //   Akaros (http://akaros.org)        __ros__
 //   Windows                           _WIN32
 //   NaCL                              __native_client__

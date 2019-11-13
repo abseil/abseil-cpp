@@ -196,8 +196,8 @@ TEST(IOStreamStateSaver, RoundTripFloats) {
     EXPECT_EQ(-d, StreamRoundTrip<double>(-d));
 
     // Avoid undefined behavior (overflow/underflow).
-    if (d <= std::numeric_limits<int64_t>::max() &&
-        d >= std::numeric_limits<int64_t>::lowest()) {
+    if (f <= static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+        f >= static_cast<float>(std::numeric_limits<int64_t>::lowest())) {
       int64_t x = static_cast<int64_t>(f);
       EXPECT_EQ(x, StreamRoundTrip<int64_t>(x));
     }
@@ -264,14 +264,15 @@ TEST(IOStreamStateSaver, RoundTripDoubles) {
     }
 
     // Avoid undefined behavior (overflow/underflow).
-    if (d <= std::numeric_limits<int64_t>::max() &&
-        d >= std::numeric_limits<int64_t>::lowest()) {
+    if (d <= static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        d >= static_cast<double>(std::numeric_limits<int64_t>::lowest())) {
       int64_t x = static_cast<int64_t>(d);
       EXPECT_EQ(x, StreamRoundTrip<int64_t>(x));
     }
   }
 }
 
+#if !defined(__EMSCRIPTEN__)
 TEST(IOStreamStateSaver, RoundTripLongDoubles) {
   // Technically, C++ only guarantees that long double is at least as large as a
   // double.  Practically it varies from 64-bits to 128-bits.
@@ -349,6 +350,7 @@ TEST(IOStreamStateSaver, RoundTripLongDoubles) {
     }
   }
 }
+#endif  // !defined(__EMSCRIPTEN__)
 
 TEST(StrToDTest, DoubleMin) {
   const char kV[] = "2.22507385850720138e-308";

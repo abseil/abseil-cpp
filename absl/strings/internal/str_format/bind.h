@@ -178,12 +178,8 @@ bool FormatUntyped(FormatRawSinkImpl raw_sink,
 std::string& AppendPack(std::string* out, UntypedFormatSpecImpl format,
                         absl::Span<const FormatArgImpl> args);
 
-inline std::string FormatPack(const UntypedFormatSpecImpl format,
-                              absl::Span<const FormatArgImpl> args) {
-  std::string out;
-  AppendPack(&out, format, args);
-  return out;
-}
+std::string FormatPack(const UntypedFormatSpecImpl format,
+                       absl::Span<const FormatArgImpl> args);
 
 int FprintF(std::FILE* output, UntypedFormatSpecImpl format,
             absl::Span<const FormatArgImpl> args);

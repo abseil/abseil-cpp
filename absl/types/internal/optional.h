@@ -84,8 +84,8 @@ class optional_data_dtor_base {
   bool engaged_;
   // Data storage
   union {
-    dummy_type dummy_;
     T data_;
+    dummy_type dummy_;
   };
 
   void destruct() noexcept {
@@ -119,8 +119,8 @@ class optional_data_dtor_base<T, true> {
   bool engaged_;
   // Data storage
   union {
-    dummy_type dummy_;
     T data_;
+    dummy_type dummy_;
   };
   void destruct() noexcept { engaged_ = false; }
 

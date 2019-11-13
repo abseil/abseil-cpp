@@ -12,6 +12,8 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
 package(features = ["-parse_headers"])
 
 licenses(["notice"])  # Apache License
@@ -31,16 +33,6 @@ config_setting(
 )
 
 ### libraries
-
-cc_library(
-    name = "includes",
-    textual_hdrs = [
-        "include/cctz/civil_time.h",
-        "include/cctz/civil_time_detail.h",
-        "include/cctz/time_zone.h",
-    ],
-    visibility = ["//absl/time:__pkg__"],
-)
 
 cc_library(
     name = "civil_time",

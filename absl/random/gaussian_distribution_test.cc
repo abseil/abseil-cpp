@@ -394,7 +394,7 @@ std::string ParamName(const ::testing::TestParamInfo<Param>& info) {
   return absl::StrReplaceAll(name, {{"+", "_"}, {"-", "_"}, {".", "_"}});
 }
 
-INSTANTIATE_TEST_SUITE_P(, GaussianDistributionTests,
+INSTANTIATE_TEST_SUITE_P(All, GaussianDistributionTests,
                          ::testing::ValuesIn(GenParams()), ParamName);
 
 // NOTE: absl::gaussian_distribution is not guaranteed to be stable.

@@ -35,8 +35,7 @@ struct ResizeUninitializedTraits {
   static void Resize(string_type* s, size_t new_size) { s->resize(new_size); }
 };
 
-// __resize_default_init is provided by libc++ >= 8.0 and by Google's internal
-// ::string implementation.
+// __resize_default_init is provided by libc++ >= 8.0
 template <typename string_type>
 struct ResizeUninitializedTraits<
     string_type, absl::void_t<decltype(std::declval<string_type&>()

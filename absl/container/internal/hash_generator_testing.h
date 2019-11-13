@@ -19,6 +19,7 @@
 #define ABSL_CONTAINER_INTERNAL_HASH_GENERATOR_TESTING_H_
 
 #include <stdint.h>
+
 #include <algorithm>
 #include <iosfwd>
 #include <random>
@@ -27,6 +28,7 @@
 #include <utility>
 
 #include "absl/container/internal/hash_policy_testing.h"
+#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
@@ -126,6 +128,13 @@ template <class... Ts>
 struct Generator<std::tuple<Ts...>> {
   std::tuple<Ts...> operator()() const {
     return std::tuple<Ts...>(Generator<typename std::decay<Ts>::type>()()...);
+  }
+};
+
+template <class T>
+struct Generator<std::unique_ptr<T>> {
+  std::unique_ptr<T> operator()() const {
+    return absl::make_unique<T>(Generator<T>()());
   }
 };
 

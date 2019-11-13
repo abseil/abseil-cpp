@@ -47,6 +47,27 @@ namespace absl {
 namespace flags_internal {
 namespace {
 
+absl::string_view TypenameForHelp(const flags_internal::CommandLineFlag& flag) {
+  // Only report names of v1 built-in types
+#define HANDLE_V1_BUILTIN_TYPE(t) \
+  if (flag.IsOfType<t>()) {       \
+    return #t;                    \
+  }
+
+  HANDLE_V1_BUILTIN_TYPE(bool);
+  HANDLE_V1_BUILTIN_TYPE(int32_t);
+  HANDLE_V1_BUILTIN_TYPE(int64_t);
+  HANDLE_V1_BUILTIN_TYPE(uint64_t);
+  HANDLE_V1_BUILTIN_TYPE(double);
+#undef HANDLE_V1_BUILTIN_TYPE
+
+  if (flag.IsOfType<std::string>()) {
+    return "string";
+  }
+
+  return "";
+}
+
 // This class is used to emit an XML element with `tag` and `text`.
 // It adds opening and closing tags and escapes special characters in the text.
 // For example:
@@ -111,14 +132,28 @@ class FlagHelpPrettyPrinter {
 
     std::vector<absl::string_view> tokens;
     if (wrap_line) {
-      tokens = absl::StrSplit(str, absl::ByAnyChar(" \f\n\r\t\v"),
-                              absl::SkipEmpty());
+      for (auto line : absl::StrSplit(str, absl::ByAnyChar("\n\r"))) {
+        if (!tokens.empty()) {
+          // Keep line separators in the input std::string.
+          tokens.push_back("\n");
+        }
+        for (auto token :
+             absl::StrSplit(line, absl::ByAnyChar(" \t"), absl::SkipEmpty())) {
+          tokens.push_back(token);
+        }
+      }
     } else {
       tokens.push_back(str);
     }
 
     for (auto token : tokens) {
       bool new_line = (line_len_ == 0);
+
+      // Respect line separators in the input std::string.
+      if (token == "\n") {
+        EndLine();
+        continue;
+      }
 
       // Write the token, ending the std::string first if necessary/possible.
       if (!new_line && (line_len_ + token.size() >= max_line_len_)) {
@@ -172,7 +207,7 @@ void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
 
   // Flag data type (for V1 flags only).
   if (!flag.IsAbseilFlag() && !flag.IsRetired()) {
-    printer.Write(absl::StrCat("type: ", flag.Typename(), ";"));
+    printer.Write(absl::StrCat("type: ", TypenameForHelp(flag), ";"));
   }
 
   // The listed default value will be the actual default from the flag
@@ -209,6 +244,9 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   } else {
     // XML schema is not a part of our public API for now.
     out << "<?xml version=\"1.0\"?>\n"
+        << "<!-- This output should be used with care. We do not report type "
+           "names for flags with user defined types -->\n"
+        << "<!-- Prefer flag only_check_args for validating flag inputs -->\n"
         // The document.
         << "<AllFlags>\n"
         // The program name and usage.

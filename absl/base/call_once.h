@@ -142,6 +142,7 @@ enum {
 };
 
 template <typename Callable, typename... Args>
+ABSL_ATTRIBUTE_NOINLINE
 void CallOnceImpl(std::atomic<uint32_t>* control,
                   base_internal::SchedulingMode scheduling_mode, Callable&& fn,
                   Args&&... args) {

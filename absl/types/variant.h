@@ -24,7 +24,7 @@
 // should always hold a value of one of its alternative types (except in the
 // "valueless by exception state" -- see below). A default-constructed
 // `absl::variant` will hold the value of its first alternative type, provided
-// it is default-constructable.
+// it is default-constructible.
 //
 // In exceptional cases due to error, an `absl::variant` can hold no
 // value (known as a "valueless by exception" state), though this is not the
@@ -45,7 +45,7 @@
 #include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_VARIANT
+#ifdef ABSL_USES_STD_VARIANT
 
 #include <variant>  // IWYU pragma: export
 
@@ -64,7 +64,7 @@ using std::variant_size_v;
 using std::visit;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_VARIANT
+#else  // ABSL_USES_STD_VARIANT
 
 #include <functional>
 #include <new>
@@ -92,7 +92,7 @@ namespace absl {
 //   // assign it to a std::string.
 //   absl::variant<int, std::string> v = std::string("abc");
 //
-//   // A default-contructed variant will hold a value-initialized value of
+//   // A default-constructed variant will hold a value-initialized value of
 //   // the first alternative type.
 //   auto a = absl::variant<int, std::string>();   // Holds an int of value '0'.
 //
@@ -812,7 +812,7 @@ struct hash<absl::variant<T...>>
 
 }  // namespace std
 
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 namespace absl {
 namespace variant_internal {

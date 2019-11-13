@@ -88,8 +88,8 @@ class BlockingCounter {
 
  private:
   Mutex lock_;
-  int count_ GUARDED_BY(lock_);
-  int num_waiting_ GUARDED_BY(lock_);
+  int count_ ABSL_GUARDED_BY(lock_);
+  int num_waiting_ ABSL_GUARDED_BY(lock_);
 };
 
 }  // namespace absl

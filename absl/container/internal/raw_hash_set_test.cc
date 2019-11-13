@@ -1837,7 +1837,7 @@ TEST(TableDeathTest, EraseOfEndAsserts) {
 
   IntTable t;
   // Extra simple "regexp" as regexp support is highly varied across platforms.
-  constexpr char kDeathMsg[] = "it != end";
+  constexpr char kDeathMsg[] = "IsFull";
   EXPECT_DEATH_IF_SUPPORTED(t.erase(t.end()), kDeathMsg);
 }
 

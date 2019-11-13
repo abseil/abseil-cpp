@@ -400,6 +400,12 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 // This function is functionally equivalent to `std::snprintf()` (and
 // type-safe); prefer `absl::SNPrintF()` over `std::snprintf()`.
 //
+// In particular, a successful call to `absl::SNPrintF()` writes at most `size`
+// bytes of the formatted output to `output`, including a null terminator, and
+// returns the number of bytes that would have been written if truncation did
+// not occur. In the event of an error, a negative value is returned and `errno`
+// is set.
+//
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";

@@ -17,6 +17,7 @@
 #include "absl/strings/numbers.h"
 
 #include <sys/types.h>
+
 #include <cfenv>  // NOLINT(build/c++11)
 #include <cinttypes>
 #include <climits>
@@ -36,10 +37,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/strings/str_cat.h"
-
+#include "absl/random/distributions.h"
+#include "absl/random/random.h"
 #include "absl/strings/internal/numbers_test_common.h"
 #include "absl/strings/internal/pow10_helper.h"
+#include "absl/strings/str_cat.h"
 
 namespace {
 
@@ -203,6 +205,9 @@ void CheckHex64(uint64_t v) {
   char expected[16 + 1];
   std::string actual = absl::StrCat(absl::Hex(v, absl::kZeroPad16));
   snprintf(expected, sizeof(expected), "%016" PRIx64, static_cast<uint64_t>(v));
+  EXPECT_EQ(expected, actual) << " Input " << v;
+  actual = absl::StrCat(absl::Hex(v, absl::kSpacePad16));
+  snprintf(expected, sizeof(expected), "%16" PRIx64, static_cast<uint64_t>(v));
   EXPECT_EQ(expected, actual) << " Input " << v;
 }
 
@@ -713,11 +718,11 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
   }
 }
 
-// feenableexcept() and fedisableexcept() are missing on Mac OS X, MSVC,
-// and WebAssembly.
-#if defined(_MSC_VER) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
-#define ABSL_MISSING_FEENABLEEXCEPT 1
-#define ABSL_MISSING_FEDISABLEEXCEPT 1
+// feenableexcept() and fedisableexcept() are extensions supported by some libc
+// implementations.
+#if defined(__GLIBC__) || defined(__BIONIC__)
+#define ABSL_HAVE_FEENABLEEXCEPT 1
+#define ABSL_HAVE_FEDISABLEEXCEPT 1
 #endif
 
 class SimpleDtoaTest : public testing::Test {
@@ -725,7 +730,7 @@ class SimpleDtoaTest : public testing::Test {
   void SetUp() override {
     // Store the current floating point env & clear away any pending exceptions.
     feholdexcept(&fp_env_);
-#ifndef ABSL_MISSING_FEENABLEEXCEPT
+#ifdef ABSL_HAVE_FEENABLEEXCEPT
     // Turn on floating point exceptions.
     feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
@@ -735,7 +740,7 @@ class SimpleDtoaTest : public testing::Test {
     // Restore the floating point environment to the original state.
     // In theory fedisableexcept is unnecessary; fesetenv will also do it.
     // In practice, our toolchains have subtle bugs.
-#ifndef ABSL_MISSING_FEDISABLEEXCEPT
+#ifdef ABSL_HAVE_FEDISABLEEXCEPT
     fedisableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
     fesetenv(&fp_env_);
@@ -1181,6 +1186,30 @@ TEST(StrToUint64Base, PrefixOnly) {
       EXPECT_EQ(line.status, status) << line.input << " " << base;
       EXPECT_EQ(line.value, value) << line.input << " " << base;
     }
+  }
+}
+
+void TestFastHexToBufferZeroPad16(uint64_t v) {
+  char buf[16];
+  auto digits = absl::numbers_internal::FastHexToBufferZeroPad16(v, buf);
+  absl::string_view res(buf, 16);
+  char buf2[17];
+  snprintf(buf2, sizeof(buf2), "%016" PRIx64, v);
+  EXPECT_EQ(res, buf2) << v;
+  size_t expected_digits = snprintf(buf2, sizeof(buf2), "%" PRIx64, v);
+  EXPECT_EQ(digits, expected_digits) << v;
+}
+
+TEST(FastHexToBufferZeroPad16, Smoke) {
+  TestFastHexToBufferZeroPad16(std::numeric_limits<uint64_t>::min());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<uint64_t>::max());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<int64_t>::min());
+  TestFastHexToBufferZeroPad16(std::numeric_limits<int64_t>::max());
+  absl::BitGen rng;
+  for (int i = 0; i < 100000; ++i) {
+    TestFastHexToBufferZeroPad16(
+        absl::LogUniform(rng, std::numeric_limits<uint64_t>::min(),
+                         std::numeric_limits<uint64_t>::max()));
   }
 }
 

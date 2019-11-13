@@ -37,7 +37,7 @@ static base_internal::ThreadIdentity* thread_identity_freelist;
 
 // A per-thread destructor for reclaiming associated ThreadIdentity objects.
 // Since we must preserve their storage we cache them for re-use.
-static void ReclaimThreadIdentity(void* v) {
+void ReclaimThreadIdentity(void* v) {
   base_internal::ThreadIdentity* identity =
       static_cast<base_internal::ThreadIdentity*>(v);
 
@@ -46,6 +46,8 @@ static void ReclaimThreadIdentity(void* v) {
   if (identity->per_thread_synch.all_locks != nullptr) {
     base_internal::LowLevelAlloc::Free(identity->per_thread_synch.all_locks);
   }
+
+  PerThreadSem::Destroy(identity);
 
   // We must explicitly clear the current thread's identity:
   // (a) Subsequent (unrelated) per-thread destructors may require an identity.
@@ -84,7 +86,6 @@ static void ResetThreadIdentity(base_internal::ThreadIdentity* identity) {
   pts->wake = false;
   pts->cond_waiter = false;
   pts->all_locks = nullptr;
-  identity->waiter_state = {};
   identity->blocked_count_ptr = nullptr;
   identity->ticker.store(0, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);

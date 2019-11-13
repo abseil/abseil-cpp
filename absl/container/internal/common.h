@@ -117,7 +117,7 @@ class node_handle_base {
 template <typename Policy, typename PolicyTraits, typename Alloc,
           typename = void>
 class node_handle : public node_handle_base<PolicyTraits, Alloc> {
-  using Base = typename node_handle::node_handle_base;
+  using Base = node_handle_base<PolicyTraits, Alloc>;
 
  public:
   using value_type = typename PolicyTraits::value_type;
@@ -137,7 +137,7 @@ template <typename Policy, typename PolicyTraits, typename Alloc>
 class node_handle<Policy, PolicyTraits, Alloc,
                   absl::void_t<typename Policy::mapped_type>>
     : public node_handle_base<PolicyTraits, Alloc> {
-  using Base = typename node_handle::node_handle_base;
+  using Base = node_handle_base<PolicyTraits, Alloc>;
 
  public:
   using key_type = typename Policy::key_type;

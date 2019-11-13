@@ -339,7 +339,7 @@ std::string ZParamName(const ::testing::TestParamInfo<ZParam>& info) {
   return absl::StrReplaceAll(name, {{"+", "_"}, {"-", "_"}, {".", "_"}});
 }
 
-INSTANTIATE_TEST_SUITE_P(, PoissonDistributionZTest,
+INSTANTIATE_TEST_SUITE_P(All, PoissonDistributionZTest,
                          ::testing::ValuesIn(GetZParams()), ZParamName);
 
 // The PoissonDistributionChiSquaredTest class provides a basic test framework
@@ -468,7 +468,7 @@ TEST_P(PoissonDistributionChiSquaredTest, AbslPoissonDistribution) {
   EXPECT_LE(failures, 4);
 }
 
-INSTANTIATE_TEST_SUITE_P(, PoissonDistributionChiSquaredTest,
+INSTANTIATE_TEST_SUITE_P(All, PoissonDistributionChiSquaredTest,
                          ::testing::Values(0.5, 1.0, 2.0, 10.0, 50.0, 51.0,
                                            200.0));
 

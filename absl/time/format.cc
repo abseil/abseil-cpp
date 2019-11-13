@@ -129,6 +129,14 @@ bool ParseTime(const std::string& format, const std::string& input,
 }
 
 // Functions required to support absl::Time flags.
+bool AbslParseFlag(absl::string_view text, absl::Time* t, std::string* error) {
+  return absl::ParseTime(RFC3339_full, std::string(text), absl::UTCTimeZone(),
+                         t, error);
+}
+
+std::string AbslUnparseFlag(absl::Time t) {
+  return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
+}
 bool ParseFlag(const std::string& text, absl::Time* t, std::string* error) {
   return absl::ParseTime(RFC3339_full, text, absl::UTCTimeZone(), t, error);
 }

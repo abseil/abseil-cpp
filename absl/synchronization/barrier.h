@@ -69,8 +69,8 @@ class Barrier {
 
  private:
   Mutex lock_;
-  int num_to_block_ GUARDED_BY(lock_);
-  int num_to_exit_ GUARDED_BY(lock_);
+  int num_to_block_ ABSL_GUARDED_BY(lock_);
+  int num_to_exit_ ABSL_GUARDED_BY(lock_);
 };
 
 }  // namespace absl

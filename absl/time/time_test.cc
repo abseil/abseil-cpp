@@ -795,6 +795,30 @@ TEST(Time, FromTM) {
   tm.tm_isdst = 1;
   t = FromTM(tm, nyc);
   EXPECT_EQ("2014-03-09T03:30:42-04:00", absl::FormatTime(t, nyc));  // DST
+
+  // Adjusts tm to refer to a time with a year larger than 2147483647.
+  tm.tm_year = 2147483647 - 1900 + 1;
+  tm.tm_mon = 6 - 1;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("2147483648-06-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
+
+  // Adjusts tm to refer to a time with a very large month.
+  tm.tm_year = 2019 - 1900;
+  tm.tm_mon = 2147483647;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("178958989-08-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
 }
 
 TEST(Time, TMRoundTrip) {

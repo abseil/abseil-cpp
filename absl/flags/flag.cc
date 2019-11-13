@@ -41,4 +41,18 @@ ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_ATOMIC_GET)
 
 #undef ABSL_FLAGS_ATOMIC_GET
 
+// This global nutex protects on-demand construction of flag objects in MSVC
+// builds.
+#if defined(_MSC_VER) && !defined(__clang__)
+
+namespace flags_internal {
+
+ABSL_CONST_INIT static absl::Mutex construction_guard(absl::kConstInit);
+
+absl::Mutex* GetGlobalConstructionGuard() { return &construction_guard; }
+
+}  // namespace flags_internal
+
+#endif
+
 }  // namespace absl

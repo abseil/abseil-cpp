@@ -24,6 +24,10 @@
 #ifndef ABSL_STRINGS_NUMBERS_H_
 #define ABSL_STRINGS_NUMBERS_H_
 
+#ifdef __SSE4_2__
+#include <x86intrin.h>
+#endif
+
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -32,6 +36,15 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/internal/bits.h"
+#ifdef __SSE4_2__
+// TODO(jorg): Remove this when we figure out the right way
+// to swap bytes on SSE 4.2 that works with the compilers
+// we claim to support.  Also, add tests for the compiler
+// that doesn't support the Intel _bswap64 intrinsic but
+// does support all the SSE 4.2 intrinsics
+#include "absl/base/internal/endian.h"
+#endif
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/numeric/int128.h"
@@ -47,14 +60,15 @@ namespace absl {
 // integer type. If any errors are encountered, this function returns `false`,
 // leaving `out` in an unspecified state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out);
+ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str, int_type* out);
 
 // SimpleAtof()
 //
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a float, which may be rounded on overflow or underflow.
 // See https://en.cppreference.com/w/c/string/byte/strtof for details about the
-// allowed formats for `str`. If any errors are encountered, this function
+// allowed formats for `str`, except SimpleAtof() is locale-indepdent and will
+// always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
 ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* out);
 
@@ -63,7 +77,8 @@ ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str, float* out);
 // Converts the given string (optionally followed or preceded by ASCII
 // whitespace) into a double, which may be rounded on overflow or underflow.
 // See https://en.cppreference.com/w/c/string/byte/strtof for details about the
-// allowed formats for `str`. If any errors are encountered, this function
+// allowed formats for `str`, except SimpleAtod is locale-independent and will
+// always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
 ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* out);
 
@@ -83,6 +98,10 @@ ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* out);
 
 namespace absl {
 namespace numbers_internal {
+
+// Digit conversion.
+extern const char kHexChar[17];    // 0123456789abcdef
+extern const char kHexTable[513];  // 000102030405060708090a0b0c0d0e0f1011...
 
 // safe_strto?() functions for implementing SimpleAtoi()
 bool safe_strto32_base(absl::string_view text, int32_t* value, int base);
@@ -170,6 +189,35 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
   return parsed;
 }
 
+// FastHexToBufferZeroPad16()
+//
+// Outputs `val` into `out` as if by `snprintf(out, 17, "%016x", val)` but
+// without the terminating null character. Thus `out` must be of length >= 16.
+// Returns the number of non-pad digits of the output (it can never be zero
+// since 0 has one digit).
+inline size_t FastHexToBufferZeroPad16(uint64_t val, char* out) {
+#ifdef __SSE4_2__
+  uint64_t be = absl::big_endian::FromHost64(val);
+  const auto kNibbleMask = _mm_set1_epi8(0xf);
+  const auto kHexDigits = _mm_setr_epi8('0', '1', '2', '3', '4', '5', '6', '7',
+                                        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f');
+  auto v = _mm_loadl_epi64(reinterpret_cast<__m128i*>(&be));  // load lo dword
+  auto v4 = _mm_srli_epi64(v, 4);                            // shift 4 right
+  auto il = _mm_unpacklo_epi8(v4, v);                        // interleave bytes
+  auto m = _mm_and_si128(il, kNibbleMask);                   // mask out nibbles
+  auto hexchars = _mm_shuffle_epi8(kHexDigits, m);           // hex chars
+  _mm_storeu_si128(reinterpret_cast<__m128i*>(out), hexchars);
+#else
+  for (int i = 0; i < 8; ++i) {
+    auto byte = (val >> (56 - 8 * i)) & 0xFF;
+    auto* hex = &absl::numbers_internal::kHexTable[byte * 2];
+    std::memcpy(out + 2 * i, hex, 2);
+  }
+#endif
+  // | 0x1 so that even 0 has 1 digit.
+  return 16 - absl::base_internal::CountLeadingZeros64(val | 0x1) / 4;
+}
+
 }  // namespace numbers_internal
 
 // SimpleAtoi()
@@ -180,8 +228,8 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s, int_type* out,
 // preceded by ASCII whitespace, with a value in the range of the corresponding
 // integer type.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view s, int_type* out) {
-  return numbers_internal::safe_strtoi_base(s, out, 10);
+ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str, int_type* out) {
+  return numbers_internal::safe_strtoi_base(str, out, 10);
 }
 
 }  // namespace absl

@@ -264,6 +264,6 @@ std::basic_istream<CharT, Traits>& operator>>(
   return is;
 }
 
-}  // namespace absl.
+}  // namespace absl
 
 #endif  // ABSL_RANDOM_ZIPF_DISTRIBUTION_H_

@@ -14,6 +14,10 @@
 
 #include "absl/memory/memory.h"
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_safety_testing.h"
 
@@ -50,3 +54,5 @@ TEST(MakeUnique, CheckForLeaks) {
 
 }  // namespace
 }  // namespace absl
+
+#endif  // ABSL_HAVE_EXCEPTIONS

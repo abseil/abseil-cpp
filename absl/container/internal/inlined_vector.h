@@ -15,9 +15,11 @@
 #ifndef ABSL_CONTAINER_INTERNAL_INLINED_VECTOR_INTERNAL_H_
 #define ABSL_CONTAINER_INTERNAL_INLINED_VECTOR_INTERNAL_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -35,16 +37,17 @@ using IsAtLeastForwardIterator = std::is_convertible<
     typename std::iterator_traits<Iterator>::iterator_category,
     std::forward_iterator_tag>;
 
-template <typename AllocatorType>
-using IsMemcpyOk = absl::conjunction<
-    std::is_same<std::allocator<typename AllocatorType::value_type>,
-                 AllocatorType>,
-    absl::is_trivially_copy_constructible<typename AllocatorType::value_type>,
-    absl::is_trivially_copy_assignable<typename AllocatorType::value_type>,
-    absl::is_trivially_destructible<typename AllocatorType::value_type>>;
+template <typename AllocatorType,
+          typename ValueType =
+              typename absl::allocator_traits<AllocatorType>::value_type>
+using IsMemcpyOk =
+    absl::conjunction<std::is_same<AllocatorType, std::allocator<ValueType>>,
+                      absl::is_trivially_copy_constructible<ValueType>,
+                      absl::is_trivially_copy_assignable<ValueType>,
+                      absl::is_trivially_destructible<ValueType>>;
 
-template <typename AllocatorType, typename ValueType, typename SizeType>
-void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
+template <typename AllocatorType, typename Pointer, typename SizeType>
+void DestroyElements(AllocatorType* alloc_ptr, Pointer destroy_first,
                      SizeType destroy_size) {
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
 
@@ -54,37 +57,40 @@ void DestroyElements(AllocatorType* alloc_ptr, ValueType* destroy_first,
       AllocatorTraits::destroy(*alloc_ptr, destroy_first + i);
     }
 
-#ifndef NDEBUG
-    // Overwrite unused memory with `0xab` so we can catch uninitialized usage.
-    //
-    // Cast to `void*` to tell the compiler that we don't care that we might be
-    // scribbling on a vtable pointer.
-    auto* memory_ptr = static_cast<void*>(destroy_first);
-    auto memory_size = sizeof(ValueType) * destroy_size;
-    std::memset(memory_ptr, 0xab, memory_size);
-#endif  // NDEBUG
+#if !defined(NDEBUG)
+    {
+      using ValueType = typename AllocatorTraits::value_type;
+
+      // Overwrite unused memory with `0xab` so we can catch uninitialized
+      // usage.
+      //
+      // Cast to `void*` to tell the compiler that we don't care that we might
+      // be scribbling on a vtable pointer.
+      void* memory_ptr = destroy_first;
+      auto memory_size = destroy_size * sizeof(ValueType);
+      std::memset(memory_ptr, 0xab, memory_size);
+    }
+#endif  // !defined(NDEBUG)
   }
 }
 
-template <typename AllocatorType, typename ValueType, typename ValueAdapter,
+template <typename AllocatorType, typename Pointer, typename ValueAdapter,
           typename SizeType>
-void ConstructElements(AllocatorType* alloc_ptr, ValueType* construct_first,
+void ConstructElements(AllocatorType* alloc_ptr, Pointer construct_first,
                        ValueAdapter* values_ptr, SizeType construct_size) {
-  // If any construction fails, all completed constructions are rolled back.
   for (SizeType i = 0; i < construct_size; ++i) {
     ABSL_INTERNAL_TRY {
       values_ptr->ConstructNext(alloc_ptr, construct_first + i);
     }
     ABSL_INTERNAL_CATCH_ANY {
       inlined_vector_internal::DestroyElements(alloc_ptr, construct_first, i);
-
       ABSL_INTERNAL_RETHROW;
     }
   }
 }
 
-template <typename ValueType, typename ValueAdapter, typename SizeType>
-void AssignElements(ValueType* assign_first, ValueAdapter* values_ptr,
+template <typename Pointer, typename ValueAdapter, typename SizeType>
+void AssignElements(Pointer assign_first, ValueAdapter* values_ptr,
                     SizeType assign_size) {
   for (SizeType i = 0; i < assign_size; ++i) {
     values_ptr->AssignNext(assign_first + i);
@@ -93,28 +99,29 @@ void AssignElements(ValueType* assign_first, ValueAdapter* values_ptr,
 
 template <typename AllocatorType>
 struct StorageView {
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
-  pointer data;
-  size_type size;
-  size_type capacity;
+  Pointer data;
+  SizeType size;
+  SizeType capacity;
 };
 
 template <typename AllocatorType, typename Iterator>
 class IteratorValueAdapter {
-  using pointer = typename AllocatorType::pointer;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
 
  public:
   explicit IteratorValueAdapter(const Iterator& it) : it_(it) {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at, *it_);
     ++it_;
   }
 
-  void AssignNext(pointer assign_at) {
+  void AssignNext(Pointer assign_at) {
     *assign_at = *it_;
     ++it_;
   }
@@ -125,64 +132,49 @@ class IteratorValueAdapter {
 
 template <typename AllocatorType>
 class CopyValueAdapter {
-  using pointer = typename AllocatorType::pointer;
-  using const_pointer = typename AllocatorType::const_pointer;
-  using const_reference = typename AllocatorType::const_reference;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using ValueType = typename AllocatorTraits::value_type;
+  using Pointer = typename AllocatorTraits::pointer;
+  using ConstPointer = typename AllocatorTraits::const_pointer;
 
  public:
-  explicit CopyValueAdapter(const_reference v) : ptr_(std::addressof(v)) {}
+  explicit CopyValueAdapter(const ValueType& v) : ptr_(std::addressof(v)) {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at, *ptr_);
   }
 
-  void AssignNext(pointer assign_at) { *assign_at = *ptr_; }
+  void AssignNext(Pointer assign_at) { *assign_at = *ptr_; }
 
  private:
-  const_pointer ptr_;
+  ConstPointer ptr_;
 };
 
 template <typename AllocatorType>
 class DefaultValueAdapter {
-  using pointer = typename AllocatorType::pointer;
-  using value_type = typename AllocatorType::value_type;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using ValueType = typename AllocatorTraits::value_type;
+  using Pointer = typename AllocatorTraits::pointer;
 
  public:
   explicit DefaultValueAdapter() {}
 
-  void ConstructNext(AllocatorType* alloc_ptr, pointer construct_at) {
+  void ConstructNext(AllocatorType* alloc_ptr, Pointer construct_at) {
     AllocatorTraits::construct(*alloc_ptr, construct_at);
   }
 
-  void AssignNext(pointer assign_at) { *assign_at = value_type(); }
+  void AssignNext(Pointer assign_at) { *assign_at = ValueType(); }
 };
 
 template <typename AllocatorType>
 class AllocationTransaction {
-  using value_type = typename AllocatorType::value_type;
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
   using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
  public:
   explicit AllocationTransaction(AllocatorType* alloc_ptr)
       : alloc_data_(*alloc_ptr, nullptr) {}
-
-  AllocationTransaction(const AllocationTransaction&) = delete;
-  void operator=(const AllocationTransaction&) = delete;
-
-  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
-  pointer& GetData() { return alloc_data_.template get<1>(); }
-  size_type& GetCapacity() { return capacity_; }
-
-  bool DidAllocate() { return GetData() != nullptr; }
-  pointer Allocate(size_type capacity) {
-    GetData() = AllocatorTraits::allocate(GetAllocator(), capacity);
-    GetCapacity() = capacity;
-    return GetData();
-  }
 
   ~AllocationTransaction() {
     if (DidAllocate()) {
@@ -190,25 +182,57 @@ class AllocationTransaction {
     }
   }
 
+  AllocationTransaction(const AllocationTransaction&) = delete;
+  void operator=(const AllocationTransaction&) = delete;
+
+  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
+  Pointer& GetData() { return alloc_data_.template get<1>(); }
+  SizeType& GetCapacity() { return capacity_; }
+
+  bool DidAllocate() { return GetData() != nullptr; }
+  Pointer Allocate(SizeType capacity) {
+    GetData() = AllocatorTraits::allocate(GetAllocator(), capacity);
+    GetCapacity() = capacity;
+    return GetData();
+  }
+
+  void Reset() {
+    GetData() = nullptr;
+    GetCapacity() = 0;
+  }
+
  private:
-  container_internal::CompressedTuple<AllocatorType, pointer> alloc_data_;
-  size_type capacity_ = 0;
+  container_internal::CompressedTuple<AllocatorType, Pointer> alloc_data_;
+  SizeType capacity_ = 0;
 };
 
 template <typename AllocatorType>
 class ConstructionTransaction {
-  using pointer = typename AllocatorType::pointer;
-  using size_type = typename AllocatorType::size_type;
+  using AllocatorTraits = absl::allocator_traits<AllocatorType>;
+  using Pointer = typename AllocatorTraits::pointer;
+  using SizeType = typename AllocatorTraits::size_type;
 
  public:
   explicit ConstructionTransaction(AllocatorType* alloc_ptr)
       : alloc_data_(*alloc_ptr, nullptr) {}
 
+  ~ConstructionTransaction() {
+    if (DidConstruct()) {
+      inlined_vector_internal::DestroyElements(std::addressof(GetAllocator()),
+                                               GetData(), GetSize());
+    }
+  }
+
   ConstructionTransaction(const ConstructionTransaction&) = delete;
   void operator=(const ConstructionTransaction&) = delete;
 
+  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
+  Pointer& GetData() { return alloc_data_.template get<1>(); }
+  SizeType& GetSize() { return size_; }
+
+  bool DidConstruct() { return GetData() != nullptr; }
   template <typename ValueAdapter>
-  void Construct(pointer data, ValueAdapter* values_ptr, size_type size) {
+  void Construct(Pointer data, ValueAdapter* values_ptr, SizeType size) {
     inlined_vector_internal::ConstructElements(std::addressof(GetAllocator()),
                                                data, values_ptr, size);
     GetData() = data;
@@ -219,40 +243,30 @@ class ConstructionTransaction {
     GetSize() = 0;
   }
 
-  ~ConstructionTransaction() {
-    if (GetData() != nullptr) {
-      inlined_vector_internal::DestroyElements(std::addressof(GetAllocator()),
-                                               GetData(), GetSize());
-    }
-  }
-
  private:
-  AllocatorType& GetAllocator() { return alloc_data_.template get<0>(); }
-  pointer& GetData() { return alloc_data_.template get<1>(); }
-  size_type& GetSize() { return size_; }
-
-  container_internal::CompressedTuple<AllocatorType, pointer> alloc_data_;
-  size_type size_ = 0;
+  container_internal::CompressedTuple<AllocatorType, Pointer> alloc_data_;
+  SizeType size_ = 0;
 };
 
 template <typename T, size_t N, typename A>
 class Storage {
  public:
-  using allocator_type = A;
-  using value_type = typename allocator_type::value_type;
-  using pointer = typename allocator_type::pointer;
-  using const_pointer = typename allocator_type::const_pointer;
-  using reference = typename allocator_type::reference;
-  using const_reference = typename allocator_type::const_reference;
-  using rvalue_reference = typename allocator_type::value_type&&;
-  using size_type = typename allocator_type::size_type;
-  using difference_type = typename allocator_type::difference_type;
+  using AllocatorTraits = absl::allocator_traits<A>;
+  using allocator_type = typename AllocatorTraits::allocator_type;
+  using value_type = typename AllocatorTraits::value_type;
+  using pointer = typename AllocatorTraits::pointer;
+  using const_pointer = typename AllocatorTraits::const_pointer;
+  using size_type = typename AllocatorTraits::size_type;
+  using difference_type = typename AllocatorTraits::difference_type;
+
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using RValueReference = value_type&&;
   using iterator = pointer;
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using MoveIterator = std::move_iterator<iterator>;
-  using AllocatorTraits = absl::allocator_traits<allocator_type>;
   using IsMemcpyOk = inlined_vector_internal::IsMemcpyOk<allocator_type>;
 
   using StorageView = inlined_vector_internal::StorageView<allocator_type>;
@@ -270,10 +284,22 @@ class Storage {
   using ConstructionTransaction =
       inlined_vector_internal::ConstructionTransaction<allocator_type>;
 
+  static size_type NextCapacity(size_type current_capacity) {
+    return current_capacity * 2;
+  }
+
+  static size_type ComputeCapacity(size_type current_capacity,
+                                   size_type requested_capacity) {
+    return (std::max)(NextCapacity(current_capacity), requested_capacity);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Storage Constructors and Destructor
+  // ---------------------------------------------------------------------------
+
   Storage() : metadata_() {}
 
-  explicit Storage(const allocator_type& alloc)
-      : metadata_(alloc, /* empty and inlined */ 0) {}
+  explicit Storage(const allocator_type& alloc) : metadata_(alloc, {}) {}
 
   ~Storage() {
     pointer data = GetIsAllocated() ? GetAllocatedData() : GetInlinedData();
@@ -281,9 +307,25 @@ class Storage {
     DeallocateIfAllocated();
   }
 
+  // ---------------------------------------------------------------------------
+  // Storage Member Accessors
+  // ---------------------------------------------------------------------------
+
+  size_type& GetSizeAndIsAllocated() { return metadata_.template get<1>(); }
+
+  const size_type& GetSizeAndIsAllocated() const {
+    return metadata_.template get<1>();
+  }
+
   size_type GetSize() const { return GetSizeAndIsAllocated() >> 1; }
 
   bool GetIsAllocated() const { return GetSizeAndIsAllocated() & 1; }
+
+  pointer GetAllocatedData() { return data_.allocated.allocated_data; }
+
+  const_pointer GetAllocatedData() const {
+    return data_.allocated.allocated_data;
+  }
 
   pointer GetInlinedData() {
     return reinterpret_cast<pointer>(
@@ -295,21 +337,17 @@ class Storage {
         std::addressof(data_.inlined.inlined_data[0]));
   }
 
-  pointer GetAllocatedData() { return data_.allocated.allocated_data; }
-
-  const_pointer GetAllocatedData() const {
-    return data_.allocated.allocated_data;
-  }
-
   size_type GetAllocatedCapacity() const {
     return data_.allocated.allocated_capacity;
   }
 
+  size_type GetInlinedCapacity() const { return static_cast<size_type>(N); }
+
   StorageView MakeStorageView() {
-    return GetIsAllocated() ? StorageView{GetAllocatedData(), GetSize(),
-                                          GetAllocatedCapacity()}
-                            : StorageView{GetInlinedData(), GetSize(),
-                                          static_cast<size_type>(N)};
+    return GetIsAllocated()
+               ? StorageView{GetAllocatedData(), GetSize(),
+                             GetAllocatedCapacity()}
+               : StorageView{GetInlinedData(), GetSize(), GetInlinedCapacity()};
   }
 
   allocator_type* GetAllocPtr() {
@@ -320,56 +358,9 @@ class Storage {
     return std::addressof(metadata_.template get<0>());
   }
 
-  void SetIsAllocated() { GetSizeAndIsAllocated() |= 1; }
-
-  void UnsetIsAllocated() {
-    SetIsAllocated();
-    GetSizeAndIsAllocated() -= 1;
-  }
-
-  void SetAllocatedSize(size_type size) {
-    GetSizeAndIsAllocated() = (size << 1) | static_cast<size_type>(1);
-  }
-
-  void SetInlinedSize(size_type size) { GetSizeAndIsAllocated() = size << 1; }
-
-  void SetSize(size_type size) {
-    GetSizeAndIsAllocated() =
-        (size << 1) | static_cast<size_type>(GetIsAllocated());
-  }
-
-  void AddSize(size_type count) { GetSizeAndIsAllocated() += count << 1; }
-
-  void SubtractSize(size_type count) {
-    assert(count <= GetSize());
-    GetSizeAndIsAllocated() -= count << 1;
-  }
-
-  void SetAllocatedData(pointer data, size_type capacity) {
-    data_.allocated.allocated_data = data;
-    data_.allocated.allocated_capacity = capacity;
-  }
-
-  void DeallocateIfAllocated() {
-    if (GetIsAllocated()) {
-      AllocatorTraits::deallocate(*GetAllocPtr(), GetAllocatedData(),
-                                  GetAllocatedCapacity());
-    }
-  }
-
-  void AcquireAllocation(AllocationTransaction* allocation_tx_ptr) {
-    SetAllocatedData(allocation_tx_ptr->GetData(),
-                     allocation_tx_ptr->GetCapacity());
-    allocation_tx_ptr->GetData() = nullptr;
-    allocation_tx_ptr->GetCapacity() = 0;
-  }
-
-  void MemcpyFrom(const Storage& other_storage) {
-    assert(IsMemcpyOk::value || other_storage.GetIsAllocated());
-
-    GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
-    data_ = other_storage.data_;
-  }
+  // ---------------------------------------------------------------------------
+  // Storage Member Mutators
+  // ---------------------------------------------------------------------------
 
   template <typename ValueAdapter>
   void Initialize(ValueAdapter values, size_type new_size);
@@ -379,6 +370,10 @@ class Storage {
 
   template <typename ValueAdapter>
   void Resize(ValueAdapter values, size_type new_size);
+
+  template <typename ValueAdapter>
+  iterator Insert(const_iterator pos, ValueAdapter values,
+                  size_type insert_count);
 
   template <typename... Args>
   reference EmplaceBack(Args&&... args);
@@ -391,27 +386,64 @@ class Storage {
 
   void Swap(Storage* other_storage_ptr);
 
- private:
-  size_type& GetSizeAndIsAllocated() { return metadata_.template get<1>(); }
-
-  const size_type& GetSizeAndIsAllocated() const {
-    return metadata_.template get<1>();
+  void SetIsAllocated() {
+    GetSizeAndIsAllocated() |= static_cast<size_type>(1);
   }
 
-  static size_type NextCapacityFrom(size_type current_capacity) {
-    return current_capacity * 2;
+  void UnsetIsAllocated() {
+    GetSizeAndIsAllocated() &= ((std::numeric_limits<size_type>::max)() - 1);
   }
 
-  static size_type LegacyNextCapacityFrom(size_type current_capacity,
-                                          size_type requested_capacity) {
-    // TODO(johnsoncj): Get rid of this old behavior.
-    size_type new_capacity = current_capacity;
-    while (new_capacity < requested_capacity) {
-      new_capacity *= 2;
+  void SetSize(size_type size) {
+    GetSizeAndIsAllocated() =
+        (size << 1) | static_cast<size_type>(GetIsAllocated());
+  }
+
+  void SetAllocatedSize(size_type size) {
+    GetSizeAndIsAllocated() = (size << 1) | static_cast<size_type>(1);
+  }
+
+  void SetInlinedSize(size_type size) {
+    GetSizeAndIsAllocated() = size << static_cast<size_type>(1);
+  }
+
+  void AddSize(size_type count) {
+    GetSizeAndIsAllocated() += count << static_cast<size_type>(1);
+  }
+
+  void SubtractSize(size_type count) {
+    assert(count <= GetSize());
+
+    GetSizeAndIsAllocated() -= count << static_cast<size_type>(1);
+  }
+
+  void SetAllocatedData(pointer data, size_type capacity) {
+    data_.allocated.allocated_data = data;
+    data_.allocated.allocated_capacity = capacity;
+  }
+
+  void AcquireAllocatedData(AllocationTransaction* allocation_tx_ptr) {
+    SetAllocatedData(allocation_tx_ptr->GetData(),
+                     allocation_tx_ptr->GetCapacity());
+
+    allocation_tx_ptr->Reset();
+  }
+
+  void MemcpyFrom(const Storage& other_storage) {
+    assert(IsMemcpyOk::value || other_storage.GetIsAllocated());
+
+    GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
+    data_ = other_storage.data_;
+  }
+
+  void DeallocateIfAllocated() {
+    if (GetIsAllocated()) {
+      AllocatorTraits::deallocate(*GetAllocPtr(), GetAllocatedData(),
+                                  GetAllocatedCapacity());
     }
-    return new_capacity;
   }
 
+ private:
   using Metadata =
       container_internal::CompressedTuple<allocator_type, size_type>;
 
@@ -421,9 +453,7 @@ class Storage {
   };
 
   struct Inlined {
-    using InlinedDataElement =
-        absl::aligned_storage_t<sizeof(value_type), alignof(value_type)>;
-    InlinedDataElement inlined_data[N];
+    alignas(value_type) char inlined_data[sizeof(value_type[N])];
   };
 
   union Data {
@@ -444,13 +474,13 @@ auto Storage<T, N, A>::Initialize(ValueAdapter values, size_type new_size)
   assert(GetSize() == 0);
 
   pointer construct_data;
-
-  if (new_size > static_cast<size_type>(N)) {
+  if (new_size > GetInlinedCapacity()) {
     // Because this is only called from the `InlinedVector` constructors, it's
     // safe to take on the allocation with size `0`. If `ConstructElements(...)`
     // throws, deallocation will be automatically handled by `~Storage()`.
-    construct_data = AllocatorTraits::allocate(*GetAllocPtr(), new_size);
-    SetAllocatedData(construct_data, new_size);
+    size_type new_capacity = ComputeCapacity(GetInlinedCapacity(), new_size);
+    construct_data = AllocatorTraits::allocate(*GetAllocPtr(), new_capacity);
+    SetAllocatedData(construct_data, new_capacity);
     SetIsAllocated();
   } else {
     construct_data = GetInlinedData();
@@ -477,7 +507,8 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, size_type new_size) -> void {
   absl::Span<value_type> destroy_loop;
 
   if (new_size > storage_view.capacity) {
-    construct_loop = {allocation_tx.Allocate(new_size), new_size};
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    construct_loop = {allocation_tx.Allocate(new_capacity), new_size};
     destroy_loop = {storage_view.data, storage_view.size};
   } else if (new_size > storage_view.size) {
     assign_loop = {storage_view.data, storage_view.size};
@@ -499,7 +530,7 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, size_type new_size) -> void {
 
   if (allocation_tx.DidAllocate()) {
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
@@ -511,35 +542,27 @@ template <typename ValueAdapter>
 auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   StorageView storage_view = MakeStorageView();
 
-  AllocationTransaction allocation_tx(GetAllocPtr());
-  ConstructionTransaction construction_tx(GetAllocPtr());
-
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
+
+  AllocationTransaction allocation_tx(GetAllocPtr());
+  ConstructionTransaction construction_tx(GetAllocPtr());
 
   absl::Span<value_type> construct_loop;
   absl::Span<value_type> move_construct_loop;
   absl::Span<value_type> destroy_loop;
 
   if (new_size > storage_view.capacity) {
-    pointer new_data = allocation_tx.Allocate(
-        LegacyNextCapacityFrom(storage_view.capacity, new_size));
-
-    // Construct new objects in `new_data`
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
     construct_loop = {new_data + storage_view.size,
                       new_size - storage_view.size};
-
-    // Move all existing objects into `new_data`
     move_construct_loop = {new_data, storage_view.size};
-
-    // Destroy all existing objects in `storage_view.data`
     destroy_loop = {storage_view.data, storage_view.size};
   } else if (new_size > storage_view.size) {
-    // Construct new objects in `storage_view.data`
     construct_loop = {storage_view.data + storage_view.size,
                       new_size - storage_view.size};
   } else {
-    // Destroy end `storage_view.size - new_size` objects in `storage_view.data`
     destroy_loop = {storage_view.data + new_size, storage_view.size - new_size};
   }
 
@@ -556,11 +579,104 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, size_type new_size) -> void {
   construction_tx.Commit();
   if (allocation_tx.DidAllocate()) {
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
   SetSize(new_size);
+}
+
+template <typename T, size_t N, typename A>
+template <typename ValueAdapter>
+auto Storage<T, N, A>::Insert(const_iterator pos, ValueAdapter values,
+                              size_type insert_count) -> iterator {
+  StorageView storage_view = MakeStorageView();
+
+  size_type insert_index =
+      std::distance(const_iterator(storage_view.data), pos);
+  size_type insert_end_index = insert_index + insert_count;
+  size_type new_size = storage_view.size + insert_count;
+
+  if (new_size > storage_view.capacity) {
+    AllocationTransaction allocation_tx(GetAllocPtr());
+    ConstructionTransaction construction_tx(GetAllocPtr());
+    ConstructionTransaction move_construciton_tx(GetAllocPtr());
+
+    IteratorValueAdapter<MoveIterator> move_values(
+        MoveIterator(storage_view.data));
+
+    size_type new_capacity = ComputeCapacity(storage_view.capacity, new_size);
+    pointer new_data = allocation_tx.Allocate(new_capacity);
+
+    construction_tx.Construct(new_data + insert_index, &values, insert_count);
+
+    move_construciton_tx.Construct(new_data, &move_values, insert_index);
+
+    inlined_vector_internal::ConstructElements(
+        GetAllocPtr(), new_data + insert_end_index, &move_values,
+        storage_view.size - insert_index);
+
+    inlined_vector_internal::DestroyElements(GetAllocPtr(), storage_view.data,
+                                             storage_view.size);
+
+    construction_tx.Commit();
+    move_construciton_tx.Commit();
+    DeallocateIfAllocated();
+    AcquireAllocatedData(&allocation_tx);
+
+    SetAllocatedSize(new_size);
+    return iterator(new_data + insert_index);
+  } else {
+    size_type move_construction_destination_index =
+        (std::max)(insert_end_index, storage_view.size);
+
+    ConstructionTransaction move_construction_tx(GetAllocPtr());
+
+    IteratorValueAdapter<MoveIterator> move_construction_values(
+        MoveIterator(storage_view.data +
+                     (move_construction_destination_index - insert_count)));
+    absl::Span<value_type> move_construction = {
+        storage_view.data + move_construction_destination_index,
+        new_size - move_construction_destination_index};
+
+    pointer move_assignment_values = storage_view.data + insert_index;
+    absl::Span<value_type> move_assignment = {
+        storage_view.data + insert_end_index,
+        move_construction_destination_index - insert_end_index};
+
+    absl::Span<value_type> insert_assignment = {move_assignment_values,
+                                                move_construction.size()};
+
+    absl::Span<value_type> insert_construction = {
+        insert_assignment.data() + insert_assignment.size(),
+        insert_count - insert_assignment.size()};
+
+    move_construction_tx.Construct(move_construction.data(),
+                                   &move_construction_values,
+                                   move_construction.size());
+
+    for (pointer destination = move_assignment.data() + move_assignment.size(),
+                 last_destination = move_assignment.data(),
+                 source = move_assignment_values + move_assignment.size();
+         ;) {
+      --destination;
+      --source;
+      if (destination < last_destination) break;
+      *destination = std::move(*source);
+    }
+
+    inlined_vector_internal::AssignElements(insert_assignment.data(), &values,
+                                            insert_assignment.size());
+
+    inlined_vector_internal::ConstructElements(
+        GetAllocPtr(), insert_construction.data(), &values,
+        insert_construction.size());
+
+    move_construction_tx.Commit();
+
+    AddSize(insert_count);
+    return iterator(storage_view.data + insert_index);
+  }
 }
 
 template <typename T, size_t N, typename A>
@@ -573,12 +689,16 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
-  pointer construct_data =
-      (storage_view.size == storage_view.capacity
-           ? allocation_tx.Allocate(NextCapacityFrom(storage_view.capacity))
-           : storage_view.data);
+  pointer construct_data;
+  if (storage_view.size == storage_view.capacity) {
+    size_type new_capacity = NextCapacity(storage_view.capacity);
+    construct_data = allocation_tx.Allocate(new_capacity);
+  } else {
+    construct_data = storage_view.data;
+  }
 
   pointer last_ptr = construct_data + storage_view.size;
+
   AllocatorTraits::construct(*GetAllocPtr(), last_ptr,
                              std::forward<Args>(args)...);
 
@@ -597,7 +717,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
                                              storage_view.size);
 
     DeallocateIfAllocated();
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
     SetIsAllocated();
   }
 
@@ -608,8 +728,6 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> reference {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::Erase(const_iterator from, const_iterator to)
     -> iterator {
-  assert(from != to);
-
   StorageView storage_view = MakeStorageView();
 
   size_type erase_size = std::distance(from, to);
@@ -643,8 +761,9 @@ auto Storage<T, N, A>::Reserve(size_type requested_capacity) -> void {
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
-  pointer new_data = allocation_tx.Allocate(
-      LegacyNextCapacityFrom(storage_view.capacity, requested_capacity));
+  size_type new_capacity =
+      ComputeCapacity(storage_view.capacity, requested_capacity);
+  pointer new_data = allocation_tx.Allocate(new_capacity);
 
   inlined_vector_internal::ConstructElements(GetAllocPtr(), new_data,
                                              &move_values, storage_view.size);
@@ -653,7 +772,7 @@ auto Storage<T, N, A>::Reserve(size_type requested_capacity) -> void {
                                            storage_view.size);
 
   DeallocateIfAllocated();
-  AcquireAllocation(&allocation_tx);
+  AcquireAllocatedData(&allocation_tx);
   SetIsAllocated();
 }
 
@@ -665,19 +784,19 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
   StorageView storage_view{GetAllocatedData(), GetSize(),
                            GetAllocatedCapacity()};
 
+  if (ABSL_PREDICT_FALSE(storage_view.size == storage_view.capacity)) return;
+
   AllocationTransaction allocation_tx(GetAllocPtr());
 
   IteratorValueAdapter<MoveIterator> move_values(
       MoveIterator(storage_view.data));
 
   pointer construct_data;
-
-  if (storage_view.size <= static_cast<size_type>(N)) {
-    construct_data = GetInlinedData();
-  } else if (storage_view.size < GetAllocatedCapacity()) {
-    construct_data = allocation_tx.Allocate(storage_view.size);
+  if (storage_view.size > GetInlinedCapacity()) {
+    size_type new_capacity = storage_view.size;
+    construct_data = allocation_tx.Allocate(new_capacity);
   } else {
-    return;
+    construct_data = GetInlinedData();
   }
 
   ABSL_INTERNAL_TRY {
@@ -685,8 +804,6 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
                                                &move_values, storage_view.size);
   }
   ABSL_INTERNAL_CATCH_ANY {
-    // Writing to inlined data will trample on the existing state, thus it needs
-    // to be restored when a construction fails.
     SetAllocatedData(storage_view.data, storage_view.capacity);
     ABSL_INTERNAL_RETHROW;
   }
@@ -698,7 +815,7 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
                               storage_view.capacity);
 
   if (allocation_tx.DidAllocate()) {
-    AcquireAllocation(&allocation_tx);
+    AcquireAllocatedData(&allocation_tx);
   } else {
     UnsetIsAllocated();
   }
@@ -710,13 +827,8 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
   assert(this != other_storage_ptr);
 
   if (GetIsAllocated() && other_storage_ptr->GetIsAllocated()) {
-    // Both are allocated, thus we can swap the allocations at the top level.
-
     swap(data_.allocated, other_storage_ptr->data_.allocated);
   } else if (!GetIsAllocated() && !other_storage_ptr->GetIsAllocated()) {
-    // Both are inlined, thus element-wise swap up to smaller size, then move
-    // the remaining elements.
-
     Storage* small_ptr = this;
     Storage* large_ptr = other_storage_ptr;
     if (small_ptr->GetSize() > large_ptr->GetSize()) swap(small_ptr, large_ptr);
@@ -738,11 +850,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
         large_ptr->GetInlinedData() + small_ptr->GetSize(),
         large_ptr->GetSize() - small_ptr->GetSize());
   } else {
-    // One is allocated and the other is inlined, thus we first move the
-    // elements from the inlined instance to the inlined space in the allocated
-    // instance and then we can finish by having the other vector take on the
-    // allocation.
-
     Storage* allocated_ptr = this;
     Storage* inlined_ptr = other_storage_ptr;
     if (!allocated_ptr->GetIsAllocated()) swap(allocated_ptr, inlined_ptr);
@@ -760,8 +867,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
           &move_values, inlined_ptr->GetSize());
     }
     ABSL_INTERNAL_CATCH_ANY {
-      // Writing to inlined data will trample on the existing state, thus it
-      // needs to be restored when a construction fails.
       allocated_ptr->SetAllocatedData(allocated_storage_view.data,
                                       allocated_storage_view.capacity);
       ABSL_INTERNAL_RETHROW;
@@ -775,7 +880,6 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
                                   allocated_storage_view.capacity);
   }
 
-  // All cases swap the size, `is_allocated` boolean and the allocator.
   swap(GetSizeAndIsAllocated(), other_storage_ptr->GetSizeAndIsAllocated());
   swap(*GetAllocPtr(), *other_storage_ptr->GetAllocPtr());
 }

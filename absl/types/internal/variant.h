@@ -37,7 +37,7 @@
 #include "absl/types/bad_variant_access.h"
 #include "absl/utility/utility.h"
 
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
 
 namespace absl {
 
@@ -1640,5 +1640,5 @@ struct VariantHashBase<Variant,
 }  // namespace variant_internal
 }  // namespace absl
 
-#endif  // !defined(ABSL_HAVE_STD_VARIANT)
+#endif  // !defined(ABSL_USES_STD_VARIANT)
 #endif  // ABSL_TYPES_variant_internal_H_
