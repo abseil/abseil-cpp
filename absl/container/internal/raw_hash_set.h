@@ -638,8 +638,8 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
-      /* To be enabled: a.assert_is_valid(); */
-      /* To be enabled: b.assert_is_valid(); */
+      a.assert_is_valid();
+      b.assert_is_valid();
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {

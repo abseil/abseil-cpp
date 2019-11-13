@@ -427,6 +427,19 @@ H AbslHashValue(H hash_state, absl::string_view str) {
       str.size());
 }
 
+// Support std::wstring, std::u16string and std::u32string.
+template <typename Char, typename Alloc, typename H,
+          typename = absl::enable_if_t<std::is_same<Char, wchar_t>::value ||
+                                       std::is_same<Char, char16_t>::value ||
+                                       std::is_same<Char, char32_t>::value>>
+H AbslHashValue(
+    H hash_state,
+    const std::basic_string<Char, std::char_traits<Char>, Alloc>& str) {
+  return H::combine(
+      H::combine_contiguous(std::move(hash_state), str.data(), str.size()),
+      str.size());
+}
+
 // -----------------------------------------------------------------------------
 // AbslHashValue for Sequence Containers
 // -----------------------------------------------------------------------------

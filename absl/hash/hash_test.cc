@@ -300,6 +300,33 @@ TEST(HashValueTest, Strings) {
             SpyHash(absl::string_view("ABC")));
 }
 
+TEST(HashValueTest, WString) {
+  EXPECT_TRUE((is_hashable<std::wstring>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::wstring(), std::wstring(L"ABC"), std::wstring(L"ABC"),
+      std::wstring(L"Some other different string"),
+      std::wstring(L"Iñtërnâtiônàlizætiøn"))));
+}
+
+TEST(HashValueTest, U16String) {
+  EXPECT_TRUE((is_hashable<std::u16string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u16string(), std::u16string(u"ABC"), std::u16string(u"ABC"),
+      std::u16string(u"Some other different string"),
+      std::u16string(u"Iñtërnâtiônàlizætiøn"))));
+}
+
+TEST(HashValueTest, U32String) {
+  EXPECT_TRUE((is_hashable<std::u32string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u32string(), std::u32string(U"ABC"), std::u32string(U"ABC"),
+      std::u32string(U"Some other different string"),
+      std::u32string(U"Iñtërnâtiônàlizætiøn"))));
+}
+
 TEST(HashValueTest, StdArray) {
   EXPECT_TRUE((is_hashable<std::array<int, 3>>::value));
 

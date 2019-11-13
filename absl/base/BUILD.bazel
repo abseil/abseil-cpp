@@ -192,7 +192,9 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = select({
-        "//absl:windows": [],
+        "//absl:windows": [
+            "-DEFAULTLIB:shlwapi.lib",
+        ],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [

@@ -89,7 +89,10 @@ cc_library(
         "seed_material.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["-DEFAULTLIB:bcrypt.lib"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":fast_uniform_bits",
         "//absl/base:core_headers",

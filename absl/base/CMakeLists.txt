@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+find_library(LIBRT rt)
+
 absl_cc_library(
   NAME
     atomic_hook
@@ -163,16 +165,18 @@ absl_cc_library(
     "internal/thread_identity.h"
     "internal/tsan_mutex_interface.h"
     "internal/unscaledcycleclock.h"
-    "log_severity.h"
   SRCS
     "internal/cycleclock.cc"
     "internal/spinlock.cc"
     "internal/sysinfo.cc"
     "internal/thread_identity.cc"
     "internal/unscaledcycleclock.cc"
-    "log_severity.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+    $<$<BOOL:${LIBRT}>:${LIBRT}>
+    $<$<BOOL:${MINGW}>:"shlwapi">
   DEPS
     absl::atomic_hook
     absl::base_internal

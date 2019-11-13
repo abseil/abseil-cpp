@@ -44,6 +44,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+    $<$<BOOL:${MINGW}>:"dbghelp">
   DEPS
     absl::debugging_internal
     absl::demangle_internal

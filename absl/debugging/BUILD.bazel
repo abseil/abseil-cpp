@@ -55,7 +55,10 @@ cc_library(
         "symbolize.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["-DEFAULTLIB:dbghelp.lib"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":debugging_internal",
         ":demangle_internal",

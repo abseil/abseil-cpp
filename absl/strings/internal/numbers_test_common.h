@@ -42,8 +42,9 @@ inline bool Itoa(IntType value, int base, std::string* destination) {
   while (value != 0) {
     const IntType next_value = value / base;
     // Can't use std::abs here because of problems when IntType is unsigned.
-    int remainder = value > next_value * base ? value - next_value * base
-                                              : next_value * base - value;
+    int remainder =
+        static_cast<int>(value > next_value * base ? value - next_value * base
+                                                   : next_value * base - value);
     char c = remainder < 10 ? '0' + remainder : 'A' + remainder - 10;
     destination->insert(0, 1, c);
     value = next_value;

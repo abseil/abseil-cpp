@@ -159,13 +159,11 @@ inline ABSL_TARGET_CRYPTO Vector128 ReverseBytes(const Vector128& v) {
 // WARNING: these load/store in native byte order. It is OK to load and then
 // store an unchanged vector, but interpreting the bits as a number or input
 // to AES will have undefined results.
-inline ABSL_TARGET_CRYPTO Vector128
-Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
+inline ABSL_TARGET_CRYPTO Vector128 Vector128Load(const void* from) {
   return vec_vsx_ld(0, reinterpret_cast<const Vector128*>(from));
 }
 
-inline ABSL_TARGET_CRYPTO void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+inline ABSL_TARGET_CRYPTO void Vector128Store(const Vector128& v, void* to) {
   vec_vsx_st(v, 0, reinterpret_cast<Vector128*>(to));
 }
 
@@ -177,8 +175,7 @@ inline ABSL_TARGET_CRYPTO Vector128 AesRound(const Vector128& state,
 }
 
 // Enables native loads in the round loop by pre-swapping.
-inline ABSL_TARGET_CRYPTO void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+inline ABSL_TARGET_CRYPTO void SwapEndian(uint64_t* state) {
   using absl::random_internal::RandenTraits;
   constexpr size_t kLanes = 2;
   constexpr size_t kFeistelBlocks = RandenTraits::kFeistelBlocks;
@@ -230,13 +227,11 @@ using Vector128 = uint8x16_t;
 
 namespace {
 
-inline ABSL_TARGET_CRYPTO Vector128
-Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
+inline ABSL_TARGET_CRYPTO Vector128 Vector128Load(const void* from) {
   return vld1q_u8(reinterpret_cast<const uint8_t*>(from));
 }
 
-inline ABSL_TARGET_CRYPTO void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+inline ABSL_TARGET_CRYPTO void Vector128Store(const Vector128& v, void* to) {
   vst1q_u8(reinterpret_cast<uint8_t*>(to), v);
 }
 
@@ -254,8 +249,7 @@ inline ABSL_TARGET_CRYPTO Vector128 AesRound(const Vector128& state,
   return vaesmcq_u8(vaeseq_u8(state, uint8x16_t{})) ^ round_key;
 }
 
-inline ABSL_TARGET_CRYPTO void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
+inline ABSL_TARGET_CRYPTO void SwapEndian(uint64_t*) {}
 
 }  // namespace
 
@@ -283,15 +277,12 @@ class Vector128 {
   __m128i data_;
 };
 
-inline ABSL_TARGET_CRYPTO Vector128
-Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
+inline ABSL_TARGET_CRYPTO Vector128 Vector128Load(const void* from) {
   return Vector128(_mm_load_si128(reinterpret_cast<const __m128i*>(from)));
 }
 
-inline ABSL_TARGET_CRYPTO void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
-  _mm_store_si128(reinterpret_cast<__m128i * ABSL_RANDOM_INTERNAL_RESTRICT>(to),
-                  v.data());
+inline ABSL_TARGET_CRYPTO void Vector128Store(const Vector128& v, void* to) {
+  _mm_store_si128(reinterpret_cast<__m128i*>(to), v.data());
 }
 
 // One round of AES. "round_key" is a public constant for breaking the
@@ -304,8 +295,7 @@ inline ABSL_TARGET_CRYPTO Vector128 AesRound(const Vector128& state,
   return Vector128(_mm_aesenc_si128(state.data(), round_key.data()));
 }
 
-inline ABSL_TARGET_CRYPTO void SwapEndian(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT) {}
+inline ABSL_TARGET_CRYPTO void SwapEndian(uint64_t*) {}
 
 }  // namespace
 
@@ -402,8 +392,7 @@ constexpr size_t kLanes = 2;
 
 // Block shuffles applies a shuffle to the entire state between AES rounds.
 // Improved odd-even shuffle from "New criterion for diffusion property".
-inline ABSL_TARGET_CRYPTO void BlockShuffle(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+inline ABSL_TARGET_CRYPTO void BlockShuffle(uint64_t* state) {
   static_assert(kFeistelBlocks == 16, "Expecting 16 FeistelBlocks.");
 
   constexpr size_t shuffle[kFeistelBlocks] = {7,  2, 13, 4,  11, 8,  3, 6,
@@ -452,8 +441,7 @@ inline ABSL_TARGET_CRYPTO void BlockShuffle(
 // parallel hides the 7-cycle AESNI latency on HSW. Note that the Feistel
 // XORs are 'free' (included in the second AES instruction).
 inline ABSL_TARGET_CRYPTO const u64x2* FeistelRound(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
-    const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
+    uint64_t* state, const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
   static_assert(kFeistelBlocks == 16, "Expecting 16 FeistelBlocks.");
 
   // MSVC does a horrible job at unrolling loops.
@@ -513,8 +501,7 @@ inline ABSL_TARGET_CRYPTO const u64x2* FeistelRound(
 // 2^64 queries if the round function is a PRF. This is similar to the b=8 case
 // of Simpira v2, but more efficient than its generic construction for b=16.
 inline ABSL_TARGET_CRYPTO void Permute(
-    const void* ABSL_RANDOM_INTERNAL_RESTRICT keys,
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
+    const void* ABSL_RANDOM_INTERNAL_RESTRICT keys, uint64_t* state) {
   const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys128 =
       static_cast<const u64x2*>(keys);
 
@@ -544,10 +531,8 @@ const void* ABSL_TARGET_CRYPTO RandenHwAes::GetKeys() {
 // NOLINTNEXTLINE
 void ABSL_TARGET_CRYPTO RandenHwAes::Absorb(const void* seed_void,
                                             void* state_void) {
-  uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state =
-      reinterpret_cast<uint64_t*>(state_void);
-  const uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT seed =
-      reinterpret_cast<const uint64_t*>(seed_void);
+  auto* state = static_cast<uint64_t*>(state_void);
+  const auto* seed = static_cast<const uint64_t*>(seed_void);
 
   constexpr size_t kCapacityBlocks = kCapacityBytes / sizeof(Vector128);
   constexpr size_t kStateBlocks = kStateBytes / sizeof(Vector128);
@@ -623,8 +608,7 @@ void ABSL_TARGET_CRYPTO RandenHwAes::Generate(const void* keys,
                                               void* state_void) {
   static_assert(kCapacityBytes == sizeof(Vector128), "Capacity mismatch");
 
-  uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state =
-      reinterpret_cast<uint64_t*>(state_void);
+  auto* state = static_cast<uint64_t*>(state_void);
 
   const Vector128 prev_inner = Vector128Load(state);
 

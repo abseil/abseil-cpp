@@ -720,9 +720,9 @@ inline uint128& uint128::operator--() {
 }
 
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
-#include "absl/numeric/int128_have_intrinsic.inc"
+#include "absl/numeric/int128_have_intrinsic.inc"  // IWYU pragma: export
 #else  // ABSL_HAVE_INTRINSIC_INT128
-#include "absl/numeric/int128_no_intrinsic.inc"
+#include "absl/numeric/int128_no_intrinsic.inc"  // IWYU pragma: export
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 }  // namespace absl

@@ -93,43 +93,6 @@ bool SimpleAtod(absl::string_view str, double* out) {
   return true;
 }
 
-namespace {
-
-// Writes a two-character representation of 'i' to 'buf'. 'i' must be in the
-// range 0 <= i < 100, and buf must have space for two characters. Example:
-//   char buf[2];
-//   PutTwoDigits(42, buf);
-//   // buf[0] == '4'
-//   // buf[1] == '2'
-inline void PutTwoDigits(size_t i, char* buf) {
-  static const char two_ASCII_digits[100][2] = {
-    {'0', '0'}, {'0', '1'}, {'0', '2'}, {'0', '3'}, {'0', '4'},
-    {'0', '5'}, {'0', '6'}, {'0', '7'}, {'0', '8'}, {'0', '9'},
-    {'1', '0'}, {'1', '1'}, {'1', '2'}, {'1', '3'}, {'1', '4'},
-    {'1', '5'}, {'1', '6'}, {'1', '7'}, {'1', '8'}, {'1', '9'},
-    {'2', '0'}, {'2', '1'}, {'2', '2'}, {'2', '3'}, {'2', '4'},
-    {'2', '5'}, {'2', '6'}, {'2', '7'}, {'2', '8'}, {'2', '9'},
-    {'3', '0'}, {'3', '1'}, {'3', '2'}, {'3', '3'}, {'3', '4'},
-    {'3', '5'}, {'3', '6'}, {'3', '7'}, {'3', '8'}, {'3', '9'},
-    {'4', '0'}, {'4', '1'}, {'4', '2'}, {'4', '3'}, {'4', '4'},
-    {'4', '5'}, {'4', '6'}, {'4', '7'}, {'4', '8'}, {'4', '9'},
-    {'5', '0'}, {'5', '1'}, {'5', '2'}, {'5', '3'}, {'5', '4'},
-    {'5', '5'}, {'5', '6'}, {'5', '7'}, {'5', '8'}, {'5', '9'},
-    {'6', '0'}, {'6', '1'}, {'6', '2'}, {'6', '3'}, {'6', '4'},
-    {'6', '5'}, {'6', '6'}, {'6', '7'}, {'6', '8'}, {'6', '9'},
-    {'7', '0'}, {'7', '1'}, {'7', '2'}, {'7', '3'}, {'7', '4'},
-    {'7', '5'}, {'7', '6'}, {'7', '7'}, {'7', '8'}, {'7', '9'},
-    {'8', '0'}, {'8', '1'}, {'8', '2'}, {'8', '3'}, {'8', '4'},
-    {'8', '5'}, {'8', '6'}, {'8', '7'}, {'8', '8'}, {'8', '9'},
-    {'9', '0'}, {'9', '1'}, {'9', '2'}, {'9', '3'}, {'9', '4'},
-    {'9', '5'}, {'9', '6'}, {'9', '7'}, {'9', '8'}, {'9', '9'}
-  };
-  assert(i < 100);
-  memcpy(buf, two_ASCII_digits[i], 2);
-}
-
-}  // namespace
-
 bool SimpleAtob(absl::string_view str, bool* out) {
   ABSL_RAW_CHECK(out != nullptr, "Output pointer must not be nullptr.");
   if (EqualsIgnoreCase(str, "true") || EqualsIgnoreCase(str, "t") ||
@@ -496,13 +459,13 @@ static ExpDigits SplitToSix(const double value) {
 
   int two_digits = dddddd / 10000;
   dddddd -= two_digits * 10000;
-  PutTwoDigits(two_digits, &exp_dig.digits[0]);
+  numbers_internal::PutTwoDigits(two_digits, &exp_dig.digits[0]);
 
   two_digits = dddddd / 100;
   dddddd -= two_digits * 100;
-  PutTwoDigits(two_digits, &exp_dig.digits[2]);
+  numbers_internal::PutTwoDigits(two_digits, &exp_dig.digits[2]);
 
-  PutTwoDigits(dddddd, &exp_dig.digits[4]);
+  numbers_internal::PutTwoDigits(dddddd, &exp_dig.digits[4]);
   return exp_dig;
 }
 
@@ -908,6 +871,25 @@ ABSL_CONST_INIT const char kHexTable[513] =
     "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
     "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
+ABSL_CONST_INIT const char two_ASCII_digits[100][2] = {
+    {'0', '0'}, {'0', '1'}, {'0', '2'}, {'0', '3'}, {'0', '4'}, {'0', '5'},
+    {'0', '6'}, {'0', '7'}, {'0', '8'}, {'0', '9'}, {'1', '0'}, {'1', '1'},
+    {'1', '2'}, {'1', '3'}, {'1', '4'}, {'1', '5'}, {'1', '6'}, {'1', '7'},
+    {'1', '8'}, {'1', '9'}, {'2', '0'}, {'2', '1'}, {'2', '2'}, {'2', '3'},
+    {'2', '4'}, {'2', '5'}, {'2', '6'}, {'2', '7'}, {'2', '8'}, {'2', '9'},
+    {'3', '0'}, {'3', '1'}, {'3', '2'}, {'3', '3'}, {'3', '4'}, {'3', '5'},
+    {'3', '6'}, {'3', '7'}, {'3', '8'}, {'3', '9'}, {'4', '0'}, {'4', '1'},
+    {'4', '2'}, {'4', '3'}, {'4', '4'}, {'4', '5'}, {'4', '6'}, {'4', '7'},
+    {'4', '8'}, {'4', '9'}, {'5', '0'}, {'5', '1'}, {'5', '2'}, {'5', '3'},
+    {'5', '4'}, {'5', '5'}, {'5', '6'}, {'5', '7'}, {'5', '8'}, {'5', '9'},
+    {'6', '0'}, {'6', '1'}, {'6', '2'}, {'6', '3'}, {'6', '4'}, {'6', '5'},
+    {'6', '6'}, {'6', '7'}, {'6', '8'}, {'6', '9'}, {'7', '0'}, {'7', '1'},
+    {'7', '2'}, {'7', '3'}, {'7', '4'}, {'7', '5'}, {'7', '6'}, {'7', '7'},
+    {'7', '8'}, {'7', '9'}, {'8', '0'}, {'8', '1'}, {'8', '2'}, {'8', '3'},
+    {'8', '4'}, {'8', '5'}, {'8', '6'}, {'8', '7'}, {'8', '8'}, {'8', '9'},
+    {'9', '0'}, {'9', '1'}, {'9', '2'}, {'9', '3'}, {'9', '4'}, {'9', '5'},
+    {'9', '6'}, {'9', '7'}, {'9', '8'}, {'9', '9'}};
+
 bool safe_strto32_base(absl::string_view text, int32_t* value, int base) {
   return safe_int_internal<int32_t>(text, value, base);
 }
@@ -922,6 +904,10 @@ bool safe_strtou32_base(absl::string_view text, uint32_t* value, int base) {
 
 bool safe_strtou64_base(absl::string_view text, uint64_t* value, int base) {
   return safe_uint_internal<uint64_t>(text, value, base);
+}
+
+bool safe_strtou128_base(absl::string_view text, uint128* value, int base) {
+  return safe_uint_internal<absl::uint128>(text, value, base);
 }
 
 }  // namespace numbers_internal

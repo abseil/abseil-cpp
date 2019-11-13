@@ -342,8 +342,11 @@ bool Waiter::Wait(KernelTimeout t) {
 }
 
 void Waiter::Post() {
-  wakeups_.fetch_add(1, std::memory_order_release);  // Post a wakeup.
-  Poke();
+  // Post a wakeup.
+  if (wakeups_.fetch_add(1, std::memory_order_release) == 0) {
+    // We incremented from 0, need to wake a potential waiter.
+    Poke();
+  }
 }
 
 void Waiter::Poke() {

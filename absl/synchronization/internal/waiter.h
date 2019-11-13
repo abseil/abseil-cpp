@@ -24,6 +24,10 @@
 #include <pthread.h>
 #endif
 
+#ifdef __linux__
+#include <linux/futex.h>
+#endif
+
 #ifdef ABSL_HAVE_SEMAPHORE_H
 #include <semaphore.h>
 #endif
@@ -44,7 +48,12 @@
 #define ABSL_WAITER_MODE ABSL_FORCE_WAITER_MODE
 #elif defined(_WIN32) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_WIN32
-#elif defined(__linux__)
+#elif defined(__BIONIC__)
+// Bionic supports all the futex operations we need even when some of the futex
+// definitions are missing.
+#define ABSL_WAITER_MODE ABSL_WAITER_MODE_FUTEX
+#elif defined(__linux__) && defined(FUTEX_CLOCK_REALTIME)
+// FUTEX_CLOCK_REALTIME requires Linux >= 2.6.28.
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_FUTEX
 #elif defined(ABSL_HAVE_SEMAPHORE_H)
 #define ABSL_WAITER_MODE ABSL_WAITER_MODE_SEM
