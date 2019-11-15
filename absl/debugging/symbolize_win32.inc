@@ -34,7 +34,7 @@ namespace absl {
 
 static HANDLE process = NULL;
 
-void InitializeSymbolizer(const char *argv0) {
+void InitializeSymbolizer(const char*) {
   if (process != nullptr) {
     return;
   }
@@ -53,12 +53,12 @@ void InitializeSymbolizer(const char *argv0) {
   }
 }
 
-bool Symbolize(const void *pc, char *out, int out_size) {
+bool Symbolize(const void* pc, char* out, int out_size) {
   if (out_size <= 0) {
     return false;
   }
   alignas(SYMBOL_INFO) char buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
-  SYMBOL_INFO *symbol = reinterpret_cast<SYMBOL_INFO *>(buf);
+  SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(buf);
   symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
   symbol->MaxNameLen = MAX_SYM_NAME;
   if (!SymFromAddr(process, reinterpret_cast<DWORD64>(pc), nullptr, symbol)) {

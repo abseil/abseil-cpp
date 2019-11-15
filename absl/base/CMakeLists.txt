@@ -536,6 +536,33 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    periodic_sampler
+  SRCS
+    "internal/periodic_sampler.cc"
+  HDRS
+    "internal/periodic_sampler.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::core_headers
+    absl::exponential_biased
+)
+
+absl_cc_test(
+  NAME
+    periodic_sampler_test
+  SRCS
+    "internal/periodic_sampler_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::core_headers
+    absl::periodic_sampler
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     scoped_set_env
   SRCS
     "internal/scoped_set_env.cc"

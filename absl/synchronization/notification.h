@@ -73,7 +73,9 @@ class Notification {
   // Notification::HasBeenNotified()
   //
   // Returns the value of the notification's internal "notified" state.
-  bool HasBeenNotified() const;
+  bool HasBeenNotified() const {
+    return HasBeenNotifiedInternal(&this->notified_yet_);
+  }
 
   // Notification::WaitForNotification()
   //
@@ -105,6 +107,11 @@ class Notification {
   void Notify();
 
  private:
+  static inline bool HasBeenNotifiedInternal(
+      const std::atomic<bool>* notified_yet) {
+    return notified_yet->load(std::memory_order_acquire);
+  }
+
   mutable Mutex mutex_;
   std::atomic<bool> notified_yet_;  // written under mutex_
 };
