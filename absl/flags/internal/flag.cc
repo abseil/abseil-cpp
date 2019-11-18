@@ -85,6 +85,11 @@ void FlagImpl::Destroy() const {
   delete locks_;
 }
 
+std::string FlagImpl::Help() const {
+  return help_source_kind_ == FlagHelpSrcKind::kLiteral ? help_.literal
+                                                        : help_.gen_func();
+}
+
 bool FlagImpl::IsModified() const {
   absl::MutexLock l(DataGuard());
   return modified_;

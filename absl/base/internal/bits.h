@@ -50,10 +50,22 @@ namespace base_internal {
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64Slow(uint64_t n) {
   int zeroes = 60;
-  if (n >> 32) zeroes -= 32, n >>= 32;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
+  if (n >> 32) {
+    zeroes -= 32;
+    n >>= 32;
+  }
+  if (n >> 16) {
+    zeroes -= 16;
+    n >>= 16;
+  }
+  if (n >> 8) {
+    zeroes -= 8;
+    n >>= 8;
+  }
+  if (n >> 4) {
+    zeroes -= 4;
+    n >>= 4;
+  }
   return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0"[n] + zeroes;
 }
 
@@ -95,9 +107,18 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64(uint64_t n) {
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros32Slow(uint64_t n) {
   int zeroes = 28;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
+  if (n >> 16) {
+    zeroes -= 16;
+    n >>= 16;
+  }
+  if (n >> 8) {
+    zeroes -= 8;
+    n >>= 8;
+  }
+  if (n >> 4) {
+    zeroes -= 4;
+    n >>= 4;
+  }
   return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0"[n] + zeroes;
 }
 

@@ -32,7 +32,7 @@ namespace {
 
 namespace flags = absl::flags_internal;
 
-std::string TestHelpMsg() { return "help"; }
+std::string TestHelpMsg() { return "dynamic help"; }
 template <typename T>
 void* TestMakeDflt() {
   return new T{};
@@ -41,19 +41,22 @@ void TestCallback() {}
 
 template <typename T>
 bool TestConstructionFor() {
-  constexpr flags::Flag<T> f1("f1", &TestHelpMsg, "file",
+  constexpr flags::HelpInitArg help_arg{flags::FlagHelpSrc("literal help"),
+                                        flags::FlagHelpSrcKind::kLiteral};
+  constexpr flags::Flag<T> f1("f1", help_arg, "file",
                               &flags::FlagMarshallingOps<T>, &TestMakeDflt<T>);
   EXPECT_EQ(f1.Name(), "f1");
-  EXPECT_EQ(f1.Help(), "help");
+  EXPECT_EQ(f1.Help(), "literal help");
   EXPECT_EQ(f1.Filename(), "file");
 
-  ABSL_CONST_INIT static flags::Flag<T> f2("f2", &TestHelpMsg, "file",
-                                           &flags::FlagMarshallingOps<T>,
-                                           &TestMakeDflt<T>);
+  ABSL_CONST_INIT static flags::Flag<T> f2(
+      "f2",
+      {flags::FlagHelpSrc(&TestHelpMsg), flags::FlagHelpSrcKind::kGenFunc},
+      "file", &flags::FlagMarshallingOps<T>, &TestMakeDflt<T>);
   flags::FlagRegistrar<T, false>(&f2).OnUpdate(TestCallback);
 
   EXPECT_EQ(f2.Name(), "f2");
-  EXPECT_EQ(f2.Help(), "help");
+  EXPECT_EQ(f2.Help(), "dynamic help");
   EXPECT_EQ(f2.Filename(), "file");
 
   return true;

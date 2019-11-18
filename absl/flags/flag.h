@@ -96,8 +96,7 @@ class Flag {
   constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
                  const char* filename,
                  const flags_internal::FlagMarshallingOpFn marshalling_op,
-                 const flags_internal::InitialValGenFunc initial_value_gen,
-                 bool, void*)
+                 const flags_internal::InitialValGenFunc initial_value_gen)
       : name_(name),
         help_gen_(help_gen),
         filename_(filename),
@@ -115,8 +114,11 @@ class Flag {
         return impl_;
       }
 
-      impl_ = new flags_internal::Flag<T>(name_, help_gen_, filename_,
-                                          marshalling_op_, initial_value_gen_);
+      impl_ = new flags_internal::Flag<T>(
+          name_,
+          {flags_internal::FlagHelpSrc(help_gen_),
+           flags_internal::FlagHelpSrcKind::kGenFunc},
+          filename_, marshalling_op_, initial_value_gen_);
       inited_.store(true, std::memory_order_release);
     }
 
@@ -307,9 +309,19 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 #define ABSL_FLAG_IMPL_FLAGHELP(txt) txt
 #endif
 
-#define ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, txt) \
-  static std::string AbslFlagsWrapHelp##name() {       \
-    return ABSL_FLAG_IMPL_FLAGHELP(txt);               \
+// AbslFlagHelpGenFor##name is used to encapsulate both immediate (method Const)
+// and lazy (method NonConst) evaluation of help message expression. We choose
+// between the two via the call to HelpArg in absl::Flag instantiation below.
+// If help message expression is constexpr evaluable compiler will optimize
+// away this whole struct.
+#define ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, txt)                     \
+  struct AbslFlagHelpGenFor##name {                                        \
+    template <typename T = void>                                           \
+    static constexpr const char* Const() {                                 \
+      return absl::flags_internal::HelpConstexprWrap(                      \
+          ABSL_FLAG_IMPL_FLAGHELP(txt));                                   \
+    }                                                                      \
+    static std::string NonConst() { return ABSL_FLAG_IMPL_FLAGHELP(txt); } \
   }
 
 #define ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)   \
@@ -326,29 +338,28 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
 #define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
   namespace absl /* block flags in namespaces */ {}                 \
   ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help);                  \
   ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
-      ABSL_FLAG_IMPL_FLAGNAME(#name), &AbslFlagsWrapHelp##name,     \
+      ABSL_FLAG_IMPL_FLAGNAME(#name),                               \
+      absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>(0),   \
       ABSL_FLAG_IMPL_FILENAME(),                                    \
       &absl::flags_internal::FlagMarshallingOps<Type>,              \
       &AbslFlagsInitFlag##name};                                    \
   extern bool FLAGS_no##name;                                       \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 #else
-// MSVC version uses aggregate initialization.
-#define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
-  namespace absl /* block flags in namespaces */ {}                 \
-  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
-  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
-      ABSL_FLAG_IMPL_FLAGNAME(#name),                               \
-      &AbslFlagsWrapHelp##name,                                     \
-      ABSL_FLAG_IMPL_FILENAME(),                                    \
-      &absl::flags_internal::FlagMarshallingOps<Type>,              \
-      &AbslFlagsInitFlag##name,                                     \
-      false,                                                        \
-      nullptr};                                                     \
-  extern bool FLAGS_no##name;                                       \
+// MSVC version uses aggregate initialization. We also do not try to
+// optimize away help wrapper.
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)                    \
+  namespace absl /* block flags in namespaces */ {}                        \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)        \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help);                         \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                           \
+      ABSL_FLAG_IMPL_FLAGNAME(#name), &AbslFlagHelpGenFor##name::NonConst, \
+      ABSL_FLAG_IMPL_FILENAME(),                                           \
+      &absl::flags_internal::FlagMarshallingOps<Type>,                     \
+      &AbslFlagsInitFlag##name};                                           \
+  extern bool FLAGS_no##name;                                              \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 #endif
 

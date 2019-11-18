@@ -111,33 +111,49 @@ class PeriodicSamplerBase {
   // Returns the current period of this sampler. Thread-safe.
   virtual int period() const noexcept = 0;
 
-  int64_t stride_ = 0;
+  // Keep and decrement stride_ as an unsigned integer, but compare the value
+  // to zero casted as a signed int. clang and msvc do not create optimum code
+  // if we use signed for the combined decrement and sign comparison.
+  //
+  // Below 3 alternative options, all compiles generate the best code
+  // using the unsigned increment <---> signed int comparison option.
+  //
+  // Option 1:
+  //   int64_t stride_;
+  //   if (ABSL_PREDICT_TRUE(++stride_ < 0)) { ... }
+  //
+  //   GCC   x64 (OK) : https://gcc.godbolt.org/z/R5MzzA
+  //   GCC   ppc (OK) : https://gcc.godbolt.org/z/z7NZAt
+  //   Clang x64 (BAD): https://gcc.godbolt.org/z/t4gPsd
+  //   ICC   x64 (OK) : https://gcc.godbolt.org/z/rE6s8W
+  //   MSVC  x64 (OK) : https://gcc.godbolt.org/z/ARMXqS
+  //
+  // Option 2:
+  //   int64_t stride_ = 0;
+  //   if (ABSL_PREDICT_TRUE(--stride_ >= 0)) { ... }
+  //
+  //   GCC   x64 (OK) : https://gcc.godbolt.org/z/jSQxYK
+  //   GCC   ppc (OK) : https://gcc.godbolt.org/z/VJdYaA
+  //   Clang x64 (BAD): https://gcc.godbolt.org/z/Xm4NjX
+  //   ICC   x64 (OK) : https://gcc.godbolt.org/z/4snaFd
+  //   MSVC  x64 (BAD): https://gcc.godbolt.org/z/BgnEKE
+  //
+  // Option 3:
+  //   uint64_t stride_;
+  //   if (ABSL_PREDICT_TRUE(static_cast<int64_t>(++stride_) < 0)) { ... }
+  //
+  //   GCC   x64 (OK) : https://gcc.godbolt.org/z/bFbfPy
+  //   GCC   ppc (OK) : https://gcc.godbolt.org/z/S9KkUE
+  //   Clang x64 (OK) : https://gcc.godbolt.org/z/UYzRb4
+  //   ICC   x64 (OK) : https://gcc.godbolt.org/z/ptTNfD
+  //   MSVC  x64 (OK) : https://gcc.godbolt.org/z/76j4-5
+  uint64_t stride_ = 0;
   ExponentialBiased rng_;
 };
 
 inline bool PeriodicSamplerBase::SubtleMaybeSample() noexcept {
-  // We explicitly count up and not down, as the compiler does not generate
-  // ideal code for counting down. See also https://gcc.godbolt.org/z/FTPDSM
-  //
-  // With `if (ABSL_PREDICT_FALSE(++stride_ < 0))`
-  //    add     QWORD PTR fs:sampler@tpoff+8, 1
-  //    jns     .L15
-  //    ret
-  //
-  // With `if (ABSL_PREDICT_FALSE(--stride_ > 0))`
-  //    mov     rax, QWORD PTR fs:sampler@tpoff+8
-  //    sub     rax, 1
-  //    mov     QWORD PTR fs:sampler@tpoff+8, rax
-  //    test    rax, rax
-  //    jle     .L15
-  //    ret
-  //    add     QWORD PTR fs:sampler@tpoff+8, 1
-  //    jns     .L15
-  //    ret
-  //
-  // --stride >= 0 does work, but makes our logic slightly harder as in that
-  // case we have less convenient zero-init and over-run values.
-  if (ABSL_PREDICT_FALSE(++stride_ < 0)) {
+  // See comments on `stride_` for the unsigned increment / signed compare.
+  if (ABSL_PREDICT_TRUE(static_cast<int64_t>(++stride_) < 0)) {
     return false;
   }
   return true;

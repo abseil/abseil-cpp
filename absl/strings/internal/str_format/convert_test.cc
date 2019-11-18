@@ -390,7 +390,6 @@ typedef ::testing::Types<
     AllIntTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
-
 TEST_F(FormatConvertTest, VectorBool) {
   // Make sure vector<bool>'s values behave as bools.
   std::vector<bool> v = {true, false};
@@ -400,6 +399,42 @@ TEST_F(FormatConvertTest, VectorBool) {
                        absl::Span<const FormatArgImpl>(
                            {FormatArgImpl(v[0]), FormatArgImpl(v[1]),
                             FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
+}
+
+
+TEST_F(FormatConvertTest, Int128) {
+  absl::int128 positive = static_cast<absl::int128>(0x1234567890abcdef) * 1979;
+  absl::int128 negative = -positive;
+  absl::int128 max = absl::Int128Max(), min = absl::Int128Min();
+  const FormatArgImpl args[] = {FormatArgImpl(positive),
+                                FormatArgImpl(negative), FormatArgImpl(max),
+                                FormatArgImpl(min)};
+
+  struct Case {
+    const char* format;
+    const char* expected;
+  } cases[] = {
+      {"%1$d", "2595989796776606496405"},
+      {"%1$30d", "        2595989796776606496405"},
+      {"%1$-30d", "2595989796776606496405        "},
+      {"%1$u", "2595989796776606496405"},
+      {"%1$x", "8cba9876066020f695"},
+      {"%2$d", "-2595989796776606496405"},
+      {"%2$30d", "       -2595989796776606496405"},
+      {"%2$-30d", "-2595989796776606496405       "},
+      {"%2$u", "340282366920938460867384810655161715051"},
+      {"%2$x", "ffffffffffffff73456789f99fdf096b"},
+      {"%3$d", "170141183460469231731687303715884105727"},
+      {"%3$u", "170141183460469231731687303715884105727"},
+      {"%3$x", "7fffffffffffffffffffffffffffffff"},
+      {"%4$d", "-170141183460469231731687303715884105728"},
+      {"%4$x", "80000000000000000000000000000000"},
+  };
+
+  for (auto c : cases) {
+    UntypedFormatSpecImpl format(c.format);
+    EXPECT_EQ(c.expected, FormatPack(format, absl::MakeSpan(args)));
+  }
 }
 
 TEST_F(FormatConvertTest, Uint128) {

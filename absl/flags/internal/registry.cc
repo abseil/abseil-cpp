@@ -276,9 +276,8 @@ namespace {
 class RetiredFlagObj final : public flags_internal::CommandLineFlag {
  public:
   constexpr RetiredFlagObj(const char* name, FlagOpFn ops)
-      : flags_internal::CommandLineFlag(
-            name, flags_internal::HelpText::FromStaticCString(nullptr),
-            /*filename=*/"RETIRED"),
+      : flags_internal::CommandLineFlag(name,
+                                        /*filename=*/"RETIRED"),
         op_(ops) {}
 
  private:
@@ -288,6 +287,7 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
   }
 
   flags_internal::FlagOpFn TypeId() const override { return op_; }
+  std::string Help() const override { return ""; }
   bool IsRetired() const override { return true; }
   bool IsModified() const override { return false; }
   bool IsSpecifiedOnCommandLine() const override { return false; }

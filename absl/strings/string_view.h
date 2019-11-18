@@ -290,7 +290,8 @@ class string_view {
   constexpr const_reference at(size_type i) const {
     return ABSL_PREDICT_TRUE(i < size())
                ? ptr_[i]
-               : (base_internal::ThrowStdOutOfRange("absl::string_view::at"),
+               : ((void)base_internal::ThrowStdOutOfRange(
+                      "absl::string_view::at"),
                   ptr_[i]);
   }
 
@@ -511,7 +512,7 @@ class string_view {
       (std::numeric_limits<difference_type>::max)();
 
   static constexpr size_type CheckLengthInternal(size_type len) {
-    return ABSL_ASSERT(len <= kMaxSize), len;
+    return (void)ABSL_ASSERT(len <= kMaxSize), len;
   }
 
   static constexpr size_type StrlenInternal(const char* str) {

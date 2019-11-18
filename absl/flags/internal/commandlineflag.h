@@ -60,14 +60,6 @@ enum ValueSource {
   kProgrammaticChange,
 };
 
-// Signature for the help generation function used as an argument for the
-// absl::Flag constructor.
-using HelpGenFunc = std::string (*)();
-
-// Signature for the function generating the initial flag value based (usually
-// based on default value supplied in flag's definition)
-using InitialValGenFunc = void* (*)();
-
 extern const char kStrippedFlagHelp[];
 
 // The per-type function
@@ -149,34 +141,6 @@ inline size_t Sizeof(FlagOpFn op) {
       op(flags_internal::kSizeof, nullptr, nullptr)));
 }
 
-// Holds either a pointer to help text or a function which produces it.  This is
-// needed for supporting both static initialization of Flags while supporting
-// the legacy registration framework.  We can't use absl::variant<const char*,
-// const char*(*)()> since anybody passing 0 or nullptr in to a CommandLineFlag
-// would find an ambiguity.
-class HelpText {
- public:
-  static constexpr HelpText FromFunctionPointer(const HelpGenFunc fn) {
-    return HelpText(fn, nullptr);
-  }
-  static constexpr HelpText FromStaticCString(const char* msg) {
-    return HelpText(nullptr, msg);
-  }
-
-  std::string GetHelpText() const;
-
-  HelpText() = delete;
-  HelpText(const HelpText&) = default;
-  HelpText(HelpText&&) = default;
-
- private:
-  explicit constexpr HelpText(const HelpGenFunc fn, const char* msg)
-      : help_function_(fn), help_message_(msg) {}
-
-  HelpGenFunc help_function_;
-  const char* help_message_;
-};
-
 // Handle to FlagState objects. Specific flag state objects will restore state
 // of a flag produced this flag state from method CommandLineFlag::SaveState().
 class FlagStateInterface {
@@ -190,9 +154,8 @@ class FlagStateInterface {
 // Holds all information for a flag.
 class CommandLineFlag {
  public:
-  constexpr CommandLineFlag(const char* name, HelpText help_text,
-                            const char* filename)
-      : name_(name), help_(help_text), filename_(filename) {}
+  constexpr CommandLineFlag(const char* name, const char* filename)
+      : name_(name), filename_(filename) {}
 
   // Virtual destructor
   virtual void Destroy() const = 0;
@@ -203,7 +166,6 @@ class CommandLineFlag {
 
   // Non-polymorphic access methods.
   absl::string_view Name() const { return name_; }
-  std::string Help() const { return help_.GetHelpText(); }
   absl::string_view Typename() const;
   std::string Filename() const;
 
@@ -250,6 +212,8 @@ class CommandLineFlag {
 
   // Polymorphic access methods
 
+  // Returns help message associated with this flag
+  virtual std::string Help() const = 0;
   // Returns true iff this object corresponds to retired flag
   virtual bool IsRetired() const { return false; }
   // Returns true iff this is a handle to an Abseil Flag.
@@ -285,12 +249,11 @@ class CommandLineFlag {
   // flag's value type.
   virtual void CheckDefaultValueParsingRoundtrip() const = 0;
 
-  // Constant configuration for a particular flag.
  protected:
   ~CommandLineFlag() = default;
 
+  // Constant configuration for a particular flag.
   const char* const name_;      // Flags name passed to ABSL_FLAG as second arg.
-  const HelpText help_;         // The function generating help message.
   const char* const filename_;  // The file name where ABSL_FLAG resides.
 
  private:

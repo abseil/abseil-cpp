@@ -56,12 +56,5 @@ std::string CommandLineFlag::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
 }
 
-std::string HelpText::GetHelpText() const {
-  if (help_function_) return help_function_();
-  if (help_message_) return help_message_;
-
-  return {};
-}
-
 }  // namespace flags_internal
 }  // namespace absl

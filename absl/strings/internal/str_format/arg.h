@@ -144,6 +144,8 @@ IntegralConvertResult FormatConvertImpl(long long v,  // NOLINT
 IntegralConvertResult FormatConvertImpl(unsigned long long v,  // NOLINT
                                         ConversionSpec conv,
                                         FormatSinkImpl* sink);
+IntegralConvertResult FormatConvertImpl(int128 v, ConversionSpec conv,
+                                        FormatSinkImpl* sink);
 IntegralConvertResult FormatConvertImpl(uint128 v, ConversionSpec conv,
                                         FormatSinkImpl* sink);
 template <typename T, enable_if_t<std::is_same<T, bool>::value, int> = 0>
@@ -408,6 +410,7 @@ class FormatArgImpl {
                                              __VA_ARGS__);                     \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(unsigned long long, /* NOLINT */  \
                                              __VA_ARGS__);                     \
+  ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(int128, __VA_ARGS__);             \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(uint128, __VA_ARGS__);            \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(float, __VA_ARGS__);              \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(double, __VA_ARGS__);             \
@@ -417,6 +420,7 @@ class FormatArgImpl {
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(string_view, __VA_ARGS__)
 
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);
+
 
 }  // namespace str_format_internal
 }  // namespace absl
