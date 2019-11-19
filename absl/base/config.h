@@ -85,6 +85,12 @@
 #define ABSL_HAVE_BUILTIN(x) 0
 #endif
 
+#if defined(__is_identifier)
+#define ABSL_INTERNAL_HAS_KEYWORD(x) !(__is_identifier(x))
+#else
+#define ABSL_INTERNAL_HAS_KEYWORD(x) 0
+#endif
+
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
 // We assume __thread is supported on Linux when compiled with Clang or compiled
 // against libstdc++ with _GLIBCXX_HAVE_TLS defined.
@@ -131,6 +137,17 @@
     (defined(_MSC_VER) && !defined(__NVCC__))
 #define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
 #define ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE 1
+#endif
+
+// ABSL_HAVE_SOURCE_LOCATION_CURRENT
+//
+// Indicates whether `absl::SourceLocation::current()` will return useful
+// information in some contexts.
+#ifndef ABSL_HAVE_SOURCE_LOCATION_CURRENT
+#if ABSL_INTERNAL_HAS_KEYWORD(__builtin_LINE) && \
+    ABSL_INTERNAL_HAS_KEYWORD(__builtin_FILE)
+#define ABSL_HAVE_SOURCE_LOCATION_CURRENT 1
+#endif
 #endif
 
 // ABSL_HAVE_THREAD_LOCAL
@@ -538,5 +555,7 @@
 #if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
 #define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
+
+#undef ABSL_INTERNAL_HAS_KEYWORD
 
 #endif  // ABSL_BASE_CONFIG_H_
