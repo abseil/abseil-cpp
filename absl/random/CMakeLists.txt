@@ -34,6 +34,132 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
+    random_bit_gen_ref
+  HDRS
+    "bit_gen_ref.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::core_headers
+    absl::random_internal_distribution_caller
+    absl::random_internal_fast_uniform_bits
+    absl::random_internal_mocking_bit_gen_base
+    absl::type_traits
+)
+
+absl_cc_test(
+  NAME
+    random_bit_gen_ref_test
+  SRCS
+    "bit_gen_ref_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_bit_gen_ref
+    absl::random_random
+    absl::random_internal_sequence_urbg
+    gmock
+    gtest_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    random_internal_mocking_bit_gen_base
+  HDRS
+    "internal/mocking_bit_gen_base.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_random
+    absl::strings
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    random_internal_mock_overload_set
+  HDRS
+    "internal/mock_overload_set.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_mocking_bit_gen
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME
+    random_mocking_bit_gen
+  HDRS
+    "mock_distributions.h"
+    "mocking_bit_gen.h"
+  SRCS
+    "mocking_bit_gen.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::flat_hash_map
+    absl::raw_logging_internal
+    absl::random_distributions
+    absl::random_internal_distribution_caller
+    absl::random_internal_mocking_bit_gen_base
+    absl::random_internal_mock_overload_set
+    absl::strings
+    absl::span
+    absl::type_traits
+    absl::utility
+    absl::variant
+    gmock
+    gtest
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    random_mock_distributions_test
+  SRCS
+    "mock_distributions_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_mocking_bit_gen
+    absl::random_random
+    gmock
+    gtest_main
+)
+
+absl_cc_test(
+  NAME
+    random_mocking_bit_gen_test
+  SRCS
+    "mocking_bit_gen_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_bit_gen_ref
+    absl::random_mocking_bit_gen
+    absl::random_random
+    gmock
+    gtest_main
+)
+
+absl_cc_library(
+  NAME
     random_distributions
   SRCS
     "discrete_distribution.cc"

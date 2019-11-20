@@ -493,6 +493,29 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "mocking_bit_gen_base",
+    hdrs = ["mocking_bit_gen_base.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/random",
+        "//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "mock_overload_set",
+    testonly = 1,
+    hdrs = ["mock_overload_set.h"],
+    visibility = [
+        "//absl/random:__pkg__",
+    ],
+    deps = [
+        "//absl/random:mocking_bit_gen",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 cc_test(
     name = "nonsecure_base_test",
     size = "small",

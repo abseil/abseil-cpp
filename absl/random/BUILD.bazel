@@ -110,6 +110,58 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "bit_gen_ref",
+    hdrs = ["bit_gen_ref.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:core_headers",
+        "//absl/meta:type_traits",
+        "//absl/random/internal:distribution_caller",
+        "//absl/random/internal:fast_uniform_bits",
+        "//absl/random/internal:mocking_bit_gen_base",
+    ],
+)
+
+cc_library(
+    name = "mock_distributions",
+    testonly = 1,
+    hdrs = ["mock_distributions.h"],
+    deps = [
+        ":distributions",
+        ":mocking_bit_gen",
+        "//absl/meta:type_traits",
+        "//absl/random/internal:mock_overload_set",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "mocking_bit_gen",
+    testonly = 1,
+    srcs = [
+        "mocking_bit_gen.cc",
+    ],
+    hdrs = [
+        "mocking_bit_gen.h",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":distributions",
+        "//absl/base:raw_logging_internal",
+        "//absl/container:flat_hash_map",
+        "//absl/meta:type_traits",
+        "//absl/random/internal:distribution_caller",
+        "//absl/random/internal:mocking_bit_gen_base",
+        "//absl/strings",
+        "//absl/types:span",
+        "//absl/types:variant",
+        "//absl/utility",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 cc_test(
     name = "bernoulli_distribution_test",
     size = "small",
@@ -341,6 +393,46 @@ cc_test(
         "//absl/random/internal:distribution_test_util",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "bit_gen_ref_test",
+    size = "small",
+    srcs = ["bit_gen_ref_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bit_gen_ref",
+        ":random",
+        "//absl/random/internal:sequence_urbg",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mocking_bit_gen_test",
+    size = "small",
+    srcs = ["mocking_bit_gen_test.cc"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bit_gen_ref",
+        ":mock_distributions",
+        ":mocking_bit_gen",
+        ":random",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mock_distributions_test",
+    size = "small",
+    srcs = ["mock_distributions_test.cc"],
+    deps = [
+        ":mock_distributions",
+        ":mocking_bit_gen",
+        ":random",
         "@com_google_googletest//:gtest_main",
     ],
 )
