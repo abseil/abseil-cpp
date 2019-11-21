@@ -17,24 +17,56 @@
 
 #include <stdint.h>
 
+#include "absl/base/macros.h"
+
 namespace absl {
 namespace base_internal {
 
 // ExponentialBiased provides a small and fast random number generator for a
-// rounded exponential distribution. This generator doesn't requires very little
-// state doesn't impose synchronization overhead, which makes it useful in some
-// specialized scenarios.
+// rounded exponential distribution. This generator manages very little state,
+// and imposes no synchronization overhead. This makes it useful in specialized
+// scenarios requiring minimum overhead, such as stride based periodic sampling.
 //
-// For the generated variable X, X ~ floor(Exponential(1/mean)). The floor
-// operation introduces a small amount of bias, but the distribution is useful
-// to generate a wait time. That is, if an operation is supposed to happen on
-// average to 1/mean events, then the generated variable X will describe how
-// many events to skip before performing the operation and computing a new X.
+// ExponentialBiased provides two closely related functions, GetSkipCount() and
+// GetStride(), both returning a rounded integer defining a number of events
+// required before some event with a given mean probability occurs.
 //
-// The mathematically precise distribution to use for integer wait times is a
-// Geometric distribution, but a Geometric distribution takes slightly more time
-// to compute and when the mean is large (say, 100+), the Geometric distribution
-// is hard to distinguish from the result of ExponentialBiased.
+// The distribution is useful to generate a random wait time or some periodic
+// event with a given mean probability. For example, if an action is supposed to
+// happen on average once every 'N' events, then we can get a random 'stride'
+// counting down how long before the event to happen. For example, if we'd want
+// to sample one in every 1000 'Frobber' calls, our code could look like this:
+//
+//   Frobber::Frobber() {
+//     stride_ = exponential_biased_.GetStride(1000);
+//   }
+//
+//   void Frobber::Frob(int arg) {
+//     if (--stride == 0) {
+//       SampleFrob(arg);
+//       stride_ = exponential_biased_.GetStride(1000);
+//     }
+//     ...
+//   }
+//
+// The rounding of the return value creates a bias, especially for smaller means
+// where the distribution of the fraction is not evenly distributed. We correct
+// this bias by tracking the fraction we rounded up or down on each iteration,
+// effectively tracking the distance between the cumulative value, and the
+// rounded cumulative value. For example, given a mean of 2:
+//
+//   raw = 1.63076, cumulative = 1.63076, rounded = 2, bias = -0.36923
+//   raw = 0.14624, cumulative = 1.77701, rounded = 2, bias =  0.14624
+//   raw = 4.93194, cumulative = 6.70895, rounded = 7, bias = -0.06805
+//   raw = 0.24206, cumulative = 6.95101, rounded = 7, bias =  0.24206
+//   etc...
+//
+// Adjusting with rounding bias is relatively trivial:
+//
+//    double value = bias_ + exponential_distribution(mean)();
+//    double rounded_value = std::round(value);
+//    bias_ = value - rounded_value;
+//    return rounded_value;
 //
 // This class is thread-compatible.
 class ExponentialBiased {
@@ -42,9 +74,32 @@ class ExponentialBiased {
   // The number of bits set by NextRandom.
   static constexpr int kPrngNumBits = 48;
 
-  // Generates the floor of an exponentially distributed random variable by
-  // rounding the value down to the nearest integer. The result will be in the
-  // range [0, int64_t max / 2].
+  // `GetSkipCount()` returns the number of events to skip before some chosen
+  // event happens. For example, randomly tossing a coin, we will on average
+  // throw heads once before we get tails. We can simulate random coin tosses
+  // using GetSkipCount() as:
+  //
+  //   ExponentialBiased eb;
+  //   for (...) {
+  //     int number_of_heads_before_tail = eb.GetSkipCount(1);
+  //     for (int flips = 0; flips < number_of_heads_before_tail; ++flips) {
+  //       printf("head...");
+  //     }
+  //     printf("tail\n");
+  //   }
+  //
+  int64_t GetSkipCount(int64_t mean);
+
+  // GetStride() returns the number of events required for a specific event to
+  // happen. See the class comments for a usage example. `GetStride()` is
+  // equivalent to `GetSkipCount(mean - 1) + 1`. When to use `GetStride()` or
+  // `GetSkipCount()` depends mostly on what best fits the use case.
+  int64_t GetStride(int64_t mean);
+
+  // Generates a rounded exponentially distributed random variable
+  // by rounding the value to the nearest integer.
+  // The result will be in the range [0, int64_t max / 2].
+  ABSL_DEPRECATED("Use GetSkipCount() or GetStride() instead")
   int64_t Get(int64_t mean);
 
   // Computes a random number in the range [0, 1<<(kPrngNumBits+1) - 1]
@@ -56,6 +111,7 @@ class ExponentialBiased {
   void Initialize();
 
   uint64_t rng_{0};
+  double bias_{0};
   bool initialized_{false};
 };
 

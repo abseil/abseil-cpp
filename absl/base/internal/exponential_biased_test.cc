@@ -113,6 +113,35 @@ double AndersonDarlingTest(const std::vector<double>& random_sample) {
   return p;
 }
 
+TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
+  ExponentialBiased eb;
+  for (int runs = 0; runs < 10; ++runs) {
+    for (int flips = eb.GetSkipCount(1); flips > 0; --flips) {
+      printf("head...");
+    }
+    printf("tail\n");
+  }
+  int heads = 0;
+  for (int i = 0; i < 10000000; i += 1 + eb.GetSkipCount(1)) {
+    ++heads;
+  }
+  printf("Heads = %d (%f%%)\n", heads, 100.0 * heads / 10000000);
+}
+
+TEST(ExponentialBiasedTest, SampleDemoWithStride) {
+  ExponentialBiased eb;
+  int stride = eb.GetStride(10);
+  int samples = 0;
+  for (int i = 0; i < 10000000; ++i) {
+    if (--stride == 0) {
+      ++samples;
+      stride = eb.GetStride(10);
+    }
+  }
+  printf("Samples = %d (%f%%)\n", samples, 100.0 * samples / 10000000);
+}
+
+
 // Testing that NextRandom generates uniform random numbers. Applies the
 // Anderson-Darling test for uniformity
 TEST(ExponentialBiasedTest, TestNextRandom) {
@@ -153,15 +182,15 @@ TEST(ExponentialBiasedTest, TestNextRandom) {
 // variable.
 TEST(ExponentialBiasedTest, InitializationModes) {
   ABSL_CONST_INIT static ExponentialBiased eb_static;
-  EXPECT_THAT(eb_static.Get(2), Ge(0));
+  EXPECT_THAT(eb_static.GetSkipCount(2), Ge(0));
 
 #if ABSL_HAVE_THREAD_LOCAL
   thread_local ExponentialBiased eb_thread;
-  EXPECT_THAT(eb_thread.Get(2), Ge(0));
+  EXPECT_THAT(eb_thread.GetSkipCount(2), Ge(0));
 #endif
 
   ExponentialBiased eb_stack;
-  EXPECT_THAT(eb_stack.Get(2), Ge(0));
+  EXPECT_THAT(eb_stack.GetSkipCount(2), Ge(0));
 }
 
 }  // namespace base_internal

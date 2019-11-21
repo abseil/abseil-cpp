@@ -37,6 +37,13 @@ void BM_SampleMinunumInlined(Sampler* sampler, benchmark::State& state) {
   }
 }
 
+void BM_PeriodicSampler_TinySample(benchmark::State& state) {
+  struct Tag {};
+  PeriodicSampler<Tag, 10> sampler;
+  BM_Sample(&sampler, state);
+}
+BENCHMARK(BM_PeriodicSampler_TinySample);
+
 void BM_PeriodicSampler_ShortSample(benchmark::State& state) {
   struct Tag {};
   PeriodicSampler<Tag, 1024> sampler;

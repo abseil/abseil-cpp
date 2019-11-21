@@ -42,9 +42,9 @@ TEST(PeriodicSamplerBaseTest, Sample) {
 
   EXPECT_CALL(sampler, period()).Times(3).WillRepeatedly(Return(16));
   EXPECT_CALL(sampler, GetExponentialBiased(16))
-      .WillOnce(Return(1))
       .WillOnce(Return(2))
-      .WillOnce(Return(3));
+      .WillOnce(Return(3))
+      .WillOnce(Return(4));
 
   EXPECT_FALSE(sampler.Sample());
   EXPECT_TRUE(sampler.Sample());
@@ -63,9 +63,9 @@ TEST(PeriodicSamplerBaseTest, ImmediatelySample) {
 
   EXPECT_CALL(sampler, period()).Times(2).WillRepeatedly(Return(16));
   EXPECT_CALL(sampler, GetExponentialBiased(16))
-      .WillOnce(Return(0))
       .WillOnce(Return(1))
-      .WillOnce(Return(2));
+      .WillOnce(Return(2))
+      .WillOnce(Return(3));
 
   EXPECT_TRUE(sampler.Sample());
 
@@ -100,7 +100,7 @@ TEST(PeriodicSamplerBaseTest, Disable) {
   StrictMock<MockPeriodicSampler> sampler;
 
   EXPECT_CALL(sampler, period()).WillOnce(Return(16));
-  EXPECT_CALL(sampler, GetExponentialBiased(16)).WillOnce(Return(2));
+  EXPECT_CALL(sampler, GetExponentialBiased(16)).WillOnce(Return(3));
   EXPECT_FALSE(sampler.Sample());
   EXPECT_FALSE(sampler.Sample());
 
@@ -119,7 +119,7 @@ TEST(PeriodicSamplerBaseTest, Enable) {
   EXPECT_CALL(sampler, period()).Times(2).WillRepeatedly(Return(16));
   EXPECT_CALL(sampler, GetExponentialBiased(16))
       .Times(2)
-      .WillRepeatedly(Return(2));
+      .WillRepeatedly(Return(3));
 
   EXPECT_FALSE(sampler.Sample());
   EXPECT_FALSE(sampler.Sample());

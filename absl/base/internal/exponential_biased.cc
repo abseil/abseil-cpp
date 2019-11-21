@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <limits>
@@ -25,6 +26,42 @@
 
 namespace absl {
 namespace base_internal {
+
+
+int64_t ExponentialBiased::GetSkipCount(int64_t mean) {
+  if (ABSL_PREDICT_FALSE(!initialized_)) {
+    Initialize();
+  }
+
+  uint64_t rng = NextRandom(rng_);
+  rng_ = rng;
+
+  // Take the top 26 bits as the random number
+  // (This plus the 1<<58 sampling bound give a max possible step of
+  // 5194297183973780480 bytes.)
+  // The uint32_t cast is to prevent a (hard-to-reproduce) NAN
+  // under piii debug for some binaries.
+  double q = static_cast<uint32_t>(rng >> (kPrngNumBits - 26)) + 1.0;
+  // Put the computed p-value through the CDF of a geometric.
+  double interval = bias_ + (std::log2(q) - 26) * (-std::log(2.0) * mean);
+  // Very large values of interval overflow int64_t. To avoid that, we will
+  // cheat and clamp any huge values to (int64_t max)/2. This is a potential
+  // source of bias, but the mean would need to be such a large value that it's
+  // not likely to come up. For example, with a mean of 1e18, the probability of
+  // hitting this condition is about 1/1000. For a mean of 1e17, standard
+  // calculators claim that this event won't happen.
+  if (interval > static_cast<double>(std::numeric_limits<int64_t>::max() / 2)) {
+    // Assume huge values are bias neutral, retain bias for next call.
+    return std::numeric_limits<int64_t>::max() / 2;
+  }
+  double value = std::round(interval);
+  bias_ = interval - value;
+  return value;
+}
+
+int64_t ExponentialBiased::GetStride(int64_t mean) {
+  return GetSkipCount(mean - 1) + 1;
+}
 
 // The algorithm generates a random number between 0 and 1 and applies the
 // inverse cumulative distribution function for an exponential. Specifically:
@@ -51,7 +88,7 @@ int64_t ExponentialBiased::Get(int64_t mean) {
   // under piii debug for some binaries.
   double q = static_cast<uint32_t>(rng >> (kPrngNumBits - 26)) + 1.0;
   // Put the computed p-value through the CDF of a geometric.
-  double interval = (std::log2(q) - 26) * (-std::log(2.0) * mean);
+  double interval = bias_ + (std::log2(q) - 26) * (-std::log(2.0) * mean);
   // Very large values of interval overflow int64_t. To avoid that, we will cheat
   // and clamp any huge values to (int64_t max)/2. This is a potential source of
   // bias, but the mean would need to be such a large value that it's not likely
@@ -59,10 +96,12 @@ int64_t ExponentialBiased::Get(int64_t mean) {
   // this condition is about 1/1000. For a mean of 1e17, standard calculators
   // claim that this event won't happen.
   if (interval > static_cast<double>(std::numeric_limits<int64_t>::max() / 2)) {
+    // Assume huge values are bias neutral, retain bias for next call.
     return std::numeric_limits<int64_t>::max() / 2;
   }
-
-  return static_cast<int64_t>(interval);
+  int64_t value = std::max<int64_t>(1, std::round(interval));
+  bias_ = interval - value;
+  return value;
 }
 
 void ExponentialBiased::Initialize() {

@@ -22,7 +22,7 @@ namespace absl {
 namespace base_internal {
 
 int64_t PeriodicSamplerBase::GetExponentialBiased(int period) noexcept {
-  return rng_.Get(period);
+  return rng_.GetStride(period);
 }
 
 bool PeriodicSamplerBase::SubtleConfirmSample() noexcept {
@@ -36,13 +36,14 @@ bool PeriodicSamplerBase::SubtleConfirmSample() noexcept {
 
   // Check if this is the first call to Sample()
   if (ABSL_PREDICT_FALSE(stride_ == 1)) {
-    stride_ = static_cast<uint64_t>(-1 - GetExponentialBiased(current_period));
+    stride_ = static_cast<uint64_t>(-GetExponentialBiased(current_period));
     if (static_cast<int64_t>(stride_) < -1) {
       ++stride_;
       return false;
     }
   }
-  stride_ = static_cast<uint64_t>(-1 - GetExponentialBiased(current_period));
+
+  stride_ = static_cast<uint64_t>(-GetExponentialBiased(current_period));
   return true;
 }
 
