@@ -96,12 +96,6 @@ class ExponentialBiased {
   // `GetSkipCount()` depends mostly on what best fits the use case.
   int64_t GetStride(int64_t mean);
 
-  // Generates a rounded exponentially distributed random variable
-  // by rounding the value to the nearest integer.
-  // The result will be in the range [0, int64_t max / 2].
-  ABSL_DEPRECATED("Use GetSkipCount() or GetStride() instead")
-  int64_t Get(int64_t mean);
-
   // Computes a random number in the range [0, 1<<(kPrngNumBits+1) - 1]
   //
   // This is public to enable testing.

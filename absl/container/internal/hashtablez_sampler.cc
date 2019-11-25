@@ -196,12 +196,10 @@ HashtablezInfo* SampleSlow(int64_t* next_sample) {
   return nullptr;
 #else
   bool first = *next_sample < 0;
-  *next_sample = g_exponential_biased_generator.Get(
+  *next_sample = g_exponential_biased_generator.GetStride(
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
   // Small values of interval are equivalent to just sampling next time.
-  if (*next_sample < 1) {
-    *next_sample = 1;
-  }
+  ABSL_ASSERT(*next_sample >= 1);
 
   // g_hashtablez_enabled can be dynamically flipped, we need to set a threshold
   // low enough that we will start sampling in a reasonable time, so we just use
