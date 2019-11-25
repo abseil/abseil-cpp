@@ -157,10 +157,12 @@
 // Tags a function as weak for the purposes of compilation and linking.
 // Weak attributes currently do not work properly in LLVM's Windows backend,
 // so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
-// for futher information.
-#if (ABSL_HAVE_ATTRIBUTE(weak) || \
+// for further information.
+// The MinGW compiler doesn't complain about the weak attribute until the link
+// step, presumably because Windows doesn't use ELF binaries.
+#if (ABSL_HAVE_ATTRIBUTE(weak) ||                   \
      (defined(__GNUC__) && !defined(__clang__))) && \
-    !(defined(__llvm__) && defined(_WIN32))
+    !(defined(__llvm__) && defined(_WIN32)) && !defined(__MINGW32__)
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))
 #define ABSL_HAVE_ATTRIBUTE_WEAK 1
@@ -232,7 +234,7 @@
 // out of bounds or does other scary things with memory.
 // NOTE: GCC supports AddressSanitizer(asan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if defined(__GNUC__) && defined(ADDRESS_SANITIZER)
+#if defined(__GNUC__)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
@@ -246,7 +248,7 @@
 // This attribute is similar to the ADDRESS_SANITIZER attribute above, but deals
 // with initialized-ness rather than addressability issues.
 // NOTE: MemorySanitizer(msan) is supported by Clang but not GCC.
-#if defined(__GNUC__) && defined(MEMORY_SANITIZER)
+#if defined(__clang__)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY __attribute__((no_sanitize_memory))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
@@ -257,7 +259,7 @@
 // Tells the ThreadSanitizer to not instrument a given function.
 // NOTE: GCC supports ThreadSanitizer(tsan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if defined(__GNUC__) && defined(THREAD_SANITIZER)
+#if defined(__GNUC__)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD __attribute__((no_sanitize_thread))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD
@@ -599,7 +601,6 @@
 //
 // Note that this attribute is redundant if the variable is declared constexpr.
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
-// NOLINTNEXTLINE(whitespace/braces)
 #define ABSL_CONST_INIT [[clang::require_constant_initialization]]
 #else
 #define ABSL_CONST_INIT

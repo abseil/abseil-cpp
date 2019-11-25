@@ -31,22 +31,6 @@
 
 namespace absl {
 namespace flags_internal {
-namespace {
-
-void DestroyFlag(CommandLineFlag* flag) NO_THREAD_SAFETY_ANALYSIS {
-  // Values are heap allocated for retired and Abseil Flags.
-  if (flag->IsRetired() || flag->IsAbseilFlag()) {
-    if (flag->cur) Delete(flag->op, flag->cur);
-    if (flag->def) Delete(flag->op, flag->def);
-  }
-
-  delete flag->locks;
-
-  // CommandLineFlag handle object is heap allocated for non Abseil Flags.
-  if (!flag->IsAbseilFlag()) {
-    delete flag;
-  }
-}
 
 // --------------------------------------------------------------------
 // FlagRegistry
@@ -58,71 +42,20 @@ void DestroyFlag(CommandLineFlag* flag) NO_THREAD_SAFETY_ANALYSIS {
 //    the function will acquire it itself if needed.
 // --------------------------------------------------------------------
 
-// A map from flag pointer to CommandLineFlag*. Used when registering
-// validators.
-class FlagPtrMap {
- public:
-  void Register(CommandLineFlag* flag) {
-    auto& vec = buckets_[BucketForFlag(flag->cur)];
-    if (vec.size() == vec.capacity()) {
-      // Bypass default 2x growth factor with 1.25 so we have fuller vectors.
-      // This saves 4% memory compared to default growth.
-      vec.reserve(vec.size() * 1.25 + 0.5);
-    }
-    vec.push_back(flag);
-  }
-
-  CommandLineFlag* FindByPtr(const void* flag_ptr) {
-    const auto& flag_vector = buckets_[BucketForFlag(flag_ptr)];
-    for (CommandLineFlag* entry : flag_vector) {
-      if (entry->cur == flag_ptr) {
-        return entry;
-      }
-    }
-    return nullptr;
-  }
-
- private:
-  // Instead of std::map, we use a custom hash table where each bucket stores
-  // flags in a vector. This reduces memory usage 40% of the memory that would
-  // have been used by std::map.
-  //
-  // kNumBuckets was picked as a large enough prime. As of writing this code, a
-  // typical large binary has ~8k (old-style) flags, and this would gives
-  // buckets with roughly 50 elements each.
-  //
-  // Note that reads to this hash table are rare: exactly as many as we have
-  // flags with validators. As of writing, a typical binary only registers 52
-  // validated flags.
-  static constexpr size_t kNumBuckets = 163;
-  std::vector<CommandLineFlag*> buckets_[kNumBuckets];
-
-  static int BucketForFlag(const void* ptr) {
-    // Modulo a prime is good enough here. On a real program, bucket size stddev
-    // after registering 8k flags is ~5 (mean size at 51).
-    return reinterpret_cast<uintptr_t>(ptr) % kNumBuckets;
-  }
-};
-constexpr size_t FlagPtrMap::kNumBuckets;
-
-}  // namespace
-
 class FlagRegistry {
  public:
   FlagRegistry() = default;
   ~FlagRegistry() {
     for (auto& p : flags_) {
-      DestroyFlag(p.second);
+      p.second->Destroy();
     }
   }
 
   // Store a flag in this registry.  Takes ownership of *flag.
-  // If ptr is non-null, the flag can later be found by calling
-  // FindFlagViaPtrLocked(ptr).
-  void RegisterFlag(CommandLineFlag* flag, const void* ptr);
+  void RegisterFlag(CommandLineFlag* flag);
 
-  void Lock() EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
-  void Unlock() UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
+  void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
+  void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
 
   // Returns the flag object for the specified name, or nullptr if not found.
   // Will emit a warning if a 'retired' flag is specified.
@@ -131,9 +64,6 @@ class FlagRegistry {
   // Returns the retired flag object for the specified name, or nullptr if not
   // found or not retired.  Does not emit a warning.
   CommandLineFlag* FindRetiredFlagLocked(absl::string_view name);
-
-  // Returns the flag object whose current-value is stored at flag_ptr.
-  CommandLineFlag* FindFlagViaPtrLocked(const void* flag_ptr);
 
   static FlagRegistry* GlobalRegistry();  // returns a singleton registry
 
@@ -147,8 +77,6 @@ class FlagRegistry {
   using FlagIterator = FlagMap::iterator;
   using FlagConstIterator = FlagMap::const_iterator;
   FlagMap flags_;
-
-  FlagPtrMap flag_ptr_map_;
 
   absl::Mutex lock_;
 
@@ -175,7 +103,7 @@ class FlagRegistryLock {
 
 }  // namespace
 
-void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
+void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
   FlagRegistryLock registry_lock(this);
   std::pair<FlagIterator, bool> ins =
       flags_.insert(FlagMap::value_type(flag->Name(), flag));
@@ -190,7 +118,7 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
               (flag->IsRetired() ? old_flag->Filename() : flag->Filename()),
               "'."),
           true);
-    } else if (flag->op != old_flag->op) {
+    } else if (flag->TypeId() != old_flag->TypeId()) {
       flags_internal::ReportUsageError(
           absl::StrCat("Flag '", flag->Name(),
                        "' was defined more than once but with "
@@ -201,7 +129,7 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
           true);
     } else if (old_flag->IsRetired()) {
       // Retired definitions are idempotent. Just keep the old one.
-      DestroyFlag(flag);
+      flag->Destroy();
       return;
     } else if (old_flag->Filename() != flag->Filename()) {
       flags_internal::ReportUsageError(
@@ -222,11 +150,6 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag, const void* ptr) {
     }
     // All cases above are fatal, except for the retired flags.
     std::exit(1);
-  }
-
-  if (ptr != nullptr) {
-    // This must be the first time we're seeing this flag.
-    flag_ptr_map_.Register(flag);
   }
 }
 
@@ -253,10 +176,6 @@ CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
   return i->second;
 }
 
-CommandLineFlag* FlagRegistry::FindFlagViaPtrLocked(const void* flag_ptr) {
-  return flag_ptr_map_.FindByPtr(flag_ptr);
-}
-
 // --------------------------------------------------------------------
 // FlagSaver
 // FlagSaverImpl
@@ -269,112 +188,34 @@ CommandLineFlag* FlagRegistry::FindFlagViaPtrLocked(const void* flag_ptr) {
 
 class FlagSaverImpl {
  public:
-  // Constructs an empty FlagSaverImpl object.
-  FlagSaverImpl() {}
-  ~FlagSaverImpl() {
-    // reclaim memory from each of our CommandLineFlags
-    for (const SavedFlag& src : backup_registry_) {
-      Delete(src.op, src.current);
-      Delete(src.op, src.default_value);
-    }
-  }
+  FlagSaverImpl() = default;
+  FlagSaverImpl(const FlagSaverImpl&) = delete;
+  void operator=(const FlagSaverImpl&) = delete;
 
   // Saves the flag states from the flag registry into this object.
   // It's an error to call this more than once.
-  // Must be called when the registry mutex is not held.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
-    SavedFlag saved;
     flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
-      if (flag->IsRetired()) return;
-
-      saved.name = flag->Name();
-      saved.op = flag->op;
-      saved.marshalling_op = flag->marshalling_op;
-      {
-        absl::MutexLock l(InitFlagIfNecessary(flag));
-        saved.validator = flag->validator;
-        saved.modified = flag->modified;
-        saved.on_command_line = flag->IsSpecifiedOnCommandLine();
-        saved.current = Clone(saved.op, flag->cur);
-        saved.default_value = Clone(saved.op, flag->def);
-        saved.counter = flag->counter;
+      if (auto flag_state = flag->SaveState()) {
+        backup_registry_.emplace_back(std::move(flag_state));
       }
-      backup_registry_.push_back(saved);
     });
   }
 
-  // Restores the saved flag states into the flag registry.  We
-  // assume no flags were added or deleted from the registry since
-  // the SaveFromRegistry; if they were, that's trouble!  Must be
-  // called when the registry mutex is not held.
+  // Restores the saved flag states into the flag registry.
   void RestoreToRegistry() {
-    FlagRegistry* const global_registry = FlagRegistry::GlobalRegistry();
-    FlagRegistryLock frl(global_registry);
-    for (const SavedFlag& src : backup_registry_) {
-      CommandLineFlag* flag = global_registry->FindFlagLocked(src.name);
-      // If null, flag got deleted from registry.
-      if (!flag) continue;
-
-      bool restored = false;
-      {
-        absl::Mutex* mu = InitFlagIfNecessary(flag);
-        absl::MutexLock l(mu);
-        flag->validator = src.validator;
-        flag->modified = src.modified;
-        flag->on_command_line = src.on_command_line;
-        if (flag->counter != src.counter ||
-            ChangedDirectly(flag, src.default_value, flag->def)) {
-          flag->counter++;
-          Copy(src.op, src.default_value, flag->def);
-        }
-        if (flag->counter != src.counter ||
-            ChangedDirectly(flag, src.current, flag->cur)) {
-          restored = true;
-          flag->counter++;
-          Copy(src.op, src.current, flag->cur);
-          UpdateCopy(flag, mu);
-
-          // Revalidate the flag because the validator might store state based
-          // on the flag's value, which just changed due to the restore.
-          // Failing validation is ignored because it's assumed that the flag
-          // was valid previously and there's little that can be done about it
-          // here, anyway.
-          Validate(flag, flag->cur);
-        }
-      }
-
-      // Log statements must be done when no flag lock is held.
-      if (restored) {
-        ABSL_INTERNAL_LOG(
-            INFO, absl::StrCat("Restore saved value of ", flag->Name(), ": ",
-                               Unparse(src.marshalling_op, src.current)));
-      }
+    for (const auto& flag_state : backup_registry_) {
+      flag_state->Restore();
     }
   }
 
  private:
-  struct SavedFlag {
-    absl::string_view name;
-    FlagOpFn op;
-    FlagMarshallingOpFn marshalling_op;
-    int64_t counter;
-    bool modified;
-    bool on_command_line;
-    bool (*validator)();
-    const void* current;        // nullptr after restore
-    const void* default_value;  // nullptr after restore
-  };
-
-  std::vector<SavedFlag> backup_registry_;
-
-  FlagSaverImpl(const FlagSaverImpl&);  // no copying!
-  void operator=(const FlagSaverImpl&);
+  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
+      backup_registry_;
 };
 
-FlagSaver::FlagSaver() : impl_(new FlagSaverImpl()) {
-  impl_->SaveFromRegistry();
-}
+FlagSaver::FlagSaver() : impl_(new FlagSaverImpl) { impl_->SaveFromRegistry(); }
 
 void FlagSaver::Ignore() {
   delete impl_;
@@ -389,40 +230,6 @@ FlagSaver::~FlagSaver() {
 }
 
 // --------------------------------------------------------------------
-// GetAllFlags()
-//    The main way the FlagRegistry class exposes its data.  This
-//    returns, as strings, all the info about all the flags in
-//    the main registry, sorted first by filename they are defined
-//    in, and then by flagname.
-// --------------------------------------------------------------------
-
-struct FilenameFlagnameLess {
-  bool operator()(const CommandLineFlagInfo& a,
-                  const CommandLineFlagInfo& b) const {
-    int cmp = absl::string_view(a.filename).compare(b.filename);
-    if (cmp != 0) return cmp < 0;
-    return a.name < b.name;
-  }
-};
-
-void FillCommandLineFlagInfo(CommandLineFlag* flag,
-                             CommandLineFlagInfo* result) {
-  result->name = std::string(flag->Name());
-  result->type = std::string(flag->Typename());
-  result->description = flag->Help();
-  result->filename = flag->Filename();
-
-  UpdateModifiedBit(flag);
-
-  absl::MutexLock l(InitFlagIfNecessary(flag));
-  result->current_value = flag->CurrentValue();
-  result->default_value = flag->DefaultValue();
-  result->is_default = !flag->modified;
-  result->has_validator_fn = (flag->validator != nullptr);
-  result->flag_ptr = flag->IsAbseilFlag() ? nullptr : flag->cur;
-}
-
-// --------------------------------------------------------------------
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
   if (name.empty()) return nullptr;
@@ -430,13 +237,6 @@ CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
   FlagRegistryLock frl(registry);
 
   return registry->FindFlagLocked(name);
-}
-
-CommandLineFlag* FindCommandLineV1Flag(const void* flag_ptr) {
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
-  FlagRegistryLock frl(registry);
-
-  return registry->FindFlagViaPtrLocked(flag_ptr);
 }
 
 CommandLineFlag* FindRetiredFlag(absl::string_view name) {
@@ -464,37 +264,61 @@ void ForEachFlag(std::function<void(CommandLineFlag*)> visitor) {
 
 // --------------------------------------------------------------------
 
-void GetAllFlags(std::vector<CommandLineFlagInfo>* OUTPUT) {
-  flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
-    if (flag->IsRetired()) return;
-
-    CommandLineFlagInfo fi;
-    FillCommandLineFlagInfo(flag, &fi);
-    OUTPUT->push_back(fi);
-  });
-
-  // Now sort the flags, first by filename they occur in, then alphabetically
-  std::sort(OUTPUT->begin(), OUTPUT->end(), FilenameFlagnameLess());
-}
-
-// --------------------------------------------------------------------
-
-bool RegisterCommandLineFlag(CommandLineFlag* flag, const void* ptr) {
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag, ptr);
+bool RegisterCommandLineFlag(CommandLineFlag* flag) {
+  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }
 
 // --------------------------------------------------------------------
 
-bool Retire(FlagOpFn ops, FlagMarshallingOpFn marshalling_ops,
-            const char* name) {
-  auto* flag = new CommandLineFlag(
-      name,
-      /*help_text=*/absl::flags_internal::HelpText::FromStaticCString(nullptr),
-      /*filename_arg=*/"RETIRED", ops, marshalling_ops,
-      /*initial_value_gen=*/nullptr,
-      /*retired_arg=*/true, nullptr, nullptr);
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag, nullptr);
+namespace {
+
+class RetiredFlagObj final : public flags_internal::CommandLineFlag {
+ public:
+  constexpr RetiredFlagObj(const char* name, FlagOpFn ops)
+      : flags_internal::CommandLineFlag(name,
+                                        /*filename=*/"RETIRED"),
+        op_(ops) {}
+
+ private:
+  void Destroy() const override {
+    // Values are heap allocated for Retired Flags.
+    delete this;
+  }
+
+  flags_internal::FlagOpFn TypeId() const override { return op_; }
+  std::string Help() const override { return ""; }
+  bool IsRetired() const override { return true; }
+  bool IsModified() const override { return false; }
+  bool IsSpecifiedOnCommandLine() const override { return false; }
+  std::string DefaultValue() const override { return ""; }
+  std::string CurrentValue() const override { return ""; }
+
+  // Any input is valid
+  bool ValidateInputValue(absl::string_view) const override { return true; }
+
+  std::unique_ptr<flags_internal::FlagStateInterface> SaveState() override {
+    return nullptr;
+  }
+
+  bool SetFromString(absl::string_view, flags_internal::FlagSettingMode,
+                     flags_internal::ValueSource, std::string*) override {
+    return false;
+  }
+
+  void CheckDefaultValueParsingRoundtrip() const override {}
+
+  void Read(void*) const override {}
+
+  // Data members
+  const FlagOpFn op_;
+};
+
+}  // namespace
+
+bool Retire(const char* name, FlagOpFn ops) {
+  auto* flag = new flags_internal::RetiredFlagObj(name, ops);
+  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
   return true;
 }
 

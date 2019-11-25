@@ -55,9 +55,9 @@ struct FlatHashSetPolicy;
 // following notable differences:
 //
 // * Requires keys that are CopyConstructible
-// * Supports heterogeneous lookup, through `find()`, `operator[]()` and
-//   `insert()`, provided that the set is provided a compatible heterogeneous
-//   hashing function and equality operator.
+// * Supports heterogeneous lookup, through `find()` and `insert()`, provided
+//   that the set is provided a compatible heterogeneous hashing function and
+//   equality operator.
 // * Invalidates any references and pointers to elements within the table after
 //   `rehash()`.
 // * Contains a `capacity()` member function indicating the number of element

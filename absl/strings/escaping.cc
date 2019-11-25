@@ -35,27 +35,6 @@
 namespace absl {
 namespace {
 
-// Digit conversion.
-constexpr char kHexChar[] = "0123456789abcdef";
-
-constexpr char kHexTable[513] =
-    "000102030405060708090a0b0c0d0e0f"
-    "101112131415161718191a1b1c1d1e1f"
-    "202122232425262728292a2b2c2d2e2f"
-    "303132333435363738393a3b3c3d3e3f"
-    "404142434445464748494a4b4c4d4e4f"
-    "505152535455565758595a5b5c5d5e5f"
-    "606162636465666768696a6b6c6d6e6f"
-    "707172737475767778797a7b7c7d7e7f"
-    "808182838485868788898a8b8c8d8e8f"
-    "909192939495969798999a9b9c9d9e9f"
-    "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
-    "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
-    "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
-    "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
-    "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
-    "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
-
 // These are used for the leave_nulls_escaped argument to CUnescapeInternal().
 constexpr bool kUnescapeNulls = false;
 
@@ -348,14 +327,14 @@ std::string CEscapeInternal(absl::string_view src, bool use_hex,
              (last_hex_escape && absl::ascii_isxdigit(c)))) {
           if (use_hex) {
             dest.append("\\" "x");
-            dest.push_back(kHexChar[c / 16]);
-            dest.push_back(kHexChar[c % 16]);
+            dest.push_back(numbers_internal::kHexChar[c / 16]);
+            dest.push_back(numbers_internal::kHexChar[c % 16]);
             is_hex_escape = true;
           } else {
             dest.append("\\");
-            dest.push_back(kHexChar[c / 64]);
-            dest.push_back(kHexChar[(c % 64) / 8]);
-            dest.push_back(kHexChar[c % 8]);
+            dest.push_back(numbers_internal::kHexChar[c / 64]);
+            dest.push_back(numbers_internal::kHexChar[(c % 64) / 8]);
+            dest.push_back(numbers_internal::kHexChar[c % 8]);
           }
         } else {
           dest.push_back(c);
@@ -1019,7 +998,7 @@ template <typename T>
 void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
   auto dest_ptr = &dest[0];
   for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr, dest_ptr += 2) {
-    const char* hex_p = &kHexTable[*src_ptr * 2];
+    const char* hex_p = &numbers_internal::kHexTable[*src_ptr * 2];
     std::copy(hex_p, hex_p + 2, dest_ptr);
   }
 }

@@ -385,6 +385,22 @@ class Base {
 #define ABSL_GCC_BUG_TRIVIALLY_CONSTRUCTIBLE_ON_ARRAY_OF_NONTRIVIAL 1
 #endif
 
+TEST(TypeTraitsTest, TestIsFunction) {
+  struct Callable {
+    void operator()() {}
+  };
+  EXPECT_TRUE(absl::is_function<void()>::value);
+  EXPECT_TRUE(absl::is_function<void()&>::value);
+  EXPECT_TRUE(absl::is_function<void() const>::value);
+  EXPECT_TRUE(absl::is_function<void() noexcept>::value);
+  EXPECT_TRUE(absl::is_function<void(...) noexcept>::value);
+
+  EXPECT_FALSE(absl::is_function<void(*)()>::value);
+  EXPECT_FALSE(absl::is_function<void(&)()>::value);
+  EXPECT_FALSE(absl::is_function<int>::value);
+  EXPECT_FALSE(absl::is_function<Callable>::value);
+}
+
 TEST(TypeTraitsTest, TestTrivialDestructor) {
   // Verify that arithmetic types and pointers have trivial destructors.
   EXPECT_TRUE(absl::is_trivially_destructible<bool>::value);
@@ -528,6 +544,28 @@ TEST(TypeTraitsTest, TestTrivialDefaultCtor) {
   EXPECT_FALSE(
       absl::is_trivially_default_constructible<NontrivialDefaultCtor10>::value);
 #endif
+}
+
+// GCC prior to 7.4 had a bug in its trivially-constructible traits
+// (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80654).
+// This test makes sure that we do not depend on the trait in these cases when
+// implementing absl triviality traits.
+
+template <class T>
+struct BadConstructors {
+  BadConstructors() { static_assert(T::value, ""); }
+
+  BadConstructors(BadConstructors&&) { static_assert(T::value, ""); }
+
+  BadConstructors(const BadConstructors&) { static_assert(T::value, ""); }
+};
+
+TEST(TypeTraitsTest, TestTrivialityBadConstructors) {
+  using BadType = BadConstructors<int>;
+
+  EXPECT_FALSE(absl::is_trivially_default_constructible<BadType>::value);
+  EXPECT_FALSE(absl::is_trivially_move_constructible<BadType>::value);
+  EXPECT_FALSE(absl::is_trivially_copy_constructible<BadType>::value);
 }
 
 TEST(TypeTraitsTest, TestTrivialMoveCtor) {

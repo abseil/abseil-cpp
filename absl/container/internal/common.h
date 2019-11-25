@@ -77,8 +77,16 @@ class node_handle_base {
  protected:
   friend struct CommonAccess;
 
-  node_handle_base(const allocator_type& a, slot_type* s) : alloc_(a) {
+  struct transfer_tag_t {};
+  node_handle_base(transfer_tag_t, const allocator_type& a, slot_type* s)
+      : alloc_(a) {
     PolicyTraits::transfer(alloc(), slot(), s);
+  }
+
+  struct move_tag_t {};
+  node_handle_base(move_tag_t, const allocator_type& a, slot_type* s)
+      : alloc_(a) {
+    PolicyTraits::construct(alloc(), slot(), s);
   }
 
   void destroy() {
@@ -109,7 +117,7 @@ class node_handle_base {
 template <typename Policy, typename PolicyTraits, typename Alloc,
           typename = void>
 class node_handle : public node_handle_base<PolicyTraits, Alloc> {
-  using Base = typename node_handle::node_handle_base;
+  using Base = node_handle_base<PolicyTraits, Alloc>;
 
  public:
   using value_type = typename PolicyTraits::value_type;
@@ -121,7 +129,7 @@ class node_handle : public node_handle_base<PolicyTraits, Alloc> {
  private:
   friend struct CommonAccess;
 
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
+  using Base::Base;
 };
 
 // For maps.
@@ -129,7 +137,7 @@ template <typename Policy, typename PolicyTraits, typename Alloc>
 class node_handle<Policy, PolicyTraits, Alloc,
                   absl::void_t<typename Policy::mapped_type>>
     : public node_handle_base<PolicyTraits, Alloc> {
-  using Base = typename node_handle::node_handle_base;
+  using Base = node_handle_base<PolicyTraits, Alloc>;
 
  public:
   using key_type = typename Policy::key_type;
@@ -148,7 +156,7 @@ class node_handle<Policy, PolicyTraits, Alloc,
  private:
   friend struct CommonAccess;
 
-  node_handle(const Alloc& a, typename Base::slot_type* s) : Base(a, s) {}
+  using Base::Base;
 };
 
 // Provide access to non-public node-handle functions.
@@ -164,8 +172,13 @@ struct CommonAccess {
   }
 
   template <typename T, typename... Args>
-  static T Make(Args&&... args) {
-    return T(std::forward<Args>(args)...);
+  static T Transfer(Args&&... args) {
+    return T(typename T::transfer_tag_t{}, std::forward<Args>(args)...);
+  }
+
+  template <typename T, typename... Args>
+  static T Move(Args&&... args) {
+    return T(typename T::move_tag_t{}, std::forward<Args>(args)...);
   }
 };
 

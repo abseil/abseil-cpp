@@ -93,6 +93,8 @@ static const AbbrevPair kOperatorList[] = {
 };
 
 // List of builtin types from Itanium C++ ABI.
+//
+// Invariant: only one- or two-character type abbreviations here.
 static const AbbrevPair kBuiltinTypeList[] = {
     {"v", "void", 0},
     {"w", "wchar_t", 0},
@@ -115,6 +117,16 @@ static const AbbrevPair kBuiltinTypeList[] = {
     {"e", "long double", 0},
     {"g", "__float128", 0},
     {"z", "ellipsis", 0},
+
+    {"De", "decimal128", 0},      // IEEE 754r decimal floating point (128 bits)
+    {"Dd", "decimal64", 0},       // IEEE 754r decimal floating point (64 bits)
+    {"Dc", "decltype(auto)", 0},
+    {"Da", "auto", 0},
+    {"Dn", "std::nullptr_t", 0},  // i.e., decltype(nullptr)
+    {"Df", "decimal32", 0},       // IEEE 754r decimal floating point (32 bits)
+    {"Di", "char32_t", 0},
+    {"Ds", "char16_t", 0},
+    {"Dh", "float16", 0},         // IEEE 754r half-precision float (16 bits)
     {nullptr, nullptr, 0},
 };
 
@@ -1168,12 +1180,6 @@ static bool ParseType(State *state) {
   }
   state->parse_state = copy;
 
-  // nullptr_t, i.e. decltype(nullptr).
-  if (ParseTwoCharToken(state, "Dn")) {
-    return true;
-  }
-  state->parse_state = copy;
-
   if (ParseOneCharToken(state, 'U') && ParseSourceName(state) &&
       ParseType(state)) {
     return true;
@@ -1214,16 +1220,26 @@ static bool ParseCVQualifiers(State *state) {
   return num_cv_qualifiers > 0;
 }
 
-// <builtin-type> ::= v, etc.
+// <builtin-type> ::= v, etc.  # single-character builtin types
 //                ::= u <source-name>
+//                ::= Dd, etc.  # two-character builtin types
+//
+// Not supported:
+//                ::= DF <number> _ # _FloatN (N bits)
+//
 static bool ParseBuiltinType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   const AbbrevPair *p;
   for (p = kBuiltinTypeList; p->abbrev != nullptr; ++p) {
-    if (RemainingInput(state)[0] == p->abbrev[0]) {
+    // Guaranteed only 1- or 2-character strings in kBuiltinTypeList.
+    if (p->abbrev[1] == '\0') {
+      if (ParseOneCharToken(state, p->abbrev[0])) {
+        MaybeAppend(state, p->real_name);
+        return true;
+      }
+    } else if (p->abbrev[2] == '\0' && ParseTwoCharToken(state, p->abbrev)) {
       MaybeAppend(state, p->real_name);
-      ++state->parse_state.mangled_idx;
       return true;
     }
   }

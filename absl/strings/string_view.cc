@@ -14,7 +14,7 @@
 
 #include "absl/strings/string_view.h"
 
-#ifndef ABSL_HAVE_STD_STRING_VIEW
+#ifndef ABSL_USES_STD_STRING_VIEW
 
 #include <algorithm>
 #include <climits>
@@ -75,18 +75,6 @@ std::ostream& operator<<(std::ostream& o, string_view piece) {
     o.width(0);
   }
   return o;
-}
-
-string_view::size_type string_view::copy(char* buf, size_type n,
-                                         size_type pos) const {
-  size_type ulen = length_;
-  assert(pos <= ulen);
-  size_type rlen = std::min(ulen - pos, n);
-  if (rlen > 0) {
-    const char* start = ptr_ + pos;
-    std::copy(start, start + rlen, buf);
-  }
-  return rlen;
 }
 
 string_view::size_type string_view::find(string_view s, size_type pos) const
@@ -242,4 +230,4 @@ constexpr string_view::size_type string_view::kMaxSize;
 
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_STRING_VIEW
+#endif  // ABSL_USES_STD_STRING_VIEW

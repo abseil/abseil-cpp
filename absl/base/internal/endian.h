@@ -19,9 +19,6 @@
 // The following guarantees declaration of the byte swap functions
 #ifdef _MSC_VER
 #include <stdlib.h>  // NOLINT(build/include)
-#elif defined(__APPLE__)
-// Mac OS X / Darwin features
-#include <libkern/OSByteOrder.h>
 #elif defined(__FreeBSD__)
 #include <sys/endian.h>
 #elif defined(__GLIBC__)
@@ -62,11 +59,6 @@ inline uint32_t gbswap_32(uint32_t host_int) {
 inline uint16_t gbswap_16(uint16_t host_int) {
   return _byteswap_ushort(host_int);
 }
-
-#elif defined(__APPLE__)
-inline uint64_t gbswap_64(uint64_t host_int) { return OSSwapInt16(host_int); }
-inline uint32_t gbswap_32(uint32_t host_int) { return OSSwapInt32(host_int); }
-inline uint16_t gbswap_16(uint16_t host_int) { return OSSwapInt64(host_int); }
 
 #else
 inline uint64_t gbswap_64(uint64_t host_int) {
@@ -113,7 +105,7 @@ inline uint16_t gbswap_16(uint16_t host_int) {
 #endif
 }
 
-#endif  // intrinics available
+#endif  // intrinsics available
 
 #ifdef ABSL_IS_LITTLE_ENDIAN
 

@@ -62,8 +62,7 @@ inline bool EndsWith(absl::string_view text, absl::string_view suffix) {
   return suffix.empty() ||
          (text.size() >= suffix.size() &&
           memcmp(text.data() + (text.size() - suffix.size()), suffix.data(),
-                 suffix.size()) == 0
-         );
+                 suffix.size()) == 0);
 }
 
 // EqualsIgnoreCase()

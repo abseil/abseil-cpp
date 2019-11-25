@@ -1,5 +1,5 @@
 #
-#  Copyright 2019 The Abseil Authors.
+# Copyright 2019 The Abseil Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -26,12 +27,32 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # Apache 2.0
 
 cc_library(
-    name = "internal",
+    name = "flag_internal",
+    srcs = [
+        "internal/flag.cc",
+    ],
+    hdrs = [
+        "internal/flag.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":handle",
+        ":registry",
+        "//absl/base:core_headers",
+        "//absl/memory",
+        "//absl/strings",
+        "//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "program_name",
     srcs = [
         "internal/program_name.cc",
     ],
     hdrs = [
-        "internal/path_util.h",
         "internal/program_name.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
@@ -40,8 +61,24 @@ cc_library(
         "//absl/flags:__pkg__",
     ],
     deps = [
+        ":path_util",
         "//absl/strings",
         "//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "path_util",
+    hdrs = [
+        "internal/path_util.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/flags:__pkg__",
+    ],
+    deps = [
+        "//absl/strings",
     ],
 )
 
@@ -57,7 +94,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":internal",
+        ":path_util",
+        ":program_name",
         "//absl/base:core_headers",
         "//absl/strings",
         "//absl/synchronization",
@@ -97,10 +135,7 @@ cc_library(
     deps = [
         ":config",
         ":marshalling",
-        "//absl/base",
         "//absl/base:core_headers",
-        "//absl/strings",
-        "//absl/synchronization",
         "//absl/types:optional",
     ],
 )
@@ -123,9 +158,9 @@ cc_library(
     deps = [
         ":config",
         ":handle",
-        "//absl/base",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -139,23 +174,23 @@ cc_library(
     hdrs = [
         "declare.h",
         "flag.h",
-        "internal/flag.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":config",
+        ":flag_internal",
         ":handle",
         ":marshalling",
-        ":registry",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/memory",
         "//absl/strings",
     ],
 )
 
 cc_library(
-    name = "usage",
+    name = "usage_internal",
     srcs = [
         "internal/usage.cc",
     ],
@@ -171,7 +206,25 @@ cc_library(
         ":config",
         ":flag",
         ":handle",
-        ":internal",
+        ":path_util",
+        ":program_name",
+        "//absl/strings",
+        "//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "usage",
+    srcs = [
+        "usage.cc",
+    ],
+    hdrs = [
+        "usage.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":usage_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -189,17 +242,17 @@ cc_library(
     deps = [
         ":config",
         ":flag",
-        ":handle",
-        ":internal",
+        ":program_name",
         ":registry",
         ":usage",
+        ":usage_internal",
         "//absl/strings",
         "//absl/synchronization",
     ],
 )
 
 ############################################################################
-# Unit tests in alpahabetical order.
+# Unit tests in alphabetical order.
 
 cc_test(
     name = "commandlineflag_test",
@@ -210,6 +263,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":config",
         ":flag",
         ":handle",
         ":registry",
@@ -243,6 +297,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":config",
         ":flag",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -272,7 +327,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":internal",
+        ":path_util",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -288,7 +343,7 @@ cc_test(
     deps = [
         ":flag",
         ":parse",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/base:scoped_set_env",
         "//absl/strings",
         "//absl/types:span",
@@ -305,7 +360,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":internal",
+        ":program_name",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -338,7 +393,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":config",
-        ":internal",
+        ":path_util",
+        ":program_name",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -355,9 +411,11 @@ cc_test(
     deps = [
         ":config",
         ":flag",
-        ":internal",
         ":parse",
+        ":path_util",
+        ":program_name",
         ":usage",
+        ":usage_internal",
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest",

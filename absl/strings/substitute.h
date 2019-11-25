@@ -35,10 +35,13 @@
 // and single digit positional ids to indicate which substitution arguments to
 // use at that location within the format string.
 //
+// A '$$' sequence in the format string causes a literal '$' character to be
+// output.
+//
 // Example 1:
-//   std::string s = Substitute("$1 purchased $0 $2. Thanks $1!",
+//   std::string s = Substitute("$1 purchased $0 $2 for $$10. Thanks $1!",
 //                              5, "Bob", "Apples");
-//   EXPECT_EQ("Bob purchased 5 Apples. Thanks Bob!", s);
+//   EXPECT_EQ("Bob purchased 5 Apples for $10. Thanks Bob!", s);
 //
 // Example 2:
 //   std::string s = "Hi. ";

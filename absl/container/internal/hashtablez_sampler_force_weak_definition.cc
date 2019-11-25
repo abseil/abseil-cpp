@@ -20,8 +20,9 @@ namespace absl {
 namespace container_internal {
 
 // See hashtablez_sampler.h for details.
-extern "C" ABSL_ATTRIBUTE_WEAK const bool
-    kAbslContainerInternalSampleEverything = false;
+extern "C" ABSL_ATTRIBUTE_WEAK bool AbslContainerInternalSampleEverything() {
+  return false;
+}
 
 }  // namespace container_internal
 }  // namespace absl

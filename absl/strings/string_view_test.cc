@@ -29,7 +29,8 @@
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 
-#ifdef __ANDROID__
+#if defined(ABSL_HAVE_STD_STRING_VIEW) || defined(__ANDROID__)
+// We don't control the death messaging when using std::string_view.
 // Android assert messages only go to system log, so death tests cannot inspect
 // the message for matching.
 #define ABSL_EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
@@ -369,6 +370,11 @@ TEST(StringViewTest, STL1) {
   EXPECT_EQ(buf[1], c[1]);
   EXPECT_EQ(buf[2], c[2]);
   EXPECT_EQ(buf[3], a[3]);
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(a.copy(buf, 1, 27), std::out_of_range);
+#else
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(a.copy(buf, 1, 27), "absl::string_view::copy");
+#endif
 }
 
 // Separated from STL1() because some compilers produce an overly
@@ -681,7 +687,8 @@ TEST(StringViewTest, STL2Substr) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW((void)a.substr(99, 2), std::out_of_range);
 #else
-  EXPECT_DEATH((void)a.substr(99, 2), "absl::string_view::substr");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED((void)a.substr(99, 2),
+                                 "absl::string_view::substr");
 #endif
 }
 
@@ -817,15 +824,17 @@ TEST(StringViewTest, FrontBackSingleChar) {
 // "read of dereferenced null pointer is not allowed in a constant expression".
 // At run time, the behavior of `std::char_traits::length()` on `nullptr` is
 // undefined by the standard and usually results in crash with libc++.
+// GCC also started rejected this in libstdc++ starting in GCC9.
 // In MSVC, creating a constexpr string_view from nullptr also triggers an
 // "unevaluable pointer value" error. This compiler implementation conforms
 // to the standard, but `absl::string_view` implements a different
 // behavior for historical reasons. We work around tests that construct
 // `string_view` from `nullptr` when using libc++.
-#if !defined(ABSL_HAVE_STD_STRING_VIEW) || \
-    (!defined(_LIBCPP_VERSION) && !defined(_MSC_VER))
+#if !defined(ABSL_USES_STD_STRING_VIEW) ||                    \
+    (!(defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 9) && \
+     !defined(_LIBCPP_VERSION) && !defined(_MSC_VER))
 #define ABSL_HAVE_STRING_VIEW_FROM_NULLPTR 1
-#endif  // !defined(ABSL_HAVE_STD_STRING_VIEW) || !defined(_LIBCPP_VERSION)
+#endif
 
 TEST(StringViewTest, NULLInput) {
   absl::string_view s;
@@ -887,6 +896,18 @@ TEST(StringViewTest, Comparisons2) {
   EXPECT_LT(digits.compare(0, npos, "0123456789", 3, 5), 0);  // 6
 }
 
+TEST(StringViewTest, At) {
+  absl::string_view abc = "abc";
+  EXPECT_EQ(abc.at(0), 'a');
+  EXPECT_EQ(abc.at(1), 'b');
+  EXPECT_EQ(abc.at(2), 'c');
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(abc.at(3), std::out_of_range);
+#else
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(abc.at(3), "absl::string_view::at");
+#endif
+}
+
 struct MyCharAlloc : std::allocator<char> {};
 
 TEST(StringViewTest, ExplicitConversionOperator) {
@@ -917,7 +938,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 #endif
   constexpr absl::string_view cstr_len("cstr", 4);
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
+#if defined(ABSL_USES_STD_STRING_VIEW)
   // In libstdc++ (as of 7.2), `std::string_view::string_view(const char*)`
   // calls `std::char_traits<char>::length(const char*)` to get the std::string
   // length, but it is not marked constexpr yet. See GCC bug:
@@ -931,7 +952,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 #define ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR 1
 #endif  // !__GLIBCXX__
 
-#else  // ABSL_HAVE_STD_STRING_VIEW
+#else  // ABSL_USES_STD_STRING_VIEW
 
 // This duplicates the check for __builtin_strlen in the header.
 #if ABSL_HAVE_BUILTIN(__builtin_strlen) || \
@@ -941,13 +962,41 @@ TEST(StringViewTest, ConstexprCompiles) {
 #error GCC/clang should have constexpr string_view.
 #endif
 
-#endif  // ABSL_HAVE_STD_STRING_VIEW
+// MSVC 2017+ should be able to construct a constexpr string_view from a cstr.
+#if defined(_MSC_VER) && _MSC_VER >= 1910
+#define ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR 1
+#endif
+
+#endif  // ABSL_USES_STD_STRING_VIEW
 
 #ifdef ABSL_HAVE_CONSTEXPR_STRING_VIEW_FROM_CSTR
   constexpr absl::string_view cstr_strlen("foo");
   EXPECT_EQ(cstr_strlen.length(), 3);
   constexpr absl::string_view cstr_strlen2 = "bar";
   EXPECT_EQ(cstr_strlen2, "bar");
+
+#if ABSL_HAVE_BUILTIN(__builtin_memcmp) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_HAVE_CONSTEXPR_STRING_VIEW_COMPARISON 1
+#endif
+#ifdef ABSL_HAVE_CONSTEXPR_STRING_VIEW_COMPARISON
+  constexpr absl::string_view foo = "foo";
+  constexpr absl::string_view bar = "bar";
+  constexpr bool foo_eq_bar = foo == bar;
+  constexpr bool foo_ne_bar = foo != bar;
+  constexpr bool foo_lt_bar = foo < bar;
+  constexpr bool foo_le_bar = foo <= bar;
+  constexpr bool foo_gt_bar = foo > bar;
+  constexpr bool foo_ge_bar = foo >= bar;
+  constexpr int foo_compare_bar = foo.compare(bar);
+  EXPECT_FALSE(foo_eq_bar);
+  EXPECT_TRUE(foo_ne_bar);
+  EXPECT_FALSE(foo_lt_bar);
+  EXPECT_FALSE(foo_le_bar);
+  EXPECT_TRUE(foo_gt_bar);
+  EXPECT_TRUE(foo_ge_bar);
+  EXPECT_GT(foo_compare_bar, 0);
+#endif
 #endif
 
 #if !defined(__clang__) || 3 < __clang_major__ || \
@@ -969,8 +1018,16 @@ TEST(StringViewTest, ConstexprCompiles) {
   constexpr absl::string_view::iterator const_end = cstr_len.end();
   constexpr absl::string_view::size_type const_size = cstr_len.size();
   constexpr absl::string_view::size_type const_length = cstr_len.length();
+  static_assert(const_begin + const_size == const_end,
+                "pointer arithmetic check");
+  static_assert(const_begin + const_length == const_end,
+                "pointer arithmetic check");
+#ifndef _MSC_VER
+  // MSVC has bugs doing constexpr pointer arithmetic.
+  // https://developercommunity.visualstudio.com/content/problem/482192/bad-pointer-arithmetic-in-constepxr-2019-rc1-svc1.html
   EXPECT_EQ(const_begin + const_size, const_end);
   EXPECT_EQ(const_begin + const_length, const_end);
+#endif
 
   constexpr bool isempty = sp.empty();
   EXPECT_TRUE(isempty);
@@ -1079,7 +1136,7 @@ TEST(HugeStringView, TwoPointTwoGB) {
 }
 #endif  // THREAD_SANITIZER
 
-#if !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
+#if !defined(NDEBUG) && !defined(ABSL_USES_STD_STRING_VIEW)
 TEST(NonNegativeLenTest, NonNegativeLen) {
   ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("xyz", -1),
                                  "len <= kMaxSize");
@@ -1095,7 +1152,7 @@ TEST(LenExceedsMaxSizeTest, LenExceedsMaxSize) {
   ABSL_EXPECT_DEATH_IF_SUPPORTED(absl::string_view("", max_size + 1),
                                  "len <= kMaxSize");
 }
-#endif  // !defined(NDEBUG) && !defined(ABSL_HAVE_STD_STRING_VIEW)
+#endif  // !defined(NDEBUG) && !defined(ABSL_USES_STD_STRING_VIEW)
 
 class StringViewStreamTest : public ::testing::Test {
  public:

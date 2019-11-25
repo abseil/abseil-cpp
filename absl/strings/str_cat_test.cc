@@ -195,6 +195,21 @@ TEST(StrCat, Basics) {
   EXPECT_EQ(result, "12333444455555666666777777788888888999999999");
 }
 
+TEST(StrCat, CornerCases) {
+  std::string result;
+
+  result = absl::StrCat("");  // NOLINT
+  EXPECT_EQ(result, "");
+  result = absl::StrCat("", "");
+  EXPECT_EQ(result, "");
+  result = absl::StrCat("", "", "");
+  EXPECT_EQ(result, "");
+  result = absl::StrCat("", "", "", "");
+  EXPECT_EQ(result, "");
+  result = absl::StrCat("", "", "", "", "");
+  EXPECT_EQ(result, "");
+}
+
 // A minimal allocator that uses malloc().
 template <typename T>
 struct Mallocator {
@@ -433,10 +448,34 @@ TEST(StrAppend, Death) {
 }
 #endif  // GTEST_HAS_DEATH_TEST
 
-TEST(StrAppend, EmptyString) {
-  std::string s = "";
-  absl::StrAppend(&s, s);
-  EXPECT_EQ(s, "");
+TEST(StrAppend, CornerCases) {
+  std::string result;
+  absl::StrAppend(&result, "");
+  EXPECT_EQ(result, "");
+  absl::StrAppend(&result, "", "");
+  EXPECT_EQ(result, "");
+  absl::StrAppend(&result, "", "", "");
+  EXPECT_EQ(result, "");
+  absl::StrAppend(&result, "", "", "", "");
+  EXPECT_EQ(result, "");
+  absl::StrAppend(&result, "", "", "", "", "");
+  EXPECT_EQ(result, "");
+}
+
+TEST(StrAppend, CornerCasesNonEmptyAppend) {
+  for (std::string result : {"hello", "a std::string too long to fit in the SSO"}) {
+    const std::string expected = result;
+    absl::StrAppend(&result, "");
+    EXPECT_EQ(result, expected);
+    absl::StrAppend(&result, "", "");
+    EXPECT_EQ(result, expected);
+    absl::StrAppend(&result, "", "", "");
+    EXPECT_EQ(result, expected);
+    absl::StrAppend(&result, "", "", "", "");
+    EXPECT_EQ(result, expected);
+    absl::StrAppend(&result, "", "", "", "", "");
+    EXPECT_EQ(result, expected);
+  }
 }
 
 template <typename IntType>

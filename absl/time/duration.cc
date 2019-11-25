@@ -49,6 +49,10 @@
 //
 // Arithmetic overflows/underflows to +/- infinity and saturates.
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -193,11 +197,11 @@ inline int64_t DecodeTwosComp(uint64_t v) { return absl::bit_cast<int64_t>(v); }
 // double as overflow cases.
 inline bool SafeAddRepHi(double a_hi, double b_hi, Duration* d) {
   double c = a_hi + b_hi;
-  if (c >= kint64max) {
+  if (c >= static_cast<double>(kint64max)) {
     *d = InfiniteDuration();
     return false;
   }
-  if (c <= kint64min) {
+  if (c <= static_cast<double>(kint64min)) {
     *d = -InfiniteDuration();
     return false;
   }
@@ -902,6 +906,11 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
   return true;
 }
 
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string*) {
+  return ParseDuration(std::string(text), dst);
+}
+
+std::string AbslUnparseFlag(Duration d) { return FormatDuration(d); }
 bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
   return ParseDuration(text, dst);
 }

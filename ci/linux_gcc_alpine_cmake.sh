@@ -27,12 +27,14 @@ if [ -z ${ABSEIL_ROOT:-} ]; then
 fi
 
 if [ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]; then
-  ABSL_CMAKE_CXX_STANDARDS="11 14"
+  ABSL_CMAKE_CXX_STANDARDS="11 14 17"
 fi
 
 if [ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]; then
   ABSL_CMAKE_BUILD_TYPES="Debug Release"
 fi
+
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/alpine:20191016"
 
 for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
@@ -47,15 +49,15 @@ for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
       --rm \
       -e CFLAGS="-Werror" \
       -e CXXFLAGS="-Werror" \
-      gcr.io/google.com/absl-177019/linux_gcc-4.8:20190316 \
-      /bin/bash -c "
+      "${DOCKER_CONTAINER}" \
+      /bin/sh -c "
         cd /buildfs && \
         cmake /abseil-cpp \
           -DABSL_USE_GOOGLETEST_HEAD=ON \
           -DABSL_RUN_TESTS=ON \
           -DCMAKE_BUILD_TYPE=${compilation_mode} \
           -DCMAKE_CXX_STANDARD=${std} && \
-        make -j$(nproc) VERBOSE=1 && \
+        make -j$(nproc) && \
         ctest -j$(nproc) --output-on-failure"
   done
 done

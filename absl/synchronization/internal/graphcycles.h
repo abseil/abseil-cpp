@@ -36,7 +36,7 @@
 //   InsertEdge() is very fast when the edge already exists, and reasonably fast
 //   otherwise.
 //   FindPath() is linear in the size of the graph.
-// The current implemenation uses O(|V|+|E|) space.
+// The current implementation uses O(|V|+|E|) space.
 
 #include <cstdint>
 

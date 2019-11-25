@@ -14,6 +14,8 @@
 
 #include "absl/container/flat_hash_map.h"
 
+#include <memory>
+
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
@@ -45,6 +47,11 @@ INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
+
+using UniquePtrMapTypes = ::testing::Types<Map<int, std::unique_ptr<int>>>;
+
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, UniquePtrModifiersTest,
+                               UniquePtrMapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {
@@ -207,7 +214,7 @@ TEST(FlatHashMap, MergeExtractInsert) {
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 17), Pair(2, 9)));
 }
 
-#if (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
+#if (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
     !defined(__EMSCRIPTEN__)
 TEST(FlatHashMap, Any) {
   absl::flat_hash_map<int, absl::any> m;
@@ -239,7 +246,7 @@ TEST(FlatHashMap, Any) {
   ASSERT_NE(it2, m2.end());
   EXPECT_EQ(7, it2->second);
 }
-#endif  // (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
+#endif  // (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
         // !defined(__EMSCRIPTEN__)
 
 }  // namespace

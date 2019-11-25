@@ -25,7 +25,7 @@
 
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_STD_ANY
+#ifdef ABSL_USES_STD_ANY
 
 #include <any>
 
@@ -33,7 +33,7 @@ namespace absl {
 using std::bad_any_cast;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_ANY
+#else  // ABSL_USES_STD_ANY
 
 namespace absl {
 
@@ -66,6 +66,6 @@ namespace any_internal {
 }  // namespace any_internal
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_ANY
+#endif  // ABSL_USES_STD_ANY
 
 #endif  // ABSL_TYPES_BAD_ANY_CAST_H_

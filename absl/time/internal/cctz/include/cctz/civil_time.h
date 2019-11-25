@@ -150,7 +150,7 @@ namespace cctz {
 //
 // All civil-time types have accessors for all six of the civil-time fields:
 // year, month, day, hour, minute, and second. Recall that fields inferior to
-// the type's aligment will be set to their minimum valid value.
+// the type's alignment will be set to their minimum valid value.
 //
 //   civil_day d(2015, 6, 28);
 //   // d.year() == 2015
@@ -279,7 +279,7 @@ using civil_second = detail::civil_second;
 //
 using detail::weekday;
 
-// Returns the weekday for the given civil_day.
+// Returns the weekday for the given civil-time value.
 //
 //   civil_day a(2015, 8, 13);
 //   weekday wd = get_weekday(a);  // wd == weekday::thursday
@@ -306,14 +306,14 @@ using detail::get_weekday;
 //
 //   civil_day d = ...
 //   // Gets the following Thursday if d is not already Thursday
-//   civil_day thurs1 = prev_weekday(d, weekday::thursday) + 7;
+//   civil_day thurs1 = next_weekday(d - 1, weekday::thursday);
 //   // Gets the previous Thursday if d is not already Thursday
-//   civil_day thurs2 = next_weekday(d, weekday::thursday) - 7;
+//   civil_day thurs2 = prev_weekday(d + 1, weekday::thursday);
 //
 using detail::next_weekday;
 using detail::prev_weekday;
 
-// Returns the day-of-year for the given civil_day.
+// Returns the day-of-year for the given civil-time value.
 //
 //   civil_day a(2015, 1, 1);
 //   int yd_jan_1 = get_yearday(a);   // yd_jan_1 = 1

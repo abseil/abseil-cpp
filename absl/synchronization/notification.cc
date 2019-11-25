@@ -44,15 +44,6 @@ Notification::~Notification() {
   MutexLock l(&this->mutex_);
 }
 
-static inline bool HasBeenNotifiedInternal(
-    const std::atomic<bool> *notified_yet) {
-  return notified_yet->load(std::memory_order_acquire);
-}
-
-bool Notification::HasBeenNotified() const {
-  return HasBeenNotifiedInternal(&this->notified_yet_);
-}
-
 void Notification::WaitForNotification() const {
   if (!HasBeenNotifiedInternal(&this->notified_yet_)) {
     this->mutex_.LockWhen(Condition(&HasBeenNotifiedInternal,

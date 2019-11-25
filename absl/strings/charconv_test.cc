@@ -511,6 +511,13 @@ TEST(FromChars, Overflow) {
   EXPECT_EQ(f, std::numeric_limits<float>::max());
 }
 
+TEST(FromChars, RegressionTestsFromFuzzer) {
+  absl::string_view src = "0x21900000p00000000099";
+  float f;
+  auto result = absl::from_chars(src.data(), src.data() + src.size(), f);
+  EXPECT_EQ(result.ec, std::errc::result_out_of_range);
+}
+
 TEST(FromChars, ReturnValuePtr) {
   // Check that `ptr` points one past the number scanned, even if that number
   // is not representable.

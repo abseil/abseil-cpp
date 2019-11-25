@@ -112,6 +112,18 @@ template <class Key, class Hash, class KeyEqual, class Allocator>
 struct IsUnorderedContainer<std::unordered_set<Key, Hash, KeyEqual, Allocator>>
     : std::true_type {};
 
+// container_algorithm_internal::c_size. It is meant for internal use only.
+
+template <class C>
+auto c_size(C& c) -> decltype(c.size()) {
+  return c.size();
+}
+
+template <class T, std::size_t N>
+constexpr std::size_t c_size(T (&)[N]) {
+  return N;
+}
+
 }  // namespace container_algorithm_internal
 
 // PUBLIC API
@@ -365,7 +377,8 @@ c_mismatch(C1& c1, C2& c2, BinaryPredicate&& pred) {
 
 template <typename C1, typename C2>
 bool c_equal(const C1& c1, const C2& c2) {
-  return ((c1.size() == c2.size()) &&
+  return ((container_algorithm_internal::c_size(c1) ==
+           container_algorithm_internal::c_size(c2)) &&
           std::equal(container_algorithm_internal::c_begin(c1),
                      container_algorithm_internal::c_end(c1),
                      container_algorithm_internal::c_begin(c2)));
@@ -375,7 +388,8 @@ bool c_equal(const C1& c1, const C2& c2) {
 // the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
 bool c_equal(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
-  return ((c1.size() == c2.size()) &&
+  return ((container_algorithm_internal::c_size(c1) ==
+           container_algorithm_internal::c_size(c2)) &&
           std::equal(container_algorithm_internal::c_begin(c1),
                      container_algorithm_internal::c_end(c1),
                      container_algorithm_internal::c_begin(c2),
@@ -508,6 +522,16 @@ template <typename C, typename OutputIterator>
 OutputIterator c_move(C&& src, OutputIterator dest) {
   return std::move(container_algorithm_internal::c_begin(src),
                    container_algorithm_internal::c_end(src), dest);
+}
+
+// c_move_backward()
+//
+// Container-based version of the <algorithm> `std::move_backward()` function to
+// move a container's elements into an iterator in reverse order.
+template <typename C, typename BidirectionalIterator>
+BidirectionalIterator c_move_backward(C&& src, BidirectionalIterator dest) {
+  return std::move_backward(container_algorithm_internal::c_begin(src),
+                            container_algorithm_internal::c_end(src), dest);
 }
 
 // c_swap_ranges()

@@ -449,7 +449,7 @@ static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
     last_sample.min_cycles_per_sample.store(0, std::memory_order_relaxed);
     stats_initializations++;
   } else if (sample->raw_ns + 500 * 1000 * 1000 < now_ns &&
-             sample->base_cycles + 100 < now_cycles) {
+             sample->base_cycles + 50 < now_cycles) {
     // Enough time has passed to compute the cycle time.
     if (sample->nsscaled_per_cycle != 0) {  // Have a cycle time estimate.
       // Compute time from counter reading, but avoiding overflow

@@ -40,10 +40,14 @@ std::atomic<int> *PerThreadSem::GetThreadBlockedCounter() {
 }
 
 void PerThreadSem::Init(base_internal::ThreadIdentity *identity) {
-  Waiter::GetWaiter(identity)->Init();
+  new (Waiter::GetWaiter(identity)) Waiter();
   identity->ticker.store(0, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);
   identity->is_idle.store(false, std::memory_order_relaxed);
+}
+
+void PerThreadSem::Destroy(base_internal::ThreadIdentity *identity) {
+  Waiter::GetWaiter(identity)->~Waiter();
 }
 
 void PerThreadSem::Tick(base_internal::ThreadIdentity *identity) {

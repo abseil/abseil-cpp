@@ -63,6 +63,7 @@
 #include <TargetConditionals.h>
 #endif
 
+#include "absl/base/options.h"
 #include "absl/base/policy_checks.h"
 
 // -----------------------------------------------------------------------------
@@ -82,6 +83,12 @@
 #define ABSL_HAVE_BUILTIN(x) __has_builtin(x)
 #else
 #define ABSL_HAVE_BUILTIN(x) 0
+#endif
+
+#if defined(__is_identifier)
+#define ABSL_INTERNAL_HAS_KEYWORD(x) !(__is_identifier(x))
+#else
+#define ABSL_INTERNAL_HAS_KEYWORD(x) 0
 #endif
 
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
@@ -125,11 +132,22 @@
 #error ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE cannot directly set
 #elif (defined(__clang__) && defined(_LIBCPP_VERSION)) ||        \
     (!defined(__clang__) && defined(__GNUC__) &&                 \
-     (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)) && \
+     (__GNUC__ > 7 || (__GNUC__ == 7 && __GNUC_MINOR__ >= 4)) && \
      (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__))) ||      \
     (defined(_MSC_VER) && !defined(__NVCC__))
 #define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
 #define ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE 1
+#endif
+
+// ABSL_HAVE_SOURCE_LOCATION_CURRENT
+//
+// Indicates whether `absl::SourceLocation::current()` will return useful
+// information in some contexts.
+#ifndef ABSL_HAVE_SOURCE_LOCATION_CURRENT
+#if ABSL_INTERNAL_HAS_KEYWORD(__builtin_LINE) && \
+    ABSL_INTERNAL_HAS_KEYWORD(__builtin_FILE)
+#define ABSL_HAVE_SOURCE_LOCATION_CURRENT 1
+#endif
 #endif
 
 // ABSL_HAVE_THREAD_LOCAL
@@ -180,6 +198,13 @@
 #undef ABSL_HAVE_THREAD_LOCAL
 #endif
 #endif  // defined(__ANDROID__) && defined(__clang__)
+
+// Emscripten doesn't yet support `thread_local` or `__thread`.
+// https://github.com/emscripten-core/emscripten/issues/3502
+#if defined(__EMSCRIPTEN__)
+#undef ABSL_HAVE_TLS
+#undef ABSL_HAVE_THREAD_LOCAL
+#endif  // defined(__EMSCRIPTEN__)
 
 // ABSL_HAVE_INTRINSIC_INT128
 //
@@ -253,7 +278,7 @@
 //   Linux and Linux-derived           __linux__
 //   Android                           __ANDROID__ (implies __linux__)
 //   Linux (non-Android)               __linux__ && !__ANDROID__
-//   Darwin (Mac OS X and iOS)         __APPLE__
+//   Darwin (macOS and iOS)            __APPLE__
 //   Akaros (http://akaros.org)        __ros__
 //   Windows                           _WIN32
 //   NaCL                              __native_client__
@@ -300,7 +325,7 @@
 
 // ABSL_HAVE_SEMAPHORE_H
 //
-// Checks whether the platform supports the <semaphore.h> header and sem_open(3)
+// Checks whether the platform supports the <semaphore.h> header and sem_init(3)
 // family of functions as standardized in POSIX.1-2001.
 //
 // Note: While Apple provides <semaphore.h> for both iOS and macOS, it is
@@ -327,8 +352,15 @@
 #define ABSL_HAVE_ALARM 1
 #elif defined(_MSC_VER)
 // feature tests for Microsoft's library
+#elif defined(__MINGW32__)
+// mingw32 doesn't provide alarm(2):
+// https://osdn.net/projects/mingw/scm/git/mingw-org-wsl/blobs/5.2-trunk/mingwrt/include/unistd.h
+// mingw-w64 provides a no-op implementation:
+// https://sourceforge.net/p/mingw-w64/mingw-w64/ci/master/tree/mingw-w64-crt/misc/alarm.c
 #elif defined(__EMSCRIPTEN__)
 // emscripten doesn't support signals
+#elif defined(__Fuchsia__)
+// Signals don't exist on fuchsia.
 #elif defined(__native_client__)
 #else
 // other standard libraries
@@ -363,16 +395,25 @@
 #error "absl endian detection needs to be set up for your compiler"
 #endif
 
-// MacOS 10.13 doesn't let you use <any>, <optional>, or <variant> even though
-// the headers exist and are publicly noted to work.  See
+// macOS 10.13 and iOS 10.11 don't let you use <any>, <optional>, or <variant>
+// even though the headers exist and are publicly noted to work.  See
 // https://github.com/abseil/abseil-cpp/issues/207 and
 // https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes
+// libc++ spells out the availability requirements in the file
+// llvm-project/libcxx/include/__config via the #define
+// _LIBCPP_AVAILABILITY_BAD_OPTIONAL_ACCESS.
 #if defined(__APPLE__) && defined(_LIBCPP_VERSION) && \
-    defined(__MAC_OS_X_VERSION_MIN_REQUIRED__) &&     \
-    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 1
+  ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101400) || \
+  (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 120000) || \
+  (defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ < 120000) || \
+  (defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) && \
+   __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ < 50000))
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 1
 #else
-#define ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE 0
+#define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
 // ABSL_HAVE_STD_ANY
@@ -384,7 +425,7 @@
 
 #ifdef __has_include
 #if __has_include(<any>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_ANY 1
 #endif
 #endif
@@ -398,7 +439,7 @@
 
 #ifdef __has_include
 #if __has_include(<optional>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_OPTIONAL 1
 #endif
 #endif
@@ -412,7 +453,7 @@
 
 #ifdef __has_include
 #if __has_include(<variant>) && __cplusplus >= 201703L && \
-    !ABSL_INTERNAL_MACOS_CXX17_TYPES_UNAVAILABLE
+    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
 #define ABSL_HAVE_STD_VARIANT 1
 #endif
 #endif
@@ -445,6 +486,68 @@
 #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
+// ABSL_USES_STD_ANY
+//
+// Indicates whether absl::any is an alias for std::any.
+#if !defined(ABSL_OPTION_USE_STD_ANY)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_ANY == 0 || \
+    (ABSL_OPTION_USE_STD_ANY == 2 && !defined(ABSL_HAVE_STD_ANY))
+#undef ABSL_USES_STD_ANY
+#elif ABSL_OPTION_USE_STD_ANY == 1 || \
+    (ABSL_OPTION_USE_STD_ANY == 2 && defined(ABSL_HAVE_STD_ANY))
+#define ABSL_USES_STD_ANY 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_OPTIONAL
+//
+// Indicates whether absl::optional is an alias for std::optional.
+#if !defined(ABSL_OPTION_USE_STD_OPTIONAL)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_OPTIONAL == 0 || \
+    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && !defined(ABSL_HAVE_STD_OPTIONAL))
+#undef ABSL_USES_STD_OPTIONAL
+#elif ABSL_OPTION_USE_STD_OPTIONAL == 1 || \
+    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && defined(ABSL_HAVE_STD_OPTIONAL))
+#define ABSL_USES_STD_OPTIONAL 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_VARIANT
+//
+// Indicates whether absl::variant is an alias for std::variant.
+#if !defined(ABSL_OPTION_USE_STD_VARIANT)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_VARIANT == 0 || \
+    (ABSL_OPTION_USE_STD_VARIANT == 2 && !defined(ABSL_HAVE_STD_VARIANT))
+#undef ABSL_USES_STD_VARIANT
+#elif ABSL_OPTION_USE_STD_VARIANT == 1 || \
+    (ABSL_OPTION_USE_STD_VARIANT == 2 && defined(ABSL_HAVE_STD_VARIANT))
+#define ABSL_USES_STD_VARIANT 1
+#else
+#error options.h is misconfigured.
+#endif
+
+// ABSL_USES_STD_STRING_VIEW
+//
+// Indicates whether absl::string_view is an alias for std::string_view.
+#if !defined(ABSL_OPTION_USE_STD_STRING_VIEW)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0 || \
+    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
+     !defined(ABSL_HAVE_STD_STRING_VIEW))
+#undef ABSL_USES_STD_STRING_VIEW
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 1 || \
+    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
+     defined(ABSL_HAVE_STD_STRING_VIEW))
+#define ABSL_USES_STD_STRING_VIEW 1
+#else
+#error options.h is misconfigured.
+#endif
+
 // In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION
 // SEH exception from emplace for variant<SomeStruct> when constructing the
 // struct can throw. This defeats some of variant_test and
@@ -452,5 +555,7 @@
 #if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
 #define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
+
+#undef ABSL_INTERNAL_HAS_KEYWORD
 
 #endif  // ABSL_BASE_CONFIG_H_

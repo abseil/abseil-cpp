@@ -30,6 +30,24 @@
 
 namespace {
 
+void BM_StringViewFromString(benchmark::State& state) {
+  std::string s(state.range(0), 'x');
+  std::string* ps = &s;
+  struct SV {
+    SV() = default;
+    explicit SV(const std::string& s) : sv(s) {}
+    absl::string_view sv;
+  } sv;
+  SV* psv = &sv;
+  benchmark::DoNotOptimize(ps);
+  benchmark::DoNotOptimize(psv);
+  for (auto _ : state) {
+    new (psv) SV(*ps);
+    benchmark::DoNotOptimize(sv);
+  }
+}
+BENCHMARK(BM_StringViewFromString)->Arg(12)->Arg(128);
+
 // Provide a forcibly out-of-line wrapper for operator== that can be used in
 // benchmarks to measure the impact of inlining.
 ABSL_ATTRIBUTE_NOINLINE

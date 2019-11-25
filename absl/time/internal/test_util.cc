@@ -116,7 +116,10 @@ std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
 
 }  // namespace
 
+#if !defined(__MINGW32__)
+// MinGW does not support the weak symbol extension mechanism.
 ZoneInfoSourceFactory zone_info_source_factory = TestFactory;
+#endif
 
 }  // namespace cctz_extension
 }  // namespace time_internal

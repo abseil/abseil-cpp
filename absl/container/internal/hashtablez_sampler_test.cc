@@ -168,6 +168,7 @@ TEST(HashtablezInfoTest, RecordRehash) {
   EXPECT_EQ(info.num_erases.load(), 0);
 }
 
+#if ABSL_PER_THREAD_TLS == 1
 TEST(HashtablezSamplerTest, SmallSampleParameter) {
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(100);
@@ -199,7 +200,7 @@ TEST(HashtablezSamplerTest, Sample) {
   SetHashtablezSampleParameter(100);
   int64_t num_sampled = 0;
   int64_t total = 0;
-  double sample_rate;
+  double sample_rate = 0.0;
   for (int i = 0; i < 1000000; ++i) {
     HashtablezInfoHandle h = Sample();
     ++total;
@@ -211,6 +212,7 @@ TEST(HashtablezSamplerTest, Sample) {
   }
   EXPECT_NEAR(sample_rate, 0.01, 0.005);
 }
+#endif
 
 TEST(HashtablezSamplerTest, Handle) {
   auto& sampler = HashtablezSampler::Global();

@@ -22,21 +22,22 @@ absl_cc_library(
     "clock.h"
     "time.h"
   SRCS
-  "civil_time.cc"
-  "clock.cc"
-  "duration.cc"
-  "format.cc"
-  "internal/get_current_time_chrono.inc"
-  "internal/get_current_time_posix.inc"
-  "time.cc"
+    "civil_time.cc"
+    "clock.cc"
+    "duration.cc"
+    "format.cc"
+    "internal/get_current_time_chrono.inc"
+    "internal/get_current_time_posix.inc"
+    "time.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
+    absl::civil_time
     absl::core_headers
     absl::int128
+    absl::raw_logging_internal
     absl::strings
-    absl::civil_time
     absl::time_zone
   PUBLIC
 )
@@ -88,7 +89,7 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
-    test_util
+    time_internal_test_util
   HDRS
     "internal/test_util.h"
   SRCS
@@ -98,7 +99,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::time
-    absl::base
+    absl::raw_logging_internal
     absl::time_zone
     gmock
   TESTONLY
@@ -117,9 +118,8 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::test_util
+    absl::time_internal_test_util
     absl::time
-    absl::base
     absl::config
     absl::core_headers
     absl::time_zone

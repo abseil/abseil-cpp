@@ -56,7 +56,7 @@
 #include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_ANY
+#ifdef ABSL_USES_STD_ANY
 
 #include <any>  // IWYU pragma: export
 
@@ -67,7 +67,7 @@ using std::bad_any_cast;
 using std::make_any;
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_ANY
+#else  // ABSL_USES_STD_ANY
 
 #include <algorithm>
 #include <cstddef>
@@ -182,7 +182,7 @@ ValueType* any_cast(any* operand) noexcept;
 // object, when containing a value, must contain a value type; storing a
 // reference type is neither desired nor supported.
 //
-// An `absl::any` can only store a type that is copy-constructable; move-only
+// An `absl::any` can only store a type that is copy-constructible; move-only
 // types are not allowed within an `any` object.
 //
 // Example:
@@ -190,7 +190,7 @@ ValueType* any_cast(any* operand) noexcept;
 //   auto a = absl::any(65);                 // Literal, copyable
 //   auto b = absl::any(std::vector<int>()); // Default-initialized, copyable
 //   std::unique_ptr<Foo> my_foo;
-//   auto c = absl::any(std::move(my_foo));  // Error, not copy-constructable
+//   auto c = absl::any(std::move(my_foo));  // Error, not copy-constructible
 //
 // Note that `absl::any` makes use of decayed types (`absl::decay_t` in this
 // context) to remove const-volatile qualifiers (known as "cv qualifiers"),
@@ -515,18 +515,22 @@ ValueType any_cast(any&& operand) {
 // Description at the declaration site (top of file).
 template <typename T>
 const T* any_cast(const any* operand) noexcept {
-  return operand && operand->GetObjTypeId() == any::IdForType<T>()
+  using U =
+      typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+  return operand && operand->GetObjTypeId() == any::IdForType<U>()
              ? std::addressof(
-                   static_cast<const any::Obj<T>*>(operand->obj_.get())->value)
+                   static_cast<const any::Obj<U>*>(operand->obj_.get())->value)
              : nullptr;
 }
 
 // Description at the declaration site (top of file).
 template <typename T>
 T* any_cast(any* operand) noexcept {
-  return operand && operand->GetObjTypeId() == any::IdForType<T>()
+  using U =
+      typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+  return operand && operand->GetObjTypeId() == any::IdForType<U>()
              ? std::addressof(
-                   static_cast<any::Obj<T>*>(operand->obj_.get())->value)
+                   static_cast<any::Obj<U>*>(operand->obj_.get())->value)
              : nullptr;
 }
 
@@ -534,6 +538,6 @@ T* any_cast(any* operand) noexcept {
 
 #undef ABSL_ANY_DETAIL_HAS_RTTI
 
-#endif  // ABSL_HAVE_STD_ANY
+#endif  // ABSL_USES_STD_ANY
 
 #endif  // ABSL_TYPES_ANY_H_

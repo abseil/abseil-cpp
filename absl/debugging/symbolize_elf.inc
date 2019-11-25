@@ -624,6 +624,13 @@ static bool InSection(const void *address, const ElfW(Shdr) * section) {
   return start <= address && address < (start + size);
 }
 
+static const char *ComputeOffset(const char *base, ptrdiff_t offset) {
+  // Note: cast to uintptr_t to avoid undefined behavior when base evaluates to
+  // zero and offset is non-zero.
+  return reinterpret_cast<const char *>(
+      reinterpret_cast<uintptr_t>(base) + offset);
+}
+
 // Read a symbol table and look for the symbol containing the
 // pc. Iterate over symbols in a symbol table and look for the symbol
 // containing "pc".  If the symbol is found, and its name fits in
@@ -676,7 +683,8 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
       // We keep the original address for opd redirection below.
       const char *const original_start_address =
           reinterpret_cast<const char *>(symbol.st_value);
-      const char *start_address = original_start_address + relocation;
+      const char *start_address =
+          ComputeOffset(original_start_address, relocation);
 
       if (deref_function_descriptor_pointer &&
           InSection(original_start_address, opd)) {
@@ -688,8 +696,7 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
 
       // If pc is inside the .opd section, it points to a function descriptor.
       const size_t size = pc_in_opd ? kFunctionDescriptorSize : symbol.st_size;
-      const void *const end_address =
-          reinterpret_cast<const char *>(start_address) + size;
+      const void *const end_address = ComputeOffset(start_address, size);
       if (symbol.st_value != 0 &&  // Skip null value symbols.
           symbol.st_shndx != 0 &&  // Skip undefined symbols.
 #ifdef STT_TLS
@@ -762,37 +769,27 @@ FindSymbolResult Symbolizer::GetSymbolFromObjectFile(
     }
   }
 
-  // Consult a regular symbol table first.
-  if (!GetSectionHeaderByType(obj.fd, obj.elf_header.e_shnum,
-                              obj.elf_header.e_shoff, SHT_SYMTAB, &symtab,
-                              tmp_buf, tmp_buf_size)) {
-    return SYMBOL_NOT_FOUND;
-  }
-  if (!ReadFromOffsetExact(
-          obj.fd, &strtab, sizeof(strtab),
-          obj.elf_header.e_shoff + symtab.sh_link * sizeof(symtab))) {
-    return SYMBOL_NOT_FOUND;
-  }
-  const FindSymbolResult rc =
-      FindSymbol(pc, obj.fd, out, out_size, relocation, &strtab, &symtab,
-                 opd_ptr, tmp_buf, tmp_buf_size);
-  if (rc != SYMBOL_NOT_FOUND) {
-    return rc;  // Found the symbol in a regular symbol table.
+  // Consult a regular symbol table, then fall back to the dynamic symbol table.
+  for (const auto symbol_table_type : {SHT_SYMTAB, SHT_DYNSYM}) {
+    if (!GetSectionHeaderByType(obj.fd, obj.elf_header.e_shnum,
+                                obj.elf_header.e_shoff, symbol_table_type,
+                                &symtab, tmp_buf, tmp_buf_size)) {
+      continue;
+    }
+    if (!ReadFromOffsetExact(
+            obj.fd, &strtab, sizeof(strtab),
+            obj.elf_header.e_shoff + symtab.sh_link * sizeof(symtab))) {
+      continue;
+    }
+    const FindSymbolResult rc =
+        FindSymbol(pc, obj.fd, out, out_size, relocation, &strtab, &symtab,
+                   opd_ptr, tmp_buf, tmp_buf_size);
+    if (rc != SYMBOL_NOT_FOUND) {
+      return rc;
+    }
   }
 
-  // If the symbol is not found, then consult a dynamic symbol table.
-  if (!GetSectionHeaderByType(obj.fd, obj.elf_header.e_shnum,
-                              obj.elf_header.e_shoff, SHT_DYNSYM, &symtab,
-                              tmp_buf, tmp_buf_size)) {
-    return SYMBOL_NOT_FOUND;
-  }
-  if (!ReadFromOffsetExact(
-          obj.fd, &strtab, sizeof(strtab),
-          obj.elf_header.e_shoff + symtab.sh_link * sizeof(symtab))) {
-    return SYMBOL_NOT_FOUND;
-  }
-  return FindSymbol(pc, obj.fd, out, out_size, relocation, &strtab, &symtab,
-                    opd_ptr, tmp_buf, tmp_buf_size);
+  return SYMBOL_NOT_FOUND;
 }
 
 namespace {

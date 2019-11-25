@@ -196,6 +196,15 @@ std::string& AppendPack(std::string* out, const UntypedFormatSpecImpl format,
   return *out;
 }
 
+std::string FormatPack(const UntypedFormatSpecImpl format,
+                       absl::Span<const FormatArgImpl> args) {
+  std::string out;
+  if (ABSL_PREDICT_FALSE(!FormatUntyped(&out, format, args))) {
+    out.clear();
+  }
+  return out;
+}
+
 int FprintF(std::FILE* output, const UntypedFormatSpecImpl format,
             absl::Span<const FormatArgImpl> args) {
   FILERawSink sink(output);

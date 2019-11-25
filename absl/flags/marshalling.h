@@ -33,6 +33,7 @@
 // * `double`
 // * `std::string`
 // * `std::vector<std::string>`
+// * `absl::LogSeverity` (provided here due to dependency ordering)
 //
 // Note that support for integral types is implemented using overloads for
 // variable-width fundamental types (`short`, `int`, `long`, etc.). However,
@@ -106,10 +107,10 @@
 //  // Returns a textual flag value corresponding to the OutputMode `mode`.
 //  std::string AbslUnparseFlag(OutputMode mode) {
 //    switch (mode) {
-//     case kPlainText: return "plaintext";
-//     case kHtml: return "html";
-//     default: return SimpleItoa(mode);
+//      case kPlainText: return "plaintext";
+//      case kHtml: return "html";
 //    }
+//    return absl::StrCat(mode);
 //  }
 //
 // Notice that neither `AbslParseFlag()` nor `AbslUnparseFlag()` are class
@@ -178,25 +179,18 @@ bool AbslParseFlag(absl::string_view, unsigned int*, std::string*);    // NOLINT
 bool AbslParseFlag(absl::string_view, long*, std::string*);            // NOLINT
 bool AbslParseFlag(absl::string_view, unsigned long*, std::string*);   // NOLINT
 bool AbslParseFlag(absl::string_view, long long*, std::string*);       // NOLINT
-bool AbslParseFlag(absl::string_view, unsigned long long*,
-                   std::string*);  // NOLINT
+bool AbslParseFlag(absl::string_view, unsigned long long*,             // NOLINT
+                   std::string*);
 bool AbslParseFlag(absl::string_view, float*, std::string*);
 bool AbslParseFlag(absl::string_view, double*, std::string*);
 bool AbslParseFlag(absl::string_view, std::string*, std::string*);
 bool AbslParseFlag(absl::string_view, std::vector<std::string>*, std::string*);
 
-struct GlobalStringADLGuard {
-  explicit GlobalStringADLGuard(std::string* p) : ptr(p) {}
-  operator std::string*() { return ptr; }  // NOLINT
-  std::string* ptr;
-};
-
 template <typename T>
 bool InvokeParseFlag(absl::string_view input, T* dst, std::string* err) {
   // Comment on next line provides a good compiler error message if T
   // does not have AbslParseFlag(absl::string_view, T*, std::string*).
-  return AbslParseFlag(  // Is T missing AbslParseFlag?
-      input, dst, GlobalStringADLGuard(err));
+  return AbslParseFlag(input, dst, err);  // Is T missing AbslParseFlag?
 }
 
 // Strings and std:: containers do not have the same overload resolution
@@ -254,6 +248,13 @@ template <typename T>
 inline std::string UnparseFlag(const T& v) {
   return flags_internal::Unparse(v);
 }
+
+// Overloads for `absl::LogSeverity` can't (easily) appear alongside that type's
+// definition because it is layered below flags.  See proper documentation in
+// base/log_severity.h.
+enum class LogSeverity : int;
+bool AbslParseFlag(absl::string_view, absl::LogSeverity*, std::string*);
+std::string AbslUnparseFlag(absl::LogSeverity);
 
 }  // namespace absl
 
