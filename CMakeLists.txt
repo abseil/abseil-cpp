@@ -32,13 +32,21 @@ cmake_policy(SET CMP0048 NEW)
 
 project(absl CXX)
 
-# when absl is included as subproject (i.e. using add_subdirectory(abseil-cpp))
-# in the source tree of a project that uses it, install rules are disabled.
+# detect if absl is the root CMake project, or is a subproject in the source tree
+# of a project that uses it (i.e. using add_subdirectory(abseil-cpp))
 if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
+  # disable install rules
   set(ABSL_ENABLE_INSTALL FALSE)
+  set(ABSL_IS_CMAKE_SUBPROJECT TRUE)
 else()
   set(ABSL_ENABLE_INSTALL TRUE)
+  set(ABSL_IS_CMAKE_SUBPROJECT FALSE)
 endif()
+
+# mute compiler warnings by default if absl is a CMake subproject
+option(ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS
+  "If ON, declare public Abseil headers as SYSTEM in order to mute compiler warnings."
+  ${ABSL_IS_CMAKE_SUBPROJECT})
 
 list(APPEND CMAKE_MODULE_PATH
   ${CMAKE_CURRENT_LIST_DIR}/CMake
@@ -78,8 +86,6 @@ option(ABSL_USE_GOOGLETEST_HEAD
   "If ON, abseil will download HEAD from googletest at config time." OFF)
 
 option(ABSL_RUN_TESTS "If ON, Abseil tests will be run." OFF)
-
-option(ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS "If ON, declare public Abseil headers as SYSTEM in order to mute compiler warnings." OFF)
 
 if(${ABSL_RUN_TESTS})
   # enable CTest.  This will set BUILD_TESTING to ON unless otherwise specified
