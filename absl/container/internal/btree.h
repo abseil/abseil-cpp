@@ -2031,7 +2031,6 @@ auto btree<P>::erase(iterator iter) -> iterator {
     iterator internal_iter(iter);
     --iter;
     assert(iter.node->leaf());
-    assert(!compare_keys(internal_iter.key(), iter.key()));
     params_type::move(mutable_allocator(), iter.node->slot(iter.position),
                       internal_iter.node->slot(internal_iter.position));
     internal_delete = true;

@@ -167,6 +167,11 @@ struct CommonAccess {
   }
 
   template <typename Node>
+  static void Destroy(Node* node) {
+    node->destroy();
+  }
+
+  template <typename Node>
   static void Reset(Node* node) {
     node->reset();
   }

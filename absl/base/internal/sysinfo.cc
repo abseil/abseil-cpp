@@ -277,7 +277,7 @@ double NominalCPUFrequency() {
 #if defined(_WIN32)
 
 pid_t GetTID() {
-  return GetCurrentThreadId();
+  return pid_t{GetCurrentThreadId()};
 }
 
 #elif defined(__linux__)
