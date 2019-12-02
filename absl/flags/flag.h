@@ -96,12 +96,12 @@ class Flag {
   constexpr Flag(const char* name, const flags_internal::HelpGenFunc help_gen,
                  const char* filename,
                  const flags_internal::FlagMarshallingOpFn marshalling_op,
-                 const flags_internal::InitialValGenFunc initial_value_gen)
+                 const flags_internal::FlagDfltGenFunc default_value_gen)
       : name_(name),
         help_gen_(help_gen),
         filename_(filename),
         marshalling_op_(marshalling_op),
-        initial_value_gen_(initial_value_gen),
+        default_value_gen_(default_value_gen),
         inited_(false),
         impl_(nullptr) {}
 #endif
@@ -118,7 +118,7 @@ class Flag {
           name_,
           {flags_internal::FlagHelpSrc(help_gen_),
            flags_internal::FlagHelpSrcKind::kGenFunc},
-          filename_, marshalling_op_, initial_value_gen_);
+          filename_, marshalling_op_, default_value_gen_);
       inited_.store(true, std::memory_order_release);
     }
 
@@ -157,7 +157,7 @@ class Flag {
   const flags_internal::HelpGenFunc help_gen_;
   const char* filename_;
   const flags_internal::FlagMarshallingOpFn marshalling_op_;
-  const flags_internal::InitialValGenFunc initial_value_gen_;
+  const flags_internal::FlagDfltGenFunc default_value_gen_;
 
   mutable std::atomic<bool> inited_;
   mutable flags_internal::Flag<T>* impl_;

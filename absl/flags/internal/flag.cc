@@ -49,12 +49,11 @@ void FlagImpl::Init() {
 
   absl::MutexLock lock(&locks_->primary_mu);
 
-  if (def_ != nullptr) {
+  if (cur_ != nullptr) {
     inited_.store(true, std::memory_order_release);
   } else {
-    // Need to initialize def and cur fields.
-    def_ = (*initial_value_gen_)();
-    cur_ = Clone(op_, def_);
+    // Need to initialize cur field.
+    cur_ = MakeInitValue().release();
     StoreAtomic();
     inited_.store(true, std::memory_order_release);
     InvokeCallback();
@@ -63,8 +62,7 @@ void FlagImpl::Init() {
 
 // Ensures that the lazily initialized data is initialized,
 // and returns pointer to the mutex guarding flags data.
-absl::Mutex* FlagImpl::DataGuard() const
-    ABSL_LOCK_RETURNED(locks_->primary_mu) {
+absl::Mutex* FlagImpl::DataGuard() const {
   if (ABSL_PREDICT_FALSE(!inited_.load(std::memory_order_acquire))) {
     const_cast<FlagImpl*>(this)->Init();
   }
@@ -79,10 +77,21 @@ void FlagImpl::Destroy() const {
 
     // Values are heap allocated for Abseil Flags.
     if (cur_) Delete(op_, cur_);
-    if (def_) Delete(op_, def_);
+    if (def_kind_ == FlagDefaultSrcKind::kDynamicValue)
+      Delete(op_, default_src_.dynamic_value);
   }
 
   delete locks_;
+}
+
+std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
+  void* res = nullptr;
+  if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
+    res = Clone(op_, default_src_.dynamic_value);
+  } else {
+    res = (*default_src_.gen_func)();
+  }
+  return {res, DynValueDeleter{op_}};
 }
 
 std::string FlagImpl::Help() const {
@@ -103,7 +112,8 @@ bool FlagImpl::IsSpecifiedOnCommandLine() const {
 std::string FlagImpl::DefaultValue() const {
   absl::MutexLock l(DataGuard());
 
-  return Unparse(marshalling_op_, def_);
+  auto obj = MakeInitValue();
+  return Unparse(marshalling_op_, obj.get());
 }
 
 std::string FlagImpl::CurrentValue() const {
@@ -121,8 +131,7 @@ void FlagImpl::SetCallback(
   InvokeCallback();
 }
 
-void FlagImpl::InvokeCallback() const
-    ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
+void FlagImpl::InvokeCallback() const {
   if (!callback_) return;
 
   // If the flag has a mutation callback this function invokes it. While the
@@ -172,23 +181,20 @@ bool FlagImpl::RestoreState(const CommandLineFlag& flag, const void* value,
 // 'dst' assuming it is a pointer to the flag's value type. In case if any error
 // is encountered in either step, the error message is stored in 'err'
 bool FlagImpl::TryParse(const CommandLineFlag& flag, void* dst,
-                        absl::string_view value, std::string* err) const
-    ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
-  void* tentative_value = Clone(op_, def_);
+                        absl::string_view value, std::string* err) const {
+  auto tentative_value = MakeInitValue();
   std::string parse_err;
-  if (!Parse(marshalling_op_, value, tentative_value, &parse_err)) {
+  if (!Parse(marshalling_op_, value, tentative_value.get(), &parse_err)) {
     auto type_name = flag.Typename();
     absl::string_view err_sep = parse_err.empty() ? "" : "; ";
     absl::string_view typename_sep = type_name.empty() ? "" : " ";
     *err = absl::StrCat("Illegal value '", value, "' specified for",
                         typename_sep, type_name, " flag '", flag.Name(), "'",
                         err_sep, parse_err);
-    Delete(op_, tentative_value);
     return false;
   }
 
-  Copy(op_, tentative_value, dst);
-  Delete(op_, tentative_value);
+  Copy(op_, tentative_value.get(), dst);
   return true;
 }
 
@@ -208,7 +214,7 @@ void FlagImpl::Read(const CommandLineFlag& flag, void* dst,
   CopyConstruct(op_, cur_, dst);
 }
 
-void FlagImpl::StoreAtomic() ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu) {
+void FlagImpl::StoreAtomic() {
   size_t data_size = Sizeof(op_);
 
   if (data_size <= sizeof(int64_t)) {
@@ -299,12 +305,22 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
       break;
     }
     case SET_FLAGS_DEFAULT: {
-      // modify the flag's default-value
-      if (!TryParse(flag, def_, value, err)) return false;
+      // Flag's new default-value.
+      auto new_default_value = MakeInitValue();
+
+      if (!TryParse(flag, new_default_value.get(), value, err)) return false;
+
+      if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
+        // Release old default value.
+        Delete(op_, default_src_.dynamic_value);
+      }
+
+      default_src_.dynamic_value = new_default_value.release();
+      def_kind_ = FlagDefaultSrcKind::kDynamicValue;
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case
-        Copy(op_, def_, cur_);
+        Copy(op_, default_src_.dynamic_value, cur_);
         StoreAtomic();
         InvokeCallback();
       }
@@ -321,9 +337,9 @@ void FlagImpl::CheckDefaultValueParsingRoundtrip(
 
   absl::MutexLock lock(DataGuard());
 
-  void* dst = Clone(op_, def_);
+  auto dst = MakeInitValue();
   std::string error;
-  if (!flags_internal::Parse(marshalling_op_, v, dst, &error)) {
+  if (!flags_internal::Parse(marshalling_op_, v, dst.get(), &error)) {
     ABSL_INTERNAL_LOG(
         FATAL,
         absl::StrCat("Flag ", flag.Name(), " (from ", flag.Filename(),
@@ -333,18 +349,15 @@ void FlagImpl::CheckDefaultValueParsingRoundtrip(
 
   // We do not compare dst to def since parsing/unparsing may make
   // small changes, e.g., precision loss for floating point types.
-  Delete(op_, dst);
 }
 
 bool FlagImpl::ValidateInputValue(absl::string_view value) const {
   absl::MutexLock l(DataGuard());
 
-  void* obj = Clone(op_, def_);
+  auto obj = MakeInitValue();
   std::string ignored_error;
-  const bool result =
-      flags_internal::Parse(marshalling_op_, value, obj, &ignored_error);
-  Delete(op_, obj);
-  return result;
+  return flags_internal::Parse(marshalling_op_, value, obj.get(),
+                               &ignored_error);
 }
 
 }  // namespace flags_internal

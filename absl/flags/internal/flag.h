@@ -119,47 +119,61 @@ constexpr flags_internal::HelpInitArg HelpArg(char) {
           flags_internal::FlagHelpSrcKind::kGenFunc};
 }
 
-// Signature for the function generating the initial flag value based (usually
+// Signature for the function generating the initial flag value (usually
 // based on default value supplied in flag's definition)
-using InitialValGenFunc = void* (*)();
+using FlagDfltGenFunc = void* (*)();
+
+union FlagDefaultSrc {
+  constexpr explicit FlagDefaultSrc(FlagDfltGenFunc gen_func_arg)
+      : gen_func(gen_func_arg) {}
+
+  void* dynamic_value;
+  FlagDfltGenFunc gen_func;
+};
+
+enum class FlagDefaultSrcKind : int8_t { kDynamicValue, kGenFunc };
 
 // Signature for the mutation callback used by watched Flags
 // The callback is noexcept.
 // TODO(rogeeff): add noexcept after C++17 support is added.
 using FlagCallback = void (*)();
 
-void InvokeCallback(absl::Mutex* primary_mu, absl::Mutex* callback_mu,
-                    FlagCallback cb) ABSL_EXCLUSIVE_LOCKS_REQUIRED(primary_mu);
+struct DynValueDeleter {
+  void operator()(void* ptr) const { Delete(op, ptr); }
+
+  const FlagOpFn op;
+};
 
 // The class encapsulates the Flag's data and safe access to it.
 class FlagImpl {
  public:
   constexpr FlagImpl(const flags_internal::FlagOpFn op,
                      const flags_internal::FlagMarshallingOpFn marshalling_op,
-                     const flags_internal::InitialValGenFunc initial_value_gen,
+                     const flags_internal::FlagDfltGenFunc default_value_gen,
                      const HelpInitArg help)
       : op_(op),
         marshalling_op_(marshalling_op),
-        initial_value_gen_(initial_value_gen),
         help_(help.source),
-        help_source_kind_(help.kind) {}
+        help_source_kind_(help.kind),
+        def_kind_(flags_internal::FlagDefaultSrcKind::kGenFunc),
+        default_src_(default_value_gen) {}
 
   // Forces destruction of the Flag's data.
   void Destroy() const;
 
   // Constant access methods
   std::string Help() const;
-  bool IsModified() const ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
-  bool IsSpecifiedOnCommandLine() const ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
-  std::string DefaultValue() const ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
-  std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+  bool IsModified() const ABSL_LOCKS_EXCLUDED(*DataGuard());
+  bool IsSpecifiedOnCommandLine() const ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string DefaultValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   void Read(const CommandLineFlag& flag, void* dst,
             const flags_internal::FlagOpFn dst_op) const
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
   // Attempts to parse supplied `value` std::string.
   bool TryParse(const CommandLineFlag& flag, void* dst, absl::string_view value,
                 std::string* err) const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
   template <typename T>
   bool AtomicGet(T* v) const {
     const int64_t r = atomic_.load(std::memory_order_acquire);
@@ -174,23 +188,23 @@ class FlagImpl {
   // Mutating access methods
   void Write(const CommandLineFlag& flag, const void* src,
              const flags_internal::FlagOpFn src_op)
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool SetFromString(const CommandLineFlag& flag, absl::string_view value,
                      FlagSettingMode set_mode, ValueSource source,
-                     std::string* err) ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+                     std::string* err) ABSL_LOCKS_EXCLUDED(*DataGuard());
   // If possible, updates copy of the Flag's value that is stored in an
   // atomic word.
-  void StoreAtomic() ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu);
+  void StoreAtomic() ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   // Interfaces to operate on callbacks.
   void SetCallback(const flags_internal::FlagCallback mutation_callback)
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
-  void InvokeCallback() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void InvokeCallback() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   // Interfaces to save/restore mutable flag data
   template <typename T>
   std::unique_ptr<flags_internal::FlagStateInterface> SaveState(
-      Flag<T>* flag) const ABSL_LOCKS_EXCLUDED(locks_->primary_mu) {
+      Flag<T>* flag) const ABSL_LOCKS_EXCLUDED(*DataGuard()) {
     T&& cur_value = flag->Get();
     absl::MutexLock l(DataGuard());
 
@@ -199,13 +213,13 @@ class FlagImpl {
   }
   bool RestoreState(const CommandLineFlag& flag, const void* value,
                     bool modified, bool on_command_line, int64_t counter)
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Value validation interfaces.
   void CheckDefaultValueParsingRoundtrip(const CommandLineFlag& flag) const
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool ValidateInputValue(absl::string_view value) const
-      ABSL_LOCKS_EXCLUDED(locks_->primary_mu);
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
  private:
   // Lazy initialization of the Flag's data.
@@ -214,27 +228,36 @@ class FlagImpl {
   // and returns pointer to the mutex guarding flags data.
   absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED(locks_->primary_mu);
 
+  // Returns heap allocated value of type T initialized with default value.
+  std::unique_ptr<void, DynValueDeleter> MakeInitValue() const
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
+
   // Immutable Flag's data.
-  const FlagOpFn op_;                          // Type-specific handler.
-  const FlagMarshallingOpFn marshalling_op_;   // Marshalling ops handler.
-  const InitialValGenFunc initial_value_gen_;  // Makes flag's initial value.
+  const FlagOpFn op_;                         // Type-specific handler.
+  const FlagMarshallingOpFn marshalling_op_;  // Marshalling ops handler.
   const FlagHelpSrc help_;  // Help message literal or function to generate it.
   // Indicates if help message was supplied as literal or generator func.
   const FlagHelpSrcKind help_source_kind_;
 
-  // Mutable Flag's data. (guarded by locks_->primary_mu).
-  // Indicates that locks_, cur_ and def_ fields have been lazily initialized.
+  // Mutable Flag's data. (guarded by DataGuard()).
+  // Indicates that locks_ and cur_ fields have been lazily initialized.
   std::atomic<bool> inited_{false};
   // Has flag value been modified?
-  bool modified_ ABSL_GUARDED_BY(locks_->primary_mu) = false;
+  bool modified_ ABSL_GUARDED_BY(*DataGuard()) = false;
   // Specified on command line.
-  bool on_command_line_ ABSL_GUARDED_BY(locks_->primary_mu) = false;
-  // Lazily initialized pointer to default value
-  void* def_ ABSL_GUARDED_BY(locks_->primary_mu) = nullptr;
+  bool on_command_line_ ABSL_GUARDED_BY(*DataGuard()) = false;
+  // If def_kind_ == kDynamicValue, default_src_ holds a dynamically allocated
+  // value.
+  FlagDefaultSrcKind def_kind_ ABSL_GUARDED_BY(*DataGuard());
+  // Either a pointer to the function generating the default value based on the
+  // value specified in ABSL_FLAG or pointer to the dynamically set default
+  // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
+  // these two cases.
+  FlagDefaultSrc default_src_ ABSL_GUARDED_BY(*DataGuard());
   // Lazily initialized pointer to current value
-  void* cur_ ABSL_GUARDED_BY(locks_->primary_mu) = nullptr;
+  void* cur_ ABSL_GUARDED_BY(*DataGuard()) = nullptr;
   // Mutation counter
-  int64_t counter_ ABSL_GUARDED_BY(locks_->primary_mu) = 0;
+  int64_t counter_ ABSL_GUARDED_BY(*DataGuard()) = 0;
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
   std::atomic<int64_t> atomic_{flags_internal::AtomicInit()};
@@ -263,7 +286,7 @@ class Flag final : public flags_internal::CommandLineFlag {
   constexpr Flag(const char* name, const flags_internal::HelpInitArg help,
                  const char* filename,
                  const flags_internal::FlagMarshallingOpFn marshalling_op,
-                 const flags_internal::InitialValGenFunc initial_value_gen)
+                 const flags_internal::FlagDfltGenFunc initial_value_gen)
       : flags_internal::CommandLineFlag(name, filename),
         impl_(&flags_internal::FlagOps<T>, marshalling_op, initial_value_gen,
               help) {}

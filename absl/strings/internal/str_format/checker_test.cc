@@ -35,7 +35,7 @@ TEST(StrFormatChecker, ArgumentToConv) {
   EXPECT_EQ(ConvToString(conv), "p");
 }
 
-#if ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
+#ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 struct Case {
   bool result;

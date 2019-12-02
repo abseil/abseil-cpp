@@ -18,16 +18,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/base/attributes.h"
 #include "absl/random/internal/platform.h"
-
-// ABSL_HAVE_ATTRIBUTE
-#if !defined(ABSL_HAVE_ATTRIBUTE)
-#ifdef __has_attribute
-#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
-#else
-#define ABSL_HAVE_ATTRIBUTE(x) 0
-#endif
-#endif
 
 #if ABSL_HAVE_ATTRIBUTE(always_inline) || \
     (defined(__GNUC__) && !defined(__clang__))

@@ -17,7 +17,6 @@
 #include "absl/base/attributes.h"
 
 #ifdef _WIN32
-#include <shlwapi.h>
 #include <windows.h>
 #else
 #include <fcntl.h>
@@ -76,14 +75,23 @@ static int GetNumCPUs() {
 #if defined(_WIN32)
 
 static double GetNominalCPUFrequency() {
-  DWORD data;
-  DWORD data_size = sizeof(data);
-  #pragma comment(lib, "shlwapi.lib")  // For SHGetValue().
-  if (SUCCEEDED(
-          SHGetValueA(HKEY_LOCAL_MACHINE,
-                      "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
-                      "~MHz", nullptr, &data, &data_size))) {
-    return data * 1e6;  // Value is MHz.
+#pragma comment(lib, "advapi32.lib")  // For Reg* functions.
+  HKEY key;
+  // Use the Reg* functions rather than the SH functions because shlwapi.dll
+  // pulls in gdi32.dll which makes process destruction much more costly.
+  if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                    "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0,
+                    KEY_READ, &key) == ERROR_SUCCESS) {
+    DWORD type = 0;
+    DWORD data = 0;
+    DWORD data_size = sizeof(data);
+    auto result = RegQueryValueExA(key, "~MHz", 0, &type,
+                                   reinterpret_cast<LPBYTE>(&data), &data_size);
+    RegCloseKey(key);
+    if (result == ERROR_SUCCESS && type == REG_DWORD &&
+        data_size == sizeof(data)) {
+      return data * 1e6;  // Value is MHz.
+    }
   }
   return 1.0;
 }

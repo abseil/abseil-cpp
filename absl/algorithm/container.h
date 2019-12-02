@@ -268,7 +268,8 @@ container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
 // c_find_first_of()
 //
 // Container-based version of the <algorithm> `std::find_first_of()` function to
-// find the first elements in an ordered set within a container.
+// find the first element within the container that is also within the options
+// container.
 template <typename C1, typename C2>
 container_algorithm_internal::ContainerIter<C1> c_find_first_of(C1& container,
                                                                 C2& options) {

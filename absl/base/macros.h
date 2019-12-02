@@ -31,6 +31,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
@@ -176,12 +177,9 @@ enum LinkerInitialized {
 //     ABSL_BAD_CALL_IF(c <= -1 || c > 255,
 //                       "'c' must have the value of an unsigned char or EOF");
 //   #endif // ABSL_BAD_CALL_IF
-
-#if defined(__clang__)
-# if __has_attribute(enable_if)
-#  define ABSL_BAD_CALL_IF(expr, msg) \
-    __attribute__((enable_if(expr, "Bad call trap"), unavailable(msg)))
-# endif
+#if ABSL_HAVE_ATTRIBUTE(enable_if)
+#define ABSL_BAD_CALL_IF(expr, msg) \
+  __attribute__((enable_if(expr, "Bad call trap"), unavailable(msg)))
 #endif
 
 // ABSL_ASSERT()

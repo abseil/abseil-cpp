@@ -297,6 +297,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
+        "//absl/base:core_headers",
     ],
 )
 
@@ -659,6 +660,7 @@ cc_library(
     deps = [
         ":platform",
         ":randen_engine",
+        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
     ],
 )

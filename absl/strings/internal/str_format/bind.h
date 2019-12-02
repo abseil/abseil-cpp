@@ -73,7 +73,7 @@ class FormatSpecTemplate
   using Base = typename MakeDependent<UntypedFormatSpec, Args...>::type;
 
  public:
-#if ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
+#ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
   // Honeypot overload for when the std::string is not constexpr.
   // We use the 'unavailable' attribute to give a better compiler error than

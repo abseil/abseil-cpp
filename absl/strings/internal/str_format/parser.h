@@ -274,7 +274,7 @@ template <str_format_internal::Conv... C>
 class ExtendedParsedFormat : public str_format_internal::ParsedFormatBase {
  public:
   explicit ExtendedParsedFormat(string_view format)
-#if ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
+#ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
       __attribute__((
           enable_if(str_format_internal::EnsureConstexpr(format),
                     "Format std::string is not constexpr."),

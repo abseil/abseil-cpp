@@ -63,7 +63,7 @@ class AtomicHook<ReturnType (*)(Args...)> {
   explicit constexpr AtomicHook(FnPtr default_fn)
       : hook_(default_fn), default_fn_(default_fn) {}
 #else
-  // On MSVC, this function sometimes executes after dynamic initiazliation =(.
+  // On MSVC, this function sometimes executes after dynamic initialization =(.
   // If a non-zero `hook_` has been installed by a dynamic initializer, we want
   // to preserve it.  If not, `hook_` will be zero initialized and we have no
   // need to set it to `kUninitialized`.

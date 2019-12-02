@@ -93,6 +93,7 @@ cc_test(
         ":time",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/numeric:int128",
         "//absl/time/internal/cctz:time_zone",
         "@com_google_googletest//:gtest_main",
     ],
