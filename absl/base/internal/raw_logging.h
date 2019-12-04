@@ -70,14 +70,10 @@
 //
 // The API is a subset of the above: each macro only takes two arguments.  Use
 // StrCat if you need to build a richer message.
-#define ABSL_INTERNAL_LOG(severity, message)                          \
-  do {                                                                \
-    constexpr const char* absl_raw_logging_internal_basename =        \
-        ::absl::raw_logging_internal::Basename(__FILE__,              \
-                                               sizeof(__FILE__) - 1); \
-    ::absl::raw_logging_internal::internal_log_function(              \
-        ABSL_RAW_LOGGING_INTERNAL_##severity,                         \
-        absl_raw_logging_internal_basename, __LINE__, message);       \
+#define ABSL_INTERNAL_LOG(severity, message)                                \
+  do {                                                                      \
+    ::absl::raw_logging_internal::internal_log_function(                    \
+        ABSL_RAW_LOGGING_INTERNAL_##severity, __FILE__, __LINE__, message); \
   } while (0)
 
 #define ABSL_INTERNAL_CHECK(condition, message)                    \
