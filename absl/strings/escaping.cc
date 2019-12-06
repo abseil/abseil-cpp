@@ -961,7 +961,7 @@ bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
 }
 
 /* clang-format off */
-constexpr char kHexValue[256] = {
+constexpr char kHexValueLenient[256] = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -977,8 +977,9 @@ constexpr char kHexValue[256] = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
+
 /* clang-format on */
 
 // This is a templated function so that T can be either a char*
@@ -987,8 +988,8 @@ constexpr char kHexValue[256] = {
 template <typename T>
 void HexStringToBytesInternal(const char* from, T to, ptrdiff_t num) {
   for (int i = 0; i < num; i++) {
-    to[i] = (kHexValue[from[i * 2] & 0xFF] << 4) +
-            (kHexValue[from[i * 2 + 1] & 0xFF]);
+    to[i] = (kHexValueLenient[from[i * 2] & 0xFF] << 4) +
+            (kHexValueLenient[from[i * 2 + 1] & 0xFF]);
   }
 }
 

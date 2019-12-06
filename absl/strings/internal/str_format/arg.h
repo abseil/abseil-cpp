@@ -18,11 +18,11 @@
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"
 
-class Cord;
 class CordReader;
 
 namespace absl {
 
+class Cord;
 class FormatCountCapture;
 class FormatSink;
 
@@ -67,7 +67,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char* v,
                                                    FormatSinkImpl* sink);
 template <class AbslCord,
           typename std::enable_if<
-              std::is_same<AbslCord, ::Cord>::value>::type* = nullptr,
+              std::is_same<AbslCord, absl::Cord>::value>::type* = nullptr,
           class AbslCordReader = ::CordReader>
 ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
                                          ConversionSpec conv,

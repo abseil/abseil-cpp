@@ -136,7 +136,7 @@ bool Waiter::Wait(KernelTimeout t) {
   bool first_pass = true;
   while (true) {
     int32_t x = futex_.load(std::memory_order_relaxed);
-    if (x != 0) {
+    while (x != 0) {
       if (!futex_.compare_exchange_weak(x, x - 1,
                                         std::memory_order_acquire,
                                         std::memory_order_relaxed)) {
@@ -313,7 +313,7 @@ bool Waiter::Wait(KernelTimeout t) {
   bool first_pass = true;
   while (true) {
     int x = wakeups_.load(std::memory_order_relaxed);
-    if (x != 0) {
+    while (x != 0) {
       if (!wakeups_.compare_exchange_weak(x, x - 1,
                                           std::memory_order_acquire,
                                           std::memory_order_relaxed)) {

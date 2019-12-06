@@ -28,9 +28,10 @@
 #include "absl/base/port.h"
 #include "absl/strings/string_view.h"
 
+namespace absl {
+
 class Cord;
 
-namespace absl {
 namespace str_format_internal {
 
 // RawSink implementation that writes into a char* buffer.
@@ -76,7 +77,7 @@ inline void AbslFormatFlush(std::ostream* out, string_view s) {
 }
 
 template <class AbslCord, typename = typename std::enable_if<
-                              std::is_same<AbslCord, ::Cord>::value>::type>
+                              std::is_same<AbslCord, absl::Cord>::value>::type>
 inline void AbslFormatFlush(AbslCord* out, string_view s) {
   out->Append(s);
 }

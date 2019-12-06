@@ -25,9 +25,9 @@
 #include "absl/strings/internal/str_format/output.h"
 #include "absl/strings/string_view.h"
 
-class Cord;
-
 namespace absl {
+
+class Cord;
 
 namespace str_format_internal {
 
