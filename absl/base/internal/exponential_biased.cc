@@ -25,6 +25,7 @@
 #include "absl/base/optimization.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // The algorithm generates a random number between 0 and 1 and applies the
@@ -88,4 +89,5 @@ void ExponentialBiased::Initialize() {
 }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

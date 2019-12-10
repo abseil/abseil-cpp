@@ -46,6 +46,7 @@
 #include "absl/base/thread_annotations.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 class ABSL_LOCKABLE SpinLock {
@@ -236,6 +237,7 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
 }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SPINLOCK_H_

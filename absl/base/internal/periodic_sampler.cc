@@ -19,6 +19,7 @@
 #include "absl/base/internal/exponential_biased.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 int64_t PeriodicSamplerBase::GetExponentialBiased(int period) noexcept {
@@ -48,4 +49,5 @@ bool PeriodicSamplerBase::SubtleConfirmSample() noexcept {
 }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

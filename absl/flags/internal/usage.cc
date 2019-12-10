@@ -200,7 +200,7 @@ void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
   FlagHelpPrettyPrinter printer(80, out);  // Max line length is 80.
 
   // Flag name.
-  printer.Write(absl::StrCat("-", flag.Name()));
+  printer.Write(absl::StrCat("--", flag.Name()));
 
   // Flag help.
   printer.Write(absl::StrCat("(", flag.Help(), ");"), /*wrap_line=*/true);

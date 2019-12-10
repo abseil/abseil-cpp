@@ -93,6 +93,7 @@
   ::absl::NormalizeLogSeverity(severity)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace raw_logging_internal {
 
 // Helper function to implement ABSL_RAW_LOG
@@ -172,6 +173,7 @@ extern base_internal::AtomicHook<InternalLogFunction> internal_log_function;
 void RegisterInternalLogFunction(InternalLogFunction func);
 
 }  // namespace raw_logging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_RAW_LOGGING_H_

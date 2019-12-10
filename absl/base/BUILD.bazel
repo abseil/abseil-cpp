@@ -34,6 +34,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -42,7 +43,10 @@ cc_library(
     hdrs = ["log_severity.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [":core_headers"],
+    deps = [
+        ":config",
+        ":core_headers",
+    ],
 )
 
 cc_library(
@@ -165,6 +169,7 @@ cc_library(
         "//absl:__subpackages__",
     ],
     deps = [
+        ":config",
         "//absl/meta:type_traits",
     ],
 )
@@ -545,7 +550,10 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [":core_headers"],
+    deps = [
+        ":config",
+        ":core_headers",
+    ],
 )
 
 cc_test(
@@ -568,7 +576,10 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [":core_headers"],
+    deps = [
+        ":config",
+        ":core_headers",
+    ],
 )
 
 cc_test(
@@ -635,7 +646,10 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [":raw_logging_internal"],
+    deps = [
+        ":config",
+        ":raw_logging_internal",
+    ],
 )
 
 cc_test(

@@ -67,6 +67,33 @@
 #include "absl/base/policy_checks.h"
 
 // -----------------------------------------------------------------------------
+// Abseil namespace annotations
+// -----------------------------------------------------------------------------
+
+// ABSL_NAMESPACE_BEGIN/ABSL_NAMESPACE_END
+//
+// An annotation placed at the beginning/end of each `namespace absl` scope.
+// This is used to inject an inline namespace.
+//
+// The proper way to write Abseil code in the `absl` namespace is:
+//
+// namespace absl {
+// ABSL_NAMESPACE_BEGIN
+//
+// void Foo();  // absl::Foo().
+//
+// ABSL_NAMESPACE_END
+// }  // namespace absl
+//
+// Users of Abseil should not use these macros, because users of Abseil should
+// not write `namespace absl {` in their own code for any reason.  (Abseil does
+// not support forward declarations of its own types, nor does it support
+// user-provided specialization of Abseil templates.  Code that violates these
+// rules may be broken without warning.)
+#define ABSL_NAMESPACE_BEGIN
+#define ABSL_NAMESPACE_END
+
+// -----------------------------------------------------------------------------
 // Compiler Feature Checks
 // -----------------------------------------------------------------------------
 

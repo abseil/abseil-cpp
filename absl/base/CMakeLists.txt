@@ -21,6 +21,8 @@ absl_cc_library(
     atomic_hook
   HDRS
     "internal/atomic_hook.h"
+  DEPS
+    absl::config
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -148,6 +150,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::type_traits
 )
 
@@ -493,6 +496,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
 )
 
@@ -518,6 +522,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
 )
 
@@ -571,6 +576,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::raw_logging_internal
 )
 

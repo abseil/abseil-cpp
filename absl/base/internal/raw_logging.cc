@@ -182,6 +182,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 }  // namespace
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace raw_logging_internal {
 void SafeWriteToStderr(const char *s, size_t len) {
 #if defined(ABSL_HAVE_SYSCALL_WRITE)
@@ -232,4 +233,5 @@ void RegisterInternalLogFunction(InternalLogFunction func) {
 }
 
 }  // namespace raw_logging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

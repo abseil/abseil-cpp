@@ -23,6 +23,7 @@
 #include "absl/base/optimization.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // PeriodicSamplerBase provides the basic period sampler implementation.
@@ -204,6 +205,7 @@ template <typename Tag, int default_period>
 std::atomic<int> PeriodicSampler<Tag, default_period>::period_(default_period);
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_PERIODIC_SAMPLER_H_

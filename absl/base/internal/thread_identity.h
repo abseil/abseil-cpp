@@ -33,6 +33,7 @@
 #include "absl/base/internal/per_thread_tls.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 struct SynchLocksHeld;
 struct SynchWaitParams;
@@ -243,6 +244,7 @@ inline ThreadIdentity* CurrentThreadIdentityIfPresent() {
 #endif
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_

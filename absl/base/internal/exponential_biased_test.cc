@@ -27,6 +27,7 @@
 using ::testing::Ge;
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 MATCHER_P2(IsBetween, a, b,
@@ -194,4 +195,5 @@ TEST(ExponentialBiasedTest, InitializationModes) {
 }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

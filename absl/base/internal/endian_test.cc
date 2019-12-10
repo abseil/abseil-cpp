@@ -24,6 +24,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 const uint64_t kInitialNumber{0x0123456789abcdef};
@@ -260,4 +261,5 @@ TEST(EndianessTest, big_endian) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

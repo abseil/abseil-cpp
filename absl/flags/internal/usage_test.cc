@@ -111,7 +111,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_01) {
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
   EXPECT_EQ(
       test_buf.str(),
-      R"(    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+      R"(    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
 )");
 }
@@ -123,7 +123,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_02) {
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
   EXPECT_EQ(
       test_buf.str(),
-      R"(    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+      R"(    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
 )");
 }
@@ -135,7 +135,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_03) {
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
   EXPECT_EQ(
       test_buf.str(),
-      R"(    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+      R"(    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
 )");
 }
@@ -147,7 +147,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_04) {
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
   EXPECT_EQ(
       test_buf.str(),
-      R"(    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+      R"(    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
 )");
 }
@@ -159,7 +159,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_05) {
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
   EXPECT_EQ(
       test_buf.str(),
-      R"(    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+      R"(    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
 )");
 }
@@ -171,17 +171,17 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
       R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
-    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
-    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
-    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
-    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
-    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
-    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+    --usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
 
       Some more help.
       Even more long long long long long long long long long long long long help
@@ -247,17 +247,17 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpshort) {
             R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
-    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
-    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
-    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
-    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
-    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
-    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+    --usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
 
       Some more help.
       Even more long long long long long long long long long long long long help
@@ -276,17 +276,17 @@ TEST_F(UsageReportingTest, TestUsageFlag_help) {
             R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
-    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
-    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
-    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
-    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
-    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
-    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+    --usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
 
       Some more help.
       Even more long long long long long long long long long long long long help
@@ -307,17 +307,17 @@ TEST_F(UsageReportingTest, TestUsageFlag_helppackage) {
             R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
-    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
-    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
-    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
-    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
-    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
-    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+    --usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
 
       Some more help.
       Even more long long long long long long long long long long long long help
@@ -372,17 +372,17 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpon) {
             R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
-    -usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
+    --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
       default: 101;
-    -usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
+    --usage_reporting_test_flag_02 (usage_reporting_test_flag_02 help message);
       default: false;
-    -usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
+    --usage_reporting_test_flag_03 (usage_reporting_test_flag_03 help message);
       default: 1.03;
-    -usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
+    --usage_reporting_test_flag_04 (usage_reporting_test_flag_04 help message);
       default: 1000000000000004;
-    -usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
+    --usage_reporting_test_flag_05 (usage_reporting_test_flag_05 help message);
       default: UDT{};
-    -usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
+    --usage_reporting_test_flag_06 (usage_reporting_test_flag_06 help message.
 
       Some more help.
       Even more long long long long long long long long long long long long help

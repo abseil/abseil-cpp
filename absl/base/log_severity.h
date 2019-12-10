@@ -19,8 +19,10 @@
 #include <ostream>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // Four severity levels are defined.  Logging APIs should terminate the program
 // when a message is logged at severity `kFatal`; the other levels have no
@@ -79,6 +81,7 @@ constexpr absl::LogSeverity NormalizeLogSeverity(int s) {
 // unspecified; do not rely on it.
 std::ostream& operator<<(std::ostream& os, absl::LogSeverity s);
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_LOG_SEVERITY_H_

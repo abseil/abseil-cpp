@@ -17,9 +17,11 @@
 
 #include <stdint.h>
 
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // ExponentialBiased provides a small and fast random number generator for a
@@ -122,6 +124,7 @@ inline uint64_t ExponentialBiased::NextRandom(uint64_t rnd) {
 }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_EXPONENTIAL_BIASED_H_

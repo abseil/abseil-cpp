@@ -20,6 +20,8 @@
 
 #include <cstdint>
 
+#include "absl/base/config.h"
+
 // Clang on Windows has __builtin_clzll; otherwise we need to use the
 // windows intrinsic functions.
 #if defined(_MSC_VER)
@@ -46,6 +48,7 @@
 
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64Slow(uint64_t n) {
@@ -209,6 +212,7 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero32(uint32_t n) {
 #undef ABSL_BASE_INTERNAL_FORCEINLINE
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_BITS_H_

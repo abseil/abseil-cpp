@@ -18,8 +18,6 @@
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"
 
-class CordReader;
-
 namespace absl {
 
 class Cord;
@@ -67,8 +65,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char* v,
                                                    FormatSinkImpl* sink);
 template <class AbslCord,
           typename std::enable_if<
-              std::is_same<AbslCord, absl::Cord>::value>::type* = nullptr,
-          class AbslCordReader = ::CordReader>
+              std::is_same<AbslCord, absl::Cord>::value>::type* = nullptr>
 ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
                                          ConversionSpec conv,
                                          FormatSinkImpl* sink) {
@@ -90,11 +87,17 @@ ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
 
   if (space_remaining > 0 && !is_left) sink->Append(space_remaining, ' ');
 
-  string_view piece;
-  for (AbslCordReader reader(value);
-       to_write > 0 && reader.ReadFragment(&piece); to_write -= piece.size()) {
-    if (piece.size() > to_write) piece.remove_suffix(piece.size() - to_write);
+  for (string_view piece : value.Chunks()) {
+    if (piece.size() > to_write) {
+      piece.remove_suffix(piece.size() - to_write);
+      to_write = 0;
+    } else {
+      to_write -= piece.size();
+    }
     sink->Append(piece);
+    if (to_write == 0) {
+      break;
+    }
   }
 
   if (space_remaining > 0 && is_left) sink->Append(space_remaining, ' ');

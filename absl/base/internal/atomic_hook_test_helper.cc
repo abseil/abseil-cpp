@@ -18,6 +18,7 @@
 #include "absl/base/internal/atomic_hook.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace atomic_hook_internal {
 
 ABSL_CONST_INIT absl::base_internal::AtomicHook<VoidF> func(DefaultFunc);
@@ -26,4 +27,5 @@ void DefaultFunc() { default_func_calls++; }
 void RegisterFunc(VoidF f) { func.Store(f); }
 
 }  // namespace atomic_hook_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

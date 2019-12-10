@@ -22,6 +22,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 namespace {
@@ -103,4 +104,5 @@ void ThrowStdBadFunctionCall() { Throw(std::bad_function_call()); }
 void ThrowStdBadAlloc() { Throw(std::bad_alloc()); }
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

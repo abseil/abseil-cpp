@@ -33,6 +33,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Nominal core processor cycles per second of each processor.   This is _not_
@@ -59,6 +60,7 @@ using pid_t = uint32_t;
 pid_t GetTID();
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SYSINFO_H_

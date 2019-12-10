@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <utility>
 
+#include "absl/base/config.h"
+
 #ifdef _MSC_FULL_VER
 #define ABSL_HAVE_WORKING_ATOMIC_POINTER 0
 #define ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT 0
@@ -29,6 +31,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 template <typename T>
@@ -170,6 +173,7 @@ class AtomicHook<ReturnType (*)(Args...)> {
 #undef ABSL_HAVE_WORKING_CONSTEXPR_STATIC_INIT
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_ATOMIC_HOOK_H_

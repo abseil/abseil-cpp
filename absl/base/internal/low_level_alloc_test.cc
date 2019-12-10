@@ -22,6 +22,7 @@
 #include <utility>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 namespace {
 
@@ -149,6 +150,7 @@ static struct BeforeMain {
 
 }  // namespace
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 int main(int argc, char *argv[]) {
