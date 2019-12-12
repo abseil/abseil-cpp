@@ -80,12 +80,6 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if(${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS})
-    set(ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS_KEYWORD "SYSTEM")
-  else()
-    set(ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS_KEYWORD "")
-  endif()
-
   if(NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
     if(ABSL_ENABLE_INSTALL)
       set(_NAME "${ABSL_CC_LIB_NAME}")
@@ -116,7 +110,7 @@ function(absl_cc_library)
       add_library(${_NAME} "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_include_directories(${_NAME}
-        ${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS_KEYWORD}
+        $<${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS}:"SYSTEM">
         PUBLIC
           "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
           $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
@@ -154,7 +148,7 @@ function(absl_cc_library)
       # Generating header-only library
       add_library(${_NAME} INTERFACE)
       target_include_directories(${_NAME}
-        ${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS_KEYWORD}
+        $<${ABSL_DECLARE_PUBLIC_SYSTEM_HEADERS}:"SYSTEM">
         INTERFACE
           "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
           $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
