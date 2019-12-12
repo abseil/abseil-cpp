@@ -33,7 +33,7 @@ cmake_policy(SET CMP0048 NEW)
 project(absl CXX)
 
 # detect if absl is the root CMake project, or is a subproject in the source tree
-# of a project that uses it (i.e. using add_subdirectory(abseil-cpp))
+# of a project that uses it (e.g. using add_subdirectory(abseil-cpp))
 if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
   # disable install rules
   set(ABSL_ENABLE_INSTALL FALSE)
