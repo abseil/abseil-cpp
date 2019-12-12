@@ -36,6 +36,7 @@ constexpr int kProbeLength = 8;
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 class HashtablezInfoHandlePeer {
  public:
@@ -354,4 +355,5 @@ TEST(HashtablezSamplerTest, Callback) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

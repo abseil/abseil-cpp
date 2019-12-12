@@ -21,6 +21,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 ABSL_CONST_INIT static absl::Mutex program_name_guard(absl::kConstInit);
@@ -50,4 +51,5 @@ void SetProgramInvocationName(absl::string_view prog_name_str) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

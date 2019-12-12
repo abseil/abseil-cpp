@@ -39,6 +39,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace compare_internal {
 
 using value_type = int8_t;
@@ -551,6 +552,7 @@ constexpr absl::weak_ordering do_three_way_comparison(const Compare &compare,
 }
 
 }  // namespace compare_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TYPES_COMPARE_H_

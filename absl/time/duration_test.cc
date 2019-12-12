@@ -762,11 +762,6 @@ TEST(Duration, DivisionByZero) {
   const double dbl_inf = std::numeric_limits<double>::infinity();
   const double dbl_denorm = std::numeric_limits<double>::denorm_min();
 
-  // IEEE 754 behavior
-  double z = 0.0, two = 2.0;
-  EXPECT_TRUE(std::isinf(two / z));
-  EXPECT_TRUE(std::isnan(z / z));  // We'll return inf
-
   // Operator/(Duration, double)
   EXPECT_EQ(inf, zero / 0.0);
   EXPECT_EQ(-inf, zero / -0.0);

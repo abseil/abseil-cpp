@@ -13,6 +13,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 class UntypedFormatSpec;
 
@@ -202,6 +203,7 @@ class StreamedWrapper {
 };
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_BIND_H_

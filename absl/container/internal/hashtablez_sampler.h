@@ -51,6 +51,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // Stores information about a sampled hashtable.  All mutations to this *must*
@@ -281,6 +282,7 @@ void SetHashtablezMaxSamples(int32_t max);
 extern "C" bool AbslContainerInternalSampleEverything();
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_

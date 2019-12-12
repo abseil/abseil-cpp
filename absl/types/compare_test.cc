@@ -18,6 +18,7 @@
 #include "absl/base/casts.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 // This is necessary to avoid a bunch of lint warnings suggesting that we use
@@ -334,4 +335,5 @@ TEST(Compare, StaticAsserts) {
 #endif  // __cpp_inline_variables
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

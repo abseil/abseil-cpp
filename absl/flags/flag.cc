@@ -18,6 +18,7 @@
 #include <cstring>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // We want to validate the type mismatch between type definition and
 // declaration. The lock-free implementation does not allow us to do it,
@@ -55,4 +56,5 @@ absl::Mutex* GetGlobalConstructionGuard() { return &construction_guard; }
 
 #endif
 
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -22,6 +22,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 void PauseAndDecreaseCounter(BlockingCounter* counter, int* done) {
@@ -63,4 +64,5 @@ TEST(BlockingCounterTest, BasicFunctionality) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

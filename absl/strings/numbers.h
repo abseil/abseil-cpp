@@ -51,6 +51,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // SimpleAtoi()
 //
@@ -95,11 +96,13 @@ ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str, double* out);
 // unspecified state.
 ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str, bool* out);
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // End of public API.  Implementation details follow.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace numbers_internal {
 
 // Digit conversion.
@@ -254,6 +257,7 @@ ABSL_MUST_USE_RESULT inline bool SimpleAtoi(absl::string_view str,
   return numbers_internal::safe_strtou128_base(str, out, 10);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_NUMBERS_H_

@@ -17,6 +17,7 @@
 #include "absl/base/attributes.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // See hashtablez_sampler.h for details.
@@ -25,4 +26,5 @@ extern "C" ABSL_ATTRIBUTE_WEAK bool AbslContainerInternalSampleEverything() {
 }
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

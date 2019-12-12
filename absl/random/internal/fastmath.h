@@ -25,6 +25,7 @@
 #include "absl/base/internal/bits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Returns the position of the first bit set.
@@ -67,6 +68,7 @@ inline constexpr uint64_t rotr(uint64_t value, uint8_t bits) {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_FASTMATH_H_

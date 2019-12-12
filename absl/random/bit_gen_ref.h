@@ -31,6 +31,7 @@
 #include "absl/random/internal/mocking_bit_gen_base.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 template <typename URBG, typename = void, typename = void, typename = void>
@@ -146,6 +147,7 @@ struct DistributionCaller<absl::BitGenRef> {
 };
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_BIT_GEN_REF_H_

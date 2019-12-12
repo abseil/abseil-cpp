@@ -204,6 +204,8 @@ absl_cc_library(
     "internal/counting_allocator.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
 )
 
 absl_cc_test(
@@ -574,6 +576,8 @@ absl_cc_library(
     "internal/hashtable_debug_hooks.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
   PUBLIC
 )
 
@@ -593,6 +597,8 @@ absl_cc_library(
     "internal/node_hash_policy.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
   PUBLIC
 )
 
@@ -735,6 +741,8 @@ absl_cc_library(
     "internal/tracked.h"
   COPTS
     ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
   TESTONLY
 )
 

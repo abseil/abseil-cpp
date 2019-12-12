@@ -154,7 +154,7 @@ using LogPrefixHook = bool (*)(absl::LogSeverity severity, const char* file,
 //
 // 'file' and 'line' are the file and line number where the ABSL_RAW_LOG macro
 // was located.
-// The null-terminated logged message lives in the buffer between 'buf_start'
+// The NUL-terminated logged message lives in the buffer between 'buf_start'
 // and 'buf_end'.  'prefix_end' points to the first non-prefix character of the
 // buffer (as written by the LogPrefixHook.)
 using AbortHook = void (*)(const char* file, int line, const char* buf_start,

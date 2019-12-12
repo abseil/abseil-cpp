@@ -54,6 +54,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // Forward declaration
 template <typename T>
@@ -387,6 +388,7 @@ struct optional_hash_base<T, decltype(std::hash<absl::remove_const_t<T> >()(
 };
 
 }  // namespace optional_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_OPTIONAL_USE_INHERITING_CONSTRUCTORS

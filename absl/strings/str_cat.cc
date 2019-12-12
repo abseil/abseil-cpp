@@ -25,6 +25,7 @@
 #include "absl/strings/numbers.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 AlphaNum::AlphaNum(Hex hex) {
   static_assert(numbers_internal::kFastToBufferSize >= 32,
@@ -241,4 +242,5 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   assert(out == begin + dest->size());
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

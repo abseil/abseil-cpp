@@ -44,6 +44,7 @@ ABSL_FLAG(std::string, helpmatch, "",
           "show help on modules whose name contains the specified substr");
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 
@@ -404,4 +405,5 @@ int HandleUsageFlags(std::ostream& out,
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

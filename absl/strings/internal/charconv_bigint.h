@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 // The largest power that 5 that can be raised to, and still fit in a uint32_t.
@@ -414,6 +415,7 @@ extern template class BigUnsigned<4>;
 extern template class BigUnsigned<84>;
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_CHARCONV_BIGINT_H_

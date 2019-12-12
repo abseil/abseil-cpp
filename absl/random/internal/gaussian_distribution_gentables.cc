@@ -27,6 +27,7 @@
 #include "absl/base/macros.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -135,6 +136,7 @@ void TableGenerator::Print(std::ostream* os) {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 int main(int, char**) {

@@ -18,6 +18,7 @@
 #include "absl/flags/usage_config.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // The help message indicating that the commandline flag has been
@@ -57,4 +58,5 @@ std::string CommandLineFlag::Filename() const {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

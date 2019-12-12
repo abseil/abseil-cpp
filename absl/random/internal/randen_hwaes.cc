@@ -75,6 +75,7 @@
 #include <cstdlib>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // No accelerated implementation.
@@ -106,6 +107,7 @@ void RandenHwAes::Generate(const void*, void*) {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else  // defined(ABSL_RANDEN_HWAES_IMPL)
@@ -518,6 +520,7 @@ inline ABSL_TARGET_CRYPTO void Permute(
 }  // namespace
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 bool HasRandenHwAesImplementation() { return true; }
@@ -629,6 +632,7 @@ void ABSL_TARGET_CRYPTO RandenHwAes::Generate(const void* keys,
 #endif
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // (ABSL_RANDEN_HWAES_IMPL)

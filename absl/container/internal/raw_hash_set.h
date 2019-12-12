@@ -118,6 +118,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 template <size_t Width>
@@ -1861,6 +1862,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 
 }  // namespace hashtable_debug_internal
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_

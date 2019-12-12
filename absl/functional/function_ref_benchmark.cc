@@ -20,6 +20,7 @@
 #include "absl/base/attributes.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 int dummy = 0;
@@ -137,4 +138,5 @@ void BM_NonTrivialArgsFunctionRef(benchmark::State& state) {
 BENCHMARK(BM_NonTrivialArgsFunctionRef);
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

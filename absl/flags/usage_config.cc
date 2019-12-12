@@ -34,6 +34,7 @@ ABSL_ATTRIBUTE_WEAK void AbslInternalReportFatalUsageError(absl::string_view) {}
 }  // extern "C"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 namespace {
@@ -149,4 +150,5 @@ void SetFlagsUsageConfig(FlagsUsageConfig usage_config) {
     flags_internal::custom_usage_config = new FlagsUsageConfig(usage_config);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

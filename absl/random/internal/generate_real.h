@@ -29,6 +29,7 @@
 #include "absl/random/internal/traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Tristate tag types controlling the output of GenerateRealFromBits.
@@ -139,6 +140,7 @@ inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_GENERATE_REAL_H_

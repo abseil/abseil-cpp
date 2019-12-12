@@ -20,6 +20,7 @@
 #include <string>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 // clang-format off
@@ -81,4 +82,5 @@ bool FormatSinkImpl::PutPaddedString(string_view v, int w, int p, bool l) {
 }
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

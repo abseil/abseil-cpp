@@ -24,6 +24,7 @@
 #include "absl/base/internal/exception_safety_testing.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -285,6 +286,7 @@ TEST(OptionalExceptionSafety, NothrowMoveAssign) {
 
 }  // namespace
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // #if !defined(ABSL_USES_STD_OPTIONAL) && defined(ABSL_HAVE_EXCEPTIONS)

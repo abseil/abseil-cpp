@@ -94,6 +94,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/meta:type_traits",
@@ -413,6 +414,7 @@ cc_test(
     deps = [
         ":pow10_helper",
         ":strings",
+        "//absl/base:config",
         "//absl/base:raw_logging_internal",
         "//absl/random",
         "//absl/random:distributions",
@@ -489,6 +491,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
+        "//absl/base:config",
         "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
@@ -504,6 +507,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     deps = [
         ":strings",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -668,6 +672,7 @@ cc_library(
     srcs = ["internal/pow10_helper.cc"],
     hdrs = ["internal/pow10_helper.h"],
     visibility = ["//visibility:private"],
+    deps = ["//absl/base:config"],
 )
 
 cc_test(

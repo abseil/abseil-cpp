@@ -54,6 +54,7 @@
 //     Shows help on modules whose name contains the specified substring
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace flags_internal {
 using FlagKindFilter = std::function<bool (absl::string_view)>;
@@ -118,6 +119,7 @@ FlagsUsageConfig GetUsageConfig();
 void ReportUsageError(absl::string_view msg, bool is_fatal);
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 extern "C" {

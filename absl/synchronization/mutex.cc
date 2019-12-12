@@ -71,6 +71,7 @@ ABSL_ATTRIBUTE_WEAK void AbslInternalMutexYield() { std::this_thread::yield(); }
 }  // extern "C"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -295,7 +296,7 @@ static struct SynchEvent {     // this is a trivial hash table for the events
   bool log;             // logging turned on
 
   // Constant after initialization
-  char name[1];         // actually longer---null-terminated std::string
+  char name[1];         // actually longer---NUL-terminated std::string
 } * synch_event[kNSynchEvent] ABSL_GUARDED_BY(synch_event_mu);
 
 // Ensure that the object at "addr" has a SynchEvent struct associated with it,
@@ -2720,4 +2721,5 @@ bool Condition::GuaranteedEqual(const Condition *a, const Condition *b) {
          a->arg_ == b->arg_ && a->method_ == b->method_;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

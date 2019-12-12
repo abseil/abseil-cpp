@@ -15,6 +15,7 @@
 #include "absl/hash/internal/hash.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 uint64_t CityHashState::CombineLargeContiguousImpl32(uint64_t state,
@@ -50,4 +51,5 @@ uint64_t CityHashState::CombineLargeContiguousImpl64(uint64_t state,
 ABSL_CONST_INIT const void* const CityHashState::kSeed = &kSeed;
 
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

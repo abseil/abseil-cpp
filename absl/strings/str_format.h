@@ -82,6 +82,7 @@
 #include "absl/strings/internal/str_format/parser.h"  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // UntypedFormatSpec
 //
@@ -530,6 +531,7 @@ ABSL_MUST_USE_RESULT inline bool FormatUntyped(
       str_format_internal::UntypedFormatSpecImpl::Extract(format), args);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_FORMAT_H_

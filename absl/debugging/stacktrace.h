@@ -31,7 +31,10 @@
 #ifndef ABSL_DEBUGGING_STACKTRACE_H_
 #define ABSL_DEBUGGING_STACKTRACE_H_
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // GetStackFrames()
 //
@@ -222,6 +225,7 @@ namespace debugging_internal {
 // working.
 extern bool StackTraceWorksForTest();
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_STACKTRACE_H_

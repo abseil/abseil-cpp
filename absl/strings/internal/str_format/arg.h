@@ -19,6 +19,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 class Cord;
 class FormatCountCapture;
@@ -426,6 +427,7 @@ ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);
 
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_ARG_H_

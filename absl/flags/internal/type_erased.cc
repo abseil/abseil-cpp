@@ -21,6 +21,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 bool GetCommandLineOption(absl::string_view name, std::string* value) {
@@ -79,4 +80,5 @@ bool SpecifiedOnCommandLine(absl::string_view name) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

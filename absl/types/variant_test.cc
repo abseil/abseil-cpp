@@ -70,6 +70,7 @@ struct hash<Hashable> {
 struct NonHashable {};
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 using ::testing::DoubleEq;
@@ -2709,6 +2710,7 @@ TEST(VariantTest, MoveCtorBug) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // #if !defined(ABSL_USES_STD_VARIANT)

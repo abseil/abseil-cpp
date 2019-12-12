@@ -54,6 +54,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // FunctionRef
 //
@@ -132,6 +133,7 @@ class FunctionRef<R(Args...)> {
   absl::functional_internal::Invoker<R, Args...> invoker_;
 };
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FUNCTIONAL_FUNCTION_REF_H_

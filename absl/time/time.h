@@ -89,6 +89,7 @@ struct timeval;
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 class Duration;  // Defined below
 class Time;      // Defined below
@@ -1574,6 +1575,7 @@ constexpr Time FromTimeT(time_t t) {
   return time_internal::FromUnixDuration(Seconds(t));
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TIME_TIME_H_

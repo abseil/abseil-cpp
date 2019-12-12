@@ -40,6 +40,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 bool SimpleAtof(absl::string_view str, float* out) {
   *out = 0.0;
@@ -911,4 +912,5 @@ bool safe_strtou128_base(absl::string_view text, uint128* value, int base) {
 }
 
 }  // namespace numbers_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

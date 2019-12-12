@@ -25,6 +25,7 @@
 #include "absl/meta/type_traits.h"  //  for void_t
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 // Is a subclass of true_type or false_type, depending on whether or not
@@ -66,6 +67,7 @@ inline void STLStringResizeUninitialized(string_type* s, size_t new_size) {
 }
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_RESIZE_UNINITIALIZED_H_

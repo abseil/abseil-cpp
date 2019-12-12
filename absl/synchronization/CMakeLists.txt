@@ -26,6 +26,7 @@ absl_cc_library(
   DEPS
     absl::base
     absl::base_internal
+    absl::config
     absl::core_headers
     absl::malloc_internal
     absl::raw_logging_internal

@@ -35,7 +35,9 @@
 #include <string_view>  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 using std::string_view;
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else  // ABSL_USES_STD_STRING_VIEW
@@ -61,6 +63,7 @@ using std::string_view;
 #include "absl/base/port.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::string_view
 //
@@ -109,10 +112,10 @@ namespace absl {
 // example, when splitting a string, `std::vector<absl::string_view>` is a
 // natural data type for the output.
 //
-// When constructed from a source which is nul-terminated, the `string_view`
-// itself will not include the nul-terminator unless a specific size (including
-// the nul) is passed to the constructor. As a result, common idioms that work
-// on nul-terminated strings do not work on `string_view` objects. If you write
+// When constructed from a source which is NUL-terminated, the `string_view`
+// itself will not include the NUL-terminator unless a specific size (including
+// the NUL) is passed to the constructor. As a result, common idioms that work
+// on NUL-terminated strings do not work on `string_view` objects. If you write
 // code that scans a `string_view`, you must check its length rather than test
 // for nul, for example. Note, however, that nuls may still be embedded within
 // a `string_view` explicitly.
@@ -179,7 +182,7 @@ class string_view {
       // doesn't need to be reevaluated after `ptr_` is set.
       : string_view(str.data(), str.size()) {}
 
-  // Implicit constructor of a `string_view` from nul-terminated `str`. When
+  // Implicit constructor of a `string_view` from NUL-terminated `str`. When
   // accepting possibly null strings, use `absl::NullSafeStringView(str)`
   // instead (see below).
   constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
@@ -309,8 +312,8 @@ class string_view {
   //
   // Returns a pointer to the underlying character array (which is of course
   // stored elsewhere). Note that `string_view::data()` may contain embedded nul
-  // characters, but the returned buffer may or may not be nul-terminated;
-  // therefore, do not pass `data()` to a routine that expects a nul-terminated
+  // characters, but the returned buffer may or may not be NUL-terminated;
+  // therefore, do not pass `data()` to a routine that expects a NUL-terminated
   // std::string.
   constexpr const_pointer data() const noexcept { return ptr_; }
 
@@ -577,6 +580,7 @@ constexpr bool operator>=(string_view x, string_view y) noexcept {
 // IO Insertion Operator
 std::ostream& operator<<(std::ostream& o, string_view piece);
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_INTERNAL_STRING_VIEW_MEMCMP
@@ -584,6 +588,7 @@ std::ostream& operator<<(std::ostream& o, string_view piece);
 #endif  // ABSL_USES_STD_STRING_VIEW
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // ClippedSubstr()
 //
@@ -604,6 +609,7 @@ inline string_view NullSafeStringView(const char* p) {
   return p ? string_view(p) : string_view();
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STRING_VIEW_H_

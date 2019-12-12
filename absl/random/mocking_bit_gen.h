@@ -51,6 +51,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace random_internal {
 
@@ -189,6 +190,7 @@ struct DistributionCaller<absl::MockingBitGen> {
 };
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_MOCKING_BIT_GEN_H_

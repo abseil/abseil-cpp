@@ -38,6 +38,7 @@
 // --------------------------------------------------------------------
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 
@@ -52,6 +53,7 @@ ABSL_CONST_INIT bool tryfromenv_needs_processing
 
 }  // namespace
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 ABSL_FLAG(std::vector<std::string>, flagfile, {},
@@ -109,6 +111,7 @@ ABSL_FLAG(std::vector<std::string>, undefok, {},
           "with that name");
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 namespace {
@@ -748,4 +751,5 @@ std::vector<char*> ParseCommandLine(int argc, char* argv[]) {
       flags_internal::OnUndefinedFlag::kAbortIfUndefined);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

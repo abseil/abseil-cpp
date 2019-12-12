@@ -681,6 +681,7 @@ H AbslHashValue(H state, CustomHashType<Tags...> t) {
 }  // namespace
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 template <InvokeTag... Tags>
 struct is_uniquely_represented<
@@ -688,6 +689,7 @@ struct is_uniquely_represented<
     typename EnableIfContained<InvokeTag::kUniquelyRepresented, Tags...>::type>
     : std::true_type {};
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_

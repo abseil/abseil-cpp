@@ -48,6 +48,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 template <class Key, class Value>
 class NodeHashMapPolicy;
@@ -581,6 +582,7 @@ struct IsUnorderedContainer<
 
 }  // namespace container_algorithm_internal
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_NODE_HASH_MAP_H_

@@ -47,6 +47,7 @@
 #endif  // _GLIBCXX_DEBUG
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 // This class is implicitly constructible from everything that absl::string_view
@@ -448,6 +449,7 @@ class Splitter {
 };
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_SPLIT_INTERNAL_H_

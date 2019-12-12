@@ -23,7 +23,10 @@
 #include <limits>
 #include <string>
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 template <typename IntType>
@@ -175,6 +178,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
 }
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_NUMBERS_TEST_COMMON_H_

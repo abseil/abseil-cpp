@@ -43,6 +43,7 @@
 #include "absl/types/internal/conformance_profile.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace types_internal {
 
 // A minimum-conforming implementation of a type with properties specified in
@@ -961,6 +962,7 @@ struct EnabledHash {
 };
 
 }  // namespace types_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace std {

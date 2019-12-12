@@ -22,6 +22,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 template <typename IntType>
 class uniform_int_distribution;
 
@@ -173,6 +174,7 @@ struct UniformDistributionWrapper : public UniformDistribution<NumType> {
 };
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_UNIFORM_HELPER_H_

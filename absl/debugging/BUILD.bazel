@@ -38,6 +38,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":debugging_internal",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -63,6 +64,7 @@ cc_library(
         ":debugging_internal",
         ":demangle_internal",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
@@ -106,6 +108,7 @@ cc_library(
     deps = [
         ":stacktrace",
         ":symbolize",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
     ],
@@ -168,6 +171,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:raw_logging_internal",
@@ -181,6 +185,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     deps = [
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -205,7 +210,10 @@ cc_library(
     srcs = ["leak_check.cc"],
     hdrs = ["leak_check.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = ["//absl/base:core_headers"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
 )
 
 # Adding a dependency to leak_check_disable will disable
@@ -216,6 +224,7 @@ cc_library(
     srcs = ["leak_check_disable.cc"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     linkstatic = 1,
+    deps = ["//absl/base:config"],
     alwayslink = 1,
 )
 
@@ -237,6 +246,9 @@ cc_library(
     }),
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_library(
@@ -247,6 +259,9 @@ cc_library(
     copts = ["-ULEAK_SANITIZER"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_test(
@@ -304,6 +319,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
     ],

@@ -33,6 +33,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 // These are used for the leave_nulls_escaped argument to CUnescapeInternal().
@@ -1106,4 +1107,5 @@ std::string BytesToHexString(absl::string_view from) {
   return result;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

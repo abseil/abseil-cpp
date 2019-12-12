@@ -33,6 +33,7 @@
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // absl::gaussian_distribution_base implements the underlying ziggurat algorithm
@@ -267,6 +268,7 @@ inline double gaussian_distribution_base::zignor(
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_GAUSSIAN_DISTRIBUTION_H_

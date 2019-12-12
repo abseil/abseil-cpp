@@ -28,6 +28,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // Like remove_const but propagates the removal through std::pair.
@@ -148,6 +149,7 @@ std::vector<V> GenerateValuesWithSeed(int n, int maxval, int seed) {
 }
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_BTREE_TEST_H_

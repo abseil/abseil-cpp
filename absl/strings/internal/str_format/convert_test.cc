@@ -11,6 +11,7 @@
 #include "absl/strings/internal/str_format/bind.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -646,4 +647,5 @@ TEST_F(FormatConvertTest, ExpectedFailures) {
 
 }  // namespace
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

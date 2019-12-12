@@ -27,6 +27,7 @@
 // Global flags registry API.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);
@@ -115,6 +116,7 @@ class FlagSaver {
 };
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_REGISTRY_H_

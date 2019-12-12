@@ -22,6 +22,7 @@
 namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 extern const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
 extern const char RFC3339_sec[] =  "%Y-%m-%dT%H:%M:%S%Ez";
@@ -145,4 +146,5 @@ std::string UnparseFlag(absl::Time t) {
   return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

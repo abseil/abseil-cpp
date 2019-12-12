@@ -526,6 +526,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -559,6 +561,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -618,6 +622,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
   TESTONLY
 )
 
@@ -631,6 +637,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
   TESTONLY
 )
 
@@ -782,6 +790,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -816,6 +826,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_internal_platform
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -835,6 +846,7 @@ absl_cc_library(
   DEPS
     absl::random_internal_platform
     absl::random_internal_randen_hwaes_impl
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -851,6 +863,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_internal_platform
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
@@ -868,6 +881,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::core_headers
     absl::raw_logging_internal
     absl::strings

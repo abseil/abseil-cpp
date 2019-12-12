@@ -27,6 +27,7 @@
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::exponential_distribution:
 // Generates a number conforming to an exponential distribution and is
@@ -158,6 +159,7 @@ std::basic_istream<CharT, Traits>& operator>>(
   return is;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_EXPONENTIAL_DISTRIBUTION_H_

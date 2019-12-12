@@ -50,6 +50,7 @@
 #include "absl/hash/internal/city.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 class PiecewiseCombiner;
@@ -980,6 +981,7 @@ H PiecewiseCombiner::finalize(H state) {
 }
 
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HASH_INTERNAL_HASH_H_

@@ -42,6 +42,7 @@
 ABSL_FLAG(int, test_values, 10000, "The number of values to use for tests");
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -2304,4 +2305,5 @@ TEST(Btree, EmptyTree) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

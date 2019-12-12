@@ -209,7 +209,7 @@ void ClearCurrentThreadIdentity();
 #error ABSL_THREAD_IDENTITY_MODE cannot be direcly set
 #elif defined(ABSL_FORCE_THREAD_IDENTITY_MODE)
 #define ABSL_THREAD_IDENTITY_MODE ABSL_FORCE_THREAD_IDENTITY_MODE
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__MINGW32__)
 #define ABSL_THREAD_IDENTITY_MODE ABSL_THREAD_IDENTITY_MODE_USE_CPP11
 #elif ABSL_PER_THREAD_TLS && defined(__GOOGLE_GRTE_VERSION__) && \
     (__GOOGLE_GRTE_VERSION__ >= 20140228L)

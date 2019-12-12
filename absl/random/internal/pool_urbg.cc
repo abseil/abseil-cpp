@@ -37,6 +37,7 @@ using absl::base_internal::SpinLock;
 using absl::base_internal::SpinLockHolder;
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -249,4 +250,5 @@ template class RandenPool<uint32_t>;
 template class RandenPool<uint64_t>;
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

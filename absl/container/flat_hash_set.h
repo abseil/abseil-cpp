@@ -40,6 +40,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 template <typename T>
 struct FlatHashSetPolicy;
@@ -488,6 +489,7 @@ struct IsUnorderedContainer<absl::flat_hash_set<Key, Hash, KeyEqual, Allocator>>
 
 }  // namespace container_algorithm_internal
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_FLAT_HASH_SET_H_

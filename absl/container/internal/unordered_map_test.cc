@@ -21,6 +21,7 @@
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -45,4 +46,5 @@ INSTANTIATE_TYPED_TEST_SUITE_P(UnorderedMap, UniquePtrModifiersTest,
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

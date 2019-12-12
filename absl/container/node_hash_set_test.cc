@@ -20,6 +20,7 @@
 #include "absl/container/internal/unordered_set_modifiers_test.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 using ::absl::container_internal::hash_internal::Enum;
@@ -102,4 +103,5 @@ TEST(NodeHashSet, MergeExtractInsert) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

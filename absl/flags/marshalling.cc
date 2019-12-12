@@ -27,6 +27,7 @@
 #include "absl/strings/str_split.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // --------------------------------------------------------------------
@@ -226,4 +227,5 @@ std::string AbslUnparseFlag(absl::LogSeverity v) {
   return absl::UnparseFlag(static_cast<int>(v));
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

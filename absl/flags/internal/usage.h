@@ -27,6 +27,7 @@
 // Usage reporting interfaces
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // The format to report the help messages in.
@@ -64,6 +65,7 @@ int HandleUsageFlags(std::ostream& out,
                      absl::string_view program_usage_message);
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 ABSL_DECLARE_FLAG(bool, help);

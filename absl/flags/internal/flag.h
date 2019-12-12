@@ -27,6 +27,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 constexpr int64_t AtomicInit() { return 0xababababababababll; }
@@ -156,10 +157,11 @@ class FlagImpl {
         help_(help.source),
         help_source_kind_(help.kind),
         def_kind_(flags_internal::FlagDefaultSrcKind::kGenFunc),
-        default_src_(default_value_gen) {}
+        default_src_(default_value_gen),
+        data_guard_{} {}
 
   // Forces destruction of the Flag's data.
-  void Destroy() const;
+  void Destroy();
 
   // Constant access methods
   std::string Help() const;
@@ -170,9 +172,10 @@ class FlagImpl {
   void Read(const CommandLineFlag& flag, void* dst,
             const flags_internal::FlagOpFn dst_op) const
       ABSL_LOCKS_EXCLUDED(*DataGuard());
-  // Attempts to parse supplied `value` std::string.
-  bool TryParse(const CommandLineFlag& flag, void* dst, absl::string_view value,
-                std::string* err) const
+  // Attempts to parse supplied `value` std::string. If parsing is successful, then
+  // it replaces `dst` with the new value.
+  bool TryParse(const CommandLineFlag& flag, void** dst,
+                absl::string_view value, std::string* err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
   template <typename T>
   bool AtomicGet(T* v) const {
@@ -226,8 +229,7 @@ class FlagImpl {
   void Init();
   // Ensures that the lazily initialized data is initialized,
   // and returns pointer to the mutex guarding flags data.
-  absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED(locks_->primary_mu);
-
+  absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED((absl::Mutex*)&data_guard_);
   // Returns heap allocated value of type T initialized with default value.
   std::unique_ptr<void, DynValueDeleter> MakeInitValue() const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
@@ -239,9 +241,12 @@ class FlagImpl {
   // Indicates if help message was supplied as literal or generator func.
   const FlagHelpSrcKind help_source_kind_;
 
-  // Mutable Flag's data. (guarded by DataGuard()).
-  // Indicates that locks_ and cur_ fields have been lazily initialized.
+  // Indicates that the Flag state is initialized.
   std::atomic<bool> inited_{false};
+  // Mutable Flag state (guarded by data_guard_).
+  // Additional bool to protect against multiple concurrent constructions
+  // of `data_guard_`.
+  bool is_data_guard_inited_ = false;
   // Has flag value been modified?
   bool modified_ ABSL_GUARDED_BY(*DataGuard()) = false;
   // Specified on command line.
@@ -261,22 +266,20 @@ class FlagImpl {
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
   std::atomic<int64_t> atomic_{flags_internal::AtomicInit()};
-  // Mutation callback
-  FlagCallback callback_ = nullptr;
 
-  // Lazily initialized mutexes for this flag value.  We cannot inline a
-  // SpinLock or Mutex here because those have non-constexpr constructors and
-  // so would prevent constant initialization of this type.
-  // TODO(rogeeff): fix it once Mutex has constexpr constructor
-  // The following struct contains the locks in a CommandLineFlag struct.
-  // They are in a separate struct that is lazily allocated to avoid problems
-  // with static initialization and to avoid multiple allocations.
-  struct CommandLineFlagLocks {
-    absl::Mutex primary_mu;   // protects several fields in CommandLineFlag
-    absl::Mutex callback_mu;  // used to serialize callbacks
+  struct CallbackData {
+    FlagCallback func;
+    absl::Mutex guard;  // Guard for concurrent callback invocations.
   };
-
-  CommandLineFlagLocks* locks_ = nullptr;  // locks, laziliy allocated.
+  CallbackData* callback_data_ ABSL_GUARDED_BY(*DataGuard()) = nullptr;
+  // This is reserved space for an absl::Mutex to guard flag data. It will be
+  // initialized in FlagImpl::Init via placement new.
+  // We can't use "absl::Mutex data_guard_", since this class is not literal.
+  // We do not want to use "absl::Mutex* data_guard_", since this would require
+  // heap allocation during initialization, which is both slows program startup
+  // and can fail. Using reserved space + placement new allows us to avoid both
+  // problems.
+  alignas(absl::Mutex) mutable char data_guard_[sizeof(absl::Mutex)];
 };
 
 // This is "unspecified" implementation of absl::Flag<T> type.
@@ -354,7 +357,7 @@ class Flag final : public flags_internal::CommandLineFlag {
  private:
   friend class FlagState<T>;
 
-  void Destroy() const override { impl_.Destroy(); }
+  void Destroy() override { impl_.Destroy(); }
 
   void Read(void* dst) const override {
     impl_.Read(*this, dst, &flags_internal::FlagOps<T>);
@@ -414,6 +417,7 @@ T* MakeFromDefaultValue(EmptyBraces) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_FLAG_H_

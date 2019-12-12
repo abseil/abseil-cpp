@@ -19,6 +19,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -269,4 +270,5 @@ TEST(FastUniformBitsTest, URBG32bitRegression) {
 
 }  // namespace
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

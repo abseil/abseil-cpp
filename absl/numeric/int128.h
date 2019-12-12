@@ -49,6 +49,7 @@
 #endif  // defined(_MSC_VER)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 class int128;
 
@@ -245,6 +246,7 @@ constexpr uint128 Uint128Max() {
                  (std::numeric_limits<uint64_t>::max)());
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // Specialized numeric_limits for uint128.
@@ -293,6 +295,7 @@ class numeric_limits<absl::uint128> {
 }  // namespace std
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // int128
 //
@@ -478,6 +481,7 @@ constexpr int128 Int128Min() {
   return int128((std::numeric_limits<int64_t>::min)(), 0);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // Specialized numeric_limits for int128.
@@ -529,6 +533,7 @@ class numeric_limits<absl::int128> {
 //                      Implementation details follow
 // --------------------------------------------------------------------------
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 constexpr uint128 MakeUint128(uint64_t high, uint64_t low) {
   return uint128(high, low);
@@ -1078,6 +1083,7 @@ constexpr int64_t BitCastToSigned(uint64_t v) {
 #include "absl/numeric/int128_no_intrinsic.inc"  // IWYU pragma: export
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_INTERNAL_WCHAR_T

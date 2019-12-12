@@ -29,6 +29,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 class Cord;
 
@@ -97,6 +98,7 @@ auto InvokeFlush(T* out, string_view s)
 }
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_OUTPUT_H_

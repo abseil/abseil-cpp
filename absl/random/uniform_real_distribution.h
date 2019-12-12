@@ -45,6 +45,7 @@
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::uniform_real_distribution<T>
 //
@@ -195,6 +196,7 @@ std::basic_istream<CharT, Traits>& operator>>(
   }
   return is;
 }
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_UNIFORM_REAL_DISTRIBUTION_H_

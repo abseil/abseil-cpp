@@ -71,6 +71,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -917,4 +918,5 @@ bool ParseFlag(const std::string& text, Duration* dst, std::string* ) {
 
 std::string UnparseFlag(Duration d) { return FormatDuration(d); }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

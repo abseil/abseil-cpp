@@ -36,6 +36,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 struct IntervalClosedClosedTag;
 struct IntervalClosedOpenTag;
@@ -271,6 +272,7 @@ struct DistributionFormatTraits<UniformDistributionWrapper<NumType>> {
 };
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_DISTRIBUTION_FORMAT_TRAITS_H_

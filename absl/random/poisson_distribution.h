@@ -28,6 +28,7 @@
 #include "absl/random/internal/iostream_state_saver.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::poisson_distribution:
 // Generates discrete variates conforming to a Poisson distribution.
@@ -251,6 +252,7 @@ std::basic_istream<CharT, Traits>& operator>>(
   return is;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_POISSON_DISTRIBUTION_H_

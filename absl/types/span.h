@@ -71,6 +71,7 @@
 #include "absl/types/internal/span.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Span
@@ -707,5 +708,6 @@ template <int&... ExplicitArgumentBarrier, typename T, size_t N>
 constexpr Span<const T> MakeConstSpan(const T (&array)[N]) noexcept {
   return Span<const T>(array, N);
 }
+ABSL_NAMESPACE_END
 }  // namespace absl
 #endif  // ABSL_TYPES_SPAN_H_

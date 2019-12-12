@@ -28,6 +28,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -1562,4 +1563,5 @@ TEST(CompactString, Works) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

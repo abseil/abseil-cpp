@@ -19,7 +19,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // This is a stateful allocator, but the state lives outside of the
@@ -74,6 +77,7 @@ class CountingAllocator : public std::allocator<T> {
 };
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_COUNTING_ALLOCATOR_H_

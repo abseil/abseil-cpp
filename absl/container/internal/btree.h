@@ -70,6 +70,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // A helper class that indicates if the Compare parameter is a key-compare-to
@@ -2606,6 +2607,7 @@ int btree<P>::internal_verify(
 }
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_BTREE_H_

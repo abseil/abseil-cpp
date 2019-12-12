@@ -21,6 +21,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/base/config.h"
+
 #ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #error ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE cannot be directly set
 #elif defined(__ELF__) && defined(__GLIBC__) && !defined(__native_client__) && \
@@ -33,6 +35,7 @@
 #include <string>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // Iterates over all sections, invoking callback on each with the section name
@@ -51,11 +54,13 @@ bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
                             ElfW(Shdr) *out);
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 struct SymbolDecoratorArgs {
@@ -117,6 +122,7 @@ bool GetFileMappingHint(const void** start,
                         const char** filename);
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_

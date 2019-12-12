@@ -23,6 +23,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 namespace {
 
@@ -190,4 +191,5 @@ TEST(DemangleRegression, DeeplyNestedArrayType) {
 
 }  // namespace
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -36,6 +36,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 class Condition;
 
 namespace synchronization_internal {
@@ -256,4 +257,5 @@ class SynchronizationStorage {
 };
 
 }  // namespace synchronization_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

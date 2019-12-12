@@ -40,6 +40,7 @@
 #include "absl/random/internal/wide_multiply.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::uniform_int_distribution<T>
 //
@@ -268,6 +269,7 @@ uniform_int_distribution<IntType>::Generate(
   return helper::hi(product);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_UNIFORM_INT_DISTRIBUTION_H_

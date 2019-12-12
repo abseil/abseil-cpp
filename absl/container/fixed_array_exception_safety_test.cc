@@ -23,6 +23,7 @@
 #include "absl/base/internal/exception_safety_testing.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -195,6 +196,7 @@ TEST(FixedArrayExceptionSafety, FillWithAlloc) {
 
 }  // namespace
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HAVE_EXCEPTIONS

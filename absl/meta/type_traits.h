@@ -48,6 +48,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // Defined and documented later on in this file.
 template <typename T>
@@ -752,6 +753,7 @@ using swap_internal::Swap;
 using swap_internal::StdSwapIsUnconstrained;
 
 }  // namespace type_traits_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_META_TYPE_TRAITS_H_

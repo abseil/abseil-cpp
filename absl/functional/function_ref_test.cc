@@ -22,6 +22,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 void RunFun(FunctionRef<void()> f) { f(); }
@@ -252,4 +253,5 @@ TEST(FunctionRef, PassByValueTypes) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

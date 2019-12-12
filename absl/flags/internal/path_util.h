@@ -20,6 +20,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // A portable interface that returns the basename of the filename passed as an
@@ -55,6 +56,7 @@ inline absl::string_view Package(absl::string_view filename) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_PATH_UTIL_H_

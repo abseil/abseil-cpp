@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -138,4 +139,5 @@ TEST_F(FormatBindTest, FormatPack) {
 
 }  // namespace
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -53,6 +53,7 @@
 #include "absl/random/mocking_bit_gen.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // absl::MockUniform
@@ -254,6 +255,7 @@ using MockZipf =
                                      IntType(MockingBitGen&, IntType, double,
                                              double)>;
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_MOCK_DISTRIBUTIONS_H_

@@ -48,6 +48,7 @@ struct TwoValues {
 
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -408,4 +409,5 @@ TEST(CompressedTupleTest, EmptyFinalClass) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

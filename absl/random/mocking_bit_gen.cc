@@ -18,6 +18,7 @@
 #include <string>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 MockingBitGen::~MockingBitGen() {
 
   for (const auto& del : deleters_) {
@@ -25,4 +26,5 @@ MockingBitGen::~MockingBitGen() {
   }
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

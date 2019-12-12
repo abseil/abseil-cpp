@@ -21,6 +21,7 @@
 #include "gtest/gtest.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 TEST(InvokeFlush, String) {
@@ -67,5 +68,6 @@ TEST(BufferRawSink, Limits) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl
 

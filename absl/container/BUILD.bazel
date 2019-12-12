@@ -141,6 +141,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
+    deps = ["//absl/base:config"],
 )
 
 cc_test(
@@ -478,6 +479,9 @@ cc_library(
     hdrs = ["internal/hashtable_debug_hooks.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_library(
@@ -521,6 +525,7 @@ cc_library(
     hdrs = ["internal/node_hash_policy.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = ["//absl/base:config"],
 )
 
 cc_test(
@@ -662,6 +667,9 @@ cc_library(
     hdrs = ["internal/tracked.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_library(

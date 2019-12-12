@@ -14,6 +14,7 @@
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 constexpr bool AllOf() { return true; }
@@ -319,6 +320,7 @@ constexpr bool ValidFormatImpl(string_view format) {
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_CHECKER_H_

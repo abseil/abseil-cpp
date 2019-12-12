@@ -24,6 +24,7 @@
 // Program name
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // Returns program invocation name or "UNKNOWN" if `SetProgramInvocationName()`
@@ -42,6 +43,7 @@ std::string ShortProgramInvocationName();
 void SetProgramInvocationName(absl::string_view prog_name_str);
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_PROGRAM_NAME_H_

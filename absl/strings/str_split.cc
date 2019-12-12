@@ -27,6 +27,7 @@
 #include "absl/strings/ascii.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -134,4 +135,5 @@ absl::string_view ByLength::Find(absl::string_view text,
   return absl::string_view(substr.data() + length_, 0);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

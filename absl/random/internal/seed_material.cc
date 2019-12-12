@@ -61,6 +61,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -214,4 +215,5 @@ absl::optional<uint32_t> GetSaltMaterial() {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -38,6 +38,7 @@
 #include "absl/flags/marshalling.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // Flag
 //
@@ -219,6 +220,7 @@ void SetFlag(absl::Flag<T>* flag, const V& v) {
   flag->Set(value);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 

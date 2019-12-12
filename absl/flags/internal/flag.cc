@@ -19,6 +19,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 
@@ -34,20 +35,40 @@ bool ShouldValidateFlagValue(const CommandLineFlag& flag) {
   return true;
 }
 
+// RAII helper used to temporarily unlock and relock `absl::Mutex`.
+// This is used when we need to ensure that locks are released while
+// invoking user supplied callbacks and then reacquired, since callbacks may
+// need to acquire these locks themselves.
+class MutexRelock {
+ public:
+  explicit MutexRelock(absl::Mutex* mu) : mu_(mu) { mu_->Unlock(); }
+  ~MutexRelock() { mu_->Lock(); }
+
+  MutexRelock(const MutexRelock&) = delete;
+  MutexRelock& operator=(const MutexRelock&) = delete;
+
+ private:
+  absl::Mutex* mu_;
+};
+
+// This global lock guards the initialization and destruction of data_guard_,
+// which is used to guard the other Flag data.
+ABSL_CONST_INIT static absl::Mutex flag_mutex_lifetime_guard(absl::kConstInit);
+
 }  // namespace
 
 void FlagImpl::Init() {
-  ABSL_CONST_INIT static absl::Mutex init_lock(absl::kConstInit);
-
   {
-    absl::MutexLock lock(&init_lock);
+    absl::MutexLock lock(&flag_mutex_lifetime_guard);
 
-    if (locks_ == nullptr) {  // Must initialize Mutexes for this flag.
-      locks_ = new FlagImpl::CommandLineFlagLocks;
+    // Must initialize data guard for this flag.
+    if (!is_data_guard_inited_) {
+      new (&data_guard_) absl::Mutex;
+      is_data_guard_inited_ = true;
     }
   }
 
-  absl::MutexLock lock(&locks_->primary_mu);
+  absl::MutexLock lock(reinterpret_cast<absl::Mutex*>(&data_guard_));
 
   if (cur_ != nullptr) {
     inited_.store(true, std::memory_order_release);
@@ -67,21 +88,29 @@ absl::Mutex* FlagImpl::DataGuard() const {
     const_cast<FlagImpl*>(this)->Init();
   }
 
-  // All fields initialized; locks_ is therefore safe to read.
-  return &locks_->primary_mu;
+  // data_guard_ is initialized.
+  return reinterpret_cast<absl::Mutex*>(&data_guard_);
 }
 
-void FlagImpl::Destroy() const {
+void FlagImpl::Destroy() {
   {
     absl::MutexLock l(DataGuard());
 
     // Values are heap allocated for Abseil Flags.
     if (cur_) Delete(op_, cur_);
-    if (def_kind_ == FlagDefaultSrcKind::kDynamicValue)
+
+    // Release the dynamically allocated default value if any.
+    if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
       Delete(op_, default_src_.dynamic_value);
+    }
+
+    // If this flag has an assigned callback, release callback data.
+    if (callback_data_) delete callback_data_;
   }
 
-  delete locks_;
+  absl::MutexLock l(&flag_mutex_lifetime_guard);
+  DataGuard()->~Mutex();
+  is_data_guard_inited_ = false;
 }
 
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
@@ -126,13 +155,20 @@ void FlagImpl::SetCallback(
     const flags_internal::FlagCallback mutation_callback) {
   absl::MutexLock l(DataGuard());
 
-  callback_ = mutation_callback;
+  if (callback_data_ == nullptr) {
+    callback_data_ = new CallbackData;
+  }
+  callback_data_->func = mutation_callback;
 
   InvokeCallback();
 }
 
 void FlagImpl::InvokeCallback() const {
-  if (!callback_) return;
+  if (!callback_data_) return;
+
+  // Make a copy of the C-style function pointer that we are about to invoke
+  // before we release the lock guarding it.
+  FlagCallback cb = callback_data_->func;
 
   // If the flag has a mutation callback this function invokes it. While the
   // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -145,14 +181,9 @@ void FlagImpl::InvokeCallback() const {
   // and it also can be different by the time the callback invocation is
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
-  DataGuard()->Unlock();
-
-  {
-    absl::MutexLock lock(&locks_->callback_mu);
-    callback_();
-  }
-
-  DataGuard()->Lock();
+  MutexRelock relock(DataGuard());
+  absl::MutexLock lock(&callback_data_->guard);
+  cb();
 }
 
 bool FlagImpl::RestoreState(const CommandLineFlag& flag, const void* value,
@@ -177,12 +208,13 @@ bool FlagImpl::RestoreState(const CommandLineFlag& flag, const void* value,
 }
 
 // Attempts to parse supplied `value` string using parsing routine in the `flag`
-// argument. If parsing successful, this function stores the parsed value in
-// 'dst' assuming it is a pointer to the flag's value type. In case if any error
-// is encountered in either step, the error message is stored in 'err'
-bool FlagImpl::TryParse(const CommandLineFlag& flag, void* dst,
+// argument. If parsing successful, this function replaces the dst with newly
+// parsed value. In case if any error is encountered in either step, the error
+// message is stored in 'err'
+bool FlagImpl::TryParse(const CommandLineFlag& flag, void** dst,
                         absl::string_view value, std::string* err) const {
   auto tentative_value = MakeInitValue();
+
   std::string parse_err;
   if (!Parse(marshalling_op_, value, tentative_value.get(), &parse_err)) {
     auto type_name = flag.Typename();
@@ -194,7 +226,10 @@ bool FlagImpl::TryParse(const CommandLineFlag& flag, void* dst,
     return false;
   }
 
-  Copy(op_, tentative_value.get(), dst);
+  void* old_val = *dst;
+  *dst = tentative_value.release();
+  tentative_value.reset(old_val);
+
   return true;
 }
 
@@ -274,7 +309,7 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
   switch (set_mode) {
     case SET_FLAGS_VALUE: {
       // set or modify the flag's value
-      if (!TryParse(flag, cur_, value, err)) return false;
+      if (!TryParse(flag, &cur_, value, err)) return false;
       modified_ = true;
       counter_++;
       StoreAtomic();
@@ -288,7 +323,7 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
     case SET_FLAG_IF_DEFAULT: {
       // set the flag's value, but only if it hasn't been set by someone else
       if (!modified_) {
-        if (!TryParse(flag, cur_, value, err)) return false;
+        if (!TryParse(flag, &cur_, value, err)) return false;
         modified_ = true;
         counter_++;
         StoreAtomic();
@@ -305,18 +340,19 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
       break;
     }
     case SET_FLAGS_DEFAULT: {
-      // Flag's new default-value.
-      auto new_default_value = MakeInitValue();
-
-      if (!TryParse(flag, new_default_value.get(), value, err)) return false;
-
       if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
-        // Release old default value.
-        Delete(op_, default_src_.dynamic_value);
-      }
+        if (!TryParse(flag, &default_src_.dynamic_value, value, err)) {
+          return false;
+        }
+      } else {
+        void* new_default_val = nullptr;
+        if (!TryParse(flag, &new_default_val, value, err)) {
+          return false;
+        }
 
-      default_src_.dynamic_value = new_default_value.release();
-      def_kind_ = FlagDefaultSrcKind::kDynamicValue;
+        default_src_.dynamic_value = new_default_val;
+        def_kind_ = FlagDefaultSrcKind::kDynamicValue;
+      }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case
@@ -361,4 +397,5 @@ bool FlagImpl::ValidateInputValue(absl::string_view value) const {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

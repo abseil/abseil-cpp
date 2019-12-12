@@ -25,6 +25,7 @@
 // Registry interfaces operating on type erased handles.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // If a flag named "name" exists, store its current value in *OUTPUT
@@ -81,6 +82,7 @@ inline bool GetByName(absl::string_view name, T* dst) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_TYPE_ERASED_H_

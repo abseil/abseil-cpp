@@ -44,6 +44,7 @@
 // TODO(calabrese) Add support for extending profiles.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace types_internal {
 
 template <class T, class /*Enabler*/ = void>
@@ -369,6 +370,7 @@ template <class T>
 struct IsProfile : IsProfileImpl<T>::type {};
 
 }  // namespace types_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TYPES_INTERNAL_CONFORMANCE_PROFILE_H_

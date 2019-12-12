@@ -34,6 +34,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // Function Template: WrapUnique()
@@ -688,6 +689,7 @@ void CopyRange(Allocator& alloc, Iterator destination, InputIterator first,
   }
 }
 }  // namespace memory_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_MEMORY_MEMORY_H_

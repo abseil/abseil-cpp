@@ -70,6 +70,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal_nanobenchmark {
 namespace {
 
@@ -799,4 +800,5 @@ size_t Measure(const Func func, const void* arg, const FuncInput* inputs,
 }
 
 }  // namespace random_internal_nanobenchmark
+ABSL_NAMESPACE_END
 }  // namespace absl

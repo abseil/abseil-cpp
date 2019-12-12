@@ -24,6 +24,7 @@
 #include "absl/types/any.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 using ::absl::container_internal::hash_internal::Enum;
@@ -251,4 +252,5 @@ TEST(FlatHashMap, Any) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

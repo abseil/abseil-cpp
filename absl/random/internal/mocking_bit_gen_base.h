@@ -25,6 +25,7 @@
 #include "absl/strings/str_cat.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // MockingBitGenExpectationFormatter is invoked to format unsatisfied mocks
@@ -113,6 +114,7 @@ class MockingBitGenBase {
 };  // namespace random_internal
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_MOCKING_BIT_GEN_BASE_H_

@@ -28,6 +28,7 @@
 #include "absl/random/internal/randen.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Deterministic pseudorandom byte generator with backtracking resistance
@@ -223,6 +224,7 @@ class alignas(16) randen_engine {
 };
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_RANDEN_ENGINE_H_

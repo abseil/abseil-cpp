@@ -23,6 +23,7 @@
 #include "absl/types/optional.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // Type-specific operations, eg., parsing, copying, etc. are provided
@@ -158,7 +159,7 @@ class CommandLineFlag {
       : name_(name), filename_(filename) {}
 
   // Virtual destructor
-  virtual void Destroy() const = 0;
+  virtual void Destroy() = 0;
 
   // Not copyable/assignable.
   CommandLineFlag(const CommandLineFlag&) = delete;
@@ -280,6 +281,7 @@ class CommandLineFlag {
   A(float)
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_

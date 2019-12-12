@@ -61,10 +61,12 @@
 #include <any>  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 using std::any;
 using std::any_cast;
 using std::bad_any_cast;
 using std::make_any;
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else  // ABSL_USES_STD_ANY
@@ -91,6 +93,7 @@ using std::make_any;
 #endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace any_internal {
 
@@ -534,6 +537,7 @@ T* any_cast(any* operand) noexcept {
              : nullptr;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_ANY_DETAIL_HAS_RTTI

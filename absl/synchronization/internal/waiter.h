@@ -62,6 +62,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 // Waiter is an OS-specific semaphore.
@@ -157,6 +158,7 @@ class Waiter {
 };
 
 }  // namespace synchronization_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_WAITER_H_

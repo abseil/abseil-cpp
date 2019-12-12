@@ -25,6 +25,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::debugging_internal
+    absl::config
     absl::core_headers
   PUBLIC
 )
@@ -49,6 +50,7 @@ absl_cc_library(
     absl::debugging_internal
     absl::demangle_internal
     absl::base
+    absl::config
     absl::core_headers
     absl::dynamic_annotations
     absl::malloc_internal
@@ -88,6 +90,7 @@ absl_cc_library(
   DEPS
     absl::stacktrace
     absl::symbolize
+    absl::config
     absl::core_headers
     absl::raw_logging_internal
 )
@@ -151,6 +154,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::core_headers
+    absl::config
     absl::dynamic_annotations
     absl::raw_logging_internal
 )
@@ -196,6 +200,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
   PUBLIC
 )
@@ -293,6 +298,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
     absl::raw_logging_internal
   TESTONLY

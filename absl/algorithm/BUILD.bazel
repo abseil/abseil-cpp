@@ -31,6 +31,7 @@ cc_library(
     hdrs = ["algorithm.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = ["//absl/base:config"],
 )
 
 cc_test(

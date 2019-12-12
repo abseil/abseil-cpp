@@ -43,11 +43,13 @@
 #include <optional>  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 using std::bad_optional_access;
 using std::optional;
 using std::make_optional;
 using std::nullopt_t;
 using std::nullopt;
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else  // ABSL_USES_STD_OPTIONAL
@@ -65,6 +67,7 @@ using std::nullopt;
 #include "absl/types/internal/optional.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // nullopt_t
 //
@@ -754,6 +757,7 @@ constexpr auto operator>=(const U& v, const optional<T>& x)
   return static_cast<bool>(x) ? static_cast<bool>(v >= *x) : true;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace std {

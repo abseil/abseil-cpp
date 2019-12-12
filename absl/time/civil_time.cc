@@ -21,6 +21,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace {
 
@@ -170,4 +171,5 @@ std::ostream& operator<<(std::ostream& os, CivilSecond s) {
 
 }  // namespace time_internal
 
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -49,6 +49,7 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 static void MaybeBecomeIdle() {
@@ -481,4 +482,5 @@ void Waiter::InternalCondVarPoke() {
 #endif
 
 }  // namespace synchronization_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

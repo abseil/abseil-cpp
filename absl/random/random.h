@@ -41,6 +41,7 @@
 #include "absl/random/seed_sequences.h"  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // absl::BitGen
@@ -182,6 +183,7 @@ using InsecureBitGen =
 // discards the intermediate results.
 // ---------------------------------------------------------------------------
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_RANDOM_H_

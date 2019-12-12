@@ -34,6 +34,7 @@
 #if !defined(ABSL_INTERNAL_MSVC_2017_DBG_MODE)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 using ::testing::MakeExceptionSafetyTester;
@@ -523,6 +524,7 @@ TEST(VariantExceptionSafetyTest, Swap) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // !defined(ABSL_INTERNAL_MSVC_2017_DBG_MODE)

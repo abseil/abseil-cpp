@@ -19,6 +19,7 @@
 #include <string>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 namespace {
@@ -354,4 +355,5 @@ template class BigUnsigned<4>;
 template class BigUnsigned<84>;
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

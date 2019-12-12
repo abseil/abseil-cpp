@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 using str_format_internal::FormatArgImpl;
 
@@ -622,6 +623,7 @@ TEST_F(FormatWrapperTest, ParsedFormat) {
 }
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // Some codegen thunks that we can use to easily dump the generated assembly for

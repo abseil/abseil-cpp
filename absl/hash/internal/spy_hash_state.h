@@ -25,6 +25,7 @@
 #include "absl/strings/str_join.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 // SpyHashState is an implementation of the HashState API that simply
@@ -224,6 +225,7 @@ void AbslHashValue(SpyHashStateImpl<T>, const U&);
 using SpyHashState = SpyHashStateImpl<void>;
 
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HASH_INTERNAL_SPY_HASH_STATE_H_

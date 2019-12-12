@@ -51,6 +51,7 @@
 #include "absl/container/internal/btree_container.h"  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // absl::btree_set<>
 //
@@ -648,6 +649,7 @@ void swap(btree_multiset<K, C, A> &x, btree_multiset<K, C, A> &y) {
   return x.swap(y);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_BTREE_SET_H_

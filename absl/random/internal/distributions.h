@@ -23,6 +23,7 @@
 #include "absl/random/internal/uniform_helper.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // In the absence of an explicitly provided return-type, the template
@@ -45,6 +46,7 @@ using uniform_inferred_return_t =
                           is_widening_convertible<A, B>::value, B, A>::type>;
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_DISTRIBUTIONS_H_

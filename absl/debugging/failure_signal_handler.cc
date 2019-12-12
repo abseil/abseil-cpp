@@ -47,6 +47,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 ABSL_CONST_INIT static FailureSignalHandlerOptions fsh_options;
 
@@ -356,4 +357,5 @@ void InstallFailureSignalHandler(const FailureSignalHandlerOptions& options) {
   }
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

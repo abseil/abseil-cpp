@@ -44,6 +44,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 template <typename T>
 struct NodeHashSetPolicy;
@@ -483,6 +484,7 @@ struct IsUnorderedContainer<absl::node_hash_set<Key, Hash, KeyEqual, Allocator>>
     : std::true_type {};
 
 }  // namespace container_algorithm_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_NODE_HASH_SET_H_

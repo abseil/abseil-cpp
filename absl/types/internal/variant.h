@@ -40,6 +40,7 @@
 #if !defined(ABSL_USES_STD_VARIANT)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 template <class... Types>
 class variant;
@@ -1638,6 +1639,7 @@ struct VariantHashBase<Variant,
 };
 
 }  // namespace variant_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // !defined(ABSL_USES_STD_VARIANT)

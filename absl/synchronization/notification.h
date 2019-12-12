@@ -57,6 +57,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // Notification
@@ -116,6 +117,7 @@ class Notification {
   std::atomic<bool> notified_yet_;  // written under mutex_
 };
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_SYNCHRONIZATION_NOTIFICATION_H_

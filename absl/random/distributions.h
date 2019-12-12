@@ -67,6 +67,7 @@
 #include "absl/random/zipf_distribution.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalClosedClosedTag, IntervalClosedClosed,
                                {});
@@ -458,6 +459,7 @@ IntType Zipf(URBG&& urbg,  // NOLINT(runtime/references)
       distribution_t, format_t>(&urbg, hi, q, v);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_DISTRIBUTIONS_H_

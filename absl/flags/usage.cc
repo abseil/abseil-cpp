@@ -20,6 +20,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 ABSL_CONST_INIT absl::Mutex usage_message_guard(absl::kConstInit);
@@ -53,4 +54,5 @@ absl::string_view ProgramUsageMessage() {
              : "Warning: SetProgramUsageMessage() never called";
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

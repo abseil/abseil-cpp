@@ -18,6 +18,7 @@
 #include "absl/strings/numbers.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal_nanobenchmark {
 namespace {
 
@@ -67,6 +68,7 @@ void RunAll(const int argc, char* argv[]) {
 
 }  // namespace
 }  // namespace random_internal_nanobenchmark
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 int main(int argc, char* argv[]) {

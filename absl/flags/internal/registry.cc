@@ -30,6 +30,7 @@
 //    set it.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // --------------------------------------------------------------------
@@ -281,7 +282,7 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
         op_(ops) {}
 
  private:
-  void Destroy() const override {
+  void Destroy() override {
     // Values are heap allocated for Retired Flags.
     delete this;
   }
@@ -336,4 +337,5 @@ bool IsRetiredFlag(absl::string_view name, bool* type_is_bool) {
 }
 
 }  // namespace flags_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

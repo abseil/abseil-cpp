@@ -20,12 +20,14 @@
 #if !defined(__linux__) || defined(__ANDROID__)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // On platforms other than Linux, just return true.
 bool AddressIsReadable(const void* /* addr */) { return true; }
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else
@@ -40,6 +42,7 @@ bool AddressIsReadable(const void* /* addr */) { return true; }
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // Pack a pid and two file descriptors into a 64-bit word,
@@ -128,6 +131,7 @@ bool AddressIsReadable(const void *addr) {
 }
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif

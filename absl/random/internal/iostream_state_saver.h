@@ -24,6 +24,7 @@
 #include "absl/numeric/int128.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // The null_state_saver does nothing.
@@ -238,6 +239,7 @@ inline FloatType read_floating_point(IStream& is) {
 }
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_IOSTREAM_STATE_SAVER_H_

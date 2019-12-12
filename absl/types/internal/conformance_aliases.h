@@ -26,6 +26,7 @@
 #include "absl/types/internal/conformance_profile.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace types_internal {
 
 // Creates both a Profile and a corresponding Archetype with root name "name".
@@ -438,6 +439,7 @@ using ExpandSupportedProfiles = Receiver<
 // (potentially) non-noexcept moves.
 
 }  // namespace types_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_INTERNAL_PROFILE_AND_ARCHETYPE_ALIAS

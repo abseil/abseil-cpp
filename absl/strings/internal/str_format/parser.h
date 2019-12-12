@@ -16,6 +16,7 @@
 #include "absl/strings/internal/str_format/extension.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 // The analyzed properties of a single specified conversion.
@@ -317,6 +318,7 @@ class ExtendedParsedFormat : public str_format_internal::ParsedFormatBase {
       : ParsedFormatBase(s, allow_ignored, {C...}) {}
 };
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_PARSER_H_

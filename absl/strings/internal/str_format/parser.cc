@@ -14,6 +14,7 @@
 #include <unordered_set>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 using CC = ConversionChar::Id;
@@ -300,4 +301,5 @@ bool ParsedFormatBase::MatchesConversions(
 }
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

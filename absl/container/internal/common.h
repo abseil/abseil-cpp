@@ -22,6 +22,7 @@
 #include "absl/types/optional.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 template <class, class = void>
@@ -196,6 +197,7 @@ struct InsertReturnType {
 };
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_CONTAINER_H_

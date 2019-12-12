@@ -9,6 +9,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 namespace {
@@ -482,4 +483,5 @@ bool ConvertFloatImpl(double v, const ConversionSpec &conv,
 }
 
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

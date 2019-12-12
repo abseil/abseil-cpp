@@ -31,6 +31,7 @@
 #include "absl/random/internal/traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Helper object to multiply two 64-bit values to a 128-bit value.
@@ -104,6 +105,7 @@ struct wide_multiply<uint64_t> {
 #endif
 
 }  // namespace random_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_WIDE_MULTIPLY_H_
