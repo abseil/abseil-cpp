@@ -21,8 +21,10 @@
 #include <type_traits>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -1014,19 +1016,13 @@ TEST(CivilTime, LeapYears) {
       int day;
     } leap_day;  // The date of the day after Feb 28.
   } kLeapYearTable[]{
-      {1900, 365, {3, 1}},
-      {1999, 365, {3, 1}},
+      {1900, 365, {3, 1}},  {1999, 365, {3, 1}},
       {2000, 366, {2, 29}},  // leap year
-      {2001, 365, {3, 1}},
-      {2002, 365, {3, 1}},
-      {2003, 365, {3, 1}},
-      {2004, 366, {2, 29}},  // leap year
-      {2005, 365, {3, 1}},
-      {2006, 365, {3, 1}},
-      {2007, 365, {3, 1}},
-      {2008, 366, {2, 29}},  // leap year
-      {2009, 365, {3, 1}},
-      {2100, 365, {3, 1}},
+      {2001, 365, {3, 1}},  {2002, 365, {3, 1}},
+      {2003, 365, {3, 1}},  {2004, 366, {2, 29}},  // leap year
+      {2005, 365, {3, 1}},  {2006, 365, {3, 1}},
+      {2007, 365, {3, 1}},  {2008, 366, {2, 29}},  // leap year
+      {2009, 365, {3, 1}},  {2100, 365, {3, 1}},
   };
 
   for (const auto& e : kLeapYearTable) {
@@ -1056,4 +1052,5 @@ TEST(CivilTime, FirstThursdayInMonth) {
 
 }  // namespace cctz
 }  // namespace time_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

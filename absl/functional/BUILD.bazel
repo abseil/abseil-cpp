@@ -27,6 +27,32 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # Apache 2.0
 
 cc_library(
+    name = "bind_front",
+    srcs = ["internal/front_binder.h"],
+    hdrs = ["bind_front.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:base_internal",
+        "//absl/container:compressed_tuple",
+        "//absl/meta:type_traits",
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "bind_front_test",
+    srcs = ["bind_front_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bind_front",
+        "//absl/memory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "function_ref",
     srcs = ["internal/function_ref.h"],
     hdrs = ["function_ref.h"],

@@ -14,7 +14,10 @@
 
 #include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -24,9 +27,11 @@ std::string ZoneInfoSource::Version() const { return std::string(); }
 
 }  // namespace cctz
 }  // namespace time_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz_extension {
 
@@ -36,8 +41,9 @@ namespace {
 // defers to the fallback factory.
 std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource> DefaultFactory(
     const std::string& name,
-    const std::function<std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource>(
-        const std::string& name)>& fallback_factory) {
+    const std::function<
+        std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource>(
+            const std::string& name)>& fallback_factory) {
   return fallback_factory(name);
 }
 
@@ -53,8 +59,8 @@ std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource> DefaultFactory(
 // Windows linker cannot handle that. Nor does the MinGW compiler know how to
 // pass "#pragma comment(linker, ...)" to the Windows linker.
 #if (__has_attribute(weak) || defined(__GNUC__)) && !defined(__MINGW32__)
-ZoneInfoSourceFactory zone_info_source_factory
-    __attribute__((weak)) = DefaultFactory;
+ZoneInfoSourceFactory zone_info_source_factory __attribute__((weak)) =
+    DefaultFactory;
 #elif defined(_MSC_VER) && !defined(__MINGW32__) && !defined(_LIBCPP_VERSION)
 extern ZoneInfoSourceFactory zone_info_source_factory;
 extern ZoneInfoSourceFactory default_factory;
@@ -77,4 +83,5 @@ ZoneInfoSourceFactory zone_info_source_factory = DefaultFactory;
 
 }  // namespace cctz_extension
 }  // namespace time_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

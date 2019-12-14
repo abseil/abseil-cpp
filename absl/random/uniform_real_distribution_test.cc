@@ -161,6 +161,10 @@ TYPED_TEST(UniformRealDistributionTest, ParamSerializeTest) {
   }
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4756)  // Constant arithmetic overflow.
+#endif
 TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
 #if GTEST_HAS_DEATH_TEST
   // Hi < Lo
@@ -195,6 +199,9 @@ TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
   }
 #endif  // NDEBUG
 }
+#ifdef _MSC_VER
+#pragma warning(pop)  // warning(disable:4756)
+#endif
 
 TYPED_TEST(UniformRealDistributionTest, TestMoments) {
   constexpr int kSize = 1000000;

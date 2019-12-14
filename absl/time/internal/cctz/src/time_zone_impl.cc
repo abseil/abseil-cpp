@@ -20,9 +20,11 @@
 #include <unordered_map>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "time_zone_fixed.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -43,9 +45,7 @@ std::mutex& TimeZoneMutex() {
 
 }  // namespace
 
-time_zone time_zone::Impl::UTC() {
-  return time_zone(UTCImpl());
-}
+time_zone time_zone::Impl::UTC() { return time_zone(UTCImpl()); }
 
 bool time_zone::Impl::LoadTimeZone(const std::string& name, time_zone* tz) {
   const time_zone::Impl* const utc_impl = UTCImpl();
@@ -117,4 +117,5 @@ const time_zone::Impl* time_zone::Impl::UTCImpl() {
 
 }  // namespace cctz
 }  // namespace time_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

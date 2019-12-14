@@ -12,20 +12,21 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-#include "absl/time/internal/cctz/include/cctz/time_zone.h"
-
 #include <chrono>
 #include <iomanip>
 #include <sstream>
 #include <string>
 
-#include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
+#include "absl/time/internal/cctz/include/cctz/civil_time.h"
+#include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
 namespace chrono = std::chrono;
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -48,10 +49,10 @@ namespace {
   } while (0)
 
 const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
-const char RFC3339_sec[] =  "%Y-%m-%dT%H:%M:%S%Ez";
+const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
 
 const char RFC1123_full[] = "%a, %d %b %Y %H:%M:%S %z";
-const char RFC1123_no_wday[] =  "%d %b %Y %H:%M:%S %z";
+const char RFC1123_no_wday[] = "%d %b %Y %H:%M:%S %z";
 
 // A helper that tests the given format specifier by itself, and with leading
 // and trailing characters.  For example: TestFormatSpecifier(tp, "%a", "Thu").
@@ -88,8 +89,11 @@ TEST(Format, TimePointResolution) {
       format(kFmt, chrono::time_point_cast<chrono::milliseconds>(t0), utc));
   EXPECT_EQ("03:04:05",
             format(kFmt, chrono::time_point_cast<chrono::seconds>(t0), utc));
-  EXPECT_EQ("03:04:05",
-            format(kFmt, chrono::time_point_cast<absl::time_internal::cctz::seconds>(t0), utc));
+  EXPECT_EQ(
+      "03:04:05",
+      format(kFmt,
+             chrono::time_point_cast<absl::time_internal::cctz::seconds>(t0),
+             utc));
   EXPECT_EQ("03:04:00",
             format(kFmt, chrono::time_point_cast<chrono::minutes>(t0), utc));
   EXPECT_EQ("03:00:00",
@@ -110,12 +114,10 @@ TEST(Format, TimePointExtendedResolution) {
   EXPECT_EQ(
       "12:34:56.012345678901234",
       detail::format(kFmt, tp, detail::femtoseconds(12345678901234), utc));
-  EXPECT_EQ(
-      "12:34:56.001234567890123",
-      detail::format(kFmt, tp, detail::femtoseconds(1234567890123), utc));
-  EXPECT_EQ(
-      "12:34:56.000123456789012",
-      detail::format(kFmt, tp, detail::femtoseconds(123456789012), utc));
+  EXPECT_EQ("12:34:56.001234567890123",
+            detail::format(kFmt, tp, detail::femtoseconds(1234567890123), utc));
+  EXPECT_EQ("12:34:56.000123456789012",
+            detail::format(kFmt, tp, detail::femtoseconds(123456789012), utc));
 
   EXPECT_EQ("12:34:56.000000000000123",
             detail::format(kFmt, tp, detail::femtoseconds(123), utc));
@@ -1416,8 +1418,8 @@ TEST(Parse, MaxRange) {
       parse(RFC3339_sec, "-292277022657-01-27T08:29:51+01:00", utc, &tp));
 
   // tests max/min civil-second overflow
-  EXPECT_FALSE(parse(RFC3339_sec, "9223372036854775807-12-31T23:59:59-00:01",
-                     utc, &tp));
+  EXPECT_FALSE(
+      parse(RFC3339_sec, "9223372036854775807-12-31T23:59:59-00:01", utc, &tp));
   EXPECT_FALSE(parse(RFC3339_sec, "-9223372036854775808-01-01T00:00:00+00:01",
                      utc, &tp));
 
@@ -1474,7 +1476,8 @@ TEST(FormatParse, RoundTrip) {
 
 TEST(FormatParse, RoundTripDistantFuture) {
   const time_zone utc = utc_time_zone();
-  const time_point<absl::time_internal::cctz::seconds> in = time_point<absl::time_internal::cctz::seconds>::max();
+  const time_point<absl::time_internal::cctz::seconds> in =
+      time_point<absl::time_internal::cctz::seconds>::max();
   const std::string s = format(RFC3339_full, in, utc);
   time_point<absl::time_internal::cctz::seconds> out;
   EXPECT_TRUE(parse(RFC3339_full, s, utc, &out)) << s;
@@ -1483,7 +1486,8 @@ TEST(FormatParse, RoundTripDistantFuture) {
 
 TEST(FormatParse, RoundTripDistantPast) {
   const time_zone utc = utc_time_zone();
-  const time_point<absl::time_internal::cctz::seconds> in = time_point<absl::time_internal::cctz::seconds>::min();
+  const time_point<absl::time_internal::cctz::seconds> in =
+      time_point<absl::time_internal::cctz::seconds>::min();
   const std::string s = format(RFC3339_full, in, utc);
   time_point<absl::time_internal::cctz::seconds> out;
   EXPECT_TRUE(parse(RFC3339_full, s, utc, &out)) << s;
@@ -1492,4 +1496,5 @@ TEST(FormatParse, RoundTripDistantPast) {
 
 }  // namespace cctz
 }  // namespace time_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -42,6 +42,7 @@ cc_library(
     ],
     textual_hdrs = ["include/cctz/civil_time_detail.h"],
     visibility = ["//visibility:public"],
+    deps = ["//absl/base:config"],
 )
 
 cc_library(
@@ -78,7 +79,10 @@ cc_library(
         "//conditions:default": [],
     }),
     visibility = ["//visibility:public"],
-    deps = [":civil_time"],
+    deps = [
+        ":civil_time",
+        "//absl/base:config",
+    ],
 )
 
 ### tests
@@ -89,6 +93,7 @@ cc_test(
     srcs = ["src/civil_time_test.cc"],
     deps = [
         ":civil_time",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -106,6 +111,7 @@ cc_test(
     deps = [
         ":civil_time",
         ":time_zone",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -124,6 +130,7 @@ cc_test(
     deps = [
         ":civil_time",
         ":time_zone",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -144,6 +151,7 @@ cc_test(
     deps = [
         ":civil_time",
         ":time_zone",
+        "//absl/base:config",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
