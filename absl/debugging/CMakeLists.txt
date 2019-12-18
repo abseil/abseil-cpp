@@ -19,6 +19,14 @@ absl_cc_library(
     stacktrace
   HDRS
     "stacktrace.h"
+    "internal/stacktrace_aarch64-inl.inc"
+    "internal/stacktrace_arm-inl.inc"
+    "internal/stacktrace_config.h"
+    "internal/stacktrace_generic-inl.inc"
+    "internal/stacktrace_powerpc-inl.inc"
+    "internal/stacktrace_unimplemented-inl.inc"
+    "internal/stacktrace_win32-inl.inc"
+    "internal/stacktrace_x86-inl.inc"
   SRCS
     "stacktrace.cc"
   COPTS
@@ -137,14 +145,6 @@ absl_cc_library(
   HDRS
     "internal/address_is_readable.h"
     "internal/elf_mem_image.h"
-    "internal/stacktrace_aarch64-inl.inc"
-    "internal/stacktrace_arm-inl.inc"
-    "internal/stacktrace_config.h"
-    "internal/stacktrace_generic-inl.inc"
-    "internal/stacktrace_powerpc-inl.inc"
-    "internal/stacktrace_unimplemented-inl.inc"
-    "internal/stacktrace_win32-inl.inc"
-    "internal/stacktrace_x86-inl.inc"
     "internal/vdso_support.h"
   SRCS
     "internal/address_is_readable.cc"

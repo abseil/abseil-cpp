@@ -525,7 +525,7 @@ std::tuple<bool, absl::string_view> DeduceFlagValue(const CommandLineFlag& flag,
     // --my_string_var --foo=bar
     // We look for a flag of std::string type, whose value begins with a
     // dash and corresponds to known flag or standalone --.
-    if (value[0] == '-' && flag.IsOfType<std::string>()) {
+    if (!value.empty() && value[0] == '-' && flag.IsOfType<std::string>()) {
       auto maybe_flag_name = std::get<0>(SplitNameAndValue(value.substr(1)));
 
       if (maybe_flag_name.empty() ||

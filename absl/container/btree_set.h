@@ -360,6 +360,20 @@ void swap(btree_set<K, C, A> &x, btree_set<K, C, A> &y) {
   return x.swap(y);
 }
 
+// absl::erase_if(absl::btree_set<>, Pred)
+//
+// Erases all elements that satisfy the predicate pred from the container.
+template <typename K, typename C, typename A, typename Pred>
+void erase_if(btree_set<K, C, A> &set, Pred pred) {
+  for (auto it = set.begin(); it != set.end();) {
+    if (pred(*it)) {
+      it = set.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 // absl::btree_multiset<>
 //
 // An `absl::btree_multiset<K>` is an ordered associative container of
@@ -647,6 +661,20 @@ class btree_multiset
 template <typename K, typename C, typename A>
 void swap(btree_multiset<K, C, A> &x, btree_multiset<K, C, A> &y) {
   return x.swap(y);
+}
+
+// absl::erase_if(absl::btree_multiset<>, Pred)
+//
+// Erases all elements that satisfy the predicate pred from the container.
+template <typename K, typename C, typename A, typename Pred>
+void erase_if(btree_multiset<K, C, A> &set, Pred pred) {
+  for (auto it = set.begin(); it != set.end();) {
+    if (pred(*it)) {
+      it = set.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 ABSL_NAMESPACE_END

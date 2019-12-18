@@ -51,6 +51,7 @@ using ::absl::test_internal::InstanceTracker;
 using ::absl::test_internal::MovableOnlyInstance;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
+using ::testing::IsEmpty;
 using ::testing::Pair;
 
 template <typename T, typename U>
@@ -2301,6 +2302,47 @@ TEST(Btree, EmptyTree) {
   EXPECT_TRUE(s.empty());
   EXPECT_EQ(s.size(), 0);
   EXPECT_GT(s.max_size(), 0);
+}
+
+bool IsEven(int k) { return k % 2 == 0; }
+
+TEST(Btree, EraseIf) {
+  // Test that erase_if works with all the container types and supports lambdas.
+  {
+    absl::btree_set<int> s = {1, 3, 5, 6, 100};
+    erase_if(s, [](int k) { return k > 3; });
+    EXPECT_THAT(s, ElementsAre(1, 3));
+  }
+  {
+    absl::btree_multiset<int> s = {1, 3, 3, 5, 6, 6, 100};
+    erase_if(s, [](int k) { return k <= 3; });
+    EXPECT_THAT(s, ElementsAre(5, 6, 6, 100));
+  }
+  {
+    absl::btree_map<int, int> m = {{1, 1}, {3, 3}, {6, 6}, {100, 100}};
+    erase_if(m, [](std::pair<const int, int> kv) { return kv.first > 3; });
+    EXPECT_THAT(m, ElementsAre(Pair(1, 1), Pair(3, 3)));
+  }
+  {
+    absl::btree_multimap<int, int> m = {{1, 1}, {3, 3}, {3, 6},
+                                        {6, 6}, {6, 7}, {100, 6}};
+    erase_if(m, [](std::pair<const int, int> kv) { return kv.second == 6; });
+    EXPECT_THAT(m, ElementsAre(Pair(1, 1), Pair(3, 3), Pair(6, 7)));
+  }
+  // Test that erasing all elements from a large set works and test support for
+  // function pointers.
+  {
+    absl::btree_set<int> s;
+    for (int i = 0; i < 1000; ++i) s.insert(2 * i);
+    erase_if(s, IsEven);
+    EXPECT_THAT(s, IsEmpty());
+  }
+  // Test that erase_if supports other format of function pointers.
+  {
+    absl::btree_set<int> s = {1, 3, 5, 6, 100};
+    erase_if(s, &IsEven);
+    EXPECT_THAT(s, ElementsAre(1, 3, 5));
+  }
 }
 
 }  // namespace

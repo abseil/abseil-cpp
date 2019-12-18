@@ -412,6 +412,20 @@ void swap(btree_map<K, V, C, A> &x, btree_map<K, V, C, A> &y) {
   return x.swap(y);
 }
 
+// absl::erase_if(absl::btree_map<>, Pred)
+//
+// Erases all elements that satisfy the predicate pred from the container.
+template <typename K, typename V, typename C, typename A, typename Pred>
+void erase_if(btree_map<K, V, C, A> &map, Pred pred) {
+  for (auto it = map.begin(); it != map.end();) {
+    if (pred(*it)) {
+      it = map.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 // absl::btree_multimap
 //
 // An `absl::btree_multimap<K, V>` is an ordered associative container of
@@ -699,6 +713,20 @@ class btree_multimap
 template <typename K, typename V, typename C, typename A>
 void swap(btree_multimap<K, V, C, A> &x, btree_multimap<K, V, C, A> &y) {
   return x.swap(y);
+}
+
+// absl::erase_if(absl::btree_multimap<>, Pred)
+//
+// Erases all elements that satisfy the predicate pred from the container.
+template <typename K, typename V, typename C, typename A, typename Pred>
+void erase_if(btree_multimap<K, V, C, A> &map, Pred pred) {
+  for (auto it = map.begin(); it != map.end();) {
+    if (pred(*it)) {
+      it = map.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 ABSL_NAMESPACE_END

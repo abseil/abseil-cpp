@@ -154,7 +154,7 @@ TEST_F(FormatConvertTest, StringPrecision) {
   UntypedFormatSpecImpl format("%.1s");
   EXPECT_EQ("a", FormatPack(format, {FormatArgImpl(p)}));
 
-  // We cap at the nul terminator.
+  // We cap at the NUL-terminator.
   p = "ABC";
   UntypedFormatSpecImpl format2("%.10s");
   EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));

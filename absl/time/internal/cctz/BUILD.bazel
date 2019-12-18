@@ -18,6 +18,11 @@ package(features = ["-parse_headers"])
 
 licenses(["notice"])  # Apache License
 
+filegroup(
+    name = "zoneinfo",
+    srcs = glob(["testdata/zoneinfo/**"]),
+)
+
 config_setting(
     name = "osx",
     constraint_values = [
@@ -159,8 +164,3 @@ cc_test(
 ### examples
 
 ### binaries
-
-filegroup(
-    name = "zoneinfo",
-    srcs = glob(["testdata/zoneinfo/**"]),
-)

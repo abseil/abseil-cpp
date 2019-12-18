@@ -282,7 +282,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
   } else if (conv.precision() < 0) {
     len = std::strlen(v);
   } else {
-    // If precision is set, we look for the null terminator on the valid range.
+    // If precision is set, we look for the NUL-terminator on the valid range.
     len = std::find(v, v + conv.precision(), '\0') - v;
   }
   return {ConvertStringArg(string_view(v, len), conv, sink)};
