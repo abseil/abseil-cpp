@@ -384,11 +384,19 @@ ABSL_NAMESPACE_END
 //
 // `default_value` is only used as a double check on the type. `explanation` is
 // unused.
+//
+// ABSL_RETIRED_FLAG support omitting the default value for default
+// constructible value type, so that users can delete the code generatring this
+// value.
+//
 // TODO(rogeeff): Return an anonymous struct instead of bool, and place it into
 // the unnamed namespace.
 #define ABSL_RETIRED_FLAG(type, flagname, default_value, explanation) \
-  ABSL_ATTRIBUTE_UNUSED static const bool ignored_##flagname =        \
-      ([] { return type(default_value); },                            \
+  ABSL_ATTRIBUTE_UNUSED static const bool ignored_##flagname =             \
+      ([] {                                                                \
+           return absl::flags_internal::MakeFromDefaultValueOrEmpty<type>( \
+                   default_value);                                         \
+       },                                                                  \
        absl::flags_internal::RetiredFlag<type>(#flagname))
 
 #endif  // ABSL_FLAGS_FLAG_H_

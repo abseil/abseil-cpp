@@ -11,17 +11,44 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// `absl::bind_front()` returns a functor by binding a number of arguments to
-// the front of a provided functor, allowing you to avoid known problems with
-// `std::bind()`.  It is a form of partial function application
-// https://en.wikipedia.org/wiki/Partial_application.
 //
-// Like `std::bind()` it is implicitly convertible to `std::function`.  In
-// particular, it may be used as a simpler replacement for `std::bind()` in most
-// cases, as it does not require  placeholders to be specified.  More
-// importantly, it provides more reliable correctness guarantees than
-// `std::bind()`.
+// -----------------------------------------------------------------------------
+// File: bind_front.h
+// -----------------------------------------------------------------------------
+//
+// `absl::bind_front()` returns a functor by binding a number of arguments to
+// the front of a provided (usually more generic) functor. Unlike `std::bind`,
+// it does not require the use of argument placeholders. The simpler syntax of
+// `absl::bind_front()` allows you to avoid known misuses with `std::bind()`.
+//
+// `absl::bind_front()` is meant as a drop-in replacement for C++20's upcoming
+// `std::bind_front()`, which similarly resolves these issues with
+// `std::bind()`. Both `bind_front()` alternatives, unlike `std::bind()`, allow
+// partial function application. (See
+// https://en.wikipedia.org/wiki/Partial_application).
+
+#ifndef ABSL_FUNCTIONAL_BIND_FRONT_H_
+#define ABSL_FUNCTIONAL_BIND_FRONT_H_
+
+#include "absl/functional/internal/front_binder.h"
+#include "absl/utility/utility.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
+// bind_front()
+//
+// Binds the first N arguments of an invocable object and stores them by value,
+// except types of `std::reference_wrapper` which are 'unwound' and stored by
+// reference.
+//
+// Like `std::bind()`, `absl::bind_front()` is implicitly convertible to
+// `std::function`.  In particular, it may be used as a simpler replacement for
+// `std::bind()` in most cases, as it does not require  placeholders to be
+// specified. More importantly, it provides more reliable correctness guarantees
+// than `std::bind()`; while `std::bind()` will silently ignore passing more
+// parameters than expected, for example, `absl::bind_front()` will report such
+// mis-uses as errors.
 //
 // absl::bind_front(a...) can be seen as storing the results of
 // std::make_tuple(a...).
@@ -125,19 +152,6 @@
 //   // dangling references.
 //   foo->DoInFuture(absl::bind_front(Print, std::ref(hi), "Guest"));  // BAD!
 //   auto f = absl::bind_front(Print, std::ref(hi), "Guest"); // BAD!
-
-#ifndef ABSL_FUNCTIONAL_BIND_FRONT_H_
-#define ABSL_FUNCTIONAL_BIND_FRONT_H_
-
-#include "absl/functional/internal/front_binder.h"
-#include "absl/utility/utility.h"
-
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
-// Binds the first N arguments of an invocable object and stores them by value,
-// except types of std::reference_wrapper which are 'unwound' and stored by
-// reference.
 template <class F, class... BoundArgs>
 constexpr functional_internal::bind_front_t<F, BoundArgs...> bind_front(
     F&& func, BoundArgs&&... args) {

@@ -486,11 +486,30 @@ TEST_F(FlagTest, TestNonDefaultConstructibleType) {
 
 // --------------------------------------------------------------------
 
+struct Wrapper {
+  Wrapper() {}
+
+  // NOLINTNEXTLINE(runtime/explicit)
+  Wrapper(const std::string& val) : val(val) {}
+
+  // NOLINTNEXTLINE(runtime/explicit)
+  template <typename T>
+  Wrapper(T&& t) : val(std::forward<T>(t)) {}
+
+  // NOLINTNEXTLINE(runtime/explicit)
+  operator std::string() const& { return val; }
+
+  std::string val;
+};
+
 }  // namespace
 
 ABSL_RETIRED_FLAG(bool, old_bool_flag, true, "old descr");
 ABSL_RETIRED_FLAG(int, old_int_flag, (int)std::sqrt(10), "old descr");
 ABSL_RETIRED_FLAG(std::string, old_str_flag, "", absl::StrCat("old ", "descr"));
+ABSL_RETIRED_FLAG(Wrapper, old_wrapper_flag, {}, "old wrapper");
+ABSL_RETIRED_FLAG(Wrapper, old_wrapper_no_default_flag, ,
+                  "old wrapper no default");
 
 namespace {
 
@@ -501,6 +520,10 @@ TEST_F(FlagTest, TestRetiredFlagRegistration) {
   EXPECT_TRUE(flags::IsRetiredFlag("old_int_flag", &is_bool));
   EXPECT_FALSE(is_bool);
   EXPECT_TRUE(flags::IsRetiredFlag("old_str_flag", &is_bool));
+  EXPECT_FALSE(is_bool);
+  EXPECT_TRUE(flags::IsRetiredFlag("old_wrapper_flag", &is_bool));
+  EXPECT_FALSE(is_bool);
+  EXPECT_TRUE(flags::IsRetiredFlag("old_wrapper_no_default_flag", &is_bool));
   EXPECT_FALSE(is_bool);
   EXPECT_FALSE(flags::IsRetiredFlag("some_other_flag", &is_bool));
 }

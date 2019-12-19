@@ -416,6 +416,20 @@ T* MakeFromDefaultValue(EmptyBraces) {
   return new T;
 }
 
+// MakeFromDefaultValueOrEmpty is basically the same as MakeFromDefaultValue. It
+// also allows for empty macro parameter (hence no argument), which was somehow
+// widely used for ABSL_RETIRED_FLAG().
+
+template <typename T>
+T* MakeFromDefaultValueOrEmpty(T t) {
+  return MakeFromDefaultValue(std::move(t));
+}
+
+template <typename T>
+T* MakeFromDefaultValueOrEmpty() {
+  return MakeFromDefaultValue<T>(EmptyBraces());
+}
+
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
