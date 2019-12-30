@@ -153,7 +153,7 @@ inline bool ascii_islower(unsigned char c) { return c >= 'a' && c <= 'z'; }
 // ascii_isascii()
 //
 // Determines whether the given character is ASCII.
-inline bool ascii_isascii(unsigned char c) { return c < 128; }
+inline bool ascii_isascii(unsigned char c) { return c >= 0 && c < 128; }
 
 // ascii_tolower()
 //
