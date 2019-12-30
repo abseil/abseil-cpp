@@ -41,6 +41,11 @@ constexpr bool kUnescapeNulls = false;
 
 inline bool is_octal_digit(char c) { return ('0' <= c) && (c <= '7'); }
 
+inline bool is_octal_number(int num) {
+    std::string str = std::to_string(num);
+    return is_octal_digit((char) str.at(0));    // leading number starts with 0
+}
+
 inline int hex_digit_to_int(char c) {
   static_assert('0' == 0x30 && 'A' == 0x41 && 'a' == 0x61,
                 "Character set must be ASCII.");
