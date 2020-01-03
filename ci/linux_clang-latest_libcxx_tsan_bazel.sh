@@ -36,7 +36,7 @@ if [ -z ${EXCEPTIONS_MODE:-} ]; then
   EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20191018"
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20200102"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
@@ -73,6 +73,7 @@ for std in ${STD}; do
           --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
           --copt="-DTHREAD_SANITIZER" \
           --copt="-fsanitize=thread" \
+          --copt="-fno-sanitize-blacklist" \
           --copt=-Werror \
           --keep_going \
           --linkopt="-fsanitize=thread" \

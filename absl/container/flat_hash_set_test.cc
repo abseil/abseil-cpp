@@ -31,6 +31,7 @@ namespace {
 
 using ::absl::container_internal::hash_internal::Enum;
 using ::absl::container_internal::hash_internal::EnumClass;
+using ::testing::IsEmpty;
 using ::testing::Pointee;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
@@ -122,6 +123,41 @@ TEST(FlatHashSet, MergeExtractInsert) {
   EXPECT_FALSE(insert_result.node);
   EXPECT_EQ(**insert_result.position, 23);
   EXPECT_THAT(set2, UnorderedElementsAre(Pointee(7), Pointee(23)));
+}
+
+bool IsEven(int k) { return k % 2 == 0; }
+
+TEST(FlatHashSet, EraseIf) {
+  // Erase all elements.
+  {
+    flat_hash_set<int> s = {1, 2, 3, 4, 5};
+    erase_if(s, [](int) { return true; });
+    EXPECT_THAT(s, IsEmpty());
+  }
+  // Erase no elements.
+  {
+    flat_hash_set<int> s = {1, 2, 3, 4, 5};
+    erase_if(s, [](int) { return false; });
+    EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+  }
+  // Erase specific elements.
+  {
+    flat_hash_set<int> s = {1, 2, 3, 4, 5};
+    erase_if(s, [](int k) { return k % 2 == 1; });
+    EXPECT_THAT(s, UnorderedElementsAre(2, 4));
+  }
+  // Predicate is function reference.
+  {
+    flat_hash_set<int> s = {1, 2, 3, 4, 5};
+    erase_if(s, IsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(1, 3, 5));
+  }
+  // Predicate is function pointer.
+  {
+    flat_hash_set<int> s = {1, 2, 3, 4, 5};
+    erase_if(s, &IsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(1, 3, 5));
+  }
 }
 
 }  // namespace

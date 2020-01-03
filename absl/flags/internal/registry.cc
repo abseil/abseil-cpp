@@ -277,9 +277,7 @@ namespace {
 class RetiredFlagObj final : public flags_internal::CommandLineFlag {
  public:
   constexpr RetiredFlagObj(const char* name, FlagOpFn ops)
-      : flags_internal::CommandLineFlag(name,
-                                        /*filename=*/"RETIRED"),
-        op_(ops) {}
+      : name_(name), op_(ops) {}
 
  private:
   void Destroy() override {
@@ -287,6 +285,9 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
     delete this;
   }
 
+  absl::string_view Name() const override { return name_; }
+  std::string Filename() const override { return "RETIRED"; }
+  absl::string_view Typename() const override { return ""; }
   flags_internal::FlagOpFn TypeId() const override { return op_; }
   std::string Help() const override { return ""; }
   bool IsRetired() const override { return true; }
@@ -312,6 +313,7 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
   void Read(void*) const override {}
 
   // Data members
+  const char* const name_;
   const FlagOpFn op_;
 };
 

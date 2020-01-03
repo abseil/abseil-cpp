@@ -522,6 +522,15 @@ class node_hash_map
   void resize(typename Base::size_type hint) { this->rehash(hint); }
 };
 
+// erase_if(node_hash_map<>, Pred)
+//
+// Erases all elements that satisfy the predicate `pred` from the container `c`.
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Predicate>
+void erase_if(node_hash_map<K, V, H, E, A>& c, Predicate pred) {
+  container_internal::EraseIf(pred, &c);
+}
+
 namespace container_internal {
 
 template <class Key, class Value>

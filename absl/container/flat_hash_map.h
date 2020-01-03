@@ -532,6 +532,15 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   using Base::key_eq;
 };
 
+// erase_if(flat_hash_map<>, Pred)
+//
+// Erases all elements that satisfy the predicate `pred` from the container `c`.
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Predicate>
+void erase_if(flat_hash_map<K, V, H, E, A>& c, Predicate pred) {
+  container_internal::EraseIf(pred, &c);
+}
+
 namespace container_internal {
 
 template <class K, class V>

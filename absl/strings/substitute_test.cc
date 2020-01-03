@@ -192,10 +192,10 @@ TEST(SubstituteDeathTest, SubstituteDeath) {
       "Invalid absl::Substitute\\(\\) format std::string: asked for \"\\$2\", "
       "but only 2 args were given.");
   EXPECT_DEBUG_DEATH(
-      static_cast<void>(absl::Substitute("-$z-")),
+      static_cast<void>(absl::Substitute(absl::string_view("-$z-"))),
       "Invalid absl::Substitute\\(\\) format std::string: \"-\\$z-\"");
   EXPECT_DEBUG_DEATH(
-      static_cast<void>(absl::Substitute("-$")),
+      static_cast<void>(absl::Substitute(absl::string_view("-$"))),
       "Invalid absl::Substitute\\(\\) format std::string: \"-\\$\"");
 }
 

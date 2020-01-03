@@ -27,6 +27,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::flags_config
     absl::flags_handle
     absl::flags_registry
     absl::synchronization
@@ -108,8 +109,6 @@ absl_cc_library(
 absl_cc_library(
   NAME
     flags_handle
-  SRCS
-    "internal/commandlineflag.cc"
   HDRS
     "internal/commandlineflag.h"
   COPTS

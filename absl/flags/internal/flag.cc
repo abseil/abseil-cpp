@@ -16,17 +16,25 @@
 #include "absl/flags/internal/flag.h"
 
 #include "absl/base/optimization.h"
+#include "absl/flags/usage_config.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
+
+// The help message indicating that the commandline flag has been
+// 'stripped'. It will not show up when doing "-help" and its
+// variants. The flag is stripped if ABSL_FLAGS_STRIP_HELP is set to 1
+// before including absl/flags/flag.h
+const char kStrippedFlagHelp[] = "\001\002\003\004 (unknown) \004\003\002\001";
+
 namespace {
 
 // Currently we only validate flag values for user-defined flag types.
-bool ShouldValidateFlagValue(const CommandLineFlag& flag) {
+bool ShouldValidateFlagValue(FlagOpFn flag_type_id) {
 #define DONT_VALIDATE(T) \
-  if (flag.IsOfType<T>()) return false;
+  if (flag_type_id == &flags_internal::FlagOps<T>) return false;
   ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(DONT_VALIDATE)
   DONT_VALIDATE(std::string)
   DONT_VALIDATE(std::vector<std::string>)
@@ -123,6 +131,12 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   return {res, DynValueDeleter{op_}};
 }
 
+absl::string_view FlagImpl::Name() const { return name_; }
+
+std::string FlagImpl::Filename() const {
+  return flags_internal::GetUsageConfig().normalize_filename(filename_);
+}
+
 std::string FlagImpl::Help() const {
   return help_source_kind_ == FlagHelpSrcKind::kLiteral ? help_.literal
                                                         : help_.gen_func();
@@ -186,16 +200,15 @@ void FlagImpl::InvokeCallback() const {
   cb();
 }
 
-bool FlagImpl::RestoreState(const CommandLineFlag& flag, const void* value,
-                            bool modified, bool on_command_line,
-                            int64_t counter) {
+bool FlagImpl::RestoreState(const void* value, bool modified,
+                            bool on_command_line, int64_t counter) {
   {
     absl::MutexLock l(DataGuard());
 
     if (counter_ == counter) return false;
   }
 
-  Write(flag, value, op_);
+  Write(value, op_);
 
   {
     absl::MutexLock l(DataGuard());
@@ -211,18 +224,15 @@ bool FlagImpl::RestoreState(const CommandLineFlag& flag, const void* value,
 // argument. If parsing successful, this function replaces the dst with newly
 // parsed value. In case if any error is encountered in either step, the error
 // message is stored in 'err'
-bool FlagImpl::TryParse(const CommandLineFlag& flag, void** dst,
-                        absl::string_view value, std::string* err) const {
+bool FlagImpl::TryParse(void** dst, absl::string_view value,
+                        std::string* err) const {
   auto tentative_value = MakeInitValue();
 
   std::string parse_err;
   if (!Parse(marshalling_op_, value, tentative_value.get(), &parse_err)) {
-    auto type_name = flag.Typename();
     absl::string_view err_sep = parse_err.empty() ? "" : "; ";
-    absl::string_view typename_sep = type_name.empty() ? "" : " ";
-    *err = absl::StrCat("Illegal value '", value, "' specified for",
-                        typename_sep, type_name, " flag '", flag.Name(), "'",
-                        err_sep, parse_err);
+    *err = absl::StrCat("Illegal value '", value, "' specified for flag '",
+                        Name(), "'", err_sep, parse_err);
     return false;
   }
 
@@ -233,8 +243,7 @@ bool FlagImpl::TryParse(const CommandLineFlag& flag, void** dst,
   return true;
 }
 
-void FlagImpl::Read(const CommandLineFlag& flag, void* dst,
-                    const flags_internal::FlagOpFn dst_op) const {
+void FlagImpl::Read(void* dst, const flags_internal::FlagOpFn dst_op) const {
   absl::ReaderMutexLock l(DataGuard());
 
   // `dst_op` is the unmarshaling operation corresponding to the declaration
@@ -243,7 +252,7 @@ void FlagImpl::Read(const CommandLineFlag& flag, void* dst,
   if (ABSL_PREDICT_FALSE(dst_op != op_)) {
     ABSL_INTERNAL_LOG(
         ERROR,
-        absl::StrCat("Flag '", flag.Name(),
+        absl::StrCat("Flag '", Name(),
                      "' is defined as one type and declared as another"));
   }
   CopyConstruct(op_, cur_, dst);
@@ -259,8 +268,7 @@ void FlagImpl::StoreAtomic() {
   }
 }
 
-void FlagImpl::Write(const CommandLineFlag& flag, const void* src,
-                     const flags_internal::FlagOpFn src_op) {
+void FlagImpl::Write(const void* src, const flags_internal::FlagOpFn src_op) {
   absl::MutexLock l(DataGuard());
 
   // `src_op` is the marshalling operation corresponding to the declaration
@@ -269,18 +277,17 @@ void FlagImpl::Write(const CommandLineFlag& flag, const void* src,
   if (ABSL_PREDICT_FALSE(src_op != op_)) {
     ABSL_INTERNAL_LOG(
         ERROR,
-        absl::StrCat("Flag '", flag.Name(),
+        absl::StrCat("Flag '", Name(),
                      "' is defined as one type and declared as another"));
   }
 
-  if (ShouldValidateFlagValue(flag)) {
+  if (ShouldValidateFlagValue(op_)) {
     void* obj = Clone(op_, src);
     std::string ignored_error;
     std::string src_as_str = Unparse(marshalling_op_, src);
     if (!Parse(marshalling_op_, src_as_str, obj, &ignored_error)) {
-      ABSL_INTERNAL_LOG(ERROR,
-                        absl::StrCat("Attempt to set flag '", flag.Name(),
-                                     "' to invalid value ", src_as_str));
+      ABSL_INTERNAL_LOG(ERROR, absl::StrCat("Attempt to set flag '", Name(),
+                                            "' to invalid value ", src_as_str));
     }
     Delete(op_, obj);
   }
@@ -301,15 +308,14 @@ void FlagImpl::Write(const CommandLineFlag& flag, const void* src,
 //  * Update the flag's default value
 //  * Update the current flag value if it was never set before
 // The mode is selected based on 'set_mode' parameter.
-bool FlagImpl::SetFromString(const CommandLineFlag& flag,
-                             absl::string_view value, FlagSettingMode set_mode,
+bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
                              ValueSource source, std::string* err) {
   absl::MutexLock l(DataGuard());
 
   switch (set_mode) {
     case SET_FLAGS_VALUE: {
       // set or modify the flag's value
-      if (!TryParse(flag, &cur_, value, err)) return false;
+      if (!TryParse(&cur_, value, err)) return false;
       modified_ = true;
       counter_++;
       StoreAtomic();
@@ -323,7 +329,7 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
     case SET_FLAG_IF_DEFAULT: {
       // set the flag's value, but only if it hasn't been set by someone else
       if (!modified_) {
-        if (!TryParse(flag, &cur_, value, err)) return false;
+        if (!TryParse(&cur_, value, err)) return false;
         modified_ = true;
         counter_++;
         StoreAtomic();
@@ -341,12 +347,12 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
     }
     case SET_FLAGS_DEFAULT: {
       if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
-        if (!TryParse(flag, &default_src_.dynamic_value, value, err)) {
+        if (!TryParse(&default_src_.dynamic_value, value, err)) {
           return false;
         }
       } else {
         void* new_default_val = nullptr;
-        if (!TryParse(flag, &new_default_val, value, err)) {
+        if (!TryParse(&new_default_val, value, err)) {
           return false;
         }
 
@@ -367,8 +373,7 @@ bool FlagImpl::SetFromString(const CommandLineFlag& flag,
   return true;
 }
 
-void FlagImpl::CheckDefaultValueParsingRoundtrip(
-    const CommandLineFlag& flag) const {
+void FlagImpl::CheckDefaultValueParsingRoundtrip() const {
   std::string v = DefaultValue();
 
   absl::MutexLock lock(DataGuard());
@@ -378,7 +383,7 @@ void FlagImpl::CheckDefaultValueParsingRoundtrip(
   if (!flags_internal::Parse(marshalling_op_, v, dst.get(), &error)) {
     ABSL_INTERNAL_LOG(
         FATAL,
-        absl::StrCat("Flag ", flag.Name(), " (from ", flag.Filename(),
+        absl::StrCat("Flag ", Name(), " (from ", Filename(),
                      "): std::string form of default value '", v,
                      "' could not be parsed; error=", error));
   }

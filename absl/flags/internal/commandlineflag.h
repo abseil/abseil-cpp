@@ -61,8 +61,6 @@ enum ValueSource {
   kProgrammaticChange,
 };
 
-extern const char kStrippedFlagHelp[];
-
 // The per-type function
 template <typename T>
 void* FlagOps(FlagOp op, const void* v1, void* v2) {
@@ -155,8 +153,7 @@ class FlagStateInterface {
 // Holds all information for a flag.
 class CommandLineFlag {
  public:
-  constexpr CommandLineFlag(const char* name, const char* filename)
-      : name_(name), filename_(filename) {}
+  constexpr CommandLineFlag() = default;
 
   // Virtual destructor
   virtual void Destroy() = 0;
@@ -166,9 +163,6 @@ class CommandLineFlag {
   CommandLineFlag& operator=(const CommandLineFlag&) = delete;
 
   // Non-polymorphic access methods.
-  absl::string_view Name() const { return name_; }
-  absl::string_view Typename() const;
-  std::string Filename() const;
 
   // Return true iff flag has type T.
   template <typename T>
@@ -190,8 +184,7 @@ class CommandLineFlag {
     //
     //  1. `U.value` has correct size and alignment for a value of type `T`
     //  2. The `U.value` constructor is not invoked since U's constructor does
-    //  not
-    //     do it explicitly.
+    //     not do it explicitly.
     //  3. The `U.value` destructor is invoked since U's destructor does it
     //     explicitly. This makes `U` a kind of RAII wrapper around non default
     //     constructible value of T, which is destructed when we leave the
@@ -213,9 +206,16 @@ class CommandLineFlag {
 
   // Polymorphic access methods
 
-  // Returns help message associated with this flag
+  // Returns name of this flag.
+  virtual absl::string_view Name() const = 0;
+  // Returns name of the file where this flag is defined.
+  virtual std::string Filename() const = 0;
+  // Returns name of the flag's value type for some built-in types or empty
+  // std::string.
+  virtual absl::string_view Typename() const = 0;
+  // Returns help message associated with this flag.
   virtual std::string Help() const = 0;
-  // Returns true iff this object corresponds to retired flag
+  // Returns true iff this object corresponds to retired flag.
   virtual bool IsRetired() const { return false; }
   // Returns true iff this is a handle to an Abseil Flag.
   virtual bool IsAbseilFlag() const { return true; }
@@ -252,10 +252,6 @@ class CommandLineFlag {
 
  protected:
   ~CommandLineFlag() = default;
-
-  // Constant configuration for a particular flag.
-  const char* const name_;      // Flags name passed to ABSL_FLAG as second arg.
-  const char* const filename_;  // The file name where ABSL_FLAG resides.
 
  private:
   // Copy-construct a new value of the flag's type in a memory referenced by

@@ -38,6 +38,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":config",
         ":handle",
         ":registry",
         "//absl/base:core_headers",
@@ -121,9 +122,6 @@ cc_library(
 
 cc_library(
     name = "handle",
-    srcs = [
-        "internal/commandlineflag.cc",
-    ],
     hdrs = [
         "internal/commandlineflag.h",
     ],
