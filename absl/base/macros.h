@@ -112,7 +112,7 @@ ABSL_NAMESPACE_END
 // when  performing switch labels fall-through diagnostic
 // (`-Wimplicit-fallthrough`). See clang documentation on language extensions
 // for details:
-// http://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
+// https://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
 //
 // When used with unsupported compilers, the ABSL_FALLTHROUGH_INTENDED macro
 // has no effect on diagnostics. In any case this macro has no effect on runtime
@@ -168,7 +168,7 @@ ABSL_NAMESPACE_END
 // Used on a function overload to trap bad calls: any call that matches the
 // overload will cause a compile-time error. This macro uses a clang-specific
 // "enable_if" attribute, as described at
-// http://clang.llvm.org/docs/AttributeReference.html#enable-if
+// https://clang.llvm.org/docs/AttributeReference.html#enable-if
 //
 // Overloads which use this macro should be bracketed by
 // `#ifdef ABSL_BAD_CALL_IF`.
