@@ -412,6 +412,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":internal",
         ":pow10_helper",
         ":strings",
         "//absl/base:config",

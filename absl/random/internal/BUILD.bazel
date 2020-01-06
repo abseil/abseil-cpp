@@ -509,7 +509,6 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/random",
-        "//absl/strings",
     ],
 )
 
