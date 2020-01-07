@@ -78,6 +78,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_random
+    absl::strings
 )
 
 # Internal-only target, do not depend on directly.
@@ -167,6 +168,7 @@ absl_cc_library(
     "bernoulli_distribution.h"
     "beta_distribution.h"
     "discrete_distribution.h"
+    "distribution_format_traits.h"
     "distributions.h"
     "exponential_distribution.h"
     "gaussian_distribution.h"

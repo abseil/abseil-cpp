@@ -20,6 +20,7 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 MockingBitGen::~MockingBitGen() {
+
   for (const auto& del : deleters_) {
     del();
   }

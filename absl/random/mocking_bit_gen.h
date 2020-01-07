@@ -109,7 +109,7 @@ class MockingBitGen : public absl::random_internal::MockingBitGenBase {
 
   // MockingBitGen::Register
   //
-  // Register<DistrT, ArgTupleT> is the main extension point for
+  // Register<DistrT, FormatT, ArgTupleT> is the main extension point for
   // extending the MockingBitGen framework. It provides a mechanism to install a
   // mock expectation for the distribution `distr_t` onto the MockingBitGen
   // context.
@@ -182,10 +182,10 @@ namespace random_internal {
 
 template <>
 struct DistributionCaller<absl::MockingBitGen> {
-  template <typename DistrT, typename... Args>
+  template <typename DistrT, typename FormatT, typename... Args>
   static typename DistrT::result_type Call(absl::MockingBitGen* gen,
                                            Args&&... args) {
-    return gen->template Call<DistrT>(std::forward<Args>(args)...);
+    return gen->template Call<DistrT, FormatT>(std::forward<Args>(args)...);
   }
 };
 

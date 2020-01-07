@@ -66,10 +66,10 @@ TEST(BasicMocking, AllDistributionsAreOverridable) {
       .WillOnce(Return(0.001));
   EXPECT_EQ(absl::Gaussian<double>(gen, 0.0, 1.0), 0.001);
 
-  EXPECT_NE(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
+  EXPECT_NE(absl::LogUniform<int>(gen, 0, 1000000, 2), 500000);
   EXPECT_CALL(absl::MockLogUniform<int>(), Call(gen, 0, 1000000, 2))
-      .WillOnce(Return(2040));
-  EXPECT_EQ(absl::LogUniform<int>(gen, 0, 1000000, 2), 2040);
+      .WillOnce(Return(500000));
+  EXPECT_EQ(absl::LogUniform<int>(gen, 0, 1000000, 2), 500000);
 }
 
 TEST(BasicMocking, OnDistribution) {

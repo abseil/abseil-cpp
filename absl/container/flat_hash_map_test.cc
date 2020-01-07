@@ -253,41 +253,6 @@ TEST(FlatHashMap, EraseIf) {
   }
 }
 
-#if (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
-    !defined(__EMSCRIPTEN__)
-TEST(FlatHashMap, Any) {
-  absl::flat_hash_map<int, absl::any> m;
-  m.emplace(1, 7);
-  auto it = m.find(1);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(7, absl::any_cast<int>(it->second));
-
-  m.emplace(std::piecewise_construct, std::make_tuple(2), std::make_tuple(8));
-  it = m.find(2);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(8, absl::any_cast<int>(it->second));
-
-  m.emplace(std::piecewise_construct, std::make_tuple(3),
-            std::make_tuple(absl::any(9)));
-  it = m.find(3);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(9, absl::any_cast<int>(it->second));
-
-  struct H {
-    size_t operator()(const absl::any&) const { return 0; }
-  };
-  struct E {
-    bool operator()(const absl::any&, const absl::any&) const { return true; }
-  };
-  absl::flat_hash_map<absl::any, int, H, E> m2;
-  m2.emplace(1, 7);
-  auto it2 = m2.find(1);
-  ASSERT_NE(it2, m2.end());
-  EXPECT_EQ(7, it2->second);
-}
-#endif  // (defined(ABSL_USES_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
-        // !defined(__EMSCRIPTEN__)
-
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

@@ -460,7 +460,7 @@ struct DummyFooBar {
     const char* bar = "bar";
     h = H::combine_contiguous(std::move(h), foo, 3);
     h = H::combine_contiguous(std::move(h), bar, 3);
-    return std::move(h);
+    return h;
   }
 };
 
@@ -595,7 +595,10 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(IsHashCallable<X>::value);
+#if !defined(__GNUC__) || __GNUC__ < 9
+  // This doesn't compile on GCC 9.
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
+#endif
 }
 #endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 

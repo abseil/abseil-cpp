@@ -57,7 +57,7 @@ class PiecewiseCombiner;
 
 // Internal detail: Large buffers are hashed in smaller chunks.  This function
 // returns the size of these chunks.
-constexpr int PiecewiseChunkSize() { return 1024; }
+constexpr size_t PiecewiseChunkSize() { return 1024; }
 
 // HashStateBase
 //
@@ -951,7 +951,7 @@ H PiecewiseCombiner::add_buffer(H state, const unsigned char* data,
     // This partial chunk does not fill our existing buffer
     memcpy(buf_ + position_, data, size);
     position_ += size;
-    return std::move(state);
+    return state;
   }
 
   // Complete the buffer and hash it
@@ -970,7 +970,7 @@ H PiecewiseCombiner::add_buffer(H state, const unsigned char* data,
   // Fill the buffer with the remainder
   memcpy(buf_, data, size);
   position_ = size;
-  return std::move(state);
+  return state;
 }
 
 // HashStateBase::PiecewiseCombiner::finalize()

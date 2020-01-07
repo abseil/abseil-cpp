@@ -333,10 +333,6 @@ TEST(CompressedTupleTest, AnyElements) {
 
   a = 0.5f;
   EXPECT_EQ(absl::any_cast<float>(x.get<1>()), 0.5);
-
-  // Ensure copy construction work in the face of a type with a universal
-  // implicit constructor;
-  CompressedTuple<absl::any> c{}, d(c);  // NOLINT
 }
 
 TEST(CompressedTupleTest, Constexpr) {

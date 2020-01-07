@@ -275,7 +275,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::strings_internal
     absl::core_headers
     absl::pow10_helper
     absl::config
