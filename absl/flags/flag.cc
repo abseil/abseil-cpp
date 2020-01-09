@@ -20,28 +20,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-// We want to validate the type mismatch between type definition and
-// declaration. The lock-free implementation does not allow us to do it,
-// so in debug builds we always use the slower implementation, which always
-// validates the type.
-#ifndef NDEBUG
-#define ABSL_FLAGS_ATOMIC_GET(T) \
-  T GetFlag(const absl::Flag<T>& flag) { return flag.Get(); }
-#else
-#define ABSL_FLAGS_ATOMIC_GET(T)         \
-  T GetFlag(const absl::Flag<T>& flag) { \
-    T result;                            \
-    if (flag.AtomicGet(&result)) {       \
-      return result;                     \
-    }                                    \
-    return flag.Get();                   \
-  }
-#endif
-
-ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_ATOMIC_GET)
-
-#undef ABSL_FLAGS_ATOMIC_GET
-
 // This global nutex protects on-demand construction of flag objects in MSVC
 // builds.
 #if defined(_MSC_VER) && !defined(__clang__)

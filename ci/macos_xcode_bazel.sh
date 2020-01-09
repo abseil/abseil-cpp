@@ -41,6 +41,10 @@ echo "---------------"
 
 cd ${ABSEIL_ROOT}
 
+if [ -n "${ALTERNATE_OPTIONS:-}" ]; then
+  cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
+fi
+
 ${BAZEL_BIN} test ... \
   --copt=-Werror \
   --keep_going \

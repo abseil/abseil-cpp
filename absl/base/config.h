@@ -90,8 +90,42 @@
 // not support forward declarations of its own types, nor does it support
 // user-provided specialization of Abseil templates.  Code that violates these
 // rules may be broken without warning.)
+#if !defined(ABSL_OPTION_USE_INLINE_NAMESPACE) || \
+    !defined(ABSL_OPTION_INLINE_NAMESPACE_NAME)
+#error options.h is misconfigured.
+#endif
+
+// Check that ABSL_OPTION_INLINE_NAMESPACE_NAME is neither "head" nor ""
+#if defined(__cplusplus) && ABSL_OPTION_USE_INLINE_NAMESPACE == 1
+
+#define ABSL_INTERNAL_DO_TOKEN_STR(x) #x
+#define ABSL_INTERNAL_TOKEN_STR(x) ABSL_INTERNAL_DO_TOKEN_STR(x)
+#define ABSL_INTERNAL_INLINE_NAMESPACE_STR \
+  ABSL_INTERNAL_TOKEN_STR(ABSL_OPTION_INLINE_NAMESPACE_NAME)
+
+static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != '\0',
+              "options.h misconfigured: ABSL_OPTION_INLINE_NAMESPACE_NAME must "
+              "not be empty.");
+static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
+                  ABSL_INTERNAL_INLINE_NAMESPACE_STR[1] != 'e' ||
+                  ABSL_INTERNAL_INLINE_NAMESPACE_STR[2] != 'a' ||
+                  ABSL_INTERNAL_INLINE_NAMESPACE_STR[3] != 'd' ||
+                  ABSL_INTERNAL_INLINE_NAMESPACE_STR[4] != '\0',
+              "options.h misconfigured: ABSL_OPTION_INLINE_NAMESPACE_NAME must "
+              "be changed to a new, unique identifier name.");
+
+#endif
+
+#if ABSL_OPTION_USE_INLINE_NAMESPACE == 0
 #define ABSL_NAMESPACE_BEGIN
 #define ABSL_NAMESPACE_END
+#elif ABSL_OPTION_USE_INLINE_NAMESPACE == 1
+#define ABSL_NAMESPACE_BEGIN \
+  inline namespace ABSL_OPTION_INLINE_NAMESPACE_NAME {
+#define ABSL_NAMESPACE_END }
+#else
+#error options.h is misconfigured.
+#endif
 
 // -----------------------------------------------------------------------------
 // Compiler Feature Checks

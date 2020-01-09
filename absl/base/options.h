@@ -185,4 +185,30 @@
 
 #define ABSL_OPTION_USE_STD_VARIANT 2
 
+
+// ABSL_OPTION_USE_INLINE_NAMESPACE
+// ABSL_OPTION_INLINE_NAMESPACE_NAME
+//
+// These options controls whether all entities in the absl namespace are
+// contained within an inner inline namespace.  This does not affect the
+// user-visible API of Abseil, but it changes the mangled names of all symbols.
+//
+// This can be useful as a version tag if you are distributing Abseil in
+// precompiled form.  This will prevent a binary library build of Abseil with
+// one inline namespace being used with headers configured with a different
+// inline namespace name.  Binary packagers are reminded that Abseil does not
+// guarantee any ABI stability in Abseil, so any update of Abseil or
+// configuration change in such a binary package should be combined with a
+// new, unique value for the inline namespace name.
+//
+// A value of 0 means not to use inline namespaces.
+//
+// A value of 1 means to use an inline namespace with the given name inside
+// namespace absl.  If this is set, ABSL_OPTION_INLINE_NAMESPACE_NAME must also
+// be changed to a new, unique identifier name.  In particular "head" is not
+// allowed.
+
+#define ABSL_OPTION_USE_INLINE_NAMESPACE 0
+#define ABSL_OPTION_INLINE_NAMESPACE_NAME head
+
 #endif  // ABSL_BASE_OPTIONS_H_

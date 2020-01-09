@@ -931,6 +931,31 @@ TEST(StringViewTest, NullSafeStringView) {
   }
 }
 
+TEST(StringViewTest, ConstexprNullSafeStringView) {
+  {
+    constexpr absl::string_view s = absl::NullSafeStringView(nullptr);
+    EXPECT_EQ(nullptr, s.data());
+    EXPECT_EQ(0, s.size());
+    EXPECT_EQ(absl::string_view(), s);
+  }
+#if !defined(_MSC_VER) || _MSC_VER >= 1910
+  // MSVC 2017+ is required for good constexpr string_view support.
+  // See the implementation of `absl::string_view::StrlenInternal()`.
+  {
+    static constexpr char kHi[] = "hi";
+    absl::string_view s = absl::NullSafeStringView(kHi);
+    EXPECT_EQ(kHi, s.data());
+    EXPECT_EQ(strlen(kHi), s.size());
+    EXPECT_EQ(absl::string_view("hi"), s);
+  }
+  {
+    constexpr absl::string_view s = absl::NullSafeStringView("hello");
+    EXPECT_EQ(s.size(), 5);
+    EXPECT_EQ("hello", s);
+  }
+#endif
+}
+
 TEST(StringViewTest, ConstexprCompiles) {
   constexpr absl::string_view sp;
 #ifdef ABSL_HAVE_STRING_VIEW_FROM_NULLPTR

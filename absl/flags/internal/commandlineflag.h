@@ -259,22 +259,22 @@ class CommandLineFlag {
   virtual void Read(void* dst) const = 0;
 };
 
-// This macro is the "source of truth" for the list of supported flag types we
-// expect to perform lock free operations on. Specifically it generates code,
-// a one argument macro operating on a type, supplied as a macro argument, for
-// each type in the list.
-#define ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(A) \
-  A(bool)                                         \
-  A(short)                                        \
-  A(unsigned short)                               \
-  A(int)                                          \
-  A(unsigned int)                                 \
-  A(long)                                         \
-  A(unsigned long)                                \
-  A(long long)                                    \
-  A(unsigned long long)                           \
-  A(double)                                       \
-  A(float)
+// This macro is the "source of truth" for the list of supported flag built-in
+// types.
+#define ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(A) \
+  A(bool)                                    \
+  A(short)                                   \
+  A(unsigned short)                          \
+  A(int)                                     \
+  A(unsigned int)                            \
+  A(long)                                    \
+  A(unsigned long)                           \
+  A(long long)                               \
+  A(unsigned long long)                      \
+  A(double)                                  \
+  A(float)                                   \
+  A(std::string)                             \
+  A(std::vector<std::string>)
 
 }  // namespace flags_internal
 ABSL_NAMESPACE_END

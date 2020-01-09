@@ -16,6 +16,7 @@
 #include "absl/flags/internal/flag.h"
 
 #include "absl/base/optimization.h"
+#include "absl/flags/config.h"
 #include "absl/flags/usage_config.h"
 #include "absl/synchronization/mutex.h"
 
@@ -35,9 +36,7 @@ namespace {
 bool ShouldValidateFlagValue(FlagOpFn flag_type_id) {
 #define DONT_VALIDATE(T) \
   if (flag_type_id == &flags_internal::FlagOps<T>) return false;
-  ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(DONT_VALIDATE)
-  DONT_VALIDATE(std::string)
-  DONT_VALIDATE(std::vector<std::string>)
+  ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(DONT_VALIDATE)
 #undef DONT_VALIDATE
 
   return true;
@@ -85,7 +84,6 @@ void FlagImpl::Init() {
     cur_ = MakeInitValue().release();
     StoreAtomic();
     inited_.store(true, std::memory_order_release);
-    InvokeCallback();
   }
 }
 
@@ -264,8 +262,15 @@ void FlagImpl::StoreAtomic() {
   if (data_size <= sizeof(int64_t)) {
     int64_t t = 0;
     std::memcpy(&t, cur_, data_size);
-    atomic_.store(t, std::memory_order_release);
+    atomics_.small_atomic.store(t, std::memory_order_release);
   }
+#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
+  else if (data_size <= sizeof(FlagsInternalTwoWordsType)) {
+    FlagsInternalTwoWordsType t{0, 0};
+    std::memcpy(&t, cur_, data_size);
+    atomics_.big_atomic.store(t, std::memory_order_release);
+  }
+#endif
 }
 
 void FlagImpl::Write(const void* src, const flags_internal::FlagOpFn src_op) {

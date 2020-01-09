@@ -29,6 +29,8 @@
 #ifndef ABSL_FLAGS_FLAG_H_
 #define ABSL_FLAGS_FLAG_H_
 
+#include <type_traits>
+
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/flags/config.h"
@@ -181,23 +183,42 @@ class Flag {
 //
 //   // FLAGS_firstname is a Flag of type `std::string`
 //   std::string first_name = absl::GetFlag(FLAGS_firstname);
-template <typename T>
+template <typename T,
+          typename std::enable_if<
+              !flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
 ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
-#define ABSL_FLAGS_INTERNAL_LOCK_FREE_VALIDATE(BIT) \
-  static_assert(                                    \
-      !std::is_same<T, BIT>::value,                 \
-      "Do not specify explicit template parameters to absl::GetFlag");
-  ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_INTERNAL_LOCK_FREE_VALIDATE)
-#undef ABSL_FLAGS_INTERNAL_LOCK_FREE_VALIDATE
-
   return flag.Get();
 }
 
+// We want to validate the type mismatch between type definition and
+// declaration. The lock-free implementation does not allow us to do it,
+// so in debug builds we always use the slower implementation, which always
+// validates the type.
+#ifndef NDEBUG
+template <typename T,
+          typename std::enable_if<
+              flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
+ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
+  return flag.Get();
+}
+#else
 // Overload for `GetFlag()` for types that support lock-free reads.
-#define ABSL_FLAGS_INTERNAL_LOCK_FREE_EXPORT(T) \
-  ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag);
-ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(ABSL_FLAGS_INTERNAL_LOCK_FREE_EXPORT)
-#undef ABSL_FLAGS_INTERNAL_LOCK_FREE_EXPORT
+template <typename T,
+          typename std::enable_if<
+              flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
+ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
+  // T might not be default constructible.
+  union U {
+    T value;
+    U() {}
+  };
+  U result;
+  if (flag.AtomicGet(&result.value)) {
+    return result.value;
+  }
+  return flag.Get();
+}
+#endif
 
 // SetFlag()
 //

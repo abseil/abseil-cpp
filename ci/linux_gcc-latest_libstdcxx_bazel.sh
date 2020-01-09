@@ -55,7 +55,8 @@ for std in ${STD}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
       echo "--------------------------------------------------------------------"
       time docker run \
-        --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
+        --volume="${ABSEIL_ROOT}:/abseil-cpp-ro:ro" \
+        --tmpfs=/abseil-cpp \
         --workdir=/abseil-cpp \
         --cap-add=SYS_PTRACE \
         --rm \
@@ -63,18 +64,23 @@ for std in ${STD}; do
         -e BAZEL_CXXOPTS="-std=${std}" \
         ${DOCKER_EXTRA_ARGS:-} \
         ${DOCKER_CONTAINER} \
-        /usr/local/bin/bazel test ... \
-          --compilation_mode="${compilation_mode}" \
-          --copt="${exceptions_mode}" \
-          --copt=-Werror \
-          --define="absl=1" \
-          --keep_going \
-          --show_timestamps \
-          --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1" \
-          --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
-          --test_output=errors \
-          --test_tag_filters=-benchmark \
-          ${BAZEL_EXTRA_ARGS:-}
+        /bin/sh -c "
+          cp -r /abseil-cpp-ro/* /abseil-cpp/
+          if [ -n \"${ALTERNATE_OPTIONS:-}\" ]; then
+            cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
+          fi
+          /usr/local/bin/bazel test ... \
+            --compilation_mode=\"${compilation_mode}\" \
+            --copt=\"${exceptions_mode}\" \
+            --copt=-Werror \
+            --define=\"absl=1\" \
+            --keep_going \
+            --show_timestamps \
+            --test_env=\"GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1\" \
+            --test_env=\"TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo\" \
+            --test_output=errors \
+            --test_tag_filters=-benchmark \
+            ${BAZEL_EXTRA_ARGS:-}"
     done
   done
 done

@@ -122,7 +122,7 @@ ABSL_NAMESPACE_BEGIN
 //
 // You may create a null `string_view` in two ways:
 //
-//   absl::string_view sv();
+//   absl::string_view sv;
 //   absl::string_view sv(nullptr, 0);
 //
 // For the above, `sv.data() == nullptr`, `sv.length() == 0`, and
@@ -605,7 +605,7 @@ inline string_view ClippedSubstr(string_view s, size_t pos,
 // Creates an `absl::string_view` from a pointer `p` even if it's null-valued.
 // This function should be used where an `absl::string_view` can be created from
 // a possibly-null pointer.
-inline string_view NullSafeStringView(const char* p) {
+constexpr string_view NullSafeStringView(const char* p) {
   return p ? string_view(p) : string_view();
 }
 

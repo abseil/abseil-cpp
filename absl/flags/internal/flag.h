@@ -20,6 +20,7 @@
 #include <cstring>
 
 #include "absl/base/thread_annotations.h"
+#include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/memory/memory.h"
@@ -30,7 +31,61 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
-constexpr int64_t AtomicInit() { return 0xababababababababll; }
+// The minimum atomic size we believe to generate lock free code, i.e. all
+// trivially copyable types not bigger this size generate lock free code.
+static constexpr int kMinLockFreeAtomicSize = 8;
+
+// The same as kMinLockFreeAtomicSize but maximum atomic size. As double words
+// might use two registers, we want to dispatch the logic for them.
+#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
+static constexpr int kMaxLockFreeAtomicSize = 16;
+#else
+static constexpr int kMaxLockFreeAtomicSize = 8;
+#endif
+
+// We can use atomic in cases when it fits in the register, trivially copyable
+// in order to make memcpy operations.
+template <typename T>
+struct IsAtomicFlagTypeTrait {
+  static constexpr bool value =
+      (sizeof(T) <= kMaxLockFreeAtomicSize &&
+       type_traits_internal::is_trivially_copyable<T>::value);
+};
+
+// Clang does not always produce cmpxchg16b instruction when alignment of a 16
+// bytes type is not 16.
+struct alignas(16) FlagsInternalTwoWordsType {
+  int64_t first;
+  int64_t second;
+};
+
+constexpr bool operator==(const FlagsInternalTwoWordsType& that,
+                          const FlagsInternalTwoWordsType& other) {
+  return that.first == other.first && that.second == other.second;
+}
+constexpr bool operator!=(const FlagsInternalTwoWordsType& that,
+                          const FlagsInternalTwoWordsType& other) {
+  return !(that == other);
+}
+
+constexpr int64_t SmallAtomicInit() { return 0xababababababababll; }
+
+template <typename T, typename S = void>
+struct BestAtomicType {
+  using type = int64_t;
+  static constexpr int64_t AtomicInit() { return SmallAtomicInit(); }
+};
+
+template <typename T>
+struct BestAtomicType<
+    T, typename std::enable_if<(kMinLockFreeAtomicSize < sizeof(T) &&
+                                sizeof(T) <= kMaxLockFreeAtomicSize),
+                               void>::type> {
+  using type = FlagsInternalTwoWordsType;
+  static constexpr FlagsInternalTwoWordsType AtomicInit() {
+    return {SmallAtomicInit(), SmallAtomicInit()};
+  }
+};
 
 template <typename T>
 class Flag;
@@ -182,14 +237,15 @@ class FlagImpl {
   // it replaces `dst` with the new value.
   bool TryParse(void** dst, absl::string_view value, std::string* err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
+
   template <typename T>
   bool AtomicGet(T* v) const {
-    const int64_t r = atomic_.load(std::memory_order_acquire);
-    if (r != flags_internal::AtomicInit()) {
-      std::memcpy(v, &r, sizeof(T));
+    using U = flags_internal::BestAtomicType<T>;
+    const typename U::type r = atomics_.template load<T>();
+    if (r != U::AtomicInit()) {
+      std::memcpy(static_cast<void*>(v), &r, sizeof(T));
       return true;
     }
-
     return false;
   }
 
@@ -271,7 +327,34 @@ class FlagImpl {
   int64_t counter_ ABSL_GUARDED_BY(*DataGuard()) = 0;
   // For some types, a copy of the current value is kept in an atomically
   // accessible field.
-  std::atomic<int64_t> atomic_{flags_internal::AtomicInit()};
+  union Atomics {
+    // Using small atomic for small types.
+    std::atomic<int64_t> small_atomic;
+    template <typename T,
+              typename K = typename std::enable_if<
+                  (sizeof(T) <= kMinLockFreeAtomicSize), void>::type>
+    int64_t load() const {
+      return small_atomic.load(std::memory_order_acquire);
+    }
+
+#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
+    // Using big atomics for big types.
+    std::atomic<FlagsInternalTwoWordsType> big_atomic;
+    template <typename T, typename K = typename std::enable_if<
+                              (kMinLockFreeAtomicSize < sizeof(T) &&
+                               sizeof(T) <= kMaxLockFreeAtomicSize),
+                              void>::type>
+    FlagsInternalTwoWordsType load() const {
+      return big_atomic.load(std::memory_order_acquire);
+    }
+    constexpr Atomics()
+        : big_atomic{FlagsInternalTwoWordsType{SmallAtomicInit(),
+                                               SmallAtomicInit()}} {}
+#else
+    constexpr Atomics() : small_atomic{SmallAtomicInit()} {}
+#endif
+  };
+  Atomics atomics_{};
 
   struct CallbackData {
     FlagCallback func;

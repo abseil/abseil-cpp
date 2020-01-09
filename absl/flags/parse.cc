@@ -280,9 +280,7 @@ void CheckDefaultValuesParsingRoundtrip() {
 #define IGNORE_TYPE(T) \
   if (flag->IsOfType<T>()) return;
 
-    ABSL_FLAGS_INTERNAL_FOR_EACH_LOCK_FREE(IGNORE_TYPE)
-    IGNORE_TYPE(std::string)
-    IGNORE_TYPE(std::vector<std::string>)
+    ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(IGNORE_TYPE)
 #undef IGNORE_TYPE
 
     flag->CheckDefaultValueParsingRoundtrip();
