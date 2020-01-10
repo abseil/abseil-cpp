@@ -15,18 +15,24 @@
 
 #include "absl/flags/internal/usage.h"
 
+#include <functional>
 #include <map>
+#include <ostream>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/synchronization/mutex.h"
 
 ABSL_FLAG(bool, help, false,
           "show help on important flags for this binary [tip: all flags can "

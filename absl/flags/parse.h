@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/internal/parse.h"
 
 namespace absl {

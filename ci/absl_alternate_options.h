@@ -15,8 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Alternate options.h file, requesting to always use Abseil implementations
-// of the workalike types, regardless of language version.
+// Alternate options.h file, used in continuous integration testing to exercise
+// option settings not used by default.
 
 #define ABSL_OPTION_USE_STD_ANY 0
 #define ABSL_OPTION_USE_STD_OPTIONAL 0

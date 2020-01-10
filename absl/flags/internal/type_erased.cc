@@ -15,10 +15,16 @@
 
 #include "absl/flags/internal/type_erased.h"
 
+#include <assert.h>
+
+#include <string>
+
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/flags/config.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
-#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

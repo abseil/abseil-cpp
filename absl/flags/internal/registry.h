@@ -20,8 +20,10 @@
 #include <map>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/flags/internal/commandlineflag.h"
+#include "absl/strings/string_view.h"
 
 // --------------------------------------------------------------------
 // Global flags registry API.

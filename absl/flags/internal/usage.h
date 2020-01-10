@@ -19,6 +19,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"

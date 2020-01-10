@@ -16,10 +16,16 @@
 #ifndef ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 #define ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 
-#include <memory>
+#include <stddef.h>
+#include <stdint.h>
 
+#include <memory>
+#include <string>
+
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/flags/marshalling.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 
 namespace absl {

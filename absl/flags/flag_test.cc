@@ -15,15 +15,25 @@
 
 #include "absl/flags/flag.h"
 
-#include <algorithm>
+#include <stdint.h>
+
+#include <cmath>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
+#include "absl/flags/config.h"
+#include "absl/flags/declare.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/flag.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 
 ABSL_DECLARE_FLAG(int64_t, mistyped_int_flag);
 ABSL_DECLARE_FLAG(std::vector<std::string>, mistyped_string_flag);

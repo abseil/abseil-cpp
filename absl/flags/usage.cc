@@ -14,9 +14,16 @@
 // limitations under the License.
 #include "absl/flags/usage.h"
 
+#include <stdlib.h>
+
 #include <string>
 
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/const_init.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/flags/internal/usage.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {

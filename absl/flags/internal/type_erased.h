@@ -18,8 +18,10 @@
 
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
+#include "absl/strings/string_view.h"
 
 // --------------------------------------------------------------------
 // Registry interfaces operating on type erased handles.

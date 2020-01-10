@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/declare.h"
 
 ABSL_DECLARE_FLAG(std::vector<std::string>, flagfile);

@@ -15,9 +15,23 @@
 
 #include "absl/flags/internal/flag.h"
 
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <atomic>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/const_init.h"
 #include "absl/base/optimization.h"
-#include "absl/flags/config.h"
+#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/usage_config.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {

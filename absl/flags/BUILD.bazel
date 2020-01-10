@@ -41,6 +41,7 @@ cc_library(
         ":config",
         ":handle",
         ":registry",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/memory",
         "//absl/strings",
@@ -63,6 +64,8 @@ cc_library(
     ],
     deps = [
         ":path_util",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -79,6 +82,7 @@ cc_library(
         "//absl/flags:__pkg__",
     ],
     deps = [
+        "//absl/base:config",
         "//absl/strings",
     ],
 )
@@ -97,6 +101,7 @@ cc_library(
     deps = [
         ":path_util",
         ":program_name",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/strings",
         "//absl/synchronization",
@@ -114,7 +119,9 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:log_severity",
         "//absl/strings",
         "//absl/strings:str_format",
     ],
@@ -131,9 +138,10 @@ cc_library(
         "//absl/flags:__pkg__",
     ],
     deps = [
-        ":config",
         ":marshalling",
+        "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/strings",
         "//absl/types:optional",
     ],
 )
@@ -156,8 +164,8 @@ cc_library(
     deps = [
         ":config",
         ":handle",
+        "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:dynamic_annotations",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/synchronization",
@@ -180,9 +188,10 @@ cc_library(
         ":flag_internal",
         ":handle",
         ":marshalling",
+        ":registry",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/memory",
         "//absl/strings",
     ],
 )
@@ -203,11 +212,14 @@ cc_library(
     deps = [
         ":config",
         ":flag",
+        ":flag_internal",
         ":handle",
         ":path_util",
         ":program_name",
+        ":registry",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
-        "//absl/synchronization",
     ],
 )
 
@@ -223,6 +235,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":usage_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -240,10 +254,14 @@ cc_library(
     deps = [
         ":config",
         ":flag",
+        ":flag_internal",
+        ":handle",
         ":program_name",
         ":registry",
         ":usage",
         ":usage_internal",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -297,6 +315,10 @@ cc_test(
     deps = [
         ":config",
         ":flag",
+        ":flag_internal",
+        ":handle",
+        ":registry",
+        "//absl/base:core_headers",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -341,6 +363,7 @@ cc_test(
     deps = [
         ":flag",
         ":parse",
+        ":registry",
         "//absl/base:raw_logging_internal",
         "//absl/base:scoped_set_env",
         "//absl/strings",
@@ -374,9 +397,10 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":flag",
+        ":handle",
+        ":marshalling",
         ":registry",
         "//absl/memory",
-        "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -412,6 +436,7 @@ cc_test(
         ":parse",
         ":path_util",
         ":program_name",
+        ":registry",
         ":usage",
         ":usage_internal",
         "//absl/memory",

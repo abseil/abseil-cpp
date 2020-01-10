@@ -15,9 +15,20 @@
 
 #include "absl/flags/internal/registry.h"
 
-#include "absl/base/dynamic_annotations.h"
+#include <assert.h>
+#include <stdlib.h>
+
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/flags/config.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"

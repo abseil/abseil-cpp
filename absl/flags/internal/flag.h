@@ -16,15 +16,21 @@
 #ifndef ABSL_FLAGS_INTERNAL_FLAG_H_
 #define ABSL_FLAGS_INTERNAL_FLAG_H_
 
+#include <stdint.h>
+
 #include <atomic>
 #include <cstring>
+#include <memory>
+#include <string>
 
+#include "absl/base/config.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {

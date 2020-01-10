@@ -17,21 +17,36 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/const_init.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/flags/config.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/flag.h"
+#include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/internal/usage.h"
 #include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "absl/synchronization/mutex.h"
 

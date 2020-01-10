@@ -15,8 +15,11 @@
 
 #include "absl/flags/internal/program_name.h"
 
+#include <string>
+
 #include "gtest/gtest.h"
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 
 namespace {
 

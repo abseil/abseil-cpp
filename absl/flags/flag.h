@@ -29,14 +29,17 @@
 #ifndef ABSL_FLAGS_FLAG_H_
 #define ABSL_FLAGS_FLAG_H_
 
+#include <string>
 #include <type_traits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 #include "absl/flags/config.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/marshalling.h"
 
 namespace absl {

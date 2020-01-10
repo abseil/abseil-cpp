@@ -15,15 +15,22 @@
 
 #include "absl/flags/parse.h"
 
+#include <stdlib.h>
+
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scoped_set_env.h"
+#include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
-#include "absl/strings/match.h"
+#include "absl/flags/internal/parse.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/span.h"
 

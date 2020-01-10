@@ -15,17 +15,23 @@
 
 #include "absl/flags/internal/usage.h"
 
+#include <stdint.h>
+
 #include <sstream>
+#include <string>
 
 #include "gtest/gtest.h"
+#include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/flags/parse.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 
 ABSL_FLAG(int, usage_reporting_test_flag_01, 101,
           "usage_reporting_test_flag_01 help message");

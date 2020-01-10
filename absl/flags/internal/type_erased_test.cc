@@ -15,12 +15,15 @@
 
 #include "absl/flags/internal/type_erased.h"
 
-#include <cmath>
+#include <memory>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/registry.h"
+#include "absl/flags/marshalling.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 
 ABSL_FLAG(int, int_flag, 1, "int_flag help");
 ABSL_FLAG(std::string, string_flag, "dflt", "string_flag help");
