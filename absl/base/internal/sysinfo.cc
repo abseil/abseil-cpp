@@ -76,6 +76,7 @@ static int GetNumCPUs() {
 #if defined(_WIN32)
 
 static double GetNominalCPUFrequency() {
+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_APP)
 #pragma comment(lib, "advapi32.lib")  // For Reg* functions.
   HKEY key;
   // Use the Reg* functions rather than the SH functions because shlwapi.dll
@@ -94,6 +95,7 @@ static double GetNominalCPUFrequency() {
       return data * 1e6;  // Value is MHz.
     }
   }
+#endif
   return 1.0;
 }
 
