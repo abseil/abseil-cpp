@@ -1,5 +1,5 @@
 # pre-merge pipeline
-# triggered on PR
+# triggered on PR hello
 trigger: none
 
 pr:
