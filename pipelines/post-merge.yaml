@@ -8,8 +8,6 @@ trigger:
   branches:
     include:
     - master 
-    exclude:
-      - '*'
 
 pr: none
 
