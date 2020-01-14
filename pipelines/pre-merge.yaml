@@ -1,5 +1,7 @@
 # pre-merge pipeline
 # triggered on PR
+# A pipeline with no CI trigger
+trigger: none
 
 pr:
   branches:
