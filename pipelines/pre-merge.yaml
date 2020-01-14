@@ -4,7 +4,7 @@
 pr:
   branches:
     include:
-    - releases/*
+    - test-pr
     exclude:
     - master
   paths:
