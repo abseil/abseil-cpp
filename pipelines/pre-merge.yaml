@@ -1,0 +1,42 @@
+# pre-merge pipeline
+# triggered on PR
+
+pr:
+  branches:
+    include:
+    - releases/*
+    exclude:
+    - master
+  paths:
+    exclude:
+    - containers/*
+    - pipelines/*
+
+stages:
+- stage: Bazel_Build
+  displayName: Build
+  jobs:
+  - job: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps: 
+    - script: |
+        echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+        curl https://bazel.build/bazel-release.pub.gpg | sudo apt-key add -
+        sudo apt-get update && sudo apt-get install -y bazel
+      displayName: 'install bazel'
+
+    - script: |
+        bazel version
+      displayName: 'show bazel version'
+
+    - script: |
+        cd bazel-hello
+        bazel clean 
+      displayName: 'clean project' 
+
+    - script: |
+        cd bazel-hello
+        bazel build --remote_cache=http://remotecache.eastus.cloudapp.azure.com:9090 ...
+      displayName: 'bazel build' 

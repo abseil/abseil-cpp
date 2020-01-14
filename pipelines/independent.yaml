@@ -1,0 +1,40 @@
+# Independent (periodic) pipeline taking Artifact and Producing Container
+# pushed to ACR
+
+schedules:
+- cron: "0 7 * * *"
+  displayName: Daily 7am Build
+  branches:
+    include:
+    - master
+  always: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: DownloadPackage@1
+  inputs:
+    packageType: 'upack'
+    feed: 'minerva-poc/minerva-bin'
+    definition: 'hello'
+    version: '*'
+    files: '**'
+    extract: true
+    downloadPath: '$(System.ArtifactsDirectory)' 
+
+- task: Docker@2
+  displayName: Login to ACR
+  inputs:
+    command: login
+    containerRegistry: minervapocRegistryServiceConnection1
+
+- task: Docker@2
+  displayName: buildAndPush
+  inputs:
+    containerRegistry: minervapocRegistryServiceConnection1
+    repository: 'hello'
+    command: 'buildAndPush'
+    Dockerfile: 'containers/independent/Dockerfile'
+    buildContext: '$(System.ArtifactsDirectory)'
+    tags: 'latest'
