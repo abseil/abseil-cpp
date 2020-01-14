@@ -11,6 +11,8 @@ trigger:
     exclude:
       - '*'
 
+pr: none
+
 stages:
 - stage: Bazel_Tests
   displayName: Test
