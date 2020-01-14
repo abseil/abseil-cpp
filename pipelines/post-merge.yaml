@@ -1,17 +1,15 @@
 # Pipeline to run Bazel tests post-merge onto master
-
-# disable CI builds 
-trigger: none
-
-# pre-merge pipeline specified as a resource to act as the trigger for builds of this pipeline
-resources: 
-  pipelines:
-  - pipeline: pre-merge-pipeline
-    source: pre-merge-pipeline
-    trigger:
-      branches:
-        include: 
-        - master
+ 
+# allow CI builds only on master branch by excluding all other branches.
+# enforce batch run, which will test all changes at once. This should result in a single run per PR that is merged onto master.
+# the single run will include all changes introduced by the PR, instead of testing them sequentially.
+trigger: 
+  batch: true 
+  branches:
+    include:
+    - master 
+    exclude:
+      - '*'
 
 stages:
 - stage: Bazel_Tests
