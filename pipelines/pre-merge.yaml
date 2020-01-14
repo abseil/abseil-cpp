@@ -1,9 +1,6 @@
 # pre-merge pipeline
 # triggered on PR
-trigger:
-  branches:
-    exclude:
-    - master
+trigger: none
 
 pr:
 - master
