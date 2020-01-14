@@ -1,0 +1,9 @@
+this file is used to confirm that /pipelines/pre-merge.yaml and /pipelins/post-merge.yaml are working as expected:
+
+1) pre-merge.yaml should run when a PR is opened against the master branch
+2) post-merge.yaml should run after a PR is successfully merged onto the master branch:
+    - Pipeline should not run during the PR process
+    - pipeline should run only once per successful PR 
+
+
+delete this file when both are working as expected
