@@ -12,7 +12,7 @@ stages:
   jobs:
   - job: Build
     pool:
-      vmImage: 'ubuntu-latest'
+      name: 'VMSSPool'
 
     steps: 
     - script: |
