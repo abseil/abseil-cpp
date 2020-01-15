@@ -15,9 +15,5 @@ stages:
       displayName: 'show bazel version'
 
     - script: |
-        bazel clean 
-      displayName: 'clean project'
-
-    - script: |
-        bazel build --remote_cache=http://remotecache.eastus.cloudapp.azure.com:9090 absl/...
+        bazel build ...
       displayName: 'bazel build' 
