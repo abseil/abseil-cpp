@@ -1,6 +1,12 @@
 # Independent (periodic) pipeline taking Artifact and Producing Container
 # pushed to ACR
 
+# won't trigger for branch push/PR merge
+trigger: none 
+
+# won't trigger for PR created
+pr: none
+
 schedules:
 - cron: "0 7 * * *"
   displayName: Daily 7am Build
