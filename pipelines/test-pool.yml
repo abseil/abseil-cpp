@@ -1,4 +1,7 @@
+# won't trigger on branch/PR/merge 
 trigger: none
+
+pr: none
 
 stages:
 - stage: Bazel_Build
@@ -13,6 +16,10 @@ stages:
     - script: |
         bazel version
       displayName: 'show bazel version'
+
+    - script: |
+        bazel clean --expunge
+      displayName: 'bazel clean with expunge'
 
     - script: |
         bazel build ...
