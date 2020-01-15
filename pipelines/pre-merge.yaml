@@ -20,6 +20,5 @@ stages:
       displayName: 'show bazel version'
 
     - script: |
-        cd bazel-hello
         bazel build ...
       displayName: 'bazel build' 
