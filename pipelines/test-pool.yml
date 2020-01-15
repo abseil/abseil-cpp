@@ -18,9 +18,5 @@ stages:
       displayName: 'show bazel version'
 
     - script: |
-        bazel clean --expunge
-      displayName: 'bazel clean with expunge'
-
-    - script: |
         bazel build ...
       displayName: 'bazel build' 
