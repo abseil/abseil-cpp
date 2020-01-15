@@ -20,6 +20,5 @@ stages:
       displayName: 'show bazel version'
 
     - script: |
-        cd bazel-hello
-        bazel build --remote_cache=http://remotecache.eastus.cloudapp.azure.com:9090 ...
+        bazel build ...
       displayName: 'bazel build' 

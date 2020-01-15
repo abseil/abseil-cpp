@@ -23,6 +23,5 @@ stages:
         bazel version
       displayName: 'show bazel version'
     - script: |
-        cd bazel-hello
         bazel test --test_tag_filters=-benchmark ... 
       displayName: 'run all non-benchmark tests'
