@@ -18,5 +18,9 @@ stages:
       displayName: 'show bazel version'
 
     - script: |
-        bazel build ...
+        bazel build --remote_cache=http://remotecache.eastus.cloudapp.azure.com:9090 ...
       displayName: 'bazel build' 
+
+    - script: |
+        bazel test --remote_cache=http://remotecache.eastus.cloudapp.azure.com:9090 --test_tag_filters=-benchmark ...
+      displayName: 'run all non-benchmark tests'       
