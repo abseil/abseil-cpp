@@ -16,7 +16,7 @@ steps:
 - task: DownloadPackage@1
   inputs:
     packageType: 'upack'
-    feed: 'minerva-poc/minerva-bin'
+    feed: 'minervapoc'
     definition: 'hello'
     version: '*'
     files: '**'

@@ -13,10 +13,8 @@ clean:
 .PHONY: upload
 upload:
 	az artifacts universal publish \
-	  --scope project \
 	  --organization https://dev.azure.com/minervapoc \
-	  --project minerva-poc \
-	  --feed minerva-bin \
+	  --feed minervapoc \
 	  --name hello \
 	  --version $(shell cat version) \
 	  --description "hello" \
