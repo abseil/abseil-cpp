@@ -39,7 +39,7 @@ stages:
       inputs:
         command: publish
         publishDirectory: '$(Build.ArtifactStagingDirectory)'
-        vstsFeedPublish: '2d024d44-d000-4beb-98ea-3d221ece6810'
+        vstsFeedPublish: 'minerva-poc-github/testfeed'
         vstsFeedPackagePublish: 'my-first-package'
         versionOption: minor
         packagePublishDescription: 'Quick test'
