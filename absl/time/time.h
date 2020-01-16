@@ -527,30 +527,59 @@ std::chrono::seconds ToChronoSeconds(Duration d);
 std::chrono::minutes ToChronoMinutes(Duration d);
 std::chrono::hours ToChronoHours(Duration d);
 
+
 // FormatDuration()
 //
-// Returns a string representing the duration in the form "72h3m0.5s".
-// Returns "inf" or "-inf" for +/- `InfiniteDuration()`.
+// Returns a string represention of the duration in a format consisting of a
+// possibly-signed prefix and a sequence of decimal numbers, each with an
+// optional fractional part and a unit suffix.
+//
+// Valid unit suffixes are "ns", "us" "ms", "s", "m", and "h".
+//
+// Simple examples include "300ms", "-1.5h", and "2h45m". Returns "inf" or
+// "-inf" for +/- `InfiniteDuration()` values and "0" for `ZeroDuration()`
+// values.
+//
+// This string format is used both as an input for parsing (when handling
+// command-line flags of type `absl::Duration`) and as an output in
+// `FormatDuration()`
 std::string FormatDuration(Duration d);
 
-// Output stream operator.
+// ParseDuration()
+//
+// Parses a `dur_string` of the format noted above into an `absl::Duration`
+// value.
+//
+// Parses "0" as a zero-length duration value. Parses "-inf" or "+inf" as
+// infinite durations values.
+bool ParseDuration(const std::string& dur_string, Duration* d);
+
+// AbslParseFlag()
+//
+// Parses the command-line flag string representation `text` (using the format
+// noted above) into an `absl::Duration` destination, setting `error` on
+// failure.
+//
+// Example:
+//
+//   --timeout=6h30m
+//   --timeout=inf       // Equivalent to `InfiniteDuration()`
+//   --timeout=0         // Equivalent to `ZeroDuration()`
+bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
+
+// AbslUnparseFlag()
+//
+// Unparses an `absl::Duration` into a command-line string representation using
+// the format noted above.
+std::string AbslUnparseFlag(Duration d);
+
+// operator<<()
+//
+// Output stream operator, returning a stream in the format noted above.
 inline std::ostream& operator<<(std::ostream& os, Duration d) {
   return os << FormatDuration(d);
 }
 
-// ParseDuration()
-//
-// Parses a duration string consisting of a possibly signed sequence of
-// decimal numbers, each with an optional fractional part and a unit
-// suffix.  The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
-// Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
-// `ZeroDuration()`. Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
-bool ParseDuration(const std::string& dur_string, Duration* d);
-
-// Support for flag values of type Duration. Duration flags must be specified
-// in a format that is valid input for absl::ParseDuration().
-bool AbslParseFlag(absl::string_view text, Duration* dst, std::string* error);
-std::string AbslUnparseFlag(Duration d);
 ABSL_DEPRECATED("Use AbslParseFlag() instead.")
 bool ParseFlag(const std::string& text, Duration* dst, std::string* error);
 ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
@@ -813,18 +842,29 @@ Time FromChrono(const std::chrono::system_clock::time_point& tp);
 //   // tp == std::chrono::system_clock::from_time_t(123);
 std::chrono::system_clock::time_point ToChronoTime(Time);
 
-// Support for flag values of type Time. Time flags must be specified in a
-// format that matches absl::RFC3339_full. For example:
+// AbslParseFlag()
+//
+// Parses the command-line flag string representation `text` into an
+// `absl::Time` destination, setting `error` on failure. Time flag string
+// representations must be specified in a format that matches
+// `absl::RFC3339_full`.
+//
+// Example:
 //
 //   --start_time=2016-01-02T03:04:05.678+08:00
 //
 // Note: A UTC offset (or 'Z' indicating a zero-offset from UTC) is required.
 //
 // Additionally, if you'd like to specify a time as a count of
-// seconds/milliseconds/etc from the Unix epoch, use an absl::Duration flag
-// and add that duration to absl::UnixEpoch() to get an absl::Time.
+// seconds/milliseconds/etc from the Unix epoch, use an `absl::Duration` flag
+// and add that duration to `absl::UnixEpoch()` to get an `absl::Time`.
 bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
+
+// AbslUnparseFlag()
+//
+// Unparses an `absl::Time` into a command-line string format as noted above.
 std::string AbslUnparseFlag(Time t);
+
 ABSL_DEPRECATED("Use AbslParseFlag() instead.")
 bool ParseFlag(const std::string& text, Time* t, std::string* error);
 ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")

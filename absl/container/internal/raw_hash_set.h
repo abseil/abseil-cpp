@@ -625,7 +625,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      /* To be enabled: assert_is_full(); */
+      assert_is_full();
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -1084,10 +1084,15 @@ class raw_hash_set {
   // Extension API: support for lazy emplace.
   //
   // Looks up key in the table. If found, returns the iterator to the element.
-  // Otherwise calls f with one argument of type raw_hash_set::constructor. f
-  // MUST call raw_hash_set::constructor with arguments as if a
-  // raw_hash_set::value_type is constructed, otherwise the behavior is
-  // undefined.
+  // Otherwise calls `f` with one argument of type `raw_hash_set::constructor`.
+  //
+  // `f` must abide by several restrictions:
+  //  - it MUST call `raw_hash_set::constructor` with arguments as if a
+  //    `raw_hash_set::value_type` is constructed,
+  //  - it MUST NOT access the container before the call to
+  //    `raw_hash_set::constructor`, and
+  //  - it MUST NOT erase the lazily emplaced element.
+  // Doing any of these is undefined behavior.
   //
   // For example:
   //

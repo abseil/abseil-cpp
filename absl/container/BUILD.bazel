@@ -874,3 +874,29 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_binary(
+    name = "btree_benchmark",
+    testonly = 1,
+    srcs = [
+        "btree_benchmark.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":btree",
+        ":btree_test_common",
+        ":flat_hash_map",
+        ":flat_hash_set",
+        ":hashtable_debug",
+        "//absl/base:raw_logging_internal",
+        "//absl/flags:flag",
+        "//absl/hash",
+        "//absl/memory",
+        "//absl/strings:str_format",
+        "//absl/time",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)

@@ -27,9 +27,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-class Cord;
-
 namespace str_format_internal {
 
 class FormatRawSinkImpl {

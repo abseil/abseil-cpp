@@ -66,6 +66,10 @@
 #include "absl/base/options.h"
 #include "absl/base/policy_checks.h"
 
+// Helper macro to convert a CPP variable to a string literal.
+#define ABSL_INTERNAL_DO_TOKEN_STR(x) #x
+#define ABSL_INTERNAL_TOKEN_STR(x) ABSL_INTERNAL_DO_TOKEN_STR(x)
+
 // -----------------------------------------------------------------------------
 // Abseil namespace annotations
 // -----------------------------------------------------------------------------
@@ -98,8 +102,6 @@
 // Check that ABSL_OPTION_INLINE_NAMESPACE_NAME is neither "head" nor ""
 #if defined(__cplusplus) && ABSL_OPTION_USE_INLINE_NAMESPACE == 1
 
-#define ABSL_INTERNAL_DO_TOKEN_STR(x) #x
-#define ABSL_INTERNAL_TOKEN_STR(x) ABSL_INTERNAL_DO_TOKEN_STR(x)
 #define ABSL_INTERNAL_INLINE_NAMESPACE_STR \
   ABSL_INTERNAL_TOKEN_STR(ABSL_OPTION_INLINE_NAMESPACE_NAME)
 
@@ -615,6 +617,28 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // variant_exception_safety_test.
 #if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
 #define ABSL_INTERNAL_MSVC_2017_DBG_MODE
+#endif
+
+// ABSL_INTERNAL_MANGLED_NS
+// ABSL_INTERNAL_MANGLED_BACKREFERENCE
+//
+// Internal macros for building up mangled names in our internal fork of CCTZ.
+// This implementation detail is only needed and provided for the MSVC build.
+//
+// These macros both expand to string literals.  ABSL_INTERNAL_MANGLED_NS is
+// the mangled spelling of the `absl` namespace, and
+// ABSL_INTERNAL_MANGLED_BACKREFERENCE is a back-reference integer representing
+// the proper count to skip past the CCTZ fork namespace names.  (This number
+// is one larger when there is an inline namespace name to skip.)
+#if defined(_MSC_VER)
+#if ABSL_OPTION_USE_INLINE_NAMESPACE == 0
+#define ABSL_INTERNAL_MANGLED_NS "absl"
+#define ABSL_INTERNAL_MANGLED_BACKREFERENCE "5"
+#else
+#define ABSL_INTERNAL_MANGLED_NS \
+  ABSL_INTERNAL_TOKEN_STR(ABSL_OPTION_INLINE_NAMESPACE_NAME) "@absl"
+#define ABSL_INTERNAL_MANGLED_BACKREFERENCE "6"
+#endif
 #endif
 
 #undef ABSL_INTERNAL_HAS_KEYWORD
