@@ -32,9 +32,9 @@ stages:
       inputs:
         rootFolderOrFile: 'bazel-out/k8-fastbuild/bin/absl' 
         #includeRootFolder: true 
-        archiveType: 'zip' # Options: zip, 7z, tar, wim
+        archiveType: 'tar' # Options: zip, 7z, tar, wim
         tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip' 
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).tar.gz' 
         replaceExistingArchive: true 
         verbose: true # Optional
         #quiet: # Optional
