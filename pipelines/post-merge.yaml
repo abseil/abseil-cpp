@@ -25,3 +25,23 @@ stages:
     - script: |
         bazel test --test_tag_filters=-benchmark ... 
       displayName: 'run all non-benchmark tests'
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: bazel-out/k8-fastbuild/bin/absl
+        #contents: '**' 
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+        #cleanTargetFolder: false # Optional
+        #overWrite: false # Optional
+        #flattenFolders: false # Optional
+        #preserveTimestamp: false # Optional
+    - task: UniversalPackages@0
+      displayName: Universal Publish
+      inputs:
+        command: publish
+        publishDirectory: '$(Build.ArtifactStagingDirectory)'
+        vstsFeedPublish: 'testfeed'
+        vstsFeedPackagePublish: 'my-first-package'
+        versionOption: minor
+        packagePublishDescription: 'Quick test'
+
+
