@@ -1,3 +1,13 @@
+# Pipeline health Summary
+
+| **Pipeline** | **Status** |
+|----------|-------|
+| Pre-merge| [![Build Status](https://dev.azure.com/minervapoc/minerva-poc-github/_apis/build/status/pre-merge?branchName=master)](https://dev.azure.com/minervapoc/minerva-poc-github/_build/latest?definitionId=8&branchName=master) | 
+| Post-merge| [![Build Status](https://dev.azure.com/minervapoc/minerva-poc-github/_apis/build/status/post-merge?branchName=master)](https://dev.azure.com/minervapoc/minerva-poc-github/_build/latest?definitionId=10&branchName=master) | 
+| Remote-cache | [![Build Status](https://dev.azure.com/minervapoc/minerva-poc-github/_apis/build/status/remote-cache?branchName=master)](https://dev.azure.com/minervapoc/minerva-poc-github/_build/latest?definitionId=13&branchName=master) | 
+| Scheduled-container-build | [![Build Status](https://dev.azure.com/minervapoc/minerva-poc-github/_apis/build/status/scheduled-container-build?branchName=master)](https://dev.azure.com/minervapoc/minerva-poc-github/_build/latest?definitionId=9&branchName=master) | 
+|key-vault|[![Build Status](https://dev.azure.com/minervapoc/minerva-poc-github/_apis/build/status/keyvault-pipeline?branchName=master)](https://dev.azure.com/minervapoc/minerva-poc-github/_build/latest?definitionId=14&branchName=master)|
+
 # Abseil - C++ Common Libraries
 
 The repository contains the Abseil C++ library code. Abseil is an open-source
