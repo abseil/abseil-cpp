@@ -27,7 +27,7 @@ stages:
       displayName: 'run all non-benchmark tests'
     - task: CopyFiles@2
       inputs:
-        sourceFolder: bazel-out/k8-fastbuild/bin/absl
+        sourceFolder: 'bazel-out/k8-fastbuild/bin/absl'
         #contents: '**' 
         targetFolder: '$(Build.ArtifactStagingDirectory)'
         #cleanTargetFolder: false # Optional
@@ -39,7 +39,7 @@ stages:
       inputs:
         command: publish
         publishDirectory: '$(Build.ArtifactStagingDirectory)'
-        vstsFeedPublish: 'testfeed'
+        vstsFeedPublish: '2d024d44-d000-4beb-98ea-3d221ece6810'
         vstsFeedPackagePublish: 'my-first-package'
         versionOption: minor
         packagePublishDescription: 'Quick test'
