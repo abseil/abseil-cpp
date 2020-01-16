@@ -52,9 +52,9 @@ stages:
       inputs:
         command: publish
         publishDirectory: '$(Build.ArtifactStagingDirectory)'
-        vstsFeedPublish: 'minerva-poc-github/testfeed'
-        vstsFeedPackagePublish: 'my-first-package'
-        versionOption: minor
-        packagePublishDescription: 'Quick test'
+        vstsFeedPublish: 'minerva-poc-github/binaries'
+        vstsFeedPackagePublish: 'abseil'
+        versionOption: patch
+        packagePublishDescription: 'Binary Abseil built from run number $(Build.BuildNumber) from Build $(Build.DefinitionName), triggered by $(Build.Reason) from repo $(Build.Repository.Name)'
 
 
