@@ -1,5 +1,3 @@
-[[_TOC_]] 
-
 # Pipeline health Summary
 
 | **Pipeline** | **Status** |
