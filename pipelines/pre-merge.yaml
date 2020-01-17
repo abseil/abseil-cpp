@@ -22,3 +22,24 @@ stages:
     - script: |
         bazel build ...
       displayName: 'bazel build' 
+  # Archive files
+  # Compress files into .7z, .tar.gz, or .zip
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: 'bazel-out/k8-fastbuild/bin/absl' 
+        #includeRootFolder: true 
+        archiveType: 'tar' # Options: zip, 7z, tar, wim
+        tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).tar.gz' 
+        replaceExistingArchive: true 
+        verbose: true # Optional
+## Now upload to Azure Artifacts under the binaries Stream
+    - task: UniversalPackages@0
+      displayName:  Publish Artifacts
+      inputs:
+        command: publish
+        publishDirectory: '$(Build.ArtifactStagingDirectory)'
+        vstsFeedPublish: 'minerva-poc-github/binaries'
+        vstsFeedPackagePublish: 'abseil'
+        versionOption: patch
+        packagePublishDescription: 'Binary Abseil built from run number $(Build.BuildNumber) from Build $(Build.DefinitionName), triggered by $(Build.Reason) from repo $(Build.Repository.Name)'
