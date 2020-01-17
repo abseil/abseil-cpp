@@ -38,7 +38,7 @@ absl_cc_library(
     "internal/charconv_bigint.h"
     "internal/charconv_parse.cc"
     "internal/charconv_parse.h"
-    "internal/escaping.cc"
+    "internal/escaping_helpers.cc"
     "internal/escaping.h"
     "internal/memutil.cc"
     "internal/memutil.h"
