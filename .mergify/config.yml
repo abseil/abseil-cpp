@@ -2,9 +2,9 @@
 pull_request_rules: 
   - name: automatic merge when CI passes and 1+ approved reviews
     conditions: 
-    - "#approved-reviews-by>=1"
-    - status-success=pre-merge
-    - base=master 
+      - "#approved-reviews-by>=1"
+      - status-success=pre-merge
+      - base=master 
     actions: 
       merge: 
         method: merge 
