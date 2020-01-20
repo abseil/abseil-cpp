@@ -22,8 +22,16 @@ stages:
     - script: |
         bazel build ...
       displayName: 'bazel build' 
-  # Archive files
-  # Compress files into .7z, .tar.gz, or .zip
+
+    # Record build information in files to be packaged
+    - script: '
+        echo Binary Abseil built from run number $(Build.BuildNumber)
+        from Build $(Build.DefinitionName), triggered by $(Build.Reason)
+        from repo $(Build.Repository.Name) 
+        >bazel-out/k8-fastbuild/bin/absl/version.txt'
+      displayName: 'record abseil build version'
+
+    # Compress files into .7z, .tar.gz, or .zip
     - task: ArchiveFiles@2
       inputs:
         rootFolderOrFile: 'bazel-out/k8-fastbuild/bin/absl' 
@@ -33,7 +41,8 @@ stages:
         archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).tar.gz' 
         replaceExistingArchive: true 
         verbose: true # Optional
-## Now upload to Azure Artifacts under the binaries Stream
+
+    # Now upload to Azure Artifacts under the binaries Stream
     - task: UniversalPackages@0
       displayName:  Publish Artifacts
       inputs:
@@ -42,4 +51,7 @@ stages:
         vstsFeedPublish: 'minerva-poc-github/binaries'
         vstsFeedPackagePublish: 'abseil'
         versionOption: patch
-        packagePublishDescription: 'Binary Abseil built from run number $(Build.BuildNumber) from Build $(Build.DefinitionName), triggered by $(Build.Reason) from repo $(Build.Repository.Name)'
+        packagePublishDescription: >
+          Binary Abseil built from run number $(Build.BuildNumber)
+          from Build $(Build.DefinitionName), triggered by $(Build.Reason)
+          from repo $(Build.Repository.Name)

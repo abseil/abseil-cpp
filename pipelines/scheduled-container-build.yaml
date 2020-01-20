@@ -22,11 +22,11 @@ steps:
 - task: DownloadPackage@1
   inputs:
     packageType: 'upack'
-    feed: 'minervapoc'
-    definition: 'hello'
+    feed: 'minerva-poc-github/binaries'
+    definition: 'abseil'
     version: '*'
     files: '**'
-    extract: true
+    extract: false
     downloadPath: '$(System.ArtifactsDirectory)' 
 
 - task: Docker@2
@@ -39,7 +39,7 @@ steps:
   displayName: buildAndPush
   inputs:
     containerRegistry: minervapocRegistryServiceConnection1
-    repository: 'hello'
+    repository: 'abseil'
     command: 'buildAndPush'
     Dockerfile: 'containers/independent/Dockerfile'
     buildContext: '$(System.ArtifactsDirectory)'
