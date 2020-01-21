@@ -76,7 +76,12 @@ static int GetNumCPUs() {
 #if defined(_WIN32)
 
 static double GetNominalCPUFrequency() {
-#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_APP)
+// UWP apps don't have access to the registry and currently don't provide an
+// API informing about CPU nominal frequency.
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
+    !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+  return 1.0;
+#else
 #pragma comment(lib, "advapi32.lib")  // For Reg* functions.
   HKEY key;
   // Use the Reg* functions rather than the SH functions because shlwapi.dll
@@ -95,8 +100,9 @@ static double GetNominalCPUFrequency() {
       return data * 1e6;  // Value is MHz.
     }
   }
-#endif
   return 1.0;
+#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
+          !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
 }
 
 #elif defined(CTL_HW) && defined(HW_CPU_FREQ)
