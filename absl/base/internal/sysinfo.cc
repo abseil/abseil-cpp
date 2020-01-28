@@ -101,8 +101,7 @@ static double GetNominalCPUFrequency() {
     }
   }
   return 1.0;
-#endif /* WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
-          !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) */
+#endif // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
 }
 
 #elif defined(CTL_HW) && defined(HW_CPU_FREQ)
