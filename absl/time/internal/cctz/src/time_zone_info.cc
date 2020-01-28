@@ -641,9 +641,9 @@ std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
   if (fp == nullptr) return nullptr;
   std::size_t length = 0;
   if (fseek(fp, 0, SEEK_END) == 0) {
-    long pos = ftell(fp);
-    if (pos >= 0) {
-      length = static_cast<std::size_t>(pos);
+    long offset = ftell(fp);
+    if (offset >= 0) {
+      length = static_cast<std::size_t>(offset);
     }
     rewind(fp);
   }

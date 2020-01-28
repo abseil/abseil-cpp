@@ -22,9 +22,11 @@
 #include <string>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
 // This is similar to LOG(severity) << format..., but
@@ -168,7 +170,8 @@ using InternalLogFunction = void (*)(absl::LogSeverity severity,
                                      const char* file, int line,
                                      const std::string& message);
 
-extern base_internal::AtomicHook<InternalLogFunction> internal_log_function;
+ABSL_DLL extern base_internal::AtomicHook<InternalLogFunction>
+    internal_log_function;
 
 void RegisterInternalLogFunction(InternalLogFunction func);
 

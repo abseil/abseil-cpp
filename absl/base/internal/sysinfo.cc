@@ -58,10 +58,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
-static once_flag init_system_info_once;
-static int num_cpus = 0;
-static double nominal_cpu_frequency = 1.0;  // 0.0 might be dangerous.
-
 static int GetNumCPUs() {
 #if defined(__myriad2__)
   return 1;
@@ -265,21 +261,27 @@ static double GetNominalCPUFrequency() {
 
 #endif
 
-// InitializeSystemInfo() may be called before main() and before
-// malloc is properly initialized, therefore this must not allocate
-// memory.
-static void InitializeSystemInfo() {
-  num_cpus = GetNumCPUs();
-  nominal_cpu_frequency = GetNominalCPUFrequency();
-}
+ABSL_CONST_INIT static once_flag init_num_cpus_once;
+ABSL_CONST_INIT static int num_cpus = 0;
 
+// NumCPUs() may be called before main() and before malloc is properly
+// initialized, therefore this must not allocate memory.
 int NumCPUs() {
-  base_internal::LowLevelCallOnce(&init_system_info_once, InitializeSystemInfo);
+  base_internal::LowLevelCallOnce(
+      &init_num_cpus_once, []() { num_cpus = GetNumCPUs(); });
   return num_cpus;
 }
 
+// A default frequency of 0.0 might be dangerous if it is used in division.
+ABSL_CONST_INIT static once_flag init_nominal_cpu_frequency_once;
+ABSL_CONST_INIT static double nominal_cpu_frequency = 1.0;
+
+// NominalCPUFrequency() may be called before main() and before malloc is
+// properly initialized, therefore this must not allocate memory.
 double NominalCPUFrequency() {
-  base_internal::LowLevelCallOnce(&init_system_info_once, InitializeSystemInfo);
+  base_internal::LowLevelCallOnce(
+      &init_nominal_cpu_frequency_once,
+      []() { nominal_cpu_frequency = GetNominalCPUFrequency(); });
   return nominal_cpu_frequency;
 }
 

@@ -36,6 +36,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/bits.h"
 #ifdef __SSE4_2__
 // TODO(jorg): Remove this when we figure out the right way
@@ -106,9 +107,11 @@ ABSL_NAMESPACE_BEGIN
 namespace numbers_internal {
 
 // Digit conversion.
-extern const char kHexChar[17];    // 0123456789abcdef
-extern const char kHexTable[513];  // 000102030405060708090a0b0c0d0e0f1011...
-extern const char two_ASCII_digits[100][2];  // 00, 01, 02, 03...
+ABSL_DLL extern const char kHexChar[17];  // 0123456789abcdef
+ABSL_DLL extern const char
+    kHexTable[513];  // 000102030405060708090a0b0c0d0e0f1011...
+ABSL_DLL extern const char
+    two_ASCII_digits[100][2];  // 00, 01, 02, 03...
 
 // Writes a two-character representation of 'i' to 'buf'. 'i' must be in the
 // range 0 <= i < 100, and buf must have space for two characters. Example:

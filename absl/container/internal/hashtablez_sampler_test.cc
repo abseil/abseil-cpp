@@ -169,7 +169,7 @@ TEST(HashtablezInfoTest, RecordRehash) {
   EXPECT_EQ(info.num_erases.load(), 0);
 }
 
-#if ABSL_PER_THREAD_TLS == 1
+#if defined(ABSL_HASHTABLEZ_SAMPLE)
 TEST(HashtablezSamplerTest, SmallSampleParameter) {
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(100);

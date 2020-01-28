@@ -122,8 +122,8 @@ class FormatSpecTemplate
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
   template <Conv... C, typename = typename std::enable_if<
-                           sizeof...(C) == sizeof...(Args) &&
-                           AllOf(Contains(ArgumentToConv<Args>(),
+                           AllOf(sizeof...(C) == sizeof...(Args),
+                             Contains(ArgumentToConv<Args>(),
                                           C)...)>::type>
   FormatSpecTemplate(const ExtendedParsedFormat<C...>& pc)  // NOLINT
       : Base(&pc) {}

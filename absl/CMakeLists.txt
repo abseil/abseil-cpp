@@ -14,8 +14,6 @@
 # limitations under the License.
 #
 
-
-
 add_subdirectory(base)
 add_subdirectory(algorithm)
 add_subdirectory(container)
@@ -31,3 +29,7 @@ add_subdirectory(synchronization)
 add_subdirectory(time)
 add_subdirectory(types)
 add_subdirectory(utility)
+
+if (${ABSL_BUILD_DLL})
+  absl_make_dll()
+endif()

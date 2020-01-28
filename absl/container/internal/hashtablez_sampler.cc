@@ -39,17 +39,16 @@ ABSL_CONST_INIT std::atomic<bool> g_hashtablez_enabled{
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_sample_parameter{1 << 10};
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_max_samples{1 << 20};
 
-#if ABSL_PER_THREAD_TLS == 1
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 ABSL_PER_THREAD_TLS_KEYWORD absl::base_internal::ExponentialBiased
     g_exponential_biased_generator;
 #endif
 
 }  // namespace
 
-#if ABSL_PER_THREAD_TLS == 1
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample = 0;
-#endif  // ABSL_PER_THREAD_TLS == 1
-
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 HashtablezSampler& HashtablezSampler::Global() {
   static auto* sampler = new HashtablezSampler();
@@ -192,7 +191,7 @@ HashtablezInfo* SampleSlow(int64_t* next_sample) {
     return HashtablezSampler::Global().Register();
   }
 
-#if ABSL_PER_THREAD_TLS == 0
+#if !defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
   *next_sample = std::numeric_limits<int64_t>::max();
   return nullptr;
 #else

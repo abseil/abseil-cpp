@@ -17,10 +17,12 @@
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_EXTENSION_H_
 
 #include <limits.h>
+
 #include <cstddef>
 #include <cstring>
 #include <ostream>
 
+#include "absl/base/config.h"
 #include "absl/base/port.h"
 #include "absl/strings/internal/str_format/output.h"
 #include "absl/strings/string_view.h"
@@ -134,7 +136,7 @@ struct Flags {
   }
 };
 
-struct LengthMod {
+struct ABSL_DLL LengthMod {
  public:
   enum Id : uint8_t {
     h, hh, l, ll, L, j, z, t, q, none
@@ -196,7 +198,7 @@ struct LengthMod {
   X_VAL(n) X_SEP X_VAL(p)
 // clang-format on
 
-struct ConversionChar {
+struct ABSL_DLL ConversionChar {
  public:
   enum Id : uint8_t {
     c, C, s, S,              // text

@@ -32,6 +32,12 @@ cmake_policy(SET CMP0048 NEW)
 
 project(absl CXX)
 
+# Output directory is correct by default for most build setups. However, when
+# building Abseil as a DLL, it is important to have the DLL in the same
+# directory as the executable using it. Thus, we put all executables in a single
+# /bin directory.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 # when absl is included as subproject (i.e. using add_subdirectory(abseil-cpp))
 # in the source tree of a project that uses it, install rules are disabled.
 if(NOT "^${CMAKE_SOURCE_DIR}$" STREQUAL "^${PROJECT_SOURCE_DIR}$")
@@ -47,6 +53,7 @@ list(APPEND CMAKE_MODULE_PATH
 
 include(AbseilInstallDirs)
 include(CMakePackageConfigHelpers)
+include(AbseilDll)
 include(AbseilHelpers)
 
 

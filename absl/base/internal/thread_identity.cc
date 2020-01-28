@@ -113,6 +113,18 @@ void SetCurrentThreadIdentity(
 #endif
 }
 
+#if ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_TLS || \
+    ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_CPP11
+
+// Please see the comment on `CurrentThreadIdentityIfPresent` in
+// thread_identity.h. Because DLLs cannot expose thread_local variables in
+// headers, we opt for the correct-but-slower option of placing the definition
+// of this function only in a translation unit inside DLL.
+#if defined(ABSL_BUILD_DLL) || defined(ABSL_CONSUME_DLL)
+ThreadIdentity* CurrentThreadIdentityIfPresent() { return thread_identity_ptr; }
+#endif
+#endif
+
 void ClearCurrentThreadIdentity() {
 #if ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_TLS || \
     ABSL_THREAD_IDENTITY_MODE == ABSL_THREAD_IDENTITY_MODE_USE_CPP11

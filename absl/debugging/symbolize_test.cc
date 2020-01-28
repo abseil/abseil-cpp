@@ -473,6 +473,7 @@ void ABSL_ATTRIBUTE_NOINLINE TestWithReturnAddress() {
 }
 
 #elif defined(_WIN32)
+#if !defined(ABSL_CONSUME_DLL)
 
 TEST(Symbolize, Basics) {
   EXPECT_STREQ("nonstatic_func", TrySymbolize((void *)(&nonstatic_func)));
@@ -511,6 +512,7 @@ TEST(Symbolize, SymbolizeWithDemangling) {
   EXPECT_TRUE(strstr(result, "Foo::func") != nullptr) << result;
 }
 
+#endif  // !defined(ABSL_CONSUME_DLL)
 #else  // Symbolizer unimplemented
 
 TEST(Symbolize, Unimplemented) {

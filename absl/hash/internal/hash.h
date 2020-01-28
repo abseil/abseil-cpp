@@ -708,7 +708,8 @@ struct is_hashable
     : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
 
 // CityHashState
-class CityHashState : public HashStateBase<CityHashState> {
+class ABSL_DLL CityHashState
+    : public HashStateBase<CityHashState> {
   // absl::uint128 is not an alias or a thin wrapper around the intrinsic.
   // We use the intrinsic when available to improve performance.
 #ifdef ABSL_HAVE_INTRINSIC_INT128

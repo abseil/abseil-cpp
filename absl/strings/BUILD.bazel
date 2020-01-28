@@ -37,7 +37,6 @@ cc_library(
         "internal/charconv_bigint.h",
         "internal/charconv_parse.cc",
         "internal/charconv_parse.h",
-        "internal/escaping.cc",
         "internal/memutil.cc",
         "internal/memutil.h",
         "internal/stl_type_traits.h",
@@ -55,7 +54,6 @@ cc_library(
         "ascii.h",
         "charconv.h",
         "escaping.h",
-        "internal/escaping.h",
         "match.h",
         "numbers.h",
         "str_cat.h",
@@ -85,11 +83,13 @@ cc_library(
 cc_library(
     name = "internal",
     srcs = [
+        "internal/escaping.cc",
         "internal/ostringstream.cc",
         "internal/utf8.cc",
     ],
     hdrs = [
         "internal/char_map.h",
+        "internal/escaping.h",
         "internal/ostringstream.h",
         "internal/resize_uninitialized.h",
         "internal/utf8.h",
@@ -99,6 +99,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:raw_logging_internal",
         "//absl/meta:type_traits",
     ],
 )

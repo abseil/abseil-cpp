@@ -66,7 +66,13 @@
 // NOTE: the defaults within this file all assume that Abseil can select the
 // proper Abseil implementation at compile-time, which will not be sufficient
 // to guarantee ABI stability to package managers.
-//
+
+// Include a standard library header to allow configuration based on the
+// standard library in use.
+#ifdef __cplusplus
+#include <ciso646>
+#endif
+
 // -----------------------------------------------------------------------------
 // Type Compatibility Options
 // -----------------------------------------------------------------------------
@@ -157,7 +163,6 @@
 // ABSL_USES_STD_STRING_VIEW.
 
 #define ABSL_OPTION_USE_STD_STRING_VIEW 2
-
 
 // ABSL_OPTION_USE_STD_VARIANT
 //

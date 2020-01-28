@@ -2345,6 +2345,65 @@ TEST(Btree, EraseIf) {
   }
 }
 
+TEST(Btree, InsertOrAssign) {
+  absl::btree_map<int, int> m = {{1, 1}, {3, 3}};
+  using value_type = typename decltype(m)::value_type;
+
+  auto ret = m.insert_or_assign(4, 4);
+  EXPECT_EQ(*ret.first, value_type(4, 4));
+  EXPECT_TRUE(ret.second);
+  ret = m.insert_or_assign(3, 100);
+  EXPECT_EQ(*ret.first, value_type(3, 100));
+  EXPECT_FALSE(ret.second);
+
+  auto hint_ret = m.insert_or_assign(ret.first, 3, 200);
+  EXPECT_EQ(*hint_ret, value_type(3, 200));
+  hint_ret = m.insert_or_assign(m.find(1), 0, 1);
+  EXPECT_EQ(*hint_ret, value_type(0, 1));
+  // Test with bad hint.
+  hint_ret = m.insert_or_assign(m.end(), -1, 1);
+  EXPECT_EQ(*hint_ret, value_type(-1, 1));
+
+  EXPECT_THAT(m, ElementsAre(Pair(-1, 1), Pair(0, 1), Pair(1, 1), Pair(3, 200),
+                             Pair(4, 4)));
+}
+
+TEST(Btree, InsertOrAssignMovableOnly) {
+  absl::btree_map<int, MovableOnlyInstance> m;
+  using value_type = typename decltype(m)::value_type;
+
+  auto ret = m.insert_or_assign(4, MovableOnlyInstance(4));
+  EXPECT_EQ(*ret.first, value_type(4, MovableOnlyInstance(4)));
+  EXPECT_TRUE(ret.second);
+  ret = m.insert_or_assign(4, MovableOnlyInstance(100));
+  EXPECT_EQ(*ret.first, value_type(4, MovableOnlyInstance(100)));
+  EXPECT_FALSE(ret.second);
+
+  auto hint_ret = m.insert_or_assign(ret.first, 3, MovableOnlyInstance(200));
+  EXPECT_EQ(*hint_ret, value_type(3, MovableOnlyInstance(200)));
+
+  EXPECT_EQ(m.size(), 2);
+}
+
+TEST(Btree, BitfieldArgument) {
+  union {
+    int n : 1;
+  };
+  n = 0;
+  absl::btree_map<int, int> m;
+  m.erase(n);
+  m.count(n);
+  m.find(n);
+  m.contains(n);
+  m.equal_range(n);
+  m.insert_or_assign(n, n);
+  m.insert_or_assign(m.end(), n, n);
+  m.try_emplace(n);
+  m.try_emplace(m.end(), n);
+  m.at(n);
+  m[n];
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

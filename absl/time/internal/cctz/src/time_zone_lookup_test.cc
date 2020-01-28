@@ -1028,16 +1028,17 @@ TEST(MakeTime, LocalTimeLibC) {
     ASSERT_EQ(0, setenv("TZ", *np, 1));  // change what "localtime" means
     const auto zi = local_time_zone();
     const auto lc = LoadZone("libc:localtime");
-    time_zone::civil_transition trans;
+    time_zone::civil_transition transition;
     for (auto tp = zi.lookup(civil_second()).trans;
-         zi.next_transition(tp, &trans); tp = zi.lookup(trans.to).trans) {
-      const auto fcl = zi.lookup(trans.from);
-      const auto tcl = zi.lookup(trans.to);
+         zi.next_transition(tp, &transition);
+         tp = zi.lookup(transition.to).trans) {
+      const auto fcl = zi.lookup(transition.from);
+      const auto tcl = zi.lookup(transition.to);
       civil_second cs;  // compare cs in zi and lc
       if (fcl.kind == time_zone::civil_lookup::UNIQUE) {
         if (tcl.kind == time_zone::civil_lookup::UNIQUE) {
           // Both unique; must be an is_dst or abbr change.
-          ASSERT_EQ(trans.from, trans.to);
+          ASSERT_EQ(transition.from, transition.to);
           const auto trans = fcl.trans;
           const auto tal = zi.lookup(trans);
           const auto tprev = trans - absl::time_internal::cctz::seconds(1);
@@ -1048,11 +1049,11 @@ TEST(MakeTime, LocalTimeLibC) {
           continue;
         }
         ASSERT_EQ(time_zone::civil_lookup::REPEATED, tcl.kind);
-        cs = trans.to;
+        cs = transition.to;
       } else {
         ASSERT_EQ(time_zone::civil_lookup::UNIQUE, tcl.kind);
         ASSERT_EQ(time_zone::civil_lookup::SKIPPED, fcl.kind);
-        cs = trans.from;
+        cs = transition.from;
       }
       if (cs.year() > 2037) break;  // limit test time (and to 32-bit time_t)
       const auto cl_zi = zi.lookup(cs);

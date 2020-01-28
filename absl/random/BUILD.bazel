@@ -67,6 +67,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:base_internal",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
         "//absl/random/internal:distributions",
@@ -183,6 +184,7 @@ cc_test(
     timeout = "eternal",  # Android can take a very long time
     srcs = ["beta_distribution_test.cc"],
     copts = ABSL_TEST_COPTS,
+    flaky = 1,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distributions",

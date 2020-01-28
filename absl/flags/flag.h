@@ -186,25 +186,29 @@ class Flag {
 //
 //   // FLAGS_firstname is a Flag of type `std::string`
 //   std::string first_name = absl::GetFlag(FLAGS_firstname);
+#ifndef NDEBUG
+// We want to validate the type mismatch between type definition and
+// declaration. The lock-free implementation does not allow us to do it,
+// so in debug builds we always use the slower implementation, which always
+// validates the type.
+template <typename T>
+ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
+  return flag.Get();
+}
+// We currently need an external linkage for built-in types because shared
+// libraries have different addresses of flags_internal::FlagOps<T> which
+// might cause log spam when checking the same flag type.
+#define ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT(T) \
+  ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag);
+ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT)
+#undef ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT
+#else
 template <typename T,
           typename std::enable_if<
               !flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
 ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
   return flag.Get();
 }
-
-// We want to validate the type mismatch between type definition and
-// declaration. The lock-free implementation does not allow us to do it,
-// so in debug builds we always use the slower implementation, which always
-// validates the type.
-#ifndef NDEBUG
-template <typename T,
-          typename std::enable_if<
-              flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
-ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
-  return flag.Get();
-}
-#else
 // Overload for `GetFlag()` for types that support lock-free reads.
 template <typename T,
           typename std::enable_if<

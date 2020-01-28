@@ -900,9 +900,10 @@ inline bool safe_uint_internal(absl::string_view text, IntType* value_p,
 namespace numbers_internal {
 
 // Digit conversion.
-ABSL_CONST_INIT const char kHexChar[] = "0123456789abcdef";
+ABSL_CONST_INIT ABSL_DLL const char kHexChar[] =
+    "0123456789abcdef";
 
-ABSL_CONST_INIT const char kHexTable[513] =
+ABSL_CONST_INIT ABSL_DLL const char kHexTable[513] =
     "000102030405060708090a0b0c0d0e0f"
     "101112131415161718191a1b1c1d1e1f"
     "202122232425262728292a2b2c2d2e2f"
@@ -920,7 +921,7 @@ ABSL_CONST_INIT const char kHexTable[513] =
     "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
     "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
-ABSL_CONST_INIT const char two_ASCII_digits[100][2] = {
+ABSL_CONST_INIT ABSL_DLL const char two_ASCII_digits[100][2] = {
     {'0', '0'}, {'0', '1'}, {'0', '2'}, {'0', '3'}, {'0', '4'}, {'0', '5'},
     {'0', '6'}, {'0', '7'}, {'0', '8'}, {'0', '9'}, {'1', '0'}, {'1', '1'},
     {'1', '2'}, {'1', '3'}, {'1', '4'}, {'1', '5'}, {'1', '6'}, {'1', '7'},

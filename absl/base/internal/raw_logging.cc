@@ -225,8 +225,9 @@ bool RawLoggingFullySupported() {
 #endif  // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
 }
 
-ABSL_CONST_INIT absl::base_internal::AtomicHook<InternalLogFunction>
-    internal_log_function(DefaultInternalLog);
+ABSL_CONST_INIT ABSL_DLL
+    absl::base_internal::AtomicHook<InternalLogFunction>
+        internal_log_function(DefaultInternalLog);
 
 void RegisterInternalLogFunction(InternalLogFunction func) {
   internal_log_function.Store(func);

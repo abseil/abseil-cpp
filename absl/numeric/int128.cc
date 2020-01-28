@@ -25,8 +25,8 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-const uint128 kuint128max = MakeUint128(std::numeric_limits<uint64_t>::max(),
-                                        std::numeric_limits<uint64_t>::max());
+ABSL_DLL const uint128 kuint128max = MakeUint128(
+    std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
 
 namespace {
 

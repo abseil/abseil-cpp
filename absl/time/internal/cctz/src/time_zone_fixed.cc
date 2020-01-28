@@ -89,29 +89,29 @@ std::string FixedOffsetToName(const seconds& offset) {
     // offsets and to (somewhat) limit the total number of zones.
     return "UTC";
   }
-  int seconds = static_cast<int>(offset.count());
-  const char sign = (seconds < 0 ? '-' : '+');
-  int minutes = seconds / 60;
-  seconds %= 60;
+  int offset_seconds = static_cast<int>(offset.count());
+  const char sign = (offset_seconds < 0 ? '-' : '+');
+  int offset_minutes = offset_seconds / 60;
+  offset_seconds %= 60;
   if (sign == '-') {
-    if (seconds > 0) {
-      seconds -= 60;
-      minutes += 1;
+    if (offset_seconds > 0) {
+      offset_seconds -= 60;
+      offset_minutes += 1;
     }
-    seconds = -seconds;
-    minutes = -minutes;
+    offset_seconds = -offset_seconds;
+    offset_minutes = -offset_minutes;
   }
-  int hours = minutes / 60;
-  minutes %= 60;
+  int offset_hours = offset_minutes / 60;
+  offset_minutes %= 60;
   const std::size_t prefix_len = sizeof(kFixedZonePrefix) - 1;
   char buf[prefix_len + sizeof("-24:00:00")];
   char* ep = std::copy(kFixedZonePrefix, kFixedZonePrefix + prefix_len, buf);
   *ep++ = sign;
-  ep = Format02d(ep, hours);
+  ep = Format02d(ep, offset_hours);
   *ep++ = ':';
-  ep = Format02d(ep, minutes);
+  ep = Format02d(ep, offset_minutes);
   *ep++ = ':';
-  ep = Format02d(ep, seconds);
+  ep = Format02d(ep, offset_seconds);
   *ep++ = '\0';
   assert(ep == buf + sizeof(buf));
   return buf;

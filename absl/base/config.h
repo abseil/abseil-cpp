@@ -643,4 +643,23 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 #undef ABSL_INTERNAL_HAS_KEYWORD
 
+// ABSL_DLL
+//
+// When building Abseil as a DLL, this macro expands to `__declspec(dllexport)`
+// so we can annotate symbols appropriately as being exported. When used in
+// headers consuming a DLL, this macro expands to `__declspec(dllimport)` so
+// that consumers know the symbol is defined inside the DLL. In all other cases,
+// the macro expands to nothing.
+#if defined(_MSC_VER)
+#if defined(ABSL_BUILD_DLL)
+#define ABSL_DLL __declspec(dllexport)
+#elif defined(ABSL_CONSUME_DLL)
+#define ABSL_DLL __declspec(dllimport)
+#else
+#define ABSL_DLL
+#endif
+#else
+#define ABSL_DLL
+#endif  // defined(_MSC_VER)
+
 #endif  // ABSL_BASE_CONFIG_H_

@@ -1252,9 +1252,9 @@ TEST(Parse, ExtendedSubecondsScan) {
         const auto expected = chrono::system_clock::from_time_t(0) +
                               chrono::nanoseconds(micros * 1000 + ns);
         for (int ps = 0; ps < 1000; ps += 250) {
-          std::ostringstream oss;
+          std::ostringstream ps_oss;
           oss << std::setfill('0') << std::setw(3) << ps;
-          const std::string input = nanos + oss.str() + "999";
+          const std::string input = nanos + ps_oss.str() + "999";
           EXPECT_TRUE(parse("%E*f", input, tz, &tp));
           EXPECT_EQ(expected + chrono::nanoseconds(ps) / 1000, tp) << input;
         }

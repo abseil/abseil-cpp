@@ -183,6 +183,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::base_internal
+    absl::config
     absl::core_headers
     absl::random_internal_generate_real
     absl::random_internal_distributions

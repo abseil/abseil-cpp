@@ -563,7 +563,19 @@
 
 // ABSL_ATTRIBUTE_PACKED
 //
-// Prevents the compiler from padding a structure to natural alignment
+// Instructs the compiler not to use natural alignment for a tagged data
+// structure, but instead to reduce its alignment to 1. This attribute can
+// either be applied to members of a structure or to a structure in its
+// entirety. Applying this attribute (judiciously) to a structure in its
+// entirety to optimize the memory footprint of very commonly-used structs is
+// fine. Do not apply this attribute to a structure in its entirety if the
+// purpose is to control the offsets of the members in the structure. Instead,
+// apply this attribute only to structure members that need it.
+//
+// When applying ABSL_ATTRIBUTE_PACKED only to specific structure members the
+// natural alignment of structure members not annotated is preserved. Aligned
+// member accesses are faster than non-aligned member accesses even if the
+// targeted microprosessor supports non-aligned accesses.
 #if ABSL_HAVE_ATTRIBUTE(packed) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_PACKED __attribute__((__packed__))
 #else

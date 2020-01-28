@@ -38,8 +38,6 @@ absl_cc_library(
     "internal/charconv_bigint.h"
     "internal/charconv_parse.cc"
     "internal/charconv_parse.h"
-    "internal/escaping.cc"
-    "internal/escaping.h"
     "internal/memutil.cc"
     "internal/memutil.h"
     "internal/stl_type_traits.h"
@@ -74,6 +72,8 @@ absl_cc_library(
     strings_internal
   HDRS
     "internal/char_map.h"
+    "internal/escaping.cc"
+    "internal/escaping.h"
     "internal/ostringstream.h"
     "internal/resize_uninitialized.h"
     "internal/utf8.h"
@@ -86,6 +86,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::endian
+    absl::raw_logging_internal
     absl::type_traits
 )
 

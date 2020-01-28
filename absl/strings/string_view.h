@@ -28,7 +28,19 @@
 #define ABSL_STRINGS_STRING_VIEW_H_
 
 #include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+#include <iosfwd>
+#include <iterator>
+#include <limits>
+#include <string>
+
 #include "absl/base/config.h"
+#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/macros.h"
+#include "absl/base/optimization.h"
+#include "absl/base/port.h"
 
 #ifdef ABSL_USES_STD_STRING_VIEW
 
@@ -48,19 +60,6 @@ ABSL_NAMESPACE_END
 #else  // ABSL_HAVE_BUILTIN(__builtin_memcmp)
 #define ABSL_INTERNAL_STRING_VIEW_MEMCMP memcmp
 #endif  // ABSL_HAVE_BUILTIN(__builtin_memcmp)
-
-#include <cassert>
-#include <cstddef>
-#include <cstring>
-#include <iosfwd>
-#include <iterator>
-#include <limits>
-#include <string>
-
-#include "absl/base/internal/throw_delegate.h"
-#include "absl/base/macros.h"
-#include "absl/base/optimization.h"
-#include "absl/base/port.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
