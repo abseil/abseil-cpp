@@ -180,9 +180,7 @@ class base_checker {
   const_iterator find(const key_type &key) const {
     return iter_check(tree_.find(key), checker_.find(key));
   }
-  bool contains(const key_type &key) const {
-    return find(key) != end();
-  }
+  bool contains(const key_type &key) const { return find(key) != end(); }
   size_type count(const key_type &key) const {
     size_type res = checker_.count(key);
     EXPECT_EQ(res, tree_.count(key));
@@ -240,8 +238,10 @@ class base_checker {
         ++checker_end;
       }
     }
-    checker_.erase(checker_begin, checker_end);
-    tree_.erase(begin, end);
+    const auto checker_ret = checker_.erase(checker_begin, checker_end);
+    const auto tree_ret = tree_.erase(begin, end);
+    EXPECT_EQ(std::distance(checker_.begin(), checker_ret),
+              std::distance(tree_.begin(), tree_ret));
     EXPECT_EQ(tree_.size(), checker_.size());
     EXPECT_EQ(tree_.size(), size - count);
   }
@@ -326,7 +326,7 @@ class unique_checker : public base_checker<TreeType, CheckerType> {
   unique_checker(const unique_checker &x) : super_type(x) {}
   template <class InputIterator>
   unique_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
-  unique_checker& operator=(const unique_checker&) = default;
+  unique_checker &operator=(const unique_checker &) = default;
 
   // Insertion routines.
   std::pair<iterator, bool> insert(const value_type &x) {
@@ -374,7 +374,7 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
   multi_checker(const multi_checker &x) : super_type(x) {}
   template <class InputIterator>
   multi_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
-  multi_checker& operator=(const multi_checker&) = default;
+  multi_checker &operator=(const multi_checker &) = default;
 
   // Insertion routines.
   iterator insert(const value_type &x) {
@@ -868,7 +868,7 @@ struct CompareIntToString {
 
 struct NonTransparentCompare {
   template <typename T, typename U>
-  bool operator()(const T& t, const U& u) const {
+  bool operator()(const T &t, const U &u) const {
     // Treating all comparators as transparent can cause inefficiencies (see
     // N3657 C++ proposal). Test that for comparators without 'is_transparent'
     // alias (like this one), we do not attempt heterogeneous lookup.
@@ -1005,21 +1005,15 @@ class StringLike {
  public:
   StringLike() = default;
 
-  StringLike(const char* s) : s_(s) {  // NOLINT
+  StringLike(const char *s) : s_(s) {  // NOLINT
     ++constructor_calls_;
   }
 
-  bool operator<(const StringLike& a) const {
-    return s_ < a.s_;
-  }
+  bool operator<(const StringLike &a) const { return s_ < a.s_; }
 
-  static void clear_constructor_call_count() {
-    constructor_calls_ = 0;
-  }
+  static void clear_constructor_call_count() { constructor_calls_ = 0; }
 
-  static int constructor_calls() {
-    return constructor_calls_;
-  }
+  static int constructor_calls() { return constructor_calls_; }
 
  private:
   static int constructor_calls_;
@@ -1476,7 +1470,7 @@ struct NoDefaultCtor {
   int num;
   explicit NoDefaultCtor(int i) : num(i) {}
 
-  friend bool operator<(const NoDefaultCtor& a, const NoDefaultCtor& b) {
+  friend bool operator<(const NoDefaultCtor &a, const NoDefaultCtor &b) {
     return a.num < b.num;
   }
 };

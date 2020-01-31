@@ -282,7 +282,9 @@ class string_view {
   //
   // Returns the ith element of the `string_view` using the array operator.
   // Note that this operator does not perform any bounds checking.
-  constexpr const_reference operator[](size_type i) const { return ptr_[i]; }
+  constexpr const_reference operator[](size_type i) const {
+    return ABSL_ASSERT(i < size()), ptr_[i];
+  }
 
   // string_view::at()
   //
@@ -300,12 +302,16 @@ class string_view {
   // string_view::front()
   //
   // Returns the first element of a `string_view`.
-  constexpr const_reference front() const { return ptr_[0]; }
+  constexpr const_reference front() const {
+    return ABSL_ASSERT(!empty()), ptr_[0];
+  }
 
   // string_view::back()
   //
   // Returns the last element of a `string_view`.
-  constexpr const_reference back() const { return ptr_[size() - 1]; }
+  constexpr const_reference back() const {
+    return ABSL_ASSERT(!empty()), ptr_[size() - 1];
+  }
 
   // string_view::data()
   //

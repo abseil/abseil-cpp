@@ -882,18 +882,14 @@ struct btree_iterator {
   }
 
   // Accessors for the key/value the iterator is pointing at.
-  reference operator*() const {
-    return node->value(position);
-  }
-  pointer operator->() const {
-    return &node->value(position);
-  }
+  reference operator*() const { return node->value(position); }
+  pointer operator->() const { return &node->value(position); }
 
-  btree_iterator& operator++() {
+  btree_iterator &operator++() {
     increment();
     return *this;
   }
-  btree_iterator& operator--() {
+  btree_iterator &operator--() {
     decrement();
     return *this;
   }
@@ -961,7 +957,7 @@ class btree {
 
   static node_type *EmptyNode() {
 #ifdef _MSC_VER
-    static EmptyNodeType* empty_node = new EmptyNodeType;
+    static EmptyNodeType *empty_node = new EmptyNodeType;
     // This assert fails on some other construction methods.
     assert(empty_node->parent == empty_node);
     return empty_node;
@@ -980,12 +976,9 @@ class btree {
   struct node_stats {
     using size_type = typename Params::size_type;
 
-    node_stats(size_type l, size_type i)
-        : leaf_nodes(l),
-          internal_nodes(i) {
-    }
+    node_stats(size_type l, size_type i) : leaf_nodes(l), internal_nodes(i) {}
 
-    node_stats& operator+=(const node_stats &x) {
+    node_stats &operator+=(const node_stats &x) {
       leaf_nodes += x.leaf_nodes;
       internal_nodes += x.internal_nodes;
       return *this;
@@ -1054,25 +1047,17 @@ class btree {
   btree &operator=(const btree &x);
   btree &operator=(btree &&x) noexcept;
 
-  iterator begin() {
-    return iterator(leftmost(), 0);
-  }
-  const_iterator begin() const {
-    return const_iterator(leftmost(), 0);
-  }
+  iterator begin() { return iterator(leftmost(), 0); }
+  const_iterator begin() const { return const_iterator(leftmost(), 0); }
   iterator end() { return iterator(rightmost_, rightmost_->count()); }
   const_iterator end() const {
     return const_iterator(rightmost_, rightmost_->count());
   }
-  reverse_iterator rbegin() {
-    return reverse_iterator(end());
-  }
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
   const_reverse_iterator rbegin() const {
     return const_reverse_iterator(end());
   }
-  reverse_iterator rend() {
-    return reverse_iterator(begin());
-  }
+  reverse_iterator rend() { return reverse_iterator(begin()); }
   const_reverse_iterator rend() const {
     return const_reverse_iterator(begin());
   }
@@ -1160,7 +1145,7 @@ class btree {
 
   // Erases range. Returns the number of keys erased and an iterator pointing
   // to the element after the last erased element.
-  std::pair<size_type, iterator> erase(iterator begin, iterator end);
+  std::pair<size_type, iterator> erase_range(iterator begin, iterator end);
 
   // Erases the specified key from the btree. Returns 1 if an element was
   // erased and 0 otherwise.
@@ -1242,9 +1227,7 @@ class btree {
   }
 
   // The number of internal, leaf and total nodes used by the btree.
-  size_type leaf_nodes() const {
-    return internal_stats(root()).leaf_nodes;
-  }
+  size_type leaf_nodes() const { return internal_stats(root()).leaf_nodes; }
   size_type internal_nodes() const {
     return internal_stats(root()).internal_nodes;
   }
@@ -1257,11 +1240,9 @@ class btree {
   size_type bytes_used() const {
     node_stats stats = internal_stats(root());
     if (stats.leaf_nodes == 1 && stats.internal_nodes == 0) {
-      return sizeof(*this) +
-             node_type::LeafSize(root()->max_count());
+      return sizeof(*this) + node_type::LeafSize(root()->max_count());
     } else {
-      return sizeof(*this) +
-             stats.leaf_nodes * node_type::LeafSize() +
+      return sizeof(*this) + stats.leaf_nodes * node_type::LeafSize() +
              stats.internal_nodes * node_type::InternalSize();
     }
   }
@@ -1294,9 +1275,7 @@ class btree {
   }
 
   // The allocator used by the btree.
-  allocator_type get_allocator() const {
-    return allocator();
-  }
+  allocator_type get_allocator() const { return allocator(); }
 
  private:
   // Internal accessor routines.
@@ -1326,11 +1305,11 @@ class btree {
   }
 
   // Node creation/deletion routines.
-  node_type* new_internal_node(node_type *parent) {
+  node_type *new_internal_node(node_type *parent) {
     node_type *p = allocate(node_type::InternalSize());
     return node_type::init_internal(p, parent);
   }
-  node_type* new_leaf_node(node_type *parent) {
+  node_type *new_leaf_node(node_type *parent) {
     node_type *p = allocate(node_type::LeafSize());
     return node_type::init_leaf(p, parent, kNodeValues);
   }
@@ -1431,8 +1410,8 @@ class btree {
   void internal_clear(node_type *node);
 
   // Verifies the tree structure of node.
-  int internal_verify(const node_type *node,
-                      const key_type *lo, const key_type *hi) const;
+  int internal_verify(const node_type *node, const key_type *lo,
+                      const key_type *hi) const;
 
   node_stats internal_stats(const node_type *node) const {
     // The root can be a static empty node.
@@ -2098,7 +2077,7 @@ auto btree<P>::rebalance_after_delete(iterator iter) -> iterator {
 }
 
 template <typename P>
-auto btree<P>::erase(iterator begin, iterator end)
+auto btree<P>::erase_range(iterator begin, iterator end)
     -> std::pair<size_type, iterator> {
   difference_type count = std::distance(begin, end);
   assert(count >= 0);
@@ -2198,7 +2177,7 @@ auto btree<P>::erase_multi(const K &key) -> size_type {
   }
   // Delete all of the keys between begin and upper_bound(key).
   const iterator end = internal_end(internal_upper_bound(key));
-  return erase(begin, end).first;
+  return erase_range(begin, end).first;
 }
 
 template <typename P>
@@ -2379,8 +2358,7 @@ bool btree<P>::try_merge_or_rebalance(iterator *iter) {
     // empty. This is a small optimization for the common pattern of deleting
     // from the front of the tree.
     if ((right->count() > kMinNodeValues) &&
-        ((iter->node->count() == 0) ||
-         (iter->position > 0))) {
+        ((iter->node->count() == 0) || (iter->position > 0))) {
       int to_move = (right->count() - iter->node->count()) / 2;
       to_move = (std::min)(to_move, right->count() - 1);
       iter->node->rebalance_right_to_left(to_move, right, mutable_allocator());
@@ -2578,8 +2556,8 @@ void btree<P>::internal_clear(node_type *node) {
 }
 
 template <typename P>
-int btree<P>::internal_verify(
-    const node_type *node, const key_type *lo, const key_type *hi) const {
+int btree<P>::internal_verify(const node_type *node, const key_type *lo,
+                              const key_type *hi) const {
   assert(node->count() > 0);
   assert(node->count() <= node->max_count());
   if (lo) {
@@ -2597,10 +2575,9 @@ int btree<P>::internal_verify(
       assert(node->child(i) != nullptr);
       assert(node->child(i)->parent() == node);
       assert(node->child(i)->position() == i);
-      count += internal_verify(
-          node->child(i),
-          (i == 0) ? lo : &node->key(i - 1),
-          (i == node->count()) ? hi : &node->key(i));
+      count +=
+          internal_verify(node->child(i), (i == 0) ? lo : &node->key(i - 1),
+                          (i == node->count()) ? hi : &node->key(i));
     }
   }
   return count;

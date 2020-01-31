@@ -818,6 +818,18 @@ TEST(StringViewTest, FrontBackSingleChar) {
   EXPECT_EQ(&c, &csp.back());
 }
 
+TEST(StringViewTest, FrontBackEmpty) {
+#ifndef ABSL_USES_STD_STRING_VIEW
+#ifndef NDEBUG
+  // Abseil's string_view implementation has debug assertions that check that
+  // front() and back() are not called on an empty string_view.
+  absl::string_view sv;
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(sv.front(), "");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(sv.back(), "");
+#endif
+#endif
+}
+
 // `std::string_view::string_view(const char*)` calls
 // `std::char_traits<char>::length(const char*)` to get the string length. In
 // libc++, it doesn't allow `nullptr` in the constexpr context, with the error
@@ -1106,6 +1118,17 @@ TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE(noexcept(sp.find_first_not_of('f')));
   EXPECT_TRUE(noexcept(sp.find_last_not_of(sp)));
   EXPECT_TRUE(noexcept(sp.find_last_not_of('f')));
+}
+
+TEST(StringViewTest, BoundsCheck) {
+#ifndef ABSL_USES_STD_STRING_VIEW
+#ifndef NDEBUG
+  // Abseil's string_view implementation has bounds-checking in debug mode.
+  absl::string_view h = "hello";
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(h[5], "");
+  ABSL_EXPECT_DEATH_IF_SUPPORTED(h[-1], "");
+#endif
+#endif
 }
 
 TEST(ComparisonOpsTest, StringCompareNotAmbiguous) {

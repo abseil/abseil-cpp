@@ -136,7 +136,7 @@ class btree_container {
   iterator erase(const_iterator iter) { return tree_.erase(iterator(iter)); }
   iterator erase(iterator iter) { return tree_.erase(iter); }
   iterator erase(const_iterator first, const_iterator last) {
-    return tree_.erase(iterator(first), iterator(last)).second;
+    return tree_.erase_range(iterator(first), iterator(last)).second;
   }
 
   // Extract routines.
@@ -465,7 +465,7 @@ class btree_map_container : public btree_set_container<Tree> {
     // and then using `k` unsequenced. This is safe because the move is into a
     // forwarding reference and insert_unique guarantees that `key` is never
     // referenced after consuming `args`.
-    const key_type& key_ref = k;
+    const key_type &key_ref = k;
     return this->tree_.insert_unique(
         key_ref, std::piecewise_construct, std::forward_as_tuple(std::move(k)),
         std::forward_as_tuple(std::forward<Args>(args)...));
@@ -485,7 +485,7 @@ class btree_map_container : public btree_set_container<Tree> {
     // and then using `k` unsequenced. This is safe because the move is into a
     // forwarding reference and insert_hint_unique guarantees that `key` is
     // never referenced after consuming `args`.
-    const key_type& key_ref = k;
+    const key_type &key_ref = k;
     return this->tree_
         .insert_hint_unique(iterator(hint), key_ref, std::piecewise_construct,
                             std::forward_as_tuple(std::move(k)),
