@@ -170,7 +170,8 @@ using InternalLogFunction = void (*)(absl::LogSeverity severity,
                                      const char* file, int line,
                                      const std::string& message);
 
-ABSL_DLL extern base_internal::AtomicHook<InternalLogFunction>
+ABSL_DLL ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES extern base_internal::AtomicHook<
+    InternalLogFunction>
     internal_log_function;
 
 void RegisterInternalLogFunction(InternalLogFunction func);

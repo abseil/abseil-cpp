@@ -27,7 +27,9 @@ int value = 0;
 void TestHook(int x) { value = x; }
 
 TEST(AtomicHookTest, NoDefaultFunction) {
-  ABSL_CONST_INIT static absl::base_internal::AtomicHook<void(*)(int)> hook;
+  ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+      void (*)(int)>
+      hook;
   value = 0;
 
   // Test the default DummyFunction.
@@ -53,8 +55,9 @@ TEST(AtomicHookTest, NoDefaultFunction) {
 
 TEST(AtomicHookTest, WithDefaultFunction) {
   // Set the default value to TestHook at compile-time.
-  ABSL_CONST_INIT static absl::base_internal::AtomicHook<void (*)(int)> hook(
-      TestHook);
+  ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+      void (*)(int)>
+      hook(TestHook);
   value = 0;
 
   // Test the default value is TestHook.

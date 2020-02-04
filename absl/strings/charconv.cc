@@ -673,7 +673,6 @@ from_chars_result FromCharsImpl(const char* first, const char* last,
     EncodeResult(calculated, negative, &result, &value);
     return result;
   }
-  return result;
 }
 }  // namespace
 

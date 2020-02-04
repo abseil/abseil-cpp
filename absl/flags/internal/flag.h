@@ -244,16 +244,32 @@ class FlagImpl {
   bool TryParse(void** dst, absl::string_view value, std::string* err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
+#ifndef NDEBUG
   template <typename T>
-  bool AtomicGet(T* v) const {
+  void Get(T* dst) const {
+    Read(dst, &flags_internal::FlagOps<T>);
+  }
+#else
+  template <typename T, typename std::enable_if<
+                            !flags_internal::IsAtomicFlagTypeTrait<T>::value,
+                            int>::type = 0>
+  void Get(T* dst) const {
+    Read(dst, &flags_internal::FlagOps<T>);
+  }
+  // Overload for `GetFlag()` for types that support lock-free reads.
+  template <typename T,
+            typename std::enable_if<
+                flags_internal::IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
+  void Get(T* dst) const {
     using U = flags_internal::BestAtomicType<T>;
     const typename U::type r = atomics_.template load<T>();
     if (r != U::AtomicInit()) {
-      std::memcpy(static_cast<void*>(v), &r, sizeof(T));
-      return true;
+      std::memcpy(static_cast<void*>(dst), &r, sizeof(T));
+    } else {
+      Read(dst, &flags_internal::FlagOps<T>);
     }
-    return false;
   }
+#endif
 
   // Mutating access methods
   void Write(const void* src, const flags_internal::FlagOpFn src_op)
@@ -397,11 +413,9 @@ class Flag final : public flags_internal::CommandLineFlag {
     };
     U u;
 
-    impl_.Read(&u.value, &flags_internal::FlagOps<T>);
+    impl_.Get(&u.value);
     return std::move(u.value);
   }
-
-  bool AtomicGet(T* v) const { return impl_.AtomicGet(v); }
 
   void Set(const T& v) { impl_.Write(&v, &flags_internal::FlagOps<T>); }
 

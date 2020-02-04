@@ -71,10 +71,12 @@
 // Explicitly #error out when not ABSL_LOW_LEVEL_WRITE_SUPPORTED, except for a
 // whitelisted set of platforms for which we expect not to be able to raw log.
 
-ABSL_CONST_INIT static absl::base_internal::AtomicHook<
-    absl::raw_logging_internal::LogPrefixHook> log_prefix_hook;
-ABSL_CONST_INIT static absl::base_internal::AtomicHook<
-    absl::raw_logging_internal::AbortHook> abort_hook;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+    absl::raw_logging_internal::LogPrefixHook>
+    log_prefix_hook;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+    absl::raw_logging_internal::AbortHook>
+    abort_hook;
 
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
 static const char kTruncated[] = " ... (message truncated)\n";
@@ -225,7 +227,7 @@ bool RawLoggingFullySupported() {
 #endif  // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
 }
 
-ABSL_CONST_INIT ABSL_DLL
+ABSL_DLL ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
     absl::base_internal::AtomicHook<InternalLogFunction>
         internal_log_function(DefaultInternalLog);
 

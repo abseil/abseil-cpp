@@ -23,6 +23,7 @@ absl_cc_library(
     "internal/atomic_hook.h"
   DEPS
     absl::config
+    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )

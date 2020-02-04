@@ -34,7 +34,10 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [":config"],
+    deps = [
+        ":config",
+        ":core_headers",
+    ],
 )
 
 cc_library(

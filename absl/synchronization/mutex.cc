@@ -107,13 +107,16 @@ static_assert(
     sizeof(MutexGlobals) == ABSL_CACHELINE_SIZE,
     "MutexGlobals must occupy an entire cacheline to prevent false sharing");
 
-ABSL_CONST_INIT absl::base_internal::AtomicHook<void (*)(int64_t wait_cycles)>
-    submit_profile_data;
-ABSL_CONST_INIT absl::base_internal::AtomicHook<
-    void (*)(const char *msg, const void *obj, int64_t wait_cycles)> mutex_tracer;
-ABSL_CONST_INIT absl::base_internal::AtomicHook<
-    void (*)(const char *msg, const void *cv)> cond_var_tracer;
-ABSL_CONST_INIT absl::base_internal::AtomicHook<
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
+    absl::base_internal::AtomicHook<void (*)(int64_t wait_cycles)>
+        submit_profile_data;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES absl::base_internal::AtomicHook<void (*)(
+    const char *msg, const void *obj, int64_t wait_cycles)>
+    mutex_tracer;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
+    absl::base_internal::AtomicHook<void (*)(const char *msg, const void *cv)>
+        cond_var_tracer;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES absl::base_internal::AtomicHook<
     bool (*)(const void *pc, char *out, int out_size)>
     symbolizer(absl::Symbolize);
 

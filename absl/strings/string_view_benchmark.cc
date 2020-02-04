@@ -160,10 +160,44 @@ void BM_CompareSame(benchmark::State& state) {
   absl::string_view b = y;
 
   for (auto _ : state) {
+    benchmark::DoNotOptimize(a);
+    benchmark::DoNotOptimize(b);
     benchmark::DoNotOptimize(a.compare(b));
   }
 }
 BENCHMARK(BM_CompareSame)->DenseRange(0, 3)->Range(4, 1 << 10);
+
+void BM_CompareFirstOneLess(benchmark::State& state) {
+  const int len = state.range(0);
+  std::string x(len, 'a');
+  std::string y = x;
+  y.back() = 'b';
+  absl::string_view a = x;
+  absl::string_view b = y;
+
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(a);
+    benchmark::DoNotOptimize(b);
+    benchmark::DoNotOptimize(a.compare(b));
+  }
+}
+BENCHMARK(BM_CompareFirstOneLess)->DenseRange(1, 3)->Range(4, 1 << 10);
+
+void BM_CompareSecondOneLess(benchmark::State& state) {
+  const int len = state.range(0);
+  std::string x(len, 'a');
+  std::string y = x;
+  x.back() = 'b';
+  absl::string_view a = x;
+  absl::string_view b = y;
+
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(a);
+    benchmark::DoNotOptimize(b);
+    benchmark::DoNotOptimize(a.compare(b));
+  }
+}
+BENCHMARK(BM_CompareSecondOneLess)->DenseRange(1, 3)->Range(4, 1 << 10);
 
 void BM_find_string_view_len_one(benchmark::State& state) {
   std::string haystack(state.range(0), '0');
