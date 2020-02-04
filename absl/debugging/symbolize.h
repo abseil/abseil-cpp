@@ -89,7 +89,7 @@ void InitializeSymbolizer(const char* argv0);
 //     if (absl::Symbolize(pc, tmp, sizeof(tmp))) {
 //       symbol = tmp;
 //     }
-//     absl::PrintF("%*p  %s\n", pc, symbol);
+//     absl::PrintF("%p  %s\n", pc, symbol);
 //  }
 bool Symbolize(const void *pc, char *out, int out_size);
 
