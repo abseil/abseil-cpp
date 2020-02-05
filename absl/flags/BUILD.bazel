@@ -36,7 +36,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
+    visibility = ["//absl/base:__subpackages__"],
     deps = [
         ":config",
         ":handle",

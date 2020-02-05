@@ -51,8 +51,8 @@ void TestCallback() {}
 
 template <typename T>
 bool TestConstructionFor() {
-  constexpr flags::HelpInitArg help_arg{flags::FlagHelpSrc("literal help"),
-                                        flags::FlagHelpSrcKind::kLiteral};
+  constexpr flags::FlagHelpArg help_arg{flags::FlagHelpMsg("literal help"),
+                                        flags::FlagHelpKind::kLiteral};
   constexpr flags::Flag<T> f1("f1", "file", &flags::FlagMarshallingOps<T>,
                               help_arg, &TestMakeDflt<T>);
   EXPECT_EQ(f1.Name(), "f1");
@@ -61,7 +61,7 @@ bool TestConstructionFor() {
 
   ABSL_CONST_INIT static flags::Flag<T> f2(
       "f2", "file", &flags::FlagMarshallingOps<T>,
-      {flags::FlagHelpSrc(&TestHelpMsg), flags::FlagHelpSrcKind::kGenFunc},
+      {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc},
       &TestMakeDflt<T>);
   flags::FlagRegistrar<T, false>(&f2).OnUpdate(TestCallback);
 

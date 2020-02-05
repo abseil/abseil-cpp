@@ -91,11 +91,11 @@ void FlagImpl::Init() {
 
   absl::MutexLock lock(reinterpret_cast<absl::Mutex*>(&data_guard_));
 
-  if (cur_ != nullptr) {
+  if (value_.dynamic != nullptr) {
     inited_.store(true, std::memory_order_release);
   } else {
     // Need to initialize cur field.
-    cur_ = MakeInitValue().release();
+    value_.dynamic = MakeInitValue().release();
     StoreAtomic();
     inited_.store(true, std::memory_order_release);
   }
@@ -117,7 +117,7 @@ void FlagImpl::Destroy() {
     absl::MutexLock l(DataGuard());
 
     // Values are heap allocated for Abseil Flags.
-    if (cur_) Delete(op_, cur_);
+    if (value_.dynamic) Delete(op_, value_.dynamic);
 
     // Release the dynamically allocated default value if any.
     if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
@@ -125,7 +125,7 @@ void FlagImpl::Destroy() {
     }
 
     // If this flag has an assigned callback, release callback data.
-    if (callback_data_) delete callback_data_;
+    if (callback_) delete callback_;
   }
 
   absl::MutexLock l(&flag_mutex_lifetime_guard);
@@ -150,8 +150,8 @@ std::string FlagImpl::Filename() const {
 }
 
 std::string FlagImpl::Help() const {
-  return help_source_kind_ == FlagHelpSrcKind::kLiteral ? help_.literal
-                                                        : help_.gen_func();
+  return help_source_kind_ == FlagHelpKind::kLiteral ? help_.literal
+                                                     : help_.gen_func();
 }
 
 bool FlagImpl::IsModified() const {
@@ -174,27 +174,26 @@ std::string FlagImpl::DefaultValue() const {
 std::string FlagImpl::CurrentValue() const {
   absl::MutexLock l(DataGuard());
 
-  return Unparse(marshalling_op_, cur_);
+  return Unparse(marshalling_op_, value_.dynamic);
 }
 
-void FlagImpl::SetCallback(
-    const flags_internal::FlagCallback mutation_callback) {
+void FlagImpl::SetCallback(const FlagCallbackFunc mutation_callback) {
   absl::MutexLock l(DataGuard());
 
-  if (callback_data_ == nullptr) {
-    callback_data_ = new CallbackData;
+  if (callback_ == nullptr) {
+    callback_ = new FlagCallback;
   }
-  callback_data_->func = mutation_callback;
+  callback_->func = mutation_callback;
 
   InvokeCallback();
 }
 
 void FlagImpl::InvokeCallback() const {
-  if (!callback_data_) return;
+  if (!callback_) return;
 
   // Make a copy of the C-style function pointer that we are about to invoke
   // before we release the lock guarding it.
-  FlagCallback cb = callback_data_->func;
+  FlagCallbackFunc cb = callback_->func;
 
   // If the flag has a mutation callback this function invokes it. While the
   // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -208,7 +207,7 @@ void FlagImpl::InvokeCallback() const {
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
   MutexRelock relock(DataGuard());
-  absl::MutexLock lock(&callback_data_->guard);
+  absl::MutexLock lock(&callback_->guard);
   cb();
 }
 
@@ -267,7 +266,7 @@ void FlagImpl::Read(void* dst, const flags_internal::FlagOpFn dst_op) const {
         absl::StrCat("Flag '", Name(),
                      "' is defined as one type and declared as another"));
   }
-  CopyConstruct(op_, cur_, dst);
+  CopyConstruct(op_, value_.dynamic, dst);
 }
 
 void FlagImpl::StoreAtomic() {
@@ -275,14 +274,14 @@ void FlagImpl::StoreAtomic() {
 
   if (data_size <= sizeof(int64_t)) {
     int64_t t = 0;
-    std::memcpy(&t, cur_, data_size);
-    atomics_.small_atomic.store(t, std::memory_order_release);
+    std::memcpy(&t, value_.dynamic, data_size);
+    value_.atomics.small_atomic.store(t, std::memory_order_release);
   }
 #if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
   else if (data_size <= sizeof(FlagsInternalTwoWordsType)) {
     FlagsInternalTwoWordsType t{0, 0};
-    std::memcpy(&t, cur_, data_size);
-    atomics_.big_atomic.store(t, std::memory_order_release);
+    std::memcpy(&t, value_.dynamic, data_size);
+    value_.atomics.big_atomic.store(t, std::memory_order_release);
   }
 #endif
 }
@@ -313,7 +312,7 @@ void FlagImpl::Write(const void* src, const flags_internal::FlagOpFn src_op) {
 
   modified_ = true;
   counter_++;
-  Copy(op_, src, cur_);
+  Copy(op_, src, value_.dynamic);
 
   StoreAtomic();
   InvokeCallback();
@@ -334,7 +333,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
   switch (set_mode) {
     case SET_FLAGS_VALUE: {
       // set or modify the flag's value
-      if (!TryParse(&cur_, value, err)) return false;
+      if (!TryParse(&value_.dynamic, value, err)) return false;
       modified_ = true;
       counter_++;
       StoreAtomic();
@@ -348,7 +347,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
     case SET_FLAG_IF_DEFAULT: {
       // set the flag's value, but only if it hasn't been set by someone else
       if (!modified_) {
-        if (!TryParse(&cur_, value, err)) return false;
+        if (!TryParse(&value_.dynamic, value, err)) return false;
         modified_ = true;
         counter_++;
         StoreAtomic();
@@ -381,7 +380,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case
-        Copy(op_, default_src_.dynamic_value, cur_);
+        Copy(op_, default_src_.dynamic_value, value_.dynamic);
         StoreAtomic();
         InvokeCallback();
       }

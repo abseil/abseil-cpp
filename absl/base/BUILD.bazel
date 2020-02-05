@@ -675,6 +675,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":log_severity",
+        "//absl/flags:flag_internal",
         "//absl/flags:marshalling",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",

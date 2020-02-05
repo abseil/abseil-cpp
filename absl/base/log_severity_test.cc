@@ -24,6 +24,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/flags/internal/flag.h"
 #include "absl/flags/marshalling.h"
 #include "absl/strings/str_cat.h"
 
@@ -50,6 +51,10 @@ TEST(StreamTest, Works) {
   EXPECT_THAT(StreamHelper(static_cast<absl::LogSeverity>(4)),
               Eq("absl::LogSeverity(4)"));
 }
+
+static_assert(
+    absl::flags_internal::IsAtomicFlagTypeTrait<absl::LogSeverity>::value,
+    "Flags of type absl::LogSeverity ought to be lock-free.");
 
 using ParseFlagFromOutOfRangeIntegerTest = TestWithParam<int64_t>;
 INSTANTIATE_TEST_SUITE_P(

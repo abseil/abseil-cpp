@@ -120,11 +120,11 @@ class Flag {
         return impl_;
       }
 
-      impl_ = new flags_internal::Flag<T>(
-          name_, filename_, marshalling_op_,
-          {flags_internal::FlagHelpSrc(help_gen_),
-           flags_internal::FlagHelpSrcKind::kGenFunc},
-          default_value_gen_);
+      impl_ =
+          new flags_internal::Flag<T>(name_, filename_, marshalling_op_,
+                                      {flags_internal::FlagHelpMsg(help_gen_),
+                                       flags_internal::FlagHelpKind::kGenFunc},
+                                      default_value_gen_);
       inited_.store(true, std::memory_order_release);
     }
 
@@ -152,7 +152,7 @@ class Flag {
   T Get() const { return GetImpl()->Get(); }
   bool AtomicGet(T* v) const { return GetImpl()->AtomicGet(v); }
   void Set(const T& v) { GetImpl()->Set(v); }
-  void SetCallback(const flags_internal::FlagCallback mutation_callback) {
+  void SetCallback(const flags_internal::FlagCallbackFunc mutation_callback) {
     GetImpl()->SetCallback(mutation_callback);
   }
   void InvokeCallback() { GetImpl()->InvokeCallback(); }
