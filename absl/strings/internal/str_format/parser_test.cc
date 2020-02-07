@@ -17,7 +17,7 @@ using testing::Pair;
 TEST(LengthModTest, Names) {
   struct Expectation {
     int line;
-    LengthMod::Id id;
+    LengthMod mod;
     const char *name;
   };
   const Expectation kExpect[] = {
@@ -32,12 +32,10 @@ TEST(LengthModTest, Names) {
     {__LINE__, LengthMod::t,    "t" },
     {__LINE__, LengthMod::q,    "q" },
   };
-  EXPECT_EQ(ABSL_ARRAYSIZE(kExpect), LengthMod::kNumValues);
+  EXPECT_EQ(ABSL_ARRAYSIZE(kExpect), 10);
   for (auto e : kExpect) {
     SCOPED_TRACE(e.line);
-    LengthMod mod = LengthMod::FromId(e.id);
-    EXPECT_EQ(e.id, mod.id());
-    EXPECT_EQ(e.name, mod.name());
+    EXPECT_EQ(e.name, LengthModToString(e.mod));
   }
 }
 
@@ -127,7 +125,6 @@ TEST_F(ConsumeUnboundConversionTest, BasicConversion) {
   EXPECT_FALSE(o.precision.is_from_arg());
   EXPECT_LT(o.precision.value(), 0);
   EXPECT_EQ(1, o.arg_position);
-  EXPECT_EQ(LengthMod::none, o.length_mod.id());
 }
 
 TEST_F(ConsumeUnboundConversionTest, ArgPosition) {
@@ -288,6 +285,29 @@ TEST_F(ConsumeUnboundConversionTest, BasicFlag) {
     EXPECT_TRUE(Run(fmt));
     EXPECT_FALSE(o.flags.basic);
   }
+}
+
+TEST_F(ConsumeUnboundConversionTest, LengthMod) {
+  EXPECT_TRUE(Run("d"));
+  EXPECT_EQ(LengthMod::none, o.length_mod);
+  EXPECT_TRUE(Run("hd"));
+  EXPECT_EQ(LengthMod::h, o.length_mod);
+  EXPECT_TRUE(Run("hhd"));
+  EXPECT_EQ(LengthMod::hh, o.length_mod);
+  EXPECT_TRUE(Run("ld"));
+  EXPECT_EQ(LengthMod::l, o.length_mod);
+  EXPECT_TRUE(Run("lld"));
+  EXPECT_EQ(LengthMod::ll, o.length_mod);
+  EXPECT_TRUE(Run("Lf"));
+  EXPECT_EQ(LengthMod::L, o.length_mod);
+  EXPECT_TRUE(Run("qf"));
+  EXPECT_EQ(LengthMod::q, o.length_mod);
+  EXPECT_TRUE(Run("jd"));
+  EXPECT_EQ(LengthMod::j, o.length_mod);
+  EXPECT_TRUE(Run("zd"));
+  EXPECT_EQ(LengthMod::z, o.length_mod);
+  EXPECT_TRUE(Run("td"));
+  EXPECT_EQ(LengthMod::t, o.length_mod);
 }
 
 struct SummarizeConsumer {

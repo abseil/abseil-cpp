@@ -87,7 +87,7 @@ union FlagHelpMsg {
   HelpGenFunc gen_func;
 };
 
-enum class FlagHelpKind : int8_t { kLiteral, kGenFunc };
+enum class FlagHelpKind : uint8_t { kLiteral = 0, kGenFunc = 1 };
 
 struct FlagHelpArg {
   FlagHelpMsg source;
@@ -147,7 +147,7 @@ union FlagDefaultSrc {
   FlagDfltGenFunc gen_func;
 };
 
-enum class FlagDefaultSrcKind : int8_t { kDynamicValue, kGenFunc };
+enum class FlagDefaultKind : uint8_t { kDynamicValue = 0, kGenFunc = 1 };
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flag current value auxiliary structs.
@@ -279,8 +279,14 @@ class FlagImpl {
         op_(op),
         marshalling_op_(marshalling_op),
         help_(help.source),
-        help_source_kind_(help.kind),
-        def_kind_(FlagDefaultSrcKind::kGenFunc),
+        help_source_kind_(static_cast<uint8_t>(help.kind)),
+        def_kind_(static_cast<uint8_t>(FlagDefaultKind::kGenFunc)),
+        is_data_guard_inited_(false),
+        modified_(false),
+        on_command_line_(false),
+        inited_(false),
+        counter_(0),
+        callback_(nullptr),
         default_src_(default_value_gen),
         data_guard_{} {}
 
@@ -370,6 +376,14 @@ class FlagImpl {
   // Lazy initialization of the Flag's data.
   void Init();
 
+  FlagHelpKind HelpSourceKind() const {
+    return static_cast<FlagHelpKind>(help_source_kind_);
+  }
+  FlagDefaultKind DefaultKind() const
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard()) {
+    return static_cast<FlagDefaultKind>(def_kind_);
+  }
+
   // Immutable flag's state.
 
   // Flags name passed to ABSL_FLAG as second arg.
@@ -383,35 +397,31 @@ class FlagImpl {
   // Help message literal or function to generate it.
   const FlagHelpMsg help_;
   // Indicates if help message was supplied as literal or generator func.
-  const FlagHelpKind help_source_kind_;
-
-  // Indicates that the Flag state is initialized.
-  std::atomic<bool> inited_{false};
+  const uint8_t help_source_kind_ : 1;
 
   // Mutable flag's state (guarded by `data_guard_`).
 
-  // Protects against multiple concurrent constructions of `data_guard_`.
-  bool is_data_guard_inited_ = false;
-  // Has this flag's value been modified?
-  bool modified_ ABSL_GUARDED_BY(*DataGuard()) = false;
-  // Has this flag been specified on command line.
-  bool on_command_line_ ABSL_GUARDED_BY(*DataGuard()) = false;
-
-  // Mutation counter
-  int64_t counter_ ABSL_GUARDED_BY(*DataGuard()) = 0;
-
-  // Optional flag's callback and absl::Mutex to guard the invocations.
-  FlagCallback* callback_ ABSL_GUARDED_BY(*DataGuard()) = nullptr;
-
   // If def_kind_ == kDynamicValue, default_src_ holds a dynamically allocated
   // value.
-  FlagDefaultSrcKind def_kind_ ABSL_GUARDED_BY(*DataGuard());
+  uint8_t def_kind_ : 1 ABSL_GUARDED_BY(*DataGuard());
+  // Protects against multiple concurrent constructions of `data_guard_`.
+  bool is_data_guard_inited_ : 1;
+  // Has this flag's value been modified?
+  bool modified_ : 1 ABSL_GUARDED_BY(*DataGuard());
+  // Has this flag been specified on command line.
+  bool on_command_line_ : 1 ABSL_GUARDED_BY(*DataGuard());
+
+  // Indicates that the flag state is initialized.
+  std::atomic<bool> inited_;
+  // Mutation counter
+  int64_t counter_ ABSL_GUARDED_BY(*DataGuard());
+  // Optional flag's callback and absl::Mutex to guard the invocations.
+  FlagCallback* callback_ ABSL_GUARDED_BY(*DataGuard());
   // Either a pointer to the function generating the default value based on the
   // value specified in ABSL_FLAG or pointer to the dynamically set default
   // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
   // these two cases.
   FlagDefaultSrc default_src_ ABSL_GUARDED_BY(*DataGuard());
-
   // Current Flag Value
   FlagValue value_;
 

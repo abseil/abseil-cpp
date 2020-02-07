@@ -120,7 +120,7 @@ void FlagImpl::Destroy() {
     if (value_.dynamic) Delete(op_, value_.dynamic);
 
     // Release the dynamically allocated default value if any.
-    if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
+    if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
       Delete(op_, default_src_.dynamic_value);
     }
 
@@ -135,7 +135,7 @@ void FlagImpl::Destroy() {
 
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
-  if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
+  if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
     res = Clone(op_, default_src_.dynamic_value);
   } else {
     res = (*default_src_.gen_func)();
@@ -150,8 +150,8 @@ std::string FlagImpl::Filename() const {
 }
 
 std::string FlagImpl::Help() const {
-  return help_source_kind_ == FlagHelpKind::kLiteral ? help_.literal
-                                                     : help_.gen_func();
+  return HelpSourceKind() == FlagHelpKind::kLiteral ? help_.literal
+                                                    : help_.gen_func();
 }
 
 bool FlagImpl::IsModified() const {
@@ -364,7 +364,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
       break;
     }
     case SET_FLAGS_DEFAULT: {
-      if (def_kind_ == FlagDefaultSrcKind::kDynamicValue) {
+      if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
         if (!TryParse(&default_src_.dynamic_value, value, err)) {
           return false;
         }
@@ -375,7 +375,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
         }
 
         default_src_.dynamic_value = new_default_val;
-        def_kind_ = FlagDefaultSrcKind::kDynamicValue;
+        def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {

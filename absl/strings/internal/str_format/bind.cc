@@ -77,7 +77,6 @@ inline bool ArgContext::Bind(const UnboundConversion* unbound,
     bound->set_precision(-1);
   }
 
-  bound->set_length_mod(unbound->length_mod);
   bound->set_conv(unbound->conv);
   bound->set_arg(arg);
   return true;
@@ -143,7 +142,7 @@ class SummarizingConverter {
     ss << "{" << Streamable(spec, {*bound.arg()}) << ":" << bound.flags();
     if (bound.width() >= 0) ss << bound.width();
     if (bound.precision() >= 0) ss << "." << bound.precision();
-    ss << bound.length_mod() << bound.conv() << "}";
+    ss << bound.conv() << "}";
     Append(ss.str());
     return true;
   }

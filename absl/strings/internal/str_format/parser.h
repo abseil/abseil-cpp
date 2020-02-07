@@ -6,10 +6,12 @@
 #include <stdlib.h>
 
 #include <cassert>
+#include <cstdint>
 #include <initializer_list>
 #include <iosfwd>
 #include <iterator>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "absl/strings/internal/str_format/checker.h"
@@ -18,6 +20,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
+
+enum class LengthMod : std::uint8_t { h, hh, l, ll, L, j, z, t, q, none };
+
+std::string LengthModToString(LengthMod v);
 
 // The analyzed properties of a single specified conversion.
 struct UnboundConversion {
@@ -60,7 +66,7 @@ struct UnboundConversion {
   InputValue precision;
 
   Flags flags;
-  LengthMod length_mod;
+  LengthMod length_mod = LengthMod::none;
   ConversionChar conv;
 };
 
@@ -79,7 +85,8 @@ class ConvTag {
   constexpr ConvTag(ConversionChar::Id id) : tag_(id) {}  // NOLINT
   // We invert the length modifiers to make them negative so that we can easily
   // test for them.
-  constexpr ConvTag(LengthMod::Id id) : tag_(~id) {}  // NOLINT
+  constexpr ConvTag(LengthMod length_mod)  // NOLINT
+      : tag_(~static_cast<std::int8_t>(length_mod)) {}
   // Everything else is -128, which is negative to make is_conv() simpler.
   constexpr ConvTag() : tag_(-128) {}
 
@@ -91,7 +98,7 @@ class ConvTag {
   }
   LengthMod as_length() const {
     assert(is_length());
-    return LengthMod::FromId(static_cast<LengthMod::Id>(~tag_));
+    return static_cast<LengthMod>(~tag_);
   }
 
  private:

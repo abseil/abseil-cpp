@@ -136,54 +136,6 @@ struct Flags {
   }
 };
 
-struct ABSL_DLL LengthMod {
- public:
-  enum Id : uint8_t {
-    h, hh, l, ll, L, j, z, t, q, none
-  };
-  static const size_t kNumValues = none + 1;
-
-  LengthMod() : id_(none) {}
-
-  // Index into the opaque array of LengthMod enums.
-  // Requires: i < kNumValues
-  static LengthMod FromIndex(size_t i) {
-    return LengthMod(kSpecs[i].value);
-  }
-
-  static LengthMod FromId(Id id) { return LengthMod(id); }
-
-  // The length modifier std::string associated with a specified LengthMod.
-  string_view name() const {
-    const Spec& spec = kSpecs[id_];
-    return {spec.name, spec.name_length};
-  }
-
-  Id id() const { return id_; }
-
-  friend bool operator==(const LengthMod& a, const LengthMod& b) {
-    return a.id() == b.id();
-  }
-  friend bool operator!=(const LengthMod& a, const LengthMod& b) {
-    return !(a == b);
-  }
-  friend std::ostream& operator<<(std::ostream& os, const LengthMod& v) {
-    return os << v.name();
-  }
-
- private:
-  struct Spec {
-    Id value;
-    const char *name;
-    size_t name_length;
-  };
-  static const Spec kSpecs[];
-
-  explicit LengthMod(Id id) : id_(id) {}
-
-  Id id_;
-};
-
 // clang-format off
 #define ABSL_CONVERSION_CHARS_EXPAND_(X_VAL, X_SEP) \
   /* text */ \
@@ -306,7 +258,6 @@ struct ABSL_DLL ConversionChar {
 class ConversionSpec {
  public:
   Flags flags() const { return flags_; }
-  LengthMod length_mod() const { return length_mod_; }
   ConversionChar conv() const {
     // Keep this field first in the struct . It generates better code when
     // accessing it when ConversionSpec is passed by value in registers.
@@ -322,7 +273,6 @@ class ConversionSpec {
   int precision() const { return precision_; }
 
   void set_flags(Flags f) { flags_ = f; }
-  void set_length_mod(LengthMod lm) { length_mod_ = lm; }
   void set_conv(ConversionChar c) { conv_ = c; }
   void set_width(int w) { width_ = w; }
   void set_precision(int p) { precision_ = p; }
@@ -331,7 +281,6 @@ class ConversionSpec {
  private:
   ConversionChar conv_;
   Flags flags_;
-  LengthMod length_mod_;
   int width_;
   int precision_;
 };
