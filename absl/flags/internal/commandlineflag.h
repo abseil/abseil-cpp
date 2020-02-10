@@ -21,9 +21,11 @@
 
 #include <memory>
 #include <string>
+#include <typeinfo>
 
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
+#include "absl/flags/config.h"
 #include "absl/flags/marshalling.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -41,7 +43,10 @@ enum FlagOp {
   kCopyConstruct,
   kSizeof,
   kParse,
-  kUnparse
+  kUnparse,
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+  kRuntimeTypeId
+#endif
 };
 using FlagOpFn = void* (*)(FlagOp, const void*, void*);
 using FlagMarshallingOpFn = void* (*)(FlagOp, const void*, void*, void*);
@@ -84,6 +89,11 @@ void* FlagOps(FlagOp op, const void* v1, void* v2) {
       return nullptr;
     case kSizeof:
       return reinterpret_cast<void*>(sizeof(T));
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+    case kRuntimeTypeId:
+      return const_cast<std::type_info*>(&typeid(T));
+      break;
+#endif
     default:
       return nullptr;
   }
@@ -145,6 +155,13 @@ inline size_t Sizeof(FlagOpFn op) {
   return static_cast<size_t>(reinterpret_cast<intptr_t>(
       op(flags_internal::kSizeof, nullptr, nullptr)));
 }
+
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+inline const std::type_info& RuntimeTypeId(FlagOpFn op) {
+  return *static_cast<const std::type_info*>(
+      op(flags_internal::kRuntimeTypeId, nullptr, nullptr));
+}
+#endif
 
 // Handle to FlagState objects. Specific flag state objects will restore state
 // of a flag produced this flag state from method CommandLineFlag::SaveState().

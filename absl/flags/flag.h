@@ -191,21 +191,6 @@ ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
   return flag.Get();
 }
 
-#ifndef NDEBUG
-// We want to validate the type mismatch between type definition and
-// declaration. The lock-free implementation does not allow us to do it,
-// so in debug builds we always use the slower implementation, which always
-// validates the type.
-
-// We currently need an external linkage for built-in types because shared
-// libraries have different addresses of flags_internal::FlagOps<T> which
-// might cause log spam when checking the same flag type.
-#define ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT(T) \
-  ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag);
-ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT)
-#undef ABSL_FLAGS_INTERNAL_BUILT_IN_EXPORT
-#endif
-
 // SetFlag()
 //
 // Sets the value of an `absl::Flag` to the value `v`. Do not construct an

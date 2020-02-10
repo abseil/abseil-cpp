@@ -22,13 +22,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-#ifndef NDEBUG
-#define ABSL_FLAGS_GET(T) \
-  T GetFlag(const absl::Flag<T>& flag) { return flag.Get(); }
-ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(ABSL_FLAGS_GET)
-#undef ABSL_FLAGS_GET
-#endif
-
 // This global mutex protects on-demand construction of flag objects in MSVC
 // builds.
 #if defined(_MSC_VER) && !defined(__clang__)

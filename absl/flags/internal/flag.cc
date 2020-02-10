@@ -56,6 +56,14 @@ bool ShouldValidateFlagValue(FlagOpFn flag_type_id) {
   return true;
 }
 
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+bool MatchRuntimeTypeId(FlagOpFn lhs_type_id, FlagOpFn rhs_type_id) {
+  return RuntimeTypeId(lhs_type_id) == RuntimeTypeId(rhs_type_id);
+}
+#else
+bool MatchRuntimeTypeId(FlagOpFn, FlagOpFn) { return true; }
+#endif
+
 // RAII helper used to temporarily unlock and relock `absl::Mutex`.
 // This is used when we need to ensure that locks are released while
 // invoking user supplied callbacks and then reacquired, since callbacks may
@@ -131,6 +139,18 @@ void FlagImpl::Destroy() {
   absl::MutexLock l(&flag_mutex_lifetime_guard);
   DataGuard()->~Mutex();
   is_data_guard_inited_ = false;
+}
+
+void FlagImpl::AssertValidType(const flags_internal::FlagOpFn op) const {
+  // `op` is the unmarshaling operation corresponding to the declaration
+  // visibile at the call site. `op_` is the Flag's defined unmarshalling
+  // operation. They must match for this operation to be well-defined.
+  if (ABSL_PREDICT_FALSE(op != op_) && !MatchRuntimeTypeId(op, op_)) {
+    ABSL_INTERNAL_LOG(
+        FATAL,
+        absl::StrCat("Flag '", Name(),
+                     "' is defined as one type and declared as another"));
+  }
 }
 
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
@@ -219,7 +239,7 @@ bool FlagImpl::RestoreState(const void* value, bool modified,
     if (counter_ == counter) return false;
   }
 
-  Write(value, op_);
+  Write(value);
 
   {
     absl::MutexLock l(DataGuard());
@@ -254,18 +274,9 @@ bool FlagImpl::TryParse(void** dst, absl::string_view value,
   return true;
 }
 
-void FlagImpl::Read(void* dst, const flags_internal::FlagOpFn dst_op) const {
+void FlagImpl::Read(void* dst) const {
   absl::ReaderMutexLock l(DataGuard());
 
-  // `dst_op` is the unmarshaling operation corresponding to the declaration
-  // visibile at the call site. `op` is the Flag's defined unmarshalling
-  // operation. They must match for this operation to be well-defined.
-  if (ABSL_PREDICT_FALSE(dst_op != op_)) {
-    ABSL_INTERNAL_LOG(
-        ERROR,
-        absl::StrCat("Flag '", Name(),
-                     "' is defined as one type and declared as another"));
-  }
   CopyConstruct(op_, value_.dynamic, dst);
 }
 
@@ -286,18 +297,8 @@ void FlagImpl::StoreAtomic() {
 #endif
 }
 
-void FlagImpl::Write(const void* src, const flags_internal::FlagOpFn src_op) {
+void FlagImpl::Write(const void* src) {
   absl::MutexLock l(DataGuard());
-
-  // `src_op` is the marshalling operation corresponding to the declaration
-  // visible at the call site. `op` is the Flag's defined marshalling operation.
-  // They must match for this operation to be well-defined.
-  if (ABSL_PREDICT_FALSE(src_op != op_)) {
-    ABSL_INTERNAL_LOG(
-        ERROR,
-        absl::StrCat("Flag '", Name(),
-                     "' is defined as one type and declared as another"));
-  }
 
   if (ShouldValidateFlagValue(op_)) {
     void* obj = Clone(op_, src);

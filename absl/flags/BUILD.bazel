@@ -138,6 +138,7 @@ cc_library(
         "//absl/flags:__pkg__",
     ],
     deps = [
+        ":config",
         ":marshalling",
         "//absl/base:config",
         "//absl/base:core_headers",

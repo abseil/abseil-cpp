@@ -387,19 +387,20 @@ TEST_F(FlagTest, TestCustomUDT) {
 
 // MSVC produces link error on the type mismatch.
 // Linux does not have build errors and validations work as expected.
-#if 0  // !defined(_WIN32) && GTEST_HAS_DEATH_TEST
+#if !defined(_WIN32) && GTEST_HAS_DEATH_TEST
 
-TEST(Flagtest, TestTypeMismatchValidations) {
-  // For builtin types, GetFlag() only does validation in debug mode.
+using FlagDeathTest = FlagTest;
+
+TEST_F(FlagDeathTest, TestTypeMismatchValidations) {
   EXPECT_DEBUG_DEATH(
-      absl::GetFlag(FLAGS_mistyped_int_flag),
+      static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
       "Flag 'mistyped_int_flag' is defined as one type and declared "
       "as another");
-  EXPECT_DEATH(absl::SetFlag(&FLAGS_mistyped_int_flag, 0),
+  EXPECT_DEATH(absl::SetFlag(&FLAGS_mistyped_int_flag, 1),
                "Flag 'mistyped_int_flag' is defined as one type and declared "
                "as another");
 
-  EXPECT_DEATH(absl::GetFlag(FLAGS_mistyped_string_flag),
+  EXPECT_DEATH(static_cast<void>(absl::GetFlag(FLAGS_mistyped_string_flag)),
                "Flag 'mistyped_string_flag' is defined as one type and "
                "declared as another");
   EXPECT_DEATH(

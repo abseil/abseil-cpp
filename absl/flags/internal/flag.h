@@ -301,41 +301,44 @@ class FlagImpl {
   bool IsSpecifiedOnCommandLine() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   std::string DefaultValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  void Read(void* dst, const FlagOpFn dst_op) const
-      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void Read(void* dst) const ABSL_LOCKS_EXCLUDED(*DataGuard());
   // Attempts to parse supplied `value` std::string. If parsing is successful, then
   // it replaces `dst` with the new value.
   bool TryParse(void** dst, absl::string_view value, std::string* err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
-#ifndef NDEBUG
-  template <typename T>
-  void Get(T* dst) const {
-    Read(dst, &FlagOps<T>);
-  }
-#else
   template <typename T, typename std::enable_if<
                             !IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
   void Get(T* dst) const {
-    Read(dst, &FlagOps<T>);
+    AssertValidType(&flags_internal::FlagOps<T>);
+    Read(dst);
   }
   // Overload for `GetFlag()` for types that support lock-free reads.
   template <typename T, typename std::enable_if<IsAtomicFlagTypeTrait<T>::value,
                                                 int>::type = 0>
   void Get(T* dst) const {
-    using U = BestAtomicType<T>;
-    const typename U::type r = value_.atomics.template load<T>();
+    // For flags of types which can be accessed "atomically" we want to avoid
+    // slowing down flag value access due to type validation. That's why
+    // this validation is hidden behind !NDEBUG
+#ifndef NDEBUG
+    AssertValidType(&flags_internal::FlagOps<T>);
+#endif
+    using U = flags_internal::BestAtomicType<T>;
+    typename U::type r = value_.atomics.template load<T>();
     if (r != U::AtomicInit()) {
       std::memcpy(static_cast<void*>(dst), &r, sizeof(T));
     } else {
-      Read(dst, &FlagOps<T>);
+      Read(dst);
     }
   }
-#endif
+  template <typename T>
+  void Set(const T& src) {
+    AssertValidType(&flags_internal::FlagOps<T>);
+    Write(&src);
+  }
 
   // Mutating access methods
-  void Write(const void* src, const FlagOpFn src_op)
-      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void Write(const void* src) ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool SetFromString(absl::string_view value, FlagSettingMode set_mode,
                      ValueSource source, std::string* err)
       ABSL_LOCKS_EXCLUDED(*DataGuard());
@@ -383,6 +386,13 @@ class FlagImpl {
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard()) {
     return static_cast<FlagDefaultKind>(def_kind_);
   }
+  // Used in read/write operations to validate source/target has correct type.
+  // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
+  // absl::GetFlag(FLAGS_foo) validates that the type of FLAGS_foo is indeed
+  // int. To do that we pass the "assumed" type id (which is deduced from type
+  // int) as an argument `op`, which is in turn is validated against the type id
+  // stored in flag object by flag definition statement.
+  void AssertValidType(const flags_internal::FlagOpFn op) const;
 
   // Immutable flag's state.
 
@@ -461,9 +471,7 @@ class Flag final : public flags_internal::CommandLineFlag {
     impl_.Get(&u.value);
     return std::move(u.value);
   }
-
-  void Set(const T& v) { impl_.Write(&v, &FlagOps<T>); }
-
+  void Set(const T& v) { impl_.Set(v); }
   void SetCallback(const FlagCallbackFunc mutation_callback) {
     impl_.SetCallback(mutation_callback);
   }
@@ -509,10 +517,10 @@ class Flag final : public flags_internal::CommandLineFlag {
 
   void Destroy() override { impl_.Destroy(); }
 
-  void Read(void* dst) const override { impl_.Read(dst, &FlagOps<T>); }
+  void Read(void* dst) const override { impl_.Read(dst); }
   FlagOpFn TypeId() const override { return &FlagOps<T>; }
 
-  // Flag's implementation with value type abstracted out.
+  // Flag's data
   FlagImpl impl_;
 };
 
