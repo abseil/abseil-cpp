@@ -79,6 +79,9 @@ option(ABSL_USE_GOOGLETEST_HEAD
 
 option(ABSL_RUN_TESTS "If ON, Abseil tests will be run." OFF)
 
+# link fails on arm64 and x86-64 without this
+add_compile_options(-fPIC)
+
 if(${ABSL_RUN_TESTS})
   # enable CTest.  This will set BUILD_TESTING to ON unless otherwise specified
   # on the command line
