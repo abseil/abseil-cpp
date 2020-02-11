@@ -178,9 +178,6 @@ class CommandLineFlag {
  public:
   constexpr CommandLineFlag() = default;
 
-  // Virtual destructor
-  virtual void Destroy() = 0;
-
   // Not copyable/assignable.
   CommandLineFlag(const CommandLineFlag&) = delete;
   CommandLineFlag& operator=(const CommandLineFlag&) = delete;

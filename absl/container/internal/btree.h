@@ -1906,8 +1906,7 @@ inline auto btree<P>::insert_hint_unique(iterator position, const key_type &key,
     -> std::pair<iterator, bool> {
   if (!empty()) {
     if (position == end() || compare_keys(key, position.key())) {
-      iterator prev = position;
-      if (position == begin() || compare_keys((--prev).key(), key)) {
+      if (position == begin() || compare_keys(std::prev(position).key(), key)) {
         // prev.key() < key < position.key()
         return {internal_emplace(position, std::forward<Args>(args)...), true};
       }
@@ -1953,17 +1952,16 @@ auto btree<P>::insert_hint_multi(iterator position, ValueType &&v) -> iterator {
   if (!empty()) {
     const key_type &key = params_type::key(v);
     if (position == end() || !compare_keys(position.key(), key)) {
-      iterator prev = position;
-      if (position == begin() || !compare_keys(key, (--prev).key())) {
+      if (position == begin() ||
+          !compare_keys(key, std::prev(position).key())) {
         // prev.key() <= key <= position.key()
         return internal_emplace(position, std::forward<ValueType>(v));
       }
     } else {
-      iterator next = position;
-      ++next;
-      if (next == end() || !compare_keys(next.key(), key)) {
-        // position.key() < key <= next.key()
-        return internal_emplace(next, std::forward<ValueType>(v));
+      ++position;
+      if (position == end() || !compare_keys(position.key(), key)) {
+        // {original `position`}.key() < key < {current `position`}.key()
+        return internal_emplace(position, std::forward<ValueType>(v));
       }
     }
   }

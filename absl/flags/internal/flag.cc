@@ -120,27 +120,6 @@ absl::Mutex* FlagImpl::DataGuard() const {
   return reinterpret_cast<absl::Mutex*>(&data_guard_);
 }
 
-void FlagImpl::Destroy() {
-  {
-    absl::MutexLock l(DataGuard());
-
-    // Values are heap allocated for Abseil Flags.
-    if (value_.dynamic) Delete(op_, value_.dynamic);
-
-    // Release the dynamically allocated default value if any.
-    if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-      Delete(op_, default_src_.dynamic_value);
-    }
-
-    // If this flag has an assigned callback, release callback data.
-    if (callback_) delete callback_;
-  }
-
-  absl::MutexLock l(&flag_mutex_lifetime_guard);
-  DataGuard()->~Mutex();
-  is_data_guard_inited_ = false;
-}
-
 void FlagImpl::AssertValidType(const flags_internal::FlagOpFn op) const {
   // `op` is the unmarshaling operation corresponding to the declaration
   // visibile at the call site. `op_` is the Flag's defined unmarshalling

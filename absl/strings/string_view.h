@@ -398,12 +398,11 @@ class string_view {
   // on the respective sizes of the two `string_view`s to determine which is
   // smaller, equal, or greater.
   constexpr int compare(string_view x) const noexcept {
-    return CompareImpl(
-        length_, x.length_,
-        length_ == 0 || x.length_ == 0
-            ? 0
-            : ABSL_INTERNAL_STRING_VIEW_MEMCMP(
-                  ptr_, x.ptr_, length_ < x.length_ ? length_ : x.length_));
+    return CompareImpl(length_, x.length_,
+                       Min(length_, x.length_) == 0
+                           ? 0
+                           : ABSL_INTERNAL_STRING_VIEW_MEMCMP(
+                                 ptr_, x.ptr_, Min(length_, x.length_)));
   }
 
   // Overload of `string_view::compare()` for comparing a substring of the
@@ -541,12 +540,15 @@ class string_view {
 #endif
   }
 
+  static constexpr size_t Min(size_type length_a, size_type length_b) {
+    return length_a < length_b ? length_a : length_b;
+  }
+
   static constexpr int CompareImpl(size_type length_a, size_type length_b,
                                    int compare_result) {
     return compare_result == 0 ? static_cast<int>(length_a > length_b) -
                                      static_cast<int>(length_a < length_b)
-                               : static_cast<int>(compare_result > 0) -
-                                     static_cast<int>(compare_result < 0);
+                               : (compare_result < 0 ? -1 : 1);
   }
 
   const char* ptr_;

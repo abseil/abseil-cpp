@@ -290,9 +290,6 @@ class FlagImpl {
         default_src_(default_value_gen),
         data_guard_{} {}
 
-  // Forces destruction of the Flag's data.
-  void Destroy();
-
   // Constant access methods
   absl::string_view Name() const;
   std::string Filename() const;
@@ -514,8 +511,6 @@ class Flag final : public flags_internal::CommandLineFlag {
 
  private:
   friend class FlagState<T>;
-
-  void Destroy() override { impl_.Destroy(); }
 
   void Read(void* dst) const override { impl_.Read(dst); }
   FlagOpFn TypeId() const override { return &FlagOps<T>; }

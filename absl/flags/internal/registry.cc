@@ -57,11 +57,7 @@ namespace flags_internal {
 class FlagRegistry {
  public:
   FlagRegistry() = default;
-  ~FlagRegistry() {
-    for (auto& p : flags_) {
-      p.second->Destroy();
-    }
-  }
+  ~FlagRegistry() = default;
 
   // Store a flag in this registry.  Takes ownership of *flag.
   void RegisterFlag(CommandLineFlag* flag);
@@ -113,6 +109,7 @@ class FlagRegistryLock {
   FlagRegistry* const fr_;
 };
 
+void DestroyRetiredFlag(CommandLineFlag* flag);
 }  // namespace
 
 void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
@@ -140,8 +137,8 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
                        flag->Typename(), "', respectively."),
           true);
     } else if (old_flag->IsRetired()) {
-      // Retired definitions are idempotent. Just keep the old one.
-      flag->Destroy();
+      // Retired flag can just be deleted.
+      DestroyRetiredFlag(flag);
       return;
     } else if (old_flag->Filename() != flag->Filename()) {
       flags_internal::ReportUsageError(
@@ -291,11 +288,6 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
       : name_(name), op_(ops) {}
 
  private:
-  void Destroy() override {
-    // Values are heap allocated for Retired Flags.
-    delete this;
-  }
-
   absl::string_view Name() const override { return name_; }
   std::string Filename() const override { return "RETIRED"; }
   absl::string_view Typename() const override { return ""; }
@@ -327,6 +319,11 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
   const char* const name_;
   const FlagOpFn op_;
 };
+
+void DestroyRetiredFlag(flags_internal::CommandLineFlag* flag) {
+  assert(flag->IsRetired());
+  delete static_cast<RetiredFlagObj*>(flag);
+}
 
 }  // namespace
 
