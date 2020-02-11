@@ -171,6 +171,7 @@ static void **NextStackFrame(void **old_fp, const void *uc) {
     static const unsigned char *kernel_rt_sigreturn_address = nullptr;
     static const unsigned char *kernel_vsyscall_address = nullptr;
     if (num_push_instructions == -1) {
+#ifdef ABSL_HAVE_VDSO_SUPPORT
       absl::debugging_internal::VDSOSupport vdso;
       if (vdso.IsPresent()) {
         absl::debugging_internal::VDSOSupport::SymbolInfo
@@ -199,6 +200,9 @@ static void **NextStackFrame(void **old_fp, const void *uc) {
       } else {
         num_push_instructions = 0;
       }
+#else
+      num_push_instructions = 0;
+#endif
     }
     if (num_push_instructions != 0 && kernel_rt_sigreturn_address != nullptr &&
         old_fp[1] == kernel_rt_sigreturn_address) {
