@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/base/call_once.h"
 #include "absl/base/internal/unscaledcycleclock.h"
 
 #if ABSL_USE_UNSCALED_CYCLECLOCK
@@ -65,19 +66,24 @@ int64_t UnscaledCycleClock::Now() {
 #ifdef __GLIBC__
   return __ppc_get_timebase();
 #elif defined(__FreeBSD__)
-  union { long long complete; unsigned int part[2]; } ticks;
-  unsigned int tmp;
-  asm volatile(
+#ifdef __powerpc64__
+  int64_t tbr;
+  asm volatile("mfspr %0, 268" : "=r" (tbr));
+  return tbr;
+#else
+ int32_t tbu, tbl, tmp;
+    asm volatile(
     "0:\n"
     "mftbu %[hi32]\n"
     "mftb %[lo32]\n"
     "mftbu %[tmp]\n"
     "cmpw %[tmp],%[hi32]\n"
     "bne 0b\n"
-    : [hi32] "=r"(ticks.part[0]), [lo32] "=r"(ticks.part[1]),
+    : [hi32] "=r"(tbu), [lo32] "=r"(tbl),
     [tmp] "=r"(tmp)
   );
-  return ticks.complete;
+  return ((int64_t) tbu << 32) | tbl);
+#endif
 #endif
 }
 
@@ -85,10 +91,11 @@ double UnscaledCycleClock::Frequency() {
 #ifdef __GLIBC__
   return __ppc_get_timebase_freq();
  #elif defined(__FreeBSD__)
-  double timebaseFrequency = 0;
-  size_t length = sizeof(timebaseFrequency);
-  sysctlbyname("kern.timecounter.tc.timebase.frequency", &timebaseFrequency, &length, NULL, 0);
-  return timebaseFrequency;
+  static once_flag init_timebase_frequency_once;
+  static double timebase_frequency = 0;
+  size_t length = sizeof(timebase_frequency);
+  base_internal::LowLevelCallOnce( &init_timebase_frequency_once, [&]() { sysctlbyname("kern.timecounter.tc.timebase.frequency", &timebase_frequency, &length, NULL, 0); });
+  return timebase_frequency;
 #endif
 }
 
