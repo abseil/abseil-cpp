@@ -77,7 +77,7 @@ struct NodeHashSetPolicy;
 //
 //   // Create a node hash set of three strings
 //   absl::node_hash_map<std::string, std::string> ducks =
-//     {"huey", "dewey"}, "louie"};
+//     {"huey", "dewey", "louie"};
 //
 //  // Insert a new element into the node hash map
 //  ducks.insert("donald"};
@@ -111,7 +111,7 @@ class node_hash_set
   // * Initializer List constructor
   //
   //   absl::node_hash_set<std::string> set2 =
-  //       {{"huey"}, {"dewey"}, {"louie"},};
+  //       {{"huey"}, {"dewey"}, {"louie"}};
   //
   // * Copy constructor
   //

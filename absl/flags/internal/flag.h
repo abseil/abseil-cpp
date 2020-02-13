@@ -24,6 +24,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/config.h"
@@ -281,10 +282,8 @@ class FlagImpl {
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         def_kind_(static_cast<uint8_t>(FlagDefaultKind::kGenFunc)),
-        is_data_guard_inited_(false),
         modified_(false),
         on_command_line_(false),
-        inited_(false),
         counter_(0),
         callback_(nullptr),
         default_src_(default_value_gen),
@@ -406,20 +405,28 @@ class FlagImpl {
   // Indicates if help message was supplied as literal or generator func.
   const uint8_t help_source_kind_ : 1;
 
+  // ------------------------------------------------------------------------
+  // The bytes containing the const bitfields must not be shared with bytes
+  // containing the mutable bitfields.
+  // ------------------------------------------------------------------------
+
+  // Unique tag for absl::call_once call to initialize this flag.
+  //
+  // The placement of this variable between the immutable and mutable bitfields
+  // is important as prevents them from occupying the same byte. If you remove
+  // this variable, make sure to maintain this property.
+  absl::once_flag init_control_;
+
   // Mutable flag's state (guarded by `data_guard_`).
 
   // If def_kind_ == kDynamicValue, default_src_ holds a dynamically allocated
   // value.
   uint8_t def_kind_ : 1 ABSL_GUARDED_BY(*DataGuard());
-  // Protects against multiple concurrent constructions of `data_guard_`.
-  bool is_data_guard_inited_ : 1;
   // Has this flag's value been modified?
   bool modified_ : 1 ABSL_GUARDED_BY(*DataGuard());
   // Has this flag been specified on command line.
   bool on_command_line_ : 1 ABSL_GUARDED_BY(*DataGuard());
 
-  // Indicates that the flag state is initialized.
-  std::atomic<bool> inited_;
   // Mutation counter
   int64_t counter_ ABSL_GUARDED_BY(*DataGuard());
   // Optional flag's callback and absl::Mutex to guard the invocations.

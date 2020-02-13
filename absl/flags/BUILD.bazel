@@ -41,6 +41,7 @@ cc_library(
         ":config",
         ":handle",
         ":registry",
+        "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/memory",

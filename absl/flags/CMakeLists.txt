@@ -27,6 +27,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::base
     absl::config
     absl::flags_config
     absl::flags_handle

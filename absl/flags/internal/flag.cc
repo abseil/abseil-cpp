@@ -80,41 +80,22 @@ class MutexRelock {
   absl::Mutex* mu_;
 };
 
-// This global lock guards the initialization and destruction of data_guard_,
-// which is used to guard the other Flag data.
-ABSL_CONST_INIT static absl::Mutex flag_mutex_lifetime_guard(absl::kConstInit);
-
 }  // namespace
 
 void FlagImpl::Init() {
-  {
-    absl::MutexLock lock(&flag_mutex_lifetime_guard);
-
-    // Must initialize data guard for this flag.
-    if (!is_data_guard_inited_) {
-      new (&data_guard_) absl::Mutex;
-      is_data_guard_inited_ = true;
-    }
-  }
+  new (&data_guard_) absl::Mutex;
 
   absl::MutexLock lock(reinterpret_cast<absl::Mutex*>(&data_guard_));
 
-  if (value_.dynamic != nullptr) {
-    inited_.store(true, std::memory_order_release);
-  } else {
-    // Need to initialize cur field.
-    value_.dynamic = MakeInitValue().release();
-    StoreAtomic();
-    inited_.store(true, std::memory_order_release);
-  }
+  value_.dynamic = MakeInitValue().release();
+  StoreAtomic();
 }
 
 // Ensures that the lazily initialized data is initialized,
 // and returns pointer to the mutex guarding flags data.
 absl::Mutex* FlagImpl::DataGuard() const {
-  if (ABSL_PREDICT_FALSE(!inited_.load(std::memory_order_acquire))) {
-    const_cast<FlagImpl*>(this)->Init();
-  }
+  absl::call_once(const_cast<FlagImpl*>(this)->init_control_, &FlagImpl::Init,
+                  const_cast<FlagImpl*>(this));
 
   // data_guard_ is initialized.
   return reinterpret_cast<absl::Mutex*>(&data_guard_);

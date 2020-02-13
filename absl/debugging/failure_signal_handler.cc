@@ -24,6 +24,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #ifdef ABSL_HAVE_MMAP
 #include <sys/mman.h>
 #endif
@@ -44,6 +48,11 @@
 
 #ifndef _WIN32
 #define ABSL_HAVE_SIGACTION
+// Apple WatchOS and TVOS don't allow sigaltstack
+#if !(defined(TARGET_OS_WATCH) && TARGET_OS_WATCH) && \
+    !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+#define ABSL_HAVE_SIGALTSTACK
+#endif
 #endif
 
 namespace absl {
@@ -117,7 +126,7 @@ const char* FailureSignalToString(int signo) {
 
 }  // namespace debugging_internal
 
-#ifndef _WIN32
+#ifdef ABSL_HAVE_SIGALTSTACK
 
 static bool SetupAlternateStackOnce() {
 #if defined(__wasm__) || defined (__asjms__)
@@ -169,7 +178,7 @@ static bool SetupAlternateStackOnce() {
 // Returns the appropriate flag for sig_action.sa_flags
 // if the system supports using an alternate stack.
 static int MaybeSetupAlternateStack() {
-#ifndef _WIN32
+#ifdef ABSL_HAVE_SIGALTSTACK
   ABSL_ATTRIBUTE_UNUSED static const bool kOnce = SetupAlternateStackOnce();
   return SA_ONSTACK;
 #else

@@ -316,13 +316,19 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #error ABSL_HAVE_EXCEPTIONS cannot be directly set.
 
 #elif defined(__clang__)
-// TODO(calabrese)
-// Switch to using __cpp_exceptions when we no longer support versions < 3.6.
-// For details on this check, see:
-//   http://releases.llvm.org/3.6.0/tools/clang/docs/ReleaseNotes.html#the-exceptions-macro
+
+#if __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
+// Clang >= 3.6
+#if __has_feature(cxx_exceptions)
+#define ABSL_HAVE_EXCEPTIONS 1
+#endif  // __has_feature(cxx_exceptions)
+#else
+// Clang < 3.6
+// http://releases.llvm.org/3.6.0/tools/clang/docs/ReleaseNotes.html#the-exceptions-macro
 #if defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
 #define ABSL_HAVE_EXCEPTIONS 1
 #endif  // defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
+#endif  // __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
 
 // Handle remaining special cases and default to exceptions being supported.
 #elif !(defined(__GNUC__) && (__GNUC__ < 5) && !defined(__EXCEPTIONS)) &&    \
