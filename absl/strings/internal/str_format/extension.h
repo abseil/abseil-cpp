@@ -148,117 +148,122 @@ struct Flags {
   X_VAL(g) X_SEP X_VAL(G) X_SEP X_VAL(a) X_SEP X_VAL(A) X_SEP \
   /* misc */ \
   X_VAL(n) X_SEP X_VAL(p)
-// clang-format on
 
-struct ABSL_DLL ConversionChar {
- public:
-  enum Id : uint8_t {
+enum class FormatConversionChar : uint8_t {
     c, C, s, S,              // text
     d, i, o, u, x, X,        // int
     f, F, e, E, g, G, a, A,  // float
     n, p,                    // misc
-    none
-  };
-  static const size_t kNumValues = none + 1;
-
-  ConversionChar() : id_(none) {}
-
- public:
-  // Index into the opaque array of ConversionChar enums.
-  // Requires: i < kNumValues
-  static ConversionChar FromIndex(size_t i) {
-    return ConversionChar(kSpecs[i].value);
-  }
-
-  static ConversionChar FromChar(char c) {
-    ConversionChar::Id out_id = ConversionChar::none;
-    switch (c) {
-#define X_VAL(id)                \
-  case #id[0]:                   \
-    out_id = ConversionChar::id; \
-    break;
-      ABSL_CONVERSION_CHARS_EXPAND_(X_VAL, )
-#undef X_VAL
-      default:
-        break;
-    }
-    return ConversionChar(out_id);
-  }
-
-  static ConversionChar FromId(Id id) { return ConversionChar(id); }
-  Id id() const { return id_; }
-
-  int radix() const {
-    switch (id()) {
-      case x: case X: case a: case A: case p: return 16;
-      case o: return 8;
-      default: return 10;
-    }
-  }
-
-  bool upper() const {
-    switch (id()) {
-      case X: case F: case E: case G: case A: return true;
-      default: return false;
-    }
-  }
-
-  bool is_signed() const {
-    switch (id()) {
-      case d: case i: return true;
-      default: return false;
-    }
-  }
-
-  bool is_integral() const {
-    switch (id()) {
-      case d: case i: case u: case o: case x: case X:
-        return true;
-      default: return false;
-    }
-  }
-
-  bool is_float() const {
-    switch (id()) {
-      case a: case e: case f: case g: case A: case E: case F: case G:
-        return true;
-      default: return false;
-    }
-  }
-
-  bool IsValid() const { return id() != none; }
-
-  // The associated char.
-  char Char() const { return kSpecs[id_].name; }
-
-  friend bool operator==(const ConversionChar& a, const ConversionChar& b) {
-    return a.id() == b.id();
-  }
-  friend bool operator!=(const ConversionChar& a, const ConversionChar& b) {
-    return !(a == b);
-  }
-  friend std::ostream& operator<<(std::ostream& os, const ConversionChar& v) {
-    char c = v.Char();
-    if (!c) c = '?';
-    return os << c;
-  }
-
- private:
-  struct Spec {
-    Id value;
-    char name;
-  };
-  static const Spec kSpecs[];
-
-  explicit ConversionChar(Id id) : id_(id) {}
-
-  Id id_;
+    kNone,
+    none = kNone
 };
+// clang-format on
+
+inline FormatConversionChar FormatConversionCharFromChar(char c) {
+  switch (c) {
+#define X_VAL(id) \
+  case #id[0]:    \
+    return FormatConversionChar::id;
+    ABSL_CONVERSION_CHARS_EXPAND_(X_VAL, )
+#undef X_VAL
+  }
+  return FormatConversionChar::kNone;
+}
+
+inline int FormatConversionCharRadix(FormatConversionChar c) {
+  switch (c) {
+    case FormatConversionChar::x:
+    case FormatConversionChar::X:
+    case FormatConversionChar::a:
+    case FormatConversionChar::A:
+    case FormatConversionChar::p:
+      return 16;
+    case FormatConversionChar::o:
+      return 8;
+    default:
+      return 10;
+  }
+}
+
+inline bool FormatConversionCharIsUpper(FormatConversionChar c) {
+  switch (c) {
+    case FormatConversionChar::X:
+    case FormatConversionChar::F:
+    case FormatConversionChar::E:
+    case FormatConversionChar::G:
+    case FormatConversionChar::A:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool FormatConversionCharIsSigned(FormatConversionChar c) {
+  switch (c) {
+    case FormatConversionChar::d:
+    case FormatConversionChar::i:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool FormatConversionCharIsIntegral(FormatConversionChar c) {
+  switch (c) {
+    case FormatConversionChar::d:
+    case FormatConversionChar::i:
+    case FormatConversionChar::u:
+    case FormatConversionChar::o:
+    case FormatConversionChar::x:
+    case FormatConversionChar::X:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool FormatConversionCharIsFloat(FormatConversionChar c) {
+  switch (c) {
+    case FormatConversionChar::a:
+    case FormatConversionChar::e:
+    case FormatConversionChar::f:
+    case FormatConversionChar::g:
+    case FormatConversionChar::A:
+    case FormatConversionChar::E:
+    case FormatConversionChar::F:
+    case FormatConversionChar::G:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline char FormatConversionCharToChar(FormatConversionChar c) {
+  switch (c) {
+#define X_VAL(e)                \
+  case FormatConversionChar::e: \
+    return #e[0];
+#define X_SEP
+    ABSL_CONVERSION_CHARS_EXPAND_(X_VAL, X_SEP)
+    case FormatConversionChar::kNone:
+      return '\0';
+#undef X_VAL
+#undef X_SEP
+  }
+  return '\0';
+}
+
+// The associated char.
+inline std::ostream& operator<<(std::ostream& os, FormatConversionChar v) {
+  char c = FormatConversionCharToChar(v);
+  if (!c) c = '?';
+  return os << c;
+}
 
 class ConversionSpec {
  public:
   Flags flags() const { return flags_; }
-  ConversionChar conv() const {
+  FormatConversionChar conv() const {
     // Keep this field first in the struct . It generates better code when
     // accessing it when ConversionSpec is passed by value in registers.
     static_assert(offsetof(ConversionSpec, conv_) == 0, "");
@@ -273,22 +278,24 @@ class ConversionSpec {
   int precision() const { return precision_; }
 
   void set_flags(Flags f) { flags_ = f; }
-  void set_conv(ConversionChar c) { conv_ = c; }
+  void set_conv(FormatConversionChar c) { conv_ = c; }
   void set_width(int w) { width_ = w; }
   void set_precision(int p) { precision_ = p; }
   void set_left(bool b) { flags_.left = b; }
 
  private:
-  ConversionChar conv_;
+  FormatConversionChar conv_ = FormatConversionChar::kNone;
   Flags flags_;
   int width_;
   int precision_;
 };
 
-constexpr uint64_t ConversionCharToConvValue(char conv) {
+constexpr uint64_t FormatConversionCharToConvValue(char conv) {
   return
-#define CONV_SET_CASE(c) \
-  conv == #c[0] ? (uint64_t{1} << (1 + ConversionChar::Id::c)):
+#define CONV_SET_CASE(c)                                                     \
+  conv == #c[0]                                                              \
+      ? (uint64_t{1} << (1 + static_cast<uint8_t>(FormatConversionChar::c))) \
+      :
       ABSL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
 #undef CONV_SET_CASE
                   conv == '*'
@@ -297,12 +304,12 @@ constexpr uint64_t ConversionCharToConvValue(char conv) {
 }
 
 enum class Conv : uint64_t {
-#define CONV_SET_CASE(c) c = ConversionCharToConvValue(#c[0]),
+#define CONV_SET_CASE(c) c = FormatConversionCharToConvValue(#c[0]),
   ABSL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
 #undef CONV_SET_CASE
 
   // Used for width/precision '*' specification.
-  star = ConversionCharToConvValue('*'),
+  star = FormatConversionCharToConvValue('*'),
 
   // Some predefined values:
   integral = d | i | u | o | x | X,
@@ -323,12 +330,12 @@ constexpr Conv operator|(Conv a, Conv b) {
 
 // Get a conversion with a single character in it.
 constexpr Conv ConversionCharToConv(char c) {
-  return Conv(ConversionCharToConvValue(c));
+  return Conv(FormatConversionCharToConvValue(c));
 }
 
 // Checks whether `c` exists in `set`.
 constexpr bool Contains(Conv set, char c) {
-  return (static_cast<uint64_t>(set) & ConversionCharToConvValue(c)) != 0;
+  return (static_cast<uint64_t>(set) & FormatConversionCharToConvValue(c)) != 0;
 }
 
 // Checks whether all the characters in `c` are contained in `set`
@@ -352,6 +359,9 @@ constexpr Conv ConvertResult<C>::kConv;
 inline size_t Excess(size_t used, size_t capacity) {
   return used < capacity ? capacity - used : 0;
 }
+
+// Type alias for use during migration.
+using ConversionChar = FormatConversionChar;
 
 }  // namespace str_format_internal
 

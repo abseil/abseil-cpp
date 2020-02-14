@@ -33,7 +33,7 @@ bool FallbackToSnprintf(const Float v, const ConversionSpec &conv,
     if (std::is_same<long double, Float>()) {
       *fp++ = 'L';
     }
-    *fp++ = conv.conv().Char();
+    *fp++ = FormatConversionCharToChar(conv.conv());
     *fp = 0;
     assert(fp < fmt + sizeof(fmt));
   }
@@ -100,9 +100,11 @@ bool ConvertNonNumericFloats(char sign_char, Float v,
   char text[4], *ptr = text;
   if (sign_char) *ptr++ = sign_char;
   if (std::isnan(v)) {
-    ptr = std::copy_n(conv.conv().upper() ? "NAN" : "nan", 3, ptr);
+    ptr = std::copy_n(FormatConversionCharIsUpper(conv.conv()) ? "NAN" : "nan",
+                      3, ptr);
   } else if (std::isinf(v)) {
-    ptr = std::copy_n(conv.conv().upper() ? "INF" : "inf", 3, ptr);
+    ptr = std::copy_n(FormatConversionCharIsUpper(conv.conv()) ? "INF" : "inf",
+                      3, ptr);
   } else {
     return false;
   }
@@ -399,7 +401,7 @@ bool FloatToSink(const Float v, const ConversionSpec &conv,
 
   Buffer buffer;
 
-  switch (conv.conv().id()) {
+  switch (conv.conv()) {
     case ConversionChar::f:
     case ConversionChar::F:
       if (!FloatToBuffer<FormatStyle::Fixed>(decomposed, precision, &buffer,
@@ -416,7 +418,8 @@ bool FloatToSink(const Float v, const ConversionSpec &conv,
         return FallbackToSnprintf(v, conv, sink);
       }
       if (!conv.flags().alt && buffer.back() == '.') buffer.pop_back();
-      PrintExponent(exp, conv.conv().upper() ? 'E' : 'e', &buffer);
+      PrintExponent(exp, FormatConversionCharIsUpper(conv.conv()) ? 'E' : 'e',
+                    &buffer);
       break;
 
     case ConversionChar::g:
@@ -447,7 +450,10 @@ bool FloatToSink(const Float v, const ConversionSpec &conv,
         while (buffer.back() == '0') buffer.pop_back();
         if (buffer.back() == '.') buffer.pop_back();
       }
-      if (exp) PrintExponent(exp, conv.conv().upper() ? 'E' : 'e', &buffer);
+      if (exp) {
+        PrintExponent(exp, FormatConversionCharIsUpper(conv.conv()) ? 'E' : 'e',
+                      &buffer);
+      }
       break;
 
     case ConversionChar::a:

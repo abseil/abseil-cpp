@@ -17,7 +17,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
-using CC = ConversionChar::Id;
+using CC = ConversionChar;
 using LM = LengthMod;
 
 ABSL_CONST_INIT const ConvTag kTags[256] = {
@@ -322,7 +322,9 @@ bool ParsedFormatBase::MatchesConversions(
     if (conv.width.is_from_arg() &&
         !add_if_valid_conv(conv.width.get_from_arg(), '*'))
       return false;
-    if (!add_if_valid_conv(conv.arg_position, conv.conv.Char())) return false;
+    if (!add_if_valid_conv(conv.arg_position,
+                           FormatConversionCharToChar(conv.conv)))
+      return false;
   }
   return used.size() == convs.size() || allow_ignored;
 }

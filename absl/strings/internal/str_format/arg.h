@@ -70,7 +70,7 @@ template <class AbslCord,
 ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
                                          ConversionSpec conv,
                                          FormatSinkImpl* sink) {
-  if (conv.conv().id() != ConversionChar::s) return {false};
+  if (conv.conv() != ConversionChar::s) return {false};
 
   bool is_left = conv.flags().left;
   size_t space_remaining = 0;
@@ -185,8 +185,7 @@ struct FormatCountCaptureHelper {
                                               FormatSinkImpl* sink) {
     const absl::enable_if_t<sizeof(T) != 0, FormatCountCapture>& v2 = v;
 
-    if (conv.conv().id() != str_format_internal::ConversionChar::n)
-      return {false};
+    if (conv.conv() != str_format_internal::ConversionChar::n) return {false};
     *v2.p_ = static_cast<int>(sink->size());
     return {true};
   }
@@ -378,7 +377,7 @@ class FormatArgImpl {
   template <typename T>
   static bool Dispatch(Data arg, ConversionSpec spec, void* out) {
     // A `none` conv indicates that we want the `int` conversion.
-    if (ABSL_PREDICT_FALSE(spec.conv().id() == ConversionChar::none)) {
+    if (ABSL_PREDICT_FALSE(spec.conv() == ConversionChar::none)) {
       return ToInt<T>(arg, static_cast<int*>(out), std::is_integral<T>(),
                       std::is_enum<T>());
     }

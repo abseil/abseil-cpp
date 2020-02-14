@@ -47,22 +47,14 @@ const char kStrippedFlagHelp[] = "\001\002\003\004 (unknown) \004\003\002\001";
 namespace {
 
 // Currently we only validate flag values for user-defined flag types.
-bool ShouldValidateFlagValue(FlagOpFn flag_type_id) {
+bool ShouldValidateFlagValue(FlagStaticTypeId flag_type_id) {
 #define DONT_VALIDATE(T) \
-  if (flag_type_id == &flags_internal::FlagOps<T>) return false;
+  if (flag_type_id == &FlagStaticTypeIdGen<T>) return false;
   ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(DONT_VALIDATE)
 #undef DONT_VALIDATE
 
   return true;
 }
-
-#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
-bool MatchRuntimeTypeId(FlagOpFn lhs_type_id, FlagOpFn rhs_type_id) {
-  return RuntimeTypeId(lhs_type_id) == RuntimeTypeId(rhs_type_id);
-}
-#else
-bool MatchRuntimeTypeId(FlagOpFn, FlagOpFn) { return true; }
-#endif
 
 // RAII helper used to temporarily unlock and relock `absl::Mutex`.
 // This is used when we need to ensure that locks are released while
@@ -101,22 +93,35 @@ absl::Mutex* FlagImpl::DataGuard() const {
   return reinterpret_cast<absl::Mutex*>(&data_guard_);
 }
 
-void FlagImpl::AssertValidType(const flags_internal::FlagOpFn op) const {
-  // `op` is the unmarshaling operation corresponding to the declaration
-  // visibile at the call site. `op_` is the Flag's defined unmarshalling
-  // operation. They must match for this operation to be well-defined.
-  if (ABSL_PREDICT_FALSE(op != op_) && !MatchRuntimeTypeId(op, op_)) {
-    ABSL_INTERNAL_LOG(
-        FATAL,
-        absl::StrCat("Flag '", Name(),
-                     "' is defined as one type and declared as another"));
-  }
+void FlagImpl::AssertValidType(FlagStaticTypeId type_id) const {
+  FlagStaticTypeId this_type_id = flags_internal::StaticTypeId(op_);
+
+  // `type_id` is the type id corresponding to the declaration visibile at the
+  // call site. `this_type_id` is the type id corresponding to the type stored
+  // during flag definition. They must match for this operation to be
+  // well-defined.
+  if (ABSL_PREDICT_TRUE(type_id == this_type_id)) return;
+
+  void* lhs_runtime_type_id = type_id();
+  void* rhs_runtime_type_id = this_type_id();
+
+  if (lhs_runtime_type_id == rhs_runtime_type_id) return;
+
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+  if (*reinterpret_cast<std::type_info*>(lhs_runtime_type_id) ==
+      *reinterpret_cast<std::type_info*>(rhs_runtime_type_id))
+    return;
+#endif
+
+  ABSL_INTERNAL_LOG(
+      FATAL, absl::StrCat("Flag '", Name(),
+                          "' is defined as one type and declared as another"));
 }
 
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-    res = Clone(op_, default_src_.dynamic_value);
+    res = flags_internal::Clone(op_, default_src_.dynamic_value);
   } else {
     res = (*default_src_.gen_func)();
   }
@@ -148,13 +153,13 @@ std::string FlagImpl::DefaultValue() const {
   absl::MutexLock l(DataGuard());
 
   auto obj = MakeInitValue();
-  return Unparse(marshalling_op_, obj.get());
+  return flags_internal::Unparse(op_, obj.get());
 }
 
 std::string FlagImpl::CurrentValue() const {
   absl::MutexLock l(DataGuard());
 
-  return Unparse(marshalling_op_, value_.dynamic);
+  return flags_internal::Unparse(op_, value_.dynamic);
 }
 
 void FlagImpl::SetCallback(const FlagCallbackFunc mutation_callback) {
@@ -220,7 +225,7 @@ bool FlagImpl::TryParse(void** dst, absl::string_view value,
   auto tentative_value = MakeInitValue();
 
   std::string parse_err;
-  if (!Parse(marshalling_op_, value, tentative_value.get(), &parse_err)) {
+  if (!flags_internal::Parse(op_, value, tentative_value.get(), &parse_err)) {
     absl::string_view err_sep = parse_err.empty() ? "" : "; ";
     *err = absl::StrCat("Illegal value '", value, "' specified for flag '",
                         Name(), "'", err_sep, parse_err);
@@ -237,11 +242,11 @@ bool FlagImpl::TryParse(void** dst, absl::string_view value,
 void FlagImpl::Read(void* dst) const {
   absl::ReaderMutexLock l(DataGuard());
 
-  CopyConstruct(op_, value_.dynamic, dst);
+  flags_internal::CopyConstruct(op_, value_.dynamic, dst);
 }
 
 void FlagImpl::StoreAtomic() {
-  size_t data_size = Sizeof(op_);
+  size_t data_size = flags_internal::Sizeof(op_);
 
   if (data_size <= sizeof(int64_t)) {
     int64_t t = 0;
@@ -260,20 +265,20 @@ void FlagImpl::StoreAtomic() {
 void FlagImpl::Write(const void* src) {
   absl::MutexLock l(DataGuard());
 
-  if (ShouldValidateFlagValue(op_)) {
-    void* obj = Clone(op_, src);
+  if (ShouldValidateFlagValue(flags_internal::StaticTypeId(op_))) {
+    void* obj = flags_internal::Clone(op_, src);
     std::string ignored_error;
-    std::string src_as_str = Unparse(marshalling_op_, src);
-    if (!Parse(marshalling_op_, src_as_str, obj, &ignored_error)) {
+    std::string src_as_str = flags_internal::Unparse(op_, src);
+    if (!flags_internal::Parse(op_, src_as_str, obj, &ignored_error)) {
       ABSL_INTERNAL_LOG(ERROR, absl::StrCat("Attempt to set flag '", Name(),
                                             "' to invalid value ", src_as_str));
     }
-    Delete(op_, obj);
+    flags_internal::Delete(op_, obj);
   }
 
   modified_ = true;
   counter_++;
-  Copy(op_, src, value_.dynamic);
+  flags_internal::Copy(op_, src, value_.dynamic);
 
   StoreAtomic();
   InvokeCallback();
@@ -341,7 +346,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case
-        Copy(op_, default_src_.dynamic_value, value_.dynamic);
+        flags_internal::Copy(op_, default_src_.dynamic_value, value_.dynamic);
         StoreAtomic();
         InvokeCallback();
       }
@@ -359,7 +364,7 @@ void FlagImpl::CheckDefaultValueParsingRoundtrip() const {
 
   auto dst = MakeInitValue();
   std::string error;
-  if (!flags_internal::Parse(marshalling_op_, v, dst.get(), &error)) {
+  if (!flags_internal::Parse(op_, v, dst.get(), &error)) {
     ABSL_INTERNAL_LOG(
         FATAL,
         absl::StrCat("Flag ", Name(), " (from ", Filename(),
@@ -376,8 +381,7 @@ bool FlagImpl::ValidateInputValue(absl::string_view value) const {
 
   auto obj = MakeInitValue();
   std::string ignored_error;
-  return flags_internal::Parse(marshalling_op_, value, obj.get(),
-                               &ignored_error);
+  return flags_internal::Parse(op_, value, obj.get(), &ignored_error);
 }
 
 }  // namespace flags_internal

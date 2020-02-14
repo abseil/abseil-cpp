@@ -71,7 +71,7 @@ ABSL_NAMESPACE_BEGIN
 //   // Now you can use the symbolizer
 // }
 void InitializeSymbolizer(const char* argv0);
-
+//
 // Symbolize()
 //
 // Symbolizes a program counter (instruction pointer value) `pc` and, on

@@ -23,15 +23,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
-const ConversionChar::Spec ConversionChar::kSpecs[] = {
-#define X_VAL(id) { ConversionChar::id, #id[0] }
-#define X_SEP ,
-    ABSL_CONVERSION_CHARS_EXPAND_(X_VAL, X_SEP),
-    {ConversionChar::none, '\0'},
-#undef X_VAL
-#undef X_SEP
-};
-
 std::string Flags::ToString() const {
   std::string s;
   s.append(left     ? "-" : "");
@@ -41,8 +32,6 @@ std::string Flags::ToString() const {
   s.append(zero     ? "0" : "");
   return s;
 }
-
-const size_t ConversionChar::kNumValues;
 
 bool FormatSinkImpl::PutPaddedString(string_view v, int w, int p, bool l) {
   size_t space_remaining = 0;

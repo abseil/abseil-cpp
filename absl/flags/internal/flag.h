@@ -43,6 +43,94 @@ template <typename T>
 class Flag;
 
 ///////////////////////////////////////////////////////////////////////////////
+// Type-specific operations, eg., parsing, copying, etc. are provided
+// by function specific to that type with a signature matching FlagOpFn.
+
+enum FlagOp {
+  kDelete,
+  kClone,
+  kCopy,
+  kCopyConstruct,
+  kSizeof,
+  kStaticTypeId,
+  kParse,
+  kUnparse,
+};
+using FlagOpFn = void* (*)(FlagOp, const void*, void*, void*);
+
+// The per-type function
+template <typename T>
+void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
+  switch (op) {
+    case flags_internal::kDelete:
+      delete static_cast<const T*>(v1);
+      return nullptr;
+    case flags_internal::kClone:
+      return new T(*static_cast<const T*>(v1));
+    case flags_internal::kCopy:
+      *static_cast<T*>(v2) = *static_cast<const T*>(v1);
+      return nullptr;
+    case flags_internal::kCopyConstruct:
+      new (v2) T(*static_cast<const T*>(v1));
+      return nullptr;
+    case flags_internal::kSizeof:
+      return reinterpret_cast<void*>(sizeof(T));
+    case flags_internal::kStaticTypeId:
+      return reinterpret_cast<void*>(&FlagStaticTypeIdGen<T>);
+    case flags_internal::kParse: {
+      // Initialize the temporary instance of type T based on current value in
+      // destination (which is going to be flag's default value).
+      T temp(*static_cast<T*>(v2));
+      if (!absl::ParseFlag<T>(*static_cast<const absl::string_view*>(v1), &temp,
+                              static_cast<std::string*>(v3))) {
+        return nullptr;
+      }
+      *static_cast<T*>(v2) = std::move(temp);
+      return v2;
+    }
+    case flags_internal::kUnparse:
+      *static_cast<std::string*>(v2) =
+          absl::UnparseFlag<T>(*static_cast<const T*>(v1));
+      return nullptr;
+    default:
+      return nullptr;
+  }
+}
+
+// Functions that invoke flag-type-specific operations.
+inline void Delete(FlagOpFn op, const void* obj) {
+  op(flags_internal::kDelete, obj, nullptr, nullptr);
+}
+inline void* Clone(FlagOpFn op, const void* obj) {
+  return op(flags_internal::kClone, obj, nullptr, nullptr);
+}
+inline void Copy(FlagOpFn op, const void* src, void* dst) {
+  op(flags_internal::kCopy, src, dst, nullptr);
+}
+inline void CopyConstruct(FlagOpFn op, const void* src, void* dst) {
+  op(flags_internal::kCopyConstruct, src, dst, nullptr);
+}
+inline bool Parse(FlagOpFn op, absl::string_view text, void* dst,
+                  std::string* error) {
+  return op(flags_internal::kParse, &text, dst, error) != nullptr;
+}
+inline std::string Unparse(FlagOpFn op, const void* val) {
+  std::string result;
+  op(flags_internal::kUnparse, val, &result, nullptr);
+  return result;
+}
+inline size_t Sizeof(FlagOpFn op) {
+  // This sequence of casts reverses the sequence from
+  // `flags_internal::FlagOps()`
+  return static_cast<size_t>(reinterpret_cast<intptr_t>(
+      op(flags_internal::kSizeof, nullptr, nullptr, nullptr)));
+}
+inline FlagStaticTypeId StaticTypeId(FlagOpFn op) {
+  return reinterpret_cast<FlagStaticTypeId>(
+      op(flags_internal::kStaticTypeId, nullptr, nullptr, nullptr));
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Persistent state of the flag data.
 
 template <typename T>
@@ -273,12 +361,10 @@ struct DynValueDeleter {
 class FlagImpl {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
-                     FlagMarshallingOpFn marshalling_op, FlagHelpArg help,
-                     FlagDfltGenFunc default_value_gen)
+                     FlagHelpArg help, FlagDfltGenFunc default_value_gen)
       : name_(name),
         filename_(filename),
         op_(op),
-        marshalling_op_(marshalling_op),
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         def_kind_(static_cast<uint8_t>(FlagDefaultKind::kGenFunc)),
@@ -306,7 +392,7 @@ class FlagImpl {
   template <typename T, typename std::enable_if<
                             !IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
   void Get(T* dst) const {
-    AssertValidType(&flags_internal::FlagOps<T>);
+    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
     Read(dst);
   }
   // Overload for `GetFlag()` for types that support lock-free reads.
@@ -317,7 +403,7 @@ class FlagImpl {
     // slowing down flag value access due to type validation. That's why
     // this validation is hidden behind !NDEBUG
 #ifndef NDEBUG
-    AssertValidType(&flags_internal::FlagOps<T>);
+    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
 #endif
     using U = flags_internal::BestAtomicType<T>;
     typename U::type r = value_.atomics.template load<T>();
@@ -329,7 +415,7 @@ class FlagImpl {
   }
   template <typename T>
   void Set(const T& src) {
-    AssertValidType(&flags_internal::FlagOps<T>);
+    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
     Write(&src);
   }
 
@@ -388,7 +474,7 @@ class FlagImpl {
   // int. To do that we pass the "assumed" type id (which is deduced from type
   // int) as an argument `op`, which is in turn is validated against the type id
   // stored in flag object by flag definition statement.
-  void AssertValidType(const flags_internal::FlagOpFn op) const;
+  void AssertValidType(FlagStaticTypeId type_id) const;
 
   // Immutable flag's state.
 
@@ -396,10 +482,8 @@ class FlagImpl {
   const char* const name_;
   // The file name where ABSL_FLAG resides.
   const char* const filename_;
-  // Type-specific handler.
+  // Type-specific operations "vtable".
   const FlagOpFn op_;
-  // Marshalling ops handler.
-  const FlagMarshallingOpFn marshalling_op_;
   // Help message literal or function to generate it.
   const FlagHelpMsg help_;
   // Indicates if help message was supplied as literal or generator func.
@@ -456,12 +540,9 @@ class FlagImpl {
 template <typename T>
 class Flag final : public flags_internal::CommandLineFlag {
  public:
-  constexpr Flag(const char* name, const char* filename,
-                 const FlagMarshallingOpFn marshalling_op,
-                 const FlagHelpArg help,
+  constexpr Flag(const char* name, const char* filename, const FlagHelpArg help,
                  const FlagDfltGenFunc default_value_gen)
-      : impl_(name, filename, &FlagOps<T>, marshalling_op, help,
-              default_value_gen) {}
+      : impl_(name, filename, &FlagOps<T>, help, default_value_gen) {}
 
   T Get() const {
     // See implementation notes in CommandLineFlag::Get().
@@ -520,7 +601,7 @@ class Flag final : public flags_internal::CommandLineFlag {
   friend class FlagState<T>;
 
   void Read(void* dst) const override { impl_.Read(dst); }
-  FlagOpFn TypeId() const override { return &FlagOps<T>; }
+  FlagStaticTypeId TypeId() const override { return &FlagStaticTypeIdGen<T>; }
 
   // Flag's data
   FlagImpl impl_;

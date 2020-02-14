@@ -33,8 +33,9 @@ instructions](https://github.com/abseil/abseil-cpp/blob/master/CMake/README.md)
 for more information.
 
 For a longer answer to this question and to understand why some other approaches
-don't work, see the answer to "What is ABI and why don't you recommend using a
-pre-compiled version of Abseil?"
+don't work, see the answer to ["What is ABI and why don't you recommend using a
+pre-compiled version of
+Abseil?"](#what-is-abi-and-why-dont-you-recommend-using-a-pre-compiled-version-of-abseil)
 
 ## What is ABI and why don't you recommend using a pre-compiled version of Abseil?
 
@@ -117,7 +118,8 @@ to make it compatible. In practice, the need to use an automated tool is
 extremely rare. This means that upgrading from one source release to another
 should be a routine practice that can and should be performed often.
 
-We recommend you update to the latest release of Abseil as often as
+We recommend you update to the [latest commit in the `master` branch of
+Abseil](https://github.com/abseil/abseil-cpp/commits/master) as often as
 possible. Not only will you pick up bug fixes more quickly, but if you have good
 automated testing, you will catch and be able to fix any [Hyrum's
 Law](https://www.hyrumslaw.com/) dependency problems on an incremental basis
@@ -130,9 +132,27 @@ feature, updating the
 [`http_archive`](https://docs.bazel.build/versions/master/repo/http.html#http_archive)
 rule in your
 [`WORKSPACE`](https://docs.bazel.build/versions/master/be/workspace.html) for
-`com_google_abseil` to point to the latest release is all you need to do. You
-can commit the updated `WORKSPACE` file to your source control every time you
-update, and if you have good automated testing, you might even consider
+`com_google_abseil` to point to the [latest commit in the `master` branch of
+Abseil](https://github.com/abseil/abseil-cpp/commits/master) is all you need to
+do. For example, on February 11, 2020, the latest commit to the master branch
+was `98eb410c93ad059f9bba1bf43f5bb916fc92a5ea`. To update to this commit, you
+would add the following snippet to your `WORKSPACE` file:
+
+```
+http_archive(
+  name = "com_google_absl",
+  urls = ["https://github.com/abseil/abseil-cpp/archive/98eb410c93ad059f9bba1bf43f5bb916fc92a5ea.zip"],  # 2020-02-11T18:50:53Z
+  strip_prefix = "abseil-cpp-98eb410c93ad059f9bba1bf43f5bb916fc92a5ea",
+  sha256 = "aabf6c57e3834f8dc3873a927f37eaf69975d4b28117fc7427dfb1c661542a87",
+)
+```
+
+To get the `sha256` of this URL, run `curl -sL --output -
+https://github.com/abseil/abseil-cpp/archive/98eb410c93ad059f9bba1bf43f5bb916fc92a5ea.zip
+| sha256sum -`.
+
+You can commit the updated `WORKSPACE` file to your source control every time
+you update, and if you have good automated testing, you might even consider
 automating this.
 
 One thing we don't recommend is using GitHub's `master.zip` files (for example

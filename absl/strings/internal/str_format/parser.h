@@ -67,7 +67,7 @@ struct UnboundConversion {
 
   Flags flags;
   LengthMod length_mod = LengthMod::none;
-  ConversionChar conv;
+  ConversionChar conv = FormatConversionChar::kNone;
 };
 
 // Consume conversion spec prefix (not including '%') of [p, end) if valid.
@@ -79,10 +79,12 @@ const char* ConsumeUnboundConversion(const char* p, const char* end,
                                      UnboundConversion* conv, int* next_arg);
 
 // Helper tag class for the table below.
-// It allows fast `char -> ConversionChar/LengthMod` checking and conversions.
+// It allows fast `char -> ConversionChar/LengthMod` checking and
+// conversions.
 class ConvTag {
  public:
-  constexpr ConvTag(ConversionChar::Id id) : tag_(id) {}  // NOLINT
+  constexpr ConvTag(ConversionChar conversion_char)  // NOLINT
+      : tag_(static_cast<int8_t>(conversion_char)) {}
   // We invert the length modifiers to make them negative so that we can easily
   // test for them.
   constexpr ConvTag(LengthMod length_mod)  // NOLINT
@@ -94,7 +96,7 @@ class ConvTag {
   bool is_length() const { return tag_ < 0 && tag_ != -128; }
   ConversionChar as_conv() const {
     assert(is_conv());
-    return ConversionChar::FromId(static_cast<ConversionChar::Id>(tag_));
+    return static_cast<ConversionChar>(tag_);
   }
   LengthMod as_length() const {
     assert(is_length());

@@ -450,7 +450,7 @@ struct SummarizeConsumer {
     if (conv.precision.is_from_arg()) {
       *out += "." + std::to_string(conv.precision.get_from_arg()) + "$*";
     }
-    *out += conv.conv.Char();
+    *out += FormatConversionCharToChar(conv.conv);
     *out += "}";
     return true;
   }

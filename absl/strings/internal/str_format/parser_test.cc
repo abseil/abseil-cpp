@@ -41,7 +41,7 @@ TEST(LengthModTest, Names) {
 
 TEST(ConversionCharTest, Names) {
   struct Expectation {
-    ConversionChar::Id id;
+    ConversionChar id;
     char name;
   };
   // clang-format off
@@ -55,12 +55,10 @@ TEST(ConversionCharTest, Names) {
     {ConversionChar::none, '\0'},
   };
   // clang-format on
-  EXPECT_EQ(ABSL_ARRAYSIZE(kExpect), ConversionChar::kNumValues);
   for (auto e : kExpect) {
     SCOPED_TRACE(e.name);
-    ConversionChar v = ConversionChar::FromId(e.id);
-    EXPECT_EQ(e.id, v.id());
-    EXPECT_EQ(e.name, v.Char());
+    ConversionChar v = e.id;
+    EXPECT_EQ(e.name, FormatConversionCharToChar(v));
   }
 }
 
@@ -119,7 +117,7 @@ TEST_F(ConsumeUnboundConversionTest, BasicConversion) {
   EXPECT_FALSE(Run("dd"));  // no excess allowed
 
   EXPECT_TRUE(Run("d"));
-  EXPECT_EQ('d', o.conv.Char());
+  EXPECT_EQ('d', FormatConversionCharToChar(o.conv));
   EXPECT_FALSE(o.width.is_from_arg());
   EXPECT_LT(o.width.value(), 0);
   EXPECT_FALSE(o.precision.is_from_arg());
@@ -160,7 +158,7 @@ TEST_F(ConsumeUnboundConversionTest, ArgPosition) {
 
 TEST_F(ConsumeUnboundConversionTest, WidthAndPrecision) {
   EXPECT_TRUE(Run("14d"));
-  EXPECT_EQ('d', o.conv.Char());
+  EXPECT_EQ('d', FormatConversionCharToChar(o.conv));
   EXPECT_FALSE(o.width.is_from_arg());
   EXPECT_EQ(14, o.width.value());
   EXPECT_FALSE(o.precision.is_from_arg());
@@ -330,7 +328,7 @@ struct SummarizeConsumer {
     if (conv.precision.is_from_arg()) {
       *out += "." + std::to_string(conv.precision.get_from_arg()) + "$*";
     }
-    *out += conv.conv.Char();
+    *out += FormatConversionCharToChar(conv.conv);
     *out += "}";
     return true;
   }

@@ -100,12 +100,10 @@ class Flag {
   // constexpr initializable.
 #if _MSC_VER <= 1900
   constexpr Flag(const char* name, const char* filename,
-                 const flags_internal::FlagMarshallingOpFn marshalling_op,
                  const flags_internal::HelpGenFunc help_gen,
                  const flags_internal::FlagDfltGenFunc default_value_gen)
       : name_(name),
         filename_(filename),
-        marshalling_op_(marshalling_op),
         help_gen_(help_gen),
         default_value_gen_(default_value_gen),
         inited_(false),
@@ -121,7 +119,7 @@ class Flag {
       }
 
       impl_ =
-          new flags_internal::Flag<T>(name_, filename_, marshalling_op_,
+          new flags_internal::Flag<T>(name_, filename_,
                                       {flags_internal::FlagHelpMsg(help_gen_),
                                        flags_internal::FlagHelpKind::kGenFunc},
                                       default_value_gen_);
@@ -161,7 +159,6 @@ class Flag {
   // this to be an aggregate type.
   const char* name_;
   const char* filename_;
-  const flags_internal::FlagMarshallingOpFn marshalling_op_;
   const flags_internal::HelpGenFunc help_gen_;
   const flags_internal::FlagDfltGenFunc default_value_gen_;
 
@@ -335,7 +332,6 @@ ABSL_NAMESPACE_END
   ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help);                  \
   ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
       ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_FILENAME(),    \
-      &absl::flags_internal::FlagMarshallingOps<Type>,              \
       absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>(0),   \
       &AbslFlagsInitFlag##name};                                    \
   extern bool FLAGS_no##name;                                       \
@@ -349,7 +345,6 @@ ABSL_NAMESPACE_END
   ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help);                    \
   ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                      \
       ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_FILENAME(),      \
-      &absl::flags_internal::FlagMarshallingOps<Type>,                \
       &AbslFlagHelpGenFor##name::NonConst, &AbslFlagsInitFlag##name}; \
   extern bool FLAGS_no##name;                                         \
   bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)

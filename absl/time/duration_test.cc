@@ -1045,7 +1045,7 @@ TEST(Duration, Multiplication) {
   EXPECT_EQ(absl::Seconds(666666666) + absl::Nanoseconds(666666667) +
                 absl::Nanoseconds(1) / 2,
             sigfigs / 3);
-  sigfigs = absl::Seconds(7000000000LL);
+  sigfigs = absl::Seconds(int64_t{7000000000});
   EXPECT_EQ(absl::Seconds(2333333333) + absl::Nanoseconds(333333333) +
                 absl::Nanoseconds(1) / 4,
             sigfigs / 3);
