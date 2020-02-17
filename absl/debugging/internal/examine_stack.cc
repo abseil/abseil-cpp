@@ -53,6 +53,8 @@ void* GetProgramCounter(void* vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.gp_regs[32]);
 #elif defined(__powerpc__)
     return reinterpret_cast<void*>(context->uc_mcontext.regs->nip);
+#elif defined(__riscv)
+    return reinterpret_cast<void*>(context->uc_mcontext.__gregs[REG_PC]);
 #elif defined(__s390__) && !defined(__s390x__)
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr & 0x7fffffff);
 #elif defined(__s390__) && defined(__s390x__)
