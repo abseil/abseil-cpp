@@ -260,9 +260,21 @@ inline std::ostream& operator<<(std::ostream& os, FormatConversionChar v) {
   return os << c;
 }
 
+struct FormatConversionSpecImplFriend;
+
 class ConversionSpec {
  public:
+  // Deprecated (use has_x_flag() instead).
   Flags flags() const { return flags_; }
+
+  // Width and precison are not specified, no flags are set.
+  bool is_basic() const { return flags_.basic; }
+  bool has_left_flag() const { return flags_.left; }
+  bool has_show_pos_flag() const { return flags_.show_pos; }
+  bool has_sign_col_flag() const { return flags_.sign_col; }
+  bool has_alt_flag() const { return flags_.alt; }
+  bool has_zero_flag() const { return flags_.zero; }
+
   FormatConversionChar conv() const {
     // Keep this field first in the struct . It generates better code when
     // accessing it when ConversionSpec is passed by value in registers.
@@ -277,17 +289,26 @@ class ConversionSpec {
   // negative value.
   int precision() const { return precision_; }
 
-  void set_flags(Flags f) { flags_ = f; }
-  void set_conv(FormatConversionChar c) { conv_ = c; }
-  void set_width(int w) { width_ = w; }
-  void set_precision(int p) { precision_ = p; }
-  void set_left(bool b) { flags_.left = b; }
-
  private:
+  friend struct str_format_internal::FormatConversionSpecImplFriend;
   FormatConversionChar conv_ = FormatConversionChar::kNone;
   Flags flags_;
   int width_;
   int precision_;
+};
+
+struct FormatConversionSpecImplFriend final {
+  static void SetFlags(Flags f, ConversionSpec* conv) { conv->flags_ = f; }
+  static void SetConversionChar(FormatConversionChar c, ConversionSpec* conv) {
+    conv->conv_ = c;
+  }
+  static void SetWidth(int w, ConversionSpec* conv) { conv->width_ = w; }
+  static void SetPrecision(int p, ConversionSpec* conv) {
+    conv->precision_ = p;
+  }
+  static std::string FlagsToString(const ConversionSpec& spec) {
+    return spec.flags_.ToString();
+  }
 };
 
 constexpr uint64_t FormatConversionCharToConvValue(char conv) {

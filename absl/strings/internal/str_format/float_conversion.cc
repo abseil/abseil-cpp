@@ -28,7 +28,7 @@ bool FallbackToSnprintf(const Float v, const ConversionSpec &conv,
   {
     char *fp = fmt;
     *fp++ = '%';
-    fp = CopyStringTo(conv.flags().ToString(), fp);
+    fp = CopyStringTo(FormatConversionSpecImplFriend::FlagsToString(conv), fp);
     fp = CopyStringTo("*.*", fp);
     if (std::is_same<long double, Float>()) {
       *fp++ = 'L';
