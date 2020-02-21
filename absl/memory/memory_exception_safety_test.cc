@@ -27,9 +27,6 @@ namespace {
 
 constexpr int kLength = 50;
 using Thrower = testing::ThrowingValue<testing::TypeSpec::kEverythingThrows>;
-using ThrowerStorage =
-    absl::aligned_storage_t<sizeof(Thrower), alignof(Thrower)>;
-using ThrowerList = std::array<ThrowerStorage, kLength>;
 
 TEST(MakeUnique, CheckForLeaks) {
   constexpr int kValue = 321;

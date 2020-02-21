@@ -133,13 +133,6 @@ class Waiter {
   std::atomic<int> wakeups_;
 
 #elif ABSL_WAITER_MODE == ABSL_WAITER_MODE_WIN32
-  // We can't include Windows.h in our headers, so we use aligned storage
-  // buffers to define the storage of SRWLOCK and CONDITION_VARIABLE.
-  using SRWLockStorage =
-      typename std::aligned_storage<sizeof(void*), alignof(void*)>::type;
-  using ConditionVariableStorage =
-      typename std::aligned_storage<sizeof(void*), alignof(void*)>::type;
-
   // WinHelper - Used to define utilities for accessing the lock and
   // condition variable storage once the types are complete.
   class WinHelper;
@@ -147,8 +140,10 @@ class Waiter {
   // REQUIRES: WinHelper::GetLock(this) must be held.
   void InternalCondVarPoke();
 
-  SRWLockStorage mu_storage_;
-  ConditionVariableStorage cv_storage_;
+  // We can't include Windows.h in our headers, so we use aligned charachter
+  // buffers to define the storage of SRWLOCK and CONDITION_VARIABLE.
+  alignas(void*) unsigned char mu_storage_[sizeof(void*)];
+  alignas(void*) unsigned char cv_storage_[sizeof(void*)];
   int waiter_count_;
   int wakeup_count_;
 

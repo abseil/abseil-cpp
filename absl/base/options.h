@@ -123,14 +123,6 @@
 // compiler flags passed by the end user.  For more info, see
 // https://abseil.io/about/design/dropin-types.
 
-// A value of 2 means to detect the C++ version being used to compile Abseil,
-// and use an alias only if a working std::optional is available.  This option
-// should not be used when your program is not built from source -- for example,
-// if you are distributing Abseil in a binary package manager -- since in mode
-// 2, absl::optional will name a different template class, with a different
-// mangled name and binary layout, depending on the compiler flags passed by the
-// end user.
-//
 // User code should not inspect this macro.  To check in the preprocessor if
 // absl::optional is a typedef of std::optional, use the feature macro
 // ABSL_USES_STD_OPTIONAL.

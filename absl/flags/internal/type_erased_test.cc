@@ -119,6 +119,13 @@ TEST_F(TypeErasedTest, TestSetCommandLineOptionWithMode_SET_FLAGS_DEFAULT) {
   EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "101",
                                                   flags::SET_FLAGS_DEFAULT));
 
+  // Set it again to ensure that resetting logic is covered.
+  EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "102",
+                                                  flags::SET_FLAGS_DEFAULT));
+
+  EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "103",
+                                                  flags::SET_FLAGS_DEFAULT));
+
   EXPECT_TRUE(flags::SetCommandLineOptionWithMode("string_flag", "asdfgh",
                                                   flags::SET_FLAGS_DEFAULT));
   EXPECT_EQ(absl::GetFlag(FLAGS_string_flag), "asdfgh");

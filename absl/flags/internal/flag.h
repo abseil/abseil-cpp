@@ -363,7 +363,7 @@ struct DynValueDeleter {
     if (op != nullptr) Delete(op, ptr);
   }
 
-  const FlagOpFn op;
+  FlagOpFn op;
 };
 
 class FlagImpl {
@@ -380,7 +380,7 @@ class FlagImpl {
         on_command_line_(false),
         counter_(0),
         callback_(nullptr),
-        default_src_(default_value_gen),
+        default_value_(default_value_gen),
         data_guard_{} {}
 
   // Constant access methods
@@ -392,10 +392,6 @@ class FlagImpl {
   std::string DefaultValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   void Read(void* dst) const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  // Attempts to parse supplied `value` std::string. If parsing is successful, then
-  // it replaces `dst` with the new value.
-  bool TryParse(void** dst, absl::string_view value, std::string* err) const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   template <typename T, typename std::enable_if<
                             !IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
@@ -466,8 +462,15 @@ class FlagImpl {
   // Returns heap allocated value of type T initialized with default value.
   std::unique_ptr<void, DynValueDeleter> MakeInitValue() const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
-  // Lazy initialization of the Flag's data.
+  // Flag initialization called via absl::call_once.
   void Init();
+  // Attempts to parse supplied `value` std::string. If parsing is successful,
+  // returns new value. Otherwsie returns nullptr.
+  std::unique_ptr<void, DynValueDeleter> TryParse(absl::string_view value,
+                                                  std::string* err) const
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
+  // Stores the flag value based on the pointer to the source.
+  void StoreValue(const void* src) ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   FlagHelpKind HelpSourceKind() const {
     return static_cast<FlagHelpKind>(help_source_kind_);
@@ -511,7 +514,7 @@ class FlagImpl {
 
   // Mutable flag's state (guarded by `data_guard_`).
 
-  // If def_kind_ == kDynamicValue, default_src_ holds a dynamically allocated
+  // If def_kind_ == kDynamicValue, default_value_ holds a dynamically allocated
   // value.
   uint8_t def_kind_ : 1 ABSL_GUARDED_BY(*DataGuard());
   // Has this flag's value been modified?
@@ -527,7 +530,7 @@ class FlagImpl {
   // value specified in ABSL_FLAG or pointer to the dynamically set default
   // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
   // these two cases.
-  FlagDefaultSrc default_src_ ABSL_GUARDED_BY(*DataGuard());
+  FlagDefaultSrc default_value_ ABSL_GUARDED_BY(*DataGuard());
   // Current Flag Value
   FlagValue value_;
 
@@ -542,8 +545,8 @@ class FlagImpl {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// The "unspecified" implementation of Flag object parameterized by the
-// flag's value type.
+// The Flag object parameterized by the flag's value type. This class implements
+// flag reflection handle interface.
 
 template <typename T>
 class Flag final : public flags_internal::CommandLineFlag {

@@ -63,16 +63,16 @@ namespace {
 // Type used with std::allocator for allocating and deallocating
 // `CordRepExternal`. std::allocator is used because it opaquely handles the
 // different new / delete overloads available on a given platform.
-using ExternalAllocType =
-    absl::aligned_storage_t<absl::cord_internal::ExternalRepAlignment(),
-                            absl::cord_internal::ExternalRepAlignment()>;
+struct alignas(absl::cord_internal::ExternalRepAlignment()) ExternalAllocType {
+  unsigned char value[absl::cord_internal::ExternalRepAlignment()];
+};
 
 // Returns the number of objects to pass in to std::allocator<ExternalAllocType>
 // allocate() and deallocate() to create enough room for `CordRepExternal` with
 // `releaser_size` bytes on the end.
 constexpr size_t GetExternalAllocNumObjects(size_t releaser_size) {
   // Be sure to round up since `releaser_size` could be smaller than
-  // sizeof(ExternalAllocType)`.
+  // `sizeof(ExternalAllocType)`.
   return (sizeof(CordRepExternal) + releaser_size + sizeof(ExternalAllocType) -
           1) /
          sizeof(ExternalAllocType);

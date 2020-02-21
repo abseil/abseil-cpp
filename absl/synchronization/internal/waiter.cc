@@ -368,31 +368,29 @@ class Waiter::WinHelper {
     return reinterpret_cast<CONDITION_VARIABLE *>(&w->cv_storage_);
   }
 
-  static_assert(sizeof(SRWLOCK) == sizeof(Waiter::SRWLockStorage),
-                "SRWLockStorage does not have the same size as SRWLOCK");
-  static_assert(
-      alignof(SRWLOCK) == alignof(Waiter::SRWLockStorage),
-      "SRWLockStorage does not have the same alignment as SRWLOCK");
+  static_assert(sizeof(SRWLOCK) == sizeof(void *),
+                "`mu_storage_` does not have the same size as SRWLOCK");
+  static_assert(alignof(SRWLOCK) == alignof(void *),
+                "`mu_storage_` does not have the same alignment as SRWLOCK");
 
-  static_assert(sizeof(CONDITION_VARIABLE) ==
-                    sizeof(Waiter::ConditionVariableStorage),
-                "ABSL_CONDITION_VARIABLE_STORAGE does not have the same size "
-                "as CONDITION_VARIABLE");
-  static_assert(alignof(CONDITION_VARIABLE) ==
-                    alignof(Waiter::ConditionVariableStorage),
-                "ConditionVariableStorage does not have the same "
-                "alignment as CONDITION_VARIABLE");
+  static_assert(sizeof(CONDITION_VARIABLE) == sizeof(void *),
+                "`ABSL_CONDITION_VARIABLE_STORAGE` does not have the same size "
+                "as `CONDITION_VARIABLE`");
+  static_assert(
+      alignof(CONDITION_VARIABLE) == alignof(void *),
+      "`cv_storage_` does not have the same alignment as `CONDITION_VARIABLE`");
 
   // The SRWLOCK and CONDITION_VARIABLE types must be trivially constructible
   // and destructible because we never call their constructors or destructors.
   static_assert(std::is_trivially_constructible<SRWLOCK>::value,
-                "The SRWLOCK type must be trivially constructible");
-  static_assert(std::is_trivially_constructible<CONDITION_VARIABLE>::value,
-                "The CONDITION_VARIABLE type must be trivially constructible");
+                "The `SRWLOCK` type must be trivially constructible");
+  static_assert(
+      std::is_trivially_constructible<CONDITION_VARIABLE>::value,
+      "The `CONDITION_VARIABLE` type must be trivially constructible");
   static_assert(std::is_trivially_destructible<SRWLOCK>::value,
-                "The SRWLOCK type must be trivially destructible");
+                "The `SRWLOCK` type must be trivially destructible");
   static_assert(std::is_trivially_destructible<CONDITION_VARIABLE>::value,
-                "The CONDITION_VARIABLE type must be trivially destructible");
+                "The `CONDITION_VARIABLE` type must be trivially destructible");
 };
 
 class LockHolder {

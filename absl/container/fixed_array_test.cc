@@ -604,19 +604,16 @@ TEST(FixedArrayTest, Fill) {
   empty.fill(fill_val);
 }
 
-// TODO(johnsoncj): Investigate InlinedStorage default initialization in GCC 4.x
 #ifndef __GNUC__
 TEST(FixedArrayTest, DefaultCtorDoesNotValueInit) {
   using T = char;
   constexpr auto capacity = 10;
   using FixedArrType = absl::FixedArray<T, capacity>;
-  using FixedArrBuffType =
-      absl::aligned_storage_t<sizeof(FixedArrType), alignof(FixedArrType)>;
   constexpr auto scrubbed_bits = 0x95;
   constexpr auto length = capacity / 2;
 
-  FixedArrBuffType buff;
-  std::memset(std::addressof(buff), scrubbed_bits, sizeof(FixedArrBuffType));
+  alignas(FixedArrType) unsigned char buff[sizeof(FixedArrType)];
+  std::memset(std::addressof(buff), scrubbed_bits, sizeof(FixedArrType));
 
   FixedArrType* arr =
       ::new (static_cast<void*>(std::addressof(buff))) FixedArrType(length);

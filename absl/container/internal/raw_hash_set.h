@@ -1067,8 +1067,7 @@ class raw_hash_set {
   template <class... Args, typename std::enable_if<
                                !IsDecomposable<Args...>::value, int>::type = 0>
   std::pair<iterator, bool> emplace(Args&&... args) {
-    typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
-        raw;
+    alignas(slot_type) unsigned char raw[sizeof(slot_type)];
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
 
     PolicyTraits::construct(&alloc_ref(), slot, std::forward<Args>(args)...);
@@ -1556,8 +1555,7 @@ class raw_hash_set {
     //       mark target as FULL
     //       repeat procedure for current slot with moved from element (target)
     ConvertDeletedToEmptyAndFullToDeleted(ctrl_, capacity_);
-    typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
-        raw;
+    alignas(slot_type) unsigned char raw[sizeof(slot_type)];
     size_t total_probe_length = 0;
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
     for (size_t i = 0; i != capacity_; ++i) {

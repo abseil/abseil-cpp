@@ -121,11 +121,19 @@ void FlagImpl::AssertValidType(FlagStaticTypeId type_id) const {
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-    res = flags_internal::Clone(op_, default_src_.dynamic_value);
+    res = flags_internal::Clone(op_, default_value_.dynamic_value);
   } else {
-    res = (*default_src_.gen_func)();
+    res = (*default_value_.gen_func)();
   }
   return {res, DynValueDeleter{op_}};
+}
+
+void FlagImpl::StoreValue(const void* src) {
+  flags_internal::Copy(op_, src, value_.dynamic);
+  StoreAtomic();
+  modified_ = true;
+  ++counter_;
+  InvokeCallback();
 }
 
 absl::string_view FlagImpl::Name() const { return name_; }
@@ -220,23 +228,19 @@ bool FlagImpl::RestoreState(const void* value, bool modified,
 // argument. If parsing successful, this function replaces the dst with newly
 // parsed value. In case if any error is encountered in either step, the error
 // message is stored in 'err'
-bool FlagImpl::TryParse(void** dst, absl::string_view value,
-                        std::string* err) const {
-  auto tentative_value = MakeInitValue();
+std::unique_ptr<void, DynValueDeleter> FlagImpl::TryParse(
+    absl::string_view value, std::string* err) const {
+  std::unique_ptr<void, DynValueDeleter> tentative_value = MakeInitValue();
 
   std::string parse_err;
   if (!flags_internal::Parse(op_, value, tentative_value.get(), &parse_err)) {
     absl::string_view err_sep = parse_err.empty() ? "" : "; ";
     *err = absl::StrCat("Illegal value '", value, "' specified for flag '",
                         Name(), "'", err_sep, parse_err);
-    return false;
+    return nullptr;
   }
 
-  void* old_val = *dst;
-  *dst = tentative_value.release();
-  tentative_value.reset(old_val);
-
-  return true;
+  return tentative_value;
 }
 
 void FlagImpl::Read(void* dst) const {
@@ -266,22 +270,17 @@ void FlagImpl::Write(const void* src) {
   absl::MutexLock l(DataGuard());
 
   if (ShouldValidateFlagValue(flags_internal::StaticTypeId(op_))) {
-    void* obj = flags_internal::Clone(op_, src);
+    std::unique_ptr<void, DynValueDeleter> obj{flags_internal::Clone(op_, src),
+                                               DynValueDeleter{op_}};
     std::string ignored_error;
     std::string src_as_str = flags_internal::Unparse(op_, src);
-    if (!flags_internal::Parse(op_, src_as_str, obj, &ignored_error)) {
+    if (!flags_internal::Parse(op_, src_as_str, obj.get(), &ignored_error)) {
       ABSL_INTERNAL_LOG(ERROR, absl::StrCat("Attempt to set flag '", Name(),
                                             "' to invalid value ", src_as_str));
     }
-    flags_internal::Delete(op_, obj);
   }
 
-  modified_ = true;
-  counter_++;
-  flags_internal::Copy(op_, src, value_.dynamic);
-
-  StoreAtomic();
-  InvokeCallback();
+  StoreValue(src);
 }
 
 // Sets the value of the flag based on specified string `value`. If the flag
@@ -299,11 +298,10 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
   switch (set_mode) {
     case SET_FLAGS_VALUE: {
       // set or modify the flag's value
-      if (!TryParse(&value_.dynamic, value, err)) return false;
-      modified_ = true;
-      counter_++;
-      StoreAtomic();
-      InvokeCallback();
+      auto tentative_value = TryParse(value, err);
+      if (!tentative_value) return false;
+
+      StoreValue(tentative_value.get());
 
       if (source == kCommandLine) {
         on_command_line_ = true;
@@ -312,13 +310,7 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
     }
     case SET_FLAG_IF_DEFAULT: {
       // set the flag's value, but only if it hasn't been set by someone else
-      if (!modified_) {
-        if (!TryParse(&value_.dynamic, value, err)) return false;
-        modified_ = true;
-        counter_++;
-        StoreAtomic();
-        InvokeCallback();
-      } else {
+      if (modified_) {
         // TODO(rogeeff): review and fix this semantic. Currently we do not fail
         // in this case if flag is modified. This is misleading since the flag's
         // value is not updated even though we return true.
@@ -327,28 +319,29 @@ bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
         // return false;
         return true;
       }
+      auto tentative_value = TryParse(value, err);
+      if (!tentative_value) return false;
+
+      StoreValue(tentative_value.get());
       break;
     }
     case SET_FLAGS_DEFAULT: {
-      if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-        if (!TryParse(&default_src_.dynamic_value, value, err)) {
-          return false;
-        }
-      } else {
-        void* new_default_val = nullptr;
-        if (!TryParse(&new_default_val, value, err)) {
-          return false;
-        }
+      auto tentative_value = TryParse(value, err);
+      if (!tentative_value) return false;
 
-        default_src_.dynamic_value = new_default_val;
+      if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
+        void* old_value = default_value_.dynamic_value;
+        default_value_.dynamic_value = tentative_value.release();
+        tentative_value.reset(old_value);
+      } else {
+        default_value_.dynamic_value = tentative_value.release();
         def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case
-        flags_internal::Copy(op_, default_src_.dynamic_value, value_.dynamic);
-        StoreAtomic();
-        InvokeCallback();
+        StoreValue(default_value_.dynamic_value);
+        modified_ = false;
       }
       break;
     }

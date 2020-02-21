@@ -202,9 +202,9 @@ static void **NextStackFrame(void **old_fp, const void *uc) {
       } else {
         num_push_instructions = 0;
       }
-#else
+#else  // ABSL_HAVE_VDSO_SUPPORT
       num_push_instructions = 0;
-#endif
+#endif  // ABSL_HAVE_VDSO_SUPPORT
     }
     if (num_push_instructions != 0 && kernel_rt_sigreturn_address != nullptr &&
         old_fp[1] == kernel_rt_sigreturn_address) {
