@@ -43,10 +43,10 @@ template <typename T>
 class Flag;
 
 ///////////////////////////////////////////////////////////////////////////////
-// Type-specific operations, eg., parsing, copying, etc. are provided
+// Flag value type operations, eg., parsing, copying, etc. are provided
 // by function specific to that type with a signature matching FlagOpFn.
 
-enum FlagOp {
+enum class FlagOp {
   kDelete,
   kClone,
   kCopy,
@@ -58,26 +58,26 @@ enum FlagOp {
 };
 using FlagOpFn = void* (*)(FlagOp, const void*, void*, void*);
 
-// The per-type function
+// Flag value specific operations routine.
 template <typename T>
 void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
   switch (op) {
-    case flags_internal::kDelete:
+    case FlagOp::kDelete:
       delete static_cast<const T*>(v1);
       return nullptr;
-    case flags_internal::kClone:
+    case FlagOp::kClone:
       return new T(*static_cast<const T*>(v1));
-    case flags_internal::kCopy:
+    case FlagOp::kCopy:
       *static_cast<T*>(v2) = *static_cast<const T*>(v1);
       return nullptr;
-    case flags_internal::kCopyConstruct:
+    case FlagOp::kCopyConstruct:
       new (v2) T(*static_cast<const T*>(v1));
       return nullptr;
-    case flags_internal::kSizeof:
+    case FlagOp::kSizeof:
       return reinterpret_cast<void*>(sizeof(T));
-    case flags_internal::kStaticTypeId:
+    case FlagOp::kStaticTypeId:
       return reinterpret_cast<void*>(&FlagStaticTypeIdGen<T>);
-    case flags_internal::kParse: {
+    case FlagOp::kParse: {
       // Initialize the temporary instance of type T based on current value in
       // destination (which is going to be flag's default value).
       T temp(*static_cast<T*>(v2));
@@ -88,7 +88,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       *static_cast<T*>(v2) = std::move(temp);
       return v2;
     }
-    case flags_internal::kUnparse:
+    case FlagOp::kUnparse:
       *static_cast<std::string*>(v2) =
           absl::UnparseFlag<T>(*static_cast<const T*>(v1));
       return nullptr;
@@ -97,37 +97,45 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
   }
 }
 
-// Functions that invoke flag-type-specific operations.
+// Deletes memory interpreting obj as flag value type pointer.
 inline void Delete(FlagOpFn op, const void* obj) {
-  op(flags_internal::kDelete, obj, nullptr, nullptr);
+  op(FlagOp::kDelete, obj, nullptr, nullptr);
 }
+// Makes a copy of flag value pointed by obj.
 inline void* Clone(FlagOpFn op, const void* obj) {
-  return op(flags_internal::kClone, obj, nullptr, nullptr);
+  return op(FlagOp::kClone, obj, nullptr, nullptr);
 }
+// Copies src to dst interpreting as flag value type pointers.
 inline void Copy(FlagOpFn op, const void* src, void* dst) {
-  op(flags_internal::kCopy, src, dst, nullptr);
+  op(FlagOp::kCopy, src, dst, nullptr);
 }
+// Construct a copy of flag value in a location pointed by dst
+// based on src - pointer to the flag's value.
 inline void CopyConstruct(FlagOpFn op, const void* src, void* dst) {
-  op(flags_internal::kCopyConstruct, src, dst, nullptr);
+  op(FlagOp::kCopyConstruct, src, dst, nullptr);
 }
+// Returns true if parsing of input text is successfull.
 inline bool Parse(FlagOpFn op, absl::string_view text, void* dst,
                   std::string* error) {
-  return op(flags_internal::kParse, &text, dst, error) != nullptr;
+  return op(FlagOp::kParse, &text, dst, error) != nullptr;
 }
+// Returns string representing supplied value.
 inline std::string Unparse(FlagOpFn op, const void* val) {
   std::string result;
-  op(flags_internal::kUnparse, val, &result, nullptr);
+  op(FlagOp::kUnparse, val, &result, nullptr);
   return result;
 }
+// Returns size of flag value type.
 inline size_t Sizeof(FlagOpFn op) {
   // This sequence of casts reverses the sequence from
   // `flags_internal::FlagOps()`
   return static_cast<size_t>(reinterpret_cast<intptr_t>(
-      op(flags_internal::kSizeof, nullptr, nullptr, nullptr)));
+      op(FlagOp::kSizeof, nullptr, nullptr, nullptr)));
 }
+// Returns static type id coresponding to the value type.
 inline FlagStaticTypeId StaticTypeId(FlagOpFn op) {
   return reinterpret_cast<FlagStaticTypeId>(
-      op(flags_internal::kStaticTypeId, nullptr, nullptr, nullptr));
+      op(FlagOp::kStaticTypeId, nullptr, nullptr, nullptr));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

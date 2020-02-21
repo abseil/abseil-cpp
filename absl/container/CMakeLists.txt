@@ -633,7 +633,7 @@ absl_cc_library(
   NAME
     container_common
   HDRS
-    "internal/commom.h"
+    "internal/common.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS

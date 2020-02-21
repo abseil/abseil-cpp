@@ -66,18 +66,22 @@ inline bool ArgContext::Bind(const UnboundConversion* unbound,
         return false;
     }
 
-    bound->set_width(width);
-    bound->set_precision(precision);
-    bound->set_flags(unbound->flags);
-    if (force_left)
-      bound->set_left(true);
-  } else {
-    bound->set_flags(unbound->flags);
-    bound->set_width(-1);
-    bound->set_precision(-1);
-  }
+    FormatConversionSpecImplFriend::SetWidth(width, bound);
+    FormatConversionSpecImplFriend::SetPrecision(precision, bound);
 
-  bound->set_conv(unbound->conv);
+    if (force_left) {
+      Flags flags = unbound->flags;
+      flags.left = true;
+      FormatConversionSpecImplFriend::SetFlags(flags, bound);
+    } else {
+      FormatConversionSpecImplFriend::SetFlags(unbound->flags, bound);
+    }
+  } else {
+    FormatConversionSpecImplFriend::SetFlags(unbound->flags, bound);
+    FormatConversionSpecImplFriend::SetWidth(-1, bound);
+    FormatConversionSpecImplFriend::SetPrecision(-1, bound);
+  }
+  FormatConversionSpecImplFriend::SetConversionChar(unbound->conv, bound);
   bound->set_arg(arg);
   return true;
 }
@@ -139,7 +143,8 @@ class SummarizingConverter {
     UntypedFormatSpecImpl spec("%d");
 
     std::ostringstream ss;
-    ss << "{" << Streamable(spec, {*bound.arg()}) << ":" << bound.flags();
+    ss << "{" << Streamable(spec, {*bound.arg()}) << ":"
+       << FormatConversionSpecImplFriend::FlagsToString(bound);
     if (bound.width() >= 0) ss << bound.width();
     if (bound.precision() >= 0) ss << "." << bound.precision();
     ss << bound.conv() << "}";
