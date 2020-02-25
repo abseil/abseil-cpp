@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/base/call_once.h"
 #include "absl/base/internal/unscaledcycleclock.h"
 
 #if ABSL_USE_UNSCALED_CYCLECLOCK
@@ -25,8 +24,8 @@
 #ifdef __GLIBC__
 #include <sys/platform/ppc.h>
 #elif defined(__FreeBSD__)
-#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 #endif
 #endif
 
@@ -65,24 +64,22 @@ double UnscaledCycleClock::Frequency() {
 int64_t UnscaledCycleClock::Now() {
 #ifdef __GLIBC__
   return __ppc_get_timebase();
-#elif defined(__FreeBSD__)
+#else
 #ifdef __powerpc64__
   int64_t tbr;
-  asm volatile("mfspr %0, 268" : "=r" (tbr));
+  asm volatile("mfspr %0, 268" : "=r"(tbr));
   return tbr;
 #else
- int32_t tbu, tbl, tmp;
-    asm volatile(
-    "0:\n"
-    "mftbu %[hi32]\n"
-    "mftb %[lo32]\n"
-    "mftbu %[tmp]\n"
-    "cmpw %[tmp],%[hi32]\n"
-    "bne 0b\n"
-    : [hi32] "=r"(tbu), [lo32] "=r"(tbl),
-    [tmp] "=r"(tmp)
-  );
-  return ((int64_t) tbu << 32) | tbl);
+  int32_t tbu, tbl, tmp;
+  asm volatile(
+      "0:\n"
+      "mftbu %[hi32]\n"
+      "mftb %[lo32]\n"
+      "mftbu %[tmp]\n"
+      "cmpw %[tmp],%[hi32]\n"
+      "bne 0b\n"
+      : [ hi32 ] "=r"(tbu), [ lo32 ] "=r"(tbl), [ tmp ] "=r"(tmp));
+  return (static_cast<int64_t>(tbu) << 32) | tbl;
 #endif
 #endif
 }
@@ -90,12 +87,17 @@ int64_t UnscaledCycleClock::Now() {
 double UnscaledCycleClock::Frequency() {
 #ifdef __GLIBC__
   return __ppc_get_timebase_freq();
- #elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__)
   static once_flag init_timebase_frequency_once;
-  static double timebase_frequency = 0;
-  size_t length = sizeof(timebase_frequency);
-  base_internal::LowLevelCallOnce( &init_timebase_frequency_once, [&]() { sysctlbyname("kern.timecounter.tc.timebase.frequency", &timebase_frequency, &length, NULL, 0); });
+  static double timebase_frequency = 0.0;
+  base_internal::LowLevelCallOnce(&init_timebase_frequency_once, [&]() {
+    size_t length = sizeof(timebase_frequency);
+    sysctlbyname("kern.timecounter.tc.timebase.frequency", &timebase_frequency,
+                 &length, nullptr, 0);
+  });
   return timebase_frequency;
+#else
+#error Must implement UnscaledCycleClock::Frequency()
 #endif
 }
 
