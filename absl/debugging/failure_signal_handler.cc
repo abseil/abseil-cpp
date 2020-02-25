@@ -41,6 +41,7 @@
 #include <ctime>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/errno_saver.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/debugging/internal/examine_stack.h"
@@ -214,9 +215,8 @@ static void InstallOneFailureHandler(FailureSignalData* data,
 #endif
 
 static void WriteToStderr(const char* data) {
-  int old_errno = errno;
+  absl::base_internal::ErrnoSaver errno_saver;
   absl::raw_logging_internal::SafeWriteToStderr(data, strlen(data));
-  errno = old_errno;
 }
 
 static void WriteSignalMessage(int signo, void (*writerfn)(const char*)) {

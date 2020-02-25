@@ -13,7 +13,7 @@ std::string ConvToString(Conv conv) {
   std::string out;
 #define CONV_SET_CASE(c) \
   if (Contains(conv, Conv::c)) out += #c;
-  ABSL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
+  ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
 #undef CONV_SET_CASE
   if (Contains(conv, Conv::star)) out += "*";
   return out;

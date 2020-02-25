@@ -41,7 +41,7 @@ absl_cc_library(
 absl_cc_test(
   NAME
     status_test
-  HDRS
+  SRCS
    "status_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}

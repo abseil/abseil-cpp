@@ -19,12 +19,12 @@
 #include <unistd.h>
 
 #include <atomic>
-#include <cerrno>
 #include <climits>
 #include <cstdint>
 #include <ctime>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/errno_saver.h"
 
 // The SpinLock lockword is `std::atomic<uint32_t>`. Here we assert that
 // `std::atomic<uint32_t>` is bitwise equivalent of the `int` expected
@@ -51,12 +51,11 @@ extern "C" {
 ABSL_ATTRIBUTE_WEAK void AbslInternalSpinLockDelay(
     std::atomic<uint32_t> *w, uint32_t value, int loop,
     absl::base_internal::SchedulingMode) {
-  int save_errno = errno;
+  absl::base_internal::ErrnoSaver errno_saver;
   struct timespec tm;
   tm.tv_sec = 0;
   tm.tv_nsec = absl::base_internal::SpinLockSuggestedDelayNS(loop);
   syscall(SYS_futex, w, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, value, &tm);
-  errno = save_errno;
 }
 
 ABSL_ATTRIBUTE_WEAK void AbslInternalSpinLockWake(std::atomic<uint32_t> *w,

@@ -465,7 +465,7 @@ class FlagImpl {
   // Flag initialization called via absl::call_once.
   void Init();
   // Attempts to parse supplied `value` std::string. If parsing is successful,
-  // returns new value. Otherwsie returns nullptr.
+  // returns new value. Otherwise returns nullptr.
   std::unique_ptr<void, DynValueDeleter> TryParse(absl::string_view value,
                                                   std::string* err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());

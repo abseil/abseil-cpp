@@ -108,14 +108,16 @@ function(absl_cc_library)
     set(ABSL_CC_LIB_IS_INTERFACE 0)
   endif()
 
-  # Determine this build target's relationship to the DLL. It's one of three things:
+  # Determine this build target's relationship to the DLL. It's one of four things:
   # 1. "dll"     -- This target is part of the DLL
   # 2. "dll_dep" -- This target is not part of the DLL, but depends on the DLL.
   #                 Note that we assume any target not in the DLL depends on the
   #                 DLL. This is not a technical necessity but a convenience
   #                 which happens to be true, because nearly every target is
   #                 part of the DLL.
-  # 3. "static"  -- This target does not depend on the DLL and should be built
+  # 3. "shared"  -- This is a shared library, perhaps on a non-windows platform
+  #                 where DLL doesn't make sense.
+  # 4. "static"  -- This target does not depend on the DLL and should be built
   #                 statically.
   if (${ABSL_BUILD_DLL})
     absl_internal_dll_contains(TARGET ${_NAME} OUTPUT _in_dll)
@@ -127,6 +129,8 @@ function(absl_cc_library)
       # Building a DLL, but this target is not part of the DLL
       set(_build_type "dll_dep")
     endif()
+  elseif(BUILD_SHARED_LIBS)
+    set(_build_type "shared")
   else()
     set(_build_type "static")
   endif()
@@ -161,8 +165,8 @@ function(absl_cc_library)
           "${_gtest_link_define}"
       )
 
-    elseif(${_build_type} STREQUAL "static")
-      add_library(${_NAME} STATIC "")
+    elseif(${_build_type} STREQUAL "static" OR ${_build_type} STREQUAL "shared")
+      add_library(${_NAME} "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
       target_link_libraries(${_NAME}
       PUBLIC ${ABSL_CC_LIB_DEPS}

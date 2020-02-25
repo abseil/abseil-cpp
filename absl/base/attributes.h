@@ -575,7 +575,7 @@
 // When applying ABSL_ATTRIBUTE_PACKED only to specific structure members the
 // natural alignment of structure members not annotated is preserved. Aligned
 // member accesses are faster than non-aligned member accesses even if the
-// targeted microprosessor supports non-aligned accesses.
+// targeted microprocessor supports non-aligned accesses.
 #if ABSL_HAVE_ATTRIBUTE(packed) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_PACKED __attribute__((__packed__))
 #else

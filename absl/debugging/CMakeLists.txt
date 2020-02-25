@@ -118,6 +118,7 @@ absl_cc_library(
     absl::base
     absl::config
     absl::core_headers
+    absl::errno_saver
     absl::raw_logging_internal
   PUBLIC
 )
@@ -156,6 +157,7 @@ absl_cc_library(
     absl::core_headers
     absl::config
     absl::dynamic_annotations
+    absl::errno_saver
     absl::raw_logging_internal
 )
 
