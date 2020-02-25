@@ -36,7 +36,7 @@ constexpr int kProbeLength = 8;
 #endif
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 class HashtablezInfoHandlePeer {
  public:
@@ -169,6 +169,7 @@ TEST(HashtablezInfoTest, RecordRehash) {
   EXPECT_EQ(info.num_erases.load(), 0);
 }
 
+#if defined(ABSL_HASHTABLEZ_SAMPLE)
 TEST(HashtablezSamplerTest, SmallSampleParameter) {
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(100);
@@ -212,6 +213,7 @@ TEST(HashtablezSamplerTest, Sample) {
   }
   EXPECT_NEAR(sample_rate, 0.01, 0.005);
 }
+#endif
 
 TEST(HashtablezSamplerTest, Handle) {
   auto& sampler = HashtablezSampler::Global();
@@ -353,5 +355,5 @@ TEST(HashtablezSamplerTest, Callback) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

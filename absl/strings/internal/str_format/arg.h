@@ -18,12 +18,10 @@
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"
 
-class Cord;
-class CordReader;
-
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
+class Cord;
 class FormatCountCapture;
 class FormatSink;
 
@@ -68,12 +66,11 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char* v,
                                                    FormatSinkImpl* sink);
 template <class AbslCord,
           typename std::enable_if<
-              std::is_same<AbslCord, ::Cord>::value>::type* = nullptr,
-          class AbslCordReader = ::CordReader>
+              std::is_same<AbslCord, absl::Cord>::value>::type* = nullptr>
 ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
                                          ConversionSpec conv,
                                          FormatSinkImpl* sink) {
-  if (conv.conv().id() != ConversionChar::s) return {false};
+  if (conv.conv() != ConversionChar::s) return {false};
 
   bool is_left = conv.flags().left;
   size_t space_remaining = 0;
@@ -91,11 +88,17 @@ ConvertResult<Conv::s> FormatConvertImpl(const AbslCord& value,
 
   if (space_remaining > 0 && !is_left) sink->Append(space_remaining, ' ');
 
-  string_view piece;
-  for (AbslCordReader reader(value);
-       to_write > 0 && reader.ReadFragment(&piece); to_write -= piece.size()) {
-    if (piece.size() > to_write) piece.remove_suffix(piece.size() - to_write);
+  for (string_view piece : value.Chunks()) {
+    if (piece.size() > to_write) {
+      piece.remove_suffix(piece.size() - to_write);
+      to_write = 0;
+    } else {
+      to_write -= piece.size();
+    }
     sink->Append(piece);
+    if (to_write == 0) {
+      break;
+    }
   }
 
   if (space_remaining > 0 && is_left) sink->Append(space_remaining, ' ');
@@ -145,6 +148,8 @@ IntegralConvertResult FormatConvertImpl(long long v,  // NOLINT
 IntegralConvertResult FormatConvertImpl(unsigned long long v,  // NOLINT
                                         ConversionSpec conv,
                                         FormatSinkImpl* sink);
+IntegralConvertResult FormatConvertImpl(int128 v, ConversionSpec conv,
+                                        FormatSinkImpl* sink);
 IntegralConvertResult FormatConvertImpl(uint128 v, ConversionSpec conv,
                                         FormatSinkImpl* sink);
 template <typename T, enable_if_t<std::is_same<T, bool>::value, int> = 0>
@@ -180,8 +185,7 @@ struct FormatCountCaptureHelper {
                                               FormatSinkImpl* sink) {
     const absl::enable_if_t<sizeof(T) != 0, FormatCountCapture>& v2 = v;
 
-    if (conv.conv().id() != str_format_internal::ConversionChar::n)
-      return {false};
+    if (conv.conv() != str_format_internal::ConversionChar::n) return {false};
     *v2.p_ = static_cast<int>(sink->size());
     return {true};
   }
@@ -373,7 +377,7 @@ class FormatArgImpl {
   template <typename T>
   static bool Dispatch(Data arg, ConversionSpec spec, void* out) {
     // A `none` conv indicates that we want the `int` conversion.
-    if (ABSL_PREDICT_FALSE(spec.conv().id() == ConversionChar::none)) {
+    if (ABSL_PREDICT_FALSE(spec.conv() == ConversionChar::none)) {
       return ToInt<T>(arg, static_cast<int*>(out), std::is_integral<T>(),
                       std::is_enum<T>());
     }
@@ -409,6 +413,7 @@ class FormatArgImpl {
                                              __VA_ARGS__);                     \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(unsigned long long, /* NOLINT */  \
                                              __VA_ARGS__);                     \
+  ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(int128, __VA_ARGS__);             \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(uint128, __VA_ARGS__);            \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(float, __VA_ARGS__);              \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(double, __VA_ARGS__);             \
@@ -419,8 +424,9 @@ class FormatArgImpl {
 
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);
 
+
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_ARG_H_

@@ -15,13 +15,19 @@
 
 #include "absl/flags/internal/type_erased.h"
 
+#include <assert.h>
+
+#include <string>
+
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/flags/config.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
-#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 bool GetCommandLineOption(absl::string_view name, std::string* value) {
@@ -36,30 +42,6 @@ bool GetCommandLineOption(absl::string_view name, std::string* value) {
   *value = flag->CurrentValue();
   return true;
 }
-
-bool GetCommandLineFlagInfo(absl::string_view name,
-                            CommandLineFlagInfo* OUTPUT) {
-  if (name.empty()) return false;
-
-  CommandLineFlag* flag = flags_internal::FindCommandLineFlag(name);
-  if (flag == nullptr || flag->IsRetired()) {
-    return false;
-  }
-
-  assert(OUTPUT);
-  FillCommandLineFlagInfo(flag, OUTPUT);
-  return true;
-}
-
-CommandLineFlagInfo GetCommandLineFlagInfoOrDie(absl::string_view name) {
-  CommandLineFlagInfo info;
-  if (!GetCommandLineFlagInfo(name, &info)) {
-    ABSL_INTERNAL_LOG(FATAL, absl::StrCat("Flag '", name, "' does not exist"));
-  }
-  return info;
-}
-
-// --------------------------------------------------------------------
 
 bool SetCommandLineOption(absl::string_view name, absl::string_view value) {
   return SetCommandLineOptionWithMode(name, value,
@@ -104,5 +86,5 @@ bool SpecifiedOnCommandLine(absl::string_view name) {
 }
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

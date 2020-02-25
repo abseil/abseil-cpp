@@ -17,6 +17,10 @@
 #ifndef ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
 #define ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -27,7 +31,6 @@
 #include <unordered_map>
 
 #include "gtest/gtest.h"
-#include "absl/base/config.h"
 #include "absl/base/internal/pretty_function.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
@@ -1092,5 +1095,7 @@ class ExceptionSafetyTestBuilder {
 }  // namespace exceptions_internal
 
 }  // namespace testing
+
+#endif  // ABSL_HAVE_EXCEPTIONS
 
 #endif  // ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_

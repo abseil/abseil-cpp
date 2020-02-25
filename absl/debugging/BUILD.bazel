@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -30,6 +31,14 @@ licenses(["notice"])  # Apache 2.0
 cc_library(
     name = "stacktrace",
     srcs = [
+        "internal/stacktrace_aarch64-inl.inc",
+        "internal/stacktrace_arm-inl.inc",
+        "internal/stacktrace_config.h",
+        "internal/stacktrace_generic-inl.inc",
+        "internal/stacktrace_powerpc-inl.inc",
+        "internal/stacktrace_unimplemented-inl.inc",
+        "internal/stacktrace_win32-inl.inc",
+        "internal/stacktrace_x86-inl.inc",
         "stacktrace.cc",
     ],
     hdrs = ["stacktrace.h"],
@@ -37,7 +46,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":debugging_internal",
-        "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -55,27 +64,39 @@ cc_library(
         "symbolize.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["-DEFAULTLIB:dbghelp.lib"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":debugging_internal",
         ":demangle_internal",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
 cc_test(
     name = "symbolize_test",
     srcs = ["symbolize_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
+    copts = ABSL_TEST_COPTS + select({
+        "//absl:windows": ["/Z7"],
+        "//conditions:default": [],
+    }),
+    linkopts = ABSL_DEFAULT_LINKOPTS + select({
+        "//absl:windows": ["/DEBUG"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":stack_consumption",
         ":symbolize",
         "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "@com_google_googletest//:gtest",
     ],
@@ -95,8 +116,9 @@ cc_library(
     deps = [
         ":stacktrace",
         ":symbolize",
-        "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -112,6 +134,8 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:errno_saver",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -127,7 +151,7 @@ cc_test(
         ":failure_signal_handler",
         ":stacktrace",
         ":symbolize",
-        "//absl/base",
+        "//absl/base:raw_logging_internal",
         "//absl/strings",
         "@com_google_googletest//:gtest",
     ],
@@ -143,22 +167,16 @@ cc_library(
     hdrs = [
         "internal/address_is_readable.h",
         "internal/elf_mem_image.h",
-        "internal/stacktrace_aarch64-inl.inc",
-        "internal/stacktrace_arm-inl.inc",
-        "internal/stacktrace_config.h",
-        "internal/stacktrace_generic-inl.inc",
-        "internal/stacktrace_powerpc-inl.inc",
-        "internal/stacktrace_unimplemented-inl.inc",
-        "internal/stacktrace_win32-inl.inc",
-        "internal/stacktrace_x86-inl.inc",
         "internal/vdso_support.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:errno_saver",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -169,6 +187,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     deps = [
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
     ],
 )
@@ -181,8 +200,8 @@ cc_test(
     deps = [
         ":demangle_internal",
         ":stack_consumption",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
     ],
@@ -193,7 +212,10 @@ cc_library(
     srcs = ["leak_check.cc"],
     hdrs = ["leak_check.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = ["//absl/base:core_headers"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+    ],
 )
 
 # Adding a dependency to leak_check_disable will disable
@@ -204,6 +226,7 @@ cc_library(
     srcs = ["leak_check_disable.cc"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     linkstatic = 1,
+    deps = ["//absl/base:config"],
     alwayslink = 1,
 )
 
@@ -225,6 +248,9 @@ cc_library(
     }),
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_library(
@@ -235,6 +261,9 @@ cc_library(
     copts = ["-ULEAK_SANITIZER"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_test(
@@ -292,8 +321,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
-        "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
     ],
 )
 
@@ -304,8 +334,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":stack_consumption",
-        "//absl/base",
         "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
         "@com_google_googletest//:gtest_main",
     ],
 )

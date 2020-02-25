@@ -54,7 +54,12 @@ namespace {
 template <typename RealType>
 class UniformRealDistributionTest : public ::testing::Test {};
 
+#if defined(__EMSCRIPTEN__)
+using RealTypes = ::testing::Types<float, double>;
+#else
 using RealTypes = ::testing::Types<float, double, long double>;
+#endif  // defined(__EMSCRIPTEN__)
+
 TYPED_TEST_SUITE(UniformRealDistributionTest, RealTypes);
 
 TYPED_TEST(UniformRealDistributionTest, ParamSerializeTest) {
@@ -156,6 +161,10 @@ TYPED_TEST(UniformRealDistributionTest, ParamSerializeTest) {
   }
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4756)  // Constant arithmetic overflow.
+#endif
 TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
 #if GTEST_HAS_DEATH_TEST
   // Hi < Lo
@@ -190,6 +199,9 @@ TYPED_TEST(UniformRealDistributionTest, ViolatesPreconditionsDeathTest) {
   }
 #endif  // NDEBUG
 }
+#ifdef _MSC_VER
+#pragma warning(pop)  // warning(disable:4756)
+#endif
 
 TYPED_TEST(UniformRealDistributionTest, TestMoments) {
   constexpr int kSize = 1000000;

@@ -23,8 +23,10 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace hashtable_debug_internal {
 
@@ -77,7 +79,7 @@ struct HashtableDebugAccess {
 
 }  // namespace hashtable_debug_internal
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASHTABLE_DEBUG_HOOKS_H_

@@ -22,7 +22,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 struct base64_testcase {
@@ -127,7 +127,7 @@ inline const std::array<base64_testcase, 5>& base64_strings() {
 }
 
 }  // namespace strings_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_ESCAPING_TEST_COMMON_H_

@@ -118,7 +118,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 template <size_t Width>
@@ -615,13 +615,17 @@ class raw_hash_set {
     iterator() {}
 
     // PRECONDITION: not an end() iterator.
-    reference operator*() const { return PolicyTraits::element(slot_); }
+    reference operator*() const {
+      assert_is_full();
+      return PolicyTraits::element(slot_);
+    }
 
     // PRECONDITION: not an end() iterator.
     pointer operator->() const { return &operator*(); }
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
+      assert_is_full();
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -635,6 +639,8 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
+      a.assert_is_valid();
+      b.assert_is_valid();
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
@@ -644,6 +650,11 @@ class raw_hash_set {
    private:
     iterator(ctrl_t* ctrl) : ctrl_(ctrl) {}  // for end()
     iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {}
+
+    void assert_is_full() const { assert(IsFull(*ctrl_)); }
+    void assert_is_valid() const {
+      assert(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
+    }
 
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
@@ -658,7 +669,7 @@ class raw_hash_set {
     }
 
     ctrl_t* ctrl_ = nullptr;
-    // To avoid uninitialized member warnigs, put slot_ in an anonymous union.
+    // To avoid uninitialized member warnings, put slot_ in an anonymous union.
     // The member is not initialized on singleton and end iterators.
     union {
       slot_type* slot_;
@@ -939,8 +950,11 @@ class raw_hash_set {
   //
   //   flat_hash_map<std::string, int> m;
   //   m.insert(std::make_pair("abc", 42));
+  // TODO(cheshire): A type alias T2 is introduced as a workaround for the nvcc
+  // bug.
   template <class T, RequiresInsertable<T> = 0,
-            typename std::enable_if<IsDecomposable<T>::value, int>::type = 0,
+            class T2 = T,
+            typename std::enable_if<IsDecomposable<T2>::value, int>::type = 0,
             T* = nullptr>
   std::pair<iterator, bool> insert(T&& value) {
     return emplace(std::forward<T>(value));
@@ -976,8 +990,10 @@ class raw_hash_set {
     return emplace(std::move(value));
   }
 
-  template <class T, RequiresInsertable<T> = 0,
-            typename std::enable_if<IsDecomposable<T>::value, int>::type = 0,
+  // TODO(cheshire): A type alias T2 is introduced as a workaround for the nvcc
+  // bug.
+  template <class T, RequiresInsertable<T> = 0, class T2 = T,
+            typename std::enable_if<IsDecomposable<T2>::value, int>::type = 0,
             T* = nullptr>
   iterator insert(const_iterator, T&& value) {
     return insert(std::forward<T>(value)).first;
@@ -1051,8 +1067,7 @@ class raw_hash_set {
   template <class... Args, typename std::enable_if<
                                !IsDecomposable<Args...>::value, int>::type = 0>
   std::pair<iterator, bool> emplace(Args&&... args) {
-    typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
-        raw;
+    alignas(slot_type) unsigned char raw[sizeof(slot_type)];
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
 
     PolicyTraits::construct(&alloc_ref(), slot, std::forward<Args>(args)...);
@@ -1068,10 +1083,15 @@ class raw_hash_set {
   // Extension API: support for lazy emplace.
   //
   // Looks up key in the table. If found, returns the iterator to the element.
-  // Otherwise calls f with one argument of type raw_hash_set::constructor. f
-  // MUST call raw_hash_set::constructor with arguments as if a
-  // raw_hash_set::value_type is constructed, otherwise the behavior is
-  // undefined.
+  // Otherwise calls `f` with one argument of type `raw_hash_set::constructor`.
+  //
+  // `f` must abide by several restrictions:
+  //  - it MUST call `raw_hash_set::constructor` with arguments as if a
+  //    `raw_hash_set::value_type` is constructed,
+  //  - it MUST NOT access the container before the call to
+  //    `raw_hash_set::constructor`, and
+  //  - it MUST NOT erase the lazily emplaced element.
+  // Doing any of these is undefined behavior.
   //
   // For example:
   //
@@ -1134,15 +1154,16 @@ class raw_hash_set {
   }
 
   // Erases the element pointed to by `it`.  Unlike `std::unordered_set::erase`,
-  // this method returns void to reduce algorithmic complexity to O(1).  In
-  // order to erase while iterating across a map, use the following idiom (which
-  // also works for standard containers):
+  // this method returns void to reduce algorithmic complexity to O(1).  The
+  // iterator is invalidated, so any increment should be done before calling
+  // erase.  In order to erase while iterating across a map, use the following
+  // idiom (which also works for standard containers):
   //
   // for (auto it = m.begin(), end = m.end(); it != end;) {
+  //   // `erase()` will invalidate `it`, so advance `it` first.
+  //   auto copy_it = it++;
   //   if (<pred>) {
-  //     m.erase(it++);
-  //   } else {
-  //     ++it;
+  //     m.erase(copy_it);
   //   }
   // }
   void erase(const_iterator cit) { erase(cit.inner_); }
@@ -1150,7 +1171,7 @@ class raw_hash_set {
   // This overload is necessary because otherwise erase<K>(const K&) would be
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
-    assert(it != end());
+    it.assert_is_full();
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1167,12 +1188,14 @@ class raw_hash_set {
   template <typename H, typename E>
   void merge(raw_hash_set<Policy, H, E, Alloc>& src) {  // NOLINT
     assert(this != &src);
-    for (auto it = src.begin(), e = src.end(); it != e; ++it) {
+    for (auto it = src.begin(), e = src.end(); it != e;) {
+      auto next = std::next(it);
       if (PolicyTraits::apply(InsertSlot<false>{*this, std::move(*it.slot_)},
                               PolicyTraits::element(it.slot_))
               .second) {
         src.erase_meta_only(it);
       }
+      it = next;
     }
   }
 
@@ -1182,6 +1205,7 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
+    position.inner_.assert_is_full();
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
@@ -1531,8 +1555,7 @@ class raw_hash_set {
     //       mark target as FULL
     //       repeat procedure for current slot with moved from element (target)
     ConvertDeletedToEmptyAndFullToDeleted(ctrl_, capacity_);
-    typename std::aligned_storage<sizeof(slot_type), alignof(slot_type)>::type
-        raw;
+    alignas(slot_type) unsigned char raw[sizeof(slot_type)];
     size_t total_probe_length = 0;
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
     for (size_t i = 0; i != capacity_; ++i) {
@@ -1781,6 +1804,17 @@ class raw_hash_set {
       settings_{0, hasher{}, key_equal{}, allocator_type{}};
 };
 
+// Erases all elements that satisfy the predicate `pred` from the container `c`.
+template <typename P, typename H, typename E, typename A, typename Predicate>
+void EraseIf(Predicate pred, raw_hash_set<P, H, E, A>* c) {
+  for (auto it = c->begin(), last = c->end(); it != last;) {
+    auto copy_it = it++;
+    if (pred(*copy_it)) {
+      c->erase(copy_it);
+    }
+  }
+}
+
 namespace hashtable_debug_internal {
 template <typename Set>
 struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
@@ -1842,7 +1876,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 
 }  // namespace hashtable_debug_internal
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_

@@ -18,13 +18,14 @@
 
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/strings/string_view.h"
 
 // --------------------------------------------------------------------
 // Program name
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // Returns program invocation name or "UNKNOWN" if `SetProgramInvocationName()`
@@ -43,7 +44,7 @@ std::string ShortProgramInvocationName();
 void SetProgramInvocationName(absl::string_view prog_name_str);
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_PROGRAM_NAME_H_

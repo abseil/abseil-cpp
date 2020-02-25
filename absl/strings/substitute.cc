@@ -23,7 +23,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace substitute_internal {
 
 void SubstituteAndAppendArray(std::string* output, absl::string_view format,
@@ -36,7 +36,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
       if (i + 1 >= format.size()) {
 #ifndef NDEBUG
         ABSL_RAW_LOG(FATAL,
-                     "Invalid strings::Substitute() format std::string: \"%s\".",
+                     "Invalid absl::Substitute() format std::string: \"%s\".",
                      absl::CEscape(format).c_str());
 #endif
         return;
@@ -46,7 +46,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
 #ifndef NDEBUG
           ABSL_RAW_LOG(
               FATAL,
-              "Invalid strings::Substitute() format std::string: asked for \"$"
+              "Invalid absl::Substitute() format std::string: asked for \"$"
               "%d\", but only %d args were given.  Full format std::string was: "
               "\"%s\".",
               index, static_cast<int>(num_args), absl::CEscape(format).c_str());
@@ -61,7 +61,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
       } else {
 #ifndef NDEBUG
         ABSL_RAW_LOG(FATAL,
-                     "Invalid strings::Substitute() format std::string: \"%s\".",
+                     "Invalid absl::Substitute() format std::string: \"%s\".",
                      absl::CEscape(format).c_str());
 #endif
         return;
@@ -95,7 +95,6 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
   assert(target == output->data() + output->size());
 }
 
-static const char kHexDigits[] = "0123456789abcdef";
 Arg::Arg(const void* value) {
   static_assert(sizeof(scratch_) >= sizeof(value) * 2 + 2,
                 "fix sizeof(scratch_)");
@@ -105,7 +104,7 @@ Arg::Arg(const void* value) {
     char* ptr = scratch_ + sizeof(scratch_);
     uintptr_t num = reinterpret_cast<uintptr_t>(value);
     do {
-      *--ptr = kHexDigits[num & 0xf];
+      *--ptr = absl::numbers_internal::kHexChar[num & 0xf];
       num >>= 4;
     } while (num != 0);
     *--ptr = 'x';
@@ -120,7 +119,7 @@ Arg::Arg(Hex hex) {
   char* writer = end;
   uint64_t value = hex.value;
   do {
-    *--writer = kHexDigits[value & 0xF];
+    *--writer = absl::numbers_internal::kHexChar[value & 0xF];
     value >>= 4;
   } while (value != 0);
 
@@ -168,5 +167,5 @@ Arg::Arg(Dec dec) {
 }
 
 }  // namespace substitute_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

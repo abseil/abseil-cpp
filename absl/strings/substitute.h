@@ -86,7 +86,7 @@
 #include "absl/strings/strip.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace substitute_internal {
 
 // Arg
@@ -190,7 +190,12 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
 
 #if defined(ABSL_BAD_CALL_IF)
 constexpr int CalculateOneBit(const char* format) {
-  return (*format < '0' || *format > '9') ? 0 : (1 << (*format - '0'));
+  // Returns:
+  // * 2^N for '$N' when N is in [0-9]
+  // * 0 for correct '$' escaping: '$$'.
+  // * -1 otherwise.
+  return (*format < '0' || *format > '9') ? (*format == '$' ? 0 : -1)
+                                          : (1 << (*format - '0'));
 }
 
 constexpr const char* SkipNumber(const char* format) {
@@ -682,7 +687,7 @@ std::string Substitute(
                      "format std::string doesn't contain all of $0 through $9");
 #endif  // ABSL_BAD_CALL_IF
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_SUBSTITUTE_H_

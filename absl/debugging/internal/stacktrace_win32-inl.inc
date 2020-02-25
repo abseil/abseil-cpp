@@ -54,7 +54,7 @@ static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+                      const void*, int* min_dropped_frames) {
   int n = 0;
   if (!RtlCaptureStackBackTrace_fn) {
     // can't find a stacktrace with no function to call
@@ -73,13 +73,13 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
 }
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 bool StackTraceWorksForTest() {
   return false;
 }
 }  // namespace debugging_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_STACKTRACE_WIN32_INL_H_

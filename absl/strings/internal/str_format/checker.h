@@ -1,21 +1,20 @@
 #ifndef ABSL_STRINGS_INTERNAL_STR_FORMAT_CHECKER_H_
 #define ABSL_STRINGS_INTERNAL_STR_FORMAT_CHECKER_H_
 
+#include "absl/base/attributes.h"
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/extension.h"
 
 // Compile time check support for entry points.
 
 #ifndef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
-#if defined(__clang__) && !defined(__native_client__)
-#if __has_attribute(enable_if)
+#if ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__native_client__)
 #define ABSL_INTERNAL_ENABLE_FORMAT_CHECKER 1
-#endif  // __has_attribute(enable_if)
-#endif  // defined(__clang__) && !defined(__native_client__)
+#endif  // ABSL_HAVE_ATTRIBUTE(enable_if) && !defined(__native_client__)
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 constexpr bool AllOf() { return true; }
@@ -32,7 +31,7 @@ constexpr Conv ArgumentToConv() {
       std::declval<FormatSinkImpl*>()))::kConv;
 }
 
-#if ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
+#ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 constexpr bool ContainsChar(const char* chars, char c) {
   return *chars == c || (*chars && ContainsChar(chars + 1, c));
@@ -321,7 +320,7 @@ constexpr bool ValidFormatImpl(string_view format) {
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_STR_FORMAT_CHECKER_H_

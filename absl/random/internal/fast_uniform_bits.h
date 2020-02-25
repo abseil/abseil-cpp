@@ -20,8 +20,10 @@
 #include <limits>
 #include <type_traits>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 // Returns true if the input value is zero or a power of two. Useful for
 // determining if the range of output values in a URBG
@@ -256,7 +258,7 @@ FastUniformBits<UIntType>::Generate(URBG& g,  // NOLINT(runtime/references)
 }
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_FAST_UNIFORM_BITS_H_

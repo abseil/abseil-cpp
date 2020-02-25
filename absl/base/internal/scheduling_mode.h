@@ -18,8 +18,10 @@
 #ifndef ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_
 #define ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Used to describe how a thread may be scheduled.  Typically associated with
@@ -50,7 +52,7 @@ enum SchedulingMode {
 };
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SCHEDULING_MODE_H_

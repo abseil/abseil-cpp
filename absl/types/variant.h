@@ -24,7 +24,7 @@
 // should always hold a value of one of its alternative types (except in the
 // "valueless by exception state" -- see below). A default-constructed
 // `absl::variant` will hold the value of its first alternative type, provided
-// it is default-constructable.
+// it is default-constructible.
 //
 // In exceptional cases due to error, an `absl::variant` can hold no
 // value (known as a "valueless by exception" state), though this is not the
@@ -45,12 +45,12 @@
 #include "absl/base/config.h"
 #include "absl/utility/utility.h"
 
-#ifdef ABSL_HAVE_STD_VARIANT
+#ifdef ABSL_USES_STD_VARIANT
 
 #include <variant>  // IWYU pragma: export
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 using std::bad_variant_access;
 using std::get;
 using std::get_if;
@@ -63,10 +63,10 @@ using std::variant_npos;
 using std::variant_size;
 using std::variant_size_v;
 using std::visit;
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_VARIANT
+#else  // ABSL_USES_STD_VARIANT
 
 #include <functional>
 #include <new>
@@ -79,7 +79,7 @@ using std::visit;
 #include "absl/types/internal/variant.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // absl::variant
@@ -95,7 +95,7 @@ inline namespace lts_2019_08_08 {
 //   // assign it to a std::string.
 //   absl::variant<int, std::string> v = std::string("abc");
 //
-//   // A default-contructed variant will hold a value-initialized value of
+//   // A default-constructed variant will hold a value-initialized value of
 //   // the first alternative type.
 //   auto a = absl::variant<int, std::string>();   // Holds an int of value '0'.
 //
@@ -798,7 +798,7 @@ operator>=(const variant<Types...>& a, const variant<Types...>& b) {
                    a.index());
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace std {
@@ -816,10 +816,10 @@ struct hash<absl::variant<T...>>
 
 }  // namespace std
 
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace variant_internal {
 
 // Helper visitor for converting a variant<Ts...>` into another type (mostly
@@ -855,7 +855,7 @@ To ConvertVariantTo(Variant&& variant) {
                      std::forward<Variant>(variant));
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TYPES_VARIANT_H_

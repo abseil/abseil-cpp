@@ -13,11 +13,13 @@
 //   limitations under the License.
 
 #include "time_zone_if.h"
+
+#include "absl/base/config.h"
 #include "time_zone_info.h"
 #include "time_zone_libc.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -39,5 +41,5 @@ TimeZoneIf::~TimeZoneIf() {}
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

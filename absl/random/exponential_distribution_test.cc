@@ -46,7 +46,11 @@ using absl::random_internal::kChiSquared;
 template <typename RealType>
 class ExponentialDistributionTypedTest : public ::testing::Test {};
 
+#if defined(__EMSCRIPTEN__)
+using RealTypes = ::testing::Types<float, double>;
+#else
 using RealTypes = ::testing::Types<float, double, long double>;
+#endif  // defined(__EMSCRIPTEN__)
 TYPED_TEST_CASE(ExponentialDistributionTypedTest, RealTypes);
 
 TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {
@@ -346,7 +350,7 @@ std::string ParamName(const ::testing::TestParamInfo<Param>& info) {
   return absl::StrReplaceAll(name, {{"+", "_"}, {"-", "_"}, {".", "_"}});
 }
 
-INSTANTIATE_TEST_CASE_P(, ExponentialDistributionTests,
+INSTANTIATE_TEST_CASE_P(All, ExponentialDistributionTests,
                         ::testing::ValuesIn(GenParams()), ParamName);
 
 // NOTE: absl::exponential_distribution is not guaranteed to be stable.

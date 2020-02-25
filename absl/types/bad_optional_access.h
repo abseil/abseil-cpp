@@ -25,20 +25,20 @@
 
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_STD_OPTIONAL
+#ifdef ABSL_USES_STD_OPTIONAL
 
 #include <optional>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 using std::bad_optional_access;
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_OPTIONAL
+#else  // ABSL_USES_STD_OPTIONAL
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // bad_optional_access
@@ -70,9 +70,9 @@ namespace optional_internal {
 [[noreturn]] void throw_bad_optional_access();
 
 }  // namespace optional_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_OPTIONAL
+#endif  // ABSL_USES_STD_OPTIONAL
 
 #endif  // ABSL_TYPES_BAD_OPTIONAL_ACCESS_H_

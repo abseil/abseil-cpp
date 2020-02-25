@@ -19,8 +19,10 @@
 #include <limits>
 #include <string>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -153,5 +155,5 @@ bool ParsePosixSpec(const std::string& spec, PosixTimeZone* res) {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

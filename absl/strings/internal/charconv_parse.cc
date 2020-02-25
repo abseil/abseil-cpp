@@ -22,7 +22,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 // ParseFloat<10> will read the first 19 significant digits of the mantissa.
@@ -254,6 +254,12 @@ std::size_t ConsumeDigits(const char* begin, const char* end, int max_digits,
     assert(max_digits * 4 <= std::numeric_limits<T>::digits);
   }
   const char* const original_begin = begin;
+
+  // Skip leading zeros, but only if *out is zero.
+  // They don't cause an overflow so we don't have to count them for
+  // `max_digits`.
+  while (!*out && end != begin && *begin == '0') ++begin;
+
   T accumulator = *out;
   const char* significant_digits_end =
       (end - begin > max_digits) ? begin + max_digits : end;
@@ -494,5 +500,5 @@ template ParsedFloat ParseFloat<16>(const char* begin, const char* end,
                                     chars_format format_flags);
 
 }  // namespace strings_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

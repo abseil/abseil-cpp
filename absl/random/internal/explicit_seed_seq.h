@@ -22,8 +22,10 @@
 #include <iterator>
 #include <vector>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // This class conforms to the C++ Standard "Seed Sequence" concept
@@ -83,7 +85,7 @@ class ExplicitSeedSeq {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_EXPLICIT_SEED_SEQ_H_

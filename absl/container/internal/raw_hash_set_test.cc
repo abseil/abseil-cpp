@@ -35,7 +35,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
@@ -416,53 +416,6 @@ TEST(Table, Empty) {
   IntTable t;
   EXPECT_EQ(0, t.size());
   EXPECT_TRUE(t.empty());
-}
-
-#ifdef __GNUC__
-template <class T>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline void DoNotOptimize(const T& v) {
-  asm volatile("" : : "r,m"(v) : "memory");
-}
-#endif
-
-TEST(Table, Prefetch) {
-  IntTable t;
-  t.emplace(1);
-  // Works for both present and absent keys.
-  t.prefetch(1);
-  t.prefetch(2);
-
-  // Do not run in debug mode, when prefetch is not implemented, or when
-  // sanitizers are enabled, or on WebAssembly.
-#if defined(NDEBUG) && defined(__GNUC__) && defined(__x86_64__) &&          \
-    !defined(ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&            \
-    !defined(THREAD_SANITIZER) && !defined(UNDEFINED_BEHAVIOR_SANITIZER) && \
-    !defined(__EMSCRIPTEN__)
-  const auto now = [] { return absl::base_internal::CycleClock::Now(); };
-
-  // Make size enough to not fit in L2 cache (16.7 Mb)
-  static constexpr int size = 1 << 22;
-  for (int i = 0; i < size; ++i) t.insert(i);
-
-  int64_t no_prefetch = 0, prefetch = 0;
-  for (int iter = 0; iter < 10; ++iter) {
-    int64_t time = now();
-    for (int i = 0; i < size; ++i) {
-      DoNotOptimize(t.find(i));
-    }
-    no_prefetch += now() - time;
-
-    time = now();
-    for (int i = 0; i < size; ++i) {
-      t.prefetch(i + 20);
-      DoNotOptimize(t.find(i));
-    }
-    prefetch += now() - time;
-  }
-
-  // no_prefetch is at least 30% slower.
-  EXPECT_GE(1.0 * no_prefetch / prefetch, 1.3);
-#endif
 }
 
 TEST(Table, LookupEmpty) {
@@ -1838,10 +1791,11 @@ TEST(TableDeathTest, EraseOfEndAsserts) {
 
   IntTable t;
   // Extra simple "regexp" as regexp support is highly varied across platforms.
-  constexpr char kDeathMsg[] = "it != end";
+  constexpr char kDeathMsg[] = "IsFull";
   EXPECT_DEATH_IF_SUPPORTED(t.erase(t.end()), kDeathMsg);
 }
 
+#if defined(ABSL_HASHTABLEZ_SAMPLE)
 TEST(RawHashSamplerTest, Sample) {
   // Enable the feature even if the prod default is off.
   SetHashtablezEnabled(true);
@@ -1862,6 +1816,7 @@ TEST(RawHashSamplerTest, Sample) {
   EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
               0.01, 0.005);
 }
+#endif  // ABSL_HASHTABLEZ_SAMPLER
 
 TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
   // Enable the feature even if the prod default is off.
@@ -1912,5 +1867,5 @@ TEST(Sanitizer, PoisoningOnErase) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

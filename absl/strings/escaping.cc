@@ -26,6 +26,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/unaligned_access.h"
 #include "absl/strings/internal/char_map.h"
+#include "absl/strings/internal/escaping.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/utf8.h"
 #include "absl/strings/str_cat.h"
@@ -33,29 +34,8 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace {
-
-// Digit conversion.
-constexpr char kHexChar[] = "0123456789abcdef";
-
-constexpr char kHexTable[513] =
-    "000102030405060708090a0b0c0d0e0f"
-    "101112131415161718191a1b1c1d1e1f"
-    "202122232425262728292a2b2c2d2e2f"
-    "303132333435363738393a3b3c3d3e3f"
-    "404142434445464748494a4b4c4d4e4f"
-    "505152535455565758595a5b5c5d5e5f"
-    "606162636465666768696a6b6c6d6e6f"
-    "707172737475767778797a7b7c7d7e7f"
-    "808182838485868788898a8b8c8d8e8f"
-    "909192939495969798999a9b9c9d9e9f"
-    "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
-    "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
-    "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
-    "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
-    "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
-    "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
 // These are used for the leave_nulls_escaped argument to CUnescapeInternal().
 constexpr bool kUnescapeNulls = false;
@@ -349,14 +329,14 @@ std::string CEscapeInternal(absl::string_view src, bool use_hex,
              (last_hex_escape && absl::ascii_isxdigit(c)))) {
           if (use_hex) {
             dest.append("\\" "x");
-            dest.push_back(kHexChar[c / 16]);
-            dest.push_back(kHexChar[c % 16]);
+            dest.push_back(numbers_internal::kHexChar[c / 16]);
+            dest.push_back(numbers_internal::kHexChar[c % 16]);
             is_hex_escape = true;
           } else {
             dest.append("\\");
-            dest.push_back(kHexChar[c / 64]);
-            dest.push_back(kHexChar[(c % 64) / 8]);
-            dest.push_back(kHexChar[c % 8]);
+            dest.push_back(numbers_internal::kHexChar[c / 64]);
+            dest.push_back(numbers_internal::kHexChar[(c % 64) / 8]);
+            dest.push_back(numbers_internal::kHexChar[c % 8]);
           }
         } else {
           dest.push_back(c);
@@ -785,175 +765,8 @@ constexpr signed char kUnWebSafeBase64[] = {
 };
 /* clang-format on */
 
-size_t CalculateBase64EscapedLenInternal(size_t input_len, bool do_padding) {
-  // Base64 encodes three bytes of input at a time. If the input is not
-  // divisible by three, we pad as appropriate.
-  //
-  // (from https://tools.ietf.org/html/rfc3548)
-  // Special processing is performed if fewer than 24 bits are available
-  // at the end of the data being encoded.  A full encoding quantum is
-  // always completed at the end of a quantity.  When fewer than 24 input
-  // bits are available in an input group, zero bits are added (on the
-  // right) to form an integral number of 6-bit groups.  Padding at the
-  // end of the data is performed using the '=' character.  Since all base
-  // 64 input is an integral number of octets, only the following cases
-  // can arise:
-
-  // Base64 encodes each three bytes of input into four bytes of output.
-  size_t len = (input_len / 3) * 4;
-
-  if (input_len % 3 == 0) {
-    // (from https://tools.ietf.org/html/rfc3548)
-    // (1) the final quantum of encoding input is an integral multiple of 24
-    // bits; here, the final unit of encoded output will be an integral
-    // multiple of 4 characters with no "=" padding,
-  } else if (input_len % 3 == 1) {
-    // (from https://tools.ietf.org/html/rfc3548)
-    // (2) the final quantum of encoding input is exactly 8 bits; here, the
-    // final unit of encoded output will be two characters followed by two
-    // "=" padding characters, or
-    len += 2;
-    if (do_padding) {
-      len += 2;
-    }
-  } else {  // (input_len % 3 == 2)
-    // (from https://tools.ietf.org/html/rfc3548)
-    // (3) the final quantum of encoding input is exactly 16 bits; here, the
-    // final unit of encoded output will be three characters followed by one
-    // "=" padding character.
-    len += 3;
-    if (do_padding) {
-      len += 1;
-    }
-  }
-
-  assert(len >= input_len);  // make sure we didn't overflow
-  return len;
-}
-
-size_t Base64EscapeInternal(const unsigned char* src, size_t szsrc, char* dest,
-                            size_t szdest, const char* base64,
-                            bool do_padding) {
-  static const char kPad64 = '=';
-
-  if (szsrc * 4 > szdest * 3) return 0;
-
-  char* cur_dest = dest;
-  const unsigned char* cur_src = src;
-
-  char* const limit_dest = dest + szdest;
-  const unsigned char* const limit_src = src + szsrc;
-
-  // Three bytes of data encodes to four characters of cyphertext.
-  // So we can pump through three-byte chunks atomically.
-  if (szsrc >= 3) {  // "limit_src - 3" is UB if szsrc < 3.
-    while (cur_src < limit_src - 3) {  // While we have >= 32 bits.
-      uint32_t in = absl::big_endian::Load32(cur_src) >> 8;
-
-      cur_dest[0] = base64[in >> 18];
-      in &= 0x3FFFF;
-      cur_dest[1] = base64[in >> 12];
-      in &= 0xFFF;
-      cur_dest[2] = base64[in >> 6];
-      in &= 0x3F;
-      cur_dest[3] = base64[in];
-
-      cur_dest += 4;
-      cur_src += 3;
-    }
-  }
-  // To save time, we didn't update szdest or szsrc in the loop.  So do it now.
-  szdest = limit_dest - cur_dest;
-  szsrc = limit_src - cur_src;
-
-  /* now deal with the tail (<=3 bytes) */
-  switch (szsrc) {
-    case 0:
-      // Nothing left; nothing more to do.
-      break;
-    case 1: {
-      // One byte left: this encodes to two characters, and (optionally)
-      // two pad characters to round out the four-character cypherblock.
-      if (szdest < 2) return 0;
-      uint32_t in = cur_src[0];
-      cur_dest[0] = base64[in >> 2];
-      in &= 0x3;
-      cur_dest[1] = base64[in << 4];
-      cur_dest += 2;
-      szdest -= 2;
-      if (do_padding) {
-        if (szdest < 2) return 0;
-        cur_dest[0] = kPad64;
-        cur_dest[1] = kPad64;
-        cur_dest += 2;
-        szdest -= 2;
-      }
-      break;
-    }
-    case 2: {
-      // Two bytes left: this encodes to three characters, and (optionally)
-      // one pad character to round out the four-character cypherblock.
-      if (szdest < 3) return 0;
-      uint32_t in = absl::big_endian::Load16(cur_src);
-      cur_dest[0] = base64[in >> 10];
-      in &= 0x3FF;
-      cur_dest[1] = base64[in >> 4];
-      in &= 0x00F;
-      cur_dest[2] = base64[in << 2];
-      cur_dest += 3;
-      szdest -= 3;
-      if (do_padding) {
-        if (szdest < 1) return 0;
-        cur_dest[0] = kPad64;
-        cur_dest += 1;
-        szdest -= 1;
-      }
-      break;
-    }
-    case 3: {
-      // Three bytes left: same as in the big loop above.  We can't do this in
-      // the loop because the loop above always reads 4 bytes, and the fourth
-      // byte is past the end of the input.
-      if (szdest < 4) return 0;
-      uint32_t in = (cur_src[0] << 16) + absl::big_endian::Load16(cur_src + 1);
-      cur_dest[0] = base64[in >> 18];
-      in &= 0x3FFFF;
-      cur_dest[1] = base64[in >> 12];
-      in &= 0xFFF;
-      cur_dest[2] = base64[in >> 6];
-      in &= 0x3F;
-      cur_dest[3] = base64[in];
-      cur_dest += 4;
-      szdest -= 4;
-      break;
-    }
-    default:
-      // Should not be reached: blocks of 4 bytes are handled
-      // in the while loop before this switch statement.
-      ABSL_RAW_LOG(FATAL, "Logic problem? szsrc = %zu", szsrc);
-      break;
-  }
-  return (cur_dest - dest);
-}
-
-constexpr char kBase64Chars[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
 constexpr char kWebSafeBase64Chars[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-template <typename String>
-void Base64EscapeInternal(const unsigned char* src, size_t szsrc, String* dest,
-                          bool do_padding, const char* base64_chars) {
-  const size_t calc_escaped_size =
-      CalculateBase64EscapedLenInternal(szsrc, do_padding);
-  strings_internal::STLStringResizeUninitialized(dest, calc_escaped_size);
-
-  const size_t escaped_len = Base64EscapeInternal(
-      src, szsrc, &(*dest)[0], dest->size(), base64_chars, do_padding);
-  assert(calc_escaped_size == escaped_len);
-  dest->erase(escaped_len);
-}
 
 template <typename String>
 bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
@@ -983,7 +796,7 @@ bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
 }
 
 /* clang-format off */
-constexpr char kHexValue[256] = {
+constexpr char kHexValueLenient[256] = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -999,8 +812,9 @@ constexpr char kHexValue[256] = {
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
+
 /* clang-format on */
 
 // This is a templated function so that T can be either a char*
@@ -1009,8 +823,8 @@ constexpr char kHexValue[256] = {
 template <typename T>
 void HexStringToBytesInternal(const char* from, T to, ptrdiff_t num) {
   for (int i = 0; i < num; i++) {
-    to[i] = (kHexValue[from[i * 2] & 0xFF] << 4) +
-            (kHexValue[from[i * 2 + 1] & 0xFF]);
+    to[i] = (kHexValueLenient[from[i * 2] & 0xFF] << 4) +
+            (kHexValueLenient[from[i * 2 + 1] & 0xFF]);
   }
 }
 
@@ -1020,7 +834,7 @@ template <typename T>
 void BytesToHexStringInternal(const unsigned char* src, T dest, ptrdiff_t num) {
   auto dest_ptr = &dest[0];
   for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr, dest_ptr += 2) {
-    const char* hex_p = &kHexTable[*src_ptr * 2];
+    const char* hex_p = &numbers_internal::kHexTable[*src_ptr * 2];
     std::copy(hex_p, hex_p + 2, dest_ptr);
   }
 }
@@ -1088,26 +902,30 @@ bool WebSafeBase64Unescape(absl::string_view src, std::string* dest) {
 }
 
 void Base64Escape(absl::string_view src, std::string* dest) {
-  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
-                       src.size(), dest, true, kBase64Chars);
+  strings_internal::Base64EscapeInternal(
+      reinterpret_cast<const unsigned char*>(src.data()), src.size(), dest,
+      true, strings_internal::kBase64Chars);
 }
 
 void WebSafeBase64Escape(absl::string_view src, std::string* dest) {
-  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
-                       src.size(), dest, false, kWebSafeBase64Chars);
+  strings_internal::Base64EscapeInternal(
+      reinterpret_cast<const unsigned char*>(src.data()), src.size(), dest,
+      false, kWebSafeBase64Chars);
 }
 
 std::string Base64Escape(absl::string_view src) {
   std::string dest;
-  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
-                       src.size(), &dest, true, kBase64Chars);
+  strings_internal::Base64EscapeInternal(
+      reinterpret_cast<const unsigned char*>(src.data()), src.size(), &dest,
+      true, strings_internal::kBase64Chars);
   return dest;
 }
 
 std::string WebSafeBase64Escape(absl::string_view src) {
   std::string dest;
-  Base64EscapeInternal(reinterpret_cast<const unsigned char*>(src.data()),
-                       src.size(), &dest, false, kWebSafeBase64Chars);
+  strings_internal::Base64EscapeInternal(
+      reinterpret_cast<const unsigned char*>(src.data()), src.size(), &dest,
+      false, kWebSafeBase64Chars);
   return dest;
 }
 
@@ -1127,5 +945,5 @@ std::string BytesToHexString(absl::string_view from) {
   return result;
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

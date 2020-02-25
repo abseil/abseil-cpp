@@ -14,7 +14,7 @@
 #include "absl/strings/internal/str_format/float_conversion.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -33,12 +33,18 @@ void ReducePadding(size_t n, size_t *capacity) {
 template <typename T>
 struct MakeUnsigned : std::make_unsigned<T> {};
 template <>
+struct MakeUnsigned<absl::int128> {
+  using type = absl::uint128;
+};
+template <>
 struct MakeUnsigned<absl::uint128> {
   using type = absl::uint128;
 };
 
 template <typename T>
 struct IsSigned : std::is_signed<T> {};
+template <>
+struct IsSigned<absl::int128> : std::true_type {};
 template <>
 struct IsSigned<absl::uint128> : std::false_type {};
 
@@ -82,7 +88,7 @@ class ConvertedIntInfo {
   template <typename T>
   void UnsignedToStringRight(T u, ConversionChar conv) {
     char *p = end();
-    switch (conv.radix()) {
+    switch (FormatConversionCharRadix(conv)) {
       default:
       case 10:
         for (; u; u /= 10)
@@ -93,7 +99,7 @@ class ConvertedIntInfo {
           *--p = static_cast<char>('0' + static_cast<size_t>(u % 8));
         break;
       case 16: {
-        const char *digits = kDigit[conv.upper() ? 1 : 0];
+        const char *digits = kDigit[FormatConversionCharIsUpper(conv) ? 1 : 0];
         for (; u; u /= 16) *--p = digits[static_cast<size_t>(u % 16)];
         break;
       }
@@ -115,21 +121,20 @@ class ConvertedIntInfo {
 string_view BaseIndicator(const ConvertedIntInfo &info,
                           const ConversionSpec conv) {
   bool alt = conv.flags().alt;
-  int radix = conv.conv().radix();
-  if (conv.conv().id() == ConversionChar::p)
-    alt = true;  // always show 0x for %p.
+  int radix = FormatConversionCharRadix(conv.conv());
+  if (conv.conv() == ConversionChar::p) alt = true;  // always show 0x for %p.
   // From the POSIX description of '#' flag:
   //   "For x or X conversion specifiers, a non-zero result shall have
   //   0x (or 0X) prefixed to it."
   if (alt && radix == 16 && !info.digits().empty()) {
-    if (conv.conv().upper()) return "0X";
+    if (FormatConversionCharIsUpper(conv.conv())) return "0X";
     return "0x";
   }
   return {};
 }
 
 string_view SignColumn(bool neg, const ConversionSpec conv) {
-  if (conv.conv().is_signed()) {
+  if (FormatConversionCharIsSigned(conv.conv())) {
     if (neg) return "-";
     if (conv.flags().show_pos) return "+";
     if (conv.flags().sign_col) return " ";
@@ -169,7 +174,7 @@ bool ConvertIntImplInner(const ConvertedIntInfo &info,
   if (!precision_specified)
     precision = 1;
 
-  if (conv.flags().alt && conv.conv().id() == ConversionChar::o) {
+  if (conv.flags().alt && conv.conv() == ConversionChar::o) {
     // From POSIX description of the '#' (alt) flag:
     //   "For o conversion, it increases the precision (if necessary) to
     //   force the first digit of the result to be zero."
@@ -205,7 +210,7 @@ bool ConvertIntImplInner(const ConvertedIntInfo &info,
 template <typename T>
 bool ConvertIntImplInner(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
   ConvertedIntInfo info(v, conv.conv());
-  if (conv.flags().basic && conv.conv().id() != ConversionChar::p) {
+  if (conv.flags().basic && (conv.conv() != ConversionChar::p)) {
     if (info.is_neg()) sink->Append(1, '-');
     if (info.digits().empty()) {
       sink->Append(1, '0');
@@ -219,14 +224,13 @@ bool ConvertIntImplInner(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
 
 template <typename T>
 bool ConvertIntArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
-  if (conv.conv().is_float()) {
+  if (FormatConversionCharIsFloat(conv.conv())) {
     return FormatConvertImpl(static_cast<double>(v), conv, sink).value;
   }
-  if (conv.conv().id() == ConversionChar::c)
+  if (conv.conv() == ConversionChar::c)
     return ConvertCharImpl(static_cast<unsigned char>(v), conv, sink);
-  if (!conv.conv().is_integral())
-    return false;
-  if (!conv.conv().is_signed() && IsSigned<T>::value) {
+  if (!FormatConversionCharIsIntegral(conv.conv())) return false;
+  if (!FormatConversionCharIsSigned(conv.conv()) && IsSigned<T>::value) {
     using U = typename MakeUnsigned<T>::type;
     return FormatConvertImpl(static_cast<U>(v), conv, sink).value;
   }
@@ -235,13 +239,13 @@ bool ConvertIntArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
 
 template <typename T>
 bool ConvertFloatArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
-  return conv.conv().is_float() && ConvertFloatImpl(v, conv, sink);
+  return FormatConversionCharIsFloat(conv.conv()) &&
+         ConvertFloatImpl(v, conv, sink);
 }
 
 inline bool ConvertStringArg(string_view v, const ConversionSpec conv,
                              FormatSinkImpl *sink) {
-  if (conv.conv().id() != ConversionChar::s)
-    return false;
+  if (conv.conv() != ConversionChar::s) return false;
   if (conv.flags().basic) {
     sink->Append(v);
     return true;
@@ -268,7 +272,7 @@ ConvertResult<Conv::s> FormatConvertImpl(string_view v,
 ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
                                                    const ConversionSpec conv,
                                                    FormatSinkImpl *sink) {
-  if (conv.conv().id() == ConversionChar::p)
+  if (conv.conv() == ConversionChar::p)
     return {FormatConvertImpl(VoidPtr(v), conv, sink).value};
   size_t len;
   if (v == nullptr) {
@@ -276,7 +280,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
   } else if (conv.precision() < 0) {
     len = std::strlen(v);
   } else {
-    // If precision is set, we look for the null terminator on the valid range.
+    // If precision is set, we look for the NUL-terminator on the valid range.
     len = std::find(v, v + conv.precision(), '\0') - v;
   }
   return {ConvertStringArg(string_view(v, len), conv, sink)};
@@ -285,8 +289,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
 // ==================== Raw pointers ====================
 ConvertResult<Conv::p> FormatConvertImpl(VoidPtr v, const ConversionSpec conv,
                                          FormatSinkImpl *sink) {
-  if (conv.conv().id() != ConversionChar::p)
-    return {false};
+  if (conv.conv() != ConversionChar::p) return {false};
   if (!v.value) {
     sink->Append("(nil)");
     return {true};
@@ -364,6 +367,11 @@ IntegralConvertResult FormatConvertImpl(unsigned long long v,  // NOLINT
                                         FormatSinkImpl *sink) {
   return {ConvertIntArg(v, conv, sink)};
 }
+IntegralConvertResult FormatConvertImpl(absl::int128 v,
+                                        const ConversionSpec conv,
+                                        FormatSinkImpl *sink) {
+  return {ConvertIntArg(v, conv, sink)};
+}
 IntegralConvertResult FormatConvertImpl(absl::uint128 v,
                                         const ConversionSpec conv,
                                         FormatSinkImpl *sink) {
@@ -373,7 +381,8 @@ IntegralConvertResult FormatConvertImpl(absl::uint128 v,
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_();
 
 
+
 }  // namespace str_format_internal
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -16,12 +16,16 @@
 #include "absl/flags/usage_config.h"
 
 #include <iostream>
-#include <memory>
+#include <string>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/const_init.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/strings/str_cat.h"
+#include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "absl/synchronization/mutex.h"
 
@@ -34,7 +38,7 @@ ABSL_ATTRIBUTE_WEAK void AbslInternalReportFatalUsageError(absl::string_view) {}
 }  // extern "C"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 namespace {
@@ -95,7 +99,7 @@ std::string NormalizeFilename(absl::string_view filename) {
 
 ABSL_CONST_INIT absl::Mutex custom_usage_config_guard(absl::kConstInit);
 ABSL_CONST_INIT FlagsUsageConfig* custom_usage_config
-    GUARDED_BY(custom_usage_config_guard) = nullptr;
+    ABSL_GUARDED_BY(custom_usage_config_guard) = nullptr;
 
 }  // namespace
 
@@ -150,5 +154,5 @@ void SetFlagsUsageConfig(FlagsUsageConfig usage_config) {
     flags_internal::custom_usage_config = new FlagsUsageConfig(usage_config);
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

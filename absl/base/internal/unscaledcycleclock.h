@@ -86,7 +86,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 class UnscaledCycleClockWrapperForGetCurrentTime;
 }  // namespace time_internal
@@ -116,7 +116,7 @@ class UnscaledCycleClock {
 };
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_USE_UNSCALED_CYCLECLOCK

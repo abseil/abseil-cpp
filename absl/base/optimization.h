@@ -172,7 +172,7 @@
 #if ABSL_HAVE_BUILTIN(__builtin_expect) || \
     (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_PREDICT_FALSE(x) (__builtin_expect(x, 0))
-#define ABSL_PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
+#define ABSL_PREDICT_TRUE(x) (__builtin_expect(false || (x), true))
 #else
 #define ABSL_PREDICT_FALSE(x) (x)
 #define ABSL_PREDICT_TRUE(x) (x)

@@ -14,6 +14,8 @@
 
 #include "absl/container/flat_hash_map.h"
 
+#include <memory>
+
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
@@ -22,12 +24,13 @@
 #include "absl/types/any.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 using ::absl::container_internal::hash_internal::Enum;
 using ::absl::container_internal::hash_internal::EnumClass;
 using ::testing::_;
+using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
@@ -46,6 +49,11 @@ INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, LookupTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, MembersTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, ModifiersTest, MapTypes);
+
+using UniquePtrMapTypes = ::testing::Types<Map<int, std::unique_ptr<int>>>;
+
+INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, UniquePtrModifiersTest,
+                               UniquePtrMapTypes);
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {
@@ -208,42 +216,44 @@ TEST(FlatHashMap, MergeExtractInsert) {
   EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 17), Pair(2, 9)));
 }
 
-#if (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) && \
-    !defined(__EMSCRIPTEN__)
-TEST(FlatHashMap, Any) {
-  absl::flat_hash_map<int, absl::any> m;
-  m.emplace(1, 7);
-  auto it = m.find(1);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(7, absl::any_cast<int>(it->second));
+bool FirstIsEven(std::pair<const int, int> p) { return p.first % 2 == 0; }
 
-  m.emplace(std::piecewise_construct, std::make_tuple(2), std::make_tuple(8));
-  it = m.find(2);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(8, absl::any_cast<int>(it->second));
-
-  m.emplace(std::piecewise_construct, std::make_tuple(3),
-            std::make_tuple(absl::any(9)));
-  it = m.find(3);
-  ASSERT_NE(it, m.end());
-  EXPECT_EQ(9, absl::any_cast<int>(it->second));
-
-  struct H {
-    size_t operator()(const absl::any&) const { return 0; }
-  };
-  struct E {
-    bool operator()(const absl::any&, const absl::any&) const { return true; }
-  };
-  absl::flat_hash_map<absl::any, int, H, E> m2;
-  m2.emplace(1, 7);
-  auto it2 = m2.find(1);
-  ASSERT_NE(it2, m2.end());
-  EXPECT_EQ(7, it2->second);
+TEST(FlatHashMap, EraseIf) {
+  // Erase all elements.
+  {
+    flat_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, [](std::pair<const int, int>) { return true; });
+    EXPECT_THAT(s, IsEmpty());
+  }
+  // Erase no elements.
+  {
+    flat_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, [](std::pair<const int, int>) { return false; });
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3),
+                                        Pair(4, 4), Pair(5, 5)));
+  }
+  // Erase specific elements.
+  {
+    flat_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s,
+             [](std::pair<const int, int> kvp) { return kvp.first % 2 == 1; });
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(2, 2), Pair(4, 4)));
+  }
+  // Predicate is function reference.
+  {
+    flat_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, FirstIsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(3, 3), Pair(5, 5)));
+  }
+  // Predicate is function pointer.
+  {
+    flat_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, &FirstIsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(3, 3), Pair(5, 5)));
+  }
 }
-#endif  // (defined(ABSL_HAVE_STD_ANY) || !defined(_LIBCPP_VERSION)) &&
-        // !defined(__EMSCRIPTEN__)
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

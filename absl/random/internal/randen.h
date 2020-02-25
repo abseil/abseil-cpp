@@ -23,7 +23,7 @@
 #include "absl/random/internal/randen_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // RANDen = RANDom generator or beetroots in Swiss German.
@@ -96,7 +96,7 @@ class Randen {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_RANDEN_H_

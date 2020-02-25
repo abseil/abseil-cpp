@@ -15,8 +15,10 @@
 #ifndef ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_
 #define ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Returns whether the current CPU supports RandenHwAes implementation.
@@ -25,7 +27,7 @@ namespace random_internal {
 bool CPUSupportsRandenHwAes();
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_RANDEN_DETECT_H_

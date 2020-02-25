@@ -47,7 +47,7 @@ for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
       --rm \
       -e CFLAGS="-Werror" \
       -e CXXFLAGS="-Werror" \
-      gcr.io/google.com/absl-177019/linux_gcc-latest:20190703 \
+      gcr.io/google.com/absl-177019/linux_gcc-latest:20200106 \
       /bin/bash -c "
         cd /buildfs && \
         cmake /abseil-cpp \

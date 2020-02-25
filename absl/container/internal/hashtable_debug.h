@@ -38,7 +38,7 @@
 #include "absl/container/internal/hashtable_debug_hooks.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // Returns the number of probes required to lookup `key`.  Returns 0 for a
@@ -104,7 +104,7 @@ size_t LowerBoundAllocatedByteSize(size_t num_elements) {
 }
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASHTABLE_DEBUG_H_

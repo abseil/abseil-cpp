@@ -5,11 +5,13 @@
 #include <cmath>
 #include <string>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/strings/internal/str_format/bind.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -152,18 +154,26 @@ TEST_F(FormatConvertTest, StringPrecision) {
   UntypedFormatSpecImpl format("%.1s");
   EXPECT_EQ("a", FormatPack(format, {FormatArgImpl(p)}));
 
-  // We cap at the nul terminator.
+  // We cap at the NUL-terminator.
   p = "ABC";
   UntypedFormatSpecImpl format2("%.10s");
   EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));
 }
 
+// Pointer formatting is implementation defined. This checks that the argument
+// can be matched to `ptr`.
+MATCHER_P(MatchesPointerString, ptr, "") {
+  if (ptr == nullptr && arg == "(nil)") {
+    return true;
+  }
+  void* parsed = nullptr;
+  if (sscanf(arg.c_str(), "%p", &parsed) != 1) {
+    ABSL_RAW_LOG(FATAL, "Could not parse %s", arg.c_str());
+  }
+  return ptr == parsed;
+}
+
 TEST_F(FormatConvertTest, Pointer) {
-#ifdef _MSC_VER
-  // MSVC's printf implementation prints pointers differently. We can't easily
-  // compare our implementation to theirs.
-  return;
-#endif
   static int x = 0;
   const int *xp = &x;
   char c = 'h';
@@ -174,48 +184,62 @@ TEST_F(FormatConvertTest, Pointer) {
   using VoidF = void (*)();
   VoidF fp = [] {}, fnil = nullptr;
   volatile char vc;
-  volatile char* vcp = &vc;
-  volatile char* vcnil = nullptr;
-  const FormatArgImpl args[] = {
+  volatile char *vcp = &vc;
+  volatile char *vcnil = nullptr;
+  const FormatArgImpl args_array[] = {
       FormatArgImpl(xp),   FormatArgImpl(cp),  FormatArgImpl(inil),
       FormatArgImpl(cnil), FormatArgImpl(mcp), FormatArgImpl(fp),
       FormatArgImpl(fnil), FormatArgImpl(vcp), FormatArgImpl(vcnil),
   };
-  struct Expectation {
-    std::string out;
-    const char *fmt;
-  };
-  const Expectation kExpect[] = {
-      {StrPrint("%p", &x), "%p"},
-      {StrPrint("%20p", &x), "%20p"},
-      {StrPrint("%.1p", &x), "%.1p"},
-      {StrPrint("%.20p", &x), "%.20p"},
-      {StrPrint("%30.20p", &x), "%30.20p"},
+  auto args = absl::MakeConstSpan(args_array);
 
-      {StrPrint("%-p", &x), "%-p"},
-      {StrPrint("%-20p", &x), "%-20p"},
-      {StrPrint("%-.1p", &x), "%-.1p"},
-      {StrPrint("%.20p", &x), "%.20p"},
-      {StrPrint("%-30.20p", &x), "%-30.20p"},
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.1p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%30.20p"), args),
+              MatchesPointerString(&x));
 
-      {StrPrint("%p", cp), "%2$p"},   // const char*
-      {"(nil)", "%3$p"},              // null const char *
-      {"(nil)", "%4$p"},              // null const int *
-      {StrPrint("%p", mcp), "%5$p"},  // nonconst char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-.1p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-30.20p"), args),
+              MatchesPointerString(&x));
 
-      {StrPrint("%p", fp), "%6$p"},   // function pointer
-      {StrPrint("%p", vcp), "%8$p"},  // function pointer
+  // const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%2$p"), args),
+              MatchesPointerString(cp));
+  // null const int*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%3$p"), args),
+              MatchesPointerString(nullptr));
+  // null const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%4$p"), args),
+              MatchesPointerString(nullptr));
+  // nonconst char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%5$p"), args),
+              MatchesPointerString(mcp));
 
-#ifndef __APPLE__
-      // Apple's printf differs here (0x0 vs. nil)
-      {StrPrint("%p", fnil), "%7$p"},   // null function pointer
-      {StrPrint("%p", vcnil), "%9$p"},  // null function pointer
-#endif
-  };
-  for (const Expectation &e : kExpect) {
-    UntypedFormatSpecImpl format(e.fmt);
-    EXPECT_EQ(e.out, FormatPack(format, absl::MakeSpan(args))) << e.fmt;
-  }
+  // function pointers
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%6$p"), args),
+              MatchesPointerString(reinterpret_cast<const void*>(fp)));
+  EXPECT_THAT(
+      FormatPack(UntypedFormatSpecImpl("%8$p"), args),
+      MatchesPointerString(reinterpret_cast<volatile const void *>(vcp)));
+
+  // null function pointers
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%7$p"), args),
+              MatchesPointerString(nullptr));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%9$p"), args),
+              MatchesPointerString(nullptr));
 }
 
 struct Cardinal {
@@ -367,7 +391,6 @@ typedef ::testing::Types<
     AllIntTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
-
 TEST_F(FormatConvertTest, VectorBool) {
   // Make sure vector<bool>'s values behave as bools.
   std::vector<bool> v = {true, false};
@@ -377,6 +400,42 @@ TEST_F(FormatConvertTest, VectorBool) {
                        absl::Span<const FormatArgImpl>(
                            {FormatArgImpl(v[0]), FormatArgImpl(v[1]),
                             FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
+}
+
+
+TEST_F(FormatConvertTest, Int128) {
+  absl::int128 positive = static_cast<absl::int128>(0x1234567890abcdef) * 1979;
+  absl::int128 negative = -positive;
+  absl::int128 max = absl::Int128Max(), min = absl::Int128Min();
+  const FormatArgImpl args[] = {FormatArgImpl(positive),
+                                FormatArgImpl(negative), FormatArgImpl(max),
+                                FormatArgImpl(min)};
+
+  struct Case {
+    const char* format;
+    const char* expected;
+  } cases[] = {
+      {"%1$d", "2595989796776606496405"},
+      {"%1$30d", "        2595989796776606496405"},
+      {"%1$-30d", "2595989796776606496405        "},
+      {"%1$u", "2595989796776606496405"},
+      {"%1$x", "8cba9876066020f695"},
+      {"%2$d", "-2595989796776606496405"},
+      {"%2$30d", "       -2595989796776606496405"},
+      {"%2$-30d", "-2595989796776606496405       "},
+      {"%2$u", "340282366920938460867384810655161715051"},
+      {"%2$x", "ffffffffffffff73456789f99fdf096b"},
+      {"%3$d", "170141183460469231731687303715884105727"},
+      {"%3$u", "170141183460469231731687303715884105727"},
+      {"%3$x", "7fffffffffffffffffffffffffffffff"},
+      {"%4$d", "-170141183460469231731687303715884105728"},
+      {"%4$x", "80000000000000000000000000000000"},
+  };
+
+  for (auto c : cases) {
+    UntypedFormatSpecImpl format(c.format);
+    EXPECT_EQ(c.expected, FormatPack(format, absl::MakeSpan(args)));
+  }
 }
 
 TEST_F(FormatConvertTest, Uint128) {
@@ -588,5 +647,5 @@ TEST_F(FormatConvertTest, ExpectedFailures) {
 
 }  // namespace
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

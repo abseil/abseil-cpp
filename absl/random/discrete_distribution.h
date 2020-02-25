@@ -29,7 +29,7 @@
 #include "absl/random/uniform_int_distribution.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // absl::discrete_distribution
 //
@@ -241,7 +241,7 @@ std::basic_istream<CharT, Traits>& operator>>(
   return is;
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_DISCRETE_DISTRIBUTION_H_

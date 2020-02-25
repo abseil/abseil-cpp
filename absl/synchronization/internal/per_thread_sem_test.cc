@@ -33,7 +33,7 @@
 // primitives which might use PerThreadSem, most notably absl::Mutex.
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 class SimpleSemaphore {
@@ -176,5 +176,5 @@ TEST_F(PerThreadSemTest, Timeouts) {
 }  // namespace
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

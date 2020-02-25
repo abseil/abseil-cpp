@@ -17,7 +17,7 @@
 #include <deque>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace hash_internal {
 namespace {
@@ -70,5 +70,5 @@ absl::string_view Generator<absl::string_view>::operator()() const {
 
 }  // namespace hash_internal
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

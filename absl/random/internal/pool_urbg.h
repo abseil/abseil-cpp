@@ -22,7 +22,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // RandenPool is a thread-safe random number generator [random.req.urbg] that
@@ -125,7 +125,7 @@ class PoolURBG {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_POOL_URBG_H_

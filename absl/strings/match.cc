@@ -17,7 +17,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 bool EqualsIgnoreCase(absl::string_view piece1, absl::string_view piece2) {
   return (piece1.size() == piece2.size() &&
@@ -36,5 +36,5 @@ bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix) {
          EqualsIgnoreCase(text.substr(text.size() - suffix.size()), suffix);
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

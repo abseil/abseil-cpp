@@ -16,6 +16,7 @@
 
 include(CMakeParseArguments)
 include(AbseilConfigureCopts)
+include(AbseilDll)
 include(AbseilInstallDirs)
 
 # The IDE folder for Abseil that will be used if Abseil is included in a CMake
@@ -80,95 +81,173 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if(NOT ABSL_CC_LIB_TESTONLY OR ABSL_RUN_TESTS)
-    if(ABSL_ENABLE_INSTALL)
-      set(_NAME "${ABSL_CC_LIB_NAME}")
-    else()
-      set(_NAME "absl_${ABSL_CC_LIB_NAME}")
-    endif()
+  if(ABSL_CC_LIB_TESTONLY AND NOT ABSL_RUN_TESTS)
+    return()
+  endif()
 
-    # Check if this is a header-only library
-    # Note that as of February 2019, many popular OS's (for example, Ubuntu
-    # 16.04 LTS) only come with cmake 3.5 by default.  For this reason, we can't
-    # use list(FILTER...)
-    set(ABSL_CC_SRCS "${ABSL_CC_LIB_SRCS}")
-    foreach(src_file IN LISTS ABSL_CC_SRCS)
-      if(${src_file} MATCHES ".*\\.(h|inc)")
-        list(REMOVE_ITEM ABSL_CC_SRCS "${src_file}")
-      endif()
-    endforeach()
-    if("${ABSL_CC_SRCS}" STREQUAL "")
+  if(ABSL_ENABLE_INSTALL)
+    set(_NAME "${ABSL_CC_LIB_NAME}")
+  else()
+    set(_NAME "absl_${ABSL_CC_LIB_NAME}")
+  endif()
+
+  # Check if this is a header-only library
+  # Note that as of February 2019, many popular OS's (for example, Ubuntu
+  # 16.04 LTS) only come with cmake 3.5 by default.  For this reason, we can't
+  # use list(FILTER...)
+  set(ABSL_CC_SRCS "${ABSL_CC_LIB_SRCS}")
+  foreach(src_file IN LISTS ABSL_CC_SRCS)
+    if(${src_file} MATCHES ".*\\.(h|inc)")
+      list(REMOVE_ITEM ABSL_CC_SRCS "${src_file}")
+    endif()
+  endforeach()
+
+  if("${ABSL_CC_SRCS}" STREQUAL "")
+    set(ABSL_CC_LIB_IS_INTERFACE 1)
+  else()
+    set(ABSL_CC_LIB_IS_INTERFACE 0)
+  endif()
+
+  # Determine this build target's relationship to the DLL. It's one of four things:
+  # 1. "dll"     -- This target is part of the DLL
+  # 2. "dll_dep" -- This target is not part of the DLL, but depends on the DLL.
+  #                 Note that we assume any target not in the DLL depends on the
+  #                 DLL. This is not a technical necessity but a convenience
+  #                 which happens to be true, because nearly every target is
+  #                 part of the DLL.
+  # 3. "shared"  -- This is a shared library, perhaps on a non-windows platform
+  #                 where DLL doesn't make sense.
+  # 4. "static"  -- This target does not depend on the DLL and should be built
+  #                 statically.
+  if (${ABSL_BUILD_DLL})
+    absl_internal_dll_contains(TARGET ${_NAME} OUTPUT _in_dll)
+    if (${_in_dll})
+      # This target should be replaced by the DLL
+      set(_build_type "dll")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
     else()
-      set(ABSL_CC_LIB_IS_INTERFACE 0)
+      # Building a DLL, but this target is not part of the DLL
+      set(_build_type "dll_dep")
     endif()
+  elseif(BUILD_SHARED_LIBS)
+    set(_build_type "shared")
+  else()
+    set(_build_type "static")
+  endif()
 
-    if(NOT ABSL_CC_LIB_IS_INTERFACE)
+  if(NOT ABSL_CC_LIB_IS_INTERFACE)
+    if(${_build_type} STREQUAL "dll_dep")
+      # This target depends on the DLL. When adding dependencies to this target,
+      # any depended-on-target which is contained inside the DLL is replaced
+      # with a dependency on the DLL.
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
-      target_include_directories(${_NAME}
-        PUBLIC
-          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
-          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
+      absl_internal_dll_targets(
+        DEPS ${ABSL_CC_LIB_DEPS}
+        OUTPUT _dll_deps
       )
-      target_compile_options(${_NAME}
-        PRIVATE ${ABSL_CC_LIB_COPTS})
       target_link_libraries(${_NAME}
-        PUBLIC ${ABSL_CC_LIB_DEPS}
+        PUBLIC ${_dll_deps}
         PRIVATE
           ${ABSL_CC_LIB_LINKOPTS}
           ${ABSL_DEFAULT_LINKOPTS}
       )
-      target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
 
-      # Add all Abseil targets to a a folder in the IDE for organization.
-      if(ABSL_CC_LIB_PUBLIC)
-        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
-      elseif(ABSL_CC_LIB_TESTONLY)
-        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
+      if (ABSL_CC_LIB_TESTONLY)
+        set(_gtest_link_define "GTEST_LINKED_AS_SHARED_LIBRARY=1")
       else()
-        set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/internal)
+        set(_gtest_link_define)
       endif()
 
-      # INTERFACE libraries can't have the CXX_STANDARD property set
-      set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
-      set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+      target_compile_definitions(${_NAME}
+        PUBLIC
+          ABSL_CONSUME_DLL
+          "${_gtest_link_define}"
+      )
 
-      # When being installed, we lose the absl_ prefix.  We want to put it back
-      # to have properly named lib files.  This is a no-op when we are not being
-      # installed.
+    elseif(${_build_type} STREQUAL "static" OR ${_build_type} STREQUAL "shared")
+      add_library(${_NAME} "")
+      target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
+      target_link_libraries(${_NAME}
+      PUBLIC ${ABSL_CC_LIB_DEPS}
+      PRIVATE
+        ${ABSL_CC_LIB_LINKOPTS}
+        ${ABSL_DEFAULT_LINKOPTS}
+      )
+    else()
+      message(FATAL_ERROR "Invalid build type: ${_build_type}")
+    endif()
+
+    # Linker language can be inferred from sources, but in the case of DLLs we
+    # don't have any .cc files so it would be ambiguous. We could set it
+    # explicitly only in the case of DLLs but, because "CXX" is always the
+    # correct linker language for static or for shared libraries, we set it
+    # unconditionally.
+    set_property(TARGET ${_NAME} PROPERTY LINKER_LANGUAGE "CXX")
+
+    target_include_directories(${_NAME}
+      PUBLIC
+        "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
+        $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
+    )
+    target_compile_options(${_NAME}
+      PRIVATE ${ABSL_CC_LIB_COPTS})
+    target_compile_definitions(${_NAME} PUBLIC ${ABSL_CC_LIB_DEFINES})
+
+    # Add all Abseil targets to a a folder in the IDE for organization.
+    if(ABSL_CC_LIB_PUBLIC)
+      set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER})
+    elseif(ABSL_CC_LIB_TESTONLY)
+      set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
+    else()
+      set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/internal)
+    endif()
+
+    # INTERFACE libraries can't have the CXX_STANDARD property set
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
+    # When being installed, we lose the absl_ prefix.  We want to put it back
+    # to have properly named lib files.  This is a no-op when we are not being
+    # installed.
+    if(ABSL_ENABLE_INSTALL)
       set_target_properties(${_NAME} PROPERTIES
         OUTPUT_NAME "absl_${_NAME}"
       )
-    else()
-      # Generating header-only library
-      add_library(${_NAME} INTERFACE)
-      target_include_directories(${_NAME}
-        INTERFACE
-          $<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>
-          $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
-        )
-      target_link_libraries(${_NAME}
-        INTERFACE
-          ${ABSL_CC_LIB_DEPS}
-          ${ABSL_CC_LIB_LINKOPTS}
-          ${ABSL_DEFAULT_LINKOPTS}
+    endif()
+  else()
+    # Generating header-only library
+    add_library(${_NAME} INTERFACE)
+    target_include_directories(${_NAME}
+      INTERFACE
+        "$<BUILD_INTERFACE:${ABSL_COMMON_INCLUDE_DIRS}>"
+        $<INSTALL_INTERFACE:${ABSL_INSTALL_INCLUDEDIR}>
       )
-      target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
+
+    if (${_build_type} STREQUAL "dll")
+        set(ABSL_CC_LIB_DEPS abseil_dll)
     endif()
 
-    # TODO currently we don't install googletest alongside abseil sources, so
-    # installed abseil can't be tested.
-    if(NOT ABSL_CC_LIB_TESTONLY AND ABSL_ENABLE_INSTALL)
-      install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
-            RUNTIME DESTINATION ${ABSL_INSTALL_BINDIR}
-            LIBRARY DESTINATION ${ABSL_INSTALL_LIBDIR}
-            ARCHIVE DESTINATION ${ABSL_INSTALL_LIBDIR}
-      )
-    endif()
+    target_link_libraries(${_NAME}
+      INTERFACE
+        ${ABSL_CC_LIB_DEPS}
+        ${ABSL_CC_LIB_LINKOPTS}
+        ${ABSL_DEFAULT_LINKOPTS}
+    )
+    target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
+  endif()
+
+  # TODO currently we don't install googletest alongside abseil sources, so
+  # installed abseil can't be tested.
+  if(NOT ABSL_CC_LIB_TESTONLY AND ABSL_ENABLE_INSTALL)
+    install(TARGETS ${_NAME} EXPORT ${PROJECT_NAME}Targets
+          RUNTIME DESTINATION ${ABSL_INSTALL_BINDIR}
+          LIBRARY DESTINATION ${ABSL_INSTALL_LIBDIR}
+          ARCHIVE DESTINATION ${ABSL_INSTALL_LIBDIR}
+    )
+  endif()
 
     add_library(absl::${ABSL_CC_LIB_NAME} ALIAS ${_NAME})
-  endif()
 endfunction()
 
 # absl_cc_test()
@@ -221,23 +300,42 @@ function(absl_cc_test)
   )
 
   set(_NAME "absl_${ABSL_CC_TEST_NAME}")
+
   add_executable(${_NAME} "")
   target_sources(${_NAME} PRIVATE ${ABSL_CC_TEST_SRCS})
   target_include_directories(${_NAME}
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
     PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
   )
-  target_compile_definitions(${_NAME}
-    PUBLIC ${ABSL_CC_TEST_DEFINES}
-  )
+
+  if (${ABSL_BUILD_DLL})
+    target_compile_definitions(${_NAME}
+      PUBLIC
+        ${ABSL_CC_TEST_DEFINES}
+        ABSL_CONSUME_DLL
+        GTEST_LINKED_AS_SHARED_LIBRARY=1
+    )
+
+    # Replace dependencies on targets inside the DLL with abseil_dll itself.
+    absl_internal_dll_targets(
+      DEPS ${ABSL_CC_TEST_DEPS}
+      OUTPUT ABSL_CC_TEST_DEPS
+    )
+  else()
+    target_compile_definitions(${_NAME}
+      PUBLIC
+        ${ABSL_CC_TEST_DEFINES}
+    )
+  endif()
   target_compile_options(${_NAME}
     PRIVATE ${ABSL_CC_TEST_COPTS}
   )
+
   target_link_libraries(${_NAME}
     PUBLIC ${ABSL_CC_TEST_DEPS}
     PRIVATE ${ABSL_CC_TEST_LINKOPTS}
   )
-  # Add all Abseil targets to a a folder in the IDE for organization.
+  # Add all Abseil targets to a folder in the IDE for organization.
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 
   set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})

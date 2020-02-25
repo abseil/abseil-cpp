@@ -36,7 +36,13 @@
 #include "absl/types/span.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
+
+struct IntervalClosedClosedTag;
+struct IntervalClosedOpenTag;
+struct IntervalOpenClosedTag;
+struct IntervalOpenOpenTag;
+
 namespace random_internal {
 
 // ScalarTypeName defines a preferred hierarchy of preferred type names for
@@ -244,8 +250,29 @@ struct DistributionFormatTraits<absl::log_uniform_int_distribution<R>> {
   }
 };
 
+template <typename NumType>
+struct UniformDistributionWrapper;
+
+template <typename NumType>
+struct DistributionFormatTraits<UniformDistributionWrapper<NumType>> {
+  using distribution_t = UniformDistributionWrapper<NumType>;
+  using result_t = NumType;
+
+  static constexpr const char* Name() { return "Uniform"; }
+
+  static std::string FunctionName() {
+    return absl::StrCat(Name(), "<", ScalarTypeName<NumType>(), ">");
+  }
+  static std::string FormatArgs(const distribution_t& d) {
+    return absl::StrCat((d.min)(), ", ", (d.max)());
+  }
+  static std::string FormatResults(absl::Span<const result_t> results) {
+    return absl::StrJoin(results, ", ");
+  }
+};
+
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_DISTRIBUTION_FORMAT_TRAITS_H_

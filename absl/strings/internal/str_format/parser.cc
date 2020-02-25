@@ -14,11 +14,12 @@
 #include <unordered_set>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
-using CC = ConversionChar::Id;
-using LM = LengthMod::Id;
+using CC = ConversionChar;
+using LM = LengthMod;
+
 ABSL_CONST_INIT const ConvTag kTags[256] = {
     {},    {},    {},    {},    {},    {},    {},    {},     // 00-07
     {},    {},    {},    {},    {},    {},    {},    {},     // 08-0f
@@ -205,11 +206,11 @@ flags_done:
     using str_format_internal::LengthMod;
     LengthMod length_mod = tag.as_length();
     ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
-    if (c == 'h' && length_mod.id() == LengthMod::h) {
-      conv->length_mod = LengthMod::FromId(LengthMod::hh);
+    if (c == 'h' && length_mod == LengthMod::h) {
+      conv->length_mod = LengthMod::hh;
       ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
-    } else if (c == 'l' && length_mod.id() == LengthMod::l) {
-      conv->length_mod = LengthMod::FromId(LengthMod::ll);
+    } else if (c == 'l' && length_mod == LengthMod::l) {
+      conv->length_mod = LengthMod::ll;
       ABSL_FORMAT_PARSER_INTERNAL_GET_CHAR();
     } else {
       conv->length_mod = length_mod;
@@ -227,6 +228,32 @@ flags_done:
 }
 
 }  // namespace
+
+std::string LengthModToString(LengthMod v) {
+  switch (v) {
+    case LengthMod::h:
+      return "h";
+    case LengthMod::hh:
+      return "hh";
+    case LengthMod::l:
+      return "l";
+    case LengthMod::ll:
+      return "ll";
+    case LengthMod::L:
+      return "L";
+    case LengthMod::j:
+      return "j";
+    case LengthMod::z:
+      return "z";
+    case LengthMod::t:
+      return "t";
+    case LengthMod::q:
+      return "q";
+    case LengthMod::none:
+      return "";
+  }
+  return "";
+}
 
 const char *ConsumeUnboundConversion(const char *p, const char *end,
                                      UnboundConversion *conv, int *next_arg) {
@@ -295,11 +322,13 @@ bool ParsedFormatBase::MatchesConversions(
     if (conv.width.is_from_arg() &&
         !add_if_valid_conv(conv.width.get_from_arg(), '*'))
       return false;
-    if (!add_if_valid_conv(conv.arg_position, conv.conv.Char())) return false;
+    if (!add_if_valid_conv(conv.arg_position,
+                           FormatConversionCharToChar(conv.conv)))
+      return false;
   }
   return used.size() == convs.size() || allow_ignored;
 }
 
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

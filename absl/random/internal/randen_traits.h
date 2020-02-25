@@ -22,8 +22,10 @@
 
 #include <cstddef>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // RANDen = RANDom generator or beetroots in Swiss German.
@@ -55,7 +57,7 @@ struct RandenTraits {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_RANDEN_TRAITS_H_

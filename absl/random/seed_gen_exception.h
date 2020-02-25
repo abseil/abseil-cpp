@@ -28,8 +28,10 @@
 
 #include <exception>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // SeedGenException
@@ -47,7 +49,7 @@ namespace random_internal {
 [[noreturn]] void ThrowSeedGenException();
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_SEED_GEN_EXCEPTION_H_

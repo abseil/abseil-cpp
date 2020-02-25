@@ -37,7 +37,7 @@ using absl::base_internal::SpinLock;
 using absl::base_internal::SpinLockHolder;
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -60,13 +60,13 @@ class RandenPoolEntry {
   }
 
   // Copy bytes into out.
-  void Fill(uint8_t* out, size_t bytes) LOCKS_EXCLUDED(mu_);
+  void Fill(uint8_t* out, size_t bytes) ABSL_LOCKS_EXCLUDED(mu_);
 
   // Returns random bits from the buffer in units of T.
   template <typename T>
-  inline T Generate() LOCKS_EXCLUDED(mu_);
+  inline T Generate() ABSL_LOCKS_EXCLUDED(mu_);
 
-  inline void MaybeRefill() EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+  inline void MaybeRefill() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     if (next_ >= kState) {
       next_ = kCapacity;
       impl_.Generate(state_);
@@ -75,10 +75,10 @@ class RandenPoolEntry {
 
  private:
   // Randen URBG state.
-  uint32_t state_[kState] GUARDED_BY(mu_);  // First to satisfy alignment.
+  uint32_t state_[kState] ABSL_GUARDED_BY(mu_);  // First to satisfy alignment.
   SpinLock mu_;
   const Randen impl_;
-  size_t next_ GUARDED_BY(mu_);
+  size_t next_ ABSL_GUARDED_BY(mu_);
 };
 
 template <>
@@ -250,5 +250,5 @@ template class RandenPool<uint32_t>;
 template class RandenPool<uint64_t>;
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

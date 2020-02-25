@@ -26,7 +26,7 @@
 #include "absl/random/uniform_real_distribution.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // absl::zipf_distribution produces random integer-values in the range [0, k],
 // distributed according to the discrete probability function:
@@ -265,7 +265,7 @@ std::basic_istream<CharT, Traits>& operator>>(
   return is;
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_ZIPF_DISTRIBUTION_H_

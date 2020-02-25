@@ -23,7 +23,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // Defines how slots are initialized/destroyed/moved.
@@ -185,7 +185,7 @@ struct hash_policy_traits {
 };
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASH_POLICY_TRAITS_H_

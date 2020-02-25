@@ -41,7 +41,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 class once_flag;
 
@@ -143,12 +143,13 @@ enum {
 };
 
 template <typename Callable, typename... Args>
+ABSL_ATTRIBUTE_NOINLINE
 void CallOnceImpl(std::atomic<uint32_t>* control,
                   base_internal::SchedulingMode scheduling_mode, Callable&& fn,
                   Args&&... args) {
 #ifndef NDEBUG
   {
-    uint32_t old_control = control->load(std::memory_order_acquire);
+    uint32_t old_control = control->load(std::memory_order_relaxed);
     if (old_control != kOnceInit &&
         old_control != kOnceRunning &&
         old_control != kOnceWaiter &&
@@ -166,14 +167,23 @@ void CallOnceImpl(std::atomic<uint32_t>* control,
   // Must do this before potentially modifying control word's state.
   base_internal::SchedulingHelper maybe_disable_scheduling(scheduling_mode);
   // Short circuit the simplest case to avoid procedure call overhead.
+  // The base_internal::SpinLockWait() call returns either kOnceInit or
+  // kOnceDone. If it returns kOnceDone, it must have loaded the control word
+  // with std::memory_order_acquire and seen a value of kOnceDone.
   uint32_t old_control = kOnceInit;
   if (control->compare_exchange_strong(old_control, kOnceRunning,
-                                       std::memory_order_acquire,
                                        std::memory_order_relaxed) ||
       base_internal::SpinLockWait(control, ABSL_ARRAYSIZE(trans), trans,
                                   scheduling_mode) == kOnceInit) {
     base_internal::Invoke(std::forward<Callable>(fn),
                           std::forward<Args>(args)...);
+    // The call to SpinLockWake below is an optimization, because the waiter
+    // in SpinLockWait is waiting with a short timeout. The atomic load/store
+    // sequence is slightly faster than an atomic exchange:
+    //   old_control = control->exchange(base_internal::kOnceDone,
+    //                                   std::memory_order_release);
+    // We opt for a slightly faster case when there are no waiters, in spite
+    // of longer tail latency when there are waiters.
     old_control = control->load(std::memory_order_relaxed);
     control->store(base_internal::kOnceDone, std::memory_order_release);
     if (old_control == base_internal::kOnceWaiter) {
@@ -210,7 +220,7 @@ void call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
   }
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_CALL_ONCE_H_

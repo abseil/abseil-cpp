@@ -18,31 +18,22 @@
 
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
+#include "absl/strings/string_view.h"
 
 // --------------------------------------------------------------------
 // Registry interfaces operating on type erased handles.
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // If a flag named "name" exists, store its current value in *OUTPUT
 // and return true.  Else return false without changing *OUTPUT.
 // Thread-safe.
 bool GetCommandLineOption(absl::string_view name, std::string* value);
-
-// If a flag named "name" exists, store its information in *OUTPUT
-// and return true.  Else return false without changing *OUTPUT.
-// Thread-safe.
-bool GetCommandLineFlagInfo(absl::string_view name,
-                            CommandLineFlagInfo* OUTPUT);
-
-// Returns the CommandLineFlagInfo of the flagname.  exit() with an
-// error code if name not found.
-// Thread-safe.
-CommandLineFlagInfo GetCommandLineFlagInfoOrDie(absl::string_view name);
 
 // Set the value of the flag named "name" to value.  If successful,
 // returns true.  If not successful (e.g., the flag was not found or
@@ -93,7 +84,7 @@ inline bool GetByName(absl::string_view name, T* dst) {
 }
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_TYPE_ERASED_H_

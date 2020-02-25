@@ -32,7 +32,11 @@ if [ -z ${COMPILATION_MODE:-} ]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20190701"
+if [ -z ${EXCEPTIONS_MODE:-} ]; then
+  EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
+fi
+
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20200102"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
@@ -48,30 +52,31 @@ fi
 
 for std in ${STD}; do
   for compilation_mode in ${COMPILATION_MODE}; do
-    echo "--------------------------------------------------------------------"
-    echo "Testing with --compilation_mode=${compilation_mode} and --std=${std}"
-
-    time docker run \
-      --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
-      --workdir=/abseil-cpp \
-      --cap-add=SYS_PTRACE \
-      --rm \
-      -e CC="/opt/llvm/clang/bin/clang" \
-      -e BAZEL_COMPILER="llvm" \
-      -e BAZEL_CXXOPTS="-std=${std}" \
-      -e CPLUS_INCLUDE_PATH="/usr/include/c++/6" \
-      ${DOCKER_EXTRA_ARGS:-} \
-      ${DOCKER_CONTAINER} \
-      /usr/local/bin/bazel test ... \
-        --compilation_mode=${compilation_mode} \
-        --copt=-Werror \
-        --define="absl=1" \
-        --keep_going \
-        --show_timestamps \
-        --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1" \
-        --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
-        --test_output=errors \
-        --test_tag_filters=-benchmark \
-        ${BAZEL_EXTRA_ARGS:-}
+    for exceptions_mode in ${EXCEPTIONS_MODE}; do
+      echo "--------------------------------------------------------------------"
+      time docker run \
+        --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
+        --workdir=/abseil-cpp \
+        --cap-add=SYS_PTRACE \
+        --rm \
+        -e CC="/opt/llvm/clang/bin/clang" \
+        -e BAZEL_COMPILER="llvm" \
+        -e BAZEL_CXXOPTS="-std=${std}" \
+        -e CPLUS_INCLUDE_PATH="/usr/include/c++/6" \
+        ${DOCKER_EXTRA_ARGS:-} \
+        ${DOCKER_CONTAINER} \
+        /usr/local/bin/bazel test ... \
+          --compilation_mode="${compilation_mode}" \
+          --copt="${exceptions_mode}" \
+          --copt=-Werror \
+          --define="absl=1" \
+          --keep_going \
+          --show_timestamps \
+          --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1" \
+          --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
+          --test_output=errors \
+          --test_tag_filters=-benchmark \
+          ${BAZEL_EXTRA_ARGS:-}
+    done
   done
 done

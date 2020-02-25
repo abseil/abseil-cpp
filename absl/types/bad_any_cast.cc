@@ -14,7 +14,7 @@
 
 #include "absl/types/bad_any_cast.h"
 
-#ifndef ABSL_HAVE_STD_ANY
+#ifndef ABSL_USES_STD_ANY
 
 #include <cstdlib>
 
@@ -22,7 +22,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 bad_any_cast::~bad_any_cast() = default;
 
@@ -40,7 +40,7 @@ void ThrowBadAnyCast() {
 }
 
 }  // namespace any_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_ANY
+#endif  // ABSL_USES_STD_ANY

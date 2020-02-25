@@ -34,7 +34,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // Function Template: WrapUnique()
@@ -93,11 +93,12 @@ struct MakeUniqueResult<T[N]> {
 
 }  // namespace memory_internal
 
-// gcc 4.8 has __cplusplus at 201301 but doesn't define make_unique.  Other
-// supported compilers either just define __cplusplus as 201103 but have
-// make_unique (msvc), or have make_unique whenever __cplusplus > 201103 (clang)
+// gcc 4.8 has __cplusplus at 201301 but the libstdc++ shipped with it doesn't
+// define make_unique.  Other supported compilers either just define __cplusplus
+// as 201103 but have make_unique (msvc), or have make_unique whenever
+// __cplusplus > 201103 (clang).
 #if (__cplusplus > 201103L || defined(_MSC_VER)) && \
-    !(defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 8)
+    !(defined(__GLIBCXX__) && !defined(__cpp_lib_make_unique))
 using std::make_unique;
 #else
 // -----------------------------------------------------------------------------
@@ -688,7 +689,7 @@ void CopyRange(Allocator& alloc, Iterator destination, InputIterator first,
   }
 }
 }  // namespace memory_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_MEMORY_MEMORY_H_

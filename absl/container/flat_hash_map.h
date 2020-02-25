@@ -42,7 +42,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 template <class K, class V>
 struct FlatHashMapPolicy;
@@ -361,6 +361,10 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   // Inserts (via copy or move) the element of the specified key into the
   // `flat_hash_map` using the position of `hint` as a non-binding suggestion
   // for where to begin the insertion search.
+  //
+  // All `try_emplace()` overloads make the same guarantees regarding rvalue
+  // arguments as `std::unordered_map::try_emplace()`, namely that these
+  // functions will not move from rvalue arguments if insertions do not happen.
   using Base::try_emplace;
 
   // flat_hash_map::extract()
@@ -398,7 +402,7 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   // for the past-the-end iterator, which is invalidated.
   //
   // `swap()` requires that the flat hash map's hashing and key equivalence
-  // functions be Swappable, and are exchaged using unqualified calls to
+  // functions be Swappable, and are exchanged using unqualified calls to
   // non-member `swap()`. If the map's allocator has
   // `std::allocator_traits<allocator_type>::propagate_on_container_swap::value`
   // set to `true`, the allocators are also exchanged using an unqualified call
@@ -528,6 +532,15 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   using Base::key_eq;
 };
 
+// erase_if(flat_hash_map<>, Pred)
+//
+// Erases all elements that satisfy the predicate `pred` from the container `c`.
+template <typename K, typename V, typename H, typename E, typename A,
+          typename Predicate>
+void erase_if(flat_hash_map<K, V, H, E, A>& c, Predicate pred) {
+  container_internal::EraseIf(pred, &c);
+}
+
 namespace container_internal {
 
 template <class K, class V>
@@ -581,7 +594,7 @@ struct IsUnorderedContainer<
 
 }  // namespace container_algorithm_internal
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_FLAT_HASH_MAP_H_

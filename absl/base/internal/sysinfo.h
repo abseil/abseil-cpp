@@ -26,14 +26,14 @@
 
 #ifndef _WIN32
 #include <sys/types.h>
-#else
-#include <intsafe.h>
 #endif
+
+#include <cstdint>
 
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Nominal core processor cycles per second of each processor.   This is _not_
@@ -52,14 +52,15 @@ int NumCPUs();
 // On Linux, you may send a signal to the resulting ID with kill().  However,
 // it is recommended for portability that you use pthread_kill() instead.
 #ifdef _WIN32
-// On Windows, process id and thread id are of the same type according to
-// the return types of GetProcessId() and GetThreadId() are both DWORD.
-using pid_t = DWORD;
+// On Windows, process id and thread id are of the same type according to the
+// return types of GetProcessId() and GetThreadId() are both DWORD, an unsigned
+// 32-bit type.
+using pid_t = uint32_t;
 #endif
 pid_t GetTID();
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SYSINFO_H_

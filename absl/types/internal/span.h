@@ -26,7 +26,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 namespace span_internal {
 // A constexpr min function
@@ -122,7 +122,7 @@ template <typename From, typename To>
 using EnableIfConvertibleTo =
     typename std::enable_if<IsConvertible<From, To>::value>::type;
 }  // namespace span_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TYPES_INTERNAL_SPAN_H_

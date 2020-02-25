@@ -25,20 +25,20 @@
 
 #include "absl/base/config.h"
 
-#ifdef ABSL_HAVE_STD_VARIANT
+#ifdef ABSL_USES_STD_VARIANT
 
 #include <variant>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 using std::bad_variant_access;
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#else  // ABSL_HAVE_STD_VARIANT
+#else  // ABSL_USES_STD_VARIANT
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // bad_variant_access
@@ -74,9 +74,9 @@ namespace variant_internal {
 [[noreturn]] void Rethrow();
 
 }  // namespace variant_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 #endif  // ABSL_TYPES_BAD_VARIANT_ACCESS_H_

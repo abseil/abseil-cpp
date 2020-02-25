@@ -24,7 +24,7 @@
 namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 
 TimeZone LoadTimeZone(const std::string& name) {
@@ -34,11 +34,11 @@ TimeZone LoadTimeZone(const std::string& name) {
 }
 
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz_extension {
 namespace {
@@ -119,9 +119,12 @@ std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
 
 }  // namespace
 
+#if !defined(__MINGW32__)
+// MinGW does not support the weak symbol extension mechanism.
 ZoneInfoSourceFactory zone_info_source_factory = TestFactory;
+#endif
 
 }  // namespace cctz_extension
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

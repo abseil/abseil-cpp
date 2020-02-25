@@ -20,13 +20,27 @@ namespace {
 
 int resize_call_count = 0;
 
+// A mock string class whose only purpose is to track how many times its
+// resize() method has been called.
 struct resizable_string {
+  size_t size() const { return 0; }
+  char& operator[](size_t) {
+    static char c = '\0';
+    return c;
+  }
   void resize(size_t) { resize_call_count += 1; }
 };
 
 int resize_default_init_call_count = 0;
 
+// A mock string class whose only purpose is to track how many times its
+// resize() and __resize_default_init() methods have been called.
 struct resize_default_init_string {
+  size_t size() const { return 0; }
+  char& operator[](size_t) {
+    static char c = '\0';
+    return c;
+  }
   void resize(size_t) { resize_call_count += 1; }
   void __resize_default_init(size_t) { resize_default_init_call_count += 1; }
 };

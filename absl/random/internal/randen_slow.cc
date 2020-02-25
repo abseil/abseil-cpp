@@ -18,16 +18,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/base/attributes.h"
 #include "absl/random/internal/platform.h"
-
-// ABSL_HAVE_ATTRIBUTE
-#if !defined(ABSL_HAVE_ATTRIBUTE)
-#ifdef __has_attribute
-#define ABSL_HAVE_ATTRIBUTE(x) __has_attribute(x)
-#else
-#define ABSL_HAVE_ATTRIBUTE(x) 0
-#endif
-#endif
 
 #if ABSL_HAVE_ATTRIBUTE(always_inline) || \
     (defined(__GNUC__) && !defined(__clang__))
@@ -470,7 +462,7 @@ inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Permute(
 }  // namespace
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 const void* RandenSlow::GetKeys() {
@@ -510,5 +502,5 @@ void RandenSlow::Generate(const void* keys, void* state_void) {
 }
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

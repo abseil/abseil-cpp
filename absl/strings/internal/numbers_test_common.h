@@ -23,8 +23,10 @@
 #include <limits>
 #include <string>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 template <typename IntType>
@@ -43,8 +45,9 @@ inline bool Itoa(IntType value, int base, std::string* destination) {
   while (value != 0) {
     const IntType next_value = value / base;
     // Can't use std::abs here because of problems when IntType is unsigned.
-    int remainder = value > next_value * base ? value - next_value * base
-                                              : next_value * base - value;
+    int remainder =
+        static_cast<int>(value > next_value * base ? value - next_value * base
+                                                   : next_value * base - value);
     char c = remainder < 10 ? '0' + remainder : 'A' + remainder - 10;
     destination->insert(0, 1, c);
     value = next_value;
@@ -175,7 +178,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
 }
 
 }  // namespace strings_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_NUMBERS_TEST_COMMON_H_

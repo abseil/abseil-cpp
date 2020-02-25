@@ -20,6 +20,8 @@
 
 #include <cstdint>
 
+#include "absl/base/config.h"
+
 // Clang on Windows has __builtin_clzll; otherwise we need to use the
 // windows intrinsic functions.
 #if defined(_MSC_VER)
@@ -46,15 +48,27 @@
 
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64Slow(uint64_t n) {
   int zeroes = 60;
-  if (n >> 32) zeroes -= 32, n >>= 32;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
+  if (n >> 32) {
+    zeroes -= 32;
+    n >>= 32;
+  }
+  if (n >> 16) {
+    zeroes -= 16;
+    n >>= 16;
+  }
+  if (n >> 8) {
+    zeroes -= 8;
+    n >>= 8;
+  }
+  if (n >> 4) {
+    zeroes -= 4;
+    n >>= 4;
+  }
   return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0"[n] + zeroes;
 }
 
@@ -96,9 +110,18 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64(uint64_t n) {
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros32Slow(uint64_t n) {
   int zeroes = 28;
-  if (n >> 16) zeroes -= 16, n >>= 16;
-  if (n >> 8) zeroes -= 8, n >>= 8;
-  if (n >> 4) zeroes -= 4, n >>= 4;
+  if (n >> 16) {
+    zeroes -= 16;
+    n >>= 16;
+  }
+  if (n >> 8) {
+    zeroes -= 8;
+    n >>= 8;
+  }
+  if (n >> 4) {
+    zeroes -= 4;
+    n >>= 4;
+  }
   return "\4\3\2\2\1\1\1\1\0\0\0\0\0\0\0"[n] + zeroes;
 }
 
@@ -189,7 +212,7 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero32(uint32_t n) {
 #undef ABSL_BASE_INTERNAL_FORCEINLINE
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_BITS_H_

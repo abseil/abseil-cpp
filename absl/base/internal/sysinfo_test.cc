@@ -28,7 +28,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 namespace {
 
@@ -59,8 +59,8 @@ TEST(SysinfoTest, GetTID) {
 #endif
   // Test that TIDs are unique to each thread.
   // Uses a few loops to exercise implementations that reallocate IDs.
-  for (int i = 0; i < 32; ++i) {
-    constexpr int kNumThreads = 64;
+  for (int i = 0; i < 10; ++i) {
+    constexpr int kNumThreads = 10;
     Barrier all_threads_done(kNumThreads);
     std::vector<std::thread> threads;
 
@@ -96,5 +96,5 @@ TEST(SysinfoTest, LinuxGetTID) {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

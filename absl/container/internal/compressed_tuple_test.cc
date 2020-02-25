@@ -48,7 +48,7 @@ struct TwoValues {
 
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -333,10 +333,6 @@ TEST(CompressedTupleTest, AnyElements) {
 
   a = 0.5f;
   EXPECT_EQ(absl::any_cast<float>(x.get<1>()), 0.5);
-
-  // Ensure copy construction work in the face of a type with a universal
-  // implicit constructor;
-  CompressedTuple<absl::any> c{}, d(c);  // NOLINT
 }
 
 TEST(CompressedTupleTest, Constexpr) {
@@ -409,5 +405,5 @@ TEST(CompressedTupleTest, EmptyFinalClass) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

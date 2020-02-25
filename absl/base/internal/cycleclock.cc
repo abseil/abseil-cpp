@@ -28,7 +28,7 @@
 #include "absl/base/internal/unscaledcycleclock.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 #if ABSL_USE_UNSCALED_CYCLECLOCK
@@ -103,5 +103,5 @@ double CycleClock::Frequency() {
 #endif
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

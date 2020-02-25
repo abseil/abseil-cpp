@@ -17,7 +17,7 @@
 #include <cstdlib>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 int memcasecmp(const char* s1, const char* s2, size_t len) {
@@ -108,5 +108,5 @@ const char* memmatch(const char* phaystack, size_t haylen, const char* pneedle,
 }
 
 }  // namespace strings_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

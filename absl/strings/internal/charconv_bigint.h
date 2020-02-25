@@ -20,12 +20,13 @@
 #include <iostream>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/charconv_parse.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 
 // The largest power that 5 that can be raised to, and still fit in a uint32_t.
@@ -33,8 +34,9 @@ constexpr int kMaxSmallPowerOfFive = 13;
 // The largest power that 10 that can be raised to, and still fit in a uint32_t.
 constexpr int kMaxSmallPowerOfTen = 9;
 
-extern const uint32_t kFiveToNth[kMaxSmallPowerOfFive + 1];
-extern const uint32_t kTenToNth[kMaxSmallPowerOfTen + 1];
+ABSL_DLL extern const uint32_t
+    kFiveToNth[kMaxSmallPowerOfFive + 1];
+ABSL_DLL extern const uint32_t kTenToNth[kMaxSmallPowerOfTen + 1];
 
 // Large, fixed-width unsigned integer.
 //
@@ -415,7 +417,7 @@ extern template class BigUnsigned<4>;
 extern template class BigUnsigned<84>;
 
 }  // namespace strings_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_INTERNAL_CHARCONV_BIGINT_H_

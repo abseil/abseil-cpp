@@ -51,7 +51,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 // Stores information about a sampled hashtable.  All mutations to this *must*
@@ -66,7 +66,7 @@ struct HashtablezInfo {
 
   // Puts the object into a clean state, fills in the logically `const` members,
   // blocking for any readers that are currently sampling the object.
-  void PrepareForSampling() EXCLUSIVE_LOCKS_REQUIRED(init_mu);
+  void PrepareForSampling() ABSL_EXCLUSIVE_LOCKS_REQUIRED(init_mu);
 
   // These fields are mutated by the various Record* APIs and need to be
   // thread-safe.
@@ -84,7 +84,7 @@ struct HashtablezInfo {
   // prevents races with sampling and resurrecting an object.
   absl::Mutex init_mu;
   HashtablezInfo* next;
-  HashtablezInfo* dead GUARDED_BY(init_mu);
+  HashtablezInfo* dead ABSL_GUARDED_BY(init_mu);
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
   // mutated in `Record*` functions.  They are logically `const` in that sense.
@@ -180,23 +180,30 @@ class HashtablezInfoHandle {
   HashtablezInfo* info_;
 };
 
-#if ABSL_PER_THREAD_TLS == 1
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+#error ABSL_INTERNAL_HASHTABLEZ_SAMPLE cannot be directly set
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+
+#if (ABSL_PER_THREAD_TLS == 1) && !defined(ABSL_BUILD_DLL) && \
+    !defined(ABSL_CONSUME_DLL)
+#define ABSL_INTERNAL_HASHTABLEZ_SAMPLE
+#endif
+
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 extern ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample;
 #endif  // ABSL_PER_THREAD_TLS
 
 // Returns an RAII sampling handle that manages registration and unregistation
 // with the global sampler.
 inline HashtablezInfoHandle Sample() {
-#if ABSL_PER_THREAD_TLS == 0
-  static auto* mu = new absl::Mutex;
-  static int64_t global_next_sample = 0;
-  absl::MutexLock l(mu);
-#endif  // !ABSL_HAVE_THREAD_LOCAL
-
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
   if (ABSL_PREDICT_TRUE(--global_next_sample > 0)) {
     return HashtablezInfoHandle(nullptr);
   }
   return HashtablezInfoHandle(SampleSlow(&global_next_sample));
+#else
+  return HashtablezInfoHandle(nullptr);
+#endif  // !ABSL_PER_THREAD_TLS
 }
 
 // Holds samples and their associated stack traces with a soft limit of
@@ -281,10 +288,10 @@ void SetHashtablezMaxSamples(int32_t max);
 // initialization of static storage duration objects.
 // The definition of this constant is weak, which allows us to inject a
 // different value for it at link time.
-extern "C" const bool kAbslContainerInternalSampleEverything;
+extern "C" bool AbslContainerInternalSampleEverything();
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_HASHTABLEZ_SAMPLER_H_

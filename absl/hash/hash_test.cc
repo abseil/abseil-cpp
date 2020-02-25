@@ -274,8 +274,8 @@ TEST(HashValueTest, Strings) {
 
   const std::string small = "foo";
   const std::string dup = "foofoo";
-  const std::string large = "large";
-  const std::string huge = std::string(5000, 'a');
+  const std::string large = std::string(2048, 'x');  // multiple of chunk size
+  const std::string huge = std::string(5000, 'a');   // not a multiple
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
       std::string(), absl::string_view(),
@@ -298,6 +298,33 @@ TEST(HashValueTest, Strings) {
   // Make sure that hashing a `const char*` does not use its std::string-value.
   EXPECT_NE(SpyHash(static_cast<const char*>("ABC")),
             SpyHash(absl::string_view("ABC")));
+}
+
+TEST(HashValueTest, WString) {
+  EXPECT_TRUE((is_hashable<std::wstring>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::wstring(), std::wstring(L"ABC"), std::wstring(L"ABC"),
+      std::wstring(L"Some other different string"),
+      std::wstring(L"Iñtërnâtiônàlizætiøn"))));
+}
+
+TEST(HashValueTest, U16String) {
+  EXPECT_TRUE((is_hashable<std::u16string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u16string(), std::u16string(u"ABC"), std::u16string(u"ABC"),
+      std::u16string(u"Some other different string"),
+      std::u16string(u"Iñtërnâtiônàlizætiøn"))));
+}
+
+TEST(HashValueTest, U32String) {
+  EXPECT_TRUE((is_hashable<std::u32string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u32string(), std::u32string(U"ABC"), std::u32string(U"ABC"),
+      std::u32string(U"Some other different string"),
+      std::u32string(U"Iñtërnâtiônàlizætiøn"))));
 }
 
 TEST(HashValueTest, StdArray) {
@@ -377,6 +404,116 @@ struct Private {
     return o << p.i;
   }
 };
+
+// Test helper for combine_piecewise_buffer.  It holds a string_view to the
+// buffer-to-be-hashed.  Its AbslHashValue specialization will split up its
+// contents at the character offsets requested.
+class PiecewiseHashTester {
+ public:
+  // Create a hash view of a buffer to be hashed contiguously.
+  explicit PiecewiseHashTester(absl::string_view buf)
+      : buf_(buf), piecewise_(false), split_locations_() {}
+
+  // Create a hash view of a buffer to be hashed piecewise, with breaks at the
+  // given locations.
+  PiecewiseHashTester(absl::string_view buf, std::set<size_t> split_locations)
+      : buf_(buf),
+        piecewise_(true),
+        split_locations_(std::move(split_locations)) {}
+
+  template <typename H>
+  friend H AbslHashValue(H h, const PiecewiseHashTester& p) {
+    if (!p.piecewise_) {
+      return H::combine_contiguous(std::move(h), p.buf_.data(), p.buf_.size());
+    }
+    absl::hash_internal::PiecewiseCombiner combiner;
+    if (p.split_locations_.empty()) {
+      h = combiner.add_buffer(std::move(h), p.buf_.data(), p.buf_.size());
+      return combiner.finalize(std::move(h));
+    }
+    size_t begin = 0;
+    for (size_t next : p.split_locations_) {
+      absl::string_view chunk = p.buf_.substr(begin, next - begin);
+      h = combiner.add_buffer(std::move(h), chunk.data(), chunk.size());
+      begin = next;
+    }
+    absl::string_view last_chunk = p.buf_.substr(begin);
+    if (!last_chunk.empty()) {
+      h = combiner.add_buffer(std::move(h), last_chunk.data(),
+                              last_chunk.size());
+    }
+    return combiner.finalize(std::move(h));
+  }
+
+ private:
+  absl::string_view buf_;
+  bool piecewise_;
+  std::set<size_t> split_locations_;
+};
+
+// Dummy object that hashes as two distinct contiguous buffers, "foo" followed
+// by "bar"
+struct DummyFooBar {
+  template <typename H>
+  friend H AbslHashValue(H h, const DummyFooBar&) {
+    const char* foo = "foo";
+    const char* bar = "bar";
+    h = H::combine_contiguous(std::move(h), foo, 3);
+    h = H::combine_contiguous(std::move(h), bar, 3);
+    return h;
+  }
+};
+
+TEST(HashValueTest, CombinePiecewiseBuffer) {
+  absl::Hash<PiecewiseHashTester> hash;
+
+  // Check that hashing an empty buffer through the piecewise API works.
+  EXPECT_EQ(hash(PiecewiseHashTester("")), hash(PiecewiseHashTester("", {})));
+
+  // Similarly, small buffers should give consistent results
+  EXPECT_EQ(hash(PiecewiseHashTester("foobar")),
+            hash(PiecewiseHashTester("foobar", {})));
+  EXPECT_EQ(hash(PiecewiseHashTester("foobar")),
+            hash(PiecewiseHashTester("foobar", {3})));
+
+  // But hashing "foobar" in pieces gives a different answer than hashing "foo"
+  // contiguously, then "bar" contiguously.
+  EXPECT_NE(hash(PiecewiseHashTester("foobar", {3})),
+            absl::Hash<DummyFooBar>()(DummyFooBar{}));
+
+  // Test hashing a large buffer incrementally, broken up in several different
+  // ways.  Arrange for breaks on and near the stride boundaries to look for
+  // off-by-one errors in the implementation.
+  //
+  // This test is run on a buffer that is a multiple of the stride size, and one
+  // that isn't.
+  for (size_t big_buffer_size : {1024 * 2 + 512, 1024 * 3}) {
+    SCOPED_TRACE(big_buffer_size);
+    std::string big_buffer;
+    for (int i = 0; i < big_buffer_size; ++i) {
+      // Arbitrary std::string
+      big_buffer.push_back(32 + (i * (i / 3)) % 64);
+    }
+    auto big_buffer_hash = hash(PiecewiseHashTester(big_buffer));
+
+    const int possible_breaks = 9;
+    size_t breaks[possible_breaks] = {1,    512,  1023, 1024, 1025,
+                                      1536, 2047, 2048, 2049};
+    for (unsigned test_mask = 0; test_mask < (1u << possible_breaks);
+         ++test_mask) {
+      SCOPED_TRACE(test_mask);
+      std::set<size_t> break_locations;
+      for (int j = 0; j < possible_breaks; ++j) {
+        if (test_mask & (1u << j)) {
+          break_locations.insert(breaks[j]);
+        }
+      }
+      EXPECT_EQ(
+          hash(PiecewiseHashTester(big_buffer, std::move(break_locations))),
+          big_buffer_hash);
+    }
+  }
+}
 
 TEST(HashValueTest, PrivateSanity) {
   // Sanity check that Private is working as the tests below expect it to work.
@@ -458,7 +595,10 @@ TEST(IsHashableTest, PoisonHash) {
   EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
   EXPECT_FALSE(IsHashCallable<X>::value);
+#if !defined(__GNUC__) || __GNUC__ < 9
+  // This doesn't compile on GCC 9.
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
+#endif
 }
 #endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
@@ -544,7 +684,7 @@ H AbslHashValue(H state, CustomHashType<Tags...> t) {
 }  // namespace
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 template <InvokeTag... Tags>
 struct is_uniquely_represented<
@@ -552,7 +692,7 @@ struct is_uniquely_represented<
     typename EnableIfContained<InvokeTag::kUniquelyRepresented, Tags...>::type>
     : std::true_type {};
 }  // namespace hash_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_

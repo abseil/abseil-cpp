@@ -40,7 +40,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 template <typename T>
 struct FlatHashSetPolicy;
@@ -439,6 +439,14 @@ class flat_hash_set
   using Base::key_eq;
 };
 
+// erase_if(flat_hash_set<>, Pred)
+//
+// Erases all elements that satisfy the predicate `pred` from the container `c`.
+template <typename T, typename H, typename E, typename A, typename Predicate>
+void erase_if(flat_hash_set<T, H, E, A>& c, Predicate pred) {
+  container_internal::EraseIf(pred, &c);
+}
+
 namespace container_internal {
 
 template <class T>
@@ -489,7 +497,7 @@ struct IsUnorderedContainer<absl::flat_hash_set<Key, Hash, KeyEqual, Allocator>>
 
 }  // namespace container_algorithm_internal
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_FLAT_HASH_SET_H_

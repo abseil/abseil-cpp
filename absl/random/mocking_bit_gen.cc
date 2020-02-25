@@ -1,3 +1,4 @@
+//
 // Copyright 2018 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,20 +12,19 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+#include "absl/random/mocking_bit_gen.h"
 
-#include <cstddef>
-#include <iostream>
+#include <string>
 
-#include "absl/random/random.h"
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+MockingBitGen::~MockingBitGen() {
 
-// This program is used in integration tests.
-
-int main() {
-  auto seed_seq = absl::MakeTaggedSeedSeq("TEST_GENERATOR", std::cerr);
-  absl::BitGen rng(seed_seq);
-  constexpr size_t kSequenceLength = 8;
-  for (size_t i = 0; i < kSequenceLength; i++) {
-    std::cout << rng() << "\n";
+  for (const auto& del : deleters_) {
+    del();
   }
-  return 0;
 }
+
+ABSL_NAMESPACE_END
+}  // namespace absl

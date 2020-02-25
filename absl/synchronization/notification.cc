@@ -22,7 +22,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 void Notification::Notify() {
   MutexLock l(&this->mutex_);
@@ -43,15 +43,6 @@ Notification::~Notification() {
   // Make sure that the thread running Notify() exits before the object is
   // destructed.
   MutexLock l(&this->mutex_);
-}
-
-static inline bool HasBeenNotifiedInternal(
-    const std::atomic<bool> *notified_yet) {
-  return notified_yet->load(std::memory_order_acquire);
-}
-
-bool Notification::HasBeenNotified() const {
-  return HasBeenNotifiedInternal(&this->notified_yet_);
 }
 
 void Notification::WaitForNotification() const {
@@ -83,5 +74,5 @@ bool Notification::WaitForNotificationWithDeadline(absl::Time deadline) const {
   return notified;
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

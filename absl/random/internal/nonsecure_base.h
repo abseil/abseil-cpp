@@ -33,7 +33,7 @@
 #include "absl/types/span.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // Each instance of NonsecureURBGBase<URBG> will be seeded by variates produced
@@ -144,7 +144,7 @@ class NonsecureURBGBase {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_NONSECURE_BASE_H_

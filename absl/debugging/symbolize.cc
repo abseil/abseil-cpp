@@ -16,12 +16,9 @@
 
 #if defined(ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE)
 #include "absl/debugging/symbolize_elf.inc"
-#elif defined(_WIN32) && defined(_DEBUG)
-// The Windows Symbolizer only works in debug mode. Note that _DEBUG
-// is the macro that defines whether or not MS C-Runtime debug info is
-// available. Note that the PDB files containing the debug info must
-// also be available to the program at runtime for the symbolizer to
-// work.
+#elif defined(_WIN32)
+// The Windows Symbolizer only works if PDB files containing the debug info
+// are available to the program at runtime.
 #include "absl/debugging/symbolize_win32.inc"
 #else
 #include "absl/debugging/symbolize_unimplemented.inc"

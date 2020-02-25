@@ -15,12 +15,17 @@
 
 #include "absl/flags/internal/commandlineflag.h"
 
+#include <memory>
+#include <string>
+
 #include "gtest/gtest.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/registry.h"
+#include "absl/flags/usage_config.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 ABSL_FLAG(int, int_flag, 201, "int_flag help");
 ABSL_FLAG(std::string, string_flag, "dflt",
@@ -33,10 +38,26 @@ namespace flags = absl::flags_internal;
 
 class CommandLineFlagTest : public testing::Test {
  protected:
+  static void SetUpTestSuite() {
+    // Install a function to normalize filenames before this test is run.
+    absl::FlagsUsageConfig default_config;
+    default_config.normalize_filename = &CommandLineFlagTest::NormalizeFileName;
+    absl::SetFlagsUsageConfig(default_config);
+  }
+
   void SetUp() override { flag_saver_ = absl::make_unique<flags::FlagSaver>(); }
   void TearDown() override { flag_saver_.reset(); }
 
  private:
+  static std::string NormalizeFileName(absl::string_view fname) {
+#ifdef _WIN32
+    std::string normalized(fname);
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    fname = normalized;
+#endif
+    return std::string(fname);
+  }
+
   std::unique_ptr<flags::FlagSaver> flag_saver_;
 };
 
@@ -49,9 +70,10 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_EQ(flag_01->Typename(), "");
   EXPECT_TRUE(!flag_01->IsRetired());
   EXPECT_TRUE(flag_01->IsOfType<int>());
-  EXPECT_TRUE(absl::EndsWith(
-      flag_01->Filename(),
-      "absl/flags/internal/commandlineflag_test.cc"));
+  EXPECT_TRUE(
+      absl::EndsWith(flag_01->Filename(),
+                     "absl/flags/internal/commandlineflag_test.cc"))
+      << flag_01->Filename();
 
   auto* flag_02 = flags::FindCommandLineFlag("string_flag");
 
@@ -61,9 +83,10 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_EQ(flag_02->Typename(), "");
   EXPECT_TRUE(!flag_02->IsRetired());
   EXPECT_TRUE(flag_02->IsOfType<std::string>());
-  EXPECT_TRUE(absl::EndsWith(
-      flag_02->Filename(),
-      "absl/flags/internal/commandlineflag_test.cc"));
+  EXPECT_TRUE(
+      absl::EndsWith(flag_02->Filename(),
+                     "absl/flags/internal/commandlineflag_test.cc"))
+      << flag_02->Filename();
 
   auto* flag_03 = flags::FindRetiredFlag("bool_retired_flag");
 

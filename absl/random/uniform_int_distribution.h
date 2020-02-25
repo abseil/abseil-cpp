@@ -34,13 +34,13 @@
 #include <type_traits>
 
 #include "absl/base/optimization.h"
-#include "absl/random/internal/distribution_impl.h"
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
+#include "absl/random/internal/wide_multiply.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // absl::uniform_int_distribution<T>
 //
@@ -269,7 +269,7 @@ uniform_int_distribution<IntType>::Generate(
   return helper::hi(product);
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_UNIFORM_INT_DISTRIBUTION_H_

@@ -23,7 +23,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -186,5 +186,5 @@ TEST(DecomposePair, NotDecomposable) {
 
 }  // namespace
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

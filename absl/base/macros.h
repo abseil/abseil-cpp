@@ -31,6 +31,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
@@ -43,14 +44,14 @@
   (sizeof(::absl::macros_internal::ArraySizeHelper(array)))
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace macros_internal {
 // Note: this internal template function declaration is used by ABSL_ARRAYSIZE.
 // The function doesn't need a definition, as we only use its type.
 template <typename T, size_t N>
 auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 }  // namespace macros_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // kLinkerInitialized
@@ -74,13 +75,13 @@ auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 //       // Invocation
 //       static MyClass my_global(absl::base_internal::kLinkerInitialized);
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 enum LinkerInitialized {
   kLinkerInitialized = 0,
 };
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // ABSL_FALLTHROUGH_INTENDED
@@ -111,7 +112,7 @@ enum LinkerInitialized {
 // when  performing switch labels fall-through diagnostic
 // (`-Wimplicit-fallthrough`). See clang documentation on language extensions
 // for details:
-// http://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
+// https://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
 //
 // When used with unsupported compilers, the ABSL_FALLTHROUGH_INTENDED macro
 // has no effect on diagnostics. In any case this macro has no effect on runtime
@@ -141,10 +142,15 @@ enum LinkerInitialized {
 // declarations. The macro argument is used as a custom diagnostic message (e.g.
 // suggestion of a better alternative).
 //
-// Example:
+// Examples:
 //
 //   class ABSL_DEPRECATED("Use Bar instead") Foo {...};
-//   ABSL_DEPRECATED("Use Baz instead") void Bar() {...}
+//
+//   ABSL_DEPRECATED("Use Baz() instead") void Bar() {...}
+//
+//   template <typename T>
+//   ABSL_DEPRECATED("Use DoThat() instead")
+//   void DoThis();
 //
 // Every usage of a deprecated entity will trigger a warning when compiled with
 // clang's `-Wdeprecated-declarations` option. This option is turned off by
@@ -162,7 +168,7 @@ enum LinkerInitialized {
 // Used on a function overload to trap bad calls: any call that matches the
 // overload will cause a compile-time error. This macro uses a clang-specific
 // "enable_if" attribute, as described at
-// http://clang.llvm.org/docs/AttributeReference.html#enable-if
+// https://clang.llvm.org/docs/AttributeReference.html#enable-if
 //
 // Overloads which use this macro should be bracketed by
 // `#ifdef ABSL_BAD_CALL_IF`.
@@ -175,12 +181,9 @@ enum LinkerInitialized {
 //     ABSL_BAD_CALL_IF(c <= -1 || c > 255,
 //                       "'c' must have the value of an unsigned char or EOF");
 //   #endif // ABSL_BAD_CALL_IF
-
-#if defined(__clang__)
-# if __has_attribute(enable_if)
-#  define ABSL_BAD_CALL_IF(expr, msg) \
-    __attribute__((enable_if(expr, "Bad call trap"), unavailable(msg)))
-# endif
+#if ABSL_HAVE_ATTRIBUTE(enable_if)
+#define ABSL_BAD_CALL_IF(expr, msg) \
+  __attribute__((enable_if(expr, "Bad call trap"), unavailable(msg)))
 #endif
 
 // ABSL_ASSERT()

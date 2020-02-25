@@ -17,8 +17,10 @@
 
 #include <cstdint>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Arbitrary value with high bits set. Xor'ing with it is unlikely
@@ -43,7 +45,7 @@ inline T* UnhidePtr(uintptr_t hidden) {
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_HIDE_PTR_H_

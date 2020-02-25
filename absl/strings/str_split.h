@@ -49,7 +49,7 @@
 #include "absl/strings/strip.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Delimiters
@@ -507,7 +507,7 @@ StrSplit(strings_internal::ConvertibleToStringView text, Delimiter d,
       std::move(text), DelimiterType(d), std::move(p));
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_SPLIT_H_

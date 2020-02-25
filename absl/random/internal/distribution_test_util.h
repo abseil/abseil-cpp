@@ -26,7 +26,7 @@
 // non-test code.
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // http://webspace.ship.edu/pgmarr/Geo441/Lectures/Lec%205%20-%20Normality%20Testing.pdf
@@ -107,7 +107,7 @@ double BetaIncomplete(double x, double p, double q);
 double BetaIncompleteInv(double p, double q, double alpha);
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_DISTRIBUTION_TEST_UTIL_H_

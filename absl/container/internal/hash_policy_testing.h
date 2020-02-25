@@ -30,7 +30,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace hash_testing_internal {
 
@@ -163,7 +163,7 @@ auto keys(const Set& s)
 }
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 // ABSL_UNORDERED_SUPPORTS_ALLOC_CTORS is false for glibcxx versions

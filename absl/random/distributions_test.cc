@@ -171,14 +171,11 @@ void CheckArgsInferType() {
       "");
   static_assert(
       absl::conjunction<
+          std::is_same<Expect, decltype(InferredTaggedUniformReturnT<
+                                        absl::IntervalOpenOpenTag, A, B>(0))>,
           std::is_same<Expect,
                        decltype(InferredTaggedUniformReturnT<
-                                absl::random_internal::IntervalOpenOpenT, A, B>(
-                           0))>,
-          std::is_same<Expect,
-                       decltype(InferredTaggedUniformReturnT<
-                                absl::random_internal::IntervalOpenOpenT, B, A>(
-                           0))>>::value,
+                                absl::IntervalOpenOpenTag, B, A>(0))>>::value,
       "");
 }
 
@@ -218,12 +215,10 @@ void CheckArgsReturnExpectedType() {
       absl::conjunction<
           std::is_same<Expect,
                        decltype(ExplicitTaggedUniformReturnT<
-                                absl::random_internal::IntervalOpenOpenT, A, B,
-                                Expect>(0))>,
-          std::is_same<Expect,
-                       decltype(ExplicitTaggedUniformReturnT<
-                                absl::random_internal::IntervalOpenOpenT, B, A,
-                                Expect>(0))>>::value,
+                                absl::IntervalOpenOpenTag, A, B, Expect>(0))>,
+          std::is_same<Expect, decltype(ExplicitTaggedUniformReturnT<
+                                        absl::IntervalOpenOpenTag, B, A,
+                                        Expect>(0))>>::value,
       "");
 }
 

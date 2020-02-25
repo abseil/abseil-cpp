@@ -21,6 +21,8 @@ absl_cc_library(
     "algorithm.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
   PUBLIC
 )
 

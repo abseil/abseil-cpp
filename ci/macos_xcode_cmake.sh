@@ -36,6 +36,7 @@ for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
   time cmake ${ABSEIL_ROOT} \
     -GXcode \
     -DCMAKE_BUILD_TYPE=${compilation_mode} \
+    -DCMAKE_CXX_STANDARD=11 \
     -DABSL_USE_GOOGLETEST_HEAD=ON \
     -DABSL_RUN_TESTS=ON
   time cmake --build .

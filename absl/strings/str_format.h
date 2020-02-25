@@ -82,7 +82,7 @@
 #include "absl/strings/internal/str_format/parser.h"  // IWYU pragma: export
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // UntypedFormatSpec
 //
@@ -401,6 +401,12 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 // This function is functionally equivalent to `std::snprintf()` (and
 // type-safe); prefer `absl::SNPrintF()` over `std::snprintf()`.
 //
+// In particular, a successful call to `absl::SNPrintF()` writes at most `size`
+// bytes of the formatted output to `output`, including a NUL-terminator, and
+// returns the number of bytes that would have been written if truncation did
+// not occur. In the event of an error, a negative value is returned and `errno`
+// is set.
+//
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
@@ -525,7 +531,7 @@ ABSL_MUST_USE_RESULT inline bool FormatUntyped(
       str_format_internal::UntypedFormatSpecImpl::Extract(format), args);
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_FORMAT_H_

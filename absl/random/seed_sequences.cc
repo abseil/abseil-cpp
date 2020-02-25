@@ -17,7 +17,7 @@
 #include "absl/random/internal/pool_urbg.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 SeedSeq MakeSeedSeq() {
   SeedSeq::result_type seed_material[8];
@@ -25,5 +25,5 @@ SeedSeq MakeSeedSeq() {
   return SeedSeq(std::begin(seed_material), std::end(seed_material));
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

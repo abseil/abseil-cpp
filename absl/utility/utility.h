@@ -51,7 +51,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // integer_sequence
 //
@@ -159,12 +159,12 @@ using index_sequence_for = make_index_sequence<sizeof...(Ts)>;
 
 // Tag types
 
-#ifdef ABSL_HAVE_STD_OPTIONAL
+#ifdef ABSL_USES_STD_OPTIONAL
 
 using std::in_place_t;
 using std::in_place;
 
-#else  // ABSL_HAVE_STD_OPTIONAL
+#else  // ABSL_USES_STD_OPTIONAL
 
 // in_place_t
 //
@@ -175,9 +175,9 @@ struct in_place_t {};
 
 ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
 
-#endif  // ABSL_HAVE_STD_OPTIONAL
+#endif  // ABSL_USES_STD_OPTIONAL
 
-#if defined(ABSL_HAVE_STD_ANY) || defined(ABSL_HAVE_STD_VARIANT)
+#if defined(ABSL_USES_STD_ANY) || defined(ABSL_USES_STD_VARIANT)
 using std::in_place_type;
 using std::in_place_type_t;
 #else
@@ -192,9 +192,9 @@ using in_place_type_t = void (*)(utility_internal::InPlaceTypeTag<T>);
 
 template <typename T>
 void in_place_type(utility_internal::InPlaceTypeTag<T>) {}
-#endif  // ABSL_HAVE_STD_ANY || ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_ANY || ABSL_USES_STD_VARIANT
 
-#ifdef ABSL_HAVE_STD_VARIANT
+#ifdef ABSL_USES_STD_VARIANT
 using std::in_place_index;
 using std::in_place_index_t;
 #else
@@ -209,7 +209,7 @@ using in_place_index_t = void (*)(utility_internal::InPlaceIndexTag<I>);
 
 template <size_t I>
 void in_place_index(utility_internal::InPlaceIndexTag<I>) {}
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 // Constexpr move and forward
 
@@ -344,7 +344,7 @@ constexpr T make_from_tuple(Tuple&& tup) {
           std::tuple_size<absl::decay_t<Tuple>>::value>{});
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_UTILITY_UTILITY_H_

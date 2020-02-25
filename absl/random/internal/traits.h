@@ -22,7 +22,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // random_internal::is_widening_convertible<A, B>
@@ -95,7 +95,7 @@ struct make_unsigned_bits {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_TRAITS_H_

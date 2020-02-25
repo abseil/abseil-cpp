@@ -19,6 +19,9 @@
 
 #include "absl/types/variant.h"
 
+// This test is a no-op when absl::variant is an alias for std::variant.
+#if !defined(ABSL_USES_STD_VARIANT)
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -67,7 +70,7 @@ struct hash<Hashable> {
 struct NonHashable {};
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 using ::testing::DoubleEq;
@@ -840,7 +843,7 @@ TEST(VariantTest, TestBackupAssign) {
   }
 
   // libstdc++ doesn't pass this test
-#if !(defined(ABSL_HAVE_STD_VARIANT) && defined(__GLIBCXX__))
+#if !(defined(ABSL_USES_STD_VARIANT) && defined(__GLIBCXX__))
   EXPECT_EQ(3, counter[0]);
   EXPECT_EQ(2, counter[1]);
   EXPECT_EQ(2, counter[2]);
@@ -1040,8 +1043,6 @@ TEST(VariantTest, MemberSwap) {
   using V = variant<MoveCanThrow, std::string, int>;
   int i = 33;
   std::string s = "abc";
-  V valueless(in_place_index<0>);
-  ToValuelessByException(valueless);
   {
     // lhs and rhs holds different alternative
     V lhs(i), rhs(s);
@@ -1049,6 +1050,9 @@ TEST(VariantTest, MemberSwap) {
     EXPECT_THAT(lhs, VariantWith<std::string>(s));
     EXPECT_THAT(rhs, VariantWith<int>(i));
   }
+#ifdef ABSL_HAVE_EXCEPTIONS
+  V valueless(in_place_index<0>);
+  ToValuelessByException(valueless);
   {
     // lhs is valueless
     V lhs(valueless), rhs(i);
@@ -1070,6 +1074,7 @@ TEST(VariantTest, MemberSwap) {
     EXPECT_TRUE(lhs.valueless_by_exception());
     EXPECT_TRUE(rhs.valueless_by_exception());
   }
+#endif  // ABSL_HAVE_EXCEPTIONS
 }
 
 //////////////////////
@@ -1929,7 +1934,7 @@ TEST(VariantTest, VisitReferenceWrapper) {
 }
 
 // libstdc++ std::variant doesn't support the INVOKE semantics.
-#if !(defined(ABSL_HAVE_STD_VARIANT) && defined(__GLIBCXX__))
+#if !(defined(ABSL_USES_STD_VARIANT) && defined(__GLIBCXX__))
 TEST(VariantTest, VisitMemberFunction) {
   absl::variant<std::unique_ptr<Class>> p(absl::make_unique<Class>());
   absl::variant<std::unique_ptr<const Class>> cp(
@@ -1953,7 +1958,7 @@ TEST(VariantTest, VisitDataMember) {
 
   EXPECT_EQ(42, absl::visit(&Class::member, cp));
 }
-#endif  // !(defined(ABSL_HAVE_STD_VARIANT) && defined(__GLIBCXX__))
+#endif  // !(defined(ABSL_USES_STD_VARIANT) && defined(__GLIBCXX__))
 
 /////////////////////////
 // [variant.monostate] //
@@ -2031,7 +2036,7 @@ TEST(VariantTest, NonmemberSwap) {
   std::swap(a, b);
   EXPECT_THAT(a, VariantWith<SpecialSwap>(v2));
   EXPECT_THAT(b, VariantWith<SpecialSwap>(v1));
-#ifndef ABSL_HAVE_STD_VARIANT
+#ifndef ABSL_USES_STD_VARIANT
   EXPECT_FALSE(absl::get<SpecialSwap>(a).special_swap);
 #endif
 
@@ -2079,7 +2084,7 @@ TEST(VariantTest, Hash) {
 
 // MSVC std::hash<std::variant> does not use the index, thus produce the same
 // result on the same value as different alternative.
-#if !(defined(_MSC_VER) && defined(ABSL_HAVE_STD_VARIANT))
+#if !(defined(_MSC_VER) && defined(ABSL_USES_STD_VARIANT))
   {
     // same value as different alternative
     variant<int, int> v0(in_place_index<0>, 42);
@@ -2087,7 +2092,7 @@ TEST(VariantTest, Hash) {
     std::hash<variant<int, int>> hash;
     EXPECT_NE(hash(v0), hash(v1));
   }
-#endif  // !(defined(_MSC_VER) && defined(ABSL_HAVE_STD_VARIANT))
+#endif  // !(defined(_MSC_VER) && defined(ABSL_USES_STD_VARIANT))
 
   {
     std::hash<variant<int>> hash;
@@ -2114,7 +2119,7 @@ TEST(VariantTest, Hash) {
 ////////////////////////////////////////
 
 // Test that a set requiring a basic type conversion works correctly
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
 TEST(VariantTest, TestConvertingSet) {
   typedef variant<double> Variant;
   Variant v(1.0);
@@ -2124,7 +2129,7 @@ TEST(VariantTest, TestConvertingSet) {
   ASSERT_TRUE(nullptr != absl::get_if<double>(&v));
   EXPECT_DOUBLE_EQ(2, absl::get<double>(v));
 }
-#endif  // ABSL_HAVE_STD_VARIANT
+#endif  // ABSL_USES_STD_VARIANT
 
 // Test that a vector of variants behaves reasonably.
 TEST(VariantTest, Container) {
@@ -2276,7 +2281,7 @@ struct Convertible2 {
 };
 
 TEST(VariantTest, TestRvalueConversion) {
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
   variant<double, std::string> var(
       ConvertVariantTo<variant<double, std::string>>(
           variant<std::string, int>(0)));
@@ -2309,7 +2314,7 @@ TEST(VariantTest, TestRvalueConversion) {
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(variant<uint32_t>(42));
   ASSERT_TRUE(absl::holds_alternative<uint32_t>(variant2));
   EXPECT_EQ(42, absl::get<uint32_t>(variant2));
-#endif  // !ABSL_HAVE_STD_VARIANT
+#endif  // !ABSL_USES_STD_VARIANT
 
   variant<Convertible1, Convertible2> variant3(
       ConvertVariantTo<variant<Convertible1, Convertible2>>(
@@ -2322,7 +2327,7 @@ TEST(VariantTest, TestRvalueConversion) {
 }
 
 TEST(VariantTest, TestLvalueConversion) {
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
   variant<std::string, int> source1 = 0;
   variant<double, std::string> destination(
       ConvertVariantTo<variant<double, std::string>>(source1));
@@ -2424,7 +2429,7 @@ TEST(VariantTest, DoesNotMoveFromLvalues) {
 }
 
 TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
   variant<double, std::string> var(
       ConvertVariantTo<variant<double, std::string>>(
           variant<std::string, int>(3)));
@@ -2463,7 +2468,7 @@ TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
 }
 
 TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
-#if !defined(ABSL_HAVE_STD_VARIANT)
+#if !defined(ABSL_USES_STD_VARIANT)
   variant<std::string, int> source1 = 3;
   variant<double, std::string> destination(
       ConvertVariantTo<variant<double, std::string>>(source1));
@@ -2495,7 +2500,7 @@ TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
   variant<uint32_t> source6(42);
   variant2 = ConvertVariantTo<variant<int32_t, uint32_t>>(source6);
   EXPECT_THAT(absl::get_if<uint32_t>(&variant2), Pointee(42));
-#endif  // !ABSL_HAVE_STD_VARIANT
+#endif  // !ABSL_USES_STD_VARIANT
 
   variant<Convertible2, Convertible1> source7((Convertible1()));
   variant<Convertible1, Convertible2> variant3(
@@ -2529,7 +2534,7 @@ TEST(VariantTest, TestMoveConversionViaConvertVariantTo) {
 // standard and we know that libstdc++ variant doesn't have this feature.
 // For more details see the paper:
 // http://open-std.org/JTC1/SC22/WG21/docs/papers/2017/p0602r0.html
-#if !(defined(ABSL_HAVE_STD_VARIANT) && defined(__GLIBCXX__))
+#if !(defined(ABSL_USES_STD_VARIANT) && defined(__GLIBCXX__))
 #define ABSL_VARIANT_PROPAGATE_COPY_MOVE_TRIVIALITY 1
 #endif
 
@@ -2705,5 +2710,7 @@ TEST(VariantTest, MoveCtorBug) {
 }
 
 }  // namespace
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
+
+#endif  // #if !defined(ABSL_USES_STD_VARIANT)

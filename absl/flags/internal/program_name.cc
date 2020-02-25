@@ -17,16 +17,21 @@
 
 #include <string>
 
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/const_init.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/flags/internal/path_util.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 ABSL_CONST_INIT static absl::Mutex program_name_guard(absl::kConstInit);
 ABSL_CONST_INIT static std::string* program_name
-    GUARDED_BY(program_name_guard) = nullptr;
+    ABSL_GUARDED_BY(program_name_guard) = nullptr;
 
 std::string ProgramInvocationName() {
   absl::MutexLock l(&program_name_guard);
@@ -51,5 +56,5 @@ void SetProgramInvocationName(absl::string_view prog_name_str) {
 }
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

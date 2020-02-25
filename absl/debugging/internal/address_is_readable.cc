@@ -20,14 +20,14 @@
 #if !defined(__linux__) || defined(__ANDROID__)
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // On platforms other than Linux, just return true.
 bool AddressIsReadable(const void* /* addr */) { return true; }
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else
@@ -35,14 +35,16 @@ bool AddressIsReadable(const void* /* addr */) { return true; }
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <cerrno>
 #include <cstdint>
 
+#include "absl/base/internal/errno_saver.h"
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // Pack a pid and two file descriptors into a 64-bit word,
@@ -67,7 +69,7 @@ static void Unpack(uint64_t x, int *pid, int *read_fd, int *write_fd) {
 // This is a namespace-scoped variable for correct zero-initialization.
 static std::atomic<uint64_t> pid_and_fds;  // initially 0, an invalid pid.
 bool AddressIsReadable(const void *addr) {
-  int save_errno = errno;
+  absl::base_internal::ErrnoSaver errno_saver;
   // We test whether a byte is readable by using write().  Normally, this would
   // be done via a cached file descriptor to /dev/null, but linux fails to
   // check whether the byte is readable when the destination is /dev/null, so
@@ -126,12 +128,11 @@ bool AddressIsReadable(const void *addr) {
                                           std::memory_order_relaxed);
     }
   } while (errno == EBADF);
-  errno = save_errno;
   return bytes_written == 1;
 }
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif

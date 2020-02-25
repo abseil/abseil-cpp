@@ -15,14 +15,22 @@
 
 #include "absl/flags/parse.h"
 
+#include <stdlib.h>
+
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scoped_set_env.h"
+#include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/parse.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/span.h"
 
@@ -92,8 +100,11 @@ const std::string& GetTestTempDir() {
 
       auto len = GetTempPathA(MAX_PATH, temp_path_buffer);
       if (len < MAX_PATH && len != 0) {
-        std::string temp_dir_name = absl::StrCat(
-            temp_path_buffer, "\\parse_test.", GetCurrentProcessId());
+        std::string temp_dir_name = temp_path_buffer;
+        if (!absl::EndsWith(temp_dir_name, "\\")) {
+          temp_dir_name.push_back('\\');
+        }
+        absl::StrAppend(&temp_dir_name, "parse_test.", GetCurrentProcessId());
         if (CreateDirectoryA(temp_dir_name.c_str(), nullptr)) {
           *res = temp_dir_name;
         }
@@ -104,11 +115,11 @@ const std::string& GetTestTempDir() {
         *res = unique_name;
       }
 #endif
+    }
 
-      if (res->empty()) {
-        ABSL_INTERNAL_LOG(FATAL,
-                          "Failed to make temporary directory for data files");
-      }
+    if (res->empty()) {
+      ABSL_INTERNAL_LOG(FATAL,
+                        "Failed to make temporary directory for data files");
     }
 
 #ifdef _WIN32

@@ -31,7 +31,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 namespace {
@@ -316,5 +316,5 @@ bool Condition::Eval() const {
 
 void RegisterSymbolizer(bool (*)(const void*, char*, int)) {}
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -20,7 +20,7 @@
 #include "absl/base/config.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 constexpr size_t Group::kWidth;
@@ -44,5 +44,5 @@ bool ShouldInsertBackwards(size_t hash, ctrl_t* ctrl) {
 }
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

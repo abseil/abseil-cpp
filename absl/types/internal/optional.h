@@ -54,7 +54,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // Forward declaration
 template <typename T>
@@ -85,8 +85,8 @@ class optional_data_dtor_base {
   bool engaged_;
   // Data storage
   union {
-    dummy_type dummy_;
     T data_;
+    dummy_type dummy_;
   };
 
   void destruct() noexcept {
@@ -120,8 +120,8 @@ class optional_data_dtor_base<T, true> {
   bool engaged_;
   // Data storage
   union {
-    dummy_type dummy_;
     T data_;
+    dummy_type dummy_;
   };
   void destruct() noexcept { engaged_ = false; }
 
@@ -388,7 +388,7 @@ struct optional_hash_base<T, decltype(std::hash<absl::remove_const_t<T> >()(
 };
 
 }  // namespace optional_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_OPTIONAL_USE_INHERITING_CONSTRUCTORS

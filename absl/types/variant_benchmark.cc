@@ -28,7 +28,7 @@
 #include "absl/utility/utility.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 template <std::size_t I>
@@ -218,5 +218,5 @@ BENCHMARK_TEMPLATE(BM_RedundantVisit, 4, 2)
     ->DenseRange(0, integral_pow(4, 2) - 1);
 
 }  // namespace
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

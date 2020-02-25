@@ -34,6 +34,7 @@
 #ifndef ABSL_BASE_THREAD_ANNOTATIONS_H_
 #define ABSL_BASE_THREAD_ANNOTATIONS_H_
 
+#include "absl/base/config.h"
 // TODO(mbonadei): Remove after the backward compatibility period.
 #include "absl/base/internal/thread_annotations.h"  // IWYU pragma: export
 
@@ -256,7 +257,7 @@
 #define ABSL_TS_UNCHECKED_READ(x) absl::base_internal::ts_unchecked_read(x)
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Takes a reference to a guarded data member, and returns an unguarded
@@ -273,7 +274,7 @@ inline T& ts_unchecked_read(T& v) ABSL_NO_THREAD_SAFETY_ANALYSIS {
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_THREAD_ANNOTATIONS_H_

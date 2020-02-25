@@ -46,10 +46,10 @@
 #include "absl/base/thread_annotations.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
-class LOCKABLE SpinLock {
+class ABSL_LOCKABLE SpinLock {
  public:
   SpinLock() : lockword_(kSpinLockCooperative) {
     ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
@@ -80,7 +80,7 @@ class LOCKABLE SpinLock {
   ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static); }
 
   // Acquire this SpinLock.
-  inline void Lock() EXCLUSIVE_LOCK_FUNCTION() {
+  inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() {
     ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
     if (!TryLockImpl()) {
       SlowLock();
@@ -92,7 +92,7 @@ class LOCKABLE SpinLock {
   // acquisition was successful.  If the lock was not acquired, false is
   // returned.  If this SpinLock is free at the time of the call, TryLock
   // will return true with high probability.
-  inline bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true) {
+  inline bool TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_lock);
     bool res = TryLockImpl();
     ABSL_TSAN_MUTEX_POST_LOCK(
@@ -102,7 +102,7 @@ class LOCKABLE SpinLock {
   }
 
   // Release this SpinLock, which must be held by the calling thread.
-  inline void Unlock() UNLOCK_FUNCTION() {
+  inline void Unlock() ABSL_UNLOCK_FUNCTION() {
     ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
     uint32_t lock_value = lockword_.load(std::memory_order_relaxed);
     lock_value = lockword_.exchange(lock_value & kSpinLockCooperative,
@@ -180,13 +180,13 @@ class LOCKABLE SpinLock {
 
 // Corresponding locker object that arranges to acquire a spinlock for
 // the duration of a C++ scope.
-class SCOPED_LOCKABLE SpinLockHolder {
+class ABSL_SCOPED_LOCKABLE SpinLockHolder {
  public:
-  inline explicit SpinLockHolder(SpinLock* l) EXCLUSIVE_LOCK_FUNCTION(l)
+  inline explicit SpinLockHolder(SpinLock* l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : lock_(l) {
     l->Lock();
   }
-  inline ~SpinLockHolder() UNLOCK_FUNCTION() { lock_->Unlock(); }
+  inline ~SpinLockHolder() ABSL_UNLOCK_FUNCTION() { lock_->Unlock(); }
 
   SpinLockHolder(const SpinLockHolder&) = delete;
   SpinLockHolder& operator=(const SpinLockHolder&) = delete;
@@ -226,11 +226,10 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
     }
   }
 
-  if (lockword_.compare_exchange_strong(
+  if (!lockword_.compare_exchange_strong(
           lock_value,
           kSpinLockHeld | lock_value | wait_cycles | sched_disabled_bit,
           std::memory_order_acquire, std::memory_order_relaxed)) {
-  } else {
     base_internal::SchedulingGuard::EnableRescheduling(sched_disabled_bit != 0);
   }
 
@@ -238,7 +237,7 @@ inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,
 }
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_SPINLOCK_H_

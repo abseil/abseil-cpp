@@ -16,11 +16,12 @@
 #ifndef ABSL_FLAGS_INTERNAL_PATH_UTIL_H_
 #define ABSL_FLAGS_INTERNAL_PATH_UTIL_H_
 
+#include "absl/base/config.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
 // A portable interface that returns the basename of the filename passed as an
@@ -56,7 +57,7 @@ inline absl::string_view Package(absl::string_view filename) {
 }
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_INTERNAL_PATH_UTIL_H_

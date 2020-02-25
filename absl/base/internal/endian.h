@@ -19,9 +19,6 @@
 // The following guarantees declaration of the byte swap functions
 #ifdef _MSC_VER
 #include <stdlib.h>  // NOLINT(build/include)
-#elif defined(__APPLE__)
-// macOS / Darwin features
-#include <libkern/OSByteOrder.h>
 #elif defined(__FreeBSD__)
 #include <sys/endian.h>
 #elif defined(__GLIBC__)
@@ -34,7 +31,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // Use compiler byte-swapping intrinsics if they are available.  32-bit
 // and 64-bit versions are available in Clang and GCC as of GCC 4.3.0.
@@ -63,11 +60,6 @@ inline uint32_t gbswap_32(uint32_t host_int) {
 inline uint16_t gbswap_16(uint16_t host_int) {
   return _byteswap_ushort(host_int);
 }
-
-#elif defined(__APPLE__)
-inline uint64_t gbswap_64(uint64_t host_int) { return OSSwapInt16(host_int); }
-inline uint32_t gbswap_32(uint32_t host_int) { return OSSwapInt32(host_int); }
-inline uint16_t gbswap_16(uint16_t host_int) { return OSSwapInt64(host_int); }
 
 #else
 inline uint64_t gbswap_64(uint64_t host_int) {
@@ -114,7 +106,7 @@ inline uint16_t gbswap_16(uint16_t host_int) {
 #endif
 }
 
-#endif  // intrinics available
+#endif  // intrinsics available
 
 #ifdef ABSL_IS_LITTLE_ENDIAN
 
@@ -268,7 +260,7 @@ inline void Store64(void *p, uint64_t v) {
 
 }  // namespace big_endian
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_ENDIAN_H_

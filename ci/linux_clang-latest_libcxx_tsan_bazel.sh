@@ -32,7 +32,11 @@ if [ -z ${COMPILATION_MODE:-} ]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20190701"
+if [ -z ${EXCEPTIONS_MODE:-} ]; then
+  EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
+fi
+
+readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20200102"
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
@@ -48,36 +52,38 @@ fi
 
 for std in ${STD}; do
   for compilation_mode in ${COMPILATION_MODE}; do
-    echo "--------------------------------------------------------------------"
-    echo "Testing with --compilation_mode=${compilation_mode} and --std=${std}"
-
-    time docker run \
-      --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
-      --workdir=/abseil-cpp \
-      --cap-add=SYS_PTRACE \
-      --rm \
-      -e CC="/opt/llvm/clang/bin/clang" \
-      -e BAZEL_COMPILER="llvm" \
-      -e BAZEL_CXXOPTS="-std=${std}:-nostdinc++" \
-      -e BAZEL_LINKOPTS="-L/opt/llvm/libcxx-tsan/lib:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/libcxx-tsan/lib" \
-      -e CPLUS_INCLUDE_PATH="/opt/llvm/libcxx-tsan/include/c++/v1" \
-      ${DOCKER_EXTRA_ARGS:-} \
-      ${DOCKER_CONTAINER} \
-      /usr/local/bin/bazel test ... \
-        --build_tag_filters="-notsan" \
-        --compilation_mode=${compilation_mode} \
-        --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
-        --copt="-DTHREAD_SANITIZER" \
-        --copt="-fsanitize=thread" \
-        --copt=-Werror \
-        --keep_going \
-        --linkopt="-fsanitize=thread" \
-        --show_timestamps \
-        --test_env="TSAN_OPTIONS=report_atomic_races=0" \
-        --test_env="TSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
-        --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
-        --test_output=errors \
-        --test_tag_filters="-benchmark,-notsan" \
-        ${BAZEL_EXTRA_ARGS:-}
+    for exceptions_mode in ${EXCEPTIONS_MODE}; do
+      echo "--------------------------------------------------------------------"
+      time docker run \
+        --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
+        --workdir=/abseil-cpp \
+        --cap-add=SYS_PTRACE \
+        --rm \
+        -e CC="/opt/llvm/clang/bin/clang" \
+        -e BAZEL_COMPILER="llvm" \
+        -e BAZEL_CXXOPTS="-std=${std}:-nostdinc++" \
+        -e BAZEL_LINKOPTS="-L/opt/llvm/libcxx-tsan/lib:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/libcxx-tsan/lib" \
+        -e CPLUS_INCLUDE_PATH="/opt/llvm/libcxx-tsan/include/c++/v1" \
+        ${DOCKER_EXTRA_ARGS:-} \
+        ${DOCKER_CONTAINER} \
+        /usr/local/bin/bazel test ... \
+          --build_tag_filters="-notsan" \
+          --compilation_mode="${compilation_mode}" \
+          --copt="${exceptions_mode}" \
+          --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
+          --copt="-DTHREAD_SANITIZER" \
+          --copt="-fsanitize=thread" \
+          --copt="-fno-sanitize-blacklist" \
+          --copt=-Werror \
+          --keep_going \
+          --linkopt="-fsanitize=thread" \
+          --show_timestamps \
+          --test_env="TSAN_OPTIONS=report_atomic_races=0" \
+          --test_env="TSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
+          --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
+          --test_output=errors \
+          --test_tag_filters="-benchmark,-notsan" \
+          ${BAZEL_EXTRA_ARGS:-}
+    done
   done
 done

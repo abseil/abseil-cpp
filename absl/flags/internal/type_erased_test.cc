@@ -15,12 +15,15 @@
 
 #include "absl/flags/internal/type_erased.h"
 
-#include <cmath>
+#include <memory>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/registry.h"
+#include "absl/flags/marshalling.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/str_cat.h"
 
 ABSL_FLAG(int, int_flag, 1, "int_flag help");
 ABSL_FLAG(std::string, string_flag, "dflt", "string_flag help");
@@ -114,6 +117,13 @@ TEST_F(TypeErasedTest, TestSetCommandLineOptionWithMode_SET_FLAG_IF_DEFAULT) {
 
 TEST_F(TypeErasedTest, TestSetCommandLineOptionWithMode_SET_FLAGS_DEFAULT) {
   EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "101",
+                                                  flags::SET_FLAGS_DEFAULT));
+
+  // Set it again to ensure that resetting logic is covered.
+  EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "102",
+                                                  flags::SET_FLAGS_DEFAULT));
+
+  EXPECT_TRUE(flags::SetCommandLineOptionWithMode("int_flag", "103",
                                                   flags::SET_FLAGS_DEFAULT));
 
   EXPECT_TRUE(flags::SetCommandLineOptionWithMode("string_flag", "asdfgh",

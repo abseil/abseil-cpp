@@ -18,7 +18,7 @@
 #include <cstring>
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
 namespace {
@@ -68,5 +68,5 @@ void FILERawSink::Write(string_view v) {
 }
 
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

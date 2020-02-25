@@ -17,7 +17,7 @@
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // Return whether int *arg is zero.
 static bool IsZero(void *arg) {
@@ -53,5 +53,5 @@ void BlockingCounter::Wait() {
   // after we return from this method.
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

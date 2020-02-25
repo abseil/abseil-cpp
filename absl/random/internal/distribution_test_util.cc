@@ -25,7 +25,7 @@
 #include "absl/strings/str_format.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
@@ -414,5 +414,5 @@ double MaxErrorTolerance(double acceptance_probability) {
 }
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

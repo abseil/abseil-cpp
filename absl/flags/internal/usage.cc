@@ -15,18 +15,24 @@
 
 #include "absl/flags/internal/usage.h"
 
+#include <functional>
 #include <map>
+#include <ostream>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/synchronization/mutex.h"
 
 ABSL_FLAG(bool, help, false,
           "show help on important flags for this binary [tip: all flags can "
@@ -44,9 +50,30 @@ ABSL_FLAG(std::string, helpmatch, "",
           "show help on modules whose name contains the specified substr");
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
+
+absl::string_view TypenameForHelp(const flags_internal::CommandLineFlag& flag) {
+  // Only report names of v1 built-in types
+#define HANDLE_V1_BUILTIN_TYPE(t) \
+  if (flag.IsOfType<t>()) {       \
+    return #t;                    \
+  }
+
+  HANDLE_V1_BUILTIN_TYPE(bool);
+  HANDLE_V1_BUILTIN_TYPE(int32_t);
+  HANDLE_V1_BUILTIN_TYPE(int64_t);
+  HANDLE_V1_BUILTIN_TYPE(uint64_t);
+  HANDLE_V1_BUILTIN_TYPE(double);
+#undef HANDLE_V1_BUILTIN_TYPE
+
+  if (flag.IsOfType<std::string>()) {
+    return "string";
+  }
+
+  return "";
+}
 
 // This class is used to emit an XML element with `tag` and `text`.
 // It adds opening and closing tags and escapes special characters in the text.
@@ -180,14 +207,14 @@ void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
   FlagHelpPrettyPrinter printer(80, out);  // Max line length is 80.
 
   // Flag name.
-  printer.Write(absl::StrCat("-", flag.Name()));
+  printer.Write(absl::StrCat("--", flag.Name()));
 
   // Flag help.
   printer.Write(absl::StrCat("(", flag.Help(), ");"), /*wrap_line=*/true);
 
   // Flag data type (for V1 flags only).
   if (!flag.IsAbseilFlag() && !flag.IsRetired()) {
-    printer.Write(absl::StrCat("type: ", flag.Typename(), ";"));
+    printer.Write(absl::StrCat("type: ", TypenameForHelp(flag), ";"));
   }
 
   // The listed default value will be the actual default from the flag
@@ -224,6 +251,9 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   } else {
     // XML schema is not a part of our public API for now.
     out << "<?xml version=\"1.0\"?>\n"
+        << "<!-- This output should be used with care. We do not report type "
+           "names for flags with user defined types -->\n"
+        << "<!-- Prefer flag only_check_args for validating flag inputs -->\n"
         // The document.
         << "<AllFlags>\n"
         // The program name and usage.
@@ -381,5 +411,5 @@ int HandleUsageFlags(std::ostream& out,
 }
 
 }  // namespace flags_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -36,7 +36,7 @@
 #endif
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 class Condition;
 
 namespace synchronization_internal {
@@ -252,10 +252,10 @@ class SynchronizationStorage {
 
   absl::once_flag once_;
 
-  // An aligned space for T.
-  typename std::aligned_storage<sizeof(T), alignof(T)>::type space_;
+  // An aligned space for the T.
+  alignas(T) unsigned char space_[sizeof(T)];
 };
 
 }  // namespace synchronization_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

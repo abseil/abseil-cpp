@@ -36,7 +36,7 @@ constexpr int32_t kNumThreads = 10;
 constexpr int32_t kIters = 1000;
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // This is defined outside of anonymous namespace so that it can be
@@ -267,5 +267,5 @@ TEST(SpinLockWithThreads, DoesNotDeadlock) {
 
 }  // namespace
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

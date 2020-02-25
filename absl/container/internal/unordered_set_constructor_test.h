@@ -26,7 +26,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
 template <class UnordMap>
@@ -490,7 +490,7 @@ REGISTER_TYPED_TEST_CASE_P(
     AssignmentFromInitializerListOverwritesExisting, AssignmentOnSelf);
 
 }  // namespace container_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INTERNAL_UNORDERED_SET_CONSTRUCTOR_TEST_H_

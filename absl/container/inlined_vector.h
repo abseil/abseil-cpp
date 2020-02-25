@@ -54,7 +54,7 @@
 #include "absl/memory/memory.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 // InlinedVector
 // -----------------------------------------------------------------------------
@@ -70,9 +70,10 @@ class InlinedVector {
   static_assert(N > 0, "`absl::InlinedVector` requires an inlined capacity.");
 
   using Storage = inlined_vector_internal::Storage<T, N, A>;
-  using rvalue_reference = typename Storage::rvalue_reference;
-  using MoveIterator = typename Storage::MoveIterator;
+
   using AllocatorTraits = typename Storage::AllocatorTraits;
+  using RValueReference = typename Storage::RValueReference;
+  using MoveIterator = typename Storage::MoveIterator;
   using IsMemcpyOk = typename Storage::IsMemcpyOk;
 
   template <typename Iterator>
@@ -93,10 +94,10 @@ class InlinedVector {
   using value_type = typename Storage::value_type;
   using pointer = typename Storage::pointer;
   using const_pointer = typename Storage::const_pointer;
-  using reference = typename Storage::reference;
-  using const_reference = typename Storage::const_reference;
   using size_type = typename Storage::size_type;
   using difference_type = typename Storage::difference_type;
+  using reference = typename Storage::reference;
+  using const_reference = typename Storage::const_reference;
   using iterator = typename Storage::iterator;
   using const_iterator = typename Storage::const_iterator;
   using reverse_iterator = typename Storage::reverse_iterator;
@@ -534,7 +535,6 @@ class InlinedVector {
     }
 
     erase(data() + i, data() + size());
-
     std::copy(first, last, std::back_inserter(*this));
   }
 
@@ -565,7 +565,7 @@ class InlinedVector {
 
   // Overload of `InlinedVector::insert(...)` that inserts `v` at `pos` using
   // move semantics, returning an `iterator` to the newly inserted element.
-  iterator insert(const_iterator pos, rvalue_reference v) {
+  iterator insert(const_iterator pos, RValueReference v) {
     return emplace(pos, std::move(v));
   }
 
@@ -662,7 +662,7 @@ class InlinedVector {
 
   // Overload of `InlinedVector::push_back(...)` for inserting `v` at `end()`
   // using move semantics.
-  void push_back(rvalue_reference v) {
+  void push_back(RValueReference v) {
     static_cast<void>(emplace_back(std::move(v)));
   }
 
@@ -714,6 +714,7 @@ class InlinedVector {
     inlined_vector_internal::DestroyElements(storage_.GetAllocPtr(), data(),
                                              size());
     storage_.DeallocateIfAllocated();
+
     storage_.SetInlinedSize(0);
   }
 
@@ -841,7 +842,7 @@ H AbslHashValue(H h, const absl::InlinedVector<T, N, A>& a) {
   return H::combine(H::combine_contiguous(std::move(h), a.data(), size), size);
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_CONTAINER_INLINED_VECTOR_H_

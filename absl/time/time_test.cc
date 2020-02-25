@@ -27,6 +27,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
 #include "absl/time/clock.h"
 #include "absl/time/internal/test_util.h"
 
@@ -575,6 +576,50 @@ TEST(Time, ToChronoTime) {
             absl::ToChronoTime(absl::UnixEpoch() - tick));
 }
 
+// Check that absl::int128 works as a std::chrono::duration representation.
+TEST(Time, Chrono128) {
+  // Define a std::chrono::time_point type whose time[sic]_since_epoch() is
+  // a signed 128-bit count of attoseconds. This has a range and resolution
+  // (currently) beyond those of absl::Time, and undoubtedly also beyond those
+  // of std::chrono::system_clock::time_point.
+  //
+  // Note: The to/from-chrono support should probably be updated to handle
+  // such wide representations.
+  using Timestamp =
+      std::chrono::time_point<std::chrono::system_clock,
+                              std::chrono::duration<absl::int128, std::atto>>;
+
+  // Expect that we can round-trip the std::chrono::system_clock::time_point
+  // extremes through both absl::Time and Timestamp, and that Timestamp can
+  // handle the (current) absl::Time extremes.
+  //
+  // Note: We should use std::chrono::floor() instead of time_point_cast(),
+  // but floor() is only available since c++17.
+  for (const auto tp : {std::chrono::system_clock::time_point::min(),
+                        std::chrono::system_clock::time_point::max()}) {
+    EXPECT_EQ(tp, absl::ToChronoTime(absl::FromChrono(tp)));
+    EXPECT_EQ(tp, std::chrono::time_point_cast<
+                      std::chrono::system_clock::time_point::duration>(
+                      std::chrono::time_point_cast<Timestamp::duration>(tp)));
+  }
+  Timestamp::duration::rep v = std::numeric_limits<int64_t>::min();
+  v *= Timestamp::duration::period::den;
+  auto ts = Timestamp(Timestamp::duration(v));
+  ts += std::chrono::duration<int64_t, std::atto>(0);
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(),
+            ts.time_since_epoch().count() / Timestamp::duration::period::den);
+  EXPECT_EQ(0,
+            ts.time_since_epoch().count() % Timestamp::duration::period::den);
+  v = std::numeric_limits<int64_t>::max();
+  v *= Timestamp::duration::period::den;
+  ts = Timestamp(Timestamp::duration(v));
+  ts += std::chrono::duration<int64_t, std::atto>(999999999750000000);
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(),
+            ts.time_since_epoch().count() / Timestamp::duration::period::den);
+  EXPECT_EQ(999999999750000000,
+            ts.time_since_epoch().count() % Timestamp::duration::period::den);
+}
+
 TEST(Time, TimeZoneAt) {
   const absl::TimeZone nyc =
       absl::time_internal::LoadTimeZone("America/New_York");
@@ -795,6 +840,30 @@ TEST(Time, FromTM) {
   tm.tm_isdst = 1;
   t = FromTM(tm, nyc);
   EXPECT_EQ("2014-03-09T03:30:42-04:00", absl::FormatTime(t, nyc));  // DST
+
+  // Adjusts tm to refer to a time with a year larger than 2147483647.
+  tm.tm_year = 2147483647 - 1900 + 1;
+  tm.tm_mon = 6 - 1;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("2147483648-06-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
+
+  // Adjusts tm to refer to a time with a very large month.
+  tm.tm_year = 2019 - 1900;
+  tm.tm_mon = 2147483647;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("178958989-08-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
 }
 
 TEST(Time, TMRoundTrip) {

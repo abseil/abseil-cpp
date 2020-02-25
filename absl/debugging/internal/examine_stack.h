@@ -17,8 +17,10 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_EXAMINE_STACK_H_
 #define ABSL_DEBUGGING_INTERNAL_EXAMINE_STACK_H_
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // Returns the program counter from signal context, or nullptr if
@@ -34,7 +36,7 @@ void DumpPCAndFrameSizesAndStackTrace(
     void (*writerfn)(const char*, void*), void* writerfn_arg);
 
 }  // namespace debugging_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_DEBUGGING_INTERNAL_EXAMINE_STACK_H_

@@ -22,13 +22,16 @@
 namespace cctz = absl::time_internal::cctz;
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
-extern const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
-extern const char RFC3339_sec[] =  "%Y-%m-%dT%H:%M:%S%Ez";
+ABSL_DLL extern const char RFC3339_full[] =
+    "%Y-%m-%dT%H:%M:%E*S%Ez";
+ABSL_DLL extern const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
 
-extern const char RFC1123_full[] = "%a, %d %b %E4Y %H:%M:%S %z";
-extern const char RFC1123_no_wday[] =  "%d %b %E4Y %H:%M:%S %z";
+ABSL_DLL extern const char RFC1123_full[] =
+    "%a, %d %b %E4Y %H:%M:%S %z";
+ABSL_DLL extern const char RFC1123_no_wday[] =
+    "%d %b %E4Y %H:%M:%S %z";
 
 namespace {
 
@@ -130,6 +133,14 @@ bool ParseTime(const std::string& format, const std::string& input,
 }
 
 // Functions required to support absl::Time flags.
+bool AbslParseFlag(absl::string_view text, absl::Time* t, std::string* error) {
+  return absl::ParseTime(RFC3339_full, std::string(text), absl::UTCTimeZone(),
+                         t, error);
+}
+
+std::string AbslUnparseFlag(absl::Time t) {
+  return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
+}
 bool ParseFlag(const std::string& text, absl::Time* t, std::string* error) {
   return absl::ParseTime(RFC3339_full, text, absl::UTCTimeZone(), t, error);
 }
@@ -138,5 +149,5 @@ std::string UnparseFlag(absl::Time t) {
   return absl::FormatTime(RFC3339_full, t, absl::UTCTimeZone());
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -14,8 +14,10 @@
 
 #include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -25,11 +27,11 @@ std::string ZoneInfoSource::Version() const { return std::string(); }
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz_extension {
 
@@ -39,8 +41,9 @@ namespace {
 // defers to the fallback factory.
 std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource> DefaultFactory(
     const std::string& name,
-    const std::function<std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource>(
-        const std::string& name)>& fallback_factory) {
+    const std::function<
+        std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource>(
+            const std::string& name)>& fallback_factory) {
   return fallback_factory(name);
 }
 
@@ -52,21 +55,52 @@ std::unique_ptr<absl::time_internal::cctz::ZoneInfoSource> DefaultFactory(
 #if !defined(__has_attribute)
 #define __has_attribute(x) 0
 #endif
-#if __has_attribute(weak) || defined(__GNUC__)
-ZoneInfoSourceFactory zone_info_source_factory
-    __attribute__((weak)) = DefaultFactory;
-#elif defined(_MSC_VER) && !defined(_LIBCPP_VERSION)
+// MinGW is GCC on Windows, so while it asserts __has_attribute(weak), the
+// Windows linker cannot handle that. Nor does the MinGW compiler know how to
+// pass "#pragma comment(linker, ...)" to the Windows linker.
+#if (__has_attribute(weak) || defined(__GNUC__)) && !defined(__MINGW32__)
+ZoneInfoSourceFactory zone_info_source_factory __attribute__((weak)) =
+    DefaultFactory;
+#elif defined(_MSC_VER) && !defined(__MINGW32__) && !defined(_LIBCPP_VERSION)
 extern ZoneInfoSourceFactory zone_info_source_factory;
 extern ZoneInfoSourceFactory default_factory;
 ZoneInfoSourceFactory default_factory = DefaultFactory;
 #if defined(_M_IX86)
-#pragma comment( \
-    linker,      \
-    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA=?default_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZA")
+#pragma comment(                                                                                                         \
+    linker,                                                                                                              \
+    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@" ABSL_INTERNAL_MANGLED_NS                    \
+    "@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                 \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                   \
+    "@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@" ABSL_INTERNAL_MANGLED_BACKREFERENCE      \
+    "@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                   \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                   \
+    "@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@" ABSL_INTERNAL_MANGLED_BACKREFERENCE \
+    "@@ZA=?default_factory@cctz_extension@time_internal@" ABSL_INTERNAL_MANGLED_NS                                       \
+    "@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                 \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                   \
+    "@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@" ABSL_INTERNAL_MANGLED_BACKREFERENCE      \
+    "@ABV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                   \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                   \
+    "@@@std@@@std@@ABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@" ABSL_INTERNAL_MANGLED_BACKREFERENCE \
+    "@@ZA")
 #elif defined(_M_IA_64) || defined(_M_AMD64) || defined(_M_ARM64)
-#pragma comment( \
-    linker,      \
-    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA=?default_factory@cctz_extension@time_internal@lts_2019_08_08@absl@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@6@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@U?$default_delete@VZoneInfoSource@cctz@time_internal@lts_2019_08_08@absl@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@6@@ZEA")
+#pragma comment(                                                                                                          \
+    linker,                                                                                                               \
+    "/alternatename:?zone_info_source_factory@cctz_extension@time_internal@" ABSL_INTERNAL_MANGLED_NS                     \
+    "@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                  \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                    \
+    "@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@" ABSL_INTERNAL_MANGLED_BACKREFERENCE      \
+    "@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                   \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                    \
+    "@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@" ABSL_INTERNAL_MANGLED_BACKREFERENCE \
+    "@@ZEA=?default_factory@cctz_extension@time_internal@" ABSL_INTERNAL_MANGLED_NS                                       \
+    "@@3P6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                  \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                    \
+    "@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@" ABSL_INTERNAL_MANGLED_BACKREFERENCE      \
+    "@AEBV?$function@$$A6A?AV?$unique_ptr@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                   \
+    "@@U?$default_delete@VZoneInfoSource@cctz@time_internal@" ABSL_INTERNAL_MANGLED_NS                                    \
+    "@@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@2@@Z@" ABSL_INTERNAL_MANGLED_BACKREFERENCE \
+    "@@ZEA")
 #else
 #error Unsupported MSVC platform
 #endif  // _M_<PLATFORM>
@@ -77,5 +111,5 @@ ZoneInfoSourceFactory zone_info_source_factory = DefaultFactory;
 
 }  // namespace cctz_extension
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

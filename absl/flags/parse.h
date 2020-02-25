@@ -26,10 +26,11 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/internal/parse.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // ParseCommandLine()
 //
@@ -54,7 +55,7 @@ inline namespace lts_2019_08_08 {
 // help messages and then exits the program.
 std::vector<char*> ParseCommandLine(int argc, char* argv[]);
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_FLAGS_PARSE_H_

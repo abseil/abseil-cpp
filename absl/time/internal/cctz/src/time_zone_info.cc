@@ -45,12 +45,13 @@
 #include <sstream>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "time_zone_fixed.h"
 #include "time_zone_posix.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -66,8 +67,8 @@ const std::int_least32_t kDaysPerYear[2] = {365, 366};
 // The day offsets of the beginning of each (1-based) month in non-leap and
 // leap years respectively (e.g., 335 days before December in a leap year).
 const std::int_least16_t kMonthOffsets[2][1 + 12 + 1] = {
-  {-1, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
-  {-1, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366},
+    {-1, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
+    {-1, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366},
 };
 
 // We reject leap-second encoded zoneinfo and so assume 60-second minutes.
@@ -78,8 +79,8 @@ const std::int_least64_t kSecsPer400Years = 146097LL * kSecsPerDay;
 
 // Like kDaysPerYear[] but scaled up by a factor of kSecsPerDay.
 const std::int_least32_t kSecsPerYear[2] = {
-  365 * kSecsPerDay,
-  366 * kSecsPerDay,
+    365 * kSecsPerDay,
+    366 * kSecsPerDay,
 };
 
 // Single-byte, unsigned numeric values are encoded directly.
@@ -173,8 +174,8 @@ inline time_zone::civil_lookup MakeRepeated(const Transition& tr,
 }
 
 inline civil_second YearShift(const civil_second& cs, year_t shift) {
-  return civil_second(cs.year() + shift, cs.month(), cs.day(),
-                      cs.hour(), cs.minute(), cs.second());
+  return civil_second(cs.year() + shift, cs.month(), cs.day(), cs.hour(),
+                      cs.minute(), cs.second());
 }
 
 }  // namespace
@@ -217,7 +218,7 @@ bool TimeZoneInfo::ResetToBuiltinUTC(const seconds& offset) {
   default_transition_type_ = 0;
   abbreviations_ = FixedOffsetToAbbr(offset);
   abbreviations_.append(1, '\0');  // add NUL
-  future_spec_.clear();  // never needed for a fixed-offset zone
+  future_spec_.clear();            // never needed for a fixed-offset zone
   extended_ = false;
 
   tt.civil_max = LocalTime(seconds::max().count(), tt).cs;
@@ -394,31 +395,24 @@ void TimeZoneInfo::ExtendTransitions(const std::string& name,
 bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
   // Read and validate the header.
   tzhead tzh;
-  if (zip->Read(&tzh, sizeof(tzh)) != sizeof(tzh))
-    return false;
+  if (zip->Read(&tzh, sizeof(tzh)) != sizeof(tzh)) return false;
   if (strncmp(tzh.tzh_magic, TZ_MAGIC, sizeof(tzh.tzh_magic)) != 0)
     return false;
   Header hdr;
-  if (!hdr.Build(tzh))
-    return false;
+  if (!hdr.Build(tzh)) return false;
   std::size_t time_len = 4;
   if (tzh.tzh_version[0] != '\0') {
     // Skip the 4-byte data.
-    if (zip->Skip(hdr.DataLength(time_len)) != 0)
-      return false;
+    if (zip->Skip(hdr.DataLength(time_len)) != 0) return false;
     // Read and validate the header for the 8-byte data.
-    if (zip->Read(&tzh, sizeof(tzh)) != sizeof(tzh))
-      return false;
+    if (zip->Read(&tzh, sizeof(tzh)) != sizeof(tzh)) return false;
     if (strncmp(tzh.tzh_magic, TZ_MAGIC, sizeof(tzh.tzh_magic)) != 0)
       return false;
-    if (tzh.tzh_version[0] == '\0')
-      return false;
-    if (!hdr.Build(tzh))
-      return false;
+    if (tzh.tzh_version[0] == '\0') return false;
+    if (!hdr.Build(tzh)) return false;
     time_len = 8;
   }
-  if (hdr.typecnt == 0)
-    return false;
+  if (hdr.typecnt == 0) return false;
   if (hdr.leapcnt != 0) {
     // This code assumes 60-second minutes so we do not want
     // the leap-second encoded zoneinfo. We could reverse the
@@ -426,16 +420,13 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
     // so currently we simply reject such data.
     return false;
   }
-  if (hdr.ttisstdcnt != 0 && hdr.ttisstdcnt != hdr.typecnt)
-    return false;
-  if (hdr.ttisutcnt != 0 && hdr.ttisutcnt != hdr.typecnt)
-    return false;
+  if (hdr.ttisstdcnt != 0 && hdr.ttisstdcnt != hdr.typecnt) return false;
+  if (hdr.ttisutcnt != 0 && hdr.ttisutcnt != hdr.typecnt) return false;
 
   // Read the data into a local buffer.
   std::size_t len = hdr.DataLength(time_len);
   std::vector<char> tbuf(len);
-  if (zip->Read(tbuf.data(), len) != len)
-    return false;
+  if (zip->Read(tbuf.data(), len) != len) return false;
   const char* bp = tbuf.data();
 
   // Decode and validate the transitions.
@@ -453,10 +444,8 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
   bool seen_type_0 = false;
   for (std::size_t i = 0; i != hdr.timecnt; ++i) {
     transitions_[i].type_index = Decode8(bp++);
-    if (transitions_[i].type_index >= hdr.typecnt)
-      return false;
-    if (transitions_[i].type_index == 0)
-      seen_type_0 = true;
+    if (transitions_[i].type_index >= hdr.typecnt) return false;
+    if (transitions_[i].type_index == 0) seen_type_0 = true;
   }
 
   // Decode and validate the transition types.
@@ -470,8 +459,7 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
     bp += 4;
     transition_types_[i].is_dst = (Decode8(bp++) != 0);
     transition_types_[i].abbr_index = Decode8(bp++);
-    if (transition_types_[i].abbr_index >= hdr.charcnt)
-      return false;
+    if (transition_types_[i].abbr_index >= hdr.charcnt) return false;
   }
 
   // Determine the before-first-transition type.
@@ -480,13 +468,10 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
     std::uint_fast8_t index = 0;
     if (transition_types_[0].is_dst) {
       index = transitions_[0].type_index;
-      while (index != 0 && transition_types_[index].is_dst)
-        --index;
+      while (index != 0 && transition_types_[index].is_dst) --index;
     }
-    while (index != hdr.typecnt && transition_types_[index].is_dst)
-      ++index;
-    if (index != hdr.typecnt)
-      default_transition_type_ = index;
+    while (index != hdr.typecnt && transition_types_[index].is_dst) ++index;
+    if (index != hdr.typecnt) default_transition_type_ = index;
   }
 
   // Copy all the abbreviations.
@@ -510,11 +495,9 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
       unsigned char ch;  // all non-EOF results are positive
       return (azip->Read(&ch, 1) == 1) ? ch : EOF;
     };
-    if (get_char(zip) != '\n')
-      return false;
+    if (get_char(zip) != '\n') return false;
     for (int c = get_char(zip); c != '\n'; c = get_char(zip)) {
-      if (c == EOF)
-        return false;
+      if (c == EOF) return false;
       future_spec_.push_back(static_cast<char>(c));
     }
   }
@@ -625,18 +608,18 @@ class FileZoneInfoSource : public ZoneInfoSource {
       : fp_(fp, fclose), len_(len) {}
 
  private:
-  std::unique_ptr<FILE, int(*)(FILE*)> fp_;
+  std::unique_ptr<FILE, int (*)(FILE*)> fp_;
   std::size_t len_;
 };
 
 std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     const std::string& name) {
   // Use of the "file:" prefix is intended for testing purposes only.
-  if (name.compare(0, 5, "file:") == 0) return Open(name.substr(5));
+  const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
   // Map the time-zone name to a path name.
   std::string path;
-  if (name.empty() || name[0] != '/') {
+  if (pos == name.size() || name[pos] != '/') {
     const char* tzdir = "/usr/share/zoneinfo";
     char* tzdir_env = nullptr;
 #if defined(_MSC_VER)
@@ -651,16 +634,16 @@ std::unique_ptr<ZoneInfoSource> FileZoneInfoSource::Open(
     free(tzdir_env);
 #endif
   }
-  path += name;
+  path.append(name, pos, std::string::npos);
 
   // Open the zoneinfo file.
   FILE* fp = FOpen(path.c_str(), "rb");
   if (fp == nullptr) return nullptr;
   std::size_t length = 0;
   if (fseek(fp, 0, SEEK_END) == 0) {
-    long pos = ftell(fp);
-    if (pos >= 0) {
-      length = static_cast<std::size_t>(pos);
+    long offset = ftell(fp);
+    if (offset >= 0) {
+      length = static_cast<std::size_t>(offset);
     }
     rewind(fp);
   }
@@ -681,7 +664,7 @@ class AndroidZoneInfoSource : public FileZoneInfoSource {
 std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
     const std::string& name) {
   // Use of the "file:" prefix is intended for testing purposes only.
-  if (name.compare(0, 5, "file:") == 0) return Open(name.substr(5));
+  const std::size_t pos = (name.compare(0, 5, "file:") == 0) ? 5 : 0;
 
   // See Android's libc/tzcode/bionic.cpp for additional information.
   for (const char* tzdata : {"/data/misc/zoneinfo/current/tzdata",
@@ -710,7 +693,7 @@ std::unique_ptr<ZoneInfoSource> AndroidZoneInfoSource::Open(
       const std::int_fast32_t length = Decode32(ebuf + 44);
       if (start < 0 || length < 0) break;
       ebuf[40] = '\0';  // ensure zone name is NUL terminated
-      if (strcmp(name.c_str(), ebuf) == 0) {
+      if (strcmp(name.c_str() + pos, ebuf) == 0) {
         if (fseek(fp.get(), static_cast<long>(start), SEEK_SET) != 0) break;
         return std::unique_ptr<ZoneInfoSource>(new AndroidZoneInfoSource(
             fp.release(), static_cast<std::size_t>(length), vers));
@@ -749,13 +732,13 @@ time_zone::absolute_lookup TimeZoneInfo::LocalTime(
   // A civil time in "+offset" looks like (time+offset) in UTC.
   // Note: We perform two additions in the civil_second domain to
   // sidestep the chance of overflow in (unix_time + tt.utc_offset).
-  return {(civil_second() + unix_time) + tt.utc_offset,
-          tt.utc_offset, tt.is_dst, &abbreviations_[tt.abbr_index]};
+  return {(civil_second() + unix_time) + tt.utc_offset, tt.utc_offset,
+          tt.is_dst, &abbreviations_[tt.abbr_index]};
 }
 
 // BreakTime() translation for a particular transition.
-time_zone::absolute_lookup TimeZoneInfo::LocalTime(
-    std::int_fast64_t unix_time, const Transition& tr) const {
+time_zone::absolute_lookup TimeZoneInfo::LocalTime(std::int_fast64_t unix_time,
+                                                   const Transition& tr) const {
   const TransitionType& tt = transition_types_[tr.type_index];
   // Note: (unix_time - tr.unix_time) will never overflow as we
   // have ensured that there is always a "nearby" transition.
@@ -898,9 +881,7 @@ time_zone::civil_lookup TimeZoneInfo::MakeTime(const civil_second& cs) const {
   return MakeUnique(tr->unix_time + (cs - tr->civil_sec));
 }
 
-std::string TimeZoneInfo::Version() const {
-  return version_;
-}
+std::string TimeZoneInfo::Version() const { return version_; }
 
 std::string TimeZoneInfo::Description() const {
   std::ostringstream oss;
@@ -922,8 +903,8 @@ bool TimeZoneInfo::NextTransition(const time_point<seconds>& tp,
   }
   std::int_fast64_t unix_time = ToUnixSeconds(tp);
   const Transition target = {unix_time, 0, civil_second(), civil_second()};
-  const Transition* tr = std::upper_bound(begin, end, target,
-                                          Transition::ByUnixTime());
+  const Transition* tr =
+      std::upper_bound(begin, end, target, Transition::ByUnixTime());
   for (; tr != end; ++tr) {  // skip no-op transitions
     std::uint_fast8_t prev_type_index =
         (tr == begin) ? default_transition_type_ : tr[-1].type_index;
@@ -957,8 +938,8 @@ bool TimeZoneInfo::PrevTransition(const time_point<seconds>& tp,
     unix_time += 1;  // ceils
   }
   const Transition target = {unix_time, 0, civil_second(), civil_second()};
-  const Transition* tr = std::lower_bound(begin, end, target,
-                                          Transition::ByUnixTime());
+  const Transition* tr =
+      std::lower_bound(begin, end, target, Transition::ByUnixTime());
   for (; tr != begin; --tr) {  // skip no-op transitions
     std::uint_fast8_t prev_type_index =
         (tr - 1 == begin) ? default_transition_type_ : tr[-2].type_index;
@@ -973,5 +954,5 @@ bool TimeZoneInfo::PrevTransition(const time_point<seconds>& tp,
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

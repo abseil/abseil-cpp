@@ -19,8 +19,10 @@
 
 #include <utility>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 
 // DistributionCaller provides an opportunity to overload the general
@@ -52,7 +54,7 @@ struct DistributionCaller {
 };
 
 }  // namespace random_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_RANDOM_INTERNAL_DISTRIBUTION_CALLER_H_

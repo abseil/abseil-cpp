@@ -19,8 +19,10 @@
 
 #include <string>
 
+#include "absl/base/config.h"
+
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Helper functions that allow throwing exceptions consistently from anywhere.
@@ -67,7 +69,7 @@ namespace base_internal {
 // [[noreturn]] void ThrowStdBadArrayNewLength();
 
 }  // namespace base_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_THROW_DELEGATE_H_

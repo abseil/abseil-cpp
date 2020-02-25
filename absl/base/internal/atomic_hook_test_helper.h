@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <random>
+#ifndef ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_
+#define ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_
 
-#include "absl/random/random.h"
+#include "absl/base/internal/atomic_hook.h"
 
-// This program is used in integration tests.
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace atomic_hook_internal {
 
-int main() {
-  std::seed_seq seed_seq{1234};
-  absl::BitGen rng(seed_seq);
-  constexpr size_t kSequenceLength = 8;
-  for (size_t i = 0; i < kSequenceLength; i++) {
-    std::cout << rng() << "\n";
-  }
-  return 0;
-}
+using VoidF = void (*)();
+extern absl::base_internal::AtomicHook<VoidF> func;
+extern int default_func_calls;
+void DefaultFunc();
+void RegisterFunc(VoidF func);
+
+}  // namespace atomic_hook_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // ABSL_BASE_ATOMIC_HOOK_TEST_HELPER_H_

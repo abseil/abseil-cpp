@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 #include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
@@ -28,7 +29,7 @@
 #include "tzfile.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
@@ -73,8 +74,7 @@ class TimeZoneInfo : public TimeZoneIf {
   // TimeZoneIf implementations.
   time_zone::absolute_lookup BreakTime(
       const time_point<seconds>& tp) const override;
-  time_zone::civil_lookup MakeTime(
-      const civil_second& cs) const override;
+  time_zone::civil_lookup MakeTime(const civil_second& cs) const override;
   bool NextTransition(const time_point<seconds>& tp,
                       time_zone::civil_transition* trans) const override;
   bool PrevTransition(const time_point<seconds>& tp,
@@ -83,7 +83,7 @@ class TimeZoneInfo : public TimeZoneIf {
   std::string Description() const override;
 
  private:
-  struct Header {  // counts of:
+  struct Header {            // counts of:
     std::size_t timecnt;     // transition times
     std::size_t typecnt;     // transition types
     std::size_t charcnt;     // zone abbreviation characters
@@ -115,7 +115,7 @@ class TimeZoneInfo : public TimeZoneIf {
 
   std::vector<Transition> transitions_;  // ordered by unix_time and civil_sec
   std::vector<TransitionType> transition_types_;  // distinct transition types
-  std::uint_fast8_t default_transition_type_;  // for before first transition
+  std::uint_fast8_t default_transition_type_;     // for before first transition
   std::string abbreviations_;  // all the NUL-terminated abbreviations
 
   std::string version_;      // the tzdata version if available
@@ -132,7 +132,7 @@ class TimeZoneInfo : public TimeZoneIf {
 
 }  // namespace cctz
 }  // namespace time_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_TIME_ZONE_INFO_H_

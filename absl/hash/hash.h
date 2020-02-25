@@ -73,7 +73,7 @@
 #include "absl/hash/internal/hash.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // `absl::Hash`
@@ -318,7 +318,7 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   void (*combine_contiguous_)(void*, const unsigned char*, size_t);
 };
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HASH_HASH_H_

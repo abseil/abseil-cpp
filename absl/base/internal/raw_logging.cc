@@ -37,9 +37,9 @@
 // this, consider moving both to config.h instead.
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
     defined(__Fuchsia__) || defined(__native_client__) || \
-    defined(__EMSCRIPTEN__)
-#include <unistd.h>
+    defined(__EMSCRIPTEN__) || defined(__ASYLO__)
 
+#include <unistd.h>
 
 #define ABSL_HAVE_POSIX_WRITE 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1
@@ -71,10 +71,12 @@
 // Explicitly #error out when not ABSL_LOW_LEVEL_WRITE_SUPPORTED, except for a
 // whitelisted set of platforms for which we expect not to be able to raw log.
 
-ABSL_CONST_INIT static absl::base_internal::AtomicHook<
-    absl::raw_logging_internal::LogPrefixHook> log_prefix_hook;
-ABSL_CONST_INIT static absl::base_internal::AtomicHook<
-    absl::raw_logging_internal::AbortHook> abort_hook;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+    absl::raw_logging_internal::LogPrefixHook>
+    log_prefix_hook;
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES static absl::base_internal::AtomicHook<
+    absl::raw_logging_internal::AbortHook>
+    abort_hook;
 
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
 static const char kTruncated[] = " ... (message truncated)\n";
@@ -182,7 +184,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 }  // namespace
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace raw_logging_internal {
 void SafeWriteToStderr(const char *s, size_t len) {
 #if defined(ABSL_HAVE_SYSCALL_WRITE)
@@ -225,13 +227,14 @@ bool RawLoggingFullySupported() {
 #endif  // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
 }
 
-ABSL_CONST_INIT absl::base_internal::AtomicHook<InternalLogFunction>
-    internal_log_function(DefaultInternalLog);
+ABSL_DLL ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
+    absl::base_internal::AtomicHook<InternalLogFunction>
+        internal_log_function(DefaultInternalLog);
 
 void RegisterInternalLogFunction(InternalLogFunction func) {
   internal_log_function.Store(func);
 }
 
 }  // namespace raw_logging_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

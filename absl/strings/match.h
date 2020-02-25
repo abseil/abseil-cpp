@@ -20,7 +20,7 @@
 // This file contains simple utilities for performing string matching checks.
 // All of these function parameters are specified as `absl::string_view`,
 // meaning that these functions can accept `std::string`, `absl::string_view` or
-// nul-terminated C-style strings.
+// NUL-terminated C-style strings.
 //
 // Examples:
 //   std::string s = "foo";
@@ -38,7 +38,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // StrContains()
 //
@@ -84,7 +84,7 @@ bool StartsWithIgnoreCase(absl::string_view text, absl::string_view prefix);
 // case in the comparison.
 bool EndsWithIgnoreCase(absl::string_view text, absl::string_view suffix);
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_MATCH_H_

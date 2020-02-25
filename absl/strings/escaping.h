@@ -33,7 +33,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 // CUnescape()
 //
@@ -158,7 +158,7 @@ std::string HexStringToBytes(absl::string_view from);
 // `2*from.size()`.
 std::string BytesToHexString(absl::string_view from);
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_ESCAPING_H_

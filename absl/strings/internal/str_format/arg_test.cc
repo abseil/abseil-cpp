@@ -14,7 +14,7 @@
 #include "absl/strings/str_format.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -96,10 +96,10 @@ TEST_F(FormatArgImplTest, WorksWithCharArraysOfUnknownSize) {
   std::string s;
   FormatSinkImpl sink(&s);
   ConversionSpec conv;
-  conv.set_conv(ConversionChar::FromChar('s'));
-  conv.set_flags(Flags());
-  conv.set_width(-1);
-  conv.set_precision(-1);
+  FormatConversionSpecImplFriend::SetConversionChar(ConversionChar::s, &conv);
+  FormatConversionSpecImplFriend::SetFlags(Flags(), &conv);
+  FormatConversionSpecImplFriend::SetWidth(-1, &conv);
+  FormatConversionSpecImplFriend::SetPrecision(-1, &conv);
   EXPECT_TRUE(
       FormatArgImplFriend::Convert(FormatArgImpl(kMyArray), conv, &sink));
   sink.Flush();
@@ -109,5 +109,5 @@ const char kMyArray[] = "ABCDE";
 
 }  // namespace
 }  // namespace str_format_internal
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl

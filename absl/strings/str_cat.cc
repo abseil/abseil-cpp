@@ -15,35 +15,34 @@
 #include "absl/strings/str_cat.h"
 
 #include <assert.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/numbers.h"
 
 namespace absl {
-inline namespace lts_2019_08_08 {
+ABSL_NAMESPACE_BEGIN
 
 AlphaNum::AlphaNum(Hex hex) {
+  static_assert(numbers_internal::kFastToBufferSize >= 32,
+                "This function only works when output buffer >= 32 bytes long");
   char* const end = &digits_[numbers_internal::kFastToBufferSize];
-  char* writer = end;
-  uint64_t value = hex.value;
-  static const char hexdigits[] = "0123456789abcdef";
-  do {
-    *--writer = hexdigits[value & 0xF];
-    value >>= 4;
-  } while (value != 0);
-
-  char* beg;
-  if (end - writer < hex.width) {
-    beg = end - hex.width;
-    std::fill_n(beg, writer - beg, hex.fill);
+  auto real_width =
+      absl::numbers_internal::FastHexToBufferZeroPad16(hex.value, end - 16);
+  if (real_width >= hex.width) {
+    piece_ = absl::string_view(end - real_width, real_width);
   } else {
-    beg = writer;
+    // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
+    // max pad width can be up to 20.
+    std::memset(end - 32, hex.fill, 16);
+    // Patch up everything else up to the real_width.
+    std::memset(end - real_width - 16, hex.fill, 16);
+    piece_ = absl::string_view(end - hex.width, hex.width);
   }
-
-  piece_ = absl::string_view(beg, end - beg);
 }
 
 AlphaNum::AlphaNum(Dec dec) {
@@ -100,7 +99,7 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b) {
   std::string result;
   absl::strings_internal::STLStringResizeUninitialized(&result,
                                                        a.size() + b.size());
-  char* const begin = &*result.begin();
+  char* const begin = &result[0];
   char* out = begin;
   out = Append(out, a);
   out = Append(out, b);
@@ -112,7 +111,7 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c) {
   std::string result;
   strings_internal::STLStringResizeUninitialized(
       &result, a.size() + b.size() + c.size());
-  char* const begin = &*result.begin();
+  char* const begin = &result[0];
   char* out = begin;
   out = Append(out, a);
   out = Append(out, b);
@@ -126,7 +125,7 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b, const AlphaNum& c,
   std::string result;
   strings_internal::STLStringResizeUninitialized(
       &result, a.size() + b.size() + c.size() + d.size());
-  char* const begin = &*result.begin();
+  char* const begin = &result[0];
   char* out = begin;
   out = Append(out, a);
   out = Append(out, b);
@@ -145,7 +144,7 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
   for (const absl::string_view piece : pieces) total_size += piece.size();
   strings_internal::STLStringResizeUninitialized(&result, total_size);
 
-  char* const begin = &*result.begin();
+  char* const begin = &result[0];
   char* out = begin;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
@@ -177,7 +176,7 @@ void AppendPieces(std::string* dest,
   }
   strings_internal::STLStringResizeUninitialized(dest, total_size);
 
-  char* const begin = &*dest->begin();
+  char* const begin = &(*dest)[0];
   char* out = begin + old_size;
   for (const absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
@@ -202,7 +201,7 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b) {
   std::string::size_type old_size = dest->size();
   strings_internal::STLStringResizeUninitialized(
       dest, old_size + a.size() + b.size());
-  char* const begin = &*dest->begin();
+  char* const begin = &(*dest)[0];
   char* out = begin + old_size;
   out = Append(out, a);
   out = Append(out, b);
@@ -217,7 +216,7 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   std::string::size_type old_size = dest->size();
   strings_internal::STLStringResizeUninitialized(
       dest, old_size + a.size() + b.size() + c.size());
-  char* const begin = &*dest->begin();
+  char* const begin = &(*dest)[0];
   char* out = begin + old_size;
   out = Append(out, a);
   out = Append(out, b);
@@ -234,7 +233,7 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   std::string::size_type old_size = dest->size();
   strings_internal::STLStringResizeUninitialized(
       dest, old_size + a.size() + b.size() + c.size() + d.size());
-  char* const begin = &*dest->begin();
+  char* const begin = &(*dest)[0];
   char* out = begin + old_size;
   out = Append(out, a);
   out = Append(out, b);
@@ -243,5 +242,5 @@ void StrAppend(std::string* dest, const AlphaNum& a, const AlphaNum& b,
   assert(out == begin + dest->size());
 }
 
-}  // inline namespace lts_2019_08_08
+ABSL_NAMESPACE_END
 }  // namespace absl
