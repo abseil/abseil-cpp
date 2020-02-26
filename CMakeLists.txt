@@ -97,9 +97,9 @@ endif()
 if(BUILD_TESTING)
 
   if(${ABSL_USE_GOOGLETEST_HEAD})
-    include(CMake/Googletest/DownloadGTest.cmake)
     set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
     set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
+    include(CMake/Googletest/DownloadGTest.cmake)
   endif()
 
   check_target(gtest)
