@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.2)
 
-project(googletest-download NONE)
+project(googletest-external NONE)
 
 include(ExternalProject)
 if(${ABSL_USE_GOOGLETEST_HEAD})
