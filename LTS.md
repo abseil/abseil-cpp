@@ -13,3 +13,4 @@ The following lists LTS branches and the dates on which they have been released:
 * [LTS Branch December 18, 2018](https://github.com/abseil/abseil-cpp/tree/lts_2018_12_18/)
 * [LTS Branch June 20, 2018](https://github.com/abseil/abseil-cpp/tree/lts_2018_06_20/)
 * [LTS Branch August 8, 2019](https://github.com/abseil/abseil-cpp/tree/lts_2019_08_08/)
+* [LTS Branch February 25, 2020](https://github.com/abseil/abseil-cpp/tree/lts_2020_02_25/)

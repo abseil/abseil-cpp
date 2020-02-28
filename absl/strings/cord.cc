@@ -136,8 +136,6 @@ inline const CordRepExternal* CordRep::external() const {
 
 static const size_t kFlatOverhead = offsetof(CordRep, data);
 
-static_assert(kFlatOverhead == 13, "Unittests assume kFlatOverhead == 13");
-
 // Largest and smallest flat node lengths we are willing to allocate
 // Flat allocation size is stored in tag, which currently can encode sizes up
 // to 4K, encoded as multiple of either 8 or 32 bytes.

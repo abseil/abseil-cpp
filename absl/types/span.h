@@ -276,7 +276,7 @@ class Span {
   // Returns a reference to the i'th element of this span.
   constexpr reference operator[](size_type i) const noexcept {
     // MSVC 2015 accepts this as constexpr, but not ptr_[i]
-    return *(data() + i);
+    return ABSL_ASSERT(i < size()), *(data() + i);
   }
 
   // Span::at()

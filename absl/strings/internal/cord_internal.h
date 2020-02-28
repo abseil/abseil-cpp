@@ -86,8 +86,7 @@ struct CordRepExternal;
 struct CordRep {
   // The following three fields have to be less than 32 bytes since
   // that is the smallest supported flat node size.
-  // We use uint64_t for the length even in 32-bit binaries.
-  uint64_t length;
+  size_t length;
   Refcount refcount;
   // If tag < FLAT, it represents CordRepKind and indicates the type of node.
   // Otherwise, the node type is CordRepFlat and the tag is the encoded size.

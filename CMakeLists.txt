@@ -84,6 +84,10 @@ find_package(Threads REQUIRED)
 option(ABSL_USE_GOOGLETEST_HEAD
   "If ON, abseil will download HEAD from googletest at config time." OFF)
 
+set(ABSL_LOCAL_GOOGLETEST_DIR "/usr/src/googletest" CACHE PATH
+  "If ABSL_USE_GOOGLETEST_HEAD is OFF, specifies the directory of a local googletest checkout."
+  )
+
 option(ABSL_RUN_TESTS "If ON, Abseil tests will be run." OFF)
 
 if(${ABSL_RUN_TESTS})
@@ -96,11 +100,13 @@ endif()
 ## check targets
 if(BUILD_TESTING)
 
+  set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
   if(${ABSL_USE_GOOGLETEST_HEAD})
-    include(CMake/Googletest/DownloadGTest.cmake)
     set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
-    set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
+  else()
+    set(absl_gtest_src_dir ${ABSL_LOCAL_GOOGLETEST_DIR})
   endif()
+  include(CMake/Googletest/DownloadGTest.cmake)
 
   check_target(gtest)
   check_target(gtest_main)

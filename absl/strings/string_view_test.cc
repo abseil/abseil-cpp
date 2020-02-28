@@ -1086,6 +1086,14 @@ TEST(StringViewTest, ConstexprCompiles) {
   EXPECT_EQ(sp_npos, -1);
 }
 
+TEST(StringViewTest, ConstexprSubstr) {
+  constexpr absl::string_view foobar("foobar", 6);
+  constexpr absl::string_view foo = foobar.substr(0, 3);
+  constexpr absl::string_view bar = foobar.substr(3);
+  EXPECT_EQ(foo, "foo");
+  EXPECT_EQ(bar, "bar");
+}
+
 TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
                                              const std::string&>::value));
