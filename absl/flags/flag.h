@@ -148,7 +148,6 @@ class Flag {
     return GetImpl()->template IsOfType<U>();
   }
   T Get() const { return GetImpl()->Get(); }
-  bool AtomicGet(T* v) const { return GetImpl()->AtomicGet(v); }
   void Set(const T& v) { GetImpl()->Set(v); }
   void SetCallback(const flags_internal::FlagCallbackFunc mutation_callback) {
     GetImpl()->SetCallback(mutation_callback);

@@ -45,6 +45,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/memory",
+        "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/synchronization",
     ],
@@ -130,6 +131,9 @@ cc_library(
 
 cc_library(
     name = "handle",
+    srcs = [
+        "internal/commandlineflag.cc",
+    ],
     hdrs = [
         "internal/commandlineflag.h",
     ],

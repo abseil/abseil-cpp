@@ -49,28 +49,6 @@ void* TestMakeDflt() {
 }
 void TestCallback() {}
 
-template <typename T>
-bool TestConstructionFor() {
-  constexpr flags::FlagHelpArg help_arg{flags::FlagHelpMsg("literal help"),
-                                        flags::FlagHelpKind::kLiteral};
-  constexpr flags::Flag<T> f1("f1", "file", help_arg, &TestMakeDflt<T>);
-  EXPECT_EQ(f1.Name(), "f1");
-  EXPECT_EQ(f1.Help(), "literal help");
-  EXPECT_EQ(f1.Filename(), "file");
-
-  ABSL_CONST_INIT static flags::Flag<T> f2(
-      "f2", "file",
-      {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc},
-      &TestMakeDflt<T>);
-  flags::FlagRegistrar<T, false>(&f2).OnUpdate(TestCallback);
-
-  EXPECT_EQ(f2.Name(), "f2");
-  EXPECT_EQ(f2.Help(), "dynamic help");
-  EXPECT_EQ(f2.Filename(), "file");
-
-  return true;
-}
-
 struct UDT {
   UDT() = default;
   UDT(const UDT&) = default;
@@ -98,19 +76,103 @@ class FlagTest : public testing::Test {
   }
 };
 
-TEST_F(FlagTest, TestConstruction) {
-  TestConstructionFor<bool>();
-  TestConstructionFor<int16_t>();
-  TestConstructionFor<uint16_t>();
-  TestConstructionFor<int32_t>();
-  TestConstructionFor<uint32_t>();
-  TestConstructionFor<int64_t>();
-  TestConstructionFor<uint64_t>();
-  TestConstructionFor<double>();
-  TestConstructionFor<float>();
-  TestConstructionFor<std::string>();
+struct S1 {
+  S1() = default;
+  S1(const S1&) = default;
+  int32_t f1;
+  int64_t f2;
+};
 
-  TestConstructionFor<UDT>();
+struct S2 {
+  S2() = default;
+  S2(const S2&) = default;
+  int64_t f1;
+  double f2;
+};
+
+TEST_F(FlagTest, Traits) {
+  EXPECT_EQ(flags::FlagValue::Kind<int>(),
+            flags::FlagValueStorageKind::kOneWordAtomic);
+  EXPECT_EQ(flags::FlagValue::Kind<bool>(),
+            flags::FlagValueStorageKind::kOneWordAtomic);
+  EXPECT_EQ(flags::FlagValue::Kind<double>(),
+            flags::FlagValueStorageKind::kOneWordAtomic);
+  EXPECT_EQ(flags::FlagValue::Kind<int64_t>(),
+            flags::FlagValueStorageKind::kOneWordAtomic);
+
+#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
+  EXPECT_EQ(flags::FlagValue::Kind<S1>(),
+            flags::FlagValueStorageKind::kTwoWordsAtomic);
+  EXPECT_EQ(flags::FlagValue::Kind<S2>(),
+            flags::FlagValueStorageKind::kTwoWordsAtomic);
+#else
+  EXPECT_EQ(flags::FlagValue::Kind<S1>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
+  EXPECT_EQ(flags::FlagValue::Kind<S2>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
+#endif
+
+  EXPECT_EQ(flags::FlagValue::Kind<std::string>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
+  EXPECT_EQ(flags::FlagValue::Kind<std::vector<std::string>>(),
+            flags::FlagValueStorageKind::kHeapAllocated);
+}
+
+// --------------------------------------------------------------------
+
+constexpr flags::FlagHelpArg help_arg{flags::FlagHelpMsg("literal help"),
+                                      flags::FlagHelpKind::kLiteral};
+
+using String = std::string;
+
+#define DEFINE_CONSTRUCTED_FLAG(T)                                          \
+  constexpr flags::Flag<T> f1##T("f1", "file", help_arg, &TestMakeDflt<T>); \
+  ABSL_CONST_INIT flags::Flag<T> f2##T(                                     \
+      "f2", "file",                                                         \
+      {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc},    \
+      &TestMakeDflt<T>)
+
+#define TEST_CONSTRUCTED_FLAG(T) TestConstructionFor(f1##T, &f2##T);
+
+DEFINE_CONSTRUCTED_FLAG(bool);
+DEFINE_CONSTRUCTED_FLAG(int16_t);
+DEFINE_CONSTRUCTED_FLAG(uint16_t);
+DEFINE_CONSTRUCTED_FLAG(int32_t);
+DEFINE_CONSTRUCTED_FLAG(uint32_t);
+DEFINE_CONSTRUCTED_FLAG(int64_t);
+DEFINE_CONSTRUCTED_FLAG(uint64_t);
+DEFINE_CONSTRUCTED_FLAG(float);
+DEFINE_CONSTRUCTED_FLAG(double);
+DEFINE_CONSTRUCTED_FLAG(String);
+DEFINE_CONSTRUCTED_FLAG(UDT);
+
+template <typename T>
+bool TestConstructionFor(const flags::Flag<T>& f1, flags::Flag<T>* f2) {
+  EXPECT_EQ(f1.Name(), "f1");
+  EXPECT_EQ(f1.Help(), "literal help");
+  EXPECT_EQ(f1.Filename(), "file");
+
+  flags::FlagRegistrar<T, false>(f2).OnUpdate(TestCallback);
+
+  EXPECT_EQ(f2->Name(), "f2");
+  EXPECT_EQ(f2->Help(), "dynamic help");
+  EXPECT_EQ(f2->Filename(), "file");
+
+  return true;
+}
+
+TEST_F(FlagTest, TestConstruction) {
+  TEST_CONSTRUCTED_FLAG(bool);
+  TEST_CONSTRUCTED_FLAG(int16_t);
+  TEST_CONSTRUCTED_FLAG(uint16_t);
+  TEST_CONSTRUCTED_FLAG(int32_t);
+  TEST_CONSTRUCTED_FLAG(uint32_t);
+  TEST_CONSTRUCTED_FLAG(int64_t);
+  TEST_CONSTRUCTED_FLAG(uint64_t);
+  TEST_CONSTRUCTED_FLAG(float);
+  TEST_CONSTRUCTED_FLAG(double);
+  TEST_CONSTRUCTED_FLAG(String);
+  TEST_CONSTRUCTED_FLAG(UDT);
 }
 
 // --------------------------------------------------------------------
@@ -391,17 +453,18 @@ TEST_F(FlagTest, TestCustomUDT) {
 using FlagDeathTest = FlagTest;
 
 TEST_F(FlagDeathTest, TestTypeMismatchValidations) {
-  EXPECT_DEBUG_DEATH(
-      static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
-      "Flag 'mistyped_int_flag' is defined as one type and declared "
-      "as another");
-  EXPECT_DEATH(absl::SetFlag(&FLAGS_mistyped_int_flag, 1),
+#if !defined(NDEBUG)
+  EXPECT_DEATH(static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
                "Flag 'mistyped_int_flag' is defined as one type and declared "
                "as another");
-
   EXPECT_DEATH(static_cast<void>(absl::GetFlag(FLAGS_mistyped_string_flag)),
                "Flag 'mistyped_string_flag' is defined as one type and "
                "declared as another");
+#endif
+
+  EXPECT_DEATH(absl::SetFlag(&FLAGS_mistyped_int_flag, 1),
+               "Flag 'mistyped_int_flag' is defined as one type and declared "
+               "as another");
   EXPECT_DEATH(
       absl::SetFlag(&FLAGS_mistyped_string_flag, std::vector<std::string>{}),
       "Flag 'mistyped_string_flag' is defined as one type and declared as "

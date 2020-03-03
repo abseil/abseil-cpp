@@ -77,7 +77,7 @@ enum ValueSource {
 // of a flag produced this flag state from method CommandLineFlag::SaveState().
 class FlagStateInterface {
  public:
-  virtual ~FlagStateInterface() {}
+  virtual ~FlagStateInterface();
 
   // Restores the flag originated this object to the saved state.
   virtual void Restore() const = 0;
@@ -146,9 +146,9 @@ class CommandLineFlag {
   // Returns help message associated with this flag.
   virtual std::string Help() const = 0;
   // Returns true iff this object corresponds to retired flag.
-  virtual bool IsRetired() const { return false; }
+  virtual bool IsRetired() const;
   // Returns true iff this is a handle to an Abseil Flag.
-  virtual bool IsAbseilFlag() const { return true; }
+  virtual bool IsAbseilFlag() const;
   // Returns id of the flag's value type.
   virtual FlagStaticTypeId TypeId() const = 0;
   virtual bool IsModified() const = 0;

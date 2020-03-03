@@ -109,3 +109,11 @@ namespace {
 BENCHMARKED_TYPES(BM_GetFlag)
 
 }  // namespace
+
+#define InvokeGetFlag(T)                                               \
+  T AbslInvokeGetFlag##T() { return absl::GetFlag(FLAGS_##T##_flag); } \
+  int odr##T = (benchmark::DoNotOptimize(AbslInvokeGetFlag##T), 1);
+
+BENCHMARKED_TYPES(InvokeGetFlag)
+
+// To veiw disassembly use: gdb ${BINARY}  -batch -ex "disassemble /s $FUNC"

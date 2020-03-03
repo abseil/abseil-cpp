@@ -318,7 +318,7 @@ class btree_map
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_map`
@@ -645,7 +645,7 @@ class btree_multimap
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_multimap`

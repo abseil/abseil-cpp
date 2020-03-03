@@ -31,6 +31,7 @@
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/memory/memory.h"
+#include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
@@ -249,95 +250,66 @@ enum class FlagDefaultKind : uint8_t { kDynamicValue = 0, kGenFunc = 1 };
 ///////////////////////////////////////////////////////////////////////////////
 // Flag current value auxiliary structs.
 
-// The minimum atomic size we believe to generate lock free code, i.e. all
-// trivially copyable types not bigger this size generate lock free code.
-static constexpr int kMinLockFreeAtomicSize = 8;
+constexpr int64_t UninitializedFlagValue() { return 0xababababababababll; }
 
-// The same as kMinLockFreeAtomicSize but maximum atomic size. As double words
-// might use two registers, we want to dispatch the logic for them.
-#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
-static constexpr int kMaxLockFreeAtomicSize = 16;
-#else
-static constexpr int kMaxLockFreeAtomicSize = 8;
-#endif
-
-// We can use atomic in cases when it fits in the register, trivially copyable
-// in order to make memcpy operations.
 template <typename T>
-struct IsAtomicFlagTypeTrait {
-  static constexpr bool value =
-      (sizeof(T) <= kMaxLockFreeAtomicSize &&
-       type_traits_internal::is_trivially_copyable<T>::value);
-};
+using FlagUseOneWordStorage = std::integral_constant<
+    bool, absl::type_traits_internal::is_trivially_copyable<T>::value &&
+              (sizeof(T) <= 8)>;
 
+#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
 // Clang does not always produce cmpxchg16b instruction when alignment of a 16
 // bytes type is not 16.
-struct alignas(16) FlagsInternalTwoWordsType {
+struct alignas(16) AlignedTwoWords {
   int64_t first;
   int64_t second;
 };
 
-constexpr bool operator==(const FlagsInternalTwoWordsType& that,
-                          const FlagsInternalTwoWordsType& other) {
-  return that.first == other.first && that.second == other.second;
-}
-constexpr bool operator!=(const FlagsInternalTwoWordsType& that,
-                          const FlagsInternalTwoWordsType& other) {
-  return !(that == other);
-}
-
-constexpr int64_t SmallAtomicInit() { return 0xababababababababll; }
-
-template <typename T, typename S = void>
-struct BestAtomicType {
-  using type = int64_t;
-  static constexpr int64_t AtomicInit() { return SmallAtomicInit(); }
+template <typename T>
+using FlagUseTwoWordsStorage = std::integral_constant<
+    bool, absl::type_traits_internal::is_trivially_copyable<T>::value &&
+              (sizeof(T) > 8) && (sizeof(T) <= 16)>;
+#else
+// This is actually unused and only here to avoid ifdefs in other palces.
+struct AlignedTwoWords {
+  constexpr AlignedTwoWords() = default;
+  constexpr AlignedTwoWords(int64_t, int64_t) {}
 };
+
+// This trait should be type dependent, otherwise SFINAE below will fail
+template <typename T>
+using FlagUseTwoWordsStorage =
+    std::integral_constant<bool, sizeof(T) != sizeof(T)>;
+#endif
 
 template <typename T>
-struct BestAtomicType<
-    T, typename std::enable_if<(kMinLockFreeAtomicSize < sizeof(T) &&
-                                sizeof(T) <= kMaxLockFreeAtomicSize),
-                               void>::type> {
-  using type = FlagsInternalTwoWordsType;
-  static constexpr FlagsInternalTwoWordsType AtomicInit() {
-    return {SmallAtomicInit(), SmallAtomicInit()};
-  }
+using FlagUseHeapStorage =
+    std::integral_constant<bool, !FlagUseOneWordStorage<T>::value &&
+                                     !FlagUseTwoWordsStorage<T>::value>;
+
+enum class FlagValueStorageKind : uint8_t {
+  kHeapAllocated = 0,
+  kOneWordAtomic = 1,
+  kTwoWordsAtomic = 2
 };
 
-struct FlagValue {
-  // Heap allocated value.
-  void* dynamic = nullptr;
-  // For some types, a copy of the current value is kept in an atomically
-  // accessible field.
-  union Atomics {
-    // Using small atomic for small types.
-    std::atomic<int64_t> small_atomic;
-    template <typename T,
-              typename K = typename std::enable_if<
-                  (sizeof(T) <= kMinLockFreeAtomicSize), void>::type>
-    int64_t load() const {
-      return small_atomic.load(std::memory_order_acquire);
-    }
+union FlagValue {
+  constexpr explicit FlagValue(int64_t v) : one_word_atomic(v) {}
 
-#if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
-    // Using big atomics for big types.
-    std::atomic<FlagsInternalTwoWordsType> big_atomic;
-    template <typename T, typename K = typename std::enable_if<
-                              (kMinLockFreeAtomicSize < sizeof(T) &&
-                               sizeof(T) <= kMaxLockFreeAtomicSize),
-                              void>::type>
-    FlagsInternalTwoWordsType load() const {
-      return big_atomic.load(std::memory_order_acquire);
-    }
-    constexpr Atomics()
-        : big_atomic{FlagsInternalTwoWordsType{SmallAtomicInit(),
-                                               SmallAtomicInit()}} {}
-#else
-    constexpr Atomics() : small_atomic{SmallAtomicInit()} {}
-#endif
-  };
-  Atomics atomics{};
+  template <typename T>
+  static constexpr FlagValueStorageKind Kind() {
+    return FlagUseHeapStorage<T>::value
+               ? FlagValueStorageKind::kHeapAllocated
+               : FlagUseOneWordStorage<T>::value
+                     ? FlagValueStorageKind::kOneWordAtomic
+                     : FlagUseTwoWordsStorage<T>::value
+                           ? FlagValueStorageKind::kTwoWordsAtomic
+                           : FlagValueStorageKind::kHeapAllocated;
+  }
+
+  void* dynamic;
+  std::atomic<int64_t> one_word_atomic;
+  std::atomic<flags_internal::AlignedTwoWords> two_words_atomic;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -369,18 +341,21 @@ struct DynValueDeleter {
 class FlagImpl {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
-                     FlagHelpArg help, FlagDfltGenFunc default_value_gen)
+                     FlagHelpArg help, FlagValueStorageKind value_kind,
+                     FlagDfltGenFunc default_value_gen)
       : name_(name),
         filename_(filename),
         op_(op),
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
+        value_storage_kind_(static_cast<uint8_t>(value_kind)),
         def_kind_(static_cast<uint8_t>(FlagDefaultKind::kGenFunc)),
         modified_(false),
         on_command_line_(false),
         counter_(0),
         callback_(nullptr),
         default_value_(default_value_gen),
+        value_(flags_internal::UninitializedFlagValue()),
         data_guard_{} {}
 
   // Constant access methods
@@ -393,34 +368,29 @@ class FlagImpl {
   std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
   void Read(void* dst) const ABSL_LOCKS_EXCLUDED(*DataGuard());
 
-  template <typename T, typename std::enable_if<
-                            !IsAtomicFlagTypeTrait<T>::value, int>::type = 0>
-  void Get(T* dst) const {
-    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
-    Read(dst);
-  }
-  // Overload for `GetFlag()` for types that support lock-free reads.
-  template <typename T, typename std::enable_if<IsAtomicFlagTypeTrait<T>::value,
+  template <typename T, typename std::enable_if<FlagUseHeapStorage<T>::value,
                                                 int>::type = 0>
   void Get(T* dst) const {
-    // For flags of types which can be accessed "atomically" we want to avoid
-    // slowing down flag value access due to type validation. That's why
-    // this validation is hidden behind !NDEBUG
-#ifndef NDEBUG
-    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
-#endif
-    using U = flags_internal::BestAtomicType<T>;
-    typename U::type r = value_.atomics.template load<T>();
-    if (r != U::AtomicInit()) {
-      std::memcpy(static_cast<void*>(dst), &r, sizeof(T));
-    } else {
-      Read(dst);
-    }
+    Read(dst);
   }
-  template <typename T>
-  void Set(const T& src) {
-    AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
-    Write(&src);
+  template <typename T, typename std::enable_if<FlagUseOneWordStorage<T>::value,
+                                                int>::type = 0>
+  void Get(T* dst) const {
+    int64_t one_word_val =
+        value_.one_word_atomic.load(std::memory_order_acquire);
+    if (ABSL_PREDICT_FALSE(one_word_val == UninitializedFlagValue())) {
+      DataGuard();  // Make sure flag initialized
+      one_word_val = value_.one_word_atomic.load(std::memory_order_acquire);
+    }
+    std::memcpy(dst, static_cast<const void*>(&one_word_val), sizeof(T));
+  }
+  template <typename T, typename std::enable_if<
+                            FlagUseTwoWordsStorage<T>::value, int>::type = 0>
+  void Get(T* dst) const {
+    DataGuard();  // Make sure flag initialized
+    const auto two_words_val =
+        value_.two_words_atomic.load(std::memory_order_acquire);
+    std::memcpy(dst, &two_words_val, sizeof(T));
   }
 
   // Mutating access methods
@@ -428,9 +398,6 @@ class FlagImpl {
   bool SetFromString(absl::string_view value, FlagSettingMode set_mode,
                      ValueSource source, std::string* err)
       ABSL_LOCKS_EXCLUDED(*DataGuard());
-  // If possible, updates copy of the Flag's value that is stored in an
-  // atomic word.
-  void StoreAtomic() ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   // Interfaces to operate on callbacks.
   void SetCallback(const FlagCallbackFunc mutation_callback)
@@ -456,6 +423,14 @@ class FlagImpl {
   bool ValidateInputValue(absl::string_view value) const
       ABSL_LOCKS_EXCLUDED(*DataGuard());
 
+  // Used in read/write operations to validate source/target has correct type.
+  // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
+  // absl::GetFlag(FLAGS_foo) validates that the type of FLAGS_foo is indeed
+  // int. To do that we pass the "assumed" type id (which is deduced from type
+  // int) as an argument `op`, which is in turn is validated against the type id
+  // stored in flag object by flag definition statement.
+  void AssertValidType(FlagStaticTypeId type_id) const;
+
  private:
   // Ensures that `data_guard_` is initialized and returns it.
   absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED((absl::Mutex*)&data_guard_);
@@ -475,17 +450,13 @@ class FlagImpl {
   FlagHelpKind HelpSourceKind() const {
     return static_cast<FlagHelpKind>(help_source_kind_);
   }
+  FlagValueStorageKind ValueStorageKind() const {
+    return static_cast<FlagValueStorageKind>(value_storage_kind_);
+  }
   FlagDefaultKind DefaultKind() const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard()) {
     return static_cast<FlagDefaultKind>(def_kind_);
   }
-  // Used in read/write operations to validate source/target has correct type.
-  // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
-  // absl::GetFlag(FLAGS_foo) validates that the type of FLAGS_foo is indeed
-  // int. To do that we pass the "assumed" type id (which is deduced from type
-  // int) as an argument `op`, which is in turn is validated against the type id
-  // stored in flag object by flag definition statement.
-  void AssertValidType(FlagStaticTypeId type_id) const;
 
   // Immutable flag's state.
 
@@ -499,6 +470,8 @@ class FlagImpl {
   const FlagHelpMsg help_;
   // Indicates if help message was supplied as literal or generator func.
   const uint8_t help_source_kind_ : 1;
+  // Kind of storage this flag is using for the flag's value.
+  const uint8_t value_storage_kind_ : 2;
 
   // ------------------------------------------------------------------------
   // The bytes containing the const bitfields must not be shared with bytes
@@ -530,8 +503,13 @@ class FlagImpl {
   // value specified in ABSL_FLAG or pointer to the dynamically set default
   // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
   // these two cases.
-  FlagDefaultSrc default_value_ ABSL_GUARDED_BY(*DataGuard());
-  // Current Flag Value
+  FlagDefaultSrc default_value_;
+
+  // Atomically mutable flag's state
+
+  // Flag's value. This can be either the atomically stored small value or
+  // pointer to the heap allocated dynamic value. value_storage_kind_ is used
+  // to distinguish these cases.
   FlagValue value_;
 
   // This is reserved space for an absl::Mutex to guard flag data. It will be
@@ -553,7 +531,8 @@ class Flag final : public flags_internal::CommandLineFlag {
  public:
   constexpr Flag(const char* name, const char* filename, const FlagHelpArg help,
                  const FlagDfltGenFunc default_value_gen)
-      : impl_(name, filename, &FlagOps<T>, help, default_value_gen) {}
+      : impl_(name, filename, &FlagOps<T>, help, FlagValue::Kind<T>(),
+              default_value_gen) {}
 
   T Get() const {
     // See implementation notes in CommandLineFlag::Get().
@@ -564,10 +543,17 @@ class Flag final : public flags_internal::CommandLineFlag {
     };
     U u;
 
+#if !defined(NDEBUG)
+    impl_.AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
+#endif
+
     impl_.Get(&u.value);
     return std::move(u.value);
   }
-  void Set(const T& v) { impl_.Set(v); }
+  void Set(const T& v) {
+    impl_.AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
+    impl_.Write(&v);
+  }
   void SetCallback(const FlagCallbackFunc mutation_callback) {
     impl_.SetCallback(mutation_callback);
   }
@@ -619,7 +605,7 @@ class Flag final : public flags_internal::CommandLineFlag {
 };
 
 template <typename T>
-inline void FlagState<T>::Restore() const {
+void FlagState<T>::Restore() const {
   if (flag_->RestoreState(*this)) {
     ABSL_INTERNAL_LOG(INFO,
                       absl::StrCat("Restore saved value of ", flag_->Name(),

@@ -955,12 +955,15 @@ H PiecewiseCombiner::add_buffer(H state, const unsigned char* data,
     return state;
   }
 
-  // Complete the buffer and hash it
-  const size_t bytes_needed = PiecewiseChunkSize() - position_;
-  memcpy(buf_ + position_, data, bytes_needed);
-  state = H::combine_contiguous(std::move(state), buf_, PiecewiseChunkSize());
-  data += bytes_needed;
-  size -= bytes_needed;
+  // If the buffer is partially filled we need to complete the buffer
+  // and hash it.
+  if (position_ != 0) {
+    const size_t bytes_needed = PiecewiseChunkSize() - position_;
+    memcpy(buf_ + position_, data, bytes_needed);
+    state = H::combine_contiguous(std::move(state), buf_, PiecewiseChunkSize());
+    data += bytes_needed;
+    size -= bytes_needed;
+  }
 
   // Hash whatever chunks we can without copying
   while (size >= PiecewiseChunkSize()) {

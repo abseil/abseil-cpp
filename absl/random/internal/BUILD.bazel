@@ -705,6 +705,7 @@ cc_test(
 cc_test(
     name = "randen_benchmarks",
     size = "medium",
+    timeout = "long",
     srcs = ["randen_benchmarks.cc"],
     copts = ABSL_TEST_COPTS + ABSL_RANDOM_RANDEN_COPTS,
     flaky = 1,

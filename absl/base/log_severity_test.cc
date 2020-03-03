@@ -53,7 +53,7 @@ TEST(StreamTest, Works) {
 }
 
 static_assert(
-    absl::flags_internal::IsAtomicFlagTypeTrait<absl::LogSeverity>::value,
+    absl::flags_internal::FlagUseOneWordStorage<absl::LogSeverity>::value,
     "Flags of type absl::LogSeverity ought to be lock-free.");
 
 using ParseFlagFromOutOfRangeIntegerTest = TestWithParam<int64_t>;

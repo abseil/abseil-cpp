@@ -68,10 +68,10 @@ class btree_container {
   explicit btree_container(const key_compare &comp,
                            const allocator_type &alloc = allocator_type())
       : tree_(comp, alloc) {}
-  btree_container(const btree_container &x) = default;
-  btree_container(btree_container &&x) noexcept = default;
-  btree_container &operator=(const btree_container &x) = default;
-  btree_container &operator=(btree_container &&x) noexcept(
+  btree_container(const btree_container &other) = default;
+  btree_container(btree_container &&other) noexcept = default;
+  btree_container &operator=(const btree_container &other) = default;
+  btree_container &operator=(btree_container &&other) noexcept(
       std::is_nothrow_move_assignable<Tree>::value) = default;
 
   // Iterator routines.
@@ -154,7 +154,7 @@ class btree_container {
  public:
   // Utility routines.
   void clear() { tree_.clear(); }
-  void swap(btree_container &x) { tree_.swap(x.tree_); }
+  void swap(btree_container &other) { tree_.swap(other.tree_); }
   void verify() const { tree_.verify(); }
 
   // Size routines.
@@ -257,26 +257,26 @@ class btree_set_container : public btree_container<Tree> {
   }
 
   // Insertion routines.
-  std::pair<iterator, bool> insert(const value_type &x) {
-    return this->tree_.insert_unique(params_type::key(x), x);
+  std::pair<iterator, bool> insert(const value_type &v) {
+    return this->tree_.insert_unique(params_type::key(v), v);
   }
-  std::pair<iterator, bool> insert(value_type &&x) {
-    return this->tree_.insert_unique(params_type::key(x), std::move(x));
+  std::pair<iterator, bool> insert(value_type &&v) {
+    return this->tree_.insert_unique(params_type::key(v), std::move(v));
   }
   template <typename... Args>
   std::pair<iterator, bool> emplace(Args &&... args) {
     init_type v(std::forward<Args>(args)...);
     return this->tree_.insert_unique(params_type::key(v), std::move(v));
   }
-  iterator insert(const_iterator position, const value_type &x) {
+  iterator insert(const_iterator position, const value_type &v) {
     return this->tree_
-        .insert_hint_unique(iterator(position), params_type::key(x), x)
+        .insert_hint_unique(iterator(position), params_type::key(v), v)
         .first;
   }
-  iterator insert(const_iterator position, value_type &&x) {
+  iterator insert(const_iterator position, value_type &&v) {
     return this->tree_
-        .insert_hint_unique(iterator(position), params_type::key(x),
-                            std::move(x))
+        .insert_hint_unique(iterator(position), params_type::key(v),
+                            std::move(v))
         .first;
   }
   template <typename... Args>
@@ -562,15 +562,15 @@ class btree_multiset_container : public btree_container<Tree> {
   }
 
   // Insertion routines.
-  iterator insert(const value_type &x) { return this->tree_.insert_multi(x); }
-  iterator insert(value_type &&x) {
-    return this->tree_.insert_multi(std::move(x));
+  iterator insert(const value_type &v) { return this->tree_.insert_multi(v); }
+  iterator insert(value_type &&v) {
+    return this->tree_.insert_multi(std::move(v));
   }
-  iterator insert(const_iterator position, const value_type &x) {
-    return this->tree_.insert_hint_multi(iterator(position), x);
+  iterator insert(const_iterator position, const value_type &v) {
+    return this->tree_.insert_hint_multi(iterator(position), v);
   }
-  iterator insert(const_iterator position, value_type &&x) {
-    return this->tree_.insert_hint_multi(iterator(position), std::move(x));
+  iterator insert(const_iterator position, value_type &&v) {
+    return this->tree_.insert_hint_multi(iterator(position), std::move(v));
   }
   template <typename InputIterator>
   void insert(InputIterator b, InputIterator e) {

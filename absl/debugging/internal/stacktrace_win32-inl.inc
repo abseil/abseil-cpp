@@ -56,9 +56,9 @@ static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
 // Load the function we need at static init time, where we don't have
 // to worry about someone else holding the loader's lock.
 static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
-   (RtlCaptureStackBackTrace_Function*)
-   GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCaptureStackBackTrace");
-#endif // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
+    (RtlCaptureStackBackTrace_Function*)GetProcAddress(
+        GetModuleHandleA("ntdll.dll"), "RtlCaptureStackBackTrace");
+#endif  // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,

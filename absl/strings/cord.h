@@ -41,13 +41,13 @@
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <type_traits>
 
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/invoke.h"
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
-#include "absl/container/inlined_vector.h"
 #include "absl/functional/function_ref.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/internal/cord_internal.h"
@@ -65,6 +65,73 @@ namespace hash_internal {
 template <typename H>
 H HashFragmentedCord(H, const Cord&);
 }
+
+namespace cord_internal {
+
+// It's expensive to keep a tree perfectly balanced, so instead we keep trees
+// approximately balanced.  A tree node N of depth D(N) that contains a string
+// of L(N) characters is considered balanced if L >= Fibonacci(D + 2).
+// The "+ 2" is used to ensure that every leaf node contains at least one
+// character. Here we presume that
+//   Fibonacci(0) = 0
+//   Fibonacci(1) = 1
+//   Fibonacci(2) = 1
+//   Fibonacci(3) = 2
+//   ...
+//
+// Fibonacci numbers are convenient because it means when two balanced trees of
+// the same depth are made the children of a new node, the resulting tree is
+// guaranteed to also be balanced:
+//
+//
+//   L(left)  >= Fibonacci(D(left) + 2)
+//   L(right) >= Fibonacci(D(right) + 2)
+//
+//   L(left) + L(right) >= Fibonacci(D(left) + 2) + Fibonacci(D(right) + 2)
+//   L(left) + L(right) == L(new_tree)
+//
+//   L(new_tree) >= 2 * Fibonacci(D(child) + 2)
+//   D(child) == D(new_tree) - 1
+//
+//   L(new_tree) >= 2 * Fibonacci(D(new_tree) + 1)
+//   2 * Fibonacci(N) >= Fibonacci(N + 1)
+//
+//   L(new_tree) >= Fibonacci(D(new_tree) + 2)
+//
+//
+// The 93rd Fibonacci number is the largest Fibonacci number that can be
+// represented in 64 bits, so the size of a balanced Cord of depth 92 is too big
+// for an unsigned 64 bit integer to hold.  Therefore we can safely assume that
+// the maximum depth of a Cord is 91.
+constexpr size_t MaxCordDepth() { return 91; }
+
+// This class models fixed max size stack of CordRep pointers.
+// The elements are being pushed back and popped from the back.
+template <typename CordRepPtr, size_t N>
+class CordTreePath {
+ public:
+  CordTreePath() {}
+  explicit CordTreePath(CordRepPtr root) { push_back(root); }
+
+  bool empty() const { return size_ == 0; }
+  size_t size() const { return size_; }
+  void clear() { size_ = 0; }
+
+  CordRepPtr back() { return data_[size_ - 1]; }
+
+  void pop_back() {
+    --size_;
+    assert(size_ < N);
+  }
+  void push_back(CordRepPtr elem) { data_[size_++] = elem; }
+
+ private:
+  CordRepPtr data_[N];
+  size_t size_ = 0;
+};
+
+using CordTreeMutablePath = CordTreePath<CordRep*, MaxCordDepth()>;
+}  // namespace cord_internal
 
 // A Cord is a sequence of characters.
 class Cord {
@@ -114,7 +181,8 @@ class Cord {
   // finished with `data`. The data must remain live and unchanging until the
   // releaser is called. The requirements for the releaser are that it:
   //   * is move constructible,
-  //   * supports `void operator()(absl::string_view) const`,
+  //   * supports `void operator()(absl::string_view) const` or
+  //     `void operator()() const`,
   //   * does not have alignment requirement greater than what is guaranteed by
   //     ::operator new. This is dictated by alignof(std::max_align_t) before
   //     C++17 and __STDCPP_DEFAULT_NEW_ALIGNMENT__ if compiling with C++17 or
@@ -127,8 +195,8 @@ class Cord {
   //   FillBlock(block);
   //   return absl::MakeCordFromExternal(
   //       block->ToStringView(),
-  //       [pool, block](absl::string_view /*ignored*/) {
-  //         pool->FreeBlock(block);
+  //       [pool, block](absl::string_view v) {
+  //         pool->FreeBlock(block, v);
   //       });
   // }
   //
@@ -282,8 +350,7 @@ class Cord {
     absl::cord_internal::CordRep* current_leaf_ = nullptr;
     // The number of bytes left in the `Cord` over which we are iterating.
     size_t bytes_remaining_ = 0;
-    absl::InlinedVector<absl::cord_internal::CordRep*, 4>
-        stack_of_right_children_;
+    absl::cord_internal::CordTreeMutablePath stack_of_right_children_;
   };
 
   // Returns an iterator to the first chunk of the `Cord`.
@@ -667,6 +734,21 @@ ExternalRepReleaserPair NewExternalWithUninitializedReleaser(
     absl::string_view data, ExternalReleaserInvoker invoker,
     size_t releaser_size);
 
+struct Rank1 {};
+struct Rank0 : Rank1 {};
+
+template <typename Releaser, typename = ::absl::base_internal::InvokeT<
+                                 Releaser, absl::string_view>>
+void InvokeReleaser(Rank0, Releaser&& releaser, absl::string_view data) {
+  ::absl::base_internal::Invoke(std::forward<Releaser>(releaser), data);
+}
+
+template <typename Releaser,
+          typename = ::absl::base_internal::InvokeT<Releaser>>
+void InvokeReleaser(Rank1, Releaser&& releaser, absl::string_view) {
+  ::absl::base_internal::Invoke(std::forward<Releaser>(releaser));
+}
+
 // Creates a new `CordRep` that owns `data` and `releaser` and returns a pointer
 // to it, or `nullptr` if `data` was empty.
 template <typename Releaser>
@@ -684,14 +766,14 @@ CordRep* NewExternalRep(absl::string_view data, Releaser&& releaser) {
   using ReleaserType = absl::decay_t<Releaser>;
   if (data.empty()) {
     // Never create empty external nodes.
-    ::absl::base_internal::Invoke(
-        ReleaserType(std::forward<Releaser>(releaser)), data);
+    InvokeReleaser(Rank0{}, ReleaserType(std::forward<Releaser>(releaser)),
+                   data);
     return nullptr;
   }
 
   auto releaser_invoker = [](void* type_erased_releaser, absl::string_view d) {
     auto* my_releaser = static_cast<ReleaserType*>(type_erased_releaser);
-    ::absl::base_internal::Invoke(std::move(*my_releaser), d);
+    InvokeReleaser(Rank0{}, std::move(*my_releaser), d);
     my_releaser->~ReleaserType();
     return sizeof(Releaser);
   };

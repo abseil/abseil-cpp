@@ -1032,6 +1032,19 @@ TEST(ConstructFromExternal, MoveOnlyReleaser) {
   EXPECT_TRUE(invoked);
 }
 
+TEST(ConstructFromExternal, NoArgLambda) {
+  bool invoked = false;
+  (void)absl::MakeCordFromExternal("dummy", [&invoked]() { invoked = true; });
+  EXPECT_TRUE(invoked);
+}
+
+TEST(ConstructFromExternal, StringViewArgLambda) {
+  bool invoked = false;
+  (void)absl::MakeCordFromExternal(
+      "dummy", [&invoked](absl::string_view) { invoked = true; });
+  EXPECT_TRUE(invoked);
+}
+
 TEST(ConstructFromExternal, NonTrivialReleaserDestructor) {
   struct Releaser {
     explicit Releaser(bool* destroyed) : destroyed(destroyed) {}
@@ -1344,6 +1357,49 @@ TEST(CordChunkIterator, Operations) {
   absl::Cord subcords;
   for (int i = 0; i < 128; ++i) subcords.Prepend(flat_cord.Subcord(i, 128));
   VerifyChunkIterator(subcords, 128);
+}
+
+TEST(CordChunkIterator, MaxLengthFullTree) {
+  absl::Cord cord;
+  size_t size = 1;
+  AddExternalMemory("x", &cord);
+  EXPECT_EQ(cord.size(), size);
+
+  for (int i = 0; i < 63; ++i) {
+    cord.Prepend(absl::Cord(cord));
+    size <<= 1;
+
+    EXPECT_EQ(cord.size(), size);
+
+    auto chunk_it = cord.chunk_begin();
+    EXPECT_EQ(*chunk_it, "x");
+  }
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      (cord.Prepend(absl::Cord(cord)), *cord.chunk_begin()),
+      "Cord is too long");
+}
+
+TEST(CordChunkIterator, MaxDepth) {
+  // By reusing nodes, it's possible in pathological cases to build a Cord that
+  // exceeds both the maximum permissible length and depth.  In this case, the
+  // violation of the maximum depth is reported.
+  absl::Cord left_child;
+  AddExternalMemory("x", &left_child);
+  absl::Cord root = left_child;
+
+  for (int i = 0; i < 91; ++i) {
+    size_t new_size = left_child.size() + root.size();
+    root.Prepend(left_child);
+    EXPECT_EQ(root.size(), new_size);
+
+    auto chunk_it = root.chunk_begin();
+    EXPECT_EQ(*chunk_it, "x");
+
+    std::swap(left_child, root);
+  }
+
+  EXPECT_DEATH_IF_SUPPORTED(root.Prepend(left_child), "Cord depth exceeds max");
 }
 
 TEST(CordCharIterator, Traits) {

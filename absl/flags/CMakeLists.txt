@@ -33,6 +33,7 @@ absl_cc_library(
     absl::flags_handle
     absl::flags_registry
     absl::synchronization
+    absl::meta
   PUBLIC
 )
 
@@ -117,6 +118,8 @@ absl_cc_library(
 absl_cc_library(
   NAME
     flags_handle
+  SRCS
+    "internal/commandlineflag.cc"
   HDRS
     "internal/commandlineflag.h"
   COPTS

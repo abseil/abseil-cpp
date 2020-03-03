@@ -538,19 +538,19 @@ struct BigType {
   BigType() : BigType(0) {}
   explicit BigType(int x) { std::iota(values.begin(), values.end(), x); }
 
-  void Copy(const BigType& x) {
-    for (int i = 0; i < Size && i < Copies; ++i) values[i] = x.values[i];
+  void Copy(const BigType& other) {
+    for (int i = 0; i < Size && i < Copies; ++i) values[i] = other.values[i];
     // If Copies > Size, do extra copies.
     for (int i = Size, idx = 0; i < Copies; ++i) {
-      int64_t tmp = x.values[idx];
+      int64_t tmp = other.values[idx];
       benchmark::DoNotOptimize(tmp);
       idx = idx + 1 == Size ? 0 : idx + 1;
     }
   }
 
-  BigType(const BigType& x) { Copy(x); }
-  BigType& operator=(const BigType& x) {
-    Copy(x);
+  BigType(const BigType& other) { Copy(other); }
+  BigType& operator=(const BigType& other) {
+    Copy(other);
     return *this;
   }
 
@@ -641,14 +641,14 @@ struct BigTypePtr {
   explicit BigTypePtr(int x) {
     ptr = absl::make_unique<BigType<Size, Size>>(x);
   }
-  BigTypePtr(const BigTypePtr& x) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*x.ptr);
+  BigTypePtr(const BigTypePtr& other) {
+    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
   }
-  BigTypePtr(BigTypePtr&& x) noexcept = default;
-  BigTypePtr& operator=(const BigTypePtr& x) {
-    ptr = absl::make_unique<BigType<Size, Size>>(*x.ptr);
+  BigTypePtr(BigTypePtr&& other) noexcept = default;
+  BigTypePtr& operator=(const BigTypePtr& other) {
+    ptr = absl::make_unique<BigType<Size, Size>>(*other.ptr);
   }
-  BigTypePtr& operator=(BigTypePtr&& x) noexcept = default;
+  BigTypePtr& operator=(BigTypePtr&& other) noexcept = default;
 
   bool operator<(const BigTypePtr& other) const { return *ptr < *other.ptr; }
   bool operator==(const BigTypePtr& other) const { return *ptr == *other.ptr; }

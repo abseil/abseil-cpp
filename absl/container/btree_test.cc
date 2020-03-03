@@ -89,8 +89,8 @@ class base_checker {
 
  public:
   base_checker() : const_tree_(tree_) {}
-  base_checker(const base_checker &x)
-      : tree_(x.tree_), const_tree_(tree_), checker_(x.checker_) {}
+  base_checker(const base_checker &other)
+      : tree_(other.tree_), const_tree_(tree_), checker_(other.checker_) {}
   template <typename InputIterator>
   base_checker(InputIterator b, InputIterator e)
       : tree_(b, e), const_tree_(tree_), checker_(b, e) {}
@@ -124,11 +124,11 @@ class base_checker {
     }
     return tree_iter;
   }
-  void value_check(const value_type &x) {
+  void value_check(const value_type &v) {
     typename KeyOfValue<typename TreeType::key_type,
                         typename TreeType::value_type>::type key_of_value;
-    const key_type &key = key_of_value(x);
-    CheckPairEquals(*find(key), x);
+    const key_type &key = key_of_value(v);
+    CheckPairEquals(*find(key), v);
     lower_bound(key);
     upper_bound(key);
     equal_range(key);
@@ -187,9 +187,9 @@ class base_checker {
     return res;
   }
 
-  base_checker &operator=(const base_checker &x) {
-    tree_ = x.tree_;
-    checker_ = x.checker_;
+  base_checker &operator=(const base_checker &other) {
+    tree_ = other.tree_;
+    checker_ = other.checker_;
     return *this;
   }
 
@@ -250,9 +250,9 @@ class base_checker {
     tree_.clear();
     checker_.clear();
   }
-  void swap(base_checker &x) {
-    tree_.swap(x.tree_);
-    checker_.swap(x.checker_);
+  void swap(base_checker &other) {
+    tree_.swap(other.tree_);
+    checker_.swap(other.checker_);
   }
 
   void verify() const {
@@ -323,28 +323,28 @@ class unique_checker : public base_checker<TreeType, CheckerType> {
 
  public:
   unique_checker() : super_type() {}
-  unique_checker(const unique_checker &x) : super_type(x) {}
+  unique_checker(const unique_checker &other) : super_type(other) {}
   template <class InputIterator>
   unique_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
   unique_checker &operator=(const unique_checker &) = default;
 
   // Insertion routines.
-  std::pair<iterator, bool> insert(const value_type &x) {
+  std::pair<iterator, bool> insert(const value_type &v) {
     int size = this->tree_.size();
     std::pair<typename CheckerType::iterator, bool> checker_res =
-        this->checker_.insert(x);
-    std::pair<iterator, bool> tree_res = this->tree_.insert(x);
+        this->checker_.insert(v);
+    std::pair<iterator, bool> tree_res = this->tree_.insert(v);
     CheckPairEquals(*tree_res.first, *checker_res.first);
     EXPECT_EQ(tree_res.second, checker_res.second);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + tree_res.second);
     return tree_res;
   }
-  iterator insert(iterator position, const value_type &x) {
+  iterator insert(iterator position, const value_type &v) {
     int size = this->tree_.size();
     std::pair<typename CheckerType::iterator, bool> checker_res =
-        this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(position, x);
+        this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(position, v);
     CheckPairEquals(*tree_res, *checker_res.first);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + checker_res.second);
@@ -371,25 +371,25 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
 
  public:
   multi_checker() : super_type() {}
-  multi_checker(const multi_checker &x) : super_type(x) {}
+  multi_checker(const multi_checker &other) : super_type(other) {}
   template <class InputIterator>
   multi_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
   multi_checker &operator=(const multi_checker &) = default;
 
   // Insertion routines.
-  iterator insert(const value_type &x) {
+  iterator insert(const value_type &v) {
     int size = this->tree_.size();
-    auto checker_res = this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(x);
+    auto checker_res = this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(v);
     CheckPairEquals(*tree_res, *checker_res);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + 1);
     return tree_res;
   }
-  iterator insert(iterator position, const value_type &x) {
+  iterator insert(iterator position, const value_type &v) {
     int size = this->tree_.size();
-    auto checker_res = this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(position, x);
+    auto checker_res = this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(position, v);
     CheckPairEquals(*tree_res, *checker_res);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + 1);
