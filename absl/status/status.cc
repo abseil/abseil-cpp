@@ -147,7 +147,15 @@ void Status::SetPayload(absl::string_view type_url, absl::Cord payload) {
 bool Status::ErasePayload(absl::string_view type_url) {
   int index = status_internal::FindPayloadIndexByUrl(GetPayloads(), type_url);
   if (index != -1) {
+    PrepareToModify();
     GetPayloads()->erase(GetPayloads()->begin() + index);
+    if (GetPayloads()->empty() && message().empty()) {
+      // Special case: If this can be represented inlined, it MUST be
+      // inlined (EqualsSlow depends on this behavior).
+      StatusCode c = static_cast<StatusCode>(raw_code());
+      Unref(rep_);
+      rep_ = CodeToInlinedRep(c);
+    }
     return true;
   }
 
