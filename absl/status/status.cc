@@ -176,7 +176,7 @@ void Status::ForEachPayload(
 #ifdef NDEBUG
       visitor(elem.type_url, elem.payload);
 #else
-      // In debug mode invaldiate the type url to prevent users from relying on
+      // In debug mode invalidate the type url to prevent users from relying on
       // this std::string lifetime.
 
       // NOLINTNEXTLINE intentional extra conversion to force temporary.
