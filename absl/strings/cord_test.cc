@@ -70,9 +70,8 @@ static std::string RandomLowercaseString(RandomEngine* rng) {
 static std::string RandomLowercaseString(RandomEngine* rng, size_t length) {
   std::string result(length, '\0');
   std::uniform_int_distribution<int> chars('a', 'z');
-  std::generate(result.begin(), result.end(), [&]() {
-    return static_cast<char>(chars(*rng));
-  });
+  std::generate(result.begin(), result.end(),
+                [&]() { return static_cast<char>(chars(*rng)); });
   return result;
 }
 
@@ -424,6 +423,50 @@ TEST(Cord, CopyToString) {
                                 "copying ", "to ", "a ", "string."}));
 }
 
+TEST(TryFlat, Empty) {
+  absl::Cord c;
+  EXPECT_EQ(c.TryFlat(), "");
+}
+
+TEST(TryFlat, Flat) {
+  absl::Cord c("hello");
+  EXPECT_EQ(c.TryFlat(), "hello");
+}
+
+TEST(TryFlat, SubstrInlined) {
+  absl::Cord c("hello");
+  c.RemovePrefix(1);
+  EXPECT_EQ(c.TryFlat(), "ello");
+}
+
+TEST(TryFlat, SubstrFlat) {
+  absl::Cord c("longer than 15 bytes");
+  c.RemovePrefix(1);
+  EXPECT_EQ(c.TryFlat(), "onger than 15 bytes");
+}
+
+TEST(TryFlat, Concat) {
+  absl::Cord c = absl::MakeFragmentedCord({"hel", "lo"});
+  EXPECT_EQ(c.TryFlat(), absl::nullopt);
+}
+
+TEST(TryFlat, External) {
+  absl::Cord c = absl::MakeCordFromExternal("hell", [](absl::string_view) {});
+  EXPECT_EQ(c.TryFlat(), "hell");
+}
+
+TEST(TryFlat, SubstrExternal) {
+  absl::Cord c = absl::MakeCordFromExternal("hell", [](absl::string_view) {});
+  c.RemovePrefix(1);
+  EXPECT_EQ(c.TryFlat(), "ell");
+}
+
+TEST(TryFlat, SubstrConcat) {
+  absl::Cord c = absl::MakeFragmentedCord({"hello", " world"});
+  c.RemovePrefix(1);
+  EXPECT_EQ(c.TryFlat(), absl::nullopt);
+}
+
 static bool IsFlat(const absl::Cord& c) {
   return c.chunk_begin() == c.chunk_end() || ++c.chunk_begin() == c.chunk_end();
 }
@@ -511,24 +554,24 @@ TEST(Cord, MultipleLengths) {
   for (size_t i = 0; i < d.size(); i++) {
     std::string a = d.data(i);
 
-    { // Construct from Cord
+    {  // Construct from Cord
       absl::Cord tmp(a);
       absl::Cord x(tmp);
       EXPECT_EQ(a, std::string(x)) << "'" << a << "'";
     }
 
-    { // Construct from absl::string_view
+    {  // Construct from absl::string_view
       absl::Cord x(a);
       EXPECT_EQ(a, std::string(x)) << "'" << a << "'";
     }
 
-    { // Append cord to self
+    {  // Append cord to self
       absl::Cord self(a);
       self.Append(self);
       EXPECT_EQ(a + a, std::string(self)) << "'" << a << "' + '" << a << "'";
     }
 
-    { // Prepend cord to self
+    {  // Prepend cord to self
       absl::Cord self(a);
       self.Prepend(self);
       EXPECT_EQ(a + a, std::string(self)) << "'" << a << "' + '" << a << "'";
@@ -538,40 +581,40 @@ TEST(Cord, MultipleLengths) {
     for (size_t j = 0; j < d.size(); j++) {
       std::string b = d.data(j);
 
-      { // CopyFrom Cord
+      {  // CopyFrom Cord
         absl::Cord x(a);
         absl::Cord y(b);
         x = y;
         EXPECT_EQ(b, std::string(x)) << "'" << a << "' + '" << b << "'";
       }
 
-      { // CopyFrom absl::string_view
+      {  // CopyFrom absl::string_view
         absl::Cord x(a);
         x = b;
         EXPECT_EQ(b, std::string(x)) << "'" << a << "' + '" << b << "'";
       }
 
-      { // Cord::Append(Cord)
+      {  // Cord::Append(Cord)
         absl::Cord x(a);
         absl::Cord y(b);
         x.Append(y);
         EXPECT_EQ(a + b, std::string(x)) << "'" << a << "' + '" << b << "'";
       }
 
-      { // Cord::Append(absl::string_view)
+      {  // Cord::Append(absl::string_view)
         absl::Cord x(a);
         x.Append(b);
         EXPECT_EQ(a + b, std::string(x)) << "'" << a << "' + '" << b << "'";
       }
 
-      { // Cord::Prepend(Cord)
+      {  // Cord::Prepend(Cord)
         absl::Cord x(a);
         absl::Cord y(b);
         x.Prepend(y);
         EXPECT_EQ(b + a, std::string(x)) << "'" << b << "' + '" << a << "'";
       }
 
-      { // Cord::Prepend(absl::string_view)
+      {  // Cord::Prepend(absl::string_view)
         absl::Cord x(a);
         x.Prepend(b);
         EXPECT_EQ(b + a, std::string(x)) << "'" << b << "' + '" << a << "'";
@@ -1089,7 +1132,7 @@ TEST(ConstructFromExternal, ReferenceQualifierOverloads) {
 }
 
 TEST(ExternalMemory, BasicUsage) {
-  static const char* strings[] = { "", "hello", "there" };
+  static const char* strings[] = {"", "hello", "there"};
   for (const char* str : strings) {
     absl::Cord dst("(prefix)");
     AddExternalMemory(str, &dst);

@@ -53,6 +53,7 @@
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -512,6 +513,10 @@ class Cord {
   // REQUIRES: 0 <= i < size()
   char operator[](size_t i) const;
 
+  // If this cord's representation is a single flat array, return a
+  // string_view referencing that array.  Otherwise return nullopt.
+  absl::optional<absl::string_view> TryFlat() const;
+
   // Flattens the cord into a single array and returns a view of the data.
   //
   // If the cord was already flat, the contents are not modified.
@@ -630,7 +635,7 @@ class Cord {
   // Helper for MemoryUsage()
   static size_t MemoryUsageAux(const absl::cord_internal::CordRep* rep);
 
-  // Helper for GetFlat()
+  // Helper for GetFlat() and TryFlat()
   static bool GetFlatAux(absl::cord_internal::CordRep* rep,
                          absl::string_view* fragment);
 
@@ -940,6 +945,18 @@ inline size_t Cord::EstimatedMemoryUsage() const {
     result += MemoryUsageAux(rep);
   }
   return result;
+}
+
+inline absl::optional<absl::string_view> Cord::TryFlat() const {
+  absl::cord_internal::CordRep* rep = contents_.tree();
+  if (rep == nullptr) {
+    return absl::string_view(contents_.data(), contents_.size());
+  }
+  absl::string_view fragment;
+  if (GetFlatAux(rep, &fragment)) {
+    return fragment;
+  }
+  return absl::nullopt;
 }
 
 inline absl::string_view Cord::Flatten() {

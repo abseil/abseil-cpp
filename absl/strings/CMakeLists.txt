@@ -546,6 +546,7 @@ absl_cc_library(
     absl::fixed_array
     absl::function_ref
     absl::inlined_vector
+    absl::optional
     absl::raw_logging_internal
     absl::type_traits
   PUBLIC
