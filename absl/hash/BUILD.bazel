@@ -43,6 +43,7 @@ cc_library(
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/types:optional",
         "//absl/types:variant",
         "//absl/utility",
@@ -76,6 +77,7 @@ cc_test(
         "//absl/container:flat_hash_set",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/strings:cord_test_helpers",
         "@com_google_googletest//:gtest_main",
     ],
 )

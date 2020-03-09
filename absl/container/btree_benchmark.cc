@@ -36,6 +36,7 @@
 #include "absl/flags/flag.h"
 #include "absl/hash/hash.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
@@ -438,6 +439,7 @@ using StdString = std::string;
 STL_ORDERED_TYPES(int32_t);
 STL_ORDERED_TYPES(int64_t);
 STL_ORDERED_TYPES(StdString);
+STL_ORDERED_TYPES(Cord);
 STL_ORDERED_TYPES(Time);
 
 #define STL_UNORDERED_TYPES(value)                                       \
@@ -457,6 +459,8 @@ STL_ORDERED_TYPES(Time);
   using stl_unordered_multiset_##value = std::unordered_multiset<value, hash>; \
   using stl_unordered_multimap_##value =                                       \
       std::unordered_multimap<value, intptr_t, hash>
+
+STL_UNORDERED_TYPES_CUSTOM_HASH(Cord, absl::Hash<absl::Cord>);
 
 STL_UNORDERED_TYPES(int32_t);
 STL_UNORDERED_TYPES(int64_t);
@@ -478,6 +482,7 @@ STL_UNORDERED_TYPES_CUSTOM_HASH(Time, absl::Hash<absl::Time>);
 BTREE_TYPES(int32_t);
 BTREE_TYPES(int64_t);
 BTREE_TYPES(StdString);
+BTREE_TYPES(Cord);
 BTREE_TYPES(Time);
 
 #define MY_BENCHMARK4(type, func)                                              \
@@ -526,6 +531,7 @@ BTREE_TYPES(Time);
 MY_BENCHMARK(int32_t);
 MY_BENCHMARK(int64_t);
 MY_BENCHMARK(StdString);
+MY_BENCHMARK(Cord);
 MY_BENCHMARK(Time);
 
 // Define a type whose size and cost of moving are independently customizable.

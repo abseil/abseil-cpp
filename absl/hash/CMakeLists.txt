@@ -25,6 +25,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::cord
     absl::core_headers
     absl::endian
     absl::fixed_array
@@ -62,6 +63,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::cord_test_helpers
     absl::hash
     absl::hash_testing
     absl::core_headers

@@ -390,6 +390,7 @@ cc_library(
         "//absl/base:config",
         "//absl/hash",
         "//absl/strings",
+        "//absl/strings:cord",
     ],
 )
 
@@ -402,7 +403,10 @@ cc_test(
     deps = [
         ":hash_function_defaults",
         "//absl/hash",
+        "//absl/random",
         "//absl/strings",
+        "//absl/strings:cord",
+        "//absl/strings:cord_test_helpers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -828,6 +832,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/types:compare",
         "//absl/utility",
     ],
@@ -844,6 +849,7 @@ cc_library(
         ":btree",
         ":flat_hash_set",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/time",
     ],
 )
@@ -895,6 +901,7 @@ cc_binary(
         "//absl/flags:flag",
         "//absl/hash",
         "//absl/memory",
+        "//absl/strings:cord",
         "//absl/strings:str_format",
         "//absl/time",
         "@com_github_google_benchmark//:benchmark_main",

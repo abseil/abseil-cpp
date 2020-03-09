@@ -98,6 +98,7 @@ ABSL_NAMESPACE_BEGIN
 //   * std::tuple<Ts...>, if all the Ts... are hashable
 //   * std::unique_ptr and std::shared_ptr
 //   * All string-like types including:
+//     * absl::Cord
 //     * std::string
 //     * std::string_view (as well as any instance of std::basic_string that
 //       uses char and std::char_traits)

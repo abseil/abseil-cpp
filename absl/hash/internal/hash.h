@@ -43,6 +43,7 @@
 #include "absl/container/fixed_array.h"
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
@@ -413,6 +414,7 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 // All the string-like types supported here provide the same hash expansion for
 // the same character sequence. These types are:
 //
+//  - `absl::Cord`
 //  - `std::string` (and std::basic_string<char, std::char_traits<char>, A> for
 //      any allocator A)
 //  - `absl::string_view` and `std::string_view`
@@ -439,6 +441,25 @@ H AbslHashValue(
   return H::combine(
       H::combine_contiguous(std::move(hash_state), str.data(), str.size()),
       str.size());
+}
+
+template <typename H>
+H HashFragmentedCord(H hash_state, const absl::Cord& c) {
+  PiecewiseCombiner combiner;
+  c.ForEachChunk([&combiner, &hash_state](absl::string_view chunk) {
+    hash_state =
+        combiner.add_buffer(std::move(hash_state), chunk.data(), chunk.size());
+  });
+  return H::combine(combiner.finalize(std::move(hash_state)), c.size());
+}
+
+template <typename H>
+H AbslHashValue(H hash_state, const absl::Cord& c) {
+  absl::optional<absl::string_view> maybe_flat = c.TryFlat();
+  if (maybe_flat.has_value()) {
+    return H::combine(std::move(hash_state), *maybe_flat);
+  }
+  return hash_internal::HashFragmentedCord(std::move(hash_state), c);
 }
 
 // -----------------------------------------------------------------------------

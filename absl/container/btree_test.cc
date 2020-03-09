@@ -812,10 +812,12 @@ void MapTest() {
 TEST(Btree, set_int32) { SetTest<int32_t>(); }
 TEST(Btree, set_int64) { SetTest<int64_t>(); }
 TEST(Btree, set_string) { SetTest<std::string>(); }
+TEST(Btree, set_cord) { SetTest<absl::Cord>(); }
 TEST(Btree, set_pair) { SetTest<std::pair<int, int>>(); }
 TEST(Btree, map_int32) { MapTest<int32_t>(); }
 TEST(Btree, map_int64) { MapTest<int64_t>(); }
 TEST(Btree, map_string) { MapTest<std::string>(); }
+TEST(Btree, map_cord) { MapTest<absl::Cord>(); }
 TEST(Btree, map_pair) { MapTest<std::pair<int, int>>(); }
 
 template <typename K, int N = 256>
@@ -847,10 +849,12 @@ void MultiMapTest() {
 TEST(Btree, multiset_int32) { MultiSetTest<int32_t>(); }
 TEST(Btree, multiset_int64) { MultiSetTest<int64_t>(); }
 TEST(Btree, multiset_string) { MultiSetTest<std::string>(); }
+TEST(Btree, multiset_cord) { MultiSetTest<absl::Cord>(); }
 TEST(Btree, multiset_pair) { MultiSetTest<std::pair<int, int>>(); }
 TEST(Btree, multimap_int32) { MultiMapTest<int32_t>(); }
 TEST(Btree, multimap_int64) { MultiMapTest<int64_t>(); }
 TEST(Btree, multimap_string) { MultiMapTest<std::string>(); }
+TEST(Btree, multimap_cord) { MultiMapTest<absl::Cord>(); }
 TEST(Btree, multimap_pair) { MultiMapTest<std::pair<int, int>>(); }
 
 struct CompareIntToString {
@@ -1268,6 +1272,8 @@ TEST(Btree, KeyCompareToAdapter) {
   AssertKeyCompareToAdapted<std::less<absl::string_view>, absl::string_view>();
   AssertKeyCompareToAdapted<std::greater<absl::string_view>,
                             absl::string_view>();
+  AssertKeyCompareToAdapted<std::less<absl::Cord>, absl::Cord>();
+  AssertKeyCompareToAdapted<std::greater<absl::Cord>, absl::Cord>();
   AssertKeyCompareToNotAdapted<std::less<int>, int>();
   AssertKeyCompareToNotAdapted<std::greater<int>, int>();
 }

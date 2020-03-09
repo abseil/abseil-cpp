@@ -65,6 +65,7 @@
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 #include "absl/utility/utility.h"
@@ -93,6 +94,19 @@ struct StringBtreeDefaultLess {
                                  absl::string_view rhs) const {
     return compare_internal::compare_result_as_ordering(lhs.compare(rhs));
   }
+  StringBtreeDefaultLess(std::less<absl::Cord>) {}  // NOLINT
+  absl::weak_ordering operator()(const absl::Cord &lhs,
+                                 const absl::Cord &rhs) const {
+    return compare_internal::compare_result_as_ordering(lhs.Compare(rhs));
+  }
+  absl::weak_ordering operator()(const absl::Cord &lhs,
+                                 absl::string_view rhs) const {
+    return compare_internal::compare_result_as_ordering(lhs.Compare(rhs));
+  }
+  absl::weak_ordering operator()(absl::string_view lhs,
+                                 const absl::Cord &rhs) const {
+    return compare_internal::compare_result_as_ordering(-rhs.Compare(lhs));
+  }
 };
 
 struct StringBtreeDefaultGreater {
@@ -107,13 +121,27 @@ struct StringBtreeDefaultGreater {
                                  absl::string_view rhs) const {
     return compare_internal::compare_result_as_ordering(rhs.compare(lhs));
   }
+  StringBtreeDefaultGreater(std::greater<absl::Cord>) {}  // NOLINT
+  absl::weak_ordering operator()(const absl::Cord &lhs,
+                                 const absl::Cord &rhs) const {
+    return compare_internal::compare_result_as_ordering(rhs.Compare(lhs));
+  }
+  absl::weak_ordering operator()(const absl::Cord &lhs,
+                                 absl::string_view rhs) const {
+    return compare_internal::compare_result_as_ordering(-lhs.Compare(rhs));
+  }
+  absl::weak_ordering operator()(absl::string_view lhs,
+                                 const absl::Cord &rhs) const {
+    return compare_internal::compare_result_as_ordering(rhs.Compare(lhs));
+  }
 };
 
 // A helper class to convert a boolean comparison into a three-way "compare-to"
 // comparison that returns a negative value to indicate less-than, zero to
 // indicate equality and a positive value to indicate greater-than. This helper
 // class is specialized for less<std::string>, greater<std::string>,
-// less<string_view>, and greater<string_view>.
+// less<string_view>, greater<string_view>, less<absl::Cord>, and
+// greater<absl::Cord>.
 //
 // key_compare_to_adapter is provided so that btree users
 // automatically get the more efficient compare-to code when using common
@@ -142,6 +170,16 @@ struct key_compare_to_adapter<std::less<absl::string_view>> {
 
 template <>
 struct key_compare_to_adapter<std::greater<absl::string_view>> {
+  using type = StringBtreeDefaultGreater;
+};
+
+template <>
+struct key_compare_to_adapter<std::less<absl::Cord>> {
+  using type = StringBtreeDefaultLess;
+};
+
+template <>
+struct key_compare_to_adapter<std::greater<absl::Cord>> {
   using type = StringBtreeDefaultGreater;
 };
 

@@ -42,6 +42,7 @@
 #include "absl/hash/internal/spy_hash_state.h"
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/cord_test_helpers.h"
 
 namespace {
 
@@ -269,6 +270,22 @@ struct WrapInTuple {
   }
 };
 
+absl::Cord FlatCord(absl::string_view sv) {
+  absl::Cord c(sv);
+  c.Flatten();
+  return c;
+}
+
+absl::Cord FragmentedCord(absl::string_view sv) {
+  if (sv.size() < 2) {
+    return absl::Cord(sv);
+  }
+  size_t halfway = sv.size() / 2;
+  std::vector<absl::string_view> parts = {sv.substr(0, halfway),
+                                          sv.substr(halfway)};
+  return absl::MakeFragmentedCord(parts);
+}
+
 TEST(HashValueTest, Strings) {
   EXPECT_TRUE((is_hashable<std::string>::value));
 
@@ -277,23 +294,27 @@ TEST(HashValueTest, Strings) {
   const std::string large = std::string(2048, 'x');  // multiple of chunk size
   const std::string huge = std::string(5000, 'a');   // not a multiple
 
-  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
-      std::string(), absl::string_view(),
-      std::string(""), absl::string_view(""),
-      std::string(small), absl::string_view(small),
-      std::string(dup), absl::string_view(dup),
-      std::string(large), absl::string_view(large),
-      std::string(huge), absl::string_view(huge))));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(  //
+      std::string(), absl::string_view(), absl::Cord(),                     //
+      std::string(""), absl::string_view(""), absl::Cord(""),               //
+      std::string(small), absl::string_view(small), absl::Cord(small),      //
+      std::string(dup), absl::string_view(dup), absl::Cord(dup),            //
+      std::string(large), absl::string_view(large), absl::Cord(large),      //
+      std::string(huge), absl::string_view(huge), FlatCord(huge),           //
+      FragmentedCord(huge))));
 
   // Also check that nested types maintain the same hash.
   const WrapInTuple t{};
-  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
-      t(std::string()), t(absl::string_view()),
-      t(std::string("")), t(absl::string_view("")),
-      t(std::string(small)), t(absl::string_view(small)),
-      t(std::string(dup)), t(absl::string_view(dup)),
-      t(std::string(large)), t(absl::string_view(large)),
-      t(std::string(huge)), t(absl::string_view(huge)))));
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(  //
+      t(std::string()), t(absl::string_view()), t(absl::Cord()),            //
+      t(std::string("")), t(absl::string_view("")), t(absl::Cord("")),      //
+      t(std::string(small)), t(absl::string_view(small)),                   //
+          t(absl::Cord(small)),                                             //
+      t(std::string(dup)), t(absl::string_view(dup)), t(absl::Cord(dup)),   //
+      t(std::string(large)), t(absl::string_view(large)),                   //
+          t(absl::Cord(large)),                                             //
+      t(std::string(huge)), t(absl::string_view(huge)),                     //
+          t(FlatCord(huge)), t(FragmentedCord(huge)))));
 
   // Make sure that hashing a `const char*` does not use its std::string-value.
   EXPECT_NE(SpyHash(static_cast<const char*>("ABC")),

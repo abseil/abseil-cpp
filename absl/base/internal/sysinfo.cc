@@ -72,10 +72,10 @@ static int GetNumCPUs() {
 #if defined(_WIN32)
 
 static double GetNominalCPUFrequency() {
-// UWP apps don't have access to the registry and currently don't provide an
-// API informing about CPU nominal frequency.
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
     !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+  // UWP apps don't have access to the registry and currently don't provide an
+  // API informing about CPU nominal frequency.
   return 1.0;
 #else
 #pragma comment(lib, "advapi32.lib")  // For Reg* functions.
@@ -97,7 +97,7 @@ static double GetNominalCPUFrequency() {
     }
   }
   return 1.0;
-#endif // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
+#endif  // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
 }
 
 #elif defined(CTL_HW) && defined(HW_CPU_FREQ)

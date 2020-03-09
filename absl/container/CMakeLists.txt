@@ -40,6 +40,7 @@ absl_cc_library(
     absl::compare
     absl::compressed_tuple
     absl::container_memory
+    absl::cord
     absl::core_headers
     absl::layout
     absl::memory
@@ -60,6 +61,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::btree
+    absl::cord
     absl::flat_hash_set
     absl::strings
     absl::time
@@ -443,6 +445,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
+    absl::cord
     absl::hash
     absl::strings
   PUBLIC
@@ -456,8 +459,11 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::cord
+    absl::cord_test_helpers
     absl::hash_function_defaults
     absl::hash
+    absl::random_random
     absl::strings
     gmock_main
 )

@@ -19,6 +19,9 @@
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "absl/random/random.h"
+#include "absl/strings/cord.h"
+#include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -203,10 +206,91 @@ TYPED_TEST(HashPointer, Works) {
   EXPECT_NE(hash(&dummy), hash(cuptr));
 }
 
+TEST(EqCord, Works) {
+  hash_default_eq<absl::Cord> eq;
+  const absl::string_view a_string_view = "a";
+  const absl::Cord a_cord(a_string_view);
+  const absl::string_view b_string_view = "b";
+  const absl::Cord b_cord(b_string_view);
+
+  EXPECT_TRUE(eq(a_cord, a_cord));
+  EXPECT_TRUE(eq(a_cord, a_string_view));
+  EXPECT_TRUE(eq(a_string_view, a_cord));
+  EXPECT_FALSE(eq(a_cord, b_cord));
+  EXPECT_FALSE(eq(a_cord, b_string_view));
+  EXPECT_FALSE(eq(b_string_view, a_cord));
+}
+
+TEST(HashCord, Works) {
+  hash_default_hash<absl::Cord> hash;
+  const absl::string_view a_string_view = "a";
+  const absl::Cord a_cord(a_string_view);
+  const absl::string_view b_string_view = "b";
+  const absl::Cord b_cord(b_string_view);
+
+  EXPECT_EQ(hash(a_cord), hash(a_cord));
+  EXPECT_EQ(hash(b_cord), hash(b_cord));
+  EXPECT_EQ(hash(a_string_view), hash(a_cord));
+  EXPECT_EQ(hash(b_string_view), hash(b_cord));
+  EXPECT_EQ(hash(absl::Cord("")), hash(""));
+  EXPECT_EQ(hash(absl::Cord()), hash(absl::string_view()));
+
+  EXPECT_NE(hash(a_cord), hash(b_cord));
+  EXPECT_NE(hash(a_cord), hash(b_string_view));
+  EXPECT_NE(hash(a_string_view), hash(b_cord));
+  EXPECT_NE(hash(a_string_view), hash(b_string_view));
+}
+
+void NoOpReleaser(absl::string_view data, void* arg) {}
+
+TEST(HashCord, FragmentedCordWorks) {
+  hash_default_hash<absl::Cord> hash;
+  absl::Cord c = absl::MakeFragmentedCord({"a", "b", "c"});
+  EXPECT_FALSE(c.TryFlat().has_value());
+  EXPECT_EQ(hash(c), hash("abc"));
+}
+
+TEST(HashCord, FragmentedLongCordWorks) {
+  hash_default_hash<absl::Cord> hash;
+  // Crete some large strings which do not fit on the stack.
+  std::string a(65536, 'a');
+  std::string b(65536, 'b');
+  absl::Cord c = absl::MakeFragmentedCord({a, b});
+  EXPECT_FALSE(c.TryFlat().has_value());
+  EXPECT_EQ(hash(c), hash(a + b));
+}
+
+TEST(HashCord, RandomCord) {
+  hash_default_hash<absl::Cord> hash;
+  auto bitgen = absl::BitGen();
+  for (int i = 0; i < 1000; ++i) {
+    const int number_of_segments = absl::Uniform(bitgen, 0, 10);
+    std::vector<std::string> pieces;
+    for (size_t s = 0; s < number_of_segments; ++s) {
+      std::string str;
+      str.resize(absl::Uniform(bitgen, 0, 4096));
+      // MSVC needed the explicit return type in the lambda.
+      std::generate(str.begin(), str.end(), [&]() -> char {
+        return static_cast<char>(absl::Uniform<unsigned char>(bitgen));
+      });
+      pieces.push_back(str);
+    }
+    absl::Cord c = absl::MakeFragmentedCord(pieces);
+    EXPECT_EQ(hash(c), hash(std::string(c)));
+  }
+}
+
 // Cartesian product of (std::string, absl::string_view)
-// with (std::string, absl::string_view, const char*).
+// with (std::string, absl::string_view, const char*, absl::Cord).
 using StringTypesCartesianProduct = Types<
     // clang-format off
+    std::pair<absl::Cord, std::string>,
+    std::pair<absl::Cord, absl::string_view>,
+    std::pair<absl::Cord, absl::Cord>,
+    std::pair<absl::Cord, const char*>,
+
+    std::pair<std::string, absl::Cord>,
+    std::pair<absl::string_view, absl::Cord>,
 
     std::pair<absl::string_view, std::string>,
     std::pair<absl::string_view, absl::string_view>,
