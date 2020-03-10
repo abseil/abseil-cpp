@@ -679,7 +679,7 @@ TEST(VariantTest, TestSelfAssignment) {
   object.operator=(object);
   EXPECT_EQ(0, counter);
 
-  // A std::string long enough that it's likely to defeat any inline representation
+  // A string long enough that it's likely to defeat any inline representation
   // optimization.
   const std::string long_str(128, 'a');
 

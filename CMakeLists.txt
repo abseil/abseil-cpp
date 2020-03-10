@@ -27,7 +27,7 @@ cmake_policy(SET CMP0025 NEW)
 # if command can use IN_LIST
 cmake_policy(SET CMP0057 NEW)
 
-# Project version variables are the empty std::string if version is unspecified
+# Project version variables are the empty string if version is unspecified
 cmake_policy(SET CMP0048 NEW)
 
 project(absl CXX)

@@ -134,14 +134,14 @@ class FlagHelpPrettyPrinter {
         first_line_(true) {}
 
   void Write(absl::string_view str, bool wrap_line = false) {
-    // Empty std::string - do nothing.
+    // Empty string - do nothing.
     if (str.empty()) return;
 
     std::vector<absl::string_view> tokens;
     if (wrap_line) {
       for (auto line : absl::StrSplit(str, absl::ByAnyChar("\n\r"))) {
         if (!tokens.empty()) {
-          // Keep line separators in the input std::string.
+          // Keep line separators in the input string.
           tokens.push_back("\n");
         }
         for (auto token :
@@ -156,13 +156,13 @@ class FlagHelpPrettyPrinter {
     for (auto token : tokens) {
       bool new_line = (line_len_ == 0);
 
-      // Respect line separators in the input std::string.
+      // Respect line separators in the input string.
       if (token == "\n") {
         EndLine();
         continue;
       }
 
-      // Write the token, ending the std::string first if necessary/possible.
+      // Write the token, ending the string first if necessary/possible.
       if (!new_line && (line_len_ + token.size() >= max_line_len_)) {
         EndLine();
         new_line = true;

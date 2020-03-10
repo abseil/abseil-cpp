@@ -186,7 +186,7 @@ struct key_compare_to_adapter<std::greater<absl::Cord>> {
 template <typename Key, typename Compare, typename Alloc, int TargetNodeSize,
           bool Multi, typename SlotPolicy>
 struct common_params {
-  // If Compare is a common comparator for a std::string-like type, then we adapt it
+  // If Compare is a common comparator for a string-like type, then we adapt it
   // to use heterogeneous lookup and to be a key-compare-to comparator.
   using key_compare = typename key_compare_to_adapter<Compare>::type;
   // A type which indicates if we have a key-compare-to functor or a plain old

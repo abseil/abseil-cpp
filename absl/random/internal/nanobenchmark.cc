@@ -101,7 +101,7 @@ std::string BrandString() {
   char brand_string[49];
   uint32_t abcd[4];
 
-  // Check if brand std::string is supported (it is on all reasonable Intel/AMD)
+  // Check if brand string is supported (it is on all reasonable Intel/AMD)
   Cpuid(0x80000000U, 0, abcd);
   if (abcd[0] < 0x80000004U) {
     return std::string();

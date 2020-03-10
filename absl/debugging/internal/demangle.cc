@@ -151,7 +151,7 @@ static const AbbrevPair kSubstitutionList[] = {
 // frame, so every byte counts.
 typedef struct {
   int mangled_idx;                   // Cursor of mangled name.
-  int out_cur_idx;                   // Cursor of output std::string.
+  int out_cur_idx;                   // Cursor of output string.
   int prev_name_idx;                 // For constructors/destructors.
   signed int prev_name_length : 16;  // For constructors/destructors.
   signed int nest_level : 15;        // For nested names.
@@ -172,8 +172,8 @@ static_assert(sizeof(ParseState) == 4 * sizeof(int),
 // Only one copy of this exists for each call to Demangle, so the size of this
 // struct is nearly inconsequential.
 typedef struct {
-  const char *mangled_begin;  // Beginning of input std::string.
-  char *out;                  // Beginning of output std::string.
+  const char *mangled_begin;  // Beginning of input string.
+  char *out;                  // Beginning of output string.
   int out_end_idx;            // One past last allowed output character.
   int recursion_depth;        // For stack exhaustion prevention.
   int steps;               // Cap how much work we'll do, regardless of depth.

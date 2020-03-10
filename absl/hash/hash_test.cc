@@ -316,7 +316,7 @@ TEST(HashValueTest, Strings) {
       t(std::string(huge)), t(absl::string_view(huge)),                     //
           t(FlatCord(huge)), t(FragmentedCord(huge)))));
 
-  // Make sure that hashing a `const char*` does not use its std::string-value.
+  // Make sure that hashing a `const char*` does not use its string-value.
   EXPECT_NE(SpyHash(static_cast<const char*>("ABC")),
             SpyHash(absl::string_view("ABC")));
 }
@@ -512,7 +512,7 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
     SCOPED_TRACE(big_buffer_size);
     std::string big_buffer;
     for (int i = 0; i < big_buffer_size; ++i) {
-      // Arbitrary std::string
+      // Arbitrary string
       big_buffer.push_back(32 + (i * (i / 3)) % 64);
     }
     auto big_buffer_hash = hash(PiecewiseHashTester(big_buffer));

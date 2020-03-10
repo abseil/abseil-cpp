@@ -177,7 +177,7 @@ void Status::ForEachPayload(
       visitor(elem.type_url, elem.payload);
 #else
       // In debug mode invalidate the type url to prevent users from relying on
-      // this std::string lifetime.
+      // this string lifetime.
 
       // NOLINTNEXTLINE intentional extra conversion to force temporary.
       visitor(std::string(elem.type_url), elem.payload);

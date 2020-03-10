@@ -122,7 +122,7 @@ class ABSL_MUST_USE_RESULT Status final {
 
   // Returns the error message.  Note: prefer ToString() for debug logging.
   // This message rarely describes the error code.  It is not unusual for the
-  // error message to be the empty std::string.
+  // error message to be the empty string.
   absl::string_view message() const;
 
   friend bool operator==(const Status&, const Status&);
@@ -231,7 +231,7 @@ class ABSL_MUST_USE_RESULT Status final {
   static uintptr_t PointerToRep(status_internal::StatusRep* r);
   static status_internal::StatusRep* RepToPointer(uintptr_t r);
 
-  // Returns std::string for non-ok Status.
+  // Returns string for non-ok Status.
   std::string ToStringSlow() const;
 
   // Status supports two different representations.

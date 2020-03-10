@@ -1402,7 +1402,7 @@ bool RegisterFileMappingHint(const void *start, const void *end, uint64_t offset
   if (g_num_file_mapping_hints >= kMaxFileMappingHints) {
     ret = false;
   } else {
-    // TODO(ckennelly): Move this into a std::string copy routine.
+    // TODO(ckennelly): Move this into a string copy routine.
     int len = strlen(filename);
     char *dst = static_cast<char *>(
         base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));

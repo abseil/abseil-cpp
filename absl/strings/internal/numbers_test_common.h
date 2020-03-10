@@ -170,7 +170,7 @@ inline const std::array<uint64_test_case, 34>& strtouint64_test_cases() {
 
       {"0x1234", true, 16, 0x1234},
 
-      // Base-10 std::string version.
+      // Base-10 string version.
       {"1234", true, 0, 1234},
       {nullptr, false, 0, 0},
   }};

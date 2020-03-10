@@ -533,10 +533,10 @@ std::tuple<bool, absl::string_view> DeduceFlagValue(const CommandLineFlag& flag,
     curr_list->PopFront();
     value = curr_list->Front();
 
-    // Heuristic to detect the case where someone treats a std::string arg
+    // Heuristic to detect the case where someone treats a string arg
     // like a bool or just forgets to pass a value:
     // --my_string_var --foo=bar
-    // We look for a flag of std::string type, whose value begins with a
+    // We look for a flag of string type, whose value begins with a
     // dash and corresponds to known flag or standalone --.
     if (!value.empty() && value[0] == '-' && flag.IsOfType<std::string>()) {
       auto maybe_flag_name = std::get<0>(SplitNameAndValue(value.substr(1)));
@@ -646,7 +646,7 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
 
     // 60. Split the current argument on '=' to figure out the argument
     // name and value. If flag name is empty it means we've got "--". value
-    // can be empty either if there were no '=' in argument std::string at all or
+    // can be empty either if there were no '=' in argument string at all or
     // an argument looked like "--foo=". In a latter case is_empty_value is
     // true.
     absl::string_view flag_name;

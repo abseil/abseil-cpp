@@ -172,7 +172,7 @@ std::string Unparse(long long v) { return absl::StrCat(v); }
 std::string Unparse(unsigned long long v) { return absl::StrCat(v); }
 template <typename T>
 std::string UnparseFloatingPointVal(T v) {
-  // digits10 is guaranteed to roundtrip correctly in std::string -> value -> std::string
+  // digits10 is guaranteed to roundtrip correctly in string -> value -> string
   // conversions, but may not be enough to represent all the values correctly.
   std::string digit10_str =
       absl::StrFormat("%.*g", std::numeric_limits<T>::digits10, v);

@@ -143,7 +143,7 @@ bool ParseFormatString(string_view src, Consumer consumer) {
     auto tag = GetTagForChar(percent[1]);
     if (tag.is_conv()) {
       if (ABSL_PREDICT_FALSE(next_arg < 0)) {
-        // This indicates an error in the format std::string.
+        // This indicates an error in the format string.
         // The only way to get `next_arg < 0` here is to have a positional
         // argument first which sets next_arg to -1 and then a non-positional
         // argument.
@@ -287,7 +287,7 @@ class ExtendedParsedFormat : public str_format_internal::ParsedFormatBase {
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
       __attribute__((
           enable_if(str_format_internal::EnsureConstexpr(format),
-                    "Format std::string is not constexpr."),
+                    "Format string is not constexpr."),
           enable_if(str_format_internal::ValidFormatImpl<C...>(format),
                     "Format specified does not match the template arguments.")))
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER

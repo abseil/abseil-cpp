@@ -2132,11 +2132,11 @@ TEST(Btree, UserProvidedKeyCompareToComparators) {
 TEST(Btree, TryEmplaceBasicTest) {
   absl::btree_map<int, std::string> m;
 
-  // Should construct a std::string from the literal.
+  // Should construct a string from the literal.
   m.try_emplace(1, "one");
   EXPECT_EQ(1, m.size());
 
-  // Try other std::string constructors and const lvalue key.
+  // Try other string constructors and const lvalue key.
   const int key(42);
   m.try_emplace(key, 3, 'a');
   m.try_emplace(2, std::string("two"));

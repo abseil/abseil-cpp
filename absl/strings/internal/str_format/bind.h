@@ -76,11 +76,11 @@ class FormatSpecTemplate
  public:
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
-  // Honeypot overload for when the std::string is not constexpr.
+  // Honeypot overload for when the string is not constexpr.
   // We use the 'unavailable' attribute to give a better compiler error than
   // just 'method is deleted'.
   FormatSpecTemplate(...)  // NOLINT
-      __attribute__((unavailable("Format std::string is not constexpr.")));
+      __attribute__((unavailable("Format string is not constexpr.")));
 
   // Honeypot overload for when the format is constexpr and invalid.
   // We use the 'unavailable' attribute to give a better compiler error than

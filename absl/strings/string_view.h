@@ -319,7 +319,7 @@ class string_view {
   // stored elsewhere). Note that `string_view::data()` may contain embedded nul
   // characters, but the returned buffer may or may not be NUL-terminated;
   // therefore, do not pass `data()` to a routine that expects a NUL-terminated
-  // std::string.
+  // string.
   constexpr const_pointer data() const noexcept { return ptr_; }
 
   // Modifiers
@@ -327,7 +327,7 @@ class string_view {
   // string_view::remove_prefix()
   //
   // Removes the first `n` characters from the `string_view`. Note that the
-  // underlying std::string is not changed, only the view.
+  // underlying string is not changed, only the view.
   void remove_prefix(size_type n) {
     assert(n <= length_);
     ptr_ += n;
@@ -337,7 +337,7 @@ class string_view {
   // string_view::remove_suffix()
   //
   // Removes the last `n` characters from the `string_view`. Note that the
-  // underlying std::string is not changed, only the view.
+  // underlying string is not changed, only the view.
   void remove_suffix(size_type n) {
     assert(n <= length_);
     length_ -= n;
@@ -394,7 +394,7 @@ class string_view {
   //
   // Performs a lexicographical comparison between the `string_view` and
   // another `absl::string_view`, returning -1 if `this` is less than, 0 if
-  // `this` is equal to, and 1 if `this` is greater than the passed std::string
+  // `this` is equal to, and 1 if `this` is greater than the passed string
   // view. Note that in the case of data equality, a further comparison is made
   // on the respective sizes of the two `string_view`s to determine which is
   // smaller, equal, or greater.
@@ -420,17 +420,17 @@ class string_view {
   }
 
   // Overload of `string_view::compare()` for comparing a `string_view` and a
-  // a different  C-style std::string `s`.
+  // a different  C-style string `s`.
   int compare(const char* s) const { return compare(string_view(s)); }
 
   // Overload of `string_view::compare()` for comparing a substring of the
-  // `string_view` and a different std::string C-style std::string `s`.
+  // `string_view` and a different string C-style string `s`.
   int compare(size_type pos1, size_type count1, const char* s) const {
     return substr(pos1, count1).compare(string_view(s));
   }
 
   // Overload of `string_view::compare()` for comparing a substring of the
-  // `string_view` and a substring of a different C-style std::string `s`.
+  // `string_view` and a substring of a different C-style string `s`.
   int compare(size_type pos1, size_type count1, const char* s,
               size_type count2) const {
     return substr(pos1, count1).compare(string_view(s, count2));

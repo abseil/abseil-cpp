@@ -162,7 +162,7 @@ TEST(StrCat, Basics) {
   EXPECT_EQ(result, "12345678910, 10987654321!");
 
   std::string one =
-      "1";  // Actually, it's the size of this std::string that we want; a
+      "1";  // Actually, it's the size of this string that we want; a
             // 64-bit build distinguishes between size_t and uint64_t,
             // even though they're both unsigned 64-bit values.
   result = absl::StrCat("And a ", one.size(), " and a ",
@@ -375,7 +375,7 @@ TEST(StrAppend, Basics) {
   EXPECT_EQ(result.substr(old_size), "12345678910, 10987654321!");
 
   std::string one =
-      "1";  // Actually, it's the size of this std::string that we want; a
+      "1";  // Actually, it's the size of this string that we want; a
             // 64-bit build distinguishes between size_t and uint64_t,
             // even though they're both unsigned 64-bit values.
   old_size = result.size();
@@ -463,7 +463,7 @@ TEST(StrAppend, CornerCases) {
 }
 
 TEST(StrAppend, CornerCasesNonEmptyAppend) {
-  for (std::string result : {"hello", "a std::string too long to fit in the SSO"}) {
+  for (std::string result : {"hello", "a string too long to fit in the SSO"}) {
     const std::string expected = result;
     absl::StrAppend(&result, "");
     EXPECT_EQ(result, expected);

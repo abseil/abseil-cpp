@@ -72,7 +72,7 @@ class Charmap {
                    CharMaskForWord(x, 2), CharMaskForWord(x, 3));
   }
 
-  // Containing all the chars in the C-std::string 's'.
+  // Containing all the chars in the C-string 's'.
   // Note that this is expensively recursive because of the C++11 constexpr
   // formulation. Use only in constexpr initializers.
   static constexpr Charmap FromString(const char* s) {

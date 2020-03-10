@@ -506,7 +506,7 @@ bool TimeZoneInfo::Load(const std::string& name, ZoneInfoSource* zip) {
 
   // If we did not find version information during the standard loading
   // process (as of tzh_version '3' that is unsupported), then ask the
-  // ZoneInfoSource for any out-of-bound version std::string it may be privy to.
+  // ZoneInfoSource for any out-of-bound version string it may be privy to.
   if (version_.empty()) {
     version_ = zip->Version();
   }

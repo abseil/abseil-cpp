@@ -299,7 +299,7 @@ static struct SynchEvent {     // this is a trivial hash table for the events
   bool log;             // logging turned on
 
   // Constant after initialization
-  char name[1];         // actually longer---NUL-terminated std::string
+  char name[1];         // actually longer---NUL-terminated string
 } * synch_event[kNSynchEvent] ABSL_GUARDED_BY(synch_event_mu);
 
 // Ensure that the object at "addr" has a SynchEvent struct associated with it,

@@ -749,7 +749,7 @@ TEST(TimeZone, Failures) {
   EXPECT_EQ(chrono::system_clock::from_time_t(0),
             convert(civil_second(1970, 1, 1, 0, 0, 0), tz));  // UTC
 
-  // Loading an empty std::string timezone should fail.
+  // Loading an empty string timezone should fail.
   tz = LoadZone("America/Los_Angeles");
   EXPECT_FALSE(load_time_zone("", &tz));
   EXPECT_EQ(chrono::system_clock::from_time_t(0),

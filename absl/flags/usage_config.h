@@ -90,7 +90,7 @@ struct FlagsUsageConfig {
   // program output.
   flags_internal::FlagKindFilter contains_helppackage_flags;
 
-  // Generates std::string containing program version. This is the std::string reported
+  // Generates string containing program version. This is the string reported
   // when user specifies --version in a command line.
   std::function<std::string()> version_string;
 

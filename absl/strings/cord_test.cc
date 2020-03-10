@@ -174,7 +174,7 @@ TEST(Cord, AllFlatSizes) {
   using absl::strings_internal::CordTestAccess;
 
   for (size_t s = 0; s < CordTestAccess::MaxFlatLength(); s++) {
-    // Make a std::string of length s.
+    // Make a string of length s.
     std::string src;
     while (src.size() < s) {
       src.push_back('a' + (src.size() % 26));
@@ -409,7 +409,7 @@ static void VerifyCopyToString(const absl::Cord& cord) {
 
   if (cord.size() <= kInitialLength) {
     EXPECT_EQ(has_initial_contents.data(), address_before_copy)
-        << "CopyCordToString allocated new std::string storage; "
+        << "CopyCordToString allocated new string storage; "
            "has_initial_contents = \""
         << has_initial_contents << "\"";
   }
@@ -856,7 +856,7 @@ TEST(Cord, CompareAfterAssign) {
 }
 
 // Test CompareTo() and ComparePrefix() against string and substring
-// comparison methods from std::basic_string.
+// comparison methods from basic_string.
 static void TestCompare(const absl::Cord& c, const absl::Cord& d,
                         RandomEngine* rng) {
   typedef std::basic_string<uint8_t> ustring;
@@ -912,7 +912,7 @@ void CompareOperators() {
 
   EXPECT_TRUE(a == a);
   // For pointer type (i.e. `const char*`), operator== compares the address
-  // instead of the std::string, so `a == const char*("a")` isn't necessarily true.
+  // instead of the string, so `a == const char*("a")` isn't necessarily true.
   EXPECT_TRUE(std::is_pointer<T1>::value || a == T1("a"));
   EXPECT_TRUE(std::is_pointer<T2>::value || a == T2("a"));
   EXPECT_FALSE(a == b);

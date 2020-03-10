@@ -780,7 +780,7 @@ TEST(IntVec, Reserve) {
 TEST(StringVec, SelfRefPushBack) {
   std::vector<std::string> std_v;
   absl::InlinedVector<std::string, 4> v;
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   std_v.push_back(s);
   v.push_back(s);
   for (int i = 0; i < 20; ++i) {
@@ -795,7 +795,7 @@ TEST(StringVec, SelfRefPushBack) {
 TEST(StringVec, SelfRefPushBackWithMove) {
   std::vector<std::string> std_v;
   absl::InlinedVector<std::string, 4> v;
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   std_v.push_back(s);
   v.push_back(s);
   for (int i = 0; i < 20; ++i) {
@@ -808,7 +808,7 @@ TEST(StringVec, SelfRefPushBackWithMove) {
 }
 
 TEST(StringVec, SelfMove) {
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   for (int len = 0; len < 20; len++) {
     SCOPED_TRACE(len);
     absl::InlinedVector<std::string, 8> v;

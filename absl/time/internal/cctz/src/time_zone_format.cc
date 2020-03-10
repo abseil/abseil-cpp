@@ -189,7 +189,7 @@ void FormatTM(std::string* out, const std::string& fmt, const std::tm& tm) {
   // strftime(3) returns the number of characters placed in the output
   // array (which may be 0 characters).  It also returns 0 to indicate
   // an error, like the array wasn't large enough.  To accommodate this,
-  // the following code grows the buffer size from 2x the format std::string
+  // the following code grows the buffer size from 2x the format string
   // length up to 32x.
   for (std::size_t i = 2; i != 32; i *= 2) {
     std::size_t buf_size = fmt.size() * i;
@@ -839,7 +839,7 @@ bool parse(const std::string& format, const std::string& input,
   // Skip any remaining whitespace.
   while (std::isspace(*data)) ++data;
 
-  // parse() must consume the entire input std::string.
+  // parse() must consume the entire input string.
   if (*data != '\0') {
     if (err != nullptr) *err = "Illegal trailing data in input string";
     return false;

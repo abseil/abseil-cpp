@@ -874,12 +874,12 @@ bool ParseDuration(const std::string& dur_string, Duration* d) {
     ++start;
   }
 
-  // Can't parse a duration from an empty std::string.
+  // Can't parse a duration from an empty string.
   if (*start == '\0') {
     return false;
   }
 
-  // Special case for a std::string of "0".
+  // Special case for a string of "0".
   if (*start == '0' && *(start + 1) == '\0') {
     *d = ZeroDuration();
     return true;

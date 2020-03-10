@@ -767,7 +767,7 @@ TEST(Parse, WithTimeZone) {
   EXPECT_TRUE(load_time_zone("America/Los_Angeles", &tz));
   time_point<chrono::nanoseconds> tp;
 
-  // We can parse a std::string without a UTC offset if we supply a timezone.
+  // We can parse a string without a UTC offset if we supply a timezone.
   EXPECT_TRUE(parse("%Y-%m-%d %H:%M:%S", "2013-06-28 19:08:09", tz, &tp));
   ExpectTime(tp, tz, 2013, 6, 28, 19, 8, 9, -7 * 60 * 60, true, "PDT");
 

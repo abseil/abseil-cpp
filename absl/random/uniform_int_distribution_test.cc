@@ -123,7 +123,7 @@ TYPED_TEST(UniformIntDistributionTest, ViolatesPreconditionsDeathTest) {
   absl::uniform_int_distribution<TypeParam> dist(10, 1);
   auto x = dist(gen);
 
-  // Any value will generate a non-empty std::string.
+  // Any value will generate a non-empty string.
   EXPECT_FALSE(absl::StrCat(+x).empty()) << x;
 #endif  // NDEBUG
 }

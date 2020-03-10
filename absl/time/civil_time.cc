@@ -38,7 +38,7 @@ std::string FormatYearAnd(string_view fmt, CivilSecond cs) {
   const CivilSecond ncs(NormalizeYear(cs.year()), cs.month(), cs.day(),
                         cs.hour(), cs.minute(), cs.second());
   const TimeZone utc = UTCTimeZone();
-  // TODO(absl-team): Avoid conversion of fmt std::string.
+  // TODO(absl-team): Avoid conversion of fmt string.
   return StrCat(cs.year(),
                 FormatTime(std::string(fmt), FromCivil(ncs, utc), utc));
 }
@@ -47,7 +47,7 @@ template <typename CivilT>
 bool ParseYearAnd(string_view fmt, string_view s, CivilT* c) {
   // Civil times support a larger year range than absl::Time, so we need to
   // parse the year separately, normalize it, then use absl::ParseTime on the
-  // normalized std::string.
+  // normalized string.
   const std::string ss = std::string(s);  // TODO(absl-team): Avoid conversion.
   const char* const np = ss.c_str();
   char* endp;
@@ -82,7 +82,7 @@ bool ParseAs(string_view s, CivilT2* c) {
 
 template <typename CivilT>
 bool ParseLenient(string_view s, CivilT* c) {
-  // A fastpath for when the given std::string data parses exactly into the given
+  // A fastpath for when the given string data parses exactly into the given
   // type T (e.g., s="YYYY-MM-DD" and CivilT=CivilDay).
   if (ParseCivilTime(s, c)) return true;
   // Try parsing as each of the 6 types, trying the most common types first

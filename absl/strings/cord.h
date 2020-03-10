@@ -278,7 +278,7 @@ class Cord {
 
   // Copies the contents from `src` to `*dst`.
   //
-  // This function optimizes the case of reusing the destination std::string since it
+  // This function optimizes the case of reusing the destination string since it
   // can reuse previously allocated capacity. However, this function does not
   // guarantee that pointers previously returned by `dst->data()` remain valid
   // even if `*dst` had enough capacity to hold `src`. If `*dst` is a new
@@ -603,7 +603,7 @@ class Cord {
     }
     void CopyTo(std::string* dst) const {
       // memcpy is much faster when operating on a known size. On most supported
-      // platforms, the small std::string optimization is large enough that resizing
+      // platforms, the small string optimization is large enough that resizing
       // to 15 bytes does not cause a memory allocation.
       absl::strings_internal::STLStringResizeUninitialized(dst,
                                                            sizeof(data_) - 1);

@@ -141,7 +141,7 @@ class CommandLineFlag {
   // Returns name of the file where this flag is defined.
   virtual std::string Filename() const = 0;
   // Returns name of the flag's value type for some built-in types or empty
-  // std::string.
+  // string.
   virtual absl::string_view Typename() const = 0;
   // Returns help message associated with this flag.
   virtual std::string Help() const = 0;
@@ -163,7 +163,7 @@ class CommandLineFlag {
   // or nullptr if flag does not support saving and restoring a state.
   virtual std::unique_ptr<FlagStateInterface> SaveState() = 0;
 
-  // Sets the value of the flag based on specified std::string `value`. If the flag
+  // Sets the value of the flag based on specified string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
   // to indicate the error, leaves the flag unchanged, and returns false. There
   // are three ways to set the flag's value:
@@ -176,7 +176,7 @@ class CommandLineFlag {
                              flags_internal::ValueSource source,
                              std::string* error) = 0;
 
-  // Checks that flags default value can be converted to std::string and back to the
+  // Checks that flags default value can be converted to string and back to the
   // flag's value type.
   virtual void CheckDefaultValueParsingRoundtrip() const = 0;
 

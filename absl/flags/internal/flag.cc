@@ -408,7 +408,7 @@ void FlagImpl::CheckDefaultValueParsingRoundtrip() const {
     ABSL_INTERNAL_LOG(
         FATAL,
         absl::StrCat("Flag ", Name(), " (from ", Filename(),
-                     "): std::string form of default value '", v,
+                     "): string form of default value '", v,
                      "' could not be parsed; error=", error));
   }
 

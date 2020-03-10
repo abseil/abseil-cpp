@@ -1666,9 +1666,9 @@ TEST(Nodes, EmptyNodeType) {
 }
 
 TEST(Nodes, ExtractInsert) {
-  constexpr char k0[] = "Very long std::string zero.";
-  constexpr char k1[] = "Very long std::string one.";
-  constexpr char k2[] = "Very long std::string two.";
+  constexpr char k0[] = "Very long string zero.";
+  constexpr char k1[] = "Very long string one.";
+  constexpr char k2[] = "Very long string two.";
   StringTable t = {{k0, ""}, {k1, ""}, {k2, ""}};
   EXPECT_THAT(t,
               UnorderedElementsAre(Pair(k0, ""), Pair(k1, ""), Pair(k2, "")));

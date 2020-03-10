@@ -30,13 +30,13 @@ TEST(LeakCheckTest, DetectLeakSanitizer) {
 
 TEST(LeakCheckTest, IgnoreLeakSuppressesLeakedMemoryErrors) {
   auto foo = absl::IgnoreLeak(new std::string("some ignored leaked string"));
-  ABSL_RAW_LOG(INFO, "Ignoring leaked std::string %s", foo->c_str());
+  ABSL_RAW_LOG(INFO, "Ignoring leaked string %s", foo->c_str());
 }
 
 TEST(LeakCheckTest, LeakCheckDisablerIgnoresLeak) {
   absl::LeakCheckDisabler disabler;
-  auto foo = new std::string("some std::string leaked while checks are disabled");
-  ABSL_RAW_LOG(INFO, "Ignoring leaked std::string %s", foo->c_str());
+  auto foo = new std::string("some string leaked while checks are disabled");
+  ABSL_RAW_LOG(INFO, "Ignoring leaked string %s", foo->c_str());
 }
 
 }  // namespace
