@@ -169,28 +169,33 @@ constexpr bool ShouldAnyUseBase() {
 }
 
 template <typename T, typename V>
-using TupleElementMoveConstructible = typename std::conditional<
-      std::is_reference<T>::value, std::is_convertible<V, T>,
-      std::is_constructible<T, V&&>>::type;
+using TupleElementMoveConstructible =
+    typename std::conditional<std::is_reference<T>::value,
+                              std::is_convertible<V, T>,
+                              std::is_constructible<T, V&&>>::type;
 
 template <bool SizeMatches, class T, class... Vs>
 struct TupleMoveConstructible : std::false_type {};
 
 template <class... Ts, class... Vs>
 struct TupleMoveConstructible<true, CompressedTuple<Ts...>, Vs...>
-    : std::integral_constant<bool, absl::conjunction<TupleElementMoveConstructible<Ts, Vs&&>...>::value> {
-};
+    : std::integral_constant<
+          bool, absl::conjunction<
+                    TupleElementMoveConstructible<Ts, Vs&&>...>::value> {};
 
-template<typename... Es>
+template <typename T>
 struct compressed_tuple_size;
 
-template<typename... Es>
+template <typename... Es>
 struct compressed_tuple_size<CompressedTuple<Es...>>
     : public std::integral_constant<std::size_t, sizeof...(Es)> {};
 
 template <class T, class... Vs>
 struct TupleItemsMoveConstructible
-    : std::integral_constant<bool, TupleMoveConstructible<compressed_tuple_size<T>::value == sizeof...(Vs), T, Vs...>::value> {};
+    : std::integral_constant<
+          bool, TupleMoveConstructible<compressed_tuple_size<T>::value ==
+                                           sizeof...(Vs),
+                                       T, Vs...>::value> {};
 
 }  // namespace internal_compressed_tuple
 
