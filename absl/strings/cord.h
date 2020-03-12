@@ -72,39 +72,21 @@ namespace cord_internal {
 // It's expensive to keep a tree perfectly balanced, so instead we keep trees
 // approximately balanced.  A tree node N of depth D(N) that contains a string
 // of L(N) characters is considered balanced if L >= Fibonacci(D + 2).
-// The "+ 2" is used to ensure that every leaf node contains at least one
-// character. Here we presume that
+// The "+ 2" is used to ensure that every balanced leaf node contains at least
+//  one character. Here we presume that
 //   Fibonacci(0) = 0
 //   Fibonacci(1) = 1
 //   Fibonacci(2) = 1
 //   Fibonacci(3) = 2
 //   ...
-//
-// Fibonacci numbers are convenient because it means when two balanced trees of
-// the same depth are made the children of a new node, the resulting tree is
-// guaranteed to also be balanced:
-//
-//
-//   L(left)  >= Fibonacci(D(left) + 2)
-//   L(right) >= Fibonacci(D(right) + 2)
-//
-//   L(left) + L(right) >= Fibonacci(D(left) + 2) + Fibonacci(D(right) + 2)
-//   L(left) + L(right) == L(new_tree)
-//
-//   L(new_tree) >= 2 * Fibonacci(D(child) + 2)
-//   D(child) == D(new_tree) - 1
-//
-//   L(new_tree) >= 2 * Fibonacci(D(new_tree) + 1)
-//   2 * Fibonacci(N) >= Fibonacci(N + 1)
-//
-//   L(new_tree) >= Fibonacci(D(new_tree) + 2)
-//
-//
-// The 93rd Fibonacci number is the largest Fibonacci number that can be
-// represented in 64 bits, so the size of a balanced Cord of depth 92 is too big
-// for an unsigned 64 bit integer to hold.  Therefore we can safely assume that
-// the maximum depth of a Cord is 91.
-constexpr size_t MaxCordDepth() { return 91; }
+// The algorithm is based on paper by Hans Boehm et al:
+// https://www.cs.rit.edu/usr/local/pub/jeh/courses/QUARTERS/FP/Labs/CedarRope/rope-paper.pdf
+// In this paper authors shows that rebalancing based on cord forest of already
+// balanced subtrees can be proven to never produce tree of depth larger than
+// largest Fibonacci number representable in the same integral type as cord size
+// For 64 bit integers this is the 93rd Fibonacci number. For 32 bit integrals
+// this is 47th Fibonacci number.
+constexpr size_t MaxCordDepth() { return sizeof(size_t) == 8 ? 93 : 47; }
 
 // This class models fixed max size stack of CordRep pointers.
 // The elements are being pushed back and popped from the back.

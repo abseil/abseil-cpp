@@ -444,7 +444,7 @@ class optional : private optional_internal::optional_data<T>,
   // Returns false if and only if the `optional` is empty.
   //
   //   if (opt) {
-  //     // do something with opt.value();
+  //     // do something with *opt or opt->;
   //   } else {
   //     // opt is empty.
   //   }

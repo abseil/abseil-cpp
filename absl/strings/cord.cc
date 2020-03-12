@@ -187,19 +187,20 @@ static constexpr size_t TagToLength(uint8_t tag) {
 // Enforce that kMaxFlatSize maps to a well-known exact tag value.
 static_assert(TagToAllocatedSize(224) == kMaxFlatSize, "Bad tag logic");
 
-constexpr uint64_t Fibonacci(uint8_t n, uint64_t a = 0, uint64_t b = 1) {
-  return n == 0 ? a : n == 1 ? b : Fibonacci(n - 1, b, a + b);
+constexpr size_t Fibonacci(uint8_t n, const size_t a = 0, const size_t b = 1) {
+  return n == 0
+             ? a
+             : n == 1 ? b
+                      : Fibonacci(n - 1, b,
+                                  (a > (size_t(-1) - b)) ? size_t(-1) : a + b);
 }
-
-static_assert(Fibonacci(63) == 6557470319842,
-              "Fibonacci values computed incorrectly");
 
 // Minimum length required for a given depth tree -- a tree is considered
 // balanced if
 //      length(t) >= kMinLength[depth(t)]
 // The node depth is allowed to become larger to reduce rebalancing
 // for larger strings (see ShouldRebalance).
-constexpr uint64_t kMinLength[] = {
+constexpr size_t kMinLength[] = {
     Fibonacci(2),  Fibonacci(3),  Fibonacci(4),  Fibonacci(5),  Fibonacci(6),
     Fibonacci(7),  Fibonacci(8),  Fibonacci(9),  Fibonacci(10), Fibonacci(11),
     Fibonacci(12), Fibonacci(13), Fibonacci(14), Fibonacci(15), Fibonacci(16),
@@ -218,9 +219,9 @@ constexpr uint64_t kMinLength[] = {
     Fibonacci(77), Fibonacci(78), Fibonacci(79), Fibonacci(80), Fibonacci(81),
     Fibonacci(82), Fibonacci(83), Fibonacci(84), Fibonacci(85), Fibonacci(86),
     Fibonacci(87), Fibonacci(88), Fibonacci(89), Fibonacci(90), Fibonacci(91),
-    Fibonacci(92), Fibonacci(93)};
+    Fibonacci(92), Fibonacci(93), Fibonacci(94), Fibonacci(95)};
 
-static_assert(sizeof(kMinLength) / sizeof(uint64_t) ==
+static_assert(sizeof(kMinLength) / sizeof(size_t) >=
                   (cord_internal::MaxCordDepth() + 1),
               "Not enough elements in kMinLength array to cover all the "
               "supported Cord depth(s)");
@@ -1169,9 +1170,9 @@ class CordForest {
   void AddNode(CordRep* node) {
     CordRep* sum = nullptr;
 
-    // Collect together everything with which we will merge node
+    // Collect together everything with which we will merge with node
     int i = 0;
-    for (; node->length > kMinLength[i + 1]; ++i) {
+    for (; node->length >= kMinLength[i + 1]; ++i) {
       auto& tree_at_i = trees_[i];
 
       if (tree_at_i == nullptr) continue;

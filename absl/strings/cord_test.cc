@@ -1403,12 +1403,16 @@ TEST(CordChunkIterator, Operations) {
 }
 
 TEST(CordChunkIterator, MaxLengthFullTree) {
+  // Start with a 1-byte cord, and then double its length in a loop.  We should
+  // be able to do this until the point where we would overflow size_t.
+
   absl::Cord cord;
   size_t size = 1;
   AddExternalMemory("x", &cord);
   EXPECT_EQ(cord.size(), size);
 
-  for (int i = 0; i < 63; ++i) {
+  const int kCordLengthDoublingLimit = std::numeric_limits<size_t>::digits - 1;
+  for (int i = 0; i < kCordLengthDoublingLimit; ++i) {
     cord.Prepend(absl::Cord(cord));
     size <<= 1;
 
@@ -1431,7 +1435,7 @@ TEST(CordChunkIterator, MaxDepth) {
   AddExternalMemory("x", &left_child);
   absl::Cord root = left_child;
 
-  for (int i = 0; i < 91; ++i) {
+  for (int i = 0; i < absl::cord_internal::MaxCordDepth() - 2; ++i) {
     size_t new_size = left_child.size() + root.size();
     root.Prepend(left_child);
     EXPECT_EQ(root.size(), new_size);
@@ -1442,7 +1446,7 @@ TEST(CordChunkIterator, MaxDepth) {
     std::swap(left_child, root);
   }
 
-  EXPECT_DEATH_IF_SUPPORTED(root.Prepend(left_child), "Cord depth exceeds max");
+  EXPECT_DEATH_IF_SUPPORTED(root.Prepend(left_child), "Cord is too long");
 }
 
 TEST(CordCharIterator, Traits) {
