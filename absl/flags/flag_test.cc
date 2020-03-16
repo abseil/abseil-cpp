@@ -293,6 +293,18 @@ TEST_F(FlagTest, TestFlagDefinition) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestDefault) {
+  EXPECT_EQ(FLAGS_test_flag_01.DefaultValue(), "true");
+  EXPECT_EQ(FLAGS_test_flag_02.DefaultValue(), "1234");
+  EXPECT_EQ(FLAGS_test_flag_03.DefaultValue(), "-34");
+  EXPECT_EQ(FLAGS_test_flag_04.DefaultValue(), "189");
+  EXPECT_EQ(FLAGS_test_flag_05.DefaultValue(), "10765");
+  EXPECT_EQ(FLAGS_test_flag_06.DefaultValue(), "40000");
+  EXPECT_EQ(FLAGS_test_flag_07.DefaultValue(), "-1234567");
+  EXPECT_EQ(FLAGS_test_flag_08.DefaultValue(), "9876543");
+  EXPECT_EQ(FLAGS_test_flag_09.DefaultValue(), "-9.876e-50");
+  EXPECT_EQ(FLAGS_test_flag_10.DefaultValue(), "1.234e+12");
+  EXPECT_EQ(FLAGS_test_flag_11.DefaultValue(), "");
+
   EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_01), true);
   EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_02), 1234);
   EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_03), -34);
@@ -304,6 +316,61 @@ TEST_F(FlagTest, TestDefault) {
   EXPECT_NEAR(absl::GetFlag(FLAGS_test_flag_09), -9.876e-50, 1e-55);
   EXPECT_NEAR(absl::GetFlag(FLAGS_test_flag_10), 1.234e12f, 1e5f);
   EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_11), "");
+}
+
+// --------------------------------------------------------------------
+
+struct NonTriviallyCopyableAggregate {
+  NonTriviallyCopyableAggregate() = default;
+  NonTriviallyCopyableAggregate(const NonTriviallyCopyableAggregate& rhs)
+      : value(rhs.value) {}
+  NonTriviallyCopyableAggregate& operator=(
+      const NonTriviallyCopyableAggregate& rhs) {
+    value = rhs.value;
+    return *this;
+  }
+
+  int value;
+};
+bool AbslParseFlag(absl::string_view src, NonTriviallyCopyableAggregate* f,
+                   std::string* e) {
+  return absl::ParseFlag(src, &f->value, e);
+}
+std::string AbslUnparseFlag(const NonTriviallyCopyableAggregate& ntc) {
+  return absl::StrCat(ntc.value);
+}
+
+bool operator==(const NonTriviallyCopyableAggregate& ntc1,
+                const NonTriviallyCopyableAggregate& ntc2) {
+  return ntc1.value == ntc2.value;
+}
+
+}  // namespace
+
+ABSL_FLAG(bool, test_flag_eb_01, {}, "");
+ABSL_FLAG(int32_t, test_flag_eb_02, {}, "");
+ABSL_FLAG(int64_t, test_flag_eb_03, {}, "");
+ABSL_FLAG(double, test_flag_eb_04, {}, "");
+ABSL_FLAG(std::string, test_flag_eb_05, {}, "");
+ABSL_FLAG(NonTriviallyCopyableAggregate, test_flag_eb_06, {}, "");
+
+namespace {
+
+TEST_F(FlagTest, TestEmptyBracesDefault) {
+  EXPECT_EQ(FLAGS_test_flag_eb_01.DefaultValue(), "false");
+  EXPECT_EQ(FLAGS_test_flag_eb_02.DefaultValue(), "0");
+  EXPECT_EQ(FLAGS_test_flag_eb_03.DefaultValue(), "0");
+  EXPECT_EQ(FLAGS_test_flag_eb_04.DefaultValue(), "0");
+  EXPECT_EQ(FLAGS_test_flag_eb_05.DefaultValue(), "");
+  EXPECT_EQ(FLAGS_test_flag_eb_06.DefaultValue(), "0");
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_01), false);
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_02), 0);
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_03), 0);
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_04), 0.0);
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_05), "");
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_eb_06),
+            NonTriviallyCopyableAggregate{});
 }
 
 // --------------------------------------------------------------------

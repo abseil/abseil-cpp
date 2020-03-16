@@ -24,6 +24,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/port.h"
+#include "absl/meta/type_traits.h"
 #include "absl/strings/internal/str_format/output.h"
 #include "absl/strings/string_view.h"
 
@@ -365,10 +366,21 @@ constexpr FormatConversionCharSet operator|(FormatConversionCharSet a,
                                  static_cast<uint64_t>(b));
 }
 
+// Overloaded conversion functions to support absl::ParsedFormat.
 // Get a conversion with a single character in it.
-constexpr FormatConversionCharSet ConversionCharToConv(char c) {
-  return FormatConversionCharSet(FormatConversionCharToConvValue(c));
+constexpr FormatConversionCharSet ToFormatConversionCharSet(char c) {
+  return static_cast<FormatConversionCharSet>(
+      FormatConversionCharToConvValue(c));
 }
+
+// Get a conversion with a single character in it.
+constexpr FormatConversionCharSet ToFormatConversionCharSet(
+    FormatConversionCharSet c) {
+  return c;
+}
+
+template <typename T>
+void ToFormatConversionCharSet(T) = delete;
 
 // Checks whether `c` exists in `set`.
 constexpr bool Contains(FormatConversionCharSet set, char c) {

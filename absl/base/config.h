@@ -262,13 +262,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 #endif  // defined(__ANDROID__) && defined(__clang__)
 
-// Emscripten doesn't yet support `thread_local` or `__thread`.
-// https://github.com/emscripten-core/emscripten/issues/3502
-#if defined(__EMSCRIPTEN__)
-#undef ABSL_HAVE_TLS
-#undef ABSL_HAVE_THREAD_LOCAL
-#endif  // defined(__EMSCRIPTEN__)
-
 // ABSL_HAVE_INTRINSIC_INT128
 //
 // Checks whether the __int128 compiler extension for a 128-bit integral type is

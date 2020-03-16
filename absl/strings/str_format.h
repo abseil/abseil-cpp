@@ -285,7 +285,7 @@ using FormatSpec =
 //   }
 template <char... Conv>
 using ParsedFormat = str_format_internal::ExtendedParsedFormat<
-    str_format_internal::ConversionCharToConv(Conv)...>;
+    absl::str_format_internal::ToFormatConversionCharSet(Conv)...>;
 
 // StrFormat()
 //

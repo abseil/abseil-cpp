@@ -1402,53 +1402,6 @@ TEST(CordChunkIterator, Operations) {
   VerifyChunkIterator(subcords, 128);
 }
 
-TEST(CordChunkIterator, MaxLengthFullTree) {
-  // Start with a 1-byte cord, and then double its length in a loop.  We should
-  // be able to do this until the point where we would overflow size_t.
-
-  absl::Cord cord;
-  size_t size = 1;
-  AddExternalMemory("x", &cord);
-  EXPECT_EQ(cord.size(), size);
-
-  const int kCordLengthDoublingLimit = std::numeric_limits<size_t>::digits - 1;
-  for (int i = 0; i < kCordLengthDoublingLimit; ++i) {
-    cord.Prepend(absl::Cord(cord));
-    size <<= 1;
-
-    EXPECT_EQ(cord.size(), size);
-
-    auto chunk_it = cord.chunk_begin();
-    EXPECT_EQ(*chunk_it, "x");
-  }
-
-  EXPECT_DEATH_IF_SUPPORTED(
-      (cord.Prepend(absl::Cord(cord)), *cord.chunk_begin()),
-      "Cord is too long");
-}
-
-TEST(CordChunkIterator, MaxDepth) {
-  // By reusing nodes, it's possible in pathological cases to build a Cord that
-  // exceeds both the maximum permissible length and depth.  In this case, the
-  // violation of the maximum depth is reported.
-  absl::Cord left_child;
-  AddExternalMemory("x", &left_child);
-  absl::Cord root = left_child;
-
-  for (int i = 0; i < absl::cord_internal::MaxCordDepth() - 2; ++i) {
-    size_t new_size = left_child.size() + root.size();
-    root.Prepend(left_child);
-    EXPECT_EQ(root.size(), new_size);
-
-    auto chunk_it = root.chunk_begin();
-    EXPECT_EQ(*chunk_it, "x");
-
-    std::swap(left_child, root);
-  }
-
-  EXPECT_DEATH_IF_SUPPORTED(root.Prepend(left_child), "Cord is too long");
-}
-
 TEST(CordCharIterator, Traits) {
   static_assert(std::is_copy_constructible<absl::Cord::CharIterator>::value,
                 "");

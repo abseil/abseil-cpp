@@ -134,6 +134,27 @@ void BM_InsertEnd(benchmark::State& state) {
   }
 }
 
+// Benchmark inserting the first few elements in a container. In b-tree, this is
+// when the root node grows.
+template <typename T>
+void BM_InsertSmall(benchmark::State& state) {
+  using V = typename remove_pair_const<typename T::value_type>::type;
+
+  const int kSize = 8;
+  std::vector<V> values = GenerateValues<V>(kSize);
+  T container;
+
+  while (state.KeepRunningBatch(kSize)) {
+    for (int i = 0; i < kSize; ++i) {
+      benchmark::DoNotOptimize(container.insert(values[i]));
+    }
+    state.PauseTiming();
+    // Do not measure the time it takes to clear the container.
+    container.clear();
+    state.ResumeTiming();
+  }
+}
+
 template <typename T>
 void BM_LookupImpl(benchmark::State& state, bool sorted) {
   using V = typename remove_pair_const<typename T::value_type>::type;
@@ -493,6 +514,7 @@ BTREE_TYPES(Time);
   MY_BENCHMARK4(type, Insert);            \
   MY_BENCHMARK4(type, InsertSorted);      \
   MY_BENCHMARK4(type, InsertEnd);         \
+  MY_BENCHMARK4(type, InsertSmall);       \
   MY_BENCHMARK4(type, Lookup);            \
   MY_BENCHMARK4(type, FullLookup);        \
   MY_BENCHMARK4(type, Delete);            \

@@ -647,7 +647,7 @@ T* MakeFromDefaultValue(T t) {
 
 template <typename T>
 T* MakeFromDefaultValue(EmptyBraces) {
-  return new T;
+  return new T{};
 }
 
 }  // namespace flags_internal

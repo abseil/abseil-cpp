@@ -63,3 +63,5 @@ else()
   set(ABSL_DEFAULT_COPTS "")
   set(ABSL_TEST_COPTS "")
 endif()
+
+set(ABSL_CXX_STANDARD "${CMAKE_CXX_STANDARD}")

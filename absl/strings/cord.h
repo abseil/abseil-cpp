@@ -48,6 +48,7 @@
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/functional/function_ref.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/internal/cord_internal.h"
@@ -66,55 +67,6 @@ namespace hash_internal {
 template <typename H>
 H HashFragmentedCord(H, const Cord&);
 }
-
-namespace cord_internal {
-
-// It's expensive to keep a tree perfectly balanced, so instead we keep trees
-// approximately balanced.  A tree node N of depth D(N) that contains a string
-// of L(N) characters is considered balanced if L >= Fibonacci(D + 2).
-// The "+ 2" is used to ensure that every balanced leaf node contains at least
-//  one character. Here we presume that
-//   Fibonacci(0) = 0
-//   Fibonacci(1) = 1
-//   Fibonacci(2) = 1
-//   Fibonacci(3) = 2
-//   ...
-// The algorithm is based on paper by Hans Boehm et al:
-// https://www.cs.rit.edu/usr/local/pub/jeh/courses/QUARTERS/FP/Labs/CedarRope/rope-paper.pdf
-// In this paper authors shows that rebalancing based on cord forest of already
-// balanced subtrees can be proven to never produce tree of depth larger than
-// largest Fibonacci number representable in the same integral type as cord size
-// For 64 bit integers this is the 93rd Fibonacci number. For 32 bit integrals
-// this is 47th Fibonacci number.
-constexpr size_t MaxCordDepth() { return sizeof(size_t) == 8 ? 93 : 47; }
-
-// This class models fixed max size stack of CordRep pointers.
-// The elements are being pushed back and popped from the back.
-template <typename CordRepPtr, size_t N>
-class CordTreePath {
- public:
-  CordTreePath() {}
-  explicit CordTreePath(CordRepPtr root) { push_back(root); }
-
-  bool empty() const { return size_ == 0; }
-  size_t size() const { return size_; }
-  void clear() { size_ = 0; }
-
-  CordRepPtr back() { return data_[size_ - 1]; }
-
-  void pop_back() {
-    --size_;
-    assert(size_ < N);
-  }
-  void push_back(CordRepPtr elem) { data_[size_++] = elem; }
-
- private:
-  CordRepPtr data_[N];
-  size_t size_ = 0;
-};
-
-using CordTreeMutablePath = CordTreePath<CordRep*, MaxCordDepth()>;
-}  // namespace cord_internal
 
 // A Cord is a sequence of characters.
 class Cord {
@@ -333,7 +285,8 @@ class Cord {
     absl::cord_internal::CordRep* current_leaf_ = nullptr;
     // The number of bytes left in the `Cord` over which we are iterating.
     size_t bytes_remaining_ = 0;
-    absl::cord_internal::CordTreeMutablePath stack_of_right_children_;
+    absl::InlinedVector<absl::cord_internal::CordRep*, 4>
+        stack_of_right_children_;
   };
 
   // Returns an iterator to the first chunk of the `Cord`.
