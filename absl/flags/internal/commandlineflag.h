@@ -65,7 +65,7 @@ enum FlagSettingMode {
   SET_FLAGS_DEFAULT
 };
 
-// Options that control SetFromString: Source of a value.
+// Options that control ParseFrom: Source of a value.
 enum ValueSource {
   // Flag is being set by value specified on a command line.
   kCommandLine,
@@ -171,10 +171,10 @@ class CommandLineFlag {
   //  * Update the flag's default value
   //  * Update the current flag value if it was never set before
   // The mode is selected based on `set_mode` parameter.
-  virtual bool SetFromString(absl::string_view value,
-                             flags_internal::FlagSettingMode set_mode,
-                             flags_internal::ValueSource source,
-                             std::string* error) = 0;
+  virtual bool ParseFrom(absl::string_view value,
+                         flags_internal::FlagSettingMode set_mode,
+                         flags_internal::ValueSource source,
+                         std::string* error) = 0;
 
   // Checks that flags default value can be converted to string and back to the
   // flag's value type.

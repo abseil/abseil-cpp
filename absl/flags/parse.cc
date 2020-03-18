@@ -696,7 +696,7 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
     if (flag->IsRetired()) continue;
 
     std::string error;
-    if (!flag->SetFromString(value, SET_FLAGS_VALUE, kCommandLine, &error)) {
+    if (!flag->ParseFrom(value, SET_FLAGS_VALUE, kCommandLine, &error)) {
       flags_internal::ReportUsageError(error, true);
       success = false;
     }

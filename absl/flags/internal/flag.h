@@ -76,8 +76,17 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       return nullptr;
     case FlagOp::kSizeof:
       return reinterpret_cast<void*>(sizeof(T));
-    case FlagOp::kStaticTypeId:
-      return reinterpret_cast<void*>(&FlagStaticTypeIdGen<T>);
+    case FlagOp::kStaticTypeId: {
+      auto* static_id = &FlagStaticTypeIdGen<T>;
+
+      // Cast from function pointer to void* is not portable.
+      // We don't have an easy way to work around this, but it works fine
+      // on all the platforms we test and as long as size of pointers match
+      // we should be fine to do reinterpret cast.
+      static_assert(sizeof(void*) == sizeof(static_id),
+                    "Flag's static type id does not work on this platform");
+      return reinterpret_cast<void*>(static_id);
+    }
     case FlagOp::kParse: {
       // Initialize the temporary instance of type T based on current value in
       // destination (which is going to be flag's default value).
@@ -395,8 +404,8 @@ class FlagImpl {
 
   // Mutating access methods
   void Write(const void* src) ABSL_LOCKS_EXCLUDED(*DataGuard());
-  bool SetFromString(absl::string_view value, FlagSettingMode set_mode,
-                     ValueSource source, std::string* err)
+  bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
+                 ValueSource source, std::string* err)
       ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Interfaces to operate on callbacks.
@@ -586,9 +595,9 @@ class Flag final : public flags_internal::CommandLineFlag {
     return impl_.RestoreState(&flag_state.cur_value_, flag_state.modified_,
                               flag_state.on_command_line_, flag_state.counter_);
   }
-  bool SetFromString(absl::string_view value, FlagSettingMode set_mode,
-                     ValueSource source, std::string* error) override {
-    return impl_.SetFromString(value, set_mode, source, error);
+  bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
+                 ValueSource source, std::string* error) override {
+    return impl_.ParseFrom(value, set_mode, source, error);
   }
   void CheckDefaultValueParsingRoundtrip() const override {
     impl_.CheckDefaultValueParsingRoundtrip();

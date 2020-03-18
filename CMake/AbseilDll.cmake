@@ -35,6 +35,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/scheduling_mode.h"
   "base/internal/scoped_set_env.cc"
   "base/internal/scoped_set_env.h"
+  "base/internal/strerror.h"
+  "base/internal/strerror.cc"
   "base/internal/spinlock.cc"
   "base/internal/spinlock.h"
   "base/internal/spinlock_wait.cc"

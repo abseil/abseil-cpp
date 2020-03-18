@@ -338,8 +338,8 @@ void FlagImpl::Write(const void* src) {
 //  * Update the flag's default value
 //  * Update the current flag value if it was never set before
 // The mode is selected based on 'set_mode' parameter.
-bool FlagImpl::SetFromString(absl::string_view value, FlagSettingMode set_mode,
-                             ValueSource source, std::string* err) {
+bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
+                         ValueSource source, std::string* err) {
   absl::MutexLock l(DataGuard());
 
   switch (set_mode) {

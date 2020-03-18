@@ -326,6 +326,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::errno_saver
+    absl::strerror
     gmock
     gtest_main
 )
@@ -638,6 +639,37 @@ absl_cc_test(
     absl::flags_internal
     absl::flags_marshalling
     absl::log_severity
+    absl::strings
+    gmock
+    gtest_main
+)
+
+absl_cc_library(
+  NAME
+    strerror
+  SRCS
+    "internal/strerror.cc"
+  HDRS
+    "internal/strerror.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::errno_saver
+)
+
+absl_cc_test(
+  NAME
+    strerror_test
+  SRCS
+    "internal/strerror_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strerror
     absl::strings
     gmock
     gtest_main

@@ -307,6 +307,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":errno_saver",
+        ":strerror",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -451,6 +452,7 @@ cc_binary(
     testonly = 1,
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
     visibility = ["//visibility:private"],
     deps = [
         ":spinlock_benchmark_common",
@@ -703,5 +705,48 @@ cc_test(
         "//absl/flags:marshalling",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "strerror",
+    srcs = ["internal/strerror.cc"],
+    hdrs = ["internal/strerror.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":config",
+        ":core_headers",
+        ":errno_saver",
+    ],
+)
+
+cc_test(
+    name = "strerror_test",
+    size = "small",
+    srcs = ["internal/strerror_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":strerror",
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "strerror_benchmark",
+    testonly = 1,
+    srcs = ["internal/strerror_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strerror",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )

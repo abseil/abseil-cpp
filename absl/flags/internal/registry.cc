@@ -306,8 +306,8 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
     return nullptr;
   }
 
-  bool SetFromString(absl::string_view, flags_internal::FlagSettingMode,
-                     flags_internal::ValueSource, std::string*) override {
+  bool ParseFrom(absl::string_view, flags_internal::FlagSettingMode,
+                 flags_internal::ValueSource, std::string*) override {
     return false;
   }
 
