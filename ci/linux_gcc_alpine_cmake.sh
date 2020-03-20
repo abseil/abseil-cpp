@@ -34,7 +34,8 @@ if [ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]; then
   ABSL_CMAKE_BUILD_TYPES="Debug Release"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/alpine:20191016"
+source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
+readonly DOCKER_CONTAINER=${LINUX_ALPINE_CONTAINER}
 
 for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do

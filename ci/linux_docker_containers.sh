@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # Copyright 2019 The Abseil Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -euox pipefail
+# The file contains Docker container identifiers currently used by test scripts.
+# Test scripts should source this file to get the identifiers.
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
-  ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
-fi
-
-source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
-readonly DOCKER_CONTAINER=${LINUX_GCC_LATEST_CONTAINER}
-
-time docker run \
-    --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
-    --workdir=/abseil-cpp \
-    --tmpfs=/buildfs:exec \
-    --cap-add=SYS_PTRACE \
-    --rm \
-    -e CFLAGS="-Werror" \
-    -e CXXFLAGS="-Werror" \
-    ${DOCKER_CONTAINER} \
-    /bin/bash CMake/install_test_project/test.sh $@
+readonly LINUX_ALPINE_CONTAINER="gcr.io/google.com/absl-177019/alpine:20191016"
+readonly LINUX_CLANG_LATEST_CONTAINER="gcr.io/google.com/absl-177019/linux_clang-latest:20200102"
+readonly LINUX_GCC_LATEST_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-latest:20200102"
+readonly LINUX_GCC_49_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-4.9:20191018"

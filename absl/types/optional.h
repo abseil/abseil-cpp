@@ -136,10 +136,10 @@ class optional : private optional_internal::optional_data<T>,
   constexpr optional(nullopt_t) noexcept {}  // NOLINT(runtime/explicit)
 
   // Copy constructor, standard semantics
-  optional(const optional& src) = default;
+  optional(const optional&) = default;
 
   // Move constructor, standard semantics
-  optional(optional&& src) = default;
+  optional(optional&&) = default;
 
   // Constructs a non-empty `optional` direct-initialized value of type `T` from
   // the arguments `std::forward<Args>(args)...`  within the `optional`.
