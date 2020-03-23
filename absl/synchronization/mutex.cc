@@ -1751,7 +1751,8 @@ static const intptr_t ignore_waiting_writers[] = {
 };
 
 // Internal version of LockWhen().  See LockSlowWithDeadline()
-void Mutex::LockSlow(MuHow how, const Condition *cond, int flags) {
+ABSL_ATTRIBUTE_NOINLINE void Mutex::LockSlow(MuHow how, const Condition *cond,
+                                             int flags) {
   ABSL_RAW_CHECK(
       this->LockSlowWithDeadline(how, cond, KernelTimeout::Never(), flags),
       "condition untrue on return from LockSlow");
@@ -2017,7 +2018,7 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
 // which holds the lock but is not runnable because its condition is false
 // or it is in the process of blocking on a condition variable; it must requeue
 // itself on the mutex/condvar to wait for its condition to become true.
-void Mutex::UnlockSlow(SynchWaitParams *waitp) {
+ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
   intptr_t v = mu_.load(std::memory_order_relaxed);
   this->AssertReaderHeld();
   CheckForMutexCorruption(v, "Unlock");

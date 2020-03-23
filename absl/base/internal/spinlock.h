@@ -148,12 +148,13 @@ class ABSL_LOCKABLE SpinLock {
   // bit[1] encodes whether a lock uses cooperative scheduling.
   // bit[2] encodes whether a lock disables scheduling.
   // bit[3:31] encodes time a lock spent on waiting as a 29-bit unsigned int.
-  enum { kSpinLockHeld = 1 };
-  enum { kSpinLockCooperative = 2 };
-  enum { kSpinLockDisabledScheduling = 4 };
-  enum { kSpinLockSleeper = 8 };
-  enum { kWaitTimeMask =                      // Includes kSpinLockSleeper.
-    ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling) };
+  static constexpr uint32_t kSpinLockHeld = 1;
+  static constexpr uint32_t kSpinLockCooperative = 2;
+  static constexpr uint32_t kSpinLockDisabledScheduling = 4;
+  static constexpr uint32_t kSpinLockSleeper = 8;
+  // Includes kSpinLockSleeper.
+  static constexpr uint32_t kWaitTimeMask =
+      ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling);
 
   // Returns true if the provided scheduling mode is cooperative.
   static constexpr bool IsCooperative(

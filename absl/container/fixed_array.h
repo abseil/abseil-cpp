@@ -217,7 +217,7 @@ class FixedArray {
   // Returns a reference the ith element of the fixed array.
   // REQUIRES: 0 <= i < size()
   reference operator[](size_type i) {
-    assert(i < size());
+    ABSL_HARDENING_ASSERT(i < size());
     return data()[i];
   }
 
@@ -225,7 +225,7 @@ class FixedArray {
   // ith element of the fixed array.
   // REQUIRES: 0 <= i < size()
   const_reference operator[](size_type i) const {
-    assert(i < size());
+    ABSL_HARDENING_ASSERT(i < size());
     return data()[i];
   }
 
@@ -252,20 +252,32 @@ class FixedArray {
   // FixedArray::front()
   //
   // Returns a reference to the first element of the fixed array.
-  reference front() { return *begin(); }
+  reference front() {
+    ABSL_HARDENING_ASSERT(!empty());
+    return data()[0];
+  }
 
   // Overload of FixedArray::front() to return a reference to the first element
   // of a fixed array of const values.
-  const_reference front() const { return *begin(); }
+  const_reference front() const {
+    ABSL_HARDENING_ASSERT(!empty());
+    return data()[0];
+  }
 
   // FixedArray::back()
   //
   // Returns a reference to the last element of the fixed array.
-  reference back() { return *(end() - 1); }
+  reference back() {
+    ABSL_HARDENING_ASSERT(!empty());
+    return data()[size() - 1];
+  }
 
   // Overload of FixedArray::back() to return a reference to the last element
   // of a fixed array of const values.
-  const_reference back() const { return *(end() - 1); }
+  const_reference back() const {
+    ABSL_HARDENING_ASSERT(!empty());
+    return data()[size() - 1];
+  }
 
   // FixedArray::begin()
   //

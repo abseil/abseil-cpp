@@ -190,30 +190,32 @@ void SpinLock::SlowUnlock(uint32_t lock_value) {
 // We use the upper 29 bits of the lock word to store the time spent waiting to
 // acquire this lock.  This is reported by contentionz profiling.  Since the
 // lower bits of the cycle counter wrap very quickly on high-frequency
-// processors we divide to reduce the granularity to 2^PROFILE_TIMESTAMP_SHIFT
+// processors we divide to reduce the granularity to 2^kProfileTimestampShift
 // sized units.  On a 4Ghz machine this will lose track of wait times greater
 // than (2^29/4 Ghz)*128 =~ 17.2 seconds.  Such waits should be extremely rare.
-enum { PROFILE_TIMESTAMP_SHIFT = 7 };
-enum { LOCKWORD_RESERVED_SHIFT = 3 };  // We currently reserve the lower 3 bits.
+static constexpr int kProfileTimestampShift = 7;
+
+// We currently reserve the lower 3 bits.
+static constexpr int kLockwordReservedShift = 3;
 
 uint32_t SpinLock::EncodeWaitCycles(int64_t wait_start_time,
                                     int64_t wait_end_time) {
   static const int64_t kMaxWaitTime =
-      std::numeric_limits<uint32_t>::max() >> LOCKWORD_RESERVED_SHIFT;
+      std::numeric_limits<uint32_t>::max() >> kLockwordReservedShift;
   int64_t scaled_wait_time =
-      (wait_end_time - wait_start_time) >> PROFILE_TIMESTAMP_SHIFT;
+      (wait_end_time - wait_start_time) >> kProfileTimestampShift;
 
   // Return a representation of the time spent waiting that can be stored in
   // the lock word's upper bits.
   uint32_t clamped = static_cast<uint32_t>(
-      std::min(scaled_wait_time, kMaxWaitTime) << LOCKWORD_RESERVED_SHIFT);
+      std::min(scaled_wait_time, kMaxWaitTime) << kLockwordReservedShift);
 
   if (clamped == 0) {
     return kSpinLockSleeper;  // Just wake waiters, but don't record contention.
   }
   // Bump up value if necessary to avoid returning kSpinLockSleeper.
   const uint32_t kMinWaitTime =
-      kSpinLockSleeper + (1 << LOCKWORD_RESERVED_SHIFT);
+      kSpinLockSleeper + (1 << kLockwordReservedShift);
   if (clamped == kSpinLockSleeper) {
     return kMinWaitTime;
   }
@@ -224,8 +226,7 @@ uint64_t SpinLock::DecodeWaitCycles(uint32_t lock_value) {
   // Cast to uint32_t first to ensure bits [63:32] are cleared.
   const uint64_t scaled_wait_time =
       static_cast<uint32_t>(lock_value & kWaitTimeMask);
-  return scaled_wait_time
-      << (PROFILE_TIMESTAMP_SHIFT - LOCKWORD_RESERVED_SHIFT);
+  return scaled_wait_time << (kProfileTimestampShift - kLockwordReservedShift);
 }
 
 }  // namespace base_internal

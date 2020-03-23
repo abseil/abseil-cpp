@@ -74,6 +74,59 @@ class MutexRelock {
 
 }  // namespace
 
+///////////////////////////////////////////////////////////////////////////////
+// Persistent state of the flag data.
+
+class FlagImpl;
+
+class FlagState : public flags_internal::FlagStateInterface {
+ public:
+  template <typename V>
+  FlagState(FlagImpl* flag_impl, const V& v, bool modified,
+            bool on_command_line, int64_t counter)
+      : flag_impl_(flag_impl),
+        value_(v),
+        modified_(modified),
+        on_command_line_(on_command_line),
+        counter_(counter) {}
+
+  ~FlagState() override {
+    if (flag_impl_->ValueStorageKind() != FlagValueStorageKind::kHeapAllocated)
+      return;
+    flags_internal::Delete(flag_impl_->op_, value_.dynamic);
+  }
+
+ private:
+  friend class FlagImpl;
+
+  // Restores the flag to the saved state.
+  void Restore() const override {
+    if (!flag_impl_->RestoreState(*this)) return;
+
+    ABSL_INTERNAL_LOG(
+        INFO, absl::StrCat("Restore saved value of ", flag_impl_->Name(),
+                           " to: ", flag_impl_->CurrentValue()));
+  }
+
+  // Flag and saved flag data.
+  FlagImpl* flag_impl_;
+  union SavedValue {
+    explicit SavedValue(void* v) : dynamic(v) {}
+    explicit SavedValue(int64_t v) : one_word(v) {}
+    explicit SavedValue(flags_internal::AlignedTwoWords v) : two_words(v) {}
+
+    void* dynamic;
+    int64_t one_word;
+    flags_internal::AlignedTwoWords two_words;
+  } value_;
+  bool modified_;
+  bool on_command_line_;
+  int64_t counter_;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Flag implementation, which does not depend on flag value type.
+
 void FlagImpl::Init() {
   new (&data_guard_) absl::Mutex;
 
@@ -86,13 +139,13 @@ void FlagImpl::Init() {
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       int64_t atomic_value;
-      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
+      std::memcpy(&atomic_value, init_value.get(), flags_internal::Sizeof(op_));
       value_.one_word_atomic.store(atomic_value, std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       AlignedTwoWords atomic_value{0, 0};
-      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
+      std::memcpy(&atomic_value, init_value.get(), flags_internal::Sizeof(op_));
       value_.two_words_atomic.store(atomic_value, std::memory_order_release);
       break;
     }
@@ -145,17 +198,17 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
 void FlagImpl::StoreValue(const void* src) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated:
-      Copy(op_, src, value_.dynamic);
+      flags_internal::Copy(op_, src, value_.dynamic);
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       int64_t one_word_val;
-      std::memcpy(&one_word_val, src, Sizeof(op_));
+      std::memcpy(&one_word_val, src, flags_internal::Sizeof(op_));
       value_.one_word_atomic.store(one_word_val, std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       AlignedTwoWords two_words_val{0, 0};
-      std::memcpy(&two_words_val, src, Sizeof(op_));
+      std::memcpy(&two_words_val, src, flags_internal::Sizeof(op_));
       value_.two_words_atomic.store(two_words_val, std::memory_order_release);
       break;
     }
@@ -172,9 +225,15 @@ std::string FlagImpl::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
 }
 
+absl::string_view FlagImpl::Typename() const { return ""; }
+
 std::string FlagImpl::Help() const {
   return HelpSourceKind() == FlagHelpKind::kLiteral ? help_.literal
                                                     : help_.gen_func();
+}
+
+FlagStaticTypeId FlagImpl::TypeId() const {
+  return flags_internal::StaticTypeId(op_);
 }
 
 bool FlagImpl::IsModified() const {
@@ -195,10 +254,10 @@ std::string FlagImpl::DefaultValue() const {
 }
 
 std::string FlagImpl::CurrentValue() const {
-  DataGuard();  // Make sure flag initialized
+  auto* guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated: {
-      absl::MutexLock l(DataGuard());
+      absl::MutexLock l(guard);
       return flags_internal::Unparse(op_, value_.dynamic);
     }
     case FlagValueStorageKind::kOneWordAtomic: {
@@ -250,22 +309,52 @@ void FlagImpl::InvokeCallback() const {
   cb();
 }
 
-bool FlagImpl::RestoreState(const void* value, bool modified,
-                            bool on_command_line, int64_t counter) {
-  {
-    absl::MutexLock l(DataGuard());
+std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
+  absl::MutexLock l(DataGuard());
 
-    if (counter_ == counter) return false;
+  bool modified = modified_;
+  bool on_command_line = on_command_line_;
+  switch (ValueStorageKind()) {
+    case FlagValueStorageKind::kHeapAllocated: {
+      return absl::make_unique<FlagState>(
+          this, flags_internal::Clone(op_, value_.dynamic), modified,
+          on_command_line, counter_);
+    }
+    case FlagValueStorageKind::kOneWordAtomic: {
+      return absl::make_unique<FlagState>(
+          this, value_.one_word_atomic.load(std::memory_order_acquire),
+          modified, on_command_line, counter_);
+    }
+    case FlagValueStorageKind::kTwoWordsAtomic: {
+      return absl::make_unique<FlagState>(
+          this, value_.two_words_atomic.load(std::memory_order_acquire),
+          modified, on_command_line, counter_);
+    }
+  }
+  return nullptr;
+}
+
+bool FlagImpl::RestoreState(const FlagState& flag_state) {
+  absl::MutexLock l(DataGuard());
+
+  if (flag_state.counter_ == counter_) {
+    return false;
   }
 
-  Write(value);
-
-  {
-    absl::MutexLock l(DataGuard());
-
-    modified_ = modified;
-    on_command_line_ = on_command_line;
+  switch (ValueStorageKind()) {
+    case FlagValueStorageKind::kHeapAllocated:
+      StoreValue(flag_state.value_.dynamic);
+      break;
+    case FlagValueStorageKind::kOneWordAtomic:
+      StoreValue(&flag_state.value_.one_word);
+      break;
+    case FlagValueStorageKind::kTwoWordsAtomic:
+      StoreValue(&flag_state.value_.two_words);
+      break;
   }
+
+  modified_ = flag_state.modified_;
+  on_command_line_ = flag_state.on_command_line_;
 
   return true;
 }
@@ -290,10 +379,10 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::TryParse(
 }
 
 void FlagImpl::Read(void* dst) const {
-  DataGuard();  // Make sure flag initialized
+  auto* guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated: {
-      absl::MutexLock l(DataGuard());
+      absl::MutexLock l(guard);
 
       flags_internal::CopyConstruct(op_, value_.dynamic, dst);
       break;
@@ -301,13 +390,13 @@ void FlagImpl::Read(void* dst) const {
     case FlagValueStorageKind::kOneWordAtomic: {
       const auto one_word_val =
           value_.one_word_atomic.load(std::memory_order_acquire);
-      std::memcpy(dst, &one_word_val, Sizeof(op_));
+      std::memcpy(dst, &one_word_val, flags_internal::Sizeof(op_));
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       const auto two_words_val =
           value_.two_words_atomic.load(std::memory_order_acquire);
-      std::memcpy(dst, &two_words_val, Sizeof(op_));
+      std::memcpy(dst, &two_words_val, flags_internal::Sizeof(op_));
       break;
     }
   }

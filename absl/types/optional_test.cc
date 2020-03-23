@@ -1057,8 +1057,7 @@ TEST(optionalTest, Value) {
   // test constexpr value()
   constexpr absl::optional<int> o1(1);
   static_assert(1 == o1.value(), "");  // const &
-#if !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG) && \
-    !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
+#if !defined(_MSC_VER) && !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
   using COI = const absl::optional<int>;
   static_assert(2 == COI(2).value(), "");  // const &&
 #endif
@@ -1098,8 +1097,7 @@ TEST(optionalTest, DerefOperator) {
 
   constexpr absl::optional<int> opt1(1);
   static_assert(*opt1 == 1, "");
-#if !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG) && \
-    !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
+#if !defined(_MSC_VER) && !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
   using COI = const absl::optional<int>;
   static_assert(*COI(2) == 2, "");
 #endif

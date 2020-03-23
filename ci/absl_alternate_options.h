@@ -1,6 +1,3 @@
-#ifndef ABSL_BASE_OPTIONS_H_
-#define ABSL_BASE_OPTIONS_H_
-
 // Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +15,15 @@
 // Alternate options.h file, used in continuous integration testing to exercise
 // option settings not used by default.
 
+#ifndef ABSL_BASE_OPTIONS_H_
+#define ABSL_BASE_OPTIONS_H_
+
 #define ABSL_OPTION_USE_STD_ANY 0
 #define ABSL_OPTION_USE_STD_OPTIONAL 0
 #define ABSL_OPTION_USE_STD_STRING_VIEW 0
 #define ABSL_OPTION_USE_STD_VARIANT 0
 #define ABSL_OPTION_USE_INLINE_NAMESPACE 1
 #define ABSL_OPTION_INLINE_NAMESPACE_NAME ns
+#define ABSL_OPTION_HARDENED 1
 
 #endif  // ABSL_BASE_OPTIONS_H_

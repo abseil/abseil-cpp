@@ -32,6 +32,7 @@
 #include <cstddef>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
@@ -205,6 +206,40 @@ ABSL_NAMESPACE_END
 #define ABSL_ASSERT(expr)                           \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
                              : [] { assert(false && #expr); }())  // NOLINT
+#endif
+
+// `ABSL_INTERNAL_HARDENING_ABORT()` controls how `ABSL_HARDENING_ASSERT()`
+// aborts the program in release mode (when NDEBUG is defined). The
+// implementation should abort the program as quickly as possible and ideally it
+// should not be possible to ignore the abort request.
+#if ABSL_HAVE_BUILTIN(__builtin_trap) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define ABSL_INTERNAL_HARDENING_ABORT() \
+  do {                                  \
+    __builtin_trap();                   \
+    __builtin_unreachable();            \
+  } while (false)
+#else
+#define ABSL_INTERNAL_HARDENING_ABORT() abort()
+#endif
+
+// ABSL_HARDENING_ASSERT()
+//
+// `ABSL_HARDENED_ASSERT()` is like `ABSL_ASSERT()`, but used to implement
+// runtime assertions that should be enabled in hardened builds even when
+// `NDEBUG` is defined.
+//
+// When `NDEBUG` is not defined, `ABSL_HARDENED_ASSERT()` is identical to
+// `ABSL_ASSERT()`.
+//
+// See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
+// hardened mode.
+#if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
+#define ABSL_HARDENING_ASSERT(expr)                 \
+  (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
+                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+#else
+#define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
 #endif
 
 #ifdef ABSL_HAVE_EXCEPTIONS

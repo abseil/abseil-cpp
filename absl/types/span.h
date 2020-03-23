@@ -276,7 +276,7 @@ class Span {
   // Returns a reference to the i'th element of this span.
   constexpr reference operator[](size_type i) const noexcept {
     // MSVC 2015 accepts this as constexpr, but not ptr_[i]
-    return ABSL_ASSERT(i < size()), *(data() + i);
+    return ABSL_HARDENING_ASSERT(i < size()), *(data() + i);
   }
 
   // Span::at()
@@ -295,7 +295,7 @@ class Span {
   // Returns a reference to the first element of this span. The span must not
   // be empty.
   constexpr reference front() const noexcept {
-    return ABSL_ASSERT(size() > 0), *data();
+    return ABSL_HARDENING_ASSERT(size() > 0), *data();
   }
 
   // Span::back()
@@ -303,7 +303,7 @@ class Span {
   // Returns a reference to the last element of this span. The span must not
   // be empty.
   constexpr reference back() const noexcept {
-    return ABSL_ASSERT(size() > 0), *(data() + size() - 1);
+    return ABSL_HARDENING_ASSERT(size() > 0), *(data() + size() - 1);
   }
 
   // Span::begin()
@@ -368,7 +368,7 @@ class Span {
   //
   // Removes the first `n` elements from the span.
   void remove_prefix(size_type n) noexcept {
-    assert(size() >= n);
+    ABSL_HARDENING_ASSERT(size() >= n);
     ptr_ += n;
     len_ -= n;
   }
@@ -377,7 +377,7 @@ class Span {
   //
   // Removes the last `n` elements from the span.
   void remove_suffix(size_type n) noexcept {
-    assert(size() >= n);
+    ABSL_HARDENING_ASSERT(size() >= n);
     len_ -= n;
   }
 
@@ -665,7 +665,7 @@ constexpr Span<T> MakeSpan(T* ptr, size_t size) noexcept {
 
 template <int&... ExplicitArgumentBarrier, typename T>
 Span<T> MakeSpan(T* begin, T* end) noexcept {
-  return ABSL_ASSERT(begin <= end), Span<T>(begin, end - begin);
+  return ABSL_HARDENING_ASSERT(begin <= end), Span<T>(begin, end - begin);
 }
 
 template <int&... ExplicitArgumentBarrier, typename C>
@@ -710,7 +710,7 @@ constexpr Span<const T> MakeConstSpan(T* ptr, size_t size) noexcept {
 
 template <int&... ExplicitArgumentBarrier, typename T>
 Span<const T> MakeConstSpan(T* begin, T* end) noexcept {
-  return ABSL_ASSERT(begin <= end), Span<const T>(begin, end - begin);
+  return ABSL_HARDENING_ASSERT(begin <= end), Span<const T>(begin, end - begin);
 }
 
 template <int&... ExplicitArgumentBarrier, typename C>

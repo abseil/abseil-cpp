@@ -28,6 +28,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/options.h"
 
 #if defined(ABSL_HAVE_STD_STRING_VIEW) || defined(__ANDROID__)
 // We don't control the death messaging when using std::string_view.
@@ -820,7 +821,7 @@ TEST(StringViewTest, FrontBackSingleChar) {
 
 TEST(StringViewTest, FrontBackEmpty) {
 #ifndef ABSL_USES_STD_STRING_VIEW
-#ifndef NDEBUG
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   // Abseil's string_view implementation has debug assertions that check that
   // front() and back() are not called on an empty string_view.
   absl::string_view sv;
@@ -1130,7 +1131,7 @@ TEST(StringViewTest, Noexcept) {
 
 TEST(StringViewTest, BoundsCheck) {
 #ifndef ABSL_USES_STD_STRING_VIEW
-#ifndef NDEBUG
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   // Abseil's string_view implementation has bounds-checking in debug mode.
   absl::string_view h = "hello";
   ABSL_EXPECT_DEATH_IF_SUPPORTED(h[5], "");

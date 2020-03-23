@@ -28,6 +28,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_testing.h"
+#include "absl/base/options.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 
@@ -186,6 +187,21 @@ TEST(FixedArrayTest, AtThrows) {
   EXPECT_EQ(a.at(2), 3);
   ABSL_BASE_INTERNAL_EXPECT_FAIL(a.at(3), std::out_of_range,
                                  "failed bounds check");
+}
+
+TEST(FixedArrayTest, Hardened) {
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  absl::FixedArray<int> a = {1, 2, 3};
+  EXPECT_EQ(a[2], 3);
+  EXPECT_DEATH_IF_SUPPORTED(a[3], "");
+  EXPECT_DEATH_IF_SUPPORTED(a[-1], "");
+
+  absl::FixedArray<int> empty(0);
+  EXPECT_DEATH_IF_SUPPORTED(empty[0], "");
+  EXPECT_DEATH_IF_SUPPORTED(empty[-1], "");
+  EXPECT_DEATH_IF_SUPPORTED(empty.front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(empty.back(), "");
+#endif
 }
 
 TEST(FixedArrayRelationalsTest, EqualArrays) {

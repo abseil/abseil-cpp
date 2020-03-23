@@ -283,7 +283,7 @@ class string_view {
   // Returns the ith element of the `string_view` using the array operator.
   // Note that this operator does not perform any bounds checking.
   constexpr const_reference operator[](size_type i) const {
-    return ABSL_ASSERT(i < size()), ptr_[i];
+    return ABSL_HARDENING_ASSERT(i < size()), ptr_[i];
   }
 
   // string_view::at()
@@ -303,14 +303,14 @@ class string_view {
   //
   // Returns the first element of a `string_view`.
   constexpr const_reference front() const {
-    return ABSL_ASSERT(!empty()), ptr_[0];
+    return ABSL_HARDENING_ASSERT(!empty()), ptr_[0];
   }
 
   // string_view::back()
   //
   // Returns the last element of a `string_view`.
   constexpr const_reference back() const {
-    return ABSL_ASSERT(!empty()), ptr_[size() - 1];
+    return ABSL_HARDENING_ASSERT(!empty()), ptr_[size() - 1];
   }
 
   // string_view::data()
@@ -329,7 +329,7 @@ class string_view {
   // Removes the first `n` characters from the `string_view`. Note that the
   // underlying string is not changed, only the view.
   void remove_prefix(size_type n) {
-    assert(n <= length_);
+    ABSL_HARDENING_ASSERT(n <= length_);
     ptr_ += n;
     length_ -= n;
   }
@@ -339,7 +339,7 @@ class string_view {
   // Removes the last `n` characters from the `string_view`. Note that the
   // underlying string is not changed, only the view.
   void remove_suffix(size_type n) {
-    assert(n <= length_);
+    ABSL_HARDENING_ASSERT(n <= length_);
     length_ -= n;
   }
 
@@ -520,7 +520,7 @@ class string_view {
       (std::numeric_limits<difference_type>::max)();
 
   static constexpr size_type CheckLengthInternal(size_type len) {
-    return (void)ABSL_ASSERT(len <= kMaxSize), len;
+    return ABSL_HARDENING_ASSERT(len <= kMaxSize), len;
   }
 
   static constexpr size_type StrlenInternal(const char* str) {

@@ -30,6 +30,7 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/base/options.h"
 #include "absl/container/internal/counting_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/hash/hash_testing.h"
@@ -245,6 +246,16 @@ TEST(IntVec, Erase) {
       }
     }
   }
+}
+
+TEST(IntVec, Hardened) {
+  IntVec v;
+  Fill(&v, 10);
+  EXPECT_EQ(v[9], 9);
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  EXPECT_DEATH_IF_SUPPORTED(v[10], "");
+  EXPECT_DEATH_IF_SUPPORTED(v[-1], "");
+#endif
 }
 
 // At the end of this test loop, the elements between [erase_begin, erase_end)

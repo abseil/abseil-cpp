@@ -412,11 +412,11 @@ class optional : private optional_internal::optional_data<T>,
   //
   // If you need myOpt->foo in constexpr, use (*myOpt).foo instead.
   const T* operator->() const {
-    assert(this->engaged_);
+    ABSL_HARDENING_ASSERT(this->engaged_);
     return std::addressof(this->data_);
   }
   T* operator->() {
-    assert(this->engaged_);
+    ABSL_HARDENING_ASSERT(this->engaged_);
     return std::addressof(this->data_);
   }
 
@@ -425,17 +425,17 @@ class optional : private optional_internal::optional_data<T>,
   // Accesses the underlying `T` value of an `optional`. If the `optional` is
   // empty, behavior is undefined.
   constexpr const T& operator*() const& {
-    return ABSL_ASSERT(this->engaged_), reference();
+    return ABSL_HARDENING_ASSERT(this->engaged_), reference();
   }
   T& operator*() & {
-    assert(this->engaged_);
+    ABSL_HARDENING_ASSERT(this->engaged_);
     return reference();
   }
   constexpr const T&& operator*() const && {
-    return absl::move(reference());
+    return ABSL_HARDENING_ASSERT(this->engaged_), absl::move(reference());
   }
   T&& operator*() && {
-    assert(this->engaged_);
+    ABSL_HARDENING_ASSERT(this->engaged_);
     return std::move(reference());
   }
 

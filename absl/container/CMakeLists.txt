@@ -147,6 +147,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::fixed_array
+    absl::config
     absl::exception_testing
     absl::hash_testing
     absl::memory
@@ -221,6 +222,7 @@ absl_cc_test(
     absl::counting_allocator
     absl::inlined_vector
     absl::test_instance_tracker
+    absl::config
     absl::core_headers
     absl::exception_testing
     absl::hash_testing

@@ -74,6 +74,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":fixed_array",
+        "//absl/base:config",
         "//absl/base:exception_testing",
         "//absl/hash:hash_testing",
         "//absl/memory",
@@ -153,6 +154,7 @@ cc_test(
         ":counting_allocator",
         ":inlined_vector",
         ":test_instance_tracker",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/base:raw_logging_internal",

@@ -40,9 +40,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
-template <typename T>
-class Flag;
-
 ///////////////////////////////////////////////////////////////////////////////
 // Flag value type operations, eg., parsing, copying, etc. are provided
 // by function specific to that type with a signature matching FlagOpFn.
@@ -147,36 +144,6 @@ inline FlagStaticTypeId StaticTypeId(FlagOpFn op) {
   return reinterpret_cast<FlagStaticTypeId>(
       op(FlagOp::kStaticTypeId, nullptr, nullptr, nullptr));
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// Persistent state of the flag data.
-
-template <typename T>
-class FlagState : public flags_internal::FlagStateInterface {
- public:
-  FlagState(Flag<T>* flag, T&& cur, bool modified, bool on_command_line,
-            int64_t counter)
-      : flag_(flag),
-        cur_value_(std::move(cur)),
-        modified_(modified),
-        on_command_line_(on_command_line),
-        counter_(counter) {}
-
-  ~FlagState() override = default;
-
- private:
-  friend class Flag<T>;
-
-  // Restores the flag to the saved state.
-  void Restore() const override;
-
-  // Flag and saved flag data.
-  Flag<T>* flag_;
-  T cur_value_;
-  bool modified_;
-  bool on_command_line_;
-  int64_t counter_;
-};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flag help auxiliary structs.
@@ -341,13 +308,15 @@ struct FlagCallback {
 struct DynValueDeleter {
   explicit DynValueDeleter(FlagOpFn op_arg = nullptr) : op(op_arg) {}
   void operator()(void* ptr) const {
-    if (op != nullptr) Delete(op, ptr);
+    if (op != nullptr) flags_internal::Delete(op, ptr);
   }
 
   FlagOpFn op;
 };
 
-class FlagImpl {
+class FlagState;
+
+class FlagImpl final : public flags_internal::CommandLineFlag {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
                      FlagHelpArg help, FlagValueStorageKind value_kind,
@@ -368,15 +337,7 @@ class FlagImpl {
         data_guard_{} {}
 
   // Constant access methods
-  absl::string_view Name() const;
-  std::string Filename() const;
-  std::string Help() const;
-  bool IsModified() const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  bool IsSpecifiedOnCommandLine() const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  std::string DefaultValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  std::string CurrentValue() const ABSL_LOCKS_EXCLUDED(*DataGuard());
-  void Read(void* dst) const ABSL_LOCKS_EXCLUDED(*DataGuard());
-
+  void Read(void* dst) const override ABSL_LOCKS_EXCLUDED(*DataGuard());
   template <typename T, typename std::enable_if<FlagUseHeapStorage<T>::value,
                                                 int>::type = 0>
   void Get(T* dst) const {
@@ -404,33 +365,11 @@ class FlagImpl {
 
   // Mutating access methods
   void Write(const void* src) ABSL_LOCKS_EXCLUDED(*DataGuard());
-  bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
-                 ValueSource source, std::string* err)
-      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Interfaces to operate on callbacks.
   void SetCallback(const FlagCallbackFunc mutation_callback)
       ABSL_LOCKS_EXCLUDED(*DataGuard());
   void InvokeCallback() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
-
-  // Interfaces to save/restore mutable flag data
-  template <typename T>
-  std::unique_ptr<FlagStateInterface> SaveState(Flag<T>* flag) const
-      ABSL_LOCKS_EXCLUDED(*DataGuard()) {
-    T&& cur_value = flag->Get();
-    absl::MutexLock l(DataGuard());
-
-    return absl::make_unique<FlagState<T>>(
-        flag, std::move(cur_value), modified_, on_command_line_, counter_);
-  }
-  bool RestoreState(const void* value, bool modified, bool on_command_line,
-                    int64_t counter) ABSL_LOCKS_EXCLUDED(*DataGuard());
-
-  // Value validation interfaces.
-  void CheckDefaultValueParsingRoundtrip() const
-      ABSL_LOCKS_EXCLUDED(*DataGuard());
-  bool ValidateInputValue(absl::string_view value) const
-      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Used in read/write operations to validate source/target has correct type.
   // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
@@ -441,6 +380,10 @@ class FlagImpl {
   void AssertValidType(FlagStaticTypeId type_id) const;
 
  private:
+  template <typename T>
+  friend class Flag;
+  friend class FlagState;
+
   // Ensures that `data_guard_` is initialized and returns it.
   absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED((absl::Mutex*)&data_guard_);
   // Returns heap allocated value of type T initialized with default value.
@@ -466,6 +409,37 @@ class FlagImpl {
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard()) {
     return static_cast<FlagDefaultKind>(def_kind_);
   }
+
+  // CommandLineFlag interface implementation
+  absl::string_view Name() const override;
+  std::string Filename() const override;
+  absl::string_view Typename() const override;
+  std::string Help() const override;
+  FlagStaticTypeId TypeId() const override;
+  bool IsModified() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
+  bool IsSpecifiedOnCommandLine() const override
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string CurrentValue() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
+  bool ValidateInputValue(absl::string_view value) const override
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void CheckDefaultValueParsingRoundtrip() const override
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+
+  // Interfaces to save and restore flags to/from persistent state.
+  // Returns current flag state or nullptr if flag does not support
+  // saving and restoring a state.
+  std::unique_ptr<FlagStateInterface> SaveState() override
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+
+  // Restores the flag state to the supplied state object. If there is
+  // nothing to restore returns false. Otherwise returns true.
+  bool RestoreState(const FlagState& flag_state)
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+
+  bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
+                 ValueSource source, std::string* error) override
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Immutable flag's state.
 
@@ -536,7 +510,7 @@ class FlagImpl {
 // flag reflection handle interface.
 
 template <typename T>
-class Flag final : public flags_internal::CommandLineFlag {
+class Flag {
  public:
   constexpr Flag(const char* name, const char* filename, const FlagHelpArg help,
                  const FlagDfltGenFunc default_value_gen)
@@ -568,59 +542,23 @@ class Flag final : public flags_internal::CommandLineFlag {
   }
 
   // CommandLineFlag interface
-  absl::string_view Name() const override { return impl_.Name(); }
-  std::string Filename() const override { return impl_.Filename(); }
-  absl::string_view Typename() const override { return ""; }
-  std::string Help() const override { return impl_.Help(); }
-  bool IsModified() const override { return impl_.IsModified(); }
-  bool IsSpecifiedOnCommandLine() const override {
+  absl::string_view Name() const { return impl_.Name(); }
+  std::string Filename() const { return impl_.Filename(); }
+  absl::string_view Typename() const { return ""; }
+  std::string Help() const { return impl_.Help(); }
+  bool IsModified() const { return impl_.IsModified(); }
+  bool IsSpecifiedOnCommandLine() const {
     return impl_.IsSpecifiedOnCommandLine();
   }
-  std::string DefaultValue() const override { return impl_.DefaultValue(); }
-  std::string CurrentValue() const override { return impl_.CurrentValue(); }
-  bool ValidateInputValue(absl::string_view value) const override {
-    return impl_.ValidateInputValue(value);
-  }
-
-  // Interfaces to save and restore flags to/from persistent state.
-  // Returns current flag state or nullptr if flag does not support
-  // saving and restoring a state.
-  std::unique_ptr<FlagStateInterface> SaveState() override {
-    return impl_.SaveState(this);
-  }
-
-  // Restores the flag state to the supplied state object. If there is
-  // nothing to restore returns false. Otherwise returns true.
-  bool RestoreState(const FlagState<T>& flag_state) {
-    return impl_.RestoreState(&flag_state.cur_value_, flag_state.modified_,
-                              flag_state.on_command_line_, flag_state.counter_);
-  }
-  bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
-                 ValueSource source, std::string* error) override {
-    return impl_.ParseFrom(value, set_mode, source, error);
-  }
-  void CheckDefaultValueParsingRoundtrip() const override {
-    impl_.CheckDefaultValueParsingRoundtrip();
-  }
+  std::string DefaultValue() const { return impl_.DefaultValue(); }
+  std::string CurrentValue() const { return impl_.CurrentValue(); }
 
  private:
-  friend class FlagState<T>;
-
-  void Read(void* dst) const override { impl_.Read(dst); }
-  FlagStaticTypeId TypeId() const override { return &FlagStaticTypeIdGen<T>; }
-
+  template <typename U, bool do_register>
+  friend class FlagRegistrar;
   // Flag's data
   FlagImpl impl_;
 };
-
-template <typename T>
-void FlagState<T>::Restore() const {
-  if (flag_->RestoreState(*this)) {
-    ABSL_INTERNAL_LOG(INFO,
-                      absl::StrCat("Restore saved value of ", flag_->Name(),
-                                   " to: ", flag_->CurrentValue()));
-  }
-}
 
 // This class facilitates Flag object registration and tail expression-based
 // flag definition, for example:
@@ -629,7 +567,7 @@ template <typename T, bool do_register>
 class FlagRegistrar {
  public:
   explicit FlagRegistrar(Flag<T>* flag) : flag_(flag) {
-    if (do_register) flags_internal::RegisterCommandLineFlag(flag_);
+    if (do_register) flags_internal::RegisterCommandLineFlag(&flag_->impl_);
   }
 
   FlagRegistrar& OnUpdate(FlagCallbackFunc cb) && {
