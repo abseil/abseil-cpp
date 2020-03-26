@@ -104,6 +104,7 @@
 
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
@@ -651,9 +652,9 @@ class raw_hash_set {
     iterator(ctrl_t* ctrl) : ctrl_(ctrl) {}  // for end()
     iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {}
 
-    void assert_is_full() const { assert(IsFull(*ctrl_)); }
+    void assert_is_full() const { ABSL_HARDENING_ASSERT(IsFull(*ctrl_)); }
     void assert_is_valid() const {
-      assert(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
+      ABSL_HARDENING_ASSERT(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
     }
 
     void skip_empty_or_deleted() {

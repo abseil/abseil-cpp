@@ -52,7 +52,7 @@ TEST(ConversionCharTest, Names) {
     X(f), X(F), X(e), X(E), X(g), X(G), X(a), X(A),  // float
     X(n), X(p),                                      // misc
 #undef X
-    {ConversionChar::none, '\0'},
+    {ConversionChar::kNone, '\0'},
   };
   // clang-format on
   for (auto e : kExpect) {

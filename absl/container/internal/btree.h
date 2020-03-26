@@ -937,8 +937,13 @@ struct btree_iterator {
   }
 
   // Accessors for the key/value the iterator is pointing at.
-  reference operator*() const { return node->value(position); }
-  pointer operator->() const { return &node->value(position); }
+  reference operator*() const {
+    ABSL_HARDENING_ASSERT(node != nullptr);
+    ABSL_HARDENING_ASSERT(node->start() <= position);
+    ABSL_HARDENING_ASSERT(node->finish() > position);
+    return node->value(position);
+  }
+  pointer operator->() const { return &operator*(); }
 
   btree_iterator &operator++() {
     increment();
@@ -1769,6 +1774,7 @@ void btree_iterator<N, R, P>::increment_slow() {
       position = node->position();
       node = node->parent();
     }
+    // TODO(ezb): assert we aren't incrementing end() instead of handling.
     if (position == node->finish()) {
       *this = save;
     }
@@ -1792,6 +1798,7 @@ void btree_iterator<N, R, P>::decrement_slow() {
       position = node->position() - 1;
       node = node->parent();
     }
+    // TODO(ezb): assert we aren't decrementing begin() instead of handling.
     if (position < node->start()) {
       *this = save;
     }

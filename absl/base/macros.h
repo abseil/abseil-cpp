@@ -212,7 +212,8 @@ ABSL_NAMESPACE_END
 // aborts the program in release mode (when NDEBUG is defined). The
 // implementation should abort the program as quickly as possible and ideally it
 // should not be possible to ignore the abort request.
-#if ABSL_HAVE_BUILTIN(__builtin_trap) || \
+#if (ABSL_HAVE_BUILTIN(__builtin_trap) &&         \
+     ABSL_HAVE_BUILTIN(__builtin_unreachable)) || \
     (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_INTERNAL_HARDENING_ABORT() \
   do {                                  \
@@ -225,11 +226,11 @@ ABSL_NAMESPACE_END
 
 // ABSL_HARDENING_ASSERT()
 //
-// `ABSL_HARDENED_ASSERT()` is like `ABSL_ASSERT()`, but used to implement
+// `ABSL_HARDENING_ASSERT()` is like `ABSL_ASSERT()`, but used to implement
 // runtime assertions that should be enabled in hardened builds even when
 // `NDEBUG` is defined.
 //
-// When `NDEBUG` is not defined, `ABSL_HARDENED_ASSERT()` is identical to
+// When `NDEBUG` is not defined, `ABSL_HARDENING_ASSERT()` is identical to
 // `ABSL_ASSERT()`.
 //
 // See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on

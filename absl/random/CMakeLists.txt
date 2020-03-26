@@ -102,8 +102,6 @@ absl_cc_library(
   HDRS
     "mock_distributions.h"
     "mocking_bit_gen.h"
-  SRCS
-    "mocking_bit_gen.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -168,7 +166,6 @@ absl_cc_library(
     "bernoulli_distribution.h"
     "beta_distribution.h"
     "discrete_distribution.h"
-    "distribution_format_traits.h"
     "distributions.h"
     "exponential_distribution.h"
     "gaussian_distribution.h"

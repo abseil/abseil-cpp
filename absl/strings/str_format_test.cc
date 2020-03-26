@@ -540,19 +540,19 @@ TEST_F(ParsedFormatTest, UncheckedCorrect) {
   EXPECT_EQ("[ABC]{d:1$d}[DEF]", SummarizeParsedFormat(*f));
 
   std::string format = "%sFFF%dZZZ%f";
-  auto f2 =
-      ExtendedParsedFormat<Conv::string, Conv::d, Conv::floating>::New(format);
+  auto f2 = ExtendedParsedFormat<Conv::kString, Conv::d, Conv::kFloating>::New(
+      format);
 
   ASSERT_TRUE(f2);
   EXPECT_EQ("{s:1$s}[FFF]{d:2$d}[ZZZ]{f:3$f}", SummarizeParsedFormat(*f2));
 
-  f2 = ExtendedParsedFormat<Conv::string, Conv::d, Conv::floating>::New(
+  f2 = ExtendedParsedFormat<Conv::kString, Conv::d, Conv::kFloating>::New(
       "%s %d %f");
 
   ASSERT_TRUE(f2);
   EXPECT_EQ("{s:1$s}[ ]{d:2$d}[ ]{f:3$f}", SummarizeParsedFormat(*f2));
 
-  auto star = ExtendedParsedFormat<Conv::star, Conv::d>::New("%*d");
+  auto star = ExtendedParsedFormat<Conv::kStar, Conv::d>::New("%*d");
   ASSERT_TRUE(star);
   EXPECT_EQ("{*d:2$1$*d}", SummarizeParsedFormat(*star));
 

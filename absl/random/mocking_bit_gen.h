@@ -100,7 +100,9 @@ class MockingBitGen : public absl::random_internal::MockingBitGenBase {
  public:
   MockingBitGen() {}
 
-  ~MockingBitGen() override;
+  ~MockingBitGen() override {
+    for (const auto& del : deleters_) del();
+  }
 
  private:
   template <typename DistrT, typename... Args>
@@ -182,10 +184,10 @@ namespace random_internal {
 
 template <>
 struct DistributionCaller<absl::MockingBitGen> {
-  template <typename DistrT, typename FormatT, typename... Args>
+  template <typename DistrT, typename... Args>
   static typename DistrT::result_type Call(absl::MockingBitGen* gen,
                                            Args&&... args) {
-    return gen->template Call<DistrT, FormatT>(std::forward<Args>(args)...);
+    return gen->template Call<DistrT>(std::forward<Args>(args)...);
   }
 };
 

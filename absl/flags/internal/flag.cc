@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/casts.h"
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/base/optimization.h"
@@ -135,18 +136,18 @@ void FlagImpl::Init() {
       (*default_value_.gen_func)(), DynValueDeleter{op_});
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated:
-      value_.dynamic = init_value.release();
+      HeapAllocatedValue() = init_value.release();
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       int64_t atomic_value;
-      std::memcpy(&atomic_value, init_value.get(), flags_internal::Sizeof(op_));
-      value_.one_word_atomic.store(atomic_value, std::memory_order_release);
+      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
+      OneWordValue().store(atomic_value, std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       AlignedTwoWords atomic_value{0, 0};
-      std::memcpy(&atomic_value, init_value.get(), flags_internal::Sizeof(op_));
-      value_.two_words_atomic.store(atomic_value, std::memory_order_release);
+      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
+      TwoWordsValue().store(atomic_value, std::memory_order_release);
       break;
     }
   }
@@ -198,18 +199,18 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
 void FlagImpl::StoreValue(const void* src) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated:
-      flags_internal::Copy(op_, src, value_.dynamic);
+      Copy(op_, src, HeapAllocatedValue());
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
-      int64_t one_word_val;
-      std::memcpy(&one_word_val, src, flags_internal::Sizeof(op_));
-      value_.one_word_atomic.store(one_word_val, std::memory_order_release);
+      int64_t one_word_val = 0;
+      std::memcpy(&one_word_val, src, Sizeof(op_));
+      OneWordValue().store(one_word_val, std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       AlignedTwoWords two_words_val{0, 0};
-      std::memcpy(&two_words_val, src, flags_internal::Sizeof(op_));
-      value_.two_words_atomic.store(two_words_val, std::memory_order_release);
+      std::memcpy(&two_words_val, src, Sizeof(op_));
+      TwoWordsValue().store(two_words_val, std::memory_order_release);
       break;
     }
   }
@@ -258,17 +259,19 @@ std::string FlagImpl::CurrentValue() const {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated: {
       absl::MutexLock l(guard);
-      return flags_internal::Unparse(op_, value_.dynamic);
+      return flags_internal::Unparse(op_, HeapAllocatedValue());
     }
     case FlagValueStorageKind::kOneWordAtomic: {
       const auto one_word_val =
-          value_.one_word_atomic.load(std::memory_order_acquire);
-      return flags_internal::Unparse(op_, &one_word_val);
+          absl::bit_cast<std::array<char, sizeof(int64_t)>>(
+              OneWordValue().load(std::memory_order_acquire));
+      return flags_internal::Unparse(op_, one_word_val.data());
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       const auto two_words_val =
-          value_.two_words_atomic.load(std::memory_order_acquire);
-      return flags_internal::Unparse(op_, &two_words_val);
+          absl::bit_cast<std::array<char, sizeof(AlignedTwoWords)>>(
+              TwoWordsValue().load(std::memory_order_acquire));
+      return flags_internal::Unparse(op_, two_words_val.data());
     }
   }
 
@@ -317,18 +320,18 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated: {
       return absl::make_unique<FlagState>(
-          this, flags_internal::Clone(op_, value_.dynamic), modified,
+          this, flags_internal::Clone(op_, HeapAllocatedValue()), modified,
           on_command_line, counter_);
     }
     case FlagValueStorageKind::kOneWordAtomic: {
       return absl::make_unique<FlagState>(
-          this, value_.one_word_atomic.load(std::memory_order_acquire),
-          modified, on_command_line, counter_);
+          this, OneWordValue().load(std::memory_order_acquire), modified,
+          on_command_line, counter_);
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       return absl::make_unique<FlagState>(
-          this, value_.two_words_atomic.load(std::memory_order_acquire),
-          modified, on_command_line, counter_);
+          this, TwoWordsValue().load(std::memory_order_acquire), modified,
+          on_command_line, counter_);
     }
   }
   return nullptr;
@@ -359,6 +362,28 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
   return true;
 }
 
+template <typename StorageT>
+typename StorageT::value_type& FlagImpl::OffsetValue() const {
+  char* p = reinterpret_cast<char*>(const_cast<FlagImpl*>(this));
+  // The offset is deduced via Flag value type specific op_.
+  size_t offset = flags_internal::ValueOffset(op_);
+
+  return reinterpret_cast<StorageT*>(p + offset)->value;
+}
+
+void*& FlagImpl::HeapAllocatedValue() const {
+  assert(ValueStorageKind() == FlagValueStorageKind::kHeapAllocated);
+  return OffsetValue<FlagHeapAllocatedValue>();
+}
+std::atomic<int64_t>& FlagImpl::OneWordValue() const {
+  assert(ValueStorageKind() == FlagValueStorageKind::kOneWordAtomic);
+  return OffsetValue<FlagOneWordValue>();
+}
+std::atomic<AlignedTwoWords>& FlagImpl::TwoWordsValue() const {
+  assert(ValueStorageKind() == FlagValueStorageKind::kTwoWordsAtomic);
+  return OffsetValue<FlagTwoWordsValue>();
+}
+
 // Attempts to parse supplied `value` string using parsing routine in the `flag`
 // argument. If parsing successful, this function replaces the dst with newly
 // parsed value. In case if any error is encountered in either step, the error
@@ -383,20 +408,19 @@ void FlagImpl::Read(void* dst) const {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kHeapAllocated: {
       absl::MutexLock l(guard);
-
-      flags_internal::CopyConstruct(op_, value_.dynamic, dst);
+      flags_internal::CopyConstruct(op_, HeapAllocatedValue(), dst);
       break;
     }
     case FlagValueStorageKind::kOneWordAtomic: {
-      const auto one_word_val =
-          value_.one_word_atomic.load(std::memory_order_acquire);
-      std::memcpy(dst, &one_word_val, flags_internal::Sizeof(op_));
+      const int64_t one_word_val =
+          OneWordValue().load(std::memory_order_acquire);
+      std::memcpy(dst, &one_word_val, Sizeof(op_));
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
-      const auto two_words_val =
-          value_.two_words_atomic.load(std::memory_order_acquire);
-      std::memcpy(dst, &two_words_val, flags_internal::Sizeof(op_));
+      const AlignedTwoWords two_words_val =
+          TwoWordsValue().load(std::memory_order_acquire);
+      std::memcpy(dst, &two_words_val, Sizeof(op_));
       break;
     }
   }

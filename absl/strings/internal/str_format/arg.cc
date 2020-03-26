@@ -120,24 +120,25 @@ class ConvertedIntInfo {
 // the '#' flag is specified to modify the precision for 'o' conversions.
 string_view BaseIndicator(const ConvertedIntInfo &info,
                           const ConversionSpec conv) {
-  bool alt = conv.flags().alt;
-  int radix = FormatConversionCharRadix(conv.conv());
-  if (conv.conv() == ConversionChar::p) alt = true;  // always show 0x for %p.
+  bool alt = conv.has_alt_flag();
+  int radix = FormatConversionCharRadix(conv.conversion_char());
+  if (conv.conversion_char() == ConversionChar::p)
+    alt = true;  // always show 0x for %p.
   // From the POSIX description of '#' flag:
   //   "For x or X conversion specifiers, a non-zero result shall have
   //   0x (or 0X) prefixed to it."
   if (alt && radix == 16 && !info.digits().empty()) {
-    if (FormatConversionCharIsUpper(conv.conv())) return "0X";
+    if (FormatConversionCharIsUpper(conv.conversion_char())) return "0X";
     return "0x";
   }
   return {};
 }
 
 string_view SignColumn(bool neg, const ConversionSpec conv) {
-  if (FormatConversionCharIsSigned(conv.conv())) {
+  if (FormatConversionCharIsSigned(conv.conversion_char())) {
     if (neg) return "-";
-    if (conv.flags().show_pos) return "+";
-    if (conv.flags().sign_col) return " ";
+    if (conv.has_show_pos_flag()) return "+";
+    if (conv.has_sign_col_flag()) return " ";
   }
   return {};
 }
@@ -147,9 +148,9 @@ bool ConvertCharImpl(unsigned char v, const ConversionSpec conv,
   size_t fill = 0;
   if (conv.width() >= 0) fill = conv.width();
   ReducePadding(1, &fill);
-  if (!conv.flags().left) sink->Append(fill, ' ');
+  if (!conv.has_left_flag()) sink->Append(fill, ' ');
   sink->Append(1, v);
-  if (conv.flags().left) sink->Append(fill, ' ');
+  if (conv.has_left_flag()) sink->Append(fill, ' ');
   return true;
 }
 
@@ -174,7 +175,7 @@ bool ConvertIntImplInner(const ConvertedIntInfo &info,
   if (!precision_specified)
     precision = 1;
 
-  if (conv.flags().alt && conv.conv() == ConversionChar::o) {
+  if (conv.has_alt_flag() && conv.conversion_char() == ConversionChar::o) {
     // From POSIX description of the '#' (alt) flag:
     //   "For o conversion, it increases the precision (if necessary) to
     //   force the first digit of the result to be zero."
@@ -187,13 +188,13 @@ bool ConvertIntImplInner(const ConvertedIntInfo &info,
   size_t num_zeroes = Excess(formatted.size(), precision);
   ReducePadding(num_zeroes, &fill);
 
-  size_t num_left_spaces = !conv.flags().left ? fill : 0;
-  size_t num_right_spaces = conv.flags().left ? fill : 0;
+  size_t num_left_spaces = !conv.has_left_flag() ? fill : 0;
+  size_t num_right_spaces = conv.has_left_flag() ? fill : 0;
 
   // From POSIX description of the '0' (zero) flag:
   //   "For d, i, o, u, x, and X conversion specifiers, if a precision
   //   is specified, the '0' flag is ignored."
-  if (!precision_specified && conv.flags().zero) {
+  if (!precision_specified && conv.has_zero_flag()) {
     num_zeroes += num_left_spaces;
     num_left_spaces = 0;
   }
@@ -209,8 +210,8 @@ bool ConvertIntImplInner(const ConvertedIntInfo &info,
 
 template <typename T>
 bool ConvertIntImplInner(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
-  ConvertedIntInfo info(v, conv.conv());
-  if (conv.flags().basic && (conv.conv() != ConversionChar::p)) {
+  ConvertedIntInfo info(v, conv.conversion_char());
+  if (conv.is_basic() && (conv.conversion_char() != ConversionChar::p)) {
     if (info.is_neg()) sink->Append(1, '-');
     if (info.digits().empty()) {
       sink->Append(1, '0');
@@ -224,13 +225,14 @@ bool ConvertIntImplInner(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
 
 template <typename T>
 bool ConvertIntArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
-  if (FormatConversionCharIsFloat(conv.conv())) {
+  if (FormatConversionCharIsFloat(conv.conversion_char())) {
     return FormatConvertImpl(static_cast<double>(v), conv, sink).value;
   }
-  if (conv.conv() == ConversionChar::c)
+  if (conv.conversion_char() == ConversionChar::c)
     return ConvertCharImpl(static_cast<unsigned char>(v), conv, sink);
-  if (!FormatConversionCharIsIntegral(conv.conv())) return false;
-  if (!FormatConversionCharIsSigned(conv.conv()) && IsSigned<T>::value) {
+  if (!FormatConversionCharIsIntegral(conv.conversion_char())) return false;
+  if (!FormatConversionCharIsSigned(conv.conversion_char()) &&
+      IsSigned<T>::value) {
     using U = typename MakeUnsigned<T>::type;
     return FormatConvertImpl(static_cast<U>(v), conv, sink).value;
   }
@@ -239,19 +241,19 @@ bool ConvertIntArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
 
 template <typename T>
 bool ConvertFloatArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
-  return FormatConversionCharIsFloat(conv.conv()) &&
+  return FormatConversionCharIsFloat(conv.conversion_char()) &&
          ConvertFloatImpl(v, conv, sink);
 }
 
 inline bool ConvertStringArg(string_view v, const ConversionSpec conv,
                              FormatSinkImpl *sink) {
-  if (conv.conv() != ConversionChar::s) return false;
-  if (conv.flags().basic) {
+  if (conv.conversion_char() != ConversionChar::s) return false;
+  if (conv.is_basic()) {
     sink->Append(v);
     return true;
   }
   return sink->PutPaddedString(v, conv.width(), conv.precision(),
-                               conv.flags().left);
+                               conv.has_left_flag());
 }
 
 }  // namespace
@@ -272,7 +274,7 @@ ConvertResult<Conv::s> FormatConvertImpl(string_view v,
 ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
                                                    const ConversionSpec conv,
                                                    FormatSinkImpl *sink) {
-  if (conv.conv() == ConversionChar::p)
+  if (conv.conversion_char() == ConversionChar::p)
     return {FormatConvertImpl(VoidPtr(v), conv, sink).value};
   size_t len;
   if (v == nullptr) {
@@ -289,7 +291,7 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
 // ==================== Raw pointers ====================
 ConvertResult<Conv::p> FormatConvertImpl(VoidPtr v, const ConversionSpec conv,
                                          FormatSinkImpl *sink) {
-  if (conv.conv() != ConversionChar::p) return {false};
+  if (conv.conversion_char() != ConversionChar::p) return {false};
   if (!v.value) {
     sink->Append("(nil)");
     return {true};

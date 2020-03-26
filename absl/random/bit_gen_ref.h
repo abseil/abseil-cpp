@@ -132,7 +132,7 @@ namespace random_internal {
 
 template <>
 struct DistributionCaller<absl::BitGenRef> {
-  template <typename DistrT, typename FormatT, typename... Args>
+  template <typename DistrT, typename... Args>
   static typename DistrT::result_type Call(absl::BitGenRef* gen_ref,
                                            Args&&... args) {
     auto* mock_ptr = gen_ref->mocked_gen_ptr_;
@@ -140,8 +140,7 @@ struct DistributionCaller<absl::BitGenRef> {
       DistrT dist(std::forward<Args>(args)...);
       return dist(*gen_ref);
     } else {
-      return mock_ptr->template Call<DistrT, FormatT>(
-          std::forward<Args>(args)...);
+      return mock_ptr->template Call<DistrT>(std::forward<Args>(args)...);
     }
   }
 };

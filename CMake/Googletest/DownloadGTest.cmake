@@ -38,6 +38,4 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 # Add googletest directly to our build. This defines the gtest and gtest_main
 # targets.
-add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
-                 ${CMAKE_BINARY_DIR}/googletest-build
-                 EXCLUDE_FROM_ALL)
+add_subdirectory(${absl_gtest_src_dir} ${absl_gtest_build_dir} EXCLUDE_FROM_ALL)

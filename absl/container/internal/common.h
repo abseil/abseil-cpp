@@ -138,6 +138,7 @@ class node_handle<Policy, PolicyTraits, Alloc,
                   absl::void_t<typename Policy::mapped_type>>
     : public node_handle_base<PolicyTraits, Alloc> {
   using Base = node_handle_base<PolicyTraits, Alloc>;
+  using slot_type = typename PolicyTraits::slot_type;
 
  public:
   using key_type = typename Policy::key_type;
@@ -145,7 +146,7 @@ class node_handle<Policy, PolicyTraits, Alloc,
 
   constexpr node_handle() {}
 
-  auto key() const -> decltype(PolicyTraits::key(this->slot())) {
+  auto key() const -> decltype(PolicyTraits::key(std::declval<slot_type*>())) {
     return PolicyTraits::key(this->slot());
   }
 

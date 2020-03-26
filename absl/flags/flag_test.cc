@@ -91,30 +91,30 @@ struct S2 {
 };
 
 TEST_F(FlagTest, Traits) {
-  EXPECT_EQ(flags::FlagValue::Kind<int>(),
+  EXPECT_EQ(flags::StorageKind<int>(),
             flags::FlagValueStorageKind::kOneWordAtomic);
-  EXPECT_EQ(flags::FlagValue::Kind<bool>(),
+  EXPECT_EQ(flags::StorageKind<bool>(),
             flags::FlagValueStorageKind::kOneWordAtomic);
-  EXPECT_EQ(flags::FlagValue::Kind<double>(),
+  EXPECT_EQ(flags::StorageKind<double>(),
             flags::FlagValueStorageKind::kOneWordAtomic);
-  EXPECT_EQ(flags::FlagValue::Kind<int64_t>(),
+  EXPECT_EQ(flags::StorageKind<int64_t>(),
             flags::FlagValueStorageKind::kOneWordAtomic);
 
 #if defined(ABSL_FLAGS_INTERNAL_ATOMIC_DOUBLE_WORD)
-  EXPECT_EQ(flags::FlagValue::Kind<S1>(),
+  EXPECT_EQ(flags::StorageKind<S1>(),
             flags::FlagValueStorageKind::kTwoWordsAtomic);
-  EXPECT_EQ(flags::FlagValue::Kind<S2>(),
+  EXPECT_EQ(flags::StorageKind<S2>(),
             flags::FlagValueStorageKind::kTwoWordsAtomic);
 #else
-  EXPECT_EQ(flags::FlagValue::Kind<S1>(),
+  EXPECT_EQ(flags::StorageKind<S1>(),
             flags::FlagValueStorageKind::kHeapAllocated);
-  EXPECT_EQ(flags::FlagValue::Kind<S2>(),
+  EXPECT_EQ(flags::StorageKind<S2>(),
             flags::FlagValueStorageKind::kHeapAllocated);
 #endif
 
-  EXPECT_EQ(flags::FlagValue::Kind<std::string>(),
+  EXPECT_EQ(flags::StorageKind<std::string>(),
             flags::FlagValueStorageKind::kHeapAllocated);
-  EXPECT_EQ(flags::FlagValue::Kind<std::vector<std::string>>(),
+  EXPECT_EQ(flags::StorageKind<std::vector<std::string>>(),
             flags::FlagValueStorageKind::kHeapAllocated);
 }
 
@@ -624,9 +624,9 @@ TEST_F(FlagTest, TestNonDefaultConstructibleType) {
   EXPECT_EQ(absl::GetFlag(FLAGS_ndc_flag2).value, 25);
 }
 
-// --------------------------------------------------------------------
-
 }  // namespace
+
+// --------------------------------------------------------------------
 
 ABSL_RETIRED_FLAG(bool, old_bool_flag, true, "old descr");
 ABSL_RETIRED_FLAG(int, old_int_flag, (int)std::sqrt(10), "old descr");

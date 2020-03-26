@@ -16,6 +16,8 @@
 
 #include <cstdint>
 #include <tuple>
+#include <typeindex>
+#include <typeinfo>
 #include <utility>
 
 #include "gmock/gmock.h"
@@ -27,6 +29,9 @@ ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
+using ::testing::Gt;
+using ::testing::_;
+using ::testing::ElementsAre;
 using ::testing::Pair;
 
 TEST(Memory, AlignmentLargerThanBase) {
@@ -43,6 +48,39 @@ TEST(Memory, AlignmentSmallerThanBase) {
   EXPECT_EQ(0, reinterpret_cast<uintptr_t>(mem) % 2);
   memcpy(mem, "abc", 3);
   Deallocate<2>(&alloc, mem, 3);
+}
+
+std::map<std::type_index, int>& AllocationMap() {
+  static auto* map = new std::map<std::type_index, int>;
+  return *map;
+}
+
+template <typename T>
+struct TypeCountingAllocator {
+  TypeCountingAllocator() = default;
+  template <typename U>
+  TypeCountingAllocator(const TypeCountingAllocator<U>&) {}  // NOLINT
+
+  using value_type = T;
+
+  T* allocate(size_t n, const void* = nullptr) {
+    AllocationMap()[typeid(T)] += n;
+    return std::allocator<T>().allocate(n);
+  }
+  void deallocate(T* p, std::size_t n) {
+    AllocationMap()[typeid(T)] -= n;
+    return std::allocator<T>().deallocate(p, n);
+  }
+};
+
+TEST(Memory, AllocateDeallocateMatchType) {
+  TypeCountingAllocator<int> alloc;
+  void* mem = Allocate<1>(&alloc, 1);
+  // Verify that it was allocated
+  EXPECT_THAT(AllocationMap(), ElementsAre(Pair(_, Gt(0))));
+  Deallocate<1>(&alloc, mem, 1);
+  // Verify that the deallocation matched.
+  EXPECT_THAT(AllocationMap(), ElementsAre(Pair(_, 0)));
 }
 
 class Fixture : public ::testing::Test {

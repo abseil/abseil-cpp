@@ -37,6 +37,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
+template <size_t Alignment>
+struct alignas(Alignment) AlignedType {};
+
 // Allocates at least n bytes aligned to the specified alignment.
 // Alignment must be a power of 2. It must be positive.
 //
@@ -48,7 +51,7 @@ template <size_t Alignment, class Alloc>
 void* Allocate(Alloc* alloc, size_t n) {
   static_assert(Alignment > 0, "");
   assert(n && "n must be positive");
-  struct alignas(Alignment) M {};
+  using M = AlignedType<Alignment>;
   using A = typename absl::allocator_traits<Alloc>::template rebind_alloc<M>;
   using AT = typename absl::allocator_traits<Alloc>::template rebind_traits<M>;
   A mem_alloc(*alloc);
@@ -64,7 +67,7 @@ template <size_t Alignment, class Alloc>
 void Deallocate(Alloc* alloc, void* p, size_t n) {
   static_assert(Alignment > 0, "");
   assert(n && "n must be positive");
-  struct alignas(Alignment) M {};
+  using M = AlignedType<Alignment>;
   using A = typename absl::allocator_traits<Alloc>::template rebind_alloc<M>;
   using AT = typename absl::allocator_traits<Alloc>::template rebind_traits<M>;
   A mem_alloc(*alloc);

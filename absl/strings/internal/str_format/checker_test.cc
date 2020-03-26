@@ -9,13 +9,17 @@ ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
-std::string ConvToString(Conv conv) {
+std::string ConvToString(FormatConversionCharSet conv) {
   std::string out;
 #define CONV_SET_CASE(c) \
-  if (Contains(conv, Conv::c)) out += #c;
+  if (Contains(conv, FormatConversionCharSet::c)) { \
+    out += #c; \
+  }
   ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
 #undef CONV_SET_CASE
-  if (Contains(conv, Conv::star)) out += "*";
+  if (Contains(conv, FormatConversionCharSet::kStar)) {
+    out += "*";
+  }
   return out;
 }
 
