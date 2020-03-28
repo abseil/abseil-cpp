@@ -89,6 +89,7 @@
 #define ABSL_CACHELINE_SIZE 64
 #endif
 #endif
+#endif
 
 #ifndef ABSL_CACHELINE_SIZE
 // A reasonable default guess.  Note that overestimates tend to waste more
