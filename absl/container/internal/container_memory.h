@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
@@ -319,11 +320,12 @@ union map_slot_type {
   map_slot_type() {}
   ~map_slot_type() = delete;
   using value_type = std::pair<const K, V>;
-  using mutable_value_type = std::pair<K, V>;
+  using mutable_value_type =
+      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
 
   value_type value;
   mutable_value_type mutable_value;
-  K key;
+  absl::remove_const_t<K> key;
 };
 
 template <class K, class V>

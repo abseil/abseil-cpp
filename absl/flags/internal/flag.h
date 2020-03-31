@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <typeinfo>
 
 #include "absl/base/call_once.h"
 #include "absl/base/config.h"
@@ -50,7 +51,8 @@ enum class FlagOp {
   kCopy,
   kCopyConstruct,
   kSizeof,
-  kStaticTypeId,
+  kFastTypeId,
+  kRuntimeTypeId,
   kParse,
   kUnparse,
   kValueOffset,
@@ -96,10 +98,15 @@ inline size_t Sizeof(FlagOpFn op) {
   return static_cast<size_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kSizeof, nullptr, nullptr, nullptr)));
 }
-// Returns static type id coresponding to the value type.
-inline FlagStaticTypeId StaticTypeId(FlagOpFn op) {
-  return reinterpret_cast<FlagStaticTypeId>(
-      op(FlagOp::kStaticTypeId, nullptr, nullptr, nullptr));
+// Returns fast type id coresponding to the value type.
+inline FlagFastTypeId FastTypeId(FlagOpFn op) {
+  return reinterpret_cast<FlagFastTypeId>(
+      op(FlagOp::kFastTypeId, nullptr, nullptr, nullptr));
+}
+// Returns fast type id coresponding to the value type.
+inline const std::type_info* RuntimeTypeId(FlagOpFn op) {
+  return reinterpret_cast<const std::type_info*>(
+      op(FlagOp::kRuntimeTypeId, nullptr, nullptr, nullptr));
 }
 // Returns offset of the field value_ from the field impl_ inside of
 // absl::Flag<T> data. Given FlagImpl pointer p you can get the
@@ -110,6 +117,16 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   // `flags_internal::FlagOps()`
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
+}
+
+// Returns an address of RTTI's typeid(T).
+template <typename T>
+inline const std::type_info* GenRuntimeTypeId() {
+#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
+  return &typeid(T);
+#else
+  return nullptr;
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -374,9 +391,10 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
   // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
   // absl::GetFlag(FLAGS_foo) validates that the type of FLAGS_foo is indeed
   // int. To do that we pass the "assumed" type id (which is deduced from type
-  // int) as an argument `op`, which is in turn is validated against the type id
-  // stored in flag object by flag definition statement.
-  void AssertValidType(FlagStaticTypeId type_id) const;
+  // int) as an argument `type_id`, which is in turn is validated against the
+  // type id stored in flag object by flag definition statement.
+  void AssertValidType(FlagFastTypeId type_id,
+                       const std::type_info* (*gen_rtti)()) const;
 
  private:
   template <typename T>
@@ -433,7 +451,7 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
   std::string Filename() const override;
   absl::string_view Typename() const override;
   std::string Help() const override;
-  FlagStaticTypeId TypeId() const override;
+  FlagFastTypeId TypeId() const override;
   bool IsModified() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool IsSpecifiedOnCommandLine() const override
       ABSL_LOCKS_EXCLUDED(*DataGuard());
@@ -539,14 +557,14 @@ class Flag {
     U u;
 
 #if !defined(NDEBUG)
-    impl_.AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
+    impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
 #endif
 
     if (!value_.Get(&u.value)) impl_.Read(&u.value);
     return std::move(u.value);
   }
   void Set(const T& v) {
-    impl_.AssertValidType(&flags_internal::FlagStaticTypeIdGen<T>);
+    impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     impl_.Write(&v);
   }
   void SetCallback(const FlagCallbackFunc mutation_callback) {
@@ -595,8 +613,10 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       return nullptr;
     case FlagOp::kSizeof:
       return reinterpret_cast<void*>(static_cast<uintptr_t>(sizeof(T)));
-    case FlagOp::kStaticTypeId:
-      return reinterpret_cast<void*>(&FlagStaticTypeIdGen<T>);
+    case FlagOp::kFastTypeId:
+      return const_cast<void*>(base_internal::FastTypeId<T>());
+    case FlagOp::kRuntimeTypeId:
+      return const_cast<std::type_info*>(GenRuntimeTypeId<T>());
     case FlagOp::kParse: {
       // Initialize the temporary instance of type T based on current value in
       // destination (which is going to be flag's default value).

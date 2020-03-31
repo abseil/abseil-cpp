@@ -24,7 +24,7 @@
 
 // Clang on Windows has __builtin_clzll; otherwise we need to use the
 // windows intrinsic functions.
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #if defined(_M_X64)
 #pragma intrinsic(_BitScanReverse64)
@@ -36,7 +36,7 @@
 
 #include "absl/base/attributes.h"
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 // We can achieve something similar to attribute((always_inline)) with MSVC by
 // using the __forceinline keyword, however this is not perfect. MSVC is
 // much less aggressive about inlining, and even with the __forceinline keyword.
@@ -73,14 +73,14 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64Slow(uint64_t n) {
 }
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64(uint64_t n) {
-#if defined(_MSC_VER) && defined(_M_X64)
+#if defined(_MSC_VER) && !defined(__clang__) && defined(_M_X64)
   // MSVC does not have __buitin_clzll. Use _BitScanReverse64.
   unsigned long result = 0;  // NOLINT(runtime/int)
   if (_BitScanReverse64(&result, n)) {
     return 63 - result;
   }
   return 64;
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__clang__)
   // MSVC does not have __buitin_clzll. Compose two calls to _BitScanReverse
   unsigned long result = 0;  // NOLINT(runtime/int)
   if ((n >> 32) && _BitScanReverse(&result, n >> 32)) {
@@ -90,7 +90,7 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64(uint64_t n) {
     return 63 - result;
   }
   return 64;
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
   // Use __builtin_clzll, which uses the following instructions:
   //  x86: bsr
   //  ARM64: clz
@@ -126,13 +126,13 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros32Slow(uint64_t n) {
 }
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros32(uint32_t n) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
   unsigned long result = 0;  // NOLINT(runtime/int)
   if (_BitScanReverse(&result, n)) {
     return 31 - result;
   }
   return 32;
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
   // Use __builtin_clz, which uses the following instructions:
   //  x86: bsr
   //  ARM64: clz
@@ -163,11 +163,11 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero64Slow(uint64_t n) {
 }
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero64(uint64_t n) {
-#if defined(_MSC_VER) && defined(_M_X64)
+#if defined(_MSC_VER) && !defined(__clang__) && defined(_M_X64)
   unsigned long result = 0;  // NOLINT(runtime/int)
   _BitScanForward64(&result, n);
   return result;
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__clang__)
   unsigned long result = 0;  // NOLINT(runtime/int)
   if (static_cast<uint32_t>(n) == 0) {
     _BitScanForward(&result, n >> 32);
@@ -175,7 +175,7 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero64(uint64_t n) {
   }
   _BitScanForward(&result, n);
   return result;
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
   static_assert(sizeof(unsigned long long) == sizeof(n),  // NOLINT(runtime/int)
                 "__builtin_ctzll does not take 64-bit arg");
   return __builtin_ctzll(n);
@@ -196,11 +196,11 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero32Slow(uint32_t n) {
 }
 
 ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero32(uint32_t n) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
   unsigned long result = 0;  // NOLINT(runtime/int)
   _BitScanForward(&result, n);
   return result;
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
   static_assert(sizeof(int) == sizeof(n),
                 "__builtin_ctz does not take 32-bit arg");
   return __builtin_ctz(n);

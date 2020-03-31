@@ -128,6 +128,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::fast_type_id
     absl::flags_config
     absl::flags_marshalling
     absl::core_headers

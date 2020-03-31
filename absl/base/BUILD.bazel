@@ -750,3 +750,28 @@ cc_binary(
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )
+
+cc_library(
+    name = "fast_type_id",
+    hdrs = ["internal/fast_type_id.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":config",
+    ],
+)
+
+cc_test(
+    name = "fast_type_id_test",
+    size = "small",
+    srcs = ["internal/fast_type_id_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":fast_type_id",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

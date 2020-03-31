@@ -366,6 +366,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/memory",
+        "//absl/meta:type_traits",
         "//absl/utility",
     ],
 )
@@ -378,6 +379,7 @@ cc_test(
     tags = NOTEST_TAGS_NONMOBILE,
     deps = [
         ":container_memory",
+        ":test_instance_tracker",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],

@@ -155,8 +155,7 @@ enum class FormatConversionChar : uint8_t {
     d, i, o, u, x, X,        // int
     f, F, e, E, g, G, a, A,  // float
     n, p,                    // misc
-    kNone,
-    none = kNone
+    kNone
 };
 // clang-format on
 
@@ -288,11 +287,6 @@ class FormatConversionSpec {
   // negative value.
   int precision() const { return precision_; }
 
-  // Deprecated (use has_x_flag() instead).
-  Flags flags() const { return flags_; }
-  // Deprecated
-  FormatConversionChar conv() const { return conversion_char(); }
-
  private:
   friend struct str_format_internal::FormatConversionSpecImplFriend;
   FormatConversionChar conv_ = FormatConversionChar::kNone;
@@ -344,15 +338,7 @@ enum class FormatConversionCharSet : uint64_t {
   kFloating = a | e | f | g | A | E | F | G,
   kNumeric = kIntegral | kFloating,
   kString = s,
-  kPointer = p,
-
-  // The following are deprecated
-  star = kStar,
-  integral = kIntegral,
-  floating = kFloating,
-  numeric = kNumeric,
-  string = kString,
-  pointer = kPointer
+  kPointer = p
 };
 
 // Type safe OR operator.

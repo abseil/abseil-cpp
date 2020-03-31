@@ -48,9 +48,9 @@ const char kStrippedFlagHelp[] = "\001\002\003\004 (unknown) \004\003\002\001";
 namespace {
 
 // Currently we only validate flag values for user-defined flag types.
-bool ShouldValidateFlagValue(FlagStaticTypeId flag_type_id) {
+bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
 #define DONT_VALIDATE(T) \
-  if (flag_type_id == &FlagStaticTypeIdGen<T>) return false;
+  if (flag_type_id == base_internal::FastTypeId<T>()) return false;
   ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(DONT_VALIDATE)
 #undef DONT_VALIDATE
 
@@ -161,24 +161,24 @@ absl::Mutex* FlagImpl::DataGuard() const {
   return reinterpret_cast<absl::Mutex*>(&data_guard_);
 }
 
-void FlagImpl::AssertValidType(FlagStaticTypeId type_id) const {
-  FlagStaticTypeId this_type_id = flags_internal::StaticTypeId(op_);
+void FlagImpl::AssertValidType(FlagFastTypeId rhs_type_id,
+                               const std::type_info* (*gen_rtti)()) const {
+  FlagFastTypeId lhs_type_id = flags_internal::FastTypeId(op_);
 
-  // `type_id` is the type id corresponding to the declaration visibile at the
-  // call site. `this_type_id` is the type id corresponding to the type stored
-  // during flag definition. They must match for this operation to be
-  // well-defined.
-  if (ABSL_PREDICT_TRUE(type_id == this_type_id)) return;
+  // `rhs_type_id` is the fast type id corresponding to the declaration
+  // visibile at the call site. `lhs_type_id` is the fast type id
+  // corresponding to the type specified in flag definition. They must match
+  //  for this operation to be well-defined.
+  if (ABSL_PREDICT_TRUE(lhs_type_id == rhs_type_id)) return;
 
-  void* lhs_runtime_type_id = type_id();
-  void* rhs_runtime_type_id = this_type_id();
+  const std::type_info* lhs_runtime_type_id =
+      flags_internal::RuntimeTypeId(op_);
+  const std::type_info* rhs_runtime_type_id = (*gen_rtti)();
 
   if (lhs_runtime_type_id == rhs_runtime_type_id) return;
 
 #if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
-  if (*reinterpret_cast<std::type_info*>(lhs_runtime_type_id) ==
-      *reinterpret_cast<std::type_info*>(rhs_runtime_type_id))
-    return;
+  if (*lhs_runtime_type_id == *rhs_runtime_type_id) return;
 #endif
 
   ABSL_INTERNAL_LOG(
@@ -233,8 +233,8 @@ std::string FlagImpl::Help() const {
                                                     : help_.gen_func();
 }
 
-FlagStaticTypeId FlagImpl::TypeId() const {
-  return flags_internal::StaticTypeId(op_);
+FlagFastTypeId FlagImpl::TypeId() const {
+  return flags_internal::FastTypeId(op_);
 }
 
 bool FlagImpl::IsModified() const {
@@ -429,7 +429,7 @@ void FlagImpl::Read(void* dst) const {
 void FlagImpl::Write(const void* src) {
   absl::MutexLock l(DataGuard());
 
-  if (ShouldValidateFlagValue(flags_internal::StaticTypeId(op_))) {
+  if (ShouldValidateFlagValue(flags_internal::FastTypeId(op_))) {
     std::unique_ptr<void, DynValueDeleter> obj{flags_internal::Clone(op_, src),
                                                DynValueDeleter{op_}};
     std::string ignored_error;

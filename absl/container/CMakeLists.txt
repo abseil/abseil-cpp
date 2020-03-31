@@ -421,6 +421,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::memory
+    absl::type_traits
     absl::utility
   PUBLIC
 )
@@ -435,6 +436,7 @@ absl_cc_test(
   DEPS
     absl::container_memory
     absl::strings
+    absl::test_instance_tracker
     gmock_main
 )
 

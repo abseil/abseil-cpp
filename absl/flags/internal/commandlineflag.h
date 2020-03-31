@@ -24,6 +24,7 @@
 #include <typeinfo>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/fast_type_id.h"
 #include "absl/base/macros.h"
 #include "absl/flags/config.h"
 #include "absl/flags/marshalling.h"
@@ -34,23 +35,12 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 
-// An alias for flag static type id. Values of type identify the flag value type
-// simialarly to typeid(T), but without relying on RTTI being available. In most
+// An alias for flag fast type id. This value identifies the flag value type
+// simialarly to typeid(T), without relying on RTTI being available. In most
 // cases this id is enough to uniquely identify the flag's value type. In a few
 // cases we'll have to resort to using actual RTTI implementation if it is
 // available.
-using FlagStaticTypeId = void* (*)();
-
-// Address of this function template is used in current implementation as a flag
-// static type id.
-template <typename T>
-void* FlagStaticTypeIdGen() {
-#if defined(ABSL_FLAGS_INTERNAL_HAS_RTTI)
-  return const_cast<std::type_info*>(&typeid(T));
-#else
-  return nullptr;
-#endif
-}
+using FlagFastTypeId = base_internal::FastTypeIdType;
 
 // Options that control SetCommandLineOptionWithMode.
 enum FlagSettingMode {
@@ -97,7 +87,7 @@ class CommandLineFlag {
   // Return true iff flag has type T.
   template <typename T>
   inline bool IsOfType() const {
-    return TypeId() == &flags_internal::FlagStaticTypeIdGen<T>;
+    return TypeId() == base_internal::FastTypeId<T>();
   }
 
   // Attempts to retrieve the flag value. Returns value on success,
@@ -150,7 +140,7 @@ class CommandLineFlag {
   // Returns true iff this is a handle to an Abseil Flag.
   virtual bool IsAbseilFlag() const;
   // Returns id of the flag's value type.
-  virtual FlagStaticTypeId TypeId() const = 0;
+  virtual FlagFastTypeId TypeId() const = 0;
   virtual bool IsModified() const = 0;
   virtual bool IsSpecifiedOnCommandLine() const = 0;
   virtual std::string DefaultValue() const = 0;

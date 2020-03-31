@@ -578,6 +578,7 @@ absl_cc_test(
     absl::strings
     absl::base
     absl::config
+    absl::core_headers
     absl::endian
     absl::raw_logging_internal
     absl::fixed_array

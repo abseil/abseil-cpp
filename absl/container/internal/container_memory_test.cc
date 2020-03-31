@@ -22,6 +22,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/container/internal/test_instance_tracker.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -29,9 +30,11 @@ ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
-using ::testing::Gt;
+using ::absl::test_internal::CopyableMovableInstance;
+using ::absl::test_internal::InstanceTracker;
 using ::testing::_;
 using ::testing::ElementsAre;
+using ::testing::Gt;
 using ::testing::Pair;
 
 TEST(Memory, AlignmentLargerThanBase) {
@@ -220,6 +223,31 @@ TEST(DecomposePair, NotDecomposable) {
   EXPECT_STREQ("not decomposable",
                TryDecomposePair(f, std::piecewise_construct, std::make_tuple(),
                                 std::make_tuple(0.5)));
+}
+
+TEST(MapSlotPolicy, ConstKeyAndValue) {
+  using slot_policy = map_slot_policy<const CopyableMovableInstance,
+                                      const CopyableMovableInstance>;
+  using slot_type = typename slot_policy::slot_type;
+
+  union Slots {
+    Slots() {}
+    ~Slots() {}
+    slot_type slots[100];
+  } slots;
+
+  std::allocator<
+      std::pair<const CopyableMovableInstance, const CopyableMovableInstance>>
+      alloc;
+  InstanceTracker tracker;
+  slot_policy::construct(&alloc, &slots.slots[0], CopyableMovableInstance(1),
+                         CopyableMovableInstance(1));
+  for (int i = 0; i < 99; ++i) {
+    slot_policy::transfer(&alloc, &slots.slots[i + 1], &slots.slots[i]);
+  }
+  slot_policy::destroy(&alloc, &slots.slots[99]);
+
+  EXPECT_EQ(tracker.copies(), 0);
 }
 
 }  // namespace

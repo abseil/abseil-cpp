@@ -674,3 +674,28 @@ absl_cc_test(
     gmock
     gtest_main
 )
+
+absl_cc_library(
+  NAME
+    fast_type_id
+  HDRS
+    "internal/fast_type_id.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+)
+
+absl_cc_test(
+  NAME
+    fast_type_id_test
+  SRCS
+    "internal/fast_type_id_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::fast_type_id
+    gtest_main
+)
