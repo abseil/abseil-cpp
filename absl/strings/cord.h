@@ -385,7 +385,7 @@ class Cord {
   // Determines whether the given Cord is empty, returning `true` is so.
   bool empty() const;
 
-  // Cord:EstimatedMemoryUsage()
+  // Cord::EstimatedMemoryUsage()
   //
   // Returns the *approximate* number of bytes held in full or in part by this
   // Cord (which may not remain the same between invocations).  Note that Cords

@@ -303,6 +303,7 @@ absl_cc_test(
     absl::unordered_map_members_test
     absl::unordered_map_modifiers_test
     absl::any
+    absl::raw_logging_internal
     gmock_main
 )
 
@@ -339,6 +340,7 @@ absl_cc_test(
     absl::unordered_set_members_test
     absl::unordered_set_modifiers_test
     absl::memory
+    absl::raw_logging_internal
     absl::strings
     gmock_main
 )

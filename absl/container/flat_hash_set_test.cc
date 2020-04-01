@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "absl/base/internal/raw_logging.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
@@ -35,6 +36,17 @@ using ::testing::IsEmpty;
 using ::testing::Pointee;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
+
+// Check that absl::flat_hash_set works in a global constructor.
+struct BeforeMain {
+  BeforeMain() {
+    absl::flat_hash_set<int> x;
+    x.insert(1);
+    ABSL_RAW_CHECK(!x.contains(0), "x should not contain 0");
+    ABSL_RAW_CHECK(x.contains(1), "x should contain 1");
+  }
+};
+const BeforeMain before_main;
 
 template <class T>
 using Set =

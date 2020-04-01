@@ -333,8 +333,9 @@ ABSL_NAMESPACE_END
       ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_FILENAME(),    \
       absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>(0),   \
       &AbslFlagsInitFlag##name};                                    \
-  extern bool FLAGS_no##name;                                       \
-  bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
+  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;   \
+  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =         \
+      ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 #else
 // MSVC version uses aggregate initialization. We also do not try to
 // optimize away help wrapper.
@@ -345,8 +346,9 @@ ABSL_NAMESPACE_END
   ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                      \
       ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_FILENAME(),      \
       &AbslFlagHelpGenFor##name::NonConst, &AbslFlagsInitFlag##name}; \
-  extern bool FLAGS_no##name;                                         \
-  bool FLAGS_no##name = ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
+  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;     \
+  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =           \
+      ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 #endif
 
 // ABSL_RETIRED_FLAG

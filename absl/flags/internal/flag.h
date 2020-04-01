@@ -648,6 +648,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
 // This class facilitates Flag object registration and tail expression-based
 // flag definition, for example:
 // ABSL_FLAG(int, foo, 42, "Foo help").OnUpdate(NotifyFooWatcher);
+struct FlagRegistrarEmpty {};
 template <typename T, bool do_register>
 class FlagRegistrar {
  public:
@@ -660,9 +661,10 @@ class FlagRegistrar {
     return *this;
   }
 
-  // Make the registrar "die" gracefully as a bool on a line where registration
-  // happens. Registrar objects are intended to live only as temporary.
-  operator bool() const { return true; }  // NOLINT
+  // Make the registrar "die" gracefully as an empty struct on a line where
+  // registration happens. Registrar objects are intended to live only as
+  // temporary.
+  operator FlagRegistrarEmpty() const { return {}; }  // NOLINT
 
  private:
   Flag<T>* flag_;  // Flag being registered (not owned).

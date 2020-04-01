@@ -24,6 +24,7 @@ absl_cc_library(
     absl::bad_any_cast
     absl::config
     absl::core_headers
+    absl::fast_type_id
     absl::type_traits
     absl::utility
   PUBLIC
