@@ -20,19 +20,19 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
-if [ -z ${STD:-} ]; then
+if [[ -z ${STD:-} ]]; then
   STD="c++11 c++14 c++17"
 fi
 
-if [ -z ${COMPILATION_MODE:-} ]; then
+if [[ -z ${COMPILATION_MODE:-} ]]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-if [ -z ${EXCEPTIONS_MODE:-} ]; then
+if [[ -z ${EXCEPTIONS_MODE:-} ]]; then
   EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
 fi
 
@@ -41,7 +41,7 @@ readonly DOCKER_CONTAINER=${LINUX_GCC_LATEST_CONTAINER}
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
-if [ ${USE_BAZEL_CACHE:-0} -ne 0 ]; then
+if [[ ${USE_BAZEL_CACHE:-0} -ne 0 ]]; then
   DOCKER_EXTRA_ARGS="--volume=${KOKORO_KEYSTORE_DIR}:/keystore:ro ${DOCKER_EXTRA_ARGS:-}"
   # Bazel doesn't track changes to tools outside of the workspace
   # (e.g. /usr/bin/gcc), so by appending the docker container to the
@@ -54,7 +54,7 @@ fi
 # Avoid depending on external sites like GitHub by checking --distdir for
 # external dependencies first.
 # https://docs.bazel.build/versions/master/guide.html#distdir
-if [ -z ${KOKORO_GFILE_DIR:-} && -d "${KOKORO_GFILE_DIR}/distdir" ]; then
+if [[ ${KOKORO_GFILE_DIR:-} ]] && [[ -d "${KOKORO_GFILE_DIR}/distdir" ]]; then
   DOCKER_EXTRA_ARGS="--volume=${KOKORO_GFILE_DIR}/distdir:/distdir:ro ${DOCKER_EXTRA_ARGS:-}"
   BAZEL_EXTRA_ARGS="--distdir=/distdir ${BAZEL_EXTRA_ARGS:-}"
 fi
@@ -75,7 +75,7 @@ for std in ${STD}; do
         ${DOCKER_CONTAINER} \
         /bin/sh -c "
           cp -r /abseil-cpp-ro/* /abseil-cpp/
-          if [ -n \"${ALTERNATE_OPTIONS:-}\" ]; then
+          if [[ -n \"${ALTERNATE_OPTIONS:-}\" ]]; then
             cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
           fi
           /usr/local/bin/bazel test ... \

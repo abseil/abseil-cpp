@@ -16,7 +16,7 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 

@@ -19,12 +19,12 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(dirname ${0})/.."
 fi
 ABSEIL_ROOT=$(realpath ${ABSEIL_ROOT})
 
-if [ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]; then
+if [[ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]]; then
   ABSL_CMAKE_BUILD_TYPES="Debug"
 fi
 

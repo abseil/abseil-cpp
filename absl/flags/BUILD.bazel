@@ -326,7 +326,9 @@ cc_test(
         ":handle",
         ":registry",
         "//absl/base:core_headers",
+        "//absl/base:malloc_internal",
         "//absl/strings",
+        "//absl/time",
         "@com_google_googletest//:gtest_main",
     ],
 )

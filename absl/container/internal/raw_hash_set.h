@@ -104,7 +104,7 @@
 
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
-#include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
@@ -649,24 +649,26 @@ class raw_hash_set {
     }
 
    private:
-    iterator(ctrl_t* ctrl) : ctrl_(ctrl) {}  // for end()
-    iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {}
+    iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {
+      // This assumption helps the compiler know that any non-end iterator is
+      // not equal to any end iterator.
+      ABSL_INTERNAL_ASSUME(ctrl != nullptr);
+    }
 
-    void assert_is_full() const { ABSL_HARDENING_ASSERT(IsFull(*ctrl_)); }
+    void assert_is_full() const {
+      ABSL_HARDENING_ASSERT(ctrl_ != nullptr && IsFull(*ctrl_));
+    }
     void assert_is_valid() const {
-      ABSL_HARDENING_ASSERT(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
+      ABSL_HARDENING_ASSERT(ctrl_ == nullptr || IsFull(*ctrl_));
     }
 
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
-        // ctrl is not necessarily aligned to Group::kWidth. It is also likely
-        // to read past the space for ctrl bytes and into slots. This is ok
-        // because ctrl has sizeof() == 1 and slot has sizeof() >= 1 so there
-        // is no way to read outside the combined slot array.
         uint32_t shift = Group{ctrl_}.CountLeadingEmptyOrDeleted();
         ctrl_ += shift;
         slot_ += shift;
       }
+      if (ABSL_PREDICT_FALSE(*ctrl_ == kSentinel)) ctrl_ = nullptr;
     }
 
     ctrl_t* ctrl_ = nullptr;
@@ -908,12 +910,12 @@ class raw_hash_set {
     it.skip_empty_or_deleted();
     return it;
   }
-  iterator end() { return {ctrl_ + capacity_}; }
+  iterator end() { return {}; }
 
   const_iterator begin() const {
     return const_cast<raw_hash_set*>(this)->begin();
   }
-  const_iterator end() const { return const_cast<raw_hash_set*>(this)->end(); }
+  const_iterator end() const { return {}; }
   const_iterator cbegin() const { return begin(); }
   const_iterator cend() const { return end(); }
 

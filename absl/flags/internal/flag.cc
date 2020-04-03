@@ -92,9 +92,9 @@ class FlagState : public flags_internal::FlagStateInterface {
         counter_(counter) {}
 
   ~FlagState() override {
-    if (flag_impl_->ValueStorageKind() != FlagValueStorageKind::kHeapAllocated)
+    if (flag_impl_->ValueStorageKind() != FlagValueStorageKind::kAlignedBuffer)
       return;
-    flags_internal::Delete(flag_impl_->op_, value_.dynamic);
+    flags_internal::Delete(flag_impl_->op_, value_.heap_allocated);
   }
 
  private:
@@ -112,11 +112,11 @@ class FlagState : public flags_internal::FlagStateInterface {
   // Flag and saved flag data.
   FlagImpl* flag_impl_;
   union SavedValue {
-    explicit SavedValue(void* v) : dynamic(v) {}
+    explicit SavedValue(void* v) : heap_allocated(v) {}
     explicit SavedValue(int64_t v) : one_word(v) {}
     explicit SavedValue(flags_internal::AlignedTwoWords v) : two_words(v) {}
 
-    void* dynamic;
+    void* heap_allocated;
     int64_t one_word;
     flags_internal::AlignedTwoWords two_words;
   } value_;
@@ -128,25 +128,33 @@ class FlagState : public flags_internal::FlagStateInterface {
 ///////////////////////////////////////////////////////////////////////////////
 // Flag implementation, which does not depend on flag value type.
 
+DynValueDeleter::DynValueDeleter(FlagOpFn op_arg) : op(op_arg) {}
+
+void DynValueDeleter::operator()(void* ptr) const {
+  if (op == nullptr) return;
+
+  Delete(op, ptr);
+}
+
 void FlagImpl::Init() {
   new (&data_guard_) absl::Mutex;
 
   // At this point the default_value_ always points to gen_func.
-  std::unique_ptr<void, DynValueDeleter> init_value(
-      (*default_value_.gen_func)(), DynValueDeleter{op_});
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated:
-      HeapAllocatedValue() = init_value.release();
+    case FlagValueStorageKind::kAlignedBuffer:
+      (*default_value_.gen_func)(AlignedBufferValue());
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
-      int64_t atomic_value;
-      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
-      OneWordValue().store(atomic_value, std::memory_order_release);
+      alignas(int64_t) std::array<char, sizeof(int64_t)> buf{};
+      (*default_value_.gen_func)(buf.data());
+      auto value = absl::bit_cast<int64_t>(buf);
+      OneWordValue().store(value, std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
-      AlignedTwoWords atomic_value{0, 0};
-      std::memcpy(&atomic_value, init_value.get(), Sizeof(op_));
+      alignas(AlignedTwoWords) std::array<char, sizeof(AlignedTwoWords)> buf{};
+      (*default_value_.gen_func)(buf.data());
+      auto atomic_value = absl::bit_cast<AlignedTwoWords>(buf);
       TwoWordsValue().store(atomic_value, std::memory_order_release);
       break;
     }
@@ -191,15 +199,16 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
     res = flags_internal::Clone(op_, default_value_.dynamic_value);
   } else {
-    res = (*default_value_.gen_func)();
+    res = flags_internal::Alloc(op_);
+    (*default_value_.gen_func)(res);
   }
   return {res, DynValueDeleter{op_}};
 }
 
 void FlagImpl::StoreValue(const void* src) {
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated:
-      Copy(op_, src, HeapAllocatedValue());
+    case FlagValueStorageKind::kAlignedBuffer:
+      Copy(op_, src, AlignedBufferValue());
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       int64_t one_word_val = 0;
@@ -257,9 +266,9 @@ std::string FlagImpl::DefaultValue() const {
 std::string FlagImpl::CurrentValue() const {
   auto* guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated: {
+    case FlagValueStorageKind::kAlignedBuffer: {
       absl::MutexLock l(guard);
-      return flags_internal::Unparse(op_, HeapAllocatedValue());
+      return flags_internal::Unparse(op_, AlignedBufferValue());
     }
     case FlagValueStorageKind::kOneWordAtomic: {
       const auto one_word_val =
@@ -318,9 +327,9 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   bool modified = modified_;
   bool on_command_line = on_command_line_;
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated: {
+    case FlagValueStorageKind::kAlignedBuffer: {
       return absl::make_unique<FlagState>(
-          this, flags_internal::Clone(op_, HeapAllocatedValue()), modified,
+          this, flags_internal::Clone(op_, AlignedBufferValue()), modified,
           on_command_line, counter_);
     }
     case FlagValueStorageKind::kOneWordAtomic: {
@@ -345,8 +354,8 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
   }
 
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated:
-      StoreValue(flag_state.value_.dynamic);
+    case FlagValueStorageKind::kAlignedBuffer:
+      StoreValue(flag_state.value_.heap_allocated);
       break;
     case FlagValueStorageKind::kOneWordAtomic:
       StoreValue(&flag_state.value_.one_word);
@@ -363,25 +372,27 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
 }
 
 template <typename StorageT>
-typename StorageT::value_type& FlagImpl::OffsetValue() const {
+StorageT* FlagImpl::OffsetValue() const {
   char* p = reinterpret_cast<char*>(const_cast<FlagImpl*>(this));
   // The offset is deduced via Flag value type specific op_.
   size_t offset = flags_internal::ValueOffset(op_);
 
-  return reinterpret_cast<StorageT*>(p + offset)->value;
+  return reinterpret_cast<StorageT*>(p + offset);
 }
 
-void*& FlagImpl::HeapAllocatedValue() const {
-  assert(ValueStorageKind() == FlagValueStorageKind::kHeapAllocated);
-  return OffsetValue<FlagHeapAllocatedValue>();
+void* FlagImpl::AlignedBufferValue() const {
+  assert(ValueStorageKind() == FlagValueStorageKind::kAlignedBuffer);
+  return OffsetValue<void>();
 }
+
 std::atomic<int64_t>& FlagImpl::OneWordValue() const {
   assert(ValueStorageKind() == FlagValueStorageKind::kOneWordAtomic);
-  return OffsetValue<FlagOneWordValue>();
+  return OffsetValue<FlagOneWordValue>()->value;
 }
+
 std::atomic<AlignedTwoWords>& FlagImpl::TwoWordsValue() const {
   assert(ValueStorageKind() == FlagValueStorageKind::kTwoWordsAtomic);
-  return OffsetValue<FlagTwoWordsValue>();
+  return OffsetValue<FlagTwoWordsValue>()->value;
 }
 
 // Attempts to parse supplied `value` string using parsing routine in the `flag`
@@ -406,9 +417,9 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::TryParse(
 void FlagImpl::Read(void* dst) const {
   auto* guard = DataGuard();  // Make sure flag initialized
   switch (ValueStorageKind()) {
-    case FlagValueStorageKind::kHeapAllocated: {
+    case FlagValueStorageKind::kAlignedBuffer: {
       absl::MutexLock l(guard);
-      flags_internal::CopyConstruct(op_, HeapAllocatedValue(), dst);
+      flags_internal::CopyConstruct(op_, AlignedBufferValue(), dst);
       break;
     }
     case FlagValueStorageKind::kOneWordAtomic: {

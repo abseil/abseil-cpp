@@ -314,9 +314,9 @@ ABSL_NAMESPACE_END
     static std::string NonConst() { return ABSL_FLAG_IMPL_FLAGHELP(txt); } \
   }
 
-#define ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)   \
-  static void* AbslFlagsInitFlag##name() {                                  \
-    return absl::flags_internal::MakeFromDefaultValue<Type>(default_value); \
+#define ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
+  static void AbslFlagsInitFlag##name(void* dst) {                        \
+    absl::flags_internal::MakeFromDefaultValue<Type>(dst, default_value); \
   }
 
 // ABSL_FLAG_IMPL

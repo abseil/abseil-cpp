@@ -304,6 +304,7 @@ absl_cc_test(
     absl::flags_internal
     absl::flags_registry
     absl::strings
+    absl::time
     gtest_main
 )
 

@@ -22,15 +22,15 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
-if [ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]; then
+if [[ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]]; then
   ABSL_CMAKE_CXX_STANDARDS="11 14 17"
 fi
 
-if [ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]; then
+if [[ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]]; then
   ABSL_CMAKE_BUILD_TYPES="Debug Release"
 fi
 

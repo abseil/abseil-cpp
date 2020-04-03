@@ -732,9 +732,9 @@ void AppendNumberUnit(std::string* out, int64_t n, DisplayUnit unit) {
 // Note: unit.prec is limited to double's digits10 value (typically 15) so it
 // always fits in buf[].
 void AppendNumberUnit(std::string* out, double n, DisplayUnit unit) {
-  const int buf_size = std::numeric_limits<double>::digits10;
-  const int prec = std::min(buf_size, unit.prec);
-  char buf[buf_size];  // also large enough to hold integer part
+  constexpr int kBufferSize = std::numeric_limits<double>::digits10;
+  const int prec = std::min(kBufferSize, unit.prec);
+  char buf[kBufferSize];  // also large enough to hold integer part
   char* ep = buf + sizeof(buf);
   double d = 0;
   int64_t frac_part = Round(std::modf(n, &d) * unit.pow10);

@@ -57,6 +57,7 @@ const uint16_t k16ValueBE{0x2301};
 template<typename T>
 std::vector<T> GenerateAllValuesForType() {
   std::vector<T> result;
+  result.reserve(size_t{1} << (sizeof(T) * 8));
   T next = std::numeric_limits<T>::min();
   while (true) {
     result.push_back(next);
@@ -68,10 +69,11 @@ std::vector<T> GenerateAllValuesForType() {
 }
 
 template<typename T>
-std::vector<T> GenerateRandomIntegers(size_t numValuesToTest) {
+std::vector<T> GenerateRandomIntegers(size_t num_values_to_test) {
   std::vector<T> result;
+  result.reserve(num_values_to_test);
   std::mt19937_64 rng(kRandomSeed);
-  for (size_t i = 0; i < numValuesToTest; ++i) {
+  for (size_t i = 0; i < num_values_to_test; ++i) {
     result.push_back(rng());
   }
   return result;
