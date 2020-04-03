@@ -81,6 +81,9 @@ endif()
 ## pthread
 find_package(Threads REQUIRED)
 
+option(ABSL_USE_EXTERNAL_GOOGLETEST
+  "If ON, abseil will assume that the targets for googletest are already provided by the including project folder. This makes sense when abseil is used with add_subproject." OFF)
+
 option(ABSL_USE_GOOGLETEST_HEAD
   "If ON, abseil will download HEAD from googletest at config time." OFF)
 
@@ -99,14 +102,15 @@ endif()
 
 ## check targets
 if(BUILD_TESTING)
-
-  set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
-  if(${ABSL_USE_GOOGLETEST_HEAD})
-    set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
-  else()
-    set(absl_gtest_src_dir ${ABSL_LOCAL_GOOGLETEST_DIR})
+  if (NOT ABSL_USE_EXTERNAL_GOOGLETEST)
+    set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
+    if(${ABSL_USE_GOOGLETEST_HEAD})
+      set(absl_gtest_src_dir ${CMAKE_BINARY_DIR}/googletest-src)
+    else()
+      set(absl_gtest_src_dir ${ABSL_LOCAL_GOOGLETEST_DIR})
+    endif()
+    include(CMake/Googletest/DownloadGTest.cmake)
   endif()
-  include(CMake/Googletest/DownloadGTest.cmake)
 
   check_target(gtest)
   check_target(gtest_main)
