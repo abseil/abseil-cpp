@@ -123,131 +123,11 @@ H HashFragmentedCord(H, const Cord&);
 // Additionally, the API provides iterator utilities to iterate through Cord
 // data via chunks or character bytes.
 //
-
-namespace cord_internal {
-
-// It's expensive to keep a Cord's tree perfectly balanced, so instead we keep
-// trees approximately balanced.  A tree node N of depth D(N) that contains a
-// string of L(N) characters is considered balanced if L >= Fibonacci(D + 2).
-// The "+ 2" is used to ensure that every balanced leaf node contains at least
-//  one character. Here we presume that
-//   Fibonacci(0) = 0
-//   Fibonacci(1) = 1
-//   Fibonacci(2) = 1
-//   Fibonacci(3) = 2
-//   ...
-// The algorithm is based on paper by Hans Boehm et al:
-// https://www.cs.rit.edu/usr/local/pub/jeh/courses/QUARTERS/FP/Labs/CedarRope/rope-paper.pdf
-// In this paper authors shows that rebalancing based on cord forest of already
-// balanced subtrees can be proven to never produce tree of depth larger than
-// largest Fibonacci number representable in the same integral type as cord size
-// For 64 bit integers this is the 93rd Fibonacci number. For 32 bit integrals
-// this is 47th Fibonacci number.
-constexpr size_t MaxCordDepth() { return sizeof(size_t) == 8 ? 93 : 47; }
-
-// This class models fixed max size stack of CordRep pointers.
-// The elements are being pushed back and popped from the back.
-template <typename CordRepPtr, size_t N>
-class CordTreePath {
- public:
-  CordTreePath() {}
-  explicit CordTreePath(CordRepPtr root) { push_back(root); }
-
-  bool empty() const { return size_ == 0; }
-  size_t size() const { return size_; }
-  void clear() { size_ = 0; }
-
-  CordRepPtr back() { return data_[size_ - 1]; }
-
-  void pop_back() {
-    --size_;
-    assert(size_ < N);
-  }
-  void push_back(CordRepPtr elem) { data_[size_++] = elem; }
-
- private:
-  CordRepPtr data_[N];
-  size_t size_ = 0;
-};
-
-// Fixed length container for mutable "path" in cord tree, which can hold any
-// possible valid path in cord tree.
-using CordTreeMutablePath = CordTreePath<CordRep*, MaxCordDepth()>;
-// Variable length container for mutable "path" in cord tree. It starts with
-// capacity for 15 elements and grow if necessary.
-using CordTreeDynamicPath =
-    absl::InlinedVector<absl::cord_internal::CordRep*, 15>;
-}  // namespace cord_internal
-
-// A Cord is a sequence of characters.
 class Cord {
  private:
   template <typename T>
   using EnableIfString =
       absl::enable_if_t<std::is_same<T, std::string>::value, int>;
-
-  //----------------------------------------------------------------------------
-  // Cord::GenericChunkIterator
-  //----------------------------------------------------------------------------
-  //
-  // A `Cord::GenericChunkIterator` provides an interface for the standard
-  // `Cord::ChunkIterator` as well as some private implementations.
-  template <typename StorageType>
-  class GenericChunkIterator {
-   public:
-    using iterator_category = std::input_iterator_tag;
-    using value_type = absl::string_view;
-    using difference_type = ptrdiff_t;
-    using pointer = const value_type*;
-    using reference = value_type;
-
-    GenericChunkIterator() = default;
-
-    GenericChunkIterator& operator++();
-    GenericChunkIterator operator++(int);
-    bool operator==(const GenericChunkIterator& other) const;
-    bool operator!=(const GenericChunkIterator& other) const;
-    reference operator*() const;
-    pointer operator->() const;
-
-    friend class Cord;
-    friend class CharIterator;
-
-   private:
-    // Constructs a `begin()` iterator from `cord`.
-    explicit GenericChunkIterator(const Cord* cord);
-
-    // Removes `n` bytes from `current_chunk_`. Expects `n` to be smaller than
-    // `current_chunk_.size()`.
-    void RemoveChunkPrefix(size_t n);
-    Cord AdvanceAndReadBytes(size_t n);
-    void AdvanceBytes(size_t n);
-    // Iterates `n` bytes, where `n` is expected to be greater than or equal to
-    // `current_chunk_.size()`.
-    void AdvanceBytesSlowPath(size_t n);
-
-    // A view into bytes of the current `CordRep`. It may only be a view to a
-    // suffix of bytes if this is being used by `CharIterator`.
-    absl::string_view current_chunk_;
-    // The current leaf, or `nullptr` if the iterator points to short data.
-    // If the current chunk is a substring node, current_leaf_ points to the
-    // underlying flat or external node.
-    cord_internal::CordRep* current_leaf_ = nullptr;
-    // The number of bytes left in the `Cord` over which we are iterating.
-    size_t bytes_remaining_ = 0;
-    StorageType stack_of_right_children_;
-  };
-  template <typename IteratorType>
-  class GenericChunkRange {
-   public:
-    explicit GenericChunkRange(const Cord* cord) : cord_(cord) {}
-
-    IteratorType begin() const { return IteratorType(cord_); }
-    IteratorType end() const { return IteratorType(); }
-
-   private:
-    const Cord* cord_;
-  };
 
  public:
   // Cord::Cord() Constructors
@@ -464,8 +344,51 @@ class Cord {
   //   * The iterator keeps state that can grow for Cords that contain many
   //     nodes and are imbalanced due to sharing. Prefer to pass this type by
   //     const reference instead of by value.
-  using ChunkIterator =
-      GenericChunkIterator<cord_internal::CordTreeDynamicPath>;
+  class ChunkIterator {
+   public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = absl::string_view;
+    using difference_type = ptrdiff_t;
+    using pointer = const value_type*;
+    using reference = value_type;
+
+    ChunkIterator() = default;
+
+    ChunkIterator& operator++();
+    ChunkIterator operator++(int);
+    bool operator==(const ChunkIterator& other) const;
+    bool operator!=(const ChunkIterator& other) const;
+    reference operator*() const;
+    pointer operator->() const;
+
+    friend class Cord;
+    friend class CharIterator;
+
+   private:
+    // Constructs a `begin()` iterator from `cord`.
+    explicit ChunkIterator(const Cord* cord);
+
+    // Removes `n` bytes from `current_chunk_`. Expects `n` to be smaller than
+    // `current_chunk_.size()`.
+    void RemoveChunkPrefix(size_t n);
+    Cord AdvanceAndReadBytes(size_t n);
+    void AdvanceBytes(size_t n);
+    // Iterates `n` bytes, where `n` is expected to be greater than or equal to
+    // `current_chunk_.size()`.
+    void AdvanceBytesSlowPath(size_t n);
+
+    // A view into bytes of the current `CordRep`. It may only be a view to a
+    // suffix of bytes if this is being used by `CharIterator`.
+    absl::string_view current_chunk_;
+    // The current leaf, or `nullptr` if the iterator points to short data.
+    // If the current chunk is a substring node, current_leaf_ points to the
+    // underlying flat or external node.
+    absl::cord_internal::CordRep* current_leaf_ = nullptr;
+    // The number of bytes left in the `Cord` over which we are iterating.
+    size_t bytes_remaining_ = 0;
+    absl::InlinedVector<absl::cord_internal::CordRep*, 4>
+        stack_of_right_children_;
+  };
 
   // Cord::ChunkIterator::chunk_begin()
   //
@@ -504,7 +427,16 @@ class Cord {
   //
   // Implementation note: `ChunkRange` is simply a convenience wrapper over
   // `Cord::chunk_begin()` and `Cord::chunk_end()`.
-  using ChunkRange = GenericChunkRange<ChunkIterator>;
+  class ChunkRange {
+   public:
+    explicit ChunkRange(const Cord* cord) : cord_(cord) {}
+
+    ChunkIterator begin() const;
+    ChunkIterator end() const;
+
+   private:
+    const Cord* cord_;
+  };
 
   // Cord::Chunks()
   //
@@ -800,14 +732,6 @@ class Cord {
   static bool GetFlatAux(absl::cord_internal::CordRep* rep,
                          absl::string_view* fragment);
 
-  // Iterators for use inside Cord implementation
-  using InternalChunkIterator =
-      GenericChunkIterator<cord_internal::CordTreeMutablePath>;
-  using InternalChunkRange = GenericChunkRange<InternalChunkIterator>;
-
-  InternalChunkIterator internal_chunk_begin() const;
-  InternalChunkRange InternalChunks() const;
-
   // Helper for ForEachChunk()
   static void ForEachChunkAux(
       absl::cord_internal::CordRep* rep,
@@ -841,11 +765,6 @@ class Cord {
   template <typename C>
   void AppendImpl(C&& src);
 };
-
-extern template class Cord::GenericChunkIterator<
-    cord_internal::CordTreeMutablePath>;
-extern template class Cord::GenericChunkIterator<
-    cord_internal::CordTreeDynamicPath>;
 
 ABSL_NAMESPACE_END
 }  // namespace absl
@@ -1186,9 +1105,7 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
   return EqualsImpl(rhs, rhs_size);
 }
 
-template <typename StorageType>
-inline Cord::GenericChunkIterator<StorageType>::GenericChunkIterator(
-    const Cord* cord)
+inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
     : bytes_remaining_(cord->size()) {
   if (cord->empty()) return;
   if (cord->contents_.is_tree()) {
@@ -1199,50 +1116,37 @@ inline Cord::GenericChunkIterator<StorageType>::GenericChunkIterator(
   }
 }
 
-template <typename StorageType>
-inline Cord::GenericChunkIterator<StorageType>
-Cord::GenericChunkIterator<StorageType>::operator++(int) {
-  GenericChunkIterator tmp(*this);
+inline Cord::ChunkIterator Cord::ChunkIterator::operator++(int) {
+  ChunkIterator tmp(*this);
   operator++();
   return tmp;
 }
 
-template <typename StorageType>
-inline bool Cord::GenericChunkIterator<StorageType>::operator==(
-    const GenericChunkIterator<StorageType>& other) const {
+inline bool Cord::ChunkIterator::operator==(const ChunkIterator& other) const {
   return bytes_remaining_ == other.bytes_remaining_;
 }
 
-template <typename StorageType>
-inline bool Cord::GenericChunkIterator<StorageType>::operator!=(
-    const GenericChunkIterator<StorageType>& other) const {
+inline bool Cord::ChunkIterator::operator!=(const ChunkIterator& other) const {
   return !(*this == other);
 }
 
-template <typename StorageType>
-inline typename Cord::GenericChunkIterator<StorageType>::reference
-Cord::GenericChunkIterator<StorageType>::operator*() const {
+inline Cord::ChunkIterator::reference Cord::ChunkIterator::operator*() const {
   ABSL_HARDENING_ASSERT(bytes_remaining_ != 0);
   return current_chunk_;
 }
 
-template <typename StorageType>
-inline typename Cord::GenericChunkIterator<StorageType>::pointer
-Cord::GenericChunkIterator<StorageType>::operator->() const {
+inline Cord::ChunkIterator::pointer Cord::ChunkIterator::operator->() const {
   ABSL_HARDENING_ASSERT(bytes_remaining_ != 0);
   return &current_chunk_;
 }
 
-template <typename StorageType>
-inline void Cord::GenericChunkIterator<StorageType>::RemoveChunkPrefix(
-    size_t n) {
+inline void Cord::ChunkIterator::RemoveChunkPrefix(size_t n) {
   assert(n < current_chunk_.size());
   current_chunk_.remove_prefix(n);
   bytes_remaining_ -= n;
 }
 
-template <typename StorageType>
-inline void Cord::GenericChunkIterator<StorageType>::AdvanceBytes(size_t n) {
+inline void Cord::ChunkIterator::AdvanceBytes(size_t n) {
   if (ABSL_PREDICT_TRUE(n < current_chunk_.size())) {
     RemoveChunkPrefix(n);
   } else if (n != 0) {
@@ -1255,6 +1159,14 @@ inline Cord::ChunkIterator Cord::chunk_begin() const {
 }
 
 inline Cord::ChunkIterator Cord::chunk_end() const { return ChunkIterator(); }
+
+inline Cord::ChunkIterator Cord::ChunkRange::begin() const {
+  return cord_->chunk_begin();
+}
+
+inline Cord::ChunkIterator Cord::ChunkRange::end() const {
+  return cord_->chunk_end();
+}
 
 inline Cord::ChunkRange Cord::Chunks() const { return ChunkRange(this); }
 

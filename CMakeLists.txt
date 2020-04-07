@@ -82,7 +82,8 @@ endif()
 find_package(Threads REQUIRED)
 
 option(ABSL_USE_EXTERNAL_GOOGLETEST
-  "If ON, abseil will assume that the targets for googletest are already provided by the including project folder. This makes sense when abseil is used with add_subproject." OFF)
+  "If ON, Abseil will assume that the targets for GoogleTest are already provided by the including project. This makes sense when Abseil is used with add_subproject." OFF)
+
 
 option(ABSL_USE_GOOGLETEST_HEAD
   "If ON, abseil will download HEAD from googletest at config time." OFF)

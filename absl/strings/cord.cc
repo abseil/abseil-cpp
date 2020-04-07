@@ -31,6 +31,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/container/fixed_array.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/resize_uninitialized.h"
@@ -132,14 +133,6 @@ inline const CordRepExternal* CordRep::external() const {
   return static_cast<const CordRepExternal*>(this);
 }
 
-using CordTreeConstPath = CordTreePath<const CordRep*, MaxCordDepth()>;
-
-// This type is used to store the list of pending nodes during re-balancing.
-// Its maximum size is 2 * MaxCordDepth() because the tree has a maximum
-// possible depth of MaxCordDepth() and every concat node along a tree path
-// could theoretically be split during rebalancing.
-using RebalancingStack = CordTreePath<CordRep*, 2 * MaxCordDepth()>;
-
 }  // namespace cord_internal
 
 static const size_t kFlatOverhead = offsetof(CordRep, data);
@@ -188,78 +181,64 @@ static constexpr size_t TagToLength(uint8_t tag) {
 // Enforce that kMaxFlatSize maps to a well-known exact tag value.
 static_assert(TagToAllocatedSize(224) == kMaxFlatSize, "Bad tag logic");
 
-constexpr size_t Fibonacci(uint8_t n, const size_t a = 0, const size_t b = 1) {
-  return n == 0
-             ? a
-             : n == 1 ? b
-                      : Fibonacci(n - 1, b,
-                                  (a > (size_t(-1) - b)) ? size_t(-1) : a + b);
+constexpr uint64_t Fibonacci(unsigned char n, uint64_t a = 0, uint64_t b = 1) {
+  return n == 0 ? a : Fibonacci(n - 1, b, a + b);
 }
+
+static_assert(Fibonacci(63) == 6557470319842,
+              "Fibonacci values computed incorrectly");
 
 // Minimum length required for a given depth tree -- a tree is considered
 // balanced if
-//      length(t) >= kMinLength[depth(t)]
-// The node depth is allowed to become larger to reduce rebalancing
-// for larger strings (see ShouldRebalance).
-constexpr size_t kMinLength[] = {
-    Fibonacci(2),  Fibonacci(3),  Fibonacci(4),  Fibonacci(5),  Fibonacci(6),
-    Fibonacci(7),  Fibonacci(8),  Fibonacci(9),  Fibonacci(10), Fibonacci(11),
-    Fibonacci(12), Fibonacci(13), Fibonacci(14), Fibonacci(15), Fibonacci(16),
-    Fibonacci(17), Fibonacci(18), Fibonacci(19), Fibonacci(20), Fibonacci(21),
-    Fibonacci(22), Fibonacci(23), Fibonacci(24), Fibonacci(25), Fibonacci(26),
-    Fibonacci(27), Fibonacci(28), Fibonacci(29), Fibonacci(30), Fibonacci(31),
-    Fibonacci(32), Fibonacci(33), Fibonacci(34), Fibonacci(35), Fibonacci(36),
-    Fibonacci(37), Fibonacci(38), Fibonacci(39), Fibonacci(40), Fibonacci(41),
-    Fibonacci(42), Fibonacci(43), Fibonacci(44), Fibonacci(45), Fibonacci(46),
-    Fibonacci(47), Fibonacci(48), Fibonacci(49), Fibonacci(50), Fibonacci(51),
-    Fibonacci(52), Fibonacci(53), Fibonacci(54), Fibonacci(55), Fibonacci(56),
-    Fibonacci(57), Fibonacci(58), Fibonacci(59), Fibonacci(60), Fibonacci(61),
-    Fibonacci(62), Fibonacci(63), Fibonacci(64), Fibonacci(65), Fibonacci(66),
-    Fibonacci(67), Fibonacci(68), Fibonacci(69), Fibonacci(70), Fibonacci(71),
-    Fibonacci(72), Fibonacci(73), Fibonacci(74), Fibonacci(75), Fibonacci(76),
-    Fibonacci(77), Fibonacci(78), Fibonacci(79), Fibonacci(80), Fibonacci(81),
-    Fibonacci(82), Fibonacci(83), Fibonacci(84), Fibonacci(85), Fibonacci(86),
-    Fibonacci(87), Fibonacci(88), Fibonacci(89), Fibonacci(90), Fibonacci(91),
-    Fibonacci(92), Fibonacci(93), Fibonacci(94), Fibonacci(95)};
+//      length(t) >= min_length[depth(t)]
+// The root node depth is allowed to become twice as large to reduce rebalancing
+// for larger strings (see IsRootBalanced).
+static constexpr uint64_t min_length[] = {
+    Fibonacci(2),          Fibonacci(3),  Fibonacci(4),  Fibonacci(5),
+    Fibonacci(6),          Fibonacci(7),  Fibonacci(8),  Fibonacci(9),
+    Fibonacci(10),         Fibonacci(11), Fibonacci(12), Fibonacci(13),
+    Fibonacci(14),         Fibonacci(15), Fibonacci(16), Fibonacci(17),
+    Fibonacci(18),         Fibonacci(19), Fibonacci(20), Fibonacci(21),
+    Fibonacci(22),         Fibonacci(23), Fibonacci(24), Fibonacci(25),
+    Fibonacci(26),         Fibonacci(27), Fibonacci(28), Fibonacci(29),
+    Fibonacci(30),         Fibonacci(31), Fibonacci(32), Fibonacci(33),
+    Fibonacci(34),         Fibonacci(35), Fibonacci(36), Fibonacci(37),
+    Fibonacci(38),         Fibonacci(39), Fibonacci(40), Fibonacci(41),
+    Fibonacci(42),         Fibonacci(43), Fibonacci(44), Fibonacci(45),
+    Fibonacci(46),         Fibonacci(47),
+    0xffffffffffffffffull,  // Avoid overflow
+};
 
-static_assert(sizeof(kMinLength) / sizeof(size_t) >=
-                  (cord_internal::MaxCordDepth() + 1),
-              "Not enough elements in kMinLength array to cover all the "
-              "supported Cord depth(s)");
+static const int kMinLengthSize = ABSL_ARRAYSIZE(min_length);
 
-inline bool ShouldRebalance(const CordRep* node) {
-  if (node->tag != CONCAT) return false;
+// The inlined size to use with absl::InlinedVector.
+//
+// Note: The InlinedVectors in this file (and in cord.h) do not need to use
+// the same value for their inlined size. The fact that they do is historical.
+// It may be desirable for each to use a different inlined size optimized for
+// that InlinedVector's usage.
+//
+// TODO(jgm): Benchmark to see if there's a more optimal value than 47 for
+// the inlined vector size (47 exists for backward compatibility).
+static const int kInlinedVectorSize = 47;
 
-  size_t node_depth = node->concat()->depth();
-
-  if (node_depth <= 15) return false;
-
-  // Rebalancing Cords is expensive, so we reduce how often rebalancing occurs
-  // by allowing shallow Cords to have twice the depth that the Fibonacci rule
-  // would otherwise imply. Deep Cords need to follow the rule more closely,
-  // however to ensure algorithm correctness. We implement this with linear
-  // interpolation. Cords of depth 16 are treated as though they have a depth
-  // of 16 * 1/2, and Cords of depth MaxCordDepth() interpolate to
-  // MaxCordDepth() * 1.
-  return node->length <
-         kMinLength[(node_depth * (cord_internal::MaxCordDepth() - 16)) /
-                    (2 * cord_internal::MaxCordDepth() - 16 - node_depth)];
-}
-
-// Unlike root balancing condition this one is part of the re-balancing
-// algorithm and has to be always matching against right depth for
-// algorithm to be correct.
-inline bool IsNodeBalanced(const CordRep* node) {
-  if (node->tag != CONCAT) return true;
-
-  size_t node_depth = node->concat()->depth();
-
-  return node->length >= kMinLength[node_depth];
+static inline bool IsRootBalanced(CordRep* node) {
+  if (node->tag != CONCAT) {
+    return true;
+  } else if (node->concat()->depth() <= 15) {
+    return true;
+  } else if (node->concat()->depth() > kMinLengthSize) {
+    return false;
+  } else {
+    // Allow depth to become twice as large as implied by fibonacci rule to
+    // reduce rebalancing for larger strings.
+    return (node->length >= min_length[node->concat()->depth() / 2]);
+  }
 }
 
 static CordRep* Rebalance(CordRep* node);
-static void DumpNode(const CordRep* rep, bool include_data, std::ostream* os);
-static bool VerifyNode(const CordRep* root, const CordRep* start_node,
+static void DumpNode(CordRep* rep, bool include_data, std::ostream* os);
+static bool VerifyNode(CordRep* root, CordRep* start_node,
                        bool full_validation);
 
 static inline CordRep* VerifyTree(CordRep* node) {
@@ -306,8 +285,7 @@ __attribute__((preserve_most))
 static void UnrefInternal(CordRep* rep) {
   assert(rep != nullptr);
 
-  cord_internal::RebalancingStack pending;
-
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> pending;
   while (true) {
     if (rep->tag == CONCAT) {
       CordRepConcat* rep_concat = rep->concat();
@@ -389,11 +367,6 @@ static void SetConcatChildren(CordRepConcat* concat, CordRep* left,
 
   concat->length = left->length + right->length;
   concat->set_depth(1 + std::max(Depth(left), Depth(right)));
-
-  ABSL_INTERNAL_CHECK(concat->depth() <= cord_internal::MaxCordDepth(),
-                      "Cord depth exceeds max");
-  ABSL_INTERNAL_CHECK(concat->length >= left->length, "Cord is too long");
-  ABSL_INTERNAL_CHECK(concat->length >= right->length, "Cord is too long");
 }
 
 // Create a concatenation of the specified nodes.
@@ -419,7 +392,7 @@ static CordRep* RawConcat(CordRep* left, CordRep* right) {
 
 static CordRep* Concat(CordRep* left, CordRep* right) {
   CordRep* rep = RawConcat(left, right);
-  if (rep != nullptr && ShouldRebalance(rep)) {
+  if (rep != nullptr && !IsRootBalanced(rep)) {
     rep = Rebalance(rep);
   }
   return VerifyTree(rep);
@@ -714,14 +687,6 @@ void Cord::InlineRep::ClearSlow() {
   memset(data_, 0, sizeof(data_));
 }
 
-inline Cord::InternalChunkIterator Cord::internal_chunk_begin() const {
-  return InternalChunkIterator(this);
-}
-
-inline Cord::InternalChunkRange Cord::InternalChunks() const {
-  return InternalChunkRange(this);
-}
-
 // --------------------------------------------------------------------
 // Constructors and destructors
 
@@ -918,7 +883,7 @@ void Cord::Prepend(absl::string_view src) {
 static CordRep* RemovePrefixFrom(CordRep* node, size_t n) {
   if (n >= node->length) return nullptr;
   if (n == 0) return Ref(node);
-  cord_internal::CordTreeMutablePath rhs_stack;
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> rhs_stack;
 
   while (node->tag == CONCAT) {
     assert(n <= node->length);
@@ -959,7 +924,7 @@ static CordRep* RemovePrefixFrom(CordRep* node, size_t n) {
 static CordRep* RemoveSuffixFrom(CordRep* node, size_t n) {
   if (n >= node->length) return nullptr;
   if (n == 0) return Ref(node);
-  absl::cord_internal::CordTreeMutablePath lhs_stack;
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> lhs_stack;
   bool inplace_ok = node->refcount.IsOne();
 
   while (node->tag == CONCAT) {
@@ -1030,7 +995,6 @@ void Cord::RemoveSuffix(size_t n) {
 
 // Work item for NewSubRange().
 struct SubRange {
-  SubRange() = default;
   SubRange(CordRep* a_node, size_t a_pos, size_t a_n)
       : node(a_node), pos(a_pos), n(a_n) {}
   CordRep* node;  // nullptr means concat last 2 results.
@@ -1039,11 +1003,8 @@ struct SubRange {
 };
 
 static CordRep* NewSubRange(CordRep* node, size_t pos, size_t n) {
-  cord_internal::CordTreeMutablePath results;
-  // The algorithm below in worst case scenario adds up to 3 nodes to the `todo`
-  // list, but we also pop one out on every cycle. If original tree has depth d
-  // todo list can grew up to 2*d in size.
-  cord_internal::CordTreePath<SubRange, 2 * cord_internal::MaxCordDepth()> todo;
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> results;
+  absl::InlinedVector<SubRange, kInlinedVectorSize> todo;
   todo.push_back(SubRange(node, pos, n));
   do {
     const SubRange& sr = todo.back();
@@ -1080,7 +1041,7 @@ static CordRep* NewSubRange(CordRep* node, size_t pos, size_t n) {
     }
   } while (!todo.empty());
   assert(results.size() == 1);
-  return results.back();
+  return results[0];
 }
 
 Cord Cord::Subcord(size_t pos, size_t new_size) const {
@@ -1096,7 +1057,7 @@ Cord Cord::Subcord(size_t pos, size_t new_size) const {
   } else if (new_size == 0) {
     // We want to return empty subcord, so nothing to do.
   } else if (new_size <= InlineRep::kMaxInline) {
-    Cord::InternalChunkIterator it = internal_chunk_begin();
+    Cord::ChunkIterator it = chunk_begin();
     it.AdvanceBytes(pos);
     char* dest = sub_cord.contents_.data_;
     size_t remaining_size = new_size;
@@ -1119,12 +1080,11 @@ Cord Cord::Subcord(size_t pos, size_t new_size) const {
 
 class CordForest {
  public:
-  explicit CordForest(size_t length) : root_length_(length), trees_({}) {}
+  explicit CordForest(size_t length)
+      : root_length_(length), trees_(kMinLengthSize, nullptr) {}
 
   void Build(CordRep* cord_root) {
-    // We are adding up to two nodes to the `pending` list, but we also popping
-    // one, so the size of `pending` will never exceed `MaxCordDepth()`.
-    cord_internal::CordTreeMutablePath pending(cord_root);
+    std::vector<CordRep*> pending = {cord_root};
 
     while (!pending.empty()) {
       CordRep* node = pending.back();
@@ -1136,20 +1096,21 @@ class CordForest {
       }
 
       CordRepConcat* concat_node = node->concat();
-      if (IsNodeBalanced(concat_node)) {
-        AddNode(node);
-        continue;
-      }
-      pending.push_back(concat_node->right);
-      pending.push_back(concat_node->left);
+      if (concat_node->depth() >= kMinLengthSize ||
+          concat_node->length < min_length[concat_node->depth()]) {
+        pending.push_back(concat_node->right);
+        pending.push_back(concat_node->left);
 
-      if (concat_node->refcount.IsOne()) {
-        concat_node->left = concat_freelist_;
-        concat_freelist_ = concat_node;
+        if (concat_node->refcount.IsOne()) {
+          concat_node->left = concat_freelist_;
+          concat_freelist_ = concat_node;
+        } else {
+          Ref(concat_node->right);
+          Ref(concat_node->left);
+          Unref(concat_node);
+        }
       } else {
-        Ref(concat_node->right);
-        Ref(concat_node->left);
-        Unref(concat_node);
+        AddNode(node);
       }
     }
   }
@@ -1181,7 +1142,7 @@ class CordForest {
 
     // Collect together everything with which we will merge with node
     int i = 0;
-    for (; node->length >= kMinLength[i + 1]; ++i) {
+    for (; node->length > min_length[i + 1]; ++i) {
       auto& tree_at_i = trees_[i];
 
       if (tree_at_i == nullptr) continue;
@@ -1192,7 +1153,7 @@ class CordForest {
     sum = AppendNode(node, sum);
 
     // Insert sum into appropriate place in the forest
-    for (; sum->length >= kMinLength[i]; ++i) {
+    for (; sum->length >= min_length[i]; ++i) {
       auto& tree_at_i = trees_[i];
       if (tree_at_i == nullptr) continue;
 
@@ -1200,7 +1161,7 @@ class CordForest {
       tree_at_i = nullptr;
     }
 
-    // kMinLength[0] == 1, which means sum->length >= kMinLength[0]
+    // min_length[0] == 1, which means sum->length >= min_length[0]
     assert(i > 0);
     trees_[i - 1] = sum;
   }
@@ -1233,7 +1194,9 @@ class CordForest {
   }
 
   size_t root_length_;
-  std::array<cord_internal::CordRep*, cord_internal::MaxCordDepth()> trees_;
+
+  // use an inlined vector instead of a flat array to get bounds checking
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> trees_;
 
   // List of concat nodes we can re-use for Cord balancing.
   CordRepConcat* concat_freelist_ = nullptr;
@@ -1334,7 +1297,7 @@ inline absl::string_view Cord::InlineRep::FindFlatStartPiece() const {
 
 inline int Cord::CompareSlowPath(absl::string_view rhs, size_t compared_size,
                                  size_t size_to_compare) const {
-  auto advance = [](Cord::InternalChunkIterator* it, absl::string_view* chunk) {
+  auto advance = [](Cord::ChunkIterator* it, absl::string_view* chunk) {
     if (!chunk->empty()) return true;
     ++*it;
     if (it->bytes_remaining_ == 0) return false;
@@ -1342,7 +1305,7 @@ inline int Cord::CompareSlowPath(absl::string_view rhs, size_t compared_size,
     return true;
   };
 
-  Cord::InternalChunkIterator lhs_it = internal_chunk_begin();
+  Cord::ChunkIterator lhs_it = chunk_begin();
 
   // compared_size is inside first chunk.
   absl::string_view lhs_chunk =
@@ -1364,7 +1327,7 @@ inline int Cord::CompareSlowPath(absl::string_view rhs, size_t compared_size,
 
 inline int Cord::CompareSlowPath(const Cord& rhs, size_t compared_size,
                                  size_t size_to_compare) const {
-  auto advance = [](Cord::InternalChunkIterator* it, absl::string_view* chunk) {
+  auto advance = [](Cord::ChunkIterator* it, absl::string_view* chunk) {
     if (!chunk->empty()) return true;
     ++*it;
     if (it->bytes_remaining_ == 0) return false;
@@ -1372,8 +1335,8 @@ inline int Cord::CompareSlowPath(const Cord& rhs, size_t compared_size,
     return true;
   };
 
-  Cord::InternalChunkIterator lhs_it = internal_chunk_begin();
-  Cord::InternalChunkIterator rhs_it = rhs.internal_chunk_begin();
+  Cord::ChunkIterator lhs_it = chunk_begin();
+  Cord::ChunkIterator rhs_it = rhs.chunk_begin();
 
   // compared_size is inside both first chunks.
   absl::string_view lhs_chunk =
@@ -1507,9 +1470,7 @@ void Cord::CopyToArraySlowPath(char* dst) const {
   }
 }
 
-template <typename StorageType>
-Cord::GenericChunkIterator<StorageType>&
-Cord::GenericChunkIterator<StorageType>::operator++() {
+Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
   ABSL_HARDENING_ASSERT(bytes_remaining_ > 0 &&
                         "Attempted to iterate past `end()`");
   assert(bytes_remaining_ >= current_chunk_.size());
@@ -1549,8 +1510,7 @@ Cord::GenericChunkIterator<StorageType>::operator++() {
   return *this;
 }
 
-template <typename StorageType>
-Cord Cord::GenericChunkIterator<StorageType>::AdvanceAndReadBytes(size_t n) {
+Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
   ABSL_HARDENING_ASSERT(bytes_remaining_ >= n &&
                         "Attempted to iterate past `end()`");
   Cord subcord;
@@ -1664,8 +1624,7 @@ Cord Cord::GenericChunkIterator<StorageType>::AdvanceAndReadBytes(size_t n) {
   return subcord;
 }
 
-template <typename StorageType>
-void Cord::GenericChunkIterator<StorageType>::AdvanceBytesSlowPath(size_t n) {
+void Cord::ChunkIterator::AdvanceBytesSlowPath(size_t n) {
   assert(bytes_remaining_ >= n && "Attempted to iterate past `end()`");
   assert(n >= current_chunk_.size());  // This should only be called when
                                        // iterating to a new node.
@@ -1851,18 +1810,18 @@ absl::string_view Cord::FlattenSlowPath() {
   }
 }
 
-static void DumpNode(const CordRep* rep, bool include_data, std::ostream* os) {
+static void DumpNode(CordRep* rep, bool include_data, std::ostream* os) {
   const int kIndentStep = 1;
   int indent = 0;
-  cord_internal::CordTreeConstPath stack;
-  cord_internal::CordTreePath<int, cord_internal::MaxCordDepth()> indents;
+  absl::InlinedVector<CordRep*, kInlinedVectorSize> stack;
+  absl::InlinedVector<int, kInlinedVectorSize> indents;
   for (;;) {
     *os << std::setw(3) << rep->refcount.Get();
     *os << " " << std::setw(7) << rep->length;
     *os << " [";
-    if (include_data) *os << static_cast<const void*>(rep);
+    if (include_data) *os << static_cast<void*>(rep);
     *os << "]";
-    *os << " " << (IsNodeBalanced(rep) ? 'b' : 'u');
+    *os << " " << (IsRootBalanced(rep) ? 'b' : 'u');
     *os << " " << std::setw(indent) << "";
     if (rep->tag == CONCAT) {
       *os << "CONCAT depth=" << Depth(rep) << "\n";
@@ -1883,7 +1842,7 @@ static void DumpNode(const CordRep* rep, bool include_data, std::ostream* os) {
       } else {
         *os << "FLAT cap=" << TagToLength(rep->tag) << " [";
         if (include_data)
-          *os << absl::CEscape(absl::string_view(rep->data, rep->length));
+          *os << absl::CEscape(std::string(rep->data, rep->length));
         *os << "]\n";
       }
       if (stack.empty()) break;
@@ -1896,19 +1855,19 @@ static void DumpNode(const CordRep* rep, bool include_data, std::ostream* os) {
   ABSL_INTERNAL_CHECK(indents.empty(), "");
 }
 
-static std::string ReportError(const CordRep* root, const CordRep* node) {
+static std::string ReportError(CordRep* root, CordRep* node) {
   std::ostringstream buf;
   buf << "Error at node " << node << " in:";
   DumpNode(root, true, &buf);
   return buf.str();
 }
 
-static bool VerifyNode(const CordRep* root, const CordRep* start_node,
+static bool VerifyNode(CordRep* root, CordRep* start_node,
                        bool full_validation) {
-  cord_internal::CordTreeConstPath worklist;
+  absl::InlinedVector<CordRep*, 2> worklist;
   worklist.push_back(start_node);
   do {
-    const CordRep* node = worklist.back();
+    CordRep* node = worklist.back();
     worklist.pop_back();
 
     ABSL_INTERNAL_CHECK(node != nullptr, ReportError(root, node));
@@ -1958,7 +1917,7 @@ static bool VerifyNode(const CordRep* root, const CordRep* start_node,
   // Iterate over the tree. cur_node is never a leaf node and leaf nodes will
   // never be appended to tree_stack. This reduces overhead from manipulating
   // tree_stack.
-  cord_internal::CordTreeConstPath tree_stack;
+  absl::InlinedVector<const CordRep*, kInlinedVectorSize> tree_stack;
   const CordRep* cur_node = rep;
   while (true) {
     const CordRep* next_node = nullptr;
@@ -2004,9 +1963,6 @@ std::ostream& operator<<(std::ostream& out, const Cord& cord) {
   }
   return out;
 }
-
-template class Cord::GenericChunkIterator<cord_internal::CordTreeMutablePath>;
-template class Cord::GenericChunkIterator<cord_internal::CordTreeDynamicPath>;
 
 namespace strings_internal {
 size_t CordTestAccess::FlatOverhead() { return kFlatOverhead; }
