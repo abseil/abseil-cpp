@@ -54,18 +54,14 @@ const uint32_t k32ValueBE{0x67452301};
 const uint16_t k16ValueBE{0x2301};
 #endif
 
-template<typename T>
-std::vector<T> GenerateAllValuesForType() {
-  std::vector<T> result;
-  result.reserve(size_t{1} << (sizeof(T) * 8));
-  T next = std::numeric_limits<T>::min();
-  while (true) {
-    result.push_back(next);
-    if (next == std::numeric_limits<T>::max()) {
-      return result;
-    }
-    ++next;
+std::vector<uint16_t> GenerateAllUint16Values() {
+  std::vector<uint16_t> result;
+  result.reserve(size_t{1} << (sizeof(uint16_t) * 8));
+  for (uint32_t i = std::numeric_limits<uint16_t>::min();
+       i <= std::numeric_limits<uint16_t>::max(); ++i) {
+    result.push_back(static_cast<uint16_t>(i));
   }
+  return result;
 }
 
 template<typename T>
@@ -150,7 +146,7 @@ void Swap64(char* bytes) {
 }
 
 TEST(EndianessTest, Uint16) {
-  GBSwapHelper(GenerateAllValuesForType<uint16_t>(), &Swap16);
+  GBSwapHelper(GenerateAllUint16Values(), &Swap16);
 }
 
 TEST(EndianessTest, Uint32) {

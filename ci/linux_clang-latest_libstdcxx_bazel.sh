@@ -71,7 +71,7 @@ for std in ${STD}; do
         -e CC="/opt/llvm/clang/bin/clang" \
         -e BAZEL_COMPILER="llvm" \
         -e BAZEL_CXXOPTS="-std=${std}" \
-        -e CPLUS_INCLUDE_PATH="/usr/include/c++/6" \
+        -e CPLUS_INCLUDE_PATH="/usr/include/c++/8" \
         ${DOCKER_EXTRA_ARGS:-} \
         ${DOCKER_CONTAINER} \
         /usr/local/bin/bazel test ... \

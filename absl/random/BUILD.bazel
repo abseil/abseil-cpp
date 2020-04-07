@@ -412,6 +412,7 @@ cc_test(
     name = "mocking_bit_gen_test",
     size = "small",
     srcs = ["mocking_bit_gen_test.cc"],
+    copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":bit_gen_ref",
@@ -426,6 +427,8 @@ cc_test(
     name = "mock_distributions_test",
     size = "small",
     srcs = ["mock_distributions_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":mock_distributions",
         ":mocking_bit_gen",
