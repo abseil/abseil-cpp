@@ -29,6 +29,8 @@
 #include "gtest/gtest.h"
 #include "absl/base/dynamic_annotations.h"  // for RunningOnValgrind
 #include "absl/base/macros.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "absl/strings/numbers.h"
 
 namespace {
@@ -421,6 +423,18 @@ TEST(Splitter, ConversionOperator) {
   TestMapConversionOperator<std::multimap<std::string, std::string>>(splitter);
   TestMapConversionOperator<std::unordered_map<std::string, std::string>>(
       splitter);
+  TestMapConversionOperator<
+      absl::node_hash_map<absl::string_view, absl::string_view>>(splitter);
+  TestMapConversionOperator<
+      absl::node_hash_map<absl::string_view, std::string>>(splitter);
+  TestMapConversionOperator<
+      absl::node_hash_map<std::string, absl::string_view>>(splitter);
+  TestMapConversionOperator<
+      absl::flat_hash_map<absl::string_view, absl::string_view>>(splitter);
+  TestMapConversionOperator<
+      absl::flat_hash_map<absl::string_view, std::string>>(splitter);
+  TestMapConversionOperator<
+      absl::flat_hash_map<std::string, absl::string_view>>(splitter);
 
   // Tests conversion to std::pair
 

@@ -210,6 +210,8 @@ absl_cc_test(
     absl::base
     absl::core_headers
     absl::dynamic_annotations
+    absl::flat_hash_map
+    absl::node_hash_map
     gmock_main
 )
 

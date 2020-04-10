@@ -44,9 +44,10 @@ config_setting(
 
 config_setting(
     name = "windows",
-    values = {
-        "cpu": "x64_windows",
-    },
+    constraint_values = [
+        "@bazel_tools//platforms:x86_64",
+        "@bazel_tools//platforms:windows",
+    ],
     visibility = [":__subpackages__"],
 )
 

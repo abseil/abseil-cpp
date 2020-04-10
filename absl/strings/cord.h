@@ -634,8 +634,7 @@ class Cord {
   // class so that we can isolate the bulk of cord.cc from changes
   // to the representation.
   //
-  // InlineRep holds either either a tree pointer, or an array of kMaxInline
-  // bytes.
+  // InlineRep holds either a tree pointer, or an array of kMaxInline bytes.
   class InlineRep {
    public:
     static const unsigned char kMaxInline = 15;
