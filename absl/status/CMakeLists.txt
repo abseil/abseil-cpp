@@ -25,6 +25,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::atomic_hook
     absl::config
     absl::core_headers
     absl::raw_logging_internal
