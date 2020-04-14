@@ -32,6 +32,10 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+void SetMutexDeadlockDetectionMode(OnDeadlockCycle) {}
+void EnableMutexInvariantDebugging(bool) {}
+
 namespace synchronization_internal {
 
 namespace {

@@ -1348,8 +1348,8 @@ constexpr Duration MakeDuration(int64_t hi, int64_t lo) {
 // it's positive and can be converted to int64_t without risk of UB.
 inline Duration MakePosDoubleDuration(double n) {
   const int64_t int_secs = static_cast<int64_t>(n);
-  const uint32_t ticks =
-      static_cast<uint32_t>((n - int_secs) * kTicksPerSecond + 0.5);
+  const uint32_t ticks = static_cast<uint32_t>(
+      (n - static_cast<double>(int_secs)) * kTicksPerSecond + 0.5);
   return ticks < kTicksPerSecond
              ? MakeDuration(int_secs, ticks)
              : MakeDuration(int_secs + 1, ticks - kTicksPerSecond);
