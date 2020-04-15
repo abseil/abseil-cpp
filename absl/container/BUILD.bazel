@@ -73,6 +73,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":counting_allocator",
         ":fixed_array",
         "//absl/base:config",
         "//absl/base:exception_testing",

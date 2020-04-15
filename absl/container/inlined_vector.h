@@ -351,14 +351,14 @@ class InlinedVector {
   // Returns a `reference` to the first element of the inlined vector.
   reference front() {
     ABSL_HARDENING_ASSERT(!empty());
-    return at(0);
+    return data()[0];
   }
 
   // Overload of `InlinedVector::front()` that returns a `const_reference` to
   // the first element of the inlined vector.
   const_reference front() const {
     ABSL_HARDENING_ASSERT(!empty());
-    return at(0);
+    return data()[0];
   }
 
   // `InlinedVector::back()`
@@ -366,14 +366,14 @@ class InlinedVector {
   // Returns a `reference` to the last element of the inlined vector.
   reference back() {
     ABSL_HARDENING_ASSERT(!empty());
-    return at(size() - 1);
+    return data()[size() - 1];
   }
 
   // Overload of `InlinedVector::back()` that returns a `const_reference` to the
   // last element of the inlined vector.
   const_reference back() const {
     ABSL_HARDENING_ASSERT(!empty());
-    return at(size() - 1);
+    return data()[size() - 1];
   }
 
   // `InlinedVector::begin()`
@@ -524,7 +524,7 @@ class InlinedVector {
   void assign(InputIterator first, InputIterator last) {
     size_type i = 0;
     for (; i < size() && first != last; ++i, static_cast<void>(++first)) {
-      at(i) = *first;
+      data()[i] = *first;
     }
 
     erase(data() + i, data() + size());
@@ -537,7 +537,10 @@ class InlinedVector {
   //
   // NOTE: if `n` is smaller than `size()`, extra elements are destroyed. If `n`
   // is larger than `size()`, new elements are value-initialized.
-  void resize(size_type n) { storage_.Resize(DefaultValueAdapter(), n); }
+  void resize(size_type n) {
+    ABSL_HARDENING_ASSERT(n <= max_size());
+    storage_.Resize(DefaultValueAdapter(), n);
+  }
 
   // Overload of `InlinedVector::resize(...)` that resizes the inlined vector to
   // contain `n` elements.
@@ -545,6 +548,7 @@ class InlinedVector {
   // NOTE: if `n` is smaller than `size()`, extra elements are destroyed. If `n`
   // is larger than `size()`, new elements are copied-constructed from `v`.
   void resize(size_type n, const_reference v) {
+    ABSL_HARDENING_ASSERT(n <= max_size());
     storage_.Resize(CopyValueAdapter(v), n);
   }
 

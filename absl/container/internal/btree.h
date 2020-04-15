@@ -929,8 +929,14 @@ struct btree_iterator {
   void decrement_slow();
 
  public:
+  bool operator==(const iterator &other) const {
+    return node == other.node && position == other.position;
+  }
   bool operator==(const const_iterator &other) const {
     return node == other.node && position == other.position;
+  }
+  bool operator!=(const iterator &other) const {
+    return node != other.node || position != other.position;
   }
   bool operator!=(const const_iterator &other) const {
     return node != other.node || position != other.position;

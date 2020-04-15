@@ -147,6 +147,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::fixed_array
+    absl::counting_allocator
     absl::config
     absl::exception_testing
     absl::hash_testing

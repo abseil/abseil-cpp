@@ -331,16 +331,15 @@ class ABSL_LOCKABLE Mutex {
   // Mutex::AwaitWithTimeout()
   // Mutex::AwaitWithDeadline()
   //
-  // If `cond` is initially true, do nothing, or act as though `cond` is
-  // initially false.
-  //
-  // If `cond` is initially false, unlock this `Mutex` and block until
-  // simultaneously:
+  // Unlocks this `Mutex` and blocks until simultaneously:
   //   - either `cond` is true or the {timeout has expired, deadline has passed}
   //     and
   //   - this `Mutex` can be reacquired,
   // then reacquire this `Mutex` in the same mode in which it was previously
   // held, returning `true` iff `cond` is `true` on return.
+  //
+  // If the condition is initially `true`, the implementation *may* skip the
+  // release/re-acquire step and return immediately.
   //
   // Deadlines in the past are equivalent to an immediate deadline.
   // Negative timeouts are equivalent to a zero timeout.

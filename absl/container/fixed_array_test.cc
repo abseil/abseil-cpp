@@ -29,6 +29,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/options.h"
+#include "absl/container/internal/counting_allocator.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 
@@ -638,70 +639,9 @@ TEST(FixedArrayTest, DefaultCtorDoesNotValueInit) {
 }
 #endif  // __GNUC__
 
-// This is a stateful allocator, but the state lives outside of the
-// allocator (in whatever test is using the allocator). This is odd
-// but helps in tests where the allocator is propagated into nested
-// containers - that chain of allocators uses the same state and is
-// thus easier to query for aggregate allocation information.
-template <typename T>
-class CountingAllocator : public std::allocator<T> {
- public:
-  using Alloc = std::allocator<T>;
-  using pointer = typename Alloc::pointer;
-  using size_type = typename Alloc::size_type;
-
-  CountingAllocator() : bytes_used_(nullptr), instance_count_(nullptr) {}
-  explicit CountingAllocator(int64_t* b)
-      : bytes_used_(b), instance_count_(nullptr) {}
-  CountingAllocator(int64_t* b, int64_t* a)
-      : bytes_used_(b), instance_count_(a) {}
-
-  template <typename U>
-  explicit CountingAllocator(const CountingAllocator<U>& x)
-      : Alloc(x),
-        bytes_used_(x.bytes_used_),
-        instance_count_(x.instance_count_) {}
-
-  pointer allocate(size_type n, const void* const hint = nullptr) {
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ += n * sizeof(T);
-    return Alloc::allocate(n, hint);
-  }
-
-  void deallocate(pointer p, size_type n) {
-    Alloc::deallocate(p, n);
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ -= n * sizeof(T);
-  }
-
-  template <typename... Args>
-  void construct(pointer p, Args&&... args) {
-    Alloc::construct(p, absl::forward<Args>(args)...);
-    if (instance_count_) {
-      *instance_count_ += 1;
-    }
-  }
-
-  void destroy(pointer p) {
-    Alloc::destroy(p);
-    if (instance_count_) {
-      *instance_count_ -= 1;
-    }
-  }
-
-  template <typename U>
-  class rebind {
-   public:
-    using other = CountingAllocator<U>;
-  };
-
-  int64_t* bytes_used_;
-  int64_t* instance_count_;
-};
-
 TEST(AllocatorSupportTest, CountInlineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated = 0;
@@ -722,7 +662,7 @@ TEST(AllocatorSupportTest, CountInlineAllocations) {
 
 TEST(AllocatorSupportTest, CountOutoflineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated = 0;
@@ -743,7 +683,7 @@ TEST(AllocatorSupportTest, CountOutoflineAllocations) {
 
 TEST(AllocatorSupportTest, CountCopyInlineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated1 = 0;
@@ -771,7 +711,7 @@ TEST(AllocatorSupportTest, CountCopyInlineAllocations) {
 
 TEST(AllocatorSupportTest, CountCopyOutoflineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated1 = 0;
@@ -803,7 +743,7 @@ TEST(AllocatorSupportTest, SizeValAllocConstructor) {
   using testing::SizeIs;
 
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   {
