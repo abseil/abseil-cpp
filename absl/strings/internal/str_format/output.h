@@ -91,10 +91,11 @@ inline void AbslFormatFlush(BufferRawSink* sink, string_view v) {
   sink->Write(v);
 }
 
+// This is a SFINAE to get a better compiler error message when the type
+// is not supported.
 template <typename T>
-auto InvokeFlush(T* out, string_view s)
-    -> decltype(str_format_internal::AbslFormatFlush(out, s)) {
-  str_format_internal::AbslFormatFlush(out, s);
+auto InvokeFlush(T* out, string_view s) -> decltype(AbslFormatFlush(out, s)) {
+  AbslFormatFlush(out, s);
 }
 
 }  // namespace str_format_internal

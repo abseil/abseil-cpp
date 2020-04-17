@@ -57,8 +57,7 @@
 // arbitrary sink types:
 //
 //   * A generic `Format()` function to write outputs to arbitrary sink types,
-//     which must implement a `RawSinkFormat` interface. (See
-//     `str_format_sink.h` for more information.)
+//     which must implement a `FormatRawSink` interface.
 //
 //   * A `FormatUntyped()` function that is similar to `Format()` except it is
 //     loosely typed. `FormatUntyped()` is not a template and does not perform
@@ -432,6 +431,16 @@ int SNPrintF(char* output, std::size_t size, const FormatSpec<Args...>& format,
 //
 // FormatRawSink is a type erased wrapper around arbitrary sink objects
 // specifically used as an argument to `Format()`.
+//
+// All the object has to do define an overload of `AbslFormatFlush()` for the
+// sink, usually by adding a ADL-based free function in the same namespace as
+// the sink:
+//
+//   void AbslFormatFlush(MySink* dest, absl::string_view part);
+//
+// where `dest` is the pointer passed to `absl::Format()`. The function should
+// append `part` to `dest`.
+//
 // FormatRawSink does not own the passed sink object. The passed object must
 // outlive the FormatRawSink.
 class FormatRawSink {
@@ -455,12 +464,13 @@ class FormatRawSink {
 // `absl::FormatRawSink` interface), using a format string and zero or more
 // additional arguments.
 //
-// By default, `std::string` and `std::ostream` are supported as destination
-// objects. If a `std::string` is used the formatted string is appended to it.
+// By default, `std::string`, `std::ostream`, and `absl::Cord` are supported as
+// destination objects. If a `std::string` is used the formatted string is
+// appended to it.
 //
-// `absl::Format()` is a generic version of `absl::StrFormat(), for custom
-// sinks. The format string, like format strings for `StrFormat()`, is checked
-// at compile-time.
+// `absl::Format()` is a generic version of `absl::StrAppendFormat()`, for
+// custom sinks. The format string, like format strings for `StrFormat()`, is
+// checked at compile-time.
 //
 // On failure, this function returns `false` and the state of the sink is
 // unspecified.

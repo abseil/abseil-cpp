@@ -1439,20 +1439,18 @@ void Mutex::AssertNotHeld() const {
 // may spin for a short while if the lock cannot be acquired immediately.
 static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
   int c = mutex_globals.spinloop_iterations;
-  int result = -1;  // result of operation:  0=false, 1=true, -1=unknown
-
   do {  // do/while somewhat faster on AMD
     intptr_t v = mu->load(std::memory_order_relaxed);
-    if ((v & (kMuReader|kMuEvent)) != 0) {  // a reader or tracing -> give up
-      result = 0;
+    if ((v & (kMuReader|kMuEvent)) != 0) {
+      return false;  // a reader or tracing -> give up
     } else if (((v & kMuWriter) == 0) &&  // no holder -> try to acquire
                mu->compare_exchange_strong(v, kMuWriter | v,
                                            std::memory_order_acquire,
                                            std::memory_order_relaxed)) {
-      result = 1;
+      return true;
     }
-  } while (result == -1 && --c > 0);
-  return result == 1;
+  } while (--c > 0);
+  return false;
 }
 
 ABSL_XRAY_LOG_ARGS(1) void Mutex::Lock() {

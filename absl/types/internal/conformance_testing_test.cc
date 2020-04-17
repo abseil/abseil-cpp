@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/types/internal/conformance_testing.h"
+
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -19,6 +21,7 @@
 #include "gtest/gtest.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/internal/conformance_aliases.h"
+#include "absl/types/internal/conformance_profile.h"
 
 namespace {
 
@@ -1181,6 +1184,373 @@ INSTANTIATE_TYPED_TEST_SUITE_P(CommonComparable, ProfileTest,
                                CommonComparableProfilesToTest);
 INSTANTIATE_TYPED_TEST_SUITE_P(Trivial, ProfileTest, TrivialProfilesToTest);
 
-// TODO(calabrese) Test runtime results
+TEST(ConformanceTestingTest, Basic) {
+  using profile = ti::CombineProfiles<ti::TriviallyCompleteProfile,
+                                      ti::NothrowComparableProfile>;
+
+  using lim = std::numeric_limits<float>;
+
+  ABSL_INTERNAL_ASSERT_CONFORMANCE_OF(float)
+      .INITIALIZER(-lim::infinity())
+      .INITIALIZER(lim::lowest())
+      .INITIALIZER(-1.f)
+      .INITIALIZER(-lim::min())
+      .EQUIVALENCE_CLASS(INITIALIZER(-0.f), INITIALIZER(0.f))
+      .INITIALIZER(lim::min())
+      .INITIALIZER(1.f)
+      .INITIALIZER(lim::max())
+      .INITIALIZER(lim::infinity())
+      .WITH_STRICT_PROFILE(absl::types_internal::RegularityDomain, profile);
+}
+
+struct BadMoveConstruct {
+  BadMoveConstruct() = default;
+  BadMoveConstruct(BadMoveConstruct&& other) noexcept
+      : value(other.value + 1) {}
+  BadMoveConstruct& operator=(BadMoveConstruct&& other) noexcept = default;
+  int value = 0;
+
+  friend bool operator==(BadMoveConstruct const& lhs,
+                         BadMoveConstruct const& rhs) {
+    return lhs.value == rhs.value;
+  }
+  friend bool operator!=(BadMoveConstruct const& lhs,
+                         BadMoveConstruct const& rhs) {
+    return lhs.value != rhs.value;
+  }
+};
+
+struct BadMoveAssign {
+  BadMoveAssign() = default;
+  BadMoveAssign(BadMoveAssign&& other) noexcept = default;
+  BadMoveAssign& operator=(BadMoveAssign&& other) noexcept {
+    int new_value = other.value + 1;
+    value = new_value;
+    return *this;
+  }
+  int value = 0;
+
+  friend bool operator==(BadMoveAssign const& lhs, BadMoveAssign const& rhs) {
+    return lhs.value == rhs.value;
+  }
+  friend bool operator!=(BadMoveAssign const& lhs, BadMoveAssign const& rhs) {
+    return lhs.value != rhs.value;
+  }
+};
+
+enum class WhichCompIsBad { eq, ne, lt, le, ge, gt };
+
+template <WhichCompIsBad Which>
+struct BadCompare {
+  int value;
+
+  friend bool operator==(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::eq ? lhs.value != rhs.value
+                                       : lhs.value == rhs.value;
+  }
+
+  friend bool operator!=(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::ne ? lhs.value == rhs.value
+                                       : lhs.value != rhs.value;
+  }
+
+  friend bool operator<(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::lt ? lhs.value >= rhs.value
+                                       : lhs.value < rhs.value;
+  }
+
+  friend bool operator<=(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::le ? lhs.value > rhs.value
+                                       : lhs.value <= rhs.value;
+  }
+
+  friend bool operator>=(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::ge ? lhs.value < rhs.value
+                                       : lhs.value >= rhs.value;
+  }
+
+  friend bool operator>(BadCompare const& lhs, BadCompare const& rhs) {
+    return Which == WhichCompIsBad::gt ? lhs.value <= rhs.value
+                                       : lhs.value > rhs.value;
+  }
+};
+
+TEST(ConformanceTestingDeathTest, Failures) {
+  {
+    using profile = ti::CombineProfiles<ti::TriviallyCompleteProfile,
+                                        ti::NothrowComparableProfile>;
+
+    // Note: The initializers are intentionally in the wrong order.
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(float)
+        .INITIALIZER(1.f)
+        .INITIALIZER(0.f)
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using profile =
+        ti::CombineProfiles<ti::NothrowMovableProfile, ti::EquatableProfile>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadMoveConstruct)
+        .DUE_TO("Move construction")
+        .INITIALIZER(BadMoveConstruct())
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using profile =
+        ti::CombineProfiles<ti::NothrowMovableProfile, ti::EquatableProfile>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadMoveAssign)
+        .DUE_TO("Move assignment")
+        .INITIALIZER(BadMoveAssign())
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+TEST(ConformanceTestingDeathTest, CompFailures) {
+  using profile = ti::ComparableProfile;
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::eq>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::ne>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::lt>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::le>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::ge>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+
+  {
+    using BadComp = BadCompare<WhichCompIsBad::gt>;
+
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadComp)
+        .DUE_TO("Comparison")
+        .INITIALIZER(BadComp{0})
+        .INITIALIZER(BadComp{1})
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+struct BadSelfMove {
+  BadSelfMove() = default;
+  BadSelfMove(BadSelfMove&&) = default;
+  BadSelfMove& operator=(BadSelfMove&& other) noexcept {
+    if (this == &other) {
+      broken_state = true;
+    }
+    return *this;
+  }
+
+  friend bool operator==(const BadSelfMove& lhs, const BadSelfMove& rhs) {
+    return !(lhs.broken_state || rhs.broken_state);
+  }
+
+  friend bool operator!=(const BadSelfMove& lhs, const BadSelfMove& rhs) {
+    return lhs.broken_state || rhs.broken_state;
+  }
+
+  bool broken_state = false;
+};
+
+TEST(ConformanceTestingDeathTest, SelfMoveFailure) {
+  using profile = ti::EquatableNothrowMovableProfile;
+
+  {
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadSelfMove)
+        .DUE_TO("Move assignment")
+        .INITIALIZER(BadSelfMove())
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+struct BadSelfCopy {
+  BadSelfCopy() = default;
+  BadSelfCopy(BadSelfCopy&&) = default;
+  BadSelfCopy(const BadSelfCopy&) = default;
+  BadSelfCopy& operator=(BadSelfCopy&&) = default;
+  BadSelfCopy& operator=(BadSelfCopy const& other) {
+    if (this == &other) {
+      broken_state = true;
+    }
+    return *this;
+  }
+
+  friend bool operator==(const BadSelfCopy& lhs, const BadSelfCopy& rhs) {
+    return !(lhs.broken_state || rhs.broken_state);
+  }
+
+  friend bool operator!=(const BadSelfCopy& lhs, const BadSelfCopy& rhs) {
+    return lhs.broken_state || rhs.broken_state;
+  }
+
+  bool broken_state = false;
+};
+
+TEST(ConformanceTestingDeathTest, SelfCopyFailure) {
+  using profile = ti::EquatableValueProfile;
+
+  {
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadSelfCopy)
+        .DUE_TO("Copy assignment")
+        .INITIALIZER(BadSelfCopy())
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+struct BadSelfSwap {
+  friend void swap(BadSelfSwap& lhs, BadSelfSwap& rhs) noexcept {
+    if (&lhs == &rhs) lhs.broken_state = true;
+  }
+
+  friend bool operator==(const BadSelfSwap& lhs, const BadSelfSwap& rhs) {
+    return !(lhs.broken_state || rhs.broken_state);
+  }
+
+  friend bool operator!=(const BadSelfSwap& lhs, const BadSelfSwap& rhs) {
+    return lhs.broken_state || rhs.broken_state;
+  }
+
+  bool broken_state = false;
+};
+
+TEST(ConformanceTestingDeathTest, SelfSwapFailure) {
+  using profile = ti::EquatableNothrowMovableProfile;
+
+  {
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadSelfSwap)
+        .DUE_TO("Swap")
+        .INITIALIZER(BadSelfSwap())
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+struct BadDefaultInitializedMoveAssign {
+  BadDefaultInitializedMoveAssign() : default_initialized(true) {}
+  explicit BadDefaultInitializedMoveAssign(int v) : value(v) {}
+  BadDefaultInitializedMoveAssign(
+      BadDefaultInitializedMoveAssign&& other) noexcept
+      : value(other.value) {}
+  BadDefaultInitializedMoveAssign& operator=(
+      BadDefaultInitializedMoveAssign&& other) noexcept {
+    value = other.value;
+    if (default_initialized) ++value;  // Bad move if lhs is default initialized
+    return *this;
+  }
+
+  friend bool operator==(const BadDefaultInitializedMoveAssign& lhs,
+                         const BadDefaultInitializedMoveAssign& rhs) {
+    return lhs.value == rhs.value;
+  }
+
+  friend bool operator!=(const BadDefaultInitializedMoveAssign& lhs,
+                         const BadDefaultInitializedMoveAssign& rhs) {
+    return lhs.value != rhs.value;
+  }
+
+  bool default_initialized = false;
+  int value = 0;
+};
+
+TEST(ConformanceTestingDeathTest, DefaultInitializedMoveAssignFailure) {
+  using profile =
+      ti::CombineProfiles<ti::DefaultConstructibleNothrowMovableProfile,
+                          ti::EquatableProfile>;
+
+  {
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadDefaultInitializedMoveAssign)
+        .DUE_TO("move assignment")
+        .INITIALIZER(BadDefaultInitializedMoveAssign(0))
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
+
+struct BadDefaultInitializedCopyAssign {
+  BadDefaultInitializedCopyAssign() : default_initialized(true) {}
+  explicit BadDefaultInitializedCopyAssign(int v) : value(v) {}
+  BadDefaultInitializedCopyAssign(
+      BadDefaultInitializedCopyAssign&& other) noexcept
+      : value(other.value) {}
+  BadDefaultInitializedCopyAssign(const BadDefaultInitializedCopyAssign& other)
+      : value(other.value) {}
+
+  BadDefaultInitializedCopyAssign& operator=(
+      BadDefaultInitializedCopyAssign&& other) noexcept {
+    value = other.value;
+    return *this;
+  }
+
+  BadDefaultInitializedCopyAssign& operator=(
+      const BadDefaultInitializedCopyAssign& other) {
+    value = other.value;
+    if (default_initialized) ++value;  // Bad move if lhs is default initialized
+    return *this;
+  }
+
+  friend bool operator==(const BadDefaultInitializedCopyAssign& lhs,
+                         const BadDefaultInitializedCopyAssign& rhs) {
+    return lhs.value == rhs.value;
+  }
+
+  friend bool operator!=(const BadDefaultInitializedCopyAssign& lhs,
+                         const BadDefaultInitializedCopyAssign& rhs) {
+    return lhs.value != rhs.value;
+  }
+
+  bool default_initialized = false;
+  int value = 0;
+};
+
+TEST(ConformanceTestingDeathTest, DefaultInitializedAssignFailure) {
+  using profile = ti::CombineProfiles<ti::DefaultConstructibleValueProfile,
+                                      ti::EquatableProfile>;
+
+  {
+    ABSL_INTERNAL_ASSERT_NONCONFORMANCE_OF(BadDefaultInitializedCopyAssign)
+        .DUE_TO("copy assignment")
+        .INITIALIZER(BadDefaultInitializedCopyAssign(0))
+        .WITH_LOOSE_PROFILE(profile);
+  }
+}
 
 }  // namespace

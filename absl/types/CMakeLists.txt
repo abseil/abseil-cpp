@@ -246,9 +246,14 @@ absl_cc_library(
     "internal/conformance_aliases.h"
     "internal/conformance_archetype.h"
     "internal/conformance_profile.h"
+    "internal/conformance_testing.h",
+    "internal/conformance_testing_helpers.h",
+    "internal/parentheses.h",
+    "internal/transform_args.h",
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::algorithm
     absl::debugging
     absl::type_traits
     absl::strings
@@ -282,6 +287,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::conformance_testing
+    absl::type_traits
     gmock_main
 )
 

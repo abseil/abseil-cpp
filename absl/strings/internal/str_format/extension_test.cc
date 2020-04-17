@@ -19,9 +19,27 @@
 #include <random>
 #include <string>
 
-#include "absl/strings/str_format.h"
-
+#include "absl/strings/cord.h"
 #include "gtest/gtest.h"
+#include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
+
+namespace my_namespace {
+class UserDefinedType {
+ public:
+  UserDefinedType() = default;
+
+  void Append(absl::string_view str) { value_.append(str.data(), str.size()); }
+  const std::string& Value() const { return value_; }
+
+  friend void AbslFormatFlush(UserDefinedType* x, absl::string_view str) {
+    x->Append(str);
+  }
+
+ private:
+  std::string value_;
+};
+}  // namespace my_namespace
 
 namespace {
 
@@ -63,4 +81,21 @@ TEST(FormatExtensionTest, SinkAppendChars) {
     EXPECT_EQ(actual, expected);
   }
 }
+
+TEST(FormatExtensionTest, CordSink) {
+  absl::Cord c;
+  absl::Format(&c, "There were %04d little %s.", 3, "pigs");
+  EXPECT_EQ(c, "There were 0003 little pigs.");
+  absl::Format(&c, "And %-3llx bad wolf!", 1);
+  EXPECT_EQ(c, "There were 0003 little pigs.And 1   bad wolf!");
+}
+
+TEST(FormatExtensionTest, CustomSink) {
+  my_namespace::UserDefinedType sink;
+  absl::Format(&sink, "There were %04d little %s.", 3, "pigs");
+  EXPECT_EQ("There were 0003 little pigs.", sink.Value());
+  absl::Format(&sink, "And %-3llx bad wolf!", 1);
+  EXPECT_EQ("There were 0003 little pigs.And 1   bad wolf!", sink.Value());
+}
+
 }  // namespace

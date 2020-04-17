@@ -294,6 +294,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "types/internal/conformance_aliases.h"
   "types/internal/conformance_archetype.h"
   "types/internal/conformance_profile.h"
+  "types/internal/parentheses.h"
+  "types/internal/transform_args.h"
   "types/internal/variant.h"
   "types/optional.h"
   "types/internal/optional.h"

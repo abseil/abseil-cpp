@@ -19,6 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/strings/cord.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -35,6 +36,12 @@ TEST(InvokeFlush, Stream) {
   str << "ABC";
   str_format_internal::InvokeFlush(&str, "DEF");
   EXPECT_EQ(str.str(), "ABCDEF");
+}
+
+TEST(InvokeFlush, Cord) {
+  absl::Cord str("ABC");
+  str_format_internal::InvokeFlush(&str, "DEF");
+  EXPECT_EQ(str, "ABCDEF");
 }
 
 TEST(BufferRawSink, Limits) {
@@ -70,4 +77,3 @@ TEST(BufferRawSink, Limits) {
 }  // namespace
 ABSL_NAMESPACE_END
 }  // namespace absl
-
