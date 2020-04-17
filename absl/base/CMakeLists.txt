@@ -191,7 +191,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
-    $<$<BOOL:${LIBRT}>:${LIBRT}>
+    $<$<BOOL:${LIBRT}>:-lrt>
     $<$<BOOL:${MINGW}>:"advapi32">
   DEPS
     absl::atomic_hook
