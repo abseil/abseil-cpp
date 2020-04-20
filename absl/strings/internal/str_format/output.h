@@ -30,9 +30,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-class Cord;
-
 namespace str_format_internal {
 
 // RawSink implementation that writes into a char* buffer.
@@ -75,12 +72,6 @@ inline void AbslFormatFlush(std::string* out, string_view s) {
 }
 inline void AbslFormatFlush(std::ostream* out, string_view s) {
   out->write(s.data(), s.size());
-}
-
-template <class AbslCord, typename = typename std::enable_if<
-                              std::is_same<AbslCord, absl::Cord>::value>::type>
-inline void AbslFormatFlush(AbslCord* out, string_view s) {
-  out->Append(s);
 }
 
 inline void AbslFormatFlush(FILERawSink* sink, string_view v) {

@@ -90,10 +90,6 @@ class CordTestPeer;
 template <typename Releaser>
 Cord MakeCordFromExternal(absl::string_view, Releaser&&);
 void CopyCordToString(const Cord& src, std::string* dst);
-namespace hash_internal {
-template <typename H>
-H HashFragmentedCord(H, const Cord&);
-}
 
 // Cord
 //
@@ -615,10 +611,22 @@ class Cord {
   // If the cord was already flat, the contents are not modified.
   absl::string_view Flatten();
 
+  // Support absl::Cord as a sink object for absl::Format().
+  friend void AbslFormatFlush(absl::Cord* cord, absl::string_view part) {
+    cord->Append(part);
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H hash_state, const absl::Cord& c) {
+    absl::optional<absl::string_view> maybe_flat = c.TryFlat();
+    if (maybe_flat.has_value()) {
+      return H::combine(std::move(hash_state), *maybe_flat);
+    }
+    return c.HashFragmented(std::move(hash_state));
+  }
+
  private:
   friend class CordTestPeer;
-  template <typename H>
-  friend H absl::hash_internal::HashFragmentedCord(H, const Cord&);
   friend bool operator==(const Cord& lhs, const Cord& rhs);
   friend bool operator==(const Cord& lhs, absl::string_view rhs);
 
@@ -763,6 +771,17 @@ class Cord {
   // Helper for Append()
   template <typename C>
   void AppendImpl(C&& src);
+
+  // Helper for AbslHashValue()
+  template <typename H>
+  H HashFragmented(H hash_state) const {
+    typename H::AbslInternalPiecewiseCombiner combiner;
+    ForEachChunk([&combiner, &hash_state](absl::string_view chunk) {
+      hash_state = combiner.add_buffer(std::move(hash_state), chunk.data(),
+                                       chunk.size());
+    });
+    return H::combine(combiner.finalize(std::move(hash_state)), size());
+  }
 };
 
 ABSL_NAMESPACE_END

@@ -19,7 +19,6 @@
 #include <random>
 #include <string>
 
-#include "absl/strings/cord.h"
 #include "gtest/gtest.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -80,14 +79,6 @@ TEST(FormatExtensionTest, SinkAppendChars) {
     sink.Flush();
     EXPECT_EQ(actual, expected);
   }
-}
-
-TEST(FormatExtensionTest, CordSink) {
-  absl::Cord c;
-  absl::Format(&c, "There were %04d little %s.", 3, "pigs");
-  EXPECT_EQ(c, "There were 0003 little pigs.");
-  absl::Format(&c, "And %-3llx bad wolf!", 1);
-  EXPECT_EQ(c, "There were 0003 little pigs.And 1   bad wolf!");
 }
 
 TEST(FormatExtensionTest, CustomSink) {

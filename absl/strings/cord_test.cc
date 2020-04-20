@@ -22,6 +22,7 @@
 #include "absl/container/fixed_array.h"
 #include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 
 typedef std::mt19937_64 RandomEngine;
@@ -1580,6 +1581,14 @@ TEST(Cord, SmallBufferAssignFromOwnData) {
           << "pos = " << pos << "; count = " << count;
     }
   }
+}
+
+TEST(Cord, Format) {
+  absl::Cord c;
+  absl::Format(&c, "There were %04d little %s.", 3, "pigs");
+  EXPECT_EQ(c, "There were 0003 little pigs.");
+  absl::Format(&c, "And %-3llx bad wolf!", 1);
+  EXPECT_EQ(c, "There were 0003 little pigs.And 1   bad wolf!");
 }
 
 TEST(CordDeathTest, Hardening) {

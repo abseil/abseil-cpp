@@ -310,6 +310,7 @@ cc_test(
     deps = [
         ":cord",
         ":cord_test_helpers",
+        ":str_format",
         ":strings",
         "//absl/base",
         "//absl/base:config",
@@ -667,7 +668,6 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
-        ":cord",
         ":str_format",
         ":str_format_internal",
         ":strings",

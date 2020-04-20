@@ -425,7 +425,6 @@ absl_cc_test(
   DEPS
     absl::str_format
     absl::str_format_internal
-    absl::cord
     absl::strings
     gmock_main
 )
@@ -581,6 +580,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::cord
+    absl::str_format
     absl::strings
     absl::base
     absl::config
