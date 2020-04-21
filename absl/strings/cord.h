@@ -645,12 +645,12 @@ class Cord {
   // InlineRep holds either a tree pointer, or an array of kMaxInline bytes.
   class InlineRep {
    public:
-    static const unsigned char kMaxInline = 15;
+    static constexpr unsigned char kMaxInline = 15;
     static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
     // Tag byte & kMaxInline means we are storing a pointer.
-    static const unsigned char kTreeFlag = 1 << 4;
+    static constexpr unsigned char kTreeFlag = 1 << 4;
     // Tag byte & kProfiledFlag means we are profiling the Cord.
-    static const unsigned char kProfiledFlag = 1 << 5;
+    static constexpr unsigned char kProfiledFlag = 1 << 5;
 
     constexpr InlineRep() : data_{} {}
     InlineRep(const InlineRep& src);
