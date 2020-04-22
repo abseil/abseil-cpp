@@ -149,9 +149,6 @@ class Flag {
   }
   T Get() const { return GetImpl()->Get(); }
   void Set(const T& v) { GetImpl()->Set(v); }
-  void SetCallback(const flags_internal::FlagCallbackFunc mutation_callback) {
-    GetImpl()->SetCallback(mutation_callback);
-  }
   void InvokeCallback() { GetImpl()->InvokeCallback(); }
 
   // The data members are logically private, but they need to be public for

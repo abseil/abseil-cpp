@@ -50,7 +50,7 @@
 #else
 
 #define ABSL_VARIANT_TEST_EXPECT_FAIL(expr, exception_t, text) \
-  EXPECT_DEATH(expr, text)
+  EXPECT_DEATH_IF_SUPPORTED(expr, text)
 
 #endif  // ABSL_HAVE_EXCEPTIONS
 

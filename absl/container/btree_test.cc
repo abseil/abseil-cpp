@@ -1543,7 +1543,7 @@ TEST(Btree, MapAt) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW(map.at(3), std::out_of_range);
 #else
-  EXPECT_DEATH(map.at(3), "absl::btree_map::at");
+  EXPECT_DEATH_IF_SUPPORTED(map.at(3), "absl::btree_map::at");
 #endif
 }
 

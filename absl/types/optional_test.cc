@@ -1051,7 +1051,7 @@ TEST(optionalTest, Value) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW((void)empty.value(), absl::bad_optional_access);
 #else
-  EXPECT_DEATH((void)empty.value(), "Bad optional access");
+  EXPECT_DEATH_IF_SUPPORTED((void)empty.value(), "Bad optional access");
 #endif
 
   // test constexpr value()

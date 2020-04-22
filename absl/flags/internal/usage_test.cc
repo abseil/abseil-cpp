@@ -103,8 +103,9 @@ TEST_F(UsageReportingDeathTest, TestSetProgramUsageMessage) {
 
 #ifndef _WIN32
   // TODO(rogeeff): figure out why this does not work on Windows.
-  EXPECT_DEATH(absl::SetProgramUsageMessage("custom usage message"),
-               ".*SetProgramUsageMessage\\(\\) called twice.*");
+  EXPECT_DEATH_IF_SUPPORTED(
+      absl::SetProgramUsageMessage("custom usage message"),
+      ".*SetProgramUsageMessage\\(\\) called twice.*");
 #endif
 }
 

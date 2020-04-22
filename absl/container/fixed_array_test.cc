@@ -773,10 +773,10 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations1) {
   int* raw = a.data();
   raw[0] = 0;
   raw[9] = 0;
-  EXPECT_DEATH(raw[-2] = 0, "container-overflow");
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[10] = 0, "container-overflow");
-  EXPECT_DEATH(raw[31] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-2] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[10] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[31] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations2) {
@@ -784,10 +784,10 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations2) {
   char* raw = a.data();
   raw[0] = 0;
   raw[11] = 0;
-  EXPECT_DEATH(raw[-7] = 0, "container-overflow");
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[12] = 0, "container-overflow");
-  EXPECT_DEATH(raw[17] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-7] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[12] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[17] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations3) {
@@ -795,8 +795,8 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations3) {
   uint64_t* raw = a.data();
   raw[0] = 0;
   raw[19] = 0;
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[20] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[20] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
@@ -808,11 +808,11 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
   // there is only a 8-byte red zone before the container range, so we only
   // access the last 4 bytes of the struct to make sure it stays within the red
   // zone.
-  EXPECT_DEATH(raw[-1].z_ = 0, "container-overflow");
-  EXPECT_DEATH(raw[10] = ThreeInts(), "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1].z_ = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[10] = ThreeInts(), "container-overflow");
   // The actual size of storage is kDefaultBytes=256, 21*12 = 252,
   // so reading raw[21] should still trigger the correct warning.
-  EXPECT_DEATH(raw[21] = ThreeInts(), "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[21] = ThreeInts(), "container-overflow");
 }
 #endif  // ADDRESS_SANITIZER
 

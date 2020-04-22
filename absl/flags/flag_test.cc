@@ -583,18 +583,21 @@ using FlagDeathTest = FlagTest;
 
 TEST_F(FlagDeathTest, TestTypeMismatchValidations) {
 #if !defined(NDEBUG)
-  EXPECT_DEATH(static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
-               "Flag 'mistyped_int_flag' is defined as one type and declared "
-               "as another");
-  EXPECT_DEATH(static_cast<void>(absl::GetFlag(FLAGS_mistyped_string_flag)),
-               "Flag 'mistyped_string_flag' is defined as one type and "
-               "declared as another");
+  EXPECT_DEATH_IF_SUPPORTED(
+      static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
+      "Flag 'mistyped_int_flag' is defined as one type and declared "
+      "as another");
+  EXPECT_DEATH_IF_SUPPORTED(
+      static_cast<void>(absl::GetFlag(FLAGS_mistyped_string_flag)),
+      "Flag 'mistyped_string_flag' is defined as one type and "
+      "declared as another");
 #endif
 
-  EXPECT_DEATH(absl::SetFlag(&FLAGS_mistyped_int_flag, 1),
-               "Flag 'mistyped_int_flag' is defined as one type and declared "
-               "as another");
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
+      absl::SetFlag(&FLAGS_mistyped_int_flag, 1),
+      "Flag 'mistyped_int_flag' is defined as one type and declared "
+      "as another");
+  EXPECT_DEATH_IF_SUPPORTED(
       absl::SetFlag(&FLAGS_mistyped_string_flag, std::vector<std::string>{}),
       "Flag 'mistyped_string_flag' is defined as one type and declared as "
       "another");

@@ -544,7 +544,6 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::strings_internal
     absl::base
     absl::base_internal
     absl::core_headers
@@ -555,6 +554,7 @@ absl_cc_library(
     absl::optional
     absl::raw_logging_internal
     absl::strings
+    absl::strings_internal
     absl::type_traits
   PUBLIC
 )

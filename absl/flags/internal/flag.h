@@ -556,9 +556,6 @@ class Flag {
     impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     impl_.Write(&v);
   }
-  void SetCallback(const FlagCallbackFunc mutation_callback) {
-    impl_.SetCallback(mutation_callback);
-  }
 
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }
@@ -651,8 +648,8 @@ class FlagRegistrar {
     if (do_register) flags_internal::RegisterCommandLineFlag(&flag_->impl_);
   }
 
-  FlagRegistrar& OnUpdate(FlagCallbackFunc cb) && {
-    flag_->SetCallback(cb);
+  FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
+    flag_->impl_.SetCallback(cb);
     return *this;
   }
 
