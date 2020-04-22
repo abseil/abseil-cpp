@@ -538,6 +538,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::strings
     absl::strings_internal
     absl::base
     absl::base_internal
