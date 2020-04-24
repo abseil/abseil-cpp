@@ -78,7 +78,7 @@ class ABSL_MUST_USE_RESULT Status final {
   Status();
 
   // Create a status in the canonical error space with the specified code and
-  // error message.  If `code == util::error::OK`, `msg` is ignored and an
+  // error message.  If `code == absl::StatusCode::kOk`, `msg` is ignored and an
   // object identical to an OK status is constructed.
   //
   // `msg` must be in UTF-8. The implementation may complain (e.g.,

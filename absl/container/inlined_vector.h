@@ -535,7 +535,7 @@ class InlinedVector {
   //
   // Resizes the inlined vector to contain `n` elements.
   //
-  // NOTE: if `n` is smaller than `size()`, extra elements are destroyed. If `n`
+  // NOTE: If `n` is smaller than `size()`, extra elements are destroyed. If `n`
   // is larger than `size()`, new elements are value-initialized.
   void resize(size_type n) {
     ABSL_HARDENING_ASSERT(n <= max_size());

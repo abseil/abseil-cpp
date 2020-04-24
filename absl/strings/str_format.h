@@ -254,8 +254,8 @@ class FormatCountCapture {
 // argument, etc.
 
 template <typename... Args>
-using FormatSpec =
-    typename str_format_internal::FormatSpecDeductionBarrier<Args...>::type;
+using FormatSpec = str_format_internal::FormatSpecTemplate<
+    str_format_internal::ArgumentToConv<Args>()...>;
 
 // ParsedFormat
 //

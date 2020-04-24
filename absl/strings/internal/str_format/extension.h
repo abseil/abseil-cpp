@@ -170,21 +170,6 @@ inline FormatConversionChar FormatConversionCharFromChar(char c) {
   return FormatConversionChar::kNone;
 }
 
-inline int FormatConversionCharRadix(FormatConversionChar c) {
-  switch (c) {
-    case FormatConversionChar::x:
-    case FormatConversionChar::X:
-    case FormatConversionChar::a:
-    case FormatConversionChar::A:
-    case FormatConversionChar::p:
-      return 16;
-    case FormatConversionChar::o:
-      return 8;
-    default:
-      return 10;
-  }
-}
-
 inline bool FormatConversionCharIsUpper(FormatConversionChar c) {
   switch (c) {
     case FormatConversionChar::X:
@@ -192,30 +177,6 @@ inline bool FormatConversionCharIsUpper(FormatConversionChar c) {
     case FormatConversionChar::E:
     case FormatConversionChar::G:
     case FormatConversionChar::A:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline bool FormatConversionCharIsSigned(FormatConversionChar c) {
-  switch (c) {
-    case FormatConversionChar::d:
-    case FormatConversionChar::i:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline bool FormatConversionCharIsIntegral(FormatConversionChar c) {
-  switch (c) {
-    case FormatConversionChar::d:
-    case FormatConversionChar::i:
-    case FormatConversionChar::u:
-    case FormatConversionChar::o:
-    case FormatConversionChar::x:
-    case FormatConversionChar::X:
       return true;
     default:
       return false;
