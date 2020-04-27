@@ -15,6 +15,7 @@
 #include "absl/strings/cord.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
