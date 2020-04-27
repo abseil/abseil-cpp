@@ -45,9 +45,9 @@
 //
 //   * `ADDRESS_SANITIZER` + `-fsanitize=address` (Clang, GCC 4.8)
 //   * `MEMORY_SANITIZER` + `-fsanitize=memory` (Clang-only)
-//   * `THREAD_SANITIZER + `-fsanitize=thread` (Clang, GCC 4.8+)
+//   * `THREAD_SANITIZER` + `-fsanitize=thread` (Clang, GCC 4.8+)
 //   * `UNDEFINED_BEHAVIOR_SANITIZER` + `-fsanitize=undefined` (Clang, GCC 4.9+)
-//   * `CONTROL_FLOW_INTEGRITY` + -fsanitize=cfi (Clang-only)
+//   * `CONTROL_FLOW_INTEGRITY` + `-fsanitize=cfi` (Clang-only)
 //
 // Example:
 //
