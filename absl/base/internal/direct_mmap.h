@@ -26,6 +26,10 @@
 
 #ifdef __linux__
 
+#if !defined(__NR_mmap) && defined(__riscv) && __riscv_xlen == 32
+# define __NR_mmap __NR_mmap2
+#endif
+
 #include <sys/types.h>
 #ifdef __BIONIC__
 #include <sys/syscall.h>
@@ -72,6 +76,7 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
 #if defined(__i386__) || defined(__ARM_ARCH_3__) || defined(__ARM_EABI__) || \
     (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI32) ||                   \
     (defined(__PPC__) && !defined(__PPC64__)) ||                             \
+    (defined(__riscv) && __riscv_xlen == 32)  ||                             \
     (defined(__s390__) && !defined(__s390x__))
   // On these architectures, implement mmap with mmap2.
   static int pagesize = 0;

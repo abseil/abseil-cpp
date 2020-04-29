@@ -24,6 +24,10 @@
 #include <unistd.h>
 #endif
 
+#if !defined(__NR_futex) && defined(__riscv) && __riscv_xlen == 32
+# define __NR_futex __NR_futex_time64
+#endif
+
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
