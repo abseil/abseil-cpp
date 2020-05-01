@@ -127,14 +127,13 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
               (flag->IsRetired() ? old_flag->Filename() : flag->Filename()),
               "'."),
           true);
-    } else if (flag->TypeId() != old_flag->TypeId()) {
+    } else if (flags_internal::PrivateHandleInterface::TypeId(*flag) !=
+               flags_internal::PrivateHandleInterface::TypeId(*old_flag)) {
       flags_internal::ReportUsageError(
           absl::StrCat("Flag '", flag->Name(),
                        "' was defined more than once but with "
                        "differing types. Defined in files '",
-                       old_flag->Filename(), "' and '", flag->Filename(),
-                       "' with types '", old_flag->Typename(), "' and '",
-                       flag->Typename(), "', respectively."),
+                       old_flag->Filename(), "' and '", flag->Filename(), "'."),
           true);
     } else if (old_flag->IsRetired()) {
       // Retired flag can just be deleted.
@@ -206,7 +205,8 @@ class FlagSaverImpl {
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
     flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
-      if (auto flag_state = flag->SaveState()) {
+      if (auto flag_state =
+              flags_internal::PrivateHandleInterface::SaveState(flag)) {
         backup_registry_.emplace_back(std::move(flag_state));
       }
     });
@@ -290,11 +290,9 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
  private:
   absl::string_view Name() const override { return name_; }
   std::string Filename() const override { return "RETIRED"; }
-  absl::string_view Typename() const override { return ""; }
   FlagFastTypeId TypeId() const override { return type_id_; }
   std::string Help() const override { return ""; }
   bool IsRetired() const override { return true; }
-  bool IsModified() const override { return false; }
   bool IsSpecifiedOnCommandLine() const override { return false; }
   std::string DefaultValue() const override { return ""; }
   std::string CurrentValue() const override { return ""; }

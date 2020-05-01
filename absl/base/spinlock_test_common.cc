@@ -56,12 +56,10 @@ namespace {
 static constexpr int kArrayLength = 10;
 static uint32_t values[kArrayLength];
 
-static SpinLock static_spinlock(base_internal::kLinkerInitialized);
-static SpinLock static_cooperative_spinlock(
-    base_internal::kLinkerInitialized,
-    base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL);
-static SpinLock static_noncooperative_spinlock(
-    base_internal::kLinkerInitialized, base_internal::SCHEDULE_KERNEL_ONLY);
+ABSL_CONST_INIT static SpinLock static_cooperative_spinlock(
+    absl::kConstInit, base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL);
+ABSL_CONST_INIT static SpinLock static_noncooperative_spinlock(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
 
 // Simple integer hash function based on the public domain lookup2 hash.
 // http://burtleburtle.net/bob/c/lookup2.c
@@ -189,10 +187,6 @@ TEST(SpinLock, WaitCyclesEncoding) {
   uint64_t before_max_value_decoded =
     SpinLockTest::DecodeWaitCycles(before_max_value);
   EXPECT_GT(expected_max_value_decoded, before_max_value_decoded);
-}
-
-TEST(SpinLockWithThreads, StaticSpinLock) {
-  ThreadedTest(&static_spinlock);
 }
 
 TEST(SpinLockWithThreads, StackSpinLock) {

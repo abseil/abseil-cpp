@@ -207,12 +207,12 @@ static void AtomicClearBits(std::atomic<intptr_t>* pv, intptr_t bits,
 //------------------------------------------------------------------
 
 // Data for doing deadlock detection.
-static absl::base_internal::SpinLock deadlock_graph_mu(
-    absl::base_internal::kLinkerInitialized);
+ABSL_CONST_INIT static absl::base_internal::SpinLock deadlock_graph_mu(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
 
-// graph used to detect deadlocks.
-static GraphCycles *deadlock_graph ABSL_GUARDED_BY(deadlock_graph_mu)
-    ABSL_PT_GUARDED_BY(deadlock_graph_mu);
+// Graph used to detect deadlocks.
+ABSL_CONST_INIT static GraphCycles *deadlock_graph
+    ABSL_GUARDED_BY(deadlock_graph_mu) ABSL_PT_GUARDED_BY(deadlock_graph_mu);
 
 //------------------------------------------------------------------
 // An event mechanism for debugging mutex use.
@@ -273,13 +273,12 @@ static const struct {
     {0, "SignalAll on "},
 };
 
-static absl::base_internal::SpinLock synch_event_mu(
-    absl::base_internal::kLinkerInitialized);
-// protects synch_event
+ABSL_CONST_INIT static absl::base_internal::SpinLock synch_event_mu(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
 
 // Hash table size; should be prime > 2.
 // Can't be too small, as it's used for deadlock detection information.
-static const uint32_t kNSynchEvent = 1031;
+static constexpr uint32_t kNSynchEvent = 1031;
 
 static struct SynchEvent {     // this is a trivial hash table for the events
   // struct is freed when refcount reaches 0

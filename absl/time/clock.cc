@@ -226,9 +226,9 @@ static_assert(((kMinNSBetweenSamples << (kScale + 1)) >> (kScale + 1)) ==
 
 // A reader-writer lock protecting the static locations below.
 // See SeqAcquire() and SeqRelease() above.
-static absl::base_internal::SpinLock lock(
-    absl::base_internal::kLinkerInitialized);
-static std::atomic<uint64_t> seq(0);
+ABSL_CONST_INIT static absl::base_internal::SpinLock lock(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
+ABSL_CONST_INIT static std::atomic<uint64_t> seq(0);
 
 // data from a sample of the kernel's time value
 struct TimeSampleAtomic {

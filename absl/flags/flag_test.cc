@@ -128,26 +128,27 @@ constexpr flags::FlagHelpArg help_arg{flags::FlagHelpMsg("literal help"),
 
 using String = std::string;
 
-#define DEFINE_CONSTRUCTED_FLAG(T)                                          \
-  constexpr flags::Flag<T> f1##T("f1", "file", help_arg, &TestMakeDflt<T>); \
-  ABSL_CONST_INIT flags::Flag<T> f2##T(                                     \
-      "f2", "file",                                                         \
-      {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc},    \
-      &TestMakeDflt<T>)
+#define DEFINE_CONSTRUCTED_FLAG(T, dflt, dflt_kind)                      \
+  constexpr flags::FlagDefaultArg f1default##T{                          \
+      flags::FlagDefaultSrc{dflt}, flags::FlagDefaultKind::dflt_kind};   \
+  constexpr flags::Flag<T> f1##T("f1", "file", help_arg, f1default##T);  \
+  ABSL_CONST_INIT flags::Flag<T> f2##T(                                  \
+      "f2", "file",                                                      \
+      {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc}, \
+      flags::FlagDefaultArg{flags::FlagDefaultSrc(&TestMakeDflt<T>),     \
+                            flags::FlagDefaultKind::kGenFunc})
 
-#define TEST_CONSTRUCTED_FLAG(T) TestConstructionFor(f1##T, &f2##T);
-
-DEFINE_CONSTRUCTED_FLAG(bool);
-DEFINE_CONSTRUCTED_FLAG(int16_t);
-DEFINE_CONSTRUCTED_FLAG(uint16_t);
-DEFINE_CONSTRUCTED_FLAG(int32_t);
-DEFINE_CONSTRUCTED_FLAG(uint32_t);
-DEFINE_CONSTRUCTED_FLAG(int64_t);
-DEFINE_CONSTRUCTED_FLAG(uint64_t);
-DEFINE_CONSTRUCTED_FLAG(float);
-DEFINE_CONSTRUCTED_FLAG(double);
-DEFINE_CONSTRUCTED_FLAG(String);
-DEFINE_CONSTRUCTED_FLAG(UDT);
+DEFINE_CONSTRUCTED_FLAG(bool, true, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(int16_t, 1, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(uint16_t, 2, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(int32_t, 3, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(uint32_t, 4, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(int64_t, 5, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(uint64_t, 6, kOneWord);
+DEFINE_CONSTRUCTED_FLAG(float, 7.8, kFloat);
+DEFINE_CONSTRUCTED_FLAG(double, 9.10, kDouble);
+DEFINE_CONSTRUCTED_FLAG(String, &TestMakeDflt<String>, kGenFunc);
+DEFINE_CONSTRUCTED_FLAG(UDT, &TestMakeDflt<UDT>, kGenFunc);
 
 template <typename T>
 bool TestConstructionFor(const flags::Flag<T>& f1, flags::Flag<T>* f2) {
@@ -163,6 +164,8 @@ bool TestConstructionFor(const flags::Flag<T>& f1, flags::Flag<T>* f2) {
 
   return true;
 }
+
+#define TEST_CONSTRUCTED_FLAG(T) TestConstructionFor(f1##T, &f2##T);
 
 TEST_F(FlagTest, TestConstruction) {
   TEST_CONSTRUCTED_FLAG(bool);
@@ -443,29 +446,29 @@ TEST_F(FlagTest, TestGetSet) {
 
 TEST_F(FlagTest, TestGetViaReflection) {
   auto* handle = flags::FindCommandLineFlag("test_flag_01");
-  EXPECT_EQ(*handle->Get<bool>(), true);
+  EXPECT_EQ(*handle->TryGet<bool>(), true);
   handle = flags::FindCommandLineFlag("test_flag_02");
-  EXPECT_EQ(*handle->Get<int>(), 1234);
+  EXPECT_EQ(*handle->TryGet<int>(), 1234);
   handle = flags::FindCommandLineFlag("test_flag_03");
-  EXPECT_EQ(*handle->Get<int16_t>(), -34);
+  EXPECT_EQ(*handle->TryGet<int16_t>(), -34);
   handle = flags::FindCommandLineFlag("test_flag_04");
-  EXPECT_EQ(*handle->Get<uint16_t>(), 189);
+  EXPECT_EQ(*handle->TryGet<uint16_t>(), 189);
   handle = flags::FindCommandLineFlag("test_flag_05");
-  EXPECT_EQ(*handle->Get<int32_t>(), 10765);
+  EXPECT_EQ(*handle->TryGet<int32_t>(), 10765);
   handle = flags::FindCommandLineFlag("test_flag_06");
-  EXPECT_EQ(*handle->Get<uint32_t>(), 40000);
+  EXPECT_EQ(*handle->TryGet<uint32_t>(), 40000);
   handle = flags::FindCommandLineFlag("test_flag_07");
-  EXPECT_EQ(*handle->Get<int64_t>(), -1234567);
+  EXPECT_EQ(*handle->TryGet<int64_t>(), -1234567);
   handle = flags::FindCommandLineFlag("test_flag_08");
-  EXPECT_EQ(*handle->Get<uint64_t>(), 9876543);
+  EXPECT_EQ(*handle->TryGet<uint64_t>(), 9876543);
   handle = flags::FindCommandLineFlag("test_flag_09");
-  EXPECT_NEAR(*handle->Get<double>(), -9.876e-50, 1e-55);
+  EXPECT_NEAR(*handle->TryGet<double>(), -9.876e-50, 1e-55);
   handle = flags::FindCommandLineFlag("test_flag_10");
-  EXPECT_NEAR(*handle->Get<float>(), 1.234e12f, 1e5f);
+  EXPECT_NEAR(*handle->TryGet<float>(), 1.234e12f, 1e5f);
   handle = flags::FindCommandLineFlag("test_flag_11");
-  EXPECT_EQ(*handle->Get<std::string>(), "");
+  EXPECT_EQ(*handle->TryGet<std::string>(), "");
   handle = flags::FindCommandLineFlag("test_flag_12");
-  EXPECT_EQ(*handle->Get<absl::Duration>(), absl::Minutes(10));
+  EXPECT_EQ(*handle->TryGet<absl::Duration>(), absl::Minutes(10));
 }
 
 // --------------------------------------------------------------------

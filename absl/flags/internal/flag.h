@@ -206,12 +206,72 @@ using FlagDfltGenFunc = void (*)(void*);
 union FlagDefaultSrc {
   constexpr explicit FlagDefaultSrc(FlagDfltGenFunc gen_func_arg)
       : gen_func(gen_func_arg) {}
+  template <typename T>
+  constexpr explicit FlagDefaultSrc(T one_word_value)
+      : one_word(static_cast<int64_t>(one_word_value)) {}
+  constexpr explicit FlagDefaultSrc(float f) : float_value(f) {}
+  constexpr explicit FlagDefaultSrc(double d) : double_value(d) {}
 
   void* dynamic_value;
   FlagDfltGenFunc gen_func;
+  int64_t one_word;
+  float float_value;
+  double double_value;
 };
 
-enum class FlagDefaultKind : uint8_t { kDynamicValue = 0, kGenFunc = 1 };
+enum class FlagDefaultKind : uint8_t {
+  kDynamicValue = 0,
+  kGenFunc = 1,
+  kOneWord = 2,
+  kFloat = 3,
+  kDouble = 4
+};
+
+struct FlagDefaultArg {
+  FlagDefaultSrc source;
+  FlagDefaultKind kind;
+};
+
+// This struct and corresponding overload to InitDefaultValue are used to
+// facilitate usage of {} as default value in ABSL_FLAG macro.
+// TODO(rogeeff): Fix handling types with explicit constructors.
+struct EmptyBraces {};
+
+template <typename T>
+constexpr T InitDefaultValue(T t) {
+  return t;
+}
+
+template <typename T>
+constexpr T InitDefaultValue(EmptyBraces) {
+  return T{};
+}
+
+template <typename ValueT, typename GenT,
+          typename std::enable_if<std::is_integral<ValueT>::value, int>::type =
+              (GenT{}, 0)>
+constexpr FlagDefaultArg DefaultArg(int) {
+  return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
+}
+
+template <typename ValueT, typename GenT,
+          typename std::enable_if<std::is_same<ValueT, float>::value,
+                                  int>::type = (GenT{}, 0)>
+constexpr FlagDefaultArg DefaultArg(int) {
+  return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kFloat};
+}
+
+template <typename ValueT, typename GenT,
+          typename std::enable_if<std::is_same<ValueT, double>::value,
+                                  int>::type = (GenT{}, 0)>
+constexpr FlagDefaultArg DefaultArg(int) {
+  return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kDouble};
+}
+
+template <typename ValueT, typename GenT>
+constexpr FlagDefaultArg DefaultArg(char) {
+  return {FlagDefaultSrc(&GenT::Gen), FlagDefaultKind::kGenFunc};
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flag current value auxiliary structs.
@@ -356,19 +416,19 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
                      FlagHelpArg help, FlagValueStorageKind value_kind,
-                     FlagDfltGenFunc default_value_gen)
+                     FlagDefaultArg default_arg)
       : name_(name),
         filename_(filename),
         op_(op),
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         value_storage_kind_(static_cast<uint8_t>(value_kind)),
-        def_kind_(static_cast<uint8_t>(FlagDefaultKind::kGenFunc)),
+        def_kind_(static_cast<uint8_t>(default_arg.kind)),
         modified_(false),
         on_command_line_(false),
         counter_(0),
         callback_(nullptr),
-        default_value_(default_value_gen),
+        default_value_(default_arg.source),
         data_guard_{} {}
 
   // Constant access methods
@@ -444,10 +504,8 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
   // CommandLineFlag interface implementation
   absl::string_view Name() const override;
   std::string Filename() const override;
-  absl::string_view Typename() const override;
   std::string Help() const override;
   FlagFastTypeId TypeId() const override;
-  bool IsModified() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool IsSpecifiedOnCommandLine() const override
       ABSL_LOCKS_EXCLUDED(*DataGuard());
   std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
@@ -492,9 +550,10 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
 
   // Mutable flag's state (guarded by `data_guard_`).
 
-  // If def_kind_ == kDynamicValue, default_value_ holds a dynamically allocated
-  // value.
-  uint8_t def_kind_ : 1 ABSL_GUARDED_BY(*DataGuard());
+  // def_kind_ is not guard by DataGuard() since it is accessed in Init without
+  // locks. If necessary we can decrease number of bits used to 2 by folding
+  // one_word storage cases.
+  uint8_t def_kind_ : 3;
   // Has this flag's value been modified?
   bool modified_ : 1 ABSL_GUARDED_BY(*DataGuard());
   // Has this flag been specified on command line.
@@ -530,10 +589,10 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(const char* name, const char* filename, const FlagHelpArg help,
-                 const FlagDfltGenFunc default_value_gen)
+  constexpr Flag(const char* name, const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
       : impl_(name, filename, &FlagOps<T>, help,
-              flags_internal::StorageKind<T>(), default_value_gen),
+              flags_internal::StorageKind<T>(), default_arg),
         value_() {}
 
   T Get() const {
@@ -560,9 +619,7 @@ class Flag {
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }
   std::string Filename() const { return impl_.Filename(); }
-  absl::string_view Typename() const { return ""; }
   std::string Help() const { return impl_.Help(); }
-  bool IsModified() const { return impl_.IsModified(); }
   bool IsSpecifiedOnCommandLine() const {
     return impl_.IsSpecifiedOnCommandLine();
   }
@@ -661,20 +718,6 @@ class FlagRegistrar {
  private:
   Flag<T>* flag_;  // Flag being registered (not owned).
 };
-
-// This struct and corresponding overload to MakeDefaultValue are used to
-// facilitate usage of {} as default value in ABSL_FLAG macro.
-struct EmptyBraces {};
-
-template <typename T>
-void MakeFromDefaultValue(void* dst, T t) {
-  new (dst) T(std::move(t));
-}
-
-template <typename T>
-void MakeFromDefaultValue(void* dst, EmptyBraces) {
-  new (dst) T{};
-}
 
 }  // namespace flags_internal
 ABSL_NAMESPACE_END

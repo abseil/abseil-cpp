@@ -17,7 +17,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 
-using CC = ConversionChar;
+using CC = FormatConversionCharInternal;
 using LM = LengthMod;
 
 ABSL_CONST_INIT const ConvTag kTags[256] = {
@@ -296,15 +296,17 @@ struct ParsedFormatBase::ParsedFormatConsumer {
   char* data_pos;
 };
 
-ParsedFormatBase::ParsedFormatBase(string_view format, bool allow_ignored,
-                                   std::initializer_list<Conv> convs)
+ParsedFormatBase::ParsedFormatBase(
+    string_view format, bool allow_ignored,
+    std::initializer_list<FormatConversionCharSet> convs)
     : data_(format.empty() ? nullptr : new char[format.size()]) {
   has_error_ = !ParseFormatString(format, ParsedFormatConsumer(this)) ||
                !MatchesConversions(allow_ignored, convs);
 }
 
 bool ParsedFormatBase::MatchesConversions(
-    bool allow_ignored, std::initializer_list<Conv> convs) const {
+    bool allow_ignored,
+    std::initializer_list<FormatConversionCharSet> convs) const {
   std::unordered_set<int> used;
   auto add_if_valid_conv = [&](int pos, char c) {
       if (static_cast<size_t>(pos) > convs.size() ||

@@ -66,6 +66,13 @@ void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
   submit_profile_data.Store(fn);
 }
 
+// Static member variable definitions.
+constexpr uint32_t SpinLock::kSpinLockHeld;
+constexpr uint32_t SpinLock::kSpinLockCooperative;
+constexpr uint32_t SpinLock::kSpinLockDisabledScheduling;
+constexpr uint32_t SpinLock::kSpinLockSleeper;
+constexpr uint32_t SpinLock::kWaitTimeMask;
+
 // Uncommon constructors.
 SpinLock::SpinLock(base_internal::SchedulingMode mode)
     : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {

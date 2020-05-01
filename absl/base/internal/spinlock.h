@@ -36,6 +36,7 @@
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
@@ -76,6 +77,10 @@ class ABSL_LOCKABLE SpinLock {
   explicit SpinLock(base_internal::SchedulingMode mode);
   SpinLock(base_internal::LinkerInitialized,
            base_internal::SchedulingMode mode);
+
+  // Constructor for global SpinLock instances.  See absl/base/const_init.h.
+  constexpr SpinLock(absl::ConstInitType, base_internal::SchedulingMode mode)
+      : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {}
 
   ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static); }
 

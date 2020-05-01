@@ -403,70 +403,62 @@ bool FloatToSink(const Float v, const ConversionSpec &conv,
 
   Buffer buffer;
 
-  switch (conv.conversion_char()) {
-    case ConversionChar::f:
-    case ConversionChar::F:
-      if (!FloatToBuffer<FormatStyle::Fixed>(decomposed, precision, &buffer,
-                                             nullptr)) {
-        return FallbackToSnprintf(v, conv, sink);
-      }
-      if (!conv.has_alt_flag() && buffer.back() == '.') buffer.pop_back();
-      break;
+  FormatConversionChar c = conv.conversion_char();
 
-    case ConversionChar::e:
-    case ConversionChar::E:
-      if (!FloatToBuffer<FormatStyle::Precision>(decomposed, precision, &buffer,
-                                                 &exp)) {
-        return FallbackToSnprintf(v, conv, sink);
+  if (c == FormatConversionCharInternal::f ||
+      c == FormatConversionCharInternal::F) {
+    if (!FloatToBuffer<FormatStyle::Fixed>(decomposed, precision, &buffer,
+                                           nullptr)) {
+      return FallbackToSnprintf(v, conv, sink);
+    }
+    if (!conv.has_alt_flag() && buffer.back() == '.') buffer.pop_back();
+  } else if (c == FormatConversionCharInternal::e ||
+             c == FormatConversionCharInternal::E) {
+    if (!FloatToBuffer<FormatStyle::Precision>(decomposed, precision, &buffer,
+                                               &exp)) {
+      return FallbackToSnprintf(v, conv, sink);
+    }
+    if (!conv.has_alt_flag() && buffer.back() == '.') buffer.pop_back();
+    PrintExponent(
+        exp, FormatConversionCharIsUpper(conv.conversion_char()) ? 'E' : 'e',
+        &buffer);
+  } else if (c == FormatConversionCharInternal::g ||
+             c == FormatConversionCharInternal::G) {
+    precision = std::max(0, precision - 1);
+    if (!FloatToBuffer<FormatStyle::Precision>(decomposed, precision, &buffer,
+                                               &exp)) {
+      return FallbackToSnprintf(v, conv, sink);
+    }
+    if (precision + 1 > exp && exp >= -4) {
+      if (exp < 0) {
+        // Have 1.23456, needs 0.00123456
+        // Move the first digit
+        buffer.begin[1] = *buffer.begin;
+        // Add some zeros
+        for (; exp < -1; ++exp) *buffer.begin-- = '0';
+        *buffer.begin-- = '.';
+        *buffer.begin = '0';
+      } else if (exp > 0) {
+        // Have 1.23456, needs 1234.56
+        // Move the '.' exp positions to the right.
+        std::rotate(buffer.begin + 1, buffer.begin + 2, buffer.begin + exp + 2);
       }
-      if (!conv.has_alt_flag() && buffer.back() == '.') buffer.pop_back();
+      exp = 0;
+    }
+    if (!conv.has_alt_flag()) {
+      while (buffer.back() == '0') buffer.pop_back();
+      if (buffer.back() == '.') buffer.pop_back();
+    }
+    if (exp) {
       PrintExponent(
           exp, FormatConversionCharIsUpper(conv.conversion_char()) ? 'E' : 'e',
           &buffer);
-      break;
-
-    case ConversionChar::g:
-    case ConversionChar::G:
-      precision = std::max(0, precision - 1);
-      if (!FloatToBuffer<FormatStyle::Precision>(decomposed, precision, &buffer,
-                                                 &exp)) {
-        return FallbackToSnprintf(v, conv, sink);
-      }
-      if (precision + 1 > exp && exp >= -4) {
-        if (exp < 0) {
-          // Have 1.23456, needs 0.00123456
-          // Move the first digit
-          buffer.begin[1] = *buffer.begin;
-          // Add some zeros
-          for (; exp < -1; ++exp) *buffer.begin-- = '0';
-          *buffer.begin-- = '.';
-          *buffer.begin = '0';
-        } else if (exp > 0) {
-          // Have 1.23456, needs 1234.56
-          // Move the '.' exp positions to the right.
-          std::rotate(buffer.begin + 1, buffer.begin + 2,
-                      buffer.begin + exp + 2);
-        }
-        exp = 0;
-      }
-      if (!conv.has_alt_flag()) {
-        while (buffer.back() == '0') buffer.pop_back();
-        if (buffer.back() == '.') buffer.pop_back();
-      }
-      if (exp) {
-        PrintExponent(
-            exp,
-            FormatConversionCharIsUpper(conv.conversion_char()) ? 'E' : 'e',
-            &buffer);
-      }
-      break;
-
-    case ConversionChar::a:
-    case ConversionChar::A:
-      return FallbackToSnprintf(v, conv, sink);
-
-    default:
-      return false;
+    }
+  } else if (c == FormatConversionCharInternal::a ||
+             c == FormatConversionCharInternal::A) {
+    return FallbackToSnprintf(v, conv, sink);
+  } else {
+    return false;
   }
 
   WriteBufferToSink(sign_char,

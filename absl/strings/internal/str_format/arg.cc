@@ -315,7 +315,7 @@ bool ConvertFloatArg(T v, const ConversionSpec conv, FormatSinkImpl *sink) {
 
 inline bool ConvertStringArg(string_view v, const ConversionSpec conv,
                              FormatSinkImpl *sink) {
-  if (conv.conversion_char() != ConversionChar::s) return false;
+  if (conv.conversion_char() != FormatConversionCharInternal::s) return false;
   if (conv.is_basic()) {
     sink->Append(v);
     return true;
@@ -327,22 +327,22 @@ inline bool ConvertStringArg(string_view v, const ConversionSpec conv,
 }  // namespace
 
 // ==================== Strings ====================
-ConvertResult<Conv::s> FormatConvertImpl(const std::string &v,
-                                         const ConversionSpec conv,
-                                         FormatSinkImpl *sink) {
+StringConvertResult FormatConvertImpl(const std::string &v,
+                                      const ConversionSpec conv,
+                                      FormatSinkImpl *sink) {
   return {ConvertStringArg(v, conv, sink)};
 }
 
-ConvertResult<Conv::s> FormatConvertImpl(string_view v,
-                                         const ConversionSpec conv,
-                                         FormatSinkImpl *sink) {
+StringConvertResult FormatConvertImpl(string_view v, const ConversionSpec conv,
+                                      FormatSinkImpl *sink) {
   return {ConvertStringArg(v, conv, sink)};
 }
 
-ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
-                                                   const ConversionSpec conv,
-                                                   FormatSinkImpl *sink) {
-  if (conv.conversion_char() == ConversionChar::p)
+ArgConvertResult<FormatConversionCharSetUnion(
+    FormatConversionCharSetInternal::s, FormatConversionCharSetInternal::p)>
+FormatConvertImpl(const char *v, const ConversionSpec conv,
+                  FormatSinkImpl *sink) {
+  if (conv.conversion_char() == FormatConversionCharInternal::p)
     return {FormatConvertImpl(VoidPtr(v), conv, sink).value};
   size_t len;
   if (v == nullptr) {
@@ -357,9 +357,9 @@ ConvertResult<Conv::s | Conv::p> FormatConvertImpl(const char *v,
 }
 
 // ==================== Raw pointers ====================
-ConvertResult<Conv::p> FormatConvertImpl(VoidPtr v, const ConversionSpec conv,
-                                         FormatSinkImpl *sink) {
-  if (conv.conversion_char() != ConversionChar::p) return {false};
+ArgConvertResult<FormatConversionCharSetInternal::p> FormatConvertImpl(
+    VoidPtr v, const ConversionSpec conv, FormatSinkImpl *sink) {
+  if (conv.conversion_char() != FormatConversionCharInternal::p) return {false};
   if (!v.value) {
     sink->Append("(nil)");
     return {true};

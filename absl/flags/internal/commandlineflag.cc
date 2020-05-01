@@ -22,7 +22,20 @@ namespace flags_internal {
 FlagStateInterface::~FlagStateInterface() {}
 
 bool CommandLineFlag::IsRetired() const { return false; }
-bool CommandLineFlag::IsAbseilFlag() const { return true; }
+
+FlagFastTypeId PrivateHandleInterface::TypeId(const CommandLineFlag& flag) {
+  return flag.TypeId();
+}
+
+std::unique_ptr<FlagStateInterface> PrivateHandleInterface::SaveState(
+    CommandLineFlag* flag) {
+  return flag->SaveState();
+}
+
+bool PrivateHandleInterface::ValidateInputValue(const CommandLineFlag& flag,
+                                                absl::string_view value) {
+  return flag.ValidateInputValue(value);
+}
 
 }  // namespace flags_internal
 ABSL_NAMESPACE_END

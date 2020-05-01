@@ -25,10 +25,12 @@ constexpr bool AllOf(bool b, T... t) {
 }
 
 template <typename Arg>
-constexpr Conv ArgumentToConv() {
-  return decltype(str_format_internal::FormatConvertImpl(
-      std::declval<const Arg&>(), std::declval<const ConversionSpec&>(),
-      std::declval<FormatSinkImpl*>()))::kConv;
+constexpr FormatConversionCharSet ArgumentToConv() {
+  return absl::str_format_internal::ExtractCharSet(
+      decltype(str_format_internal::FormatConvertImpl(
+          std::declval<const Arg&>(),
+          std::declval<const FormatConversionSpecImpl&>(),
+          std::declval<FormatSinkImpl*>())){});
 }
 
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
@@ -39,14 +41,14 @@ constexpr bool ContainsChar(const char* chars, char c) {
 
 // A constexpr compatible list of Convs.
 struct ConvList {
-  const Conv* array;
+  const FormatConversionCharSet* array;
   int count;
 
   // We do the bound check here to avoid having to do it on the callers.
-  // Returning an empty Conv has the same effect as short circuiting because it
-  // will never match any conversion.
-  constexpr Conv operator[](int i) const {
-    return i < count ? array[i] : Conv{};
+  // Returning an empty FormatConversionCharSet has the same effect as
+  // short circuiting because it will never match any conversion.
+  constexpr FormatConversionCharSet operator[](int i) const {
+    return i < count ? array[i] : FormatConversionCharSet{};
   }
 
   constexpr ConvList without_front() const {
@@ -57,7 +59,7 @@ struct ConvList {
 template <size_t count>
 struct ConvListT {
   // Make sure the array has size > 0.
-  Conv list[count ? count : 1];
+  FormatConversionCharSet list[count ? count : 1];
 };
 
 constexpr char GetChar(string_view str, size_t index) {
@@ -310,7 +312,7 @@ class FormatParser {
   ConvList args_;
 };
 
-template <Conv... C>
+template <FormatConversionCharSet... C>
 constexpr bool ValidFormatImpl(string_view format) {
   return FormatParser(format,
                       {ConvListT<sizeof...(C)>{{C...}}.list, sizeof...(C)})

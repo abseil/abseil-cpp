@@ -75,7 +75,7 @@ inline bool GetByName(absl::string_view name, T* dst) {
   CommandLineFlag* flag = flags_internal::FindCommandLineFlag(name);
   if (!flag) return false;
 
-  if (auto val = flag->Get<T>()) {
+  if (auto val = flag->TryGet<T>()) {
     *dst = *val;
     return true;
   }

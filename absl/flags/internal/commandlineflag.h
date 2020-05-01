@@ -93,7 +93,7 @@ class CommandLineFlag {
   // Attempts to retrieve the flag value. Returns value on success,
   // absl::nullopt otherwise.
   template <typename T>
-  absl::optional<T> Get() const {
+  absl::optional<T> TryGet() const {
     if (IsRetired() || !IsOfType<T>()) {
       return absl::nullopt;
     }
@@ -130,28 +130,13 @@ class CommandLineFlag {
   virtual absl::string_view Name() const = 0;
   // Returns name of the file where this flag is defined.
   virtual std::string Filename() const = 0;
-  // Returns name of the flag's value type for some built-in types or empty
-  // string.
-  virtual absl::string_view Typename() const = 0;
   // Returns help message associated with this flag.
   virtual std::string Help() const = 0;
   // Returns true iff this object corresponds to retired flag.
   virtual bool IsRetired() const;
-  // Returns true iff this is a handle to an Abseil Flag.
-  virtual bool IsAbseilFlag() const;
-  // Returns id of the flag's value type.
-  virtual FlagFastTypeId TypeId() const = 0;
-  virtual bool IsModified() const = 0;
   virtual bool IsSpecifiedOnCommandLine() const = 0;
   virtual std::string DefaultValue() const = 0;
   virtual std::string CurrentValue() const = 0;
-
-  // Interfaces to operate on validators.
-  virtual bool ValidateInputValue(absl::string_view value) const = 0;
-
-  // Interface to save flag to some persistent state. Returns current flag state
-  // or nullptr if flag does not support saving and restoring a state.
-  virtual std::unique_ptr<FlagStateInterface> SaveState() = 0;
 
   // Sets the value of the flag based on specified string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
@@ -174,9 +159,38 @@ class CommandLineFlag {
   ~CommandLineFlag() = default;
 
  private:
+  friend class PrivateHandleInterface;
+
+  // Returns id of the flag's value type.
+  virtual FlagFastTypeId TypeId() const = 0;
+
+  // Interface to save flag to some persistent state. Returns current flag state
+  // or nullptr if flag does not support saving and restoring a state.
+  virtual std::unique_ptr<FlagStateInterface> SaveState() = 0;
+
   // Copy-construct a new value of the flag's type in a memory referenced by
   // the dst based on the current flag's value.
   virtual void Read(void* dst) const = 0;
+
+  // Interfaces to operate on validators.
+  // Validates supplied value usign validator or parseflag routine
+  virtual bool ValidateInputValue(absl::string_view value) const = 0;
+};
+
+// This class serves as a trampoline to access private methods of
+// CommandLineFlag. This class is intended for use exclusively internally inside
+// of the Abseil Flags implementation
+class PrivateHandleInterface {
+ public:
+  // Access to CommandLineFlag::TypeId.
+  static FlagFastTypeId TypeId(const CommandLineFlag& flag);
+
+  // Access to CommandLineFlag::SaveState.
+  static std::unique_ptr<FlagStateInterface> SaveState(CommandLineFlag* flag);
+
+  // Access to CommandLineFlag::ValidateInputValue.
+  static bool ValidateInputValue(const CommandLineFlag& flag,
+                                 absl::string_view value);
 };
 
 // This macro is the "source of truth" for the list of supported flag built-in

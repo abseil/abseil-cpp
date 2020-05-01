@@ -67,7 +67,6 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   ASSERT_TRUE(flag_01);
   EXPECT_EQ(flag_01->Name(), "int_flag");
   EXPECT_EQ(flag_01->Help(), "int_flag help");
-  EXPECT_EQ(flag_01->Typename(), "");
   EXPECT_TRUE(!flag_01->IsRetired());
   EXPECT_TRUE(flag_01->IsOfType<int>());
   EXPECT_TRUE(
@@ -80,7 +79,6 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   ASSERT_TRUE(flag_02);
   EXPECT_EQ(flag_02->Name(), "string_flag");
   EXPECT_EQ(flag_02->Help(), "string_flag help");
-  EXPECT_EQ(flag_02->Typename(), "");
   EXPECT_TRUE(!flag_02->IsRetired());
   EXPECT_TRUE(flag_02->IsOfType<std::string>());
   EXPECT_TRUE(
@@ -93,7 +91,6 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   ASSERT_TRUE(flag_03);
   EXPECT_EQ(flag_03->Name(), "bool_retired_flag");
   EXPECT_EQ(flag_03->Help(), "");
-  EXPECT_EQ(flag_03->Typename(), "");
   EXPECT_TRUE(flag_03->IsRetired());
   EXPECT_TRUE(flag_03->IsOfType<bool>());
   EXPECT_EQ(flag_03->Filename(), "RETIRED");

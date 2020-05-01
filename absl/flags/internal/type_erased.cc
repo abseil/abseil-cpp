@@ -72,7 +72,9 @@ bool IsValidFlagValue(absl::string_view name, absl::string_view value) {
   CommandLineFlag* flag = flags_internal::FindCommandLineFlag(name);
 
   return flag != nullptr &&
-         (flag->IsRetired() || flag->ValidateInputValue(value));
+         (flag->IsRetired() ||
+          flags_internal::PrivateHandleInterface::ValidateInputValue(*flag,
+                                                                     value));
 }
 
 // --------------------------------------------------------------------

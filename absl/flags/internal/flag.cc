@@ -139,19 +139,43 @@ void DynValueDeleter::operator()(void* ptr) const {
 void FlagImpl::Init() {
   new (&data_guard_) absl::Mutex;
 
-  // At this point the default_value_ always points to gen_func.
+  auto def_kind = static_cast<FlagDefaultKind>(def_kind_);
+
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kAlignedBuffer:
+      // For this storage kind the default_value_ always points to gen_func
+      // during initialization.
+      assert(def_kind == FlagDefaultKind::kGenFunc);
       (*default_value_.gen_func)(AlignedBufferValue());
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       alignas(int64_t) std::array<char, sizeof(int64_t)> buf{};
-      (*default_value_.gen_func)(buf.data());
-      auto value = absl::bit_cast<int64_t>(buf);
-      OneWordValue().store(value, std::memory_order_release);
+      switch (def_kind) {
+        case FlagDefaultKind::kOneWord:
+          std::memcpy(buf.data(), &default_value_.one_word,
+                      sizeof(default_value_.one_word));
+          break;
+        case FlagDefaultKind::kFloat:
+          std::memcpy(buf.data(), &default_value_.float_value,
+                      sizeof(default_value_.float_value));
+          break;
+        case FlagDefaultKind::kDouble:
+          std::memcpy(buf.data(), &default_value_.double_value,
+                      sizeof(default_value_.double_value));
+          break;
+        default:
+          assert(def_kind == FlagDefaultKind::kGenFunc);
+          (*default_value_.gen_func)(buf.data());
+          break;
+      }
+      OneWordValue().store(absl::bit_cast<int64_t>(buf),
+                           std::memory_order_release);
       break;
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
+      // For this storage kind the default_value_ always points to gen_func
+      // during initialization.
+      assert(def_kind == FlagDefaultKind::kGenFunc);
       alignas(AlignedTwoWords) std::array<char, sizeof(AlignedTwoWords)> buf{};
       (*default_value_.gen_func)(buf.data());
       auto atomic_value = absl::bit_cast<AlignedTwoWords>(buf);
@@ -196,11 +220,23 @@ void FlagImpl::AssertValidType(FlagFastTypeId rhs_type_id,
 
 std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
-  if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-    res = flags_internal::Clone(op_, default_value_.dynamic_value);
-  } else {
-    res = flags_internal::Alloc(op_);
-    (*default_value_.gen_func)(res);
+  switch (DefaultKind()) {
+    case FlagDefaultKind::kDynamicValue:
+      res = flags_internal::Clone(op_, default_value_.dynamic_value);
+      break;
+    case FlagDefaultKind::kGenFunc:
+      res = flags_internal::Alloc(op_);
+      (*default_value_.gen_func)(res);
+      break;
+    case FlagDefaultKind::kOneWord:
+      res = flags_internal::Clone(op_, &default_value_.one_word);
+      break;
+    case FlagDefaultKind::kFloat:
+      res = flags_internal::Clone(op_, &default_value_.float_value);
+      break;
+    case FlagDefaultKind::kDouble:
+      res = flags_internal::Clone(op_, &default_value_.double_value);
+      break;
   }
   return {res, DynValueDeleter{op_}};
 }
@@ -235,8 +271,6 @@ std::string FlagImpl::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
 }
 
-absl::string_view FlagImpl::Typename() const { return ""; }
-
 std::string FlagImpl::Help() const {
   return HelpSourceKind() == FlagHelpKind::kLiteral ? help_.literal
                                                     : help_.gen_func();
@@ -244,11 +278,6 @@ std::string FlagImpl::Help() const {
 
 FlagFastTypeId FlagImpl::TypeId() const {
   return flags_internal::FastTypeId(op_);
-}
-
-bool FlagImpl::IsModified() const {
-  absl::MutexLock l(DataGuard());
-  return modified_;
 }
 
 bool FlagImpl::IsSpecifiedOnCommandLine() const {

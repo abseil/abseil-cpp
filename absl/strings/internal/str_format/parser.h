@@ -67,7 +67,7 @@ struct UnboundConversion {
 
   Flags flags;
   LengthMod length_mod = LengthMod::none;
-  ConversionChar conv = FormatConversionChar::kNone;
+  FormatConversionChar conv = FormatConversionCharInternal::kNone;
 };
 
 // Consume conversion spec prefix (not including '%') of [p, end) if valid.
@@ -186,8 +186,9 @@ constexpr bool EnsureConstexpr(string_view s) {
 
 class ParsedFormatBase {
  public:
-  explicit ParsedFormatBase(string_view format, bool allow_ignored,
-                            std::initializer_list<Conv> convs);
+  explicit ParsedFormatBase(
+      string_view format, bool allow_ignored,
+      std::initializer_list<FormatConversionCharSet> convs);
 
   ParsedFormatBase(const ParsedFormatBase& other) { *this = other; }
 
@@ -234,8 +235,9 @@ class ParsedFormatBase {
  private:
   // Returns whether the conversions match and if !allow_ignored it verifies
   // that all conversions are used by the format.
-  bool MatchesConversions(bool allow_ignored,
-                          std::initializer_list<Conv> convs) const;
+  bool MatchesConversions(
+      bool allow_ignored,
+      std::initializer_list<FormatConversionCharSet> convs) const;
 
   struct ParsedFormatConsumer;
 

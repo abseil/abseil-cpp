@@ -344,15 +344,16 @@ pid_t GetTID() {
 #else
 
 // Fallback implementation of GetTID using pthread_getspecific.
-static once_flag tid_once;
-static pthread_key_t tid_key;
-static absl::base_internal::SpinLock tid_lock(
-    absl::base_internal::kLinkerInitialized);
+ABSL_CONST_INIT static once_flag tid_once;
+ABSL_CONST_INIT static pthread_key_t tid_key;
+ABSL_CONST_INIT static absl::base_internal::SpinLock tid_lock(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
 
 // We set a bit per thread in this array to indicate that an ID is in
 // use. ID 0 is unused because it is the default value returned by
 // pthread_getspecific().
-static std::vector<uint32_t>* tid_array ABSL_GUARDED_BY(tid_lock) = nullptr;
+ABSL_CONST_INIT static std::vector<uint32_t> *tid_array
+    ABSL_GUARDED_BY(tid_lock) = nullptr;
 static constexpr int kBitsPerWord = 32;  // tid_array is uint32_t.
 
 // Returns the TID to tid_array.

@@ -80,13 +80,4 @@ TEST(FormatExtensionTest, SinkAppendChars) {
     EXPECT_EQ(actual, expected);
   }
 }
-
-TEST(FormatExtensionTest, CustomSink) {
-  my_namespace::UserDefinedType sink;
-  absl::Format(&sink, "There were %04d little %s.", 3, "pigs");
-  EXPECT_EQ("There were 0003 little pigs.", sink.Value());
-  absl::Format(&sink, "And %-3llx bad wolf!", 1);
-  EXPECT_EQ("There were 0003 little pigs.And 1   bad wolf!", sink.Value());
-}
-
 }  // namespace
