@@ -37,6 +37,11 @@ bool PrivateHandleInterface::ValidateInputValue(const CommandLineFlag& flag,
   return flag.ValidateInputValue(value);
 }
 
+void PrivateHandleInterface::CheckDefaultValueParsingRoundtrip(
+    const CommandLineFlag& flag) {
+  flag.CheckDefaultValueParsingRoundtrip();
+}
+
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

@@ -151,10 +151,6 @@ class CommandLineFlag {
                          flags_internal::ValueSource source,
                          std::string* error) = 0;
 
-  // Checks that flags default value can be converted to string and back to the
-  // flag's value type.
-  virtual void CheckDefaultValueParsingRoundtrip() const = 0;
-
  protected:
   ~CommandLineFlag() = default;
 
@@ -175,6 +171,10 @@ class CommandLineFlag {
   // Interfaces to operate on validators.
   // Validates supplied value usign validator or parseflag routine
   virtual bool ValidateInputValue(absl::string_view value) const = 0;
+
+  // Checks that flags default value can be converted to string and back to the
+  // flag's value type.
+  virtual void CheckDefaultValueParsingRoundtrip() const = 0;
 };
 
 // This class serves as a trampoline to access private methods of
@@ -191,6 +191,9 @@ class PrivateHandleInterface {
   // Access to CommandLineFlag::ValidateInputValue.
   static bool ValidateInputValue(const CommandLineFlag& flag,
                                  absl::string_view value);
+
+  // Access to CommandLineFlag::CheckDefaultValueParsingRoundtrip.
+  static void CheckDefaultValueParsingRoundtrip(const CommandLineFlag& flag);
 };
 
 // This macro is the "source of truth" for the list of supported flag built-in

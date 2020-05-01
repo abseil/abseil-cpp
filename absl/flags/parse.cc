@@ -298,7 +298,8 @@ void CheckDefaultValuesParsingRoundtrip() {
     ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(IGNORE_TYPE)
 #undef IGNORE_TYPE
 
-    flag->CheckDefaultValueParsingRoundtrip();
+    flags_internal::PrivateHandleInterface::CheckDefaultValueParsingRoundtrip(
+        *flag);
   });
 #endif
 }
