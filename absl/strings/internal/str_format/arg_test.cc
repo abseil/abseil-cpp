@@ -95,8 +95,9 @@ TEST_F(FormatArgImplTest, OtherPtrDecayToVoidPtr) {
 TEST_F(FormatArgImplTest, WorksWithCharArraysOfUnknownSize) {
   std::string s;
   FormatSinkImpl sink(&s);
-  ConversionSpec conv;
-  FormatConversionSpecImplFriend::SetConversionChar(ConversionChar::s, &conv);
+  FormatConversionSpecImpl conv;
+  FormatConversionSpecImplFriend::SetConversionChar(FormatConversionChar::s,
+                                                    &conv);
   FormatConversionSpecImplFriend::SetFlags(Flags(), &conv);
   FormatConversionSpecImplFriend::SetWidth(-1, &conv);
   FormatConversionSpecImplFriend::SetPrecision(-1, &conv);

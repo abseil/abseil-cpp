@@ -392,6 +392,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::bits
     absl::strings
     absl::config
     absl::core_headers

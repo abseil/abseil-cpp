@@ -28,7 +28,7 @@ TEST(WideMultiplyTest, MultiplyU64ToU128Test) {
 
   EXPECT_EQ(absl::uint128(0), MultiplyU64ToU128(0, 0));
 
-  // Max uint64
+  // Max uint64_t
   EXPECT_EQ(MultiplyU64ToU128(kMax, kMax),
             absl::MakeUint128(0xfffffffffffffffe, 0x0000000000000001));
   EXPECT_EQ(absl::MakeUint128(0, kMax), MultiplyU64ToU128(kMax, 1));

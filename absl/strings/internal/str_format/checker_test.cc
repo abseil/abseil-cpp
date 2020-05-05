@@ -24,7 +24,7 @@ std::string ConvToString(FormatConversionCharSet conv) {
 }
 
 TEST(StrFormatChecker, ArgumentToConv) {
-  Conv conv = ArgumentToConv<std::string>();
+  FormatConversionCharSet conv = ArgumentToConv<std::string>();
   EXPECT_EQ(ConvToString(conv), "s");
 
   conv = ArgumentToConv<const char*>();

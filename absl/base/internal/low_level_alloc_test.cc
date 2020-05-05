@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "absl/container/node_hash_map.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
@@ -75,7 +77,7 @@ static bool using_low_level_alloc = false;
 // allocations and deallocations are reported via the MallocHook
 // interface.
 static void Test(bool use_new_arena, bool call_malloc_hook, int n) {
-  typedef std::unordered_map<int, BlockDesc> AllocMap;
+  typedef absl::node_hash_map<int, BlockDesc> AllocMap;
   AllocMap allocated;
   AllocMap::iterator it;
   BlockDesc block_desc;

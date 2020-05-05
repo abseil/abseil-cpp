@@ -638,10 +638,13 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/base:bits",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/functional:function_ref",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/types:optional",
         "//absl/types:span",
     ],
 )
@@ -718,7 +721,7 @@ cc_test(
     deps = [
         ":str_format_internal",
         "//absl/base:raw_logging_internal",
-        "//absl/numeric:int128",
+        "//absl/types:optional",
         "@com_google_googletest//:gtest_main",
     ],
 )

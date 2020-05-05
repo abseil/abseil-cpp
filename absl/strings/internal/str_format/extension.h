@@ -411,11 +411,6 @@ inline size_t Excess(size_t used, size_t capacity) {
   return used < capacity ? capacity - used : 0;
 }
 
-// Type alias for use during migration.
-using ConversionChar = FormatConversionChar;
-using ConversionSpec = FormatConversionSpecImpl;
-using Conv = FormatConversionCharSet;
-
 class FormatConversionSpec {
  public:
   // Width and precison are not specified, no flags are set.

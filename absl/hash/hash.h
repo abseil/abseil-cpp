@@ -37,8 +37,11 @@
 // types. Hashing of that combined state is separately done by `absl::Hash`.
 //
 // One should assume that a hash algorithm is chosen randomly at the start of
-// each process.  E.g., absl::Hash<int>()(9) in one process and
-// absl::Hash<int>()(9) in another process are likely to differ.
+// each process.  E.g., `absl::Hash<int>{}(9)` in one process and
+// `absl::Hash<int>{}(9)` in another process are likely to differ.
+//
+// `absl::Hash` is intended to strongly mix input bits with a target of passing
+// an [Avalanche Test](https://en.wikipedia.org/wiki/Avalanche_effect).
 //
 // Example:
 //

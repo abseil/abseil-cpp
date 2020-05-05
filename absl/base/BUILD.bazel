@@ -541,7 +541,10 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_ios_x86_64"],
-    deps = [":malloc_internal"],
+    deps = [
+        ":malloc_internal",
+        "//absl/container:node_hash_map",
+    ],
 )
 
 cc_test(

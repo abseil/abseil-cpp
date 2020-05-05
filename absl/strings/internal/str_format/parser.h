@@ -83,7 +83,7 @@ const char* ConsumeUnboundConversion(const char* p, const char* end,
 // conversions.
 class ConvTag {
  public:
-  constexpr ConvTag(ConversionChar conversion_char)  // NOLINT
+  constexpr ConvTag(FormatConversionChar conversion_char)  // NOLINT
       : tag_(static_cast<int8_t>(conversion_char)) {}
   // We invert the length modifiers to make them negative so that we can easily
   // test for them.
@@ -94,9 +94,9 @@ class ConvTag {
 
   bool is_conv() const { return tag_ >= 0; }
   bool is_length() const { return tag_ < 0 && tag_ != -128; }
-  ConversionChar as_conv() const {
+  FormatConversionChar as_conv() const {
     assert(is_conv());
-    return static_cast<ConversionChar>(tag_);
+    return static_cast<FormatConversionChar>(tag_);
   }
   LengthMod as_length() const {
     assert(is_length());
@@ -282,7 +282,7 @@ class ParsedFormatBase {
 // This is the only API that allows the user to pass a runtime specified format
 // string. These factory functions will return NULL if the format does not match
 // the conversions requested by the user.
-template <str_format_internal::Conv... C>
+template <FormatConversionCharSet... C>
 class ExtendedParsedFormat : public str_format_internal::ParsedFormatBase {
  public:
   explicit ExtendedParsedFormat(string_view format)

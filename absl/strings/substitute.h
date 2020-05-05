@@ -50,7 +50,7 @@
 //
 // Supported types:
 //   * absl::string_view, std::string, const char* (null is equivalent to "")
-//   * int32_t, int64_t, uint32_t, uint64
+//   * int32_t, int64_t, uint32_t, uint64_t
 //   * float, double
 //   * bool (Printed as "true" or "false")
 //   * pointer types other than char* (Printed as "0x<lower case hex string>",

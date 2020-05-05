@@ -41,7 +41,7 @@ TEST(LengthModTest, Names) {
 
 TEST(ConversionCharTest, Names) {
   struct Expectation {
-    ConversionChar id;
+    FormatConversionChar id;
     char name;
   };
   // clang-format off
@@ -57,7 +57,7 @@ TEST(ConversionCharTest, Names) {
   // clang-format on
   for (auto e : kExpect) {
     SCOPED_TRACE(e.name);
-    ConversionChar v = e.id;
+    FormatConversionChar v = e.id;
     EXPECT_EQ(e.name, FormatConversionCharToChar(v));
   }
 }
@@ -368,7 +368,7 @@ TEST_F(ParsedFormatTest, ValueSemantics) {
 
 struct ExpectParse {
   const char* in;
-  std::initializer_list<Conv> conv_set;
+  std::initializer_list<FormatConversionCharSet> conv_set;
   const char* out;
 };
 

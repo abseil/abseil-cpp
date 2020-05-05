@@ -396,6 +396,9 @@ TEST(Cord, Swap) {
   swap(x, y);
   ASSERT_EQ(x, absl::Cord(b));
   ASSERT_EQ(y, absl::Cord(a));
+  x.swap(y);
+  ASSERT_EQ(x, absl::Cord(a));
+  ASSERT_EQ(y, absl::Cord(b));
 }
 
 static void VerifyCopyToString(const absl::Cord& cord) {

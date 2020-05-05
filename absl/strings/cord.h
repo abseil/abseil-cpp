@@ -162,7 +162,7 @@ class Cord {
     if (contents_.is_tree()) DestroyCordSlow();
   }
 
-  // Cord::MakeCordFromExternal(data, callable)
+  // MakeCordFromExternal()
   //
   // Creates a Cord that takes ownership of external string memory. The
   // contents of `data` are not copied to the Cord; instead, the external
@@ -246,10 +246,17 @@ class Cord {
   // (pos + new_size) >= size(), the result is the subrange [pos, size()).
   Cord Subcord(size_t pos, size_t new_size) const;
 
+  // Cord::swap()
+  //
+  // Swaps the contents of the Cord with `other`.
+  void swap(Cord& other) noexcept;
+
   // swap()
   //
-  // Swaps the data of Cord `x` with Cord `y`.
-  friend void swap(Cord& x, Cord& y) noexcept;
+  // Swaps the contents of two Cords.
+  friend void swap(Cord& x, Cord& y) noexcept {
+    x.swap(y);
+  }
 
   // Cord::size()
   //
@@ -1032,6 +1039,10 @@ inline Cord& Cord::operator=(const Cord& x) {
 
 inline Cord::Cord(Cord&& src) noexcept : contents_(std::move(src.contents_)) {}
 
+inline void Cord::swap(Cord& other) noexcept {
+  contents_.Swap(&other.contents_);
+}
+
 inline Cord& Cord::operator=(Cord&& x) noexcept {
   contents_ = std::move(x.contents_);
   return *this;
@@ -1307,10 +1318,6 @@ inline bool operator<=(const Cord& x, absl::string_view y) { return !(y < x); }
 inline bool operator<=(absl::string_view x, const Cord& y) { return !(y < x); }
 inline bool operator>=(const Cord& x, absl::string_view y) { return !(x < y); }
 inline bool operator>=(absl::string_view x, const Cord& y) { return !(x < y); }
-
-// Overload of swap for Cord. The use of non-const references is
-// required. :(
-inline void swap(Cord& x, Cord& y) noexcept { y.contents_.Swap(&x.contents_); }
 
 // Some internals exposed to test code.
 namespace strings_internal {

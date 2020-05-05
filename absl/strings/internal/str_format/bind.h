@@ -19,7 +19,7 @@ class UntypedFormatSpec;
 
 namespace str_format_internal {
 
-class BoundConversion : public ConversionSpec {
+class BoundConversion : public FormatConversionSpecImpl {
  public:
   const FormatArgImpl* arg() const { return arg_; }
   void set_arg(const FormatArgImpl* a) { arg_ = a; }
@@ -119,7 +119,7 @@ class FormatSpecTemplate
 
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
-  template <Conv... C,
+  template <FormatConversionCharSet... C,
             typename = typename std::enable_if<
                 AllOf(sizeof...(C) == sizeof...(Args), Contains(Args,
                                                                 C)...)>::type>
@@ -190,7 +190,8 @@ class StreamedWrapper {
  private:
   template <typename S>
   friend ArgConvertResult<FormatConversionCharSetInternal::s> FormatConvertImpl(
-      const StreamedWrapper<S>& v, ConversionSpec conv, FormatSinkImpl* out);
+      const StreamedWrapper<S>& v, FormatConversionSpecImpl conv,
+      FormatSinkImpl* out);
   const T& v_;
 };
 
