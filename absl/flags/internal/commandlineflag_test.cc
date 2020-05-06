@@ -122,49 +122,53 @@ TEST_F(CommandLineFlagTest, TestParseFromCurrentValue) {
   auto* flag_01 = flags::FindCommandLineFlag("int_flag");
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(flag_01->ParseFrom("11", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "11", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(flag_01->ParseFrom("-123", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "-123", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(!flag_01->ParseFrom("xyz", flags::SET_FLAGS_VALUE,
-                                  flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(!flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "xyz", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'xyz' specified for flag 'int_flag'");
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(!flag_01->ParseFrom("A1", flags::SET_FLAGS_VALUE,
-                                  flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(!flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "A1", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'A1' specified for flag 'int_flag'");
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(flag_01->ParseFrom("0x10", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "0x10", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 16);
   EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(flag_01->ParseFrom("011", flags::SET_FLAGS_VALUE,
-                                 flags::kCommandLine, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "011", flags::SET_FLAGS_VALUE, flags::kCommandLine, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
   EXPECT_TRUE(flag_01->IsSpecifiedOnCommandLine());
 
-  EXPECT_TRUE(!flag_01->ParseFrom("", flags::SET_FLAGS_VALUE,
-                                  flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(!flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(err, "Illegal value '' specified for flag 'int_flag'");
 
   auto* flag_02 = flags::FindCommandLineFlag("string_flag");
-  EXPECT_TRUE(flag_02->ParseFrom("xyz", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_02, "xyz", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_string_flag), "xyz");
 
-  EXPECT_TRUE(flag_02->ParseFrom("", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_02, "", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_string_flag), "");
 }
 
@@ -175,14 +179,16 @@ TEST_F(CommandLineFlagTest, TestParseFromDefaultValue) {
 
   auto* flag_01 = flags::FindCommandLineFlag("int_flag");
 
-  EXPECT_TRUE(flag_01->ParseFrom("111", flags::SET_FLAGS_DEFAULT,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "111", flags::SET_FLAGS_DEFAULT, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(flag_01->DefaultValue(), "111");
 
   auto* flag_02 = flags::FindCommandLineFlag("string_flag");
 
-  EXPECT_TRUE(flag_02->ParseFrom("abc", flags::SET_FLAGS_DEFAULT,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_02, "abc", flags::SET_FLAGS_DEFAULT, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(flag_02->DefaultValue(), "abc");
 }
 
@@ -193,22 +199,26 @@ TEST_F(CommandLineFlagTest, TestParseFromIfDefault) {
 
   auto* flag_01 = flags::FindCommandLineFlag("int_flag");
 
-  EXPECT_TRUE(flag_01->ParseFrom("22", flags::SET_FLAG_IF_DEFAULT,
-                                 flags::kProgrammaticChange, &err))
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "22", flags::SET_FLAG_IF_DEFAULT, flags::kProgrammaticChange,
+      &err))
       << err;
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 22);
 
-  EXPECT_TRUE(flag_01->ParseFrom("33", flags::SET_FLAG_IF_DEFAULT,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "33", flags::SET_FLAG_IF_DEFAULT, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 22);
   // EXPECT_EQ(err, "ERROR: int_flag is already set to 22");
 
   // Reset back to default value
-  EXPECT_TRUE(flag_01->ParseFrom("201", flags::SET_FLAGS_VALUE,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "201", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
+      &err));
 
-  EXPECT_TRUE(flag_01->ParseFrom("33", flags::SET_FLAG_IF_DEFAULT,
-                                 flags::kProgrammaticChange, &err));
+  EXPECT_TRUE(flags::PrivateHandleInterface::ParseFrom(
+      flag_01, "33", flags::SET_FLAG_IF_DEFAULT, flags::kProgrammaticChange,
+      &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 201);
   // EXPECT_EQ(err, "ERROR: int_flag is already set to 201");
 }

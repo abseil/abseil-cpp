@@ -29,9 +29,9 @@ ABSL_CONST_INIT const ConvTag kTags[256] = {
     {},    {},    {},    {},    {},    {},    {},    {},     // 28-2f
     {},    {},    {},    {},    {},    {},    {},    {},     // 30-37
     {},    {},    {},    {},    {},    {},    {},    {},     // 38-3f
-    {},    CC::A, {},    CC::C, {},    CC::E, CC::F, CC::G,  // @ABCDEFG
+    {},    CC::A, {},    {},    {},    CC::E, CC::F, CC::G,  // @ABCDEFG
     {},    {},    {},    {},    LM::L, {},    {},    {},     // HIJKLMNO
-    {},    {},    {},    CC::S, {},    {},    {},    {},     // PQRSTUVW
+    {},    {},    {},    {},    {},    {},    {},    {},     // PQRSTUVW
     CC::X, {},    {},    {},    {},    {},    {},    {},     // XYZ[\]^_
     {},    CC::a, {},    CC::c, CC::d, CC::e, CC::f, CC::g,  // `abcdefg
     LM::h, CC::i, LM::j, {},    LM::l, {},    CC::n, CC::o,  // hijklmno

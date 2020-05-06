@@ -47,7 +47,7 @@ TEST(ConversionCharTest, Names) {
   // clang-format off
   const Expectation kExpect[] = {
 #define X(c) {FormatConversionCharInternal::c, #c[0]}
-    X(c), X(C), X(s), X(S),                          // text
+    X(c), X(s),                                      // text
     X(d), X(i), X(o), X(u), X(x), X(X),              // int
     X(f), X(F), X(e), X(E), X(g), X(G), X(a), X(A),  // float
     X(n), X(p),                                      // misc

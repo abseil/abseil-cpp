@@ -56,7 +56,8 @@ bool SetCommandLineOptionWithMode(absl::string_view name,
   if (!flag || flag->IsRetired()) return false;
 
   std::string error;
-  if (!flag->ParseFrom(value, set_mode, kProgrammaticChange, &error)) {
+  if (!flags_internal::PrivateHandleInterface::ParseFrom(
+          flag, value, set_mode, kProgrammaticChange, &error)) {
     // Errors here are all of the form: the provided name was a recognized
     // flag, but the value was invalid (bad type, or validation failed).
     flags_internal::ReportUsageError(error, false);

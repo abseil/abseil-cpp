@@ -140,6 +140,17 @@ class CommandLineFlag {
 
   // Sets the value of the flag based on specified string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
+  // to indicate the error, leaves the flag unchanged, and returns false.
+  bool ParseFrom(absl::string_view value, std::string* error);
+
+ protected:
+  ~CommandLineFlag() = default;
+
+ private:
+  friend class PrivateHandleInterface;
+
+  // Sets the value of the flag based on specified string `value`. If the flag
+  // was successfully set to new value, it returns true. Otherwise, sets `error`
   // to indicate the error, leaves the flag unchanged, and returns false. There
   // are three ways to set the flag's value:
   //  * Update the current flag value
@@ -150,12 +161,6 @@ class CommandLineFlag {
                          flags_internal::FlagSettingMode set_mode,
                          flags_internal::ValueSource source,
                          std::string* error) = 0;
-
- protected:
-  ~CommandLineFlag() = default;
-
- private:
-  friend class PrivateHandleInterface;
 
   // Returns id of the flag's value type.
   virtual FlagFastTypeId TypeId() const = 0;
@@ -168,7 +173,6 @@ class CommandLineFlag {
   // the dst based on the current flag's value.
   virtual void Read(void* dst) const = 0;
 
-  // Interfaces to operate on validators.
   // Validates supplied value usign validator or parseflag routine
   virtual bool ValidateInputValue(absl::string_view value) const = 0;
 
@@ -194,6 +198,10 @@ class PrivateHandleInterface {
 
   // Access to CommandLineFlag::CheckDefaultValueParsingRoundtrip.
   static void CheckDefaultValueParsingRoundtrip(const CommandLineFlag& flag);
+
+  static bool ParseFrom(CommandLineFlag* flag, absl::string_view value,
+                        flags_internal::FlagSettingMode set_mode,
+                        flags_internal::ValueSource source, std::string* error);
 };
 
 // This macro is the "source of truth" for the list of supported flag built-in

@@ -143,7 +143,7 @@ struct Flags {
 // clang-format off
 #define ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(X_VAL, X_SEP) \
   /* text */ \
-  X_VAL(c) X_SEP X_VAL(C) X_SEP X_VAL(s) X_SEP X_VAL(S) X_SEP \
+  X_VAL(c) X_SEP X_VAL(s) X_SEP \
   /* ints */ \
   X_VAL(d) X_SEP X_VAL(i) X_SEP X_VAL(o) X_SEP \
   X_VAL(u) X_SEP X_VAL(x) X_SEP X_VAL(X) X_SEP \
@@ -170,7 +170,7 @@ struct FormatConversionCharInternal {
  private:
   // clang-format off
   enum class Enum : uint8_t {
-    c, C, s, S,              // text
+    c, s,                    // text
     d, i, o, u, x, X,        // int
     f, F, e, E, g, G, a, A,  // float
     n, p,                    // misc
@@ -444,7 +444,7 @@ class FormatConversionSpec {
 
 // clang-format off
 enum class FormatConversionChar : uint8_t {
-  c, C, s, S,              // text
+  c, s,                    // text
   d, i, o, u, x, X,        // int
   f, F, e, E, g, G, a, A,  // float
   n, p                     // misc
@@ -454,9 +454,7 @@ enum class FormatConversionChar : uint8_t {
 enum class FormatConversionCharSet : uint64_t {
   // text
   c = str_format_internal::FormatConversionCharToConvInt('c'),
-  C = str_format_internal::FormatConversionCharToConvInt('C'),
   s = str_format_internal::FormatConversionCharToConvInt('s'),
-  S = str_format_internal::FormatConversionCharToConvInt('S'),
   // integer
   d = str_format_internal::FormatConversionCharToConvInt('d'),
   i = str_format_internal::FormatConversionCharToConvInt('i'),
