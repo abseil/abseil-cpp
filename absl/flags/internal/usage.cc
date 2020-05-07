@@ -27,6 +27,7 @@
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/path_util.h"
+#include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"

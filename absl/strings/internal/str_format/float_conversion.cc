@@ -440,8 +440,10 @@ struct Padding {
   int right_spaces;
 };
 
-Padding ExtraWidthToPadding(int total_size, const FormatState &state) {
-  int missing_chars = std::max(state.conv.width() - total_size, 0);
+Padding ExtraWidthToPadding(size_t total_size, const FormatState &state) {
+  if (state.conv.width() < 0 || state.conv.width() <= total_size)
+    return {0, 0, 0};
+  int missing_chars = state.conv.width() - total_size;
   if (state.conv.has_left_flag()) {
     return {0, 0, missing_chars};
   } else if (state.conv.has_zero_flag()) {
@@ -462,8 +464,8 @@ void FinalPrint(absl::string_view data, int trailing_zeros,
   }
 
   auto padding =
-      ExtraWidthToPadding((state.sign_char != '\0' ? 1 : 0) +
-                              static_cast<int>(data.size()) + trailing_zeros,
+      ExtraWidthToPadding((state.sign_char != '\0' ? 1 : 0) + data.size() +
+                              static_cast<size_t>(trailing_zeros),
                           state);
 
   state.sink->Append(padding.left_spaces, ' ');
@@ -536,8 +538,9 @@ void FormatFFast(Int v, int exp, const FormatState &state) {
 // worry about anything after the `.`.
 void FormatFPositiveExpSlow(uint128 v, int exp, const FormatState &state) {
   BinaryToDecimal::RunConversion(v, exp, [&](BinaryToDecimal btd) {
-    const int total_digits =
-        btd.TotalDigits() + (state.ShouldPrintDot() ? state.precision + 1 : 0);
+    const size_t total_digits =
+        btd.TotalDigits() +
+        (state.ShouldPrintDot() ? static_cast<size_t>(state.precision) + 1 : 0);
 
     const auto padding = ExtraWidthToPadding(
         total_digits + (state.sign_char != '\0' ? 1 : 0), state);
@@ -562,8 +565,9 @@ void FormatFPositiveExpSlow(uint128 v, int exp, const FormatState &state) {
 // This one is guaranteed to be < 1.0, so we don't have to worry about integral
 // digits.
 void FormatFNegativeExpSlow(uint128 v, int exp, const FormatState &state) {
-  const int total_digits =
-      /* 0 */ 1 + (state.ShouldPrintDot() ? state.precision + 1 : 0);
+  const size_t total_digits =
+      /* 0 */ 1 +
+      (state.ShouldPrintDot() ? static_cast<size_t>(state.precision) + 1 : 0);
   auto padding =
       ExtraWidthToPadding(total_digits + (state.sign_char ? 1 : 0), state);
   padding.zeros += 1;

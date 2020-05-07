@@ -16,18 +16,12 @@
 #ifndef ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 #define ABSL_FLAGS_INTERNAL_COMMANDLINEFLAG_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
-#include <typeinfo>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/fast_type_id.h"
 #include "absl/base/macros.h"
-#include "absl/flags/config.h"
-#include "absl/flags/marshalling.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 
@@ -147,7 +141,7 @@ class CommandLineFlag {
   ~CommandLineFlag() = default;
 
  private:
-  friend class PrivateHandleInterface;
+  friend class PrivateHandleAccessor;
 
   // Sets the value of the flag based on specified string `value`. If the flag
   // was successfully set to new value, it returns true. Otherwise, sets `error`
@@ -179,29 +173,6 @@ class CommandLineFlag {
   // Checks that flags default value can be converted to string and back to the
   // flag's value type.
   virtual void CheckDefaultValueParsingRoundtrip() const = 0;
-};
-
-// This class serves as a trampoline to access private methods of
-// CommandLineFlag. This class is intended for use exclusively internally inside
-// of the Abseil Flags implementation
-class PrivateHandleInterface {
- public:
-  // Access to CommandLineFlag::TypeId.
-  static FlagFastTypeId TypeId(const CommandLineFlag& flag);
-
-  // Access to CommandLineFlag::SaveState.
-  static std::unique_ptr<FlagStateInterface> SaveState(CommandLineFlag* flag);
-
-  // Access to CommandLineFlag::ValidateInputValue.
-  static bool ValidateInputValue(const CommandLineFlag& flag,
-                                 absl::string_view value);
-
-  // Access to CommandLineFlag::CheckDefaultValueParsingRoundtrip.
-  static void CheckDefaultValueParsingRoundtrip(const CommandLineFlag& flag);
-
-  static bool ParseFrom(CommandLineFlag* flag, absl::string_view value,
-                        flags_internal::FlagSettingMode set_mode,
-                        flags_internal::ValueSource source, std::string* error);
 };
 
 // This macro is the "source of truth" for the list of supported flag built-in

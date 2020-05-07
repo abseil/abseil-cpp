@@ -40,6 +40,7 @@ cc_library(
     deps = [
         ":config",
         ":handle",
+        ":marshalling",
         ":registry",
         "//absl/base",
         "//absl/base:config",
@@ -143,14 +144,28 @@ cc_library(
         "//absl/flags:__pkg__",
     ],
     deps = [
-        ":config",
-        ":marshalling",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:fast_type_id",
         "//absl/strings",
         "//absl/types:optional",
     ],
+)
+
+cc_library(
+    name = "private_handle_accessor",
+    srcs = [
+        "internal/private_handle_accessor.cc",
+    ],
+    hdrs = [
+        "internal/private_handle_accessor.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/flags:__pkg__",
+    ],
+    deps = [":handle"],
 )
 
 cc_library(
@@ -171,6 +186,7 @@ cc_library(
     deps = [
         ":config",
         ":handle",
+        ":private_handle_accessor",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
@@ -222,6 +238,7 @@ cc_library(
         ":flag_internal",
         ":handle",
         ":path_util",
+        ":private_handle_accessor",
         ":program_name",
         ":registry",
         "//absl/base:config",
@@ -263,6 +280,7 @@ cc_library(
         ":flag",
         ":flag_internal",
         ":handle",
+        ":private_handle_accessor",
         ":program_name",
         ":registry",
         ":usage",
@@ -289,6 +307,7 @@ cc_test(
         ":config",
         ":flag",
         ":handle",
+        ":private_handle_accessor",
         ":registry",
         "//absl/memory",
         "//absl/strings",

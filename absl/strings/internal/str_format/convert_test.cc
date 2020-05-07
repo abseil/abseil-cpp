@@ -704,6 +704,31 @@ TEST_F(FormatConvertTest, FloatRound) {
             "1837869002408041296803276054561138153076171875");
 }
 
+// We don't actually store the results. This is just to exercise the rest of the
+// machinery.
+struct NullSink {
+  friend void AbslFormatFlush(NullSink *sink, string_view str) {}
+};
+
+template <typename... T>
+bool FormatWithNullSink(absl::string_view fmt, const T &... a) {
+  NullSink sink;
+  FormatArgImpl args[] = {FormatArgImpl(a)...};
+  return FormatUntyped(&sink, UntypedFormatSpecImpl(fmt), absl::MakeSpan(args));
+}
+
+TEST_F(FormatConvertTest, ExtremeWidthPrecision) {
+  for (const char *fmt : {"f"}) {
+    for (double d : {1e-100, 1.0, 1e100}) {
+      constexpr int max = std::numeric_limits<int>::max();
+      EXPECT_TRUE(FormatWithNullSink(std::string("%.*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%1.*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%*.*") + fmt, max, max, d));
+    }
+  }
+}
+
 TEST_F(FormatConvertTest, LongDouble) {
 #ifdef _MSC_VER
   // MSVC has a different rounding policy than us so we can't test our

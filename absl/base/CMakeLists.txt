@@ -108,8 +108,6 @@ absl_cc_library(
     "dynamic_annotations.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
-  DEFINES
-    "__CLANG_SUPPORT_DYN_ANNOTATION__"
   PUBLIC
 )
 

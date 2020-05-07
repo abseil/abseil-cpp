@@ -29,6 +29,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -127,8 +128,8 @@ void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
               (flag->IsRetired() ? old_flag->Filename() : flag->Filename()),
               "'."),
           true);
-    } else if (flags_internal::PrivateHandleInterface::TypeId(*flag) !=
-               flags_internal::PrivateHandleInterface::TypeId(*old_flag)) {
+    } else if (flags_internal::PrivateHandleAccessor::TypeId(*flag) !=
+               flags_internal::PrivateHandleAccessor::TypeId(*old_flag)) {
       flags_internal::ReportUsageError(
           absl::StrCat("Flag '", flag->Name(),
                        "' was defined more than once but with "
@@ -206,7 +207,7 @@ class FlagSaverImpl {
     assert(backup_registry_.empty());  // call only once!
     flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
       if (auto flag_state =
-              flags_internal::PrivateHandleInterface::SaveState(flag)) {
+              flags_internal::PrivateHandleAccessor::SaveState(flag)) {
         backup_registry_.emplace_back(std::move(flag_state));
       }
     });

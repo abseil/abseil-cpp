@@ -31,6 +31,7 @@ absl_cc_library(
     absl::config
     absl::flags_config
     absl::flags_handle
+    absl::flags_marshalling
     absl::flags_registry
     absl::synchronization
     absl::meta
@@ -129,13 +130,27 @@ absl_cc_library(
   DEPS
     absl::config
     absl::fast_type_id
-    absl::flags_config
-    absl::flags_marshalling
     absl::core_headers
     absl::optional
     absl::raw_logging_internal
     absl::strings
     absl::synchronization
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    flags_private_handle_accessor
+  SRCS
+    "internal/private_handle_accessor.cc"
+  HDRS
+    "internal/private_handle_accessor.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::flags_handle
 )
 
 # Internal-only target, do not depend on directly.
@@ -156,6 +171,7 @@ absl_cc_library(
     absl::config
     absl::flags_config
     absl::flags_handle
+    absl::flags_private_handle_accessor
     absl::core_headers
     absl::raw_logging_internal
     absl::strings
@@ -203,6 +219,7 @@ absl_cc_library(
     absl::flags_config
     absl::flags
     absl::flags_handle
+    absl::flags_private_handle_accessor
     absl::flags_internal
     absl::flags_path_util
     absl::flags_program_name
@@ -248,6 +265,7 @@ absl_cc_library(
     absl::flags_config
     absl::flags
     absl::flags_handle
+    absl::flags_private_handle_accessor
     absl::flags_internal
     absl::flags_program_name
     absl::flags_registry
@@ -270,6 +288,7 @@ absl_cc_test(
     absl::flags
     absl::flags_config
     absl::flags_handle
+    absl::flags_private_handle_accessor
     absl::flags_registry
     absl::memory
     absl::strings

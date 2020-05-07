@@ -118,7 +118,6 @@ cc_library(
     srcs = ["dynamic_annotations.cc"],
     hdrs = ["dynamic_annotations.h"],
     copts = ABSL_DEFAULT_COPTS,
-    defines = ["__CLANG_SUPPORT_DYN_ANNOTATION__"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
 )
 

@@ -140,10 +140,7 @@
   #define ANNOTATE_MEMORY_IS_UNINITIALIZED(address, size) /* empty */
 #endif  /* DYNAMIC_ANNOTATIONS_ENABLED || MEMORY_SANITIZER */
 
-/* TODO(delesley) -- Replace __CLANG_SUPPORT_DYN_ANNOTATION__ with the
-   appropriate feature ID. */
-#if defined(__clang__) && (!defined(SWIG)) \
-    && defined(__CLANG_SUPPORT_DYN_ANNOTATION__)
+#if defined(__clang__) && !defined(SWIG)
 
   #if DYNAMIC_ANNOTATIONS_ENABLED == 0
     #define ANNOTALYSIS_ENABLED
