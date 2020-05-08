@@ -40,6 +40,30 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+// Forward declaration of absl::Flag<T> public API.
+namespace flags_internal {
+template <typename T>
+class Flag;
+}  // namespace flags_internal
+
+#if defined(_MSC_VER) && !defined(__clang__)
+template <typename T>
+class Flag;
+#else
+template <typename T>
+using Flag = flags_internal::Flag<T>;
+#endif
+
+template <typename T>
+ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag);
+
+template <typename T>
+void SetFlag(absl::Flag<T>* flag, const T& v);
+
+template <typename T, typename V>
+void SetFlag(absl::Flag<T>* flag, const V& v);
+
 namespace flags_internal {
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -596,6 +620,32 @@ class Flag {
               flags_internal::StorageKind<T>(), default_arg),
         value_() {}
 
+  // CommandLineFlag interface
+  absl::string_view Name() const { return impl_.Name(); }
+  std::string Filename() const { return impl_.Filename(); }
+  std::string Help() const { return impl_.Help(); }
+  bool IsSpecifiedOnCommandLine() const {
+    return impl_.IsSpecifiedOnCommandLine();
+  }
+  std::string DefaultValue() const { return impl_.DefaultValue(); }
+  std::string CurrentValue() const { return impl_.CurrentValue(); }
+
+ private:
+  template <typename U, bool do_register>
+  friend class FlagRegistrar;
+
+#if !defined(_MSC_VER) || defined(__clang__)
+  template <typename U>
+  friend U absl::GetFlag(const flags_internal::Flag<U>& flag);
+  template <typename U>
+  friend void absl::SetFlag(flags_internal::Flag<U>* flag, const U& v);
+  template <typename U, typename V>
+  friend void absl::SetFlag(flags_internal::Flag<U>* flag, const V& v);
+#else
+  template <typename U>
+  friend class absl::Flag;
+#endif
+
   T Get() const {
     // See implementation notes in CommandLineFlag::Get().
     union U {
@@ -616,20 +666,6 @@ class Flag {
     impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     impl_.Write(&v);
   }
-
-  // CommandLineFlag interface
-  absl::string_view Name() const { return impl_.Name(); }
-  std::string Filename() const { return impl_.Filename(); }
-  std::string Help() const { return impl_.Help(); }
-  bool IsSpecifiedOnCommandLine() const {
-    return impl_.IsSpecifiedOnCommandLine();
-  }
-  std::string DefaultValue() const { return impl_.DefaultValue(); }
-  std::string CurrentValue() const { return impl_.CurrentValue(); }
-
- private:
-  template <typename U, bool do_register>
-  friend class FlagRegistrar;
 
   // Flag's data
   // The implementation depends on value_ field to be placed exactly after the

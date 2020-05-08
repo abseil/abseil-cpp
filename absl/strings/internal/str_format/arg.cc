@@ -302,7 +302,7 @@ bool ConvertIntArg(T v, const FormatConversionSpecImpl conv,
       return ConvertFloatImpl(static_cast<double>(v), conv, sink);
 
     default:
-      return false;
+       ABSL_INTERNAL_ASSUME(false);
   }
 
   if (conv.is_basic()) {
@@ -321,7 +321,6 @@ bool ConvertFloatArg(T v, const FormatConversionSpecImpl conv,
 
 inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
                              FormatSinkImpl *sink) {
-  if (conv.conversion_char() != FormatConversionCharInternal::s) return false;
   if (conv.is_basic()) {
     sink->Append(v);
     return true;
@@ -366,7 +365,6 @@ FormatConvertImpl(const char *v, const FormatConversionSpecImpl conv,
 // ==================== Raw pointers ====================
 ArgConvertResult<FormatConversionCharSetInternal::p> FormatConvertImpl(
     VoidPtr v, const FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
-  if (conv.conversion_char() != FormatConversionCharInternal::p) return {false};
   if (!v.value) {
     sink->Append("(nil)");
     return {true};

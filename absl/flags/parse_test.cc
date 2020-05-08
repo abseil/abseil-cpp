@@ -869,4 +869,26 @@ TEST_F(ParseDeathTest, TestHelpFlagHandling) {
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 3);
 }
 
+// --------------------------------------------------------------------
+
+TEST_F(ParseTest, WasPresentOnCommandLine) {
+  const char* in_args1[] = {
+      "testbin",        "arg1", "--bool_flag",
+      "--int_flag=211", "arg2", "--double_flag=1.1",
+      "--string_flag",  "asd",  "--",
+      "--some_flag",    "arg4",
+  };
+
+  InvokeParse(in_args1);
+
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("bool_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("int_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("double_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("string_flag"));
+  EXPECT_FALSE(flags::WasPresentOnCommandLine("some_flag"));
+  EXPECT_FALSE(flags::WasPresentOnCommandLine("another_flag"));
+}
+
+// --------------------------------------------------------------------
+
 }  // namespace

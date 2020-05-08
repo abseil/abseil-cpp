@@ -24,15 +24,6 @@ constexpr bool AllOf(bool b, T... t) {
   return b && AllOf(t...);
 }
 
-template <typename Arg>
-constexpr FormatConversionCharSet ArgumentToConv() {
-  return absl::str_format_internal::ExtractCharSet(
-      decltype(str_format_internal::FormatConvertImpl(
-          std::declval<const Arg&>(),
-          std::declval<const FormatConversionSpecImpl&>(),
-          std::declval<FormatSinkImpl*>())){});
-}
-
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
 constexpr bool ContainsChar(const char* chars, char c) {

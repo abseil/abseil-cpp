@@ -327,12 +327,16 @@ constexpr FormatConversionCharSet FormatConversionCharSetUnion(
       static_cast<uint64_t>(FormatConversionCharSetUnion(rest...)));
 }
 
+constexpr uint64_t FormatConversionCharToConvInt(FormatConversionChar c) {
+  return uint64_t{1} << (1 + static_cast<uint8_t>(c));
+}
+
 constexpr uint64_t FormatConversionCharToConvInt(char conv) {
   return
-#define ABSL_INTERNAL_CHAR_SET_CASE(c)                                        \
-  conv == #c[0] ? (uint64_t{1} << (1 + static_cast<uint8_t>(                  \
-                                           FormatConversionCharInternal::c))) \
-                :
+#define ABSL_INTERNAL_CHAR_SET_CASE(c)                                 \
+  conv == #c[0]                                                        \
+      ? FormatConversionCharToConvInt(FormatConversionCharInternal::c) \
+      :
       ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(ABSL_INTERNAL_CHAR_SET_CASE, )
 #undef ABSL_INTERNAL_CHAR_SET_CASE
                   conv == '*'
@@ -404,6 +408,11 @@ constexpr bool Contains(FormatConversionCharSet set,
                         FormatConversionCharSet c) {
   return (static_cast<uint64_t>(set) & static_cast<uint64_t>(c)) ==
          static_cast<uint64_t>(c);
+}
+
+// Checks whether all the characters in `c` are contained in `set`
+constexpr bool Contains(FormatConversionCharSet set, FormatConversionChar c) {
+  return (static_cast<uint64_t>(set) & FormatConversionCharToConvInt(c)) != 0;
 }
 
 // Return capacity - used, clipped to a minimum of 0.

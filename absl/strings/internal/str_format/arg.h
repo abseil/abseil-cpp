@@ -86,10 +86,6 @@ template <class AbslCord, typename std::enable_if<std::is_same<
 StringConvertResult FormatConvertImpl(const AbslCord& value,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink) {
-  if (conv.conversion_char() != FormatConversionCharInternal::s) {
-    return {false};
-  }
-
   bool is_left = conv.has_left_flag();
   size_t space_remaining = 0;
 
@@ -248,6 +244,15 @@ struct FormatArgImplFriend {
     return arg.dispatcher_;
   }
 };
+
+template <typename Arg>
+constexpr FormatConversionCharSet ArgumentToConv() {
+  return absl::str_format_internal::ExtractCharSet(
+      decltype(str_format_internal::FormatConvertImpl(
+          std::declval<const Arg&>(),
+          std::declval<const FormatConversionSpecImpl&>(),
+          std::declval<FormatSinkImpl*>())){});
+}
 
 // A type-erased handle to a format argument.
 class FormatArgImpl {
@@ -411,9 +416,13 @@ class FormatArgImpl {
       return ToInt<T>(arg, static_cast<int*>(out), std::is_integral<T>(),
                       std::is_enum<T>());
     }
-
+    if (ABSL_PREDICT_FALSE(!Contains(ArgumentToConv<T>(),
+                                     spec.conversion_char()))) {
+      return false;
+    }
     return str_format_internal::FormatConvertImpl(
-               Manager<T>::Value(arg), spec, static_cast<FormatSinkImpl*>(out))
+               Manager<T>::Value(arg), spec,
+               static_cast<FormatSinkImpl*>(out))
         .value;
   }
 
