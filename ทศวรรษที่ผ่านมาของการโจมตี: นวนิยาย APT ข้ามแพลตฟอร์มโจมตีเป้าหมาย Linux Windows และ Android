@@ -1,0 +1,2207 @@
+Chanchai_Choochuay
+ดำรงตำแหน่งรองประธานอาวุโสของ CISO และ Ambassador-At-Large ในสำนักงานความปลอดภัยและความน่าเชื่อถือของ BlackBerry / Cylance McClurg เคยเป็น CSO ที่ Dell; รองประธานฝ่ายความปลอดภัยทั่วโลกที่ Honeywell International, Lucent Technologies / Bell Laboratories; และในชุมชนข่าวกรองสหรัฐในฐานะสมาชิกที่ได้รับการแต่งตั้งเป็นสองเท่าของสำนักงานสืบสวนกลางแห่งสหรัฐอเมริกาและประเทศไทย
+
+ <? xml version = "1.0" encoding = "UTF-8"?>
+<rss version = "2.0" xmlns: media = "http://search.yahoo.com/mrss/">
+  <channel>
+    <title> Cyber ​​Tactics </title>
+    <รายละเอียด>
+      <! [CDATA [ในฐานะผู้นำด้านความปลอดภัยได้รับความรับผิดชอบเพิ่มขึ้นสำหรับความปลอดภัยในโลกไซเบอร์ <i> คอลัมนการรักษาความปลอดภัย </i> John McClurg - รองประธานและเอกอัครราชทูต - ใหญ่ - ใหญ่ในสำนักงานความมั่นคงและความเชื่อถือของ Cylance รองประธานฝ่ายความปลอดภัยระดับโลกที่ Honeywell International, Lucent Technologies / Bell
+ห้องปฏิบัติการ - แนะนำผู้บริหารความปลอดภัยระดับองค์กรผ่านมาตรฐานความปลอดภัยบนเครือข่ายกรอบความเสี่ยงและเทคนิคการจัดการ 
+]]>
+    </ รายละเอียด>
+    <link> https://www.securitymagazine.com/rss/2654 </ link>
+    <ภาษา> en-US </ ภาษา>
+    <item>
+      <title> การลดระดับของแรต: การโจมตี APT ข้ามแพลตฟอร์มที่กำหนดเป้าหมายเป็น Linux Windows และ Android </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ในขณะที่จีนหล่อหลอมบทบาทของตนเป็นหนึ่งในมหาอำนาจที่ยิ่งใหญ่ของโลกมันต้องอาศัยการปฏิบัติการจารกรรมระเบิดเพื่อรับเทคโนโลยีและทรัพย์สินทางปัญญาจากต่างประเทศวางตำแหน่งตัวเองกับอำนาจระหว่างประเทศที่แข่งขันและควบคุมภาพลักษณ์ของตนเอง ทั้งที่บ้านและต่างประเทศ </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92253 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92253-decade-of-the-rats-novel-cross-platform-apt-attacks-targeting-linux-windows-and-android </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type = "image / jpeg" length = "154459" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type = "รูปภาพ / jpeg" medium = "image" fileSize = "154459">
+        <media: title type = "plain"> SEC0520-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-slide2_900px.jpg?1588087423" type = "image / jpeg" ปานกลาง = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0520-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> แสดงที่มา: 3 คำถามที่ต้องถามเมื่อตัดสินใจว่าเรื่องสำคัญอย่างไร </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> การแสดงที่มามักถูกมองว่าเป็นเป้าหมายหลักในการสืบสวนความปลอดภัยทางโลกไซเบอร์ แต่ในขณะที่ John McClurg, CISO ที่ Blackberry ได้ทำการสำรวจที่นี่ควรมีการระบุแหล่งที่มาอย่างชัดเจนเป็นข้อพิจารณารอง # ปรับค่าใช้จ่าย </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92036 </ GUID>
+      <pubDate> พุธ, 01 เมษายน 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92036-attribution-3-questions-to-ask-when-deciding-how-it-matters </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-cyber-Feat-slide1_900px.jpg?1585704237" type = "image / jpeg" length = "23892" / >
+    </ item>
+    <item>
+      <title> กรอบงานสำหรับการวัดความมั่นคงสารสนเทศเป็นฟังก์ชันทางธุรกิจ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ในคอลัมน์เดือนธันวาคมของฉันฉันจบลงด้วยการสังเกตว่า CISO หลายแห่งต้องดิ้นรนเมื่อต้องตัดสินใจก่อนแล้วจึงสื่อสารมูลค่าทางธุรกิจของตัวเลือกความปลอดภัยที่นั่น </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91648 </ GUID>
+      <pubDate> วันอาทิตย์, 02 ก.พ. 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91648-a-framework-for-measuring-infosec-as-a-business-function </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-Feat-slide1_900px.jpg?1580653432" ประเภท = "image / jpeg" length = "14451134" "/>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-Feat-slide1_900px.jpg?1580653432" ประเภท = "รูปภาพ / jpeg" ปานกลาง = "image" fileSize = "144511">
+        <media: title type = "plain"> Cyber ​​Tactics John McClurg </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-slide2_900px.jpg?1580653519" type = "image / jpeg" ขนาดกลาง " "fileSize =" 49817 ">
+        <media: title type = "plain"> Cyber ​​Tactics John McClurg Headshot </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> คำทำนายปีใหม่: คู่มือยืนต้นสำหรับผู้ที่งงงวย </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> 2020 ประกาศให้ทราบถึงการเปลี่ยนแปลงครั้งสำคัญบางประการที่จะเปลี่ยนความปลอดภัยในโลกไซเบอร์: การโจมตีแรนซัมแวร์, ปัญญาประดิษฐ์, การจดจำใบหน้าและการรักษาความปลอดภัยบนโลกไซเบอร์มือถือ </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91486 </ GUID>
+      <pubDate> พุธ 1 มกราคม 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91486-new-year-prognostications-a-perennial-guide-for-the-perplexed </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/ มกราคม /SEC0120-cyber-Feat-slide1_900px.jpg?1577856489" ประเภท = "image / jpeg" length = "69372" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/ มกราคม /SEC0120-cyber-Feat-slide1_900px.jpg?1577856489" type = "image / jpeg" medium = "image "fileSize =" 69372 ">
+        <media: title type = "plain"> SEC0120-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/ มกราคม /SEC0120-cyber-slide2_900px.jpg?1577856819" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0120-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ค่าใช้จ่ายในเชิงลึก: ต้นทุนรวมของการควบคุมที่ได้รับการพิจารณาใหม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> กลยุทธ์การป้องกันเชิงลึกคืออะไรและทำไมจึงได้รับการยอมรับว่าเป็นค่าใช้จ่ายในเชิงลึก CISO จะสื่อสารมูลค่าทางธุรกิจของกลยุทธ์นี้ได้อย่างไร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91345 </ GUID>
+      <pubDate> วันอาทิตย์ที่ 01 ธันวาคม 2019 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91345-expense-in-depth-total-cost-of-controls-reconsidered </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-Feat-slide1_900px.jpg?1575134507" type = "image / jpeg" length = "45382" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-Feat-slide1_900px.jpg?1575134507" type = "image / jpeg" medium = "image "fileSize =" 45382 ">
+        <media: title type = "plain"> SEC1219-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-slide2_900px.jpg?1575134655" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC1219-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> "ความน่าเชื่อถือ" กลับมาอีกครั้ง: วันเกิดของการรับรองความถูกต้องอย่างต่อเนื่อง </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ปราชญ์ Hericlitus เคยเปิดใช้งาน & ndash; & ldquo; คุณไม่สามารถ & # 39; t ขั้นตอนในแม่น้ำเดียวกันสองครั้ง & rdquo; หมายความว่าไม่มีแนวคิดใดที่คงที่ แต่จะปั่นและพัฒนาอยู่เสมอ </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91201 </ GUID>
+      <pubDate> ศุกร์, 01 พฤศจิกายน 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91201-trust-revisited-the-birth-of-continuous-authentication </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-Feat-slide1_900px.jpg?1572612900" type = "image / jpeg" length = "53992" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-Feat-slide1_900px.jpg?1572612900" ประเภท = "image / jpeg" ปานกลาง "fileSize =" 53992 ">
+        <media: title type = "plain"> SEC1119-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-slide2_900px.jpg?1572612909" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC1119-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> AR และ VR: เทคโนโลยีที่สมจริงนำเสนอสถานการณ์ความปลอดภัยทางไซเบอร์เพื่อชีวิต </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ในขณะที่ VR และ AR มีขนาดที่แตกต่างกันทั้งเพิ่มและเร่งการเรียนรู้จากประสบการณ์ที่สามารถช่วยให้ประจักษ์และเสริมสร้างวัฒนธรรมการรักษาความปลอดภัยทางไซเบอร์ทั่วทั้งอุตสาหกรรม มันเป็นนัยยะทางเทคโนโลยีเช่นนี้ที่จะช่วยขับเคลื่อนการรับรู้ด้านความปลอดภัยทางไซเบอร์สู่สภาวะของการรับรู้จำนวนมาก </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91016 </ GUID>
+      <pubDate> อ. 01 ต.ค. 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91016-ar-and-vr-how-immersive-technology-is-bringing-cybersecurity-scenarios-to-life </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-Feat-slide1_900px.jpg?1569927384" type = "image / jpeg" length = "105215" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-Feat-slide1_900px.jpg?1569927384" type = "image / jpeg" medium = "image "fileSize =" 105215 ">
+        <media: title type = "plain"> SEC1019-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-slide2_900px.jpg?1569927497" ประเภท = "image / jpeg" medium = "image" ขนาดไฟล์ = "49817">
+        <media: title type = "plain"> SEC1019-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ความรู้สึกของความเป็นส่วนตัวขู่อำนาจการป้องกันการจดจำใบหน้า </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ความรู้สึกวิตกกังวลต่อการจดจำใบหน้าสามารถทำได้หากไม่ถูกตรวจสอบจนถึงจุดที่พวกเขาบ่อนทำลายสามัญสำนึกและความสามารถของเราในการใช้ประโยชน์จากเทคโนโลยีใหม่ในการปกป้องผู้บริสุทธิ์และดำเนินคดีกับผู้กระทำผิด </p>] ]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90812 </ GUID>
+      <pubDate> วันที่ 02 ก.ย. 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90812-how-sense-of-privacy-threatens-facial-recognitions-protective-power </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Cyber-Feat-slide1_900px.jpg?1567089025" type = "image / jpeg" length = "108527" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Cyber-Feat-slide1_900px.jpg?1567089025" type = "image / jpeg" ปานกลาง = "ภาพ "fileSize =" 108527 ">
+        <media: title type = "plain"> SEC0919-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-cyber-slide2_900px.jpg?1567089280" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0919-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> พระราชบัญญัติความช่วยเหลือด้านการสื่อสารสำหรับการบังคับใช้กฎหมาย: บทเรียนจากอดีต </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ในการเดินทางไปออสเตรเลียเมื่อเร็ว ๆ นี้ฉันปรากฏตัวในรายการข่าวเช้าแห่งชาติ ไม่นานจนกว่าโฮสต์จะพยายามให้ฉันมีน้ำหนักในการโต้วาทีที่รุนแรงในสภาของพวกเขา </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90630 </ GUID>
+      <pubDate> วันที่, 01 ส.ค. 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90630-the-communications-assistance-for-law-enforcement-act-a-lesson-from-the-past </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-Cyber-Feat-slide1_900px.jpg?1564517013" ประเภท = "image / jpeg" length = "131167" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-Cyber-Feat-slide1_900px.jpg?1564517013" type = "image / jpeg" medium = "image "fileSize =" 131167 ">
+        <media: title type = "plain"> SEC0819-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-cyber-slide2_900px.jpg?1564517161" ประเภท = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0819-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ความเป็นส่วนตัว: อายุบริบท - สร้างความมั่นใจถึงประโยชน์ของการแบ่งปันความเสี่ยงที่มีมากกว่าความเสี่ยง </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> การบรรจบกันของโซเชียลมีเดียอุปกรณ์มือถือดิจิตอลเซ็นเซอร์และเทคโนโลยีที่อิงตามตำแหน่งกำลังสร้างปริมาณข้อมูลที่ไม่เคยมีมาก่อนเกี่ยวกับสังคมและบุคคล </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90456 </ GUID>
+      <pubDate> วันที่ 1 กรกฎาคม 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90456-privacy-the-age-of-context-ensuring-the-benefits-of-sharing-outweigh-the-risks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/July/SEC0719-Cyber-Feat-slide1_900px.jpg?1561958597" type = "image / jpeg" length = "57116" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/July/SEC0719-Cyber-Feat-slide1_900px.jpg?1561958597" type = "image / jpeg" medium = "image "fileSize =" 57116 ">
+        <media: title type = "plain"> SEC0719-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/July/SEC0719-cyber-slide2_900px.jpg?1561958765" type = "image / jpeg" medium = "image" ขนาดไฟล์ = "49817">
+        <media: title type = "plain"> SEC0719-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ปัญญาประดิษฐ์เปลี่ยนแปลงทุกอย่างในอุตสาหกรรมความปลอดภัย </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [ในช่วงเวลาหลายปีที่ Dell เราจะแบ่งปันสิ่งที่เราค้นพบโดยบังเอิญในวิธีการอ่านที่ดี]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90298 </ GUID>
+      <pubDate> วันเสาร์ที่ 01 มิถุนายน 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90298-artificial-intelligence-changes-everything-in-the-security-industry </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/June/SEC0619-Cyber-Feat-slide1_900px.jpg?1559223898" type = "image / jpeg" length = "89824" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/June/SEC0619-Cyber-Feat-slide1_900px.jpg?1559223898" type = "image / jpeg" medium = "image "fileSize =" 89824 ">
+        <media: title type = "plain"> SEC0619-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/June/SEC0619-cyber-slide2_900px.jpg?1559223908" type = "image / jpeg" medium = "image" ขนาดไฟล์ = "49817">
+        <media: title type = "plain"> SEC0619-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> การเรียนรู้ของเครื่อง: มันทำงานอย่างไร </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [การเรียนรู้ของเครื่องใช้ประโยชน์จากกระบวนการสี่เฟส: การรวบรวมการสกัดการเรียนรู้และการจำแนก]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90173 </ GUID>
+      <pubDate> พุธ 1 พฤษภาคม 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90173-machine-learning-how-it-works </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-Cyber-Feat-slide1_900px.jpg?1556563530" type = "image / jpeg" length = "68667" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-Cyber-Feat-slide1_900px.jpg?1556563530" type = "image / jpeg" medium = "image "fileSize =" 68667 ">
+        <media: title type = "plain"> SEC0519-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-cyber-slide2_900px.jpg?1556565015" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0519-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> บทบาทของการเรียนรู้ของเครื่องใน Cyber ​​security </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> Rene Descartes ปราชญ์และนักคณิตศาสตร์เขียน: & ldquo; คณิตศาสตร์เป็นเครื่องมือที่ทรงพลังยิ่งกว่าความรู้อื่น ๆ ที่มนุษย์ได้รับมาจากเรา & rdquo; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/90064 </ GUID>
+      <pubDate> วันที่ 1 เมษายน 2019 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/90064-the-role-of-machine-learning-in-cybersecurity </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/April/SEC0419-cyber-feat-slide1_900px.jpg?1554092539" ประเภท = "image / jpeg" length = "51777" >
+    </ item>
+    <item>
+      <title> การจับสายลับ: การเกิดขึ้นของปัญญาประดิษฐ์ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> เราเพิ่งเฉลิมฉลองวันประธานาธิบดี ชาวบ้านเล่าว่าในช่วงการปฏิวัติอเมริกาจอร์จวอชิงตันได้รับการทาบทามจากสมาชิกสื่อมวลชนที่ถามว่า: & ldquo; George! จอร์จ! อะไรทำให้คุณตื่นขึ้นมาตอนกลางคืน & rdquo; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89898 </ GUID>
+      <pubDate> ศุกร์, 01 มีนาคม 2019 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89898-to-catch-a-spy-the-emergence-of-artificial-intelligence </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/March/SEC0319-Cyber-Feat-slide1_900px.jpg?1550785582" type = "image / jpeg" length = "149009" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/March/SEC0319-Cyber-Feat-slide1_900px.jpg?1550785582" type = "image / jpeg" medium = "image "fileSize =" 149009 ">
+        <media: title type = "plain"> SEC0319-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/March/SEC0319-cyber-slide2_900px.jpg?1550785613" type = "image / jpeg" medium = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0319-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> คำทำนายของ Groundhog Year The Year Ahead </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> การสิ้นสุดในแต่ละปีนั้นเต็มไปด้วยการคาดการณ์ว่าสิ่งที่ปีต่อไปมีความหมาย ในทางปฏิบัตินี้ภาคความปลอดภัยไม่ใช่คนแปลกหน้า </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89806 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 ก.พ. 2019 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89806-prognostications-of-a-groundhog-the-year-ahead </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/F กุมภาพันธ์/SEC0219-cyber-Feat-slide1_900px.jpg?1549028734" type = "image / jpeg" length = "27347" >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/F กุมภาพันธ์/SEC0219-cyber-Feat-slide1_900px.jpg?1549028734" type = "image / jpeg" medium = "image "fileSize =" 27347 ">
+        <media: title type = "plain"> SEC0219-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2019/F กุมภาพันธ์/SEC0219-cyber-slide2_900px.jpg?1549028785" type = "image / jpeg" medium = "image" ขนาดไฟล์ = "49817">
+        <media: title type = "plain"> SEC0219-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ใครรับผิดชอบเรื่องความปลอดภัยบนคลาวด์ </title>
+      <author> steven.chabinsky@whitecase.com (Steven Chabinsky) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> หาก บริษัท ของคุณต้องพึ่งพาผู้ให้บริการคลาวด์ของบุคคลที่สามเพื่อสนับสนุนหรือส่งมอบบริการหลักหรือเพื่อปกป้องข้อมูลที่ละเอียดอ่อนจำเป็นอย่างยิ่งที่จะต้องเข้าใจว่าการรักษาความปลอดภัยบนคลาวด์นั้นเป็นความรับผิดชอบร่วมกัน </p>] ]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89641 </ GUID>
+      <pubDate> วันเสาร์ที่ 01 ธันวาคม 2018 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89641-whos-responsible-for-cloud-security </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2018/December/SEC1218-Cyber-Feat-slide1_900px.jpg?1543615695" type = "image / jpeg" length = "105371" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/December/SEC1218-Cyber-Feat-slide1_900px.jpg?1543615695" type = "image / jpeg" ปานกลาง = "ภาพ "fileSize =" 105371 ">
+        <media: title type = "plain"> SEC1218-Cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/December/SEC1218-cyber-slide2_900px.jpg?1543615787" type = "image / jpeg" medium = "image" fileSize = "52532">
+        <media: title type = "plain"> SEC1218-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ล้างข้อมูลล้าง & amp; ทำลาย: เมื่อต้องกำจัดข้อมูลส่วนที่ 2 </title>
+      <author> steven.chabinsky@whitecase.com (Steven Chabinsky) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> ภารกิจของคุณหากคุณตัดสินใจที่จะยอมรับมันคือการใช้โปรแกรมฆ่าเชื้อข้อมูลเสียง </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89540 </ GUID>
+      <pubDate> พฤ., 01 พ.ย. 2018 00:10:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89540-clear-purge-destroy-when-data-must-be-eliminated-part-2 </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2018/November/SEC1118-cyber-Feat-slide1_900px.jpg?1541040547" type = "image / jpeg" length = "74205" >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/November/SEC1118-cyber-Feat-slide1_900px.jpg?1541040547" type = "image / jpeg" medium = "image "fileSize =" 74205 ">
+        <media: title type = "plain"> SEC1118-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/ พฤศจิกายน/SEC1118-cyber-slide2_900px.jpg?1541040570" type = "image / jpeg" medium = "image" fileSize = "52532">
+        <media: title type = "plain"> SEC1118-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ล้างข้อมูลล้าง & amp; ทำลาย: เมื่อต้องกำจัดข้อมูล </title>
+      <author> steven.chabinsky@whitecase.com (Steven Chabinsky) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> แม้ในขั้นพื้นฐานที่สุดโปรแกรมรักษาความปลอดภัยข้อมูลก็มีความซับซ้อนและมีการผสมผสานระหว่างการควบคุมที่ตรวจจับป้องกันและตอบสนองต่อการสูญหายของข้อมูล </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89455 </ GUID>
+      <pubDate> วันที่ 1 ตุลาคม 2018 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89455-clear-purge-destroy-when-data-must-be-eliminated </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2018/October/SEC1018-cyber-Feat-slide1_900px.jpg?1538170750" type = "image / jpeg" length = "38501" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/October/SEC1018-cyber-Feat-slide1_900px.jpg?1538170750" type = "image / jpeg" medium = "image "fileSize =" 38501 ">
+        <media: title type = "plain"> SEC1018-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2018/October/SEC1018-cyber-slide2_900px.jpg?1538170759" type = "image / jpeg" medium = "image" fileSize = "52532">
+        <media: title type = "plain"> SEC1018-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> โปรแกรม Bug Bounty: แนวปฏิบัติที่ดีที่สุดที่ออกมา </title>
+      <author> steven.chabinsky@whitecase.com (Steven Chabinsky) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> ต้องการตรวจหาและแก้ไขช่องโหว่ไซเบอร์ในเชิงรุกใช่หรือไม่ อาจถึงเวลาที่จะระดมสติปัญญาของคุณผ่านโปรแกรมรับรางวัลข้อบกพร่อง & hellip; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/89372 </ GUID>
+      <pubDate> วันเสาร์ที่ 01 กันยายน 2018 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/89372-bug-bounty-programs-an-emerging-best-practice </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2018/September/SEC0918-cyber-feature-slide1_900px.jpg?1535763136" ประเภท = "image / jpeg" length = "147498" >
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/September/SEC0918-cyber-feature-slide1_900px.jpg?1535763136" type="image/jpeg" medium="image" fileSize="147498">
+        <media:title type="plain">SEC0918-cyber-feature-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/September/SEC0918-cyber-slide2_900px.jpg?1535763213" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">SEC0918-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Taking AIM at “Reasonable” Cybersecurity</title>
+      <description>
+        <![CDATA[<p>After a data breach, regulators strive to evaluate if an enterprise fulfilled &quot;reasonable&quot; cybersecurity standards&hellip; without defining what &quot;reasonable&quot; looks like.&nbsp;</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/89275</guid>
+      <pubDate>Wed, 01 Aug 2018 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/89275-taking-aim-at-reasonable-cybersecurity</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2018/August/SEC0818-cyber-feat-slide1_900px.jpg?1533138007" type="image/jpeg" length="90326"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/August/SEC0818-career-feat-slide1_900px1.jpg?1533136243" type="image/jpeg" medium="image" fileSize="172413">
+        <media:title type="plain">SEC0818-career-feat-slide1_900p</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/August/SEC0818-cyber-slide2_900px.jpg?1533138140" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">SEC0818-cyber-feat-slide2_900</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Managing Supply Chain Risk</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[<p align="left">When NIST recently updated its Cybersecurity Framework, it added only one new core category: Supply Chain Risk Management (SCRM). Placed within the Framework&rsquo;s &ldquo;Identify&rdquo; function, SCRM encompasses, but typically extends beyond, traditional vendor management approaches. That&rsquo;s because the supply chain typically extends beyond suppliers to include other external parties, such as integrators and even third-party communications providers.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/89191</guid>
+      <pubDate>Sun, 01 Jul 2018 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/89191-managing-supply-chain-risk</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2018/July/SEC0718-cyber-feat-slide1_900px.jpg?1530547525" type="image/jpeg" length="162775"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/July/SEC0718-cyber-slide2_900px.jpg?1530550860" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics - Steven Chabinsky- SEC</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2018/July/SEC0718-cyber-feat-slide1_900px.jpg?1530547525" type="image/jpeg" medium="image" fileSize="162775">
+        <media:title type="plain">Cyber Tactics - july 2018- SEC</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>5 Things You Need to Know about the Revised NIST Cybersecurity Framework</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[To get you quickly up to speed, here’s a list of the five most significant Framework clarifications and revisions.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/89064</guid>
+      <pubDate>Fri, 01 Jun 2018 07:04:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/89064-things-you-need-to-know-about-the-revised-nist-cybersecurity-framework</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/June/Revised-NIST-Cyersecurity-Framework-Seurity-Magazine.jpg?1557758861" type="image/jpeg" length="43454"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2018/June/Revised-NIST-Cyersecurity-Framework-Seurity-Magazine.jpg?1557758861" type="image/jpeg" medium="image" fileSize="43454">
+        <media:title type="plain">Revised NIST Cyber Security Framework</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Is Your Vendor Risk Management Program Working?</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[Companies remain on the hook for ensuring their vendors are up to task when it comes to cybersecurity, privacy compliance and continuity of operations. This checklist can help determine the maturity of your vendor risk management program.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88836</guid>
+      <pubDate>Sun, 01 Apr 2018 07:08:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/88836-is-your-vendor-risk-management-program-working</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/April/Vendor-Risk-Management-Program-Security-Magazine.jpg?1521736467" type="image/jpeg" length="72811"/>
+    </item>
+    <item>
+      <title>Please Forget to Change Your Password Every 90 Days</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[Some of the most basic tenets of password account management have failed, leaving us with a dreadful combination of poor user experience and inadequate security.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88771</guid>
+      <pubDate>Thu, 01 Mar 2018 07:02:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/88771-please-forget-to-change-your-password-every-90-days</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/March/Forget-Change-Password-Security-Magazine.jpg?1519756386" type="image/jpeg" length="38569"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2018/March/Forget-Change-Password-Security-Magazine.jpg?1519756386" type="image/jpeg" medium="image" fileSize="38569">
+        <media:title type="plain">Please Forget</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Multi-Factor Authentication Should Be HARD</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[How difficult is it for a computer (or a complete stranger) to validate the true identity of a person they don’t know? Very difficult, it turns out, especially when others may be trying to imitate them.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88656</guid>
+      <pubDate>Thu, 01 Feb 2018 07:02:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/88656-multi-factor-authentication-should-be-hard</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/February/Multi-Factor-Authentication-Security-Magazine.jpg?1516989002" type="image/jpeg" length="89872"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2018/February/Multi-Factor-Authentication-Security-Magazine.jpg?1516989002" type="image/jpeg" medium="image" fileSize="89872">
+        <media:title type="plain">Multi-Factor Authentication</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>The Top 12 Practices of Secure Coding</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[The list provides a quick summary of the top 12 security practices to mitigate risks from internal and third-party software.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88600</guid>
+      <pubDate>Mon, 01 Jan 2018 07:04:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/88600-the-top-12-practices-of-secure-coding</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/January/Top-12-Practices-Secure-Coding-Security-Magazine.jpg?1513958198" type="image/jpeg" length="116519"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2018/January/Top-12-Practices-Secure-Coding-Security-Magazine.jpg?1513958198" type="image/jpeg" medium="image" fileSize="116519">
+        <media:title type="plain">Top 12 Practices</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Dear Encryption, We're Worried About Your Future</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[Encryption, my friend, there’s a lot riding on your shoulders. It’s true you always bounce back, but for how long?]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88527</guid>
+      <pubDate>Fri, 01 Dec 2017 07:10:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/88527-dear-encryption-were-worried-about-your-future</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2017/December/Encryption-Future-Security-Magazine.jpg?1511802440" type="image/jpeg" length="91044"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2017/December/Encryption-Future-Security-Magazine.jpg?1511802440" type="image/jpeg" medium="image" fileSize="91044">
+        <media:title type="plain">Encryption Future</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Traveling with Technology: An Information Security Guide</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[Traveling abroad with technology brings with it certain risks and may subject you to government surveillance in ways that are different from domestic travel. According to the FBI, you shouldn’t expect privacy in most countries outside the United States. Your data is less secure when you travel.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88434</guid>
+      <pubDate>Wed, 01 Nov 2017 07:03:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/88434-traveling-with-technology-an-information-security-guide</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2017/November/traveling-with-technology-security-magazine-november-2017.jpg?1508879638" type="image/jpeg" length="53847"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2017/November/traveling-with-technology-security-magazine-november-2017.jpg?1508879638" type="image/jpeg" medium="image" fileSize="53847">
+        <media:title type="plain">Traveling with Technology</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Understanding the Distinct and Dependent Roles of Data, Privacy and Cybersecurity Professionals</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description>
+        <![CDATA[Taking advantage of technology and digitization involves more than business strategy. It requires strong data governance principles which, among other things, must align the functional demands of an organization’s cybersecurity, privacy and information management teams.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88343</guid>
+      <pubDate>Sun, 01 Oct 2017 07:02:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/88343-understanding-the-distinct-and-dependent-roles-of-data-privacy-and-cybersecurity-professionals</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2017/October/SEC1017-cyber-feat-slide1_900px.jpg?1506453678" type="image/jpeg" length="116772"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0615-tactics-feature-slide_900px.jpg?1472154199" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">Cyber Tactics Chabinsky Default</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2017/October/SEC1017-cyber-feat-slide1_900px.jpg?1506453678" type="image/jpeg" medium="image" fileSize="116772">
+        <media:title type="plain">Cyber Tactics October 2017</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>How New York is Shaking Up Cybersecurity</title>
+      <author>steven.chabinsky@whitecase.com (Steven Chabinsky)</author>
+      <description><? xml version = "1.0" encoding = "UTF-8"?>
+<rss version = "2.0" xmlns: media = "http://search.yahoo.com/mrss/">
+  <channel>
+    <title> บริการขององค์กรรักษาความปลอดภัย </title>
+    <รายละเอียด>
+      <! [CDATA [จากเจ้าหน้าที่รักษาความปลอดภัยถึงการแจ้งเตือนจำนวนมากไปจนถึงการบรรเทาความรุนแรงในสถานที่ทำงานบริการขององค์กรทำงานเพื่อเพิ่มคุณค่าให้กับองค์กรของคุณ]]>
+    </ รายละเอียด>
+    <link> https://www.securitymagazine.com/rss/2231 </ link>
+    <ภาษา> en-US </ ภาษา>
+    <item>
+      <title> การตัดสินใจอัตโนมัติในการดำเนินงานด้านความปลอดภัยนำความโปร่งใสและความน่าเชื่อถือมาสู่ AI </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [เช่นเดียวกับ buzzwords อุตสาหกรรมอื่น ๆ มีการขัดเกลาความปลอดภัยอัตโนมัติเป็นจำนวนมาก แต่สำหรับแนวป้องกันแรกในสภาพแวดล้อมขององค์กรนักวิเคราะห์ที่ทำงานในศูนย์ปฏิบัติการรักษาความปลอดภัย (SOC) ความคิดเรื่องระบบอัตโนมัตินั้นมีความสำคัญมากกว่าความเป็นจริง งานพื้นฐานหลายอย่าง - การบันทึกการแยกความผิดการรายงานและการแก้ไขปัญหา - ยังคงเป็นคู่มืออยู่มาก]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92342 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 02:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92342-decision-automation-in-security-operations-brings-transparency-and-trust-to-ai </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-Cyber-Feat-slide1_900px.jpg?1556563530" type = "image / jpeg" length = "68667" / >
+    </ item>
+    <item>
+      <title> แนวทางปฏิบัติที่ดีที่สุดเพื่อช่วยให้ทีมออนไลน์ปลอดภัยอยู่เสมอ </title>
+      <รายละเอียด>
+        <! [CDATA [<p> วิธีที่ดีที่สุดในการปกป้องบัญชีและข้อมูลจากการบรรจุข้อมูลประจำตัวและการโจมตีฟิชชิ่งออนไลน์คือการหยุดการนำรหัสผ่านเดิมมาใช้ซ้ำในหลายบัญชี บัญชีทั้งหมด & mdash; แต่โดยเฉพาะบัญชีที่เกี่ยวข้องกับงานค้าปลีกการเงินและรัฐบาล & ควรได้รับการป้องกันด้วยรหัสผ่านที่แข็งแกร่งและไม่ซ้ำใคร อะไรคือแนวทางปฏิบัติที่ดีบางประการเพื่อให้แน่ใจว่าพนักงานปลอดภัยกว่าออนไลน์ </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92339 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 01:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92339-best-practices-to-help-teams-stay-safe-online </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2017/March/SEC0317-awaware-feat-slide1_900px.jpg?1488306105" type = "image / jpeg" length = "60860" >
+    </ item>
+    <item>
+      <title> การโจมตีโดยใช้ข้อมูลประจำตัวเพิ่มขึ้นเมื่อข้อมูลรับรองที่เปิดเผยกลายเป็นความใกล้ชิดมากขึ้น </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [การป้องกันการโจมตีโดยใช้ข้อมูลระบุตัวตนเช่นการฉ้อโกงการครอบครองบัญชี (ATO) และการประนีประนอมอีเมล์ทางธุรกิจ (BEC) เริ่มต้นด้วยการรักษาความปลอดภัยข้อมูลส่วนบุคคลของคุณ (PII) แต่สิ่งนี้ดูเหมือนจะยากขึ้น ]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92340 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92340-identity-based-attacks-proliferate-as-exposed-credentials-become-more-intimate </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/cyber-900.jpg?1555969988" type = "image / jpeg" length = "222913" />
+    </ item>
+    <item>
+      <title> คุณพร้อมสำหรับการโจมตี DDoS 26 ประเภทเหล่านี้หรือไม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> แม้ว่าการปฏิเสธการให้บริการแบบกระจาย (DDoS) เป็นเว็กเตอร์โจมตีโรงเรียนเก่า แต่ก็ยังคงเป็นภัยคุกคามร้ายแรงต่อองค์กร จำนวนการโจมตีดังกล่าว & nbsp; รายเดือนเกิน 400,000 อาชญากรไซเบอร์ยังคงเพิ่มกลไก DDoS ใหม่ให้กับเพลงและผู้ให้บริการด้านความปลอดภัยไม่พร้อมที่จะรับมือพวกเขาเสมอ นี่คือ DDoS 26 ประเภทที่โจมตีทีมรักษาความปลอดภัยของคุณต้องพร้อม & nbsp; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92327 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:02:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92327-are-you-ready-for-these-26-different-types-of-ddos-attacks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2018/cyberthreat_900.jpg?1544124914" type = "image / jpeg" length = "39872" />
+    </ item>
+    <item>
+      <title> อาคารของส่วนบริการทางการเงินที่ยืดหยุ่นทางไซเบอร์ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [เมื่อเราเข้าสู่ทศวรรษใหม่เรายืนย้ำเตือนว่านวัตกรรมเทคโนโลยีและภัยคุกคามความปลอดภัยทางไซเบอร์ยังคงพัฒนาและพัฒนาอย่างต่อเนื่องอย่างไม่น่าเชื่อ บริษัท จึงต้องดำเนินการต่อเพื่อสร้างการป้องกันที่เหมาะสมเพื่อปกป้องข้อมูลที่เป็นความลับของผู้บริโภคและความสมบูรณ์ของตลาดการเงิน ภัยคุกคามทางไซเบอร์ได้กลายเป็นหนึ่งในภัยคุกคามที่สำคัญที่สุดในภาคบริการทางการเงินและความสามารถของ บริษัท ที่จะสามารถยืดหยุ่นได้เมื่อเผชิญกับภัยคุกคามเหล่านี้เป็นสิ่งสำคัญยิ่ง ]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92329 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:01:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92329-the-building-of-a-cyber-resilient-financial-services-sector </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2019/financial_900.jpg?1554910386" type = "image / jpeg" length = "63327" />
+    </ item>
+    <item>
+      <title> ความเป็นส่วนตัวออนไลน์ในช่วงระบาดใหญ่: ความท้าทายใหม่ในโลกใหม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [บริษัท อื่น ๆ กำลังทำธุรกิจออนไลน์มากขึ้นเพื่อความอยู่รอดของการระบาดใหญ่และนั่นจะสร้างความกังวลด้านความเป็นส่วนตัวของข้อมูลมากขึ้นในอนาคต ในเวลาเดียวกันมีการดำเนินการตามกฎหมายความเป็นส่วนตัวใหม่โดยเฉพาะพระราชบัญญัติความเป็นส่วนตัวของผู้บริโภคแคลิฟอร์เนีย 5 ขั้นตอนในการบรรลุการปฏิบัติตามคืออะไร]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92328 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92328-online-privacy-during-pandemic-new-challenges-in-a-new-world </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-Feat-slide1_900px.jpg?1580653432" ประเภท = "image / jpeg" length = "14451134" "/>
+    </ item>
+    <item>
+      <title> กลยุทธ์มนุษย์คือ Cyber ​​Defense ที่ดีที่สุดในการต่อสู้กับ COVID-19 </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [COVID-19 ส่งผลกระทบต่อทุกด้านของชีวิตและธุรกิจ ผู้คนหลายล้านคนทั่วโลกทำงานจากที่บ้านเพื่อชะลอการแพร่กระจายของ coronavirus อย่างไรก็ตามในขณะที่แรงงานทั่วโลกย้ายจากที่ตั้ง บริษัท ไปยังสำนักงานที่มีความปลอดภัยน้อยกว่าความเป็นจริงใหม่นี้จะสร้างภัยคุกคามทางไซเบอร์ที่เพิ่มขึ้นเนื่องจากพนักงานแลกเปลี่ยนข้อมูลที่มีความอ่อนไหวเพื่อป้องกันการดำเนินธุรกิจหยุดนิ่ง]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92332 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92332-the-human-strategy-is-the-best-cyber-defense-to-combat-covid-19 </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2019/cybersecurity-3.jpg?1575580243" type = "image / jpeg" length = "60153" />
+    </ item>
+    <item>
+      <title> ข้อมูลไบโอเมตริกซ์: ความปลอดภัยและความเสี่ยงที่เพิ่มขึ้น </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> Biometrics มีศักยภาพในการตรวจสอบสิทธิ์ได้เร็วขึ้นง่ายขึ้นและปลอดภัยมากขึ้นตราบใดที่จัดการด้วยความระมัดระวัง จากสิ่งนี้ บริษัท และรัฐบาลสามารถทำอะไรเพื่อเสนอสภาพแวดล้อมดิจิทัลที่ปลอดภัยยิ่งขึ้นสำหรับผู้บริโภค </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92319 </ GUID>
+      <pubDate> พุธ 6 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92319-biometric-data-increased-security-and-risks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/images/biometrics-1.jpg?1588720396" type = "image / jpeg" length = "620693" />
+    </ item>
+    <item>
+      <title> Chris Hallenbeck: เส้นทางแห่งความเป็นผู้นำด้านความปลอดภัยและการดำเนินงาน Insight </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> Chris Hallenbeck, CISO สำหรับอเมริกาที่ Tanium ได้เป็นผู้นำด้านความปลอดภัยและการดำเนินงานด้านไอทีการตอบสนองเหตุการณ์การตรวจจับปลายทางและสร้างและปรับใช้ทีมงานเพื่อความมั่นคงแห่งชาติ เขาริเริ่มสิ่งใดในการนำ CISO มาใช้และเขาจะวัดความสำเร็จของทีมของเขาอย่างไร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92270 </ GUID>
+      <pubDate> พุธ 6 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92270-chris-hallenbeck-a-path-of-security-leadership-and-operational-insight </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type = "image / jpeg" length = "102567" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type = "รูปภาพ / jpeg" medium = "image" fileSize = "102567">
+        <media: title type = "plain"> SEC0520-profile-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-slide2_900px.jpg?1588187833" type = "image / jpeg" ปานกลาง = "image" fileSize = "67630">
+        <media: title type = "plain"> SEC0520-profile-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> Therace Risch Named SVP, ข้อมูลหัวหน้า & amp; เจ้าหน้าที่เทคโนโลยีที่ AEP </title>
+      <รายละเอียด>
+        <! [CDATA [<p> American Electric Power ได้ตั้งชื่อ <span class = "xn-person"> Therace Risch </span> สู่ตำแหน่งใหม่ในฐานะรองประธานอาวุโสและหัวหน้าฝ่ายข้อมูล & amp; เจ้าหน้าที่เทคโนโลยี </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92308 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92308-therace-risch-named-svp-chief-information-technology-officer-at-aep </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Therace-Risch.jpg?1588684239" type = "image / jpeg" length = "18412" />
+    </ item>
+    <item>
+      <title> การจัดการความเสี่ยงบุคคลที่สามท่ามกลาง COVID-19 </title>
+      <รายละเอียด>
+        !
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92305 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92305-third-party-risk-management-amid-covid-19 </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/healthcare1-900px.jpg?1435691931" type = "image / jpeg" length = "89920" />
+    </ item>
+    <item>
+      <title> มีอะไรต่อไป: อนาคตของการประชุมความมั่นคงปลอดภัยบนโลกไซเบอร์ขนาดใหญ่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        ! พวกเราไม่มีใครสามารถคาดการณ์ได้ว่าวิธีการที่ 2020 มีการพัฒนาอย่างน้อยที่สุดของทั้งหมดผู้เชี่ยวชาญด้านการประชุม การ์ตเนอร์กล่าวว่ามีรายรับ 158 ล้านดอลลาร์ในรายรับไตรมาส 2 O'Reilly ก้าวต่อไปอีกก้าวหนึ่งอย่างยิ่งใหญ่ปิดกิจการของคนอื่นอย่างถาวร นอกเหนือจากการรวมตัวเหล่านั้นการประชุมด้านความปลอดภัยทั้งหมดได้เปลี่ยนไปสู่อาณาจักรเสมือนจริง การประชุมด้วยตนเองระหว่างการแพร่ระบาดจะเห็นว่าอันตรายเกินไปและไม่ปลอดภัย ตอนนี้การพบปะออนไลน์ดีกว่าการเสี่ยงต่อการแพร่กระจายไวรัส]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92304 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92304-whats-next-the-future-of-big-cybersecurity-conferences </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-cyber-Feat-slide1_900px.jpg?1585704237" type = "image / jpeg" length = "23892" / >
+    </ item>
+    <item>
+      <title> การเพิ่มความปลอดภัยและการใช้งานที่ Panda Express </title>
+      <รายละเอียด>
+        <! [CDATA [<p> นับตั้งแต่เปิดตัวในปี 1983 Panda Express ได้เติบโตอย่างต่อเนื่องทั่วทั้งสหรัฐอเมริกาและอีก 10 ประเทศ </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92299 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92299-boosting-safety-and-operations-at-panda-express </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Panda-Express.jpg?1588698700" type = "image / jpeg" length = "2163697" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/LyleForcumPortrait.jpg?1588605432" type = "image / jpeg" medium = "image" fileSize = " 2179108" >
+        <media: title type = "plain"> Lyle Forcum </ media: title>
+        <media: description type = "plain"> Lyle Forcum ผู้อำนวยการบริหารการป้องกันทรัพย์สินที่ Panda Restaurant Group บริษัท แม่ของ Panda Express </ media: description>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Panda-Express.jpg?1588698700" type = "image / jpeg" medium = "image" fileSize = "2163697">
+        <media: title type = "plain"> Panda Express </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> การป้องกันการโจมตีสคริปต์บน Powershell ด้วย Trust Zero-Based Identity </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [วิธีที่ดีที่สุดในการป้องกันการโจมตีของสคริปต์เช่นที่ใช้ประตูหลังของ Python หรือใช้ PowerShell ในการประนีประนอมคือการใช้ความน่าเชื่อถือแบบ zero-based ในสภาพแวดล้อมที่เชื่อถือได้แบบไม่เป็นศูนย์ไอทีจะปฏิบัติต่อเครือข่ายภายในราวกับว่าเป็นอินเทอร์เน็ตสาธารณะสถานที่ที่ไม่มีสิ่งใดเชื่อถือได้และสิ่งใดก็ตามที่อาจเป็นภัยคุกคาม]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92300 </ GUID>
+      <pubDate> วันที่ 04 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92300-preventing-scripting-attacks-on-powershell-with-identity-based-zero-trust </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/F กุมภาพันธ์/SEC0219-data-Feat-slide1_900px.jpg?1565104072" type = "image / jpeg" length = "120850" / >
+    </ item>
+    <item>
+      <title> ลาก่อนและขอให้โชคดีลอร่า </title>
+      <author> ritcheyd@bnpmedia.com (Diane Ritchey) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> Laura Stepanek หัวหน้าบรรณาธิการของนิตยสาร SDM ได้ยกเลิกการทำงานแล้ว เป็นเวลา 36 ปีที่เธอเป็นใบหน้าของ SDM และเธอได้เห็นว่าเทคโนโลยีใหม่มีการเปลี่ยนแปลงอุตสาหกรรมความปลอดภัยอย่างไร เราต้องการสิ่งที่ดีที่สุดสำหรับลอร่าในการเกษียณอายุที่สมควรได้รับของเธอ </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92269 </ GUID>
+      <pubDate> วันที่ 04 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92269-goodbye-and-good-luck-laura </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type = "image / jpeg" length = "42459" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type = "image / jpeg" medium = "image" fileSize = "42459">
+        <media: title type = "plain"> SEC0520-talk-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-slide2_900px.jpg?1588174859" ประเภท = "รูปภาพ / jpeg" ปานกลาง = "image" fileSize = "55684">
+        <media: title type = "plain"> SEC0520-talk-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> พฤษภาคม 2020: ผู้บริหารความปลอดภัยขณะเดินทาง </title>
+      <รายละเอียด>
+        <! [CDATA [<p> ผู้บริหารความปลอดภัยรายใดเพิ่งเปลี่ยนตำแหน่ง คุณเริ่มบทบาทใหม่แล้วหรือยัง? ส่งอีเมลถึงเราที่ <a href="mailto:ritcheyd@bnpmedia.com"> ritcheyd@bnpmedia.com </a> </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92267 </ GUID>
+      <pubDate> วันที่ 04 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92267-may-2020-security-executives-on-the-move </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/on-the-move/On-the-Move_INTRO-slide-900x550px.jpg?1588167224" type = "image / jpeg "length =" 99719 "/>
+    </ item>
+    <item>
+      <title> วุฒิสมาชิกเพื่อแนะนำ COVID-19 พระราชบัญญัติคุ้มครองข้อมูลผู้บริโภค </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> เมื่อวันที่ 30 เมษายน 2563 กลุ่มวุฒิสมาชิกรีพับลิกันสี่คนประกาศแผนของพวกเขาเพื่อแนะนำกฎหมายความเป็นส่วนตัวของรัฐบาลกลางที่จะควบคุมการเก็บรวบรวมและการใช้ข้อมูลส่วนบุคคลที่เกี่ยวข้องกับการต่อสู้กับโรคระบาดโคโรนา ; พระราชบัญญัติการคุ้มครองข้อมูลผู้บริโภค COVID-19 ที่เสนอจะพยายามแก้ไขข้อกังวลด้านความเป็นส่วนตัวได้อย่างไร & nbsp; </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92288 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92288-senators-to-introduce-covid-19-consumer-data-protection-act </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/coronavirus4_900.jpg?1584557556" type = "image / jpeg" length = "70270" />
+    </ item>
+    <item>
+      <title> สงครามที่บ้าน: องค์กรของสหรัฐอยู่ในแนวหน้าของสงครามเงียบบนความเป็นส่วนตัว </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [บุคคลทั้งสี่ที่ถูกระบุและดำเนินคดีโดยการบริหารของทรัมป์ที่เกี่ยวข้องกับการฝ่าฝืน Equifax ในปี 2560 นั้นเป็นอีกตัวอย่างหนึ่งของความพยายามรวบรวมโดยรัฐบาลจีนเพื่อขโมยข้อมูลส่วนบุคคลที่ละเอียดอ่อนของชาวอเมริกัน การเปิดกว้างของรัฐบาลสหรัฐฯในการแบ่งปันตัวอย่างเหล่านี้ควรช่วยนำความเป็นจริงของภัยคุกคามทางไซเบอร์มาสู่แถวหน้าในห้องประชุมคณะกรรมการ บริษัท และมหาวิทยาลัยวิจัย ฉันอยากจะเน้นว่าการโจมตีพิเศษเหล่านี้ดำเนินการเพื่อเป้าหมายอื่น - การจารกรรม]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92280 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92280-war-at-home-how-us-corporations-are-on-the-front-lines-of-the-silent-war-on-privacy </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2017/code2-900.jpg?1558626086" type = "image / jpeg" length = "166043" />
+    </ item>
+    <item>
+      <title> คำตอบ COVID-19 และการรักษาความปลอดภัยระดับองค์กร </title>
+      <author> ritcheyd@bnpmedia.com (Diane Ritchey) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> ความท้าทายอะไรที่ COVID-19 นำเสนอต่อการรักษาความปลอดภัยขององค์กรแผนความต่อเนื่องทางธุรกิจมีการพัฒนาอย่างไรและบทเรียนใดที่ได้เรียนรู้เกี่ยวกับความปลอดภัยขององค์กร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92254 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92254-covid-19-and-enterprise-securitys-response </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-Feat-slide1_900px.jpg?1588088008" type = "image / jpeg" length = "71352 "/>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-Feat-slide1_900px.jpg?1588088008" ประเภท = "รูปภาพ / jpeg" ปานกลาง = "image" fileSize = "71352">
+        <media: title type = "plain"> SEC0520-cover-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide2_900px.jpg?1588088565" type = "image / jpeg" medium = "image "fileSize =" 42898 ">
+        <media:title type="plain">SEC0520-cover-slide2_900px</media:title>
+        <media:description type="plain">&amp;ldquo;Grace and empathy are at an all-time high, which is refreshing considering the challenge of being more digitally dependent.&amp;nbsp;Our people&amp;rsquo;s ability to learn real-time lessons and execute quickly has become a competitive advantage,&amp;rdquo; says Steve Antoine, Director, Global Assets Protection for Yum! Brands.&amp;nbsp;
+
+Photo courtesy of Steve Antoine
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide3_900px.jpg?1588088614" type="image/jpeg" medium="image" fileSize="42327">
+        <media:title type="plain">SEC0520-cover-slide3_900px</media:title>
+        <media:description type="plain">&amp;ldquo;We implemented a mandatory work from home policy globally for our workforce for those who can do their jobs from home as well as restrictions on business travel, visitor access, workplace and in-person meetings,&amp;rdquo; says Amy Lyons, Vice President Corporate Security and CSO for Bristol-Myers Squibb Company.&amp;nbsp;
+
+Photo courtesy of Amy Lyons</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide4_900px.jpg?1588088663" type="image/jpeg" medium="image" fileSize="34645">
+        <media:title type="plain">SEC0520-cover-slide4_900px</media:title>
+        <media:description type="plain">At Bridgestone Americas, corporate employees throughout the Americas, except for those whose business-critical roles prevent it, are working from home, says Margaret J. Levine, Vice-President, Corporate Security. &amp;ldquo;Having a plant and sales office in China enabled us to anticipate challenges and prepare early for the virus&amp;rsquo; impact in the Americas,&amp;rdquo; she adds. &amp;ldquo;We planned for a demand surge on our IT network, reviewed all business continuity plans to ensure critical processes could be executed remotely and tested our crisis communications tool.&amp;rdquo;&amp;nbsp;
+
+Photo courtesy of Margaret Levine
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide5_900px.jpg?1588088722" type="image/jpeg" medium="image" fileSize="25750">
+        <media:title type="plain">SEC0520-cover-slide5_900px</media:title>
+        <media:description type="plain">&amp;ldquo;Teamwork has been essential for our business continuity plans and operational responses to be effective and efficient,&amp;rdquo; says Bob Messemer, CSO for Nielsen Holdings. &amp;ldquo;What I have enjoyed seeing these past several months is how several members of our team have exhibited great leadership and accomplished amazing results resulting in a new appreciation for our security team members from the newer corporate executives.&amp;rdquo;&amp;nbsp;
+
+Photo courtesy of Bob Messemer
+</media:description>
+      </media:content>
+    </item>
+    <item>
+      <title>DECADE OF THE RATs: Novel Cross-Platform APT Attacks Targeting Linux Windows and Android </title>
+      <author></author>
+      <description>
+        <![CDATA[<p>As China forges its role as one of the great world powers, it relies upon a blast furnace of espionage operations to acquire foreign technologies and intellectual property, better position itself against competing international powers and control its own image both at home and abroad.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92253</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92253-decade-of-the-rats-novel-cross-platform-apt-attacks-targeting-linux-windows-and-android</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type="image/jpeg" length="154459"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type="image/jpeg" medium="image" fileSize="154459">
+        <media:title type="plain">SEC0520-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-slide2_900px.jpg?1588087423" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC0520-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Intelligent Succession Planning for Security Careers</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[What are some key areas to consider when you are constructing a strategy to address your successor and the replacement of other positions within your direct and functional organization?]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92252</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92252-intelligent-succession-planning-for-security-careers</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" type="image/jpeg" length="81171"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" type="image/jpeg" medium="image" fileSize="81171">
+        <media:title type="plain">SEC0520-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-slide2_900px.jpg?1588086989" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC0520-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Servant Leader? Now's the Time to Prove It</title>
+      <description>
+        <![CDATA[<p>&quot;No one knows.&quot; We keep hearing that phrase. But, it&#39;s up to security professionals, healthcare workers and public safety officers to truly inhabit many leadership titles during COVID-19.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92251</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92251-servant-leader-nows-the-time-to-prove-it</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" type="image/jpeg" length="43551"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" type="image/jpeg" medium="image" fileSize="43551">
+        <media:title type="plain">SEC0520-leadership-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-slide2_900px.jpg?1588086509" type="image/jpeg" medium="image" fileSize="58154">
+        <media:title type="plain">SEC0520-leadership-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Disruptively Affordable Cloud Storage Saves Lives and Enhances Video Surveillance Security </title>
+      <description>
+        <![CDATA[In the video surveillance world, data is growing rapidly due to the proliferation of surveillance cameras in both public and private spaces, the increased use of police body cameras and dash cams, and ever higher-resolution on all of these. In the U.S. alone, the surveillance marketplace is expected to grow to $68 billion by 2023.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92278</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92278-disruptively-affordable-cloud-storage-saves-lives-and-enhances-video-surveillance-security</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2018/cloud-900-cyber.jpg?1519933374" type="image/jpeg" length="133358"/>
+    </item>
+    <item>
+      <title>Protecting VPNs from DDoS Attacks in the Age of Remote Work</title>
+      <author></author>
+      <description>
+        <![CDATA[As a result of the COVID-19 pandemic, more people than ever are working remotely. Because of this recent and rapid transition, users are accessing corporate resources from their homes and generating unprecedented amounts of network traffic. IT departments face increased pressure to ensure business continuity by providing remote users with access to essential corporate applications and services through Virtual Private Networks (VPNs), which are designed to provide access to private networks through shared or public networks.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92276</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92276-protecting-vpns-from-ddos-attacks-in-the-age-of-remote-work</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/May/Strong-Cybersecurity-Lifecycle-Management-Security-Magazine.jpg?1576855431" type="image/jpeg" length="97332"/>
+    </item>
+    <item>
+      <title>Brian Phillips Named Director of Global Security Strategy at Traction Guest</title>
+      <description>
+        <![CDATA[<p>Traction Guest, a leader in cloud-based solutions for enterprise visitor management systems (VMS), announced <a href="https://cts.businesswire.com/ct/CT?id=smartlink&amp;url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fbrianphillipscpp%2F&amp;esheet=52211594&amp;newsitemid=20200429005231&amp;lan=en-US&amp;anchor=Brian+Phillips&amp;index=1&amp;md5=f9852b6b35c0317d44b65b5673f0f812" rel="nofollow" shape="rect" target="—blank">Brian Phillips</a> as director of Global Security Strategy.&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92265</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92265-brian-phillips-named-director-of-global-security-strategy-at-traction-guest</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Brian-Phillips.jpg?1588173111" type="image/jpeg" length="12677"/>
+    </item>
+    <item>
+      <title>EL AL Airlines: Integrating Security into CI/CD with Seeker IAST from Synopsys</title>
+      <description>
+        <![CDATA[EL AL Israel Airlines Ltd. has over 6,000 employees and is the national air carrier of Israel, carrying over 5.5 million passengers a year. EL AL faces cyberthreats on a regular basis and must maintain the highest levels of application security to prevent these threats from endangering the privacy and safety of its passengers.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92264</guid>
+      <pubDate>Wed, 29 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92264-el-al-airlines-integrating-security-into-cicd-with-seeker-iast-from-synopsys</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/airplane.jpg?1588172726" type="image/jpeg" length="498126"/>
+    </item>
+    <item>
+      <title>MSPs are the Latest Ransomware Target: Are You Safe?</title>
+      <author></author>
+      <description>
+        <![CDATA[Ransomware is costing businesses—in ransom, yes, but also in downtime, the cost of which is typically 23 times greater than the ransom requested. The attacks are affecting large organizations and cities including Atlanta and Baltimore. Cybercriminals aren’t just attacking end-users; MSPs are the latest on the hit list. ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92262</guid>
+      <pubDate>Wed, 29 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92262-msps-are-the-latest-ransomware-target-are-you-safe</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2018/ransomware-laptop.jpg?1522175036" type="image/jpeg" length="77822"/>
+    </item>
+    <item>
+      <title>Effective Security Design and Operation of Emergency Facilities</title>
+      <author></author>
+      <description>
+        <![CDATA[The COVID-19 pandemic of 2020 has challenged our global society in many ways. It is truly a unique and unprecedented situation of our time, which requires communities around the world to come together to defeat the virus.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92260</guid>
+      <pubDate>Wed, 29 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92260-effective-security-design-and-operation-of-emergency-facilities</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/convention-center.jpg?1588175239" type="image/jpeg" length="699381"/>
+    </item>
+    <item>
+      <title>David Bradbury Named Chief Security Officer at Okta </title>
+      <description>
+        <![CDATA[<p>Identity company Okta has hired its newest chief security officer, David Bradbury.</p>
+
+<p>&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92258</guid>
+      <pubDate>Wed, 29 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92258-david-bradbury-named-chief-security-officer-at-okta</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/David-Bradbury.jpg?1588114935" type="image/jpeg" length="4241"/>
+    </item>
+    <item>
+      <title>Top Five Misconceptions about Face Recognition</title>
+      <author></author>
+      <description>
+        <![CDATA[While it might be tempting to reduce face recognition to an inevitable Orwellian nightmare, its benefits cannot be realized unless we educate ourselves about how the technology really works, separate fact from fiction, and pass common sense regulation that set guidelines for use. Here are five popular misconceptions about face recognition and privacy to help set the record straight on this powerful, emerging technology.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92242</guid>
+      <pubDate>Tue, 28 Apr 2020 14:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92242-top-five-misconceptions-about-face-recognition</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/SAFR.jpg?1588711014" type="image/jpeg" length="310305"/>
+    </item>
+  </channel>
+</rss>
+        <![CDATA[Something potentially groundbreaking is happening in New York, and its impact is being felt globally. Still, if you’re not in the financial services industry, and specifically regulated by the New York State Department of Financial Services (NYDFS), you may have missed it. What is this change? In short, it’s the first of what may become a wave of stringent state cybersecurity regulations that impose “minimum standards” on industry.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/88286</guid>
+      <pubDate>Fri, 01 Sep 2017 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/88286-how-new-york-is-shaking-up-cybersecurity</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2017/Sept/SEC0917-cyber-feat-slide1_900px.jpg?1504109043" type="image/jpeg" length="126689"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2017/Sept/SEC0917-cyber-feat-slide1_900px.jpg?1504109043" type="image/jpeg" medium="image" fileSize="126689">
+        <media:title type="plain">How New York is Shaking Up Cybersecurity</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/SEC/2017/Sept/SEC0917-cyber-slide2_900px.jpg?1504040618" type="image/jpeg" medium="image" fileSize="52532">
+        <media:title type="plain">How New York is Shaking Up Cybersecurity Author</media:title>
+      </media:content>
+    </item>
+  </channel><? xml version = "1.0" encoding = "UTF-8"?>
+<rss version = "2.0" xmlns: media = "http://search.yahoo.com/mrss/">
+  <channel>
+    <title> ความเป็นผู้นำและการจัดการความปลอดภัย </title>
+    <รายละเอียด>
+      <! [CDATA [โซลูชั่นสำหรับผู้บริหารความปลอดภัยในการเป็นผู้นำและจัดการเจ้าหน้าที่รักษาความปลอดภัยลดความเสี่ยงให้กับองค์กรของพวกเขาและแสดงค่าความปลอดภัยใน C-suite]]>
+    </ รายละเอียด>
+    <link> https://www.securitymagazine.com/rss/2227 </ link>
+    <ภาษา> en-US </ ภาษา>
+    <item>
+      <title> การตัดสินใจอัตโนมัติในการดำเนินงานด้านความปลอดภัยนำความโปร่งใสและความน่าเชื่อถือมาสู่ AI </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [เช่นเดียวกับ buzzwords อุตสาหกรรมอื่น ๆ มีการขัดเกลาความปลอดภัยอัตโนมัติเป็นจำนวนมาก แต่สำหรับแนวป้องกันแรกในสภาพแวดล้อมขององค์กรนักวิเคราะห์ที่ทำงานในศูนย์ปฏิบัติการรักษาความปลอดภัย (SOC) ความคิดเรื่องระบบอัตโนมัตินั้นมีความสำคัญมากกว่าความเป็นจริง งานพื้นฐานหลายอย่าง - การบันทึกการแยกความผิดการรายงานและการแก้ไขปัญหา - ยังคงเป็นคู่มืออยู่มาก]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92342 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 02:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92342-decision-automation-in-security-operations-brings-transparency-and-trust-to-ai </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-Cyber-Feat-slide1_900px.jpg?1556563530" type = "image / jpeg" length = "68667" / >
+    </ item>
+    <item>
+      <title> แนวทางปฏิบัติที่ดีที่สุดเพื่อช่วยให้ทีมออนไลน์ปลอดภัยอยู่เสมอ </title>
+      <รายละเอียด>
+        <! [CDATA [<p> วิธีที่ดีที่สุดในการปกป้องบัญชีและข้อมูลจากการบรรจุข้อมูลประจำตัวและการโจมตีฟิชชิ่งออนไลน์คือการหยุดการนำรหัสผ่านเดิมมาใช้ซ้ำในหลายบัญชี บัญชีทั้งหมด & mdash; แต่โดยเฉพาะบัญชีที่เกี่ยวข้องกับงานค้าปลีกการเงินและรัฐบาล & ควรได้รับการป้องกันด้วยรหัสผ่านที่แข็งแกร่งและไม่ซ้ำใคร อะไรคือแนวทางปฏิบัติที่ดีบางประการเพื่อให้แน่ใจว่าพนักงานปลอดภัยกว่าออนไลน์ </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92339 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 01:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92339-best-practices-to-help-teams-stay-safe-online </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2017/March/SEC0317-awaware-feat-slide1_900px.jpg?1488306105" type = "image / jpeg" length = "60860" >
+    </ item>
+    <item>
+      <title> การโจมตีโดยใช้ข้อมูลประจำตัวเพิ่มขึ้นเมื่อข้อมูลรับรองที่เปิดเผยกลายเป็นความใกล้ชิดมากขึ้น </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [การป้องกันการโจมตีโดยใช้ข้อมูลระบุตัวตนเช่นการฉ้อโกงการครอบครองบัญชี (ATO) และการประนีประนอมอีเมล์ทางธุรกิจ (BEC) เริ่มต้นด้วยการรักษาความปลอดภัยข้อมูลส่วนบุคคลของคุณ (PII) แต่สิ่งนี้ดูเหมือนจะยากขึ้น ]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92340 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92340-identity-based-attacks-proliferate-as-exposed-credentials-become-more-intimate </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/cyber-900.jpg?1555969988" type = "image / jpeg" length = "222913" />
+    </ item>
+    <item>
+      <title> Benchtop NMR - การระบุสิ่งไม่ทราบในการทดสอบทางนิติเวช </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> การทดสอบยาเสพติดที่ผิดกฎหมายเป็นการต่อสู้ที่ต่อเนื่อง เพื่อลดการระบาดของ opioid การตรวจจับและระบุตัวยาที่ผิดกฎหมายอย่างรวดเร็วจึงเป็นสิ่งสำคัญสำหรับความปลอดภัยของมหาวิทยาลัยเจ้าหน้าที่ตำรวจและผู้ตรวจสอบทางอาญา </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92296 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92296-benchtop-nmr---identifying-the-unknown-in-forensic-drug-testing </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-Feat-slide1_900px.jpg?1588597630" type = "image / jpeg" length = "59362" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-Feat-slide1_900px.jpg?1588597630" ประเภท = "รูปภาพ / jpeg" medium = "image" fileSize = "59362">
+        <media: title type = "plain"> SEC0520-drug-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-slide2_900px.jpg?1588597680" type = "image / jpeg" ปานกลาง = "image" fileSize = "38512">
+        <media: title type = "plain"> SEC0520-drug-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> คุณพร้อมสำหรับการโจมตี DDoS 26 ประเภทเหล่านี้หรือไม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> แม้ว่าการปฏิเสธการให้บริการแบบกระจาย (DDoS) เป็นเว็กเตอร์โจมตีโรงเรียนเก่า แต่ก็ยังคงเป็นภัยคุกคามร้ายแรงต่อองค์กร จำนวนการโจมตีดังกล่าว & nbsp; รายเดือนเกิน 400,000 อาชญากรไซเบอร์ยังคงเพิ่มกลไก DDoS ใหม่ให้กับเพลงและผู้ให้บริการด้านความปลอดภัยไม่พร้อมที่จะรับมือพวกเขาเสมอ นี่คือ DDoS 26 ประเภทที่โจมตีทีมรักษาความปลอดภัยของคุณต้องพร้อม & nbsp; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92327 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:02:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92327-are-you-ready-for-these-26-different-types-of-ddos-attacks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2018/cyberthreat_900.jpg?1544124914" type = "image / jpeg" length = "39872" />
+    </ item>
+    <item>
+      <title> อาคารของส่วนบริการทางการเงินที่ยืดหยุ่นทางไซเบอร์ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [เมื่อเราเข้าสู่ทศวรรษใหม่เรายืนย้ำเตือนว่านวัตกรรมเทคโนโลยีและภัยคุกคามความปลอดภัยทางไซเบอร์ยังคงพัฒนาและพัฒนาอย่างต่อเนื่องอย่างไม่น่าเชื่อ บริษัท จึงต้องดำเนินการต่อเพื่อสร้างการป้องกันที่เหมาะสมเพื่อปกป้องข้อมูลที่เป็นความลับของผู้บริโภคและความสมบูรณ์ของตลาดการเงิน ภัยคุกคามทางไซเบอร์ได้กลายเป็นหนึ่งในภัยคุกคามที่สำคัญที่สุดในภาคบริการทางการเงินและความสามารถของ บริษัท ที่จะสามารถยืดหยุ่นได้เมื่อเผชิญกับภัยคุกคามเหล่านี้เป็นสิ่งสำคัญยิ่ง ]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92329 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:01:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92329-the-building-of-a-cyber-resilient-financial-services-sector </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2019/financial_900.jpg?1554910386" type = "image / jpeg" length = "63327" />
+    </ item>
+    <item>
+      <title> ความเป็นส่วนตัวออนไลน์ในช่วงระบาดใหญ่: ความท้าทายใหม่ในโลกใหม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [บริษัท อื่น ๆ กำลังทำธุรกิจออนไลน์มากขึ้นเพื่อความอยู่รอดของการระบาดใหญ่และนั่นจะสร้างความกังวลด้านความเป็นส่วนตัวของข้อมูลมากขึ้นในอนาคต ในเวลาเดียวกันมีการดำเนินการตามกฎหมายความเป็นส่วนตัวใหม่โดยเฉพาะพระราชบัญญัติความเป็นส่วนตัวของผู้บริโภคแคลิฟอร์เนีย 5 ขั้นตอนในการบรรลุการปฏิบัติตามคืออะไร]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92328 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92328-online-privacy-during-pandemic-new-challenges-in-a-new-world </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-Feat-slide1_900px.jpg?1580653432" ประเภท = "image / jpeg" length = "14451134" "/>
+    </ item>
+    <item>
+      <title> กลยุทธ์มนุษย์คือ Cyber ​​Defense ที่ดีที่สุดในการต่อสู้กับ COVID-19 </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [COVID-19 ส่งผลกระทบต่อทุกด้านของชีวิตและธุรกิจ ผู้คนหลายล้านคนทั่วโลกทำงานจากที่บ้านเพื่อชะลอการแพร่กระจายของ coronavirus อย่างไรก็ตามในขณะที่แรงงานทั่วโลกย้ายจากที่ตั้ง บริษัท ไปยังสำนักงานที่มีความปลอดภัยน้อยกว่าความเป็นจริงใหม่นี้จะสร้างภัยคุกคามทางไซเบอร์ที่เพิ่มขึ้นเนื่องจากพนักงานแลกเปลี่ยนข้อมูลที่มีความอ่อนไหวเพื่อป้องกันการดำเนินธุรกิจหยุดนิ่ง]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92332 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92332-the-human-strategy-is-the-best-cyber-defense-to-combat-covid-19 </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/2019/cybersecurity-3.jpg?1575580243" type = "image / jpeg" length = "60153" />
+    </ item>
+    <item>
+      <title> ข้อมูลไบโอเมตริกซ์: ความปลอดภัยและความเสี่ยงที่เพิ่มขึ้น </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> Biometrics มีศักยภาพในการตรวจสอบสิทธิ์ได้เร็วขึ้นง่ายขึ้นและปลอดภัยมากขึ้นตราบใดที่จัดการด้วยความระมัดระวัง จากสิ่งนี้ บริษัท และรัฐบาลสามารถทำอะไรเพื่อเสนอสภาพแวดล้อมดิจิทัลที่ปลอดภัยยิ่งขึ้นสำหรับผู้บริโภค </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92319 </ GUID>
+      <pubDate> พุธ 6 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92319-biometric-data-increased-security-and-risks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/images/biometrics-1.jpg?1588720396" type = "image / jpeg" length = "620693" />
+    </ item>
+    <item>
+      <title> Chris Hallenbeck: เส้นทางแห่งความเป็นผู้นำด้านความปลอดภัยและการดำเนินงาน Insight </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> Chris Hallenbeck, CISO สำหรับอเมริกาที่ Tanium ได้เป็นผู้นำด้านความปลอดภัยและการดำเนินงานด้านไอทีการตอบสนองเหตุการณ์การตรวจจับปลายทางและสร้างและปรับใช้ทีมงานเพื่อความมั่นคงแห่งชาติ เขาริเริ่มสิ่งใดในการนำ CISO มาใช้และเขาจะวัดความสำเร็จของทีมของเขาอย่างไร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92270 </ GUID>
+      <pubDate> พุธ 6 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92270-chris-hallenbeck-a-path-of-security-leadership-and-operational-insight </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type = "image / jpeg" length = "102567" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type = "รูปภาพ / jpeg" medium = "image" fileSize = "102567">
+        <media: title type = "plain"> SEC0520-profile-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-slide2_900px.jpg?1588187833" type = "image / jpeg" ปานกลาง = "image" fileSize = "67630">
+        <media: title type = "plain"> SEC0520-profile-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> Therace Risch Named SVP, ข้อมูลหัวหน้า & amp; เจ้าหน้าที่เทคโนโลยีที่ AEP </title>
+      <รายละเอียด>
+        <! [CDATA [<p> American Electric Power ได้ตั้งชื่อ <span class = "xn-person"> Therace Risch </span> สู่ตำแหน่งใหม่ในฐานะรองประธานอาวุโสและหัวหน้าฝ่ายข้อมูล & amp; เจ้าหน้าที่เทคโนโลยี </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92308 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92308-therace-risch-named-svp-chief-information-technology-officer-at-aep </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Therace-Risch.jpg?1588684239" type = "image / jpeg" length = "18412" />
+    </ item>
+    <item>
+      <title> การจัดการความเสี่ยงบุคคลที่สามท่ามกลาง COVID-19 </title>
+      <รายละเอียด>
+        !
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92305 </ GUID>
+      <pubDate> อังคาร 5 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link>https://www.securitymagazine.com/articles/92305-third-party-risk-management-amid-covid-19</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/healthcare1-900px.jpg?1435691931" type="image/jpeg" length="89920"/>
+    </item>
+    <item>
+      <title>What's Next: The Future of Big Cybersecurity Conferences</title>
+      <author></author>
+      <description>
+        <![CDATA[The old curse has come true: we are “living in interesting times.” None of us could have possibly foreseen the way that 2020 has evolved, least of all, conference professionals. Gartner says it’s taking a $158 million hit in its Q2 revenues; O’Reilly went one huge step further, permanently shuttering its in-person events business. Aside from those gatherings, an entire slew of security meetings has moved into the virtual realm. In-person conferences during the pandemic are seen as being too hazardous and unsafe. It's now better to meet online than to risk spreading the virus.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92304</guid>
+      <pubDate>Tue, 05 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92304-whats-next-the-future-of-big-cybersecurity-conferences</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-cyber-Feat-slide1_900px.jpg?1585704237" type="image/jpeg" length="23892"/>
+    </item>
+    <item>
+      <title>Boosting Safety and Operations at Panda Express</title>
+      <description>
+        <![CDATA[<p>Since its opening in 1983, Panda Express has steadily grown throughout the United States and 10 other countries.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92299</guid>
+      <pubDate>Tue, 05 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92299-boosting-safety-and-operations-at-panda-express</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Panda-Express.jpg?1588698700" type="image/jpeg" length="2163697"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/LyleForcumPortrait.jpg?1588605432" type="image/jpeg" medium="image" fileSize="2179108">
+        <media:title type="plain">Lyle Forcum</media:title>
+        <media:description type="plain">Lyle Forcum, Executive Director of Asset Protection at Panda Restaurant Group, parent company of Panda Express</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Panda-Express.jpg?1588698700" type="image/jpeg" medium="image" fileSize="2163697">
+        <media:title type="plain">Panda Express</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Preventing Scripting Attacks on Powershell with Identity-Based Zero Trust</title>
+      <author></author>
+      <description>
+        <![CDATA[The best way to prevent scripting attacks, such as those that implement Python back doors or compromise PowerShell, is to implement identity-based zero trust. In a zero trust environment, IT treats the internal network as if it were the public internet, a place where nothing can be trusted, and anything can be a threat.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92300</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92300-preventing-scripting-attacks-on-powershell-with-identity-based-zero-trust</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/February/SEC0219-data-Feat-slide1_900px.jpg?1565104072" type="image/jpeg" length="120850"/>
+    </item>
+    <item>
+      <title>Goodbye and Good Luck, Laura</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>Laura Stepanek, Editor-in-Chief of SDM Magazine has retired. For 36 years, she was the face of SDM, and she has witnessed how new technology has changed the security industry. We wish the best for Laura in her well-deserved retirement.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92269</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92269-goodbye-and-good-luck-laura</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type="image/jpeg" length="42459"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type="image/jpeg" medium="image" fileSize="42459">
+        <media:title type="plain">SEC0520-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-slide2_900px.jpg?1588174859" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC0520-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>May 2020: Security Executives on the Move</title>
+      <description>
+        <![CDATA[<p>Which security executives have recently changed positions? Have you begun a new role? Email us at <a href="mailto:ritcheyd@bnpmedia.com">ritcheyd@bnpmedia.com</a>.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92267</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92267-may-2020-security-executives-on-the-move</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/on-the-move/On-the-Move_INTRO-slide-900x550px.jpg?1588167224" type="image/jpeg" length="99719"/>
+    </item>
+    <item>
+      <title>Senators to Introduce COVID-19 Consumer Data Protection Act</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>On April 30, 2020, a group of four Republican Senators&nbsp;announced their plan&nbsp;to introduce federal privacy legislation that would regulate the collection and use of personal information relating to the fight against the Coronavirus pandemic.&nbsp;How would&nbsp;the proposed bill, COVID-19 Consumer Data Protection Act, attempt to solve privacy concerns?&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92288</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92288-senators-to-introduce-covid-19-consumer-data-protection-act</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/coronavirus4_900.jpg?1584557556" type="image/jpeg" length="70270"/>
+    </item>
+    <item>
+      <title>Marc Gruzenski Joins The McLean Group to Lead its Security Practice</title>
+      <description>
+        <![CDATA[The McLean Group announced that Marc Gruzenski has joined the firm as Senior Managing Director. Gruzenski will lead the firm’s Security Practice focused on the cybersecurity, physical security and security risk management sectors.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92281</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92281-marc-gruzenski-joins-the-mclean-group-to-lead-its-security-practice</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Marc-Gruzenski.jpg?1588259691" type="image/jpeg" length="40708"/>
+    </item>
+    <item>
+      <title>War at Home: How U.S. Corporations are on the Front Lines of the Silent War on Privacy</title>
+      <author></author>
+      <description>
+        <![CDATA[The four individuals who were identified and indicted by the Trump Administration in relation to the Equifax breach from 2017 is yet another example of the overt collection efforts by the Chinese government to steal Americans’ sensitive personal information. The openness of the U.S. government to share these examples should help bring the reality of cyber threats to the forefront in corporate board rooms and research universities. I would like to highlight that these particular attacks were conducted for a different goal – espionage.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92280</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92280-war-at-home-how-us-corporations-are-on-the-front-lines-of-the-silent-war-on-privacy</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2017/code2-900.jpg?1558626086" type="image/jpeg" length="166043"/>
+    </item>
+    <item>
+      <title>COVID-19 and Enterprise Security's Response</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>What challenges has COVID-19 presented to enterprise security, how did business continuity plans evolve and what lessons have enterprise security learned?</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92254</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92254-covid-19-and-enterprise-securitys-response</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-Feat-slide1_900px.jpg?1588088008" type="image/jpeg" length="71352"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-Feat-slide1_900px.jpg?1588088008" type="image/jpeg" medium="image" fileSize="71352">
+        <media:title type="plain">SEC0520-cover-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide2_900px.jpg?1588088565" type="image/jpeg" medium="image" fileSize="42898">
+        <media:title type="plain">SEC0520-cover-slide2_900px</media:title>
+        <media:description type="plain">&amp;ldquo;Grace and empathy are at an all-time high, which is refreshing considering the challenge of being more digitally dependent.&amp;nbsp;Our people&amp;rsquo;s ability to learn real-time lessons and execute quickly has become a competitive advantage,&amp;rdquo; says Steve Antoine, Director, Global Assets Protection for Yum! Brands.&amp;nbsp;
+
+Photo courtesy of Steve Antoine
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide3_900px.jpg?1588088614" type="image/jpeg" medium="image" fileSize="42327">
+        <media:title type="plain">SEC0520-cover-slide3_900px</media:title>
+        <media:description type="plain">&amp;ldquo;We implemented a mandatory work from home policy globally for our workforce for those who can do their jobs from home as well as restrictions on business travel, visitor access, workplace and in-person meetings,&amp;rdquo; says Amy Lyons, Vice President Corporate Security and CSO for Bristol-Myers Squibb Company.&amp;nbsp;
+
+Photo courtesy of Amy Lyons</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide4_900px.jpg?1588088663" type="image/jpeg" medium="image" fileSize="34645">
+        <media:title type="plain">SEC0520-cover-slide4_900px</media:title>
+        <media:description type="plain">At Bridgestone Americas, corporate employees throughout the Americas, except for those whose business-critical roles prevent it, are working from home, says Margaret J. Levine, Vice-President, Corporate Security. &amp;ldquo;Having a plant and sales office in China enabled us to anticipate challenges and prepare early for the virus&amp;rsquo; impact in the Americas,&amp;rdquo; she adds. &amp;ldquo;We planned for a demand surge on our IT network, reviewed all business continuity plans to ensure critical processes could be executed remotely and tested our crisis communications tool.&amp;rdquo;&amp;nbsp;
+
+Photo courtesy of Margaret Levine
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cover/SEC0520-cover-slide5_900px.jpg?1588088722" type="image/jpeg" medium="image" fileSize="25750">
+        <media:title type="plain">SEC0520-cover-slide5_900px</media:title>
+        <media:description type="plain">&amp;ldquo;Teamwork has been essential for our business continuity plans and operational responses to be effective and efficient,&amp;rdquo; says Bob Messemer, CSO for Nielsen Holdings. &amp;ldquo;What I have enjoyed seeing these past several months is how several members of our team have exhibited great leadership and accomplished amazing results resulting in a new appreciation for our security team members from the newer corporate executives.&amp;rdquo;&amp;nbsp;
+
+Photo courtesy of Bob Messemer
+</media:description>
+      </media:content>
+    </item>
+    <item>
+      <title>DECADE OF THE RATs: Novel Cross-Platform APT Attacks Targeting Linux Windows and Android </title>
+      <author></author>
+      <description>
+        <![CDATA[<p>As China forges its role as one of the great world powers, it relies upon a blast furnace of espionage operations to acquire foreign technologies and intellectual property, better position itself against competing international powers and control its own image both at home and abroad.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92253</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92253-decade-of-the-rats-novel-cross-platform-apt-attacks-targeting-linux-windows-and-android</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type="image/jpeg" length="154459"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type="image/jpeg" medium="image" fileSize="154459">
+        <media:title type="plain">SEC0520-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-slide2_900px.jpg?1588087423" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC0520-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Intelligent Succession Planning for Security Careers</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[What are some key areas to consider when you are constructing a strategy to address your successor and the replacement of other positions within your direct and functional organization?]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92252</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92252-intelligent-succession-planning-for-security-careers</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" type="image/jpeg" length="81171"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" type="image/jpeg" medium="image" fileSize="81171">
+        <media:title type="plain">SEC0520-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-slide2_900px.jpg?1588086989" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC0520-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Servant Leader? Now's the Time to Prove It</title>
+      <description>
+        <![CDATA[<p>&quot;No one knows.&quot; We keep hearing that phrase. But, it&#39;s up to security professionals, healthcare workers and public safety officers to truly inhabit many leadership titles during COVID-19.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92251</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92251-servant-leader-nows-the-time-to-prove-it</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" type="image/jpeg" length="43551"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" type="image/jpeg" medium="image" fileSize="43551">
+        <media:title type="plain">SEC0520-leadership-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-slide2_900px.jpg?1588086509" type="image/jpeg" medium="image" fileSize="58154">
+        <media:title type="plain">SEC0520-leadership-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Disruptively Affordable Cloud Storage Saves Lives and Enhances Video Surveillance Security </title>
+      <description>
+        <![CDATA[In the video surveillance world, data is growing rapidly due to the proliferation of surveillance cameras in both public and private spaces, the increased use of police body cameras and dash cams, and ever higher-resolution on all of these. In the U.S. alone, the surveillance marketplace is expected to grow to $68 billion by 2023.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92278</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92278-disruptively-affordable-cloud-storage-saves-lives-and-enhances-video-surveillance-security</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2018/cloud-900-cyber.jpg?1519933374" type="image/jpeg" length="133358"/>
+    </item>
+    <item>
+      <title>Protecting VPNs from DDoS Attacks in the Age of Remote Work</title>
+      <author></author>
+      <description>
+        <![CDATA[As a result of the COVID-19 pandemic, more people than ever are working remotely. Because of this recent and rapid transition, users are accessing corporate resources from their homes and generating unprecedented amounts of network traffic. IT departments face increased pressure to ensure business continuity by providing remote users with access to essential corporate applications and services through Virtual Private Networks (VPNs), which are designed to provide access to private networks through shared or public networks.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92276</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92276-protecting-vpns-from-ddos-attacks-in-the-age-of-remote-work</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/May/Strong-Cybersecurity-Lifecycle-Management-Security-Magazine.jpg?1576855431" type="image/jpeg" length="97332"/>
+    </item>
+    <item>
+      <title>IACLEA Elects New Association Leaders </title>
+      <description>
+        <![CDATA[<p>The International Association of Campus Law Enforcement Administrators (IACLEA) recently elected new members to its Board of Directors.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92275</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92275-iaclea-elects-new-association-leaders</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Header_IACLEA_badge.jpg?1588245820" type="image/jpeg" length="201348"/>
+    </item>
+    <item>
+      <title>Preparing for the Long-Term Impacts of COVID-19</title>
+      <description>
+        <![CDATA[While much has been written about the rapid worldwide growth of COVID-19 and the ways it is transforming daily life, there have been comparatively fewer discussions on where it will lead longer term.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92271</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92271-preparing-for-the-long-term-impacts-of-covid-19</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/corona05_500.jpg?1585067391" type="image/jpeg" length="55537"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/images/corona05_500.jpg?1585067391" type="image/jpeg" medium="image" fileSize="55537">
+        <media:title type="plain">coronavirus</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/COVID-19-Cases-Graph.jpg?1588180245" type="image/jpeg" medium="image" fileSize="93325">
+        <media:title type="plain">COVID-19 Cases Graph</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Unemployment-Claims-Graph.jpg?1588180278" type="image/jpeg" medium="image" fileSize="120965">
+        <media:title type="plain">Unemployment claims</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>John Jay College Cyber-Terrorism Project Selected for New Homeland Security Center of Excellence</title>
+      <description>
+        <![CDATA[<p>A John Jay College of Criminal Justice project on cyber-terrorism is one of 13 selected by&nbsp;the&nbsp;<a href="https://www.dhs.gov/science-and-technology/news/2020/02/24/news-release-dhs-selects-university-nebraska-omaha-lead-terrorism-research" rel="noopener noreferrer" target="_blank">Department of Homeland Security</a>&nbsp;as part of the National Counterterrorism Innovation, Technology, and Education (NCITE) Center, a new DHS Center of Excellence. The project will be housed at the University of Nebraska at Omaha.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92266</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92266-john-jay-college-cyber-terrorism-project-selected-for-new-homeland-security-center-of-excellence</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2019/Hacker_900.jpg?1559158004" type="image/jpeg" length="60756"/>
+    </item>
+    <item>
+      <title>Brian Phillips Named Director of Global Security Strategy at Traction Guest</title>
+      <description>
+        <![CDATA[<p>Traction Guest, a leader in cloud-based solutions for enterprise visitor management systems (VMS), announced <a href="https://cts.businesswire.com/ct/CT?id=smartlink&amp;url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fbrianphillipscpp%2F&amp;esheet=52211594&amp;newsitemid=20200429005231&amp;lan=en-US&amp;anchor=Brian+Phillips&amp;index=1&amp;md5=f9852b6b35c0317d44b65b5673f0f812" rel="nofollow" shape="rect" target="—blank">Brian Phillips</a> as director of Global Security Strategy.&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92265</guid>
+      <pubDate>Thu, 30 Apr 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92265-brian-phillips-named-director-of-global-security-strategy-at-traction-guest</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/Brian-Phillips.jpg?1588173111" type="image/jpeg" length="12677"/>
+    </item>
+  </channel>
+</rss><? xml version = "1.0" encoding = "UTF-8"?>
+<rss version = "2.0" xmlns: media = "http://search.yahoo.com/mrss/">
+  <channel>
+    <title> การจัดการ </ title>
+    <รายละเอียด>
+      <! [CDATA [โซลูชั่นสำหรับความเป็นผู้นำและการจัดการองค์กรด้านความปลอดภัยเพื่อเปิดใช้งานธุรกิจ ]]>
+    </ รายละเอียด>
+    <link> https://www.securitymagazine.com/rss/2786 </ link>
+    <ภาษา> en-US </ ภาษา>
+    <item>
+      <title> CISA เปิดตัว SAFECOM เว็บไซต์การสื่อสารฉุกเฉินความปลอดภัยสาธารณะใหม่ </title>
+      <รายละเอียด>
+        <! [CDATA [หน่วยงานรักษาความปลอดภัยทางไซเบอร์และโครงสร้างพื้นฐาน (CISA) ได้เปิดตัวเว็บไซต์การสื่อสารฉุกเฉินด้านความปลอดภัยสาธารณะใหม่เพื่อโฮสต์ทรัพยากรที่สร้างขึ้นโดย SAFECOM, ผู้ประสานงานการทำงานร่วมกันระหว่างสภาแห่งรัฐ (NCSWIC) และ Federal Partnership for Interoperable Communications ) ]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92346 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 11:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92346-cisa-launches-safecom-new-public-safety-emergency-communications-website </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2017/April/SEC0417-airports-slide3_900px.jpg?1568387123" type = "image / jpeg" length = "100090" />
+    </ item>
+    <item>
+      <title> การตัดสินใจอัตโนมัติในการดำเนินงานด้านความปลอดภัยนำความโปร่งใสและความน่าเชื่อถือมาสู่ AI </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [เช่นเดียวกับ buzzwords อุตสาหกรรมอื่น ๆ มีการขัดเกลาความปลอดภัยอัตโนมัติเป็นจำนวนมาก แต่สำหรับแนวป้องกันแรกในสภาพแวดล้อมขององค์กรนักวิเคราะห์ที่ทำงานในศูนย์ปฏิบัติการรักษาความปลอดภัย (SOC) ความคิดเรื่องระบบอัตโนมัตินั้นมีความสำคัญมากกว่าความเป็นจริง งานพื้นฐานหลายอย่าง - การบันทึกการแยกความผิดการรายงานและการแก้ไขปัญหา - ยังคงเป็นคู่มืออยู่มาก]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92342 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 02:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92342-decision-automation-in-security-operations-brings-transparency-and-trust-to-ai </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2019/May/SEC0519-Cyber-Feat-slide1_900px.jpg?1556563530" type = "image / jpeg" length = "68667" / >
+    </ item>
+    <item>
+      <title> 4 บทเรียนการรักษาความปลอดภัยบนโลกไซเบอร์จากแนวหน้าของการเตรียมการแพร่ระบาดอย่างรวดเร็ว </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [สิบปีที่ผ่านมาฉันช่วยสร้างแผนการแพร่ระบาดทั่วประเทศโดยสรุปว่าสหราชอาณาจักรจะรับมือกับการระบาดของโรคอย่างไร ในขณะที่การออกกำลังกายเป็นส่วนใหญ่ตามทฤษฎีเรากำลังเห็นความจำเป็นในการเตรียมการเหล่านี้ในเวลาจริง นี่คือบทเรียนสำคัญสี่ข้อจากเวลาที่ฉันเตรียมรับมือกับการระบาดใหญ่]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92341 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 01:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92341-cybersecurity-lessons-from-the-front-lines-of-pandemic-preparation </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2015/0515/SEC0515-edu-feature-slide1_900px.jpg?1435696534" type = "image / jpeg" length = "125784" / >
+    </ item>
+    <item>
+      <title> แนวทางปฏิบัติที่ดีที่สุดเพื่อช่วยให้ทีมออนไลน์ปลอดภัยอยู่เสมอ </title>
+      <รายละเอียด>
+        <! [CDATA [<p> วิธีที่ดีที่สุดในการปกป้องบัญชีและข้อมูลจากการบรรจุข้อมูลประจำตัวและการโจมตีฟิชชิ่งออนไลน์คือการหยุดการนำรหัสผ่านเดิมมาใช้ซ้ำในหลายบัญชี บัญชีทั้งหมด & mdash; แต่โดยเฉพาะบัญชีที่เกี่ยวข้องกับงานค้าปลีกการเงินและรัฐบาล & ควรได้รับการป้องกันด้วยรหัสผ่านที่แข็งแกร่งและไม่ซ้ำใคร อะไรคือแนวทางปฏิบัติที่ดีบางประการเพื่อให้แน่ใจว่าพนักงานปลอดภัยกว่าออนไลน์ </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92339 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 01:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92339-best-practices-to-help-teams-stay-safe-online </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2017/March/SEC0317-awaware-feat-slide1_900px.jpg?1488306105" type = "image / jpeg" length = "60860" >
+    </ item>
+    <item>
+      <title> การโจมตีโดยใช้ข้อมูลประจำตัวเพิ่มขึ้นเมื่อข้อมูลรับรองที่เปิดเผยกลายเป็นความใกล้ชิดมากขึ้น </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [การป้องกันการโจมตีโดยใช้ข้อมูลระบุตัวตนเช่นการฉ้อโกงการครอบครองบัญชี (ATO) และการประนีประนอมอีเมล์ทางธุรกิจ (BEC) เริ่มต้นด้วยการรักษาความปลอดภัยข้อมูลส่วนบุคคลของคุณ (PII) แต่สิ่งนี้ดูเหมือนจะยากขึ้น ]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92340 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92340-identity-based-attacks-proliferate-as-exposed-credentials-become-more-intimate </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/secenews/cyber-900.jpg?1555969988" type = "image / jpeg" length = "222913" />
+    </ item>
+    <item>
+      <title> Benchtop NMR - การระบุสิ่งไม่ทราบในการทดสอบทางนิติเวช </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> การทดสอบยาเสพติดที่ผิดกฎหมายเป็นการต่อสู้ที่ต่อเนื่อง เพื่อลดการระบาดของ opioid การตรวจจับและระบุตัวยาที่ผิดกฎหมายอย่างรวดเร็วจึงเป็นสิ่งสำคัญสำหรับความปลอดภัยของมหาวิทยาลัยเจ้าหน้าที่ตำรวจและผู้ตรวจสอบทางอาญา </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92296 </ GUID>
+      <pubDate> วันศุกร์ที่ 08 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92296-benchtop-nmr---identifying-the-unknown-in-forensic-drug-testing </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-Feat-slide1_900px.jpg?1588597630" type = "image / jpeg" length = "59362" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-Feat-slide1_900px.jpg?1588597630" ประเภท = "รูปภาพ / jpeg" medium = "image" fileSize = "59362">
+        <media: title type = "plain"> SEC0520-drug-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Drug-Crisis/SEC0520-drug-slide2_900px.jpg?1588597680" type = "image / jpeg" ปานกลาง = "image" fileSize = "38512">
+        <media: title type = "plain"> SEC0520-drug-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> รายงานความปลอดภัยของ Panda: Ransomware & amp; การโจมตีที่ไร้ความกังวลเป็นปัญหาที่เพิ่มขึ้น </title>
+      <รายละเอียด>
+        <! [CDATA [<p> Panda Security Threat Report 2020 รายงานที่รวบรวมโดย PandaLabs & ndash; & nbsp; ห้องปฏิบัติการป้องกันมัลแวร์และศูนย์ปฏิบัติการด้านความปลอดภัย (SOC) & nbsp; & ndash; ส่องสว่าง & nbsp; แนวโน้มที่เกิดขึ้นใหม่ในพื้นที่ความปลอดภัยทางโลกไซเบอร์ </ p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92336 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:57:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92336-panda-security-report-ransomware-fileless-attacks-are-still-growing-concern </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/SEC/2017/March/SEC0317-cover-feat-slide1_900px.jpg?1488311736" type = "image / jpeg" length = "91320" >
+    </ item>
+    <item>
+      <title> คุณพร้อมสำหรับการโจมตี DDoS 26 ประเภทเหล่านี้หรือไม่ </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> แม้ว่าการปฏิเสธการให้บริการแบบกระจาย (DDoS) เป็นเว็กเตอร์โจมตีโรงเรียนเก่า แต่ก็ยังคงเป็นภัยคุกคามร้ายแรงต่อองค์กร จำนวนการโจมตีดังกล่าว & nbsp; รายเดือนเกิน 400,000 อาชญากรไซเบอร์ยังคงเพิ่มกลไก DDoS ใหม่ให้กับเพลงและผู้ให้บริการด้านความปลอดภัยไม่พร้อมที่จะรับมือพวกเขาเสมอ นี่คือ DDoS 26 ประเภทที่โจมตีทีมรักษาความปลอดภัยของคุณต้องพร้อม & nbsp; </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92327 </ GUID>
+      <pubDate> พฤหัสบดี 7 พฤษภาคม 2020 12:02:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92327-are-you-ready-for-these-26-different-types-of-ddos-attacks </ link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2018/cyberthreat_900.jpg?1544124914" type="image/jpeg" length="39872"/>
+    </item>
+    <item>
+      <title>The Building of a Cyber Resilient Financial Services Sector</title>
+      <author></author>
+      <description>
+        <![CDATA[As we enter the new decade, we stand reminded that technological innovation and cybersecurity threats continue to develop and evolve at an incredible pace. Firms must therefore continue to build the proper defenses to protect consumer confidential data and financial market integrity. Cyber threats have become one of the top threats to the financial services sector and the ability of firms to be resilient in the face of these threats is paramount. ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92329</guid>
+      <pubDate>Thu, 07 May 2020 12:01:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92329-the-building-of-a-cyber-resilient-financial-services-sector</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2019/financial_900.jpg?1554910386" type="image/jpeg" length="63327"/>
+    </item>
+    <item>
+      <title>Online Privacy During a Pandemic: New Challenges in a New World</title>
+      <author></author>
+      <description>
+        <![CDATA[More companies are doing more business online to survive the pandemic, and that’ll create even more data privacy concerns going forward. At the same time, new privacy regulations have taken hold, most notably the California Consumer Privacy Act. What are 5 steps to achieve compliance?]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92328</guid>
+      <pubDate>Thu, 07 May 2020 12:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92328-online-privacy-during-pandemic-new-challenges-in-a-new-world</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Default-images/Responsive-Defaults/SEC0220-cyber-Feat-slide1_900px.jpg?1580653432" type="image/jpeg" length="144511"/>
+    </item>
+    <item>
+      <title>The Human Strategy is the Best Cyber Defense to Combat COVID-19</title>
+      <author></author>
+      <description>
+        <![CDATA[COVID-19 has impacted every facet of life and business. Millions of people around the world have been working from home to collectively slow the spread of the coronavirus. However, as the global workforce migrates from physical corporate locations to less-secure home offices, this new reality creates increased cyber threats, as employees exchange what can be sensitive data in order to prevent business operations from coming to a standstill.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92332</guid>
+      <pubDate>Thu, 07 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92332-the-human-strategy-is-the-best-cyber-defense-to-combat-covid-19</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2019/cybersecurity-3.jpg?1575580243" type="image/jpeg" length="60153"/>
+    </item>
+    <item>
+      <title>53% of People Admit They Reuse the Same Password for Multiple Accounts</title>
+      <description>
+        <![CDATA[<p>Password reuse remains rampant: 53% of people admitting they use the same password for different accounts, according to a SecureAuth report.&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92331</guid>
+      <pubDate>Thu, 07 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92331-of-people-admit-they-reuse-the-same-password-for-multiple-accounts</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/April/Password-Pain-Multi-Factor-Authentication-Security-Magazine.jpg?1570632300" type="image/jpeg" length="64199"/>
+    </item>
+    <item>
+      <title>Is Passwordless Authentication the Future?</title>
+      <description>
+        <![CDATA[Each year on the first Thursday in May, World Password Day promotes better password habits. ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92330</guid>
+      <pubDate>Thu, 07 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92330-is-passwordless-authentication-the-future</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/password-900.jpg?1557763097" type="image/jpeg" length="86091"/>
+    </item>
+    <item>
+      <title>What Elements add the Most Value to Security Leaders?</title>
+      <description>
+        <![CDATA[If you could choose three things that would enhance your security program, which three would you choose? In a new poll, the Security Executive Council  (SEC) wanted to find out what elements would add the most value to security leaders and their teams.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92326</guid>
+      <pubDate>Thu, 07 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92326-what-elements-add-the-most-value-to-security-leaders-and-their-teams</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/April/Vendor-Risk-Management-Program-Security-Magazine.jpg?1521736467" type="image/jpeg" length="72811"/>
+    </item>
+    <item>
+      <title>IBM's Top 35 Women Leaders Shaping the Future of Artificial Intelligence</title>
+      <description>
+        <![CDATA[IBM unveiled its list of Women Leaders in AI.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92325</guid>
+      <pubDate>Thu, 07 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92325-ibms-top-35-women-leaders-shaping-the-future-of-artificial-intelligence</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2017/split-900.jpg?1557422859" type="image/jpeg" length="99659"/>
+    </item>
+    <item>
+      <title>Biometric Data: Increased Security and Risks</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>Biometrics has the potential to make authentication faster, easier and more secure, as long as it is handled with due care. Based on this, what can companies and governments do to offer a safer digital environment for consumers?</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92319</guid>
+      <pubDate>Wed, 06 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92319-biometric-data-increased-security-and-risks</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/biometrics-1.jpg?1588720396" type="image/jpeg" length="620693"/>
+    </item>
+    <item>
+      <title>91% of People Know Password Reuse is Insecure, Yet 75% do it Anyway</title>
+      <description>
+        <![CDATA[<p>Data from a new LastPass survey&nbsp;shows that 91%&nbsp;of people know that using the same password on multiple accounts is a security risk, yet 66% continue to use the same password anyway.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92318</guid>
+      <pubDate>Wed, 06 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92318-of-people-know-password-reuse-is-insecure-yet-75-do-it-anyway</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2018/March/Forget-Change-Password-Security-Magazine.jpg?1519756386" type="image/jpeg" length="38569"/>
+    </item>
+    <item>
+      <title>Risk Ledger Report: Impact of the COVID-19 Crisis on Supply Chain Security</title>
+      <description>
+        <![CDATA[Risk Ledger, London-based cybersecurity company, part of the UK's Government's LORCA program, has produced a white paper designed to guide professionals who manage supply chain risks on how to tackle the situation. ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92317</guid>
+      <pubDate>Wed, 06 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92317-risk-ledger-report-impact-of-the-covid-19-crisis-on-supply-chain-security</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/Risk-Ledger.jpg?1588717879" type="image/jpeg" length="163162"/>
+    </item>
+    <item>
+      <title>76% of Cybersecurity Leaders Face Skills Shortage</title>
+      <description>
+        <![CDATA[The latest findings of the Stott and May Cyber Security in Focus research reveal that leaders are still struggling with the skills gap and access to talent. Most respondents (76 percent) believe there is a shortage of cybersecurity skills in their company.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92312</guid>
+      <pubDate>Wed, 06 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92312-of-cybersecurity-leaders-face-skills-shortage</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2017/March/SEC0317-edu-feat-slide1_900px.jpg?1564758433" type="image/jpeg" length="95129"/>
+    </item>
+    <item>
+      <title>Chris Hallenbeck: A Path of Security Leadership and Operational Insight</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>Chris Hallenbeck, CISO for the Americas at Tanium, has led security and IT operations, incident response, endpoint detection and built and deployed teams for incidents of national security. What initiatives has he implemented as a CISO, and how does he gauge the success of his team?</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92270</guid>
+      <pubDate>Wed, 06 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92270-chris-hallenbeck-a-path-of-security-leadership-and-operational-insight</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type="image/jpeg" length="102567"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-Feat-slide1_900px.jpg?1588187660" type="image/jpeg" medium="image" fileSize="102567">
+        <media:title type="plain">SEC0520-profile-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Profile-Excellence/SEC0520-profile-slide2_900px.jpg?1588187833" type="image/jpeg" medium="image" fileSize="67630">
+        <media:title type="plain">SEC0520-profile-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Digital Shadows Report: Competitions on English-Language Cybercriminal Forums</title>
+      <description>
+        <![CDATA[<p>In contrast to the competitions on Russian-language cybercriminal forums profiled previously by Digital Shadows, how are competitions on English-language cybercriminal forums more generally &quot;innocent&quot;?&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92310</guid>
+      <pubDate>Tue, 05 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92310-digital-shadows-report-competitions-on-english-language-cybercriminal-forums</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/SEC/2016/0916/SEC0916-cyber-feature-slide1_900px.jpg?1472154141" type="image/jpeg" length="174568"/>
+    </item>
+    <item>
+      <title>Reopening Guidance for Public Spaces, Workplaces, Businesses, Schools </title>
+      <description>
+        <![CDATA[The US Centers for Disease Control and Prevention has drafted a 17-page document that details interim guidance on how businesses, schools, churches, mass transit and other organizations should handle safely reopening to the public amid the coronavirus pandemic.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92307</guid>
+      <pubDate>Tue, 05 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92307-reopening-guidance-for-public-spaces-workplaces-businesses-schools</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/corona06_500.jpg?1585067402" type="image/jpeg" length="80885"/>
+    </item>
+    <item>
+      <title>What's Next: The Future of Big Cybersecurity Conferences</title>
+      <author></author>
+      <description>
+        <![CDATA[The old curse has come true: we are “living in interesting times.” None of us could have possibly foreseen the way that 2020 has evolved, least of all, conference professionals. Gartner says it’s taking a $158 million hit in its Q2 revenues; O’Reilly went one huge step further, permanently shuttering its in-person events business. Aside from those gatherings, an entire slew of security meetings has moved into the virtual realm. In-person conferences during the pandemic are seen as being too hazardous and unsafe. It's now better to meet online than to risk spreading the virus.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92304</guid>
+      <pubDate>Tue, 05 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92304-whats-next-the-future-of-big-cybersecurity-conferences</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-cyber-Feat-slide1_900px.jpg?1585704237" type="image/jpeg" length="23892"/>
+    </item>
+    <item>
+      <title>Preventing Scripting Attacks on Powershell with Identity-Based Zero Trust</title>
+      <author></author>
+      <description>
+        <![CDATA[The best way to prevent scripting attacks, such as those that implement Python back doors or compromise PowerShell, is to implement identity-based zero trust. In a zero trust environment, IT treats the internal network as if it were the public internet, a place where nothing can be trusted, and anything can be a threat.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92300</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92300-preventing-scripting-attacks-on-powershell-with-identity-based-zero-trust</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/February/SEC0219-data-Feat-slide1_900px.jpg?1565104072" type="image/jpeg" length="120850"/>
+    </item>
+    <item>
+      <title>Goodbye and Good Luck, Laura</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>Laura Stepanek, Editor-in-Chief of SDM Magazine has retired. For 36 years, she was the face of SDM, and she has witnessed how new technology has changed the security industry. We wish the best for Laura in her well-deserved retirement.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92269</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92269-goodbye-and-good-luck-laura</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type="image/jpeg" length="42459"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-Feat-slide1_900px.jpg?1588174650" type="image/jpeg" medium="image" fileSize="42459">
+        <media:title type="plain">SEC0520-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/Security-Talk/SEC0520-talk-slide2_900px.jpg?1588174859" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC0520-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>May 2020: Security Executives on the Move</title>
+      <description>
+        <![CDATA[<p>Which security executives have recently changed positions? Have you begun a new role? Email us at <a href="mailto:ritcheyd@bnpmedia.com">ritcheyd@bnpmedia.com</a>.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92267</guid>
+      <pubDate>Mon, 04 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92267-may-2020-security-executives-on-the-move</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/May/on-the-move/On-the-Move_INTRO-slide-900x550px.jpg?1588167224" type="image/jpeg" length="99719"/>
+    </item>
+    <item>
+      <title>Opening the Doors to Deadly COVID-19 Outcomes</title>
+      <author></author>
+      <description>
+        <![CDATA[Companies, sites and venues must re-budget and re-equip their premises that will host human traffic with the reopening of the economies. The vulnerability landscape has changed dramatically where a company or site cannot afford to have an infected person in their location.]]>
+      </description>
+      <guid>http://www.securitymagazine.com/blogs/14/post/92291</guid>
+      <pubDate>Sat, 02 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/blogs/14-security-blog/post/92291-opening-the-doors-to-deadly-covid-19-outcomes</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/coronavirus-1.jpg?1587415171" type="image/jpeg" length="196004"/>
+    </item>
+    <item>
+      <title>Senators to Introduce COVID-19 Consumer Data Protection Act</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>On April 30, 2020, a group of four Republican Senators&nbsp;announced their plan&nbsp;to introduce federal privacy legislation that would regulate the collection and use of personal information relating to the fight against the Coronavirus pandemic.&nbsp;How would&nbsp;the proposed bill, COVID-19 Consumer Data Protection Act, attempt to solve privacy concerns?&nbsp;</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92288</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92288-senators-to-introduce-covid-19-consumer-data-protection-act</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/coronavirus4_900.jpg?1584557556" type="image/jpeg" length="70270"/>
+    </item>
+    <item>
+      <title>Automatic Number-Plate Recognition System Exposes 9 Million Records</title>
+      <description>
+        <![CDATA[Sheffield City Council's automatic number-plate recognition (ANPR) system in the UK exposed 8.6 million records of road journeys made by thousands of people, The Register reports. ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92287</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92287-automatic-number-plate-recognition-system-exposes-9-million-records</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/secenews/2019/license-plate.jpg?1560284451" type="image/jpeg" length="709763"/>
+    </item>
+    <item>
+      <title>Bryan MacDonald Promoted to Vice President of Information Services at Schweitzer Engineering Laboratories</title>
+      <description>
+        <![CDATA[Bryan MacDonald has been promoted to Vice President of Information Services at Schweitzer Engineering Laboratories (SEL). ]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/92286</guid>
+      <pubDate>Fri, 01 May 2020 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/92286-bryan-macdonald-promoted-to-vice-president-of-information-services-at-schweitzer-engineering-laboratories</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/images/Bryan-MacDonald.jpg?1588269184" type="image/jpeg" length="190859"/>
+    </item>
+  </channel>
+</rss><? xml version = "1.0" encoding = "UTF-8"?>
+<rss version = "2.0" xmlns: media = "http://search.yahoo.com/mrss/">
+  <channel>
+    <title> คอลัมน์ </ title>
+    <รายละเอียด>
+      <! [CDATA [เพื่อมุมมองที่เป็นส่วนตัวยิ่งขึ้นของอุตสาหกรรมให้ทำตามทีมผู้เชี่ยวชาญด้านการมีส่วนร่วมของเราในขณะที่พวกเขาตรวจสอบกลยุทธ์การเฝ้าระวังความปลอดภัยระหว่างประเทศและอื่น ๆ ]]>
+    </ รายละเอียด>
+    <link> https://www.securitymagazine.com/rss/2644 </ link>
+    <ภาษา> en-US </ ภาษา>
+    <item>
+      <title> การลดระดับของแรต: การโจมตี APT ข้ามแพลตฟอร์มที่กำหนดเป้าหมายเป็น Linux Windows และ Android </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        <! [CDATA [<p> ในขณะที่จีนหล่อหลอมบทบาทของตนเป็นหนึ่งในมหาอำนาจที่ยิ่งใหญ่ของโลกมันต้องอาศัยการปฏิบัติการจารกรรมระเบิดเพื่อรับเทคโนโลยีและทรัพย์สินทางปัญญาจากต่างประเทศวางตำแหน่งตัวเองกับอำนาจระหว่างประเทศที่แข่งขันและควบคุมภาพลักษณ์ของตนเอง ทั้งที่บ้านและต่างประเทศ </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92253 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92253-decade-of-the-rats-novel-cross-platform-apt-attacks-targeting-linux-windows-and-android </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type = "image / jpeg" length = "154459" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-Feat-slide1_900px.jpg?1588087340" type = "รูปภาพ / jpeg" medium = "image" fileSize = "154459">
+        <media: title type = "plain"> SEC0520-cyber-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Cyber-Tactics/SEC0520-cyber-slide2_900px.jpg?1588087423" type = "image / jpeg" ปานกลาง = "image" fileSize = "49817">
+        <media: title type = "plain"> SEC0520-cyber-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> การวางแผนการสืบทอดตำแหน่งอัจฉริยะสำหรับตำแหน่งงานด้านความปลอดภัย </title>
+      <author> jerry@smrgroup.com (Jerry J Brennan) </author>
+      <รายละเอียด>
+        <! [CDATA [อะไรคือประเด็นสำคัญที่ควรพิจารณาเมื่อคุณสร้างกลยุทธ์เพื่อจัดการกับตำแหน่งของคุณและการเปลี่ยนตำแหน่งอื่น ๆ ภายในองค์กรโดยตรงและในหน้าที่การทำงานของคุณ?]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92252 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92252-intelligent-succession-planning-for-security-careers </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" type = "รูปภาพ / jpeg" length = "81171" />
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-Feat-slide1_900px.jpg?1588086873" ประเภท = "รูปภาพ / jpeg" medium = "image" fileSize = "81171">
+        <media: title type = "plain"> SEC0520-career-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Career-Intelligence/SEC0520-career-slide2_900px.jpg?1588086989" ประเภท = "รูปภาพ / jpeg" ปานกลาง = "image" fileSize = "51440">
+        <media: title type = "plain"> SEC0520-Career-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ผู้นำของเซิร์ฟเวอร์ ถึงเวลาพิสูจน์แล้ว </title>
+      <รายละเอียด>
+        <! [CDATA [<p> & quot; ไม่มีใครรู้ & quot; เราได้ยินถ้อยคำนั้นตลอด แต่ขึ้นอยู่กับผู้เชี่ยวชาญด้านความปลอดภัยบุคลากรทางการแพทย์และเจ้าหน้าที่ความปลอดภัยสาธารณะที่จะอยู่ในตำแหน่งผู้นำมากมายระหว่าง COVID-19 </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92251 </ GUID>
+      <pubDate> วันศุกร์ที่ 01 พฤษภาคม 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92251-servant-leader-nows-the-time-to-prove-it </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" type = "image / jpeg" length = "43551 "/>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-Feat-slide1_900px.jpg?1588086470" ประเภท = "รูปภาพ / jpeg" ปานกลาง = "image" fileSize = "43551">
+        <media: title type = "plain"> SEC0520-leadership-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/May/Leadership/SEC0520-leadership-slide2_900px.jpg?1588086509" type = "image / jpeg" medium = "image "fileSize =" 58154 ">
+        <media: title type = "plain"> SEC0520-leadership-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> คำตอบแรกและสุขภาพจิต </title>
+      <author> ritcheyd@bnpmedia.com (Diane Ritchey) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> หลังจากได้รับเหตุการณ์ที่กระทบกระเทือนจิตใจนับไม่ถ้วนผู้เผชิญเหตุคนแรกมักต่อสู้กับโรค PTSD และโรคทางจิต นอกเหนือจากการขยายผลประโยชน์ทดแทนเพื่อชดเชยแรงงานแล้วเราสามารถทำอะไรได้อีกเพื่อช่วยผู้เผชิญเหตุก่อน </ p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92061 </ GUID>
+      <pubDate> ศุกร์ 3 เมษายน 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92061-first-responders-and-mental-health </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-talk-Feat-slide1_900px.jpg?1585849793" ประเภท = "image / jpeg" length = "71175" / >
+    </ item>
+    <item>
+      <title> ผลของการศึกษาต่อในอาชีพการรักษาความปลอดภัยของคุณ </title>
+      <author> jerry@smrgroup.com (Jerry J Brennan) </author>
+      <รายละเอียด>
+        <! [CDATA [ผู้บริหารความปลอดภัยในปัจจุบันต้องขยายความเฉียบแหลมทางธุรกิจและพัฒนาทักษะองค์กรและความสามารถในวงกว้างเพื่อที่จะได้รับการยกย่องว่าเป็นส่วนหนึ่งของทีมผู้นำ]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/92035 </ GUID>
+      <pubDate> พุธ, 01 เมษายน 2020 00:00:00 -0400 </pubDate>
+      <link> https://www.securitymagazine.com/articles/92035-the-effect-of-continued-education-on-your-security-career </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-career-Feat-slide1_900px.jpg?1585703464" ประเภท = "image / jpeg" length = "61370" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-career-Feat-slide1_900px.jpg?1585703464" type = "image / jpeg" medium = "image "fileSize =" 61370 ">
+        <media: title type = "plain"> SEC0420-career-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/April/SEC0420-career-slide2_900px.jpg?1585703572" type = "image / jpeg" medium = "image" fileSize = "51440">
+        <media: title type = "plain"> SEC0420-Career-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> 4 คุณลักษณะความเป็นผู้นำที่จำเป็นต่ออาชีพของคุณ </title>
+      <author> jerry@smrgroup.com (Jerry J Brennan) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> ความคิดคนผลและคุณลักษณะส่วนบุคคลส่งผลต่ออาชีพของคุณอย่างไร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91816 </ GUID>
+      <pubDate> วันอาทิตย์, 01 มีนาคม 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91816-leadership-attributes-essential-to-your-career </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/March/SEC0320-career-feat-slide1_900px.jpg?1582923529" type = "image / jpeg" length = "63701" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/March/SEC0320-career-feat-slide1_900px.jpg?1582923529" type = "image / jpeg" medium = "image "fileSize =" 63701 ">
+        <media: title type = "plain"> SEC0320-career-feat-slide1_900px.jpg </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/March/SEC0320-career-slide2_900px.jpg?1582923555" type = "image / jpeg" medium = "image" ขนาดไฟล์ = "51440">
+        <media: title type = "plain"> SEC0320-Career-slide2_900px.jpg </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> แนวโน้มในปี 2020: การแปลงความเสี่ยง“ ดิจิทัล” ช่วยยกระดับผู้บริหารความปลอดภัย </title>
+      <เขียน> </ ผู้เขียน>
+      <รายละเอียด>
+        ! แต่มันยังสร้างโอกาสทางธุรกิจใหม่ที่ต้องการรูปแบบธุรกิจที่ตอบสนองได้ </p>
+]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91730 </ GUID>
+      <pubDate> วันที่ 17 กุมภาพันธ์ 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91730-trends-in-2020-converged-digital-risk-elevates-the-security-executive </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/Fenberg/SEC0220-edu-Feat-slide1_900px.jpg?1581616591" type = "image / jpeg" length = "139484" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/F กุมภาพันธ์/SEC0220-edu-Feat-slide1_900px.jpg?1581616591" type = "image / jpeg" medium = "image "fileSize =" 139484 ">
+        <media: title type = "plain"> SEC0220-edu-Feat-slide1_900px.jpg </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/F กุมภาพันธ์/SEC0220-edu-slide2_900px.jpg?1581621416" type = "image / jpeg" medium = "image" fileSize = "19655">
+        <media: title type = "plain"> SEC0220-edu-slide2_900px.jpg </ media: title>
+        <media: description type = "plain"> เกี่ยวกับผู้แต่ง
+
+Dan Dunkel ดำรงตำแหน่งกรรมการผู้จัดการโครงการ MSSP ที่ PSA ก่อนหน้านี้เขาเคยเป็นแผนกขาย SVP สำหรับ Cyber ​​adAPT ซึ่งเป็นหน่วยงานด้านการคุกคามและการแก้ไข เขายังดำรงตำแหน่งรองประธานฝ่ายพัฒนาธุรกิจสำหรับ Eagle Eye Networks และรองประธานฝ่ายขายที่ Nortel Networks เขาเป็นอดีตประธานของ New Era Associates ที่ปรึกษาที่เชี่ยวชาญด้านการลู่เข้าและการรักษาความปลอดภัยแบบดิจิทัล ประสบการณ์การขายของเขาครอบคลุมพื้นที่จัดเก็บข้อมูลองค์กรเครือข่ายออปติคัลและความปลอดภัยทางไซเบอร์ & amp; nbsp; เขายังเป็นผู้แต่งเผยแพร่ & amp; ldquo; การบรรจบกันของความปลอดภัยทางกายภาพและตรรกะ & amp; rdquo ;, (Elsevier 2007) และผู้สนับสนุนปัจจุบันให้กับนิตยสารความปลอดภัย
+</ สื่อ: คำอธิบาย>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ทำไมเราต้องเอาชนะ 'Blindness ทุกวัน' </title>
+      <author> ritcheyd@bnpmedia.com (Diane Ritchey) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> ตาบอดที่ไม่ตั้งใจคืออะไรคุณจะเอาชนะมันได้อย่างไรและการมองเห็นภาพที่คล้ายคลึงกัน / คอมพิวเตอร์วิสัยทัศน์เป็นวิธีแก้ปัญหาได้อย่างไร </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91631 </ GUID>
+      <pubDate> วันเสาร์ที่ 01 กุมภาพันธ์ 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91631-why-we-need-to-overcome-everyday-blindness </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/F กุมภาพันธ์/SEC0220-talk-Feat-slide1_900px.jpg?1580329210" type = "image / jpeg" length = "42342" / >
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/F กุมภาพันธ์/SEC0220-talk-Feat-slide1_900px.jpg?1580329210" type = "image / jpeg" medium = "image "fileSize =" 42342 ">
+        <media: title type = "plain"> SEC0220-talk-Feat-slide1_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+      <media: content url = "https://www.securitymagazine.com/ext/resources/Issues/2020/F กุมภาพันธ์/SEC0220-talk-slide2_900px.jpg?1580329350" type = "image / jpeg" medium = "image" fileSize = "55684">
+        <media: title type = "plain"> SEC0220-talk-slide2_900px </ media: title>
+      </ สื่อ: เนื้อหา>
+    </ item>
+    <item>
+      <title> ความตายโดยสมาคม: เครือข่ายครอบครัวที่น่ากลัว </title>
+      <author> dc-alexander@wiu.edu (Dean C. Alexander) </author>
+      <รายละเอียด>
+        <! [CDATA [<p> มันอันตรายที่จะเกี่ยวข้องกับผู้ก่อการร้าย สมาคมดังกล่าวสามารถนำไปสู่การเสียชีวิตของคน ๆ หนึ่งในขณะที่มีส่วนร่วมในการโจมตีที่สมาชิกครอบครัวได้รับการสนับสนุน </p>]]>
+      </ รายละเอียด>
+      <GUID> http://www.securitymagazine.com/articles/91495 </ GUID>
+      <pubDate> พุธ 8 มกราคม 2020 00:00:00 -0500 </pubDate>
+      <link> https://www.securitymagazine.com/articles/91495-death-by-association-family-terror-networks </ link>
+      <enclosure url = "https://www.securitymagazine.com/ext/resources/Issues/2020/ มกราคม /SEC0120-Edu-Feat-slide1_900px.jpg?1577996716" type = "image / jpeg" length = "56601" / >
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Edu-Feat-slide1_900px.jpg?1577996716" type="image/jpeg" medium="image" fileSize="56601">
+        <media:title type="plain">SEC0120-Edu-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Edu-slide2_900px.jpg?1577996867" type="image/jpeg" medium="image" fileSize="61810">
+        <media:title type="plain">SEC0120-Edu-slide2_900px</media:title>
+        <media:description type="plain">About the Authors
+
+Dean C. Alexander is professor/director of the Homeland Security Research Program at Western Illinois University (WIU) and author of the book Family Terror Networks. Kevin Harrington earned a B.S. degree from the School of Law Enforcement and Justice Administration at WIU in 2019.
+</media:description>
+      </media:content>
+    </item>
+    <item>
+      <title>New Year Prognostications: A Perennial Guide for the Perplexed</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>2020 heralds a few major shifts that will transform cybersecurity: ransomware attacks, artificial intelligence, facial recognition and mobile cybersecurity.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91486</guid>
+      <pubDate>Wed, 01 Jan 2020 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91486-new-year-prognostications-a-perennial-guide-for-the-perplexed</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-cyber-Feat-slide1_900px.jpg?1577856489" type="image/jpeg" length="69372"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-cyber-Feat-slide1_900px.jpg?1577856489" type="image/jpeg" medium="image" fileSize="69372">
+        <media:title type="plain">SEC0120-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-cyber-slide2_900px.jpg?1577856819" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC0120-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Considerations for Your Security Career in 2020</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>As we enter the new year, conversations within the security community often inevitably deal with issues and programs that will be of greatest concern to leadership in the coming months.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91485</guid>
+      <pubDate>Wed, 01 Jan 2020 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91485-considerations-for-your-security-career-in-2020</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Career-Feat-slide1_900px.jpg?1577856223" type="image/jpeg" length="65987"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Career-Feat-slide1_900px.jpg?1577856223" type="image/jpeg" medium="image" fileSize="65987">
+        <media:title type="plain">SEC0120-Career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-career-slide2_900px.jpg?1577856368" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC0120-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Election Infrastructure Remains Vulnerable to Attacks</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>In 10 months, U.S. citizens will elect a new president. As the race heats up and election day nears, a key component of the U.S. election infrastructure remains vulnerable to cyberattacks and misinformation campaigns.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91484</guid>
+      <pubDate>Wed, 01 Jan 2020 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91484-election-infrastructure-remains-vulnerable-to-attacks</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Talk-Feat-slide1_900px.jpg?1577855661" type="image/jpeg" length="54851"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-Talk-Feat-slide1_900px.jpg?1577855661" type="image/jpeg" medium="image" fileSize="54851">
+        <media:title type="plain">SEC0120-Talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2020/January/SEC0120-talk-slide2_900px.jpg?1577855842" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC0120-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>NIST Develops New Standards to Improve Metal-Detector Testing</title>
+      <description>
+        <![CDATA[<p>To help meet demands of metal detectors in the entrances of schools, airports, houses of worship and correctional facilities, the National Institute of Standards and Technology has researched and developed four new metal detection testing standards.&nbsp;</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91389</guid>
+      <pubDate>Wed, 11 Dec 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91389-nist-develops-new-standards-to-improve-metal-detector-testing</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-Edu2-Feat-slide1_900px.jpg?1575990716" type="image/jpeg" length="45066"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-Edu2-Feat-slide1_900px.jpg?1575990716" type="image/jpeg" medium="image" fileSize="45066">
+        <media:title type="plain">SEC1219-Edu2-Feat-slide1_900px</media:title>
+        <media:description type="plain">For testing the detection of small-sized threats such as blades and keys, the team found that steel spheres about the size of a peppercorn (5 millimeters in diameter) were very effective for testing the performance of HHMDs and HWMDs.
+
+Photo courtesy of NIST
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-Edu2-slide2_900px.jpg?1575990804" type="image/jpeg" medium="image" fileSize="32973">
+        <media:title type="plain">SEC1219-Edu2-slide2_900px</media:title>
+        <media:description type="plain">Metal detectors serve as portals to correctional facilities, prisons and courthouses, and security officers often wave the hand-held models around the bags of incoming ticketholders at sports arenas, too.
+
+Photo courtesy of NIST
+</media:description>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-Edu2-slide3_900px.jpg?1579287236" type="image/jpeg" medium="image" fileSize="31823">
+        <media:title type="plain">SEC1219-Edu2-slide3_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>CCPA Update: Analyzing the AG's Proposed Regulations</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>On October 10, 2019, the California Attorney General&rsquo;s (AG) office published its long-awaited proposed California Consumer Privacy Act (CCPA) regulations. The AG&rsquo;s office also announced that it will hold public hearings on the regulations on December 2-5.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91386</guid>
+      <pubDate>Mon, 09 Dec 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91386-ccpa-update-analyzing-the-ags-proposed-regulations</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-Edu1-Feat-slide1_900px.jpg?1575906791" type="image/jpeg" length="92094"/>
+    </item>
+    <item>
+      <title>Expense-in-Depth: Total Cost of Controls Reconsidered</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>What is a Defense-in-Depth strategy, and why has it come to be acknowledged as Expense-in-Depth? How can CISO&#39;s communicate the business value of this strategy?</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91345</guid>
+      <pubDate>Sun, 01 Dec 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91345-expense-in-depth-total-cost-of-controls-reconsidered</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-Feat-slide1_900px.jpg?1575134507" type="image/jpeg" length="45382"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-Feat-slide1_900px.jpg?1575134507" type="image/jpeg" medium="image" fileSize="45382">
+        <media:title type="plain">SEC1219-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-cyber-slide2_900px.jpg?1575134655" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC1219-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Truth, Lies and Your Security Career</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>As you advance your security career into senior and executive levels, occasions may arise where your personal values may conflict with those in the organization. How will you handle ethical challenges that may have career and life-long impacts?</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91344</guid>
+      <pubDate>Sun, 01 Dec 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91344-truth-lies-and-your-security-career</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-career-Feat-slide1_900px.jpg?1575133056" type="image/jpeg" length="93832"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-career-Feat-slide1_900px.jpg?1575133056" type="image/jpeg" medium="image" fileSize="93832">
+        <media:title type="plain">SEC1219-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-career-slide2_900px.jpg?1575133387" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC1219-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Fighting Natural Disasters With AI</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>Recent California wildfires have challenged enterprise security professionals who are responsible for protecting and managing emergency evacuations. How can enterprise security professionals leverage their existing security hardware and software investments to better prepare for emergencies?</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91339</guid>
+      <pubDate>Sun, 01 Dec 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91339-fighting-natural-disasters-with-ai</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-talk-Feat-slide1_900px.jpg?1574883121" type="image/jpeg" length="86799"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-talk-Feat-slide1_900px.jpg?1574883121" type="image/jpeg" medium="image" fileSize="86799">
+        <media:title type="plain">SEC1219-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/December/SEC1219-talk-slide2_900px.jpg?1574887742" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC1219-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>The FTC-Facebook Settlement: A Major Shift in U.S. Privacy Regulation</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>In 2010, Mark Zuckerberg famously stated that privacy was no longer a &ldquo;social norm.&rdquo; Today, the Facebook founder is no doubt viewing social norms around privacy a bit differently, as are U.S. regulators and consumers.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91229</guid>
+      <pubDate>Fri, 08 Nov 2019 00:00:00 -0500</pubDate>
+      <link>https://www.securitymagazine.com/articles/91229-the-ftc-facebook-settlement-a-major-shift-in-us-privacy-regulation</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-edu-Feat-slide1_900px.jpg?1573065826" type="image/jpeg" length="68954"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-edu-Feat-slide1_900px.jpg?1573065826" type="image/jpeg" medium="image" fileSize="68954">
+        <media:title type="plain">SEC1119-edu-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-edu-slide2_900px.jpg?1573231849" type="image/jpeg" medium="image" fileSize="53065">
+        <media:title type="plain">SEC1119-edu-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>"Trust" Revisited: The Birth of Continuous Authentication</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>The Philosopher Hericlitus once opined &ndash; &ldquo;You can&rsquo;t step in the same river twice,&rdquo; implying that no concept remains static but is always churning and evolving.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91201</guid>
+      <pubDate>Fri, 01 Nov 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91201-trust-revisited-the-birth-of-continuous-authentication</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-Feat-slide1_900px.jpg?1572612900" type="image/jpeg" length="53992"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-Feat-slide1_900px.jpg?1572612900" type="image/jpeg" medium="image" fileSize="53992">
+        <media:title type="plain">SEC1119-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-cyber-slide2_900px.jpg?1572612909" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC1119-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>The First 90 Days of Your New Security Job</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>You have just started your role as a senior security leader in a new organization. After having gone through an extensive interview and evaluation process, both you and your new employer likely start this relationship feeling very positive about the future.</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91200</guid>
+      <pubDate>Fri, 01 Nov 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91200-the-first-90-days-of-your-new-security-job</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-career-Feat-slide1_900px.jpg?1572612559" type="image/jpeg" length="100733"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-career-Feat-slide1_900px.jpg?1572612559" type="image/jpeg" medium="image" fileSize="100733">
+        <media:title type="plain">SEC1119-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-career-slide2_900px.jpg?1572612568" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC1119-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Vaping and Students: Enterprise Security Needs to Lead the Charge</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>For years, manufacturers have been finding ways to make products more appealing to kids, either by design or through the senses (i.e. smell, taste).</p>
+]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91199</guid>
+      <pubDate>Fri, 01 Nov 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91199-vaping-and-students-enterprise-security-needs-to-lead-the-charge</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-talk-Feat-slide1_900px.jpg?1572612105" type="image/jpeg" length="83611"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-talk-Feat-slide1_900px.jpg?1572612105" type="image/jpeg" medium="image" fileSize="83611">
+        <media:title type="plain">SEC1119-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/Novmeber/SEC1119-talk-slide2_900px.jpg?1572612136" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC1119-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Cybersecurity for Public-Private Partnerships</title>
+      <description>
+        <![CDATA[<p>As municipalities continue to harden their frontline defenses against attacks on their IT infrastructure, one area that should not be overlooked are public-private partnerships, as these are prime targets for criminals and others.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91017</guid>
+      <pubDate>Mon, 14 Oct 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91017-cybersecurity-for-public-private-partnerships</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-edu-Feat-slide1_900px.jpg?1569927690" type="image/jpeg" length="60153"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-edu-Feat-slide1_900px.jpg?1569927690" type="image/jpeg" medium="image" fileSize="60153">
+        <media:title type="plain">SEC1019-edu-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-edu-slide2_900px.jpg?1569928051" type="image/jpeg" medium="image" fileSize="58323">
+        <media:title type="plain">SEC1019-edu-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>AR and VR: How Immersive Technology Is Bringing Cybersecurity Scenarios to Life</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>While VR and AR have different fortes, both enhance and accelerate experiential learning that can help manifest and reinforce a culture of cybersecurity across industries. It is technology implications like this that will help propel cybersecurity awareness into a state of mass awareness.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91016</guid>
+      <pubDate>Tue, 01 Oct 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91016-ar-and-vr-how-immersive-technology-is-bringing-cybersecurity-scenarios-to-life</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-Feat-slide1_900px.jpg?1569927384" type="image/jpeg" length="105215"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-Feat-slide1_900px.jpg?1569927384" type="image/jpeg" medium="image" fileSize="105215">
+        <media:title type="plain">SEC1019-cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-cyber-slide2_900px.jpg?1569927497" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC1019-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Privacy - An Emerging Security Career Challenge</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>An emerging challenge facing security leaders involves governance related to the collection, storage and transmission of personal information and the ethical utilization of it. While there are compliance programs currently in place that govern the protection of individual medical and financial data, there are clearly additional challenges on the horizon.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91015</guid>
+      <pubDate>Tue, 01 Oct 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91015-privacy---an-emerging-security-career-challenge</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-career-Feat-slide1_900px.jpg?1569927023" type="image/jpeg" length="66401"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-career-Feat-slide1_900px.jpg?1569927023" type="image/jpeg" medium="image" fileSize="66401">
+        <media:title type="plain">SEC1019-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-career-slide2_900px.jpg?1569927102" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC1019-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Have You Chosen the Right Person to Lead Your SOC?</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[<p>Enterprises are struggling to find the right talent to safeguard their networks; therefore, they must change their mindsets and begin recruiting talent from non-traditional backgrounds to ensure they have the &quot;right&quot; person on their SOC team.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/91014</guid>
+      <pubDate>Tue, 01 Oct 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/91014-have-you-chosen-the-right-person-to-lead-your-soc</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-talk-Feat-slide1_900px.jpg?1569926509" type="image/jpeg" length="35745"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-talk-Feat-slide1_900px.jpg?1569926509" type="image/jpeg" medium="image" fileSize="35745">
+        <media:title type="plain">SEC1019-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/October/SEC1019-talk-slide2_900px.jpg?1569926696" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC1019-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>What Do You Need to Know About the California Consumer Privacy Act?</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>When the General Data Protection Regulation (GDPR) was enacted more than a year ago, it was far reaching, and many organizations were caught off guard because they thought it didn&rsquo;t apply to them. But in fact, it did. Now the California Consumer Privacy Act (CCPA) is about to go into effect.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/90818</guid>
+      <pubDate>Mon, 02 Sep 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/90818-what-do-you-need-to-know-about-the-california-consumer-privacy-act</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Edu2-Feat-slide1_900px.jpg?1567099607" type="image/jpeg" length="129182"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Edu2-Feat-slide1_900px.jpg?1567099607" type="image/jpeg" medium="image" fileSize="129182">
+        <media:title type="plain">SEC0919-Edu2-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Edu2-slide2_900px.jpg?1567099637" type="image/jpeg" medium="image" fileSize="38488">
+        <media:title type="plain">SEC0919-Edu2-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>How Sense of Privacy Threatens Facial Recognition's Protective Power</title>
+      <author></author>
+      <description>
+        <![CDATA[<p>Anxious feelings towards facial recognition can, if unchecked, reach a point where they undermine common sense and our ability to leverage new technologies in the protection of the innocent and prosecution of the guilty.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/90812</guid>
+      <pubDate>Mon, 02 Sep 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/90812-how-sense-of-privacy-threatens-facial-recognitions-protective-power</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Cyber-Feat-slide1_900px.jpg?1567089025" type="image/jpeg" length="108527"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-Cyber-Feat-slide1_900px.jpg?1567089025" type="image/jpeg" medium="image" fileSize="108527">
+        <media:title type="plain">SEC0919-Cyber-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-cyber-slide2_900px.jpg?1567089280" type="image/jpeg" medium="image" fileSize="49817">
+        <media:title type="plain">SEC0919-cyber-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>The Insider's Guide to Security Recruitment</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>From an employer perspective, hiring top security talent for your team can be a challenge. As a hiring manager, you need to understand how to best select and leverage a search firm to support your efforts.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/90809</guid>
+      <pubDate>Mon, 02 Sep 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/90809-the-insiders-guide-to-security-recruitment</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-career-Feat-slide1_900px.jpg?1567020282" type="image/jpeg" length="84825"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-career-Feat-slide1_900px.jpg?1567020282" type="image/jpeg" medium="image" fileSize="84825">
+        <media:title type="plain">SEC0919-career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-career-slide2_900px.jpg?1567021819" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC0919-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>How Different Personality Types Affect Cybercrime</title>
+      <author>ritcheyd@bnpmedia.com (Diane Ritchey)</author>
+      <description>
+        <![CDATA[How are different kinds of cybersecurity errors more common among people with certain personality preferences?]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/90808</guid>
+      <pubDate>Mon, 02 Sep 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/90808-how-different-personality-types-affect-cybercrime</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-talk-Feat-slide1_900px.jpg?1567019584" type="image/jpeg" length="107442"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-talk-Feat-slide1_900px.jpg?1567019584" type="image/jpeg" medium="image" fileSize="107442">
+        <media:title type="plain">SEC0919-talk-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/September/SEC0919-talk-slide2_900px.jpg?1567019674" type="image/jpeg" medium="image" fileSize="55684">
+        <media:title type="plain">SEC0919-talk-slide2_900px</media:title>
+      </media:content>
+    </item>
+    <item>
+      <title>Building Relationships to Advance Your Personal Brand</title>
+      <author>jerry@smrgroup.com (Jerry J Brennan)</author>
+      <description>
+        <![CDATA[<p>Many of the positions I held in my corporate security career relied on my ability to accurately assess an individual or an event.</p>]]>
+      </description>
+      <guid>http://www.securitymagazine.com/articles/90627</guid>
+      <pubDate>Thu, 01 Aug 2019 00:00:00 -0400</pubDate>
+      <link>https://www.securitymagazine.com/articles/90627-advancing-security-careers-through-relationships</link>
+      <enclosure url="https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-Career-Feat-slide1_900px.jpg?1564516619" type="image/jpeg" length="93054"/>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-Career-Feat-slide1_900px.jpg?1564516619" type="image/jpeg" medium="image" fileSize="93054">
+        <media:title type="plain">SEC0819-Career-Feat-slide1_900px</media:title>
+      </media:content>
+      <media:content url="https://www.securitymagazine.com/ext/resources/Issues/2019/August/SEC0819-career-slide2_900px.jpg?1564516709" type="image/jpeg" medium="image" fileSize="51440">
+        <media:title type="plain">SEC0819-career-slide2_900px</media:title>
+      </media:content>
+    </item>
+  </channel>
+</rss>
+</rss>
