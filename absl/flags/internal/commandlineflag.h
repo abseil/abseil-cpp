@@ -128,7 +128,6 @@ class CommandLineFlag {
   virtual std::string Help() const = 0;
   // Returns true iff this object corresponds to retired flag.
   virtual bool IsRetired() const;
-  virtual bool IsSpecifiedOnCommandLine() const = 0;
   virtual std::string DefaultValue() const = 0;
   virtual std::string CurrentValue() const = 0;
 
@@ -166,6 +165,10 @@ class CommandLineFlag {
   // Copy-construct a new value of the flag's type in a memory referenced by
   // the dst based on the current flag's value.
   virtual void Read(void* dst) const = 0;
+
+  // To be deleted. Used to return true if flag's current value originated from
+  // command line.
+  virtual bool IsSpecifiedOnCommandLine() const = 0;
 
   // Validates supplied value usign validator or parseflag routine
   virtual bool ValidateInputValue(absl::string_view value) const = 0;

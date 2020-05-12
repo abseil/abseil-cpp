@@ -65,7 +65,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
+#include <iosfwd>
 #include <iterator>
 #include <string>
 #include <type_traits>

@@ -212,4 +212,30 @@
   } while (0)
 #endif
 
+// ABSL_INTERNAL_UNIQUE_SMALL_NAME(cond)
+// This macro forces small unique name on a static file level symbols like
+// static local variables or static functions. This is intended to be used in
+// macro definitions to optimize the cost of generated code. Do NOT use it on
+// symbols exported from translation unit since it may casue a link time
+// conflict.
+//
+// Example:
+//
+// #define MY_MACRO(txt)
+// namespace {
+//  char VeryVeryLongVarName[] ABSL_INTERNAL_UNIQUE_SMALL_NAME() = txt;
+//  const char* VeryVeryLongFuncName() ABSL_INTERNAL_UNIQUE_SMALL_NAME();
+//  const char* VeryVeryLongFuncName() { return txt; }
+// }
+//
+
+#if defined(__GNUC__)
+#define ABSL_INTERNAL_UNIQUE_SMALL_NAME2(x) #x
+#define ABSL_INTERNAL_UNIQUE_SMALL_NAME1(x) ABSL_INTERNAL_UNIQUE_SMALL_NAME2(x)
+#define ABSL_INTERNAL_UNIQUE_SMALL_NAME() \
+  asm(ABSL_INTERNAL_UNIQUE_SMALL_NAME1(.absl.__COUNTER__))
+#else
+#define ABSL_INTERNAL_UNIQUE_SMALL_NAME()
+#endif
+
 #endif  // ABSL_BASE_OPTIMIZATION_H_

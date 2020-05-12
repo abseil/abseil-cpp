@@ -545,7 +545,7 @@ inline std::ostream& operator<<(std::ostream& os, Duration d) {
 // suffix.  The valid suffixes are "ns", "us" "ms", "s", "m", and "h".
 // Simple examples include "300ms", "-1.5h", and "2h45m".  Parses "0" as
 // `ZeroDuration()`. Parses "inf" and "-inf" as +/- `InfiniteDuration()`.
-bool ParseDuration(const std::string& dur_string, Duration* d);
+bool ParseDuration(absl::string_view dur_string, Duration* d);
 
 // Support for flag values of type Duration. Duration flags must be specified
 // in a format that is valid input for absl::ParseDuration().
@@ -1021,13 +1021,13 @@ class TimeZone {
 // Loads the named zone. May perform I/O on the initial load of the named
 // zone. If the name is invalid, or some other kind of error occurs, returns
 // `false` and `*tz` is set to the UTC time zone.
-inline bool LoadTimeZone(const std::string& name, TimeZone* tz) {
+inline bool LoadTimeZone(absl::string_view name, TimeZone* tz) {
   if (name == "localtime") {
     *tz = TimeZone(time_internal::cctz::local_time_zone());
     return true;
   }
   time_internal::cctz::time_zone cz;
-  const bool b = time_internal::cctz::load_time_zone(name, &cz);
+  const bool b = time_internal::cctz::load_time_zone(std::string(name), &cz);
   *tz = TimeZone(cz);
   return b;
 }
@@ -1252,7 +1252,7 @@ ABSL_DLL extern const char
 // `absl::InfinitePast()`, the returned string will be exactly "infinite-past".
 // In both cases the given format string and `absl::TimeZone` are ignored.
 //
-std::string FormatTime(const std::string& format, Time t, TimeZone tz);
+std::string FormatTime(absl::string_view format, Time t, TimeZone tz);
 
 // Convenience functions that format the given time using the RFC3339_full
 // format.  The first overload uses the provided TimeZone, while the second
@@ -1313,7 +1313,7 @@ inline std::ostream& operator<<(std::ostream& os, Time t) {
 // If the input string is "infinite-past", the returned `absl::Time` will be
 // `absl::InfinitePast()` and `true` will be returned.
 //
-bool ParseTime(const std::string& format, const std::string& input, Time* time,
+bool ParseTime(absl::string_view format, absl::string_view input, Time* time,
                std::string* err);
 
 // Like ParseTime() above, but if the format string does not contain a UTC
@@ -1323,7 +1323,7 @@ bool ParseTime(const std::string& format, const std::string& input, Time* time,
 // of ambiguity or non-existence, in which case the "pre" time (as defined
 // by TimeZone::TimeInfo) is returned.  For these reasons we recommend that
 // all date/time strings include a UTC offset so they're context independent.
-bool ParseTime(const std::string& format, const std::string& input, TimeZone tz,
+bool ParseTime(absl::string_view format, absl::string_view input, TimeZone tz,
                Time* time, std::string* err);
 
 // ============================================================================

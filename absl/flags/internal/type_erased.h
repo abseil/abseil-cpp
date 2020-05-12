@@ -55,17 +55,6 @@ bool IsValidFlagValue(absl::string_view name, absl::string_view value);
 
 //-----------------------------------------------------------------------------
 
-// Returns true iff a flag named "name" was specified on the command line
-// (either directly, or via one of --flagfile or --fromenv or --tryfromenv).
-//
-// Any non-command-line modification of the flag does not affect the
-// result of this function.  So for example, if a flag was passed on
-// the command line but then reset via SET_FLAGS_DEFAULT, this
-// function will still return true.
-bool SpecifiedOnCommandLine(absl::string_view name);
-
-//-----------------------------------------------------------------------------
-
 // If a flag with specified "name" exists and has type T, store
 // its current value in *dst and return true.  Else return false
 // without touching *dst.  T must obey all of the requirements for

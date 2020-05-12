@@ -624,6 +624,7 @@ class Flag {
   absl::string_view Name() const { return impl_.Name(); }
   std::string Filename() const { return impl_.Filename(); }
   std::string Help() const { return impl_.Help(); }
+  // Do not use. To be removed.
   bool IsSpecifiedOnCommandLine() const {
     return impl_.IsSpecifiedOnCommandLine();
   }

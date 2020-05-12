@@ -33,6 +33,9 @@ class PrivateHandleAccessor {
   // Access to CommandLineFlag::SaveState.
   static std::unique_ptr<FlagStateInterface> SaveState(CommandLineFlag* flag);
 
+  // Access to CommandLineFlag::IsSpecifiedOnCommandLine.
+  static bool IsSpecifiedOnCommandLine(const CommandLineFlag& flag);
+
   // Access to CommandLineFlag::ValidateInputValue.
   static bool ValidateInputValue(const CommandLineFlag& flag,
                                  absl::string_view value);

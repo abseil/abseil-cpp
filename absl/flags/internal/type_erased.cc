@@ -81,14 +81,6 @@ bool IsValidFlagValue(absl::string_view name, absl::string_view value) {
 
 // --------------------------------------------------------------------
 
-bool SpecifiedOnCommandLine(absl::string_view name) {
-  CommandLineFlag* flag = flags_internal::FindCommandLineFlag(name);
-  if (flag != nullptr && !flag->IsRetired()) {
-    return flag->IsSpecifiedOnCommandLine();
-  }
-  return false;
-}
-
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

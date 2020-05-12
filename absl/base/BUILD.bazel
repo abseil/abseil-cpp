@@ -777,3 +777,17 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "unique_small_name_test",
+    size = "small",
+    srcs = ["internal/unique_small_name_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    linkstatic = 1,
+    deps = [
+        ":core_headers",
+        "//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

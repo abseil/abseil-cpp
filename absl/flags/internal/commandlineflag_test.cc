@@ -121,42 +121,48 @@ TEST_F(CommandLineFlagTest, TestParseFromCurrentValue) {
   std::string err;
 
   auto* flag_01 = flags::FindCommandLineFlag("int_flag");
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "11", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "-123", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
       &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(!flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "xyz", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
       &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'xyz' specified for flag 'int_flag'");
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(!flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "A1", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), -123);
   EXPECT_EQ(err, "Illegal value 'A1' specified for flag 'int_flag'");
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "0x10", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
       &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 16);
-  EXPECT_FALSE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_FALSE(
+      flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "011", flags::SET_FLAGS_VALUE, flags::kCommandLine, &err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 11);
-  EXPECT_TRUE(flag_01->IsSpecifiedOnCommandLine());
+  EXPECT_TRUE(flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
   EXPECT_TRUE(!flags::PrivateHandleAccessor::ParseFrom(
       flag_01, "", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, &err));

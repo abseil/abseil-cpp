@@ -28,6 +28,11 @@ std::unique_ptr<FlagStateInterface> PrivateHandleAccessor::SaveState(
   return flag->SaveState();
 }
 
+bool PrivateHandleAccessor::IsSpecifiedOnCommandLine(
+    const CommandLineFlag& flag) {
+  return flag.IsSpecifiedOnCommandLine();
+}
+
 bool PrivateHandleAccessor::ValidateInputValue(const CommandLineFlag& flag,
                                                absl::string_view value) {
   return flag.ValidateInputValue(value);

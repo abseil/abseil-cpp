@@ -769,6 +769,8 @@ class Condition {
 //
 class CondVar {
  public:
+  // A `CondVar` allocated on the heap or on the stack can use the this
+  // constructor.
   CondVar();
   ~CondVar();
 
@@ -900,9 +902,11 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
 };
 
 #ifdef ABSL_INTERNAL_USE_NONPROD_MUTEX
+
 inline constexpr Mutex::Mutex(absl::ConstInitType) : impl_(absl::kConstInit) {}
 
 #else
+
 inline Mutex::Mutex() : mu_(0) {
   ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
 }
@@ -910,7 +914,8 @@ inline Mutex::Mutex() : mu_(0) {
 inline constexpr Mutex::Mutex(absl::ConstInitType) : mu_(0) {}
 
 inline CondVar::CondVar() : cv_(0) {}
-#endif
+
+#endif  // ABSL_INTERNAL_USE_NONPROD_MUTEX
 
 // static
 template <typename T>

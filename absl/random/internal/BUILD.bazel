@@ -37,9 +37,6 @@ cc_library(
     hdrs = ["traits.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/random:__pkg__",
-    ],
     deps = ["//absl/base:config"],
 )
 
@@ -48,9 +45,6 @@ cc_library(
     hdrs = ["distribution_caller.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/random:__pkg__",
-    ],
     deps = ["//absl/base:config"],
 )
 
@@ -76,9 +70,6 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/random:__pkg__",
-    ],
     deps = ["//absl/base:config"],
 )
 
@@ -517,9 +508,6 @@ cc_library(
     name = "mock_overload_set",
     testonly = 1,
     hdrs = ["mock_overload_set.h"],
-    visibility = [
-        "//absl/random:__pkg__",
-    ],
     deps = [
         "//absl/random:mocking_bit_gen",
         "@com_google_googletest//:gtest",
@@ -669,6 +657,7 @@ cc_library(
     deps = [
         ":platform",
         ":randen_engine",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
     ],
