@@ -56,27 +56,9 @@ class ABSL_LOCKABLE SpinLock {
     ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
   }
 
-  // Special constructor for use with static SpinLock objects.  E.g.,
-  //
-  //    static SpinLock lock(base_internal::kLinkerInitialized);
-  //
-  // When initialized using this constructor, we depend on the fact
-  // that the linker has already initialized the memory appropriately. The lock
-  // is initialized in non-cooperative mode.
-  //
-  // A SpinLock constructed like this can be freely used from global
-  // initializers without worrying about the order in which global
-  // initializers run.
-  explicit SpinLock(base_internal::LinkerInitialized) {
-    // Does nothing; lockword_ is already initialized
-    ABSL_TSAN_MUTEX_CREATE(this, 0);
-  }
-
   // Constructors that allow non-cooperative spinlocks to be created for use
   // inside thread schedulers.  Normal clients should not use these.
   explicit SpinLock(base_internal::SchedulingMode mode);
-  SpinLock(base_internal::LinkerInitialized,
-           base_internal::SchedulingMode mode);
 
   // Constructor for global SpinLock instances.  See absl/base/const_init.h.
   constexpr SpinLock(absl::ConstInitType, base_internal::SchedulingMode mode)
@@ -168,7 +150,6 @@ class ABSL_LOCKABLE SpinLock {
   }
 
   uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
-  void InitLinkerInitializedAndCooperative();
   void SlowLock() ABSL_ATTRIBUTE_COLD;
   void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
   uint32_t SpinLoop();

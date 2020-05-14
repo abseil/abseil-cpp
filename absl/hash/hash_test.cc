@@ -407,7 +407,7 @@ using IntSequenceTypes =
 INSTANTIATE_TYPED_TEST_CASE_P(My, HashValueSequenceTest, IntSequenceTypes);
 
 // Private type that only supports AbslHashValue to make sure our chosen hash
-// implentation is recursive within absl::Hash.
+// implementation is recursive within absl::Hash.
 // It uses std::abs() on the value to provide different bitwise representations
 // of the same logical value.
 struct Private {

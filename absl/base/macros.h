@@ -55,36 +55,6 @@ auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-// kLinkerInitialized
-//
-// An enum used only as a constructor argument to indicate that a variable has
-// static storage duration, and that the constructor should do nothing to its
-// state. Use of this macro indicates to the reader that it is legal to
-// declare a static instance of the class, provided the constructor is given
-// the absl::base_internal::kLinkerInitialized argument.
-//
-// Normally, it is unsafe to declare a static variable that has a constructor or
-// a destructor because invocation order is undefined. However, if the type can
-// be zero-initialized (which the loader does for static variables) into a valid
-// state and the type's destructor does not affect storage, then a constructor
-// for static initialization can be declared.
-//
-// Example:
-//       // Declaration
-//       explicit MyClass(absl::base_internal:LinkerInitialized x) {}
-//
-//       // Invocation
-//       static MyClass my_global(absl::base_internal::kLinkerInitialized);
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-namespace base_internal {
-enum LinkerInitialized {
-  kLinkerInitialized = 0,
-};
-}  // namespace base_internal
-ABSL_NAMESPACE_END
-}  // namespace absl
-
 // ABSL_FALLTHROUGH_INTENDED
 //
 // Annotates implicit fall-through between switch labels, allowing a case to
