@@ -551,6 +551,13 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // AbslHashValue for Wrapper Types
 // -----------------------------------------------------------------------------
 
+// AbslHashValue for hashing std::reference_wrapper
+template <typename H, typename T>
+typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+    H hash_state, std::reference_wrapper<T> opt) {
+  return H::combine(std::move(hash_state), opt.get());
+}
+
 // AbslHashValue for hashing absl::optional
 template <typename H, typename T>
 typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
