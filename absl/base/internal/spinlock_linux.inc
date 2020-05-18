@@ -46,6 +46,14 @@ static_assert(sizeof(std::atomic<uint32_t>) == sizeof(int),
 #endif
 #endif
 
+#if defined(__NR_futex_time64) && !defined(SYS_futex_time64)
+#define SYS_futex_time64 __NR_futex_time64
+#endif
+
+#if defined(SYS_futex_time64) && !defined(SYS_futex)
+#define SYS_futex SYS_futex_time64
+#endif
+
 extern "C" {
 
 ABSL_ATTRIBUTE_WEAK void AbslInternalSpinLockDelay(
