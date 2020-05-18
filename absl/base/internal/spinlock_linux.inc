@@ -14,10 +14,6 @@
 //
 // This file is a Linux-specific part of spinlock_wait.cc
 
-#if !defined(__NR_futex) && defined(__riscv) && __riscv_xlen == 32
-# define __NR_futex __NR_futex_time64
-#endif
-
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -48,6 +44,14 @@ static_assert(sizeof(std::atomic<uint32_t>) == sizeof(int),
 #ifndef FUTEX_PRIVATE_FLAG
 #define FUTEX_PRIVATE_FLAG 128
 #endif
+#endif
+
+#if defined(__NR_futex_time64) && !defined(SYS_futex_time64)
+#define SYS_futex_time64 __NR_futex_time64
+#endif
+
+#if defined(SYS_futex_time64) && !defined(SYS_futex)
+#define SYS_futex SYS_futex_time64
 #endif
 
 extern "C" {

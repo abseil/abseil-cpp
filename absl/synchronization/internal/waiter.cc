@@ -24,10 +24,6 @@
 #include <unistd.h>
 #endif
 
-#if !defined(__NR_futex) && defined(__riscv) && __riscv_xlen == 32
-# define __NR_futex __NR_futex_time64
-#endif
-
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
@@ -88,6 +84,14 @@ static void MaybeBecomeIdle() {
 #ifndef FUTEX_BITSET_MATCH_ANY
 #define FUTEX_BITSET_MATCH_ANY 0xFFFFFFFF
 #endif
+#endif
+
+#if defined(__NR_futex_time64) && !defined(SYS_futex_time64)
+#define SYS_futex_time64 __NR_futex_time64
+#endif
+
+#if defined(SYS_futex_time64) && !defined(SYS_futex)
+#define SYS_futex SYS_futex_time64
 #endif
 
 class Futex {
