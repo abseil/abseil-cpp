@@ -552,7 +552,7 @@ class raw_hash_set {
   auto KeyTypeCanBeHashed(const Hash& h, const key_type& k) -> decltype(h(k));
   auto KeyTypeCanBeEq(const Eq& eq, const key_type& k) -> decltype(eq(k, k));
 
-  using Layout = absl::container_internal::Layout<ctrl_t, slot_type>;
+  using Layout = absl::container_internal::Layout<Aligned<ctrl_t, 16>, slot_type>;
 
   static Layout MakeLayout(size_t capacity) {
     assert(IsValidCapacity(capacity));
