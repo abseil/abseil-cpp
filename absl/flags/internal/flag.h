@@ -231,25 +231,21 @@ using FlagDfltGenFunc = void (*)(void*);
 union FlagDefaultSrc {
   constexpr explicit FlagDefaultSrc(FlagDfltGenFunc gen_func_arg)
       : gen_func(gen_func_arg) {}
-  template <typename T>
-  constexpr explicit FlagDefaultSrc(T one_word_value)
-      : one_word(static_cast<int64_t>(one_word_value)) {}
-  constexpr explicit FlagDefaultSrc(float f) : float_value(f) {}
-  constexpr explicit FlagDefaultSrc(double d) : double_value(d) {}
+
+#define ABSL_FLAGS_INTERNAL_DFLT_FOR_TYPE(T, name) \
+  T name##_value;                                  \
+  constexpr explicit FlagDefaultSrc(T value) : name##_value(value) {}  // NOLINT
+  ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(ABSL_FLAGS_INTERNAL_DFLT_FOR_TYPE)
+#undef ABSL_FLAGS_INTERNAL_DFLT_FOR_TYPE
 
   void* dynamic_value;
   FlagDfltGenFunc gen_func;
-  int64_t one_word;
-  float float_value;
-  double double_value;
 };
 
 enum class FlagDefaultKind : uint8_t {
   kDynamicValue = 0,
   kGenFunc = 1,
-  kOneWord = 2,
-  kFloat = 3,
-  kDouble = 4
+  kOneWord = 2  // for default values UP to one word in size
 };
 
 struct FlagDefaultArg {
@@ -277,20 +273,6 @@ template <typename ValueT, typename GenT,
               (GenT{}, 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
-}
-
-template <typename ValueT, typename GenT,
-          typename std::enable_if<std::is_same<ValueT, float>::value,
-                                  int>::type = (GenT{}, 0)>
-constexpr FlagDefaultArg DefaultArg(int) {
-  return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kFloat};
-}
-
-template <typename ValueT, typename GenT,
-          typename std::enable_if<std::is_same<ValueT, double>::value,
-                                  int>::type = (GenT{}, 0)>
-constexpr FlagDefaultArg DefaultArg(int) {
-  return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kDouble};
 }
 
 template <typename ValueT, typename GenT>
@@ -576,9 +558,8 @@ class FlagImpl final : public flags_internal::CommandLineFlag {
   // Mutable flag's state (guarded by `data_guard_`).
 
   // def_kind_ is not guard by DataGuard() since it is accessed in Init without
-  // locks. If necessary we can decrease number of bits used to 2 by folding
-  // one_word storage cases.
-  uint8_t def_kind_ : 3;
+  // locks.
+  uint8_t def_kind_ : 2;
   // Has this flag's value been modified?
   bool modified_ : 1 ABSL_GUARDED_BY(*DataGuard());
   // Has this flag been specified on command line.

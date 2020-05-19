@@ -11,13 +11,13 @@ namespace {
 
 std::string ConvToString(FormatConversionCharSet conv) {
   std::string out;
-#define CONV_SET_CASE(c) \
-  if (Contains(conv, FormatConversionCharSet::c)) { \
-    out += #c; \
+#define CONV_SET_CASE(c)                                    \
+  if (Contains(conv, FormatConversionCharSetInternal::c)) { \
+    out += #c;                                              \
   }
   ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(CONV_SET_CASE, )
 #undef CONV_SET_CASE
-  if (Contains(conv, FormatConversionCharSet::kStar)) {
+  if (Contains(conv, FormatConversionCharSetInternal::kStar)) {
     out += "*";
   }
   return out;

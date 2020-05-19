@@ -216,7 +216,10 @@ class GaussianDistributionTests : public testing::TestWithParam<Param>,
   template <typename D>
   double SingleChiSquaredTest();
 
-  absl::InsecureBitGen rng_;
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng_{0x2B7E151628AED2A6};
 };
 
 template <typename D>

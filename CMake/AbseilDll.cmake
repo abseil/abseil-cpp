@@ -147,6 +147,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/internal/platform.h"
   "random/internal/pool_urbg.cc"
   "random/internal/pool_urbg.h"
+  "random/internal/randen_round_keys.cc"
   "random/internal/randen.cc"
   "random/internal/randen.h"
   "random/internal/randen_detect.cc"

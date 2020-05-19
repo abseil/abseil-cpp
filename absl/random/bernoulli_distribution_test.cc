@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 
@@ -63,7 +64,10 @@ TEST_P(BernoulliTest, Accuracy) {
   size_t trials = para.second;
   double p = para.first;
 
-  absl::InsecureBitGen rng;
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6);
 
   size_t yes = 0;
   absl::bernoulli_distribution dist(p);

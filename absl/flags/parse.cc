@@ -309,11 +309,11 @@ void CheckDefaultValuesParsingRoundtrip() {
   flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
     if (flag->IsRetired()) return;
 
-#define IGNORE_TYPE(T) \
+#define ABSL_FLAGS_INTERNAL_IGNORE_TYPE(T, _) \
   if (flag->IsOfType<T>()) return;
 
-    ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(IGNORE_TYPE)
-#undef IGNORE_TYPE
+    ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IGNORE_TYPE)
+#undef ABSL_FLAGS_INTERNAL_IGNORE_TYPE
 
     flags_internal::PrivateHandleAccessor::CheckDefaultValueParsingRoundtrip(
         *flag);

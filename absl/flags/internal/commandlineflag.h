@@ -178,23 +178,6 @@ class CommandLineFlag {
   virtual void CheckDefaultValueParsingRoundtrip() const = 0;
 };
 
-// This macro is the "source of truth" for the list of supported flag built-in
-// types.
-#define ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(A) \
-  A(bool)                                    \
-  A(short)                                   \
-  A(unsigned short)                          \
-  A(int)                                     \
-  A(unsigned int)                            \
-  A(long)                                    \
-  A(unsigned long)                           \
-  A(long long)                               \
-  A(unsigned long long)                      \
-  A(double)                                  \
-  A(float)                                   \
-  A(std::string)                             \
-  A(std::vector<std::string>)
-
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

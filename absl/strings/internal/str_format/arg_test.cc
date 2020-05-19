@@ -96,8 +96,8 @@ TEST_F(FormatArgImplTest, WorksWithCharArraysOfUnknownSize) {
   std::string s;
   FormatSinkImpl sink(&s);
   FormatConversionSpecImpl conv;
-  FormatConversionSpecImplFriend::SetConversionChar(FormatConversionChar::s,
-                                                    &conv);
+  FormatConversionSpecImplFriend::SetConversionChar(
+      FormatConversionCharInternal::s, &conv);
   FormatConversionSpecImplFriend::SetFlags(Flags(), &conv);
   FormatConversionSpecImplFriend::SetWidth(-1, &conv);
   FormatConversionSpecImplFriend::SetPrecision(-1, &conv);

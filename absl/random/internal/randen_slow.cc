@@ -20,6 +20,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/random/internal/platform.h"
+#include "absl/random/internal/randen_traits.h"
 
 #if ABSL_HAVE_ATTRIBUTE(always_inline) || \
     (defined(__GNUC__) && !defined(__clang__))
@@ -225,35 +226,16 @@ constexpr uint32_t te3[256] = {
     0xb0b0cb7b, 0x5454fca8, 0xbbbbd66d, 0x16163a2c,
 };
 
-struct alignas(16) u64x2 {
-  constexpr u64x2() : v{0, 0} {};
-  constexpr u64x2(uint64_t hi, uint64_t lo) : v{lo, hi} {}
-
-  uint64_t v[2];
-};
-
 // Software implementation of the Vector128 class, using uint32_t
 // as an underlying vector register.
-//
-struct Vector128 {
-  inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128& operator^=(
-      const Vector128& other) {
-    s[0] ^= other.s[0];
-    s[1] ^= other.s[1];
-    s[2] ^= other.s[2];
-    s[3] ^= other.s[3];
-    return *this;
-  }
-
+struct alignas(16) Vector128 {
   uint32_t s[4];
 };
 
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
-Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
+Vector128Load(const void* from) {
   Vector128 result;
-  const uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT src =
-      reinterpret_cast<const uint8_t*>(from);
-
+  const uint8_t* src = reinterpret_cast<const uint8_t*>(from);
   result.s[0] = static_cast<uint32_t>(src[0]) << 24 |
                 static_cast<uint32_t>(src[1]) << 16 |
                 static_cast<uint32_t>(src[2]) << 8 |
@@ -274,7 +256,7 @@ Vector128Load(const void* ABSL_RANDOM_INTERNAL_RESTRICT from) {
 }
 
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
-    const Vector128& v, void* ABSL_RANDOM_INTERNAL_RESTRICT to) {
+    const Vector128& v, void* to) {
   uint8_t* dst = reinterpret_cast<uint8_t*>(to);
   dst[0] = static_cast<uint8_t>(v.s[0] >> 24);
   dst[1] = static_cast<uint8_t>(v.s[0] >> 16);
@@ -298,91 +280,57 @@ inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Vector128Store(
 // symmetry of AES (ensures previously equal columns differ afterwards).
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE Vector128
 AesRound(const Vector128& state, const Vector128& round_key) {
-  // clang-format off
   Vector128 result;
-  result.s[0] = round_key.s[0] ^
-                te0[uint8_t(state.s[0] >> 24)] ^
-                te1[uint8_t(state.s[1] >> 16)] ^
-                te2[uint8_t(state.s[2] >> 8)] ^
+  result.s[0] = round_key.s[0] ^                  //
+                te0[uint8_t(state.s[0] >> 24)] ^  //
+                te1[uint8_t(state.s[1] >> 16)] ^  //
+                te2[uint8_t(state.s[2] >> 8)] ^   //
                 te3[uint8_t(state.s[3])];
-  result.s[1] = round_key.s[1] ^
-                te0[uint8_t(state.s[1] >> 24)] ^
-                te1[uint8_t(state.s[2] >> 16)] ^
-                te2[uint8_t(state.s[3] >> 8)] ^
+  result.s[1] = round_key.s[1] ^                  //
+                te0[uint8_t(state.s[1] >> 24)] ^  //
+                te1[uint8_t(state.s[2] >> 16)] ^  //
+                te2[uint8_t(state.s[3] >> 8)] ^   //
                 te3[uint8_t(state.s[0])];
-  result.s[2] = round_key.s[2] ^
-                te0[uint8_t(state.s[2] >> 24)] ^
-                te1[uint8_t(state.s[3] >> 16)] ^
-                te2[uint8_t(state.s[0] >> 8)] ^
+  result.s[2] = round_key.s[2] ^                  //
+                te0[uint8_t(state.s[2] >> 24)] ^  //
+                te1[uint8_t(state.s[3] >> 16)] ^  //
+                te2[uint8_t(state.s[0] >> 8)] ^   //
                 te3[uint8_t(state.s[1])];
-  result.s[3] = round_key.s[3] ^
-                te0[uint8_t(state.s[3] >> 24)] ^
-                te1[uint8_t(state.s[0] >> 16)] ^
-                te2[uint8_t(state.s[1] >> 8)] ^
+  result.s[3] = round_key.s[3] ^                  //
+                te0[uint8_t(state.s[3] >> 24)] ^  //
+                te1[uint8_t(state.s[0] >> 16)] ^  //
+                te2[uint8_t(state.s[1] >> 8)] ^   //
                 te3[uint8_t(state.s[2])];
   return result;
-  // clang-format on
 }
 
-// RANDen = RANDom generator or beetroots in Swiss German.
-// 'Strong' (well-distributed, unpredictable, backtracking-resistant) random
-// generator, faster in some benchmarks than std::mt19937_64 and pcg64_c32.
-//
-// High-level summary:
-// 1) Reverie (see "A Robust and Sponge-Like PRNG with Improved Efficiency") is
-//    a sponge-like random generator that requires a cryptographic permutation.
-//    It improves upon "Provably Robust Sponge-Based PRNGs and KDFs" by
-//    achieving backtracking resistance with only one Permute() per buffer.
-//
-// 2) "Simpira v2: A Family of Efficient Permutations Using the AES Round
-//    Function" constructs up to 1024-bit permutations using an improved
-//    Generalized Feistel network with 2-round AES-128 functions. This Feistel
-//    block shuffle achieves diffusion faster and is less vulnerable to
-//    sliced-biclique attacks than the Type-2 cyclic shuffle.
-//
-// 3) "Improving the Generalized Feistel" and "New criterion for diffusion
-//    property" extends the same kind of improved Feistel block shuffle to 16
-//    branches, which enables a 2048-bit permutation.
-//
-// Combine these three ideas and also change Simpira's subround keys from
-// structured/low-entropy counters to digits of Pi.
+using ::absl::random_internal::RandenTraits;
 
-// Randen constants.
-constexpr size_t kFeistelBlocks = 16;
-constexpr size_t kFeistelFunctions = kFeistelBlocks / 2;  // = 8
-constexpr size_t kFeistelRounds = 16 + 1;  // > 4 * log2(kFeistelBlocks)
-constexpr size_t kKeys = kFeistelRounds * kFeistelFunctions;
-
-// INCLUDE keys.
-#include "absl/random/internal/randen-keys.inc"
-
-static_assert(kKeys == kRoundKeys, "kKeys and kRoundKeys must be equal");
-
-// 2 uint64_t lanes per Vector128
-static constexpr size_t kLanes = 2;
+// Randen operates on 128-bit vectors.
+struct alignas(16) u64x2 {
+  uint64_t data[2];
+};
 
 // The improved Feistel block shuffle function for 16 blocks.
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void BlockShuffle(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state_u64) {
-  static_assert(kFeistelBlocks == 16,
+    u64x2* state) {
+  static_assert(RandenTraits::kFeistelBlocks == 16,
                 "Feistel block shuffle only works for 16 blocks.");
 
-  constexpr size_t shuffle[kFeistelBlocks] = {7,  2, 13, 4,  11, 8,  3, 6,
-                                              15, 0, 9,  10, 1,  14, 5, 12};
-
-  u64x2* ABSL_RANDOM_INTERNAL_RESTRICT state =
-      reinterpret_cast<u64x2*>(state_u64);
+  constexpr size_t shuffle[RandenTraits::kFeistelBlocks] = {
+      7, 2, 13, 4, 11, 8, 3, 6, 15, 0, 9, 10, 1, 14, 5, 12};
 
   // The fully unrolled loop without the memcpy improves the speed by about
-  // 30% over the equivalent (leaving code here as a comment):
-  if (false) {
-    u64x2 source[kFeistelBlocks];
-    std::memcpy(source, state, sizeof(source));
-    for (size_t i = 0; i < kFeistelBlocks; i++) {
-      const u64x2 v0 = source[shuffle[i]];
-      state[i] = v0;
-    }
+  // 30% over the equivalent:
+#if 0
+  u64x2 source[RandenTraits::kFeistelBlocks];
+  std::memcpy(source, state, sizeof(source));
+  for (size_t i = 0; i < RandenTraits::kFeistelBlocks; i++) {
+    const u64x2 v0 = source[shuffle[i]];
+    state[i] = v0;
   }
+  return;
+#endif
 
   const u64x2 v0 = state[shuffle[0]];
   const u64x2 v1 = state[shuffle[1]];
@@ -424,23 +372,23 @@ inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void BlockShuffle(
 // parallel hides the 7-cycle AESNI latency on HSW. Note that the Feistel
 // XORs are 'free' (included in the second AES instruction).
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE const u64x2* FeistelRound(
-    uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state,
+    u64x2* ABSL_RANDOM_INTERNAL_RESTRICT state,
     const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
-  for (size_t branch = 0; branch < kFeistelBlocks; branch += 4) {
-    const Vector128 s0 = Vector128Load(state + kLanes * branch);
-    const Vector128 s1 = Vector128Load(state + kLanes * (branch + 1));
+  for (size_t branch = 0; branch < RandenTraits::kFeistelBlocks; branch += 4) {
+    const Vector128 s0 = Vector128Load(state + branch);
+    const Vector128 s1 = Vector128Load(state + branch + 1);
     const Vector128 f0 = AesRound(s0, Vector128Load(keys));
     keys++;
     const Vector128 o1 = AesRound(f0, s1);
-    Vector128Store(o1, state + kLanes * (branch + 1));
+    Vector128Store(o1, state + branch + 1);
 
     // Manually unroll this loop once. about 10% better than not unrolled.
-    const Vector128 s2 = Vector128Load(state + kLanes * (branch + 2));
-    const Vector128 s3 = Vector128Load(state + kLanes * (branch + 3));
+    const Vector128 s2 = Vector128Load(state + branch + 2);
+    const Vector128 s3 = Vector128Load(state + branch + 3);
     const Vector128 f2 = AesRound(s2, Vector128Load(keys));
     keys++;
     const Vector128 o3 = AesRound(f2, s3);
-    Vector128Store(o3, state + kLanes * (branch + 3));
+    Vector128Store(o3, state + branch + 3);
   }
   return keys;
 }
@@ -450,11 +398,9 @@ inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE const u64x2* FeistelRound(
 // 2^64 queries if the round function is a PRF. This is similar to the b=8 case
 // of Simpira v2, but more efficient than its generic construction for b=16.
 inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void Permute(
-    const void* keys, uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state) {
-  const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys128 =
-      static_cast<const u64x2*>(keys);
-  for (size_t round = 0; round < kFeistelRounds; ++round) {
-    keys128 = FeistelRound(state, keys128);
+    u64x2* state, const u64x2* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
+  for (size_t round = 0; round < RandenTraits::kFeistelRounds; ++round) {
+    keys = FeistelRound(state, keys);
     BlockShuffle(state);
   }
 }
@@ -468,37 +414,42 @@ namespace random_internal {
 const void* RandenSlow::GetKeys() {
   // Round keys for one AES per Feistel round and branch.
   // The canonical implementation uses first digits of Pi.
-  return round_keys;
+  return kRandenRoundKeys;
 }
 
 void RandenSlow::Absorb(const void* seed_void, void* state_void) {
-  uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state =
-      reinterpret_cast<uint64_t*>(state_void);
-  const uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT seed =
-      reinterpret_cast<const uint64_t*>(seed_void);
+  auto* state =
+      reinterpret_cast<uint64_t * ABSL_RANDOM_INTERNAL_RESTRICT>(state_void);
+  const auto* seed =
+      reinterpret_cast<const uint64_t * ABSL_RANDOM_INTERNAL_RESTRICT>(
+          seed_void);
 
-  constexpr size_t kCapacityBlocks = kCapacityBytes / sizeof(uint64_t);
-  static_assert(kCapacityBlocks * sizeof(uint64_t) == kCapacityBytes,
-                "Not i*V");
-  for (size_t i = kCapacityBlocks; i < kStateBytes / sizeof(uint64_t); ++i) {
+  constexpr size_t kCapacityBlocks =
+      RandenTraits::kCapacityBytes / sizeof(uint64_t);
+  static_assert(
+      kCapacityBlocks * sizeof(uint64_t) == RandenTraits::kCapacityBytes,
+      "Not i*V");
+
+  for (size_t i = kCapacityBlocks;
+       i < RandenTraits::kStateBytes / sizeof(uint64_t); ++i) {
     state[i] ^= seed[i - kCapacityBlocks];
   }
 }
 
-void RandenSlow::Generate(const void* keys, void* state_void) {
-  static_assert(kCapacityBytes == sizeof(Vector128), "Capacity mismatch");
+void RandenSlow::Generate(const void* keys_void, void* state_void) {
+  static_assert(RandenTraits::kCapacityBytes == sizeof(u64x2),
+                "Capacity mismatch");
 
-  uint64_t* ABSL_RANDOM_INTERNAL_RESTRICT state =
-      reinterpret_cast<uint64_t*>(state_void);
+  auto* state = reinterpret_cast<u64x2*>(state_void);
+  const auto* keys = reinterpret_cast<const u64x2*>(keys_void);
 
-  const Vector128 prev_inner = Vector128Load(state);
+  const u64x2 prev_inner = state[0];
 
-  Permute(keys, state);
+  Permute(state, keys);
 
   // Ensure backtracking resistance.
-  Vector128 inner = Vector128Load(state);
-  inner ^= prev_inner;
-  Vector128Store(inner, state);
+  state[0].data[0] ^= prev_inner.data[0];
+  state[0].data[1] ^= prev_inner.data[1];
 }
 
 }  // namespace random_internal

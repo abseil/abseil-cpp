@@ -27,6 +27,8 @@ class FormatSink;
 
 namespace str_format_internal {
 
+class FormatConversionSpec;
+
 template <typename T, typename = void>
 struct HasUserDefinedConvert : std::false_type {};
 

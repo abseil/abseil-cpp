@@ -29,6 +29,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
+#include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
@@ -159,8 +160,12 @@ TYPED_TEST(BetaDistributionInterfaceTest, SerializeTest) {
 }
 
 TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng(0x2B7E151628AED2A6);
+
   // Extreme cases when the params are abnormal.
-  absl::InsecureBitGen gen;
   constexpr int kCount = 1000;
   const TypeParam kSmallValues[] = {
       std::numeric_limits<TypeParam>::min(),
@@ -186,7 +191,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
         int ones = 0;
         absl::beta_distribution<TypeParam> d(alpha, beta);
         for (int i = 0; i < kCount; ++i) {
-          TypeParam x = d(gen);
+          TypeParam x = d(rng);
           if (x == 0.0) {
             zeros++;
           } else if (x == 1.0) {
@@ -212,7 +217,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
       for (TypeParam beta : kLargeValues) {
         absl::beta_distribution<TypeParam> d(alpha, beta);
         for (int i = 0; i < kCount; ++i) {
-          EXPECT_EQ(d(gen), 0.0);
+          EXPECT_EQ(d(rng), 0.0);
         }
       }
     }
@@ -227,7 +232,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
       for (TypeParam beta : kSmallValues) {
         absl::beta_distribution<TypeParam> d(alpha, beta);
         for (int i = 0; i < kCount; ++i) {
-          EXPECT_EQ(d(gen), 1.0);
+          EXPECT_EQ(d(rng), 1.0);
         }
       }
     }
@@ -237,7 +242,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
     absl::beta_distribution<TypeParam> d(std::numeric_limits<TypeParam>::max(),
                                          std::numeric_limits<TypeParam>::max());
     for (int i = 0; i < kCount; ++i) {
-      EXPECT_EQ(d(gen), 0.5);
+      EXPECT_EQ(d(rng), 0.5);
     }
   }
   {
@@ -246,7 +251,7 @@ TYPED_TEST(BetaDistributionInterfaceTest, DegenerateCases) {
         std::numeric_limits<TypeParam>::max(),
         std::numeric_limits<TypeParam>::max() * 0.9999);
     for (int i = 0; i < kCount; ++i) {
-      TypeParam x = d(gen);
+      TypeParam x = d(rng);
       EXPECT_NE(x, 0.5f);
       EXPECT_FLOAT_EQ(x, 0.500025f);
     }

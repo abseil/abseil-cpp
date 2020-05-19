@@ -255,13 +255,15 @@ cc_library(
 
 cc_library(
     name = "platform",
+    srcs = [
+        "randen_round_keys.cc",
+    ],
     hdrs = [
         "randen_traits.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     textual_hdrs = [
-        "randen-keys.inc",
         "platform.h",
     ],
     deps = ["//absl/base:config"],
@@ -613,6 +615,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":platform",
         ":randen_slow",
         "@com_google_googletest//:gtest_main",
     ],

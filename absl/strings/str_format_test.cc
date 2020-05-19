@@ -1,4 +1,6 @@
 
+#include "absl/strings/str_format.h"
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -6,13 +8,14 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/strings/str_format.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace {
 using str_format_internal::FormatArgImpl;
+using str_format_internal::FormatConversionCharSetInternal;
 
 using FormatEntryPointTest = ::testing::Test;
 
@@ -535,100 +538,106 @@ TEST_F(ParsedFormatTest, SimpleUncheckedIncorrect) {
 using absl::str_format_internal::FormatConversionCharSet;
 
 TEST_F(ParsedFormatTest, UncheckedCorrect) {
-  auto f = ExtendedParsedFormat<FormatConversionCharSet::d>::New("ABC%dDEF");
+  auto f =
+      ExtendedParsedFormat<FormatConversionCharSetInternal::d>::New("ABC%dDEF");
   ASSERT_TRUE(f);
   EXPECT_EQ("[ABC]{d:1$d}[DEF]", SummarizeParsedFormat(*f));
 
   std::string format = "%sFFF%dZZZ%f";
-  auto f2 =
-      ExtendedParsedFormat<FormatConversionCharSet::kString,
-                           FormatConversionCharSet::d,
-                           FormatConversionCharSet::kFloating>::New(format);
+  auto f2 = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::kString,
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::kFloating>::New(format);
 
   ASSERT_TRUE(f2);
   EXPECT_EQ("{s:1$s}[FFF]{d:2$d}[ZZZ]{f:3$f}", SummarizeParsedFormat(*f2));
 
-  f2 =
-      ExtendedParsedFormat<FormatConversionCharSet::kString,
-                           FormatConversionCharSet::d,
-                           FormatConversionCharSet::kFloating>::New("%s %d %f");
+  f2 = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::kString,
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::kFloating>::New("%s %d %f");
 
   ASSERT_TRUE(f2);
   EXPECT_EQ("{s:1$s}[ ]{d:2$d}[ ]{f:3$f}", SummarizeParsedFormat(*f2));
 
-  auto star = ExtendedParsedFormat<FormatConversionCharSet::kStar,
-                                   FormatConversionCharSet::d>::New("%*d");
+  auto star =
+      ExtendedParsedFormat<FormatConversionCharSetInternal::kStar,
+                           FormatConversionCharSetInternal::d>::New("%*d");
   ASSERT_TRUE(star);
   EXPECT_EQ("{*d:2$1$*d}", SummarizeParsedFormat(*star));
 
-  auto dollar =
-      ExtendedParsedFormat<FormatConversionCharSet::d,
-                           FormatConversionCharSet::s>::New("%2$s %1$d");
+  auto dollar = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::s>::New("%2$s %1$d");
   ASSERT_TRUE(dollar);
   EXPECT_EQ("{2$s:2$s}[ ]{1$d:1$d}", SummarizeParsedFormat(*dollar));
   // with reuse
-  dollar =
-      ExtendedParsedFormat<FormatConversionCharSet::d,
-                           FormatConversionCharSet::s>::New("%2$s %1$d %1$d");
+  dollar = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::s>::New("%2$s %1$d %1$d");
   ASSERT_TRUE(dollar);
   EXPECT_EQ("{2$s:2$s}[ ]{1$d:1$d}[ ]{1$d:1$d}",
             SummarizeParsedFormat(*dollar));
 }
 
 TEST_F(ParsedFormatTest, UncheckedIgnoredArgs) {
-  EXPECT_FALSE((ExtendedParsedFormat<FormatConversionCharSet::d,
-                                     FormatConversionCharSet::s>::New("ABC")));
   EXPECT_FALSE(
-      (ExtendedParsedFormat<FormatConversionCharSet::d,
-                            FormatConversionCharSet::s>::New("%dABC")));
+      (ExtendedParsedFormat<FormatConversionCharSetInternal::d,
+                            FormatConversionCharSetInternal::s>::New("ABC")));
   EXPECT_FALSE(
-      (ExtendedParsedFormat<FormatConversionCharSet::d,
-                            FormatConversionCharSet::s>::New("ABC%2$s")));
-  auto f =
-      ExtendedParsedFormat<FormatConversionCharSet::d,
-                           FormatConversionCharSet::s>::NewAllowIgnored("ABC");
+      (ExtendedParsedFormat<FormatConversionCharSetInternal::d,
+                            FormatConversionCharSetInternal::s>::New("%dABC")));
+  EXPECT_FALSE((ExtendedParsedFormat<
+                FormatConversionCharSetInternal::d,
+                FormatConversionCharSetInternal::s>::New("ABC%2$s")));
+  auto f = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::s>::NewAllowIgnored("ABC");
   ASSERT_TRUE(f);
   EXPECT_EQ("[ABC]", SummarizeParsedFormat(*f));
   f = ExtendedParsedFormat<
-      FormatConversionCharSet::d,
-      FormatConversionCharSet::s>::NewAllowIgnored("%dABC");
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::s>::NewAllowIgnored("%dABC");
   ASSERT_TRUE(f);
   EXPECT_EQ("{d:1$d}[ABC]", SummarizeParsedFormat(*f));
   f = ExtendedParsedFormat<
-      FormatConversionCharSet::d,
-      FormatConversionCharSet::s>::NewAllowIgnored("ABC%2$s");
+      FormatConversionCharSetInternal::d,
+      FormatConversionCharSetInternal::s>::NewAllowIgnored("ABC%2$s");
   ASSERT_TRUE(f);
   EXPECT_EQ("[ABC]{2$s:2$s}", SummarizeParsedFormat(*f));
 }
 
 TEST_F(ParsedFormatTest, UncheckedMultipleTypes) {
-  auto dx = ExtendedParsedFormat<FormatConversionCharSet::d |
-                                 FormatConversionCharSet::x>::New("%1$d %1$x");
+  auto dx = ExtendedParsedFormat<
+      FormatConversionCharSetInternal::d |
+      FormatConversionCharSetInternal::x>::New("%1$d %1$x");
   EXPECT_TRUE(dx);
   EXPECT_EQ("{1$d:1$d}[ ]{1$x:1$x}", SummarizeParsedFormat(*dx));
 
-  dx = ExtendedParsedFormat<FormatConversionCharSet::d |
-                            FormatConversionCharSet::x>::New("%1$d");
+  dx = ExtendedParsedFormat<FormatConversionCharSetInternal::d |
+                            FormatConversionCharSetInternal::x>::New("%1$d");
   EXPECT_TRUE(dx);
   EXPECT_EQ("{1$d:1$d}", SummarizeParsedFormat(*dx));
 }
 
 TEST_F(ParsedFormatTest, UncheckedIncorrect) {
-  EXPECT_FALSE(ExtendedParsedFormat<FormatConversionCharSet::d>::New(""));
-
   EXPECT_FALSE(
-      ExtendedParsedFormat<FormatConversionCharSet::d>::New("ABC%dDEF%d"));
+      ExtendedParsedFormat<FormatConversionCharSetInternal::d>::New(""));
+
+  EXPECT_FALSE(ExtendedParsedFormat<FormatConversionCharSetInternal::d>::New(
+      "ABC%dDEF%d"));
 
   std::string format = "%sFFF%dZZZ%f";
-  EXPECT_FALSE((ExtendedParsedFormat<FormatConversionCharSet::s,
-                                     FormatConversionCharSet::d,
-                                     FormatConversionCharSet::g>::New(format)));
+  EXPECT_FALSE(
+      (ExtendedParsedFormat<FormatConversionCharSetInternal::s,
+                            FormatConversionCharSetInternal::d,
+                            FormatConversionCharSetInternal::g>::New(format)));
 }
 
 TEST_F(ParsedFormatTest, RegressionMixPositional) {
-  EXPECT_FALSE(
-      (ExtendedParsedFormat<FormatConversionCharSet::d,
-                            FormatConversionCharSet::o>::New("%1$d %o")));
+  EXPECT_FALSE((ExtendedParsedFormat<
+                FormatConversionCharSetInternal::d,
+                FormatConversionCharSetInternal::o>::New("%1$d %o")));
 }
 
 using FormatWrapperTest = ::testing::Test;

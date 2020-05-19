@@ -32,8 +32,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace str_format_internal {
-enum class FormatConversionCharSet : uint64_t;
+
 enum class FormatConversionChar : uint8_t;
+enum class FormatConversionCharSet : uint64_t;
 
 class FormatRawSinkImpl {
  public:
@@ -106,7 +107,7 @@ class FormatSinkImpl {
   size_t size() const { return size_; }
 
   // Put 'v' to 'sink' with specified width, precision, and left flag.
-  bool PutPaddedString(string_view v, int w, int p, bool l);
+  bool PutPaddedString(string_view v, int width, int precision, bool left);
 
   template <typename T>
   T Wrap() {
@@ -419,81 +420,6 @@ constexpr bool Contains(FormatConversionCharSet set, FormatConversionChar c) {
 inline size_t Excess(size_t used, size_t capacity) {
   return used < capacity ? capacity - used : 0;
 }
-
-class FormatConversionSpec {
- public:
-  // Width and precison are not specified, no flags are set.
-  bool is_basic() const { return impl_.is_basic(); }
-  bool has_left_flag() const { return impl_.has_left_flag(); }
-  bool has_show_pos_flag() const { return impl_.has_show_pos_flag(); }
-  bool has_sign_col_flag() const { return impl_.has_sign_col_flag(); }
-  bool has_alt_flag() const { return impl_.has_alt_flag(); }
-  bool has_zero_flag() const { return impl_.has_zero_flag(); }
-
-  FormatConversionChar conversion_char() const {
-    return impl_.conversion_char();
-  }
-
-  // Returns the specified width. If width is unspecfied, it returns a negative
-  // value.
-  int width() const { return impl_.width(); }
-  // Returns the specified precision. If precision is unspecfied, it returns a
-  // negative value.
-  int precision() const { return impl_.precision(); }
-
- private:
-  explicit FormatConversionSpec(
-      str_format_internal::FormatConversionSpecImpl impl)
-      : impl_(impl) {}
-
-  friend str_format_internal::FormatConversionSpecImpl;
-
-  absl::str_format_internal::FormatConversionSpecImpl impl_;
-};
-
-// clang-format off
-enum class FormatConversionChar : uint8_t {
-  c, s,                    // text
-  d, i, o, u, x, X,        // int
-  f, F, e, E, g, G, a, A,  // float
-  n, p                     // misc
-};
-// clang-format on
-
-enum class FormatConversionCharSet : uint64_t {
-  // text
-  c = str_format_internal::FormatConversionCharToConvInt('c'),
-  s = str_format_internal::FormatConversionCharToConvInt('s'),
-  // integer
-  d = str_format_internal::FormatConversionCharToConvInt('d'),
-  i = str_format_internal::FormatConversionCharToConvInt('i'),
-  o = str_format_internal::FormatConversionCharToConvInt('o'),
-  u = str_format_internal::FormatConversionCharToConvInt('u'),
-  x = str_format_internal::FormatConversionCharToConvInt('x'),
-  X = str_format_internal::FormatConversionCharToConvInt('X'),
-  // Float
-  f = str_format_internal::FormatConversionCharToConvInt('f'),
-  F = str_format_internal::FormatConversionCharToConvInt('F'),
-  e = str_format_internal::FormatConversionCharToConvInt('e'),
-  E = str_format_internal::FormatConversionCharToConvInt('E'),
-  g = str_format_internal::FormatConversionCharToConvInt('g'),
-  G = str_format_internal::FormatConversionCharToConvInt('G'),
-  a = str_format_internal::FormatConversionCharToConvInt('a'),
-  A = str_format_internal::FormatConversionCharToConvInt('A'),
-  // misc
-  n = str_format_internal::FormatConversionCharToConvInt('n'),
-  p = str_format_internal::FormatConversionCharToConvInt('p'),
-
-  // Used for width/precision '*' specification.
-  kStar = str_format_internal::FormatConversionCharToConvInt('*'),
-
-  // Some predefined values:
-  kIntegral = d | i | u | o | x | X,
-  kFloating = a | e | f | g | A | E | F | G,
-  kNumeric = kIntegral | kFloating,
-  kString = s,
-  kPointer = p,
-};
 
 }  // namespace str_format_internal
 

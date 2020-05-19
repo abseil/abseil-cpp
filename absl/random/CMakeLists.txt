@@ -244,6 +244,7 @@ absl_cc_test(
     absl::random_distributions
     absl::random_random
     absl::random_internal_sequence_urbg
+    absl::random_internal_pcg_engine
     gmock
     gtest_main
 )
@@ -262,6 +263,7 @@ absl_cc_test(
     absl::random_random
     absl::random_internal_distribution_test_util
     absl::random_internal_sequence_urbg
+    absl::random_internal_pcg_engine
     absl::raw_logging_internal
     absl::strings
     absl::str_format
@@ -311,9 +313,9 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
-    absl::core_headers
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::raw_logging_internal
@@ -335,6 +337,7 @@ absl_cc_test(
   DEPS
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::raw_logging_internal
@@ -358,6 +361,7 @@ absl_cc_test(
     absl::core_headers
     absl::flat_hash_map
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::raw_logging_internal
     absl::strings
@@ -379,6 +383,7 @@ absl_cc_test(
     absl::core_headers
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::raw_logging_internal
@@ -422,6 +427,7 @@ absl_cc_test(
   DEPS
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::raw_logging_internal
@@ -442,6 +448,7 @@ absl_cc_test(
   DEPS
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::strings
@@ -461,6 +468,7 @@ absl_cc_test(
   DEPS
     absl::random_distributions
     absl::random_internal_distribution_test_util
+    absl::random_internal_pcg_engine
     absl::random_internal_sequence_urbg
     absl::random_random
     absl::raw_logging_internal
@@ -782,8 +790,9 @@ absl_cc_library(
     random_internal_platform
   HDRS
     "internal/randen_traits.h"
-    "internal/randen-keys.inc"
     "internal/platform.h"
+  SRCS
+    "internal/randen_round_keys.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS

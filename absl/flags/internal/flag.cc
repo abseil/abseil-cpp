@@ -49,9 +49,9 @@ namespace {
 
 // Currently we only validate flag values for user-defined flag types.
 bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
-#define DONT_VALIDATE(T) \
+#define DONT_VALIDATE(T, _) \
   if (flag_type_id == base_internal::FastTypeId<T>()) return false;
-  ABSL_FLAGS_INTERNAL_BUILTIN_TYPES(DONT_VALIDATE)
+  ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(DONT_VALIDATE)
 #undef DONT_VALIDATE
 
   return true;
@@ -150,23 +150,11 @@ void FlagImpl::Init() {
       break;
     case FlagValueStorageKind::kOneWordAtomic: {
       alignas(int64_t) std::array<char, sizeof(int64_t)> buf{};
-      switch (def_kind) {
-        case FlagDefaultKind::kOneWord:
-          std::memcpy(buf.data(), &default_value_.one_word,
-                      sizeof(default_value_.one_word));
-          break;
-        case FlagDefaultKind::kFloat:
-          std::memcpy(buf.data(), &default_value_.float_value,
-                      sizeof(default_value_.float_value));
-          break;
-        case FlagDefaultKind::kDouble:
-          std::memcpy(buf.data(), &default_value_.double_value,
-                      sizeof(default_value_.double_value));
-          break;
-        default:
-          assert(def_kind == FlagDefaultKind::kGenFunc);
-          (*default_value_.gen_func)(buf.data());
-          break;
+      if (def_kind == FlagDefaultKind::kGenFunc) {
+        (*default_value_.gen_func)(buf.data());
+      } else {
+        assert(def_kind != FlagDefaultKind::kDynamicValue);
+        std::memcpy(buf.data(), &default_value_, Sizeof(op_));
       }
       OneWordValue().store(absl::bit_cast<int64_t>(buf),
                            std::memory_order_release);
@@ -228,14 +216,8 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
       res = flags_internal::Alloc(op_);
       (*default_value_.gen_func)(res);
       break;
-    case FlagDefaultKind::kOneWord:
-      res = flags_internal::Clone(op_, &default_value_.one_word);
-      break;
-    case FlagDefaultKind::kFloat:
-      res = flags_internal::Clone(op_, &default_value_.float_value);
-      break;
-    case FlagDefaultKind::kDouble:
-      res = flags_internal::Clone(op_, &default_value_.double_value);
+    default:
+      res = flags_internal::Clone(op_, &default_value_);
       break;
   }
   return {res, DynValueDeleter{op_}};

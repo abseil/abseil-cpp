@@ -63,10 +63,6 @@
 //     loosely typed. `FormatUntyped()` is not a template and does not perform
 //     any compile-time checking of the format string; instead, it returns a
 //     boolean from a runtime check.
-//
-// In addition, the `str_format` library provides extension points for
-// augmenting formatting to new types. These extensions are fully documented
-// within the `str_format_extension.h` header file.
 
 #ifndef ABSL_STRINGS_STR_FORMAT_H_
 #define ABSL_STRINGS_STR_FORMAT_H_
