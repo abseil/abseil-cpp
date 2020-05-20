@@ -23,7 +23,6 @@
 #include "absl/base/internal/fast_type_id.h"
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -65,117 +64,6 @@ class FlagStateInterface {
 
   // Restores the flag originated this object to the saved state.
   virtual void Restore() const = 0;
-};
-
-// Holds all information for a flag.
-class CommandLineFlag {
- public:
-  constexpr CommandLineFlag() = default;
-
-  // Not copyable/assignable.
-  CommandLineFlag(const CommandLineFlag&) = delete;
-  CommandLineFlag& operator=(const CommandLineFlag&) = delete;
-
-  // Non-polymorphic access methods.
-
-  // Return true iff flag has type T.
-  template <typename T>
-  inline bool IsOfType() const {
-    return TypeId() == base_internal::FastTypeId<T>();
-  }
-
-  // Attempts to retrieve the flag value. Returns value on success,
-  // absl::nullopt otherwise.
-  template <typename T>
-  absl::optional<T> TryGet() const {
-    if (IsRetired() || !IsOfType<T>()) {
-      return absl::nullopt;
-    }
-
-    // Implementation notes:
-    //
-    // We are wrapping a union around the value of `T` to serve three purposes:
-    //
-    //  1. `U.value` has correct size and alignment for a value of type `T`
-    //  2. The `U.value` constructor is not invoked since U's constructor does
-    //     not do it explicitly.
-    //  3. The `U.value` destructor is invoked since U's destructor does it
-    //     explicitly. This makes `U` a kind of RAII wrapper around non default
-    //     constructible value of T, which is destructed when we leave the
-    //     scope. We do need to destroy U.value, which is constructed by
-    //     CommandLineFlag::Read even though we left it in a moved-from state
-    //     after std::move.
-    //
-    // All of this serves to avoid requiring `T` being default constructible.
-    union U {
-      T value;
-      U() {}
-      ~U() { value.~T(); }
-    };
-    U u;
-
-    Read(&u.value);
-    return std::move(u.value);
-  }
-
-  // Polymorphic access methods
-
-  // Returns name of this flag.
-  virtual absl::string_view Name() const = 0;
-  // Returns name of the file where this flag is defined.
-  virtual std::string Filename() const = 0;
-  // Returns help message associated with this flag.
-  virtual std::string Help() const = 0;
-  // Returns true iff this object corresponds to retired flag.
-  virtual bool IsRetired() const;
-  virtual std::string DefaultValue() const = 0;
-  virtual std::string CurrentValue() const = 0;
-
-  // Sets the value of the flag based on specified string `value`. If the flag
-  // was successfully set to new value, it returns true. Otherwise, sets `error`
-  // to indicate the error, leaves the flag unchanged, and returns false.
-  bool ParseFrom(absl::string_view value, std::string* error);
-
- protected:
-  ~CommandLineFlag() = default;
-
- private:
-  friend class PrivateHandleAccessor;
-
-  // Sets the value of the flag based on specified string `value`. If the flag
-  // was successfully set to new value, it returns true. Otherwise, sets `error`
-  // to indicate the error, leaves the flag unchanged, and returns false. There
-  // are three ways to set the flag's value:
-  //  * Update the current flag value
-  //  * Update the flag's default value
-  //  * Update the current flag value if it was never set before
-  // The mode is selected based on `set_mode` parameter.
-  virtual bool ParseFrom(absl::string_view value,
-                         flags_internal::FlagSettingMode set_mode,
-                         flags_internal::ValueSource source,
-                         std::string* error) = 0;
-
-  // Returns id of the flag's value type.
-  virtual FlagFastTypeId TypeId() const = 0;
-
-  // Interface to save flag to some persistent state. Returns current flag state
-  // or nullptr if flag does not support saving and restoring a state.
-  virtual std::unique_ptr<FlagStateInterface> SaveState() = 0;
-
-  // Copy-construct a new value of the flag's type in a memory referenced by
-  // the dst based on the current flag's value.
-  virtual void Read(void* dst) const = 0;
-
-  // To be deleted. Used to return true if flag's current value originated from
-  // command line.
-  virtual bool IsSpecifiedOnCommandLine() const = 0;
-
-  // Validates supplied value usign validator or parseflag routine
-  virtual bool ValidateInputValue(absl::string_view value) const = 0;
-
-  // Checks that flags default value can be converted to string and back to the
-  // flag's value type.
-  virtual void CheckDefaultValueParsingRoundtrip() const = 0;
 };
 
 }  // namespace flags_internal

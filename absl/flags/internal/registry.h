@@ -30,6 +30,8 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+class CommandLineFlag;
+
 namespace flags_internal {
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);

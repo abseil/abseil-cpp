@@ -26,7 +26,6 @@
 #include "absl/base/attributes.h"
 #include "absl/flags/config.h"
 #include "absl/flags/declare.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"

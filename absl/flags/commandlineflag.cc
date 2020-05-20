@@ -13,21 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/commandlineflag.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-namespace flags_internal {
-
-FlagStateInterface::~FlagStateInterface() {}
 
 bool CommandLineFlag::IsRetired() const { return false; }
-
 bool CommandLineFlag::ParseFrom(absl::string_view value, std::string* error) {
   return ParseFrom(value, flags_internal::SET_FLAGS_VALUE,
                    flags_internal::kProgrammaticChange, error);
 }
 
+namespace flags_internal {
+FlagStateInterface::~FlagStateInterface() {}
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

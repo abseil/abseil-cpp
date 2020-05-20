@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "absl/base/config.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/private_handle_accessor.h"
@@ -182,8 +182,7 @@ class FlagHelpPrettyPrinter {
   bool first_line_;
 };
 
-void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
-                           std::ostream* out) {
+void FlagHelpHumanReadable(const CommandLineFlag& flag, std::ostream* out) {
   FlagHelpPrettyPrinter printer(80, out);  // Max line length is 80.
 
   // Flag name.
@@ -245,11 +244,10 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   // This map is used to output matching flags grouped by package and file
   // name.
   std::map<std::string,
-           std::map<std::string,
-                    std::vector<const flags_internal::CommandLineFlag*>>>
+           std::map<std::string, std::vector<const CommandLineFlag*>>>
       matching_flags;
 
-  flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
+  flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
     std::string flag_filename = flag->Filename();
 
     // Ignore retired flags.
@@ -303,7 +301,7 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
 
 // --------------------------------------------------------------------
 // Produces the help message describing specific flag.
-void FlagHelp(std::ostream& out, const flags_internal::CommandLineFlag& flag,
+void FlagHelp(std::ostream& out, const CommandLineFlag& flag,
               HelpFormat format) {
   if (format == HelpFormat::kHumanReadable)
     flags_internal::FlagHelpHumanReadable(flag, &out);

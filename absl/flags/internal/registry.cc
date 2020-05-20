@@ -28,7 +28,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
-#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"
@@ -111,6 +111,7 @@ class FlagRegistryLock {
 };
 
 void DestroyRetiredFlag(CommandLineFlag* flag);
+
 }  // namespace
 
 void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
@@ -205,7 +206,7 @@ class FlagSaverImpl {
   // It's an error to call this more than once.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
-    flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
+    flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
       if (auto flag_state =
               flags_internal::PrivateHandleAccessor::SaveState(flag)) {
         backup_registry_.emplace_back(std::move(flag_state));
@@ -283,7 +284,7 @@ bool RegisterCommandLineFlag(CommandLineFlag* flag) {
 
 namespace {
 
-class RetiredFlagObj final : public flags_internal::CommandLineFlag {
+class RetiredFlagObj final : public CommandLineFlag {
  public:
   constexpr RetiredFlagObj(const char* name, FlagFastTypeId type_id)
       : name_(name), type_id_(type_id) {}
@@ -319,7 +320,7 @@ class RetiredFlagObj final : public flags_internal::CommandLineFlag {
   const FlagFastTypeId type_id_;
 };
 
-void DestroyRetiredFlag(flags_internal::CommandLineFlag* flag) {
+void DestroyRetiredFlag(CommandLineFlag* flag) {
   assert(flag->IsRetired());
   delete static_cast<RetiredFlagObj*>(flag);
 }

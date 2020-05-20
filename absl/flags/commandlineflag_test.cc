@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/commandlineflag.h"
 
 #include <memory>
 #include <string>
@@ -70,9 +70,10 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_EQ(flag_01->Help(), "int_flag help");
   EXPECT_TRUE(!flag_01->IsRetired());
   EXPECT_TRUE(flag_01->IsOfType<int>());
-  EXPECT_TRUE(
-      absl::EndsWith(flag_01->Filename(),
-                     "absl/flags/internal/commandlineflag_test.cc"))
+  EXPECT_TRUE(!flag_01->IsOfType<bool>());
+  EXPECT_TRUE(!flag_01->IsOfType<std::string>());
+  EXPECT_TRUE(absl::EndsWith(flag_01->Filename(),
+                             "absl/flags/commandlineflag_test.cc"))
       << flag_01->Filename();
 
   auto* flag_02 = flags::FindCommandLineFlag("string_flag");
@@ -82,9 +83,10 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_EQ(flag_02->Help(), "string_flag help");
   EXPECT_TRUE(!flag_02->IsRetired());
   EXPECT_TRUE(flag_02->IsOfType<std::string>());
-  EXPECT_TRUE(
-      absl::EndsWith(flag_02->Filename(),
-                     "absl/flags/internal/commandlineflag_test.cc"))
+  EXPECT_TRUE(!flag_02->IsOfType<bool>());
+  EXPECT_TRUE(!flag_02->IsOfType<int>());
+  EXPECT_TRUE(absl::EndsWith(flag_02->Filename(),
+                             "absl/flags/commandlineflag_test.cc"))
       << flag_02->Filename();
 
   auto* flag_03 = flags::FindRetiredFlag("bool_retired_flag");
@@ -94,6 +96,8 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_EQ(flag_03->Help(), "");
   EXPECT_TRUE(flag_03->IsRetired());
   EXPECT_TRUE(flag_03->IsOfType<bool>());
+  EXPECT_TRUE(!flag_03->IsOfType<int>());
+  EXPECT_TRUE(!flag_03->IsOfType<std::string>());
   EXPECT_EQ(flag_03->Filename(), "RETIRED");
 }
 
