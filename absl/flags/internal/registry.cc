@@ -60,8 +60,8 @@ class FlagRegistry {
   FlagRegistry() = default;
   ~FlagRegistry() = default;
 
-  // Store a flag in this registry.  Takes ownership of *flag.
-  void RegisterFlag(CommandLineFlag* flag);
+  // Store a flag in this registry. Takes ownership of *flag.
+  void RegisterFlag(CommandLineFlag& flag);
 
   void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
   void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
@@ -74,12 +74,12 @@ class FlagRegistry {
   // found or not retired.  Does not emit a warning.
   CommandLineFlag* FindRetiredFlagLocked(absl::string_view name);
 
-  static FlagRegistry* GlobalRegistry();  // returns a singleton registry
+  static FlagRegistry& GlobalRegistry();  // returns a singleton registry
 
  private:
   friend class FlagSaverImpl;  // reads all the flags in order to copy them
   friend void ForEachFlagUnlocked(
-      std::function<void(CommandLineFlag*)> visitor);
+      std::function<void(CommandLineFlag&)> visitor);
 
   // The map from name to flag, for FindFlagLocked().
   using FlagMap = std::map<absl::string_view, CommandLineFlag*>;
@@ -94,65 +94,62 @@ class FlagRegistry {
   FlagRegistry& operator=(const FlagRegistry&);
 };
 
-FlagRegistry* FlagRegistry::GlobalRegistry() {
+FlagRegistry& FlagRegistry::GlobalRegistry() {
   static FlagRegistry* global_registry = new FlagRegistry;
-  return global_registry;
+  return *global_registry;
 }
 
 namespace {
 
 class FlagRegistryLock {
  public:
-  explicit FlagRegistryLock(FlagRegistry* fr) : fr_(fr) { fr_->Lock(); }
-  ~FlagRegistryLock() { fr_->Unlock(); }
+  explicit FlagRegistryLock(FlagRegistry& fr) : fr_(fr) { fr_.Lock(); }
+  ~FlagRegistryLock() { fr_.Unlock(); }
 
  private:
-  FlagRegistry* const fr_;
+  FlagRegistry& fr_;
 };
 
-void DestroyRetiredFlag(CommandLineFlag* flag);
+void DestroyRetiredFlag(CommandLineFlag& flag);
 
 }  // namespace
 
-void FlagRegistry::RegisterFlag(CommandLineFlag* flag) {
-  FlagRegistryLock registry_lock(this);
+void FlagRegistry::RegisterFlag(CommandLineFlag& flag) {
+  FlagRegistryLock registry_lock(*this);
   std::pair<FlagIterator, bool> ins =
-      flags_.insert(FlagMap::value_type(flag->Name(), flag));
+      flags_.insert(FlagMap::value_type(flag.Name(), &flag));
   if (ins.second == false) {  // means the name was already in the map
-    CommandLineFlag* old_flag = ins.first->second;
-    if (flag->IsRetired() != old_flag->IsRetired()) {
+    CommandLineFlag& old_flag = *ins.first->second;
+    if (flag.IsRetired() != old_flag.IsRetired()) {
       // All registrations must agree on the 'retired' flag.
       flags_internal::ReportUsageError(
           absl::StrCat(
-              "Retired flag '", flag->Name(),
-              "' was defined normally in file '",
-              (flag->IsRetired() ? old_flag->Filename() : flag->Filename()),
-              "'."),
+              "Retired flag '", flag.Name(), "' was defined normally in file '",
+              (flag.IsRetired() ? old_flag.Filename() : flag.Filename()), "'."),
           true);
-    } else if (flags_internal::PrivateHandleAccessor::TypeId(*flag) !=
-               flags_internal::PrivateHandleAccessor::TypeId(*old_flag)) {
+    } else if (flags_internal::PrivateHandleAccessor::TypeId(flag) !=
+               flags_internal::PrivateHandleAccessor::TypeId(old_flag)) {
       flags_internal::ReportUsageError(
-          absl::StrCat("Flag '", flag->Name(),
+          absl::StrCat("Flag '", flag.Name(),
                        "' was defined more than once but with "
                        "differing types. Defined in files '",
-                       old_flag->Filename(), "' and '", flag->Filename(), "'."),
+                       old_flag.Filename(), "' and '", flag.Filename(), "'."),
           true);
-    } else if (old_flag->IsRetired()) {
+    } else if (old_flag.IsRetired()) {
       // Retired flag can just be deleted.
       DestroyRetiredFlag(flag);
       return;
-    } else if (old_flag->Filename() != flag->Filename()) {
+    } else if (old_flag.Filename() != flag.Filename()) {
       flags_internal::ReportUsageError(
-          absl::StrCat("Flag '", flag->Name(),
+          absl::StrCat("Flag '", flag.Name(),
                        "' was defined more than once (in files '",
-                       old_flag->Filename(), "' and '", flag->Filename(),
-                       "')."),
+                       old_flag.Filename(), "' and '", flag.Filename(), "')."),
           true);
     } else {
       flags_internal::ReportUsageError(
           absl::StrCat(
-              "Something wrong with flag '", flag->Name(), "' in file '",
-              flag->Filename(), "'. One possibility: file '", flag->Filename(),
+              "Something wrong with flag '", flag.Name(), "' in file '",
+              flag.Filename(), "'. One possibility: file '", flag.Filename(),
               "' is being linked both statically and dynamically into this "
               "executable. e.g. some files listed as srcs to a test and also "
               "listed as srcs of some shared lib deps of the same test."),
@@ -206,7 +203,7 @@ class FlagSaverImpl {
   // It's an error to call this more than once.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
-    flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
+    flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
       if (auto flag_state =
               flags_internal::PrivateHandleAccessor::SaveState(flag)) {
         backup_registry_.emplace_back(std::move(flag_state));
@@ -244,39 +241,39 @@ FlagSaver::~FlagSaver() {
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
   if (name.empty()) return nullptr;
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
+  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
   FlagRegistryLock frl(registry);
 
-  return registry->FindFlagLocked(name);
+  return registry.FindFlagLocked(name);
 }
 
 CommandLineFlag* FindRetiredFlag(absl::string_view name) {
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
+  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
   FlagRegistryLock frl(registry);
 
-  return registry->FindRetiredFlagLocked(name);
+  return registry.FindRetiredFlagLocked(name);
 }
 
 // --------------------------------------------------------------------
 
-void ForEachFlagUnlocked(std::function<void(CommandLineFlag*)> visitor) {
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
-  for (FlagRegistry::FlagConstIterator i = registry->flags_.begin();
-       i != registry->flags_.end(); ++i) {
-    visitor(i->second);
+void ForEachFlagUnlocked(std::function<void(CommandLineFlag&)> visitor) {
+  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
+  for (FlagRegistry::FlagConstIterator i = registry.flags_.begin();
+       i != registry.flags_.end(); ++i) {
+    visitor(*i->second);
   }
 }
 
-void ForEachFlag(std::function<void(CommandLineFlag*)> visitor) {
-  FlagRegistry* const registry = FlagRegistry::GlobalRegistry();
+void ForEachFlag(std::function<void(CommandLineFlag&)> visitor) {
+  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
   FlagRegistryLock frl(registry);
   ForEachFlagUnlocked(visitor);
 }
 
 // --------------------------------------------------------------------
 
-bool RegisterCommandLineFlag(CommandLineFlag* flag) {
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
+bool RegisterCommandLineFlag(CommandLineFlag& flag) {
+  FlagRegistry::GlobalRegistry().RegisterFlag(flag);
   return true;
 }
 
@@ -307,7 +304,7 @@ class RetiredFlagObj final : public CommandLineFlag {
   }
 
   bool ParseFrom(absl::string_view, flags_internal::FlagSettingMode,
-                 flags_internal::ValueSource, std::string*) override {
+                 flags_internal::ValueSource, std::string&) override {
     return false;
   }
 
@@ -320,16 +317,16 @@ class RetiredFlagObj final : public CommandLineFlag {
   const FlagFastTypeId type_id_;
 };
 
-void DestroyRetiredFlag(CommandLineFlag* flag) {
-  assert(flag->IsRetired());
-  delete static_cast<RetiredFlagObj*>(flag);
+void DestroyRetiredFlag(CommandLineFlag& flag) {
+  assert(flag.IsRetired());
+  delete static_cast<RetiredFlagObj*>(&flag);
 }
 
 }  // namespace
 
 bool Retire(const char* name, FlagFastTypeId type_id) {
   auto* flag = new flags_internal::RetiredFlagObj(name, type_id);
-  FlagRegistry::GlobalRegistry()->RegisterFlag(flag);
+  FlagRegistry::GlobalRegistry().RegisterFlag(*flag);
   return true;
 }
 

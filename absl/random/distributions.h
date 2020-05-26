@@ -57,7 +57,7 @@
 #include "absl/random/beta_distribution.h"
 #include "absl/random/exponential_distribution.h"
 #include "absl/random/gaussian_distribution.h"
-#include "absl/random/internal/distributions.h"  // IWYU pragma: export
+#include "absl/random/internal/distribution_caller.h"  // IWYU pragma: export
 #include "absl/random/internal/uniform_helper.h"  // IWYU pragma: export
 #include "absl/random/log_uniform_int_distribution.h"
 #include "absl/random/poisson_distribution.h"

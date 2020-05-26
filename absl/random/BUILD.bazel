@@ -69,7 +69,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
-        "//absl/random/internal:distributions",
+        "//absl/random/internal:distribution_caller",
         "//absl/random/internal:fast_uniform_bits",
         "//absl/random/internal:fastmath",
         "//absl/random/internal:generate_real",
@@ -78,7 +78,6 @@ cc_library(
         "//absl/random/internal:uniform_helper",
         "//absl/random/internal:wide_multiply",
         "//absl/strings",
-        "//absl/types:span",
     ],
 )
 

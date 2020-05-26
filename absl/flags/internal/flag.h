@@ -374,31 +374,31 @@ struct FlagValue;
 
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kAlignedBuffer> {
-  bool Get(T*) const { return false; }
+  bool Get(T&) const { return false; }
 
   alignas(T) char value[sizeof(T)];
 };
 
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
-  bool Get(T* dst) const {
+  bool Get(T& dst) const {
     int64_t one_word_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(one_word_val == UninitializedFlagValue())) {
       return false;
     }
-    std::memcpy(dst, static_cast<const void*>(&one_word_val), sizeof(T));
+    std::memcpy(&dst, static_cast<const void*>(&one_word_val), sizeof(T));
     return true;
   }
 };
 
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kTwoWordsAtomic> : FlagTwoWordsValue {
-  bool Get(T* dst) const {
+  bool Get(T& dst) const {
     AlignedTwoWords two_words_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(!two_words_val.IsInitialized())) {
       return false;
     }
-    std::memcpy(dst, static_cast<const void*>(&two_words_val), sizeof(T));
+    std::memcpy(&dst, static_cast<const void*>(&two_words_val), sizeof(T));
     return true;
   }
 };
@@ -502,7 +502,7 @@ class FlagImpl final : public CommandLineFlag {
   // Attempts to parse supplied `value` string. If parsing is successful,
   // returns new value. Otherwise returns nullptr.
   std::unique_ptr<void, DynValueDeleter> TryParse(absl::string_view value,
-                                                  std::string* err) const
+                                                  std::string& err) const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
   // Stores the flag value based on the pointer to the source.
   void StoreValue(const void* src) ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
@@ -544,7 +544,7 @@ class FlagImpl final : public CommandLineFlag {
       ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
-                 ValueSource source, std::string* error) override
+                 ValueSource source, std::string& error) override
       ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Immutable flag's state.
@@ -651,7 +651,7 @@ class Flag {
     impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
 #endif
 
-    if (!value_.Get(&u.value)) impl_.Read(&u.value);
+    if (!value_.Get(u.value)) impl_.Read(&u.value);
     return std::move(u.value);
   }
   void Set(const T& v) {
@@ -730,12 +730,12 @@ struct FlagRegistrarEmpty {};
 template <typename T, bool do_register>
 class FlagRegistrar {
  public:
-  explicit FlagRegistrar(Flag<T>* flag) : flag_(flag) {
-    if (do_register) flags_internal::RegisterCommandLineFlag(&flag_->impl_);
+  explicit FlagRegistrar(Flag<T>& flag) : flag_(flag) {
+    if (do_register) flags_internal::RegisterCommandLineFlag(flag_.impl_);
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
-    flag_->impl_.SetCallback(cb);
+    flag_.impl_.SetCallback(cb);
     return *this;
   }
 
@@ -745,7 +745,7 @@ class FlagRegistrar {
   operator FlagRegistrarEmpty() const { return {}; }  // NOLINT
 
  private:
-  Flag<T>* flag_;  // Flag being registered (not owned).
+  Flag<T>& flag_;  // Flag being registered (not owned).
 };
 
 }  // namespace flags_internal

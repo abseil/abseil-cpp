@@ -159,7 +159,7 @@ class CommandLineFlag {
   virtual bool ParseFrom(absl::string_view value,
                          flags_internal::FlagSettingMode set_mode,
                          flags_internal::ValueSource source,
-                         std::string* error) = 0;
+                         std::string& error) = 0;
 
   // Returns id of the flag's value type.
   virtual flags_internal::FlagFastTypeId TypeId() const = 0;

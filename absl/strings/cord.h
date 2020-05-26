@@ -147,11 +147,8 @@ class Cord {
   // Creates a Cord from a `std::string&&` rvalue. These constructors are
   // templated to avoid ambiguities for types that are convertible to both
   // `absl::string_view` and `std::string`, such as `const char*`.
-  //
-  // Note that these functions reserve the right to use the `string&&`'s
-  // memory and that they will do so in the future.
   template <typename T, EnableIfString<T> = 0>
-  explicit Cord(T&& src) : Cord(absl::string_view(src)) {}
+  explicit Cord(T&& src);
   template <typename T, EnableIfString<T> = 0>
   Cord& operator=(T&& src);
 
@@ -1048,11 +1045,8 @@ inline Cord& Cord::operator=(Cord&& x) noexcept {
   return *this;
 }
 
-template <typename T, Cord::EnableIfString<T>>
-inline Cord& Cord::operator=(T&& src) {
-  *this = absl::string_view(src);
-  return *this;
-}
+extern template Cord::Cord(std::string&& src);
+extern template Cord& Cord::operator=(std::string&& src);
 
 inline size_t Cord::size() const {
   // Length is 1st field in str.rep_
@@ -1098,19 +1092,8 @@ inline void Cord::Append(absl::string_view src) {
   contents_.AppendArray(src.data(), src.size());
 }
 
-template <typename T, Cord::EnableIfString<T>>
-inline void Cord::Append(T&& src) {
-  // Note that this function reserves the right to reuse the `string&&`'s
-  // memory and that it will do so in the future.
-  Append(absl::string_view(src));
-}
-
-template <typename T, Cord::EnableIfString<T>>
-inline void Cord::Prepend(T&& src) {
-  // Note that this function reserves the right to reuse the `string&&`'s
-  // memory and that it will do so in the future.
-  Prepend(absl::string_view(src));
-}
+extern template void Cord::Append(std::string&& src);
+extern template void Cord::Prepend(std::string&& src);
 
 inline int Cord::Compare(const Cord& rhs) const {
   if (!contents_.is_tree() && !rhs.contents_.is_tree()) {

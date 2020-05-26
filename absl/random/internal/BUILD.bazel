@@ -49,21 +49,6 @@ cc_library(
 )
 
 cc_library(
-    name = "distributions",
-    hdrs = ["distributions.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":distribution_caller",
-        ":traits",
-        ":uniform_helper",
-        "//absl/base",
-        "//absl/meta:type_traits",
-        "//absl/strings",
-    ],
-)
-
-cc_library(
     name = "fast_uniform_bits",
     hdrs = [
         "fast_uniform_bits.h",
@@ -221,7 +206,6 @@ cc_library(
         ":seed_material",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
-        "//absl/strings",
         "//absl/types:optional",
         "//absl/types:span",
     ],
@@ -672,6 +656,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":traits",
+        "//absl/base:config",
         "//absl/meta:type_traits",
     ],
 )

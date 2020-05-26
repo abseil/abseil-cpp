@@ -933,7 +933,7 @@ TEST(MakeTime, Normalization) {
 
 // NOTE: Run this with -ftrapv to detect overflow problems.
 TEST(MakeTime, SysSecondsLimits) {
-  const char RFC3339[] = "%Y-%m-%dT%H:%M:%S%Ez";
+  const char RFC3339[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
   const time_zone utc = utc_time_zone();
   const time_zone east = fixed_time_zone(chrono::hours(14));
   const time_zone west = fixed_time_zone(-chrono::hours(14));

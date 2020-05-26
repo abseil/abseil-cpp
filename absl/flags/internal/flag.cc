@@ -62,14 +62,14 @@ bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
 // need to acquire these locks themselves.
 class MutexRelock {
  public:
-  explicit MutexRelock(absl::Mutex* mu) : mu_(mu) { mu_->Unlock(); }
-  ~MutexRelock() { mu_->Lock(); }
+  explicit MutexRelock(absl::Mutex& mu) : mu_(mu) { mu_.Unlock(); }
+  ~MutexRelock() { mu_.Lock(); }
 
   MutexRelock(const MutexRelock&) = delete;
   MutexRelock& operator=(const MutexRelock&) = delete;
 
  private:
-  absl::Mutex* mu_;
+  absl::Mutex& mu_;
 };
 
 }  // namespace
@@ -82,7 +82,7 @@ class FlagImpl;
 class FlagState : public flags_internal::FlagStateInterface {
  public:
   template <typename V>
-  FlagState(FlagImpl* flag_impl, const V& v, bool modified,
+  FlagState(FlagImpl& flag_impl, const V& v, bool modified,
             bool on_command_line, int64_t counter)
       : flag_impl_(flag_impl),
         value_(v),
@@ -91,9 +91,9 @@ class FlagState : public flags_internal::FlagStateInterface {
         counter_(counter) {}
 
   ~FlagState() override {
-    if (flag_impl_->ValueStorageKind() != FlagValueStorageKind::kAlignedBuffer)
+    if (flag_impl_.ValueStorageKind() != FlagValueStorageKind::kAlignedBuffer)
       return;
-    flags_internal::Delete(flag_impl_->op_, value_.heap_allocated);
+    flags_internal::Delete(flag_impl_.op_, value_.heap_allocated);
   }
 
  private:
@@ -101,15 +101,15 @@ class FlagState : public flags_internal::FlagStateInterface {
 
   // Restores the flag to the saved state.
   void Restore() const override {
-    if (!flag_impl_->RestoreState(*this)) return;
+    if (!flag_impl_.RestoreState(*this)) return;
 
-    ABSL_INTERNAL_LOG(
-        INFO, absl::StrCat("Restore saved value of ", flag_impl_->Name(),
-                           " to: ", flag_impl_->CurrentValue()));
+    ABSL_INTERNAL_LOG(INFO,
+                      absl::StrCat("Restore saved value of ", flag_impl_.Name(),
+                                   " to: ", flag_impl_.CurrentValue()));
   }
 
   // Flag and saved flag data.
-  FlagImpl* flag_impl_;
+  FlagImpl& flag_impl_;
   union SavedValue {
     explicit SavedValue(void* v) : heap_allocated(v) {}
     explicit SavedValue(int64_t v) : one_word(v) {}
@@ -326,7 +326,7 @@ void FlagImpl::InvokeCallback() const {
   // and it also can be different by the time the callback invocation is
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
-  MutexRelock relock(DataGuard());
+  MutexRelock relock(*DataGuard());
   absl::MutexLock lock(&callback_->guard);
   cb();
 }
@@ -339,17 +339,17 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kAlignedBuffer: {
       return absl::make_unique<FlagState>(
-          this, flags_internal::Clone(op_, AlignedBufferValue()), modified,
+          *this, flags_internal::Clone(op_, AlignedBufferValue()), modified,
           on_command_line, counter_);
     }
     case FlagValueStorageKind::kOneWordAtomic: {
       return absl::make_unique<FlagState>(
-          this, OneWordValue().load(std::memory_order_acquire), modified,
+          *this, OneWordValue().load(std::memory_order_acquire), modified,
           on_command_line, counter_);
     }
     case FlagValueStorageKind::kTwoWordsAtomic: {
       return absl::make_unique<FlagState>(
-          this, TwoWordsValue().load(std::memory_order_acquire), modified,
+          *this, TwoWordsValue().load(std::memory_order_acquire), modified,
           on_command_line, counter_);
     }
   }
@@ -410,14 +410,14 @@ std::atomic<AlignedTwoWords>& FlagImpl::TwoWordsValue() const {
 // parsed value. In case if any error is encountered in either step, the error
 // message is stored in 'err'
 std::unique_ptr<void, DynValueDeleter> FlagImpl::TryParse(
-    absl::string_view value, std::string* err) const {
+    absl::string_view value, std::string& err) const {
   std::unique_ptr<void, DynValueDeleter> tentative_value = MakeInitValue();
 
   std::string parse_err;
   if (!flags_internal::Parse(op_, value, tentative_value.get(), &parse_err)) {
     absl::string_view err_sep = parse_err.empty() ? "" : "; ";
-    *err = absl::StrCat("Illegal value '", value, "' specified for flag '",
-                        Name(), "'", err_sep, parse_err);
+    err = absl::StrCat("Illegal value '", value, "' specified for flag '",
+                       Name(), "'", err_sep, parse_err);
     return nullptr;
   }
 
@@ -473,7 +473,7 @@ void FlagImpl::Write(const void* src) {
 //  * Update the current flag value if it was never set before
 // The mode is selected based on 'set_mode' parameter.
 bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
-                         ValueSource source, std::string* err) {
+                         ValueSource source, std::string& err) {
   absl::MutexLock l(DataGuard());
 
   switch (set_mode) {

@@ -107,8 +107,8 @@ class FlagHelpPrettyPrinter {
  public:
   // Pretty printer holds on to the std::ostream& reference to direct an output
   // to that stream.
-  FlagHelpPrettyPrinter(int max_line_len, std::ostream* out)
-      : out_(*out),
+  FlagHelpPrettyPrinter(int max_line_len, std::ostream& out)
+      : out_(out),
         max_line_len_(max_line_len),
         line_len_(0),
         first_line_(true) {}
@@ -182,7 +182,7 @@ class FlagHelpPrettyPrinter {
   bool first_line_;
 };
 
-void FlagHelpHumanReadable(const CommandLineFlag& flag, std::ostream* out) {
+void FlagHelpHumanReadable(const CommandLineFlag& flag, std::ostream& out) {
   FlagHelpPrettyPrinter printer(80, out);  // Max line length is 80.
 
   // Flag name.
@@ -244,29 +244,28 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   // This map is used to output matching flags grouped by package and file
   // name.
   std::map<std::string,
-           std::map<std::string, std::vector<const CommandLineFlag*>>>
+           std::map<std::string, std::vector<const absl::CommandLineFlag*>>>
       matching_flags;
 
-  flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
-    std::string flag_filename = flag->Filename();
+  flags_internal::ForEachFlag([&](absl::CommandLineFlag& flag) {
+    std::string flag_filename = flag.Filename();
 
     // Ignore retired flags.
-    if (flag->IsRetired()) return;
+    if (flag.IsRetired()) return;
 
     // If the flag has been stripped, pretend that it doesn't exist.
-    if (flag->Help() == flags_internal::kStrippedFlagHelp) return;
+    if (flag.Help() == flags_internal::kStrippedFlagHelp) return;
 
     // Make sure flag satisfies the filter
     if (!filter_cb || !filter_cb(flag_filename)) return;
 
     matching_flags[std::string(flags_internal::Package(flag_filename))]
                   [flag_filename]
-                      .push_back(flag);
+                      .push_back(&flag);
   });
 
-  absl::string_view
-      package_separator;             // controls blank lines between packages.
-  absl::string_view file_separator;  // controls blank lines between files.
+  absl::string_view package_separator;  // controls blank lines between packages
+  absl::string_view file_separator;     // controls blank lines between files
   for (const auto& package : matching_flags) {
     if (format == HelpFormat::kHumanReadable) {
       out << package_separator;
@@ -304,7 +303,7 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
 void FlagHelp(std::ostream& out, const CommandLineFlag& flag,
               HelpFormat format) {
   if (format == HelpFormat::kHumanReadable)
-    flags_internal::FlagHelpHumanReadable(flag, &out);
+    flags_internal::FlagHelpHumanReadable(flag, out);
 }
 
 // --------------------------------------------------------------------

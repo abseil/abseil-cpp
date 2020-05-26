@@ -24,8 +24,8 @@ FlagFastTypeId PrivateHandleAccessor::TypeId(const CommandLineFlag& flag) {
 }
 
 std::unique_ptr<FlagStateInterface> PrivateHandleAccessor::SaveState(
-    CommandLineFlag* flag) {
-  return flag->SaveState();
+    CommandLineFlag& flag) {
+  return flag.SaveState();
 }
 
 bool PrivateHandleAccessor::IsSpecifiedOnCommandLine(
@@ -43,12 +43,12 @@ void PrivateHandleAccessor::CheckDefaultValueParsingRoundtrip(
   flag.CheckDefaultValueParsingRoundtrip();
 }
 
-bool PrivateHandleAccessor::ParseFrom(CommandLineFlag* flag,
+bool PrivateHandleAccessor::ParseFrom(CommandLineFlag& flag,
                                       absl::string_view value,
                                       flags_internal::FlagSettingMode set_mode,
                                       flags_internal::ValueSource source,
-                                      std::string* error) {
-  return flag->ParseFrom(value, set_mode, source, error);
+                                      std::string& error) {
+  return flag.ParseFrom(value, set_mode, source, error);
 }
 
 }  // namespace flags_internal

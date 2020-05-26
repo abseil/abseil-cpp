@@ -135,7 +135,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/exponential_distribution.h"
   "random/gaussian_distribution.cc"
   "random/gaussian_distribution.h"
-  "random/internal/distributions.h"
   "random/internal/distribution_caller.h"
   "random/internal/fast_uniform_bits.h"
   "random/internal/fastmath.h"

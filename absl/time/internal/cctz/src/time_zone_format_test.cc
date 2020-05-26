@@ -48,8 +48,8 @@ namespace {
     EXPECT_STREQ(zone, al.abbr);                                  \
   } while (0)
 
-const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
-const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
+const char RFC3339_full[] = "%Y-%m-%d%ET%H:%M:%E*S%Ez";
+const char RFC3339_sec[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
 
 const char RFC1123_full[] = "%a, %d %b %Y %H:%M:%S %z";
 const char RFC1123_no_wday[] = "%d %b %Y %H:%M:%S %z";
@@ -1379,10 +1379,20 @@ TEST(Parse, RFC3339Format) {
   EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00+00:00", tz, &tp));
   ExpectTime(tp, tz, 2014, 2, 12, 20, 21, 0, 0, false, "UTC");
 
-  // Check that %Ez also accepts "Z" as a synonym for "+00:00".
+  // Check that %ET also accepts "t".
   time_point<chrono::nanoseconds> tp2;
-  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00Z", tz, &tp2));
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12t20:21:00+00:00", tz, &tp2));
   EXPECT_EQ(tp, tp2);
+
+  // Check that %Ez also accepts "Z" as a synonym for "+00:00".
+  time_point<chrono::nanoseconds> tp3;
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00Z", tz, &tp3));
+  EXPECT_EQ(tp, tp3);
+
+  // Check that %Ez also accepts "z" as a synonym for "+00:00".
+  time_point<chrono::nanoseconds> tp4;
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00z", tz, &tp4));
+  EXPECT_EQ(tp, tp4);
 }
 
 TEST(Parse, MaxRange) {

@@ -110,12 +110,12 @@ class Flag {
         impl_(nullptr) {}
 #endif
 
-  flags_internal::Flag<T>* GetImpl() const {
+  flags_internal::Flag<T>& GetImpl() const {
     if (!inited_.load(std::memory_order_acquire)) {
       absl::MutexLock l(flags_internal::GetGlobalConstructionGuard());
 
       if (inited_.load(std::memory_order_acquire)) {
-        return impl_;
+        return *impl_;
       }
 
       impl_ = new flags_internal::Flag<T>(
@@ -127,28 +127,28 @@ class Flag {
       inited_.store(true, std::memory_order_release);
     }
 
-    return impl_;
+    return *impl_;
   }
 
   // Public methods of `absl::Flag<T>` are NOT part of the Abseil Flags API.
   // See https://abseil.io/docs/cpp/guides/flags
-  bool IsRetired() const { return GetImpl()->IsRetired(); }
-  absl::string_view Name() const { return GetImpl()->Name(); }
-  std::string Help() const { return GetImpl()->Help(); }
-  bool IsModified() const { return GetImpl()->IsModified(); }
+  bool IsRetired() const { return GetImpl().IsRetired(); }
+  absl::string_view Name() const { return GetImpl().Name(); }
+  std::string Help() const { return GetImpl().Help(); }
+  bool IsModified() const { return GetImpl().IsModified(); }
   bool IsSpecifiedOnCommandLine() const {
-    return GetImpl()->IsSpecifiedOnCommandLine();
+    return GetImpl().IsSpecifiedOnCommandLine();
   }
-  std::string Filename() const { return GetImpl()->Filename(); }
-  std::string DefaultValue() const { return GetImpl()->DefaultValue(); }
-  std::string CurrentValue() const { return GetImpl()->CurrentValue(); }
+  std::string Filename() const { return GetImpl().Filename(); }
+  std::string DefaultValue() const { return GetImpl().DefaultValue(); }
+  std::string CurrentValue() const { return GetImpl().CurrentValue(); }
   template <typename U>
   inline bool IsOfType() const {
-    return GetImpl()->template IsOfType<U>();
+    return GetImpl().template IsOfType<U>();
   }
-  T Get() const { return GetImpl()->Get(); }
-  void Set(const T& v) { GetImpl()->Set(v); }
-  void InvokeCallback() { GetImpl()->InvokeCallback(); }
+  T Get() const { return GetImpl().Get(); }
+  void Set(const T& v) { GetImpl().Set(v); }
+  void InvokeCallback() { GetImpl().InvokeCallback(); }
 
   // The data members are logically private, but they need to be public for
   // this to be an aggregate type.
@@ -265,7 +265,7 @@ ABSL_NAMESPACE_END
 
 // ABSL_FLAG_IMPL macro definition conditional on ABSL_FLAGS_STRIP_NAMES
 #if !defined(_MSC_VER) || defined(__clang__)
-#define ABSL_FLAG_IMPL_FLAG_PTR(flag) &flag
+#define ABSL_FLAG_IMPL_FLAG_PTR(flag) flag
 #define ABSL_FLAG_IMPL_HELP_ARG(name)                      \
   absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>( \
       FLAGS_help_storage_##name)

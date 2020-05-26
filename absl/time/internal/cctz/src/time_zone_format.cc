@@ -290,6 +290,7 @@ const std::int_fast64_t kExp10[kDigits10_64 + 1] = {
 //   - %E#S - Seconds with # digits of fractional precision
 //   - %E*S - Seconds with full fractional precision (a literal '*')
 //   - %E4Y - Four-character years (-999 ... -001, 0000, 0001 ... 9999)
+//   - %ET  - The RFC3339 "date-time" separator "T"
 //
 // The standard specifiers from RFC3339_* (%Y, %m, %d, %H, %M, and %S) are
 // handled internally for performance reasons.  strftime(3) is slow due to
@@ -448,7 +449,14 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
     if (*cur != 'E' || ++cur == end) continue;
 
     // Format our extensions.
-    if (*cur == 'z') {
+    if (*cur == 'T') {
+      // Formats %ET.
+      if (cur - 2 != pending) {
+        FormatTM(&result, std::string(pending, cur - 2), tm);
+      }
+      result.append("T");
+      pending = ++cur;
+    } else if (*cur == 'z') {
       // Formats %Ez.
       if (cur - 2 != pending) {
         FormatTM(&result, std::string(pending, cur - 2), tm);
@@ -551,7 +559,7 @@ const char* ParseOffset(const char* dp, const char* mode, int* offset) {
       } else {
         dp = nullptr;
       }
-    } else if (first == 'Z') {  // Zulu
+    } else if (first == 'Z' || first == 'z') {  // Zulu
       *offset = 0;
     } else {
       dp = nullptr;
@@ -607,7 +615,7 @@ const char* ParseTM(const char* dp, const char* fmt, std::tm* tm) {
 // Uses strptime(3) to parse the given input.  Supports the same extended
 // format specifiers as format(), although %E#S and %E*S are treated
 // identically (and similarly for %E#f and %E*f).  %Ez and %E*z also accept
-// the same inputs.
+// the same inputs. %ET accepts either 'T' or 't'.
 //
 // The standard specifiers from RFC3339_* (%Y, %m, %d, %H, %M, and %S) are
 // handled internally so that we can normally avoid strptime() altogether
@@ -742,6 +750,15 @@ bool parse(const std::string& format, const std::string& input,
         data = (*data == '%' ? data + 1 : nullptr);
         continue;
       case 'E':
+        if (fmt[0] == 'T') {
+          if (*data == 'T' || *data == 't') {
+            ++data;
+            ++fmt;
+          } else {
+            data = nullptr;
+          }
+          continue;
+        }
         if (fmt[0] == 'z' || (fmt[0] == '*' && fmt[1] == 'z')) {
           data = ParseOffset(data, ":", &offset);
           if (data != nullptr) saw_offset = true;

@@ -8,6 +8,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
@@ -353,6 +354,7 @@ TEST(StrFormat, BehavesAsDocumented) {
   EXPECT_EQ(StrFormat("%s", "C"), "C");
   EXPECT_EQ(StrFormat("%s", std::string("C++")), "C++");
   EXPECT_EQ(StrFormat("%s", string_view("view")), "view");
+  EXPECT_EQ(StrFormat("%s", absl::Cord("cord")), "cord");
   // Integral Conversion
   //     These format integral types: char, int, long, uint64_t, etc.
   EXPECT_EQ(StrFormat("%d", char{10}), "10");

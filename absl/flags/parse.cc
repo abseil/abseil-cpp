@@ -222,7 +222,7 @@ bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
 // Reads the environment variable with name `name` and stores results in
 // `value`. If variable is not present in environment returns false, otherwise
 // returns true.
-bool GetEnvVar(const char* var_name, std::string* var_value) {
+bool GetEnvVar(const char* var_name, std::string& var_value) {
 #ifdef _WIN32
   char buf[1024];
   auto get_res = GetEnvironmentVariableA(var_name, buf, sizeof(buf));
@@ -234,14 +234,14 @@ bool GetEnvVar(const char* var_name, std::string* var_value) {
     return false;
   }
 
-  *var_value = std::string(buf, get_res);
+  var_value = std::string(buf, get_res);
 #else
   const char* val = ::getenv(var_name);
   if (val == nullptr) {
     return false;
   }
 
-  *var_value = val;
+  var_value = val;
 #endif
 
   return true;
@@ -306,17 +306,17 @@ std::tuple<CommandLineFlag*, bool> LocateFlag(absl::string_view flag_name) {
 // back.
 void CheckDefaultValuesParsingRoundtrip() {
 #ifndef NDEBUG
-  flags_internal::ForEachFlag([&](CommandLineFlag* flag) {
-    if (flag->IsRetired()) return;
+  flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
+    if (flag.IsRetired()) return;
 
 #define ABSL_FLAGS_INTERNAL_IGNORE_TYPE(T, _) \
-  if (flag->IsOfType<T>()) return;
+  if (flag.IsOfType<T>()) return;
 
     ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IGNORE_TYPE)
 #undef ABSL_FLAGS_INTERNAL_IGNORE_TYPE
 
     flags_internal::PrivateHandleAccessor::CheckDefaultValueParsingRoundtrip(
-        *flag);
+        flag);
   });
 #endif
 }
@@ -329,13 +329,13 @@ void CheckDefaultValuesParsingRoundtrip() {
 // the first flagfile in the input list are processed before the second flagfile
 // etc.
 bool ReadFlagfiles(const std::vector<std::string>& flagfiles,
-                   std::vector<ArgsList>* input_args) {
+                   std::vector<ArgsList>& input_args) {
   bool success = true;
   for (auto it = flagfiles.rbegin(); it != flagfiles.rend(); ++it) {
     ArgsList al;
 
     if (al.ReadFromFlagfile(*it)) {
-      input_args->push_back(al);
+      input_args.push_back(al);
     } else {
       success = false;
     }
@@ -350,7 +350,7 @@ bool ReadFlagfiles(const std::vector<std::string>& flagfiles,
 // `flag_name` is a string from the input flag_names list. If successful we
 // append a single ArgList at the end of the input_args.
 bool ReadFlagsFromEnv(const std::vector<std::string>& flag_names,
-                      std::vector<ArgsList>* input_args,
+                      std::vector<ArgsList>& input_args,
                       bool fail_on_absent_in_env) {
   bool success = true;
   std::vector<std::string> args;
@@ -371,7 +371,7 @@ bool ReadFlagsFromEnv(const std::vector<std::string>& flag_names,
 
     const std::string envname = absl::StrCat("FLAGS_", flag_name);
     std::string envval;
-    if (!GetEnvVar(envname.c_str(), &envval)) {
+    if (!GetEnvVar(envname.c_str(), envval)) {
       if (fail_on_absent_in_env) {
         flags_internal::ReportUsageError(
             absl::StrCat(envname, " not found in environment"), true);
@@ -386,7 +386,7 @@ bool ReadFlagsFromEnv(const std::vector<std::string>& flag_names,
   }
 
   if (success) {
-    input_args->emplace_back(args);
+    input_args.emplace_back(args);
   }
 
   return success;
@@ -396,8 +396,8 @@ bool ReadFlagsFromEnv(const std::vector<std::string>& flag_names,
 
 // Returns success status, which is true if were able to handle all generator
 // flags (flagfile, fromenv, tryfromemv) successfully.
-bool HandleGeneratorFlags(std::vector<ArgsList>* input_args,
-                          std::vector<std::string>* flagfile_value) {
+bool HandleGeneratorFlags(std::vector<ArgsList>& input_args,
+                          std::vector<std::string>& flagfile_value) {
   bool success = true;
 
   absl::MutexLock l(&flags_internal::processing_checks_guard);
@@ -422,9 +422,9 @@ bool HandleGeneratorFlags(std::vector<ArgsList>* input_args,
   if (flags_internal::flagfile_needs_processing) {
     auto flagfiles = absl::GetFlag(FLAGS_flagfile);
 
-    if (input_args->size() == 1) {
-      flagfile_value->insert(flagfile_value->end(), flagfiles.begin(),
-                             flagfiles.end());
+    if (input_args.size() == 1) {
+      flagfile_value.insert(flagfile_value.end(), flagfiles.begin(),
+                            flagfiles.end());
     }
 
     success &= ReadFlagfiles(flagfiles, input_args);
@@ -647,7 +647,7 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
   bool success = true;
   while (!input_args.empty()) {
     // 10. First we process the built-in generator flags.
-    success &= HandleGeneratorFlags(&input_args, &flagfile_value);
+    success &= HandleGeneratorFlags(input_args, flagfile_value);
 
     // 30. Select top-most (most recent) arguments list. If it is empty drop it
     // and re-try.
@@ -733,7 +733,7 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
 
     std::string error;
     if (!flags_internal::PrivateHandleAccessor::ParseFrom(
-            flag, value, SET_FLAGS_VALUE, kCommandLine, &error)) {
+            *flag, value, SET_FLAGS_VALUE, kCommandLine, error)) {
       flags_internal::ReportUsageError(error, true);
       success = false;
     } else {

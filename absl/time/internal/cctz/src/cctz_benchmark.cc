@@ -97,8 +97,8 @@ void BM_PrevWeekday(benchmark::State& state) {
 }
 BENCHMARK(BM_PrevWeekday);
 
-const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
-const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
+const char RFC3339_full[] = "%Y-%m-%d%ET%H:%M:%E*S%Ez";
+const char RFC3339_sec[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
 
 const char RFC1123_full[] = "%a, %d %b %Y %H:%M:%S %z";
 const char RFC1123_no_wday[] = "%d %b %Y %H:%M:%S %z";
@@ -991,12 +991,12 @@ void BM_Time_FromCivilDay0_Libc(benchmark::State& state) {
 BENCHMARK(BM_Time_FromCivilDay0_Libc);
 
 const char* const kFormats[] = {
-    RFC1123_full,         // 0
-    RFC1123_no_wday,      // 1
-    RFC3339_full,         // 2
-    RFC3339_sec,          // 3
-    "%Y-%m-%dT%H:%M:%S",  // 4
-    "%Y-%m-%d",           // 5
+    RFC1123_full,           // 0
+    RFC1123_no_wday,        // 1
+    RFC3339_full,           // 2
+    RFC3339_sec,            // 3
+    "%Y-%m-%d%ET%H:%M:%S",  // 4
+    "%Y-%m-%d",             // 5
 };
 const int kNumFormats = sizeof(kFormats) / sizeof(kFormats[0]);
 

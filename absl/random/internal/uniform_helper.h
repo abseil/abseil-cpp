@@ -19,10 +19,13 @@
 #include <limits>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
+#include "absl/random/internal/traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
 template <typename IntType>
 class uniform_int_distribution;
 
@@ -58,6 +61,26 @@ struct IntervalOpenOpenTag
     : public random_internal::TagTypeCompare<IntervalOpenOpenTag> {};
 
 namespace random_internal {
+
+// In the absence of an explicitly provided return-type, the template
+// "uniform_inferred_return_t<A, B>" is used to derive a suitable type, based on
+// the data-types of the endpoint-arguments {A lo, B hi}.
+//
+// Given endpoints {A lo, B hi}, one of {A, B} will be chosen as the
+// return-type, if one type can be implicitly converted into the other, in a
+// lossless way. The template "is_widening_convertible" implements the
+// compile-time logic for deciding if such a conversion is possible.
+//
+// If no such conversion between {A, B} exists, then the overload for
+// absl::Uniform() will be discarded, and the call will be ill-formed.
+// Return-type for absl::Uniform() when the return-type is inferred.
+template <typename A, typename B>
+using uniform_inferred_return_t =
+    absl::enable_if_t<absl::disjunction<is_widening_convertible<A, B>,
+                                        is_widening_convertible<B, A>>::value,
+                      typename std::conditional<
+                          is_widening_convertible<A, B>::value, B, A>::type>;
+
 // The functions
 //    uniform_lower_bound(tag, a, b)
 // and
@@ -149,12 +172,19 @@ uniform_upper_bound(Tag, FloatType, FloatType b) {
   return std::nextafter(b, (std::numeric_limits<FloatType>::max)());
 }
 
+// UniformDistribution selects either absl::uniform_int_distribution
+// or absl::uniform_real_distribution depending on the NumType parameter.
 template <typename NumType>
 using UniformDistribution =
     typename std::conditional<std::is_integral<NumType>::value,
                               absl::uniform_int_distribution<NumType>,
                               absl::uniform_real_distribution<NumType>>::type;
 
+// UniformDistributionWrapper is used as the underlying distribution type
+// by the absl::Uniform template function. It selects the proper Abseil
+// uniform distribution and provides constructor overloads that match the
+// expected parameter order as well as adjusting distribtuion bounds based
+// on the tag.
 template <typename NumType>
 struct UniformDistributionWrapper : public UniformDistribution<NumType> {
   template <typename TagType>

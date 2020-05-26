@@ -150,21 +150,21 @@ DEFINE_CONSTRUCTED_FLAG(String, &TestMakeDflt<String>, kGenFunc);
 DEFINE_CONSTRUCTED_FLAG(UDT, &TestMakeDflt<UDT>, kGenFunc);
 
 template <typename T>
-bool TestConstructionFor(const flags::Flag<T>& f1, flags::Flag<T>* f2) {
+bool TestConstructionFor(const flags::Flag<T>& f1, flags::Flag<T>& f2) {
   EXPECT_EQ(f1.Name(), "f1");
   EXPECT_EQ(f1.Help(), "literal help");
   EXPECT_EQ(f1.Filename(), "file");
 
   flags::FlagRegistrar<T, false>(f2).OnUpdate(TestCallback);
 
-  EXPECT_EQ(f2->Name(), "f2");
-  EXPECT_EQ(f2->Help(), "dynamic help");
-  EXPECT_EQ(f2->Filename(), "file");
+  EXPECT_EQ(f2.Name(), "f2");
+  EXPECT_EQ(f2.Help(), "dynamic help");
+  EXPECT_EQ(f2.Filename(), "file");
 
   return true;
 }
 
-#define TEST_CONSTRUCTED_FLAG(T) TestConstructionFor(f1##T, &f2##T);
+#define TEST_CONSTRUCTED_FLAG(T) TestConstructionFor(f1##T, f2##T);
 
 TEST_F(FlagTest, TestConstruction) {
   TEST_CONSTRUCTED_FLAG(bool);

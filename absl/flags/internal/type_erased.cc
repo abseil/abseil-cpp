@@ -58,7 +58,7 @@ bool SetCommandLineOptionWithMode(absl::string_view name,
 
   std::string error;
   if (!flags_internal::PrivateHandleAccessor::ParseFrom(
-          flag, value, set_mode, kProgrammaticChange, &error)) {
+          *flag, value, set_mode, kProgrammaticChange, error)) {
     // Errors here are all of the form: the provided name was a recognized
     // flag, but the value was invalid (bad type, or validation failed).
     flags_internal::ReportUsageError(error, false);

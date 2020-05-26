@@ -183,7 +183,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::random_internal_generate_real
-    absl::random_internal_distributions
+    absl::random_internal_distribution_caller
     absl::random_internal_fast_uniform_bits
     absl::random_internal_fastmath
     absl::random_internal_iostream_state_saver
@@ -191,7 +191,6 @@ absl_cc_library(
     absl::random_internal_uniform_helper
     absl::random_internal_wide_multiply
     absl::strings
-    absl::span
     absl::type_traits
 )
 
@@ -539,27 +538,6 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
-    random_internal_distributions
-  HDRS
-    "internal/distributions.h"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  LINKOPTS
-    ${ABSL_DEFAULT_LINKOPTS}
-  DEPS
-    absl::random_internal_distribution_caller
-    absl::random_internal_fast_uniform_bits
-    absl::random_internal_fastmath
-    absl::random_internal_traits
-    absl::random_internal_uniform_helper
-    absl::span
-    absl::strings
-    absl::type_traits
-)
-
-# Internal-only target, do not depend on directly.
-absl_cc_library(
-  NAME
     random_internal_fast_uniform_bits
   HDRS
     "internal/fast_uniform_bits.h"
@@ -745,7 +723,6 @@ absl_cc_library(
     absl::random_internal_salted_seed_seq
     absl::random_internal_seed_material
     absl::span
-    absl::strings
     absl::type_traits
 )
 
@@ -1174,9 +1151,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::core_headers
-    absl::random_internal_fast_uniform_bits
-    absl::random_internal_iostream_state_saver
+    absl::config
     absl::random_internal_traits
     absl::type_traits
 )
