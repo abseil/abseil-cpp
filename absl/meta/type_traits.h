@@ -619,7 +619,7 @@ using underlying_type_t = typename std::underlying_type<T>::type;
 template <typename T>
 #ifdef __cpp_lib_is_invocable
 using result_of_t = typename std::invoke_result<T>::type;
-#elif
+#else
 using result_of_t = typename std::result_of<T>::type;
 #endif
 
