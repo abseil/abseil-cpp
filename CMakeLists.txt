@@ -99,10 +99,8 @@ if(${ABSL_RUN_TESTS})
   # on the command line
   include(CTest)
   enable_testing()
-endif()
 
-## check targets
-if(BUILD_TESTING)
+  ## check targets
   if (NOT ABSL_USE_EXTERNAL_GOOGLETEST)
     set(absl_gtest_build_dir ${CMAKE_BINARY_DIR}/googletest-build)
     if(${ABSL_USE_GOOGLETEST_HEAD})

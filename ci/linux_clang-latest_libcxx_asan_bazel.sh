@@ -78,7 +78,6 @@ for std in ${STD}; do
         /usr/local/bin/bazel test ... \
           --compilation_mode="${compilation_mode}" \
           --copt="${exceptions_mode}" \
-          --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
           --copt="-DADDRESS_SANITIZER" \
           --copt="-DUNDEFINED_BEHAVIOR_SANITIZER" \
           --copt="-fsanitize=address" \

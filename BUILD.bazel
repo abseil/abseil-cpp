@@ -20,6 +20,6 @@ licenses(["notice"])  # Apache 2.0
 
 # Expose license for external usage through bazel.
 exports_files([
-    "LICENSE",
     "AUTHORS",
+    "LICENSE",
 ])
