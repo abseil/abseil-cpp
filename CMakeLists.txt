@@ -172,5 +172,7 @@ if(ABSL_ENABLE_INSTALL)
     FILES_MATCHING
       PATTERN "*.inc"
       PATTERN "*.h"
+      PATTERN "copts" EXCLUDE
+      PATTERN "testdata" EXCLUDE
   )
 endif()  # ABSL_ENABLE_INSTALL
