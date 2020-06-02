@@ -98,26 +98,26 @@ bool ParseLenient(string_view s, CivilT* c) {
 }  // namespace
 
 std::string FormatCivilTime(CivilSecond c) {
-  return FormatYearAnd("-%m-%dT%H:%M:%S", c);
+  return FormatYearAnd("-%m-%d%ET%H:%M:%S", c);
 }
 std::string FormatCivilTime(CivilMinute c) {
-  return FormatYearAnd("-%m-%dT%H:%M", c);
+  return FormatYearAnd("-%m-%d%ET%H:%M", c);
 }
 std::string FormatCivilTime(CivilHour c) {
-  return FormatYearAnd("-%m-%dT%H", c);
+  return FormatYearAnd("-%m-%d%ET%H", c);
 }
 std::string FormatCivilTime(CivilDay c) { return FormatYearAnd("-%m-%d", c); }
 std::string FormatCivilTime(CivilMonth c) { return FormatYearAnd("-%m", c); }
 std::string FormatCivilTime(CivilYear c) { return FormatYearAnd("", c); }
 
 bool ParseCivilTime(string_view s, CivilSecond* c) {
-  return ParseYearAnd("-%m-%dT%H:%M:%S", s, c);
+  return ParseYearAnd("-%m-%d%ET%H:%M:%S", s, c);
 }
 bool ParseCivilTime(string_view s, CivilMinute* c) {
-  return ParseYearAnd("-%m-%dT%H:%M", s, c);
+  return ParseYearAnd("-%m-%d%ET%H:%M", s, c);
 }
 bool ParseCivilTime(string_view s, CivilHour* c) {
-  return ParseYearAnd("-%m-%dT%H", s, c);
+  return ParseYearAnd("-%m-%d%ET%H", s, c);
 }
 bool ParseCivilTime(string_view s, CivilDay* c) {
   return ParseYearAnd("-%m-%d", s, c);

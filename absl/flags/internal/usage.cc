@@ -15,6 +15,8 @@
 
 #include "absl/flags/internal/usage.h"
 
+#include <stdint.h>
+
 #include <functional>
 #include <map>
 #include <ostream>

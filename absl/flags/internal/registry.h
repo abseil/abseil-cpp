@@ -17,11 +17,9 @@
 #define ABSL_FLAGS_INTERNAL_REGISTRY_H_
 
 #include <functional>
-#include <map>
-#include <string>
 
 #include "absl/base/config.h"
-#include "absl/base/macros.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
 
@@ -30,8 +28,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-class CommandLineFlag;
-
 namespace flags_internal {
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);

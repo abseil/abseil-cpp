@@ -115,10 +115,18 @@ cc_library(
 
 cc_library(
     name = "dynamic_annotations",
-    srcs = ["dynamic_annotations.cc"],
-    hdrs = ["dynamic_annotations.h"],
+    srcs = [
+        "dynamic_annotations.cc",
+        "internal/dynamic_annotations.h",
+    ],
+    hdrs = [
+        "dynamic_annotations.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":config",
+    ],
 )
 
 cc_library(

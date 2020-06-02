@@ -322,7 +322,8 @@ inline std::string format(const std::string& fmt, const time_point<D>& tp,
 // returns the corresponding time_point. Uses strftime()-like formatting
 // options, with the same extensions as cctz::format(), but with the
 // exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f. %Ez
-// and %E*z also accept the same inputs. %ET accepts either 'T' or 't'.
+// and %E*z also accept the same inputs, which (along with %z) includes
+// 'z' and 'Z' as synonyms for +00:00.  %ET accepts either 'T' or 't'.
 //
 // %Y consumes as many numeric characters as it can, so the matching data
 // should always be terminated with a non-numeric. %E4Y always consumes

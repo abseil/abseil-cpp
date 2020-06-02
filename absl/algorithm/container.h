@@ -943,9 +943,10 @@ void c_partial_sort(
 // c_partial_sort_copy()
 //
 // Container-based version of the <algorithm> `std::partial_sort_copy()`
-// function to sort elements within a container such that elements before
-// `middle` are sorted in ascending order, and return the result within an
-// iterator.
+// function to sort the elements in the given range `result` within the larger
+// `sequence` in ascending order (and using `result` as the output parameter).
+// At most min(result.last - result.first, sequence.last - sequence.first)
+// elements from the sequence will be stored in the result.
 template <typename C, typename RandomAccessContainer>
 container_algorithm_internal::ContainerIter<RandomAccessContainer>
 c_partial_sort_copy(const C& sequence, RandomAccessContainer& result) {

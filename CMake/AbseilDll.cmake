@@ -15,6 +15,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/cycleclock.cc"
   "base/internal/cycleclock.h"
   "base/internal/direct_mmap.h"
+  "base/internal/dynamic_annotations.h"
   "base/internal/endian.h"
   "base/internal/errno_saver.h"
   "base/internal/exponential_biased.cc"

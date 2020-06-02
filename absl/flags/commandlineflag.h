@@ -26,7 +26,13 @@
 #ifndef ABSL_FLAGS_COMMANDLINEFLAG_H_
 #define ABSL_FLAGS_COMMANDLINEFLAG_H_
 
+#include <memory>
+#include <string>
+
+#include "absl/base/config.h"
+#include "absl/base/internal/fast_type_id.h"
 #include "absl/flags/internal/commandlineflag.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 
 namespace absl {

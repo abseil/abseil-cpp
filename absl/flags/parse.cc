@@ -37,6 +37,7 @@
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/private_handle_accessor.h"

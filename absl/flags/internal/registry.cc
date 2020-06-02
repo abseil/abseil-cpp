@@ -29,6 +29,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/commandlineflag.h"
+#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"

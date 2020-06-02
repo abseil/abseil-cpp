@@ -16,31 +16,36 @@
 #ifndef ABSL_FLAGS_INTERNAL_FLAG_H_
 #define ABSL_FLAGS_INTERNAL_FLAG_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <atomic>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 
+#include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
+#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/marshalling.h"
-#include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+///////////////////////////////////////////////////////////////////////////////
 // Forward declaration of absl::Flag<T> public API.
 namespace flags_internal {
 template <typename T>
@@ -64,11 +69,14 @@ void SetFlag(absl::Flag<T>* flag, const T& v);
 template <typename T, typename V>
 void SetFlag(absl::Flag<T>* flag, const V& v);
 
-namespace flags_internal {
+template <typename U>
+const CommandLineFlag& GetFlagReflectionHandle(const absl::Flag<U>& f);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flag value type operations, eg., parsing, copying, etc. are provided
 // by function specific to that type with a signature matching FlagOpFn.
+
+namespace flags_internal {
 
 enum class FlagOp {
   kAlloc,
@@ -658,6 +666,13 @@ class Flag {
     impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     impl_.Write(&v);
   }
+
+  template <typename U>
+  friend const CommandLineFlag& absl::GetFlagReflectionHandle(
+      const absl::Flag<U>& f);
+
+  // Access to the reflection.
+  const CommandLineFlag& Reflect() const { return impl_; }
 
   // Flag's data
   // The implementation depends on value_ field to be placed exactly after the

@@ -15,6 +15,14 @@
 
 #include "absl/flags/internal/private_handle_accessor.h"
 
+#include <memory>
+#include <string>
+
+#include "absl/base/config.h"
+#include "absl/flags/commandlineflag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/strings/string_view.h"
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {

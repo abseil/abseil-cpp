@@ -106,8 +106,11 @@ absl_cc_library(
     "dynamic_annotations.h"
   SRCS
     "dynamic_annotations.cc"
+    "internal/dynamic_annotations.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
   PUBLIC
 )
 

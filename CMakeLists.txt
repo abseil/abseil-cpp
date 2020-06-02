@@ -174,5 +174,5 @@ if(ABSL_ENABLE_INSTALL)
       PATTERN "*.h"
       PATTERN "copts" EXCLUDE
       PATTERN "testdata" EXCLUDE
-  )
+    )
 endif()  # ABSL_ENABLE_INSTALL

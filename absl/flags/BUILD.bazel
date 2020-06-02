@@ -114,9 +114,7 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/base:fast_type_id",
-        "//absl/strings",
     ],
 )
 
@@ -132,6 +130,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":commandlineflag_internal",
+        "//absl/base:config",
+        "//absl/base:fast_type_id",
+        "//absl/strings",
         "//absl/types:optional",
     ],
 )
@@ -149,7 +150,12 @@ cc_library(
     visibility = [
         "//absl/flags:__pkg__",
     ],
-    deps = [":commandlineflag"],
+    deps = [
+        ":commandlineflag",
+        ":commandlineflag_internal",
+        "//absl/base:config",
+        "//absl/strings",
+    ],
 )
 
 cc_library(
@@ -193,6 +199,7 @@ cc_library(
     visibility = ["//absl/base:__subpackages__"],
     deps = [
         ":commandlineflag",
+        ":commandlineflag_internal",
         ":config",
         ":marshalling",
         ":registry",
@@ -203,6 +210,7 @@ cc_library(
         "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/synchronization",
+        "//absl/utility",
     ],
 )
 
@@ -220,7 +228,6 @@ cc_library(
     deps = [
         ":config",
         ":flag_internal",
-        ":marshalling",
         ":registry",
         "//absl/base",
         "//absl/base:config",
@@ -287,6 +294,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":commandlineflag",
+        ":commandlineflag_internal",
         ":config",
         ":flag",
         ":flag_internal",
@@ -315,6 +323,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":commandlineflag",
+        ":commandlineflag_internal",
         ":config",
         ":flag",
         ":private_handle_accessor",
@@ -352,6 +361,7 @@ cc_test(
         ":config",
         ":flag",
         ":flag_internal",
+        ":marshalling",
         ":registry",
         "//absl/base:core_headers",
         "//absl/base:malloc_internal",
@@ -372,6 +382,8 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":flag",
+        ":marshalling",
+        "//absl/strings",
         "//absl/time",
         "//absl/types:optional",
         "@com_github_google_benchmark//:benchmark_main",
@@ -450,8 +462,8 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":commandlineflag_internal",
         ":flag",
-        ":marshalling",
         ":registry",
         "//absl/memory",
         "@com_google_googletest//:gtest_main",
@@ -492,7 +504,6 @@ cc_test(
         ":registry",
         ":usage",
         ":usage_internal",
-        "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest",
     ],

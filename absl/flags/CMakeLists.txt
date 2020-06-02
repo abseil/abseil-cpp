@@ -103,9 +103,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
-    absl::core_headers
     absl::fast_type_id
-    absl::strings
 )
 
 absl_cc_library(
@@ -120,8 +118,11 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
+    absl::fast_type_id
     absl::flags_commandlineflag_internal
     absl::optional
+    absl::strings
 )
 
 # Internal-only target, do not depend on directly.
@@ -137,7 +138,10 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::flags_commandlineflag
+    absl::flags_commandlineflag_internal
+    absl::strings
 )
 
 # Internal-only target, do not depend on directly.
@@ -180,11 +184,13 @@ absl_cc_library(
   DEPS
     absl::base
     absl::config
+    absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_marshalling
     absl::flags_registry
     absl::synchronization
     absl::meta
+    absl::utility
   PUBLIC
 )
 
@@ -205,7 +211,6 @@ absl_cc_library(
     absl::flags_commandlineflag
     absl::flags_config
     absl::flags_internal
-    absl::flags_marshalling
     absl::flags_registry
     absl::base
     absl::core_headers
@@ -275,6 +280,7 @@ absl_cc_library(
     absl::flags_config
     absl::flags
     absl::flags_commandlineflag
+    absl::flags_commandlineflag_internal
     absl::flags_internal
     absl::flags_private_handle_accessor
     absl::flags_program_name
@@ -297,6 +303,7 @@ absl_cc_test(
   DEPS
     absl::flags
     absl::flags_commandlineflag
+    absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_private_handle_accessor
     absl::flags_registry
@@ -330,6 +337,7 @@ absl_cc_test(
     absl::flags
     absl::flags_config
     absl::flags_internal
+    absl::flags_marshalling
     absl::flags_registry
     absl::strings
     absl::time
@@ -399,8 +407,8 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::flags_commandlineflag_internal
     absl::flags
-    absl::flags_marshalling
     absl::flags_registry
     absl::memory
     absl::strings
@@ -437,7 +445,6 @@ absl_cc_test(
     absl::flags_parse
     absl::flags_registry
     absl::flags_usage
-    absl::memory
     absl::strings
     gtest
 )

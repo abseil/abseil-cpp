@@ -16,7 +16,13 @@
 #ifndef ABSL_FLAGS_INTERNAL_PRIVATE_HANDLE_ACCESSOR_H_
 #define ABSL_FLAGS_INTERNAL_PRIVATE_HANDLE_ACCESSOR_H_
 
+#include <memory>
+#include <string>
+
+#include "absl/base/config.h"
 #include "absl/flags/commandlineflag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

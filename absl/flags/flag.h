@@ -33,13 +33,11 @@
 #include <type_traits>
 
 #include "absl/base/attributes.h"
-#include "absl/base/casts.h"
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/flags/config.h"
-#include "absl/flags/declare.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/registry.h"
-#include "absl/flags/marshalling.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -150,6 +148,8 @@ class Flag {
   void Set(const T& v) { GetImpl().Set(v); }
   void InvokeCallback() { GetImpl().InvokeCallback(); }
 
+  const CommandLineFlag& Reflect() const { return GetImpl().Reflect(); }
+
   // The data members are logically private, but they need to be public for
   // this to be an aggregate type.
   const char* name_;
@@ -202,6 +202,21 @@ template <typename T, typename V>
 void SetFlag(absl::Flag<T>* flag, const V& v) {
   T value(v);
   flag->Set(value);
+}
+
+// GetFlagReflectionHandle()
+//
+// Returns the reflection handle corresponding to specified Abseil Flag
+// instance. Use this handle to access flag's reflection information, like name,
+// location, default value etc.
+//
+// Example:
+//
+//   std::string = absl::GetFlagReflectionHandle(FLAGS_count).DefaultValue();
+
+template <typename T>
+const CommandLineFlag& GetFlagReflectionHandle(const absl::Flag<T>& f) {
+  return f.Reflect();
 }
 
 ABSL_NAMESPACE_END

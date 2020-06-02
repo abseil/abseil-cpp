@@ -15,6 +15,7 @@
 
 #include "absl/flags/usage_config.h"
 
+#include <functional>
 #include <iostream>
 #include <string>
 

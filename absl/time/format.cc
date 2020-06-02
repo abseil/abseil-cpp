@@ -27,14 +27,11 @@ namespace cctz = absl::time_internal::cctz;
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-ABSL_DLL extern const char RFC3339_full[] =
-    "%Y-%m-%dT%H:%M:%E*S%Ez";
-ABSL_DLL extern const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
+ABSL_DLL extern const char RFC3339_full[] = "%Y-%m-%d%ET%H:%M:%E*S%Ez";
+ABSL_DLL extern const char RFC3339_sec[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
 
-ABSL_DLL extern const char RFC1123_full[] =
-    "%a, %d %b %E4Y %H:%M:%S %z";
-ABSL_DLL extern const char RFC1123_no_wday[] =
-    "%d %b %E4Y %H:%M:%S %z";
+ABSL_DLL extern const char RFC1123_full[] = "%a, %d %b %E4Y %H:%M:%S %z";
+ABSL_DLL extern const char RFC1123_no_wday[] = "%d %b %E4Y %H:%M:%S %z";
 
 namespace {
 
