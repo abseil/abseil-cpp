@@ -45,7 +45,6 @@ absl_cc_library(
     absl::core_headers
     absl::random_internal_distribution_caller
     absl::random_internal_fast_uniform_bits
-    absl::random_internal_mocking_bit_gen_base
     absl::type_traits
 )
 
@@ -62,23 +61,9 @@ absl_cc_test(
     absl::random_bit_gen_ref
     absl::random_random
     absl::random_internal_sequence_urbg
+    absl::fast_type_id
     gmock
     gtest_main
-)
-
-# Internal-only target, do not depend on directly.
-absl_cc_library(
-  NAME
-    random_internal_mocking_bit_gen_base
-  HDRS
-    "internal/mocking_bit_gen_base.h"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  LINKOPTS
-    ${ABSL_DEFAULT_LINKOPTS}
-  DEPS
-    absl::random_random
-    absl::strings
 )
 
 # Internal-only target, do not depend on directly.
@@ -93,6 +78,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_mocking_bit_gen
+    absl::fast_type_id
   TESTONLY
 )
 
@@ -111,8 +97,8 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::random_distributions
     absl::random_internal_distribution_caller
-    absl::random_internal_mocking_bit_gen_base
     absl::random_internal_mock_overload_set
+    absl::random_random
     absl::strings
     absl::span
     absl::type_traits
@@ -533,6 +519,8 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::utility
+    absl::fast_type_id
 )
 
 # Internal-only target, do not depend on directly.

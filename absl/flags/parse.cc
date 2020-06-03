@@ -42,8 +42,8 @@
 #include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/flags/internal/registry.h"
 #include "absl/flags/internal/usage.h"
+#include "absl/flags/reflection.h"
 #include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/ascii.h"
@@ -290,11 +290,11 @@ std::tuple<absl::string_view, absl::string_view, bool> SplitNameAndValue(
 //  found flag or nullptr
 //  is negative in case of --nofoo
 std::tuple<CommandLineFlag*, bool> LocateFlag(absl::string_view flag_name) {
-  CommandLineFlag* flag = flags_internal::FindCommandLineFlag(flag_name);
+  CommandLineFlag* flag = absl::FindCommandLineFlag(flag_name);
   bool is_negative = false;
 
   if (!flag && absl::ConsumePrefix(&flag_name, "no")) {
-    flag = flags_internal::FindCommandLineFlag(flag_name);
+    flag = absl::FindCommandLineFlag(flag_name);
     is_negative = true;
   }
 

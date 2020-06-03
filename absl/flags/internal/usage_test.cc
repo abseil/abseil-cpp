@@ -25,7 +25,7 @@
 #include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/path_util.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/flags/internal/registry.h"
+#include "absl/flags/reflection.h"
 #include "absl/flags/usage.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/match.h"
@@ -110,7 +110,7 @@ TEST_F(UsageReportingDeathTest, TestSetProgramUsageMessage) {
 // --------------------------------------------------------------------
 
 TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_01) {
-  const auto* flag = flags::FindCommandLineFlag("usage_reporting_test_flag_01");
+  const auto* flag = absl::FindCommandLineFlag("usage_reporting_test_flag_01");
   std::stringstream test_buf;
 
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
@@ -122,7 +122,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_01) {
 }
 
 TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_02) {
-  const auto* flag = flags::FindCommandLineFlag("usage_reporting_test_flag_02");
+  const auto* flag = absl::FindCommandLineFlag("usage_reporting_test_flag_02");
   std::stringstream test_buf;
 
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
@@ -134,7 +134,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_02) {
 }
 
 TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_03) {
-  const auto* flag = flags::FindCommandLineFlag("usage_reporting_test_flag_03");
+  const auto* flag = absl::FindCommandLineFlag("usage_reporting_test_flag_03");
   std::stringstream test_buf;
 
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
@@ -146,7 +146,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_03) {
 }
 
 TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_04) {
-  const auto* flag = flags::FindCommandLineFlag("usage_reporting_test_flag_04");
+  const auto* flag = absl::FindCommandLineFlag("usage_reporting_test_flag_04");
   std::stringstream test_buf;
 
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);
@@ -158,7 +158,7 @@ TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_04) {
 }
 
 TEST_F(UsageReportingTest, TestFlagHelpHRF_on_flag_05) {
-  const auto* flag = flags::FindCommandLineFlag("usage_reporting_test_flag_05");
+  const auto* flag = absl::FindCommandLineFlag("usage_reporting_test_flag_05");
   std::stringstream test_buf;
 
   flags::FlagHelp(test_buf, *flag, flags::HelpFormat::kHumanReadable);

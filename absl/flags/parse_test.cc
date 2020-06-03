@@ -28,7 +28,7 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/parse.h"
-#include "absl/flags/internal/registry.h"
+#include "absl/flags/reflection.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"

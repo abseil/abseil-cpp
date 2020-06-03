@@ -115,11 +115,12 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":random",
         "//absl/base:core_headers",
+        "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
         "//absl/random/internal:distribution_caller",
         "//absl/random/internal:fast_uniform_bits",
-        "//absl/random/internal:mocking_bit_gen_base",
     ],
 )
 
@@ -145,10 +146,11 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distributions",
+        ":random",
+        "//absl/base:fast_type_id",
         "//absl/container:flat_hash_map",
         "//absl/meta:type_traits",
         "//absl/random/internal:distribution_caller",
-        "//absl/random/internal:mocking_bit_gen_base",
         "//absl/strings",
         "//absl/types:span",
         "//absl/types:variant",
@@ -410,6 +412,7 @@ cc_test(
     deps = [
         ":bit_gen_ref",
         ":random",
+        "//absl/base:fast_type_id",
         "//absl/random/internal:sequence_urbg",
         "@com_google_googletest//:gtest_main",
     ],

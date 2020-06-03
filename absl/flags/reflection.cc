@@ -1,5 +1,5 @@
 //
-// Copyright 2019 The Abseil Authors.
+//  Copyright 2020 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,34 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/flags/internal/registry.h"
+#include "absl/flags/reflection.h"
 
 #include <assert.h>
-#include <stdlib.h>
 
-#include <functional>
 #include <map>
-#include <memory>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/commandlineflag.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/private_handle_accessor.h"
+#include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
-
-// --------------------------------------------------------------------
-// FlagRegistry implementation
-//    A FlagRegistry holds all flag objects indexed
-//    by their names so that if you know a flag's name you can access or
-//    set it.
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -48,12 +36,11 @@ namespace flags_internal {
 
 // --------------------------------------------------------------------
 // FlagRegistry
-//    A FlagRegistry singleton object holds all flag objects indexed
-//    by their names so that if you know a flag's name (as a C
-//    string), you can access or set it.  If the function is named
-//    FooLocked(), you must own the registry lock before calling
-//    the function; otherwise, you should *not* hold the lock, and
-//    the function will acquire it itself if needed.
+//    A FlagRegistry singleton object holds all flag objects indexed by their
+//    names so that if you know a flag's name, you can access or set it. If the
+//    function is named FooLocked(), you must own the registry lock before
+//    calling the function; otherwise, you should *not* hold the lock, and the
+//    function will acquire it itself if needed.
 // --------------------------------------------------------------------
 
 class FlagRegistry {
@@ -95,9 +82,27 @@ class FlagRegistry {
   FlagRegistry& operator=(const FlagRegistry&);
 };
 
-FlagRegistry& FlagRegistry::GlobalRegistry() {
-  static FlagRegistry* global_registry = new FlagRegistry;
-  return *global_registry;
+CommandLineFlag* FlagRegistry::FindFlagLocked(absl::string_view name) {
+  FlagConstIterator i = flags_.find(name);
+  if (i == flags_.end()) {
+    return nullptr;
+  }
+
+  if (i->second->IsRetired()) {
+    flags_internal::ReportUsageError(
+        absl::StrCat("Accessing retired flag '", name, "'"), false);
+  }
+
+  return i->second;
+}
+
+CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
+  FlagConstIterator i = flags_.find(name);
+  if (i == flags_.end() || !i->second->IsRetired()) {
+    return nullptr;
+  }
+
+  return i->second;
 }
 
 namespace {
@@ -161,98 +166,9 @@ void FlagRegistry::RegisterFlag(CommandLineFlag& flag) {
   }
 }
 
-CommandLineFlag* FlagRegistry::FindFlagLocked(absl::string_view name) {
-  FlagConstIterator i = flags_.find(name);
-  if (i == flags_.end()) {
-    return nullptr;
-  }
-
-  if (i->second->IsRetired()) {
-    flags_internal::ReportUsageError(
-        absl::StrCat("Accessing retired flag '", name, "'"), false);
-  }
-
-  return i->second;
-}
-
-CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
-  FlagConstIterator i = flags_.find(name);
-  if (i == flags_.end() || !i->second->IsRetired()) {
-    return nullptr;
-  }
-
-  return i->second;
-}
-
-// --------------------------------------------------------------------
-// FlagSaver
-// FlagSaverImpl
-//    This class stores the states of all flags at construct time,
-//    and restores all flags to that state at destruct time.
-//    Its major implementation challenge is that it never modifies
-//    pointers in the 'main' registry, so global FLAG_* vars always
-//    point to the right place.
-// --------------------------------------------------------------------
-
-class FlagSaverImpl {
- public:
-  FlagSaverImpl() = default;
-  FlagSaverImpl(const FlagSaverImpl&) = delete;
-  void operator=(const FlagSaverImpl&) = delete;
-
-  // Saves the flag states from the flag registry into this object.
-  // It's an error to call this more than once.
-  void SaveFromRegistry() {
-    assert(backup_registry_.empty());  // call only once!
-    flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
-      if (auto flag_state =
-              flags_internal::PrivateHandleAccessor::SaveState(flag)) {
-        backup_registry_.emplace_back(std::move(flag_state));
-      }
-    });
-  }
-
-  // Restores the saved flag states into the flag registry.
-  void RestoreToRegistry() {
-    for (const auto& flag_state : backup_registry_) {
-      flag_state->Restore();
-    }
-  }
-
- private:
-  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
-      backup_registry_;
-};
-
-FlagSaver::FlagSaver() : impl_(new FlagSaverImpl) { impl_->SaveFromRegistry(); }
-
-void FlagSaver::Ignore() {
-  delete impl_;
-  impl_ = nullptr;
-}
-
-FlagSaver::~FlagSaver() {
-  if (!impl_) return;
-
-  impl_->RestoreToRegistry();
-  delete impl_;
-}
-
-// --------------------------------------------------------------------
-
-CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
-  if (name.empty()) return nullptr;
-  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
-  FlagRegistryLock frl(registry);
-
-  return registry.FindFlagLocked(name);
-}
-
-CommandLineFlag* FindRetiredFlag(absl::string_view name) {
-  FlagRegistry& registry = FlagRegistry::GlobalRegistry();
-  FlagRegistryLock frl(registry);
-
-  return registry.FindRetiredFlagLocked(name);
+FlagRegistry& FlagRegistry::GlobalRegistry() {
+  static FlagRegistry* global_registry = new FlagRegistry;
+  return *global_registry;
 }
 
 // --------------------------------------------------------------------
@@ -333,17 +249,71 @@ bool Retire(const char* name, FlagFastTypeId type_id) {
 
 // --------------------------------------------------------------------
 
-bool IsRetiredFlag(absl::string_view name, bool* type_is_bool) {
-  assert(!name.empty());
-  CommandLineFlag* flag = flags_internal::FindRetiredFlag(name);
-  if (flag == nullptr) {
-    return false;
+// FlagSaver
+// FlagSaverImpl
+//    This class stores the states of all flags at construct time,
+//    and restores all flags to that state at destruct time.
+//    Its major implementation challenge is that it never modifies
+//    pointers in the 'main' registry, so global FLAG_* vars always
+//    point to the right place.
+// --------------------------------------------------------------------
+
+class FlagSaverImpl {
+ public:
+  FlagSaverImpl() = default;
+  FlagSaverImpl(const FlagSaverImpl&) = delete;
+  void operator=(const FlagSaverImpl&) = delete;
+
+  // Saves the flag states from the flag registry into this object.
+  // It's an error to call this more than once.
+  void SaveFromRegistry() {
+    assert(backup_registry_.empty());  // call only once!
+    flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
+      if (auto flag_state =
+              flags_internal::PrivateHandleAccessor::SaveState(flag)) {
+        backup_registry_.emplace_back(std::move(flag_state));
+      }
+    });
   }
-  assert(type_is_bool);
-  *type_is_bool = flag->IsOfType<bool>();
-  return true;
+
+  // Restores the saved flag states into the flag registry.
+  void RestoreToRegistry() {
+    for (const auto& flag_state : backup_registry_) {
+      flag_state->Restore();
+    }
+  }
+
+ private:
+  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
+      backup_registry_;
+};
+
+FlagSaver::FlagSaver() : impl_(new FlagSaverImpl) { impl_->SaveFromRegistry(); }
+
+void FlagSaver::Ignore() {
+  delete impl_;
+  impl_ = nullptr;
 }
 
+FlagSaver::~FlagSaver() {
+  if (!impl_) return;
+
+  impl_->RestoreToRegistry();
+  delete impl_;
+}
+
+// --------------------------------------------------------------------
+
 }  // namespace flags_internal
+
+CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
+  if (name.empty()) return nullptr;
+  flags_internal::FlagRegistry& registry =
+      flags_internal::FlagRegistry::GlobalRegistry();
+  flags_internal::FlagRegistryLock frl(registry);
+
+  return registry.FindFlagLocked(name);
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl

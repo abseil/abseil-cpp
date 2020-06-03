@@ -59,6 +59,12 @@ ABSL_NAMESPACE_END
 
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 
+#ifdef ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE
+#error ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE cannot be directly set
+#elif defined(__APPLE__)
+#define ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE 1
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {

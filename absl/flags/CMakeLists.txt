@@ -144,16 +144,14 @@ absl_cc_library(
     absl::strings
 )
 
-# Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
-    flags_registry
+    flags_reflection
   SRCS
-    "internal/registry.cc"
-    "internal/type_erased.cc"
+    "reflection.cc"
   HDRS
+    "reflection.h"
     "internal/registry.h"
-    "internal/type_erased.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -161,10 +159,8 @@ absl_cc_library(
   DEPS
     absl::config
     absl::flags_commandlineflag
-    absl::flags_config
     absl::flags_private_handle_accessor
-    absl::core_headers
-    absl::raw_logging_internal
+    absl::flags_config
     absl::strings
     absl::synchronization
 )
@@ -187,7 +183,6 @@ absl_cc_library(
     absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_marshalling
-    absl::flags_registry
     absl::synchronization
     absl::meta
     absl::utility
@@ -211,7 +206,7 @@ absl_cc_library(
     absl::flags_commandlineflag
     absl::flags_config
     absl::flags_internal
-    absl::flags_registry
+    absl::flags_reflection
     absl::base
     absl::core_headers
     absl::strings
@@ -238,7 +233,7 @@ absl_cc_library(
     absl::flags_path_util
     absl::flags_private_handle_accessor
     absl::flags_program_name
-    absl::flags_registry
+    absl::flags_reflection
     absl::strings
     absl::synchronization
 )
@@ -284,7 +279,7 @@ absl_cc_library(
     absl::flags_internal
     absl::flags_private_handle_accessor
     absl::flags_program_name
-    absl::flags_registry
+    absl::flags_reflection
     absl::flags_usage
     absl::strings
     absl::synchronization
@@ -306,7 +301,7 @@ absl_cc_test(
     absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_private_handle_accessor
-    absl::flags_registry
+    absl::flags_reflection
     absl::memory
     absl::strings
     gtest_main
@@ -338,7 +333,7 @@ absl_cc_test(
     absl::flags_config
     absl::flags_internal
     absl::flags_marshalling
-    absl::flags_registry
+    absl::flags_reflection
     absl::strings
     absl::time
     gtest_main
@@ -366,7 +361,7 @@ absl_cc_test(
   DEPS
     absl::flags
     absl::flags_parse
-    absl::flags_registry
+    absl::flags_reflection
     absl::raw_logging_internal
     absl::scoped_set_env
     absl::span
@@ -401,15 +396,15 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
-    flags_type_erased_test
+    flags_reflection_test
   SRCS
-    "internal/type_erased_test.cc"
+    "reflection_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags_commandlineflag_internal
     absl::flags
-    absl::flags_registry
+    absl::flags_reflection
     absl::memory
     absl::strings
     gtest_main
@@ -443,7 +438,7 @@ absl_cc_test(
     absl::flags_path_util
     absl::flags_program_name
     absl::flags_parse
-    absl::flags_registry
+    absl::flags_reflection
     absl::flags_usage
     absl::strings
     gtest

@@ -45,7 +45,11 @@ cc_library(
     hdrs = ["distribution_caller.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = ["//absl/base:config"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:fast_type_id",
+        "//absl/utility",
+    ],
 )
 
 cc_library(
@@ -481,20 +485,11 @@ cc_test(
 )
 
 cc_library(
-    name = "mocking_bit_gen_base",
-    hdrs = ["mocking_bit_gen_base.h"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        "//absl/random",
-        "//absl/strings",
-    ],
-)
-
-cc_library(
     name = "mock_overload_set",
     testonly = 1,
     hdrs = ["mock_overload_set.h"],
     deps = [
+        "//absl/base:fast_type_id",
         "//absl/random:mocking_bit_gen",
         "@com_google_googletest//:gtest",
     ],

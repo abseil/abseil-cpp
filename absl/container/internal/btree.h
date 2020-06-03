@@ -817,33 +817,52 @@ class btree_node {
     absl::container_internal::SanitizerPoisonObject(slot(i));
   }
 
-  // Transfers value from slot `src_i` in `src` to slot `dest_i` in `this`.
-  void transfer(const size_type dest_i, const size_type src_i, btree_node *src,
-                allocator_type *alloc) {
+  // Transfers value from slot `src_i` in `src_node` to slot `dest_i` in `this`.
+  void transfer(const size_type dest_i, const size_type src_i,
+                btree_node *src_node, allocator_type *alloc) {
     absl::container_internal::SanitizerUnpoisonObject(slot(dest_i));
-    params_type::transfer(alloc, slot(dest_i), src->slot(src_i));
-    absl::container_internal::SanitizerPoisonObject(src->slot(src_i));
+    params_type::transfer(alloc, slot(dest_i), src_node->slot(src_i));
+    absl::container_internal::SanitizerPoisonObject(src_node->slot(src_i));
   }
 
-  // Move n values starting at value i in this node into the values starting at
-  // value j in dest_node.
-  void uninitialized_move_n(const size_type n, const size_type i,
-                            const size_type j, btree_node *dest_node,
-                            allocator_type *alloc) {
+  // Transfers `n` values starting at value `src_i` in `src_node` into the
+  // values starting at value `dest_i` in `this`.
+  void transfer_n(const size_type n, const size_type dest_i,
+                  const size_type src_i, btree_node *src_node,
+                  allocator_type *alloc) {
     absl::container_internal::SanitizerUnpoisonMemoryRegion(
-        dest_node->slot(j), n * sizeof(slot_type));
-    for (slot_type *src = slot(i), *end = src + n, *dest = dest_node->slot(j);
+        slot(dest_i), n * sizeof(slot_type));
+    for (slot_type *src = src_node->slot(src_i), *end = src + n,
+                   *dest = slot(dest_i);
          src != end; ++src, ++dest) {
-      params_type::construct(alloc, dest, src);
+      params_type::transfer(alloc, dest, src);
     }
+    // We take care to avoid poisoning transferred-to nodes in case of overlap.
+    const size_type overlap =
+        this == src_node ? (std::max)(src_i, dest_i + n) - src_i : 0;
+    assert(n >= overlap);
+    absl::container_internal::SanitizerPoisonMemoryRegion(
+        src_node->slot(src_i + overlap), (n - overlap) * sizeof(slot_type));
   }
 
-  // Destroys a range of n values, starting at index i.
-  void value_destroy_n(const size_type i, const size_type n,
-                       allocator_type *alloc) {
-    for (int j = 0; j < n; ++j) {
-      value_destroy(i + j, alloc);
+  // Same as above, except that we start at the end and work our way to the
+  // beginning.
+  void transfer_n_backward(const size_type n, const size_type dest_i,
+                           const size_type src_i, btree_node *src_node,
+                           allocator_type *alloc) {
+    absl::container_internal::SanitizerUnpoisonMemoryRegion(
+        slot(dest_i), n * sizeof(slot_type));
+    for (slot_type *src = src_node->slot(src_i + n - 1), *end = src - n,
+                   *dest = slot(dest_i + n - 1);
+         src != end; --src, --dest) {
+      params_type::transfer(alloc, dest, src);
     }
+    // We take care to avoid poisoning transferred-to nodes in case of overlap.
+    assert(this != src_node || dest_i >= src_i);
+    const size_type num_to_poison =
+        this == src_node ? (std::min)(n, dest_i - src_i) : n;
+    absl::container_internal::SanitizerPoisonMemoryRegion(
+        src_node->slot(src_i), num_to_poison * sizeof(slot_type));
   }
 
   template <typename P>
@@ -1531,10 +1550,8 @@ inline void btree_node<P>::emplace_value(const size_type i,
   // Shift old values to create space for new value and then construct it in
   // place.
   if (i < finish()) {
-    value_init(finish(), alloc, slot(finish() - 1));
-    for (size_type j = finish() - 1; j > i; --j)
-      params_type::move(alloc, slot(j - 1), slot(j));
-    value_destroy(i, alloc);
+    transfer_n_backward(finish() - i, /*dest_i=*/i + 1, /*src_i=*/i, this,
+                        alloc);
   }
   value_init(i, alloc, std::forward<Args>(args)...);
   set_finish(finish() + 1);
@@ -1564,7 +1581,9 @@ template <typename P>
 inline void btree_node<P>::remove_values_ignore_children(
     const int i, const int to_erase, allocator_type *alloc) {
   params_type::move(alloc, slot(i + to_erase), finish_slot(), slot(i));
-  value_destroy_n(finish() - to_erase, to_erase, alloc);
+  for (int j = finish() - to_erase; j < finish(); ++j) {
+    value_destroy(j, alloc);
+  }
   set_finish(finish() - to_erase);
 }
 
@@ -1579,22 +1598,17 @@ void btree_node<P>::rebalance_right_to_left(const int to_move,
   assert(to_move <= right->count());
 
   // 1) Move the delimiting value in the parent to the left node.
-  value_init(finish(), alloc, parent()->slot(position()));
+  transfer(finish(), position(), parent(), alloc);
 
   // 2) Move the (to_move - 1) values from the right node to the left node.
-  right->uninitialized_move_n(to_move - 1, right->start(), finish() + 1, this,
-                              alloc);
+  transfer_n(to_move - 1, finish() + 1, right->start(), right, alloc);
 
   // 3) Move the new delimiting value to the parent from the right node.
-  params_type::move(alloc, right->slot(to_move - 1),
-                    parent()->slot(position()));
+  parent()->transfer(position(), right->start() + to_move - 1, right, alloc);
 
-  // 4) Shift the values in the right node to their correct position.
-  params_type::move(alloc, right->slot(to_move), right->finish_slot(),
-                    right->start_slot());
-
-  // 5) Destroy the now-empty to_move entries in the right node.
-  right->value_destroy_n(right->finish() - to_move, to_move, alloc);
+  // 4) Shift the values in the right node to their correct positions.
+  right->transfer_n(right->count() - to_move, right->start(),
+                    right->start() + to_move, right, alloc);
 
   if (!leaf()) {
     // Move the child pointers from the right to the left node.
@@ -1629,54 +1643,19 @@ void btree_node<P>::rebalance_left_to_right(const int to_move,
   // Lastly, a new delimiting value is moved from the left node into the
   // parent, and the remaining empty left node entries are destroyed.
 
-  if (right->count() >= to_move) {
-    // The original location of the right->count() values are sufficient to hold
-    // the new to_move entries from the parent and left node.
+  // 1) Shift existing values in the right node to their correct positions.
+  right->transfer_n_backward(right->count(), right->start() + to_move,
+                             right->start(), right, alloc);
 
-    // 1) Shift existing values in the right node to their correct positions.
-    right->uninitialized_move_n(to_move, right->finish() - to_move,
-                                right->finish(), right, alloc);
-    for (slot_type *src = right->slot(right->finish() - to_move - 1),
-                   *dest = right->slot(right->finish() - 1),
-                   *end = right->start_slot();
-         src >= end; --src, --dest) {
-      params_type::move(alloc, src, dest);
-    }
+  // 2) Move the delimiting value in the parent to the right node.
+  right->transfer(right->start() + to_move - 1, position(), parent(), alloc);
 
-    // 2) Move the delimiting value in the parent to the right node.
-    params_type::move(alloc, parent()->slot(position()),
-                      right->slot(to_move - 1));
-
-    // 3) Move the (to_move - 1) values from the left node to the right node.
-    params_type::move(alloc, slot(finish() - (to_move - 1)), finish_slot(),
-                      right->start_slot());
-  } else {
-    // The right node does not have enough initialized space to hold the new
-    // to_move entries, so part of them will move to uninitialized space.
-
-    // 1) Shift existing values in the right node to their correct positions.
-    right->uninitialized_move_n(right->count(), right->start(),
-                                right->start() + to_move, right, alloc);
-
-    // 2) Move the delimiting value in the parent to the right node.
-    right->value_init(to_move - 1, alloc, parent()->slot(position()));
-
-    // 3) Move the (to_move - 1) values from the left node to the right node.
-    const size_type uninitialized_remaining = to_move - right->count() - 1;
-    uninitialized_move_n(uninitialized_remaining,
-                         finish() - uninitialized_remaining, right->finish(),
-                         right, alloc);
-    params_type::move(alloc, slot(finish() - (to_move - 1)),
-                      slot(finish() - uninitialized_remaining),
-                      right->start_slot());
-  }
+  // 3) Move the (to_move - 1) values from the left node to the right node.
+  right->transfer_n(to_move - 1, right->start(), finish() - (to_move - 1), this,
+                    alloc);
 
   // 4) Move the new delimiting value to the parent from the left node.
-  params_type::move(alloc, slot(finish() - to_move),
-                    parent()->slot(position()));
-
-  // 5) Destroy the now-empty to_move entries in the left node.
-  value_destroy_n(finish() - to_move, to_move, alloc);
+  parent()->transfer(position(), finish() - to_move, this, alloc);
 
   if (!leaf()) {
     // Move the child pointers from the left to the right node.
@@ -1716,10 +1695,7 @@ void btree_node<P>::split(const int insert_position, btree_node *dest,
   assert(count() >= 1);
 
   // Move values from the left sibling to the right sibling.
-  uninitialized_move_n(dest->count(), finish(), dest->start(), dest, alloc);
-
-  // Destroy the now-empty entries in the left node.
-  value_destroy_n(finish(), dest->count(), alloc);
+  dest->transfer_n(dest->count(), dest->start(), finish(), this, alloc);
 
   // The split key is the largest value in the left sibling.
   --mutable_finish();
@@ -1746,11 +1722,7 @@ void btree_node<P>::merge(btree_node *src, allocator_type *alloc) {
   value_init(finish(), alloc, parent()->slot(position()));
 
   // Move the values from the right to the left node.
-  src->uninitialized_move_n(src->count(), src->start(), finish() + 1, this,
-                            alloc);
-
-  // Destroy the now-empty entries in the right node.
-  src->value_destroy_n(src->start(), src->count(), alloc);
+  transfer_n(src->count(), finish() + 1, src->start(), src, alloc);
 
   if (!leaf()) {
     // Move the child pointers from the right to the left node.
@@ -2474,9 +2446,8 @@ inline auto btree<P>::internal_emplace(iterator iter, Args &&... args)
       // Transfer the values from the old root to the new root.
       node_type *old_root = root();
       node_type *new_root = iter.node;
-      for (int i = old_root->start(), f = old_root->finish(); i < f; ++i) {
-        new_root->transfer(i, i, old_root, alloc);
-      }
+      new_root->transfer_n(old_root->count(), new_root->start(),
+                           old_root->start(), old_root, alloc);
       new_root->set_finish(old_root->finish());
       old_root->set_finish(old_root->start());
       delete_leaf_node(old_root);

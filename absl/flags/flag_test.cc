@@ -29,8 +29,8 @@
 #include "absl/flags/config.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/internal/flag.h"
-#include "absl/flags/internal/registry.h"
 #include "absl/flags/marshalling.h"
+#include "absl/flags/reflection.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
@@ -555,29 +555,29 @@ TEST_F(FlagTest, TestGetSet) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestGetViaReflection) {
-  auto* handle = flags::FindCommandLineFlag("test_flag_01");
+  auto* handle = absl::FindCommandLineFlag("test_flag_01");
   EXPECT_EQ(*handle->TryGet<bool>(), true);
-  handle = flags::FindCommandLineFlag("test_flag_02");
+  handle = absl::FindCommandLineFlag("test_flag_02");
   EXPECT_EQ(*handle->TryGet<int>(), 1234);
-  handle = flags::FindCommandLineFlag("test_flag_03");
+  handle = absl::FindCommandLineFlag("test_flag_03");
   EXPECT_EQ(*handle->TryGet<int16_t>(), -34);
-  handle = flags::FindCommandLineFlag("test_flag_04");
+  handle = absl::FindCommandLineFlag("test_flag_04");
   EXPECT_EQ(*handle->TryGet<uint16_t>(), 189);
-  handle = flags::FindCommandLineFlag("test_flag_05");
+  handle = absl::FindCommandLineFlag("test_flag_05");
   EXPECT_EQ(*handle->TryGet<int32_t>(), 10765);
-  handle = flags::FindCommandLineFlag("test_flag_06");
+  handle = absl::FindCommandLineFlag("test_flag_06");
   EXPECT_EQ(*handle->TryGet<uint32_t>(), 40000);
-  handle = flags::FindCommandLineFlag("test_flag_07");
+  handle = absl::FindCommandLineFlag("test_flag_07");
   EXPECT_EQ(*handle->TryGet<int64_t>(), -1234567);
-  handle = flags::FindCommandLineFlag("test_flag_08");
+  handle = absl::FindCommandLineFlag("test_flag_08");
   EXPECT_EQ(*handle->TryGet<uint64_t>(), 9876543);
-  handle = flags::FindCommandLineFlag("test_flag_09");
+  handle = absl::FindCommandLineFlag("test_flag_09");
   EXPECT_NEAR(*handle->TryGet<double>(), -9.876e-50, 1e-55);
-  handle = flags::FindCommandLineFlag("test_flag_10");
+  handle = absl::FindCommandLineFlag("test_flag_10");
   EXPECT_NEAR(*handle->TryGet<float>(), 1.234e12f, 1e5f);
-  handle = flags::FindCommandLineFlag("test_flag_11");
+  handle = absl::FindCommandLineFlag("test_flag_11");
   EXPECT_EQ(*handle->TryGet<std::string>(), "");
-  handle = flags::FindCommandLineFlag("test_flag_12");
+  handle = absl::FindCommandLineFlag("test_flag_12");
   EXPECT_EQ(*handle->TryGet<absl::Duration>(), absl::Minutes(10));
 }
 
@@ -815,14 +815,15 @@ ABSL_RETIRED_FLAG(std::string, old_str_flag, "", absl::StrCat("old ", "descr"));
 namespace {
 
 TEST_F(FlagTest, TestRetiredFlagRegistration) {
-  bool is_bool = false;
-  EXPECT_TRUE(flags::IsRetiredFlag("old_bool_flag", &is_bool));
-  EXPECT_TRUE(is_bool);
-  EXPECT_TRUE(flags::IsRetiredFlag("old_int_flag", &is_bool));
-  EXPECT_FALSE(is_bool);
-  EXPECT_TRUE(flags::IsRetiredFlag("old_str_flag", &is_bool));
-  EXPECT_FALSE(is_bool);
-  EXPECT_FALSE(flags::IsRetiredFlag("some_other_flag", &is_bool));
+  auto* handle = absl::FindCommandLineFlag("old_bool_flag");
+  EXPECT_TRUE(handle->IsOfType<bool>());
+  EXPECT_TRUE(handle->IsRetired());
+  handle = absl::FindCommandLineFlag("old_int_flag");
+  EXPECT_TRUE(handle->IsOfType<int>());
+  EXPECT_TRUE(handle->IsRetired());
+  handle = absl::FindCommandLineFlag("old_str_flag");
+  EXPECT_TRUE(handle->IsOfType<std::string>());
+  EXPECT_TRUE(handle->IsRetired());
 }
 
 }  // namespace

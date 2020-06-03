@@ -22,7 +22,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/private_handle_accessor.h"
-#include "absl/flags/internal/registry.h"
+#include "absl/flags/reflection.h"
 #include "absl/flags/usage_config.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -64,7 +64,7 @@ class CommandLineFlagTest : public testing::Test {
 };
 
 TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
-  auto* flag_01 = flags::FindCommandLineFlag("int_flag");
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
 
   ASSERT_TRUE(flag_01);
   EXPECT_EQ(flag_01->Name(), "int_flag");
@@ -77,7 +77,7 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
                              "absl/flags/commandlineflag_test.cc"))
       << flag_01->Filename();
 
-  auto* flag_02 = flags::FindCommandLineFlag("string_flag");
+  auto* flag_02 = absl::FindCommandLineFlag("string_flag");
 
   ASSERT_TRUE(flag_02);
   EXPECT_EQ(flag_02->Name(), "string_flag");
@@ -89,31 +89,20 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
   EXPECT_TRUE(absl::EndsWith(flag_02->Filename(),
                              "absl/flags/commandlineflag_test.cc"))
       << flag_02->Filename();
-
-  auto* flag_03 = flags::FindRetiredFlag("bool_retired_flag");
-
-  ASSERT_TRUE(flag_03);
-  EXPECT_EQ(flag_03->Name(), "bool_retired_flag");
-  EXPECT_EQ(flag_03->Help(), "");
-  EXPECT_TRUE(flag_03->IsRetired());
-  EXPECT_TRUE(flag_03->IsOfType<bool>());
-  EXPECT_TRUE(!flag_03->IsOfType<int>());
-  EXPECT_TRUE(!flag_03->IsOfType<std::string>());
-  EXPECT_EQ(flag_03->Filename(), "RETIRED");
 }
 
 // --------------------------------------------------------------------
 
 TEST_F(CommandLineFlagTest, TestValueAccessMethods) {
   absl::SetFlag(&FLAGS_int_flag, 301);
-  auto* flag_01 = flags::FindCommandLineFlag("int_flag");
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
 
   ASSERT_TRUE(flag_01);
   EXPECT_EQ(flag_01->CurrentValue(), "301");
   EXPECT_EQ(flag_01->DefaultValue(), "201");
 
   absl::SetFlag(&FLAGS_string_flag, "new_str_value");
-  auto* flag_02 = flags::FindCommandLineFlag("string_flag");
+  auto* flag_02 = absl::FindCommandLineFlag("string_flag");
 
   ASSERT_TRUE(flag_02);
   EXPECT_EQ(flag_02->CurrentValue(), "new_str_value");
@@ -125,7 +114,7 @@ TEST_F(CommandLineFlagTest, TestValueAccessMethods) {
 TEST_F(CommandLineFlagTest, TestParseFromCurrentValue) {
   std::string err;
 
-  auto* flag_01 = flags::FindCommandLineFlag("int_flag");
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
   EXPECT_FALSE(
       flags::PrivateHandleAccessor::IsSpecifiedOnCommandLine(*flag_01));
 
@@ -173,7 +162,7 @@ TEST_F(CommandLineFlagTest, TestParseFromCurrentValue) {
       *flag_01, "", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange, err));
   EXPECT_EQ(err, "Illegal value '' specified for flag 'int_flag'");
 
-  auto* flag_02 = flags::FindCommandLineFlag("string_flag");
+  auto* flag_02 = absl::FindCommandLineFlag("string_flag");
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       *flag_02, "xyz", flags::SET_FLAGS_VALUE, flags::kProgrammaticChange,
       err));
@@ -189,14 +178,14 @@ TEST_F(CommandLineFlagTest, TestParseFromCurrentValue) {
 TEST_F(CommandLineFlagTest, TestParseFromDefaultValue) {
   std::string err;
 
-  auto* flag_01 = flags::FindCommandLineFlag("int_flag");
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       *flag_01, "111", flags::SET_FLAGS_DEFAULT, flags::kProgrammaticChange,
       err));
   EXPECT_EQ(flag_01->DefaultValue(), "111");
 
-  auto* flag_02 = flags::FindCommandLineFlag("string_flag");
+  auto* flag_02 = absl::FindCommandLineFlag("string_flag");
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       *flag_02, "abc", flags::SET_FLAGS_DEFAULT, flags::kProgrammaticChange,
@@ -209,7 +198,7 @@ TEST_F(CommandLineFlagTest, TestParseFromDefaultValue) {
 TEST_F(CommandLineFlagTest, TestParseFromIfDefault) {
   std::string err;
 
-  auto* flag_01 = flags::FindCommandLineFlag("int_flag");
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
 
   EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
       *flag_01, "22", flags::SET_FLAG_IF_DEFAULT, flags::kProgrammaticChange,
