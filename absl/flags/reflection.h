@@ -31,6 +31,9 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+namespace flags_internal {
+class FlagSaverImpl;
+}  // namespace flags_internal
 
 // FindCommandLineFlag()
 //
@@ -38,6 +41,41 @@ ABSL_NAMESPACE_BEGIN
 // `nullptr` if not found. This function will emit a warning if the name of a
 // 'retired' flag is specified.
 CommandLineFlag* FindCommandLineFlag(absl::string_view name);
+
+//------------------------------------------------------------------------------
+// FlagSaver
+//------------------------------------------------------------------------------
+//
+// A FlagSaver object stores the state of flags in the scope where the FlagSaver
+// is defined, allowing modification of those flags within that scope and
+// automatic restoration of the flags to their previous state upon leaving the
+// scope.
+//
+// A FlagSaver can be used within tests to temporarily change the test
+// environment and restore the test case to its previous state.
+//
+// Example:
+//
+//   void MyFunc() {
+//    absl::FlagSaver fs;
+//    ...
+//    absl::SetFlag(FLAGS_myFlag, otherValue);
+//    ...
+//  } // scope of FlagSaver left, flags return to previous state
+//
+// This class is thread-safe.
+
+class FlagSaver {
+ public:
+  FlagSaver();
+  ~FlagSaver();
+
+  FlagSaver(const FlagSaver&) = delete;
+  void operator=(const FlagSaver&) = delete;
+
+ private:
+  flags_internal::FlagSaverImpl* impl_;
+};
 
 //-----------------------------------------------------------------------------
 

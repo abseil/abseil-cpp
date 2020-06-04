@@ -34,11 +34,11 @@ namespace flags = absl::flags_internal;
 
 class ReflectionTest : public testing::Test {
  protected:
-  void SetUp() override { flag_saver_ = absl::make_unique<flags::FlagSaver>(); }
+  void SetUp() override { flag_saver_ = absl::make_unique<absl::FlagSaver>(); }
   void TearDown() override { flag_saver_.reset(); }
 
  private:
-  std::unique_ptr<flags::FlagSaver> flag_saver_;
+  std::unique_ptr<absl::FlagSaver> flag_saver_;
 };
 
 // --------------------------------------------------------------------

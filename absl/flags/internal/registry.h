@@ -89,31 +89,6 @@ inline bool RetiredFlag(const char* flag_name) {
   return flags_internal::Retire(flag_name, base_internal::FastTypeId<T>());
 }
 
-//-----------------------------------------------------------------------------
-// Saves the states (value, default value, whether the user has set
-// the flag, registered validators, etc) of all flags, and restores
-// them when the FlagSaver is destroyed.
-//
-// This class is thread-safe.  However, its destructor writes to
-// exactly the set of flags that have changed value during its
-// lifetime, so concurrent _direct_ access to those flags
-// (i.e. FLAGS_foo instead of {Get,Set}CommandLineOption()) is unsafe.
-
-class FlagSaver {
- public:
-  FlagSaver();
-  ~FlagSaver();
-
-  FlagSaver(const FlagSaver&) = delete;
-  void operator=(const FlagSaver&) = delete;
-
-  // Prevents saver from restoring the saved state of flags.
-  void Ignore();
-
- private:
-  class FlagSaverImpl* impl_;  // we use pimpl here to keep API steady
-};
-
 }  // namespace flags_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

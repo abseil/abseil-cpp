@@ -65,7 +65,8 @@ class FlagRegistry {
   static FlagRegistry& GlobalRegistry();  // returns a singleton registry
 
  private:
-  friend class FlagSaverImpl;  // reads all the flags in order to copy them
+  friend class flags_internal::FlagSaverImpl;  // reads all the flags in order
+                                               // to copy them
   friend void ForEachFlagUnlocked(
       std::function<void(CommandLineFlag&)> visitor);
 
@@ -249,15 +250,6 @@ bool Retire(const char* name, FlagFastTypeId type_id) {
 
 // --------------------------------------------------------------------
 
-// FlagSaver
-// FlagSaverImpl
-//    This class stores the states of all flags at construct time,
-//    and restores all flags to that state at destruct time.
-//    Its major implementation challenge is that it never modifies
-//    pointers in the 'main' registry, so global FLAG_* vars always
-//    point to the right place.
-// --------------------------------------------------------------------
-
 class FlagSaverImpl {
  public:
   FlagSaverImpl() = default;
@@ -288,11 +280,10 @@ class FlagSaverImpl {
       backup_registry_;
 };
 
-FlagSaver::FlagSaver() : impl_(new FlagSaverImpl) { impl_->SaveFromRegistry(); }
+}  // namespace flags_internal
 
-void FlagSaver::Ignore() {
-  delete impl_;
-  impl_ = nullptr;
+FlagSaver::FlagSaver() : impl_(new flags_internal::FlagSaverImpl) {
+  impl_->SaveFromRegistry();
 }
 
 FlagSaver::~FlagSaver() {
@@ -303,8 +294,6 @@ FlagSaver::~FlagSaver() {
 }
 
 // --------------------------------------------------------------------
-
-}  // namespace flags_internal
 
 CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
   if (name.empty()) return nullptr;

@@ -81,7 +81,7 @@ class FlagTest : public testing::Test {
 #endif
     return std::string(fname);
   }
-  flags::FlagSaver flag_saver_;
+  absl::FlagSaver flag_saver_;
 };
 
 struct S1 {

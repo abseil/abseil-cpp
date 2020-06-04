@@ -47,7 +47,7 @@ class CommandLineFlagTest : public testing::Test {
     absl::SetFlagsUsageConfig(default_config);
   }
 
-  void SetUp() override { flag_saver_ = absl::make_unique<flags::FlagSaver>(); }
+  void SetUp() override { flag_saver_ = absl::make_unique<absl::FlagSaver>(); }
   void TearDown() override { flag_saver_.reset(); }
 
  private:
@@ -60,7 +60,7 @@ class CommandLineFlagTest : public testing::Test {
     return std::string(fname);
   }
 
-  std::unique_ptr<flags::FlagSaver> flag_saver_;
+  std::unique_ptr<absl::FlagSaver> flag_saver_;
 };
 
 TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {

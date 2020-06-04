@@ -89,7 +89,7 @@ class UsageReportingTest : public testing::Test {
   }
 
  private:
-  flags::FlagSaver flag_saver_;
+  absl::FlagSaver flag_saver_;
 };
 
 // --------------------------------------------------------------------

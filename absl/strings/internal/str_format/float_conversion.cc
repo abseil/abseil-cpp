@@ -224,13 +224,13 @@ class FractionalDigitGenerator {
   // This function will allocate enough stack space to perform the conversion.
   static void RunConversion(
       uint128 v, int exp, absl::FunctionRef<void(FractionalDigitGenerator)> f) {
+    using Limits = std::numeric_limits<long double>;
     assert(-exp < 0);
-    assert(-exp >= std::numeric_limits<long double>::min_exponent - 128);
-    static_assert(
-        StackArray::kMaxCapacity >=
-            (128 - std::numeric_limits<long double>::min_exponent + 31) / 32,
-        "");
-    StackArray::RunWithCapacity((exp + 31) / 32,
+    assert(-exp >= Limits::min_exponent - 128);
+    static_assert(StackArray::kMaxCapacity >=
+                      (Limits::digits + 128 - Limits::min_exponent + 31) / 32,
+                  "");
+    StackArray::RunWithCapacity((Limits::digits + exp + 31) / 32,
                                 [=](absl::Span<uint32_t> input) {
                                   f(FractionalDigitGenerator(input, v, exp));
                                 });

@@ -61,7 +61,7 @@
 # elif defined(__aarch64__)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_aarch64-inl.inc"
-# elif defined(__arm__)
+#elif defined(__arm__) && defined(__GLIBC__)
 // Note: When using glibc this may require -funwind-tables to function properly.
 #define ABSL_STACKTRACE_INL_HEADER \
   "absl/debugging/internal/stacktrace_generic-inl.inc"

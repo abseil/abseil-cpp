@@ -208,7 +208,7 @@ using testing::ElementsAreArray;
 
 class ParseTest : public testing::Test {
  private:
-  flags::FlagSaver flag_saver_;
+  absl::FlagSaver flag_saver_;
 };
 
 // --------------------------------------------------------------------

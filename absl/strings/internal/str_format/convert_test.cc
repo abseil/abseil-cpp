@@ -764,6 +764,12 @@ TEST_F(FormatConvertTest, LongDouble) {
     }
   }
 
+  // Regression tests
+  //
+  // Using a string literal because not all platforms support hex literals or it
+  // might be out of range.
+  doubles.push_back(std::strtold("-0xf.ffffffb5feafffbp-16324L", nullptr));
+
   for (const char *fmt : kFormats) {
     for (char f : {'f', 'F',  //
                    'g', 'G',  //
