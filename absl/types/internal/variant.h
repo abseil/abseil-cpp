@@ -939,11 +939,20 @@ struct PerformVisitation {
   template <std::size_t... TupIs, std::size_t... Is>
   constexpr ReturnType Run(std::false_type /*has_valueless*/,
                            index_sequence<TupIs...>, SizeT<Is>...) const {
+#if !defined(__cpp_lib_is_invocable)
     static_assert(
         std::is_same<ReturnType,
                      absl::result_of_t<Op(VariantAccessResult<
                                           Is, QualifiedVariants>...)>>::value,
         "All visitation overloads must have the same return type.");
+#else
+    static_assert(
+        std::is_same<
+            ReturnType,
+            absl::invoke_result_t<
+                Op, VariantAccessResult<Is, QualifiedVariants>...>>::value,
+        "All visitation overloads must have the same return type.");
+#endif
     return absl::base_internal::Invoke(
         absl::forward<Op>(op),
         VariantCoreAccess::Access<Is>(
