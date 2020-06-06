@@ -624,18 +624,6 @@ using result_of_t = typename std::result_of<T>::type;
 #else
 template <typename T, typename... Ts>
 using invoke_result_t = typename std::invoke_result<T, Ts...>::type;
-
-// template <typename T>
-// struct result_of;
-//
-// template <typename T, typename... Ts>
-// struct result_of<T(Ts...)> {
-//  using invoke_result_t<T, Ts...>;
-//};
-//
-// template <typename T>
-// using result_of_t = typename result_of<T>::type;
-
 #endif
 
 namespace type_traits_internal {
