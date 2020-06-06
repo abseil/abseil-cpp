@@ -569,21 +569,36 @@ constexpr absl::weak_ordering compare_result_as_ordering(
     const absl::weak_ordering c) {
   return c;
 }
-
+#if !defined(__cpp_lib_is_invocable)
 template <
     typename Compare, typename K, typename LK,
     absl::enable_if_t<!std::is_same<bool, absl::result_of_t<Compare(
                                               const K &, const LK &)>>::value,
                       int> = 0>
+#else
+template <
+    typename Compare, typename K, typename LK,
+    absl::enable_if_t<!std::is_same<bool, absl::invoke_result_t<Compare, 
+                                              const K &, const LK &>>::value,
+                      int> = 0>
+#endif
 constexpr absl::weak_ordering do_three_way_comparison(const Compare &compare,
                                                       const K &x, const LK &y) {
   return compare_result_as_ordering(compare(x, y));
 }
+#if !defined(__cpp_lib_is_invocable)
 template <
     typename Compare, typename K, typename LK,
     absl::enable_if_t<std::is_same<bool, absl::result_of_t<Compare(
                                              const K &, const LK &)>>::value,
                       int> = 0>
+#else
+template <
+    typename Compare, typename K, typename LK,
+    absl::enable_if_t<std::is_same<bool, absl::invoke_result_t<Compare, 
+                                             const K &, const LK &>>::value,
+                      int> = 0>
+#endif
 constexpr absl::weak_ordering do_three_way_comparison(const Compare &compare,
                                                       const K &x, const LK &y) {
   return compare(x, y) ? absl::weak_ordering::less

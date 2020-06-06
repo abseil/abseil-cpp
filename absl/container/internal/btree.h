@@ -76,10 +76,17 @@ namespace container_internal {
 
 // A helper class that indicates if the Compare parameter is a key-compare-to
 // comparator.
+#if !defined(__cpp_lib_is_invocable)
 template <typename Compare, typename T>
 using btree_is_key_compare_to =
     std::is_convertible<absl::result_of_t<Compare(const T &, const T &)>,
                         absl::weak_ordering>;
+#else
+template <typename Compare, typename T>
+using btree_is_key_compare_to =
+    std::is_convertible<absl::invoke_result_t<Compare, const T &, const T &>,
+                        absl::weak_ordering>;
+#endif
 
 struct StringBtreeDefaultLess {
   using is_transparent = void;

@@ -36,6 +36,7 @@
 #define ABSL_META_TYPE_TRAITS_H_
 
 #include <stddef.h>
+
 #include <functional>
 #include <type_traits>
 
@@ -244,8 +245,8 @@ template <typename... Ts>
 struct disjunction;
 
 template <typename T, typename... Ts>
-struct disjunction<T, Ts...> :
-      std::conditional<T::value, T, disjunction<Ts...>>::type {};
+struct disjunction<T, Ts...>
+    : std::conditional<T::value, T, disjunction<Ts...>>::type {};
 
 template <typename T>
 struct disjunction<T> : T {};
@@ -297,7 +298,7 @@ struct is_function
 template <typename T>
 struct is_trivially_destructible
     : std::integral_constant<bool, __has_trivial_destructor(T) &&
-                                   std::is_destructible<T>::value> {
+                                       std::is_destructible<T>::value> {
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
  private:
   static constexpr bool compliant = std::is_trivially_destructible<T>::value ==
@@ -345,9 +346,10 @@ struct is_trivially_destructible
 // Nontrivially destructible types will cause the expression to be nontrivial.
 template <typename T>
 struct is_trivially_default_constructible
-    : std::integral_constant<bool, __has_trivial_constructor(T) &&
-                                   std::is_default_constructible<T>::value &&
-                                   is_trivially_destructible<T>::value> {
+    : std::integral_constant<bool,
+                             __has_trivial_constructor(T) &&
+                                 std::is_default_constructible<T>::value &&
+                                 is_trivially_destructible<T>::value> {
 #if defined(ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE) && \
     !defined(                                            \
         ABSL_META_INTERNAL_STD_CONSTRUCTION_TRAITS_DONT_CHECK_DESTRUCTION)
@@ -616,8 +618,25 @@ using common_type_t = typename std::common_type<T...>::type;
 template <typename T>
 using underlying_type_t = typename std::underlying_type<T>::type;
 
+#if !defined(__cpp_lib_is_invocable)
 template <typename T>
 using result_of_t = typename std::result_of<T>::type;
+#else
+template <typename T, typename... Ts>
+using invoke_result_t = typename std::invoke_result<T, Ts...>::type;
+
+// template <typename T>
+// struct result_of;
+//
+// template <typename T, typename... Ts>
+// struct result_of<T(Ts...)> {
+//  using invoke_result_t<T, Ts...>;
+//};
+//
+// template <typename T>
+// using result_of_t = typename result_of<T>::type;
+
+#endif
 
 namespace type_traits_internal {
 // In MSVC we can't probe std::hash or stdext::hash because it triggers a
@@ -749,8 +768,8 @@ namespace type_traits_internal {
 // Make the swap-related traits/function accessible from this namespace.
 using swap_internal::IsNothrowSwappable;
 using swap_internal::IsSwappable;
-using swap_internal::Swap;
 using swap_internal::StdSwapIsUnconstrained;
+using swap_internal::Swap;
 
 }  // namespace type_traits_internal
 ABSL_NAMESPACE_END
