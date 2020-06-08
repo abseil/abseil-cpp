@@ -25,6 +25,7 @@
 // IWYU pragma: private, include "base/low_level_alloc.h"
 
 #include <sys/types.h>
+
 #include <cstdint>
 
 #include "absl/base/attributes.h"
@@ -54,6 +55,7 @@
 #include "absl/base/port.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 class LowLevelAlloc {
@@ -118,5 +120,7 @@ class LowLevelAlloc {
 };
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_LOW_LEVEL_ALLOC_H_

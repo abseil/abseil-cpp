@@ -52,6 +52,8 @@ absl_cc_test(
 absl_cc_library(
   NAME
     numeric
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::int128
   PUBLIC

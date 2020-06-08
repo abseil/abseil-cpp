@@ -14,6 +14,10 @@
 
 #include "absl/time/time.h"
 
+#if defined(_MSC_VER)
+#include <winsock2.h>  // for timeval
+#endif
+
 #include <chrono>  // NOLINT(build/c++11)
 #include <cstring>
 #include <ctime>
@@ -23,12 +27,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
 #include "absl/time/clock.h"
 #include "absl/time/internal/test_util.h"
 
 namespace {
 
-#if GTEST_USES_SIMPLE_RE
+#if defined(GTEST_USES_SIMPLE_RE) && GTEST_USES_SIMPLE_RE
 const char kZoneAbbrRE[] = ".*";  // just punt
 #else
 const char kZoneAbbrRE[] = "[A-Za-z]{3,4}|[-+][0-9]{2}([0-9]{2})?";
@@ -108,7 +113,7 @@ TEST(Time, UnixEpoch) {
   const auto ci = absl::UTCTimeZone().At(absl::UnixEpoch());
   EXPECT_EQ(absl::CivilSecond(1970, 1, 1, 0, 0, 0), ci.cs);
   EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
-  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(ci.cs));
 }
 
 TEST(Time, Breakdown) {
@@ -119,14 +124,14 @@ TEST(Time, Breakdown) {
   auto ci = tz.At(t);
   EXPECT_CIVIL_INFO(ci, 1969, 12, 31, 19, 0, 0, -18000, false);
   EXPECT_EQ(absl::ZeroDuration(), ci.subsecond);
-  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(ci.cs));
 
   // Just before the epoch.
   t -= absl::Nanoseconds(1);
   ci = tz.At(t);
   EXPECT_CIVIL_INFO(ci, 1969, 12, 31, 18, 59, 59, -18000, false);
   EXPECT_EQ(absl::Nanoseconds(999999999), ci.subsecond);
-  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::wednesday, absl::GetWeekday(ci.cs));
 
   // Some time later.
   t += absl::Hours(24) * 2735;
@@ -135,7 +140,7 @@ TEST(Time, Breakdown) {
   ci = tz.At(t);
   EXPECT_CIVIL_INFO(ci, 1977, 6, 28, 14, 30, 15, -14400, true);
   EXPECT_EQ(8, ci.subsecond / absl::Nanoseconds(1));
-  EXPECT_EQ(absl::Weekday::tuesday, absl::GetWeekday(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::tuesday, absl::GetWeekday(ci.cs));
 }
 
 TEST(Time, AdditiveOperators) {
@@ -571,6 +576,50 @@ TEST(Time, ToChronoTime) {
             absl::ToChronoTime(absl::UnixEpoch() - tick));
 }
 
+// Check that absl::int128 works as a std::chrono::duration representation.
+TEST(Time, Chrono128) {
+  // Define a std::chrono::time_point type whose time[sic]_since_epoch() is
+  // a signed 128-bit count of attoseconds. This has a range and resolution
+  // (currently) beyond those of absl::Time, and undoubtedly also beyond those
+  // of std::chrono::system_clock::time_point.
+  //
+  // Note: The to/from-chrono support should probably be updated to handle
+  // such wide representations.
+  using Timestamp =
+      std::chrono::time_point<std::chrono::system_clock,
+                              std::chrono::duration<absl::int128, std::atto>>;
+
+  // Expect that we can round-trip the std::chrono::system_clock::time_point
+  // extremes through both absl::Time and Timestamp, and that Timestamp can
+  // handle the (current) absl::Time extremes.
+  //
+  // Note: We should use std::chrono::floor() instead of time_point_cast(),
+  // but floor() is only available since c++17.
+  for (const auto tp : {std::chrono::system_clock::time_point::min(),
+                        std::chrono::system_clock::time_point::max()}) {
+    EXPECT_EQ(tp, absl::ToChronoTime(absl::FromChrono(tp)));
+    EXPECT_EQ(tp, std::chrono::time_point_cast<
+                      std::chrono::system_clock::time_point::duration>(
+                      std::chrono::time_point_cast<Timestamp::duration>(tp)));
+  }
+  Timestamp::duration::rep v = std::numeric_limits<int64_t>::min();
+  v *= Timestamp::duration::period::den;
+  auto ts = Timestamp(Timestamp::duration(v));
+  ts += std::chrono::duration<int64_t, std::atto>(0);
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(),
+            ts.time_since_epoch().count() / Timestamp::duration::period::den);
+  EXPECT_EQ(0,
+            ts.time_since_epoch().count() % Timestamp::duration::period::den);
+  v = std::numeric_limits<int64_t>::max();
+  v *= Timestamp::duration::period::den;
+  ts = Timestamp(Timestamp::duration(v));
+  ts += std::chrono::duration<int64_t, std::atto>(999999999750000000);
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(),
+            ts.time_since_epoch().count() / Timestamp::duration::period::den);
+  EXPECT_EQ(999999999750000000,
+            ts.time_since_epoch().count() % Timestamp::duration::period::den);
+}
+
 TEST(Time, TimeZoneAt) {
   const absl::TimeZone nyc =
       absl::time_internal::LoadTimeZone("America/New_York");
@@ -791,6 +840,30 @@ TEST(Time, FromTM) {
   tm.tm_isdst = 1;
   t = FromTM(tm, nyc);
   EXPECT_EQ("2014-03-09T03:30:42-04:00", absl::FormatTime(t, nyc));  // DST
+
+  // Adjusts tm to refer to a time with a year larger than 2147483647.
+  tm.tm_year = 2147483647 - 1900 + 1;
+  tm.tm_mon = 6 - 1;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("2147483648-06-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
+
+  // Adjusts tm to refer to a time with a very large month.
+  tm.tm_year = 2019 - 1900;
+  tm.tm_mon = 2147483647;
+  tm.tm_mday = 28;
+  tm.tm_hour = 1;
+  tm.tm_min = 2;
+  tm.tm_sec = 3;
+  tm.tm_isdst = -1;
+  t = FromTM(tm, absl::UTCTimeZone());
+  EXPECT_EQ("178958989-08-28T01:02:03+00:00",
+            absl::FormatTime(t, absl::UTCTimeZone()));
 }
 
 TEST(Time, TMRoundTrip) {
@@ -975,15 +1048,15 @@ TEST(Time, ConversionSaturation) {
   EXPECT_CIVIL_INFO(ci, std::numeric_limits<int64_t>::max(), 12, 31, 23,
                             59, 59, 0, false);
   EXPECT_EQ(absl::InfiniteDuration(), ci.subsecond);
-  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(absl::CivilDay(ci.cs)));
-  EXPECT_EQ(365, absl::GetYearDay(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::thursday, absl::GetWeekday(ci.cs));
+  EXPECT_EQ(365, absl::GetYearDay(ci.cs));
   EXPECT_STREQ("-00", ci.zone_abbr);  // artifact of TimeZone::At()
   ci = utc.At(absl::InfinitePast());
   EXPECT_CIVIL_INFO(ci, std::numeric_limits<int64_t>::min(), 1, 1, 0, 0,
                             0, 0, false);
   EXPECT_EQ(-absl::InfiniteDuration(), ci.subsecond);
-  EXPECT_EQ(absl::Weekday::sunday, absl::GetWeekday(absl::CivilDay(ci.cs)));
-  EXPECT_EQ(1, absl::GetYearDay(absl::CivilDay(ci.cs)));
+  EXPECT_EQ(absl::Weekday::sunday, absl::GetWeekday(ci.cs));
+  EXPECT_EQ(1, absl::GetYearDay(ci.cs));
   EXPECT_STREQ("-00", ci.zone_abbr);  // artifact of TimeZone::At()
 
   // Approach the maximal Time value from below.

@@ -36,7 +36,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::memory
-    absl::base
     absl::core_headers
     gmock_main
 )
@@ -48,11 +47,9 @@ absl_cc_test(
     "memory_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    ${ABSL_EXCEPTIONS_FLAG}
-  LINKOPTS
-    ${ABSL_EXCEPTIONS_FLAG_LINKOPTS}
   DEPS
     absl::memory
+    absl::config
     absl::exception_safety_testing
     gmock_main
 )

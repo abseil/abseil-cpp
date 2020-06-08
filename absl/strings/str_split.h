@@ -49,6 +49,7 @@
 #include "absl/strings/strip.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Delimiters
@@ -70,7 +71,6 @@ namespace absl {
 //   - `ByAnyChar`
 //   - `ByLength`
 //   - `MaxSplits`
-//
 //
 // A Delimiter's `Find()` member function will be passed an input `text` that is
 // to be split and a position (`pos`) to begin searching for the next delimiter
@@ -507,6 +507,7 @@ StrSplit(strings_internal::ConvertibleToStringView text, Delimiter d,
       std::move(text), DelimiterType(d), std::move(p));
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_SPLIT_H_

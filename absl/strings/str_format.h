@@ -20,7 +20,8 @@
 // The `str_format` library is a typesafe replacement for the family of
 // `printf()` string formatting routines within the `<cstdio>` standard library
 // header. Like the `printf` family, the `str_format` uses a "format string" to
-// perform argument substitutions based on types.
+// perform argument substitutions based on types. See the `FormatSpec` section
+// below for format string documentation.
 //
 // Example:
 //
@@ -50,23 +51,19 @@
 //   * A `ParsedFormat` instance, which encapsulates a specific, pre-compiled
 //     format string for a specific set of type(s), and which can be passed
 //     between API boundaries. (The `FormatSpec` type should not be used
-//     directly.)
+//     directly except as an argument type for wrapper functions.)
 //
 // The `str_format` library provides the ability to output its format strings to
 // arbitrary sink types:
 //
 //   * A generic `Format()` function to write outputs to arbitrary sink types,
-//     which must implement a `RawSinkFormat` interface. (See
-//     `str_format_sink.h` for more information.)
+//     which must implement a `FormatRawSink` interface.
 //
 //   * A `FormatUntyped()` function that is similar to `Format()` except it is
 //     loosely typed. `FormatUntyped()` is not a template and does not perform
 //     any compile-time checking of the format string; instead, it returns a
 //     boolean from a runtime check.
-//
-// In addition, the `str_format` library provides extension points for
-// augmenting formatting to new types. These extensions are fully documented
-// within the `str_format_extension.h` header file.
+
 #ifndef ABSL_STRINGS_STR_FORMAT_H_
 #define ABSL_STRINGS_STR_FORMAT_H_
 
@@ -80,6 +77,7 @@
 #include "absl/strings/internal/str_format/parser.h"  // IWYU pragma: export
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // UntypedFormatSpec
 //
@@ -157,10 +155,15 @@ class FormatCountCapture {
 // FormatSpec
 //
 // The `FormatSpec` type defines the makeup of a format string within the
-// `str_format` library. You should not need to use or manipulate this type
-// directly. A `FormatSpec` is a variadic class template that is evaluated at
-// compile-time, according to the format string and arguments that are passed
-// to it.
+// `str_format` library. It is a variadic class template that is evaluated at
+// compile-time, according to the format string and arguments that are passed to
+// it.
+//
+// You should not need to manipulate this type directly. You should only name it
+// if you are writing wrapper functions which accept format arguments that will
+// be provided unmodified to functions in this library. Such a wrapper function
+// might be a class method that provides format arguments and/or internally uses
+// the result of formatting.
 //
 // For a `FormatSpec` to be valid at compile-time, it must be provided as
 // either:
@@ -206,6 +209,11 @@ class FormatCountCapture {
 //     written to this point. The resulting value must be captured within an
 //     `absl::FormatCountCapture` type.
 //
+// Implementation-defined behavior:
+//   * A null pointer provided to "%s" or "%p" is output as "(nil)".
+//   * A non-null pointer provided to "%p" is output in hex as if by %#x or
+//     %#lx.
+//
 // NOTE: `o`, `x\X` and `u` will convert signed values to their unsigned
 // counterpart before formatting.
 //
@@ -221,7 +229,7 @@ class FormatCountCapture {
 //     "%e", .01                -> "1.00000e-2"
 //     "%a", -3.0               -> "-0x1.8p+1"
 //     "%g", .01                -> "1e-2"
-//     "%p", *int               -> "0x7ffdeb6ad2a4"
+//     "%p", (void*)&value      -> "0x7ffdeb6ad2a4"
 //
 //     int n = 0;
 //     std::string s = absl::StrFormat(
@@ -242,8 +250,8 @@ class FormatCountCapture {
 // argument, etc.
 
 template <typename... Args>
-using FormatSpec =
-    typename str_format_internal::FormatSpecDeductionBarrier<Args...>::type;
+using FormatSpec = str_format_internal::FormatSpecTemplate<
+    str_format_internal::ArgumentToConv<Args>()...>;
 
 // ParsedFormat
 //
@@ -272,7 +280,7 @@ using FormatSpec =
 //   }
 template <char... Conv>
 using ParsedFormat = str_format_internal::ExtendedParsedFormat<
-    str_format_internal::ConversionCharToConv(Conv)...>;
+    absl::str_format_internal::ToFormatConversionCharSet(Conv)...>;
 
 // StrFormat()
 //
@@ -388,6 +396,12 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 // This function is functionally equivalent to `std::snprintf()` (and
 // type-safe); prefer `absl::SNPrintF()` over `std::snprintf()`.
 //
+// In particular, a successful call to `absl::SNPrintF()` writes at most `size`
+// bytes of the formatted output to `output`, including a NUL-terminator, and
+// returns the number of bytes that would have been written if truncation did
+// not occur. In the event of an error, a negative value is returned and `errno`
+// is set.
+//
 // Example:
 //
 //   std::string_view s = "Ulaanbaatar";
@@ -413,6 +427,16 @@ int SNPrintF(char* output, std::size_t size, const FormatSpec<Args...>& format,
 //
 // FormatRawSink is a type erased wrapper around arbitrary sink objects
 // specifically used as an argument to `Format()`.
+//
+// All the object has to do define an overload of `AbslFormatFlush()` for the
+// sink, usually by adding a ADL-based free function in the same namespace as
+// the sink:
+//
+//   void AbslFormatFlush(MySink* dest, absl::string_view part);
+//
+// where `dest` is the pointer passed to `absl::Format()`. The function should
+// append `part` to `dest`.
+//
 // FormatRawSink does not own the passed sink object. The passed object must
 // outlive the FormatRawSink.
 class FormatRawSink {
@@ -436,12 +460,13 @@ class FormatRawSink {
 // `absl::FormatRawSink` interface), using a format string and zero or more
 // additional arguments.
 //
-// By default, `std::string` and `std::ostream` are supported as destination
-// objects.
+// By default, `std::string`, `std::ostream`, and `absl::Cord` are supported as
+// destination objects. If a `std::string` is used the formatted string is
+// appended to it.
 //
-// `absl::Format()` is a generic version of `absl::StrFormat(), for custom
-// sinks. The format string, like format strings for `StrFormat()`, is checked
-// at compile-time.
+// `absl::Format()` is a generic version of `absl::StrAppendFormat()`, for
+// custom sinks. The format string, like format strings for `StrFormat()`, is
+// checked at compile-time.
 //
 // On failure, this function returns `false` and the state of the sink is
 // unspecified.
@@ -512,5 +537,7 @@ ABSL_MUST_USE_RESULT inline bool FormatUntyped(
       str_format_internal::UntypedFormatSpecImpl::Extract(format), args);
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
+
 #endif  // ABSL_STRINGS_STR_FORMAT_H_

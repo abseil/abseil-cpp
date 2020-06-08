@@ -37,11 +37,11 @@
 // attempt to pass ':' instead of ":" might result in a 58 ending up in your
 // result.
 //
-// Bools convert to "0" or "1".
+// Bools convert to "0" or "1". Pointers to types other than `char *` are not
+// valid inputs. No output is generated for null `char *` pointers.
 //
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
-//
 //
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
@@ -57,12 +57,14 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "absl/base/port.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 namespace strings_internal {
 // AlphaNumBuffer allows a way to pass a string to StrCat without having to do
@@ -251,7 +253,7 @@ class AlphaNum {
       const std::basic_string<char, std::char_traits<char>, Allocator>& str)
       : piece_(str) {}
 
-  // Use std::string literals ":" instead of character literals ':'.
+  // Use string literals ":" instead of character literals ':'.
   AlphaNum(char c) = delete;  // NOLINT(runtime/explicit)
 
   AlphaNum(const AlphaNum&) = delete;
@@ -269,6 +271,17 @@ class AlphaNum {
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(static_cast<typename std::underlying_type<T>::type>(e)) {}
 
+  // vector<bool>::reference and const_reference require special help to
+  // convert to `AlphaNum` because it requires two user defined conversions.
+  template <
+      typename T,
+      typename std::enable_if<
+          std::is_class<T>::value &&
+          (std::is_same<T, std::vector<bool>::reference>::value ||
+           std::is_same<T, std::vector<bool>::const_reference>::value)>::type* =
+          nullptr>
+  AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
+
  private:
   absl::string_view piece_;
   char digits_[numbers_internal::kFastToBufferSize];
@@ -278,7 +291,8 @@ class AlphaNum {
 // StrCat()
 // -----------------------------------------------------------------------------
 //
-// Merges given strings or numbers, using no delimiter(s).
+// Merges given strings or numbers, using no delimiter(s), returning the merged
+// result as a string.
 //
 // `StrCat()` is designed to be the fastest possible way to construct a string
 // out of a mix of raw C strings, string_views, strings, bool values,
@@ -388,6 +402,7 @@ SixDigits(double d) {
   return result;
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_CAT_H_

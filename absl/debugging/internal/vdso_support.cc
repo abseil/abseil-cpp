@@ -38,6 +38,7 @@
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 ABSL_CONST_INIT
@@ -187,6 +188,7 @@ static class VDSOInitHelper {
 } vdso_init_helper;
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HAVE_VDSO_SUPPORT

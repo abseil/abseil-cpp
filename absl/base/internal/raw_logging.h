@@ -22,9 +22,11 @@
 #include <string>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
 // This is similar to LOG(severity) << format..., but
@@ -38,6 +40,7 @@
 //   ABSL_RAW_LOG(ERROR, "Failed foo with %i: %s", status, error);
 // This will print an almost standard log line like this to stderr only:
 //   E0821 211317 file.cc:123] RAW: Failed foo with 22: bad_file
+
 #define ABSL_RAW_LOG(severity, ...)                                            \
   do {                                                                         \
     constexpr const char* absl_raw_logging_internal_basename =                 \
@@ -69,14 +72,10 @@
 //
 // The API is a subset of the above: each macro only takes two arguments.  Use
 // StrCat if you need to build a richer message.
-#define ABSL_INTERNAL_LOG(severity, message)                          \
-  do {                                                                \
-    constexpr const char* absl_raw_logging_internal_basename =        \
-        ::absl::raw_logging_internal::Basename(__FILE__,              \
-                                               sizeof(__FILE__) - 1); \
-    ::absl::raw_logging_internal::internal_log_function(              \
-        ABSL_RAW_LOGGING_INTERNAL_##severity,                         \
-        absl_raw_logging_internal_basename, __LINE__, message);       \
+#define ABSL_INTERNAL_LOG(severity, message)                                \
+  do {                                                                      \
+    ::absl::raw_logging_internal::internal_log_function(                    \
+        ABSL_RAW_LOGGING_INTERNAL_##severity, __FILE__, __LINE__, message); \
   } while (0)
 
 #define ABSL_INTERNAL_CHECK(condition, message)                    \
@@ -96,6 +95,7 @@
   ::absl::NormalizeLogSeverity(severity)
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace raw_logging_internal {
 
 // Helper function to implement ABSL_RAW_LOG
@@ -156,7 +156,7 @@ using LogPrefixHook = bool (*)(absl::LogSeverity severity, const char* file,
 //
 // 'file' and 'line' are the file and line number where the ABSL_RAW_LOG macro
 // was located.
-// The null-terminated logged message lives in the buffer between 'buf_start'
+// The NUL-terminated logged message lives in the buffer between 'buf_start'
 // and 'buf_end'.  'prefix_end' points to the first non-prefix character of the
 // buffer (as written by the LogPrefixHook.)
 using AbortHook = void (*)(const char* file, int line, const char* buf_start,
@@ -170,11 +170,14 @@ using InternalLogFunction = void (*)(absl::LogSeverity severity,
                                      const char* file, int line,
                                      const std::string& message);
 
-extern base_internal::AtomicHook<InternalLogFunction> internal_log_function;
+ABSL_DLL ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES extern base_internal::AtomicHook<
+    InternalLogFunction>
+    internal_log_function;
 
 void RegisterInternalLogFunction(InternalLogFunction func);
 
 }  // namespace raw_logging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_RAW_LOGGING_H_

@@ -24,6 +24,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #ifdef ABSL_HAVE_MMAP
 #include <sys/mman.h>
 #endif
@@ -37,6 +41,7 @@
 #include <ctime>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/errno_saver.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/debugging/internal/examine_stack.h"
@@ -44,9 +49,15 @@
 
 #ifndef _WIN32
 #define ABSL_HAVE_SIGACTION
+// Apple WatchOS and TVOS don't allow sigaltstack
+#if !(defined(TARGET_OS_WATCH) && TARGET_OS_WATCH) && \
+    !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+#define ABSL_HAVE_SIGALTSTACK
+#endif
 #endif
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 ABSL_CONST_INIT static FailureSignalHandlerOptions fsh_options;
 
@@ -116,7 +127,7 @@ const char* FailureSignalToString(int signo) {
 
 }  // namespace debugging_internal
 
-#ifndef _WIN32
+#ifdef ABSL_HAVE_SIGALTSTACK
 
 static bool SetupAlternateStackOnce() {
 #if defined(__wasm__) || defined (__asjms__)
@@ -168,7 +179,7 @@ static bool SetupAlternateStackOnce() {
 // Returns the appropriate flag for sig_action.sa_flags
 // if the system supports using an alternate stack.
 static int MaybeSetupAlternateStack() {
-#ifndef _WIN32
+#ifdef ABSL_HAVE_SIGALTSTACK
   ABSL_ATTRIBUTE_UNUSED static const bool kOnce = SetupAlternateStackOnce();
   return SA_ONSTACK;
 #else
@@ -204,9 +215,8 @@ static void InstallOneFailureHandler(FailureSignalData* data,
 #endif
 
 static void WriteToStderr(const char* data) {
-  int old_errno = errno;
+  absl::base_internal::ErrnoSaver errno_saver;
   absl::raw_logging_internal::SafeWriteToStderr(data, strlen(data));
-  errno = old_errno;
 }
 
 static void WriteSignalMessage(int signo, void (*writerfn)(const char*)) {
@@ -356,4 +366,5 @@ void InstallFailureSignalHandler(const FailureSignalHandlerOptions& options) {
   }
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl

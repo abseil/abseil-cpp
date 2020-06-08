@@ -21,95 +21,34 @@
 #include <limits>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/exponential_biased.h"
 #include "absl/container/internal/have_sse.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/memory/memory.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 constexpr int HashtablezInfo::kMaxStackDepth;
 
 namespace {
 ABSL_CONST_INIT std::atomic<bool> g_hashtablez_enabled{
-   false
+    false
 };
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_sample_parameter{1 << 10};
 ABSL_CONST_INIT std::atomic<int32_t> g_hashtablez_max_samples{1 << 20};
 
-// Returns the next pseudo-random value.
-// pRNG is: aX+b mod c with a = 0x5DEECE66D, b =  0xB, c = 1<<48
-// This is the lrand64 generator.
-uint64_t NextRandom(uint64_t rnd) {
-  const uint64_t prng_mult = uint64_t{0x5DEECE66D};
-  const uint64_t prng_add = 0xB;
-  const uint64_t prng_mod_power = 48;
-  const uint64_t prng_mod_mask = ~(~uint64_t{0} << prng_mod_power);
-  return (prng_mult * rnd + prng_add) & prng_mod_mask;
-}
-
-// Generates a geometric variable with the specified mean.
-// This is done by generating a random number between 0 and 1 and applying
-// the inverse cumulative distribution function for an exponential.
-// Specifically: Let m be the inverse of the sample period, then
-// the probability distribution function is m*exp(-mx) so the CDF is
-// p = 1 - exp(-mx), so
-// q = 1 - p = exp(-mx)
-// log_e(q) = -mx
-// -log_e(q)/m = x
-// log_2(q) * (-log_e(2) * 1/m) = x
-// In the code, q is actually in the range 1 to 2**26, hence the -26 below
-//
-int64_t GetGeometricVariable(int64_t mean) {
-#if ABSL_HAVE_THREAD_LOCAL
-  thread_local
-#else   // ABSL_HAVE_THREAD_LOCAL
-  // SampleSlow and hence GetGeometricVariable is guarded by a single mutex when
-  // there are not thread locals.  Thus, a single global rng is acceptable for
-  // that case.
-  static
-#endif  // ABSL_HAVE_THREAD_LOCAL
-      uint64_t rng = []() {
-        // We don't get well distributed numbers from this so we call
-        // NextRandom() a bunch to mush the bits around.  We use a global_rand
-        // to handle the case where the same thread (by memory address) gets
-        // created and destroyed repeatedly.
-        ABSL_CONST_INIT static std::atomic<uint32_t> global_rand(0);
-        uint64_t r = reinterpret_cast<uint64_t>(&rng) +
-                   global_rand.fetch_add(1, std::memory_order_relaxed);
-        for (int i = 0; i < 20; ++i) {
-          r = NextRandom(r);
-        }
-        return r;
-      }();
-
-  rng = NextRandom(rng);
-
-  // Take the top 26 bits as the random number
-  // (This plus the 1<<58 sampling bound give a max possible step of
-  // 5194297183973780480 bytes.)
-  const uint64_t prng_mod_power = 48;  // Number of bits in prng
-  // The uint32_t cast is to prevent a (hard-to-reproduce) NAN
-  // under piii debug for some binaries.
-  double q = static_cast<uint32_t>(rng >> (prng_mod_power - 26)) + 1.0;
-  // Put the computed p-value through the CDF of a geometric.
-  double interval = (log2(q) - 26) * (-std::log(2.0) * mean);
-
-  // Very large values of interval overflow int64_t. If we happen to
-  // hit such improbable condition, we simply cheat and clamp interval
-  // to largest supported value.
-  if (interval > static_cast<double>(std::numeric_limits<int64_t>::max() / 2)) {
-    return std::numeric_limits<int64_t>::max() / 2;
-  }
-
-  // Small values of interval are equivalent to just sampling next time.
-  if (interval < 1) {
-    return 1;
-  }
-  return static_cast<int64_t>(interval);
-}
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+ABSL_PER_THREAD_TLS_KEYWORD absl::base_internal::ExponentialBiased
+    g_exponential_biased_generator;
+#endif
 
 }  // namespace
+
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample = 0;
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 HashtablezSampler& HashtablezSampler::Global() {
   static auto* sampler = new HashtablezSampler();
@@ -228,15 +167,39 @@ int64_t HashtablezSampler::Iterate(
   return dropped_samples_.load(std::memory_order_relaxed);
 }
 
+static bool ShouldForceSampling() {
+  enum ForceState {
+    kDontForce,
+    kForce,
+    kUninitialized
+  };
+  ABSL_CONST_INIT static std::atomic<ForceState> global_state{
+      kUninitialized};
+  ForceState state = global_state.load(std::memory_order_relaxed);
+  if (ABSL_PREDICT_TRUE(state == kDontForce)) return false;
+
+  if (state == kUninitialized) {
+    state = AbslContainerInternalSampleEverything() ? kForce : kDontForce;
+    global_state.store(state, std::memory_order_relaxed);
+  }
+  return state == kForce;
+}
+
 HashtablezInfo* SampleSlow(int64_t* next_sample) {
-  if (kAbslContainerInternalSampleEverything) {
+  if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     *next_sample = 1;
     return HashtablezSampler::Global().Register();
   }
 
+#if !defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+  *next_sample = std::numeric_limits<int64_t>::max();
+  return nullptr;
+#else
   bool first = *next_sample < 0;
-  *next_sample = GetGeometricVariable(
+  *next_sample = g_exponential_biased_generator.GetStride(
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
+  // Small values of interval are equivalent to just sampling next time.
+  ABSL_ASSERT(*next_sample >= 1);
 
   // g_hashtablez_enabled can be dynamically flipped, we need to set a threshold
   // low enough that we will start sampling in a reasonable time, so we just use
@@ -251,11 +214,8 @@ HashtablezInfo* SampleSlow(int64_t* next_sample) {
   }
 
   return HashtablezSampler::Global().Register();
+#endif
 }
-
-#if ABSL_PER_THREAD_TLS == 1
-ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample = 0;
-#endif  // ABSL_PER_THREAD_TLS == 1
 
 void UnsampleSlow(HashtablezInfo* info) {
   HashtablezSampler::Global().Unregister(info);
@@ -266,7 +226,7 @@ void RecordInsertSlow(HashtablezInfo* info, size_t hash,
   // SwissTables probe in groups of 16, so scale this to count items probes and
   // not offset from desired.
   size_t probe_length = distance_from_desired;
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
   probe_length /= 16;
 #else
   probe_length /= 8;
@@ -305,4 +265,5 @@ void SetHashtablezMaxSamples(int32_t max) {
 }
 
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

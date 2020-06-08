@@ -34,6 +34,7 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 class Futex;
@@ -53,6 +54,7 @@ class KernelTimeout {
 
   // We explicitly do not support other custom formats: timespec, int64_t nanos.
   // Unify on this and absl::Time, please.
+
   bool has_timeout() const { return ns_ != 0; }
 
  private:
@@ -147,5 +149,7 @@ class KernelTimeout {
 };
 
 }  // namespace synchronization_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
+
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_

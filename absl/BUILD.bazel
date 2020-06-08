@@ -14,31 +14,40 @@
 # limitations under the License.
 #
 
+load(
+    ":compiler_config_setting.bzl",
+    "create_llvm_config",
+)
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
-
-load(":compiler_config_setting.bzl", "create_llvm_config")
 
 create_llvm_config(
     name = "llvm_compiler",
     visibility = [":__subpackages__"],
 )
 
-# following configs are based on mapping defined in: https://git.io/v5Ijz
+config_setting(
+    name = "osx",
+    constraint_values = [
+        "@bazel_tools//platforms:osx",
+    ],
+)
+
 config_setting(
     name = "ios",
-    values = {
-        "cpu": "darwin",
-    },
-    visibility = [":__subpackages__"],
+    constraint_values = [
+        "@bazel_tools//platforms:ios",
+    ],
 )
 
 config_setting(
     name = "windows",
-    values = {
-        "cpu": "x64_windows",
-    },
+    constraint_values = [
+        "@bazel_tools//platforms:x86_64",
+        "@bazel_tools//platforms:windows",
+    ],
     visibility = [":__subpackages__"],
 )
 

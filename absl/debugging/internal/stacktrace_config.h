@@ -28,6 +28,27 @@
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_win32-inl.inc"
 
+#elif defined(__APPLE__)
+// Thread local support required for UnwindImpl.
+// Notes:
+// * Xcode's clang did not support `thread_local` until version 8, and
+//   even then not for all iOS < 9.0.
+// * Xcode 9.3 started disallowing `thread_local` for 32-bit iOS simulator
+//   targeting iOS 9.x.
+// * Xcode 10 moves the deployment target check for iOS < 9.0 to link time
+//   making __has_feature unreliable there.
+//
+// Otherwise, `__has_feature` is only supported by Clang so it has be inside
+// `defined(__APPLE__)` check.
+#if __has_feature(cxx_thread_local) && \
+    !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
+#define ABSL_STACKTRACE_INL_HEADER \
+  "absl/debugging/internal/stacktrace_generic-inl.inc"
+#else
+#define ABSL_STACKTRACE_INL_HEADER \
+  "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
+#endif
+
 #elif defined(__linux__) && !defined(__ANDROID__)
 
 #if !defined(NO_FRAME_POINTER)
@@ -40,7 +61,7 @@
 # elif defined(__aarch64__)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_aarch64-inl.inc"
-# elif defined(__arm__)
+#elif defined(__arm__) && defined(__GLIBC__)
 // Note: When using glibc this may require -funwind-tables to function properly.
 #define ABSL_STACKTRACE_INL_HEADER \
   "absl/debugging/internal/stacktrace_generic-inl.inc"

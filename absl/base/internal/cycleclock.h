@@ -28,7 +28,6 @@
 // not necessarily "CPU cycles" and code should not rely on that behavior, even
 // if experimentally observed.
 //
-//
 // An arbitrary offset may have been added to the counter at power on.
 //
 // On some platforms, the rate and offset of the counter may differ
@@ -45,7 +44,10 @@
 
 #include <cstdint>
 
+#include "absl/base/config.h"
+
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // -----------------------------------------------------------------------------
@@ -86,6 +88,7 @@ class CycleClockSource {
 };
 
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_CYCLECLOCK_H_

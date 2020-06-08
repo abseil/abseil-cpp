@@ -174,6 +174,8 @@ TEST(TestInstanceTracker, Comparisons) {
   EXPECT_EQ(5, tracker.comparisons());
   EXPECT_FALSE(one >= two);
   EXPECT_EQ(6, tracker.comparisons());
+  EXPECT_TRUE(one.compare(two) < 0);  // NOLINT
+  EXPECT_EQ(7, tracker.comparisons());
 
   tracker.ResetCopiesMovesSwaps();
   EXPECT_EQ(0, tracker.comparisons());

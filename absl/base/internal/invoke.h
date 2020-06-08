@@ -39,10 +39,13 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/meta/type_traits.h"
+
 // The following code is internal implementation detail.  See the comment at the
 // top of this file for the API documentation.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // The five classes below each implement one of the clauses from the definition
@@ -67,15 +70,11 @@ struct MemFunAndRef : StrippedAccept<MemFunAndRef> {
   template <typename... Args>
   struct AcceptImpl : std::false_type {};
 
-  template <typename R, typename C, typename... Params, typename Obj,
-            typename... Args>
-  struct AcceptImpl<R (C::*)(Params...), Obj, Args...>
-      : std::is_base_of<C, Obj> {};
-
-  template <typename R, typename C, typename... Params, typename Obj,
-            typename... Args>
-  struct AcceptImpl<R (C::*)(Params...) const, Obj, Args...>
-      : std::is_base_of<C, Obj> {};
+  template <typename MemFunType, typename C, typename Obj, typename... Args>
+  struct AcceptImpl<MemFunType C::*, Obj, Args...>
+      : std::integral_constant<bool, std::is_base_of<C, Obj>::value &&
+                                         absl::is_function<MemFunType>::value> {
+  };
 
   template <typename MemFun, typename Obj, typename... Args>
   static decltype((std::declval<Obj>().*
@@ -92,15 +91,11 @@ struct MemFunAndPtr : StrippedAccept<MemFunAndPtr> {
   template <typename... Args>
   struct AcceptImpl : std::false_type {};
 
-  template <typename R, typename C, typename... Params, typename Ptr,
-            typename... Args>
-  struct AcceptImpl<R (C::*)(Params...), Ptr, Args...>
-      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value> {};
-
-  template <typename R, typename C, typename... Params, typename Ptr,
-            typename... Args>
-  struct AcceptImpl<R (C::*)(Params...) const, Ptr, Args...>
-      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value> {};
+  template <typename MemFunType, typename C, typename Ptr, typename... Args>
+  struct AcceptImpl<MemFunType C::*, Ptr, Args...>
+      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value &&
+                                         absl::is_function<MemFunType>::value> {
+  };
 
   template <typename MemFun, typename Ptr, typename... Args>
   static decltype(((*std::declval<Ptr>()).*
@@ -119,7 +114,9 @@ struct DataMemAndRef : StrippedAccept<DataMemAndRef> {
   struct AcceptImpl : std::false_type {};
 
   template <typename R, typename C, typename Obj>
-  struct AcceptImpl<R C::*, Obj> : std::is_base_of<C, Obj> {};
+  struct AcceptImpl<R C::*, Obj>
+      : std::integral_constant<bool, std::is_base_of<C, Obj>::value &&
+                                         !absl::is_function<R>::value> {};
 
   template <typename DataMem, typename Ref>
   static decltype(std::declval<Ref>().*std::declval<DataMem>()) Invoke(
@@ -136,7 +133,8 @@ struct DataMemAndPtr : StrippedAccept<DataMemAndPtr> {
 
   template <typename R, typename C, typename Ptr>
   struct AcceptImpl<R C::*, Ptr>
-      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value> {};
+      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value &&
+                                         !absl::is_function<R>::value> {};
 
   template <typename DataMem, typename Ptr>
   static decltype((*std::declval<Ptr>()).*std::declval<DataMem>()) Invoke(
@@ -183,6 +181,7 @@ InvokeT<F, Args...> Invoke(F&& f, Args&&... args) {
                                            std::forward<Args>(args)...);
 }
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_INTERNAL_INVOKE_H_
