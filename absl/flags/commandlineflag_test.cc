@@ -34,6 +34,10 @@ ABSL_FLAG(std::string, string_flag, "dflt",
           absl::StrCat("string_flag", " help"));
 ABSL_RETIRED_FLAG(bool, bool_retired_flag, false, "bool_retired_flag help");
 
+// These are only used to test default values.
+ABSL_FLAG(int, int_flag2, 201, "");
+ABSL_FLAG(std::string, string_flag2, "dflt", "");
+
 namespace {
 
 namespace flags = absl::flags_internal;
@@ -94,15 +98,15 @@ TEST_F(CommandLineFlagTest, TestAttributesAccessMethods) {
 // --------------------------------------------------------------------
 
 TEST_F(CommandLineFlagTest, TestValueAccessMethods) {
-  absl::SetFlag(&FLAGS_int_flag, 301);
-  auto* flag_01 = absl::FindCommandLineFlag("int_flag");
+  absl::SetFlag(&FLAGS_int_flag2, 301);
+  auto* flag_01 = absl::FindCommandLineFlag("int_flag2");
 
   ASSERT_TRUE(flag_01);
   EXPECT_EQ(flag_01->CurrentValue(), "301");
   EXPECT_EQ(flag_01->DefaultValue(), "201");
 
-  absl::SetFlag(&FLAGS_string_flag, "new_str_value");
-  auto* flag_02 = absl::FindCommandLineFlag("string_flag");
+  absl::SetFlag(&FLAGS_string_flag2, "new_str_value");
+  auto* flag_02 = absl::FindCommandLineFlag("string_flag2");
 
   ASSERT_TRUE(flag_02);
   EXPECT_EQ(flag_02->CurrentValue(), "new_str_value");

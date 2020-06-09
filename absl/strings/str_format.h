@@ -19,7 +19,7 @@
 //
 // The `str_format` library is a typesafe replacement for the family of
 // `printf()` string formatting routines within the `<cstdio>` standard library
-// header. Like the `printf` family, the `str_format` uses a "format string" to
+// header. Like the `printf` family, `str_format` uses a "format string" to
 // perform argument substitutions based on types. See the `FormatSpec` section
 // below for format string documentation.
 //

@@ -637,6 +637,10 @@ TEST_F(ParseTest, TestFlagfileInFlagfile) {
       "--flagfile=$0/parse_test.ff2",
   };
 
+  GetFlagfileFlag({{"parse_test.ff2", absl::MakeConstSpan(ff2_data)},
+                   {"parse_test.ff1", absl::MakeConstSpan(ff1_data)}},
+                      flagfile_flag);
+
   const char* in_args1[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff3", absl::MakeConstSpan(ff3_data)}},
