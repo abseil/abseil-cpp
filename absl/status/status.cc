@@ -27,8 +27,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-// The implementation was intentionally kept same as util::error::Code_Name()
-// to ease the migration.
 std::string StatusCodeToString(StatusCode code) {
   switch (code) {
     case StatusCode::kOk:

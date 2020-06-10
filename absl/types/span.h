@@ -27,22 +27,17 @@
 // `Span<const T>` when such types may be difficult to identify due to issues
 // with implicit conversion.
 //
-// The C++ standards committee currently has a proposal for a `std::span` type,
-// (http://wg21.link/p0122), which is not yet part of the standard (though may
-// become part of C++20). As of August 2017, the differences between
-// `absl::Span` and this proposal are:
-//    * `absl::Span` uses `size_t` for `size_type`
-//    * `absl::Span` has no `operator()`
-//    * `absl::Span` has no constructors for `std::unique_ptr` or
-//      `std::shared_ptr`
+// The C++20 draft standard includes a `std::span` type. As of June 2020, the
+// differences between `absl::Span` and `std::span` are:
+//    * `absl::Span` has `operator==` (which is likely a design bug,
+//       per https://abseil.io/blog/20180531-regular-types)
 //    * `absl::Span` has the factory functions `MakeSpan()` and
 //      `MakeConstSpan()`
-//    * `absl::Span` has `front()` and `back()` methods
 //    * bounds-checked access to `absl::Span` is accomplished with `at()`
 //    * `absl::Span` has compiler-provided move and copy constructors and
 //      assignment. This is due to them being specified as `constexpr`, but that
 //      implies const in C++11.
-//    * `absl::Span` has no `element_type` or `index_type` typedefs
+//    * `absl::Span` has no `element_type` typedef
 //    * A read-only `absl::Span<const T>` can be implicitly constructed from an
 //      initializer list.
 //    * `absl::Span` has no `bytes()`, `size_bytes()`, `as_bytes()`, or

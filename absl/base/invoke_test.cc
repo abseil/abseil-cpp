@@ -158,31 +158,56 @@ TEST(InvokeTest, MemberFunction) {
   std::unique_ptr<const Class> cp(new Class);
   std::unique_ptr<volatile Class> vp(new Class);
 
+  Class c;
+  std::reference_wrapper<Class> ref(c);
+  std::reference_wrapper<const Class> ref_const(c);
+  const std::reference_wrapper<Class> const_ref(c);
+  std::reference_wrapper<volatile Class> ref_volatile(c);
+
   EXPECT_EQ(1, Invoke(&Class::Method, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::Method, p.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::Method, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::Method, ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::Method, const_ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::Method, std::move(ref), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::RefMethod, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::RefMethod, p.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::RefMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, const_ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::RefMethod, std::move(ref), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::RefRefMethod, std::move(*p), 3, 2));  // NOLINT
   EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, p.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, const_ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::NoExceptMethod, std::move(ref), 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, p.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::ConstMethod, ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::ConstMethod, const_ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::ConstMethod, std::move(ref), 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, cp, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, cp.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, *cp, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::ConstMethod, ref_const, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::ConstMethod, std::move(ref_const), 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, p, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, p.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, *p, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, const_ref, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, std::move(ref), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, vp, 3, 2));
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, vp.get(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::VolatileMethod, *vp, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, ref_volatile, 3, 2));
+  EXPECT_EQ(1, Invoke(&Class::VolatileMethod, std::move(ref_volatile), 3, 2));
 
   EXPECT_EQ(1, Invoke(&Class::Method, make_unique<Class>(), 3, 2));
   EXPECT_EQ(1, Invoke(&Class::ConstMethod, make_unique<Class>(), 3, 2));
@@ -192,8 +217,15 @@ TEST(InvokeTest, MemberFunction) {
 TEST(InvokeTest, DataMember) {
   std::unique_ptr<Class> p(new Class{42});
   std::unique_ptr<const Class> cp(new Class{42});
+  Class c{42};
+  std::reference_wrapper<Class> ref(c);
+  std::reference_wrapper<const Class> ref_const(c);
+  const std::reference_wrapper<Class> const_ref(c);
   EXPECT_EQ(42, Invoke(&Class::member, p));
   EXPECT_EQ(42, Invoke(&Class::member, *p));
+  EXPECT_EQ(42, Invoke(&Class::member, ref));
+  EXPECT_EQ(42, Invoke(&Class::member, const_ref));
+  EXPECT_EQ(42, Invoke(&Class::member, std::move(ref)));
   EXPECT_EQ(42, Invoke(&Class::member, p.get()));
 
   Invoke(&Class::member, p) = 42;
@@ -201,6 +233,8 @@ TEST(InvokeTest, DataMember) {
 
   EXPECT_EQ(42, Invoke(&Class::member, cp));
   EXPECT_EQ(42, Invoke(&Class::member, *cp));
+  EXPECT_EQ(42, Invoke(&Class::member, ref_const));
+  EXPECT_EQ(42, Invoke(&Class::member, std::move(ref_const)));
   EXPECT_EQ(42, Invoke(&Class::member, cp.get()));
 }
 

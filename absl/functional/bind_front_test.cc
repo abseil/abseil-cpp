@@ -228,4 +228,23 @@ TEST(BindTest, Mangling) {
   absl::bind_front(ManglingCall{}, 1, 3.3)("A");
 }
 
+struct Adder {
+  int add(int v2) const { return v + v2; }
+  int v;
+};
+
+TEST(BindTest, InvokeSemantics) {
+  Struct s1 = {"value"};
+  auto f1 = absl::bind_front(&Struct::value);
+  EXPECT_EQ(f1(s1), "value");
+  EXPECT_EQ(f1(&s1), "value");
+  EXPECT_EQ(f1(std::ref(s1)), "value");
+
+  Adder add_100 = {100};
+  auto f2 = absl::bind_front(&Adder::add);
+  EXPECT_EQ(f2(add_100, 23), 123);
+  EXPECT_EQ(f2(&add_100, 45), 145);
+  EXPECT_EQ(f2(std::ref(add_100), 67), 167);
+}
+
 }  // namespace
