@@ -18,19 +18,16 @@
 // [func.require]
 // Define INVOKE (f, t1, t2, ..., tN) as follows:
 // 1. (t1.*f)(t2, ..., tN) when f is a pointer to a member function of a class T
-//    and is_base_of_v<T, remove_reference_t<decltype(t1)>> is true;
-// 2. (t1.get().*f)(t2, ..., tN) when f is a pointer to a member function of a
-//    class T and remove_cvref_t<decltype(t1)> is a specialization of
-//    reference_wrapper;
-// 3. ((*t1).*f)(t2, ..., tN) when f is a pointer to a member function of a
-//    class T and t1 does not satisfy the previous two items;
-// 4. t1.*f when N == 1 and f is a pointer to data member of a class T and
-//    is_base_of_v<T, remove_reference_t<decltype(t1)>> is true;
-// 5. t1.get().*f when N == 1 and f is a pointer to data member of a class T and
-//    remove_cvref_t<decltype(t1)> is a specialization of reference_wrapper;
-// 6. (*t1).*f when N == 1 and f is a pointer to data member of a class T and t1
-//    does not satisfy the previous two items;
-// 7. f(t1, t2, ..., tN) in all other cases.
+//    and t1 is an object of type T or a reference to an object of type T or a
+//    reference to an object of a type derived from T;
+// 2. ((*t1).*f)(t2, ..., tN) when f is a pointer to a member function of a
+//    class T and t1 is not one of the types described in the previous item;
+// 3. t1.*f when N == 1 and f is a pointer to member data of a class T and t1 is
+//    an object of type T or a reference to an object of type T or a reference
+//    to an object of a type derived from T;
+// 4. (*t1).*f when N == 1 and f is a pointer to member data of a class T and t1
+//    is not one of the types described in the previous item;
+// 5. f(t1, t2, ..., tN) in all other cases.
 //
 // The implementation is SFINAE-friendly: substitution failure within Invoke()
 // isn't an error.
@@ -51,16 +48,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
-template <typename T>
-struct IsReferenceWrapper : std::false_type {};
-template <typename T>
-struct IsReferenceWrapper<std::reference_wrapper<T>> : std::true_type {};
-
-template <typename T>
-using RemoveCvrefT =
-    typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-
-// The seven classes below each implement one of the clauses from the definition
+// The five classes below each implement one of the clauses from the definition
 // of INVOKE. The inner class template Accept<F, Args...> checks whether the
 // clause is applicable; static function template Invoke(f, args...) does the
 // invocation.
@@ -84,10 +72,9 @@ struct MemFunAndRef : StrippedAccept<MemFunAndRef> {
 
   template <typename MemFunType, typename C, typename Obj, typename... Args>
   struct AcceptImpl<MemFunType C::*, Obj, Args...>
-      : std::integral_constant<
-            bool, std::is_base_of<
-                      C, typename std::remove_reference<Obj>::type>::value &&
-                      absl::is_function<MemFunType>::value> {};
+      : std::integral_constant<bool, std::is_base_of<C, Obj>::value &&
+                                         absl::is_function<MemFunType>::value> {
+  };
 
   template <typename MemFun, typename Obj, typename... Args>
   static decltype((std::declval<Obj>().*
@@ -98,41 +85,17 @@ struct MemFunAndRef : StrippedAccept<MemFunAndRef> {
   }
 };
 
-// (t1.get().*f)(t2, ..., tN) when f is a pointer to a member function of a
-// class T and remove_cvref_t<decltype(t1)> is a specialization of
-// reference_wrapper;
-struct MemFunAndRefWrap : StrippedAccept<MemFunAndRefWrap> {
-  template <typename... Args>
-  struct AcceptImpl : std::false_type {};
-
-  template <typename MemFunType, typename C, typename RefWrap, typename... Args>
-  struct AcceptImpl<MemFunType C::*, RefWrap, Args...>
-      : std::integral_constant<
-            bool, IsReferenceWrapper<RemoveCvrefT<RefWrap>>::value &&
-                      absl::is_function<MemFunType>::value> {};
-
-  template <typename MemFun, typename RefWrap, typename... Args>
-  static decltype((std::declval<RefWrap>().get().*
-                   std::declval<MemFun>())(std::declval<Args>()...))
-  Invoke(MemFun&& mem_fun, RefWrap&& ref_wrap, Args&&... args) {
-    return (std::forward<RefWrap>(ref_wrap).get().*
-            std::forward<MemFun>(mem_fun))(std::forward<Args>(args)...);
-  }
-};
-
 // ((*t1).*f)(t2, ..., tN) when f is a pointer to a member function of a
-// class T and t1 does not satisfy the previous two items;
+// class T and t1 is not one of the types described in the previous item.
 struct MemFunAndPtr : StrippedAccept<MemFunAndPtr> {
   template <typename... Args>
   struct AcceptImpl : std::false_type {};
 
   template <typename MemFunType, typename C, typename Ptr, typename... Args>
   struct AcceptImpl<MemFunType C::*, Ptr, Args...>
-      : std::integral_constant<
-            bool, !std::is_base_of<
-                      C, typename std::remove_reference<Ptr>::type>::value &&
-                      !IsReferenceWrapper<RemoveCvrefT<Ptr>>::value &&
-                      absl::is_function<MemFunType>::value> {};
+      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value &&
+                                         absl::is_function<MemFunType>::value> {
+  };
 
   template <typename MemFun, typename Ptr, typename... Args>
   static decltype(((*std::declval<Ptr>()).*
@@ -143,18 +106,17 @@ struct MemFunAndPtr : StrippedAccept<MemFunAndPtr> {
   }
 };
 
-// t1.*f when N == 1 and f is a pointer to data member of a class T and
-// is_base_of_v<T, remove_reference_t<decltype(t1)>> is true;
+// t1.*f when N == 1 and f is a pointer to member data of a class T and t1 is
+// an object of type T or a reference to an object of type T or a reference
+// to an object of a type derived from T.
 struct DataMemAndRef : StrippedAccept<DataMemAndRef> {
   template <typename... Args>
   struct AcceptImpl : std::false_type {};
 
   template <typename R, typename C, typename Obj>
   struct AcceptImpl<R C::*, Obj>
-      : std::integral_constant<
-            bool, std::is_base_of<
-                      C, typename std::remove_reference<Obj>::type>::value &&
-                      !absl::is_function<R>::value> {};
+      : std::integral_constant<bool, std::is_base_of<C, Obj>::value &&
+                                         !absl::is_function<R>::value> {};
 
   template <typename DataMem, typename Ref>
   static decltype(std::declval<Ref>().*std::declval<DataMem>()) Invoke(
@@ -163,39 +125,16 @@ struct DataMemAndRef : StrippedAccept<DataMemAndRef> {
   }
 };
 
-// t1.get().*f when N == 1 and f is a pointer to data member of a class T and
-// remove_cvref_t<decltype(t1)> is a specialization of reference_wrapper;
-struct DataMemAndRefWrap : StrippedAccept<DataMemAndRefWrap> {
-  template <typename... Args>
-  struct AcceptImpl : std::false_type {};
-
-  template <typename R, typename C, typename RefWrap>
-  struct AcceptImpl<R C::*, RefWrap>
-      : std::integral_constant<
-            bool, IsReferenceWrapper<RemoveCvrefT<RefWrap>>::value &&
-                      !absl::is_function<R>::value> {};
-
-  template <typename DataMem, typename RefWrap>
-  static decltype(std::declval<RefWrap>().get().*std::declval<DataMem>())
-  Invoke(DataMem&& data_mem, RefWrap&& ref_wrap) {
-    return std::forward<RefWrap>(ref_wrap).get().*
-           std::forward<DataMem>(data_mem);
-  }
-};
-
-// (*t1).*f when N == 1 and f is a pointer to data member of a class T and t1
-// does not satisfy the previous two items;
+// (*t1).*f when N == 1 and f is a pointer to member data of a class T and t1
+// is not one of the types described in the previous item.
 struct DataMemAndPtr : StrippedAccept<DataMemAndPtr> {
   template <typename... Args>
   struct AcceptImpl : std::false_type {};
 
   template <typename R, typename C, typename Ptr>
   struct AcceptImpl<R C::*, Ptr>
-      : std::integral_constant<
-            bool, !std::is_base_of<
-                      C, typename std::remove_reference<Ptr>::type>::value &&
-                      !IsReferenceWrapper<RemoveCvrefT<Ptr>>::value &&
-                      !absl::is_function<R>::value> {};
+      : std::integral_constant<bool, !std::is_base_of<C, Ptr>::value &&
+                                         !absl::is_function<R>::value> {};
 
   template <typename DataMem, typename Ptr>
   static decltype((*std::declval<Ptr>()).*std::declval<DataMem>()) Invoke(
@@ -221,18 +160,12 @@ struct Invoker {
   typedef typename std::conditional<
       MemFunAndRef::Accept<Args...>::value, MemFunAndRef,
       typename std::conditional<
-          MemFunAndRefWrap::Accept<Args...>::value, MemFunAndRefWrap,
+          MemFunAndPtr::Accept<Args...>::value, MemFunAndPtr,
           typename std::conditional<
-              MemFunAndPtr::Accept<Args...>::value, MemFunAndPtr,
-              typename std::conditional<
-                  DataMemAndRef::Accept<Args...>::value, DataMemAndRef,
-                  typename std::conditional<
-                      DataMemAndRefWrap::Accept<Args...>::value,
-                      DataMemAndRefWrap,
-                      typename std::conditional<
-                          DataMemAndPtr::Accept<Args...>::value, DataMemAndPtr,
-                          Callable>::type>::type>::type>::type>::type>::type
-      type;
+              DataMemAndRef::Accept<Args...>::value, DataMemAndRef,
+              typename std::conditional<DataMemAndPtr::Accept<Args...>::value,
+                                        DataMemAndPtr, Callable>::type>::type>::
+          type>::type type;
 };
 
 // The result type of Invoke<F, Args...>.

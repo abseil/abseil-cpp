@@ -69,6 +69,21 @@ absl_cc_test(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
+    random_internal_mock_helpers
+  HDRS
+    "internal/mock_helpers.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::fast_type_id
+    absl::optional
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
     random_internal_mock_overload_set
   HDRS
     "internal/mock_overload_set.h"
@@ -78,7 +93,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_mocking_bit_gen
-    absl::fast_type_id
+    absl::random_internal_mock_helpers
   TESTONLY
 )
 

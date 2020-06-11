@@ -53,10 +53,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace random_internal {
-template <typename, typename>
-struct MockSingleOverload;
 template <typename>
 struct DistributionCaller;
+class MockHelpers;
 
 }  // namespace random_internal
 class BitGenRef;
@@ -216,11 +215,11 @@ class MockingBitGen {
   std::vector<std::function<void()>> deleters_;
   absl::BitGen gen_;
 
-  template <typename, typename>
-  friend struct ::absl::random_internal::MockSingleOverload;  // for Register
   template <typename>
   friend struct ::absl::random_internal::DistributionCaller;  // for InvokeMock
   friend class ::absl::BitGenRef;                             // for InvokeMock
+  friend class ::absl::random_internal::MockHelpers;  // for RegisterMock,
+                                                      // InvokeMock
 };
 
 ABSL_NAMESPACE_END

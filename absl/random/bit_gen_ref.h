@@ -53,6 +53,7 @@ struct is_urbg<
 
 template <typename>
 struct DistributionCaller;
+class MockHelpers;
 
 }  // namespace random_internal
 
@@ -171,6 +172,7 @@ class BitGenRef {
 
   template <typename>
   friend struct ::absl::random_internal::DistributionCaller;  // for InvokeMock
+  friend class ::absl::random_internal::MockHelpers;          // for InvokeMock
 };
 
 ABSL_NAMESPACE_END

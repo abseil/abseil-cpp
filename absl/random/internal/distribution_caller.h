@@ -52,23 +52,25 @@ struct DistributionCaller {
 
   // Default implementation of distribution caller.
   template <typename DistrT, typename... Args>
-  static inline typename DistrT::result_type Impl(std::false_type, URBG* urbg,
-                                                  Args&&... args) {
+  static typename DistrT::result_type Impl(std::false_type, URBG* urbg,
+                                           Args&&... args) {
     DistrT dist(std::forward<Args>(args)...);
     return dist(*urbg);
   }
 
   // Mock implementation of distribution caller.
+  // The underlying KeyT must match the KeyT constructed by MockOverloadSet.
   template <typename DistrT, typename... Args>
-  static inline typename DistrT::result_type Impl(std::true_type, URBG* urbg,
-                                                  Args&&... args) {
+  static typename DistrT::result_type Impl(std::true_type, URBG* urbg,
+                                           Args&&... args) {
     using ResultT = typename DistrT::result_type;
     using ArgTupleT = std::tuple<absl::decay_t<Args>...>;
+    using KeyT = ResultT(DistrT, ArgTupleT);
+
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
     ResultT result;
-    if (!urbg->InvokeMock(
-            ::absl::base_internal::FastTypeId<ResultT(DistrT, ArgTupleT)>(),
-            &arg_tuple, &result)) {
+    if (!urbg->InvokeMock(::absl::base_internal::FastTypeId<KeyT>(), &arg_tuple,
+                          &result)) {
       auto dist = absl::make_from_tuple<DistrT>(arg_tuple);
       result = dist(*urbg);
     }
@@ -77,7 +79,7 @@ struct DistributionCaller {
 
   // Default implementation of distribution caller.
   template <typename DistrT, typename... Args>
-  static inline typename DistrT::result_type Call(URBG* urbg, Args&&... args) {
+  static typename DistrT::result_type Call(URBG* urbg, Args&&... args) {
     return Impl<DistrT, Args...>(HasInvokeMock{}, urbg,
                                  std::forward<Args>(args)...);
   }
