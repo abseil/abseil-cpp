@@ -799,3 +799,16 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "optimization_test",
+    size = "small",
+    srcs = ["optimization_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":core_headers",
+        "//absl/types:optional",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

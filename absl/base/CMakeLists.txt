@@ -701,3 +701,15 @@ absl_cc_test(
     absl::fast_type_id
     gtest_main
 )
+
+absl_cc_test(
+  NAME
+    optimization_test
+  SRCS
+    "optimization_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::core_headers
+    gtest_main
+)
