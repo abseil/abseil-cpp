@@ -497,6 +497,18 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
   return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
 }
 
+inline void AssertIsFull(ctrl_t* ctrl) {
+  ABSL_HARDENING_ASSERT((ctrl != nullptr && IsFull(*ctrl)) &&
+                        "Invalid operation on iterator. The element might have "
+                        "been erased, or the table might have rehashed.");
+}
+
+inline void AssertIsValid(ctrl_t* ctrl) {
+  ABSL_HARDENING_ASSERT((ctrl == nullptr || IsFull(*ctrl)) &&
+                        "Invalid operation on iterator. The element might have "
+                        "been erased, or the table might have rehashed.");
+}
+
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -617,7 +629,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      assert_is_full();
+      AssertIsFull(ctrl_);
       return PolicyTraits::element(slot_);
     }
 
@@ -626,7 +638,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      assert_is_full();
+      AssertIsFull(ctrl_);
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -640,8 +652,8 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
-      a.assert_is_valid();
-      b.assert_is_valid();
+      AssertIsValid(a.ctrl_);
+      AssertIsValid(b.ctrl_);
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
@@ -653,13 +665,6 @@ class raw_hash_set {
       // This assumption helps the compiler know that any non-end iterator is
       // not equal to any end iterator.
       ABSL_INTERNAL_ASSUME(ctrl != nullptr);
-    }
-
-    void assert_is_full() const {
-      ABSL_HARDENING_ASSERT(ctrl_ != nullptr && IsFull(*ctrl_));
-    }
-    void assert_is_valid() const {
-      ABSL_HARDENING_ASSERT(ctrl_ == nullptr || IsFull(*ctrl_));
     }
 
     void skip_empty_or_deleted() {
@@ -1174,7 +1179,7 @@ class raw_hash_set {
   // This overload is necessary because otherwise erase<K>(const K&) would be
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
-    it.assert_is_full();
+    AssertIsFull(it.ctrl_);
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1208,7 +1213,7 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
-    position.inner_.assert_is_full();
+    AssertIsFull(position.inner_.ctrl_);
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);

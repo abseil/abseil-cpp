@@ -17,10 +17,13 @@
 // span.h
 // -----------------------------------------------------------------------------
 //
-// This header file defines a `Span<T>` type for holding a view of an existing
-// array of data. The `Span` object, much like the `absl::string_view` object,
-// does not own such data itself. A span provides a lightweight way to pass
-// around view of such data.
+// This header file defines a `Span<T>` type for holding a reference to existing
+// array data. The `Span` object, much like the `absl::string_view` object,
+// does not own such data itself, and the data being referenced by the span must
+// outlive the span itself. Unlike `view` type references, a span can hold a
+// reference to mutable data (and can mutate it for underlying types of
+// non-const T.) A span provides a lightweight way to pass a reference to such
+// data.
 //
 // Additionally, this header file defines `MakeSpan()` and `MakeConstSpan()`
 // factory functions, for clearly creating spans of type `Span<T>` or read-only
@@ -72,9 +75,9 @@ ABSL_NAMESPACE_BEGIN
 // Span
 //------------------------------------------------------------------------------
 //
-// A `Span` is an "array view" type for holding a view of a contiguous data
-// array; the `Span` object does not and cannot own such data itself. A span
-// provides an easy way to provide overloads for anything operating on
+// A `Span` is an "array reference" type for holding a reference of contiguous
+// array data; the `Span` object does not and cannot own such data itself. A
+// span provides an easy way to provide overloads for anything operating on
 // contiguous sequences without needing to manage pointers and array lengths
 // manually.
 
@@ -92,7 +95,8 @@ ABSL_NAMESPACE_BEGIN
 // constructors.
 //
 // A `Span<T>` is somewhat analogous to an `absl::string_view`, but for an array
-// of elements of type `T`. A user of `Span` must ensure that the data being
+// of elements of type `T`, and unlike an `absl::string_view`, a span can hold a
+// reference to mutable data. A user of `Span` must ensure that the data being
 // pointed to outlives the `Span` itself.
 //
 // You can construct a `Span<T>` in several ways:
@@ -122,7 +126,7 @@ ABSL_NAMESPACE_BEGIN
 // Note that `Span` objects, in addition to requiring that the memory they
 // point to remains alive, must also ensure that such memory does not get
 // reallocated. Therefore, to avoid undefined behavior, containers with
-// associated span views should not invoke operations that may reallocate memory
+// associated spans should not invoke operations that may reallocate memory
 // (such as resizing) or invalidate iterators into the container.
 //
 // One common use for a `Span` is when passing arguments to a routine that can

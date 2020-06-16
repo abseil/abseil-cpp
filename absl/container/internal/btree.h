@@ -290,9 +290,12 @@ struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
   };
   using is_map_container = std::true_type;
 
-  static const Key &key(const value_type &value) { return value.first; }
-  static const Key &key(const init_type &init) { return init.first; }
+  template <typename V>
+  static auto key(const V &value) -> decltype(value.first) {
+    return value.first;
+  }
   static const Key &key(const slot_type *s) { return slot_policy::key(s); }
+  static const Key &key(slot_type *s) { return slot_policy::key(s); }
   static mapped_type &value(value_type *value) { return value->second; }
 };
 
@@ -353,8 +356,10 @@ struct set_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
   using value_compare = typename set_params::common_params::key_compare;
   using is_map_container = std::false_type;
 
-  static const Key &key(const value_type &value) { return value; }
+  template <typename V>
+  static const V &key(const V &value) { return value; }
   static const Key &key(const slot_type *slot) { return *slot; }
+  static const Key &key(slot_type *slot) { return *slot; }
 };
 
 // An adapter class that converts a lower-bound compare into an upper-bound
@@ -1020,6 +1025,7 @@ template <typename Params>
 class btree {
   using node_type = btree_node<Params>;
   using is_key_compare_to = typename Params::is_key_compare_to;
+  using init_type = typename Params::init_type;
 
   // We use a static empty node for the root/leftmost/rightmost of empty btrees
   // in order to avoid branching in begin()/end().
@@ -1184,8 +1190,8 @@ class btree {
   // boolean return value indicates whether insertion succeeded or failed.
   // Requirement: if `key` already exists in the btree, does not consume `args`.
   // Requirement: `key` is never referenced after consuming `args`.
-  template <typename... Args>
-  std::pair<iterator, bool> insert_unique(const key_type &key, Args &&... args);
+  template <typename K, typename... Args>
+  std::pair<iterator, bool> insert_unique(const K &key, Args &&... args);
 
   // Inserts with hint. Checks to see if the value should be placed immediately
   // before `position` in the tree. If so, then the insertion will take
@@ -1193,14 +1199,23 @@ class btree {
   // logarithmic time as if a call to insert_unique() were made.
   // Requirement: if `key` already exists in the btree, does not consume `args`.
   // Requirement: `key` is never referenced after consuming `args`.
-  template <typename... Args>
+  template <typename K, typename... Args>
   std::pair<iterator, bool> insert_hint_unique(iterator position,
-                                               const key_type &key,
+                                               const K &key,
                                                Args &&... args);
 
   // Insert a range of values into the btree.
+  // Note: the first overload avoids constructing a value_type if the key
+  // already exists in the btree.
+  template <typename InputIterator,
+            typename = decltype(
+                compare_keys(params_type::key(*std::declval<InputIterator>()),
+                             std::declval<const key_type &>()))>
+  void insert_iterator_unique(InputIterator b, InputIterator e, int);
+  // We need the second overload for cases in which we need to construct a
+  // value_type in order to compare it with the keys already in the btree.
   template <typename InputIterator>
-  void insert_iterator_unique(InputIterator b, InputIterator e);
+  void insert_iterator_unique(InputIterator b, InputIterator e, char);
 
   // Inserts a value into the btree.
   template <typename ValueType>
@@ -1855,8 +1870,8 @@ btree<P>::btree(const btree &other)
 }
 
 template <typename P>
-template <typename... Args>
-auto btree<P>::insert_unique(const key_type &key, Args &&... args)
+template <typename K, typename... Args>
+auto btree<P>::insert_unique(const K &key, Args &&... args)
     -> std::pair<iterator, bool> {
   if (empty()) {
     mutable_root() = rightmost_ = new_leaf_root_node(1);
@@ -1881,8 +1896,8 @@ auto btree<P>::insert_unique(const key_type &key, Args &&... args)
 }
 
 template <typename P>
-template <typename... Args>
-inline auto btree<P>::insert_hint_unique(iterator position, const key_type &key,
+template <typename K, typename... Args>
+inline auto btree<P>::insert_hint_unique(iterator position, const K &key,
                                          Args &&... args)
     -> std::pair<iterator, bool> {
   if (!empty()) {
@@ -1906,10 +1921,19 @@ inline auto btree<P>::insert_hint_unique(iterator position, const key_type &key,
 }
 
 template <typename P>
-template <typename InputIterator>
-void btree<P>::insert_iterator_unique(InputIterator b, InputIterator e) {
+template <typename InputIterator, typename>
+void btree<P>::insert_iterator_unique(InputIterator b, InputIterator e, int) {
   for (; b != e; ++b) {
     insert_hint_unique(end(), params_type::key(*b), *b);
+  }
+}
+
+template <typename P>
+template <typename InputIterator>
+void btree<P>::insert_iterator_unique(InputIterator b, InputIterator e, char) {
+  for (; b != e; ++b) {
+    init_type value(*b);
+    insert_hint_unique(end(), params_type::key(value), std::move(value));
   }
 }
 

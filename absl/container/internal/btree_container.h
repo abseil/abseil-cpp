@@ -289,10 +289,10 @@ class btree_set_container : public btree_container<Tree> {
   }
   template <typename InputIterator>
   void insert(InputIterator b, InputIterator e) {
-    this->tree_.insert_iterator_unique(b, e);
+    this->tree_.insert_iterator_unique(b, e, 0);
   }
   void insert(std::initializer_list<init_type> init) {
-    this->tree_.insert_iterator_unique(init.begin(), init.end());
+    this->tree_.insert_iterator_unique(init.begin(), init.end(), 0);
   }
   insert_return_type insert(node_type &&node) {
     if (!node) return {this->end(), false, node_type()};
