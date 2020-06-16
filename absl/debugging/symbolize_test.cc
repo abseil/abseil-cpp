@@ -32,6 +32,7 @@
 #include "absl/base/optimization.h"
 #include "absl/debugging/internal/stack_consumption.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
 
 using testing::Contains;
 
@@ -401,8 +402,8 @@ TEST(Symbolize, ForEachSection) {
 
   std::vector<std::string> sections;
   ASSERT_TRUE(absl::debugging_internal::ForEachSection(
-      fd, [&sections](const std::string &name, const ElfW(Shdr) &) {
-        sections.push_back(name);
+      fd, [&sections](const absl::string_view name, const ElfW(Shdr) &) {
+        sections.emplace_back(name);
         return true;
       }));
 

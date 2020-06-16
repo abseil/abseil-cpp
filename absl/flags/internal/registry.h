@@ -28,14 +28,7 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-// TODO(rogeeff): remove this declaration
-CommandLineFlag* FindCommandLineFlag(absl::string_view name);
-
 namespace flags_internal {
-
-// TODO(rogeeff): remove this alias
-using absl::FindCommandLineFlag;
 
 // Executes specified visitor for each non-retired flag in the registry.
 // Requires the caller hold the registry lock.

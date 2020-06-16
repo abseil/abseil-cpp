@@ -74,6 +74,7 @@
 #include "absl/base/port.h"
 #include "absl/debugging/internal/demangle.h"
 #include "absl/debugging/internal/vdso_support.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -498,7 +499,7 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
 const int kMaxSectionNameLen = 64;
 
 bool ForEachSection(int fd,
-                    const std::function<bool(const std::string &name,
+                    const std::function<bool(absl::string_view name,
                                              const ElfW(Shdr) &)> &callback) {
   ElfW(Ehdr) elf_header;
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
@@ -520,7 +521,7 @@ bool ForEachSection(int fd,
       return false;
     }
     off_t name_offset = shstrtab.sh_offset + out.sh_name;
-    char header_name[kMaxSectionNameLen + 1];
+    char header_name[kMaxSectionNameLen];
     ssize_t n_read =
         ReadFromOffset(fd, &header_name, kMaxSectionNameLen, name_offset);
     if (n_read == -1) {
@@ -529,9 +530,8 @@ bool ForEachSection(int fd,
       // Long read?
       return false;
     }
-    header_name[n_read] = '\0';
 
-    std::string name(header_name);
+    absl::string_view name(header_name, strnlen(header_name, n_read));
     if (!callback(name, out)) {
       break;
     }

@@ -85,6 +85,7 @@ absl_cc_test(
     absl::core_headers
     absl::memory
     absl::raw_logging_internal
+    absl::strings
     gmock
 )
 

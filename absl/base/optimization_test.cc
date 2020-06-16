@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This test serves primarily as a compilation test for base/raw_logging.h.
-// Raw logging testing is covered by logging_unittest.cc, which is not as
-// portable as this test.
-
 #include "absl/base/optimization.h"
 
 #include "gtest/gtest.h"
