@@ -23,7 +23,16 @@ class FormatArgImplTest : public ::testing::Test {
   enum Color { kRed, kGreen, kBlue };
 
   static const char *hi() { return "hi"; }
+
+  struct X {};
+
+  X x_;
 };
+
+inline FormatConvertResult<FormatConversionCharSet{}> AbslFormatConvert(
+    const FormatArgImplTest::X &, const FormatConversionSpec &, FormatSink *) {
+  return {false};
+}
 
 TEST_F(FormatArgImplTest, ToInt) {
   int out = 0;
@@ -59,6 +68,7 @@ TEST_F(FormatArgImplTest, ToInt) {
       FormatArgImpl(static_cast<int *>(nullptr)), &out));
   EXPECT_FALSE(FormatArgImplFriend::ToInt(FormatArgImpl(hi()), &out));
   EXPECT_FALSE(FormatArgImplFriend::ToInt(FormatArgImpl("hi"), &out));
+  EXPECT_FALSE(FormatArgImplFriend::ToInt(FormatArgImpl(x_), &out));
   EXPECT_TRUE(FormatArgImplFriend::ToInt(FormatArgImpl(kBlue), &out));
   EXPECT_EQ(2, out);
 }

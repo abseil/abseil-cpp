@@ -1208,9 +1208,9 @@ class btree {
   // Note: the first overload avoids constructing a value_type if the key
   // already exists in the btree.
   template <typename InputIterator,
-            typename = decltype(
-                compare_keys(params_type::key(*std::declval<InputIterator>()),
-                             std::declval<const key_type &>()))>
+            typename = decltype(std::declval<const key_compare &>()(
+                params_type::key(*std::declval<InputIterator>()),
+                std::declval<const key_type &>()))>
   void insert_iterator_unique(InputIterator b, InputIterator e, int);
   // We need the second overload for cases in which we need to construct a
   // value_type in order to compare it with the keys already in the btree.

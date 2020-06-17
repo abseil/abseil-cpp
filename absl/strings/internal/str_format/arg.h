@@ -25,9 +25,11 @@ class Cord;
 class FormatCountCapture;
 class FormatSink;
 
-namespace str_format_internal {
-
+template <absl::FormatConversionCharSet C>
+struct FormatConvertResult;
 class FormatConversionSpec;
+
+namespace str_format_internal {
 
 template <typename T, typename = void>
 struct HasUserDefinedConvert : std::false_type {};
@@ -39,12 +41,35 @@ struct HasUserDefinedConvert<T, void_t<decltype(AbslFormatConvert(
                                     std::declval<FormatSink*>()))>>
     : std::true_type {};
 
+void AbslFormatConvert();  // Stops the lexical name lookup
+template <typename T>
+auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
+                       FormatSinkImpl* sink)
+    -> decltype(AbslFormatConvert(v,
+                                  std::declval<const FormatConversionSpec&>(),
+                                  std::declval<FormatSink*>())) {
+  using FormatConversionSpecT =
+      absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatConversionSpec>;
+  using FormatSinkT =
+      absl::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
+  auto fcs = conv.Wrap<FormatConversionSpecT>();
+  auto fs = sink->Wrap<FormatSinkT>();
+  return AbslFormatConvert(v, fcs, &fs);
+}
+
 template <typename T>
 class StreamedWrapper;
 
 // If 'v' can be converted (in the printf sense) according to 'conv',
 // then convert it, appending to `sink` and return `true`.
 // Otherwise fail and return `false`.
+
+// AbslFormatConvert(v, conv, sink) is intended to be found by ADL on 'v'
+// as an extension mechanism. These FormatConvertImpl functions are the default
+// implementations.
+// The ADL search is augmented via the 'Sink*' parameter, which also
+// serves as a disambiguator to reject possible unintended 'AbslFormatConvert'
+// functions in the namespaces associated with 'v'.
 
 // Raw pointers.
 struct VoidPtr {
@@ -60,6 +85,11 @@ template <FormatConversionCharSet C>
 struct ArgConvertResult {
   bool value;
 };
+
+template <FormatConversionCharSet C>
+constexpr FormatConversionCharSet ExtractCharSet(FormatConvertResult<C>) {
+  return C;
+}
 
 template <FormatConversionCharSet C>
 constexpr FormatConversionCharSet ExtractCharSet(ArgConvertResult<C>) {

@@ -80,4 +80,19 @@ TEST(FormatExtensionTest, SinkAppendChars) {
     EXPECT_EQ(actual, expected);
   }
 }
+
+TEST(FormatExtensionTest, VerifyEnumEquality) {
+#define X_VAL(id)                           \
+  EXPECT_EQ(absl::FormatConversionChar::id, \
+            absl::str_format_internal::FormatConversionCharInternal::id);
+  ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(X_VAL, );
+#undef X_VAL
+
+#define X_VAL(id)                              \
+  EXPECT_EQ(absl::FormatConversionCharSet::id, \
+            absl::str_format_internal::FormatConversionCharSetInternal::id);
+  ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(X_VAL, );
+#undef X_VAL
+}
+
 }  // namespace

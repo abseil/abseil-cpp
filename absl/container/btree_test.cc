@@ -2416,6 +2416,41 @@ TEST(Btree, SetRangeConstructorAndInsertSupportExplicitConversionComparable) {
   EXPECT_THAT(name_set2, ElementsAreArray(names));
 }
 
+// A type that is explicitly convertible from int and counts constructor calls.
+struct ConstructorCounted {
+  explicit ConstructorCounted(int i) : i(i) { ++constructor_calls; }
+  bool operator==(int other) const { return i == other; }
+
+  int i;
+  static int constructor_calls;
+};
+int ConstructorCounted::constructor_calls = 0;
+
+struct ConstructorCountedCompare {
+  bool operator()(int a, const ConstructorCounted &b) const { return a < b.i; }
+  bool operator()(const ConstructorCounted &a, int b) const { return a.i < b; }
+  bool operator()(const ConstructorCounted &a,
+                  const ConstructorCounted &b) const {
+    return a.i < b.i;
+  }
+  using is_transparent = void;
+};
+
+TEST(Btree,
+     SetRangeConstructorAndInsertExplicitConvComparableLimitConstruction) {
+  const int i[] = {0, 1, 1};
+  ConstructorCounted::constructor_calls = 0;
+
+  absl::btree_set<ConstructorCounted, ConstructorCountedCompare> set{
+      std::begin(i), std::end(i)};
+  EXPECT_THAT(set, ElementsAre(0, 1));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+
+  set.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(set, ElementsAre(0, 1));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+}
+
 TEST(Btree,
      SetRangeConstructorAndInsertSupportExplicitConversionNonComparable) {
   const int i[] = {0, 1};
@@ -2441,6 +2476,21 @@ TEST(Btree, MapRangeConstructorAndInsertSupportExplicitConversionComparable) {
   absl::btree_map<std::string, int> name_map2;
   name_map2.insert(std::begin(names), std::end(names));
   EXPECT_THAT(name_map2, ElementsAre(Pair("n1", 1), Pair("n2", 2)));
+}
+
+TEST(Btree,
+     MapRangeConstructorAndInsertExplicitConvComparableLimitConstruction) {
+  const std::pair<int, int> i[] = {{0, 1}, {1, 2}, {1, 3}};
+  ConstructorCounted::constructor_calls = 0;
+
+  absl::btree_map<ConstructorCounted, int, ConstructorCountedCompare> map{
+      std::begin(i), std::end(i)};
+  EXPECT_THAT(map, ElementsAre(Pair(0, 1), Pair(1, 2)));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+
+  map.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(map, ElementsAre(Pair(0, 1), Pair(1, 2)));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
 }
 
 TEST(Btree,

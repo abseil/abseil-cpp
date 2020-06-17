@@ -31,10 +31,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-namespace str_format_internal {
-
 enum class FormatConversionChar : uint8_t;
 enum class FormatConversionCharSet : uint64_t;
+
+namespace str_format_internal {
 
 class FormatRawSinkImpl {
  public:
@@ -361,14 +361,12 @@ struct FormatConversionCharSetInternal {
   static constexpr FormatConversionCharSet kStar =
       FormatConversionCharToConvValue('*');
 
-  // Some predefined values (TODO(matthewbr), delete any that are unused).
   static constexpr FormatConversionCharSet kIntegral =
       FormatConversionCharSetUnion(d, i, u, o, x, X);
   static constexpr FormatConversionCharSet kFloating =
       FormatConversionCharSetUnion(a, e, f, g, A, E, F, G);
   static constexpr FormatConversionCharSet kNumeric =
       FormatConversionCharSetUnion(kIntegral, kFloating);
-  static constexpr FormatConversionCharSet kString = s;
   static constexpr FormatConversionCharSet kPointer = p;
 };
 

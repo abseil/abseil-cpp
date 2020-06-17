@@ -33,6 +33,29 @@ std::string Flags::ToString() const {
   return s;
 }
 
+#define ABSL_INTERNAL_X_VAL(id) \
+  constexpr absl::FormatConversionChar FormatConversionCharInternal::id;
+ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(ABSL_INTERNAL_X_VAL, )
+#undef ABSL_INTERNAL_X_VAL
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr absl::FormatConversionChar FormatConversionCharInternal::kNone;
+
+#define ABSL_INTERNAL_CHAR_SET_CASE(c) \
+  constexpr FormatConversionCharSet FormatConversionCharSetInternal::c;
+ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(ABSL_INTERNAL_CHAR_SET_CASE, )
+#undef ABSL_INTERNAL_CHAR_SET_CASE
+
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kStar;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kIntegral;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kFloating;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kNumeric;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kPointer;
+
 bool FormatSinkImpl::PutPaddedString(string_view value, int width,
                                      int precision, bool left) {
   size_t space_remaining = 0;
