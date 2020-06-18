@@ -76,10 +76,17 @@ namespace container_internal {
 
 // A helper class that indicates if the Compare parameter is a key-compare-to
 // comparator.
+#if !defined(__cpp_lib_is_invocable)
 template <typename Compare, typename T>
 using btree_is_key_compare_to =
     std::is_convertible<absl::result_of_t<Compare(const T &, const T &)>,
                         absl::weak_ordering>;
+#else
+template <typename Compare, typename T>
+using btree_is_key_compare_to =
+    std::is_convertible<absl::invoke_result_t<Compare, const T &, const T &>,
+                        absl::weak_ordering>;
+#endif
 
 struct StringBtreeDefaultLess {
   using is_transparent = void;
@@ -430,10 +437,9 @@ class btree_node {
   //   - Otherwise, choose binary.
   // TODO(ezb): Might make sense to add condition(s) based on node-size.
   using use_linear_search = std::integral_constant<
-      bool,
-                std::is_arithmetic<key_type>::value &&
-                    (std::is_same<std::less<key_type>, key_compare>::value ||
-                     std::is_same<std::greater<key_type>, key_compare>::value)>;
+      bool, std::is_arithmetic<key_type>::value &&
+                (std::is_same<std::less<key_type>, key_compare>::value ||
+                 std::is_same<std::greater<key_type>, key_compare>::value)>;
 
   // This class is organized by gtl::Layout as if it had the following
   // structure:
@@ -1844,8 +1850,13 @@ constexpr bool btree<P>::static_assert_validation() {
       "target node size too large");
 
   // Verify that key_compare returns an absl::{weak,strong}_ordering or bool.
+#if !defined(__cpp_lib_is_invocable)
   using compare_result_type =
       absl::result_of_t<key_compare(key_type, key_type)>;
+#else
+  using compare_result_type =
+      absl::invoke_result_t<key_compare, key_type, key_type>;
+#endif
   static_assert(
       std::is_same<compare_result_type, bool>::value ||
           std::is_convertible<compare_result_type, absl::weak_ordering>::value,

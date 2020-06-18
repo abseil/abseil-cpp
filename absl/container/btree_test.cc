@@ -22,8 +22,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/container/btree_map.h"
@@ -38,6 +36,8 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 ABSL_FLAG(int, test_values, 10000, "The number of values to use for tests");
 
@@ -1250,10 +1250,17 @@ void AssertKeyCompareToAdapted() {
   using Adapted = typename key_compare_to_adapter<Compare>::type;
   static_assert(!std::is_same<Adapted, Compare>::value,
                 "key_compare_to_adapter should have adapted this comparator.");
+#if !defined(__cpp_lib_is_invocable)
   static_assert(
       std::is_same<absl::weak_ordering,
                    absl::result_of_t<Adapted(const K &, const K &)>>::value,
       "Adapted comparator should be a key-compare-to comparator.");
+#else
+  static_assert(
+      std::is_same<absl::weak_ordering,
+                   absl::invoke_result_t<Adapted, const K &, const K &>>::value,
+      "Adapted comparator should be a key-compare-to comparator.");
+#endif
 }
 template <typename Compare, typename K>
 void AssertKeyCompareToNotAdapted() {
@@ -1261,10 +1268,17 @@ void AssertKeyCompareToNotAdapted() {
   static_assert(
       std::is_same<Unadapted, Compare>::value,
       "key_compare_to_adapter shouldn't have adapted this comparator.");
+#if !defined(__cpp_lib_is_invocable)
   static_assert(
       std::is_same<bool,
                    absl::result_of_t<Unadapted(const K &, const K &)>>::value,
       "Un-adapted comparator should return bool.");
+#else
+  static_assert(
+      std::is_same<
+          bool, absl::invoke_result_t<Unadapted, const K &, const K &>>::value,
+      "Un-adapted comparator should return bool.");
+#endif
 }
 
 TEST(Btree, KeyCompareToAdapter) {

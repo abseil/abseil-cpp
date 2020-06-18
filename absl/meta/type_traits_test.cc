@@ -380,8 +380,8 @@ TEST(TypeTraitsTest, TestIsFunction) {
   EXPECT_TRUE(absl::is_function<void() noexcept>::value);
   EXPECT_TRUE(absl::is_function<void(...) noexcept>::value);
 
-  EXPECT_FALSE(absl::is_function<void(*)()>::value);
-  EXPECT_FALSE(absl::is_function<void(&)()>::value);
+  EXPECT_FALSE(absl::is_function<void (*)()>::value);
+  EXPECT_FALSE(absl::is_function<void (&)()>::value);
   EXPECT_FALSE(absl::is_function<int>::value);
   EXPECT_FALSE(absl::is_function<Callable>::value);
 }
@@ -431,10 +431,10 @@ TEST(TypeTraitsTest, TestTrivialDestructor) {
 
   // Verify that simple_pairs of types without trivial destructors
   // are not marked as trivial.
-  EXPECT_FALSE((absl::is_trivially_destructible<
-                simple_pair<int, std::string>>::value));
-  EXPECT_FALSE((absl::is_trivially_destructible<
-                simple_pair<std::string, int>>::value));
+  EXPECT_FALSE(
+      (absl::is_trivially_destructible<simple_pair<int, std::string>>::value));
+  EXPECT_FALSE(
+      (absl::is_trivially_destructible<simple_pair<std::string, int>>::value));
 
   // array of such types is trivial
   using int10 = int[10];
@@ -1126,7 +1126,7 @@ TEST(TypeTraitsTest, TestDecay) {
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int[][1]);
 
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int());
-  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));  // NOLINT
+  ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(float));      // NOLINT
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(decay, int(char, ...));  // NOLINT
 }
 
@@ -1192,6 +1192,8 @@ TEST(TypeTraitsTest, TestUnderlyingType) {
   ABSL_INTERNAL_EXPECT_ALIAS_EQUIVALENCE(underlying_type, enum_long_long);
 }
 
+#if !defined(__cpp_lib_is_invocable)
+
 struct GetTypeExtT {
   template <typename T>
   absl::result_of_t<const GetTypeT&(T)> operator()(T&& arg) const {
@@ -1207,6 +1209,26 @@ TEST(TypeTraitsTest, TestResultOf) {
   EXPECT_EQ(TypeEnum::C, GetTypeExt(Wrap<TypeC>()));
   EXPECT_EQ(TypeEnum::D, GetTypeExt(Wrap<TypeD>()));
 }
+
+#else
+
+struct GetTypeExtT {
+  template <typename T>
+  absl::invoke_result_t<const GetTypeT&, T> operator()(T&& arg) const {
+    return GetType(std::forward<T>(arg));
+  }
+
+  TypeEnum operator()(Wrap<TypeD>) const { return TypeEnum::D; }
+} constexpr GetTypeExt = {};
+
+TEST(TypeTraitsTest, TestInvokeResult) {
+  EXPECT_EQ(TypeEnum::A, GetTypeExt(Wrap<TypeA>()));
+  EXPECT_EQ(TypeEnum::B, GetTypeExt(Wrap<TypeB>()));
+  EXPECT_EQ(TypeEnum::C, GetTypeExt(Wrap<TypeC>()));
+  EXPECT_EQ(TypeEnum::D, GetTypeExt(Wrap<TypeD>()));
+}
+
+#endif
 
 template <typename T>
 bool TestCopyAssign() {
@@ -1286,8 +1308,7 @@ TEST(TypeTraitsTest, IsMoveAssignable) {
 
 namespace adl_namespace {
 
-struct DeletedSwap {
-};
+struct DeletedSwap {};
 
 void swap(DeletedSwap&, DeletedSwap&) = delete;
 
