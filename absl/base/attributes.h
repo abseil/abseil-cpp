@@ -586,9 +586,10 @@
 // duration, because it guarantees that they will not suffer from the so-called
 // "static init order fiasco".  Prefer to put this attribute on the most visible
 // declaration of the variable, if there's more than one, because code that
-// accesses the variable can then use the attribute for optimization. In the
-// case of extern variables, the annotation should also be placed on the
-// definition, as the compiler may not see the "most visible declaration".
+// accesses the variable can then use the attribute for optimization. If that
+// declaration is not visible at the definition (i.e. an `extern` variable),
+// then the definition must also be marked `ABSL_CONST_INIT` so the compiler
+// knows to enforce constant initialization.
 //
 // Example:
 //
