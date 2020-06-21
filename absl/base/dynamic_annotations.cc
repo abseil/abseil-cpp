@@ -17,72 +17,17 @@
 
 #include "absl/base/dynamic_annotations.h"
 
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-
-/* Compiler-based ThreadSanitizer defines
-   DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL = 1
-   and provides its own definitions of the functions. */
+// Compiler-based ThreadSanitizer defines
+// DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL = 1
+// and provides its own definitions of the functions.
 
 #ifndef DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL
 # define DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL 0
 #endif
 
-/* Each function is empty and called (via a macro) only in debug mode.
-   The arguments are captured by dynamic tools at runtime. */
-
 #if DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL == 0 && !defined(__native_client__)
 
-#if __has_feature(memory_sanitizer)
-#include <sanitizer/msan_interface.h>
-#endif
-
-#ifdef __cplusplus
 extern "C" {
-#endif
-
-void AnnotateRWLockCreate(const char *, int,
-                          const volatile void *){}
-void AnnotateRWLockDestroy(const char *, int,
-                           const volatile void *){}
-void AnnotateRWLockAcquired(const char *, int,
-                            const volatile void *, long){}
-void AnnotateRWLockReleased(const char *, int,
-                            const volatile void *, long){}
-void AnnotateBenignRace(const char *, int,
-                        const volatile void *,
-                        const char *){}
-void AnnotateBenignRaceSized(const char *, int,
-                             const volatile void *,
-                             size_t,
-                             const char *) {}
-void AnnotateThreadName(const char *, int,
-                        const char *){}
-void AnnotateIgnoreReadsBegin(const char *, int){}
-void AnnotateIgnoreReadsEnd(const char *, int){}
-void AnnotateIgnoreWritesBegin(const char *, int){}
-void AnnotateIgnoreWritesEnd(const char *, int){}
-void AnnotateEnableRaceDetection(const char *, int, int){}
-void AnnotateMemoryIsInitialized(const char *, int,
-                                 const volatile void *mem, size_t size) {
-#if __has_feature(memory_sanitizer)
-  __msan_unpoison(mem, size);
-#else
-  (void)mem;
-  (void)size;
-#endif
-}
-
-void AnnotateMemoryIsUninitialized(const char *, int,
-                                   const volatile void *mem, size_t size) {
-#if __has_feature(memory_sanitizer)
-  __msan_allocated_memory(mem, size);
-#else
-  (void)mem;
-  (void)size;
-#endif
-}
 
 static int GetRunningOnValgrind(void) {
 #ifdef RUNNING_ON_VALGRIND
@@ -95,21 +40,21 @@ static int GetRunningOnValgrind(void) {
   return 0;
 }
 
-/* See the comments in dynamic_annotations.h */
+// See the comments in dynamic_annotations.h
 int RunningOnValgrind(void) {
   static volatile int running_on_valgrind = -1;
   int local_running_on_valgrind = running_on_valgrind;
-  /* C doesn't have thread-safe initialization of statics, and we
-     don't want to depend on pthread_once here, so hack it. */
+  // C doesn't have thread-safe initialization of statics, and we
+  // don't want to depend on pthread_once here, so hack it.
   ANNOTATE_BENIGN_RACE(&running_on_valgrind, "safe hack");
   if (local_running_on_valgrind == -1)
     running_on_valgrind = local_running_on_valgrind = GetRunningOnValgrind();
   return local_running_on_valgrind;
 }
 
-/* See the comments in dynamic_annotations.h */
+// See the comments in dynamic_annotations.h
 double ValgrindSlowdown(void) {
-  /* Same initialization hack as in RunningOnValgrind(). */
+  // Same initialization hack as in RunningOnValgrind().
   static volatile double slowdown = 0.0;
   double local_slowdown = slowdown;
   ANNOTATE_BENIGN_RACE(&slowdown, "safe hack");
@@ -123,7 +68,5 @@ double ValgrindSlowdown(void) {
   return local_slowdown;
 }
 
-#ifdef __cplusplus
 }  // extern "C"
-#endif
-#endif  /* DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL == 0 */
+#endif  // DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL == 0

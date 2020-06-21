@@ -17,6 +17,7 @@
 #include <deque>
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace hash_internal {
 namespace {
@@ -69,4 +70,5 @@ absl::string_view Generator<absl::string_view>::operator()() const {
 
 }  // namespace hash_internal
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

@@ -50,7 +50,67 @@
 #include "absl/hash/internal/city.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
+
+// Internal detail: Large buffers are hashed in smaller chunks.  This function
+// returns the size of these chunks.
+constexpr size_t PiecewiseChunkSize() { return 1024; }
+
+// PiecewiseCombiner
+//
+// PiecewiseCombiner is an internal-only helper class for hashing a piecewise
+// buffer of `char` or `unsigned char` as though it were contiguous.  This class
+// provides two methods:
+//
+//   H add_buffer(state, data, size)
+//   H finalize(state)
+//
+// `add_buffer` can be called zero or more times, followed by a single call to
+// `finalize`.  This will produce the same hash expansion as concatenating each
+// buffer piece into a single contiguous buffer, and passing this to
+// `H::combine_contiguous`.
+//
+//  Example usage:
+//    PiecewiseCombiner combiner;
+//    for (const auto& piece : pieces) {
+//      state = combiner.add_buffer(std::move(state), piece.data, piece.size);
+//    }
+//    return combiner.finalize(std::move(state));
+class PiecewiseCombiner {
+ public:
+  PiecewiseCombiner() : position_(0) {}
+  PiecewiseCombiner(const PiecewiseCombiner&) = delete;
+  PiecewiseCombiner& operator=(const PiecewiseCombiner&) = delete;
+
+  // PiecewiseCombiner::add_buffer()
+  //
+  // Appends the given range of bytes to the sequence to be hashed, which may
+  // modify the provided hash state.
+  template <typename H>
+  H add_buffer(H state, const unsigned char* data, size_t size);
+  template <typename H>
+  H add_buffer(H state, const char* data, size_t size) {
+    return add_buffer(std::move(state),
+                      reinterpret_cast<const unsigned char*>(data), size);
+  }
+
+  // PiecewiseCombiner::finalize()
+  //
+  // Finishes combining the hash sequence, which may may modify the provided
+  // hash state.
+  //
+  // Once finalize() is called, add_buffer() may no longer be called. The
+  // resulting hash state will be the same as if the pieces passed to
+  // add_buffer() were concatenated into a single flat buffer, and then provided
+  // to H::combine_contiguous().
+  template <typename H>
+  H finalize(H state);
+
+ private:
+  unsigned char buf_[PiecewiseChunkSize()];
+  size_t position_;
+};
 
 // HashStateBase
 //
@@ -68,7 +128,7 @@ namespace hash_internal {
 //
 //    `static H combine_contiguous(H state, const unsigned char*, size_t)`.
 //
-// `HashStateBase` will provide a complete implementations for a hash state
+// `HashStateBase` will provide a complete implementation for a hash state
 // object in terms of this method.
 //
 // Example:
@@ -117,6 +177,8 @@ class HashStateBase {
   // for-loop instead.
   template <typename T>
   static H combine_contiguous(H state, const T* data, size_t size);
+
+  using AbslInternalPiecewiseCombiner = PiecewiseCombiner;
 };
 
 // is_uniquely_represented
@@ -348,6 +410,7 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 // All the string-like types supported here provide the same hash expansion for
 // the same character sequence. These types are:
 //
+//  - `absl::Cord`
 //  - `std::string` (and std::basic_string<char, std::char_traits<char>, A> for
 //      any allocator A)
 //  - `absl::string_view` and `std::string_view`
@@ -358,6 +421,19 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 // on the underlying character type.
 template <typename H>
 H AbslHashValue(H hash_state, absl::string_view str) {
+  return H::combine(
+      H::combine_contiguous(std::move(hash_state), str.data(), str.size()),
+      str.size());
+}
+
+// Support std::wstring, std::u16string and std::u32string.
+template <typename Char, typename Alloc, typename H,
+          typename = absl::enable_if_t<std::is_same<Char, wchar_t>::value ||
+                                       std::is_same<Char, char16_t>::value ||
+                                       std::is_same<Char, char32_t>::value>>
+H AbslHashValue(
+    H hash_state,
+    const std::basic_string<Char, std::char_traits<Char>, Alloc>& str) {
   return H::combine(
       H::combine_contiguous(std::move(hash_state), str.data(), str.size()),
       str.size());
@@ -474,6 +550,13 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // -----------------------------------------------------------------------------
 // AbslHashValue for Wrapper Types
 // -----------------------------------------------------------------------------
+
+// AbslHashValue for hashing std::reference_wrapper
+template <typename H, typename T>
+typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+    H hash_state, std::reference_wrapper<T> opt) {
+  return H::combine(std::move(hash_state), opt.get());
+}
 
 // AbslHashValue for hashing absl::optional
 template <typename H, typename T>
@@ -615,7 +698,7 @@ struct HashSelect {
 
  public:
   // Probe each implementation in order.
-  // disjunction provides short circuting wrt instantiation.
+  // disjunction provides short circuiting wrt instantiation.
   template <typename T>
   using Apply = absl::disjunction<         //
       Probe<UniquelyRepresentedProbe, T>,  //
@@ -630,7 +713,8 @@ struct is_hashable
     : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
 
 // CityHashState
-class CityHashState : public HashStateBase<CityHashState> {
+class ABSL_DLL CityHashState
+    : public HashStateBase<CityHashState> {
   // absl::uint128 is not an alias or a thin wrapper around the intrinsic.
   // We use the intrinsic when available to improve performance.
 #ifdef ABSL_HAVE_INTRINSIC_INT128
@@ -640,7 +724,8 @@ class CityHashState : public HashStateBase<CityHashState> {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
   static constexpr uint64_t kMul =
-      sizeof(size_t) == 4 ? uint64_t{0xcc9e2d51} : uint64_t{0x9ddfea08eb382d69};
+      sizeof(size_t) == 4 ? uint64_t{0xcc9e2d51}
+                          : uint64_t{0x9ddfea08eb382d69};
 
   template <typename T>
   using IntegralFastPath =
@@ -707,6 +792,16 @@ class CityHashState : public HashStateBase<CityHashState> {
                                         const unsigned char* first, size_t len,
                                         std::integral_constant<int, 8>
                                         /* sizeof_size_t*/);
+
+  // Slow dispatch path for calls to CombineContiguousImpl with a size argument
+  // larger than PiecewiseChunkSize().  Has the same effect as calling
+  // CombineContiguousImpl() repeatedly with the chunk stride size.
+  static uint64_t CombineLargeContiguousImpl32(uint64_t state,
+                                               const unsigned char* first,
+                                               size_t len);
+  static uint64_t CombineLargeContiguousImpl64(uint64_t state,
+                                               const unsigned char* first,
+                                               size_t len);
 
   // Reads 9 to 16 bytes from p.
   // The first 8 bytes are in .first, the rest (zero padded) bytes are in
@@ -775,6 +870,9 @@ inline uint64_t CityHashState::CombineContiguousImpl(
   // multiplicative hash.
   uint64_t v;
   if (len > 8) {
+    if (ABSL_PREDICT_FALSE(len > PiecewiseChunkSize())) {
+      return CombineLargeContiguousImpl32(state, first, len);
+    }
     v = absl::hash_internal::CityHash32(reinterpret_cast<const char*>(first), len);
   } else if (len >= 4) {
     v = Read4To8(first, len);
@@ -795,6 +893,9 @@ inline uint64_t CityHashState::CombineContiguousImpl(
   // multiplicative hash.
   uint64_t v;
   if (len > 16) {
+    if (ABSL_PREDICT_FALSE(len > PiecewiseChunkSize())) {
+      return CombineLargeContiguousImpl64(state, first, len);
+    }
     v = absl::hash_internal::CityHash64(reinterpret_cast<const char*>(first), len);
   } else if (len > 8) {
     auto p = Read9To16(first, len);
@@ -810,7 +911,6 @@ inline uint64_t CityHashState::CombineContiguousImpl(
   }
   return Mix(state, v);
 }
-
 
 struct AggregateBarrier {};
 
@@ -848,7 +948,49 @@ template <typename T>
 H HashStateBase<H>::combine_contiguous(H state, const T* data, size_t size) {
   return hash_internal::hash_range_or_bytes(std::move(state), data, size);
 }
+
+// HashStateBase::PiecewiseCombiner::add_buffer()
+template <typename H>
+H PiecewiseCombiner::add_buffer(H state, const unsigned char* data,
+                                size_t size) {
+  if (position_ + size < PiecewiseChunkSize()) {
+    // This partial chunk does not fill our existing buffer
+    memcpy(buf_ + position_, data, size);
+    position_ += size;
+    return state;
+  }
+
+  // If the buffer is partially filled we need to complete the buffer
+  // and hash it.
+  if (position_ != 0) {
+    const size_t bytes_needed = PiecewiseChunkSize() - position_;
+    memcpy(buf_ + position_, data, bytes_needed);
+    state = H::combine_contiguous(std::move(state), buf_, PiecewiseChunkSize());
+    data += bytes_needed;
+    size -= bytes_needed;
+  }
+
+  // Hash whatever chunks we can without copying
+  while (size >= PiecewiseChunkSize()) {
+    state = H::combine_contiguous(std::move(state), data, PiecewiseChunkSize());
+    data += PiecewiseChunkSize();
+    size -= PiecewiseChunkSize();
+  }
+  // Fill the buffer with the remainder
+  memcpy(buf_, data, size);
+  position_ = size;
+  return state;
+}
+
+// HashStateBase::PiecewiseCombiner::finalize()
+template <typename H>
+H PiecewiseCombiner::finalize(H state) {
+  // Hash the remainder left in the buffer, which may be empty
+  return H::combine_contiguous(std::move(state), buf_, position_);
+}
+
 }  // namespace hash_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_HASH_INTERNAL_HASH_H_

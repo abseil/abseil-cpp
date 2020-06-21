@@ -1,4 +1,4 @@
-// Copyright 2017 The Abseil Authors.
+// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 #include "absl/container/fixed_array.h"
 
 #include <stdio.h>
+
 #include <cstring>
 #include <list>
 #include <memory>
@@ -27,6 +28,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/exception_testing.h"
+#include "absl/base/options.h"
+#include "absl/container/internal/counting_allocator.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 
@@ -42,11 +45,7 @@ static bool IsOnStack(const ArrayType& a) {
 
 class ConstructionTester {
  public:
-  ConstructionTester()
-      : self_ptr_(this),
-        value_(0) {
-    constructions++;
-  }
+  ConstructionTester() : self_ptr_(this), value_(0) { constructions++; }
   ~ConstructionTester() {
     assert(self_ptr_ == this);
     self_ptr_ = nullptr;
@@ -58,9 +57,7 @@ class ConstructionTester {
   static int constructions;
   static int destructions;
 
-  void CheckConstructed() {
-    assert(self_ptr_ == this);
-  }
+  void CheckConstructed() { assert(self_ptr_ == this); }
 
   void set(int value) { value_ = value; }
   int get() { return value_; }
@@ -160,13 +157,13 @@ TEST(FixedArrayTest, SmallObjects) {
     // same amount of stack space
     absl::FixedArray<int> array1(0);
     absl::FixedArray<char> array2(0);
-    EXPECT_LE(sizeof(array1), sizeof(array2)+100);
-    EXPECT_LE(sizeof(array2), sizeof(array1)+100);
+    EXPECT_LE(sizeof(array1), sizeof(array2) + 100);
+    EXPECT_LE(sizeof(array2), sizeof(array1) + 100);
   }
 
   {
     // Ensure that vectors are properly constructed inside a fixed array.
-    absl::FixedArray<std::vector<int> > array(2);
+    absl::FixedArray<std::vector<int>> array(2);
     EXPECT_EQ(0, array[0].size());
     EXPECT_EQ(0, array[1].size());
   }
@@ -191,6 +188,21 @@ TEST(FixedArrayTest, AtThrows) {
   EXPECT_EQ(a.at(2), 3);
   ABSL_BASE_INTERNAL_EXPECT_FAIL(a.at(3), std::out_of_range,
                                  "failed bounds check");
+}
+
+TEST(FixedArrayTest, Hardened) {
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  absl::FixedArray<int> a = {1, 2, 3};
+  EXPECT_EQ(a[2], 3);
+  EXPECT_DEATH_IF_SUPPORTED(a[3], "");
+  EXPECT_DEATH_IF_SUPPORTED(a[-1], "");
+
+  absl::FixedArray<int> empty(0);
+  EXPECT_DEATH_IF_SUPPORTED(empty[0], "");
+  EXPECT_DEATH_IF_SUPPORTED(empty[-1], "");
+  EXPECT_DEATH_IF_SUPPORTED(empty.front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(empty.back(), "");
+#endif
 }
 
 TEST(FixedArrayRelationalsTest, EqualArrays) {
@@ -270,8 +282,8 @@ static void TestArray(int n) {
       array.data()[i].set(i + 1);
     }
     for (int i = 0; i < n; i++) {
-      EXPECT_THAT(array[i].get(), i+1);
-      EXPECT_THAT(array.data()[i].get(), i+1);
+      EXPECT_THAT(array[i].get(), i + 1);
+      EXPECT_THAT(array.data()[i].get(), i + 1);
     }
   }  // Close scope containing 'array'.
 
@@ -296,7 +308,7 @@ static void TestArrayOfArrays(int n) {
 
     ASSERT_EQ(array.size(), n);
     ASSERT_EQ(array.memsize(),
-             sizeof(ConstructionTester) * elements_per_inner_array * n);
+              sizeof(ConstructionTester) * elements_per_inner_array * n);
     ASSERT_EQ(array.begin() + n, array.end());
 
     // Check that all elements were constructed
@@ -316,7 +328,7 @@ static void TestArrayOfArrays(int n) {
     }
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < elements_per_inner_array; j++) {
-        ASSERT_EQ((array[i])[j].get(),  i * elements_per_inner_array + j);
+        ASSERT_EQ((array[i])[j].get(), i * elements_per_inner_array + j);
         ASSERT_EQ((array.data()[i])[j].get(), i * elements_per_inner_array + j);
       }
     }
@@ -329,8 +341,7 @@ static void TestArrayOfArrays(int n) {
     }
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < elements_per_inner_array; j++) {
-        ASSERT_EQ((array[i])[j].get(),
-                  (i + 1) * elements_per_inner_array + j);
+        ASSERT_EQ((array[i])[j].get(), (i + 1) * elements_per_inner_array + j);
         ASSERT_EQ((array.data()[i])[j].get(),
                   (i + 1) * elements_per_inner_array + j);
       }
@@ -343,7 +354,7 @@ static void TestArrayOfArrays(int n) {
 }
 
 TEST(IteratorConstructorTest, NonInline) {
-  int const kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
+  int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
   absl::FixedArray<int, ABSL_ARRAYSIZE(kInput) - 1> const fixed(
       kInput, kInput + ABSL_ARRAYSIZE(kInput));
   ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
@@ -353,7 +364,7 @@ TEST(IteratorConstructorTest, NonInline) {
 }
 
 TEST(IteratorConstructorTest, Inline) {
-  int const kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
+  int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
   absl::FixedArray<int, ABSL_ARRAYSIZE(kInput)> const fixed(
       kInput, kInput + ABSL_ARRAYSIZE(kInput));
   ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
@@ -363,8 +374,8 @@ TEST(IteratorConstructorTest, Inline) {
 }
 
 TEST(IteratorConstructorTest, NonPod) {
-  char const* kInput[] =
-      { "red", "orange", "yellow", "green", "blue", "indigo", "violet" };
+  char const* kInput[] = {"red",  "orange", "yellow", "green",
+                          "blue", "indigo", "violet"};
   absl::FixedArray<std::string> const fixed(kInput,
                                             kInput + ABSL_ARRAYSIZE(kInput));
   ASSERT_EQ(ABSL_ARRAYSIZE(kInput), fixed.size());
@@ -381,7 +392,7 @@ TEST(IteratorConstructorTest, FromEmptyVector) {
 }
 
 TEST(IteratorConstructorTest, FromNonEmptyVector) {
-  int const kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
+  int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
   std::vector<int> const items(kInput, kInput + ABSL_ARRAYSIZE(kInput));
   absl::FixedArray<int> const fixed(items.begin(), items.end());
   ASSERT_EQ(items.size(), fixed.size());
@@ -391,7 +402,7 @@ TEST(IteratorConstructorTest, FromNonEmptyVector) {
 }
 
 TEST(IteratorConstructorTest, FromBidirectionalIteratorRange) {
-  int const kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
+  int const kInput[] = {2, 3, 5, 7, 11, 13, 17};
   std::list<int> const items(kInput, kInput + ABSL_ARRAYSIZE(kInput));
   absl::FixedArray<int> const fixed(items.begin(), items.end());
   EXPECT_THAT(fixed, testing::ElementsAreArray(kInput));
@@ -508,9 +519,8 @@ struct PickyDelete {
 
 TEST(FixedArrayTest, UsesGlobalAlloc) { absl::FixedArray<PickyDelete, 0> a(5); }
 
-
 TEST(FixedArrayTest, Data) {
-  static const int kInput[] = { 2, 3, 5, 7, 11, 13, 17 };
+  static const int kInput[] = {2, 3, 5, 7, 11, 13, 17};
   absl::FixedArray<int> fa(std::begin(kInput), std::end(kInput));
   EXPECT_EQ(fa.data(), &*fa.begin());
   EXPECT_EQ(fa.data(), &fa[0]);
@@ -611,19 +621,16 @@ TEST(FixedArrayTest, Fill) {
   empty.fill(fill_val);
 }
 
-// TODO(johnsoncj): Investigate InlinedStorage default initialization in GCC 4.x
 #ifndef __GNUC__
 TEST(FixedArrayTest, DefaultCtorDoesNotValueInit) {
   using T = char;
   constexpr auto capacity = 10;
   using FixedArrType = absl::FixedArray<T, capacity>;
-  using FixedArrBuffType =
-      absl::aligned_storage_t<sizeof(FixedArrType), alignof(FixedArrType)>;
   constexpr auto scrubbed_bits = 0x95;
   constexpr auto length = capacity / 2;
 
-  FixedArrBuffType buff;
-  std::memset(std::addressof(buff), scrubbed_bits, sizeof(FixedArrBuffType));
+  alignas(FixedArrType) unsigned char buff[sizeof(FixedArrType)];
+  std::memset(std::addressof(buff), scrubbed_bits, sizeof(FixedArrType));
 
   FixedArrType* arr =
       ::new (static_cast<void*>(std::addressof(buff))) FixedArrType(length);
@@ -632,70 +639,9 @@ TEST(FixedArrayTest, DefaultCtorDoesNotValueInit) {
 }
 #endif  // __GNUC__
 
-// This is a stateful allocator, but the state lives outside of the
-// allocator (in whatever test is using the allocator). This is odd
-// but helps in tests where the allocator is propagated into nested
-// containers - that chain of allocators uses the same state and is
-// thus easier to query for aggregate allocation information.
-template <typename T>
-class CountingAllocator : public std::allocator<T> {
- public:
-  using Alloc = std::allocator<T>;
-  using pointer = typename Alloc::pointer;
-  using size_type = typename Alloc::size_type;
-
-  CountingAllocator() : bytes_used_(nullptr), instance_count_(nullptr) {}
-  explicit CountingAllocator(int64_t* b)
-      : bytes_used_(b), instance_count_(nullptr) {}
-  CountingAllocator(int64_t* b, int64_t* a)
-      : bytes_used_(b), instance_count_(a) {}
-
-  template <typename U>
-  explicit CountingAllocator(const CountingAllocator<U>& x)
-      : Alloc(x),
-        bytes_used_(x.bytes_used_),
-        instance_count_(x.instance_count_) {}
-
-  pointer allocate(size_type n, const void* const hint = nullptr) {
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ += n * sizeof(T);
-    return Alloc::allocate(n, hint);
-  }
-
-  void deallocate(pointer p, size_type n) {
-    Alloc::deallocate(p, n);
-    assert(bytes_used_ != nullptr);
-    *bytes_used_ -= n * sizeof(T);
-  }
-
-  template <typename... Args>
-  void construct(pointer p, Args&&... args) {
-    Alloc::construct(p, absl::forward<Args>(args)...);
-    if (instance_count_) {
-      *instance_count_ += 1;
-    }
-  }
-
-  void destroy(pointer p) {
-    Alloc::destroy(p);
-    if (instance_count_) {
-      *instance_count_ -= 1;
-    }
-  }
-
-  template <typename U>
-  class rebind {
-   public:
-    using other = CountingAllocator<U>;
-  };
-
-  int64_t* bytes_used_;
-  int64_t* instance_count_;
-};
-
 TEST(AllocatorSupportTest, CountInlineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated = 0;
@@ -716,7 +662,7 @@ TEST(AllocatorSupportTest, CountInlineAllocations) {
 
 TEST(AllocatorSupportTest, CountOutoflineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated = 0;
@@ -737,7 +683,7 @@ TEST(AllocatorSupportTest, CountOutoflineAllocations) {
 
 TEST(AllocatorSupportTest, CountCopyInlineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated1 = 0;
@@ -765,7 +711,7 @@ TEST(AllocatorSupportTest, CountCopyInlineAllocations) {
 
 TEST(AllocatorSupportTest, CountCopyOutoflineAllocations) {
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   int64_t allocated1 = 0;
@@ -797,7 +743,7 @@ TEST(AllocatorSupportTest, SizeValAllocConstructor) {
   using testing::SizeIs;
 
   constexpr size_t inlined_size = 4;
-  using Alloc = CountingAllocator<int>;
+  using Alloc = absl::container_internal::CountingAllocator<int>;
   using AllocFxdArr = absl::FixedArray<int, inlined_size, Alloc>;
 
   {
@@ -824,49 +770,49 @@ TEST(AllocatorSupportTest, SizeValAllocConstructor) {
 #ifdef ADDRESS_SANITIZER
 TEST(FixedArrayTest, AddressSanitizerAnnotations1) {
   absl::FixedArray<int, 32> a(10);
-  int *raw = a.data();
+  int* raw = a.data();
   raw[0] = 0;
   raw[9] = 0;
-  EXPECT_DEATH(raw[-2] = 0, "container-overflow");
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[10] = 0, "container-overflow");
-  EXPECT_DEATH(raw[31] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-2] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[10] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[31] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations2) {
   absl::FixedArray<char, 17> a(12);
-  char *raw = a.data();
+  char* raw = a.data();
   raw[0] = 0;
   raw[11] = 0;
-  EXPECT_DEATH(raw[-7] = 0, "container-overflow");
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[12] = 0, "container-overflow");
-  EXPECT_DEATH(raw[17] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-7] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[12] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[17] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations3) {
   absl::FixedArray<uint64_t, 20> a(20);
-  uint64_t *raw = a.data();
+  uint64_t* raw = a.data();
   raw[0] = 0;
   raw[19] = 0;
-  EXPECT_DEATH(raw[-1] = 0, "container-overflow");
-  EXPECT_DEATH(raw[20] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1] = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[20] = 0, "container-overflow");
 }
 
 TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
   absl::FixedArray<ThreeInts> a(10);
-  ThreeInts *raw = a.data();
+  ThreeInts* raw = a.data();
   raw[0] = ThreeInts();
   raw[9] = ThreeInts();
   // Note: raw[-1] is pointing to 12 bytes before the container range. However,
   // there is only a 8-byte red zone before the container range, so we only
   // access the last 4 bytes of the struct to make sure it stays within the red
   // zone.
-  EXPECT_DEATH(raw[-1].z_ = 0, "container-overflow");
-  EXPECT_DEATH(raw[10] = ThreeInts(), "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[-1].z_ = 0, "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[10] = ThreeInts(), "container-overflow");
   // The actual size of storage is kDefaultBytes=256, 21*12 = 252,
   // so reading raw[21] should still trigger the correct warning.
-  EXPECT_DEATH(raw[21] = ThreeInts(), "container-overflow");
+  EXPECT_DEATH_IF_SUPPORTED(raw[21] = ThreeInts(), "container-overflow");
 }
 #endif  // ADDRESS_SANITIZER
 

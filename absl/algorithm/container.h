@@ -36,7 +36,6 @@
 // For template parameter and variable naming, `C` indicates the container type
 // to which the function is applied, `Pred` indicates the predicate object type
 // to be used by the function and `T` indicates the applicable element type.
-//
 
 #ifndef ABSL_ALGORITHM_CONTAINER_H_
 #define ABSL_ALGORITHM_CONTAINER_H_
@@ -56,6 +55,7 @@
 #include "absl/meta/type_traits.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_algorithm_internal {
 
 // NOTE: it is important to defer to ADL lookup for building with C++ modules,
@@ -112,6 +112,18 @@ struct IsUnorderedContainer<
 template <class Key, class Hash, class KeyEqual, class Allocator>
 struct IsUnorderedContainer<std::unordered_set<Key, Hash, KeyEqual, Allocator>>
     : std::true_type {};
+
+// container_algorithm_internal::c_size. It is meant for internal use only.
+
+template <class C>
+auto c_size(C& c) -> decltype(c.size()) {
+  return c.size();
+}
+
+template <class T, std::size_t N>
+constexpr std::size_t c_size(T (&)[N]) {
+  return N;
+}
 
 }  // namespace container_algorithm_internal
 
@@ -257,7 +269,8 @@ container_algorithm_internal::ContainerIter<Sequence1> c_find_end(
 // c_find_first_of()
 //
 // Container-based version of the <algorithm> `std::find_first_of()` function to
-// find the first elements in an ordered set within a container.
+// find the first element within the container that is also within the options
+// container.
 template <typename C1, typename C2>
 container_algorithm_internal::ContainerIter<C1> c_find_first_of(C1& container,
                                                                 C2& options) {
@@ -366,7 +379,8 @@ c_mismatch(C1& c1, C2& c2, BinaryPredicate&& pred) {
 
 template <typename C1, typename C2>
 bool c_equal(const C1& c1, const C2& c2) {
-  return ((c1.size() == c2.size()) &&
+  return ((container_algorithm_internal::c_size(c1) ==
+           container_algorithm_internal::c_size(c2)) &&
           std::equal(container_algorithm_internal::c_begin(c1),
                      container_algorithm_internal::c_end(c1),
                      container_algorithm_internal::c_begin(c2)));
@@ -376,7 +390,8 @@ bool c_equal(const C1& c1, const C2& c2) {
 // the function's test condition.
 template <typename C1, typename C2, typename BinaryPredicate>
 bool c_equal(const C1& c1, const C2& c2, BinaryPredicate&& pred) {
-  return ((c1.size() == c2.size()) &&
+  return ((container_algorithm_internal::c_size(c1) ==
+           container_algorithm_internal::c_size(c2)) &&
           std::equal(container_algorithm_internal::c_begin(c1),
                      container_algorithm_internal::c_end(c1),
                      container_algorithm_internal::c_begin(c2),
@@ -509,6 +524,16 @@ template <typename C, typename OutputIterator>
 OutputIterator c_move(C&& src, OutputIterator dest) {
   return std::move(container_algorithm_internal::c_begin(src),
                    container_algorithm_internal::c_end(src), dest);
+}
+
+// c_move_backward()
+//
+// Container-based version of the <algorithm> `std::move_backward()` function to
+// move a container's elements into an iterator in reverse order.
+template <typename C, typename BidirectionalIterator>
+BidirectionalIterator c_move_backward(C&& src, BidirectionalIterator dest) {
+  return std::move_backward(container_algorithm_internal::c_begin(src),
+                            container_algorithm_internal::c_end(src), dest);
 }
 
 // c_swap_ranges()
@@ -648,7 +673,6 @@ container_algorithm_internal::ContainerIter<C> c_generate_n(C& c, Size n,
 // and `unique()` are omitted, because it's not clear whether or not such
 // functions should call erase on their supplied sequences afterwards. Either
 // behavior would be surprising for a different set of users.
-//
 
 // c_remove_copy()
 //
@@ -919,9 +943,10 @@ void c_partial_sort(
 // c_partial_sort_copy()
 //
 // Container-based version of the <algorithm> `std::partial_sort_copy()`
-// function to sort elements within a container such that elements before
-// `middle` are sorted in ascending order, and return the result within an
-// iterator.
+// function to sort the elements in the given range `result` within the larger
+// `sequence` in ascending order (and using `result` as the output parameter).
+// At most min(result.last - result.first, sequence.last - sequence.first)
+// elements from the sequence will be stored in the result.
 template <typename C, typename RandomAccessContainer>
 container_algorithm_internal::ContainerIter<RandomAccessContainer>
 c_partial_sort_copy(const C& sequence, RandomAccessContainer& result) {
@@ -1697,6 +1722,7 @@ OutputIt c_partial_sum(const InputSequence& input, OutputIt output_first,
                           output_first, std::forward<BinaryOp>(op));
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_ALGORITHM_CONTAINER_H_

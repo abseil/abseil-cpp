@@ -43,6 +43,8 @@ absl_cc_library(
     hash_testing
   HDRS
     "hash_testing.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::spy_hash_state
     absl::meta
@@ -56,8 +58,11 @@ absl_cc_test(
   NAME
     hash_test
   SRCS
-   "hash_test.cc"
+    "hash_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
   DEPS
+    absl::cord_test_helpers
     absl::hash
     absl::hash_testing
     absl::core_headers

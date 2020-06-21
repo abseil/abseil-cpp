@@ -21,10 +21,12 @@
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
 using ::testing::Field;
+using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
@@ -215,6 +217,44 @@ TEST(NodeHashMap, MergeExtractInsert) {
   EXPECT_THAT(set2, UnorderedElementsAre(Elem(7, -70), Elem(17, 23)));
 }
 
+bool FirstIsEven(std::pair<const int, int> p) { return p.first % 2 == 0; }
+
+TEST(NodeHashMap, EraseIf) {
+  // Erase all elements.
+  {
+    node_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, [](std::pair<const int, int>) { return true; });
+    EXPECT_THAT(s, IsEmpty());
+  }
+  // Erase no elements.
+  {
+    node_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, [](std::pair<const int, int>) { return false; });
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3),
+                                        Pair(4, 4), Pair(5, 5)));
+  }
+  // Erase specific elements.
+  {
+    node_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s,
+             [](std::pair<const int, int> kvp) { return kvp.first % 2 == 1; });
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(2, 2), Pair(4, 4)));
+  }
+  // Predicate is function reference.
+  {
+    node_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, FirstIsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(3, 3), Pair(5, 5)));
+  }
+  // Predicate is function pointer.
+  {
+    node_hash_map<int, int> s = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+    erase_if(s, &FirstIsEven);
+    EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(3, 3), Pair(5, 5)));
+  }
+}
+
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

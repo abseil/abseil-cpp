@@ -60,6 +60,7 @@
 #include "absl/strings/string_view.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // Concept: Formatter
@@ -254,7 +255,7 @@ std::string StrJoin(const Range& range, absl::string_view separator,
 
 template <typename T, typename Formatter>
 std::string StrJoin(std::initializer_list<T> il, absl::string_view separator,
-               Formatter&& fmt) {
+                    Formatter&& fmt) {
   return strings_internal::JoinRange(il, separator, fmt);
 }
 
@@ -275,7 +276,8 @@ std::string StrJoin(const Range& range, absl::string_view separator) {
 }
 
 template <typename T>
-std::string StrJoin(std::initializer_list<T> il, absl::string_view separator) {
+std::string StrJoin(std::initializer_list<T> il,
+                    absl::string_view separator) {
   return strings_internal::JoinRange(il, separator);
 }
 
@@ -285,6 +287,7 @@ std::string StrJoin(const std::tuple<T...>& value,
   return strings_internal::JoinAlgorithm(value, separator, AlphaNumFormatter());
 }
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_STRINGS_STR_JOIN_H_

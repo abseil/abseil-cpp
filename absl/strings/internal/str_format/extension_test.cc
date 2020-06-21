@@ -18,9 +18,27 @@
 
 #include <random>
 #include <string>
-#include "absl/strings/str_format.h"
 
 #include "gtest/gtest.h"
+#include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
+
+namespace my_namespace {
+class UserDefinedType {
+ public:
+  UserDefinedType() = default;
+
+  void Append(absl::string_view str) { value_.append(str.data(), str.size()); }
+  const std::string& Value() const { return value_; }
+
+  friend void AbslFormatFlush(UserDefinedType* x, absl::string_view str) {
+    x->Append(str);
+  }
+
+ private:
+  std::string value_;
+};
+}  // namespace my_namespace
 
 namespace {
 

@@ -28,6 +28,10 @@ extern "C" bool __google_disable_rescheduling(void);
 extern "C" void __google_enable_rescheduling(bool disable_result);
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
+class CondVar;
+class Mutex;
+
 namespace base_internal {
 
 class SchedulingHelper;  // To allow use of SchedulingGuard.
@@ -76,6 +80,8 @@ class SchedulingGuard {
   };
 
   // Access to SchedulingGuard is explicitly white-listed.
+  friend class absl::CondVar;
+  friend class absl::Mutex;
   friend class SchedulingHelper;
   friend class SpinLock;
 
@@ -86,6 +92,7 @@ class SchedulingGuard {
 //------------------------------------------------------------------------------
 // End of public interfaces.
 //------------------------------------------------------------------------------
+
 inline bool SchedulingGuard::ReschedulingIsAllowed() {
   return false;
 }
@@ -98,7 +105,8 @@ inline void SchedulingGuard::EnableRescheduling(bool /* disable_result */) {
   return;
 }
 
-
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
+
 #endif  // ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_

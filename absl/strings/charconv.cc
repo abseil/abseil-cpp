@@ -57,6 +57,7 @@
 // narrower mantissas.
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 template <typename FloatType>
@@ -618,10 +619,10 @@ from_chars_result FromCharsImpl(const char* first, const char* last,
       // Either we failed to parse a hex float after the "0x", or we read
       // "0xinf" or "0xnan" which we don't want to match.
       //
-      // However, a std::string that begins with "0x" also begins with "0", which
+      // However, a string that begins with "0x" also begins with "0", which
       // is normally a valid match for the number zero.  So we want these
       // strings to match zero unless fmt_flags is `scientific`.  (This flag
-      // means an exponent is required, which the std::string "0" does not have.)
+      // means an exponent is required, which the string "0" does not have.)
       if (fmt_flags == chars_format::scientific) {
         result.ec = std::errc::invalid_argument;
       } else {
@@ -672,7 +673,6 @@ from_chars_result FromCharsImpl(const char* first, const char* last,
     EncodeResult(calculated, negative, &result, &value);
     return result;
   }
-  return result;
 }
 }  // namespace
 
@@ -980,4 +980,5 @@ const int16_t kPower10ExponentTable[] = {
 };
 
 }  // namespace
+ABSL_NAMESPACE_END
 }  // namespace absl

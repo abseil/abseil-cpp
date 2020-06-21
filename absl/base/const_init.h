@@ -22,6 +22,8 @@
 #ifndef ABSL_BASE_CONST_INIT_H_
 #define ABSL_BASE_CONST_INIT_H_
 
+#include "absl/base/config.h"
+
 // In general, objects with static storage duration (such as global variables)
 // can trigger tricky object lifetime situations.  Attempting to access them
 // from the constructors or destructors of other global objects can result in
@@ -60,14 +62,15 @@
 //
 // The absl::kConstInit tag should only be used to define objects with static
 // or thread_local storage duration.
-//
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 enum ConstInitType {
   kConstInit,
 };
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_BASE_CONST_INIT_H_

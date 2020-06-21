@@ -24,6 +24,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // BlockingCounter
 //
@@ -88,10 +89,11 @@ class BlockingCounter {
 
  private:
   Mutex lock_;
-  int count_ GUARDED_BY(lock_);
-  int num_waiting_ GUARDED_BY(lock_);
+  int count_ ABSL_GUARDED_BY(lock_);
+  int num_waiting_ ABSL_GUARDED_BY(lock_);
 };
 
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_SYNCHRONIZATION_BLOCKING_COUNTER_H_

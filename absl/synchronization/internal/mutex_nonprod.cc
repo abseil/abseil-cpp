@@ -31,6 +31,11 @@
 #include "absl/time/time.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
+
+void SetMutexDeadlockDetectionMode(OnDeadlockCycle) {}
+void EnableMutexInvariantDebugging(bool) {}
+
 namespace synchronization_internal {
 
 namespace {
@@ -315,4 +320,5 @@ bool Condition::Eval() const {
 
 void RegisterSymbolizer(bool (*)(const void*, char*, int)) {}
 
+ABSL_NAMESPACE_END
 }  // namespace absl

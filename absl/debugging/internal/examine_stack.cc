@@ -20,6 +20,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <sys/ucontext.h>
+#endif
+
 #include <csignal>
 #include <cstdio>
 
@@ -30,6 +34,7 @@
 #include "absl/debugging/symbolize.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 // Returns the program counter from signal context, nullptr if
@@ -52,6 +57,8 @@ void* GetProgramCounter(void* vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.gp_regs[32]);
 #elif defined(__powerpc__)
     return reinterpret_cast<void*>(context->uc_mcontext.regs->nip);
+#elif defined(__riscv)
+    return reinterpret_cast<void*>(context->uc_mcontext.__gregs[REG_PC]);
 #elif defined(__s390__) && !defined(__s390x__)
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr & 0x7fffffff);
 #elif defined(__s390__) && defined(__s390x__)
@@ -61,6 +68,32 @@ void* GetProgramCounter(void* vuc) {
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[16]);
 #else
 #error "Undefined Architecture."
+#endif
+  }
+#elif defined(__APPLE__)
+  if (vuc != nullptr) {
+    ucontext_t* signal_ucontext = reinterpret_cast<ucontext_t*>(vuc);
+#if defined(__aarch64__)
+    return reinterpret_cast<void*>(
+        __darwin_arm_thread_state64_get_pc(signal_ucontext->uc_mcontext->__ss));
+#elif defined(__arm__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__pc);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.pc);
+#endif
+#elif defined(__i386__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__eip);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.eip);
+#endif
+#elif defined(__x86_64__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__rip);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.rip);
+#endif
 #endif
   }
 #elif defined(__akaros__)
@@ -150,4 +183,5 @@ void DumpPCAndFrameSizesAndStackTrace(
 }
 
 }  // namespace debugging_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

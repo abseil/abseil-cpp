@@ -35,8 +35,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::type_traits
-    absl::base
-    absl::core_headers
     gmock_main
 )
 
@@ -44,6 +42,8 @@ absl_cc_test(
 absl_cc_library(
   NAME
     meta
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::type_traits
   PUBLIC

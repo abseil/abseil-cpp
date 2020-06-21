@@ -26,6 +26,7 @@
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
 // A simple ThreadPool implementation for tests.
@@ -60,7 +61,7 @@ class ThreadPool {
   }
 
  private:
-  bool WorkAvailable() const EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+  bool WorkAvailable() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
     return !queue_.empty();
   }
 
@@ -81,11 +82,12 @@ class ThreadPool {
   }
 
   absl::Mutex mu_;
-  std::queue<std::function<void()>> queue_ GUARDED_BY(mu_);
+  std::queue<std::function<void()>> queue_ ABSL_GUARDED_BY(mu_);
   std::vector<std::thread> threads_;
 };
 
 }  // namespace synchronization_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_THREAD_POOL_H_

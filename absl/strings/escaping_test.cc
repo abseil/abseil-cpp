@@ -72,6 +72,11 @@ TEST(CEscape, EscapeAndUnescape) {
       EXPECT_TRUE(absl::CUnescape(escaped, &unescaped_str));
       EXPECT_EQ(unescaped_str, original);
 
+      unescaped_str.erase();
+      std::string error;
+      EXPECT_TRUE(absl::CUnescape(escaped, &unescaped_str, &error));
+      EXPECT_EQ(error, "");
+
       // Check in-place unescaping
       std::string s = escaped;
       EXPECT_TRUE(absl::CUnescape(s, &s));
@@ -150,7 +155,8 @@ TEST(CEscape, BasicEscaping) {
 
 TEST(Unescape, BasicFunction) {
   epair tests[] =
-    {{"\\u0030", "0"},
+    {{"", ""},
+     {"\\u0030", "0"},
      {"\\u00A3", "\xC2\xA3"},
      {"\\u22FD", "\xE2\x8B\xBD"},
      {"\\U00010000", "\xF0\x90\x80\x80"},
@@ -173,6 +179,9 @@ TEST(Unescape, BasicFunction) {
     std::string out;
     EXPECT_FALSE(absl::CUnescape(e, &out, &error));
     EXPECT_FALSE(error.empty());
+
+    out.erase();
+    EXPECT_FALSE(absl::CUnescape(e, &out));
   }
 }
 
@@ -291,7 +300,7 @@ static struct {
   absl::string_view plaintext;
   absl::string_view cyphertext;
 } const base64_tests[] = {
-    // Empty std::string.
+    // Empty string.
     {{"", 0}, {"", 0}},
     {{nullptr, 0},
      {"", 0}},  // if length is zero, plaintext ptr must be ignored!
@@ -556,6 +565,7 @@ void TestEscapeAndUnescape() {
     StringType encoded("this junk should be ignored");
     absl::Base64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, tc.cyphertext);
+    EXPECT_EQ(absl::Base64Escape(tc.plaintext), tc.cyphertext);
 
     StringType decoded("this junk should be ignored");
     EXPECT_TRUE(absl::Base64Unescape(encoded, &decoded));
@@ -574,8 +584,9 @@ void TestEscapeAndUnescape() {
     encoded = "this junk should be ignored";
     absl::WebSafeBase64Escape(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, websafe);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), websafe);
 
-    // Let's try the std::string version of the decoder
+    // Let's try the string version of the decoder
     decoded = "this junk should be ignored";
     EXPECT_TRUE(absl::WebSafeBase64Unescape(websafe, &decoded));
     EXPECT_EQ(decoded, tc.plaintext);
@@ -586,6 +597,7 @@ void TestEscapeAndUnescape() {
     StringType buffer;
     absl::WebSafeBase64Escape(tc.plaintext, &buffer);
     EXPECT_EQ(tc.cyphertext, buffer);
+    EXPECT_EQ(absl::WebSafeBase64Escape(tc.plaintext), tc.cyphertext);
   }
 
   // Verify the behavior when decoding bad data
@@ -613,7 +625,7 @@ TEST(Base64, DISABLED_HugeData) {
   std::string escaped;
   absl::Base64Escape(huge, &escaped);
 
-  // Generates the std::string that should match a base64 encoded "xxx..." std::string.
+  // Generates the string that should match a base64 encoded "xxx..." string.
   // "xxx" in base64 is "eHh4".
   std::string expected_encoding;
   expected_encoding.reserve(kSize / 3 * 4);

@@ -1,13 +1,21 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <cmath>
-#include <string>
 
+#include <cctype>
+#include <cmath>
+#include <limits>
+#include <string>
+#include <thread>  // NOLINT
+
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/strings/internal/str_format/bind.h"
+#include "absl/types/optional.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
 
@@ -32,7 +40,9 @@ std::string LengthModFor(long long) { return "ll"; }           // NOLINT
 std::string LengthModFor(unsigned long long) { return "ll"; }  // NOLINT
 
 std::string EscCharImpl(int v) {
-  if (isprint(v)) return std::string(1, static_cast<char>(v));
+  if (std::isprint(static_cast<unsigned char>(v))) {
+    return std::string(1, static_cast<char>(v));
+  }
   char buf[64];
   int n = snprintf(buf, sizeof(buf), "\\%#.2x",
                    static_cast<unsigned>(v & 0xff));
@@ -51,7 +61,7 @@ std::string Esc(const T &v) {
   return oss.str();
 }
 
-void StrAppend(std::string *dst, const char *format, va_list ap) {
+void StrAppendV(std::string *dst, const char *format, va_list ap) {
   // First try with a small fixed size buffer
   static const int kSpaceLength = 1024;
   char space[kSpaceLength];
@@ -92,11 +102,18 @@ void StrAppend(std::string *dst, const char *format, va_list ap) {
   delete[] buf;
 }
 
+void StrAppend(std::string *out, const char *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  StrAppendV(out, format, ap);
+  va_end(ap);
+}
+
 std::string StrPrint(const char *format, ...) {
   va_list ap;
   va_start(ap, format);
   std::string result;
-  StrAppend(&result, format, ap);
+  StrAppendV(&result, format, ap);
   va_end(ap);
   return result;
 }
@@ -148,18 +165,26 @@ TEST_F(FormatConvertTest, StringPrecision) {
   UntypedFormatSpecImpl format("%.1s");
   EXPECT_EQ("a", FormatPack(format, {FormatArgImpl(p)}));
 
-  // We cap at the nul terminator.
+  // We cap at the NUL-terminator.
   p = "ABC";
   UntypedFormatSpecImpl format2("%.10s");
   EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));
 }
 
+// Pointer formatting is implementation defined. This checks that the argument
+// can be matched to `ptr`.
+MATCHER_P(MatchesPointerString, ptr, "") {
+  if (ptr == nullptr && arg == "(nil)") {
+    return true;
+  }
+  void* parsed = nullptr;
+  if (sscanf(arg.c_str(), "%p", &parsed) != 1) {
+    ABSL_RAW_LOG(FATAL, "Could not parse %s", arg.c_str());
+  }
+  return ptr == parsed;
+}
+
 TEST_F(FormatConvertTest, Pointer) {
-#if _MSC_VER
-  // MSVC's printf implementation prints pointers differently. We can't easily
-  // compare our implementation to theirs.
-  return;
-#endif
   static int x = 0;
   const int *xp = &x;
   char c = 'h';
@@ -170,48 +195,62 @@ TEST_F(FormatConvertTest, Pointer) {
   using VoidF = void (*)();
   VoidF fp = [] {}, fnil = nullptr;
   volatile char vc;
-  volatile char* vcp = &vc;
-  volatile char* vcnil = nullptr;
-  const FormatArgImpl args[] = {
+  volatile char *vcp = &vc;
+  volatile char *vcnil = nullptr;
+  const FormatArgImpl args_array[] = {
       FormatArgImpl(xp),   FormatArgImpl(cp),  FormatArgImpl(inil),
       FormatArgImpl(cnil), FormatArgImpl(mcp), FormatArgImpl(fp),
       FormatArgImpl(fnil), FormatArgImpl(vcp), FormatArgImpl(vcnil),
   };
-  struct Expectation {
-    std::string out;
-    const char *fmt;
-  };
-  const Expectation kExpect[] = {
-      {StrPrint("%p", &x), "%p"},
-      {StrPrint("%20p", &x), "%20p"},
-      {StrPrint("%.1p", &x), "%.1p"},
-      {StrPrint("%.20p", &x), "%.20p"},
-      {StrPrint("%30.20p", &x), "%30.20p"},
+  auto args = absl::MakeConstSpan(args_array);
 
-      {StrPrint("%-p", &x), "%-p"},
-      {StrPrint("%-20p", &x), "%-20p"},
-      {StrPrint("%-.1p", &x), "%-.1p"},
-      {StrPrint("%.20p", &x), "%.20p"},
-      {StrPrint("%-30.20p", &x), "%-30.20p"},
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.1p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%30.20p"), args),
+              MatchesPointerString(&x));
 
-      {StrPrint("%p", cp), "%2$p"},   // const char*
-      {"(nil)", "%3$p"},              // null const char *
-      {"(nil)", "%4$p"},              // null const int *
-      {StrPrint("%p", mcp), "%5$p"},  // nonconst char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-.1p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%.20p"), args),
+              MatchesPointerString(&x));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%-30.20p"), args),
+              MatchesPointerString(&x));
 
-      {StrPrint("%p", fp), "%6$p"},   // function pointer
-      {StrPrint("%p", vcp), "%8$p"},  // function pointer
+  // const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%2$p"), args),
+              MatchesPointerString(cp));
+  // null const int*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%3$p"), args),
+              MatchesPointerString(nullptr));
+  // null const char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%4$p"), args),
+              MatchesPointerString(nullptr));
+  // nonconst char*
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%5$p"), args),
+              MatchesPointerString(mcp));
 
-#ifndef __APPLE__
-      // Apple's printf differs here (0x0 vs. nil)
-      {StrPrint("%p", fnil), "%7$p"},   // null function pointer
-      {StrPrint("%p", vcnil), "%9$p"},  // null function pointer
-#endif
-  };
-  for (const Expectation &e : kExpect) {
-    UntypedFormatSpecImpl format(e.fmt);
-    EXPECT_EQ(e.out, FormatPack(format, absl::MakeSpan(args))) << e.fmt;
-  }
+  // function pointers
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%6$p"), args),
+              MatchesPointerString(reinterpret_cast<const void*>(fp)));
+  EXPECT_THAT(
+      FormatPack(UntypedFormatSpecImpl("%8$p"), args),
+      MatchesPointerString(reinterpret_cast<volatile const void *>(vcp)));
+
+  // null function pointers
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%7$p"), args),
+              MatchesPointerString(nullptr));
+  EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%9$p"), args),
+              MatchesPointerString(nullptr));
 }
 
 struct Cardinal {
@@ -363,6 +402,53 @@ typedef ::testing::Types<
     AllIntTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(TypedFormatConvertTestWithAllIntTypes,
                               TypedFormatConvertTest, AllIntTypes);
+TEST_F(FormatConvertTest, VectorBool) {
+  // Make sure vector<bool>'s values behave as bools.
+  std::vector<bool> v = {true, false};
+  const std::vector<bool> cv = {true, false};
+  EXPECT_EQ("1,0,1,0",
+            FormatPack(UntypedFormatSpecImpl("%d,%d,%d,%d"),
+                       absl::Span<const FormatArgImpl>(
+                           {FormatArgImpl(v[0]), FormatArgImpl(v[1]),
+                            FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
+}
+
+
+TEST_F(FormatConvertTest, Int128) {
+  absl::int128 positive = static_cast<absl::int128>(0x1234567890abcdef) * 1979;
+  absl::int128 negative = -positive;
+  absl::int128 max = absl::Int128Max(), min = absl::Int128Min();
+  const FormatArgImpl args[] = {FormatArgImpl(positive),
+                                FormatArgImpl(negative), FormatArgImpl(max),
+                                FormatArgImpl(min)};
+
+  struct Case {
+    const char* format;
+    const char* expected;
+  } cases[] = {
+      {"%1$d", "2595989796776606496405"},
+      {"%1$30d", "        2595989796776606496405"},
+      {"%1$-30d", "2595989796776606496405        "},
+      {"%1$u", "2595989796776606496405"},
+      {"%1$x", "8cba9876066020f695"},
+      {"%2$d", "-2595989796776606496405"},
+      {"%2$30d", "       -2595989796776606496405"},
+      {"%2$-30d", "-2595989796776606496405       "},
+      {"%2$u", "340282366920938460867384810655161715051"},
+      {"%2$x", "ffffffffffffff73456789f99fdf096b"},
+      {"%3$d", "170141183460469231731687303715884105727"},
+      {"%3$u", "170141183460469231731687303715884105727"},
+      {"%3$x", "7fffffffffffffffffffffffffffffff"},
+      {"%4$d", "-170141183460469231731687303715884105728"},
+      {"%4$x", "80000000000000000000000000000000"},
+  };
+
+  for (auto c : cases) {
+    UntypedFormatSpecImpl format(c.format);
+    EXPECT_EQ(c.expected, FormatPack(format, absl::MakeSpan(args)));
+  }
+}
+
 TEST_F(FormatConvertTest, Uint128) {
   absl::uint128 v = static_cast<absl::uint128>(0x1234567890abcdef) * 1979;
   absl::uint128 max = absl::Uint128Max();
@@ -389,15 +475,15 @@ TEST_F(FormatConvertTest, Uint128) {
 }
 
 TEST_F(FormatConvertTest, Float) {
-#if _MSC_VER
+#ifdef _MSC_VER
   // MSVC has a different rounding policy than us so we can't test our
   // implementation against the native one there.
   return;
 #endif  // _MSC_VER
 
   const char *const kFormats[] = {
-      "%",  "%.3",  "%8.5",   "%9",   "%.60", "%.30",   "%03",    "%+",
-      "% ", "%-10", "%#15.3", "%#.0", "%.0",  "%1$*2$", "%1$.*2$"};
+      "%",  "%.3", "%8.5", "%500",   "%.5000", "%.60", "%.30",   "%03",
+      "%+", "% ",  "%-10", "%#15.3", "%#.0",   "%.0",  "%1$*2$", "%1$.*2$"};
 
   std::vector<double> doubles = {0.0,
                                  -0.0,
@@ -413,11 +499,6 @@ TEST_F(FormatConvertTest, Float) {
                                  std::numeric_limits<double>::epsilon() + 1,
                                  std::numeric_limits<double>::infinity(),
                                  -std::numeric_limits<double>::infinity()};
-
-#ifndef __APPLE__
-  // Apple formats NaN differently (+nan) vs. (nan)
-  doubles.push_back(std::nan(""));
-#endif
 
   // Some regression tests.
   doubles.push_back(0.99999999999999989);
@@ -437,43 +518,229 @@ TEST_F(FormatConvertTest, Float) {
     }
   }
 
+  // Workaround libc bug.
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=22142
+  const bool gcc_bug_22142 =
+      StrPrint("%f", std::numeric_limits<double>::max()) !=
+      "1797693134862315708145274237317043567980705675258449965989174768031"
+      "5726078002853876058955863276687817154045895351438246423432132688946"
+      "4182768467546703537516986049910576551282076245490090389328944075868"
+      "5084551339423045832369032229481658085593321233482747978262041447231"
+      "68738177180919299881250404026184124858368.000000";
+
+  if (!gcc_bug_22142) {
+    for (int exp = -300; exp <= 300; ++exp) {
+      const double all_ones_mantissa = 0x1fffffffffffff;
+      doubles.push_back(std::ldexp(all_ones_mantissa, exp));
+    }
+  }
+
+  if (gcc_bug_22142) {
+    for (auto &d : doubles) {
+      using L = std::numeric_limits<double>;
+      double d2 = std::abs(d);
+      if (d2 == L::max() || d2 == L::min() || d2 == L::denorm_min()) {
+        d = 0;
+      }
+    }
+  }
+
+  // Remove duplicates to speed up the logic below.
+  std::sort(doubles.begin(), doubles.end());
+  doubles.erase(std::unique(doubles.begin(), doubles.end()), doubles.end());
+
+#ifndef __APPLE__
+  // Apple formats NaN differently (+nan) vs. (nan)
+  doubles.push_back(std::nan(""));
+#endif
+
+  // Reserve the space to ensure we don't allocate memory in the output itself.
+  std::string str_format_result;
+  str_format_result.reserve(1 << 20);
+  std::string string_printf_result;
+  string_printf_result.reserve(1 << 20);
+
   for (const char *fmt : kFormats) {
     for (char f : {'f', 'F',  //
                    'g', 'G',  //
                    'a', 'A',  //
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + f;
+
+      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
+        // This particular test takes way too long with snprintf.
+        // Disable for the case we are not implementing natively.
+        continue;
+      }
+
       for (double d : doubles) {
         int i = -10;
         FormatArgImpl args[2] = {FormatArgImpl(d), FormatArgImpl(i)};
         UntypedFormatSpecImpl format(fmt_str);
-        // We use ASSERT_EQ here because failures are usually correlated and a
-        // bug would print way too many failed expectations causing the test to
-        // time out.
-        ASSERT_EQ(StrPrint(fmt_str.c_str(), d, i),
-                  FormatPack(format, absl::MakeSpan(args)))
-            << fmt_str << " " << StrPrint("%.18g", d) << " "
-            << StrPrint("%.999f", d);
+
+        string_printf_result.clear();
+        StrAppend(&string_printf_result, fmt_str.c_str(), d, i);
+        str_format_result.clear();
+
+        {
+          AppendPack(&str_format_result, format, absl::MakeSpan(args));
+        }
+
+        if (string_printf_result != str_format_result) {
+          // We use ASSERT_EQ here because failures are usually correlated and a
+          // bug would print way too many failed expectations causing the test
+          // to time out.
+          ASSERT_EQ(string_printf_result, str_format_result)
+              << fmt_str << " " << StrPrint("%.18g", d) << " "
+              << StrPrint("%a", d) << " " << StrPrint("%.1080f", d);
+        }
       }
     }
   }
 }
 
-TEST_F(FormatConvertTest, LongDouble) {
-  const char *const kFormats[] = {"%",    "%.3", "%8.5", "%9",
-                                  "%.60", "%+",  "% ",   "%-10"};
+TEST_F(FormatConvertTest, FloatRound) {
+  std::string s;
+  const auto format = [&](const char *fmt, double d) -> std::string & {
+    s.clear();
+    FormatArgImpl args[1] = {FormatArgImpl(d)};
+    AppendPack(&s, UntypedFormatSpecImpl(fmt), absl::MakeSpan(args));
+#if !defined(_MSC_VER)
+    // MSVC has a different rounding policy than us so we can't test our
+    // implementation against the native one there.
+    EXPECT_EQ(StrPrint(fmt, d), s);
+#endif  // _MSC_VER
 
-  // This value is not representable in double, but it is in long double that
-  // uses the extended format.
-  // This is to verify that we are not truncating the value mistakenly through a
-  // double.
-  long double very_precise = 10000000000000000.25L;
+    return s;
+  };
+  // All of these values have to be exactly represented.
+  // Otherwise we might not be testing what we think we are testing.
+
+  // These values can fit in a 64bit "fast" representation.
+  const double exact_value = 0.00000000000005684341886080801486968994140625;
+  assert(exact_value == std::pow(2, -44));
+  // Round up at a 5xx.
+  EXPECT_EQ(format("%.13f", exact_value), "0.0000000000001");
+  // Round up at a >5
+  EXPECT_EQ(format("%.14f", exact_value), "0.00000000000006");
+  // Round down at a <5
+  EXPECT_EQ(format("%.16f", exact_value), "0.0000000000000568");
+  // Nine handling
+  EXPECT_EQ(format("%.35f", exact_value),
+            "0.00000000000005684341886080801486969");
+  EXPECT_EQ(format("%.36f", exact_value),
+            "0.000000000000056843418860808014869690");
+  // Round down the last nine.
+  EXPECT_EQ(format("%.37f", exact_value),
+            "0.0000000000000568434188608080148696899");
+  EXPECT_EQ(format("%.10f", 0.000003814697265625), "0.0000038147");
+  // Round up the last nine
+  EXPECT_EQ(format("%.11f", 0.000003814697265625), "0.00000381470");
+  EXPECT_EQ(format("%.12f", 0.000003814697265625), "0.000003814697");
+
+  // Round to even (down)
+  EXPECT_EQ(format("%.43f", exact_value),
+            "0.0000000000000568434188608080148696899414062");
+  // Exact
+  EXPECT_EQ(format("%.44f", exact_value),
+            "0.00000000000005684341886080801486968994140625");
+  // Round to even (up), let make the last digits 75 instead of 25
+  EXPECT_EQ(format("%.43f", exact_value + std::pow(2, -43)),
+            "0.0000000000001705302565824240446090698242188");
+  // Exact, just to check.
+  EXPECT_EQ(format("%.44f", exact_value + std::pow(2, -43)),
+            "0.00000000000017053025658242404460906982421875");
+
+  // This value has to be small enough that it won't fit in the uint128
+  // representation for printing.
+  const double small_exact_value =
+      0.000000000000000000000000000000000000752316384526264005099991383822237233803945956334136013765601092018187046051025390625;  // NOLINT
+  assert(small_exact_value == std::pow(2, -120));
+  // Round up at a 5xx.
+  EXPECT_EQ(format("%.37f", small_exact_value),
+            "0.0000000000000000000000000000000000008");
+  // Round down at a <5
+  EXPECT_EQ(format("%.38f", small_exact_value),
+            "0.00000000000000000000000000000000000075");
+  // Round up at a >5
+  EXPECT_EQ(format("%.41f", small_exact_value),
+            "0.00000000000000000000000000000000000075232");
+  // Nine handling
+  EXPECT_EQ(format("%.55f", small_exact_value),
+            "0.0000000000000000000000000000000000007523163845262640051");
+  EXPECT_EQ(format("%.56f", small_exact_value),
+            "0.00000000000000000000000000000000000075231638452626400510");
+  EXPECT_EQ(format("%.57f", small_exact_value),
+            "0.000000000000000000000000000000000000752316384526264005100");
+  EXPECT_EQ(format("%.58f", small_exact_value),
+            "0.0000000000000000000000000000000000007523163845262640051000");
+  // Round down the last nine
+  EXPECT_EQ(format("%.59f", small_exact_value),
+            "0.00000000000000000000000000000000000075231638452626400509999");
+  // Round up the last nine
+  EXPECT_EQ(format("%.79f", small_exact_value),
+            "0.000000000000000000000000000000000000"
+            "7523163845262640050999913838222372338039460");
+
+  // Round to even (down)
+  EXPECT_EQ(format("%.119f", small_exact_value),
+            "0.000000000000000000000000000000000000"
+            "75231638452626400509999138382223723380"
+            "394595633413601376560109201818704605102539062");
+  // Exact
+  EXPECT_EQ(format("%.120f", small_exact_value),
+            "0.000000000000000000000000000000000000"
+            "75231638452626400509999138382223723380"
+            "3945956334136013765601092018187046051025390625");
+  // Round to even (up), let make the last digits 75 instead of 25
+  EXPECT_EQ(format("%.119f", small_exact_value + std::pow(2, -119)),
+            "0.000000000000000000000000000000000002"
+            "25694915357879201529997415146671170141"
+            "183786900240804129680327605456113815307617188");
+  // Exact, just to check.
+  EXPECT_EQ(format("%.120f", small_exact_value + std::pow(2, -119)),
+            "0.000000000000000000000000000000000002"
+            "25694915357879201529997415146671170141"
+            "1837869002408041296803276054561138153076171875");
+}
+
+// We don't actually store the results. This is just to exercise the rest of the
+// machinery.
+struct NullSink {
+  friend void AbslFormatFlush(NullSink *sink, string_view str) {}
+};
+
+template <typename... T>
+bool FormatWithNullSink(absl::string_view fmt, const T &... a) {
+  NullSink sink;
+  FormatArgImpl args[] = {FormatArgImpl(a)...};
+  return FormatUntyped(&sink, UntypedFormatSpecImpl(fmt), absl::MakeSpan(args));
+}
+
+TEST_F(FormatConvertTest, ExtremeWidthPrecision) {
+  for (const char *fmt : {"f"}) {
+    for (double d : {1e-100, 1.0, 1e100}) {
+      constexpr int max = std::numeric_limits<int>::max();
+      EXPECT_TRUE(FormatWithNullSink(std::string("%.*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%1.*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%*") + fmt, max, d));
+      EXPECT_TRUE(FormatWithNullSink(std::string("%*.*") + fmt, max, max, d));
+    }
+  }
+}
+
+TEST_F(FormatConvertTest, LongDouble) {
+#ifdef _MSC_VER
+  // MSVC has a different rounding policy than us so we can't test our
+  // implementation against the native one there.
+  return;
+#endif  // _MSC_VER
+  const char *const kFormats[] = {"%",    "%.3", "%8.5", "%9",  "%.5000",
+                                  "%.60", "%+",  "% ",   "%-10"};
 
   std::vector<long double> doubles = {
       0.0,
       -0.0,
-      very_precise,
-      1 / very_precise,
       std::numeric_limits<long double>::max(),
       -std::numeric_limits<long double>::max(),
       std::numeric_limits<long double>::min(),
@@ -481,22 +748,50 @@ TEST_F(FormatConvertTest, LongDouble) {
       std::numeric_limits<long double>::infinity(),
       -std::numeric_limits<long double>::infinity()};
 
+  for (long double base : {1.L, 12.L, 123.L, 1234.L, 12345.L, 123456.L,
+                           1234567.L, 12345678.L, 123456789.L, 1234567890.L,
+                           12345678901.L, 123456789012.L, 1234567890123.L,
+                           // This value is not representable in double, but it
+                           // is in long double that uses the extended format.
+                           // This is to verify that we are not truncating the
+                           // value mistakenly through a double.
+                           10000000000000000.25L}) {
+    for (int exp : {-1000, -500, 0, 500, 1000}) {
+      for (int sign : {1, -1}) {
+        doubles.push_back(sign * std::ldexp(base, exp));
+        doubles.push_back(sign / std::ldexp(base, exp));
+      }
+    }
+  }
+
+  // Regression tests
+  //
+  // Using a string literal because not all platforms support hex literals or it
+  // might be out of range.
+  doubles.push_back(std::strtold("-0xf.ffffffb5feafffbp-16324L", nullptr));
+
   for (const char *fmt : kFormats) {
     for (char f : {'f', 'F',  //
                    'g', 'G',  //
                    'a', 'A',  //
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + 'L' + f;
+
+      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
+        // This particular test takes way too long with snprintf.
+        // Disable for the case we are not implementing natively.
+        continue;
+      }
+
       for (auto d : doubles) {
         FormatArgImpl arg(d);
         UntypedFormatSpecImpl format(fmt_str);
         // We use ASSERT_EQ here because failures are usually correlated and a
         // bug would print way too many failed expectations causing the test to
         // time out.
-        ASSERT_EQ(StrPrint(fmt_str.c_str(), d),
-                  FormatPack(format, {&arg, 1}))
+        ASSERT_EQ(StrPrint(fmt_str.c_str(), d), FormatPack(format, {&arg, 1}))
             << fmt_str << " " << StrPrint("%.18Lg", d) << " "
-            << StrPrint("%.999Lf", d);
+            << StrPrint("%La", d) << " " << StrPrint("%.1080Lf", d);
       }
     }
   }
@@ -572,4 +867,5 @@ TEST_F(FormatConvertTest, ExpectedFailures) {
 
 }  // namespace
 }  // namespace str_format_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

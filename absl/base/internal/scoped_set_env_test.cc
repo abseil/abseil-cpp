@@ -26,8 +26,8 @@ using absl::base_internal::ScopedSetEnv;
 std::string GetEnvVar(const char* name) {
 #ifdef _WIN32
   char buf[1024];
-  auto get_res = GetEnvironmentVariable(name, buf, sizeof(buf));
-  if (get_res == sizeof(buf)) {
+  auto get_res = GetEnvironmentVariableA(name, buf, sizeof(buf));
+  if (get_res >= sizeof(buf)) {
     return "TOO_BIG";
   }
 

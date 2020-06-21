@@ -36,25 +36,37 @@
 // framework by simply combining its state with the state of known, hashable
 // types. Hashing of that combined state is separately done by `absl::Hash`.
 //
+// One should assume that a hash algorithm is chosen randomly at the start of
+// each process.  E.g., `absl::Hash<int>{}(9)` in one process and
+// `absl::Hash<int>{}(9)` in another process are likely to differ.
+//
+// `absl::Hash` is intended to strongly mix input bits with a target of passing
+// an [Avalanche Test](https://en.wikipedia.org/wiki/Avalanche_effect).
+//
 // Example:
 //
-//   // Suppose we have a class `Circle` for which we want to add hashing
+//   // Suppose we have a class `Circle` for which we want to add hashing:
 //   class Circle {
-//     public:
-//       ...
-//     private:
-//       std::pair<int, int> center_;
-//       int radius_;
-//     };
+//    public:
+//     ...
+//    private:
+//     std::pair<int, int> center_;
+//     int radius_;
+//   };
 //
-//   // To add hashing support to `Circle`, we simply need to add an ordinary
-//   // function `AbslHashValue()`, and return the combined hash state of the
-//   // existing hash state and the class state:
-//
+//   // To add hashing support to `Circle`, we simply need to add a free
+//   // (non-member) function `AbslHashValue()`, and return the combined hash
+//   // state of the existing hash state and the class state. You can add such a
+//   // free function using a friend declaration within the body of the class:
+//   class Circle {
+//    public:
+//     ...
 //     template <typename H>
 //     friend H AbslHashValue(H h, const Circle& c) {
 //       return H::combine(std::move(h), c.center_, c.radius_);
 //     }
+//     ...
+//   };
 //
 // For more information, see Adding Type Support to `absl::Hash` below.
 //
@@ -64,6 +76,7 @@
 #include "absl/hash/internal/hash.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
 // `absl::Hash`
@@ -88,6 +101,7 @@ namespace absl {
 //   * std::tuple<Ts...>, if all the Ts... are hashable
 //   * std::unique_ptr and std::shared_ptr
 //   * All string-like types including:
+//     * absl::Cord
 //     * std::string
 //     * std::string_view (as well as any instance of std::basic_string that
 //       uses char and std::char_traits)
@@ -235,7 +249,7 @@ using Hash = absl::hash_internal::Hash<T>;
 //     }
 //    private:
 //     virtual void HashValue(absl::HashState state) const = 0;
-//  };
+//   };
 //
 //   class Impl : Interface {
 //    private:
@@ -308,5 +322,7 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   void (*combine_contiguous_)(void*, const unsigned char*, size_t);
 };
 
+ABSL_NAMESPACE_END
 }  // namespace absl
+
 #endif  // ABSL_HASH_HASH_H_

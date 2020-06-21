@@ -22,6 +22,7 @@
 #include "absl/strings/internal/memutil.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace {
 
 // ParseFloat<10> will read the first 19 significant digits of the mantissa.
@@ -253,6 +254,12 @@ std::size_t ConsumeDigits(const char* begin, const char* end, int max_digits,
     assert(max_digits * 4 <= std::numeric_limits<T>::digits);
   }
   const char* const original_begin = begin;
+
+  // Skip leading zeros, but only if *out is zero.
+  // They don't cause an overflow so we don't have to count them for
+  // `max_digits`.
+  while (!*out && end != begin && *begin == '0') ++begin;
+
   T accumulator = *out;
   const char* significant_digits_end =
       (end - begin > max_digits) ? begin + max_digits : end;
@@ -295,7 +302,7 @@ bool ParseInfinityOrNan(const char* begin, const char* end,
   switch (*begin) {
     case 'i':
     case 'I': {
-      // An infinity std::string consists of the characters "inf" or "infinity",
+      // An infinity string consists of the characters "inf" or "infinity",
       // case insensitive.
       if (strings_internal::memcasecmp(begin + 1, "nf", 2) != 0) {
         return false;
@@ -319,7 +326,7 @@ bool ParseInfinityOrNan(const char* begin, const char* end,
       }
       out->type = strings_internal::FloatType::kNan;
       out->end = begin + 3;
-      // NaN is allowed to be followed by a parenthesized std::string, consisting of
+      // NaN is allowed to be followed by a parenthesized string, consisting of
       // only the characters [a-zA-Z0-9_].  Match that if it's present.
       begin += 3;
       if (begin < end && *begin == '(') {
@@ -493,4 +500,5 @@ template ParsedFloat ParseFloat<16>(const char* begin, const char* end,
                                     chars_format format_flags);
 
 }  // namespace strings_internal
+ABSL_NAMESPACE_END
 }  // namespace absl

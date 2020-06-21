@@ -1,5 +1,5 @@
 #
-# Copyright 2018 The Abseil Authors.
+# Copyright 2019 The Abseil Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -32,6 +34,7 @@ cc_library(
     ],
     hdrs = ["hash.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":city",
         "//absl/base:core_headers",
@@ -50,6 +53,7 @@ cc_library(
     name = "hash_testing",
     testonly = 1,
     hdrs = ["hash_testing.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":spy_hash_state",
         "//absl/meta:type_traits",
@@ -63,14 +67,16 @@ cc_test(
     name = "hash_test",
     srcs = ["hash_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":hash",
         ":hash_testing",
+        ":spy_hash_state",
         "//absl/base:core_headers",
         "//absl/container:flat_hash_set",
-        "//absl/hash:spy_hash_state",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/strings:cord_test_helpers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -80,6 +86,7 @@ cc_library(
     testonly = 1,
     hdrs = ["internal/spy_hash_state.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":hash",
@@ -95,6 +102,7 @@ cc_library(
         "internal/city.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -106,6 +114,7 @@ cc_test(
     name = "city_test",
     srcs = ["internal/city_test.cc"],
     copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":city",
         "@com_google_googletest//:gtest_main",

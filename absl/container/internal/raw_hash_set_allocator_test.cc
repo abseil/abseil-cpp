@@ -20,6 +20,7 @@
 #include "absl/container/internal/tracked.h"
 
 namespace absl {
+ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
 
@@ -425,4 +426,5 @@ TEST_F(PropagateOnAll, Swap) {
 
 }  // namespace
 }  // namespace container_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
