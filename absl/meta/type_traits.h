@@ -219,7 +219,7 @@ using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
 // This metafunction is designed to be a drop-in replacement for the C++17
 // `std::conjunction` metafunction.
 template <typename... Ts>
-struct conjunction;
+struct conjunction : std::true_type {};
 
 template <typename T, typename... Ts>
 struct conjunction<T, Ts...>
@@ -227,9 +227,6 @@ struct conjunction<T, Ts...>
 
 template <typename T>
 struct conjunction<T> : T {};
-
-template <>
-struct conjunction<> : std::true_type {};
 
 // disjunction
 //
@@ -241,7 +238,7 @@ struct conjunction<> : std::true_type {};
 // This metafunction is designed to be a drop-in replacement for the C++17
 // `std::disjunction` metafunction.
 template <typename... Ts>
-struct disjunction;
+struct disjunction : std::false_type {};
 
 template <typename T, typename... Ts>
 struct disjunction<T, Ts...> :
@@ -249,9 +246,6 @@ struct disjunction<T, Ts...> :
 
 template <typename T>
 struct disjunction<T> : T {};
-
-template <>
-struct disjunction<> : std::false_type {};
 
 // negation
 //

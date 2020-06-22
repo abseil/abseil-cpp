@@ -857,16 +857,16 @@ ExternalRepReleaserPair NewExternalWithUninitializedReleaser(
 struct Rank1 {};
 struct Rank0 : Rank1 {};
 
-template <typename Releaser, typename = ::absl::base_internal::InvokeT<
+template <typename Releaser, typename = ::absl::base_internal::invoke_result_t<
                                  Releaser, absl::string_view>>
 void InvokeReleaser(Rank0, Releaser&& releaser, absl::string_view data) {
-  ::absl::base_internal::Invoke(std::forward<Releaser>(releaser), data);
+  ::absl::base_internal::invoke(std::forward<Releaser>(releaser), data);
 }
 
 template <typename Releaser,
-          typename = ::absl::base_internal::InvokeT<Releaser>>
+          typename = ::absl::base_internal::invoke_result_t<Releaser>>
 void InvokeReleaser(Rank1, Releaser&& releaser, absl::string_view) {
-  ::absl::base_internal::Invoke(std::forward<Releaser>(releaser));
+  ::absl::base_internal::invoke(std::forward<Releaser>(releaser));
 }
 
 // Creates a new `CordRep` that owns `data` and `releaser` and returns a pointer
