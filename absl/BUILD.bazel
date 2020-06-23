@@ -58,3 +58,8 @@ config_setting(
     },
     visibility = [":__subpackages__"],
 )
+
+config_setting(
+    name = "wasm",
+    values = {"cpu": "wasm"},
+)
