@@ -428,9 +428,9 @@ class FixedArray {
 #endif  // ADDRESS_SANITIZER
 
    private:
-    ADDRESS_SANITIZER_REDZONE(redzone_begin_);
+    ABSL_ADDRESS_SANITIZER_REDZONE(redzone_begin_);
     alignas(StorageElement) char buff_[sizeof(StorageElement[inline_elements])];
-    ADDRESS_SANITIZER_REDZONE(redzone_end_);
+    ABSL_ADDRESS_SANITIZER_REDZONE(redzone_end_);
   };
 
   class EmptyInlinedStorage {
@@ -505,8 +505,10 @@ void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateConstruct(
     typename FixedArray<T, N, A>::size_type n) {
 #ifdef ADDRESS_SANITIZER
   if (!n) return;
-  ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), RedzoneEnd(), data() + n);
-  ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), data(), RedzoneBegin());
+  ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), RedzoneEnd(),
+                                     data() + n);
+  ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), data(),
+                                     RedzoneBegin());
 #endif                   // ADDRESS_SANITIZER
   static_cast<void>(n);  // Mark used when not in asan mode
 }
@@ -516,8 +518,10 @@ void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateDestruct(
     typename FixedArray<T, N, A>::size_type n) {
 #ifdef ADDRESS_SANITIZER
   if (!n) return;
-  ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), data() + n, RedzoneEnd());
-  ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), RedzoneBegin(), data());
+  ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(data(), RedzoneEnd(), data() + n,
+                                     RedzoneEnd());
+  ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), RedzoneBegin(),
+                                     data());
 #endif                   // ADDRESS_SANITIZER
   static_cast<void>(n);  // Mark used when not in asan mode
 }

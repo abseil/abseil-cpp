@@ -1131,7 +1131,7 @@ bool ConvertFloatImpl(long double v, const FormatConversionSpecImpl &conv,
 
 bool ConvertFloatImpl(float v, const FormatConversionSpecImpl &conv,
                       FormatSinkImpl *sink) {
-  return FloatToSink(v, conv, sink);
+  return FloatToSink(static_cast<double>(v), conv, sink);
 }
 
 bool ConvertFloatImpl(double v, const FormatConversionSpecImpl &conv,

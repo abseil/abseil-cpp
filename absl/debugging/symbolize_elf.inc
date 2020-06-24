@@ -1455,7 +1455,7 @@ bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
 
 bool Symbolize(const void *pc, char *out, int out_size) {
   // Symbolization is very slow under tsan.
-  ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
   SAFE_ASSERT(out_size >= 0);
   debugging_internal::Symbolizer *s = debugging_internal::AllocateSymbolizer();
   const char *name = s->GetSymbol(pc);
@@ -1474,7 +1474,7 @@ bool Symbolize(const void *pc, char *out, int out_size) {
     }
   }
   debugging_internal::FreeSymbolizer(s);
-  ANNOTATE_IGNORE_READS_AND_WRITES_END();
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_END();
   return ok;
 }
 

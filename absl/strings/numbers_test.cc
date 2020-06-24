@@ -359,6 +359,12 @@ TEST(NumbersTest, Atoi) {
   VerifySimpleAtoiGood<std::string::size_type>(42, 42);
 }
 
+TEST(NumbersTest, Atod) {
+  double d;
+  EXPECT_TRUE(absl::SimpleAtod("nan", &d));
+  EXPECT_TRUE(std::isnan(d));
+}
+
 TEST(NumbersTest, Atoenum) {
   enum E01 {
     E01_zero = 0,

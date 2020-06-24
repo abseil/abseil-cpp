@@ -474,6 +474,57 @@ TEST_F(FormatConvertTest, Uint128) {
   }
 }
 
+template <typename Floating>
+void TestWithMultipleFormatsHelper(const std::vector<Floating> &floats) {
+  // Reserve the space to ensure we don't allocate memory in the output itself.
+  std::string str_format_result;
+  str_format_result.reserve(1 << 20);
+  std::string string_printf_result;
+  string_printf_result.reserve(1 << 20);
+
+  const char *const kFormats[] = {
+      "%",  "%.3", "%8.5", "%500",   "%.5000", "%.60", "%.30",   "%03",
+      "%+", "% ",  "%-10", "%#15.3", "%#.0",   "%.0",  "%1$*2$", "%1$.*2$"};
+
+  for (const char *fmt : kFormats) {
+    for (char f : {'f', 'F',  //
+                   'g', 'G',  //
+                   'a', 'A',  //
+                   'e', 'E'}) {
+      std::string fmt_str = std::string(fmt) + f;
+
+      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
+        // This particular test takes way too long with snprintf.
+        // Disable for the case we are not implementing natively.
+        continue;
+      }
+
+      for (Floating d : floats) {
+        int i = -10;
+        FormatArgImpl args[2] = {FormatArgImpl(d), FormatArgImpl(i)};
+        UntypedFormatSpecImpl format(fmt_str);
+
+        string_printf_result.clear();
+        StrAppend(&string_printf_result, fmt_str.c_str(), d, i);
+        str_format_result.clear();
+
+        {
+          AppendPack(&str_format_result, format, absl::MakeSpan(args));
+        }
+
+        if (string_printf_result != str_format_result) {
+          // We use ASSERT_EQ here because failures are usually correlated and a
+          // bug would print way too many failed expectations causing the test
+          // to time out.
+          ASSERT_EQ(string_printf_result, str_format_result)
+              << fmt_str << " " << StrPrint("%.18g", d) << " "
+              << StrPrint("%a", d) << " " << StrPrint("%.50f", d);
+        }
+      }
+    }
+  }
+}
+
 TEST_F(FormatConvertTest, Float) {
 #ifdef _MSC_VER
   // MSVC has a different rounding policy than us so we can't test our
@@ -481,9 +532,62 @@ TEST_F(FormatConvertTest, Float) {
   return;
 #endif  // _MSC_VER
 
-  const char *const kFormats[] = {
-      "%",  "%.3", "%8.5", "%500",   "%.5000", "%.60", "%.30",   "%03",
-      "%+", "% ",  "%-10", "%#15.3", "%#.0",   "%.0",  "%1$*2$", "%1$.*2$"};
+  std::vector<float> floats = {0.0f,
+                               -0.0f,
+                               .9999999f,
+                               9999999.f,
+                               std::numeric_limits<float>::max(),
+                               -std::numeric_limits<float>::max(),
+                               std::numeric_limits<float>::min(),
+                               -std::numeric_limits<float>::min(),
+                               std::numeric_limits<float>::lowest(),
+                               -std::numeric_limits<float>::lowest(),
+                               std::numeric_limits<float>::epsilon(),
+                               std::numeric_limits<float>::epsilon() + 1.0f,
+                               std::numeric_limits<float>::infinity(),
+                               -std::numeric_limits<float>::infinity()};
+
+  // Some regression tests.
+  floats.push_back(0.999999989f);
+
+  if (std::numeric_limits<float>::has_denorm != std::denorm_absent) {
+    floats.push_back(std::numeric_limits<float>::denorm_min());
+    floats.push_back(-std::numeric_limits<float>::denorm_min());
+  }
+
+  for (float base :
+       {1.f, 12.f, 123.f, 1234.f, 12345.f, 123456.f, 1234567.f, 12345678.f,
+        123456789.f, 1234567890.f, 12345678901.f, 12345678.f, 12345678.f}) {
+    for (int exp = -123; exp <= 123; ++exp) {
+      for (int sign : {1, -1}) {
+        floats.push_back(sign * std::ldexp(base, exp));
+      }
+    }
+  }
+
+  for (int exp = -300; exp <= 300; ++exp) {
+    const float all_ones_mantissa = 0xffffff;
+    floats.push_back(std::ldexp(all_ones_mantissa, exp));
+  }
+
+  // Remove duplicates to speed up the logic below.
+  std::sort(floats.begin(), floats.end());
+  floats.erase(std::unique(floats.begin(), floats.end()), floats.end());
+
+#ifndef __APPLE__
+  // Apple formats NaN differently (+nan) vs. (nan)
+  floats.push_back(std::nan(""));
+#endif
+
+  TestWithMultipleFormatsHelper(floats);
+}
+
+TEST_F(FormatConvertTest, Double) {
+#ifdef _MSC_VER
+  // MSVC has a different rounding policy than us so we can't test our
+  // implementation against the native one there.
+  return;
+#endif  // _MSC_VER
 
   std::vector<double> doubles = {0.0,
                                  -0.0,
@@ -554,52 +658,10 @@ TEST_F(FormatConvertTest, Float) {
   doubles.push_back(std::nan(""));
 #endif
 
-  // Reserve the space to ensure we don't allocate memory in the output itself.
-  std::string str_format_result;
-  str_format_result.reserve(1 << 20);
-  std::string string_printf_result;
-  string_printf_result.reserve(1 << 20);
-
-  for (const char *fmt : kFormats) {
-    for (char f : {'f', 'F',  //
-                   'g', 'G',  //
-                   'a', 'A',  //
-                   'e', 'E'}) {
-      std::string fmt_str = std::string(fmt) + f;
-
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
-        // This particular test takes way too long with snprintf.
-        // Disable for the case we are not implementing natively.
-        continue;
-      }
-
-      for (double d : doubles) {
-        int i = -10;
-        FormatArgImpl args[2] = {FormatArgImpl(d), FormatArgImpl(i)};
-        UntypedFormatSpecImpl format(fmt_str);
-
-        string_printf_result.clear();
-        StrAppend(&string_printf_result, fmt_str.c_str(), d, i);
-        str_format_result.clear();
-
-        {
-          AppendPack(&str_format_result, format, absl::MakeSpan(args));
-        }
-
-        if (string_printf_result != str_format_result) {
-          // We use ASSERT_EQ here because failures are usually correlated and a
-          // bug would print way too many failed expectations causing the test
-          // to time out.
-          ASSERT_EQ(string_printf_result, str_format_result)
-              << fmt_str << " " << StrPrint("%.18g", d) << " "
-              << StrPrint("%a", d) << " " << StrPrint("%.1080f", d);
-        }
-      }
-    }
-  }
+  TestWithMultipleFormatsHelper(doubles);
 }
 
-TEST_F(FormatConvertTest, FloatRound) {
+TEST_F(FormatConvertTest, DoubleRound) {
   std::string s;
   const auto format = [&](const char *fmt, double d) -> std::string & {
     s.clear();
@@ -797,7 +859,7 @@ TEST_F(FormatConvertTest, LongDouble) {
   }
 }
 
-TEST_F(FormatConvertTest, IntAsFloat) {
+TEST_F(FormatConvertTest, IntAsDouble) {
   const int kMin = std::numeric_limits<int>::min();
   const int kMax = std::numeric_limits<int>::max();
   const int ia[] = {
