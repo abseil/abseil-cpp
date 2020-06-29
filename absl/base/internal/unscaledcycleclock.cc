@@ -101,6 +101,18 @@ double UnscaledCycleClock::Frequency() {
 #endif
 }
 
+#elif defined(__s390x__)
+
+int64_t UnscaledCycleClock::Now() {
+  int64_t tsc;
+  asm("stck %0" : "=Q" (tsc) : : "cc");
+  return tsc;
+}
+
+double UnscaledCycleClock::Frequency() {
+  return base_internal::NominalCPUFrequency();
+}
+
 #elif defined(__aarch64__)
 
 // System timer of ARMv8 runs at a different frequency than the CPU's.
