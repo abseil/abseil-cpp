@@ -39,6 +39,7 @@
 #include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/atomic_hook.h"
@@ -58,7 +59,6 @@
 
 using absl::base_internal::CurrentThreadIdentityIfPresent;
 using absl::base_internal::PerThreadSynch;
-using absl::base_internal::SchedulingGuard;
 using absl::base_internal::ThreadIdentity;
 using absl::synchronization_internal::GetOrCreateCurrentThreadIdentity;
 using absl::synchronization_internal::GraphCycles;
@@ -85,28 +85,6 @@ constexpr OnDeadlockCycle kDeadlockDetectionDefault = OnDeadlockCycle::kAbort;
 ABSL_CONST_INIT std::atomic<OnDeadlockCycle> synch_deadlock_detection(
     kDeadlockDetectionDefault);
 ABSL_CONST_INIT std::atomic<bool> synch_check_invariants(false);
-
-// ------------------------------------------ spinlock support
-
-// Make sure read-only globals used in the Mutex code are contained on the
-// same cacheline and cacheline aligned to eliminate any false sharing with
-// other globals from this and other modules.
-static struct MutexGlobals {
-  MutexGlobals() {
-    // Find machine-specific data needed for Delay() and
-    // TryAcquireWithSpinning(). This runs in the global constructor
-    // sequence, and before that zeros are safe values.
-    num_cpus = absl::base_internal::NumCPUs();
-    spinloop_iterations = num_cpus > 1 ? 1500 : 0;
-  }
-  int num_cpus;
-  int spinloop_iterations;
-  // Pad this struct to a full cacheline to prevent false sharing.
-  char padding[ABSL_CACHELINE_SIZE - 2 * sizeof(int)];
-} ABSL_CACHELINE_ALIGNED mutex_globals;
-static_assert(
-    sizeof(MutexGlobals) == ABSL_CACHELINE_SIZE,
-    "MutexGlobals must occupy an entire cacheline to prevent false sharing");
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
     absl::base_internal::AtomicHook<void (*)(int64_t wait_cycles)>
@@ -144,7 +122,22 @@ void RegisterSymbolizer(bool (*fn)(const void *pc, char *out, int out_size)) {
   symbolizer.Store(fn);
 }
 
-// spinlock delay on iteration c.  Returns new c.
+struct ABSL_CACHELINE_ALIGNED MutexGlobals {
+  absl::once_flag once;
+  int num_cpus = 0;
+  int spinloop_iterations = 0;
+};
+
+static const MutexGlobals& GetMutexGlobals() {
+  ABSL_CONST_INIT static MutexGlobals data;
+  absl::base_internal::LowLevelCallOnce(&data.once, [&]() {
+    data.num_cpus = absl::base_internal::NumCPUs();
+    data.spinloop_iterations = data.num_cpus > 1 ? 1500 : 0;
+  });
+  return data;
+}
+
+// Spinlock delay on iteration c.  Returns new c.
 namespace {
   enum DelayMode { AGGRESSIVE, GENTLE };
 };
@@ -154,22 +147,25 @@ static int Delay(int32_t c, DelayMode mode) {
   // gentle then spin only a few times before yielding.  Aggressive spinning is
   // used to ensure that an Unlock() call, which  must get the spin lock for
   // any thread to make progress gets it without undue delay.
-  int32_t limit = (mutex_globals.num_cpus > 1) ?
-      ((mode == AGGRESSIVE) ? 5000 : 250) : 0;
+  const int32_t limit =
+      GetMutexGlobals().num_cpus > 1 ? (mode == AGGRESSIVE ? 5000 : 250) : 0;
   if (c < limit) {
-    c++;               // spin
+    // Spin.
+    c++;
   } else {
     ABSL_TSAN_MUTEX_PRE_DIVERT(nullptr, 0);
-    if (c == limit) {  // yield once
+    if (c == limit) {
+      // Yield once.
       AbslInternalMutexYield();
       c++;
-    } else {           // then wait
+    } else {
+      // Then wait.
       absl::SleepFor(absl::Microseconds(10));
       c = 0;
     }
     ABSL_TSAN_MUTEX_POST_DIVERT(nullptr, 0);
   }
-  return (c);
+  return c;
 }
 
 // --------------------------Generic atomic ops
@@ -1055,7 +1051,6 @@ static PerThreadSynch *DequeueAllWakeable(PerThreadSynch *head,
 // Try to remove thread s from the list of waiters on this mutex.
 // Does nothing if s is not on the waiter list.
 void Mutex::TryRemove(PerThreadSynch *s) {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   intptr_t v = mu_.load(std::memory_order_relaxed);
   // acquire spinlock & lock
   if ((v & (kMuWait | kMuSpin | kMuWriter | kMuReader)) == kMuWait &&
@@ -1439,7 +1434,7 @@ void Mutex::AssertNotHeld() const {
 // Attempt to acquire *mu, and return whether successful.  The implementation
 // may spin for a short while if the lock cannot be acquired immediately.
 static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
-  int c = mutex_globals.spinloop_iterations;
+  int c = GetMutexGlobals().spinloop_iterations;
   do {  // do/while somewhat faster on AMD
     intptr_t v = mu->load(std::memory_order_relaxed);
     if ((v & (kMuReader|kMuEvent)) != 0) {
@@ -1899,7 +1894,6 @@ static void CheckForMutexCorruption(intptr_t v, const char* label) {
 }
 
 void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   int c = 0;
   intptr_t v = mu_.load(std::memory_order_relaxed);
   if ((v & kMuEvent) != 0) {
@@ -2019,7 +2013,6 @@ void Mutex::LockSlowLoop(SynchWaitParams *waitp, int flags) {
 // or it is in the process of blocking on a condition variable; it must requeue
 // itself on the mutex/condvar to wait for its condition to become true.
 ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   intptr_t v = mu_.load(std::memory_order_relaxed);
   this->AssertReaderHeld();
   CheckForMutexCorruption(v, "Unlock");
@@ -2335,7 +2328,6 @@ void Mutex::Trans(MuHow how) {
 // It will later acquire the mutex with high probability.  Otherwise, we
 // enqueue thread w on this mutex.
 void Mutex::Fer(PerThreadSynch *w) {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   int c = 0;
   ABSL_RAW_CHECK(w->waitp->cond == nullptr,
                  "Mutex::Fer while waiting on Condition");
@@ -2434,7 +2426,6 @@ CondVar::~CondVar() {
 
 // Remove thread s from the list of waiters on this condition variable.
 void CondVar::Remove(PerThreadSynch *s) {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   intptr_t v;
   int c = 0;
   for (v = cv_.load(std::memory_order_relaxed);;
@@ -2595,7 +2586,6 @@ void CondVar::Wakeup(PerThreadSynch *w) {
 }
 
 void CondVar::Signal() {
-  SchedulingGuard::ScopedDisable disable_rescheduling;
   ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
   intptr_t v;
   int c = 0;

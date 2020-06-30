@@ -12,12 +12,20 @@
 #include "gtest/gtest.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/internal/str_format/bind.h"
+#include "absl/strings/match.h"
 #include "absl/types/optional.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace str_format_internal {
 namespace {
+
+struct NativePrintfTraits {
+  bool hex_float_has_glibc_rounding;
+  bool hex_float_prefers_denormal_repr;
+  bool hex_float_uses_minimal_precision_when_not_specified;
+  bool hex_float_optimizes_leading_digit_bit_count;
+};
 
 template <typename T, size_t N>
 size_t ArraySize(T (&)[N]) {
@@ -116,6 +124,63 @@ std::string StrPrint(const char *format, ...) {
   StrAppendV(&result, format, ap);
   va_end(ap);
   return result;
+}
+
+NativePrintfTraits VerifyNativeImplementationImpl() {
+  NativePrintfTraits result;
+
+  // >>> hex_float_has_glibc_rounding. To have glibc's rounding behavior we need
+  // to meet three requirements:
+  //
+  //   - The threshold for rounding up is 8 (for e.g. MSVC uses 9).
+  //   - If the digits lower than than the 8 are non-zero then we round up.
+  //   - If the digits lower than the 8 are all zero then we round toward even.
+  //
+  // The numbers below represent all the cases covering {below,at,above} the
+  // threshold (8) with both {zero,non-zero} lower bits and both {even,odd}
+  // preceding digits.
+  const double d0079 = 65657.0;  // 0x1.0079p+16
+  const double d0179 = 65913.0;  // 0x1.0179p+16
+  const double d0080 = 65664.0;  // 0x1.0080p+16
+  const double d0180 = 65920.0;  // 0x1.0180p+16
+  const double d0081 = 65665.0;  // 0x1.0081p+16
+  const double d0181 = 65921.0;  // 0x1.0181p+16
+  result.hex_float_has_glibc_rounding =
+      StartsWith(StrPrint("%.2a", d0079), "0x1.00") &&
+      StartsWith(StrPrint("%.2a", d0179), "0x1.01") &&
+      StartsWith(StrPrint("%.2a", d0080), "0x1.00") &&
+      StartsWith(StrPrint("%.2a", d0180), "0x1.02") &&
+      StartsWith(StrPrint("%.2a", d0081), "0x1.01") &&
+      StartsWith(StrPrint("%.2a", d0181), "0x1.02");
+
+  // >>> hex_float_prefers_denormal_repr. Formatting `denormal` on glibc yields
+  // "0x0.0000000000001p-1022", whereas on std libs that don't use denormal
+  // representation it would either be 0x1p-1074 or 0x1.0000000000000-1074.
+  const double denormal = std::numeric_limits<double>::denorm_min();
+  result.hex_float_prefers_denormal_repr =
+      StartsWith(StrPrint("%a", denormal), "0x0.0000000000001");
+
+  // >>> hex_float_uses_minimal_precision_when_not_specified. Some (non-glibc)
+  // libs will format the following as "0x1.0079000000000p+16".
+  result.hex_float_uses_minimal_precision_when_not_specified =
+      (StrPrint("%a", d0079) == "0x1.0079p+16");
+
+  // >>> hex_float_optimizes_leading_digit_bit_count. The number 1.5, when
+  // formatted by glibc should yield "0x1.8p+0" for `double` and "0xcp-3" for
+  // `long double`, i.e., number of bits in the leading digit is adapted to the
+  // number of bits in the mantissa.
+  const double d_15 = 1.5;
+  const long double ld_15 = 1.5;
+  result.hex_float_optimizes_leading_digit_bit_count =
+      StartsWith(StrPrint("%a", d_15), "0x1.8") &&
+      StartsWith(StrPrint("%La", ld_15), "0xc");
+
+  return result;
+}
+
+const NativePrintfTraits &VerifyNativeImplementation() {
+  static NativePrintfTraits native_traits = VerifyNativeImplementationImpl();
+  return native_traits;
 }
 
 class FormatConvertTest : public ::testing::Test { };
@@ -476,6 +541,7 @@ TEST_F(FormatConvertTest, Uint128) {
 
 template <typename Floating>
 void TestWithMultipleFormatsHelper(const std::vector<Floating> &floats) {
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
   // Reserve the space to ensure we don't allocate memory in the output itself.
   std::string str_format_result;
   str_format_result.reserve(1 << 20);
@@ -493,13 +559,23 @@ void TestWithMultipleFormatsHelper(const std::vector<Floating> &floats) {
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + f;
 
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
+      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F' &&
+          f != 'a' && f != 'A') {
         // This particular test takes way too long with snprintf.
         // Disable for the case we are not implementing natively.
         continue;
       }
 
+      if ((f == 'a' || f == 'A') &&
+          !native_traits.hex_float_has_glibc_rounding) {
+        continue;
+      }
+
       for (Floating d : floats) {
+        if (!native_traits.hex_float_prefers_denormal_repr &&
+            (f == 'a' || f == 'A') && std::fpclassify(d) == FP_SUBNORMAL) {
+          continue;
+        }
         int i = -10;
         FormatArgImpl args[2] = {FormatArgImpl(d), FormatArgImpl(i)};
         UntypedFormatSpecImpl format(fmt_str);
@@ -766,6 +842,111 @@ TEST_F(FormatConvertTest, DoubleRound) {
             "1837869002408041296803276054561138153076171875");
 }
 
+TEST_F(FormatConvertTest, DoubleRoundA) {
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
+  std::string s;
+  const auto format = [&](const char *fmt, double d) -> std::string & {
+    s.clear();
+    FormatArgImpl args[1] = {FormatArgImpl(d)};
+    AppendPack(&s, UntypedFormatSpecImpl(fmt), absl::MakeSpan(args));
+    if (native_traits.hex_float_has_glibc_rounding) {
+      EXPECT_EQ(StrPrint(fmt, d), s);
+    }
+    return s;
+  };
+
+  // 0x1.00018000p+100
+  const double on_boundary_odd = 1267679614447900152596896153600.0;
+  EXPECT_EQ(format("%.0a", on_boundary_odd), "0x1p+100");
+  EXPECT_EQ(format("%.1a", on_boundary_odd), "0x1.0p+100");
+  EXPECT_EQ(format("%.2a", on_boundary_odd), "0x1.00p+100");
+  EXPECT_EQ(format("%.3a", on_boundary_odd), "0x1.000p+100");
+  EXPECT_EQ(format("%.4a", on_boundary_odd), "0x1.0002p+100");  // round
+  EXPECT_EQ(format("%.5a", on_boundary_odd), "0x1.00018p+100");
+  EXPECT_EQ(format("%.6a", on_boundary_odd), "0x1.000180p+100");
+
+  // 0x1.00028000p-2
+  const double on_boundary_even = 0.250009536743164062500;
+  EXPECT_EQ(format("%.0a", on_boundary_even), "0x1p-2");
+  EXPECT_EQ(format("%.1a", on_boundary_even), "0x1.0p-2");
+  EXPECT_EQ(format("%.2a", on_boundary_even), "0x1.00p-2");
+  EXPECT_EQ(format("%.3a", on_boundary_even), "0x1.000p-2");
+  EXPECT_EQ(format("%.4a", on_boundary_even), "0x1.0002p-2");  // no round
+  EXPECT_EQ(format("%.5a", on_boundary_even), "0x1.00028p-2");
+  EXPECT_EQ(format("%.6a", on_boundary_even), "0x1.000280p-2");
+
+  // 0x1.00018001p+1
+  const double slightly_over = 2.00004577683284878730773925781250;
+  EXPECT_EQ(format("%.0a", slightly_over), "0x1p+1");
+  EXPECT_EQ(format("%.1a", slightly_over), "0x1.0p+1");
+  EXPECT_EQ(format("%.2a", slightly_over), "0x1.00p+1");
+  EXPECT_EQ(format("%.3a", slightly_over), "0x1.000p+1");
+  EXPECT_EQ(format("%.4a", slightly_over), "0x1.0002p+1");
+  EXPECT_EQ(format("%.5a", slightly_over), "0x1.00018p+1");
+  EXPECT_EQ(format("%.6a", slightly_over), "0x1.000180p+1");
+
+  // 0x1.00017fffp+0
+  const double slightly_under = 1.000022887950763106346130371093750;
+  EXPECT_EQ(format("%.0a", slightly_under), "0x1p+0");
+  EXPECT_EQ(format("%.1a", slightly_under), "0x1.0p+0");
+  EXPECT_EQ(format("%.2a", slightly_under), "0x1.00p+0");
+  EXPECT_EQ(format("%.3a", slightly_under), "0x1.000p+0");
+  EXPECT_EQ(format("%.4a", slightly_under), "0x1.0001p+0");
+  EXPECT_EQ(format("%.5a", slightly_under), "0x1.00018p+0");
+  EXPECT_EQ(format("%.6a", slightly_under), "0x1.000180p+0");
+  EXPECT_EQ(format("%.7a", slightly_under), "0x1.0001800p+0");
+
+  // 0x1.1b3829ac28058p+3
+  const double hex_value = 8.85060580848964661981881363317370414733886718750;
+  EXPECT_EQ(format("%.0a", hex_value), "0x1p+3");
+  EXPECT_EQ(format("%.1a", hex_value), "0x1.2p+3");
+  EXPECT_EQ(format("%.2a", hex_value), "0x1.1bp+3");
+  EXPECT_EQ(format("%.3a", hex_value), "0x1.1b4p+3");
+  EXPECT_EQ(format("%.4a", hex_value), "0x1.1b38p+3");
+  EXPECT_EQ(format("%.5a", hex_value), "0x1.1b383p+3");
+  EXPECT_EQ(format("%.6a", hex_value), "0x1.1b382ap+3");
+  EXPECT_EQ(format("%.7a", hex_value), "0x1.1b3829bp+3");
+  EXPECT_EQ(format("%.8a", hex_value), "0x1.1b3829acp+3");
+  EXPECT_EQ(format("%.9a", hex_value), "0x1.1b3829ac3p+3");
+  EXPECT_EQ(format("%.10a", hex_value), "0x1.1b3829ac28p+3");
+  EXPECT_EQ(format("%.11a", hex_value), "0x1.1b3829ac280p+3");
+  EXPECT_EQ(format("%.12a", hex_value), "0x1.1b3829ac2806p+3");
+  EXPECT_EQ(format("%.13a", hex_value), "0x1.1b3829ac28058p+3");
+  EXPECT_EQ(format("%.14a", hex_value), "0x1.1b3829ac280580p+3");
+  EXPECT_EQ(format("%.15a", hex_value), "0x1.1b3829ac2805800p+3");
+  EXPECT_EQ(format("%.16a", hex_value), "0x1.1b3829ac28058000p+3");
+  EXPECT_EQ(format("%.17a", hex_value), "0x1.1b3829ac280580000p+3");
+  EXPECT_EQ(format("%.18a", hex_value), "0x1.1b3829ac2805800000p+3");
+  EXPECT_EQ(format("%.19a", hex_value), "0x1.1b3829ac28058000000p+3");
+  EXPECT_EQ(format("%.20a", hex_value), "0x1.1b3829ac280580000000p+3");
+  EXPECT_EQ(format("%.21a", hex_value), "0x1.1b3829ac2805800000000p+3");
+
+  // 0x1.0818283848586p+3
+  const double hex_value2 = 8.2529488658208371987257123691961169242858886718750;
+  EXPECT_EQ(format("%.0a", hex_value2), "0x1p+3");
+  EXPECT_EQ(format("%.1a", hex_value2), "0x1.1p+3");
+  EXPECT_EQ(format("%.2a", hex_value2), "0x1.08p+3");
+  EXPECT_EQ(format("%.3a", hex_value2), "0x1.082p+3");
+  EXPECT_EQ(format("%.4a", hex_value2), "0x1.0818p+3");
+  EXPECT_EQ(format("%.5a", hex_value2), "0x1.08183p+3");
+  EXPECT_EQ(format("%.6a", hex_value2), "0x1.081828p+3");
+  EXPECT_EQ(format("%.7a", hex_value2), "0x1.0818284p+3");
+  EXPECT_EQ(format("%.8a", hex_value2), "0x1.08182838p+3");
+  EXPECT_EQ(format("%.9a", hex_value2), "0x1.081828385p+3");
+  EXPECT_EQ(format("%.10a", hex_value2), "0x1.0818283848p+3");
+  EXPECT_EQ(format("%.11a", hex_value2), "0x1.08182838486p+3");
+  EXPECT_EQ(format("%.12a", hex_value2), "0x1.081828384858p+3");
+  EXPECT_EQ(format("%.13a", hex_value2), "0x1.0818283848586p+3");
+  EXPECT_EQ(format("%.14a", hex_value2), "0x1.08182838485860p+3");
+  EXPECT_EQ(format("%.15a", hex_value2), "0x1.081828384858600p+3");
+  EXPECT_EQ(format("%.16a", hex_value2), "0x1.0818283848586000p+3");
+  EXPECT_EQ(format("%.17a", hex_value2), "0x1.08182838485860000p+3");
+  EXPECT_EQ(format("%.18a", hex_value2), "0x1.081828384858600000p+3");
+  EXPECT_EQ(format("%.19a", hex_value2), "0x1.0818283848586000000p+3");
+  EXPECT_EQ(format("%.20a", hex_value2), "0x1.08182838485860000000p+3");
+  EXPECT_EQ(format("%.21a", hex_value2), "0x1.081828384858600000000p+3");
+}
+
 // We don't actually store the results. This is just to exercise the rest of the
 // machinery.
 struct NullSink {
@@ -797,6 +978,7 @@ TEST_F(FormatConvertTest, LongDouble) {
   // implementation against the native one there.
   return;
 #endif  // _MSC_VER
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
   const char *const kFormats[] = {"%",    "%.3", "%8.5", "%9",  "%.5000",
                                   "%.60", "%+",  "% ",   "%-10"};
 
@@ -839,10 +1021,18 @@ TEST_F(FormatConvertTest, LongDouble) {
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + 'L' + f;
 
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F') {
+      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F' &&
+          f != 'a' && f != 'A') {
         // This particular test takes way too long with snprintf.
         // Disable for the case we are not implementing natively.
         continue;
+      }
+
+      if (f == 'a' || f == 'A') {
+        if (!native_traits.hex_float_has_glibc_rounding ||
+            !native_traits.hex_float_optimizes_leading_digit_bit_count) {
+          continue;
+        }
       }
 
       for (auto d : doubles) {
@@ -860,6 +1050,7 @@ TEST_F(FormatConvertTest, LongDouble) {
 }
 
 TEST_F(FormatConvertTest, IntAsDouble) {
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
   const int kMin = std::numeric_limits<int>::min();
   const int kMax = std::numeric_limits<int>::max();
   const int ia[] = {
@@ -875,14 +1066,16 @@ TEST_F(FormatConvertTest, IntAsDouble) {
       const char *fmt;
     };
     const double dx = static_cast<double>(fx);
-    const Expectation kExpect[] = {
-      { __LINE__, StrPrint("%f", dx), "%f" },
-      { __LINE__, StrPrint("%12f", dx), "%12f" },
-      { __LINE__, StrPrint("%.12f", dx), "%.12f" },
-      { __LINE__, StrPrint("%12a", dx), "%12a" },
-      { __LINE__, StrPrint("%.12a", dx), "%.12a" },
+    std::vector<Expectation> expect = {
+        {__LINE__, StrPrint("%f", dx), "%f"},
+        {__LINE__, StrPrint("%12f", dx), "%12f"},
+        {__LINE__, StrPrint("%.12f", dx), "%.12f"},
+        {__LINE__, StrPrint("%.12a", dx), "%.12a"},
     };
-    for (const Expectation &e : kExpect) {
+    if (native_traits.hex_float_uses_minimal_precision_when_not_specified) {
+      expect.push_back({__LINE__, StrPrint("%12a", dx), "%12a"});
+    }
+    for (const Expectation &e : expect) {
       SCOPED_TRACE(e.line);
       SCOPED_TRACE(e.fmt);
       UntypedFormatSpecImpl format(e.fmt);
@@ -925,6 +1118,25 @@ TEST_F(FormatConvertTest, ExpectedFailures) {
   EXPECT_TRUE(FormatFails("%x", ""));
   EXPECT_TRUE(FormatFails("%f", ""));
   EXPECT_TRUE(FormatFails("%*d", ""));
+}
+
+// Sanity check to make sure that we are testing what we think we're testing on
+// e.g. the x86_64+glibc platform.
+TEST_F(FormatConvertTest, GlibcHasCorrectTraits) {
+#if !defined(__GLIBC__) || !defined(__x86_64__)
+  return;
+#endif
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
+  // If one of the following tests break then it is either because the above PP
+  // macro guards failed to exclude a new platform (likely) or because something
+  // has changed in the implemention of glibc sprintf float formatting behavior.
+  // If the latter, then the code that computes these flags needs to be
+  // revisited and/or possibly the StrFormat implementation.
+  EXPECT_TRUE(native_traits.hex_float_has_glibc_rounding);
+  EXPECT_TRUE(native_traits.hex_float_prefers_denormal_repr);
+  EXPECT_TRUE(
+      native_traits.hex_float_uses_minimal_precision_when_not_specified);
+  EXPECT_TRUE(native_traits.hex_float_optimizes_leading_digit_bit_count);
 }
 
 }  // namespace

@@ -250,13 +250,13 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
       matching_flags;
 
   flags_internal::ForEachFlag([&](absl::CommandLineFlag& flag) {
-    std::string flag_filename = flag.Filename();
-
     // Ignore retired flags.
     if (flag.IsRetired()) return;
 
     // If the flag has been stripped, pretend that it doesn't exist.
     if (flag.Help() == flags_internal::kStrippedFlagHelp) return;
+
+    std::string flag_filename = flag.Filename();
 
     // Make sure flag satisfies the filter
     if (!filter_cb || !filter_cb(flag_filename)) return;

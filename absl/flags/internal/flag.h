@@ -482,7 +482,8 @@ class FlagImpl final : public CommandLineFlag {
   friend class FlagState;
 
   // Ensures that `data_guard_` is initialized and returns it.
-  absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED((absl::Mutex*)&data_guard_);
+  absl::Mutex* DataGuard() const
+      ABSL_LOCK_RETURNED(reinterpret_cast<absl::Mutex*>(data_guard_));
   // Returns heap allocated value of type T initialized with default value.
   std::unique_ptr<void, DynValueDeleter> MakeInitValue() const
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());

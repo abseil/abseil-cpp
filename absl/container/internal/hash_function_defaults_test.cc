@@ -337,11 +337,11 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 enum Hash : size_t {
-  kStd = 0x2,       // std::hash
+  kStd = 0x1,       // std::hash
 #ifdef _MSC_VER
   kExtension = kStd,  // In MSVC, std::hash == ::hash
 #else                 // _MSC_VER
-  kExtension = 0x4,  // ::hash (GCC extension)
+  kExtension = 0x2,  // ::hash (GCC extension)
 #endif                // _MSC_VER
 };
 

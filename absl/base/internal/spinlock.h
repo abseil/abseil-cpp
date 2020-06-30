@@ -64,7 +64,14 @@ class ABSL_LOCKABLE SpinLock {
   constexpr SpinLock(absl::ConstInitType, base_internal::SchedulingMode mode)
       : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {}
 
+  // For global SpinLock instances prefer trivial destructor when possible.
+  // Default but non-trivial destructor in some build configurations causes an
+  // extra static initializer.
+#ifdef ABSL_INTERNAL_HAVE_TSAN_INTERFACE
   ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static); }
+#else
+  ~SpinLock() = default;
+#endif
 
   // Acquire this SpinLock.
   inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() {

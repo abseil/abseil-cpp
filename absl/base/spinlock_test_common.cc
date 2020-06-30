@@ -20,6 +20,7 @@
 #include <limits>
 #include <random>
 #include <thread>  // NOLINT(build/c++11)
+#include <type_traits>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -102,6 +103,10 @@ static void ThreadedTest(SpinLock* spinlock) {
     EXPECT_EQ(values[0], values[i]);
   }
 }
+
+#ifndef THREAD_SANITIZER
+static_assert(std::is_trivially_destructible<SpinLock>(), "");
+#endif
 
 TEST(SpinLock, StackNonCooperativeDisablesScheduling) {
   SpinLock spinlock(base_internal::SCHEDULE_KERNEL_ONLY);

@@ -95,6 +95,8 @@ absl_cc_library(
 absl_cc_library(
   NAME
     flags_commandlineflag_internal
+  SRCS
+    "internal/commandlineflag.cc"
   HDRS
     "internal/commandlineflag.h"
   COPTS

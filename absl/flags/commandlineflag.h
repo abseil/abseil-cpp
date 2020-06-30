@@ -108,6 +108,10 @@ class CommandLineFlag {
     U u;
 
     Read(&u.value);
+    // allow retired flags to be "read", so we can report invalid access.
+    if (IsRetired()) {
+      return absl::nullopt;
+    }
     return std::move(u.value);
   }
 

@@ -199,6 +199,7 @@ cc_test(
 cc_test(
     name = "distributions_test",
     size = "small",
+    timeout = "moderate",
     srcs = [
         "distributions_test.cc",
     ],

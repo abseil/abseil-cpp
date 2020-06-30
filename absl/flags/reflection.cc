@@ -88,12 +88,6 @@ CommandLineFlag* FlagRegistry::FindFlagLocked(absl::string_view name) {
   if (i == flags_.end()) {
     return nullptr;
   }
-
-  if (i->second->IsRetired()) {
-    flags_internal::ReportUsageError(
-        absl::StrCat("Accessing retired flag '", name, "'"), false);
-  }
-
   return i->second;
 }
 
@@ -155,7 +149,7 @@ void FlagRegistry::RegisterFlag(CommandLineFlag& flag) {
     } else {
       flags_internal::ReportUsageError(
           absl::StrCat(
-              "Something wrong with flag '", flag.Name(), "' in file '",
+              "Something is wrong with flag '", flag.Name(), "' in file '",
               flag.Filename(), "'. One possibility: file '", flag.Filename(),
               "' is being linked both statically and dynamically into this "
               "executable. e.g. some files listed as srcs to a test and also "
@@ -206,16 +200,34 @@ class RetiredFlagObj final : public CommandLineFlag {
 
  private:
   absl::string_view Name() const override { return name_; }
-  std::string Filename() const override { return "RETIRED"; }
+  std::string Filename() const override {
+    OnAccess();
+    return "RETIRED";
+  }
   FlagFastTypeId TypeId() const override { return type_id_; }
-  std::string Help() const override { return ""; }
+  std::string Help() const override {
+    OnAccess();
+    return "";
+  }
   bool IsRetired() const override { return true; }
-  bool IsSpecifiedOnCommandLine() const override { return false; }
-  std::string DefaultValue() const override { return ""; }
-  std::string CurrentValue() const override { return ""; }
+  bool IsSpecifiedOnCommandLine() const override {
+    OnAccess();
+    return false;
+  }
+  std::string DefaultValue() const override {
+    OnAccess();
+    return "";
+  }
+  std::string CurrentValue() const override {
+    OnAccess();
+    return "";
+  }
 
   // Any input is valid
-  bool ValidateInputValue(absl::string_view) const override { return true; }
+  bool ValidateInputValue(absl::string_view) const override {
+    OnAccess();
+    return true;
+  }
 
   std::unique_ptr<flags_internal::FlagStateInterface> SaveState() override {
     return nullptr;
@@ -223,12 +235,18 @@ class RetiredFlagObj final : public CommandLineFlag {
 
   bool ParseFrom(absl::string_view, flags_internal::FlagSettingMode,
                  flags_internal::ValueSource, std::string&) override {
+    OnAccess();
     return false;
   }
 
-  void CheckDefaultValueParsingRoundtrip() const override {}
+  void CheckDefaultValueParsingRoundtrip() const override { OnAccess(); }
 
-  void Read(void*) const override {}
+  void Read(void*) const override { OnAccess(); }
+
+  void OnAccess() const {
+    flags_internal::ReportUsageError(
+        absl::StrCat("Accessing retired flag '", name_, "'"), false);
+  }
 
   // Data members
   const char* const name_;

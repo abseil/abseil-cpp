@@ -29,9 +29,6 @@ extern "C" void __google_enable_rescheduling(bool disable_result);
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-class CondVar;
-class Mutex;
-
 namespace base_internal {
 
 class SchedulingHelper;  // To allow use of SchedulingGuard.
@@ -80,8 +77,6 @@ class SchedulingGuard {
   };
 
   // Access to SchedulingGuard is explicitly permitted.
-  friend class absl::CondVar;
-  friend class absl::Mutex;
   friend class SchedulingHelper;
   friend class SpinLock;
 

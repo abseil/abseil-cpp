@@ -1376,7 +1376,7 @@ int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
 
   if (!g_decorators_mu.TryLock()) {
     // Someone else is using decorators. Get out.
-    return false;
+    return -2;
   }
   int ret = ticket;
   if (g_num_decorators >= kMaxDecorators) {

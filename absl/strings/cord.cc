@@ -495,7 +495,7 @@ static CordRep* NewSubstring(CordRep* child, size_t offset, size_t length) {
 
 // This will trigger LNK2005 in MSVC.
 #ifndef COMPILER_MSVC
-const unsigned char Cord::InlineRep::kMaxInline;
+constexpr unsigned char Cord::InlineRep::kMaxInline;
 #endif  // COMPILER_MSVC
 
 inline void Cord::InlineRep::set_data(const char* data, size_t n,

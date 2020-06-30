@@ -729,12 +729,13 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
     }
 
     // 100. Set the located flag to a new new value, unless it is retired.
-    // Setting retired flag fails, but we ignoring it here.
-    if (flag->IsRetired()) continue;
-
+    // Setting retired flag fails, but we ignoring it here while also reporting
+    // access to retired flag.
     std::string error;
     if (!flags_internal::PrivateHandleAccessor::ParseFrom(
             *flag, value, SET_FLAGS_VALUE, kCommandLine, error)) {
+      if (flag->IsRetired()) continue;
+
       flags_internal::ReportUsageError(error, true);
       success = false;
     } else {
