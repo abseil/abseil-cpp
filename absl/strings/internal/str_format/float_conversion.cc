@@ -738,7 +738,8 @@ constexpr int HexFloatLeadingDigitSizeInBits() {
 // point that is not followed by 800000..., it disregards the parity and rounds
 // up if > 8 and rounds down if < 8.
 template <typename Int>
-bool HexFloatNeedsRoundUp(Int mantissa, int final_nibble_displayed) {
+bool HexFloatNeedsRoundUp(Int mantissa, int final_nibble_displayed,
+                          uint8_t leading) {
   // If the last nibble (hex digit) to be displayed is the lowest on in the
   // mantissa then that means that we don't have any further nibbles to inform
   // rounding, so don't round.
@@ -755,11 +756,10 @@ bool HexFloatNeedsRoundUp(Int mantissa, int final_nibble_displayed) {
     return mantissa_up_to_rounding_nibble_inclusive > eight;
   }
   // Nibble in question == 8.
-  uint8_t should_round_at_8 =
-      (final_nibble_displayed >= kTotalNibbles)
-          ? true
-          : (GetNibble(mantissa, final_nibble_displayed) % 2 == 1);
-  return should_round_at_8;
+  uint8_t round_if_odd = (final_nibble_displayed == kTotalNibbles)
+                             ? leading
+                             : GetNibble(mantissa, final_nibble_displayed);
+  return round_if_odd % 2 == 1;
 }
 
 // Stores values associated with a Float type needed by the FormatA
@@ -788,7 +788,7 @@ void FormatARound(bool precision_specified, const FormatState &state,
   // Index of the last nibble that we could display given precision.
   int final_nibble_displayed =
       precision_specified ? std::max(0, (kTotalNibbles - state.precision)) : 0;
-  if (HexFloatNeedsRoundUp(*mantissa, final_nibble_displayed)) {
+  if (HexFloatNeedsRoundUp(*mantissa, final_nibble_displayed, *leading)) {
     // Need to round up.
     bool overflow = IncrementNibble(final_nibble_displayed, mantissa);
     *leading += (overflow ? 1 : 0);

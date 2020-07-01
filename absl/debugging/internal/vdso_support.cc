@@ -175,18 +175,6 @@ int GetCPU() {
   return ret_code == 0 ? cpu : ret_code;
 }
 
-// We need to make sure VDSOSupport::Init() is called before
-// InitGoogle() does any setuid or chroot calls.  If VDSOSupport
-// is used in any global constructor, this will happen, since
-// VDSOSupport's constructor calls Init.  But if not, we need to
-// ensure it here, with a global constructor of our own.  This
-// is an allowed exception to the normal rule against non-trivial
-// global constructors.
-static class VDSOInitHelper {
- public:
-  VDSOInitHelper() { VDSOSupport::Init(); }
-} vdso_init_helper;
-
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

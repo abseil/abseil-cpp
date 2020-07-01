@@ -947,6 +947,88 @@ TEST_F(FormatConvertTest, DoubleRoundA) {
   EXPECT_EQ(format("%.21a", hex_value2), "0x1.081828384858600000000p+3");
 }
 
+TEST_F(FormatConvertTest, LongDoubleRoundA) {
+  if (std::numeric_limits<long double>::digits % 4 != 0) {
+    // This test doesn't really make sense to run on platforms where a long
+    // double has a different mantissa size (mod 4) than Prod, since then the
+    // leading digit will be formatted differently.
+    return;
+  }
+  const NativePrintfTraits &native_traits = VerifyNativeImplementation();
+  std::string s;
+  const auto format = [&](const char *fmt, long double d) -> std::string & {
+    s.clear();
+    FormatArgImpl args[1] = {FormatArgImpl(d)};
+    AppendPack(&s, UntypedFormatSpecImpl(fmt), absl::MakeSpan(args));
+    if (native_traits.hex_float_has_glibc_rounding &&
+        native_traits.hex_float_optimizes_leading_digit_bit_count) {
+      EXPECT_EQ(StrPrint(fmt, d), s);
+    }
+    return s;
+  };
+
+  // 0x8.8p+4
+  const long double on_boundary_even = 136.0;
+  EXPECT_EQ(format("%.0La", on_boundary_even), "0x8p+4");
+  EXPECT_EQ(format("%.1La", on_boundary_even), "0x8.8p+4");
+  EXPECT_EQ(format("%.2La", on_boundary_even), "0x8.80p+4");
+  EXPECT_EQ(format("%.3La", on_boundary_even), "0x8.800p+4");
+  EXPECT_EQ(format("%.4La", on_boundary_even), "0x8.8000p+4");
+  EXPECT_EQ(format("%.5La", on_boundary_even), "0x8.80000p+4");
+  EXPECT_EQ(format("%.6La", on_boundary_even), "0x8.800000p+4");
+
+  // 0x9.8p+4
+  const long double on_boundary_odd = 152.0;
+  EXPECT_EQ(format("%.0La", on_boundary_odd), "0xap+4");
+  EXPECT_EQ(format("%.1La", on_boundary_odd), "0x9.8p+4");
+  EXPECT_EQ(format("%.2La", on_boundary_odd), "0x9.80p+4");
+  EXPECT_EQ(format("%.3La", on_boundary_odd), "0x9.800p+4");
+  EXPECT_EQ(format("%.4La", on_boundary_odd), "0x9.8000p+4");
+  EXPECT_EQ(format("%.5La", on_boundary_odd), "0x9.80000p+4");
+  EXPECT_EQ(format("%.6La", on_boundary_odd), "0x9.800000p+4");
+
+  // 0x8.80001p+24
+  const long double slightly_over = 142606352.0;
+  EXPECT_EQ(format("%.0La", slightly_over), "0x9p+24");
+  EXPECT_EQ(format("%.1La", slightly_over), "0x8.8p+24");
+  EXPECT_EQ(format("%.2La", slightly_over), "0x8.80p+24");
+  EXPECT_EQ(format("%.3La", slightly_over), "0x8.800p+24");
+  EXPECT_EQ(format("%.4La", slightly_over), "0x8.8000p+24");
+  EXPECT_EQ(format("%.5La", slightly_over), "0x8.80001p+24");
+  EXPECT_EQ(format("%.6La", slightly_over), "0x8.800010p+24");
+
+  // 0x8.7ffffp+24
+  const long double slightly_under = 142606320.0;
+  EXPECT_EQ(format("%.0La", slightly_under), "0x8p+24");
+  EXPECT_EQ(format("%.1La", slightly_under), "0x8.8p+24");
+  EXPECT_EQ(format("%.2La", slightly_under), "0x8.80p+24");
+  EXPECT_EQ(format("%.3La", slightly_under), "0x8.800p+24");
+  EXPECT_EQ(format("%.4La", slightly_under), "0x8.8000p+24");
+  EXPECT_EQ(format("%.5La", slightly_under), "0x8.7ffffp+24");
+  EXPECT_EQ(format("%.6La", slightly_under), "0x8.7ffff0p+24");
+  EXPECT_EQ(format("%.7La", slightly_under), "0x8.7ffff00p+24");
+
+  // 0xc.0828384858688000p+128
+  const long double eights = 4094231060438608800781871108094404067328.0;
+  EXPECT_EQ(format("%.0La", eights), "0xcp+128");
+  EXPECT_EQ(format("%.1La", eights), "0xc.1p+128");
+  EXPECT_EQ(format("%.2La", eights), "0xc.08p+128");
+  EXPECT_EQ(format("%.3La", eights), "0xc.083p+128");
+  EXPECT_EQ(format("%.4La", eights), "0xc.0828p+128");
+  EXPECT_EQ(format("%.5La", eights), "0xc.08284p+128");
+  EXPECT_EQ(format("%.6La", eights), "0xc.082838p+128");
+  EXPECT_EQ(format("%.7La", eights), "0xc.0828385p+128");
+  EXPECT_EQ(format("%.8La", eights), "0xc.08283848p+128");
+  EXPECT_EQ(format("%.9La", eights), "0xc.082838486p+128");
+  EXPECT_EQ(format("%.10La", eights), "0xc.0828384858p+128");
+  EXPECT_EQ(format("%.11La", eights), "0xc.08283848587p+128");
+  EXPECT_EQ(format("%.12La", eights), "0xc.082838485868p+128");
+  EXPECT_EQ(format("%.13La", eights), "0xc.0828384858688p+128");
+  EXPECT_EQ(format("%.14La", eights), "0xc.08283848586880p+128");
+  EXPECT_EQ(format("%.15La", eights), "0xc.082838485868800p+128");
+  EXPECT_EQ(format("%.16La", eights), "0xc.0828384858688000p+128");
+}
+
 // We don't actually store the results. This is just to exercise the rest of the
 // machinery.
 struct NullSink {

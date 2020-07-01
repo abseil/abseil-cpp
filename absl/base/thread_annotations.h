@@ -34,6 +34,7 @@
 #ifndef ABSL_BASE_THREAD_ANNOTATIONS_H_
 #define ABSL_BASE_THREAD_ANNOTATIONS_H_
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 // TODO(mbonadei): Remove after the backward compatibility period.
 #include "absl/base/internal/thread_annotations.h"  // IWYU pragma: export
@@ -151,8 +152,12 @@
 // Documents a function that returns a mutex without acquiring it.  For example,
 // a public getter method that returns a pointer to a private mutex should
 // be annotated with ABSL_LOCK_RETURNED.
+#if ABSL_HAVE_ATTRIBUTE(lock_returned)
 #define ABSL_LOCK_RETURNED(x) \
   ABSL_INTERNAL_THREAD_ANNOTATION_ATTRIBUTE(lock_returned(x))
+#else
+#define ABSL_LOCK_RETURNED(x)
+#endif
 
 // ABSL_LOCKABLE
 //

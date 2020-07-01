@@ -83,6 +83,12 @@ ABSL_NAMESPACE_BEGIN
 static char *argv0_value = nullptr;
 
 void InitializeSymbolizer(const char *argv0) {
+#ifdef ABSL_HAVE_VDSO_SUPPORT
+  // We need to make sure VDSOSupport::Init() is called before any setuid or
+  // chroot calls, so InitializeSymbolizer() should be called very early in the
+  // life of a program.
+  absl::debugging_internal::VDSOSupport::Init();
+#endif
   if (argv0_value != nullptr) {
     free(argv0_value);
     argv0_value = nullptr;
