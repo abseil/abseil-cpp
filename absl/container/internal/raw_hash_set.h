@@ -341,13 +341,21 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of slots that match hash.
   BitMask<uint32_t, kWidth> Match(h2_t hash) const {
     auto match = _mm_set1_epi8(hash);
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+    return BitMask<uint32_t, kWidth>(
+				     _mm_cmpeq_epi8_mask(match, ctrl));
+#else
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl)));
+#endif
   }
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
-#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+    // No longer need kEmpty to be -128
+    return Match(static_cast<h2_t>(kEmpty));
+#elif ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
     // This only works because kEmpty is -128.
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
@@ -359,15 +367,25 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of empty or deleted slots.
   BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(kSentinel);
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+    // If we knew sentinel was was not present this could be just
+    // _mm_movemask_epi8
+    return BitMask<uint32_t, kWidth>(_mm_cmpgt_epi8_mask(special, ctrl));
+#else
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)));
+#endif
   }
 
   // Returns the number of trailing empty or deleted elements in the group.
   uint32_t CountLeadingEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(kSentinel);
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+     return TrailingZeros(_mm_cmpgt_epi8_mask(special, ctrl)) + 1;
+#else
     return TrailingZeros(
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1);
+#endif
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {

@@ -34,6 +34,19 @@
 #endif
 #endif
 
+#ifndef ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+#if defined(__AVX512BW__) && defined(__AVX512VL__)
+#define ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512 1
+#else
+#define ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512 0
+#endif
+#endif
+
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512 && \
+    !ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE3
+#error "Bad configuration!"
+#endif
+
 #if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3 && \
     !ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 #error "Bad configuration!"
@@ -45,6 +58,10 @@
 
 #if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
 #include <tmmintrin.h>
+#endif
+
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_AVX512
+#include <immintrin.h>
 #endif
 
 #endif  // ABSL_CONTAINER_INTERNAL_HAVE_SSE_H_
