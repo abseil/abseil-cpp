@@ -57,6 +57,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cerrno>
 #include <cinttypes>
@@ -184,6 +185,7 @@ struct ObjFile {
         fd(-1),
         elf_type(-1) {
     SafeMemZero(&elf_header, sizeof(elf_header));
+    SafeMemZero(&phdr[0], sizeof(phdr));
   }
 
   char *filename;
@@ -196,6 +198,10 @@ struct ObjFile {
   int fd;
   int elf_type;
   ElfW(Ehdr) elf_header;
+
+  // PT_LOAD program header describing executable code.
+  // Normally we expect just one, but SWIFT binaries have two.
+  std::array<ElfW(Phdr), 2> phdr;
 };
 
 // Build 4-way associative cache for symbols. Within each cache line, symbols
@@ -1272,6 +1278,36 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       ABSL_RAW_LOG(WARNING, "%s: failed to read elf header", obj->filename);
       return false;
     }
+    const int phnum = obj->elf_header.e_phnum;
+    const int phentsize = obj->elf_header.e_phentsize;
+    size_t phoff = obj->elf_header.e_phoff;
+    int num_executable_load_segments = 0;
+    for (int j = 0; j < phnum; j++) {
+      ElfW(Phdr) phdr;
+      if (!ReadFromOffsetExact(obj->fd, &phdr, sizeof(phdr), phoff)) {
+        ABSL_RAW_LOG(WARNING, "%s: failed to read program header %d",
+                     obj->filename, j);
+        return false;
+      }
+      phoff += phentsize;
+      constexpr int rx = PF_X | PF_R;
+      if (phdr.p_type != PT_LOAD || (phdr.p_flags & rx) != rx) {
+        // Not a LOAD segment, or not executable code.
+        continue;
+      }
+      if (num_executable_load_segments < obj->phdr.size()) {
+        memcpy(&obj->phdr[num_executable_load_segments++], &phdr, sizeof(phdr));
+      } else {
+        ABSL_RAW_LOG(WARNING, "%s: too many executable LOAD segments",
+                     obj->filename);
+        break;
+      }
+    }
+    if (num_executable_load_segments == 0) {
+      // This object has no "r-x" LOAD segments. That's unexpected.
+      ABSL_RAW_LOG(WARNING, "%s: no executable LOAD segments", obj->filename);
+      return false;
+    }
   }
   return true;
 }
@@ -1295,23 +1331,52 @@ const char *Symbolizer::GetSymbol(const void *const pc) {
   int fd = -1;
   if (obj != nullptr) {
     if (MaybeInitializeObjFile(obj)) {
-      if (obj->elf_type == ET_DYN &&
-          reinterpret_cast<uint64_t>(obj->start_addr) >= obj->offset) {
+      const size_t start_addr = reinterpret_cast<size_t>(obj->start_addr);
+      if (obj->elf_type == ET_DYN && start_addr >= obj->offset) {
         // This object was relocated.
         //
         // For obj->offset > 0, adjust the relocation since a mapping at offset
         // X in the file will have a start address of [true relocation]+X.
-        relocation = reinterpret_cast<ptrdiff_t>(obj->start_addr) - obj->offset;
+        relocation = start_addr - obj->offset;
+
+        // Note: some binaries have multiple "rx" LOAD segments. We must
+        // find the right one.
+        ElfW(Phdr) *phdr = nullptr;
+        for (int j = 0; j < obj->phdr.size(); j++) {
+          ElfW(Phdr) &p = obj->phdr[j];
+          if (p.p_type != PT_LOAD) {
+            // We only expect PT_LOADs. This must be PT_NULL that we didn't
+            // write over (i.e. we exhausted all interesting PT_LOADs).
+            ABSL_RAW_CHECK(p.p_type == PT_NULL, "unexpected p_type");
+            break;
+          }
+          if (pc < reinterpret_cast<void *>(start_addr + p.p_memsz)) {
+            phdr = &p;
+            break;
+          }
+        }
+        if (phdr == nullptr) {
+          // That's unexpected. Hope for the best.
+          ABSL_RAW_LOG(
+              WARNING,
+              "%s: unable to find LOAD segment for pc: %p, start_addr: %zx",
+              obj->filename, pc, start_addr);
+        } else {
+          // Adjust relocation in case phdr.p_vaddr != 0.
+          // This happens for binaries linked with `lld --rosegment`, and for
+          // binaries linked with BFD `ld -z separate-code`.
+          relocation -= phdr->p_vaddr - phdr->p_offset;
+        }
       }
 
       fd = obj->fd;
-    }
-    if (GetSymbolFromObjectFile(*obj, pc, relocation, symbol_buf_,
-                                sizeof(symbol_buf_), tmp_buf_,
-                                sizeof(tmp_buf_)) == SYMBOL_FOUND) {
-      // Only try to demangle the symbol name if it fit into symbol_buf_.
-      DemangleInplace(symbol_buf_, sizeof(symbol_buf_), tmp_buf_,
-                      sizeof(tmp_buf_));
+      if (GetSymbolFromObjectFile(*obj, pc, relocation, symbol_buf_,
+                                  sizeof(symbol_buf_), tmp_buf_,
+                                  sizeof(tmp_buf_)) == SYMBOL_FOUND) {
+        // Only try to demangle the symbol name if it fit into symbol_buf_.
+        DemangleInplace(symbol_buf_, sizeof(symbol_buf_), tmp_buf_,
+                        sizeof(tmp_buf_));
+      }
     }
   } else {
 #if ABSL_HAVE_VDSO_SUPPORT

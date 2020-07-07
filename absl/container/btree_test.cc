@@ -2463,9 +2463,12 @@ TEST(Btree,
   EXPECT_THAT(s2, ElementsAre(IsEmpty(), ElementsAre(IsNull())));
 }
 
-// GCC 4.9 has a bug in the std::pair constructors that prevents explicit
-// conversions between pair types.
-#if defined(__clang__) || !defined(__GNUC__) || __GNUC__ >= 5
+// libstdc++ included with GCC 4.9 has a bug in the std::pair constructors that
+// prevents explicit conversions between pair types.
+// We only run this test for the libstdc++ from GCC 7 or newer because we can't
+// reliably check the libstdc++ version prior to that release.
+#if !defined(__GLIBCXX__) || \
+    (defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 7)
 TEST(Btree, MapRangeConstructorAndInsertSupportExplicitConversionComparable) {
   const std::pair<absl::string_view, int> names[] = {{"n1", 1}, {"n2", 2}};
 
