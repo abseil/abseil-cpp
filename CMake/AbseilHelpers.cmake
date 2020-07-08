@@ -23,7 +23,9 @@ include(AbseilInstallDirs)
 # project that sets
 #    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # For example, Visual Studio supports folders.
-set(ABSL_IDE_FOLDER Abseil)
+if(NOT DEFINED ABSL_IDE_FOLDER)
+  set(ABSL_IDE_FOLDER Abseil)
+endif()
 
 # absl_cc_library()
 #
