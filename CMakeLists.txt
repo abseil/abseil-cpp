@@ -98,7 +98,6 @@ if(${ABSL_RUN_TESTS})
   # enable CTest.  This will set BUILD_TESTING to ON unless otherwise specified
   # on the command line
   include(CTest)
-  enable_testing()
 
   ## check targets
   if (NOT ABSL_USE_EXTERNAL_GOOGLETEST)
