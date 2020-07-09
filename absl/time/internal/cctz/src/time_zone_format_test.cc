@@ -1481,6 +1481,11 @@ TEST(Parse, WeekYearShift) {
   EXPECT_EQ(exp, tp);
   EXPECT_TRUE(parse("%Y-%W-%w", "2020-52-5", utc, &tp));
   EXPECT_EQ(exp, tp);
+
+  // Slipping into the previous/following calendar years should fail when
+  // we're already at the extremes.
+  EXPECT_FALSE(parse("%Y-%U-%u", "-9223372036854775808-0-7", utc, &tp));
+  EXPECT_FALSE(parse("%Y-%U-%u", "9223372036854775807-53-7", utc, &tp));
 }
 
 TEST(Parse, MaxRange) {

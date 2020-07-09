@@ -58,10 +58,6 @@ class FlagRegistry {
   // Will emit a warning if a 'retired' flag is specified.
   CommandLineFlag* FindFlagLocked(absl::string_view name);
 
-  // Returns the retired flag object for the specified name, or nullptr if not
-  // found or not retired.  Does not emit a warning.
-  CommandLineFlag* FindRetiredFlagLocked(absl::string_view name);
-
   static FlagRegistry& GlobalRegistry();  // returns a singleton registry
 
  private:
@@ -86,14 +82,6 @@ class FlagRegistry {
 CommandLineFlag* FlagRegistry::FindFlagLocked(absl::string_view name) {
   FlagConstIterator i = flags_.find(name);
   if (i == flags_.end()) {
-    return nullptr;
-  }
-  return i->second;
-}
-
-CommandLineFlag* FlagRegistry::FindRetiredFlagLocked(absl::string_view name) {
-  FlagConstIterator i = flags_.find(name);
-  if (i == flags_.end() || !i->second->IsRetired()) {
     return nullptr;
   }
 

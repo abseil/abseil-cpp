@@ -685,6 +685,11 @@ class Condition {
   //     return processed_ >= current;
   //   };
   //   mu_.Await(Condition(&reached));
+  //
+  // NOTE: never use "mu_.AssertHeld()" instead of "mu_.AssertReadHeld()" in the
+  // lambda as it may be called when the mutex is being unlocked from a scope
+  // holding only a reader lock, which will make the assertion not fulfilled and
+  // crash the binary.
 
   // See class comment for performance advice. In particular, if there
   // might be more than one waiter for the same condition, make sure

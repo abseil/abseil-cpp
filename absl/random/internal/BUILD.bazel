@@ -59,7 +59,10 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = ["//absl/base:config"],
+    deps = [
+        "//absl/base:config",
+        "//absl/meta:type_traits",
+    ],
 )
 
 cc_library(
@@ -319,10 +322,6 @@ cc_library(
         "//absl:windows": [],
         "//conditions:default": ["-Wno-pass-failed"],
     }),
-    # copts in RANDEN_HWAES_COPTS can make this target unusable as a module
-    # leading to a Clang diagnostic. Furthermore, it only has a private header
-    # anyway and thus there wouldn't be any gain from using it as a module.
-    features = ["-header_modules"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
