@@ -259,7 +259,7 @@ absl_cc_library(
     absl::strings
     absl::utility
     gmock_main
-  PUBLIC
+  TESTONLY
 )
 
 absl_cc_test(
