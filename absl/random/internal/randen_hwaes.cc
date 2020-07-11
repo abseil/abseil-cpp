@@ -150,6 +150,7 @@ struct alignas(16) u64x2 {
 #include <altivec.h>
 // <altivec.h> #defines vector __vector; in C++, this is bad form.
 #undef vector
+#undef bool
 
 // Rely on the PowerPC AltiVec vector operations for accelerated AES
 // instructions. GCC support of the PPC vector types is described in:
