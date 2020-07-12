@@ -148,6 +148,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:wasm": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
