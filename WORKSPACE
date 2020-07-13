@@ -20,9 +20,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # GoogleTest/GoogleMock framework. Used by most unit-tests.
 http_archive(
     name = "com_google_googletest",
-    urls = ["https://github.com/google/googletest/archive/011959aafddcd30611003de96cfd8d7a7685c700.zip"],  # 2020-05-14T00:36:05Z
-    strip_prefix = "googletest-011959aafddcd30611003de96cfd8d7a7685c700",
-    sha256 = "6a5d7d63cd6e0ad2a7130471105a3b83799a7a2b14ef7ec8d742b54f01a4833c",
+    urls = ["https://github.com/google/googletest/archive/8567b09290fe402cf01923e2131c5635b8ed851b.zip"],  # 2020-06-12T22:24:28Z
+    strip_prefix = "googletest-8567b09290fe402cf01923e2131c5635b8ed851b",
+    sha256 = "9a8a166eb6a56c7b3d7b19dc2c946fe4778fd6f21c7a12368ad3b836d8f1be48",
 )
 
 # Google benchmark.

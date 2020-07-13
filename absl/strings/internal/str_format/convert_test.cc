@@ -1155,7 +1155,8 @@ TEST_F(FormatConvertTest, IntAsDouble) {
         {__LINE__, StrPrint("%.12a", dx), "%.12a"},
     };
     if (native_traits.hex_float_uses_minimal_precision_when_not_specified) {
-      expect.push_back({__LINE__, StrPrint("%12a", dx), "%12a"});
+      Expectation ex = {__LINE__, StrPrint("%12a", dx), "%12a"};
+      expect.push_back(ex);
     }
     for (const Expectation &e : expect) {
       SCOPED_TRACE(e.line);
