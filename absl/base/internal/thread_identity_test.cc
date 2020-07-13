@@ -75,7 +75,7 @@ TEST(ThreadIdentityTest, BasicIdentityWorksThreaded) {
   // - If a thread implementation chooses to recycle threads, that
   //   correct re-initialization occurs.
   static const int kNumLoops = 3;
-  static const int kNumThreads = 400;
+  static const int kNumThreads = 32;
   for (int iter = 0; iter < kNumLoops; iter++) {
     std::vector<std::thread> threads;
     for (int i = 0; i < kNumThreads; ++i) {
