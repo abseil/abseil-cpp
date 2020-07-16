@@ -205,9 +205,11 @@ function(absl_cc_library)
       set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/internal)
     endif()
 
-    # INTERFACE libraries can't have the CXX_STANDARD property set
+    # INTERFACE libraries are typically header-only, and therefore disallow
+    # setting properties like this which are related to compilation.
     set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
     set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+    set_property(TARGET ${_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     # When being installed, we lose the absl_ prefix.  We want to put it back
     # to have properly named lib files.  This is a no-op when we are not being
