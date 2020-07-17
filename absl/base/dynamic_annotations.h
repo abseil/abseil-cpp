@@ -53,19 +53,9 @@
 #include "absl/base/internal/dynamic_annotations.h"  // IWYU pragma: export
 
 // -------------------------------------------------------------------------
-// Decide which features are enabled
+// Decide which features are enabled.
 
-#ifndef DYNAMIC_ANNOTATIONS_ENABLED
-#define DYNAMIC_ANNOTATIONS_ENABLED 0
-#endif
-
-#if defined(__clang__) && !defined(SWIG)
-#define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 1
-#else
-#define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 0
-#endif
-
-#if DYNAMIC_ANNOTATIONS_ENABLED != 0
+#ifdef ABSL_HAVE_THREAD_SANITIZER
 
 #define ABSL_INTERNAL_RACE_ANNOTATIONS_ENABLED 1
 #define ABSL_INTERNAL_READS_ANNOTATIONS_ENABLED 1
@@ -85,24 +75,21 @@
 // will issue a warning, if these attributes are compiled. Only include them
 // when compiling using Clang.
 
-// ANNOTALYSIS_ENABLED == 1 when IGNORE_READ_ATTRIBUTE_ENABLED == 1
-#define ABSL_INTERNAL_ANNOTALYSIS_ENABLED \
-  ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED
+#if defined(__clang__)
+#define ABSL_INTERNAL_ANNOTALYSIS_ENABLED 1
+#if !defined(SWIG)
+#define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 1
+#else
+#define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 0
+#endif
+#else
+#define ABSL_INTERNAL_ANNOTALYSIS_ENABLED 0
+#define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 0
+#endif
+
 // Read/write annotations are enabled in Annotalysis mode; disabled otherwise.
 #define ABSL_INTERNAL_READS_WRITES_ANNOTATIONS_ENABLED \
   ABSL_INTERNAL_ANNOTALYSIS_ENABLED
-#endif
-
-// Memory annotations are also made available to LLVM's Memory Sanitizer
-#if defined(MEMORY_SANITIZER) && defined(__has_feature) && \
-    !defined(__native_client__)
-#if __has_feature(memory_sanitizer)
-#define ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED 1
-#endif
-#endif
-
-#ifndef ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED
-#define ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED 0
 #endif
 
 #ifdef __cplusplus
@@ -243,7 +230,7 @@ ABSL_INTERNAL_END_EXTERN_C
 // -------------------------------------------------------------------------
 // Define memory annotations.
 
-#if ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED == 1
+#ifdef ABSL_HAVE_MEMORY_SANITIZER
 
 #include <sanitizer/msan_interface.h>
 
@@ -253,9 +240,10 @@ ABSL_INTERNAL_END_EXTERN_C
 #define ABSL_ANNOTATE_MEMORY_IS_UNINITIALIZED(address, size) \
   __msan_allocated_memory(address, size)
 
-#else  // ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED == 0
+#else  // !defined(ABSL_HAVE_MEMORY_SANITIZER)
 
-#if DYNAMIC_ANNOTATIONS_ENABLED == 1
+// TODO(rogeeff): remove this branch
+#ifdef ABSL_HAVE_THREAD_SANITIZER
 #define ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(address, size) \
   do {                                                     \
     (void)(address);                                       \
@@ -273,7 +261,7 @@ ABSL_INTERNAL_END_EXTERN_C
 
 #endif
 
-#endif  // ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED
+#endif  // ABSL_HAVE_MEMORY_SANITIZER
 
 // -------------------------------------------------------------------------
 // Define IGNORE_READS_BEGIN/_END attributes.
@@ -468,7 +456,7 @@ ABSL_INTERNAL_END_EXTERN_C
 // -------------------------------------------------------------------------
 // Address sanitizer annotations
 
-#ifdef ADDRESS_SANITIZER
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
 // Describe the current state of a contiguous container such as e.g.
 // std::vector or std::string. For more details see
 // sanitizer/common_interface_defs.h, which is provided by the compiler.
@@ -483,16 +471,15 @@ ABSL_INTERNAL_END_EXTERN_C
 
 #else
 
-#define ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(beg, end, old_mid, new_mid)
+#define ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(beg, end, old_mid, new_mid)  // empty
 #define ABSL_ADDRESS_SANITIZER_REDZONE(name) static_assert(true, "")
 
-#endif  // ADDRESS_SANITIZER
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
 
 // -------------------------------------------------------------------------
 // Undefine the macros intended only for this file.
 
 #undef ABSL_INTERNAL_RACE_ANNOTATIONS_ENABLED
-#undef ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED
 #undef ABSL_INTERNAL_READS_ANNOTATIONS_ENABLED
 #undef ABSL_INTERNAL_WRITES_ANNOTATIONS_ENABLED
 #undef ABSL_INTERNAL_ANNOTALYSIS_ENABLED

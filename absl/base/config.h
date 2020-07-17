@@ -154,6 +154,12 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_HAS_KEYWORD(x) 0
 #endif
 
+#ifdef __has_feature
+#define ABSL_HAVE_FEATURE(f) __has_feature(f)
+#else
+#define ABSL_HAVE_FEATURE(f) 0
+#endif
+
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
 // We assume __thread is supported on Linux when compiled with Clang or compiled
 // against libstdc++ with _GLIBCXX_HAVE_TLS defined.
@@ -226,11 +232,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // * Xcode 9.3 started disallowing `thread_local` for 32-bit iOS simulator
 //   targeting iOS 9.x.
 // * Xcode 10 moves the deployment target check for iOS < 9.0 to link time
-//   making __has_feature unreliable there.
+//   making ABSL_HAVE_FEATURE unreliable there.
 //
-// Otherwise, `__has_feature` is only supported by Clang so it has be inside
-// `defined(__APPLE__)` check.
-#if __has_feature(cxx_thread_local) && \
+#if ABSL_HAVE_FEATURE(cxx_thread_local) && \
     !(TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
@@ -312,15 +316,15 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 #if __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
 // Clang >= 3.6
-#if __has_feature(cxx_exceptions)
+#if ABSL_HAVE_FEATURE(cxx_exceptions)
 #define ABSL_HAVE_EXCEPTIONS 1
-#endif  // __has_feature(cxx_exceptions)
+#endif  // ABSL_HAVE_FEATURE(cxx_exceptions)
 #else
 // Clang < 3.6
 // http://releases.llvm.org/3.6.0/tools/clang/docs/ReleaseNotes.html#the-exceptions-macro
-#if defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
+#if defined(__EXCEPTIONS) && ABSL_HAVE_FEATURE(cxx_exceptions)
 #define ABSL_HAVE_EXCEPTIONS 1
-#endif  // defined(__EXCEPTIONS) && __has_feature(cxx_exceptions)
+#endif  // defined(__EXCEPTIONS) && ABSL_HAVE_FEATURE(cxx_exceptions)
 #endif  // __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 6)
 
 // Handle remaining special cases and default to exceptions being supported.
@@ -660,5 +664,51 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #else
 #define ABSL_DLL
 #endif  // defined(_MSC_VER)
+
+// ABSL_HAVE_MEMORY_SANITIZER
+//
+// MemorySanitizer (MSan) is a detector of uninitialized reads. It consists of
+// a compiler instrumentation module and a run-time library.
+#ifdef ABSL_HAVE_MEMORY_SANITIZER
+#error "ABSL_HAVE_MEMORY_SANITIZER cannot be directly set."
+#elif defined(MEMORY_SANITIZER)
+// The MEMORY_SANITIZER macro is deprecated but we will continue to honor it
+// for now.
+#define ABSL_HAVE_MEMORY_SANITIZER 1
+#elif defined(__SANITIZE_MEMORY__)
+#define ABSL_HAVE_MEMORY_SANITIZER 1
+#elif !defined(__native_client__) && ABSL_HAVE_FEATURE(memory_sanitizer)
+#define ABSL_HAVE_MEMORY_SANITIZER 1
+#endif
+
+// ABSL_HAVE_THREAD_SANITIZER
+//
+// ThreadSanitizer (TSan) is a fast data race detector.
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+#error "ABSL_HAVE_THREAD_SANITIZER cannot be directly set."
+#elif defined(THREAD_SANITIZER)
+// The THREAD_SANITIZER macro is deprecated but we will continue to honor it
+// for now.
+#define ABSL_HAVE_THREAD_SANITIZER 1
+#elif defined(__SANITIZE_THREAD__)
+#define ABSL_HAVE_THREAD_SANITIZER 1
+#elif ABSL_HAVE_FEATURE(thread_sanitizer)
+#define ABSL_HAVE_THREAD_SANITIZER 1
+#endif
+
+// ABSL_HAVE_ADDRESS_SANITIZER
+//
+// AddressSanitizer (ASan) is a fast memory error detector.
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+#error "ABSL_HAVE_ADDRESS_SANITIZER cannot be directly set."
+#elif defined(ADDRESS_SANITIZER)
+// The ADDRESS_SANITIZER macro is deprecated but we will continue to honor it
+// for now.
+#define ABSL_HAVE_ADDRESS_SANITIZER 1
+#elif defined(__SANITIZE_ADDRESS__)
+#define ABSL_HAVE_ADDRESS_SANITIZER 1
+#elif ABSL_HAVE_FEATURE(address_sanitizer)
+#define ABSL_HAVE_ADDRESS_SANITIZER 1
+#endif
 
 #endif  // ABSL_BASE_CONFIG_H_

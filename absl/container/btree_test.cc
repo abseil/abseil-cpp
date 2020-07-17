@@ -2509,6 +2509,39 @@ TEST(Btree,
   EXPECT_THAT(m2,
               ElementsAre(Pair(IsEmpty(), 1), Pair(ElementsAre(IsNull()), 2)));
 }
+
+TEST(Btree, HeterogeneousTryEmplace) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m.try_emplace(sv, 1);
+  EXPECT_EQ(m[s], 1);
+
+  m.try_emplace(m.end(), sv, 2);
+  EXPECT_EQ(m[s], 1);
+}
+
+TEST(Btree, HeterogeneousOperatorMapped) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m[sv] = 1;
+  EXPECT_EQ(m[s], 1);
+
+  m[sv] = 2;
+  EXPECT_EQ(m[s], 2);
+}
+
+TEST(Btree, HeterogeneousInsertOrAssign) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m.insert_or_assign(sv, 1);
+  EXPECT_EQ(m[s], 1);
+
+  m.insert_or_assign(m.end(), sv, 2);
+  EXPECT_EQ(m[s], 2);
+}
 #endif
 
 }  // namespace

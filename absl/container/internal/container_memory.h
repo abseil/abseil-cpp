@@ -429,13 +429,6 @@ struct map_slot_policy {
                                                    std::move(src->value));
     }
   }
-
-  template <class Allocator>
-  static void move(Allocator* alloc, slot_type* first, slot_type* last,
-                   slot_type* result) {
-    for (slot_type *src = first, *dest = result; src != last; ++src, ++dest)
-      move(alloc, src, dest);
-  }
 };
 
 }  // namespace container_internal
