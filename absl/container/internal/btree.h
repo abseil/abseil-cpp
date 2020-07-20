@@ -785,13 +785,28 @@ class btree_node {
         &mutable_child(start()), (kNodeValues + 1) * sizeof(btree_node *));
   }
 
-  static void deallocate(const size_type size, btree_node *node,
-                         allocator_type *alloc) {
-    absl::container_internal::Deallocate<Alignment()>(alloc, node, size);
-  }
-
   // Deletes a node and all of its children.
-  static void clear_and_delete(btree_node *node, allocator_type *alloc);
+  // TODO(ezb): don't use recursion here to avoid potential stack overflows.
+  static void clear_and_delete(btree_node *node, allocator_type *alloc) {
+    const field_type start = node->start();
+    const field_type finish = node->finish();
+    for (field_type i = start; i < finish; ++i) {
+      node->value_destroy(i, alloc);
+    }
+    if (node->leaf()) {
+      absl::container_internal::Deallocate<Alignment()>(
+          alloc, node, LeafSize(node->max_count()));
+    } else {
+      // If the node is empty, then there are no children so don't try clearing.
+      if (start < finish) {
+        for (field_type i = start; i <= finish; ++i) {
+          clear_and_delete(node->child(i), alloc);
+        }
+      }
+      absl::container_internal::Deallocate<Alignment()>(alloc, node,
+                                                        InternalSize());
+    }
+  }
 
  public:
   // Exposed only for tests.
@@ -801,20 +816,13 @@ class btree_node {
 
  private:
   template <typename... Args>
-  void value_init(const field_type i, allocator_type *alloc, Args &&... args) {
+  void value_init(const size_type i, allocator_type *alloc, Args &&... args) {
     absl::container_internal::SanitizerUnpoisonObject(slot(i));
     params_type::construct(alloc, slot(i), std::forward<Args>(args)...);
   }
-  void value_destroy(const field_type i, allocator_type *alloc) {
+  void value_destroy(const size_type i, allocator_type *alloc) {
     params_type::destroy(alloc, slot(i));
     absl::container_internal::SanitizerPoisonObject(slot(i));
-  }
-  void value_destroy_n(const field_type i, const field_type n,
-                       allocator_type *alloc) {
-    for (slot_type *s = slot(i), *end = slot(i + n); s != end; ++s) {
-      params_type::destroy(alloc, s);
-      absl::container_internal::SanitizerPoisonObject(s);
-    }
   }
 
   // Transfers value from slot `src_i` in `src_node` to slot `dest_i` in `this`.
@@ -1559,9 +1567,11 @@ inline void btree_node<P>::remove_values(const field_type i,
                                          const field_type to_erase,
                                          allocator_type *alloc) {
   // Transfer values after the removed range into their new places.
-  value_destroy_n(i, to_erase, alloc);
   const field_type orig_finish = finish();
   const field_type src_i = i + to_erase;
+  for (field_type j = i; j < src_i; ++j) {
+    value_destroy(j, alloc);
+  }
   transfer_n(orig_finish - src_i, i, src_i, this, alloc);
 
   if (!leaf()) {
@@ -1729,49 +1739,6 @@ void btree_node<P>::merge(btree_node *src, allocator_type *alloc) {
 
   // Remove the value on the parent node and delete the src node.
   parent()->remove_values(position(), /*to_erase=*/1, alloc);
-}
-
-template <typename P>
-void btree_node<P>::clear_and_delete(btree_node *node, allocator_type *alloc) {
-  if (node->leaf()) {
-    node->value_destroy_n(node->start(), node->count(), alloc);
-    deallocate(LeafSize(node->max_count()), node, alloc);
-    return;
-  }
-  if (node->count() == 0) {
-    deallocate(InternalSize(), node, alloc);
-    return;
-  }
-
-  // The parent of the root of the subtree we are deleting.
-  btree_node *delete_root_parent = node->parent();
-
-  // Navigate to the leftmost leaf under node, and then delete upwards.
-  while (!node->leaf()) node = node->start_child();
-  field_type pos = node->position();
-  btree_node *parent = node->parent();
-  do {
-    // In each iteration of this loop, we delete one leaf node and go right.
-    for (; pos <= parent->finish(); ++pos) {
-      node = parent->child(pos);
-      if (!node->leaf()) {
-        // Navigate to the leftmost leaf under node.
-        while (!node->leaf()) node = node->start_child();
-        pos = node->position();
-        parent = node->parent();
-      }
-      node->value_destroy_n(node->start(), node->count(), alloc);
-      deallocate(LeafSize(node->max_count()), node, alloc);
-    }
-    // If we've deleted all children of parent, then delete parent and go up.
-    for (; parent != delete_root_parent && pos > parent->finish(); ++pos) {
-      node = parent;
-      pos = node->position();
-      parent = node->parent();
-      node->value_destroy_n(node->start(), node->count(), alloc);
-      deallocate(InternalSize(), node, alloc);
-    }
-  } while (parent != delete_root_parent);
 }
 
 ////

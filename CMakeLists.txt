@@ -22,16 +22,24 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Compiler id for Apple Clang is now AppleClang.
-cmake_policy(SET CMP0025 NEW)
+if (POLICY CMP0025)
+  cmake_policy(SET CMP0025 NEW)
+endif (POLICY CMP0025)
 
 # if command can use IN_LIST
-cmake_policy(SET CMP0057 NEW)
+if (POLICY CMP0057)
+  cmake_policy(SET CMP0057 NEW)
+endif (POLICY CMP0057)
 
 # Project version variables are the empty string if version is unspecified
-cmake_policy(SET CMP0048 NEW)
+if (POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+endif (POLICY CMP0048)
 
 # option() honor variables
-cmake_policy(SET CMP0077 NEW)
+if (POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif (POLICY CMP0077)
 
 project(absl CXX)
 
