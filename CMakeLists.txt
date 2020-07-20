@@ -31,7 +31,9 @@ cmake_policy(SET CMP0057 NEW)
 cmake_policy(SET CMP0048 NEW)
 
 # option() honor variables
-cmake_policy(SET CMP0077 NEW)
+if(POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif()
 
 project(absl CXX)
 
