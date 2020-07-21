@@ -81,6 +81,7 @@ list(APPEND ABSL_GCC_FLAGS
     "-Wmissing-declarations"
     "-Woverlength-strings"
     "-Wpointer-arith"
+    "-Wundef"
     "-Wunused-local-typedefs"
     "-Wunused-result"
     "-Wvarargs"
