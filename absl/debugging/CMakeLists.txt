@@ -14,6 +14,13 @@
 # limitations under the License.
 #
 
+include(CheckIncludeFileCXX)
+
+check_include_file_cxx(execinfo.h HAVE_EXECINFO_H)
+if(HAVE_EXECINFO_H)
+    add_definitions(-DHAVE_EXECINFO_H)
+endif()
+
 absl_cc_library(
   NAME
     stacktrace

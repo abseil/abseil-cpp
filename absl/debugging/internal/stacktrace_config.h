@@ -61,7 +61,7 @@
 # elif defined(__aarch64__)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_aarch64-inl.inc"
-#elif defined(__arm__) && defined(__GLIBC__)
+#elif defined(__arm__) && defined(HAVE_EXECINFO_H)
 // Note: When using glibc this may require -funwind-tables to function properly.
 #define ABSL_STACKTRACE_INL_HEADER \
   "absl/debugging/internal/stacktrace_generic-inl.inc"
@@ -70,10 +70,10 @@
    "absl/debugging/internal/stacktrace_unimplemented-inl.inc"
 # endif
 #else  // defined(NO_FRAME_POINTER)
-# if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+# if (defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)) && defined(HAVE_EXECINFO_H)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_generic-inl.inc"
-# elif defined(__ppc__) || defined(__PPC__)
+# elif (defined(__ppc__) || defined(__PPC__)) && defined(HAVE_EXECINFO_H)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_generic-inl.inc"
 # else
