@@ -255,10 +255,6 @@ struct common_params {
   static void move(Alloc *alloc, slot_type *src, slot_type *dest) {
     slot_policy::move(alloc, src, dest);
   }
-  static void move(Alloc *alloc, slot_type *first, slot_type *last,
-                   slot_type *result) {
-    slot_policy::move(alloc, first, last, result);
-  }
 };
 
 // A parameters structure for holding the type parameters for a btree_map.
@@ -335,13 +331,6 @@ struct set_slot_policy {
   template <typename Alloc>
   static void move(Alloc * /*alloc*/, slot_type *src, slot_type *dest) {
     *dest = std::move(*src);
-  }
-
-  template <typename Alloc>
-  static void move(Alloc *alloc, slot_type *first, slot_type *last,
-                   slot_type *result) {
-    for (slot_type *src = first, *dest = result; src != last; ++src, ++dest)
-      move(alloc, src, dest);
   }
 };
 
@@ -759,14 +748,10 @@ class btree_node {
   template <typename... Args>
   void emplace_value(size_type i, allocator_type *alloc, Args &&... args);
 
-  // Removes the value at position i, shifting all existing values and children
-  // at positions > i to the left by 1.
-  void remove_value(int i, allocator_type *alloc);
-
-  // Removes the values at positions [i, i + to_erase), shifting all values
-  // after that range to the left by to_erase. Does not change children at all.
-  void remove_values_ignore_children(int i, int to_erase,
-                                     allocator_type *alloc);
+  // Removes the values at positions [i, i + to_erase), shifting all existing
+  // values and children after that range to the left by to_erase. Clears all
+  // children between [i, i + to_erase).
+  void remove_values(field_type i, field_type to_erase, allocator_type *alloc);
 
   // Rebalances a node with its right sibling.
   void rebalance_right_to_left(int to_move, btree_node *right,
@@ -778,7 +763,7 @@ class btree_node {
   void split(int insert_position, btree_node *dest, allocator_type *alloc);
 
   // Merges a node with its right sibling, moving all of the values and the
-  // delimiting key in the parent node onto itself.
+  // delimiting key in the parent node onto itself, and deleting the src node.
   void merge(btree_node *src, allocator_type *alloc);
 
   // Node allocation/deletion routines.
@@ -799,11 +784,14 @@ class btree_node {
     absl::container_internal::SanitizerPoisonMemoryRegion(
         &mutable_child(start()), (kNodeValues + 1) * sizeof(btree_node *));
   }
-  void destroy(allocator_type *alloc) {
-    for (int i = start(); i < finish(); ++i) {
-      value_destroy(i, alloc);
-    }
+
+  static void deallocate(const size_type size, btree_node *node,
+                         allocator_type *alloc) {
+    absl::container_internal::Deallocate<Alignment()>(alloc, node, size);
   }
+
+  // Deletes a node and all of its children.
+  static void clear_and_delete(btree_node *node, allocator_type *alloc);
 
  public:
   // Exposed only for tests.
@@ -813,13 +801,20 @@ class btree_node {
 
  private:
   template <typename... Args>
-  void value_init(const size_type i, allocator_type *alloc, Args &&... args) {
+  void value_init(const field_type i, allocator_type *alloc, Args &&... args) {
     absl::container_internal::SanitizerUnpoisonObject(slot(i));
     params_type::construct(alloc, slot(i), std::forward<Args>(args)...);
   }
-  void value_destroy(const size_type i, allocator_type *alloc) {
+  void value_destroy(const field_type i, allocator_type *alloc) {
     params_type::destroy(alloc, slot(i));
     absl::container_internal::SanitizerPoisonObject(slot(i));
+  }
+  void value_destroy_n(const field_type i, const field_type n,
+                       allocator_type *alloc) {
+    for (slot_type *s = slot(i), *end = slot(i + n); s != end; ++s) {
+      params_type::destroy(alloc, s);
+      absl::container_internal::SanitizerPoisonObject(s);
+    }
   }
 
   // Transfers value from slot `src_i` in `src_node` to slot `dest_i` in `this`.
@@ -1423,24 +1418,7 @@ class btree {
   }
 
   // Deletion helper routines.
-  void erase_same_node(iterator begin, iterator end);
-  iterator erase_from_leaf_node(iterator begin, size_type to_erase);
   iterator rebalance_after_delete(iterator iter);
-
-  // Deallocates a node of a certain size in bytes using the allocator.
-  void deallocate(const size_type size, node_type *node) {
-    absl::container_internal::Deallocate<node_type::Alignment()>(
-        mutable_allocator(), node, size);
-  }
-
-  void delete_internal_node(node_type *node) {
-    node->destroy(mutable_allocator());
-    deallocate(node_type::InternalSize(), node);
-  }
-  void delete_leaf_node(node_type *node) {
-    node->destroy(mutable_allocator());
-    deallocate(node_type::LeafSize(node->max_count()), node);
-  }
 
   // Rebalances or splits the node iter points to.
   void rebalance_or_split(iterator *iter);
@@ -1510,9 +1488,6 @@ class btree {
   template <typename K>
   iterator internal_find(const K &key) const;
 
-  // Deletes a node and all of its children.
-  void internal_clear(node_type *node);
-
   // Verifies the tree structure of node.
   int internal_verify(const node_type *node, const key_type *lo,
                       const key_type *hi) const;
@@ -1580,26 +1555,27 @@ inline void btree_node<P>::emplace_value(const size_type i,
 }
 
 template <typename P>
-inline void btree_node<P>::remove_value(const int i, allocator_type *alloc) {
-  if (!leaf() && finish() > i + 1) {
-    assert(child(i + 1)->count() == 0);
-    for (size_type j = i + 1; j < finish(); ++j) {
-      set_child(j, child(j + 1));
+inline void btree_node<P>::remove_values(const field_type i,
+                                         const field_type to_erase,
+                                         allocator_type *alloc) {
+  // Transfer values after the removed range into their new places.
+  value_destroy_n(i, to_erase, alloc);
+  const field_type orig_finish = finish();
+  const field_type src_i = i + to_erase;
+  transfer_n(orig_finish - src_i, i, src_i, this, alloc);
+
+  if (!leaf()) {
+    // Delete all children between begin and end.
+    for (int j = 0; j < to_erase; ++j) {
+      clear_and_delete(child(i + j + 1), alloc);
     }
-    clear_child(finish());
+    // Rotate children after end into new positions.
+    for (int j = i + to_erase + 1; j <= orig_finish; ++j) {
+      set_child(j - to_erase, child(j));
+      clear_child(j);
+    }
   }
-
-  remove_values_ignore_children(i, /*to_erase=*/1, alloc);
-}
-
-template <typename P>
-inline void btree_node<P>::remove_values_ignore_children(
-    const int i, const int to_erase, allocator_type *alloc) {
-  params_type::move(alloc, slot(i + to_erase), finish_slot(), slot(i));
-  for (int j = finish() - to_erase; j < finish(); ++j) {
-    value_destroy(j, alloc);
-  }
-  set_finish(finish() - to_erase);
+  set_finish(orig_finish - to_erase);
 }
 
 template <typename P>
@@ -1751,8 +1727,59 @@ void btree_node<P>::merge(btree_node *src, allocator_type *alloc) {
   set_finish(start() + 1 + count() + src->count());
   src->set_finish(src->start());
 
-  // Remove the value on the parent node.
-  parent()->remove_value(position(), alloc);
+  // Remove the value on the parent node and delete the src node.
+  parent()->remove_values(position(), /*to_erase=*/1, alloc);
+}
+
+template <typename P>
+void btree_node<P>::clear_and_delete(btree_node *node, allocator_type *alloc) {
+  if (node->leaf()) {
+    node->value_destroy_n(node->start(), node->count(), alloc);
+    deallocate(LeafSize(node->max_count()), node, alloc);
+    return;
+  }
+  if (node->count() == 0) {
+    deallocate(InternalSize(), node, alloc);
+    return;
+  }
+
+  // The parent of the root of the subtree we are deleting.
+  btree_node *delete_root_parent = node->parent();
+
+  // Navigate to the leftmost leaf under node, and then delete upwards.
+  while (!node->leaf()) node = node->start_child();
+  // Use `int` because `pos` needs to be able to hold `kNodeValues+1`, which
+  // isn't guaranteed to be a valid `field_type`.
+  int pos = node->position();
+  btree_node *parent = node->parent();
+  for (;;) {
+    // In each iteration of the next loop, we delete one leaf node and go right.
+    assert(pos <= parent->finish());
+    do {
+      node = parent->child(pos);
+      if (!node->leaf()) {
+        // Navigate to the leftmost leaf under node.
+        while (!node->leaf()) node = node->start_child();
+        pos = node->position();
+        parent = node->parent();
+      }
+      node->value_destroy_n(node->start(), node->count(), alloc);
+      deallocate(LeafSize(node->max_count()), node, alloc);
+      ++pos;
+    } while (pos <= parent->finish());
+
+    // Once we've deleted all children of parent, delete parent and go up/right.
+    assert(pos > parent->finish());
+    do {
+      node = parent;
+      pos = node->position();
+      parent = node->parent();
+      node->value_destroy_n(node->start(), node->count(), alloc);
+      deallocate(InternalSize(), node, alloc);
+      if (parent == delete_root_parent) return;
+      ++pos;
+    } while (pos > parent->finish());
+  }
 }
 
 ////
@@ -2034,7 +2061,7 @@ auto btree<P>::erase(iterator iter) -> iterator {
   bool internal_delete = false;
   if (!iter.node->leaf()) {
     // Deletion of a value on an internal node. First, move the largest value
-    // from our left child here, then delete that position (in remove_value()
+    // from our left child here, then delete that position (in remove_values()
     // below). We can get to the largest value from our left child by
     // decrementing iter.
     iterator internal_iter(iter);
@@ -2046,7 +2073,7 @@ auto btree<P>::erase(iterator iter) -> iterator {
   }
 
   // Delete the key from the leaf.
-  iter.node->remove_value(iter.position, mutable_allocator());
+  iter.node->remove_values(iter.position, /*to_erase=*/1, mutable_allocator());
   --size_;
 
   // We want to return the next value after the one we just erased. If we
@@ -2121,7 +2148,9 @@ auto btree<P>::erase_range(iterator begin, iterator end)
   }
 
   if (begin.node == end.node) {
-    erase_same_node(begin, end);
+    assert(end.position > begin.position);
+    begin.node->remove_values(begin.position, end.position - begin.position,
+                              mutable_allocator());
     size_ -= count;
     return {count, rebalance_after_delete(begin)};
   }
@@ -2131,58 +2160,16 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     if (begin.node->leaf()) {
       const size_type remaining_to_erase = size_ - target_size;
       const size_type remaining_in_node = begin.node->finish() - begin.position;
-      begin = erase_from_leaf_node(
-          begin, (std::min)(remaining_to_erase, remaining_in_node));
+      const size_type to_erase =
+          (std::min)(remaining_to_erase, remaining_in_node);
+      begin.node->remove_values(begin.position, to_erase, mutable_allocator());
+      size_ -= to_erase;
+      begin = rebalance_after_delete(begin);
     } else {
       begin = erase(begin);
     }
   }
   return {count, begin};
-}
-
-template <typename P>
-void btree<P>::erase_same_node(iterator begin, iterator end) {
-  assert(begin.node == end.node);
-  assert(end.position > begin.position);
-
-  node_type *node = begin.node;
-  size_type to_erase = end.position - begin.position;
-  if (!node->leaf()) {
-    // Delete all children between begin and end.
-    for (size_type i = 0; i < to_erase; ++i) {
-      internal_clear(node->child(begin.position + i + 1));
-    }
-    // Rotate children after end into new positions.
-    for (size_type i = begin.position + to_erase + 1; i <= node->finish();
-         ++i) {
-      node->set_child(i - to_erase, node->child(i));
-      node->clear_child(i);
-    }
-  }
-  node->remove_values_ignore_children(begin.position, to_erase,
-                                      mutable_allocator());
-
-  // Do not need to update rightmost_, because
-  // * either end == this->end(), and therefore node == rightmost_, and still
-  //   exists
-  // * or end != this->end(), and therefore rightmost_ hasn't been erased, since
-  //   it wasn't covered in [begin, end)
-}
-
-template <typename P>
-auto btree<P>::erase_from_leaf_node(iterator begin, size_type to_erase)
-    -> iterator {
-  node_type *node = begin.node;
-  assert(node->leaf());
-  assert(node->finish() > begin.position);
-  assert(begin.position + to_erase <= node->finish());
-
-  node->remove_values_ignore_children(begin.position, to_erase,
-                                      mutable_allocator());
-
-  size_ -= to_erase;
-
-  return rebalance_after_delete(begin);
 }
 
 template <typename P>
@@ -2213,7 +2200,7 @@ auto btree<P>::erase_multi(const K &key) -> size_type {
 template <typename P>
 void btree<P>::clear() {
   if (!empty()) {
-    internal_clear(root());
+    node_type::clear_and_delete(root(), mutable_allocator());
   }
   mutable_root() = EmptyNode();
   rightmost_ = EmptyNode();
@@ -2354,12 +2341,7 @@ void btree<P>::rebalance_or_split(iterator *iter) {
 template <typename P>
 void btree<P>::merge_nodes(node_type *left, node_type *right) {
   left->merge(right, mutable_allocator());
-  if (right->leaf()) {
-    if (rightmost_ == right) rightmost_ = left;
-    delete_leaf_node(right);
-  } else {
-    delete_internal_node(right);
-  }
+  if (rightmost_ == right) rightmost_ = left;
 }
 
 template <typename P>
@@ -2416,20 +2398,20 @@ bool btree<P>::try_merge_or_rebalance(iterator *iter) {
 
 template <typename P>
 void btree<P>::try_shrink() {
-  if (root()->count() > 0) {
+  node_type *orig_root = root();
+  if (orig_root->count() > 0) {
     return;
   }
   // Deleted the last item on the root node, shrink the height of the tree.
-  if (root()->leaf()) {
+  if (orig_root->leaf()) {
     assert(size() == 0);
-    delete_leaf_node(root());
     mutable_root() = rightmost_ = EmptyNode();
   } else {
-    node_type *child = root()->start_child();
+    node_type *child = orig_root->start_child();
     child->make_root();
-    delete_internal_node(root());
     mutable_root() = child;
   }
+  node_type::clear_and_delete(orig_root, mutable_allocator());
 }
 
 template <typename P>
@@ -2474,7 +2456,7 @@ inline auto btree<P>::internal_emplace(iterator iter, Args &&... args)
                            old_root->start(), old_root, alloc);
       new_root->set_finish(old_root->finish());
       old_root->set_finish(old_root->start());
-      delete_leaf_node(old_root);
+      node_type::clear_and_delete(old_root, alloc);
       mutable_root() = rightmost_ = new_root;
     } else {
       rebalance_or_split(&iter);
@@ -2575,18 +2557,6 @@ auto btree<P>::internal_find(const K &key) const -> iterator {
     }
   }
   return {nullptr, 0};
-}
-
-template <typename P>
-void btree<P>::internal_clear(node_type *node) {
-  if (!node->leaf()) {
-    for (int i = node->start(); i <= node->finish(); ++i) {
-      internal_clear(node->child(i));
-    }
-    delete_internal_node(node);
-  } else {
-    delete_leaf_node(node);
-  }
 }
 
 template <typename P>

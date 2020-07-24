@@ -39,6 +39,7 @@
 #endif
 
 #include <string.h>
+
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -50,6 +51,7 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/unscaledcycleclock.h"
@@ -419,6 +421,18 @@ pid_t GetTID() {
 }
 
 #endif
+
+// GetCachedTID() caches the thread ID in thread-local storage (which is a
+// userspace construct) to avoid unnecessary system calls. Without this caching,
+// it can take roughly 98ns, while it takes roughly 1ns with this caching.
+pid_t GetCachedTID() {
+#if ABSL_HAVE_THREAD_LOCAL
+  static thread_local pid_t thread_id = GetTID();
+  return thread_id;
+#else
+  return GetTID();
+#endif  // ABSL_HAVE_THREAD_LOCAL
+}
 
 }  // namespace base_internal
 ABSL_NAMESPACE_END

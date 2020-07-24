@@ -15,6 +15,7 @@
 #include "absl/container/btree_test.h"
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -1343,6 +1344,12 @@ class BtreeNodePeer {
   template <typename Set>
   constexpr static size_t GetNumValuesPerNode() {
     return btree_node<typename Set::params_type>::kNodeValues;
+  }
+
+  template <typename Set>
+  constexpr static size_t GetMaxFieldType() {
+    return std::numeric_limits<
+        typename btree_node<typename Set::params_type>::field_type>::max();
   }
 };
 

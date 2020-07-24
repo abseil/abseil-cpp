@@ -8,7 +8,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/casts.h"
   "base/config.h"
   "base/const_init.h"
-  "base/dynamic_annotations.cc"
   "base/dynamic_annotations.h"
   "base/internal/atomic_hook.h"
   "base/internal/bits.h"
