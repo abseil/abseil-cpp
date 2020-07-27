@@ -409,6 +409,7 @@ static bool IsFunctionCloneSuffix(const char *str) {
 
 static bool EndsWith(State *state, const char chr) {
   return state->parse_state.out_cur_idx > 0 &&
+         state->parse_state.out_cur_idx < state->out_end_idx &&
          chr == state->out[state->parse_state.out_cur_idx - 1];
 }
 
@@ -421,8 +422,10 @@ static void MaybeAppendWithLength(State *state, const char *const str,
     if (str[0] == '<' && EndsWith(state, '<')) {
       Append(state, " ", 1);
     }
-    // Remember the last identifier name for ctors/dtors.
-    if (IsAlpha(str[0]) || str[0] == '_') {
+    // Remember the last identifier name for ctors/dtors,
+    // but only if we haven't yet overflown the buffer.
+    if (state->parse_state.out_cur_idx < state->out_end_idx &&
+        (IsAlpha(str[0]) || str[0] == '_')) {
       state->parse_state.prev_name_idx = state->parse_state.out_cur_idx;
       state->parse_state.prev_name_length = length;
     }

@@ -365,8 +365,10 @@ bool TimeZoneInfo::ExtendTransitions() {
   std::int_fast64_t jan1_time = jan1 - civil_second();
   int jan1_weekday = ToPosixWeekday(get_weekday(jan1));
 
-  Transition dst = {0, dst_ti, civil_second(), civil_second()};
-  Transition std = {0, std_ti, civil_second(), civil_second()};
+  Transition dst = {0, static_cast<uint_least8_t>(dst_ti), civil_second(),
+                    civil_second()};
+  Transition std = {0, static_cast<uint_least8_t>(std_ti), civil_second(),
+                    civil_second()};
   for (const year_t limit = last_year_ + 400;; ++last_year_) {
     auto dst_trans_off = TransOffset(leap_year, jan1_weekday, posix.dst_start);
     auto std_trans_off = TransOffset(leap_year, jan1_weekday, posix.dst_end);
@@ -725,9 +727,9 @@ bool TimeZoneInfo::Load(const std::string& name) {
 
   // Find and use a ZoneInfoSource to load the named zone.
   auto zip = cctz_extension::zone_info_source_factory(
-      name, [](const std::string& name) -> std::unique_ptr<ZoneInfoSource> {
-        if (auto zip = FileZoneInfoSource::Open(name)) return zip;
-        if (auto zip = AndroidZoneInfoSource::Open(name)) return zip;
+      name, [](const std::string& n) -> std::unique_ptr<ZoneInfoSource> {
+        if (auto z = FileZoneInfoSource::Open(n)) return z;
+        if (auto z = AndroidZoneInfoSource::Open(n)) return z;
         return nullptr;
       });
   return zip != nullptr && Load(zip.get());
