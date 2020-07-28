@@ -100,7 +100,7 @@ cc_library(
     linkopts = select({
         "//absl:windows": [],
         "//absl:wasm": [],
-        "//conditions:default": ["-pthread"],
+        "//conditions:default": ["-lpthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":randen",

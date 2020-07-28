@@ -162,7 +162,7 @@ cc_library(
     linkopts = select({
         "//absl:windows": [],
         "//absl:wasm": [],
-        "//conditions:default": ["-pthread"],
+        "//conditions:default": ["-lpthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//visibility:public",
@@ -224,7 +224,7 @@ cc_library(
             "-DEFAULTLIB:advapi32.lib",
         ],
         "//absl:wasm": [],
-        "//conditions:default": ["-pthread"],
+        "//conditions:default": ["-lpthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":atomic_hook",

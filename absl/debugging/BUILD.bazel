@@ -149,7 +149,7 @@ cc_test(
     linkopts = select({
         "//absl:windows": [],
         "//absl:wasm": [],
-        "//conditions:default": ["-pthread"],
+        "//conditions:default": ["-lpthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":failure_signal_handler",
