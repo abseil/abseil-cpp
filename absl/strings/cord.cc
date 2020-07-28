@@ -549,7 +549,7 @@ void Cord::InlineRep::AppendTree(CordRep* tree) {
 }
 
 void Cord::InlineRep::PrependTree(CordRep* tree) {
-  if (tree == nullptr) return;
+  assert(tree != nullptr);
   size_t len = data_[kMaxInline];
   if (len == 0) {
     set_tree(tree);

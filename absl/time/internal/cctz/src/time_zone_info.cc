@@ -295,7 +295,7 @@ bool TimeZoneInfo::EquivTransitions(std::uint_fast8_t tt1_index,
 // Find/make a transition type with these attributes.
 bool TimeZoneInfo::GetTransitionType(std::int_fast32_t utc_offset, bool is_dst,
                                      const std::string& abbr,
-                                     std::uint_fast8_t* index) {
+                                     std::uint_least8_t* index) {
   std::size_t type_index = 0;
   std::size_t abbr_index = abbreviations_.size();
   for (; type_index != transition_types_.size(); ++type_index) {
@@ -334,7 +334,7 @@ bool TimeZoneInfo::ExtendTransitions() {
   if (!ParsePosixSpec(future_spec_, &posix)) return false;
 
   // Find transition type for the future std specification.
-  std::uint_fast8_t std_ti;
+  std::uint_least8_t std_ti;
   if (!GetTransitionType(posix.std_offset, false, posix.std_abbr, &std_ti))
     return false;
 
@@ -345,7 +345,7 @@ bool TimeZoneInfo::ExtendTransitions() {
   }
 
   // Find transition type for the future dst specification.
-  std::uint_fast8_t dst_ti;
+  std::uint_least8_t dst_ti;
   if (!GetTransitionType(posix.dst_offset, true, posix.dst_abbr, &dst_ti))
     return false;
 
@@ -365,10 +365,8 @@ bool TimeZoneInfo::ExtendTransitions() {
   std::int_fast64_t jan1_time = jan1 - civil_second();
   int jan1_weekday = ToPosixWeekday(get_weekday(jan1));
 
-  Transition dst = {0, static_cast<uint_least8_t>(dst_ti), civil_second(),
-                    civil_second()};
-  Transition std = {0, static_cast<uint_least8_t>(std_ti), civil_second(),
-                    civil_second()};
+  Transition dst = {0, dst_ti, civil_second(), civil_second()};
+  Transition std = {0, std_ti, civil_second(), civil_second()};
   for (const year_t limit = last_year_ + 400;; ++last_year_) {
     auto dst_trans_off = TransOffset(leap_year, jan1_weekday, posix.dst_start);
     auto std_trans_off = TransOffset(leap_year, jan1_weekday, posix.dst_end);

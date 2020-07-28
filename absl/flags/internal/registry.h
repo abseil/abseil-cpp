@@ -74,13 +74,22 @@ bool RegisterCommandLineFlag(CommandLineFlag&);
 //
 
 // Retire flag with name "name" and type indicated by ops.
-bool Retire(const char* name, FlagFastTypeId type_id);
+void Retire(const char* name, FlagFastTypeId type_id, char* buf);
+
+constexpr size_t kRetiredFlagObjSize = 3 * sizeof(void*);
+constexpr size_t kRetiredFlagObjAlignment = alignof(void*);
 
 // Registered a retired flag with name 'flag_name' and type 'T'.
 template <typename T>
-inline bool RetiredFlag(const char* flag_name) {
-  return flags_internal::Retire(flag_name, base_internal::FastTypeId<T>());
-}
+class RetiredFlag {
+ public:
+  explicit RetiredFlag(const char* flag_name) {
+    flags_internal::Retire(flag_name, base_internal::FastTypeId<T>(), buf_);
+  }
+
+ private:
+  alignas(kRetiredFlagObjAlignment) char buf_[kRetiredFlagObjSize];
+};
 
 }  // namespace flags_internal
 ABSL_NAMESPACE_END

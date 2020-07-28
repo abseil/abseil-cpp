@@ -99,8 +99,6 @@ class FlagRegistryLock {
   FlagRegistry& fr_;
 };
 
-void DestroyRetiredFlag(CommandLineFlag& flag);
-
 }  // namespace
 
 void FlagRegistry::RegisterFlag(CommandLineFlag& flag) {
@@ -125,8 +123,6 @@ void FlagRegistry::RegisterFlag(CommandLineFlag& flag) {
                        old_flag.Filename(), "' and '", flag.Filename(), "'."),
           true);
     } else if (old_flag.IsRetired()) {
-      // Retired flag can just be deleted.
-      DestroyRetiredFlag(flag);
       return;
     } else if (old_flag.Filename() != flag.Filename()) {
       flags_internal::ReportUsageError(
@@ -241,17 +237,14 @@ class RetiredFlagObj final : public CommandLineFlag {
   const FlagFastTypeId type_id_;
 };
 
-void DestroyRetiredFlag(CommandLineFlag& flag) {
-  assert(flag.IsRetired());
-  delete static_cast<RetiredFlagObj*>(&flag);
-}
-
 }  // namespace
 
-bool Retire(const char* name, FlagFastTypeId type_id) {
-  auto* flag = new flags_internal::RetiredFlagObj(name, type_id);
+void Retire(const char* name, FlagFastTypeId type_id, char* buf) {
+  static_assert(sizeof(RetiredFlagObj) == kRetiredFlagObjSize, "");
+  static_assert(alignof(RetiredFlagObj) == kRetiredFlagObjAlignment, "");
+  auto* flag = ::new (static_cast<void*>(buf))
+      flags_internal::RetiredFlagObj(name, type_id);
   FlagRegistry::GlobalRegistry().RegisterFlag(*flag);
-  return true;
 }
 
 // --------------------------------------------------------------------

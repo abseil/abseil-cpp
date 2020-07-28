@@ -74,9 +74,8 @@ TEST(PredictTest, Pointer) {
   const int *null_intptr = nullptr;
   EXPECT_TRUE(ABSL_PREDICT_TRUE(good_intptr));
   EXPECT_FALSE(ABSL_PREDICT_TRUE(null_intptr));
-  // The following doesn't compile:
-  // EXPECT_TRUE(ABSL_PREDICT_FALSE(good_intptr));
-  // EXPECT_FALSE(ABSL_PREDICT_FALSE(null_intptr));
+  EXPECT_TRUE(ABSL_PREDICT_FALSE(good_intptr));
+  EXPECT_FALSE(ABSL_PREDICT_FALSE(null_intptr));
 }
 
 TEST(PredictTest, Optional) {
@@ -85,9 +84,8 @@ TEST(PredictTest, Optional) {
   absl::optional<bool> no_value;
   EXPECT_TRUE(ABSL_PREDICT_TRUE(has_value));
   EXPECT_FALSE(ABSL_PREDICT_TRUE(no_value));
-  // The following doesn't compile:
-  // EXPECT_TRUE(ABSL_PREDICT_FALSE(has_value));
-  // EXPECT_FALSE(ABSL_PREDICT_FALSE(no_value));
+  EXPECT_TRUE(ABSL_PREDICT_FALSE(has_value));
+  EXPECT_FALSE(ABSL_PREDICT_FALSE(no_value));
 }
 
 class ImplictlyConvertibleToBool {
@@ -124,9 +122,8 @@ TEST(PredictTest, ExplicitBoolConversion) {
   const ExplictlyConvertibleToBool is_false(false);
   if (!ABSL_PREDICT_TRUE(is_true)) ADD_FAILURE();
   if (ABSL_PREDICT_TRUE(is_false)) ADD_FAILURE();
-  // The following doesn't compile:
-  // if (!ABSL_PREDICT_FALSE(is_true)) ADD_FAILURE();
-  // if (ABSL_PREDICT_FALSE(is_false)) ADD_FAILURE();
+  if (!ABSL_PREDICT_FALSE(is_true)) ADD_FAILURE();
+  if (ABSL_PREDICT_FALSE(is_false)) ADD_FAILURE();
 }
 
 }  // namespace

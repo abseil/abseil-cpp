@@ -96,7 +96,7 @@ class TimeZoneInfo : public TimeZoneIf {
   };
 
   bool GetTransitionType(std::int_fast32_t utc_offset, bool is_dst,
-                         const std::string& abbr, std::uint_fast8_t* index);
+                         const std::string& abbr, std::uint_least8_t* index);
   bool EquivTransitions(std::uint_fast8_t tt1_index,
                         std::uint_fast8_t tt2_index) const;
   bool ExtendTransitions();
