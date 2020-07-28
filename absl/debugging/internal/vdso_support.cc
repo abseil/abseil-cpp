@@ -76,15 +76,6 @@ const void *VDSOSupport::Init() {
   }
 #endif  // __GLIBC_PREREQ(2, 16)
   if (vdso_base_.load(std::memory_order_relaxed) == kInvalidBase) {
-    // Valgrind zaps AT_SYSINFO_EHDR and friends from the auxv[]
-    // on stack, and so glibc works as if VDSO was not present.
-    // But going directly to kernel via /proc/self/auxv below bypasses
-    // Valgrind zapping. So we check for Valgrind separately.
-    if (RunningOnValgrind()) {
-      vdso_base_.store(nullptr, std::memory_order_relaxed);
-      getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
-      return nullptr;
-    }
     int fd = open("/proc/self/auxv", O_RDONLY);
     if (fd == -1) {
       // Kernel too old to have a VDSO.

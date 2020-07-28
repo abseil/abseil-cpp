@@ -27,7 +27,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/base/dynamic_annotations.h"  // for RunningOnValgrind
+#include "absl/base/dynamic_annotations.h"
 #include "absl/base/macros.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"

@@ -18,6 +18,8 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_
 #define ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_
 
+#ifdef __cplusplus
+
 #include <cstddef>
 #include <cstdint>
 
@@ -131,5 +133,17 @@ bool GetFileMappingHint(const void** start,
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#endif  // __cplusplus
+
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C"
+#endif  // __cplusplus
+
+    bool
+    AbslInternalGetFileMappingHint(const void** start, const void** end,
+                                   uint64_t* offset, const char** filename);
 
 #endif  // ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_
