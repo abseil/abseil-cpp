@@ -32,33 +32,11 @@
 // of them are not supported in older version of Clang. Thus, we check
 // `__has_attribute()` first. If the check fails, we check if we are on GCC and
 // assume the attribute exists on GCC (which is verified on GCC 4.7).
-//
-// -----------------------------------------------------------------------------
-// Sanitizer Attributes
-// -----------------------------------------------------------------------------
-//
-// Sanitizer-related attributes are not "defined" in this file (and indeed
-// are not defined as such in any file). To utilize the following
-// sanitizer-related attributes within your builds, define the following macros
-// within your build using a `-D` flag, along with the given value for
-// `-fsanitize`:
-//
-//   * `ADDRESS_SANITIZER` + `-fsanitize=address` (Clang, GCC 4.8)
-//   * `MEMORY_SANITIZER` + `-fsanitize=memory` (Clang-only)
-//   * `THREAD_SANITIZER` + `-fsanitize=thread` (Clang, GCC 4.8+)
-//   * `UNDEFINED_BEHAVIOR_SANITIZER` + `-fsanitize=undefined` (Clang, GCC 4.9+)
-//   * `CONTROL_FLOW_INTEGRITY` + `-fsanitize=cfi` (Clang-only)
-//
-// Example:
-//
-//   // Enable branches in the Abseil code that are tagged for ASan:
-//   $ bazel build --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address
-//     --linkopt=-fsanitize=address *target*
-//
-// Since these macro names are only supported by GCC and Clang, we only check
-// for `__GNUC__` (GCC or Clang) and the above macros.
+
 #ifndef ABSL_BASE_ATTRIBUTES_H_
 #define ABSL_BASE_ATTRIBUTES_H_
+
+#include "absl/base/config.h"
 
 // ABSL_HAVE_ATTRIBUTE
 //
@@ -234,7 +212,7 @@
 // out of bounds or does other scary things with memory.
 // NOTE: GCC supports AddressSanitizer(asan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if defined(__GNUC__)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize_address)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
@@ -242,13 +220,13 @@
 
 // ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
 //
-// Tells the  MemorySanitizer to relax the handling of a given function. All
-// "Use of uninitialized value" warnings from such functions will be suppressed,
-// and all values loaded from memory will be considered fully initialized.
-// This attribute is similar to the ADDRESS_SANITIZER attribute above, but deals
-// with initialized-ness rather than addressability issues.
+// Tells the MemorySanitizer to relax the handling of a given function. All "Use
+// of uninitialized value" warnings from such functions will be suppressed, and
+// all values loaded from memory will be considered fully initialized.  This
+// attribute is similar to the ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS attribute
+// above, but deals with initialized-ness rather than addressability issues.
 // NOTE: MemorySanitizer(msan) is supported by Clang but not GCC.
-#if defined(__clang__)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize_memory)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY __attribute__((no_sanitize_memory))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
@@ -259,7 +237,7 @@
 // Tells the ThreadSanitizer to not instrument a given function.
 // NOTE: GCC supports ThreadSanitizer(tsan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if defined(__GNUC__)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize_thread)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD __attribute__((no_sanitize_thread))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD
@@ -271,8 +249,10 @@
 // where certain behavior (eg. division by zero) is being used intentionally.
 // NOTE: GCC supports UndefinedBehaviorSanitizer(ubsan) since 4.9.
 // https://gcc.gnu.org/gcc-4.9/changes.html
-#if defined(__GNUC__) && \
-    (defined(UNDEFINED_BEHAVIOR_SANITIZER) || defined(ADDRESS_SANITIZER))
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize_undefined)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
+  __attribute__((no_sanitize_undefined))
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
   __attribute__((no_sanitize("undefined")))
 #else
@@ -283,7 +263,7 @@
 //
 // Tells the ControlFlowIntegrity sanitizer to not instrument a given function.
 // See https://clang.llvm.org/docs/ControlFlowIntegrity.html for details.
-#if defined(__GNUC__) && defined(CONTROL_FLOW_INTEGRITY)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI __attribute__((no_sanitize("cfi")))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI
@@ -293,7 +273,7 @@
 //
 // Tells the SafeStack to not instrument a given function.
 // See https://clang.llvm.org/docs/SafeStack.html for details.
-#if defined(__GNUC__) && defined(SAFESTACK_SANITIZER)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK \
   __attribute__((no_sanitize("safe-stack")))
 #else

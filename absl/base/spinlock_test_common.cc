@@ -25,6 +25,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/spinlock.h"
@@ -104,7 +105,7 @@ static void ThreadedTest(SpinLock* spinlock) {
   }
 }
 
-#ifndef THREAD_SANITIZER
+#ifndef ABSL_HAVE_THREAD_SANITIZER
 static_assert(std::is_trivially_destructible<SpinLock>(), "");
 #endif
 

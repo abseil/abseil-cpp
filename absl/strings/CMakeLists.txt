@@ -548,6 +548,7 @@ absl_cc_library(
   DEPS
     absl::base
     absl::base_internal
+    absl::compressed_tuple
     absl::core_headers
     absl::endian
     absl::fixed_array

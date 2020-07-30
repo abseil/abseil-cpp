@@ -16,6 +16,7 @@
 #include <mutex>  // NOLINT(build/c++11)
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/synchronization/blocking_counter.h"
@@ -213,7 +214,7 @@ void BM_ConditionWaiters(benchmark::State& state) {
 }
 
 // Some configurations have higher thread limits than others.
-#if defined(__linux__) && !defined(THREAD_SANITIZER)
+#if defined(__linux__) && !defined(ABSL_HAVE_THREAD_SANITIZER)
 constexpr int kMaxConditionWaiters = 8192;
 #else
 constexpr int kMaxConditionWaiters = 1024;

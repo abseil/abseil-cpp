@@ -258,6 +258,8 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/base:base_internal",
+        "//absl/container:compressed_tuple",
         "//absl/meta:type_traits",
     ],
 )
@@ -277,7 +279,6 @@ cc_library(
         ":str_format",
         ":strings",
         "//absl/base",
-        "//absl/base:base_internal",
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/base:raw_logging_internal",

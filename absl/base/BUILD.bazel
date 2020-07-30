@@ -415,6 +415,7 @@ cc_library(
     deps = [
         ":base",
         ":base_internal",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@com_google_googletest//:gtest",
@@ -431,6 +432,7 @@ cc_test(
     deps = [
         ":base",
         ":base_internal",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@com_google_googletest//:gtest_main",

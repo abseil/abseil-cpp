@@ -163,6 +163,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -170,14 +171,15 @@
 #include <typeinfo>
 #include <utility>
 
-#ifdef ADDRESS_SANITIZER
-#include <sanitizer/asan_interface.h>
-#endif
-
+#include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "absl/utility/utility.h"
+
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif
 
 #if defined(__GXX_RTTI)
 #define ABSL_INTERNAL_HAS_CXA_DEMANGLE
@@ -614,7 +616,7 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   void PoisonPadding(const Char* p) const {
     static_assert(N < NumOffsets, "Index out of bounds");
     (void)p;
-#ifdef ADDRESS_SANITIZER
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
     PoisonPadding<Char, N - 1>(p);
     // The `if` is an optimization. It doesn't affect the observable behaviour.
     if (ElementAlignment<N - 1>::value % ElementAlignment<N>::value) {

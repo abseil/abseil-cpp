@@ -27,6 +27,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/options.h"
 #include "absl/container/internal/counting_allocator.h"
@@ -767,7 +768,7 @@ TEST(AllocatorSupportTest, SizeValAllocConstructor) {
   }
 }
 
-#ifdef ADDRESS_SANITIZER
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
 TEST(FixedArrayTest, AddressSanitizerAnnotations1) {
   absl::FixedArray<int, 32> a(10);
   int* raw = a.data();
@@ -814,7 +815,7 @@ TEST(FixedArrayTest, AddressSanitizerAnnotations4) {
   // so reading raw[21] should still trigger the correct warning.
   EXPECT_DEATH_IF_SUPPORTED(raw[21] = ThreeInts(), "container-overflow");
 }
-#endif  // ADDRESS_SANITIZER
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
 
 TEST(FixedArrayTest, AbslHashValueWorks) {
   using V = absl::FixedArray<int>;

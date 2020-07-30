@@ -61,48 +61,6 @@ enum CordRepKind {
   FLAT          = 3,
 };
 
-namespace {
-
-// Type used with std::allocator for allocating and deallocating
-// `CordRepExternal`. std::allocator is used because it opaquely handles the
-// different new / delete overloads available on a given platform.
-struct alignas(absl::cord_internal::ExternalRepAlignment()) ExternalAllocType {
-  unsigned char value[absl::cord_internal::ExternalRepAlignment()];
-};
-
-// Returns the number of objects to pass in to std::allocator<ExternalAllocType>
-// allocate() and deallocate() to create enough room for `CordRepExternal` with
-// `releaser_size` bytes on the end.
-constexpr size_t GetExternalAllocNumObjects(size_t releaser_size) {
-  // Be sure to round up since `releaser_size` could be smaller than
-  // `sizeof(ExternalAllocType)`.
-  return (sizeof(CordRepExternal) + releaser_size + sizeof(ExternalAllocType) -
-          1) /
-         sizeof(ExternalAllocType);
-}
-
-// Allocates enough memory for `CordRepExternal` and a releaser with size
-// `releaser_size` bytes.
-void* AllocateExternal(size_t releaser_size) {
-  return std::allocator<ExternalAllocType>().allocate(
-      GetExternalAllocNumObjects(releaser_size));
-}
-
-// Deallocates the memory for a `CordRepExternal` assuming it was allocated with
-// a releaser of given size and alignment.
-void DeallocateExternal(CordRepExternal* p, size_t releaser_size) {
-  std::allocator<ExternalAllocType>().deallocate(
-      reinterpret_cast<ExternalAllocType*>(p),
-      GetExternalAllocNumObjects(releaser_size));
-}
-
-// Returns a pointer to the type erased releaser for the given CordRepExternal.
-void* GetExternalReleaser(CordRepExternal* rep) {
-  return rep + 1;
-}
-
-}  // namespace
-
 namespace cord_internal {
 
 inline CordRepConcat* CordRep::concat() {
@@ -304,11 +262,7 @@ static void UnrefInternal(CordRep* rep) {
       }
     } else if (rep->tag == EXTERNAL) {
       CordRepExternal* rep_external = rep->external();
-      absl::string_view data(rep_external->base, rep->length);
-      void* releaser = GetExternalReleaser(rep_external);
-      size_t releaser_size = rep_external->releaser_invoker(releaser, data);
-      rep_external->~CordRepExternal();
-      DeallocateExternal(rep_external, releaser_size);
+      rep_external->releaser_invoker(rep_external);
       rep = nullptr;
     } else if (rep->tag == SUBSTRING) {
       CordRepSubstring* rep_substring = rep->substring();
@@ -458,18 +412,12 @@ static CordRep* NewTree(const char* data,
 
 namespace cord_internal {
 
-ExternalRepReleaserPair NewExternalWithUninitializedReleaser(
-    absl::string_view data, ExternalReleaserInvoker invoker,
-    size_t releaser_size) {
+void InitializeCordRepExternal(absl::string_view data, CordRepExternal* rep) {
   assert(!data.empty());
-
-  void* raw_rep = AllocateExternal(releaser_size);
-  auto* rep = new (raw_rep) CordRepExternal();
   rep->length = data.size();
   rep->tag = EXTERNAL;
   rep->base = data.data();
-  rep->releaser_invoker = invoker;
-  return {VerifyTree(rep), GetExternalReleaser(rep)};
+  VerifyTree(rep);
 }
 
 }  // namespace cord_internal
@@ -721,12 +669,12 @@ Cord::Cord(T&& src) {
       std::string data;
     };
     const absl::string_view original_data = src;
-    CordRepExternal* rep =
-        static_cast<CordRepExternal*>(absl::cord_internal::NewExternalRep(
-            original_data, StringReleaser{std::move(src)}));
+    auto* rep = static_cast<
+        ::absl::cord_internal::CordRepExternalImpl<StringReleaser>*>(
+        absl::cord_internal::NewExternalRep(
+            original_data, StringReleaser{std::forward<T>(src)}));
     // Moving src may have invalidated its data pointer, so adjust it.
-    rep->base =
-        static_cast<StringReleaser*>(GetExternalReleaser(rep))->data.data();
+    rep->base = rep->template get<0>().data.data();
     contents_.set_tree(rep);
   }
 }
@@ -775,7 +723,7 @@ Cord& Cord::operator=(T&& src) {
   if (src.size() <= kMaxBytesToCopy) {
     *this = absl::string_view(src);
   } else {
-    *this = Cord(std::move(src));
+    *this = Cord(std::forward<T>(src));
   }
   return *this;
 }
@@ -898,7 +846,7 @@ void Cord::Append(T&& src) {
   if (src.size() <= kMaxBytesToCopy) {
     Append(absl::string_view(src));
   } else {
-    Append(Cord(std::move(src)));
+    Append(Cord(std::forward<T>(src)));
   }
 }
 
@@ -938,7 +886,7 @@ inline void Cord::Prepend(T&& src) {
   if (src.size() <= kMaxBytesToCopy) {
     Prepend(absl::string_view(src));
   } else {
-    Prepend(Cord(std::move(src)));
+    Prepend(Cord(std::forward<T>(src)));
   }
 }
 

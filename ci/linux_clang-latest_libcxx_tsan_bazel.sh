@@ -79,8 +79,6 @@ for std in ${STD}; do
           --build_tag_filters="-notsan" \
           --compilation_mode="${compilation_mode}" \
           --copt="${exceptions_mode}" \
-          --copt="-DDYNAMIC_ANNOTATIONS_ENABLED=1" \
-          --copt="-DTHREAD_SANITIZER" \
           --copt="-fsanitize=thread" \
           --copt="-fno-sanitize-blacklist" \
           --copt=-Werror \

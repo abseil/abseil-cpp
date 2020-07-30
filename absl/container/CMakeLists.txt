@@ -131,6 +131,7 @@ absl_cc_library(
   DEPS
     absl::compressed_tuple
     absl::algorithm
+    absl::config
     absl::core_headers
     absl::dynamic_annotations
     absl::throw_delegate
@@ -423,6 +424,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::memory
     absl::type_traits
     absl::utility
@@ -696,6 +698,7 @@ absl_cc_test(
     absl::hashtable_debug
     absl::raw_hash_set
     absl::base
+    absl::config
     absl::core_headers
     absl::raw_logging_internal
     absl::strings
@@ -724,6 +727,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::config
     absl::core_headers
     absl::meta
     absl::strings
@@ -741,6 +745,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::layout
+    absl::config
     absl::core_headers
     absl::raw_logging_internal
     absl::span

@@ -100,7 +100,7 @@ class Waiter {
   }
 
   // How many periods to remain idle before releasing resources
-#ifndef THREAD_SANITIZER
+#ifndef ABSL_HAVE_THREAD_SANITIZER
   static constexpr int kIdlePeriods = 60;
 #else
   // Memory consumption under ThreadSanitizer is a serious concern,

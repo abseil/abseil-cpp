@@ -60,6 +60,7 @@ cc_library(
     deps = [
         ":compressed_tuple",
         "//absl/algorithm",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:throw_delegate",
@@ -368,6 +369,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/utility",
@@ -620,6 +622,7 @@ cc_test(
         ":hashtable_debug",
         ":raw_hash_set",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
@@ -647,6 +650,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
         "//absl/strings",
@@ -665,6 +669,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":layout",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/types:span",

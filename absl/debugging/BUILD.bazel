@@ -97,6 +97,7 @@ cc_test(
         ":stack_consumption",
         ":symbolize",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/memory",
@@ -204,6 +205,7 @@ cc_test(
     deps = [
         ":demangle_internal",
         ":stack_consumption",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/memory",
