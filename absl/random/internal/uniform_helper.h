@@ -105,7 +105,7 @@ typename absl::enable_if_t<
                           std::is_same<Tag, IntervalOpenOpenTag>>>::value,
     IntType>
 uniform_lower_bound(Tag, IntType a, IntType) {
-  return a + 1;
+  return a < (std::numeric_limits<IntType>::max)() ? (a + 1) : a;
 }
 
 template <typename FloatType, typename Tag>
@@ -136,7 +136,7 @@ typename absl::enable_if_t<
                           std::is_same<Tag, IntervalOpenOpenTag>>>::value,
     IntType>
 uniform_upper_bound(Tag, IntType, IntType b) {
-  return b - 1;
+  return b > (std::numeric_limits<IntType>::min)() ? (b - 1) : b;
 }
 
 template <typename FloatType, typename Tag>
@@ -170,6 +170,40 @@ typename absl::enable_if_t<
     FloatType>
 uniform_upper_bound(Tag, FloatType, FloatType b) {
   return std::nextafter(b, (std::numeric_limits<FloatType>::max)());
+}
+
+// Returns whether the bounds are valid for the underlying distribution.
+// Inputs must have already been resolved via uniform_*_bound calls.
+//
+// The c++ standard constraints in [rand.dist.uni.int] are listed as:
+//    requires: lo <= hi.
+//
+// In the uniform_int_distrubtion, {lo, hi} are closed, closed. Thus:
+// [0, 0] is legal.
+// [0, 0) is not legal, but [0, 1) is, which translates to [0, 0].
+// (0, 1) is not legal, but (0, 2) is, which translates to [1, 1].
+// (0, 0] is not legal, but (0, 1] is, which translates to [1, 1].
+//
+// The c++ standard constraints in [rand.dist.uni.real] are listed as:
+//    requires: lo <= hi.
+//    requires: (hi - lo) <= numeric_limits<T>::max()
+//
+// In the uniform_real_distribution, {lo, hi} are closed, open, Thus:
+// [0, 0] is legal, which is [0, 0+epsilon).
+// [0, 0) is legal.
+// (0, 0) is not legal, but (0-epsilon, 0+epsilon) is.
+// (0, 0] is not legal, but (0, 0+epsilon] is.
+//
+template <typename FloatType>
+absl::enable_if_t<std::is_floating_point<FloatType>::value, bool>
+is_uniform_range_valid(FloatType a, FloatType b) {
+  return a <= b && std::isfinite(b - a);
+}
+
+template <typename IntType>
+absl::enable_if_t<std::is_integral<IntType>::value, bool>
+is_uniform_range_valid(IntType a, IntType b) {
+  return a <= b;
 }
 
 // UniformDistribution selects either absl::uniform_int_distribution

@@ -126,6 +126,7 @@ static const AbbrevPair kBuiltinTypeList[] = {
     {"Dn", "std::nullptr_t", 0},  // i.e., decltype(nullptr)
     {"Df", "decimal32", 0},       // IEEE 754r decimal floating point (32 bits)
     {"Di", "char32_t", 0},
+    {"Du", "char8_t", 0},
     {"Ds", "char16_t", 0},
     {"Dh", "float16", 0},         // IEEE 754r half-precision float (16 bits)
     {nullptr, nullptr, 0},
@@ -965,6 +966,7 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= TT <type>
 //                ::= TI <type>
 //                ::= TS <type>
+//                ::= TH <type>  # thread-local
 //                ::= Tc <call-offset> <call-offset> <(base) encoding>
 //                ::= GV <(object) name>
 //                ::= T <call-offset> <(base) encoding>
@@ -983,7 +985,7 @@ static bool ParseSpecialName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTIS") &&
+  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTISH") &&
       ParseType(state)) {
     return true;
   }
@@ -1142,6 +1144,7 @@ static bool ParseDecltype(State *state) {
 //        ::= <decltype>
 //        ::= <substitution>
 //        ::= Dp <type>          # pack expansion of (C++0x)
+//        ::= Dv <num-elems> _   # GNU vector extension
 //
 static bool ParseType(State *state) {
   ComplexityGuard guard(state);
@@ -1208,6 +1211,12 @@ static bool ParseType(State *state) {
     return true;
   }
 
+  if (ParseTwoCharToken(state, "Dv") && ParseNumber(state, nullptr) &&
+      ParseOneCharToken(state, '_')) {
+    return true;
+  }
+  state->parse_state = copy;
+
   return false;
 }
 
@@ -1256,13 +1265,14 @@ static bool ParseBuiltinType(State *state) {
   return false;
 }
 
-// <function-type> ::= F [Y] <bare-function-type> E
+// <function-type> ::= F [Y] <bare-function-type> [O] E
 static bool ParseFunctionType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
   if (ParseOneCharToken(state, 'F') &&
       Optional(ParseOneCharToken(state, 'Y')) && ParseBareFunctionType(state) &&
+      Optional(ParseOneCharToken(state, 'O')) &&
       ParseOneCharToken(state, 'E')) {
     return true;
   }

@@ -1162,6 +1162,21 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_test(
   NAME
+    random_internal_uniform_helper_test
+  SRCS
+    "internal/uniform_helper_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_internal_uniform_helper
+    gtest_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_test(
+  NAME
     random_internal_iostream_state_saver_test
   SRCS
     "internal/iostream_state_saver_test.cc"

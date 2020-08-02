@@ -128,7 +128,7 @@ Uniform(TagType tag,
 
   auto a = random_internal::uniform_lower_bound(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
       distribution_t>(&urbg, tag, lo, hi);
@@ -144,11 +144,11 @@ Uniform(URBG&& urbg,  // NOLINT(runtime/references)
         R lo, R hi) {
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = random_internal::UniformDistributionWrapper<R>;
-
   constexpr auto tag = absl::IntervalClosedOpen;
+
   auto a = random_internal::uniform_lower_bound(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
       distribution_t>(&urbg, lo, hi);
@@ -172,7 +172,7 @@ Uniform(TagType tag,
 
   auto a = random_internal::uniform_lower_bound<return_t>(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound<return_t>(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
       distribution_t>(&urbg, tag, static_cast<return_t>(lo),
@@ -196,7 +196,7 @@ Uniform(URBG&& urbg,  // NOLINT(runtime/references)
   constexpr auto tag = absl::IntervalClosedOpen;
   auto a = random_internal::uniform_lower_bound<return_t>(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound<return_t>(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
       distribution_t>(&urbg, static_cast<return_t>(lo),

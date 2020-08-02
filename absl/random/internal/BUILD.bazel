@@ -716,3 +716,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "uniform_helper_test",
+    size = "small",
+    srcs = ["uniform_helper_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":uniform_helper",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

@@ -47,9 +47,9 @@
 // this abstraction, make sure that you should not instead be rewriting your
 // code to be more specific.
 //
-// Abseil expects to release an `absl::variant` type shortly (a C++11 compatible
-// version of the C++17 `std::variant), which is generally preferred for use
-// over `absl::any`.
+// Abseil has also released an `absl::variant` type (a C++11 compatible version
+// of the C++17 `std::variant`), which is generally preferred for use over
+// `absl::any`.
 #ifndef ABSL_TYPES_ANY_H_
 #define ABSL_TYPES_ANY_H_
 
