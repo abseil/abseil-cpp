@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <iterator>
+#include <tuple>
 #include <utility>
 
 #include "absl/base/internal/throw_delegate.h"
@@ -341,8 +342,12 @@ class btree_set_container : public btree_container<Tree> {
                            typename T::params_type::is_map_container>>::value,
           int> = 0>
   void merge(btree_container<T> &src) {  // NOLINT
+    bool inserted;
+    auto dst_hint = this->tree_.begin();
     for (auto src_it = src.begin(); src_it != src.end();) {
-      if (insert(std::move(*src_it)).second) {
+      std::tie(dst_hint, inserted) = this->tree_.insert_hint_unique(
+          dst_hint, params_type::key(*src_it), std::move(*src_it));
+      if (inserted) {
         src_it = src.erase(src_it);
       } else {
         ++src_it;
