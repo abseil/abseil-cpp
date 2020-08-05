@@ -175,8 +175,7 @@ class string_view {
 
   template <typename Allocator>
   string_view(  // NOLINT(runtime/explicit)
-      const std::basic_string<char, std::char_traits<char>, Allocator>&
-          str) noexcept
+      const std::basic_string<value_type, traits_type, Allocator>& str) noexcept
       // This is implemented in terms of `string_view(p, n)` so `str.size()`
       // doesn't need to be reevaluated after `ptr_` is set.
       : string_view(str.data(), str.size()) {}
@@ -184,12 +183,12 @@ class string_view {
   // Implicit constructor of a `string_view` from NUL-terminated `str`. When
   // accepting possibly null strings, use `absl::NullSafeStringView(str)`
   // instead (see below).
-  constexpr string_view(const char* str)  // NOLINT(runtime/explicit)
+  constexpr string_view(const_pointer str)  // NOLINT(runtime/explicit)
       : ptr_(str),
         length_(str ? CheckLengthInternal(StrlenInternal(str)) : 0) {}
 
   // Implicit constructor of a `string_view` from a `const char*` and length.
-  constexpr string_view(const char* data, size_type len)
+  constexpr string_view(const_pointer data, size_type len)
       : ptr_(data), length_(CheckLengthInternal(len)) {}
 
   // NOTE: Harmlessly omitted to work around gdb bug.
@@ -356,22 +355,22 @@ class string_view {
 
   // Converts to `std::basic_string`.
   template <typename A>
-  explicit operator std::basic_string<char, traits_type, A>() const {
+  explicit operator std::basic_string<value_type, traits_type, A>() const {
     if (!data()) return {};
-    return std::basic_string<char, traits_type, A>(data(), size());
+    return std::basic_string<value_type, traits_type, A>(data(), size());
   }
 
   // string_view::copy()
   //
   // Copies the contents of the `string_view` at offset `pos` and length `n`
   // into `buf`.
-  size_type copy(char* buf, size_type n, size_type pos = 0) const {
+  size_type copy(pointer buf, size_type n, size_type pos = 0) const {
     if (ABSL_PREDICT_FALSE(pos > length_)) {
       base_internal::ThrowStdOutOfRange("absl::string_view::copy");
     }
     size_type rlen = (std::min)(length_ - pos, n);
     if (rlen > 0) {
-      const char* start = ptr_ + pos;
+      const_pointer start = ptr_ + pos;
       traits_type::copy(buf, start, rlen);
     }
     return rlen;
@@ -421,17 +420,17 @@ class string_view {
 
   // Overload of `string_view::compare()` for comparing a `string_view` and a
   // a different  C-style string `s`.
-  int compare(const char* s) const { return compare(string_view(s)); }
+  int compare(const_pointer s) const { return compare(string_view(s)); }
 
   // Overload of `string_view::compare()` for comparing a substring of the
   // `string_view` and a different string C-style string `s`.
-  int compare(size_type pos1, size_type count1, const char* s) const {
+  int compare(size_type pos1, size_type count1, const_pointer s) const {
     return substr(pos1, count1).compare(string_view(s));
   }
 
   // Overload of `string_view::compare()` for comparing a substring of the
   // `string_view` and a substring of a different C-style string `s`.
-  int compare(size_type pos1, size_type count1, const char* s,
+  int compare(size_type pos1, size_type count1, const_pointer s,
               size_type count2) const {
     return substr(pos1, count1).compare(string_view(s, count2));
   }
@@ -447,7 +446,7 @@ class string_view {
 
   // Overload of `string_view::find()` for finding the given character `c`
   // within the `string_view`.
-  size_type find(char c, size_type pos = 0) const noexcept;
+  size_type find(value_type c, size_type pos = 0) const noexcept;
 
   // string_view::rfind()
   //
@@ -459,7 +458,7 @@ class string_view {
 
   // Overload of `string_view::rfind()` for finding the last given character `c`
   // within the `string_view`.
-  size_type rfind(char c, size_type pos = npos) const noexcept;
+  size_type rfind(value_type c, size_type pos = npos) const noexcept;
 
   // string_view::find_first_of()
   //
@@ -471,7 +470,7 @@ class string_view {
 
   // Overload of `string_view::find_first_of()` for finding a character `c`
   // within the `string_view`.
-  size_type find_first_of(char c, size_type pos = 0) const
+  size_type find_first_of(value_type c, size_type pos = 0) const
       noexcept {
     return find(c, pos);
   }
@@ -486,7 +485,7 @@ class string_view {
 
   // Overload of `string_view::find_last_of()` for finding a character `c`
   // within the `string_view`.
-  size_type find_last_of(char c, size_type pos = npos) const
+  size_type find_last_of(value_type c, size_type pos = npos) const
       noexcept {
     return rfind(c, pos);
   }
@@ -500,7 +499,7 @@ class string_view {
 
   // Overload of `string_view::find_first_not_of()` for finding a character
   // that is not `c` within the `string_view`.
-  size_type find_first_not_of(char c, size_type pos = 0) const noexcept;
+  size_type find_first_not_of(value_type c, size_type pos = 0) const noexcept;
 
   // string_view::find_last_not_of()
   //
@@ -512,7 +511,7 @@ class string_view {
 
   // Overload of `string_view::find_last_not_of()` for finding a character
   // that is not `c` within the `string_view`.
-  size_type find_last_not_of(char c, size_type pos = npos) const
+  size_type find_last_not_of(value_type c, size_type pos = npos) const
       noexcept;
 
  private:
@@ -523,10 +522,10 @@ class string_view {
     return ABSL_HARDENING_ASSERT(len <= kMaxSize), len;
   }
 
-  static constexpr size_type StrlenInternal(const char* str) {
+  static constexpr size_type StrlenInternal(const_pointer str) {
 #if defined(_MSC_VER) && _MSC_VER >= 1910 && !defined(__clang__)
     // MSVC 2017+ can evaluate this at compile-time.
-    const char* begin = str;
+    const_pointer begin = str;
     while (*str != '\0') ++str;
     return str - begin;
 #elif ABSL_HAVE_BUILTIN(__builtin_strlen) || \
@@ -541,7 +540,7 @@ class string_view {
 #endif
   }
 
-  static constexpr size_t Min(size_type length_a, size_type length_b) {
+  static constexpr size_type Min(size_type length_a, size_type length_b) {
     return length_a < length_b ? length_a : length_b;
   }
 
@@ -552,7 +551,7 @@ class string_view {
                                : (compare_result < 0 ? -1 : 1);
   }
 
-  const char* ptr_;
+  const_pointer ptr_;
   size_type length_;
 };
 
