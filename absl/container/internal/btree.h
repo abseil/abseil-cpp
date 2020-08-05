@@ -817,12 +817,16 @@ class btree_node {
     }
   }
 
+  static void transfer(slot_type *dest, slot_type *src, allocator_type *alloc) {
+    absl::container_internal::SanitizerUnpoisonObject(dest);
+    params_type::transfer(alloc, dest, src);
+    absl::container_internal::SanitizerPoisonObject(src);
+  }
+
   // Transfers value from slot `src_i` in `src_node` to slot `dest_i` in `this`.
   void transfer(const size_type dest_i, const size_type src_i,
                 btree_node *src_node, allocator_type *alloc) {
-    absl::container_internal::SanitizerUnpoisonObject(slot(dest_i));
-    params_type::transfer(alloc, slot(dest_i), src_node->slot(src_i));
-    absl::container_internal::SanitizerPoisonObject(src_node->slot(src_i));
+    transfer(slot(dest_i), src_node->slot(src_i), alloc);
   }
 
   // Transfers `n` values starting at value `src_i` in `src_node` into the
@@ -830,19 +834,11 @@ class btree_node {
   void transfer_n(const size_type n, const size_type dest_i,
                   const size_type src_i, btree_node *src_node,
                   allocator_type *alloc) {
-    absl::container_internal::SanitizerUnpoisonMemoryRegion(
-        slot(dest_i), n * sizeof(slot_type));
     for (slot_type *src = src_node->slot(src_i), *end = src + n,
                    *dest = slot(dest_i);
          src != end; ++src, ++dest) {
-      params_type::transfer(alloc, dest, src);
+      transfer(dest, src, alloc);
     }
-    // We take care to avoid poisoning transferred-to nodes in case of overlap.
-    const size_type overlap =
-        this == src_node ? (std::max)(src_i, dest_i + n) - src_i : 0;
-    assert(n >= overlap);
-    absl::container_internal::SanitizerPoisonMemoryRegion(
-        src_node->slot(src_i + overlap), (n - overlap) * sizeof(slot_type));
   }
 
   // Same as above, except that we start at the end and work our way to the
@@ -850,19 +846,11 @@ class btree_node {
   void transfer_n_backward(const size_type n, const size_type dest_i,
                            const size_type src_i, btree_node *src_node,
                            allocator_type *alloc) {
-    absl::container_internal::SanitizerUnpoisonMemoryRegion(
-        slot(dest_i), n * sizeof(slot_type));
     for (slot_type *src = src_node->slot(src_i + n - 1), *end = src - n,
                    *dest = slot(dest_i + n - 1);
          src != end; --src, --dest) {
-      params_type::transfer(alloc, dest, src);
+      transfer(dest, src, alloc);
     }
-    // We take care to avoid poisoning transferred-to nodes in case of overlap.
-    assert(this != src_node || dest_i >= src_i);
-    const size_type num_to_poison =
-        this == src_node ? (std::min)(n, dest_i - src_i) : n;
-    absl::container_internal::SanitizerPoisonMemoryRegion(
-        src_node->slot(src_i), num_to_poison * sizeof(slot_type));
   }
 
   template <typename P>

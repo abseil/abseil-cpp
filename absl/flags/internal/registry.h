@@ -83,7 +83,7 @@ constexpr size_t kRetiredFlagObjAlignment = alignof(void*);
 template <typename T>
 class RetiredFlag {
  public:
-  explicit RetiredFlag(const char* flag_name) {
+  void Retire(const char* flag_name) {
     flags_internal::Retire(flag_name, base_internal::FastTypeId<T>(), buf_);
   }
 

@@ -812,6 +812,17 @@ ABSL_RETIRED_FLAG(bool, old_bool_flag, true, "old descr");
 ABSL_RETIRED_FLAG(int, old_int_flag, (int)std::sqrt(10), "old descr");
 ABSL_RETIRED_FLAG(std::string, old_str_flag, "", absl::StrCat("old ", "descr"));
 
+bool initializaion_order_fiasco_test = [] {
+  // Iterate over all the flags during static initialization.
+  // This should not trigger ASan's initialization-order-fiasco.
+  auto* handle1 = absl::FindCommandLineFlag("flag_on_separate_file");
+  auto* handle2 = absl::FindCommandLineFlag("retired_flag_on_separate_file");
+  if (handle1 != nullptr && handle2 != nullptr) {
+    return handle1->Name() == handle2->Name();
+  }
+  return true;
+}();
+
 namespace {
 
 TEST_F(FlagTest, TestRetiredFlagRegistration) {
