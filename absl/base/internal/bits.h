@@ -83,10 +83,11 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountLeadingZeros64(uint64_t n) {
 #elif defined(_MSC_VER) && !defined(__clang__)
   // MSVC does not have __buitin_clzll. Compose two calls to _BitScanReverse
   unsigned long result = 0;  // NOLINT(runtime/int)
-  if ((n >> 32) && _BitScanReverse(&result, n >> 32)) {
+  if ((n >> 32) &&
+      _BitScanReverse(&result, static_cast<unsigned long>(n >> 32))) {
     return 31 - result;
   }
-  if (_BitScanReverse(&result, n)) {
+  if (_BitScanReverse(&result, static_cast<unsigned long>(n))) {
     return 63 - result;
   }
   return 64;
@@ -170,10 +171,10 @@ ABSL_BASE_INTERNAL_FORCEINLINE int CountTrailingZerosNonZero64(uint64_t n) {
 #elif defined(_MSC_VER) && !defined(__clang__)
   unsigned long result = 0;  // NOLINT(runtime/int)
   if (static_cast<uint32_t>(n) == 0) {
-    _BitScanForward(&result, n >> 32);
+    _BitScanForward(&result, static_cast<unsigned long>(n >> 32));
     return result + 32;
   }
-  _BitScanForward(&result, n);
+  _BitScanForward(&result, static_cast<unsigned long>(n));
   return result;
 #elif defined(__GNUC__) || defined(__clang__)
   static_assert(sizeof(unsigned long long) == sizeof(n),  // NOLINT(runtime/int)
