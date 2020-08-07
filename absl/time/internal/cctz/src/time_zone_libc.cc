@@ -153,7 +153,8 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
   std::tm tm;
   while (lo + 1 != hi) {
     const std::time_t mid = lo + (hi - lo) / 2;
-    if (std::tm* tmp = local_time(&mid, &tm)) {
+    std::tm* tmp = local_time(&mid, &tm);
+    if (tmp != nullptr) {
       if (tm_gmtoff(*tmp) == offset) {
         hi = mid;
       } else {
@@ -163,7 +164,8 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
       // If std::tm cannot hold some result we resort to a linear search,
       // ignoring all failed conversions.  Slow, but never really happens.
       while (++lo != hi) {
-        if (std::tm* tmp = local_time(&lo, &tm)) {
+        tmp = local_time(&lo, &tm);
+        if (tmp != nullptr) {
           if (tm_gmtoff(*tmp) == offset) break;
         }
       }
