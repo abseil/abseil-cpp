@@ -138,7 +138,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/internal/distribution_caller.h"
   "random/internal/fastmath.h"
   "random/internal/fast_uniform_bits.h"
-  "random/internal/gaussian_distribution_gentables.cc"
   "random/internal/generate_real.h"
   "random/internal/iostream_state_saver.h"
   "random/internal/mock_helpers.h"

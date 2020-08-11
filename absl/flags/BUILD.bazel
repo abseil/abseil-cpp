@@ -465,6 +465,7 @@ cc_test(
         ":marshalling",
         ":reflection",
         "//absl/memory",
+        "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )
