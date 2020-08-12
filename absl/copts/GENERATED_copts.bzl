@@ -90,6 +90,7 @@ ABSL_GCC_FLAGS = [
     "-Wwrite-strings",
     "-Wno-missing-field-initializers",
     "-Wno-sign-compare",
+    "-DNOMINMAX",
 ]
 
 ABSL_GCC_TEST_FLAGS = [
@@ -147,6 +148,7 @@ ABSL_LLVM_FLAGS = [
     "-Wobjc-literal-conversion",
     "-Wno-sign-conversion",
     "-Wstring-conversion",
+    "-DNOMINMAX",
 ]
 
 ABSL_LLVM_TEST_FLAGS = [
