@@ -267,6 +267,21 @@ TEST(FlatHashMap, EraseIf) {
   }
 }
 
+// This test requires std::launder for mutable key access in node handles.
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+TEST(FlatHashMap, NodeHandleMutableKeyAccess) {
+  flat_hash_map<std::string, std::string> map;
+
+  map["key1"] = "mapped";
+
+  auto nh = map.extract(map.begin());
+  nh.key().resize(3);
+  map.insert(std::move(nh));
+
+  EXPECT_THAT(map, testing::ElementsAre(Pair("key", "mapped")));
+}
+#endif
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

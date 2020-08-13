@@ -174,6 +174,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/uniform_int_distribution.h"
   "random/uniform_real_distribution.h"
   "random/zipf_distribution.h"
+  "status/internal/status_internal.h"
   "status/status.h"
   "status/status.cc"
   "status/status_payload_printer.h"

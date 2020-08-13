@@ -19,6 +19,7 @@ absl_cc_library(
   HDRS
     "status.h"
   SRCS
+    "internal/status_internal.h"
     "status.cc"
     "status_payload_printer.h"
     "status_payload_printer.cc"

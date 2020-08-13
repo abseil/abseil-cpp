@@ -18,6 +18,7 @@
 #include <string>
 
 #include "absl/container/inlined_vector.h"
+#include "absl/status/internal/status_internal.h"
 #include "absl/strings/cord.h"
 #include "absl/types/optional.h"
 
@@ -163,27 +164,6 @@ std::string StatusCodeToString(StatusCode code);
 
 // Streams StatusCodeToString(code) to `os`.
 std::ostream& operator<<(std::ostream& os, StatusCode code);
-
-namespace status_internal {
-
-// Container for status payloads.
-struct Payload {
-  std::string type_url;
-  absl::Cord payload;
-};
-
-using Payloads = absl::InlinedVector<Payload, 1>;
-
-// Reference-counted representation of Status data.
-struct StatusRep {
-  std::atomic<int32_t> ref;
-  absl::StatusCode code;
-  std::string message;
-  std::unique_ptr<status_internal::Payloads> payloads;
-};
-
-absl::StatusCode MapToLocalCode(int value);
-}  // namespace status_internal
 
 class ABSL_MUST_USE_RESULT Status final {
  public:

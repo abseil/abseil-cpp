@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cstddef>
 #include <memory>
+#include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -351,6 +352,20 @@ struct map_slot_policy {
   static const value_type& element(const slot_type* slot) {
     return slot->value;
   }
+
+  // When C++17 is available, we can use std::launder to provide mutable
+  // access to the key for use in node handle.
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+  static K& mutable_key(slot_type* slot) {
+    // Still check for kMutableKeys so that we can avoid calling std::launder
+    // unless necessary because it can interfere with optimizations.
+    return kMutableKeys::value ? slot->key
+                               : *std::launder(const_cast<K*>(
+                                     std::addressof(slot->value.first)));
+  }
+#else  // !(defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606)
+  static const K& mutable_key(slot_type* slot) { return key(slot); }
+#endif
 
   static const K& key(const slot_type* slot) {
     return kMutableKeys::value ? slot->key : slot->value.first;

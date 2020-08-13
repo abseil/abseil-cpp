@@ -292,6 +292,11 @@ struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
   }
   static const Key &key(const slot_type *s) { return slot_policy::key(s); }
   static const Key &key(slot_type *s) { return slot_policy::key(s); }
+  // For use in node handle.
+  static auto mutable_key(slot_type *s)
+      -> decltype(slot_policy::mutable_key(s)) {
+    return slot_policy::mutable_key(s);
+  }
   static mapped_type &value(value_type *value) { return value->second; }
 };
 
@@ -1043,7 +1048,7 @@ class btree {
 #endif
   }
 
-  enum {
+  enum : uint32_t {
     kNodeValues = node_type::kNodeValues,
     kMinNodeValues = kNodeValues / 2,
   };

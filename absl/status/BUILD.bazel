@@ -31,6 +31,7 @@ licenses(["notice"])  # Apache 2.0
 cc_library(
     name = "status",
     srcs = [
+        "internal/status_internal.h",
         "status.cc",
         "status_payload_printer.cc",
     ],
