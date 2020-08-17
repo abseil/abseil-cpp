@@ -1082,20 +1082,28 @@ static bool ParseVOffset(State *state) {
   return false;
 }
 
-// <ctor-dtor-name> ::= C1 | C2 | C3
+// <ctor-dtor-name> ::= C1 | C2 | C3 | CI1 <base-class-type> | CI2
+// <base-class-type>
 //                  ::= D0 | D1 | D2
 // # GCC extensions: "unified" constructor/destructor.  See
-// # https://github.com/gcc-mirror/gcc/blob/7ad17b583c3643bd4557f29b8391ca7ef08391f5/gcc/cp/mangle.c#L1847
+// #
+// https://github.com/gcc-mirror/gcc/blob/7ad17b583c3643bd4557f29b8391ca7ef08391f5/gcc/cp/mangle.c#L1847
 //                  ::= C4 | D4
 static bool ParseCtorDtorName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'C') && ParseCharClass(state, "1234")) {
-    const char *const prev_name = state->out + state->parse_state.prev_name_idx;
-    MaybeAppendWithLength(state, prev_name,
-                          state->parse_state.prev_name_length);
-    return true;
+  if (ParseOneCharToken(state, 'C')) {
+    if (ParseCharClass(state, "1234")) {
+      const char *const prev_name =
+          state->out + state->parse_state.prev_name_idx;
+      MaybeAppendWithLength(state, prev_name,
+                            state->parse_state.prev_name_length);
+      return true;
+    } else if (ParseOneCharToken(state, 'I') && ParseCharClass(state, "12") &&
+               ParseClassEnumType(state)) {
+      return true;
+    }
   }
   state->parse_state = copy;
 
@@ -1265,12 +1273,40 @@ static bool ParseBuiltinType(State *state) {
   return false;
 }
 
-// <function-type> ::= F [Y] <bare-function-type> [O] E
+//  <exception-spec> ::= Do                # non-throwing
+//                                           exception-specification (e.g.,
+//                                           noexcept, throw())
+//                   ::= DO <expression> E # computed (instantiation-dependent)
+//                                           noexcept
+//                   ::= Dw <type>+ E      # dynamic exception specification
+//                                           with instantiation-dependent types
+static bool ParseExceptionSpec(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  if (ParseTwoCharToken(state, "Do")) return true;
+
+  ParseState copy = state->parse_state;
+  if (ParseTwoCharToken(state, "DO") && ParseExpression(state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+  if (ParseTwoCharToken(state, "Dw") && OneOrMore(ParseType, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  return false;
+}
+
+// <function-type> ::= [exception-spec] F [Y] <bare-function-type> [O] E
 static bool ParseFunctionType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'F') &&
+  if (Optional(ParseExceptionSpec(state)) && ParseOneCharToken(state, 'F') &&
       Optional(ParseOneCharToken(state, 'Y')) && ParseBareFunctionType(state) &&
       Optional(ParseOneCharToken(state, 'O')) &&
       ParseOneCharToken(state, 'E')) {
