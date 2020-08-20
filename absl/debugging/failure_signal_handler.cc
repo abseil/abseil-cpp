@@ -219,14 +219,22 @@ static void WriteToStderr(const char* data) {
   absl::raw_logging_internal::SafeWriteToStderr(data, strlen(data));
 }
 
-static void WriteSignalMessage(int signo, void (*writerfn)(const char*)) {
+static void WriteSignalMessage(int signo, siginfo_t* siginfo,
+                               void (*writerfn)(const char*)) {
   char buf[64];
   const char* const signal_string =
       debugging_internal::FailureSignalToString(signo);
   if (signal_string != nullptr && signal_string[0] != '\0') {
-    snprintf(buf, sizeof(buf), "*** %s received at time=%ld ***\n",
-             signal_string,
-             static_cast<long>(time(nullptr)));  // NOLINT(runtime/int)
+    if (siginfo == nullptr) {
+      snprintf(buf, sizeof(buf), "*** %s received at time=%ld ***\n",
+               signal_string,
+               static_cast<long>(time(nullptr)));  // NOLINT(runtime/int)
+    } else {
+      snprintf(buf, sizeof(buf), "*** %s (0x%lx) received at time=%ld ***\n",
+               signal_string,
+               reinterpret_cast<uintptr_t>(siginfo->si_addr),
+               static_cast<long>(time(nullptr)));  // NOLINT(runtime/int)
+    }
   } else {
     snprintf(buf, sizeof(buf), "*** Signal %d received at time=%ld ***\n",
              signo, static_cast<long>(time(nullptr)));  // NOLINT(runtime/int)
@@ -269,10 +277,10 @@ ABSL_ATTRIBUTE_NOINLINE static void WriteStackTrace(
 // Called by AbslFailureSignalHandler() to write the failure info. It is
 // called once with writerfn set to WriteToStderr() and then possibly
 // with writerfn set to the user provided function.
-static void WriteFailureInfo(int signo, void* ucontext,
+static void WriteFailureInfo(int signo, siginfo_t* siginfo, void* ucontext,
                              void (*writerfn)(const char*)) {
   WriterFnStruct writerfn_struct{writerfn};
-  WriteSignalMessage(signo, writerfn);
+  WriteSignalMessage(signo, siginfo, writerfn);
   WriteStackTrace(ucontext, fsh_options.symbolize_stacktrace, WriterFnWrapper,
                   &writerfn_struct);
 }
@@ -310,8 +318,10 @@ ABSL_CONST_INIT static std::atomic<GetTidType> failed_tid(0);
 #ifndef ABSL_HAVE_SIGACTION
 static void AbslFailureSignalHandler(int signo) {
   void* ucontext = nullptr;
+  siginfo_t* siginfo = nullptr;
 #else
-static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
+static void AbslFailureSignalHandler(int signo, siginfo_t* siginfo,
+                                     void* ucontext) {
 #endif
 
   const GetTidType this_tid = absl::base_internal::GetTID();
@@ -344,12 +354,12 @@ static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
 #endif
 
   // First write to stderr.
-  WriteFailureInfo(signo, ucontext, WriteToStderr);
+  WriteFailureInfo(signo, siginfo, ucontext, WriteToStderr);
 
   // Riskier code (because it is less likely to be async-signal-safe)
   // goes after this point.
   if (fsh_options.writerfn != nullptr) {
-    WriteFailureInfo(signo, ucontext, fsh_options.writerfn);
+    WriteFailureInfo(signo, siginfo, ucontext, fsh_options.writerfn);
   }
 
   if (fsh_options.call_previous_handler) {

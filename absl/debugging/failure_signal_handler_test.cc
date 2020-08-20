@@ -47,13 +47,17 @@ void InstallHandlerAndRaise(int signo) {
 
 TEST_P(FailureSignalHandlerDeathTest, AbslFailureSignal) {
   const int signo = GetParam();
-  std::string exit_regex = absl::StrCat(
-      "\\*\\*\\* ", absl::debugging_internal::FailureSignalToString(signo),
-      " received at time=");
 #ifndef _WIN32
+  std::string exit_regex = absl::StrCat(
+      "\\*\\*\\* ",
+      absl::debugging_internal::FailureSignalToString(signo),
+      " \\(0x[0-9a-f]+\\) received at time=");
   EXPECT_EXIT(InstallHandlerAndRaise(signo), testing::KilledBySignal(signo),
               exit_regex);
 #else
+  std::string exit_regex = absl::StrCat(
+      "\\*\\*\\* ", absl::debugging_internal::FailureSignalToString(signo),
+      " received at time=");
   // Windows doesn't have testing::KilledBySignal().
   EXPECT_DEATH_IF_SUPPORTED(InstallHandlerAndRaise(signo), exit_regex);
 #endif
@@ -99,13 +103,17 @@ TEST_P(FailureSignalHandlerDeathTest, AbslFatalSignalsWithWriterFn) {
   std::string tmp_dir = GetTmpDir();
   std::string file = absl::StrCat(tmp_dir, "/signo_", signo);
 
-  std::string exit_regex = absl::StrCat(
-      "\\*\\*\\* ", absl::debugging_internal::FailureSignalToString(signo),
-      " received at time=");
 #ifndef _WIN32
+  std::string exit_regex = absl::StrCat(
+      "\\*\\*\\* ",
+      absl::debugging_internal::FailureSignalToString(signo),
+      " \\(0x[0-9a-f]+\\) received at time=");
   EXPECT_EXIT(InstallHandlerWithWriteToFileAndRaise(file.c_str(), signo),
               testing::KilledBySignal(signo), exit_regex);
 #else
+  std::string exit_regex = absl::StrCat(
+      "\\*\\*\\* ", absl::debugging_internal::FailureSignalToString(signo),
+      " received at time=");
   // Windows doesn't have testing::KilledBySignal().
   EXPECT_DEATH_IF_SUPPORTED(
       InstallHandlerWithWriteToFileAndRaise(file.c_str(), signo), exit_regex);
@@ -116,11 +124,11 @@ TEST_P(FailureSignalHandlerDeathTest, AbslFatalSignalsWithWriterFn) {
   ASSERT_TRUE(error_output.is_open()) << file;
   std::string error_line;
   std::getline(error_output, error_line);
+  // TODO: Is it recommended to use std::regex within absl?
   EXPECT_THAT(
       error_line,
       StartsWith(absl::StrCat(
-          "*** ", absl::debugging_internal::FailureSignalToString(signo),
-          " received at ")));
+          "*** ", absl::debugging_internal::FailureSignalToString(signo))));
 
   if (absl::debugging_internal::StackTraceWorksForTest()) {
     std::getline(error_output, error_line);
