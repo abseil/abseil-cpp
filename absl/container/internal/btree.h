@@ -2432,7 +2432,7 @@ inline auto btree<P>::internal_emplace(iterator iter, Args &&... args)
     --iter;
     ++iter.position;
   }
-  const int max_count = iter.node->max_count();
+  const uint32_t max_count = iter.node->max_count();
   allocator_type *alloc = mutable_allocator();
   if (iter.node->count() == max_count) {
     // Make room in the leaf for the new item.
