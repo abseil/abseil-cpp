@@ -98,7 +98,7 @@ class BadStatusOrAccess : public std::exception {
 template <typename T>
 class ABSL_MUST_USE_RESULT StatusOr;
 
-// abls::StatusOr<T>
+// absl::StatusOr<T>
 //
 // The `absl::StatusOr<T>` class template is a union of an `absl::Status` object
 // and an object of type `T`. The `absl::StatusOr<T>` models an object that is

@@ -20,14 +20,14 @@
 //
 //   * An `absl::Status` class for holding error handling information
 //   * A set of canonical `absl::StatusCode` error codes, and associated
-//     utilities for generating and propogating status codes.
+//     utilities for generating and propagating status codes.
 //   * A set of helper functions for creating status codes and checking their
 //     values
 //
 // Within Google, `absl::Status` is the primary mechanism for gracefully
 // handling errors across API boundaries (and in particular across RPC
 // boundaries). Some of these errors may be recoverable, but others may not.
-// Most functions which can produce a recoverable error should be designed to
+// Most functions that can produce a recoverable error should be designed to
 // return an `absl::Status` (or `absl::StatusOr`).
 //
 // Example:
@@ -332,7 +332,7 @@ std::ostream& operator<<(std::ostream& os, StatusCode code);
 //     case absl::StatusCode::kPermissionDenied:
 //       LOG(ERROR) << result;
 //       break;
-//     // Propogate the error otherwise
+//     // Propagate the error otherwise.
 //     default:
 //       return true;
 //   }
