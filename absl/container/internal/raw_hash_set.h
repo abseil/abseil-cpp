@@ -1327,6 +1327,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) return end();
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
   }
   template <class K = key_type>
@@ -1678,8 +1679,8 @@ class raw_hash_set {
 #endif
         return {seq.offset(mask.LowestBitSet()), seq.index()};
       }
-      assert(seq.index() < capacity_ && "full table!");
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
   }
 
@@ -1710,6 +1711,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) break;
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
     return {prepare_insert(hash), true};
   }
@@ -1857,6 +1859,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
       }
       if (g.MatchEmpty()) return num_probes;
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
       ++num_probes;
     }
   }
