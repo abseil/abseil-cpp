@@ -1859,7 +1859,6 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
       }
       if (g.MatchEmpty()) return num_probes;
       seq.next();
-      assert(seq.index() < capacity_ && "full table!");
       ++num_probes;
     }
   }
