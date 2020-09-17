@@ -383,6 +383,11 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //   key value and returns a node handle owning that extracted data. If the
   //   `flat_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
+  //
+  // NOTE: when compiled in an earlier version of C++ than C++17,
+  // `node_type::key()` returns a const reference to the key instead of a
+  // mutable reference. We cannot safely return a mutable reference without
+  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // flat_hash_map::merge()

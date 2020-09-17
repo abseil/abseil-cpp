@@ -84,7 +84,11 @@ TEST_F(FlagsUsageConfigTest, TestGetSetFlagsUsageConfig) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagsUsageConfigTest, TestContainsHelpshortFlags) {
+#if defined(_WIN32)
+  flags::SetProgramInvocationName("usage_config_test.exe");
+#else
   flags::SetProgramInvocationName("usage_config_test");
+#endif
 
   auto config = flags::GetUsageConfig();
   EXPECT_TRUE(config.contains_helpshort_flags("adir/cd/usage_config_test.cc"));

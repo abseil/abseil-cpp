@@ -20,6 +20,8 @@
 // The Windows Symbolizer only works if PDB files containing the debug info
 // are available to the program at runtime.
 #include "absl/debugging/symbolize_win32.inc"
+#elif defined(__APPLE__)
+#include "absl/debugging/symbolize_darwin.inc"
 #else
 #include "absl/debugging/symbolize_unimplemented.inc"
 #endif

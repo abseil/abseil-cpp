@@ -29,7 +29,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 constexpr int kProbeLength = 16;
 #else
 constexpr int kProbeLength = 8;

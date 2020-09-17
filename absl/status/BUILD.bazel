@@ -26,11 +26,12 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "status",
     srcs = [
+        "internal/status_internal.h",
         "status.cc",
         "status_payload_printer.cc",
     ],
@@ -40,6 +41,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        "//absl/base:atomic_hook",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",

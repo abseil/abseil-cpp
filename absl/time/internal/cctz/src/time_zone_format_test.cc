@@ -48,8 +48,8 @@ namespace {
     EXPECT_STREQ(zone, al.abbr);                                  \
   } while (0)
 
-const char RFC3339_full[] = "%Y-%m-%dT%H:%M:%E*S%Ez";
-const char RFC3339_sec[] = "%Y-%m-%dT%H:%M:%S%Ez";
+const char RFC3339_full[] = "%Y-%m-%d%ET%H:%M:%E*S%Ez";
+const char RFC3339_sec[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
 
 const char RFC1123_full[] = "%a, %d %b %Y %H:%M:%S %z";
 const char RFC1123_no_wday[] = "%d %b %Y %H:%M:%S %z";
@@ -679,6 +679,34 @@ TEST(Format, RFC1123Format) {  // locale specific
   EXPECT_EQ("28 Jun 1977 09:08:07 -0700", format(RFC1123_no_wday, tp, tz));
 }
 
+TEST(Format, Week) {
+  const time_zone utc = utc_time_zone();
+
+  auto tp = convert(civil_second(2017, 1, 1, 0, 0, 0), utc);
+  EXPECT_EQ("2017-01-7", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2017-00-0", format("%Y-%W-%w", tp, utc));
+
+  tp = convert(civil_second(2017, 12, 31, 0, 0, 0), utc);
+  EXPECT_EQ("2017-53-7", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2017-52-0", format("%Y-%W-%w", tp, utc));
+
+  tp = convert(civil_second(2018, 1, 1, 0, 0, 0), utc);
+  EXPECT_EQ("2018-00-1", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2018-01-1", format("%Y-%W-%w", tp, utc));
+
+  tp = convert(civil_second(2018, 12, 31, 0, 0, 0), utc);
+  EXPECT_EQ("2018-52-1", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2018-53-1", format("%Y-%W-%w", tp, utc));
+
+  tp = convert(civil_second(2019, 1, 1, 0, 0, 0), utc);
+  EXPECT_EQ("2019-00-2", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2019-00-2", format("%Y-%W-%w", tp, utc));
+
+  tp = convert(civil_second(2019, 12, 31, 0, 0, 0), utc);
+  EXPECT_EQ("2019-52-2", format("%Y-%U-%u", tp, utc));
+  EXPECT_EQ("2019-52-2", format("%Y-%W-%w", tp, utc));
+}
+
 //
 // Testing parse()
 //
@@ -767,7 +795,7 @@ TEST(Parse, WithTimeZone) {
   EXPECT_TRUE(load_time_zone("America/Los_Angeles", &tz));
   time_point<chrono::nanoseconds> tp;
 
-  // We can parse a std::string without a UTC offset if we supply a timezone.
+  // We can parse a string without a UTC offset if we supply a timezone.
   EXPECT_TRUE(parse("%Y-%m-%d %H:%M:%S", "2013-06-28 19:08:09", tz, &tp));
   ExpectTime(tp, tz, 2013, 6, 28, 19, 8, 9, -7 * 60 * 60, true, "PDT");
 
@@ -1379,10 +1407,85 @@ TEST(Parse, RFC3339Format) {
   EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00+00:00", tz, &tp));
   ExpectTime(tp, tz, 2014, 2, 12, 20, 21, 0, 0, false, "UTC");
 
-  // Check that %Ez also accepts "Z" as a synonym for "+00:00".
+  // Check that %ET also accepts "t".
   time_point<chrono::nanoseconds> tp2;
-  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00Z", tz, &tp2));
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12t20:21:00+00:00", tz, &tp2));
   EXPECT_EQ(tp, tp2);
+
+  // Check that %Ez also accepts "Z" as a synonym for "+00:00".
+  time_point<chrono::nanoseconds> tp3;
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00Z", tz, &tp3));
+  EXPECT_EQ(tp, tp3);
+
+  // Check that %Ez also accepts "z" as a synonym for "+00:00".
+  time_point<chrono::nanoseconds> tp4;
+  EXPECT_TRUE(parse(RFC3339_sec, "2014-02-12T20:21:00z", tz, &tp4));
+  EXPECT_EQ(tp, tp4);
+}
+
+TEST(Parse, Week) {
+  const time_zone utc = utc_time_zone();
+  time_point<absl::time_internal::cctz::seconds> tp;
+
+  auto exp = convert(civil_second(2017, 1, 1, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2017-01-7", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2017-00-0", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2017, 12, 31, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2017-53-7", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2017-52-0", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2018, 1, 1, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2018-00-1", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2018-01-1", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2018, 12, 31, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2018-52-1", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2018-53-1", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2019, 1, 1, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2019-00-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2019-00-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2019, 12, 31, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2019-52-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2019-52-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+}
+
+TEST(Parse, WeekYearShift) {
+  // %U/%W conversions with week values in {0, 52, 53} can slip
+  // into the previous/following calendar years.
+  const time_zone utc = utc_time_zone();
+  time_point<absl::time_internal::cctz::seconds> tp;
+
+  auto exp = convert(civil_second(2019, 12, 31, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2020-00-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2020-00-2", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  exp = convert(civil_second(2021, 1, 1, 0, 0, 0), utc);
+  EXPECT_TRUE(parse("%Y-%U-%u", "2020-52-5", utc, &tp));
+  EXPECT_EQ(exp, tp);
+  EXPECT_TRUE(parse("%Y-%W-%w", "2020-52-5", utc, &tp));
+  EXPECT_EQ(exp, tp);
+
+  // Slipping into the previous/following calendar years should fail when
+  // we're already at the extremes.
+  EXPECT_FALSE(parse("%Y-%U-%u", "-9223372036854775808-0-7", utc, &tp));
+  EXPECT_FALSE(parse("%Y-%U-%u", "9223372036854775807-53-7", utc, &tp));
 }
 
 TEST(Parse, MaxRange) {

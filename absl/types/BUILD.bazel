@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
@@ -24,7 +23,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "any",
@@ -35,6 +34,7 @@ cc_library(
         ":bad_any_cast",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
         "//absl/utility",
     ],
@@ -215,11 +215,15 @@ cc_library(
         "internal/conformance_aliases.h",
         "internal/conformance_archetype.h",
         "internal/conformance_profile.h",
+        "internal/conformance_testing.h",
+        "internal/conformance_testing_helpers.h",
+        "internal/parentheses.h",
+        "internal/transform_args.h",
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/debugging:demangle_internal",
+        "//absl/algorithm:container",
         "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/utility",

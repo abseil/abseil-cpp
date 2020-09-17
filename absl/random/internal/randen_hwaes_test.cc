@@ -27,12 +27,14 @@ namespace {
 using absl::random_internal::RandenHwAes;
 using absl::random_internal::RandenTraits;
 
-struct randen {
-  static constexpr size_t kStateSizeT =
-      RandenTraits::kStateBytes / sizeof(uint64_t);
+// Local state parameters.
+constexpr size_t kSeedBytes =
+    RandenTraits::kStateBytes - RandenTraits::kCapacityBytes;
+constexpr size_t kStateSizeT = RandenTraits::kStateBytes / sizeof(uint64_t);
+constexpr size_t kSeedSizeT = kSeedBytes / sizeof(uint32_t);
+
+struct alignas(16) randen {
   uint64_t state[kStateSizeT];
-  static constexpr size_t kSeedSizeT =
-      RandenTraits::kSeedBytes / sizeof(uint32_t);
   uint32_t seed[kSeedSizeT];
 };
 

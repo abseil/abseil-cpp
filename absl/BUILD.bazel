@@ -21,7 +21,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 create_llvm_config(
     name = "llvm_compiler",
@@ -44,9 +44,10 @@ config_setting(
 
 config_setting(
     name = "windows",
-    values = {
-        "cpu": "x64_windows",
-    },
+    constraint_values = [
+        "@bazel_tools//platforms:x86_64",
+        "@bazel_tools//platforms:windows",
+    ],
     visibility = [":__subpackages__"],
 )
 
@@ -54,6 +55,14 @@ config_setting(
     name = "ppc",
     values = {
         "cpu": "ppc",
+    },
+    visibility = [":__subpackages__"],
+)
+
+config_setting(
+    name = "wasm",
+    values = {
+        "cpu": "wasm32",
     },
     visibility = [":__subpackages__"],
 )

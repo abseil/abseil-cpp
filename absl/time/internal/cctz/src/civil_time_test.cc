@@ -235,6 +235,16 @@ TEST(CivilTime, Difference) {
 }
 
 // NOTE: Run this with --copt=-ftrapv to detect overflow problems.
+TEST(CivilTime, ConstructionWithHugeYear) {
+  constexpr civil_hour h(-9223372036854775807, 1, 1, -1);
+  static_assert(h.year() == -9223372036854775807 - 1,
+                "ConstructionWithHugeYear");
+  static_assert(h.month() == 12, "ConstructionWithHugeYear");
+  static_assert(h.day() == 31, "ConstructionWithHugeYear");
+  static_assert(h.hour() == 23, "ConstructionWithHugeYear");
+}
+
+// NOTE: Run this with --copt=-ftrapv to detect overflow problems.
 TEST(CivilTime, DifferenceWithHugeYear) {
   {
     constexpr civil_day d1(9223372036854775807, 1, 1);

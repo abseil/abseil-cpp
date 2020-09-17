@@ -62,6 +62,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::cord_test_helpers
     absl::hash
     absl::hash_testing
     absl::core_headers

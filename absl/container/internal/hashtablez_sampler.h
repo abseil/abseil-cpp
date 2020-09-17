@@ -98,7 +98,7 @@ struct HashtablezInfo {
 };
 
 inline void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
   total_probe_length /= 16;
 #else
   total_probe_length /= 8;
@@ -183,11 +183,6 @@ class HashtablezInfoHandle {
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 #error ABSL_INTERNAL_HASHTABLEZ_SAMPLE cannot be directly set
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-
-#if (ABSL_PER_THREAD_TLS == 1) && !defined(ABSL_BUILD_DLL) && \
-    !defined(ABSL_CONSUME_DLL)
-#define ABSL_INTERNAL_HASHTABLEZ_SAMPLE
-#endif
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 extern ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample;

@@ -106,54 +106,64 @@ CONSTEXPR_F int days_per_month(year_t y, month_t m) noexcept {
 
 CONSTEXPR_F fields n_day(year_t y, month_t m, diff_t d, diff_t cd, hour_t hh,
                          minute_t mm, second_t ss) noexcept {
-  y += (cd / 146097) * 400;
+  year_t ey = y % 400;
+  const year_t oey = ey;
+  ey += (cd / 146097) * 400;
   cd %= 146097;
   if (cd < 0) {
-    y -= 400;
+    ey -= 400;
     cd += 146097;
   }
-  y += (d / 146097) * 400;
+  ey += (d / 146097) * 400;
   d = d % 146097 + cd;
   if (d > 0) {
     if (d > 146097) {
-      y += 400;
+      ey += 400;
       d -= 146097;
     }
   } else {
     if (d > -365) {
       // We often hit the previous year when stepping a civil time backwards,
       // so special case it to avoid counting up by 100/4/1-year chunks.
-      y -= 1;
-      d += days_per_year(y, m);
+      ey -= 1;
+      d += days_per_year(ey, m);
     } else {
-      y -= 400;
+      ey -= 400;
       d += 146097;
     }
   }
   if (d > 365) {
-    for (int n = days_per_century(y, m); d > n; n = days_per_century(y, m)) {
+    for (;;) {
+      int n = days_per_century(ey, m);
+      if (d <= n) break;
       d -= n;
-      y += 100;
+      ey += 100;
     }
-    for (int n = days_per_4years(y, m); d > n; n = days_per_4years(y, m)) {
+    for (;;) {
+      int n = days_per_4years(ey, m);
+      if (d <= n) break;
       d -= n;
-      y += 4;
+      ey += 4;
     }
-    for (int n = days_per_year(y, m); d > n; n = days_per_year(y, m)) {
+    for (;;) {
+      int n = days_per_year(ey, m);
+      if (d <= n) break;
       d -= n;
-      ++y;
+      ++ey;
     }
   }
   if (d > 28) {
-    for (int n = days_per_month(y, m); d > n; n = days_per_month(y, m)) {
+    for (;;) {
+      int n = days_per_month(ey, m);
+      if (d <= n) break;
       d -= n;
       if (++m > 12) {
-        ++y;
+        ++ey;
         m = 1;
       }
     }
   }
-  return fields(y, m, static_cast<day_t>(d), hh, mm, ss);
+  return fields(y + (ey - oey), m, static_cast<day_t>(d), hh, mm, ss);
 }
 CONSTEXPR_F fields n_mon(year_t y, diff_t m, diff_t d, diff_t cd, hour_t hh,
                          minute_t mm, second_t ss) noexcept {

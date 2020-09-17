@@ -17,6 +17,7 @@
 // We need ::max_align_t because some libstdc++ versions don't provide
 // std::max_align_t
 #include <stddef.h>
+
 #include <cstdint>
 #include <memory>
 #include <sstream>
@@ -24,6 +25,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/types/span.h"
 
@@ -1314,7 +1316,7 @@ struct Region {
 };
 
 void ExpectRegionPoisoned(const unsigned char* p, size_t n, bool poisoned) {
-#ifdef ADDRESS_SANITIZER
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
   for (size_t i = 0; i != n; ++i) {
     EXPECT_EQ(poisoned, __asan_address_is_poisoned(p + i));
   }

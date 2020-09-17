@@ -28,6 +28,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/options.h"
 
 #if defined(ABSL_HAVE_STD_STRING_VIEW) || defined(__ANDROID__)
 // We don't control the death messaging when using std::string_view.
@@ -410,7 +411,7 @@ TEST(StringViewTest, STL2) {
   EXPECT_EQ(a.find(e, 17), 17);
   absl::string_view g("xx not found bb");
   EXPECT_EQ(a.find(g), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.find(b), absl::string_view::npos);
   EXPECT_EQ(e.find(b), absl::string_view::npos);
   EXPECT_EQ(d.find(b, 4), absl::string_view::npos);
@@ -438,7 +439,7 @@ TEST(StringViewTest, STL2) {
   EXPECT_EQ(g.find('o', 4), 4);
   EXPECT_EQ(g.find('o', 5), 8);
   EXPECT_EQ(a.find('b', 5), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.find('\0'), absl::string_view::npos);
   EXPECT_EQ(e.find('\0'), absl::string_view::npos);
   EXPECT_EQ(d.find('\0', 4), absl::string_view::npos);
@@ -465,7 +466,7 @@ TEST(StringViewTest, STL2) {
   EXPECT_EQ(e.rfind(b), absl::string_view::npos);
   EXPECT_EQ(d.rfind(b, 4), absl::string_view::npos);
   EXPECT_EQ(e.rfind(b, 7), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.rfind(d, 4), std::string().rfind(std::string()));
   EXPECT_EQ(e.rfind(d, 7), std::string().rfind(std::string()));
   EXPECT_EQ(d.rfind(e, 4), std::string().rfind(std::string()));
@@ -484,7 +485,7 @@ TEST(StringViewTest, STL2) {
   EXPECT_EQ(f.rfind('\0', 12), 3);
   EXPECT_EQ(f.rfind('3'), 2);
   EXPECT_EQ(f.rfind('5'), 5);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.rfind('o'), absl::string_view::npos);
   EXPECT_EQ(e.rfind('o'), absl::string_view::npos);
   EXPECT_EQ(d.rfind('o', 4), absl::string_view::npos);
@@ -520,7 +521,7 @@ TEST(StringViewTest, STL2FindFirst) {
   EXPECT_EQ(g.find_first_of(c), 0);
   EXPECT_EQ(a.find_first_of(f), absl::string_view::npos);
   EXPECT_EQ(f.find_first_of(a), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(a.find_first_of(d), absl::string_view::npos);
   EXPECT_EQ(a.find_first_of(e), absl::string_view::npos);
   EXPECT_EQ(d.find_first_of(b), absl::string_view::npos);
@@ -538,7 +539,7 @@ TEST(StringViewTest, STL2FindFirst) {
   EXPECT_EQ(a.find_first_not_of(f), 0);
   EXPECT_EQ(a.find_first_not_of(d), 0);
   EXPECT_EQ(a.find_first_not_of(e), 0);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(a.find_first_not_of(d), 0);
   EXPECT_EQ(a.find_first_not_of(e), 0);
   EXPECT_EQ(a.find_first_not_of(d, 1), 1);
@@ -566,7 +567,7 @@ TEST(StringViewTest, STL2FindFirst) {
   EXPECT_EQ(f.find_first_not_of('\0'), 0);
   EXPECT_EQ(f.find_first_not_of('\0', 3), 4);
   EXPECT_EQ(f.find_first_not_of('\0', 2), 2);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.find_first_not_of('x'), absl::string_view::npos);
   EXPECT_EQ(e.find_first_not_of('x'), absl::string_view::npos);
   EXPECT_EQ(d.find_first_not_of('\0'), absl::string_view::npos);
@@ -606,7 +607,7 @@ TEST(StringViewTest, STL2FindLast) {
   EXPECT_EQ(f.find_last_of(i, 5), 5);
   EXPECT_EQ(f.find_last_of(i, 6), 6);
   EXPECT_EQ(f.find_last_of(a, 4), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(f.find_last_of(d), absl::string_view::npos);
   EXPECT_EQ(f.find_last_of(e), absl::string_view::npos);
   EXPECT_EQ(f.find_last_of(d, 4), absl::string_view::npos);
@@ -632,7 +633,7 @@ TEST(StringViewTest, STL2FindLast) {
   EXPECT_EQ(a.find_last_not_of(c, 24), 22);
   EXPECT_EQ(a.find_last_not_of(b, 3), 3);
   EXPECT_EQ(a.find_last_not_of(b, 2), absl::string_view::npos);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(f.find_last_not_of(d), f.size()-1);
   EXPECT_EQ(f.find_last_not_of(e), f.size()-1);
   EXPECT_EQ(f.find_last_not_of(d, 4), 4);
@@ -656,7 +657,7 @@ TEST(StringViewTest, STL2FindLast) {
   EXPECT_EQ(h.find_last_not_of('x', 2), 2);
   EXPECT_EQ(h.find_last_not_of('=', 2), absl::string_view::npos);
   EXPECT_EQ(b.find_last_not_of('b', 1), 0);
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.find_last_not_of('x'), absl::string_view::npos);
   EXPECT_EQ(e.find_last_not_of('x'), absl::string_view::npos);
   EXPECT_EQ(d.find_last_not_of('\0'), absl::string_view::npos);
@@ -678,7 +679,7 @@ TEST(StringViewTest, STL2Substr) {
   EXPECT_EQ(a.substr(23, 99), c);
   EXPECT_EQ(a.substr(0), a);
   EXPECT_EQ(a.substr(3, 2), "de");
-  // empty std::string nonsense
+  // empty string nonsense
   EXPECT_EQ(d.substr(0, 99), e);
   // use of npos
   EXPECT_EQ(a.substr(0, absl::string_view::npos), a);
@@ -820,7 +821,7 @@ TEST(StringViewTest, FrontBackSingleChar) {
 
 TEST(StringViewTest, FrontBackEmpty) {
 #ifndef ABSL_USES_STD_STRING_VIEW
-#ifndef NDEBUG
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   // Abseil's string_view implementation has debug assertions that check that
   // front() and back() are not called on an empty string_view.
   absl::string_view sv;
@@ -859,7 +860,7 @@ TEST(StringViewTest, NULLInput) {
   EXPECT_EQ(s.size(), 0);
 
   // .ToString() on a absl::string_view with nullptr should produce the empty
-  // std::string.
+  // string.
   EXPECT_EQ("", std::string(s));
 #endif  // ABSL_HAVE_STRING_VIEW_FROM_NULLPTR
 }
@@ -977,7 +978,7 @@ TEST(StringViewTest, ConstexprCompiles) {
 
 #if defined(ABSL_USES_STD_STRING_VIEW)
   // In libstdc++ (as of 7.2), `std::string_view::string_view(const char*)`
-  // calls `std::char_traits<char>::length(const char*)` to get the std::string
+  // calls `std::char_traits<char>::length(const char*)` to get the string
   // length, but it is not marked constexpr yet. See GCC bug:
   // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=78156
   // Also, there is a LWG issue that adds constexpr to length() which was just
@@ -1086,6 +1087,14 @@ TEST(StringViewTest, ConstexprCompiles) {
   EXPECT_EQ(sp_npos, -1);
 }
 
+TEST(StringViewTest, ConstexprSubstr) {
+  constexpr absl::string_view foobar("foobar", 6);
+  constexpr absl::string_view foo = foobar.substr(0, 3);
+  constexpr absl::string_view bar = foobar.substr(3);
+  EXPECT_EQ(foo, "foo");
+  EXPECT_EQ(bar, "bar");
+}
+
 TEST(StringViewTest, Noexcept) {
   EXPECT_TRUE((std::is_nothrow_constructible<absl::string_view,
                                              const std::string&>::value));
@@ -1122,7 +1131,7 @@ TEST(StringViewTest, Noexcept) {
 
 TEST(StringViewTest, BoundsCheck) {
 #ifndef ABSL_USES_STD_STRING_VIEW
-#ifndef NDEBUG
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   // Abseil's string_view implementation has bounds-checking in debug mode.
   absl::string_view h = "hello";
   ABSL_EXPECT_DEATH_IF_SUPPORTED(h[5], "");
@@ -1168,11 +1177,11 @@ TEST(FindOneCharTest, EdgeCases) {
   EXPECT_EQ(absl::string_view::npos, a.rfind('x'));
 }
 
-#ifndef THREAD_SANITIZER  // Allocates too much memory for tsan.
+#ifndef ABSL_HAVE_THREAD_SANITIZER  // Allocates too much memory for tsan.
 TEST(HugeStringView, TwoPointTwoGB) {
-  if (sizeof(size_t) <= 4 || RunningOnValgrind())
+  if (sizeof(size_t) <= 4)
     return;
-  // Try a huge std::string piece.
+  // Try a huge string piece.
   const size_t size = size_t{2200} * 1000 * 1000;
   std::string s(size, 'a');
   absl::string_view sp(s);
@@ -1182,7 +1191,7 @@ TEST(HugeStringView, TwoPointTwoGB) {
   sp.remove_suffix(2);
   EXPECT_EQ(size - 1 - 2, sp.length());
 }
-#endif  // THREAD_SANITIZER
+#endif  // ABSL_HAVE_THREAD_SANITIZER
 
 #if !defined(NDEBUG) && !defined(ABSL_USES_STD_STRING_VIEW)
 TEST(NonNegativeLenTest, NonNegativeLen) {

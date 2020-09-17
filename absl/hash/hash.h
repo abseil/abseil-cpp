@@ -37,8 +37,11 @@
 // types. Hashing of that combined state is separately done by `absl::Hash`.
 //
 // One should assume that a hash algorithm is chosen randomly at the start of
-// each process.  E.g., absl::Hash<int>()(9) in one process and
-// absl::Hash<int>()(9) in another process are likely to differ.
+// each process.  E.g., `absl::Hash<int>{}(9)` in one process and
+// `absl::Hash<int>{}(9)` in another process are likely to differ.
+//
+// `absl::Hash` is intended to strongly mix input bits with a target of passing
+// an [Avalanche Test](https://en.wikipedia.org/wiki/Avalanche_effect).
 //
 // Example:
 //
@@ -98,6 +101,7 @@ ABSL_NAMESPACE_BEGIN
 //   * std::tuple<Ts...>, if all the Ts... are hashable
 //   * std::unique_ptr and std::shared_ptr
 //   * All string-like types including:
+//     * absl::Cord
 //     * std::string
 //     * std::string_view (as well as any instance of std::basic_string that
 //       uses char and std::char_traits)

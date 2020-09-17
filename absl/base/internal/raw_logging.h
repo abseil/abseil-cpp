@@ -72,10 +72,12 @@
 //
 // The API is a subset of the above: each macro only takes two arguments.  Use
 // StrCat if you need to build a richer message.
-#define ABSL_INTERNAL_LOG(severity, message)                                \
-  do {                                                                      \
-    ::absl::raw_logging_internal::internal_log_function(                    \
-        ABSL_RAW_LOGGING_INTERNAL_##severity, __FILE__, __LINE__, message); \
+#define ABSL_INTERNAL_LOG(severity, message)                             \
+  do {                                                                   \
+    constexpr const char* absl_raw_logging_internal_filename = __FILE__; \
+    ::absl::raw_logging_internal::internal_log_function(                 \
+        ABSL_RAW_LOGGING_INTERNAL_##severity,                            \
+        absl_raw_logging_internal_filename, __LINE__, message);          \
   } while (0)
 
 #define ABSL_INTERNAL_CHECK(condition, message)                    \
@@ -170,7 +172,7 @@ using InternalLogFunction = void (*)(absl::LogSeverity severity,
                                      const char* file, int line,
                                      const std::string& message);
 
-ABSL_DLL ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES extern base_internal::AtomicHook<
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES ABSL_DLL extern base_internal::AtomicHook<
     InternalLogFunction>
     internal_log_function;
 

@@ -26,7 +26,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "stacktrace",
@@ -55,6 +55,7 @@ cc_library(
     name = "symbolize",
     srcs = [
         "symbolize.cc",
+        "symbolize_darwin.inc",
         "symbolize_elf.inc",
         "symbolize_unimplemented.inc",
         "symbolize_win32.inc",
@@ -77,6 +78,7 @@ cc_library(
         "//absl/base:dynamic_annotations",
         "//absl/base:malloc_internal",
         "//absl/base:raw_logging_internal",
+        "//absl/strings",
     ],
 )
 
@@ -95,9 +97,11 @@ cc_test(
         ":stack_consumption",
         ":symbolize",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/memory",
+        "//absl/strings",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -145,6 +149,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:wasm": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -200,6 +205,7 @@ cc_test(
     deps = [
         ":demangle_internal",
         ":stack_consumption",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/memory",

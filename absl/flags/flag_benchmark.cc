@@ -13,7 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+
+#include <string>
+#include <vector>
+
 #include "absl/flags/flag.h"
+#include "absl/flags/marshalling.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
 #include "benchmark/benchmark.h"
@@ -109,3 +116,11 @@ namespace {
 BENCHMARKED_TYPES(BM_GetFlag)
 
 }  // namespace
+
+#define InvokeGetFlag(T)                                               \
+  T AbslInvokeGetFlag##T() { return absl::GetFlag(FLAGS_##T##_flag); } \
+  int odr##T = (benchmark::DoNotOptimize(AbslInvokeGetFlag##T), 1);
+
+BENCHMARKED_TYPES(InvokeGetFlag)
+
+// To veiw disassembly use: gdb ${BINARY}  -batch -ex "disassemble /s $FUNC"

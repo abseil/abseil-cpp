@@ -258,6 +258,8 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/base:base_internal",
+        "//absl/container:compressed_tuple",
         "//absl/meta:type_traits",
     ],
 )
@@ -277,7 +279,6 @@ cc_library(
         ":str_format",
         ":strings",
         "//absl/base",
-        "//absl/base:base_internal",
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/base:raw_logging_internal",
@@ -285,6 +286,7 @@ cc_library(
         "//absl/container:inlined_vector",
         "//absl/functional:function_ref",
         "//absl/meta:type_traits",
+        "//absl/types:optional",
     ],
 )
 
@@ -309,9 +311,11 @@ cc_test(
     deps = [
         ":cord",
         ":cord_test_helpers",
+        ":str_format",
         ":strings",
         "//absl/base",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/base:raw_logging_internal",
         "//absl/container:fixed_array",
@@ -366,6 +370,8 @@ cc_test(
         ":strings",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/container:flat_hash_map",
+        "//absl/container:node_hash_map",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -484,6 +490,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":internal",
         ":pow10_helper",
         ":strings",
         "//absl/base:config",
@@ -632,10 +639,13 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/base:bits",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/functional:function_ref",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/types:optional",
         "//absl/types:span",
     ],
 )
@@ -646,6 +656,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":cord",
         ":str_format",
         ":strings",
         "//absl/base:core_headers",
@@ -663,6 +674,7 @@ cc_test(
     deps = [
         ":str_format",
         ":str_format_internal",
+        ":strings",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -709,8 +721,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":str_format_internal",
+        ":strings",
         "//absl/base:raw_logging_internal",
-        "//absl/numeric:int128",
+        "//absl/types:optional",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -721,6 +734,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":cord",
         ":str_format_internal",
         "@com_google_googletest//:gtest_main",
     ],

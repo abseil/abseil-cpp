@@ -66,7 +66,7 @@ class BigUnsigned {
                static_cast<uint32_t>(v >> 32)} {}
 
   // Constructs a BigUnsigned from the given string_view containing a decimal
-  // value.  If the input std::string is not a decimal integer, constructs a 0
+  // value.  If the input string is not a decimal integer, constructs a 0
   // instead.
   explicit BigUnsigned(absl::string_view sv) : size_(0), words_{} {
     // Check for valid input, returning a 0 otherwise.  This is reasonable
@@ -210,7 +210,7 @@ class BigUnsigned {
     return words_[index];
   }
 
-  // Returns this integer as a decimal std::string.  This is not used in the decimal-
+  // Returns this integer as a decimal string.  This is not used in the decimal-
   // to-binary conversion; it is intended to aid in testing.
   std::string ToString() const;
 

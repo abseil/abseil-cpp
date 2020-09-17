@@ -86,6 +86,14 @@ static void MaybeBecomeIdle() {
 #endif
 #endif
 
+#if defined(__NR_futex_time64) && !defined(SYS_futex_time64)
+#define SYS_futex_time64 __NR_futex_time64
+#endif
+
+#if defined(SYS_futex_time64) && !defined(SYS_futex)
+#define SYS_futex SYS_futex_time64
+#endif
+
 class Futex {
  public:
   static int WaitUntil(std::atomic<int32_t> *v, int32_t val,

@@ -28,7 +28,7 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/parse.h"
-#include "absl/flags/internal/registry.h"
+#include "absl/flags/reflection.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
@@ -171,8 +171,8 @@ constexpr const char* const ff2_data[] = {
 // temporary directory location. This way we can test inclusion of one flagfile
 // from another flagfile.
 const char* GetFlagfileFlag(const std::vector<FlagfileData>& ffd,
-                            std::string* flagfile_flag) {
-  *flagfile_flag = "--flagfile=";
+                            std::string& flagfile_flag) {
+  flagfile_flag = "--flagfile=";
   absl::string_view separator;
   for (const auto& flagfile_data : ffd) {
     std::string flagfile_name =
@@ -183,11 +183,11 @@ const char* GetFlagfileFlag(const std::vector<FlagfileData>& ffd,
       flagfile_out << absl::Substitute(line, GetTestTempDir()) << "\n";
     }
 
-    absl::StrAppend(flagfile_flag, separator, flagfile_name);
+    absl::StrAppend(&flagfile_flag, separator, flagfile_name);
     separator = ",";
   }
 
-  return flagfile_flag->c_str();
+  return flagfile_flag.c_str();
 }
 
 }  // namespace
@@ -208,7 +208,7 @@ using testing::ElementsAreArray;
 
 class ParseTest : public testing::Test {
  private:
-  flags::FlagSaver flag_saver_;
+  absl::FlagSaver flag_saver_;
 };
 
 // --------------------------------------------------------------------
@@ -481,21 +481,22 @@ TEST_F(ParseDeathTest, TestUndefinedArg) {
       "testbin",
       "--undefined_flag",
   };
-  EXPECT_DEATH(InvokeParse(in_args1),
-               "Unknown command line flag 'undefined_flag'");
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
+                            "Unknown command line flag 'undefined_flag'");
 
   const char* in_args2[] = {
       "testbin",
       "--noprefixed_flag",
   };
-  EXPECT_DEATH(InvokeParse(in_args2),
-               "Unknown command line flag 'noprefixed_flag'");
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args2),
+                            "Unknown command line flag 'noprefixed_flag'");
 
   const char* in_args3[] = {
       "testbin",
       "--Int_flag=1",
   };
-  EXPECT_DEATH(InvokeParse(in_args3), "Unknown command line flag 'Int_flag'");
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args3),
+                            "Unknown command line flag 'Int_flag'");
 }
 
 // --------------------------------------------------------------------
@@ -505,7 +506,7 @@ TEST_F(ParseDeathTest, TestInvalidBoolFlagFormat) {
       "testbin",
       "--bool_flag=",
   };
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       InvokeParse(in_args1),
       "Missing the value after assignment for the boolean flag 'bool_flag'");
 
@@ -513,7 +514,7 @@ TEST_F(ParseDeathTest, TestInvalidBoolFlagFormat) {
       "testbin",
       "--nobool_flag=true",
   };
-  EXPECT_DEATH(InvokeParse(in_args2),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args2),
                "Negative form with assignment is not valid for the boolean "
                "flag 'bool_flag'");
 }
@@ -525,14 +526,14 @@ TEST_F(ParseDeathTest, TestInvalidNonBoolFlagFormat) {
       "testbin",
       "--nostring_flag",
   };
-  EXPECT_DEATH(InvokeParse(in_args1),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
                "Negative form is not valid for the flag 'string_flag'");
 
   const char* in_args2[] = {
       "testbin",
       "--int_flag",
   };
-  EXPECT_DEATH(InvokeParse(in_args2),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args2),
                "Missing the value for the flag 'int_flag'");
 }
 
@@ -543,7 +544,7 @@ TEST_F(ParseDeathTest, TestInvalidUDTFlagFormat) {
       "testbin",
       "--udt_flag=1",
   };
-  EXPECT_DEATH(InvokeParse(in_args1),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
                "Illegal value '1' specified for flag 'udt_flag'; Use values A, "
                "AAA instead");
 
@@ -552,7 +553,7 @@ TEST_F(ParseDeathTest, TestInvalidUDTFlagFormat) {
       "--udt_flag",
       "AA",
   };
-  EXPECT_DEATH(InvokeParse(in_args2),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args2),
                "Illegal value 'AA' specified for flag 'udt_flag'; Use values "
                "A, AAA instead");
 }
@@ -587,14 +588,14 @@ TEST_F(ParseTest, TestSimpleValidFlagfile) {
   const char* in_args1[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff1", absl::MakeConstSpan(ff1_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
   TestParse(in_args1, -1, 0.1, "q2w2  ", true);
 
   const char* in_args2[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff2", absl::MakeConstSpan(ff2_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
   TestParse(in_args2, 100, 0.1, "q2w2  ", false);
 }
@@ -608,7 +609,7 @@ TEST_F(ParseTest, TestValidMultiFlagfile) {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff2", absl::MakeConstSpan(ff2_data)},
                        {"parse_test.ff1", absl::MakeConstSpan(ff1_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
   TestParse(in_args1, -1, 0.1, "q2w2  ", true);
 }
@@ -621,7 +622,7 @@ TEST_F(ParseTest, TestFlagfileMixedWithRegularFlags) {
   const char* in_args1[] = {
       "testbin", "--int_flag=3",
       GetFlagfileFlag({{"parse_test.ff1", absl::MakeConstSpan(ff1_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
       "-double_flag=0.2"};
   TestParse(in_args1, -1, 0.2, "q2w2  ", true);
 }
@@ -636,10 +637,14 @@ TEST_F(ParseTest, TestFlagfileInFlagfile) {
       "--flagfile=$0/parse_test.ff2",
   };
 
+  GetFlagfileFlag({{"parse_test.ff2", absl::MakeConstSpan(ff2_data)},
+                   {"parse_test.ff1", absl::MakeConstSpan(ff1_data)}},
+                      flagfile_flag);
+
   const char* in_args1[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff3", absl::MakeConstSpan(ff3_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
   TestParse(in_args1, 100, 0.1, "q2w2  ", false);
 }
@@ -656,9 +661,9 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
   const char* in_args1[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff4",
-                        absl::MakeConstSpan(ff4_data)}}, &flagfile_flag),
+                        absl::MakeConstSpan(ff4_data)}}, flagfile_flag),
   };
-  EXPECT_DEATH(InvokeParse(in_args1),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
                "Unknown command line flag 'unknown_flag'");
 
   constexpr const char* const ff5_data[] = {
@@ -668,9 +673,9 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
   const char* in_args2[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff5",
-                        absl::MakeConstSpan(ff5_data)}}, &flagfile_flag),
+                        absl::MakeConstSpan(ff5_data)}}, flagfile_flag),
   };
-  EXPECT_DEATH(InvokeParse(in_args2),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args2),
                "Unknown command line flag 'int_flag 10'");
 
   constexpr const char* const ff6_data[] = {
@@ -680,16 +685,17 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
   const char* in_args3[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff6", absl::MakeConstSpan(ff6_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
-  EXPECT_DEATH(InvokeParse(in_args3),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args3),
                "Flagfile can't contain position arguments or --");
 
   const char* in_args4[] = {
       "testbin",
       "--flagfile=invalid_flag_file",
   };
-  EXPECT_DEATH(InvokeParse(in_args4), "Can't open flagfile invalid_flag_file");
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args4),
+                            "Can't open flagfile invalid_flag_file");
 
   constexpr const char* const ff7_data[] = {
       "--int_flag=10",
@@ -700,9 +706,9 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
   const char* in_args5[] = {
       "testbin",
       GetFlagfileFlag({{"parse_test.ff7", absl::MakeConstSpan(ff7_data)}},
-                      &flagfile_flag),
+                      flagfile_flag),
   };
-  EXPECT_DEATH(InvokeParse(in_args5),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args5),
                "Unexpected line in the flagfile .*: \\*bin\\*");
 }
 
@@ -724,7 +730,7 @@ TEST_F(ParseTest, TestReadingRequiredFlagsFromEnv) {
 TEST_F(ParseDeathTest, TestReadingUnsetRequiredFlagsFromEnv) {
   const char* in_args1[] = {"testbin", "--fromenv=int_flag"};
 
-  EXPECT_DEATH(InvokeParse(in_args1),
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
                "FLAGS_int_flag not found in environment");
 }
 
@@ -735,7 +741,8 @@ TEST_F(ParseDeathTest, TestRecursiveFlagsFromEnv) {
 
   ScopedSetEnv set_tryfromenv("FLAGS_tryfromenv", "int_flag");
 
-  EXPECT_DEATH(InvokeParse(in_args1), "Infinite recursion on flag tryfromenv");
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args1),
+                            "Infinite recursion on flag tryfromenv");
 }
 
 // --------------------------------------------------------------------
@@ -865,5 +872,27 @@ TEST_F(ParseDeathTest, TestHelpFlagHandling) {
 
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 3);
 }
+
+// --------------------------------------------------------------------
+
+TEST_F(ParseTest, WasPresentOnCommandLine) {
+  const char* in_args1[] = {
+      "testbin",        "arg1", "--bool_flag",
+      "--int_flag=211", "arg2", "--double_flag=1.1",
+      "--string_flag",  "asd",  "--",
+      "--some_flag",    "arg4",
+  };
+
+  InvokeParse(in_args1);
+
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("bool_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("int_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("double_flag"));
+  EXPECT_TRUE(flags::WasPresentOnCommandLine("string_flag"));
+  EXPECT_FALSE(flags::WasPresentOnCommandLine("some_flag"));
+  EXPECT_FALSE(flags::WasPresentOnCommandLine("another_flag"));
+}
+
+// --------------------------------------------------------------------
 
 }  // namespace

@@ -17,18 +17,20 @@
 #include <cstring>
 
 #include "gtest/gtest.h"
+#include "absl/random/internal/randen_traits.h"
 
 namespace {
 
 using absl::random_internal::RandenSlow;
+using absl::random_internal::RandenTraits;
 
 // Local state parameters.
 constexpr size_t kSeedBytes =
-    RandenSlow::kStateBytes - RandenSlow::kCapacityBytes;
-constexpr size_t kStateSizeT = RandenSlow::kStateBytes / sizeof(uint64_t);
+    RandenTraits::kStateBytes - RandenTraits::kCapacityBytes;
+constexpr size_t kStateSizeT = RandenTraits::kStateBytes / sizeof(uint64_t);
 constexpr size_t kSeedSizeT = kSeedBytes / sizeof(uint32_t);
 
-struct randen {
+struct alignas(16) randen {
   uint64_t state[kStateSizeT];
   uint32_t seed[kSeedSizeT];
 };

@@ -27,6 +27,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/random/internal/chi_square.h"
 #include "absl/random/internal/distribution_test_util.h"
+#include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
@@ -207,7 +208,11 @@ TYPED_TEST(UniformRealDistributionTest, TestMoments) {
   constexpr int kSize = 1000000;
   std::vector<double> values(kSize);
 
-  absl::InsecureBitGen rng;
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng{0x2B7E151628AED2A6};
+
   absl::uniform_real_distribution<TypeParam> dist;
   for (int i = 0; i < kSize; i++) {
     values[i] = dist(rng);
@@ -237,7 +242,11 @@ TYPED_TEST(UniformRealDistributionTest, ChiSquaredTest50) {
   const int kThreshold =
       absl::random_internal::ChiSquareValue(kBuckets - 1, 0.999999);
 
-  absl::InsecureBitGen rng;
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng{0x2B7E151628AED2A6};
+
   for (const auto& param : {param_type(0, 1), param_type(5, 12),
                             param_type(-5, 13), param_type(-5, -2)}) {
     const double min_val = param.a();

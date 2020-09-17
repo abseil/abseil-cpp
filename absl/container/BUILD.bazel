@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -24,7 +24,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "compressed_tuple",
@@ -60,6 +60,7 @@ cc_library(
     deps = [
         ":compressed_tuple",
         "//absl/algorithm",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
         "//absl/base:throw_delegate",
@@ -73,7 +74,9 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":counting_allocator",
         ":fixed_array",
+        "//absl/base:config",
         "//absl/base:exception_testing",
         "//absl/hash:hash_testing",
         "//absl/memory",
@@ -153,6 +156,7 @@ cc_test(
         ":counting_allocator",
         ":inlined_vector",
         ":test_instance_tracker",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/base:raw_logging_internal",
@@ -255,6 +259,7 @@ cc_test(
         ":unordered_map_lookup_test",
         ":unordered_map_members_test",
         ":unordered_map_modifiers_test",
+        "//absl/base:raw_logging_internal",
         "//absl/types:any",
         "@com_google_googletest//:gtest_main",
     ],
@@ -288,6 +293,7 @@ cc_test(
         ":unordered_set_lookup_test",
         ":unordered_set_members_test",
         ":unordered_set_modifiers_test",
+        "//absl/base:raw_logging_internal",
         "//absl/memory",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -363,7 +369,9 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/memory",
+        "//absl/meta:type_traits",
         "//absl/utility",
     ],
 )
@@ -376,6 +384,7 @@ cc_test(
     tags = NOTEST_TAGS_NONMOBILE,
     deps = [
         ":container_memory",
+        ":test_instance_tracker",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -390,6 +399,7 @@ cc_library(
         "//absl/base:config",
         "//absl/hash",
         "//absl/strings",
+        "//absl/strings:cord",
     ],
 )
 
@@ -402,7 +412,10 @@ cc_test(
     deps = [
         ":hash_function_defaults",
         "//absl/hash",
+        "//absl/random",
         "//absl/strings",
+        "//absl/strings:cord",
+        "//absl/strings:cord_test_helpers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -609,6 +622,7 @@ cc_test(
         ":hashtable_debug",
         ":raw_hash_set",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
@@ -636,6 +650,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
         "//absl/strings",
@@ -654,6 +669,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":layout",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/types:span",
@@ -828,6 +844,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/types:compare",
         "//absl/utility",
     ],
@@ -844,6 +861,7 @@ cc_library(
         ":btree",
         ":flat_hash_set",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/time",
     ],
 )
@@ -895,6 +913,7 @@ cc_binary(
         "//absl/flags:flag",
         "//absl/hash",
         "//absl/memory",
+        "//absl/strings:cord",
         "//absl/strings:str_format",
         "//absl/time",
         "@com_github_google_benchmark//:benchmark_main",

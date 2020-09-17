@@ -20,8 +20,8 @@
 #include <string>
 
 #include "absl/base/config.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/declare.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
 
 // --------------------------------------------------------------------
@@ -37,7 +37,7 @@ enum class HelpFormat {
 };
 
 // Outputs the help message describing specific flag.
-void FlagHelp(std::ostream& out, const flags_internal::CommandLineFlag& flag,
+void FlagHelp(std::ostream& out, const CommandLineFlag& flag,
               HelpFormat format = HelpFormat::kHumanReadable);
 
 // Produces the help messages for all flags matching the filter. A flag matches

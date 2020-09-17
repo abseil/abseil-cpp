@@ -36,7 +36,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
       if (i + 1 >= format.size()) {
 #ifndef NDEBUG
         ABSL_RAW_LOG(FATAL,
-                     "Invalid absl::Substitute() format std::string: \"%s\".",
+                     "Invalid absl::Substitute() format string: \"%s\".",
                      absl::CEscape(format).c_str());
 #endif
         return;
@@ -46,8 +46,8 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
 #ifndef NDEBUG
           ABSL_RAW_LOG(
               FATAL,
-              "Invalid absl::Substitute() format std::string: asked for \"$"
-              "%d\", but only %d args were given.  Full format std::string was: "
+              "Invalid absl::Substitute() format string: asked for \"$"
+              "%d\", but only %d args were given.  Full format string was: "
               "\"%s\".",
               index, static_cast<int>(num_args), absl::CEscape(format).c_str());
 #endif
@@ -61,7 +61,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
       } else {
 #ifndef NDEBUG
         ABSL_RAW_LOG(FATAL,
-                     "Invalid absl::Substitute() format std::string: \"%s\".",
+                     "Invalid absl::Substitute() format string: \"%s\".",
                      absl::CEscape(format).c_str());
 #endif
         return;
@@ -73,7 +73,7 @@ void SubstituteAndAppendArray(std::string* output, absl::string_view format,
 
   if (size == 0) return;
 
-  // Build the std::string.
+  // Build the string.
   size_t original_size = output->size();
   strings_internal::STLStringResizeUninitialized(output, original_size + size);
   char* target = &(*output)[original_size];

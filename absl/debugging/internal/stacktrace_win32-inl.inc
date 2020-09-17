@@ -46,11 +46,19 @@ typedef USHORT NTAPI RtlCaptureStackBackTrace_Function(
     OUT PVOID *backtrace,
     OUT PULONG backtrace_hash);
 
+// It is not possible to load RtlCaptureStackBackTrace at static init time in
+// UWP. CaptureStackBackTrace is the public version of RtlCaptureStackBackTrace
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && \
+    !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
+    &::CaptureStackBackTrace;
+#else
 // Load the function we need at static init time, where we don't have
 // to worry about someone else holding the loader's lock.
 static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
-   (RtlCaptureStackBackTrace_Function*)
-   GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlCaptureStackBackTrace");
+    (RtlCaptureStackBackTrace_Function*)GetProcAddress(
+        GetModuleHandleA("ntdll.dll"), "RtlCaptureStackBackTrace");
+#endif  // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,

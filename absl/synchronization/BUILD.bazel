@@ -24,7 +24,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 # Internal data structure for efficiently detecting mutex dependency cycles
 cc_library(
@@ -90,6 +90,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = select({
         "//absl:windows": [],
+        "//absl:wasm": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -189,6 +190,7 @@ cc_test(
         ":synchronization",
         ":thread_pool",
         "//absl/base",
+        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/memory",
@@ -210,6 +212,7 @@ cc_library(
         ":synchronization",
         ":thread_pool",
         "//absl/base",
+        "//absl/base:config",
         "@com_github_google_benchmark//:benchmark_main",
     ],
     alwayslink = 1,
@@ -248,6 +251,7 @@ cc_library(
     deps = [
         ":synchronization",
         "//absl/base",
+        "//absl/base:config",
         "//absl/strings",
         "//absl/time",
         "@com_google_googletest//:gtest",

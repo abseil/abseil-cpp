@@ -147,7 +147,7 @@ class SummarizingConverter {
        << FormatConversionSpecImplFriend::FlagsToString(bound);
     if (bound.width() >= 0) ss << bound.width();
     if (bound.precision() >= 0) ss << "." << bound.precision();
-    ss << bound.conv() << "}";
+    ss << bound.conversion_char() << "}";
     Append(ss.str());
     return true;
   }

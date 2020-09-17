@@ -23,6 +23,7 @@
 #include <thread>              // NOLINT(build/c++11)
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/strings/str_cat.h"

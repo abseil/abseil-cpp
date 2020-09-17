@@ -41,23 +41,23 @@ TEST(LengthModTest, Names) {
 
 TEST(ConversionCharTest, Names) {
   struct Expectation {
-    ConversionChar id;
+    FormatConversionChar id;
     char name;
   };
   // clang-format off
   const Expectation kExpect[] = {
-#define X(c) {ConversionChar::c, #c[0]}
-    X(c), X(C), X(s), X(S),                          // text
+#define X(c) {FormatConversionCharInternal::c, #c[0]}
+    X(c), X(s),                                      // text
     X(d), X(i), X(o), X(u), X(x), X(X),              // int
     X(f), X(F), X(e), X(E), X(g), X(G), X(a), X(A),  // float
     X(n), X(p),                                      // misc
 #undef X
-    {ConversionChar::none, '\0'},
+    {FormatConversionCharInternal::kNone, '\0'},
   };
   // clang-format on
   for (auto e : kExpect) {
     SCOPED_TRACE(e.name);
-    ConversionChar v = e.id;
+    FormatConversionChar v = e.id;
     EXPECT_EQ(e.name, FormatConversionCharToChar(v));
   }
 }
@@ -349,7 +349,8 @@ TEST_F(ParsedFormatTest, ValueSemantics) {
   ParsedFormatBase p2 = p1;  // copy construct (empty)
   EXPECT_EQ(SummarizeParsedFormat(p1), SummarizeParsedFormat(p2));
 
-  p1 = ParsedFormatBase("hello%s", true, {Conv::s});  // move assign
+  p1 = ParsedFormatBase("hello%s", true,
+                        {FormatConversionCharSetInternal::s});  // move assign
   EXPECT_EQ("[hello]{s:1$s}", SummarizeParsedFormat(p1));
 
   ParsedFormatBase p3 = p1;  // copy construct (nonempty)
@@ -367,7 +368,7 @@ TEST_F(ParsedFormatTest, ValueSemantics) {
 
 struct ExpectParse {
   const char* in;
-  std::initializer_list<Conv> conv_set;
+  std::initializer_list<FormatConversionCharSet> conv_set;
   const char* out;
 };
 
@@ -377,9 +378,9 @@ TEST_F(ParsedFormatTest, Parsing) {
   const ExpectParse kExpect[] = {
       {"", {}, ""},
       {"ab", {}, "[ab]"},
-      {"a%d", {Conv::d}, "[a]{d:1$d}"},
-      {"a%+d", {Conv::d}, "[a]{+d:1$d}"},
-      {"a% d", {Conv::d}, "[a]{ d:1$d}"},
+      {"a%d", {FormatConversionCharSetInternal::d}, "[a]{d:1$d}"},
+      {"a%+d", {FormatConversionCharSetInternal::d}, "[a]{+d:1$d}"},
+      {"a% d", {FormatConversionCharSetInternal::d}, "[a]{ d:1$d}"},
       {"a%b %d", {}, "[a]!"},  // stop after error
   };
   for (const auto& e : kExpect) {
@@ -391,13 +392,13 @@ TEST_F(ParsedFormatTest, Parsing) {
 
 TEST_F(ParsedFormatTest, ParsingFlagOrder) {
   const ExpectParse kExpect[] = {
-      {"a%+ 0d", {Conv::d}, "[a]{+ 0d:1$d}"},
-      {"a%+0 d", {Conv::d}, "[a]{+0 d:1$d}"},
-      {"a%0+ d", {Conv::d}, "[a]{0+ d:1$d}"},
-      {"a% +0d", {Conv::d}, "[a]{ +0d:1$d}"},
-      {"a%0 +d", {Conv::d}, "[a]{0 +d:1$d}"},
-      {"a% 0+d", {Conv::d}, "[a]{ 0+d:1$d}"},
-      {"a%+   0+d", {Conv::d}, "[a]{+   0+d:1$d}"},
+      {"a%+ 0d", {FormatConversionCharSetInternal::d}, "[a]{+ 0d:1$d}"},
+      {"a%+0 d", {FormatConversionCharSetInternal::d}, "[a]{+0 d:1$d}"},
+      {"a%0+ d", {FormatConversionCharSetInternal::d}, "[a]{0+ d:1$d}"},
+      {"a% +0d", {FormatConversionCharSetInternal::d}, "[a]{ +0d:1$d}"},
+      {"a%0 +d", {FormatConversionCharSetInternal::d}, "[a]{0 +d:1$d}"},
+      {"a% 0+d", {FormatConversionCharSetInternal::d}, "[a]{ 0+d:1$d}"},
+      {"a%+   0+d", {FormatConversionCharSetInternal::d}, "[a]{+   0+d:1$d}"},
   };
   for (const auto& e : kExpect) {
     SCOPED_TRACE(e.in);

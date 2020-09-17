@@ -450,7 +450,7 @@ bool Base64UnescapeInternal(const char* src_param, size_t szsrc, char* dest,
 
   // The GET_INPUT macro gets the next input character, skipping
   // over any whitespace, and stopping when we reach the end of the
-  // std::string or when we read any non-data character.  The arguments are
+  // string or when we read any non-data character.  The arguments are
   // an arbitrary identifier (used as a label for goto) and the number
   // of data bytes that must remain in the input to avoid aborting the
   // loop.
@@ -473,18 +473,18 @@ bool Base64UnescapeInternal(const char* src_param, size_t szsrc, char* dest,
   if (dest) {
     // This loop consumes 4 input bytes and produces 3 output bytes
     // per iteration.  We can't know at the start that there is enough
-    // data left in the std::string for a full iteration, so the loop may
+    // data left in the string for a full iteration, so the loop may
     // break out in the middle; if so 'state' will be set to the
     // number of input bytes read.
 
     while (szsrc >= 4) {
       // We'll start by optimistically assuming that the next four
-      // bytes of the std::string (src[0..3]) are four good data bytes
+      // bytes of the string (src[0..3]) are four good data bytes
       // (that is, no nulls, whitespace, padding chars, or illegal
       // chars).  We need to test src[0..2] for nulls individually
       // before constructing temp to preserve the property that we
-      // never read past a null in the std::string (no matter how long
-      // szsrc claims the std::string is).
+      // never read past a null in the string (no matter how long
+      // szsrc claims the string is).
 
       if (!src[0] || !src[1] || !src[2] ||
           ((temp = ((unsigned(unbase64[src[0]]) << 18) |
@@ -509,7 +509,7 @@ bool Base64UnescapeInternal(const char* src_param, size_t szsrc, char* dest,
         temp = (temp << 6) | decode;
       } else {
         // We really did have four good data bytes, so advance four
-        // characters in the std::string.
+        // characters in the string.
 
         szsrc -= 4;
         src += 4;
@@ -644,7 +644,7 @@ bool Base64UnescapeInternal(const char* src_param, size_t szsrc, char* dest,
                    state);
   }
 
-  // The remainder of the std::string should be all whitespace, mixed with
+  // The remainder of the string should be all whitespace, mixed with
   // exactly 0 equals signs, or exactly 'expected_equals' equals
   // signs.  (Always accepting 0 equals signs is an Abseil extension
   // not covered in the RFC, as is accepting dot as the pad character.)
@@ -771,7 +771,7 @@ constexpr char kWebSafeBase64Chars[] =
 template <typename String>
 bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
                             const signed char* unbase64) {
-  // Determine the size of the output std::string.  Base64 encodes every 3 bytes into
+  // Determine the size of the output string.  Base64 encodes every 3 bytes into
   // 4 characters.  any leftover chars are added directly for good measure.
   // This is documented in the base64 RFC: http://tools.ietf.org/html/rfc3548
   const size_t dest_len = 3 * (slen / 4) + (slen % 4);
@@ -779,7 +779,7 @@ bool Base64UnescapeInternal(const char* src, size_t slen, String* dest,
   strings_internal::STLStringResizeUninitialized(dest, dest_len);
 
   // We are getting the destination buffer by getting the beginning of the
-  // std::string and converting it into a char *.
+  // string and converting it into a char *.
   size_t len;
   const bool ok =
       Base64UnescapeInternal(src, slen, &(*dest)[0], dest_len, unbase64, &len);

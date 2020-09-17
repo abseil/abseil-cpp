@@ -17,30 +17,31 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/internal/fast_type_id.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-class ConstBitGen : public absl::random_internal::MockingBitGenBase {
-  bool CallImpl(const std::type_info&, void*, void* result) override {
+class ConstBitGen {
+ public:
+  // URBG interface
+  using result_type = absl::BitGen::result_type;
+
+  static constexpr result_type(min)() { return (absl::BitGen::min)(); }
+  static constexpr result_type(max)() { return (absl::BitGen::max)(); }
+  result_type operator()() { return 1; }
+
+  // InvokeMock method
+  bool InvokeMock(base_internal::FastTypeIdType index, void*, void* result) {
     *static_cast<int*>(result) = 42;
     return true;
   }
 };
 
-namespace random_internal {
-template <>
-struct DistributionCaller<ConstBitGen> {
-  template <typename DistrT, typename FormatT, typename... Args>
-  static typename DistrT::result_type Call(ConstBitGen* gen, Args&&... args) {
-    return gen->template Call<DistrT, FormatT>(std::forward<Args>(args)...);
-  }
-};
-}  // namespace random_internal
-
 namespace {
+
 int FnTest(absl::BitGenRef gen_ref) { return absl::Uniform(gen_ref, 1, 7); }
 
 template <typename T>

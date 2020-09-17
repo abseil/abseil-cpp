@@ -253,7 +253,7 @@ class AlphaNum {
       const std::basic_string<char, std::char_traits<char>, Allocator>& str)
       : piece_(str) {}
 
-  // Use std::string literals ":" instead of character literals ':'.
+  // Use string literals ":" instead of character literals ':'.
   AlphaNum(char c) = delete;  // NOLINT(runtime/explicit)
 
   AlphaNum(const AlphaNum&) = delete;

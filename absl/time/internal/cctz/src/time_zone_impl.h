@@ -71,7 +71,7 @@ class time_zone::Impl {
     return zone_->PrevTransition(tp, trans);
   }
 
-  // Returns an implementation-defined version std::string for this time zone.
+  // Returns an implementation-defined version string for this time zone.
   std::string Version() const { return zone_->Version(); }
 
   // Returns an implementation-defined description of this time zone.

@@ -374,6 +374,11 @@ class node_hash_map
   //   key value and returns a node handle owning that extracted data. If the
   //   `node_hash_map` does not contain an element with a matching key, this
   //   function returns an empty node handle.
+  //
+  // NOTE: when compiled in an earlier version of C++ than C++17,
+  // `node_type::key()` returns a const reference to the key instead of a
+  // mutable reference. We cannot safely return a mutable reference without
+  // std::launder (which is not available before C++17).
   using Base::extract;
 
   // node_hash_map::merge()
@@ -514,12 +519,6 @@ class node_hash_map
   //
   // Returns the function used for comparing keys equality.
   using Base::key_eq;
-
-  ABSL_DEPRECATED("Call `hash_function()` instead.")
-  typename Base::hasher hash_funct() { return this->hash_function(); }
-
-  ABSL_DEPRECATED("Call `rehash()` instead.")
-  void resize(typename Base::size_type hint) { this->rehash(hint); }
 };
 
 // erase_if(node_hash_map<>, Pred)

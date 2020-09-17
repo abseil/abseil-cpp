@@ -27,8 +27,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-// The implementation was intentionally kept same as util::error::Code_Name()
-// to ease the migration.
 std::string StatusCodeToString(StatusCode code) {
   switch (code) {
     case StatusCode::kOk:
@@ -147,7 +145,15 @@ void Status::SetPayload(absl::string_view type_url, absl::Cord payload) {
 bool Status::ErasePayload(absl::string_view type_url) {
   int index = status_internal::FindPayloadIndexByUrl(GetPayloads(), type_url);
   if (index != -1) {
+    PrepareToModify();
     GetPayloads()->erase(GetPayloads()->begin() + index);
+    if (GetPayloads()->empty() && message().empty()) {
+      // Special case: If this can be represented inlined, it MUST be
+      // inlined (EqualsSlow depends on this behavior).
+      StatusCode c = static_cast<StatusCode>(raw_code());
+      Unref(rep_);
+      rep_ = CodeToInlinedRep(c);
+    }
     return true;
   }
 
@@ -168,8 +174,8 @@ void Status::ForEachPayload(
 #ifdef NDEBUG
       visitor(elem.type_url, elem.payload);
 #else
-      // In debug mode invaldiate the type url to prevent users from relying on
-      // this std::string lifetime.
+      // In debug mode invalidate the type url to prevent users from relying on
+      // this string lifetime.
 
       // NOLINTNEXTLINE intentional extra conversion to force temporary.
       visitor(std::string(elem.type_url), elem.payload);
