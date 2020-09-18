@@ -30,6 +30,7 @@
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/base/options.h"
 #include "absl/container/internal/counting_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/hash/hash_testing.h"
@@ -245,6 +246,16 @@ TEST(IntVec, Erase) {
       }
     }
   }
+}
+
+TEST(IntVec, Hardened) {
+  IntVec v;
+  Fill(&v, 10);
+  EXPECT_EQ(v[9], 9);
+#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  EXPECT_DEATH_IF_SUPPORTED(v[10], "");
+  EXPECT_DEATH_IF_SUPPORTED(v[-1], "");
+#endif
 }
 
 // At the end of this test loop, the elements between [erase_begin, erase_end)
@@ -780,7 +791,7 @@ TEST(IntVec, Reserve) {
 TEST(StringVec, SelfRefPushBack) {
   std::vector<std::string> std_v;
   absl::InlinedVector<std::string, 4> v;
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   std_v.push_back(s);
   v.push_back(s);
   for (int i = 0; i < 20; ++i) {
@@ -795,7 +806,7 @@ TEST(StringVec, SelfRefPushBack) {
 TEST(StringVec, SelfRefPushBackWithMove) {
   std::vector<std::string> std_v;
   absl::InlinedVector<std::string, 4> v;
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   std_v.push_back(s);
   v.push_back(s);
   for (int i = 0; i < 20; ++i) {
@@ -808,7 +819,7 @@ TEST(StringVec, SelfRefPushBackWithMove) {
 }
 
 TEST(StringVec, SelfMove) {
-  const std::string s = "A quite long std::string to ensure heap.";
+  const std::string s = "A quite long string to ensure heap.";
   for (int len = 0; len < 20; len++) {
     SCOPED_TRACE(len);
     absl::InlinedVector<std::string, 8> v;

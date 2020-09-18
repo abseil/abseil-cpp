@@ -18,10 +18,13 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_
 #define ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_
 
+#ifdef __cplusplus
+
 #include <cstddef>
 #include <cstdint>
 
 #include "absl/base/config.h"
+#include "absl/strings/string_view.h"
 
 #ifdef ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #error ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE cannot be directly set
@@ -45,7 +48,7 @@ namespace debugging_internal {
 //
 // This is not async-signal-safe.
 bool ForEachSection(int fd,
-                    const std::function<bool(const std::string& name,
+                    const std::function<bool(absl::string_view name,
                                              const ElfW(Shdr) &)>& callback);
 
 // Gets the section header for the given name, if it exists. Returns true on
@@ -58,6 +61,12 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
+
+#ifdef ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE
+#error ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE cannot be directly set
+#elif defined(__APPLE__)
+#define ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE 1
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -124,5 +133,17 @@ bool GetFileMappingHint(const void** start,
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#endif  // __cplusplus
+
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C"
+#endif  // __cplusplus
+
+    bool
+    AbslInternalGetFileMappingHint(const void** start, const void** end,
+                                   uint64_t* offset, const char** filename);
 
 #endif  // ABSL_DEBUGGING_INTERNAL_SYMBOLIZE_H_

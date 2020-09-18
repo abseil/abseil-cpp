@@ -88,7 +88,7 @@ struct FailureSignalHandlerOptions {
   bool call_previous_handler = false;
 
   // If non-null, indicates a pointer to a callback function that will be called
-  // upon failure, with a std::string argument containing failure data. This function
+  // upon failure, with a string argument containing failure data. This function
   // may be used as a hook to write failure data to a secondary location, such
   // as a log file. This function may also be called with null data, as a hint
   // to flush any buffered data before the program may be terminated. Consider

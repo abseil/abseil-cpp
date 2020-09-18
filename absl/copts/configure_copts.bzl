@@ -48,7 +48,7 @@ ABSL_RANDOM_RANDEN_COPTS = select({
     ":cpu_darwin": ABSL_RANDOM_HWAES_X64_FLAGS,
     ":cpu_x64_windows_msvc": ABSL_RANDOM_HWAES_MSVC_X64_FLAGS,
     ":cpu_x64_windows": ABSL_RANDOM_HWAES_MSVC_X64_FLAGS,
-    ":cpu_haswell": ABSL_RANDOM_HWAES_X64_FLAGS,
+    ":cpu_k8": ABSL_RANDOM_HWAES_X64_FLAGS,
     ":cpu_ppc": ["-mcrypto"],
 
     # Supported by default or unsupported.
@@ -65,7 +65,7 @@ def absl_random_randen_copts_init():
     # These configs have consistent flags to enable HWAES intsructions.
     cpu_configs = [
         "ppc",
-        "haswell",
+        "k8",
         "darwin_x86_64",
         "darwin",
         "x64_windows_msvc",

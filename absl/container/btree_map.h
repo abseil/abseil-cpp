@@ -185,7 +185,7 @@ class btree_map
   // template <typename K> size_type erase(const K& key):
   //
   //   Erases the element with the matching key, if it exists, returning the
-  //   number of elements erased.
+  //   number of elements erased (0 or 1).
   using Base::erase;
 
   // btree_map::insert()
@@ -318,12 +318,17 @@ class btree_map
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_map`
   //   does not contain an element with a matching key, this function returns an
   //   empty node handle.
+  //
+  // NOTE: when compiled in an earlier version of C++ than C++17,
+  // `node_type::key()` returns a const reference to the key instead of a
+  // mutable reference. We cannot safely return a mutable reference without
+  // std::launder (which is not available before C++17).
   //
   // NOTE: In this context, `node_type` refers to the C++17 concept of a
   // move-only type that owns and provides access to the elements in associative
@@ -645,12 +650,17 @@ class btree_multimap
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_multimap`
   //   does not contain an element with a matching key, this function returns an
   //   empty node handle.
+  //
+  // NOTE: when compiled in an earlier version of C++ than C++17,
+  // `node_type::key()` returns a const reference to the key instead of a
+  // mutable reference. We cannot safely return a mutable reference without
+  // std::launder (which is not available before C++17).
   //
   // NOTE: In this context, `node_type` refers to the C++17 concept of a
   // move-only type that owns and provides access to the elements in associative

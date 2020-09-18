@@ -217,7 +217,8 @@ class node_hash_set
   //
   // size_type erase(const key_type& key):
   //
-  //   Erases the element with the matching key, if it exists.
+  //   Erases the element with the matching key, if it exists, returning the
+  //   number of elements erased (0 or 1).
   using Base::erase;
 
   // node_hash_set::insert()
@@ -427,12 +428,6 @@ class node_hash_set
   //
   // Returns the function used for comparing keys equality.
   using Base::key_eq;
-
-  ABSL_DEPRECATED("Call `hash_function()` instead.")
-  typename Base::hasher hash_funct() { return this->hash_function(); }
-
-  ABSL_DEPRECATED("Call `rehash()` instead.")
-  void resize(typename Base::size_type hint) { this->rehash(hint); }
 };
 
 // erase_if(node_hash_set<>, Pred)

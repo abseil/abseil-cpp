@@ -57,6 +57,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cerrno>
 #include <cinttypes>
@@ -74,6 +75,7 @@
 #include "absl/base/port.h"
 #include "absl/debugging/internal/demangle.h"
 #include "absl/debugging/internal/vdso_support.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -82,6 +84,12 @@ ABSL_NAMESPACE_BEGIN
 static char *argv0_value = nullptr;
 
 void InitializeSymbolizer(const char *argv0) {
+#ifdef ABSL_HAVE_VDSO_SUPPORT
+  // We need to make sure VDSOSupport::Init() is called before any setuid or
+  // chroot calls, so InitializeSymbolizer() should be called very early in the
+  // life of a program.
+  absl::debugging_internal::VDSOSupport::Init();
+#endif
   if (argv0_value != nullptr) {
     free(argv0_value);
     argv0_value = nullptr;
@@ -149,13 +157,15 @@ struct FileMappingHint {
 // Moreover, we are using only TryLock(), if the decorator list
 // is being modified (is busy), we skip all decorators, and possibly
 // loose some info. Sorry, that's the best we could do.
-base_internal::SpinLock g_decorators_mu(base_internal::kLinkerInitialized);
+ABSL_CONST_INIT absl::base_internal::SpinLock g_decorators_mu(
+    absl::kConstInit, absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
 const int kMaxFileMappingHints = 8;
 int g_num_file_mapping_hints;
 FileMappingHint g_file_mapping_hints[kMaxFileMappingHints];
 // Protects g_file_mapping_hints.
-base_internal::SpinLock g_file_mapping_mu(base_internal::kLinkerInitialized);
+ABSL_CONST_INIT absl::base_internal::SpinLock g_file_mapping_mu(
+    absl::kConstInit, absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
 // Async-signal-safe function to zero a buffer.
 // memset() is not guaranteed to be async-signal-safe.
@@ -175,6 +185,7 @@ struct ObjFile {
         fd(-1),
         elf_type(-1) {
     SafeMemZero(&elf_header, sizeof(elf_header));
+    SafeMemZero(&phdr[0], sizeof(phdr));
   }
 
   char *filename;
@@ -187,6 +198,10 @@ struct ObjFile {
   int fd;
   int elf_type;
   ElfW(Ehdr) elf_header;
+
+  // PT_LOAD program header describing executable code.
+  // Normally we expect just one, but SWIFT binaries have two.
+  std::array<ElfW(Phdr), 2> phdr;
 };
 
 // Build 4-way associative cache for symbols. Within each cache line, symbols
@@ -496,7 +511,7 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
 const int kMaxSectionNameLen = 64;
 
 bool ForEachSection(int fd,
-                    const std::function<bool(const std::string &name,
+                    const std::function<bool(absl::string_view name,
                                              const ElfW(Shdr) &)> &callback) {
   ElfW(Ehdr) elf_header;
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
@@ -518,7 +533,7 @@ bool ForEachSection(int fd,
       return false;
     }
     off_t name_offset = shstrtab.sh_offset + out.sh_name;
-    char header_name[kMaxSectionNameLen + 1];
+    char header_name[kMaxSectionNameLen];
     ssize_t n_read =
         ReadFromOffset(fd, &header_name, kMaxSectionNameLen, name_offset);
     if (n_read == -1) {
@@ -527,9 +542,8 @@ bool ForEachSection(int fd,
       // Long read?
       return false;
     }
-    header_name[n_read] = '\0';
 
-    std::string name(header_name);
+    absl::string_view name(header_name, strnlen(header_name, n_read));
     if (!callback(name, out)) {
       break;
     }
@@ -1264,6 +1278,36 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       ABSL_RAW_LOG(WARNING, "%s: failed to read elf header", obj->filename);
       return false;
     }
+    const int phnum = obj->elf_header.e_phnum;
+    const int phentsize = obj->elf_header.e_phentsize;
+    size_t phoff = obj->elf_header.e_phoff;
+    int num_executable_load_segments = 0;
+    for (int j = 0; j < phnum; j++) {
+      ElfW(Phdr) phdr;
+      if (!ReadFromOffsetExact(obj->fd, &phdr, sizeof(phdr), phoff)) {
+        ABSL_RAW_LOG(WARNING, "%s: failed to read program header %d",
+                     obj->filename, j);
+        return false;
+      }
+      phoff += phentsize;
+      constexpr int rx = PF_X | PF_R;
+      if (phdr.p_type != PT_LOAD || (phdr.p_flags & rx) != rx) {
+        // Not a LOAD segment, or not executable code.
+        continue;
+      }
+      if (num_executable_load_segments < obj->phdr.size()) {
+        memcpy(&obj->phdr[num_executable_load_segments++], &phdr, sizeof(phdr));
+      } else {
+        ABSL_RAW_LOG(WARNING, "%s: too many executable LOAD segments",
+                     obj->filename);
+        break;
+      }
+    }
+    if (num_executable_load_segments == 0) {
+      // This object has no "r-x" LOAD segments. That's unexpected.
+      ABSL_RAW_LOG(WARNING, "%s: no executable LOAD segments", obj->filename);
+      return false;
+    }
   }
   return true;
 }
@@ -1287,23 +1331,52 @@ const char *Symbolizer::GetSymbol(const void *const pc) {
   int fd = -1;
   if (obj != nullptr) {
     if (MaybeInitializeObjFile(obj)) {
-      if (obj->elf_type == ET_DYN &&
-          reinterpret_cast<uint64_t>(obj->start_addr) >= obj->offset) {
+      const size_t start_addr = reinterpret_cast<size_t>(obj->start_addr);
+      if (obj->elf_type == ET_DYN && start_addr >= obj->offset) {
         // This object was relocated.
         //
         // For obj->offset > 0, adjust the relocation since a mapping at offset
         // X in the file will have a start address of [true relocation]+X.
-        relocation = reinterpret_cast<ptrdiff_t>(obj->start_addr) - obj->offset;
+        relocation = start_addr - obj->offset;
+
+        // Note: some binaries have multiple "rx" LOAD segments. We must
+        // find the right one.
+        ElfW(Phdr) *phdr = nullptr;
+        for (int j = 0; j < obj->phdr.size(); j++) {
+          ElfW(Phdr) &p = obj->phdr[j];
+          if (p.p_type != PT_LOAD) {
+            // We only expect PT_LOADs. This must be PT_NULL that we didn't
+            // write over (i.e. we exhausted all interesting PT_LOADs).
+            ABSL_RAW_CHECK(p.p_type == PT_NULL, "unexpected p_type");
+            break;
+          }
+          if (pc < reinterpret_cast<void *>(start_addr + p.p_memsz)) {
+            phdr = &p;
+            break;
+          }
+        }
+        if (phdr == nullptr) {
+          // That's unexpected. Hope for the best.
+          ABSL_RAW_LOG(
+              WARNING,
+              "%s: unable to find LOAD segment for pc: %p, start_addr: %zx",
+              obj->filename, pc, start_addr);
+        } else {
+          // Adjust relocation in case phdr.p_vaddr != 0.
+          // This happens for binaries linked with `lld --rosegment`, and for
+          // binaries linked with BFD `ld -z separate-code`.
+          relocation -= phdr->p_vaddr - phdr->p_offset;
+        }
       }
 
       fd = obj->fd;
-    }
-    if (GetSymbolFromObjectFile(*obj, pc, relocation, symbol_buf_,
-                                sizeof(symbol_buf_), tmp_buf_,
-                                sizeof(tmp_buf_)) == SYMBOL_FOUND) {
-      // Only try to demangle the symbol name if it fit into symbol_buf_.
-      DemangleInplace(symbol_buf_, sizeof(symbol_buf_), tmp_buf_,
-                      sizeof(tmp_buf_));
+      if (GetSymbolFromObjectFile(*obj, pc, relocation, symbol_buf_,
+                                  sizeof(symbol_buf_), tmp_buf_,
+                                  sizeof(tmp_buf_)) == SYMBOL_FOUND) {
+        // Only try to demangle the symbol name if it fit into symbol_buf_.
+        DemangleInplace(symbol_buf_, sizeof(symbol_buf_), tmp_buf_,
+                        sizeof(tmp_buf_));
+      }
     }
   } else {
 #if ABSL_HAVE_VDSO_SUPPORT
@@ -1374,7 +1447,7 @@ int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
 
   if (!g_decorators_mu.TryLock()) {
     // Someone else is using decorators. Get out.
-    return false;
+    return -2;
   }
   int ret = ticket;
   if (g_num_decorators >= kMaxDecorators) {
@@ -1402,7 +1475,7 @@ bool RegisterFileMappingHint(const void *start, const void *end, uint64_t offset
   if (g_num_file_mapping_hints >= kMaxFileMappingHints) {
     ret = false;
   } else {
-    // TODO(ckennelly): Move this into a std::string copy routine.
+    // TODO(ckennelly): Move this into a string copy routine.
     int len = strlen(filename);
     char *dst = static_cast<char *>(
         base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));
@@ -1453,7 +1526,7 @@ bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
 
 bool Symbolize(const void *pc, char *out, int out_size) {
   // Symbolization is very slow under tsan.
-  ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
   SAFE_ASSERT(out_size >= 0);
   debugging_internal::Symbolizer *s = debugging_internal::AllocateSymbolizer();
   const char *name = s->GetSymbol(pc);
@@ -1472,9 +1545,16 @@ bool Symbolize(const void *pc, char *out, int out_size) {
     }
   }
   debugging_internal::FreeSymbolizer(s);
-  ANNOTATE_IGNORE_READS_AND_WRITES_END();
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_END();
   return ok;
 }
 
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+extern "C" bool AbslInternalGetFileMappingHint(const void **start,
+                                               const void **end, uint64_t *offset,
+                                               const char **filename) {
+  return absl::debugging_internal::GetFileMappingHint(start, end, offset,
+                                                      filename);
+}

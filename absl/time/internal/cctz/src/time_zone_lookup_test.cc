@@ -211,6 +211,7 @@ const char* const kTimeZoneNames[] = {"Africa/Abidjan",
                                       "America/North_Dakota/Beulah",
                                       "America/North_Dakota/Center",
                                       "America/North_Dakota/New_Salem",
+                                      "America/Nuuk",
                                       "America/Ojinaga",
                                       "America/Panama",
                                       "America/Pangnirtung",
@@ -749,7 +750,7 @@ TEST(TimeZone, Failures) {
   EXPECT_EQ(chrono::system_clock::from_time_t(0),
             convert(civil_second(1970, 1, 1, 0, 0, 0), tz));  // UTC
 
-  // Loading an empty std::string timezone should fail.
+  // Loading an empty string timezone should fail.
   tz = LoadZone("America/Los_Angeles");
   EXPECT_FALSE(load_time_zone("", &tz));
   EXPECT_EQ(chrono::system_clock::from_time_t(0),
@@ -932,7 +933,7 @@ TEST(MakeTime, Normalization) {
 
 // NOTE: Run this with -ftrapv to detect overflow problems.
 TEST(MakeTime, SysSecondsLimits) {
-  const char RFC3339[] = "%Y-%m-%dT%H:%M:%S%Ez";
+  const char RFC3339[] = "%Y-%m-%d%ET%H:%M:%S%Ez";
   const time_zone utc = utc_time_zone();
   const time_zone east = fixed_time_zone(chrono::hours(14));
   const time_zone west = fixed_time_zone(-chrono::hours(14));
@@ -1003,13 +1004,17 @@ TEST(MakeTime, SysSecondsLimits) {
 #if defined(_WIN32) || defined(_WIN64)
     // localtime_s() and gmtime_s() don't believe in years outside [1970:3000].
 #else
-    const time_zone utc = LoadZone("libc:UTC");
+    const time_zone cut = LoadZone("libc:UTC");
     const year_t max_tm_year = year_t{std::numeric_limits<int>::max()} + 1900;
-    tp = convert(civil_second(max_tm_year, 12, 31, 23, 59, 59), utc);
-    EXPECT_EQ("2147485547-12-31T23:59:59+00:00", format(RFC3339, tp, utc));
+    tp = convert(civil_second(max_tm_year, 12, 31, 23, 59, 59), cut);
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+    // The BSD gmtime_r() fails on extreme positive tm_year values.
+#else
+    EXPECT_EQ("2147485547-12-31T23:59:59+00:00", format(RFC3339, tp, cut));
+#endif
     const year_t min_tm_year = year_t{std::numeric_limits<int>::min()} + 1900;
-    tp = convert(civil_second(min_tm_year, 1, 1, 0, 0, 0), utc);
-    EXPECT_EQ("-2147481748-01-01T00:00:00+00:00", format(RFC3339, tp, utc));
+    tp = convert(civil_second(min_tm_year, 1, 1, 0, 0, 0), cut);
+    EXPECT_EQ("-2147481748-01-01T00:00:00+00:00", format(RFC3339, tp, cut));
 #endif
   }
 }

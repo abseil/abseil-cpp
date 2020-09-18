@@ -55,10 +55,9 @@
 #include "absl/base/internal/inline_variable.h"
 #include "absl/random/bernoulli_distribution.h"
 #include "absl/random/beta_distribution.h"
-#include "absl/random/distribution_format_traits.h"
 #include "absl/random/exponential_distribution.h"
 #include "absl/random/gaussian_distribution.h"
-#include "absl/random/internal/distributions.h"  // IWYU pragma: export
+#include "absl/random/internal/distribution_caller.h"  // IWYU pragma: export
 #include "absl/random/internal/uniform_helper.h"  // IWYU pragma: export
 #include "absl/random/log_uniform_int_distribution.h"
 #include "absl/random/poisson_distribution.h"
@@ -126,14 +125,13 @@ Uniform(TagType tag,
         R lo, R hi) {
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = random_internal::UniformDistributionWrapper<R>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   auto a = random_internal::uniform_lower_bound(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, tag, lo, hi);
+      distribution_t>(&urbg, tag, lo, hi);
 }
 
 // absl::Uniform<T>(bitgen, lo, hi)
@@ -146,15 +144,14 @@ Uniform(URBG&& urbg,  // NOLINT(runtime/references)
         R lo, R hi) {
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = random_internal::UniformDistributionWrapper<R>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
-
   constexpr auto tag = absl::IntervalClosedOpen;
+
   auto a = random_internal::uniform_lower_bound(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, lo, hi);
+      distribution_t>(&urbg, lo, hi);
 }
 
 // absl::Uniform(tag, bitgen, lo, hi)
@@ -172,14 +169,13 @@ Uniform(TagType tag,
   using gen_t = absl::decay_t<URBG>;
   using return_t = typename random_internal::uniform_inferred_return_t<A, B>;
   using distribution_t = random_internal::UniformDistributionWrapper<return_t>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   auto a = random_internal::uniform_lower_bound<return_t>(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound<return_t>(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, tag, static_cast<return_t>(lo),
+      distribution_t>(&urbg, tag, static_cast<return_t>(lo),
                                 static_cast<return_t>(hi));
 }
 
@@ -196,15 +192,14 @@ Uniform(URBG&& urbg,  // NOLINT(runtime/references)
   using gen_t = absl::decay_t<URBG>;
   using return_t = typename random_internal::uniform_inferred_return_t<A, B>;
   using distribution_t = random_internal::UniformDistributionWrapper<return_t>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   constexpr auto tag = absl::IntervalClosedOpen;
   auto a = random_internal::uniform_lower_bound<return_t>(tag, lo, hi);
   auto b = random_internal::uniform_upper_bound<return_t>(tag, lo, hi);
-  if (a > b) return a;
+  if (!random_internal::is_uniform_range_valid(a, b)) return lo;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, static_cast<return_t>(lo),
+      distribution_t>(&urbg, static_cast<return_t>(lo),
                                 static_cast<return_t>(hi));
 }
 
@@ -217,10 +212,9 @@ typename absl::enable_if_t<!std::is_signed<R>::value, R>  //
 Uniform(URBG&& urbg) {  // NOLINT(runtime/references)
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = random_internal::UniformDistributionWrapper<R>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg);
+      distribution_t>(&urbg);
 }
 
 // -----------------------------------------------------------------------------
@@ -248,10 +242,9 @@ bool Bernoulli(URBG&& urbg,  // NOLINT(runtime/references)
                double p) {
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = absl::bernoulli_distribution;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, p);
+      distribution_t>(&urbg, p);
 }
 
 // -----------------------------------------------------------------------------
@@ -281,10 +274,9 @@ RealType Beta(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::beta_distribution<RealType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, alpha, beta);
+      distribution_t>(&urbg, alpha, beta);
 }
 
 // -----------------------------------------------------------------------------
@@ -314,10 +306,9 @@ RealType Exponential(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::exponential_distribution<RealType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, lambda);
+      distribution_t>(&urbg, lambda);
 }
 
 // -----------------------------------------------------------------------------
@@ -346,10 +337,9 @@ RealType Gaussian(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::gaussian_distribution<RealType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, mean, stddev);
+      distribution_t>(&urbg, mean, stddev);
 }
 
 // -----------------------------------------------------------------------------
@@ -389,10 +379,9 @@ IntType LogUniform(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::log_uniform_int_distribution<IntType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, lo, hi, base);
+      distribution_t>(&urbg, lo, hi, base);
 }
 
 // -----------------------------------------------------------------------------
@@ -420,10 +409,9 @@ IntType Poisson(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::poisson_distribution<IntType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, mean);
+      distribution_t>(&urbg, mean);
 }
 
 // -----------------------------------------------------------------------------
@@ -453,10 +441,9 @@ IntType Zipf(URBG&& urbg,  // NOLINT(runtime/references)
 
   using gen_t = absl::decay_t<URBG>;
   using distribution_t = typename absl::zipf_distribution<IntType>;
-  using format_t = random_internal::DistributionFormatTraits<distribution_t>;
 
   return random_internal::DistributionCaller<gen_t>::template Call<
-      distribution_t, format_t>(&urbg, hi, q, v);
+      distribution_t>(&urbg, hi, q, v);
 }
 
 ABSL_NAMESPACE_END

@@ -302,7 +302,7 @@ bool ParseInfinityOrNan(const char* begin, const char* end,
   switch (*begin) {
     case 'i':
     case 'I': {
-      // An infinity std::string consists of the characters "inf" or "infinity",
+      // An infinity string consists of the characters "inf" or "infinity",
       // case insensitive.
       if (strings_internal::memcasecmp(begin + 1, "nf", 2) != 0) {
         return false;
@@ -326,7 +326,7 @@ bool ParseInfinityOrNan(const char* begin, const char* end,
       }
       out->type = strings_internal::FloatType::kNan;
       out->end = begin + 3;
-      // NaN is allowed to be followed by a parenthesized std::string, consisting of
+      // NaN is allowed to be followed by a parenthesized string, consisting of
       // only the characters [a-zA-Z0-9_].  Match that if it's present.
       begin += 3;
       if (begin < end && *begin == '(') {

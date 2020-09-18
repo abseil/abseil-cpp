@@ -22,7 +22,7 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 cc_library(
     name = "int128",
@@ -35,6 +35,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:bits",
         "//absl/base:config",
         "//absl/base:core_headers",
     ],

@@ -104,6 +104,7 @@
 
 #include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/common.h"
 #include "absl/container/internal/compressed_tuple.h"
@@ -120,6 +121,16 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
+
+template <typename AllocType>
+void SwapAlloc(AllocType& lhs, AllocType& rhs,
+               std::true_type /* propagate_on_container_swap */) {
+  using std::swap;
+  swap(lhs, rhs);
+}
+template <typename AllocType>
+void SwapAlloc(AllocType& /*lhs*/, AllocType& /*rhs*/,
+               std::false_type /* propagate_on_container_swap */) {}
 
 template <size_t Width>
 class probe_seq {
@@ -168,9 +179,13 @@ struct IsDecomposable<
 
 // TODO(alkis): Switch to std::is_nothrow_swappable when gcc/clang supports it.
 template <class T>
-constexpr bool IsNoThrowSwappable() {
+constexpr bool IsNoThrowSwappable(std::true_type = {} /* is_swappable */) {
   using std::swap;
   return noexcept(swap(std::declval<T&>(), std::declval<T&>()));
+}
+template <class T>
+constexpr bool IsNoThrowSwappable(std::false_type /* is_swappable */) {
+  return false;
 }
 
 template <typename T>
@@ -312,7 +327,7 @@ inline bool IsFull(ctrl_t c) { return c >= 0; }
 inline bool IsDeleted(ctrl_t c) { return c == kDeleted; }
 inline bool IsEmptyOrDeleted(ctrl_t c) { return c < kSentinel; }
 
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 
 // https://github.com/abseil/abseil-cpp/issues/209
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87853
@@ -346,7 +361,7 @@ struct GroupSse2Impl {
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
-#if SWISSTABLE_HAVE_SSSE3
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
     // This only works because kEmpty is -128.
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
@@ -372,7 +387,7 @@ struct GroupSse2Impl {
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     auto msbs = _mm_set1_epi8(static_cast<char>(-128));
     auto x126 = _mm_set1_epi8(126);
-#if SWISSTABLE_HAVE_SSSE3
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
     auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
 #else
     auto zero = _mm_setzero_si128();
@@ -384,7 +399,7 @@ struct GroupSse2Impl {
 
   __m128i ctrl;
 };
-#endif  // SWISSTABLE_HAVE_SSE2
+#endif  // ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 
 struct GroupPortableImpl {
   static constexpr size_t kWidth = 8;
@@ -438,7 +453,7 @@ struct GroupPortableImpl {
   uint64_t ctrl;
 };
 
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 using Group = GroupSse2Impl;
 #else
 using Group = GroupPortableImpl;
@@ -496,6 +511,18 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
   return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
 }
 
+inline void AssertIsFull(ctrl_t* ctrl) {
+  ABSL_HARDENING_ASSERT((ctrl != nullptr && IsFull(*ctrl)) &&
+                        "Invalid operation on iterator. The element might have "
+                        "been erased, or the table might have rehashed.");
+}
+
+inline void AssertIsValid(ctrl_t* ctrl) {
+  ABSL_HARDENING_ASSERT((ctrl == nullptr || IsFull(*ctrl)) &&
+                        "Invalid operation on iterator. The element might have "
+                        "been erased, or the table might have rehashed.");
+}
+
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -510,7 +537,8 @@ inline size_t GrowthToLowerboundCapacity(size_t growth) {
 // if they are equal, false if they are not. If two keys compare equal, then
 // their hash values as defined by Hash MUST be equal.
 //
-// Allocator: an Allocator [https://devdocs.io/cpp/concept/allocator] with which
+// Allocator: an Allocator
+// [https://en.cppreference.com/w/cpp/named_req/Allocator] with which
 // the storage of the hashtable will be allocated and the elements will be
 // constructed and destroyed.
 template <class Policy, class Hash, class Eq, class Alloc>
@@ -616,7 +644,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      assert_is_full();
+      AssertIsFull(ctrl_);
       return PolicyTraits::element(slot_);
     }
 
@@ -625,7 +653,7 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      assert_is_full();
+      AssertIsFull(ctrl_);
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -639,8 +667,8 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
-      a.assert_is_valid();
-      b.assert_is_valid();
+      AssertIsValid(a.ctrl_);
+      AssertIsValid(b.ctrl_);
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
@@ -648,24 +676,19 @@ class raw_hash_set {
     }
 
    private:
-    iterator(ctrl_t* ctrl) : ctrl_(ctrl) {}  // for end()
-    iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {}
-
-    void assert_is_full() const { assert(IsFull(*ctrl_)); }
-    void assert_is_valid() const {
-      assert(!ctrl_ || IsFull(*ctrl_) || *ctrl_ == kSentinel);
+    iterator(ctrl_t* ctrl, slot_type* slot) : ctrl_(ctrl), slot_(slot) {
+      // This assumption helps the compiler know that any non-end iterator is
+      // not equal to any end iterator.
+      ABSL_INTERNAL_ASSUME(ctrl != nullptr);
     }
 
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
-        // ctrl is not necessarily aligned to Group::kWidth. It is also likely
-        // to read past the space for ctrl bytes and into slots. This is ok
-        // because ctrl has sizeof() == 1 and slot has sizeof() >= 1 so there
-        // is no way to read outside the combined slot array.
         uint32_t shift = Group{ctrl_}.CountLeadingEmptyOrDeleted();
         ctrl_ += shift;
         slot_ += shift;
       }
+      if (ABSL_PREDICT_FALSE(*ctrl_ == kSentinel)) ctrl_ = nullptr;
     }
 
     ctrl_t* ctrl_ = nullptr;
@@ -907,12 +930,12 @@ class raw_hash_set {
     it.skip_empty_or_deleted();
     return it;
   }
-  iterator end() { return {ctrl_ + capacity_}; }
+  iterator end() { return {}; }
 
   const_iterator begin() const {
     return const_cast<raw_hash_set*>(this)->begin();
   }
-  const_iterator end() const { return const_cast<raw_hash_set*>(this)->end(); }
+  const_iterator end() const { return {}; }
   const_iterator cbegin() const { return begin(); }
   const_iterator cend() const { return end(); }
 
@@ -1171,7 +1194,7 @@ class raw_hash_set {
   // This overload is necessary because otherwise erase<K>(const K&) would be
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
-    it.assert_is_full();
+    AssertIsFull(it.ctrl_);
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1205,7 +1228,7 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
-    position.inner_.assert_is_full();
+    AssertIsFull(position.inner_.ctrl_);
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
@@ -1222,8 +1245,8 @@ class raw_hash_set {
 
   void swap(raw_hash_set& that) noexcept(
       IsNoThrowSwappable<hasher>() && IsNoThrowSwappable<key_equal>() &&
-      (!AllocTraits::propagate_on_container_swap::value ||
-       IsNoThrowSwappable<allocator_type>())) {
+      IsNoThrowSwappable<allocator_type>(
+          typename AllocTraits::propagate_on_container_swap{})) {
     using std::swap;
     swap(ctrl_, that.ctrl_);
     swap(slots_, that.slots_);
@@ -1233,12 +1256,8 @@ class raw_hash_set {
     swap(hash_ref(), that.hash_ref());
     swap(eq_ref(), that.eq_ref());
     swap(infoz_, that.infoz_);
-    if (AllocTraits::propagate_on_container_swap::value) {
-      swap(alloc_ref(), that.alloc_ref());
-    } else {
-      // If the allocators do not compare equal it is officially undefined
-      // behavior. We choose to do nothing.
-    }
+    SwapAlloc(alloc_ref(), that.alloc_ref(),
+              typename AllocTraits::propagate_on_container_swap{});
   }
 
   void rehash(size_t n) {
@@ -1308,6 +1327,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) return end();
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
   }
   template <class K = key_type>
@@ -1659,8 +1679,8 @@ class raw_hash_set {
 #endif
         return {seq.offset(mask.LowestBitSet()), seq.index()};
       }
-      assert(seq.index() < capacity_ && "full table!");
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
   }
 
@@ -1691,6 +1711,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) break;
       seq.next();
+      assert(seq.index() < capacity_ && "full table!");
     }
     return {prepare_insert(hash), true};
   }

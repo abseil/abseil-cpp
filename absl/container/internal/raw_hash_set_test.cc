@@ -26,6 +26,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/container/internal/container_memory.h"
@@ -1666,9 +1667,9 @@ TEST(Nodes, EmptyNodeType) {
 }
 
 TEST(Nodes, ExtractInsert) {
-  constexpr char k0[] = "Very long std::string zero.";
-  constexpr char k1[] = "Very long std::string one.";
-  constexpr char k2[] = "Very long std::string two.";
+  constexpr char k0[] = "Very long string zero.";
+  constexpr char k1[] = "Very long string one.";
+  constexpr char k2[] = "Very long string two.";
   StringTable t = {{k0, ""}, {k1, ""}, {k2, ""}};
   EXPECT_THAT(t,
               UnorderedElementsAre(Pair(k0, ""), Pair(k1, ""), Pair(k2, "")));
@@ -1791,11 +1792,11 @@ TEST(TableDeathTest, EraseOfEndAsserts) {
 
   IntTable t;
   // Extra simple "regexp" as regexp support is highly varied across platforms.
-  constexpr char kDeathMsg[] = "IsFull";
+  constexpr char kDeathMsg[] = "Invalid operation on iterator";
   EXPECT_DEATH_IF_SUPPORTED(t.erase(t.end()), kDeathMsg);
 }
 
-#if defined(ABSL_HASHTABLEZ_SAMPLE)
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 TEST(RawHashSamplerTest, Sample) {
   // Enable the feature even if the prod default is off.
   SetHashtablezEnabled(true);
@@ -1816,7 +1817,7 @@ TEST(RawHashSamplerTest, Sample) {
   EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
               0.01, 0.005);
 }
-#endif  // ABSL_HASHTABLEZ_SAMPLER
+#endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
 
 TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
   // Enable the feature even if the prod default is off.
@@ -1839,7 +1840,7 @@ TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
               0.00, 0.001);
 }
 
-#ifdef ADDRESS_SANITIZER
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
 TEST(Sanitizer, PoisoningUnused) {
   IntTable t;
   t.reserve(5);
@@ -1863,7 +1864,7 @@ TEST(Sanitizer, PoisoningOnErase) {
   t.erase(0);
   EXPECT_TRUE(__asan_address_is_poisoned(&v));
 }
-#endif  // ADDRESS_SANITIZER
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
 
 }  // namespace
 }  // namespace container_internal

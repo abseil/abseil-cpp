@@ -37,7 +37,7 @@ class ZoneInfoSource {
 
   // Until the zoneinfo data supports versioning information, we provide
   // a way for a ZoneInfoSource to indicate it out-of-band.  The default
-  // implementation returns an empty std::string.
+  // implementation returns an empty string.
   virtual std::string Version() const;
 };
 

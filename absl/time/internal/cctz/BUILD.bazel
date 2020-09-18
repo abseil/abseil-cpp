@@ -16,7 +16,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(features = ["-parse_headers"])
 
-licenses(["notice"])  # Apache License
+licenses(["notice"])
 
 filegroup(
     name = "zoneinfo",
@@ -91,6 +91,11 @@ cc_library(
 )
 
 ### tests
+
+test_suite(
+    name = "all_tests",
+    visibility = ["//visibility:public"],
+)
 
 cc_test(
     name = "civil_time_test",

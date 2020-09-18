@@ -209,31 +209,22 @@ class SynchronizationStorage {
   // Instances allocated on the heap or on the stack should use the default
   // constructor.
   SynchronizationStorage()
-      : is_dynamic_(true), once_() {}
-
-  // Instances allocated in static storage (not on the heap, not on the
-  // stack) should use this constructor.
-  explicit SynchronizationStorage(base_internal::LinkerInitialized) {}
+      : destruct_(true), once_() {}
 
   constexpr explicit SynchronizationStorage(absl::ConstInitType)
-      : is_dynamic_(false), once_(), space_{{0}} {}
+      : destruct_(false), once_(), space_{{0}} {}
 
   SynchronizationStorage(SynchronizationStorage&) = delete;
   SynchronizationStorage& operator=(SynchronizationStorage&) = delete;
 
   ~SynchronizationStorage() {
-    if (is_dynamic_) {
+    if (destruct_) {
       get()->~T();
     }
   }
 
   // Retrieve the object in storage. This is fast and thread safe, but does
   // incur the cost of absl::call_once().
-  //
-  // For instances in static storage constructed with the
-  // LinkerInitialized constructor, may be called at any time without
-  // regard for order of dynamic initialization or destruction of objects
-  // in static storage. See the class comment for caveats.
   T* get() {
     absl::call_once(once_, SynchronizationStorage::Construct, this);
     return reinterpret_cast<T*>(&space_);
@@ -245,10 +236,7 @@ class SynchronizationStorage {
   }
 
   // When true, T's destructor is run when this is destructed.
-  //
-  // The LinkerInitialized constructor assumes this value will be set
-  // false by static initialization.
-  bool is_dynamic_;
+  const bool destruct_;
 
   absl::once_flag once_;
 

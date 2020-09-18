@@ -74,6 +74,8 @@ static inline uintptr_t ComputeStackFrameSize(const T* low,
 // checks (the strictness of which is controlled by the boolean parameter
 // "STRICT_UNWINDING") to reduce the chance that a bad pointer is returned.
 template<bool STRICT_UNWINDING, bool WITH_CONTEXT>
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
 static void **NextStackFrame(void **old_frame_pointer, const void *uc) {
   void **new_frame_pointer = reinterpret_cast<void**>(*old_frame_pointer);
   bool check_frame_size = true;
@@ -123,6 +125,8 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc) {
 }
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
 static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
                       const void *ucp, int *min_dropped_frames) {
 #ifdef __GNUC__

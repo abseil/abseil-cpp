@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "absl/base/internal/raw_logging.h"
 #include "absl/container/internal/hash_generator_testing.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
@@ -33,6 +34,19 @@ using ::testing::_;
 using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
+
+// Check that absl::flat_hash_map works in a global constructor.
+struct BeforeMain {
+  BeforeMain() {
+    absl::flat_hash_map<int, int> x;
+    x.insert({1, 1});
+    ABSL_RAW_CHECK(x.find(0) == x.end(), "x should not contain 0");
+    auto it = x.find(1);
+    ABSL_RAW_CHECK(it != x.end(), "x should contain 1");
+    ABSL_RAW_CHECK(it->second, "1 should map to 1");
+  }
+};
+const BeforeMain before_main;
 
 template <class K, class V>
 using Map = flat_hash_map<K, V, StatefulTestingHash, StatefulTestingEqual,
@@ -252,6 +266,21 @@ TEST(FlatHashMap, EraseIf) {
     EXPECT_THAT(s, UnorderedElementsAre(Pair(1, 1), Pair(3, 3), Pair(5, 5)));
   }
 }
+
+// This test requires std::launder for mutable key access in node handles.
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+TEST(FlatHashMap, NodeHandleMutableKeyAccess) {
+  flat_hash_map<std::string, std::string> map;
+
+  map["key1"] = "mapped";
+
+  auto nh = map.extract(map.begin());
+  nh.key().resize(3);
+  map.insert(std::move(nh));
+
+  EXPECT_THAT(map, testing::ElementsAre(Pair("key", "mapped")));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

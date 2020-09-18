@@ -20,6 +20,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __APPLE__
+#include <sys/ucontext.h>
+#endif
+
 #include <csignal>
 #include <cstdio>
 
@@ -64,6 +68,32 @@ void* GetProgramCounter(void* vuc) {
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[16]);
 #else
 #error "Undefined Architecture."
+#endif
+  }
+#elif defined(__APPLE__)
+  if (vuc != nullptr) {
+    ucontext_t* signal_ucontext = reinterpret_cast<ucontext_t*>(vuc);
+#if defined(__aarch64__)
+    return reinterpret_cast<void*>(
+        __darwin_arm_thread_state64_get_pc(signal_ucontext->uc_mcontext->__ss));
+#elif defined(__arm__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__pc);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.pc);
+#endif
+#elif defined(__i386__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__eip);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.eip);
+#endif
+#elif defined(__x86_64__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__rip);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.rip);
+#endif
 #endif
   }
 #elif defined(__akaros__)

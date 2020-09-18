@@ -149,6 +149,7 @@ absl_cc_test(
     absl::synchronization
     absl::thread_pool
     absl::base
+    absl::config
     absl::core_headers
     absl::memory
     absl::raw_logging_internal
@@ -179,6 +180,7 @@ absl_cc_library(
   DEPS
     absl::synchronization
     absl::base
+    absl::config
     absl::strings
     absl::time
     gmock

@@ -209,7 +209,7 @@ class time_zone {
   // version() and description() provide additional information about the
   // time zone. The content of each of the returned strings is unspecified,
   // however, when the IANA Time Zone Database is the underlying data source
-  // the version() std::string will be in the familar form (e.g, "2018e") or
+  // the version() string will be in the familar form (e.g, "2018e") or
   // empty when unavailable.
   //
   // Note: These functions are for informational or testing purposes only.
@@ -292,6 +292,7 @@ bool parse(const std::string&, const std::string&, const time_zone&,
 //   - %E#f - Fractional seconds with # digits of precision
 //   - %E*f - Fractional seconds with full precision (a literal '*')
 //   - %E4Y - Four-character years (-999 ... -001, 0000, 0001 ... 9999)
+//   - %ET  - The RFC3339 "date-time" separator "T"
 //
 // Note that %E0S behaves like %S, and %E0f produces no characters. In
 // contrast %E*f always produces at least one digit, which may be '0'.
@@ -321,7 +322,8 @@ inline std::string format(const std::string& fmt, const time_point<D>& tp,
 // returns the corresponding time_point. Uses strftime()-like formatting
 // options, with the same extensions as cctz::format(), but with the
 // exceptions that %E#S is interpreted as %E*S, and %E#f as %E*f. %Ez
-// and %E*z also accept the same inputs.
+// and %E*z also accept the same inputs, which (along with %z) includes
+// 'z' and 'Z' as synonyms for +00:00.  %ET accepts either 'T' or 't'.
 //
 // %Y consumes as many numeric characters as it can, so the matching data
 // should always be terminated with a non-numeric. %E4Y always consumes

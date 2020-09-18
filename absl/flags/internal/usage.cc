@@ -15,6 +15,8 @@
 
 #include "absl/flags/internal/usage.h"
 
+#include <stdint.h>
+
 #include <functional>
 #include <map>
 #include <ostream>
@@ -23,10 +25,11 @@
 #include <vector>
 
 #include "absl/base/config.h"
+#include "absl/flags/commandlineflag.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/flag.h"
 #include "absl/flags/internal/path_util.h"
+#include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/internal/registry.h"
 #include "absl/flags/usage_config.h"
@@ -53,27 +56,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
-
-absl::string_view TypenameForHelp(const flags_internal::CommandLineFlag& flag) {
-  // Only report names of v1 built-in types
-#define HANDLE_V1_BUILTIN_TYPE(t) \
-  if (flag.IsOfType<t>()) {       \
-    return #t;                    \
-  }
-
-  HANDLE_V1_BUILTIN_TYPE(bool);
-  HANDLE_V1_BUILTIN_TYPE(int32_t);
-  HANDLE_V1_BUILTIN_TYPE(int64_t);
-  HANDLE_V1_BUILTIN_TYPE(uint64_t);
-  HANDLE_V1_BUILTIN_TYPE(double);
-#undef HANDLE_V1_BUILTIN_TYPE
-
-  if (flag.IsOfType<std::string>()) {
-    return "string";
-  }
-
-  return "";
-}
 
 // This class is used to emit an XML element with `tag` and `text`.
 // It adds opening and closing tags and escapes special characters in the text.
@@ -127,21 +109,21 @@ class FlagHelpPrettyPrinter {
  public:
   // Pretty printer holds on to the std::ostream& reference to direct an output
   // to that stream.
-  FlagHelpPrettyPrinter(int max_line_len, std::ostream* out)
-      : out_(*out),
+  FlagHelpPrettyPrinter(int max_line_len, std::ostream& out)
+      : out_(out),
         max_line_len_(max_line_len),
         line_len_(0),
         first_line_(true) {}
 
   void Write(absl::string_view str, bool wrap_line = false) {
-    // Empty std::string - do nothing.
+    // Empty string - do nothing.
     if (str.empty()) return;
 
     std::vector<absl::string_view> tokens;
     if (wrap_line) {
       for (auto line : absl::StrSplit(str, absl::ByAnyChar("\n\r"))) {
         if (!tokens.empty()) {
-          // Keep line separators in the input std::string.
+          // Keep line separators in the input string.
           tokens.push_back("\n");
         }
         for (auto token :
@@ -156,13 +138,13 @@ class FlagHelpPrettyPrinter {
     for (auto token : tokens) {
       bool new_line = (line_len_ == 0);
 
-      // Respect line separators in the input std::string.
+      // Respect line separators in the input string.
       if (token == "\n") {
         EndLine();
         continue;
       }
 
-      // Write the token, ending the std::string first if necessary/possible.
+      // Write the token, ending the string first if necessary/possible.
       if (!new_line && (line_len_ + token.size() >= max_line_len_)) {
         EndLine();
         new_line = true;
@@ -202,8 +184,7 @@ class FlagHelpPrettyPrinter {
   bool first_line_;
 };
 
-void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
-                           std::ostream* out) {
+void FlagHelpHumanReadable(const CommandLineFlag& flag, std::ostream& out) {
   FlagHelpPrettyPrinter printer(80, out);  // Max line length is 80.
 
   // Flag name.
@@ -212,23 +193,20 @@ void FlagHelpHumanReadable(const flags_internal::CommandLineFlag& flag,
   // Flag help.
   printer.Write(absl::StrCat("(", flag.Help(), ");"), /*wrap_line=*/true);
 
-  // Flag data type (for V1 flags only).
-  if (!flag.IsAbseilFlag() && !flag.IsRetired()) {
-    printer.Write(absl::StrCat("type: ", TypenameForHelp(flag), ";"));
-  }
-
   // The listed default value will be the actual default from the flag
   // definition in the originating source file, unless the value has
   // subsequently been modified using SetCommandLineOption() with mode
   // SET_FLAGS_DEFAULT.
   std::string dflt_val = flag.DefaultValue();
+  std::string curr_val = flag.CurrentValue();
+  bool is_modified = curr_val != dflt_val;
+
   if (flag.IsOfType<std::string>()) {
     dflt_val = absl::StrCat("\"", dflt_val, "\"");
   }
   printer.Write(absl::StrCat("default: ", dflt_val, ";"));
 
-  if (flag.IsModified()) {
-    std::string curr_val = flag.CurrentValue();
+  if (is_modified) {
     if (flag.IsOfType<std::string>()) {
       curr_val = absl::StrCat("\"", curr_val, "\"");
     }
@@ -268,30 +246,28 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
   // This map is used to output matching flags grouped by package and file
   // name.
   std::map<std::string,
-           std::map<std::string,
-                    std::vector<const flags_internal::CommandLineFlag*>>>
+           std::map<std::string, std::vector<const absl::CommandLineFlag*>>>
       matching_flags;
 
-  flags_internal::ForEachFlag([&](flags_internal::CommandLineFlag* flag) {
-    std::string flag_filename = flag->Filename();
-
+  flags_internal::ForEachFlag([&](absl::CommandLineFlag& flag) {
     // Ignore retired flags.
-    if (flag->IsRetired()) return;
+    if (flag.IsRetired()) return;
 
     // If the flag has been stripped, pretend that it doesn't exist.
-    if (flag->Help() == flags_internal::kStrippedFlagHelp) return;
+    if (flag.Help() == flags_internal::kStrippedFlagHelp) return;
+
+    std::string flag_filename = flag.Filename();
 
     // Make sure flag satisfies the filter
     if (!filter_cb || !filter_cb(flag_filename)) return;
 
     matching_flags[std::string(flags_internal::Package(flag_filename))]
                   [flag_filename]
-                      .push_back(flag);
+                      .push_back(&flag);
   });
 
-  absl::string_view
-      package_separator;             // controls blank lines between packages.
-  absl::string_view file_separator;  // controls blank lines between files.
+  absl::string_view package_separator;  // controls blank lines between packages
+  absl::string_view file_separator;     // controls blank lines between files
   for (const auto& package : matching_flags) {
     if (format == HelpFormat::kHumanReadable) {
       out << package_separator;
@@ -326,10 +302,10 @@ void FlagsHelpImpl(std::ostream& out, flags_internal::FlagKindFilter filter_cb,
 
 // --------------------------------------------------------------------
 // Produces the help message describing specific flag.
-void FlagHelp(std::ostream& out, const flags_internal::CommandLineFlag& flag,
+void FlagHelp(std::ostream& out, const CommandLineFlag& flag,
               HelpFormat format) {
   if (format == HelpFormat::kHumanReadable)
-    flags_internal::FlagHelpHumanReadable(flag, &out);
+    flags_internal::FlagHelpHumanReadable(flag, out);
 }
 
 // --------------------------------------------------------------------

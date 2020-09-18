@@ -36,6 +36,7 @@
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
@@ -55,29 +56,22 @@ class ABSL_LOCKABLE SpinLock {
     ABSL_TSAN_MUTEX_CREATE(this, __tsan_mutex_not_static);
   }
 
-  // Special constructor for use with static SpinLock objects.  E.g.,
-  //
-  //    static SpinLock lock(base_internal::kLinkerInitialized);
-  //
-  // When initialized using this constructor, we depend on the fact
-  // that the linker has already initialized the memory appropriately. The lock
-  // is initialized in non-cooperative mode.
-  //
-  // A SpinLock constructed like this can be freely used from global
-  // initializers without worrying about the order in which global
-  // initializers run.
-  explicit SpinLock(base_internal::LinkerInitialized) {
-    // Does nothing; lockword_ is already initialized
-    ABSL_TSAN_MUTEX_CREATE(this, 0);
-  }
-
   // Constructors that allow non-cooperative spinlocks to be created for use
   // inside thread schedulers.  Normal clients should not use these.
   explicit SpinLock(base_internal::SchedulingMode mode);
-  SpinLock(base_internal::LinkerInitialized,
-           base_internal::SchedulingMode mode);
 
+  // Constructor for global SpinLock instances.  See absl/base/const_init.h.
+  constexpr SpinLock(absl::ConstInitType, base_internal::SchedulingMode mode)
+      : lockword_(IsCooperative(mode) ? kSpinLockCooperative : 0) {}
+
+  // For global SpinLock instances prefer trivial destructor when possible.
+  // Default but non-trivial destructor in some build configurations causes an
+  // extra static initializer.
+#ifdef ABSL_INTERNAL_HAVE_TSAN_INTERFACE
   ~SpinLock() { ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static); }
+#else
+  ~SpinLock() = default;
+#endif
 
   // Acquire this SpinLock.
   inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() {
@@ -148,12 +142,13 @@ class ABSL_LOCKABLE SpinLock {
   // bit[1] encodes whether a lock uses cooperative scheduling.
   // bit[2] encodes whether a lock disables scheduling.
   // bit[3:31] encodes time a lock spent on waiting as a 29-bit unsigned int.
-  enum { kSpinLockHeld = 1 };
-  enum { kSpinLockCooperative = 2 };
-  enum { kSpinLockDisabledScheduling = 4 };
-  enum { kSpinLockSleeper = 8 };
-  enum { kWaitTimeMask =                      // Includes kSpinLockSleeper.
-    ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling) };
+  static constexpr uint32_t kSpinLockHeld = 1;
+  static constexpr uint32_t kSpinLockCooperative = 2;
+  static constexpr uint32_t kSpinLockDisabledScheduling = 4;
+  static constexpr uint32_t kSpinLockSleeper = 8;
+  // Includes kSpinLockSleeper.
+  static constexpr uint32_t kWaitTimeMask =
+      ~(kSpinLockHeld | kSpinLockCooperative | kSpinLockDisabledScheduling);
 
   // Returns true if the provided scheduling mode is cooperative.
   static constexpr bool IsCooperative(
@@ -162,7 +157,6 @@ class ABSL_LOCKABLE SpinLock {
   }
 
   uint32_t TryLockInternal(uint32_t lock_value, uint32_t wait_cycles);
-  void InitLinkerInitializedAndCooperative();
   void SlowLock() ABSL_ATTRIBUTE_COLD;
   void SlowUnlock(uint32_t lock_value) ABSL_ATTRIBUTE_COLD;
   uint32_t SpinLoop();

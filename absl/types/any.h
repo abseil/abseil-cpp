@@ -47,9 +47,9 @@
 // this abstraction, make sure that you should not instead be rewriting your
 // code to be more specific.
 //
-// Abseil expects to release an `absl::variant` type shortly (a C++11 compatible
-// version of the C++17 `std::variant), which is generally preferred for use
-// over `absl::any`.
+// Abseil has also released an `absl::variant` type (a C++11 compatible version
+// of the C++17 `std::variant`), which is generally preferred for use over
+// `absl::any`.
 #ifndef ABSL_TYPES_ANY_H_
 #define ABSL_TYPES_ANY_H_
 
@@ -80,6 +80,7 @@ ABSL_NAMESPACE_END
 #include <typeinfo>
 #include <utility>
 
+#include "absl/base/internal/fast_type_id.h"
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_any_cast.h"
@@ -94,26 +95,6 @@ ABSL_NAMESPACE_END
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-namespace any_internal {
-
-template <typename Type>
-struct TypeTag {
-  constexpr static char dummy_var = 0;
-};
-
-template <typename Type>
-constexpr char TypeTag<Type>::dummy_var;
-
-// FastTypeId<Type>() evaluates at compile/link-time to a unique pointer for the
-// passed in type. These are meant to be good match for keys into maps or
-// straight up comparisons.
-template<typename Type>
-constexpr inline const void* FastTypeId() {
-  return &TypeTag<Type>::dummy_var;
-}
-
-}  // namespace any_internal
 
 class any;
 
@@ -423,11 +404,11 @@ class any {
     using NormalizedType =
         typename std::remove_cv<typename std::remove_reference<T>::type>::type;
 
-    return any_internal::FastTypeId<NormalizedType>();
+    return base_internal::FastTypeId<NormalizedType>();
   }
 
   const void* GetObjTypeId() const {
-    return obj_ ? obj_->ObjTypeId() : any_internal::FastTypeId<void>();
+    return obj_ ? obj_->ObjTypeId() : base_internal::FastTypeId<void>();
   }
 
   // `absl::any` nonmember functions //

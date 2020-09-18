@@ -18,6 +18,7 @@
 #include <string>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/debugging/internal/stack_consumption.h"
 #include "absl/memory/memory.h"
@@ -82,9 +83,10 @@ TEST(Demangle, Clones) {
 // Tests that verify that Demangle footprint is within some limit.
 // They are not to be run under sanitizers as the sanitizers increase
 // stack consumption by about 4x.
-#if defined(ABSL_INTERNAL_HAVE_DEBUGGING_STACK_CONSUMPTION) &&   \
-    !defined(ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
-    !defined(THREAD_SANITIZER)
+#if defined(ABSL_INTERNAL_HAVE_DEBUGGING_STACK_CONSUMPTION) && \
+    !defined(ABSL_HAVE_ADDRESS_SANITIZER) &&                   \
+    !defined(ABSL_HAVE_MEMORY_SANITIZER) &&                    \
+    !defined(ABSL_HAVE_THREAD_SANITIZER)
 
 static const char *g_mangled;
 static char g_demangle_buffer[4096];

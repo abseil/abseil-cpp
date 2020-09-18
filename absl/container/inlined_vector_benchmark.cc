@@ -83,7 +83,7 @@ int GetNonShortStringOptimizationSize() {
   }
   ABSL_RAW_LOG(
       FATAL,
-      "Failed to find a std::string larger than the short std::string optimization");
+      "Failed to find a string larger than the short string optimization");
   return -1;
 }
 

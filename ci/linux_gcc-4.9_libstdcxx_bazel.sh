@@ -20,27 +20,28 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
-if [ -z ${STD:-} ]; then
+if [[ -z ${STD:-} ]]; then
   STD="c++11 c++14"
 fi
 
-if [ -z ${COMPILATION_MODE:-} ]; then
+if [[ -z ${COMPILATION_MODE:-} ]]; then
   COMPILATION_MODE="fastbuild opt"
 fi
 
-if [ -z ${EXCEPTIONS_MODE:-} ]; then
+if [[ -z ${EXCEPTIONS_MODE:-} ]]; then
   EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
 fi
 
-readonly DOCKER_CONTAINER="gcr.io/google.com/absl-177019/linux_gcc-4.9:20191018"
+source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
+readonly DOCKER_CONTAINER=${LINUX_GCC_49_CONTAINER}
 
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
-if [ ${USE_BAZEL_CACHE:-0} -ne 0 ]; then
+if [[ ${USE_BAZEL_CACHE:-0} -ne 0 ]]; then
   DOCKER_EXTRA_ARGS="--volume=${KOKORO_KEYSTORE_DIR}:/keystore:ro ${DOCKER_EXTRA_ARGS:-}"
   # Bazel doesn't track changes to tools outside of the workspace
   # (e.g. /usr/bin/gcc), so by appending the docker container to the
@@ -48,6 +49,14 @@ if [ ${USE_BAZEL_CACHE:-0} -ne 0 ]; then
   # the cache key. Hashing the key is to make it shorter and url-safe.
   container_key=$(echo ${DOCKER_CONTAINER} | sha256sum | head -c 16)
   BAZEL_EXTRA_ARGS="--remote_http_cache=https://storage.googleapis.com/absl-bazel-remote-cache/${container_key} --google_credentials=/keystore/73103_absl-bazel-remote-cache ${BAZEL_EXTRA_ARGS:-}"
+fi
+
+# Avoid depending on external sites like GitHub by checking --distdir for
+# external dependencies first.
+# https://docs.bazel.build/versions/master/guide.html#distdir
+if [[ ${KOKORO_GFILE_DIR:-} ]] && [[ -d "${KOKORO_GFILE_DIR}/distdir" ]]; then
+  DOCKER_EXTRA_ARGS="--volume=${KOKORO_GFILE_DIR}/distdir:/distdir:ro ${DOCKER_EXTRA_ARGS:-}"
+  BAZEL_EXTRA_ARGS="--distdir=/distdir ${BAZEL_EXTRA_ARGS:-}"
 fi
 
 for std in ${STD}; do

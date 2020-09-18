@@ -153,7 +153,8 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
   std::tm tm;
   while (lo + 1 != hi) {
     const std::time_t mid = lo + (hi - lo) / 2;
-    if (std::tm* tmp = local_time(&mid, &tm)) {
+    std::tm* tmp = local_time(&mid, &tm);
+    if (tmp != nullptr) {
       if (tm_gmtoff(*tmp) == offset) {
         hi = mid;
       } else {
@@ -163,7 +164,8 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
       // If std::tm cannot hold some result we resort to a linear search,
       // ignoring all failed conversions.  Slow, but never really happens.
       while (++lo != hi) {
-        if (std::tm* tmp = local_time(&lo, &tm)) {
+        tmp = local_time(&lo, &tm);
+        if (tmp != nullptr) {
           if (tm_gmtoff(*tmp) == offset) break;
         }
       }
@@ -223,11 +225,10 @@ time_zone::civil_lookup TimeZoneLibC::MakeTime(const civil_second& cs) const {
         civil_second() + ToUnixSeconds(time_point<seconds>::min());
     static const civil_second max_tp_cs =
         civil_second() + ToUnixSeconds(time_point<seconds>::max());
-    const time_point<seconds> tp =
-        (cs < min_tp_cs)
-            ? time_point<seconds>::min()
-            : (cs > max_tp_cs) ? time_point<seconds>::max()
-                               : FromUnixSeconds(cs - civil_second());
+    const time_point<seconds> tp = (cs < min_tp_cs) ? time_point<seconds>::min()
+                                   : (cs > max_tp_cs)
+                                       ? time_point<seconds>::max()
+                                       : FromUnixSeconds(cs - civil_second());
     return {time_zone::civil_lookup::UNIQUE, tp, tp, tp};
   }
 

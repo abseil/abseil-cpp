@@ -50,7 +50,7 @@
 #else
 
 #define ABSL_VARIANT_TEST_EXPECT_FAIL(expr, exception_t, text) \
-  EXPECT_DEATH(expr, text)
+  EXPECT_DEATH_IF_SUPPORTED(expr, text)
 
 #endif  // ABSL_HAVE_EXCEPTIONS
 
@@ -679,7 +679,7 @@ TEST(VariantTest, TestSelfAssignment) {
   object.operator=(object);
   EXPECT_EQ(0, counter);
 
-  // A std::string long enough that it's likely to defeat any inline representation
+  // A string long enough that it's likely to defeat any inline representation
   // optimization.
   const std::string long_str(128, 'a');
 

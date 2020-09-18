@@ -33,16 +33,40 @@ std::string Flags::ToString() const {
   return s;
 }
 
-bool FormatSinkImpl::PutPaddedString(string_view v, int w, int p, bool l) {
+#define ABSL_INTERNAL_X_VAL(id) \
+  constexpr absl::FormatConversionChar FormatConversionCharInternal::id;
+ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(ABSL_INTERNAL_X_VAL, )
+#undef ABSL_INTERNAL_X_VAL
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr absl::FormatConversionChar FormatConversionCharInternal::kNone;
+
+#define ABSL_INTERNAL_CHAR_SET_CASE(c) \
+  constexpr FormatConversionCharSet FormatConversionCharSetInternal::c;
+ABSL_INTERNAL_CONVERSION_CHARS_EXPAND_(ABSL_INTERNAL_CHAR_SET_CASE, )
+#undef ABSL_INTERNAL_CHAR_SET_CASE
+
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kStar;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kIntegral;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kFloating;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kNumeric;
+// NOLINTNEXTLINE(readability-redundant-declaration)
+constexpr FormatConversionCharSet FormatConversionCharSetInternal::kPointer;
+
+bool FormatSinkImpl::PutPaddedString(string_view value, int width,
+                                     int precision, bool left) {
   size_t space_remaining = 0;
-  if (w >= 0) space_remaining = w;
-  size_t n = v.size();
-  if (p >= 0) n = std::min(n, static_cast<size_t>(p));
-  string_view shown(v.data(), n);
+  if (width >= 0) space_remaining = width;
+  size_t n = value.size();
+  if (precision >= 0) n = std::min(n, static_cast<size_t>(precision));
+  string_view shown(value.data(), n);
   space_remaining = Excess(shown.size(), space_remaining);
-  if (!l) Append(space_remaining, ' ');
+  if (!left) Append(space_remaining, ' ');
   Append(shown);
-  if (l) Append(space_remaining, ' ');
+  if (left) Append(space_remaining, ' ');
   return true;
 }
 

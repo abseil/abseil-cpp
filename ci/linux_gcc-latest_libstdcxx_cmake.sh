@@ -22,17 +22,20 @@
 
 set -euox pipefail
 
-if [ -z ${ABSEIL_ROOT:-} ]; then
+if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
 fi
 
-if [ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]; then
-  ABSL_CMAKE_CXX_STANDARDS="11 14 17"
+if [[ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]]; then
+  ABSL_CMAKE_CXX_STANDARDS="11 14 17 20"
 fi
 
-if [ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]; then
+if [[ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]]; then
   ABSL_CMAKE_BUILD_TYPES="Debug Release"
 fi
+
+source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
+readonly DOCKER_CONTAINER=${LINUX_GCC_LATEST_CONTAINER}
 
 for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
@@ -47,7 +50,7 @@ for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
       --rm \
       -e CFLAGS="-Werror" \
       -e CXXFLAGS="-Werror" \
-      gcr.io/google.com/absl-177019/linux_gcc-latest:20200106 \
+      ${DOCKER_CONTAINER} \
       /bin/bash -c "
         cd /buildfs && \
         cmake /abseil-cpp \

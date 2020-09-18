@@ -126,6 +126,7 @@ static const AbbrevPair kBuiltinTypeList[] = {
     {"Dn", "std::nullptr_t", 0},  // i.e., decltype(nullptr)
     {"Df", "decimal32", 0},       // IEEE 754r decimal floating point (32 bits)
     {"Di", "char32_t", 0},
+    {"Du", "char8_t", 0},
     {"Ds", "char16_t", 0},
     {"Dh", "float16", 0},         // IEEE 754r half-precision float (16 bits)
     {nullptr, nullptr, 0},
@@ -151,7 +152,7 @@ static const AbbrevPair kSubstitutionList[] = {
 // frame, so every byte counts.
 typedef struct {
   int mangled_idx;                   // Cursor of mangled name.
-  int out_cur_idx;                   // Cursor of output std::string.
+  int out_cur_idx;                   // Cursor of output string.
   int prev_name_idx;                 // For constructors/destructors.
   signed int prev_name_length : 16;  // For constructors/destructors.
   signed int nest_level : 15;        // For nested names.
@@ -172,8 +173,8 @@ static_assert(sizeof(ParseState) == 4 * sizeof(int),
 // Only one copy of this exists for each call to Demangle, so the size of this
 // struct is nearly inconsequential.
 typedef struct {
-  const char *mangled_begin;  // Beginning of input std::string.
-  char *out;                  // Beginning of output std::string.
+  const char *mangled_begin;  // Beginning of input string.
+  char *out;                  // Beginning of output string.
   int out_end_idx;            // One past last allowed output character.
   int recursion_depth;        // For stack exhaustion prevention.
   int steps;               // Cap how much work we'll do, regardless of depth.
@@ -409,6 +410,7 @@ static bool IsFunctionCloneSuffix(const char *str) {
 
 static bool EndsWith(State *state, const char chr) {
   return state->parse_state.out_cur_idx > 0 &&
+         state->parse_state.out_cur_idx < state->out_end_idx &&
          chr == state->out[state->parse_state.out_cur_idx - 1];
 }
 
@@ -421,8 +423,10 @@ static void MaybeAppendWithLength(State *state, const char *const str,
     if (str[0] == '<' && EndsWith(state, '<')) {
       Append(state, " ", 1);
     }
-    // Remember the last identifier name for ctors/dtors.
-    if (IsAlpha(str[0]) || str[0] == '_') {
+    // Remember the last identifier name for ctors/dtors,
+    // but only if we haven't yet overflown the buffer.
+    if (state->parse_state.out_cur_idx < state->out_end_idx &&
+        (IsAlpha(str[0]) || str[0] == '_')) {
       state->parse_state.prev_name_idx = state->parse_state.out_cur_idx;
       state->parse_state.prev_name_length = length;
     }
@@ -962,6 +966,7 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= TT <type>
 //                ::= TI <type>
 //                ::= TS <type>
+//                ::= TH <type>  # thread-local
 //                ::= Tc <call-offset> <call-offset> <(base) encoding>
 //                ::= GV <(object) name>
 //                ::= T <call-offset> <(base) encoding>
@@ -980,7 +985,7 @@ static bool ParseSpecialName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTIS") &&
+  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTISH") &&
       ParseType(state)) {
     return true;
   }
@@ -1077,20 +1082,28 @@ static bool ParseVOffset(State *state) {
   return false;
 }
 
-// <ctor-dtor-name> ::= C1 | C2 | C3
+// <ctor-dtor-name> ::= C1 | C2 | C3 | CI1 <base-class-type> | CI2
+// <base-class-type>
 //                  ::= D0 | D1 | D2
 // # GCC extensions: "unified" constructor/destructor.  See
-// # https://github.com/gcc-mirror/gcc/blob/7ad17b583c3643bd4557f29b8391ca7ef08391f5/gcc/cp/mangle.c#L1847
+// #
+// https://github.com/gcc-mirror/gcc/blob/7ad17b583c3643bd4557f29b8391ca7ef08391f5/gcc/cp/mangle.c#L1847
 //                  ::= C4 | D4
 static bool ParseCtorDtorName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'C') && ParseCharClass(state, "1234")) {
-    const char *const prev_name = state->out + state->parse_state.prev_name_idx;
-    MaybeAppendWithLength(state, prev_name,
-                          state->parse_state.prev_name_length);
-    return true;
+  if (ParseOneCharToken(state, 'C')) {
+    if (ParseCharClass(state, "1234")) {
+      const char *const prev_name =
+          state->out + state->parse_state.prev_name_idx;
+      MaybeAppendWithLength(state, prev_name,
+                            state->parse_state.prev_name_length);
+      return true;
+    } else if (ParseOneCharToken(state, 'I') && ParseCharClass(state, "12") &&
+               ParseClassEnumType(state)) {
+      return true;
+    }
   }
   state->parse_state = copy;
 
@@ -1139,6 +1152,7 @@ static bool ParseDecltype(State *state) {
 //        ::= <decltype>
 //        ::= <substitution>
 //        ::= Dp <type>          # pack expansion of (C++0x)
+//        ::= Dv <num-elems> _   # GNU vector extension
 //
 static bool ParseType(State *state) {
   ComplexityGuard guard(state);
@@ -1205,6 +1219,12 @@ static bool ParseType(State *state) {
     return true;
   }
 
+  if (ParseTwoCharToken(state, "Dv") && ParseNumber(state, nullptr) &&
+      ParseOneCharToken(state, '_')) {
+    return true;
+  }
+  state->parse_state = copy;
+
   return false;
 }
 
@@ -1253,13 +1273,42 @@ static bool ParseBuiltinType(State *state) {
   return false;
 }
 
-// <function-type> ::= F [Y] <bare-function-type> E
+//  <exception-spec> ::= Do                # non-throwing
+//                                           exception-specification (e.g.,
+//                                           noexcept, throw())
+//                   ::= DO <expression> E # computed (instantiation-dependent)
+//                                           noexcept
+//                   ::= Dw <type>+ E      # dynamic exception specification
+//                                           with instantiation-dependent types
+static bool ParseExceptionSpec(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  if (ParseTwoCharToken(state, "Do")) return true;
+
+  ParseState copy = state->parse_state;
+  if (ParseTwoCharToken(state, "DO") && ParseExpression(state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+  if (ParseTwoCharToken(state, "Dw") && OneOrMore(ParseType, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  return false;
+}
+
+// <function-type> ::= [exception-spec] F [Y] <bare-function-type> [O] E
 static bool ParseFunctionType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'F') &&
+  if (Optional(ParseExceptionSpec(state)) && ParseOneCharToken(state, 'F') &&
       Optional(ParseOneCharToken(state, 'Y')) && ParseBareFunctionType(state) &&
+      Optional(ParseOneCharToken(state, 'O')) &&
       ParseOneCharToken(state, 'E')) {
     return true;
   }
@@ -1887,7 +1936,8 @@ static bool Overflowed(const State *state) {
 bool Demangle(const char *mangled, char *out, int out_size) {
   State state;
   InitState(&state, mangled, out, out_size);
-  return ParseTopLevelMangledName(&state) && !Overflowed(&state);
+  return ParseTopLevelMangledName(&state) && !Overflowed(&state) &&
+         state.parse_state.out_cur_idx > 0;
 }
 
 }  // namespace debugging_internal

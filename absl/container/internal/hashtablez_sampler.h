@@ -73,6 +73,7 @@ struct HashtablezInfo {
   std::atomic<size_t> capacity;
   std::atomic<size_t> size;
   std::atomic<size_t> num_erases;
+  std::atomic<size_t> num_rehashes;
   std::atomic<size_t> max_probe_length;
   std::atomic<size_t> total_probe_length;
   std::atomic<size_t> hashes_bitwise_or;
@@ -98,13 +99,18 @@ struct HashtablezInfo {
 };
 
 inline void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
-#if SWISSTABLE_HAVE_SSE2
+#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
   total_probe_length /= 16;
 #else
   total_probe_length /= 8;
 #endif
   info->total_probe_length.store(total_probe_length, std::memory_order_relaxed);
   info->num_erases.store(0, std::memory_order_relaxed);
+  // There is only one concurrent writer, so `load` then `store` is sufficient
+  // instead of using `fetch_add`.
+  info->num_rehashes.store(
+      1 + info->num_rehashes.load(std::memory_order_relaxed),
+      std::memory_order_relaxed);
 }
 
 inline void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
@@ -113,7 +119,8 @@ inline void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
   info->capacity.store(capacity, std::memory_order_relaxed);
   if (size == 0) {
     // This is a clear, reset the total/num_erases too.
-    RecordRehashSlow(info, 0);
+    info->total_probe_length.store(0, std::memory_order_relaxed);
+    info->num_erases.store(0, std::memory_order_relaxed);
   }
 }
 
@@ -122,12 +129,21 @@ void RecordInsertSlow(HashtablezInfo* info, size_t hash,
 
 inline void RecordEraseSlow(HashtablezInfo* info) {
   info->size.fetch_sub(1, std::memory_order_relaxed);
-  info->num_erases.fetch_add(1, std::memory_order_relaxed);
+  // There is only one concurrent writer, so `load` then `store` is sufficient
+  // instead of using `fetch_add`.
+  info->num_erases.store(
+      1 + info->num_erases.load(std::memory_order_relaxed),
+      std::memory_order_relaxed);
 }
 
 HashtablezInfo* SampleSlow(int64_t* next_sample);
 void UnsampleSlow(HashtablezInfo* info);
 
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+#error ABSL_INTERNAL_HASHTABLEZ_SAMPLE cannot be directly set
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 class HashtablezInfoHandle {
  public:
   explicit HashtablezInfoHandle() : info_(nullptr) {}
@@ -179,19 +195,27 @@ class HashtablezInfoHandle {
   friend class HashtablezInfoHandlePeer;
   HashtablezInfo* info_;
 };
+#else
+// Ensure that when Hashtablez is turned off at compile time, HashtablezInfo can
+// be removed by the linker, in order to reduce the binary size.
+class HashtablezInfoHandle {
+ public:
+  explicit HashtablezInfoHandle() = default;
+  explicit HashtablezInfoHandle(std::nullptr_t) {}
 
-#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-#error ABSL_INTERNAL_HASHTABLEZ_SAMPLE cannot be directly set
+  inline void RecordStorageChanged(size_t /*size*/, size_t /*capacity*/) {}
+  inline void RecordRehash(size_t /*total_probe_length*/) {}
+  inline void RecordInsert(size_t /*hash*/, size_t /*distance_from_desired*/) {}
+  inline void RecordErase() {}
+
+  friend inline void swap(HashtablezInfoHandle& /*lhs*/,
+                          HashtablezInfoHandle& /*rhs*/) {}
+};
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-
-#if (ABSL_PER_THREAD_TLS == 1) && !defined(ABSL_BUILD_DLL) && \
-    !defined(ABSL_CONSUME_DLL)
-#define ABSL_INTERNAL_HASHTABLEZ_SAMPLE
-#endif
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 extern ABSL_PER_THREAD_TLS_KEYWORD int64_t global_next_sample;
-#endif  // ABSL_PER_THREAD_TLS
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
 // Returns an RAII sampling handle that manages registration and unregistation
 // with the global sampler.

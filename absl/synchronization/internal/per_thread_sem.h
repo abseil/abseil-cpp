@@ -78,7 +78,7 @@ class PerThreadSem {
   // !t.has_timeout() => Wait(t) will return true.
   static inline bool Wait(KernelTimeout t);
 
-  // White-listed callers.
+  // Permitted callers.
   friend class PerThreadSemTest;
   friend class absl::Mutex;
   friend absl::base_internal::ThreadIdentity* CreateThreadIdentity();

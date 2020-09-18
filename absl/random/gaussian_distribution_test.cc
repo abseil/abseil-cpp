@@ -130,12 +130,15 @@ TYPED_TEST(GaussianDistributionInterfaceTest, SerializeTest) {
         ss >> after;
 
 #if defined(__powerpc64__) || defined(__PPC64__) || defined(__powerpc__) || \
-    defined(__ppc__) || defined(__PPC__)
+    defined(__ppc__) || defined(__PPC__) || defined(__EMSCRIPTEN__)
         if (std::is_same<TypeParam, long double>::value) {
           // Roundtripping floating point values requires sufficient precision
           // to reconstruct the exact value.  It turns out that long double
           // has some errors doing this on ppc, particularly for values
           // near {1.0 +/- epsilon}.
+          //
+          // Emscripten is even worse, implementing long double as a 128-bit
+          // type, but shipping with a strtold() that doesn't support that.
           if (mean <= std::numeric_limits<double>::max() &&
               mean >= std::numeric_limits<double>::lowest()) {
             EXPECT_EQ(static_cast<double>(before.mean()),
@@ -213,7 +216,10 @@ class GaussianDistributionTests : public testing::TestWithParam<Param>,
   template <typename D>
   double SingleChiSquaredTest();
 
-  absl::InsecureBitGen rng_;
+  // We use a fixed bit generator for distribution accuracy tests.  This allows
+  // these tests to be deterministic, while still testing the qualify of the
+  // implementation.
+  absl::random_internal::pcg64_2018_engine rng_{0x2B7E151628AED2A6};
 };
 
 template <typename D>

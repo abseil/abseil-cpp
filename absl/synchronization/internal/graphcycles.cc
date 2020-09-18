@@ -51,9 +51,9 @@ namespace {
 
 // Avoid LowLevelAlloc's default arena since it calls malloc hooks in
 // which people are doing things like acquiring Mutexes.
-static absl::base_internal::SpinLock arena_mu(
-    absl::base_internal::kLinkerInitialized);
-static base_internal::LowLevelAlloc::Arena* arena;
+ABSL_CONST_INIT static absl::base_internal::SpinLock arena_mu(
+    absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
+ABSL_CONST_INIT static base_internal::LowLevelAlloc::Arena* arena;
 
 static void InitArenaIfNecessary() {
   arena_mu.Lock();

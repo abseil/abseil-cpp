@@ -128,6 +128,7 @@ COPT_VARS = {
         "-Wmissing-declarations",
         "-Woverlength-strings",
         "-Wpointer-arith",
+        "-Wundef",
         "-Wunused-local-typedefs",
         "-Wunused-result",
         "-Wvarargs",
@@ -140,6 +141,8 @@ COPT_VARS = {
         # Google style does not use unsigned integers, though STL containers
         # have unsigned types.
         "-Wno-sign-compare",
+        # Don't define min and max macros (Build on Windows using gcc)
+        "-DNOMINMAX",
     ],
     "ABSL_GCC_TEST_FLAGS": [
         "-Wno-conversion-null",
@@ -151,7 +154,10 @@ COPT_VARS = {
         "-Wno-unused-private-field",
     ],
     "ABSL_LLVM_FLAGS":
-        LLVM_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS,
+        LLVM_BIG_WARNING_FLAGS + LLVM_DISABLE_WARNINGS_FLAGS + [
+            # Don't define min and max macros (Build on Windows using clang)
+            "-DNOMINMAX",
+        ],
     "ABSL_LLVM_TEST_FLAGS":
         LLVM_TEST_DISABLE_WARNINGS_FLAGS,
     "ABSL_CLANG_CL_FLAGS":

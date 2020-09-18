@@ -53,7 +53,6 @@ cc_library(
         "bernoulli_distribution.h",
         "beta_distribution.h",
         "discrete_distribution.h",
-        "distribution_format_traits.h",
         "distributions.h",
         "exponential_distribution.h",
         "gaussian_distribution.h",
@@ -70,7 +69,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
-        "//absl/random/internal:distributions",
+        "//absl/random/internal:distribution_caller",
         "//absl/random/internal:fast_uniform_bits",
         "//absl/random/internal:fastmath",
         "//absl/random/internal:generate_real",
@@ -79,7 +78,6 @@ cc_library(
         "//absl/random/internal:uniform_helper",
         "//absl/random/internal:wide_multiply",
         "//absl/strings",
-        "//absl/types:span",
     ],
 )
 
@@ -117,11 +115,12 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":random",
         "//absl/base:core_headers",
+        "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
         "//absl/random/internal:distribution_caller",
         "//absl/random/internal:fast_uniform_bits",
-        "//absl/random/internal:mocking_bit_gen_base",
     ],
 )
 
@@ -141,20 +140,17 @@ cc_library(
 cc_library(
     name = "mocking_bit_gen",
     testonly = 1,
-    srcs = [
-        "mocking_bit_gen.cc",
-    ],
     hdrs = [
         "mocking_bit_gen.h",
     ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distributions",
-        "//absl/base:raw_logging_internal",
+        ":random",
+        "//absl/base:fast_type_id",
         "//absl/container:flat_hash_map",
         "//absl/meta:type_traits",
         "//absl/random/internal:distribution_caller",
-        "//absl/random/internal:mocking_bit_gen_base",
         "//absl/strings",
         "//absl/types:span",
         "//absl/types:variant",
@@ -173,6 +169,7 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "@com_google_googletest//:gtest_main",
     ],
@@ -191,6 +188,7 @@ cc_test(
         ":random",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "//absl/strings:str_format",
@@ -201,6 +199,7 @@ cc_test(
 cc_test(
     name = "distributions_test",
     size = "small",
+    timeout = "moderate",
     srcs = [
         "distributions_test.cc",
     ],
@@ -238,9 +237,9 @@ cc_test(
     deps = [
         ":distributions",
         ":random",
-        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "//absl/strings:str_format",
@@ -261,6 +260,7 @@ cc_test(
         ":random",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -288,6 +288,7 @@ cc_test(
         "//absl/base:raw_logging_internal",
         "//absl/container:flat_hash_map",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "//absl/strings:str_format",
@@ -307,6 +308,7 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "//absl/strings:str_format",
@@ -350,6 +352,7 @@ cc_test(
         ":random",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -374,6 +377,7 @@ cc_test(
         ":random",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -393,6 +397,7 @@ cc_test(
         ":random",
         "//absl/base:raw_logging_internal",
         "//absl/random/internal:distribution_test_util",
+        "//absl/random/internal:pcg_engine",
         "//absl/random/internal:sequence_urbg",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
@@ -408,6 +413,7 @@ cc_test(
     deps = [
         ":bit_gen_ref",
         ":random",
+        "//absl/base:fast_type_id",
         "//absl/random/internal:sequence_urbg",
         "@com_google_googletest//:gtest_main",
     ],
@@ -417,6 +423,7 @@ cc_test(
     name = "mocking_bit_gen_test",
     size = "small",
     srcs = ["mocking_bit_gen_test.cc"],
+    copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":bit_gen_ref",
@@ -431,6 +438,8 @@ cc_test(
     name = "mock_distributions_test",
     size = "small",
     srcs = ["mock_distributions_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":mock_distributions",
         ":mocking_bit_gen",

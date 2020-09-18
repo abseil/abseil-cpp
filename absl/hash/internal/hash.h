@@ -53,11 +53,64 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
-class PiecewiseCombiner;
-
 // Internal detail: Large buffers are hashed in smaller chunks.  This function
 // returns the size of these chunks.
 constexpr size_t PiecewiseChunkSize() { return 1024; }
+
+// PiecewiseCombiner
+//
+// PiecewiseCombiner is an internal-only helper class for hashing a piecewise
+// buffer of `char` or `unsigned char` as though it were contiguous.  This class
+// provides two methods:
+//
+//   H add_buffer(state, data, size)
+//   H finalize(state)
+//
+// `add_buffer` can be called zero or more times, followed by a single call to
+// `finalize`.  This will produce the same hash expansion as concatenating each
+// buffer piece into a single contiguous buffer, and passing this to
+// `H::combine_contiguous`.
+//
+//  Example usage:
+//    PiecewiseCombiner combiner;
+//    for (const auto& piece : pieces) {
+//      state = combiner.add_buffer(std::move(state), piece.data, piece.size);
+//    }
+//    return combiner.finalize(std::move(state));
+class PiecewiseCombiner {
+ public:
+  PiecewiseCombiner() : position_(0) {}
+  PiecewiseCombiner(const PiecewiseCombiner&) = delete;
+  PiecewiseCombiner& operator=(const PiecewiseCombiner&) = delete;
+
+  // PiecewiseCombiner::add_buffer()
+  //
+  // Appends the given range of bytes to the sequence to be hashed, which may
+  // modify the provided hash state.
+  template <typename H>
+  H add_buffer(H state, const unsigned char* data, size_t size);
+  template <typename H>
+  H add_buffer(H state, const char* data, size_t size) {
+    return add_buffer(std::move(state),
+                      reinterpret_cast<const unsigned char*>(data), size);
+  }
+
+  // PiecewiseCombiner::finalize()
+  //
+  // Finishes combining the hash sequence, which may may modify the provided
+  // hash state.
+  //
+  // Once finalize() is called, add_buffer() may no longer be called. The
+  // resulting hash state will be the same as if the pieces passed to
+  // add_buffer() were concatenated into a single flat buffer, and then provided
+  // to H::combine_contiguous().
+  template <typename H>
+  H finalize(H state);
+
+ private:
+  unsigned char buf_[PiecewiseChunkSize()];
+  size_t position_;
+};
 
 // HashStateBase
 //
@@ -125,8 +178,7 @@ class HashStateBase {
   template <typename T>
   static H combine_contiguous(H state, const T* data, size_t size);
 
- private:
-  friend class PiecewiseCombiner;
+  using AbslInternalPiecewiseCombiner = PiecewiseCombiner;
 };
 
 // is_uniquely_represented
@@ -196,61 +248,6 @@ H hash_bytes(H hash_state, const T& value) {
   const unsigned char* start = reinterpret_cast<const unsigned char*>(&value);
   return H::combine_contiguous(std::move(hash_state), start, sizeof(value));
 }
-
-// PiecewiseCombiner
-//
-// PiecewiseCombiner is an internal-only helper class for hashing a piecewise
-// buffer of `char` or `unsigned char` as though it were contiguous.  This class
-// provides two methods:
-//
-//   H add_buffer(state, data, size)
-//   H finalize(state)
-//
-// `add_buffer` can be called zero or more times, followed by a single call to
-// `finalize`.  This will produce the same hash expansion as concatenating each
-// buffer piece into a single contiguous buffer, and passing this to
-// `H::combine_contiguous`.
-//
-//  Example usage:
-//    PiecewiseCombiner combiner;
-//    for (const auto& piece : pieces) {
-//      state = combiner.add_buffer(std::move(state), piece.data, piece.size);
-//    }
-//    return combiner.finalize(std::move(state));
-class PiecewiseCombiner {
- public:
-  PiecewiseCombiner() : position_(0) {}
-  PiecewiseCombiner(const PiecewiseCombiner&) = delete;
-  PiecewiseCombiner& operator=(const PiecewiseCombiner&) = delete;
-
-  // PiecewiseCombiner::add_buffer()
-  //
-  // Appends the given range of bytes to the sequence to be hashed, which may
-  // modify the provided hash state.
-  template <typename H>
-  H add_buffer(H state, const unsigned char* data, size_t size);
-  template <typename H>
-  H add_buffer(H state, const char* data, size_t size) {
-    return add_buffer(std::move(state),
-                      reinterpret_cast<const unsigned char*>(data), size);
-  }
-
-  // PiecewiseCombiner::finalize()
-  //
-  // Finishes combining the hash sequence, which may may modify the provided
-  // hash state.
-  //
-  // Once finalize() is called, add_buffer() may no longer be called. The
-  // resulting hash state will be the same as if the pieces passed to
-  // add_buffer() were concatenated into a single flat buffer, and then provided
-  // to H::combine_contiguous().
-  template <typename H>
-  H finalize(H state);
-
- private:
-  unsigned char buf_[PiecewiseChunkSize()];
-  size_t position_;
-};
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Basic Types
@@ -413,6 +410,7 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 // All the string-like types supported here provide the same hash expansion for
 // the same character sequence. These types are:
 //
+//  - `absl::Cord`
 //  - `std::string` (and std::basic_string<char, std::char_traits<char>, A> for
 //      any allocator A)
 //  - `absl::string_view` and `std::string_view`
@@ -552,6 +550,13 @@ typename std::enable_if<is_hashable<Key>::value, H>::type AbslHashValue(
 // -----------------------------------------------------------------------------
 // AbslHashValue for Wrapper Types
 // -----------------------------------------------------------------------------
+
+// AbslHashValue for hashing std::reference_wrapper
+template <typename H, typename T>
+typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
+    H hash_state, std::reference_wrapper<T> opt) {
+  return H::combine(std::move(hash_state), opt.get());
+}
 
 // AbslHashValue for hashing absl::optional
 template <typename H, typename T>
@@ -955,12 +960,15 @@ H PiecewiseCombiner::add_buffer(H state, const unsigned char* data,
     return state;
   }
 
-  // Complete the buffer and hash it
-  const size_t bytes_needed = PiecewiseChunkSize() - position_;
-  memcpy(buf_ + position_, data, bytes_needed);
-  state = H::combine_contiguous(std::move(state), buf_, PiecewiseChunkSize());
-  data += bytes_needed;
-  size -= bytes_needed;
+  // If the buffer is partially filled we need to complete the buffer
+  // and hash it.
+  if (position_ != 0) {
+    const size_t bytes_needed = PiecewiseChunkSize() - position_;
+    memcpy(buf_ + position_, data, bytes_needed);
+    state = H::combine_contiguous(std::move(state), buf_, PiecewiseChunkSize());
+    data += bytes_needed;
+    size -= bytes_needed;
+  }
 
   // Hash whatever chunks we can without copying
   while (size >= PiecewiseChunkSize()) {

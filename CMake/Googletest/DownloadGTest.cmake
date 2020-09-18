@@ -1,10 +1,11 @@
-# Downloads and unpacks googletest at configure time.  Based on the instructions
-# at https://github.com/google/googletest/tree/master/googletest#incorporating-into-an-existing-cmake-project
+# Integrates googletest at configure time.  Based on the instructions at
+# https://github.com/google/googletest/tree/master/googletest#incorporating-into-an-existing-cmake-project
 
-# Download the latest googletest from Github master
+# Set up the external googletest project, downloading the latest from Github
+# master if requested.
 configure_file(
   ${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.in
-  ${CMAKE_BINARY_DIR}/googletest-download/CMakeLists.txt
+  ${CMAKE_BINARY_DIR}/googletest-external/CMakeLists.txt
 )
 
 set(ABSL_SAVE_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -14,17 +15,17 @@ if (BUILD_SHARED_LIBS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_CREATE_SHARED_LIBRARY=1")
 endif()
 
-# Configure and build the downloaded googletest source
+# Configure and build the googletest source.
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
   RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/googletest-download )
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/googletest-external )
 if(result)
   message(FATAL_ERROR "CMake step for googletest failed: ${result}")
 endif()
 
 execute_process(COMMAND ${CMAKE_COMMAND} --build .
   RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/googletest-download)
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/googletest-external)
 if(result)
   message(FATAL_ERROR "Build step for googletest failed: ${result}")
 endif()
@@ -37,6 +38,4 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 # Add googletest directly to our build. This defines the gtest and gtest_main
 # targets.
-add_subdirectory(${CMAKE_BINARY_DIR}/googletest-src
-                 ${CMAKE_BINARY_DIR}/googletest-build
-                 EXCLUDE_FROM_ALL)
+add_subdirectory(${absl_gtest_src_dir} ${absl_gtest_build_dir} EXCLUDE_FROM_ALL)

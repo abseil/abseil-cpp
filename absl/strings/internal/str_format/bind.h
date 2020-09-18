@@ -19,7 +19,7 @@ class UntypedFormatSpec;
 
 namespace str_format_internal {
 
-class BoundConversion : public ConversionSpec {
+class BoundConversion : public FormatConversionSpecImpl {
  public:
   const FormatArgImpl* arg() const { return arg_; }
   void set_arg(const FormatArgImpl* a) { arg_ = a; }
@@ -60,7 +60,7 @@ class UntypedFormatSpecImpl {
   size_t size_;
 };
 
-template <typename T, typename...>
+template <typename T, FormatConversionCharSet...>
 struct MakeDependent {
   using type = T;
 };
@@ -68,7 +68,7 @@ struct MakeDependent {
 // Implicitly convertible from `const char*`, `string_view`, and the
 // `ExtendedParsedFormat` type. This abstraction allows all format functions to
 // operate on any without providing too many overloads.
-template <typename... Args>
+template <FormatConversionCharSet... Args>
 class FormatSpecTemplate
     : public MakeDependent<UntypedFormatSpec, Args...>::type {
   using Base = typename MakeDependent<UntypedFormatSpec, Args...>::type;
@@ -76,11 +76,11 @@ class FormatSpecTemplate
  public:
 #ifdef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
-  // Honeypot overload for when the std::string is not constexpr.
+  // Honeypot overload for when the string is not constexpr.
   // We use the 'unavailable' attribute to give a better compiler error than
   // just 'method is deleted'.
   FormatSpecTemplate(...)  // NOLINT
-      __attribute__((unavailable("Format std::string is not constexpr.")));
+      __attribute__((unavailable("Format string is not constexpr.")));
 
   // Honeypot overload for when the format is constexpr and invalid.
   // We use the 'unavailable' attribute to give a better compiler error than
@@ -105,13 +105,11 @@ class FormatSpecTemplate
 
   // Good format overload.
   FormatSpecTemplate(const char* s)  // NOLINT
-      __attribute__((enable_if(ValidFormatImpl<ArgumentToConv<Args>()...>(s),
-                               "bad format trap")))
+      __attribute__((enable_if(ValidFormatImpl<Args...>(s), "bad format trap")))
       : Base(s) {}
 
   FormatSpecTemplate(string_view s)  // NOLINT
-      __attribute__((enable_if(ValidFormatImpl<ArgumentToConv<Args>()...>(s),
-                               "bad format trap")))
+      __attribute__((enable_if(ValidFormatImpl<Args...>(s), "bad format trap")))
       : Base(s) {}
 
 #else  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
@@ -121,17 +119,12 @@ class FormatSpecTemplate
 
 #endif  // ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
 
-  template <Conv... C, typename = typename std::enable_if<
-                           AllOf(sizeof...(C) == sizeof...(Args),
-                             Contains(ArgumentToConv<Args>(),
-                                          C)...)>::type>
+  template <FormatConversionCharSet... C,
+            typename = typename std::enable_if<
+                AllOf(sizeof...(C) == sizeof...(Args), Contains(Args,
+                                                                C)...)>::type>
   FormatSpecTemplate(const ExtendedParsedFormat<C...>& pc)  // NOLINT
       : Base(&pc) {}
-};
-
-template <typename... Args>
-struct FormatSpecDeductionBarrier {
-  using type = FormatSpecTemplate<Args...>;
 };
 
 class Streamable {
@@ -196,9 +189,9 @@ class StreamedWrapper {
 
  private:
   template <typename S>
-  friend ConvertResult<Conv::s> FormatConvertImpl(const StreamedWrapper<S>& v,
-                                                  ConversionSpec conv,
-                                                  FormatSinkImpl* out);
+  friend ArgConvertResult<FormatConversionCharSetInternal::s> FormatConvertImpl(
+      const StreamedWrapper<S>& v, FormatConversionSpecImpl conv,
+      FormatSinkImpl* out);
   const T& v_;
 };
 

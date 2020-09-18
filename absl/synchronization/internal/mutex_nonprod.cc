@@ -27,11 +27,16 @@
 
 #include <algorithm>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/time/time.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+void SetMutexDeadlockDetectionMode(OnDeadlockCycle) {}
+void EnableMutexInvariantDebugging(bool) {}
+
 namespace synchronization_internal {
 
 namespace {
@@ -274,7 +279,7 @@ bool CondVar::WaitWithTimeout(Mutex* mu, absl::Duration timeout) {
 
 void CondVar::EnableDebugLog(const char*) {}
 
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
 extern "C" void __tsan_read1(void *addr);
 #else
 #define __tsan_read1(addr)  // do nothing if TSan not enabled

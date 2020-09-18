@@ -183,7 +183,7 @@ class btree_set
   // template <typename K> size_type erase(const K& key):
   //
   //   Erases the element with the matching key, if it exists, returning the
-  //   number of elements erased.
+  //   number of elements erased (0 or 1).
   using Base::erase;
 
   // btree_set::insert()
@@ -263,7 +263,7 @@ class btree_set
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_set`
@@ -567,7 +567,7 @@ class btree_multiset
   //   Extracts the element at the indicated position and returns a node handle
   //   owning that extracted data.
   //
-  // template <typename K> node_type extract(const K& x):
+  // template <typename K> node_type extract(const K& k):
   //
   //   Extracts the element with the key matching the passed key value and
   //   returns a node handle owning that extracted data. If the `btree_multiset`

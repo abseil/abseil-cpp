@@ -93,7 +93,7 @@ absl::flags
 absl::memory
 absl::meta
 absl::numeric
-absl::random
+absl::random_random
 absl::strings
 absl::synchronization
 absl::time

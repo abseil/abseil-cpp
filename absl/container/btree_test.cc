@@ -15,6 +15,7 @@
 #include "absl/container/btree_test.h"
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -52,6 +53,7 @@ using ::absl::test_internal::MovableOnlyInstance;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
+using ::testing::IsNull;
 using ::testing::Pair;
 
 template <typename T, typename U>
@@ -89,8 +91,8 @@ class base_checker {
 
  public:
   base_checker() : const_tree_(tree_) {}
-  base_checker(const base_checker &x)
-      : tree_(x.tree_), const_tree_(tree_), checker_(x.checker_) {}
+  base_checker(const base_checker &other)
+      : tree_(other.tree_), const_tree_(tree_), checker_(other.checker_) {}
   template <typename InputIterator>
   base_checker(InputIterator b, InputIterator e)
       : tree_(b, e), const_tree_(tree_), checker_(b, e) {}
@@ -124,11 +126,11 @@ class base_checker {
     }
     return tree_iter;
   }
-  void value_check(const value_type &x) {
+  void value_check(const value_type &v) {
     typename KeyOfValue<typename TreeType::key_type,
                         typename TreeType::value_type>::type key_of_value;
-    const key_type &key = key_of_value(x);
-    CheckPairEquals(*find(key), x);
+    const key_type &key = key_of_value(v);
+    CheckPairEquals(*find(key), v);
     lower_bound(key);
     upper_bound(key);
     equal_range(key);
@@ -187,9 +189,9 @@ class base_checker {
     return res;
   }
 
-  base_checker &operator=(const base_checker &x) {
-    tree_ = x.tree_;
-    checker_ = x.checker_;
+  base_checker &operator=(const base_checker &other) {
+    tree_ = other.tree_;
+    checker_ = other.checker_;
     return *this;
   }
 
@@ -250,9 +252,9 @@ class base_checker {
     tree_.clear();
     checker_.clear();
   }
-  void swap(base_checker &x) {
-    tree_.swap(x.tree_);
-    checker_.swap(x.checker_);
+  void swap(base_checker &other) {
+    tree_.swap(other.tree_);
+    checker_.swap(other.checker_);
   }
 
   void verify() const {
@@ -323,28 +325,28 @@ class unique_checker : public base_checker<TreeType, CheckerType> {
 
  public:
   unique_checker() : super_type() {}
-  unique_checker(const unique_checker &x) : super_type(x) {}
+  unique_checker(const unique_checker &other) : super_type(other) {}
   template <class InputIterator>
   unique_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
   unique_checker &operator=(const unique_checker &) = default;
 
   // Insertion routines.
-  std::pair<iterator, bool> insert(const value_type &x) {
+  std::pair<iterator, bool> insert(const value_type &v) {
     int size = this->tree_.size();
     std::pair<typename CheckerType::iterator, bool> checker_res =
-        this->checker_.insert(x);
-    std::pair<iterator, bool> tree_res = this->tree_.insert(x);
+        this->checker_.insert(v);
+    std::pair<iterator, bool> tree_res = this->tree_.insert(v);
     CheckPairEquals(*tree_res.first, *checker_res.first);
     EXPECT_EQ(tree_res.second, checker_res.second);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + tree_res.second);
     return tree_res;
   }
-  iterator insert(iterator position, const value_type &x) {
+  iterator insert(iterator position, const value_type &v) {
     int size = this->tree_.size();
     std::pair<typename CheckerType::iterator, bool> checker_res =
-        this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(position, x);
+        this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(position, v);
     CheckPairEquals(*tree_res, *checker_res.first);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + checker_res.second);
@@ -371,25 +373,25 @@ class multi_checker : public base_checker<TreeType, CheckerType> {
 
  public:
   multi_checker() : super_type() {}
-  multi_checker(const multi_checker &x) : super_type(x) {}
+  multi_checker(const multi_checker &other) : super_type(other) {}
   template <class InputIterator>
   multi_checker(InputIterator b, InputIterator e) : super_type(b, e) {}
   multi_checker &operator=(const multi_checker &) = default;
 
   // Insertion routines.
-  iterator insert(const value_type &x) {
+  iterator insert(const value_type &v) {
     int size = this->tree_.size();
-    auto checker_res = this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(x);
+    auto checker_res = this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(v);
     CheckPairEquals(*tree_res, *checker_res);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + 1);
     return tree_res;
   }
-  iterator insert(iterator position, const value_type &x) {
+  iterator insert(iterator position, const value_type &v) {
     int size = this->tree_.size();
-    auto checker_res = this->checker_.insert(x);
-    iterator tree_res = this->tree_.insert(position, x);
+    auto checker_res = this->checker_.insert(v);
+    iterator tree_res = this->tree_.insert(position, v);
     CheckPairEquals(*tree_res, *checker_res);
     EXPECT_EQ(this->tree_.size(), this->checker_.size());
     EXPECT_EQ(this->tree_.size(), size + 1);
@@ -812,10 +814,12 @@ void MapTest() {
 TEST(Btree, set_int32) { SetTest<int32_t>(); }
 TEST(Btree, set_int64) { SetTest<int64_t>(); }
 TEST(Btree, set_string) { SetTest<std::string>(); }
+TEST(Btree, set_cord) { SetTest<absl::Cord>(); }
 TEST(Btree, set_pair) { SetTest<std::pair<int, int>>(); }
 TEST(Btree, map_int32) { MapTest<int32_t>(); }
 TEST(Btree, map_int64) { MapTest<int64_t>(); }
 TEST(Btree, map_string) { MapTest<std::string>(); }
+TEST(Btree, map_cord) { MapTest<absl::Cord>(); }
 TEST(Btree, map_pair) { MapTest<std::pair<int, int>>(); }
 
 template <typename K, int N = 256>
@@ -847,10 +851,12 @@ void MultiMapTest() {
 TEST(Btree, multiset_int32) { MultiSetTest<int32_t>(); }
 TEST(Btree, multiset_int64) { MultiSetTest<int64_t>(); }
 TEST(Btree, multiset_string) { MultiSetTest<std::string>(); }
+TEST(Btree, multiset_cord) { MultiSetTest<absl::Cord>(); }
 TEST(Btree, multiset_pair) { MultiSetTest<std::pair<int, int>>(); }
 TEST(Btree, multimap_int32) { MultiMapTest<int32_t>(); }
 TEST(Btree, multimap_int64) { MultiMapTest<int64_t>(); }
 TEST(Btree, multimap_string) { MultiMapTest<std::string>(); }
+TEST(Btree, multimap_cord) { MultiMapTest<absl::Cord>(); }
 TEST(Btree, multimap_pair) { MultiMapTest<std::pair<int, int>>(); }
 
 struct CompareIntToString {
@@ -1268,6 +1274,8 @@ TEST(Btree, KeyCompareToAdapter) {
   AssertKeyCompareToAdapted<std::less<absl::string_view>, absl::string_view>();
   AssertKeyCompareToAdapted<std::greater<absl::string_view>,
                             absl::string_view>();
+  AssertKeyCompareToAdapted<std::less<absl::Cord>, absl::Cord>();
+  AssertKeyCompareToAdapted<std::greater<absl::Cord>, absl::Cord>();
   AssertKeyCompareToNotAdapted<std::less<int>, int>();
   AssertKeyCompareToNotAdapted<std::greater<int>, int>();
 }
@@ -1336,6 +1344,12 @@ class BtreeNodePeer {
   template <typename Set>
   constexpr static size_t GetNumValuesPerNode() {
     return btree_node<typename Set::params_type>::kNodeValues;
+  }
+
+  template <typename Set>
+  constexpr static size_t GetMaxFieldType() {
+    return std::numeric_limits<
+        typename btree_node<typename Set::params_type>::field_type>::max();
   }
 };
 
@@ -1537,7 +1551,7 @@ TEST(Btree, MapAt) {
 #ifdef ABSL_HAVE_EXCEPTIONS
   EXPECT_THROW(map.at(3), std::out_of_range);
 #else
-  EXPECT_DEATH(map.at(3), "absl::btree_map::at");
+  EXPECT_DEATH_IF_SUPPORTED(map.at(3), "absl::btree_map::at");
 #endif
 }
 
@@ -2126,11 +2140,11 @@ TEST(Btree, UserProvidedKeyCompareToComparators) {
 TEST(Btree, TryEmplaceBasicTest) {
   absl::btree_map<int, std::string> m;
 
-  // Should construct a std::string from the literal.
+  // Should construct a string from the literal.
   m.try_emplace(1, "one");
   EXPECT_EQ(1, m.size());
 
-  // Try other std::string constructors and const lvalue key.
+  // Try other string constructors and const lvalue key.
   const int key(42);
   m.try_emplace(key, 3, 'a');
   m.try_emplace(2, std::string("two"));
@@ -2396,6 +2410,208 @@ TEST(Btree, BitfieldArgument) {
   m.try_emplace(m.end(), n);
   m.at(n);
   m[n];
+}
+
+TEST(Btree, SetRangeConstructorAndInsertSupportExplicitConversionComparable) {
+  const absl::string_view names[] = {"n1", "n2"};
+
+  absl::btree_set<std::string> name_set1{std::begin(names), std::end(names)};
+  EXPECT_THAT(name_set1, ElementsAreArray(names));
+
+  absl::btree_set<std::string> name_set2;
+  name_set2.insert(std::begin(names), std::end(names));
+  EXPECT_THAT(name_set2, ElementsAreArray(names));
+}
+
+// A type that is explicitly convertible from int and counts constructor calls.
+struct ConstructorCounted {
+  explicit ConstructorCounted(int i) : i(i) { ++constructor_calls; }
+  bool operator==(int other) const { return i == other; }
+
+  int i;
+  static int constructor_calls;
+};
+int ConstructorCounted::constructor_calls = 0;
+
+struct ConstructorCountedCompare {
+  bool operator()(int a, const ConstructorCounted &b) const { return a < b.i; }
+  bool operator()(const ConstructorCounted &a, int b) const { return a.i < b; }
+  bool operator()(const ConstructorCounted &a,
+                  const ConstructorCounted &b) const {
+    return a.i < b.i;
+  }
+  using is_transparent = void;
+};
+
+TEST(Btree,
+     SetRangeConstructorAndInsertExplicitConvComparableLimitConstruction) {
+  const int i[] = {0, 1, 1};
+  ConstructorCounted::constructor_calls = 0;
+
+  absl::btree_set<ConstructorCounted, ConstructorCountedCompare> set{
+      std::begin(i), std::end(i)};
+  EXPECT_THAT(set, ElementsAre(0, 1));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+
+  set.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(set, ElementsAre(0, 1));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+}
+
+TEST(Btree,
+     SetRangeConstructorAndInsertSupportExplicitConversionNonComparable) {
+  const int i[] = {0, 1};
+
+  absl::btree_set<std::vector<void *>> s1{std::begin(i), std::end(i)};
+  EXPECT_THAT(s1, ElementsAre(IsEmpty(), ElementsAre(IsNull())));
+
+  absl::btree_set<std::vector<void *>> s2;
+  s2.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(s2, ElementsAre(IsEmpty(), ElementsAre(IsNull())));
+}
+
+// libstdc++ included with GCC 4.9 has a bug in the std::pair constructors that
+// prevents explicit conversions between pair types.
+// We only run this test for the libstdc++ from GCC 7 or newer because we can't
+// reliably check the libstdc++ version prior to that release.
+#if !defined(__GLIBCXX__) || \
+    (defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 7)
+TEST(Btree, MapRangeConstructorAndInsertSupportExplicitConversionComparable) {
+  const std::pair<absl::string_view, int> names[] = {{"n1", 1}, {"n2", 2}};
+
+  absl::btree_map<std::string, int> name_map1{std::begin(names),
+                                              std::end(names)};
+  EXPECT_THAT(name_map1, ElementsAre(Pair("n1", 1), Pair("n2", 2)));
+
+  absl::btree_map<std::string, int> name_map2;
+  name_map2.insert(std::begin(names), std::end(names));
+  EXPECT_THAT(name_map2, ElementsAre(Pair("n1", 1), Pair("n2", 2)));
+}
+
+TEST(Btree,
+     MapRangeConstructorAndInsertExplicitConvComparableLimitConstruction) {
+  const std::pair<int, int> i[] = {{0, 1}, {1, 2}, {1, 3}};
+  ConstructorCounted::constructor_calls = 0;
+
+  absl::btree_map<ConstructorCounted, int, ConstructorCountedCompare> map{
+      std::begin(i), std::end(i)};
+  EXPECT_THAT(map, ElementsAre(Pair(0, 1), Pair(1, 2)));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+
+  map.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(map, ElementsAre(Pair(0, 1), Pair(1, 2)));
+  EXPECT_EQ(ConstructorCounted::constructor_calls, 2);
+}
+
+TEST(Btree,
+     MapRangeConstructorAndInsertSupportExplicitConversionNonComparable) {
+  const std::pair<int, int> i[] = {{0, 1}, {1, 2}};
+
+  absl::btree_map<std::vector<void *>, int> m1{std::begin(i), std::end(i)};
+  EXPECT_THAT(m1,
+              ElementsAre(Pair(IsEmpty(), 1), Pair(ElementsAre(IsNull()), 2)));
+
+  absl::btree_map<std::vector<void *>, int> m2;
+  m2.insert(std::begin(i), std::end(i));
+  EXPECT_THAT(m2,
+              ElementsAre(Pair(IsEmpty(), 1), Pair(ElementsAre(IsNull()), 2)));
+}
+
+TEST(Btree, HeterogeneousTryEmplace) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m.try_emplace(sv, 1);
+  EXPECT_EQ(m[s], 1);
+
+  m.try_emplace(m.end(), sv, 2);
+  EXPECT_EQ(m[s], 1);
+}
+
+TEST(Btree, HeterogeneousOperatorMapped) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m[sv] = 1;
+  EXPECT_EQ(m[s], 1);
+
+  m[sv] = 2;
+  EXPECT_EQ(m[s], 2);
+}
+
+TEST(Btree, HeterogeneousInsertOrAssign) {
+  absl::btree_map<std::string, int> m;
+  std::string s = "key";
+  absl::string_view sv = s;
+  m.insert_or_assign(sv, 1);
+  EXPECT_EQ(m[s], 1);
+
+  m.insert_or_assign(m.end(), sv, 2);
+  EXPECT_EQ(m[s], 2);
+}
+#endif
+
+// This test requires std::launder for mutable key access in node handles.
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+TEST(Btree, NodeHandleMutableKeyAccess) {
+  {
+    absl::btree_map<std::string, std::string> map;
+
+    map["key1"] = "mapped";
+
+    auto nh = map.extract(map.begin());
+    nh.key().resize(3);
+    map.insert(std::move(nh));
+
+    EXPECT_THAT(map, ElementsAre(Pair("key", "mapped")));
+  }
+  // Also for multimap.
+  {
+    absl::btree_multimap<std::string, std::string> map;
+
+    map.emplace("key1", "mapped");
+
+    auto nh = map.extract(map.begin());
+    nh.key().resize(3);
+    map.insert(std::move(nh));
+
+    EXPECT_THAT(map, ElementsAre(Pair("key", "mapped")));
+  }
+}
+#endif
+
+struct MultiKey {
+  int i1;
+  int i2;
+};
+
+struct MultiKeyComp {
+  using is_transparent = void;
+  bool operator()(const MultiKey a, const MultiKey b) const {
+    if (a.i1 != b.i1) return a.i1 < b.i1;
+    return a.i2 < b.i2;
+  }
+  bool operator()(const int a, const MultiKey b) const { return a < b.i1; }
+  bool operator()(const MultiKey a, const int b) const { return a.i1 < b; }
+};
+
+// Test that when there's a heterogeneous comparator that behaves differently
+// for some heterogeneous operators, we get equal_range() right.
+TEST(Btree, MultiKeyEqualRange) {
+  absl::btree_set<MultiKey, MultiKeyComp> set;
+
+  for (int i = 0; i < 100; ++i) {
+    for (int j = 0; j < 100; ++j) {
+      set.insert({i, j});
+    }
+  }
+
+  for (int i = 0; i < 100; ++i) {
+    auto equal_range = set.equal_range(i);
+    EXPECT_EQ(equal_range.first->i1, i);
+    EXPECT_EQ(equal_range.first->i2, 0);
+    EXPECT_EQ(std::distance(equal_range.first, equal_range.second), 100) << i;
+  }
 }
 
 }  // namespace
