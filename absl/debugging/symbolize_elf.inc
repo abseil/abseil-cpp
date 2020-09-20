@@ -220,7 +220,7 @@ struct SymbolCacheLine {
 
 // ---------------------------------------------------------------
 // An async-signal-safe arena for LowLevelAlloc
-static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
+static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena{nullptr};
 
 static base_internal::LowLevelAlloc::Arena *SigSafeArena() {
   return g_sig_safe_arena.load(std::memory_order_acquire);
