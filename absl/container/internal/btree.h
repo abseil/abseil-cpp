@@ -2278,11 +2278,11 @@ void btree<P>::rebalance_or_split(iterator *iter) {
         // inserting at the end of the right node then we bias rebalancing to
         // fill up the left node.
         int to_move = (kNodeValues - left->count()) /
-                      (1 + (insert_position < kNodeValues));
+                      (1 + (insert_position < static_cast<int>(kNodeValues)));
         to_move = (std::max)(1, to_move);
 
         if (insert_position - to_move >= node->start() ||
-            left->count() + to_move < kNodeValues) {
+            left->count() + to_move < static_cast<int>(kNodeValues)) {
           left->rebalance_right_to_left(to_move, node, mutable_allocator());
 
           assert(node->max_count() - node->count() == to_move);
@@ -2306,12 +2306,12 @@ void btree<P>::rebalance_or_split(iterator *iter) {
         // We bias rebalancing based on the position being inserted. If we're
         // inserting at the beginning of the left node then we bias rebalancing
         // to fill up the right node.
-        int to_move = (kNodeValues - right->count()) /
+        int to_move = (static_cast<int>(kNodeValues) - right->count()) /
                       (1 + (insert_position > node->start()));
         to_move = (std::max)(1, to_move);
 
         if (insert_position <= node->finish() - to_move ||
-            right->count() + to_move < kNodeValues) {
+            right->count() + to_move < static_cast<int>(kNodeValues)) {
           node->rebalance_left_to_right(to_move, right, mutable_allocator());
 
           if (insert_position > node->finish()) {
@@ -2374,7 +2374,7 @@ bool btree<P>::try_merge_or_rebalance(iterator *iter) {
     // Try merging with our left sibling.
     node_type *left = parent->child(iter->node->position() - 1);
     assert(left->max_count() == kNodeValues);
-    if (1 + left->count() + iter->node->count() <= kNodeValues) {
+    if (1U + left->count() + iter->node->count() <= kNodeValues) {
       iter->position += 1 + left->count();
       merge_nodes(left, iter->node);
       iter->node = left;
@@ -2385,7 +2385,7 @@ bool btree<P>::try_merge_or_rebalance(iterator *iter) {
     // Try merging with our right sibling.
     node_type *right = parent->child(iter->node->position() + 1);
     assert(right->max_count() == kNodeValues);
-    if (1 + iter->node->count() + right->count() <= kNodeValues) {
+    if (1U + iter->node->count() + right->count() <= kNodeValues) {
       merge_nodes(iter->node, right);
       return true;
     }
