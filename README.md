@@ -1,8 +1,13 @@
+## License
+
+The Abseil C++ library is licensed under the terms of the Apache
+license. See [LICENSE](LICENSE) for more information.
 # Abseil - C++ Common Libraries
 
 The repository contains the Abseil C++ library code. Abseil is an open-source
 collection of C++ code (compliant to C++11) designed to augment the C++
 standard library.
+
 
 ## Table of Contents
 
@@ -97,12 +102,9 @@ Abseil contains the following C++ library components:
 * [`utility`](absl/utility/)
   <br /> The `utility` library contains utility and helper code.
 
-## License
 
-The Abseil C++ library is licensed under the terms of the Apache
-license. See [LICENSE](LICENSE) for more information.
 
-## Links
+## Important  Links
 
 For more information about Abseil:
 
