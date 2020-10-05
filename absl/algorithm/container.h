@@ -90,10 +90,10 @@ using ContainerPointerType =
 // lookup of std::begin and std::end, i.e.
 //   using std::begin;
 //   using std::end;
-//   std::foo(begin(c), end(c);
+//   std::foo(begin(c), end(c));
 // becomes
 //   std::foo(container_algorithm_internal::begin(c),
-//   container_algorithm_internal::end(c));
+//     container_algorithm_internal::end(c));
 // These are meant for internal use only.
 
 template <typename C>
