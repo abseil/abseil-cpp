@@ -351,7 +351,9 @@ c_mismatch(C1& c1, C2& c2) {
   auto last2 = container_algorithm_internal::c_end(c2);
 
   for (; first1 != last1 && first2 != last2; ++first1, (void)++first2) {
-    if (*first1 != *first2) {
+    // Negates equality because Cpp17EqualityComparable doesn't require clients
+    // to overload both `operator==` and `operator!=`.
+    if (!(*first1 == *first2)) {
       break;
     }
   }
