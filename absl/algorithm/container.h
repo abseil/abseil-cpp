@@ -93,7 +93,7 @@ using ContainerPointerType =
 //   std::foo(begin(c), end(c));
 // becomes
 //   std::foo(container_algorithm_internal::begin(c),
-//     container_algorithm_internal::end(c));
+//            container_algorithm_internal::end(c));
 // These are meant for internal use only.
 
 template <typename C>

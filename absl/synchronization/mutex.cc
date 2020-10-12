@@ -88,8 +88,8 @@ ABSL_CONST_INIT std::atomic<OnDeadlockCycle> synch_deadlock_detection(
 ABSL_CONST_INIT std::atomic<bool> synch_check_invariants(false);
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
-    absl::base_internal::AtomicHook<void (*)(int64_t wait_cycles)>
-        submit_profile_data;
+absl::base_internal::AtomicHook<void (*)(int64_t wait_cycles)>
+    submit_profile_data;
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES absl::base_internal::AtomicHook<void (*)(
     const char *msg, const void *obj, int64_t wait_cycles)>
     mutex_tracer;
@@ -491,7 +491,7 @@ struct SynchWaitParams {
   std::atomic<intptr_t> *cv_word;
 
   int64_t contention_start_cycles;  // Time (in cycles) when this thread started
-                                  // to contend for the mutex.
+                                    // to contend for the mutex.
 };
 
 struct SynchLocksHeld {
@@ -2311,7 +2311,8 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams *waitp) {
     if (!cond_waiter) {
       // Sample lock contention events only if the (first) waiter was trying to
       // acquire the lock, not waiting on a condition variable or Condition.
-      int64_t wait_cycles = base_internal::CycleClock::Now() - enqueue_timestamp;
+      int64_t wait_cycles =
+          base_internal::CycleClock::Now() - enqueue_timestamp;
       mutex_tracer("slow release", this, wait_cycles);
       ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
       submit_profile_data(enqueue_timestamp);
