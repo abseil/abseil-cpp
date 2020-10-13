@@ -48,10 +48,6 @@
 #include "absl/base/optimization.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 
-#if ABSL_WAITER_MODE == ABSL_WAITER_MODE_FUTEX
-#include "absl/synchronization/internal/futex.h"
-#endif
-
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

@@ -50,6 +50,7 @@
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/internal/thread_identity.h"
+#include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
@@ -705,7 +706,7 @@ static constexpr bool kDebugMode = false;
 static constexpr bool kDebugMode = true;
 #endif
 
-#ifdef ABSL_HAVE_THREAD_SANITIZER
+#ifdef ABSL_INTERNAL_HAVE_TSAN_INTERFACE
 static unsigned TsanFlags(Mutex::MuHow how) {
   return how == kShared ? __tsan_mutex_read_lock : 0;
 }
@@ -1767,7 +1768,7 @@ static inline bool EvalConditionAnnotated(const Condition *cond, Mutex *mu,
   // All memory accesses are ignored inside of mutex operations + for unlock
   // operation tsan considers that we've already released the mutex.
   bool res = false;
-#ifdef ABSL_HAVE_THREAD_SANITIZER
+#ifdef ABSL_INTERNAL_HAVE_TSAN_INTERFACE
   const int flags = read_lock ? __tsan_mutex_read_lock : 0;
   const int tryflags = flags | (trylock ? __tsan_mutex_try_lock : 0);
 #endif

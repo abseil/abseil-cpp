@@ -38,6 +38,19 @@
 #include "absl/base/optimization.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 
+#ifdef ABSL_INTERNAL_HAVE_FUTEX
+#error ABSL_INTERNAL_HAVE_FUTEX may not be set on the command line
+#elif defined(__BIONIC__)
+// Bionic supports all the futex operations we need even when some of the futex
+// definitions are missing.
+#define ABSL_INTERNAL_HAVE_FUTEX
+#elif defined(__linux__) && defined(FUTEX_CLOCK_REALTIME)
+// FUTEX_CLOCK_REALTIME requires Linux >= 2.6.28.
+#define ABSL_INTERNAL_HAVE_FUTEX
+#endif
+
+#ifdef ABSL_INTERNAL_HAVE_FUTEX
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
@@ -135,5 +148,7 @@ class Futex : public FutexImpl {};
 }  // namespace synchronization_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#endif  // ABSL_INTERNAL_HAVE_FUTEX
 
 #endif  // ABSL_SYNCHRONIZATION_INTERNAL_FUTEX_H_
