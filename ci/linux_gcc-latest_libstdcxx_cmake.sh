@@ -45,7 +45,7 @@ for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
     for build_shared in ${ABSL_CMAKE_BUILD_SHARED}; do
       time docker run \
-        --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
+        --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp,readonly \
         --workdir=/abseil-cpp \
         --tmpfs=/buildfs:exec \
         --cap-add=SYS_PTRACE \
