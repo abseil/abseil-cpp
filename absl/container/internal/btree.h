@@ -803,12 +803,6 @@ class btree_node {
   // Deletes a node and all of its children.
   static void clear_and_delete(btree_node *node, allocator_type *alloc);
 
- public:
-  // Exposed only for tests.
-  static bool testonly_uses_linear_node_search() {
-    return use_linear_search::value;
-  }
-
  private:
   template <typename... Args>
   void value_init(const field_type i, allocator_type *alloc, Args &&... args) {
@@ -1496,13 +1490,6 @@ class btree {
     return res;
   }
 
- public:
-  // Exposed only for tests.
-  static bool testonly_uses_linear_node_search() {
-    return node_type::testonly_uses_linear_node_search();
-  }
-
- private:
   // We use compressed tuple in order to save space because key_compare and
   // allocator_type are usually empty.
   absl::container_internal::CompressedTuple<key_compare, allocator_type,

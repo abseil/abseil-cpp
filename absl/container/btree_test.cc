@@ -1183,6 +1183,39 @@ TEST(Btree, RangeCtorSanity) {
   EXPECT_EQ(1, tmap.size());
 }
 
+}  // namespace
+
+class BtreeNodePeer {
+ public:
+  // Yields the size of a leaf node with a specific number of values.
+  template <typename ValueType>
+  constexpr static size_t GetTargetNodeSize(size_t target_values_per_node) {
+    return btree_node<
+        set_params<ValueType, std::less<ValueType>, std::allocator<ValueType>,
+                   /*TargetNodeSize=*/256,  // This parameter isn't used here.
+                   /*Multi=*/false>>::SizeWithNValues(target_values_per_node);
+  }
+
+  // Yields the number of values in a (non-root) leaf node for this btree.
+  template <typename Btree>
+  constexpr static size_t GetNumValuesPerNode() {
+    return btree_node<typename Btree::params_type>::kNodeValues;
+  }
+
+  template <typename Btree>
+  constexpr static size_t GetMaxFieldType() {
+    return std::numeric_limits<
+        typename btree_node<typename Btree::params_type>::field_type>::max();
+  }
+
+  template <typename Btree>
+  constexpr static bool UsesLinearNodeSearch() {
+    return btree_node<typename Btree::params_type>::use_linear_search::value;
+  }
+};
+
+namespace {
+
 TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
   absl::btree_map<std::string, std::unique_ptr<std::string>> m;
 
@@ -1327,34 +1360,6 @@ TEST(Btree, RValueInsert) {
   EXPECT_EQ(tracker.copies(), 0);
   EXPECT_EQ(tracker.swaps(), 0);
 }
-
-}  // namespace
-
-class BtreeNodePeer {
- public:
-  // Yields the size of a leaf node with a specific number of values.
-  template <typename ValueType>
-  constexpr static size_t GetTargetNodeSize(size_t target_values_per_node) {
-    return btree_node<
-        set_params<ValueType, std::less<ValueType>, std::allocator<ValueType>,
-                   /*TargetNodeSize=*/256,  // This parameter isn't used here.
-                   /*Multi=*/false>>::SizeWithNValues(target_values_per_node);
-  }
-
-  // Yields the number of values in a (non-root) leaf node for this set.
-  template <typename Set>
-  constexpr static size_t GetNumValuesPerNode() {
-    return btree_node<typename Set::params_type>::kNodeValues;
-  }
-
-  template <typename Set>
-  constexpr static size_t GetMaxFieldType() {
-    return std::numeric_limits<
-        typename btree_node<typename Set::params_type>::field_type>::max();
-  }
-};
-
-namespace {
 
 // A btree set with a specific number of values per node.
 template <typename Key, int TargetValuesPerNode, typename Cmp = std::less<Key>>

@@ -370,6 +370,7 @@ template <typename Tree>
 class btree_map_container : public btree_set_container<Tree> {
   using super_type = btree_set_container<Tree>;
   using params_type = typename Tree::params_type;
+  friend class BtreeNodePeer;
 
  private:
   template <class K>
