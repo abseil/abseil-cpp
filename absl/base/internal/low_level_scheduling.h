@@ -59,7 +59,7 @@ class SpinLock;          // To allow use of SchedulingGuard.
 // All methods are async-signal safe.
 class SchedulingGuard {
  public:
-  // Returns true iff the calling thread may be cooperatively rescheduled.
+  // Returns true if the calling thread may be cooperatively rescheduled.
   static bool ReschedulingIsAllowed();
 
  private:
