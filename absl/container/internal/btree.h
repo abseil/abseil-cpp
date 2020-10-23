@@ -182,6 +182,38 @@ struct key_compare_to_adapter<std::greater<absl::Cord>> {
   using type = StringBtreeDefaultGreater;
 };
 
+// Detects an 'absl_btree_prefer_linear_node_search' member. This is
+// a protocol used as an opt-in or opt-out of linear search.
+//
+//  For example, this would be useful for key types that wrap an integer
+//  and define their own cheap operator<(). For example:
+//
+//   class K {
+//    public:
+//     using absl_btree_prefer_linear_node_search = std::true_type;
+//     ...
+//    private:
+//     friend bool operator<(K a, K b) { return a.k_ < b.k_; }
+//     int k_;
+//   };
+//
+//   btree_map<K, V> m;  // Uses linear search
+//
+// If T has the preference tag, then it has a preference.
+// Btree will use the tag's truth value.
+template <typename T, typename = void>
+struct has_linear_node_search_preference : std::false_type {};
+template <typename T, typename = void>
+struct prefers_linear_node_search : std::false_type {};
+template <typename T>
+struct has_linear_node_search_preference<
+    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    : std::true_type {};
+template <typename T>
+struct prefers_linear_node_search<
+    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    : T::absl_btree_prefer_linear_node_search {};
+
 template <typename Key, typename Compare, typename Alloc, int TargetNodeSize,
           bool Multi, typename SlotPolicy>
 struct common_params {
@@ -424,15 +456,22 @@ class btree_node {
   using difference_type = typename Params::difference_type;
 
   // Btree decides whether to use linear node search as follows:
+  //   - If the comparator expresses a preference, use that.
+  //   - If the key expresses a preference, use that.
   //   - If the key is arithmetic and the comparator is std::less or
   //     std::greater, choose linear.
   //   - Otherwise, choose binary.
   // TODO(ezb): Might make sense to add condition(s) based on node-size.
   using use_linear_search = std::integral_constant<
       bool,
-                std::is_arithmetic<key_type>::value &&
-                    (std::is_same<std::less<key_type>, key_compare>::value ||
-                     std::is_same<std::greater<key_type>, key_compare>::value)>;
+      has_linear_node_search_preference<key_compare>::value
+          ? prefers_linear_node_search<key_compare>::value
+          : has_linear_node_search_preference<key_type>::value
+                ? prefers_linear_node_search<key_type>::value
+                : std::is_arithmetic<key_type>::value &&
+                      (std::is_same<std::less<key_type>, key_compare>::value ||
+                       std::is_same<std::greater<key_type>,
+                                    key_compare>::value)>;
 
   // This class is organized by gtl::Layout as if it had the following
   // structure:

@@ -1216,6 +1216,70 @@ class BtreeNodePeer {
 
 namespace {
 
+class BtreeMapTest : public ::testing::Test {
+ public:
+  struct Key {};
+  struct Cmp {
+    template <typename T>
+    bool operator()(T, T) const {
+      return false;
+    }
+  };
+
+  struct KeyLin {
+    using absl_btree_prefer_linear_node_search = std::true_type;
+  };
+  struct CmpLin : Cmp {
+    using absl_btree_prefer_linear_node_search = std::true_type;
+  };
+
+  struct KeyBin {
+    using absl_btree_prefer_linear_node_search = std::false_type;
+  };
+  struct CmpBin : Cmp {
+    using absl_btree_prefer_linear_node_search = std::false_type;
+  };
+
+  template <typename K, typename C>
+  static bool IsLinear() {
+    return BtreeNodePeer::UsesLinearNodeSearch<absl::btree_map<K, int, C>>();
+  }
+};
+
+TEST_F(BtreeMapTest, TestLinearSearchPreferredForKeyLinearViaAlias) {
+  // Test requesting linear search by directly exporting an alias.
+  EXPECT_FALSE((IsLinear<Key, Cmp>()));
+  EXPECT_TRUE((IsLinear<KeyLin, Cmp>()));
+  EXPECT_TRUE((IsLinear<Key, CmpLin>()));
+  EXPECT_TRUE((IsLinear<KeyLin, CmpLin>()));
+}
+
+TEST_F(BtreeMapTest, LinearChoiceTree) {
+  // Cmp has precedence, and is forcing binary
+  EXPECT_FALSE((IsLinear<Key, CmpBin>()));
+  EXPECT_FALSE((IsLinear<KeyLin, CmpBin>()));
+  EXPECT_FALSE((IsLinear<KeyBin, CmpBin>()));
+  EXPECT_FALSE((IsLinear<int, CmpBin>()));
+  EXPECT_FALSE((IsLinear<std::string, CmpBin>()));
+  // Cmp has precedence, and is forcing linear
+  EXPECT_TRUE((IsLinear<Key, CmpLin>()));
+  EXPECT_TRUE((IsLinear<KeyLin, CmpLin>()));
+  EXPECT_TRUE((IsLinear<KeyBin, CmpLin>()));
+  EXPECT_TRUE((IsLinear<int, CmpLin>()));
+  EXPECT_TRUE((IsLinear<std::string, CmpLin>()));
+  // Cmp has no preference, Key determines linear vs binary.
+  EXPECT_FALSE((IsLinear<Key, Cmp>()));
+  EXPECT_TRUE((IsLinear<KeyLin, Cmp>()));
+  EXPECT_FALSE((IsLinear<KeyBin, Cmp>()));
+  // arithmetic key w/ std::less or std::greater: linear
+  EXPECT_TRUE((IsLinear<int, std::less<int>>()));
+  EXPECT_TRUE((IsLinear<double, std::greater<double>>()));
+  // arithmetic key w/ custom compare: binary
+  EXPECT_FALSE((IsLinear<int, Cmp>()));
+  // non-arithmetic key: binary
+  EXPECT_FALSE((IsLinear<std::string, std::less<std::string>>()));
+}
+
 TEST(Btree, BtreeMapCanHoldMoveOnlyTypes) {
   absl::btree_map<std::string, std::unique_ptr<std::string>> m;
 
