@@ -2709,6 +2709,101 @@ TEST(Btree, MultiKeyEqualRange) {
   }
 }
 
+TEST(Btree, AllocConstructor) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  Set set(alloc);
+
+  set.insert({1, 2, 3});
+
+  EXPECT_THAT(set, ElementsAre(1, 2, 3));
+  EXPECT_GT(bytes_used, set.size() * sizeof(int));
+}
+
+TEST(Btree, AllocInitializerListConstructor) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  Set set({1, 2, 3}, alloc);
+
+  EXPECT_THAT(set, ElementsAre(1, 2, 3));
+  EXPECT_GT(bytes_used, set.size() * sizeof(int));
+}
+
+TEST(Btree, AllocRangeConstructor) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  std::vector<int> v = {1, 2, 3};
+  Set set(v.begin(), v.end(), alloc);
+
+  EXPECT_THAT(set, ElementsAre(1, 2, 3));
+  EXPECT_GT(bytes_used, set.size() * sizeof(int));
+}
+
+TEST(Btree, AllocCopyConstructor) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used1 = 0;
+  Alloc alloc1(&bytes_used1);
+  Set set1(alloc1);
+
+  set1.insert({1, 2, 3});
+
+  int64_t bytes_used2 = 0;
+  Alloc alloc2(&bytes_used2);
+  Set set2(set1, alloc2);
+
+  EXPECT_THAT(set1, ElementsAre(1, 2, 3));
+  EXPECT_THAT(set2, ElementsAre(1, 2, 3));
+  EXPECT_GT(bytes_used1, set1.size() * sizeof(int));
+  EXPECT_EQ(bytes_used1, bytes_used2);
+}
+
+TEST(Btree, AllocMoveConstructor_SameAlloc) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  Set set1(alloc);
+
+  set1.insert({1, 2, 3});
+
+  const int64_t original_bytes_used = bytes_used;
+  EXPECT_GT(original_bytes_used, set1.size() * sizeof(int));
+
+  Set set2(std::move(set1), alloc);
+
+  EXPECT_THAT(set2, ElementsAre(1, 2, 3));
+  EXPECT_EQ(bytes_used, original_bytes_used);
+}
+
+TEST(Btree, AllocMoveConstructor_DifferentAlloc) {
+  using Alloc = CountingAllocator<int>;
+  using Set = absl::btree_set<int, std::less<int>, Alloc>;
+  int64_t bytes_used1 = 0;
+  Alloc alloc1(&bytes_used1);
+  Set set1(alloc1);
+
+  set1.insert({1, 2, 3});
+
+  const int64_t original_bytes_used = bytes_used1;
+  EXPECT_GT(original_bytes_used, set1.size() * sizeof(int));
+
+  int64_t bytes_used2 = 0;
+  Alloc alloc2(&bytes_used2);
+  Set set2(std::move(set1), alloc2);
+
+  EXPECT_THAT(set2, ElementsAre(1, 2, 3));
+  // We didn't free these bytes allocated by `set1` yet.
+  EXPECT_EQ(bytes_used1, original_bytes_used);
+  EXPECT_EQ(bytes_used2, original_bytes_used);
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END

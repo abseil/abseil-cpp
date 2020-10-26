@@ -1141,20 +1141,34 @@ class btree {
   // before this method is called. This method is used in copy construction,
   // copy assignment, and move assignment.
   template <typename Btree>
-  void copy_or_move_values_in_order(Btree *other);
+  void copy_or_move_values_in_order(Btree &other);
 
   // Validates that various assumptions/requirements are true at compile time.
   constexpr static bool static_assert_validation();
 
  public:
-  btree(const key_compare &comp, const allocator_type &alloc);
+  btree(const key_compare &comp, const allocator_type &alloc)
+      : root_(comp, alloc, EmptyNode()), rightmost_(EmptyNode()), size_(0) {}
 
-  btree(const btree &other);
+  btree(const btree &other) : btree(other, other.allocator()) {}
+  btree(const btree &other, const allocator_type &alloc)
+      : btree(other.key_comp(), alloc) {
+    copy_or_move_values_in_order(other);
+  }
   btree(btree &&other) noexcept
       : root_(std::move(other.root_)),
         rightmost_(absl::exchange(other.rightmost_, EmptyNode())),
         size_(absl::exchange(other.size_, 0)) {
     other.mutable_root() = EmptyNode();
+  }
+  btree(btree &&other, const allocator_type &alloc)
+      : btree(other.key_comp(), alloc) {
+    if (alloc == other.allocator()) {
+      swap(other);
+    } else {
+      // Move values from `other` one at a time when allocators are different.
+      copy_or_move_values_in_order(other);
+    }
   }
 
   ~btree() {
@@ -1851,7 +1865,7 @@ void btree_iterator<N, R, P>::decrement_slow() {
 // btree methods
 template <typename P>
 template <typename Btree>
-void btree<P>::copy_or_move_values_in_order(Btree *other) {
+void btree<P>::copy_or_move_values_in_order(Btree &other) {
   static_assert(std::is_same<btree, Btree>::value ||
                     std::is_same<const btree, Btree>::value,
                 "Btree type must be same or const.");
@@ -1859,11 +1873,11 @@ void btree<P>::copy_or_move_values_in_order(Btree *other) {
 
   // We can avoid key comparisons because we know the order of the
   // values is the same order we'll store them in.
-  auto iter = other->begin();
-  if (iter == other->end()) return;
+  auto iter = other.begin();
+  if (iter == other.end()) return;
   insert_multi(maybe_move_from_iterator(iter));
   ++iter;
-  for (; iter != other->end(); ++iter) {
+  for (; iter != other.end(); ++iter) {
     // If the btree is not empty, we can just insert the new value at the end
     // of the tree.
     internal_emplace(end(), maybe_move_from_iterator(iter));
@@ -1899,16 +1913,6 @@ constexpr bool btree<P>::static_assert_validation() {
                 "node space assumption incorrect");
 
   return true;
-}
-
-template <typename P>
-btree<P>::btree(const key_compare &comp, const allocator_type &alloc)
-    : root_(comp, alloc, EmptyNode()), rightmost_(EmptyNode()), size_(0) {}
-
-template <typename P>
-btree<P>::btree(const btree &other)
-    : btree(other.key_comp(), other.allocator()) {
-  copy_or_move_values_in_order(&other);
 }
 
 template <typename P>
@@ -2068,7 +2072,7 @@ auto btree<P>::operator=(const btree &other) -> btree & {
       *mutable_allocator() = other.allocator();
     }
 
-    copy_or_move_values_in_order(&other);
+    copy_or_move_values_in_order(other);
   }
   return *this;
 }
@@ -2098,7 +2102,7 @@ auto btree<P>::operator=(btree &&other) noexcept -> btree & {
         // comparator while moving the values so we can't swap the key
         // comparators.
         *mutable_key_comp() = other.key_comp();
-        copy_or_move_values_in_order(&other);
+        copy_or_move_values_in_order(other);
       }
     }
   }
