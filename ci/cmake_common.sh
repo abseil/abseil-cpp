@@ -17,7 +17,7 @@
 readonly ABSL_GOOGLETEST_COMMIT="8567b09290fe402cf01923e2131c5635b8ed851b"
 
 # Avoid depending on GitHub by looking for a cached copy of the commit first.
-if [[ -r "${KOKORO_GFILE_DIR}/distdir/${ABSL_GOOGLETEST_COMMIT}.zip" ]]; then
+if [[ -r "${KOKORO_GFILE_DIR:-}/distdir/${ABSL_GOOGLETEST_COMMIT}.zip" ]]; then
   DOCKER_EXTRA_ARGS="--mount type=bind,source=${KOKORO_GFILE_DIR}/distdir,target=/distdir,readonly ${DOCKER_EXTRA_ARGS:-}"
   ABSL_GOOGLETEST_DOWNLOAD_URL="file:///distdir/${ABSL_GOOGLETEST_COMMIT}.zip"
 else

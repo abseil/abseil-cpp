@@ -2680,6 +2680,12 @@ struct MultiKey {
   int i2;
 };
 
+bool operator==(const MultiKey a, const MultiKey b) {
+  return a.i1 == b.i1 && a.i2 == b.i2;
+}
+
+// A heterogeneous comparator that has different equivalence classes for
+// different lookup types.
 struct MultiKeyComp {
   using is_transparent = void;
   bool operator()(const MultiKey a, const MultiKey b) const {
@@ -2690,8 +2696,6 @@ struct MultiKeyComp {
   bool operator()(const MultiKey a, const int b) const { return a.i1 < b; }
 };
 
-// Test that when there's a heterogeneous comparator that behaves differently
-// for some heterogeneous operators, we get equal_range() right.
 TEST(Btree, MultiKeyEqualRange) {
   absl::btree_set<MultiKey, MultiKeyComp> set;
 
@@ -2707,6 +2711,19 @@ TEST(Btree, MultiKeyEqualRange) {
     EXPECT_EQ(equal_range.first->i2, 0);
     EXPECT_EQ(std::distance(equal_range.first, equal_range.second), 100) << i;
   }
+}
+
+TEST(Btree, MultiKeyErase) {
+  absl::btree_set<MultiKey, MultiKeyComp> set = {
+      {1, 1}, {2, 1}, {2, 2}, {3, 1}};
+  EXPECT_EQ(set.erase(2), 2);
+  EXPECT_THAT(set, ElementsAre(MultiKey{1, 1}, MultiKey{3, 1}));
+}
+
+TEST(Btree, MultiKeyCount) {
+  const absl::btree_set<MultiKey, MultiKeyComp> set = {
+      {1, 1}, {2, 1}, {2, 2}, {3, 1}};
+  EXPECT_EQ(set.count(2), 2);
 }
 
 TEST(Btree, AllocConstructor) {

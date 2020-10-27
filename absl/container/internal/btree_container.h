@@ -104,6 +104,11 @@ class btree_container {
 
   // Lookup routines.
   template <typename K = key_type>
+  size_type count(const key_arg<K> &key) const {
+    auto equal_range = this->equal_range(key);
+    return std::distance(equal_range.first, equal_range.second);
+  }
+  template <typename K = key_type>
   iterator find(const key_arg<K> &key) {
     return tree_.find(key);
   }
@@ -151,6 +156,11 @@ class btree_container {
   iterator erase(iterator iter) { return tree_.erase(iter); }
   iterator erase(const_iterator first, const_iterator last) {
     return tree_.erase_range(iterator(first), iterator(last)).second;
+  }
+  template <typename K = key_type>
+  size_type erase(const key_arg<K> &key) {
+    auto equal_range = this->equal_range(key);
+    return tree_.erase_range(equal_range.first, equal_range.second).first;
   }
 
   // Extract routines.
@@ -270,12 +280,6 @@ class btree_set_container : public btree_container<Tree> {
                       const allocator_type &alloc)
       : btree_set_container(init.begin(), init.end(), alloc) {}
 
-  // Lookup routines.
-  template <typename K = key_type>
-  size_type count(const key_arg<K> &key) const {
-    return this->tree_.count_unique(key);
-  }
-
   // Insertion routines.
   std::pair<iterator, bool> insert(const value_type &v) {
     return this->tree_.insert_unique(params_type::key(v), v);
@@ -333,16 +337,10 @@ class btree_set_container : public btree_container<Tree> {
     return res.first;
   }
 
-  // Deletion routines.
-  // TODO(ezb): we should support heterogeneous comparators that have different
-  // behavior for K!=key_type.
-  template <typename K = key_type>
-  size_type erase(const key_arg<K> &key) {
-    return this->tree_.erase_unique(key);
-  }
-  using super_type::erase;
-
   // Node extraction routines.
+  // TODO(ezb): when the comparator is heterogeneous and has different
+  // equivalence classes for different lookup types, we should extract the first
+  // equivalent value if there are multiple.
   template <typename K = key_type>
   node_type extract(const key_arg<K> &key) {
     auto it = this->find(key);
@@ -578,12 +576,6 @@ class btree_multiset_container : public btree_container<Tree> {
                            const allocator_type &alloc)
       : btree_multiset_container(init.begin(), init.end(), alloc) {}
 
-  // Lookup routines.
-  template <typename K = key_type>
-  size_type count(const key_arg<K> &key) const {
-    return this->tree_.count_multi(key);
-  }
-
   // Insertion routines.
   iterator insert(const value_type &v) { return this->tree_.insert_multi(v); }
   iterator insert(value_type &&v) {
@@ -628,14 +620,9 @@ class btree_multiset_container : public btree_container<Tree> {
     return res;
   }
 
-  // Deletion routines.
-  template <typename K = key_type>
-  size_type erase(const key_arg<K> &key) {
-    return this->tree_.erase_multi(key);
-  }
-  using super_type::erase;
-
   // Node extraction routines.
+  // TODO(ezb): we are supposed to extract the first equivalent key if there are
+  // multiple, but this isn't guaranteed to extract the first one.
   template <typename K = key_type>
   node_type extract(const key_arg<K> &key) {
     auto it = this->find(key);

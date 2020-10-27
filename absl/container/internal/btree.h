@@ -423,6 +423,7 @@ struct SearchResult {
 // useful information.
 template <typename V>
 struct SearchResult<V, false> {
+  SearchResult() {}
   explicit SearchResult(V value) : value(value) {}
   SearchResult(V value, MatchKind /*match*/) : value(value) {}
 
@@ -1200,11 +1201,11 @@ class btree {
   // Finds the first element whose key is not less than key.
   template <typename K>
   iterator lower_bound(const K &key) {
-    return internal_end(internal_lower_bound(key));
+    return internal_end(internal_lower_bound(key).value);
   }
   template <typename K>
   const_iterator lower_bound(const K &key) const {
-    return internal_end(internal_lower_bound(key));
+    return internal_end(internal_lower_bound(key).value);
   }
 
   // Finds the first element whose key is greater than key.
@@ -1289,16 +1290,6 @@ class btree {
   // to the element after the last erased element.
   std::pair<size_type, iterator> erase_range(iterator begin, iterator end);
 
-  // Erases the specified key from the btree. Returns 1 if an element was
-  // erased and 0 otherwise.
-  template <typename K>
-  size_type erase_unique(const K &key);
-
-  // Erases all of the entries matching the specified key from the
-  // btree. Returns the number of elements erased.
-  template <typename K>
-  size_type erase_multi(const K &key);
-
   // Finds the iterator corresponding to a key or returns end() if the key is
   // not present.
   template <typename K>
@@ -1308,23 +1299,6 @@ class btree {
   template <typename K>
   const_iterator find(const K &key) const {
     return internal_end(internal_find(key));
-  }
-
-  // Returns a count of the number of times the key appears in the btree.
-  template <typename K>
-  size_type count_unique(const K &key) const {
-    const iterator begin = internal_find(key);
-    if (begin.node == nullptr) {
-      // The key doesn't exist in the tree.
-      return 0;
-    }
-    return 1;
-  }
-  // Returns a count of the number of times the key appears in the btree.
-  template <typename K>
-  size_type count_multi(const K &key) const {
-    const auto range = equal_range(key);
-    return std::distance(range.first, range.second);
   }
 
   // Clear the btree, deleting all of the values it contains.
@@ -1514,7 +1488,8 @@ class btree {
 
   // Internal routine which implements lower_bound().
   template <typename K>
-  iterator internal_lower_bound(const K &key) const;
+  SearchResult<iterator, is_key_compare_to::value> internal_lower_bound(
+      const K &key) const;
 
   // Internal routine which implements upper_bound().
   template <typename K>
@@ -1918,10 +1893,13 @@ constexpr bool btree<P>::static_assert_validation() {
 template <typename P>
 template <typename K>
 auto btree<P>::equal_range(const K &key) -> std::pair<iterator, iterator> {
-  const iterator lower = lower_bound(key);
-  // TODO(ezb): we should be able to avoid this comparison when there's a
-  // three-way comparator.
-  if (lower == end() || compare_keys(key, lower.key())) return {lower, lower};
+  const SearchResult<iterator, is_key_compare_to::value> res =
+      internal_lower_bound(key);
+  const iterator lower = internal_end(res.value);
+  if (res.HasMatch() ? !res.IsEq()
+                     : lower == end() || compare_keys(key, lower.key())) {
+    return {lower, lower};
+  }
 
   const iterator next = std::next(lower);
   // When the comparator is heterogeneous, we can't assume that comparison with
@@ -1941,7 +1919,7 @@ auto btree<P>::equal_range(const K &key) -> std::pair<iterator, iterator> {
   // Try once more to avoid the call to upper_bound() if there's only one
   // equivalent key. This should prevent all calls to upper_bound() in cases of
   // unique-containers with heterogeneous comparators in which all comparison
-  // operators are equivalent.
+  // operators have the same equivalence classes.
   if (next == end() || compare_keys(key, next.key())) return {lower, next};
 
   // In this case, we need to call upper_bound() to avoid worst case O(N)
@@ -2223,31 +2201,6 @@ auto btree<P>::erase_range(iterator begin, iterator end)
     }
   }
   return {count, begin};
-}
-
-template <typename P>
-template <typename K>
-auto btree<P>::erase_unique(const K &key) -> size_type {
-  const iterator iter = internal_find(key);
-  if (iter.node == nullptr) {
-    // The key doesn't exist in the tree, return nothing done.
-    return 0;
-  }
-  erase(iter);
-  return 1;
-}
-
-template <typename P>
-template <typename K>
-auto btree<P>::erase_multi(const K &key) -> size_type {
-  const iterator begin = internal_lower_bound(key);
-  if (begin.node == nullptr) {
-    // The key doesn't exist in the tree, return nothing done.
-    return 0;
-  }
-  // Delete all of the keys between begin and upper_bound(key).
-  const iterator end = internal_end(internal_upper_bound(key));
-  return erase_range(begin, end).first;
 }
 
 template <typename P>
@@ -2548,16 +2501,24 @@ inline auto btree<P>::internal_locate(const K &key) const
 
 template <typename P>
 template <typename K>
-auto btree<P>::internal_lower_bound(const K &key) const -> iterator {
+auto btree<P>::internal_lower_bound(const K &key) const
+    -> SearchResult<iterator, is_key_compare_to::value> {
   iterator iter(const_cast<node_type *>(root()));
+  SearchResult<int, is_key_compare_to::value> res;
+  bool seen_eq = false;
   for (;;) {
-    iter.position = iter.node->lower_bound(key, key_comp()).value;
+    res = iter.node->lower_bound(key, key_comp());
+    iter.position = res.value;
+    // TODO(ezb): we should be able to terminate early on IsEq() if there can't
+    // be multiple equivalent keys in container for this lookup type.
     if (iter.node->leaf()) {
       break;
     }
+    seen_eq = seen_eq || res.IsEq();
     iter.node = iter.node->child(iter.position);
   }
-  return internal_last(iter);
+  if (res.IsEq()) return {iter, MatchKind::kEq};
+  return {internal_last(iter), seen_eq ? MatchKind::kEq : MatchKind::kNe};
 }
 
 template <typename P>
