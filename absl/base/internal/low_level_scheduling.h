@@ -44,7 +44,7 @@ class SpinLock;          // To allow use of SchedulingGuard.
 
 // SchedulingGuard
 // Provides guard semantics that may be used to disable cooperative rescheduling
-// of the calling thread within specific program blocks.  This is used to
+// of the calling thread within specic program blocks.  This is used to
 // protect resources (e.g. low-level SpinLocks or Domain code) that cooperative
 // scheduling depends on.
 //
@@ -59,7 +59,7 @@ class SpinLock;          // To allow use of SchedulingGuard.
 // All methods are async-signal safe.
 class SchedulingGuard {
  public:
-  // Returns true if the calling thread may be cooperatively rescheduled.
+  // Returns true iff the calling thread may be cooperatively rescheduled.
   static bool ReschedulingIsAllowed();
   SchedulingGuard(const SchedulingGuard&) = delete;
   SchedulingGuard& operator=(const SchedulingGuard&) = delete;
