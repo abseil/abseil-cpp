@@ -41,7 +41,8 @@ static const unsigned char* GetKernelRtSigreturnAddress() {
       return vdso.LookupSymbol("__kernel_rt_sigreturn", "LINUX_2.6.39", type,
                                &symbol_info);
     };
-    if ((!lookup(STT_FUNC) && !lookup(STT_NOTYPE)) || symbol_info.address == nullptr) {
+    if ((!lookup(STT_FUNC) && !lookup(STT_NOTYPE)) ||
+        symbol_info.address == nullptr) {
       // Unexpected: VDSO is present, yet the expected symbol is missing
       // or null.
       assert(false && "VDSO is present, but doesn't have expected symbol");
