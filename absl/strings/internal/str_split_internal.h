@@ -66,56 +66,41 @@ class ConvertibleToStringView {
 
   // Matches rvalue strings and moves their data to a member.
   ConvertibleToStringView(std::string&& s)  // NOLINT(runtime/explicit)
-      : copy_(std::move(s)), value_(copy_), self_referential_(true) {}
+      : copy_(std::move(s)), value_(copy_) {}
 
   ConvertibleToStringView(const ConvertibleToStringView& other)
-      : value_(other.value_), self_referential_(other.self_referential_) {
-    if (other.self_referential_) {
-      new (&copy_) std::string(other.copy_);
-      value_ = copy_;
-    }
-  }
+      : copy_(other.copy_),
+        value_(other.IsSelfReferential() ? copy_ : other.value_) {}
 
-  ConvertibleToStringView(ConvertibleToStringView&& other)
-      : value_(other.value_), self_referential_(other.self_referential_) {
-    if (other.self_referential_) {
-      new (&copy_) std::string(std::move(other.copy_));
-      value_ = copy_;
-    }
+  ConvertibleToStringView(ConvertibleToStringView&& other) {
+    StealMembers(std::move(other));
   }
 
   ConvertibleToStringView& operator=(ConvertibleToStringView other) {
-    this->~ConvertibleToStringView();
-    new (this) ConvertibleToStringView(std::move(other));
+    StealMembers(std::move(other));
     return *this;
   }
 
   absl::string_view value() const { return value_; }
 
-  ~ConvertibleToStringView() { MaybeReleaseCopy(); }
-
  private:
-  void MaybeReleaseCopy() {
-    if (self_referential_) {
-      // An explicit destructor call cannot be a qualified name such as
-      // std::string. The "using" declaration works around this
-      // issue by creating an unqualified name for the destructor.
-      using string_type = std::string;
-      copy_.~string_type();
+  // Returns true if ctsp's value refers to its internal copy_ member.
+  bool IsSelfReferential() const { return value_.data() == copy_.data(); }
+
+  void StealMembers(ConvertibleToStringView&& other) {
+    if (other.IsSelfReferential()) {
+      copy_ = std::move(other.copy_);
+      value_ = copy_;
+      other.value_ = other.copy_;
+    } else {
+      value_ = other.value_;
     }
   }
-  struct Unused {  // MSVC disallows unions with only 1 member.
-  };
+
   // Holds the data moved from temporary std::string arguments. Declared first
   // so that 'value' can refer to 'copy_'.
-  union {
-    std::string copy_;
-    Unused unused_;
-  };
-
+  std::string copy_;
   absl::string_view value_;
-  // true if value_ refers to the internal copy_ member.
-  bool self_referential_ = false;
 };
 
 // An iterator that enumerates the parts of a string from a Splitter. The text
