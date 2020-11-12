@@ -104,7 +104,7 @@
 // Cacheline aligning objects properly allows constructive memory sharing and
 // prevents destructive (or "false") memory sharing.
 //
-// NOTE: this macro should be replaced with usage of `alignas()` using
+// NOTE: this macro should be replaced with
 // `std::hardware_constructive_interference_size` and/or
 // `std::hardware_destructive_interference_size` when available within C++17.
 //
@@ -138,10 +138,10 @@
 //    the generated machine code.
 // 3) Prefer applying this attribute to individual variables. Avoid
 //    applying it to types. This tends to localize the effect.
-#define ABSL_CACHELINE_ALIGNED __attribute__((aligned(ABSL_CACHELINE_SIZE)))
+#define ABSL_CACHELINE_ALIGNED alignas(ABSL_CACHELINE_SIZE)
 #elif defined(_MSC_VER)
 #define ABSL_CACHELINE_SIZE 64
-#define ABSL_CACHELINE_ALIGNED __declspec(align(ABSL_CACHELINE_SIZE))
+#define ABSL_CACHELINE_ALIGNED alignas(ABSL_CACHELINE_SIZE)
 #else
 #define ABSL_CACHELINE_SIZE 64
 #define ABSL_CACHELINE_ALIGNED
