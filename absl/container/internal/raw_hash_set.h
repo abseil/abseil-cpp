@@ -472,17 +472,7 @@ inline bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 //   DELETED -> EMPTY
 //   EMPTY -> EMPTY
 //   FULL -> DELETED
-inline void ConvertDeletedToEmptyAndFullToDeleted(
-    ctrl_t* ctrl, size_t capacity) {
-  assert(ctrl[capacity] == kSentinel);
-  assert(IsValidCapacity(capacity));
-  for (ctrl_t* pos = ctrl; pos != ctrl + capacity + 1; pos += Group::kWidth) {
-    Group{pos}.ConvertSpecialToEmptyAndFullToDeleted(pos);
-  }
-  // Copy the cloned ctrl bytes.
-  std::memcpy(ctrl + capacity + 1, ctrl, Group::kWidth);
-  ctrl[capacity] = kSentinel;
-}
+void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity);
 
 // Rounds up the capacity to the next power of 2 minus 1, with a minimum of 1.
 inline size_t NormalizeCapacity(size_t n) {
@@ -750,7 +740,6 @@ class raw_hash_set {
       : ctrl_(EmptyGroup()), settings_(0, hash, eq, alloc) {
     if (bucket_count) {
       capacity_ = NormalizeCapacity(bucket_count);
-      reset_growth_left();
       initialize_slots();
     }
   }
@@ -1278,7 +1267,12 @@ class raw_hash_set {
     }
   }
 
-  void reserve(size_t n) { rehash(GrowthToLowerboundCapacity(n)); }
+  void reserve(size_t n) {
+    size_t m = GrowthToLowerboundCapacity(n);
+    if (m > capacity_) {
+      resize(NormalizeCapacity(m));
+    }
+  }
 
   // Extension API: support for heterogeneous keys.
   //
