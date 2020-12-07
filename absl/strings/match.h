@@ -48,6 +48,10 @@ inline bool StrContains(absl::string_view haystack,
   return haystack.find(needle, 0) != haystack.npos;
 }
 
+inline bool StrContains(absl::string_view haystack, char needle) noexcept {
+  return haystack.find(needle) != haystack.npos;
+}
+
 // StartsWith()
 //
 // Returns whether a given string `text` begins with `prefix`.
