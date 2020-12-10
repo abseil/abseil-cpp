@@ -82,6 +82,7 @@
 #include "absl/strings/internal/string_constant.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "absl/types/variant.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
