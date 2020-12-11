@@ -1298,26 +1298,23 @@ void Cord::CopyToArraySlowPath(char* dst) const {
   }
 }
 
-Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
-  ABSL_HARDENING_ASSERT(bytes_remaining_ > 0 &&
-                        "Attempted to iterate past `end()`");
-  assert(bytes_remaining_ >= current_chunk_.size());
-  bytes_remaining_ -= current_chunk_.size();
-
-  if (stack_of_right_children_.empty()) {
+Cord::ChunkIterator& Cord::ChunkIterator::AdvanceStack() {
+  assert(absl::holds_alternative<Stack>(context_));
+  auto& stack_of_right_children = absl::get<Stack>(context_);
+  if (stack_of_right_children.empty()) {
     assert(!current_chunk_.empty());  // Called on invalid iterator.
     // We have reached the end of the Cord.
     return *this;
   }
 
   // Process the next node on the stack.
-  CordRep* node = stack_of_right_children_.back();
-  stack_of_right_children_.pop_back();
+  CordRep* node = stack_of_right_children.back();
+  stack_of_right_children.pop_back();
 
   // Walk down the left branches until we hit a non-CONCAT node. Save the
   // right children to the stack for subsequent traversal.
   while (node->tag == CONCAT) {
-    stack_of_right_children_.push_back(node->concat()->right);
+    stack_of_right_children.push_back(node->concat()->right);
     node = node->concat()->left;
   }
 
@@ -1360,6 +1357,8 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
     }
     return subcord;
   }
+  assert(absl::holds_alternative<Stack>(context_));
+  auto& stack_of_right_children = absl::get<Stack>(context_);
   if (n < current_chunk_.size()) {
     // Range to read is a proper subrange of the current chunk.
     assert(current_leaf_ != nullptr);
@@ -1388,13 +1387,13 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
   // Process the next node(s) on the stack, reading whole subtrees depending on
   // their length and how many bytes we are advancing.
   CordRep* node = nullptr;
-  while (!stack_of_right_children_.empty()) {
-    node = stack_of_right_children_.back();
-    stack_of_right_children_.pop_back();
+  while (!stack_of_right_children.empty()) {
+    node = stack_of_right_children.back();
+    stack_of_right_children.pop_back();
     if (node->length > n) break;
     // TODO(qrczak): This might unnecessarily recreate existing concat nodes.
     // Avoiding that would need pretty complicated logic (instead of
-    // current_leaf_, keep current_subtree_ which points to the highest node
+    // current_leaf, keep current_subtree_ which points to the highest node
     // such that the current leaf can be found on the path of left children
     // starting from current_subtree_; delay creating subnode while node is
     // below current_subtree_; find the proper node along the path of left
@@ -1419,7 +1418,7 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
   while (node->tag == CONCAT) {
     if (node->concat()->left->length > n) {
       // Push right, descend left.
-      stack_of_right_children_.push_back(node->concat()->right);
+      stack_of_right_children.push_back(node->concat()->right);
       node = node->concat()->left;
     } else {
       // Read left, descend right.
@@ -1462,12 +1461,20 @@ void Cord::ChunkIterator::AdvanceBytesSlowPath(size_t n) {
   n -= current_chunk_.size();
   bytes_remaining_ -= current_chunk_.size();
 
+  if (!absl::holds_alternative<Stack>(context_)) {
+    // We have reached the end of the Cord.
+    assert(bytes_remaining_ == 0);
+    return;
+  }
+
   // Process the next node(s) on the stack, skipping whole subtrees depending on
   // their length and how many bytes we are advancing.
   CordRep* node = nullptr;
-  while (!stack_of_right_children_.empty()) {
-    node = stack_of_right_children_.back();
-    stack_of_right_children_.pop_back();
+  assert(absl::holds_alternative<Stack>(context_));
+  auto& stack_of_right_children = absl::get<Stack>(context_);
+  while (!stack_of_right_children.empty()) {
+    node = stack_of_right_children.back();
+    stack_of_right_children.pop_back();
     if (node->length > n) break;
     n -= node->length;
     bytes_remaining_ -= node->length;
@@ -1485,7 +1492,7 @@ void Cord::ChunkIterator::AdvanceBytesSlowPath(size_t n) {
   while (node->tag == CONCAT) {
     if (node->concat()->left->length > n) {
       // Push right, descend left.
-      stack_of_right_children_.push_back(node->concat()->right);
+      stack_of_right_children.push_back(node->concat()->right);
       node = node->concat()->left;
     } else {
       // Skip left, descend right.

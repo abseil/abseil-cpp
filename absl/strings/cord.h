@@ -362,6 +362,8 @@ class Cord {
     friend class CharIterator;
 
    private:
+    using Stack = absl::InlinedVector<absl::cord_internal::CordRep*, 4>;
+
     // Constructs a `begin()` iterator from `cord`.
     explicit ChunkIterator(const Cord* cord);
 
@@ -370,6 +372,10 @@ class Cord {
     void RemoveChunkPrefix(size_t n);
     Cord AdvanceAndReadBytes(size_t n);
     void AdvanceBytes(size_t n);
+
+    // Stack specific operator++
+    ChunkIterator& AdvanceStack();
+
     // Iterates `n` bytes, where `n` is expected to be greater than or equal to
     // `current_chunk_.size()`.
     void AdvanceBytesSlowPath(size_t n);
@@ -383,8 +389,10 @@ class Cord {
     absl::cord_internal::CordRep* current_leaf_ = nullptr;
     // The number of bytes left in the `Cord` over which we are iterating.
     size_t bytes_remaining_ = 0;
-    absl::InlinedVector<absl::cord_internal::CordRep*, 4>
-        stack_of_right_children_;
+    // Context of this chunk iterator, can be one of:
+    // - monostate: iterator holds only one chunk or is empty.
+    // - Stack    : iterator holds a concat / substring tree
+    absl::variant<absl::monostate, Stack> context_;
   };
 
   // Cord::ChunkIterator::chunk_begin()
@@ -1100,11 +1108,27 @@ inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
     : bytes_remaining_(cord->size()) {
   if (cord->empty()) return;
   if (cord->contents_.is_tree()) {
-    stack_of_right_children_.push_back(cord->contents_.tree());
+    Stack& stack_of_right_children = context_.emplace<Stack>();
+    stack_of_right_children.push_back(cord->contents_.tree());
     operator++();
   } else {
     current_chunk_ = absl::string_view(cord->contents_.data(), cord->size());
   }
+}
+
+inline Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
+  ABSL_HARDENING_ASSERT(bytes_remaining_ > 0 &&
+                        "Attempted to iterate past `end()`");
+  assert(bytes_remaining_ >= current_chunk_.size());
+  bytes_remaining_ -= current_chunk_.size();
+  if (bytes_remaining_ > 0) {
+    if (absl::holds_alternative<Stack>(context_)) {
+      return AdvanceStack();
+    }
+  } else {
+    current_chunk_ = {};
+  }
+  return *this;
 }
 
 inline Cord::ChunkIterator Cord::ChunkIterator::operator++(int) {

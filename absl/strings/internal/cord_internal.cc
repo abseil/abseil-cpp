@@ -24,7 +24,10 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
-ABSL_CONST_INIT std::atomic<bool> cord_ring_buffer_enabled(false);
+ABSL_CONST_INIT std::atomic<bool> cord_ring_buffer_enabled(
+    kCordEnableRingBufferDefault);
+ABSL_CONST_INIT std::atomic<bool> shallow_subcords_enabled(
+    kCordShallowSubcordsDefault);
 
 void CordRep::Destroy(CordRep* rep) {
   assert(rep != nullptr);

@@ -31,10 +31,21 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
+// Default feature enable states for cord ring buffers
+enum CordFeatureDefaults {
+  kCordEnableRingBufferDefault = false,
+  kCordShallowSubcordsDefault = false
+};
+
 extern std::atomic<bool> cord_ring_buffer_enabled;
+extern std::atomic<bool> shallow_subcords_enabled;
 
 inline void enable_cord_ring_buffer(bool enable) {
   cord_ring_buffer_enabled.store(enable, std::memory_order_relaxed);
+}
+
+inline void enable_shallow_subcords(bool enable) {
+  shallow_subcords_enabled.store(enable, std::memory_order_relaxed);
 }
 
 enum Constants {

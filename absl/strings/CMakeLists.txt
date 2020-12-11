@@ -56,7 +56,7 @@ absl_cc_library(
   DEPS
     absl::strings_internal
     absl::base
-    absl::bits
+    absl::internal_bits
     absl::config
     absl::core_headers
     absl::endian
@@ -406,7 +406,7 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bits
+    absl::internal_bits
     absl::strings
     absl::config
     absl::core_headers
