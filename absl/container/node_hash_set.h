@@ -76,13 +76,13 @@ struct NodeHashSetPolicy;
 // Example:
 //
 //   // Create a node hash set of three strings
-//   absl::node_hash_map<std::string, std::string> ducks =
+//   absl::node_hash_set<std::string> ducks =
 //     {"huey", "dewey", "louie"};
 //
-//  // Insert a new element into the node hash map
-//  ducks.insert("donald"};
+//  // Insert a new element into the node hash set
+//  ducks.insert("donald");
 //
-//  // Force a rehash of the node hash map
+//  // Force a rehash of the node hash set
 //  ducks.rehash(0);
 //
 //  // See if "dewey" is present
