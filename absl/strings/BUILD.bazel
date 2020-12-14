@@ -311,7 +311,6 @@ cc_library(
         "//absl/functional:function_ref",
         "//absl/meta:type_traits",
         "//absl/types:optional",
-        "//absl/types:variant",
     ],
 )
 

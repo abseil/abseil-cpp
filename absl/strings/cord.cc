@@ -1299,8 +1299,7 @@ void Cord::CopyToArraySlowPath(char* dst) const {
 }
 
 Cord::ChunkIterator& Cord::ChunkIterator::AdvanceStack() {
-  assert(absl::holds_alternative<Stack>(context_));
-  auto& stack_of_right_children = absl::get<Stack>(context_);
+  auto& stack_of_right_children = stack_of_right_children_;
   if (stack_of_right_children.empty()) {
     assert(!current_chunk_.empty());  // Called on invalid iterator.
     // We have reached the end of the Cord.
@@ -1357,8 +1356,7 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
     }
     return subcord;
   }
-  assert(absl::holds_alternative<Stack>(context_));
-  auto& stack_of_right_children = absl::get<Stack>(context_);
+  auto& stack_of_right_children = stack_of_right_children_;
   if (n < current_chunk_.size()) {
     // Range to read is a proper subrange of the current chunk.
     assert(current_leaf_ != nullptr);
@@ -1461,7 +1459,7 @@ void Cord::ChunkIterator::AdvanceBytesSlowPath(size_t n) {
   n -= current_chunk_.size();
   bytes_remaining_ -= current_chunk_.size();
 
-  if (!absl::holds_alternative<Stack>(context_)) {
+  if (stack_of_right_children_.empty()) {
     // We have reached the end of the Cord.
     assert(bytes_remaining_ == 0);
     return;
@@ -1470,8 +1468,7 @@ void Cord::ChunkIterator::AdvanceBytesSlowPath(size_t n) {
   // Process the next node(s) on the stack, skipping whole subtrees depending on
   // their length and how many bytes we are advancing.
   CordRep* node = nullptr;
-  assert(absl::holds_alternative<Stack>(context_));
-  auto& stack_of_right_children = absl::get<Stack>(context_);
+  auto& stack_of_right_children = stack_of_right_children_;
   while (!stack_of_right_children.empty()) {
     node = stack_of_right_children.back();
     stack_of_right_children.pop_back();

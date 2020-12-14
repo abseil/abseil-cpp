@@ -82,7 +82,6 @@
 #include "absl/strings/internal/string_constant.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "absl/types/variant.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -362,7 +361,11 @@ class Cord {
     friend class CharIterator;
 
    private:
-    using Stack = absl::InlinedVector<absl::cord_internal::CordRep*, 4>;
+    // Stack of right children of concat nodes that we have to visit.
+    // Keep this at the end of the structure to avoid cache-thrashing.
+    // TODO(jgm): Benchmark to see if there's a more optimal value than 47 for
+    // the inlined vector size (47 exists for backward compatibility).
+    using Stack = absl::InlinedVector<absl::cord_internal::CordRep*, 47>;
 
     // Constructs a `begin()` iterator from `cord`.
     explicit ChunkIterator(const Cord* cord);
@@ -389,10 +392,8 @@ class Cord {
     absl::cord_internal::CordRep* current_leaf_ = nullptr;
     // The number of bytes left in the `Cord` over which we are iterating.
     size_t bytes_remaining_ = 0;
-    // Context of this chunk iterator, can be one of:
-    // - monostate: iterator holds only one chunk or is empty.
-    // - Stack    : iterator holds a concat / substring tree
-    absl::variant<absl::monostate, Stack> context_;
+    // See 'Stack' alias definition.
+    Stack stack_of_right_children_;
   };
 
   // Cord::ChunkIterator::chunk_begin()
@@ -1108,8 +1109,7 @@ inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
     : bytes_remaining_(cord->size()) {
   if (cord->empty()) return;
   if (cord->contents_.is_tree()) {
-    Stack& stack_of_right_children = context_.emplace<Stack>();
-    stack_of_right_children.push_back(cord->contents_.tree());
+    stack_of_right_children_.push_back(cord->contents_.tree());
     operator++();
   } else {
     current_chunk_ = absl::string_view(cord->contents_.data(), cord->size());
@@ -1122,9 +1122,7 @@ inline Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
   assert(bytes_remaining_ >= current_chunk_.size());
   bytes_remaining_ -= current_chunk_.size();
   if (bytes_remaining_ > 0) {
-    if (absl::holds_alternative<Stack>(context_)) {
-      return AdvanceStack();
-    }
+    return AdvanceStack();
   } else {
     current_chunk_ = {};
   }

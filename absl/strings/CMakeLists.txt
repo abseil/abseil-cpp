@@ -571,7 +571,6 @@ absl_cc_library(
     absl::function_ref
     absl::inlined_vector
     absl::optional
-    absl::variant
     absl::raw_logging_internal
     absl::strings
     absl::strings_internal
