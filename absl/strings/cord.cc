@@ -58,6 +58,7 @@ using ::absl::cord_internal::kMaxFlatLength;
 using ::absl::cord_internal::CONCAT;
 using ::absl::cord_internal::EXTERNAL;
 using ::absl::cord_internal::FLAT;
+using ::absl::cord_internal::RING;
 using ::absl::cord_internal::SUBSTRING;
 
 using ::absl::cord_internal::kInlinedVectorSize;
