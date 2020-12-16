@@ -37,7 +37,6 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/bits.h"
 #ifdef __SSE4_2__
 // TODO(jorg): Remove this when we figure out the right way
 // to swap bytes on SSE 4.2 that works with the compilers
@@ -48,6 +47,7 @@
 #endif
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
+#include "absl/numeric/bits.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 
@@ -240,7 +240,7 @@ inline size_t FastHexToBufferZeroPad16(uint64_t val, char* out) {
   }
 #endif
   // | 0x1 so that even 0 has 1 digit.
-  return 16 - absl::base_internal::CountLeadingZeros64(val | 0x1) / 4;
+  return 16 - countl_zero(val | 0x1) / 4;
 }
 
 }  // namespace numbers_internal

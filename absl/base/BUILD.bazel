@@ -587,31 +587,6 @@ cc_test(
 )
 
 cc_library(
-    name = "bits",
-    hdrs = ["internal/bits.h"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl:__subpackages__",
-    ],
-    deps = [
-        ":config",
-        ":core_headers",
-    ],
-)
-
-cc_test(
-    name = "bits_test",
-    size = "small",
-    srcs = ["internal/bits_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":bits",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "exponential_biased",
     srcs = ["internal/exponential_biased.cc"],
     hdrs = ["internal/exponential_biased.h"],

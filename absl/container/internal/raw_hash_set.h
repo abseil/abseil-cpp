@@ -102,7 +102,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/bits.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
@@ -116,6 +115,7 @@
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
+#include "absl/numeric/bits.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
@@ -190,17 +190,8 @@ constexpr bool IsNoThrowSwappable(std::false_type /* is_swappable */) {
 
 template <typename T>
 int TrailingZeros(T x) {
-  return sizeof(T) == 8 ? base_internal::CountTrailingZerosNonZero64(
-                              static_cast<uint64_t>(x))
-                        : base_internal::CountTrailingZerosNonZero32(
-                              static_cast<uint32_t>(x));
-}
-
-template <typename T>
-int LeadingZeros(T x) {
-  return sizeof(T) == 8
-             ? base_internal::CountLeadingZeros64(static_cast<uint64_t>(x))
-             : base_internal::CountLeadingZeros32(static_cast<uint32_t>(x));
+  ABSL_INTERNAL_ASSUME(x != 0);
+  return countr_zero(x);
 }
 
 // An abstraction over a bitmask. It provides an easy way to iterate through the
@@ -233,11 +224,7 @@ class BitMask {
   int LowestBitSet() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
-  int HighestBitSet() const {
-    return (sizeof(T) * CHAR_BIT - container_internal::LeadingZeros(mask_) -
-            1) >>
-           Shift;
-  }
+  int HighestBitSet() const { return (bit_width(mask_) - 1) >> Shift; }
 
   BitMask begin() const { return *this; }
   BitMask end() const { return BitMask(0); }
@@ -249,7 +236,7 @@ class BitMask {
   int LeadingZeros() const {
     constexpr int total_significant_bits = SignificantBits << Shift;
     constexpr int extra_bits = sizeof(T) * 8 - total_significant_bits;
-    return container_internal::LeadingZeros(mask_ << extra_bits) >> Shift;
+    return countl_zero(mask_ << extra_bits) >> Shift;
   }
 
  private:
@@ -380,8 +367,8 @@ struct GroupSse2Impl {
   // Returns the number of trailing empty or deleted elements in the group.
   uint32_t CountLeadingEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(kSentinel);
-    return TrailingZeros(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1);
+    return TrailingZeros(static_cast<uint32_t>(
+        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1));
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -476,7 +463,7 @@ void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity);
 
 // Rounds up the capacity to the next power of 2 minus 1, with a minimum of 1.
 inline size_t NormalizeCapacity(size_t n) {
-  return n ? ~size_t{} >> LeadingZeros(n) : 1;
+  return n ? ~size_t{} >> countl_zero(n) : 1;
 }
 
 // We use 7/8th as maximum load factor.
