@@ -189,7 +189,7 @@ constexpr bool IsNoThrowSwappable(std::false_type /* is_swappable */) {
 }
 
 template <typename T>
-int TrailingZeros(T x) {
+uint32_t TrailingZeros(T x) {
   ABSL_INTERNAL_ASSUME(x != 0);
   return countr_zero(x);
 }
@@ -221,19 +221,21 @@ class BitMask {
   }
   explicit operator bool() const { return mask_ != 0; }
   int operator*() const { return LowestBitSet(); }
-  int LowestBitSet() const {
+  uint32_t LowestBitSet() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
-  int HighestBitSet() const { return (bit_width(mask_) - 1) >> Shift; }
+  uint32_t HighestBitSet() const {
+    return static_cast<uint32_t>((bit_width(mask_) - 1) >> Shift);
+  }
 
   BitMask begin() const { return *this; }
   BitMask end() const { return BitMask(0); }
 
-  int TrailingZeros() const {
+  uint32_t TrailingZeros() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
 
-  int LeadingZeros() const {
+  uint32_t LeadingZeros() const {
     constexpr int total_significant_bits = SignificantBits << Shift;
     constexpr int extra_bits = sizeof(T) * 8 - total_significant_bits;
     return countl_zero(mask_ << extra_bits) >> Shift;
