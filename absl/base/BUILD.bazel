@@ -551,7 +551,9 @@ cc_test(
     srcs = ["internal/low_level_alloc_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    tags = ["no_test_ios_x86_64"],
+    tags = [
+        "no_test_ios_x86_64",
+    ],
     deps = [
         ":malloc_internal",
         "//absl/container:node_hash_map",
