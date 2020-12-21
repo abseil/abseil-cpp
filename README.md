@@ -80,7 +80,7 @@ Abseil contains the following C++ library components:
 * [`numeric`](absl/numeric/)
   <br /> The `numeric` library contains C++11-compatible 128-bit integers.
 * [`status`](absl/status/)
-  <br /> The `status` contains abstractions for error handling, specifically
+  <br /> The `status` library contains abstractions for error handling, specifically
   `absl::Status` and `absl::StatusOr<T>`.
 * [`strings`](absl/strings/)
   <br /> The `strings` library contains a variety of strings routines and
