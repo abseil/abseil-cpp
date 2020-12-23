@@ -1,4 +1,3 @@
-//
 // Copyright 2017 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -245,13 +244,6 @@ inline size_t FastHexToBufferZeroPad16(uint64_t val, char* out) {
 
 }  // namespace numbers_internal
 
-// SimpleAtoi()
-//
-// Converts a string to an integer, using `safe_strto?()` functions for actual
-// parsing, returning `true` if successful. The `safe_strto?()` functions apply
-// strict checking; the string must be a base-10 integer, optionally followed or
-// preceded by ASCII whitespace, with a value in the range of the corresponding
-// integer type.
 template <typename int_type>
 ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str, int_type* out) {
   return numbers_internal::safe_strtoi_base(str, out, 10);
