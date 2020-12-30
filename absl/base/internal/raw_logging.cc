@@ -76,10 +76,10 @@ namespace {
 // Explicitly `#error` out when not `ABSL_LOW_LEVEL_WRITE_SUPPORTED`, except for
 // a selected set of platforms for which we expect not to be able to raw log.
 
-ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES ABSL_DLL
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
     absl::base_internal::AtomicHook<LogPrefixHook>
         log_prefix_hook;
-ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES ABSL_DLL
+ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
     absl::base_internal::AtomicHook<AbortHook>
         abort_hook;
 
