@@ -26,6 +26,30 @@ config_setting(
 )
 
 config_setting(
+    name = "msvc_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "msvc-cl",
+    },
+    visibility = [":__subpackages__"],
+)
+
+config_setting(
+    name = "clang_cl_compiler",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang-cl",
+    },
+    visibility = [":__subpackages__"],
+)
+
+alias(
+    name = "msvc_compat_compiler",
+    actual = select({
+        ":clang_cl_compiler": ":clang_cl_compiler",
+        "//conditions:default": ":msvc_compiler",
+    })
+)
+
+config_setting(
     name = "osx",
     constraint_values = [
         "@bazel_tools//platforms:osx",
