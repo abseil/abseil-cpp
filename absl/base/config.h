@@ -379,6 +379,15 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_PTHREAD_GETSCHEDPARAM 1
 #endif
 
+// ABSL_HAVE_SCHED_GETCPU
+//
+// Checks whether sched_getcpu is available.
+#ifdef ABSL_HAVE_SCHED_GETCPU
+#error ABSL_HAVE_SCHED_GETCPU cannot be directly set
+#elif defined(__linux__)
+#define ABSL_HAVE_SCHED_GETCPU 1
+#endif
+
 // ABSL_HAVE_SCHED_YIELD
 //
 // Checks whether the platform implements sched_yield(2) as defined in

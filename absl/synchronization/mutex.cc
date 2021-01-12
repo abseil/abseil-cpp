@@ -1372,7 +1372,9 @@ static GraphId DeadlockCheck(Mutex *mu) {
           len += static_cast<int>(strlen(&b->buf[len]));
         }
       }
-      ABSL_RAW_LOG(ERROR, "Acquiring %p    Mutexes held: %s",
+      ABSL_RAW_LOG(ERROR,
+                   "Acquiring absl::Mutex %p while holding %s; a cycle in the "
+                   "historical lock ordering graph has been observed",
                    static_cast<void *>(mu), b->buf);
       ABSL_RAW_LOG(ERROR, "Cycle: ");
       int path_len = deadlock_graph->FindPath(
