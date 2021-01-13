@@ -1,7 +1,7 @@
 ---
 name: Question
 about: Have a question? Ask us anything! :-)
-title: ''
+title: 'delete'
 labels: 'question'
-assignees: ''
+assignees: 'my contact'
 ---
