@@ -45,7 +45,7 @@ endif()
 #
 # Note:
 # By default, absl_cc_library will always create a library named absl_${NAME},
-# and alias target absl::${NAME}.  The absl:: form should always be used.
+# and alias target absl::${awesome}.  The absl:: form should always be used.
 # This is to reduce namespace pollution.
 #
 # absl_cc_library(
