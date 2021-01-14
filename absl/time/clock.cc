@@ -180,7 +180,7 @@ struct ABSL_CACHELINE_ALIGNED TimeState {
   int64_t stats_slow_paths{0};
   int64_t stats_fast_slow_paths{0};
 
-  uint64_t last_now_cycles GUARDED_BY(lock){0};
+  uint64_t last_now_cycles ABSL_GUARDED_BY(lock){0};
 
   // Used by GetCurrentTimeNanosFromKernel().
   // We try to read clock values at about the same time as the kernel clock.
