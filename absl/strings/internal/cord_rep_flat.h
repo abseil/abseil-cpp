@@ -104,7 +104,8 @@ struct CordRepFlat : public CordRep {
   // Flat CordReps are allocated and constructed with raw ::operator new and
   // placement new, and must be destructed and deallocated accordingly.
   static void Delete(CordRep*rep) {
-    assert(rep->tag >= FLAT);
+    assert(rep->tag >= FLAT && rep->tag <= MAX_FLAT_TAG);
+
 #if defined(__cpp_sized_deallocation)
     size_t size = TagToAllocatedSize(rep->tag);
     rep->~CordRep();
@@ -115,6 +116,7 @@ struct CordRepFlat : public CordRep {
 #endif
   }
 
+  // Returns a pointer to the data inside this flat rep.
   char* Data() { return storage; }
   const char* Data() const { return storage; }
 

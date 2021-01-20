@@ -665,8 +665,6 @@ class Cord {
    public:
     static constexpr unsigned char kMaxInline = cord_internal::kMaxInline;
     static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
-    static constexpr unsigned char kTreeFlag = cord_internal::kTreeFlag;
-    static constexpr unsigned char kProfiledFlag = cord_internal::kProfiledFlag;
 
     constexpr InlineRep() : data_() {}
     InlineRep(const InlineRep& src);
@@ -685,6 +683,7 @@ class Cord {
     char* set_data(size_t n);  // Write data to the result
     // Returns nullptr if holding bytes
     absl::cord_internal::CordRep* tree() const;
+    absl::cord_internal::CordRep* as_tree() const;
     // Discards old pointer, if any
     void set_tree(absl::cord_internal::CordRep* rep);
     // Replaces a tree with a new root. This is faster than set_tree, but it
@@ -728,13 +727,13 @@ class Cord {
       memcpy(&(*dst)[0], &data_, sizeof(data_) - 1);
       // erase is faster than resize because the logic for memory allocation is
       // not needed.
-      dst->erase(tagged_size());
+      dst->erase(inline_size());
     }
 
     // Copies the inline contents into `dst`. Assumes the cord is not empty.
     void CopyToArray(char* dst) const;
 
-    bool is_tree() const { return tagged_size() > kMaxInline; }
+    bool is_tree() const { return data_.is_tree(); }
 
    private:
     friend class Cord;
@@ -745,14 +744,8 @@ class Cord {
 
     void ResetToEmpty() { data_ = {}; }
 
-    // This uses reinterpret_cast instead of the union to avoid accessing the
-    // inactive union element. The tagged size is not a common prefix.
-    void set_tagged_size(char new_tag) {
-      reinterpret_cast<char*>(&data_)[kMaxInline] = new_tag;
-    }
-    char tagged_size() const {
-      return reinterpret_cast<const char*>(&data_)[kMaxInline];
-    }
+    void set_inline_size(size_t size) { data_.set_inline_size(size); }
+    size_t inline_size() const { return data_.inline_size(); }
 
     cord_internal::InlineData data_;
   };
@@ -948,35 +941,39 @@ inline void Cord::InlineRep::Swap(Cord::InlineRep* rhs) {
 }
 
 inline const char* Cord::InlineRep::data() const {
-  return is_tree() ? nullptr : data_.as_chars;
+  return is_tree() ? nullptr : data_.as_chars();
+}
+
+inline absl::cord_internal::CordRep* Cord::InlineRep::as_tree() const {
+  assert(data_.is_tree());
+  return data_.as_tree();
 }
 
 inline absl::cord_internal::CordRep* Cord::InlineRep::tree() const {
   if (is_tree()) {
-    return data_.as_tree.rep;
+    return as_tree();
   } else {
     return nullptr;
   }
 }
 
-inline bool Cord::InlineRep::empty() const { return tagged_size() == 0; }
+inline bool Cord::InlineRep::empty() const { return data_.is_empty(); }
 
 inline size_t Cord::InlineRep::size() const {
-  const char tag = tagged_size();
-  if (tag <= kMaxInline) return tag;
-  return static_cast<size_t>(tree()->length);
+  return is_tree() ? as_tree()->length : inline_size();
 }
 
 inline void Cord::InlineRep::set_tree(absl::cord_internal::CordRep* rep) {
   if (rep == nullptr) {
     ResetToEmpty();
   } else {
-    bool was_tree = is_tree();
-    data_.as_tree = {rep, {}, tagged_size()};
-    if (!was_tree) {
-      // If we were not a tree already, set the tag.
-      // Otherwise, leave it alone because it might have the profile bit on.
-      set_tagged_size(kTreeFlag);
+    if (data_.is_tree()) {
+      // `data_` already holds a 'tree' value and an optional cordz_info value.
+      // Replace the tree value only, leaving the cordz_info value unchanged.
+      data_.set_tree(rep);
+    } else {
+      // `data_` contains inlined data: initialize data_ to tree value `rep`.
+      data_.make_tree(rep);
     }
   }
 }
@@ -987,7 +984,7 @@ inline void Cord::InlineRep::replace_tree(absl::cord_internal::CordRep* rep) {
     set_tree(rep);
     return;
   }
-  data_.as_tree = {rep, {}, tagged_size()};
+  data_.set_tree(rep);
 }
 
 inline absl::cord_internal::CordRep* Cord::InlineRep::clear() {
@@ -998,9 +995,9 @@ inline absl::cord_internal::CordRep* Cord::InlineRep::clear() {
 
 inline void Cord::InlineRep::CopyToArray(char* dst) const {
   assert(!is_tree());
-  size_t n = tagged_size();
+  size_t n = inline_size();
   assert(n != 0);
-  cord_internal::SmallMemmove(dst, data_.as_chars, n);
+  cord_internal::SmallMemmove(dst, data_.as_chars(), n);
 }
 
 constexpr inline Cord::Cord() noexcept {}
@@ -1011,11 +1008,9 @@ constexpr Cord::Cord(strings_internal::StringConstant<T>)
                         cord_internal::kMaxInline
                     ? cord_internal::InlineData(
                           strings_internal::StringConstant<T>::value)
-                    : cord_internal::InlineData(cord_internal::AsTree{
+                    : cord_internal::InlineData(
                           &cord_internal::ConstInitExternalStorage<
-                              strings_internal::StringConstant<T>>::value,
-                          {},
-                          cord_internal::kTreeFlag})) {}
+                              strings_internal::StringConstant<T>>::value)) {}
 
 inline Cord& Cord::operator=(const Cord& x) {
   contents_ = x.contents_;
@@ -1107,12 +1102,12 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
 
 inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
     : bytes_remaining_(cord->size()) {
-  if (cord->empty()) return;
   if (cord->contents_.is_tree()) {
-    stack_of_right_children_.push_back(cord->contents_.tree());
+    stack_of_right_children_.push_back(cord->contents_.as_tree());
     operator++();
   } else {
-    current_chunk_ = absl::string_view(cord->contents_.data(), cord->size());
+    current_chunk_ =
+        absl::string_view(cord->contents_.data(), bytes_remaining_);
   }
 }
 
