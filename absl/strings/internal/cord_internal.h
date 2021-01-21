@@ -203,10 +203,15 @@ struct CordRep {
   // platforms; we intentionally allow LLVM to ignore the attribute rather than
   // attempting to hardcode the list of supported platforms.
 #if defined(__clang__) && !defined(__i386__)
+#if !(defined(ABSL_HAVE_MEMORY_SANITIZER) ||  \
+      defined(ABSL_HAVE_THREAD_SANITIZER) ||  \
+      defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
+      defined(UNDEFINED_BEHAVIOR_SANITIZER))
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wattributes"
   __attribute__((preserve_most))
 #pragma clang diagnostic pop
+#endif  // *_SANITIZER
 #endif
   static void Destroy(CordRep* rep);
 

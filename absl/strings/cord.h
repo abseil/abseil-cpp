@@ -367,8 +367,14 @@ class Cord {
     // the inlined vector size (47 exists for backward compatibility).
     using Stack = absl::InlinedVector<absl::cord_internal::CordRep*, 47>;
 
+    // Constructs a `begin()` iterator from `tree`. `tree` must not be null.
+    explicit ChunkIterator(cord_internal::CordRep* tree);
+
     // Constructs a `begin()` iterator from `cord`.
     explicit ChunkIterator(const Cord* cord);
+
+    // Initializes this instance from a tree. Invoked by constructors.
+    void InitTree(cord_internal::CordRep* tree);
 
     // Removes `n` bytes from `current_chunk_`. Expects `n` to be smaller than
     // `current_chunk_.size()`.
@@ -1100,11 +1106,20 @@ inline bool Cord::StartsWith(absl::string_view rhs) const {
   return EqualsImpl(rhs, rhs_size);
 }
 
+inline void Cord::ChunkIterator::InitTree(cord_internal::CordRep* tree) {
+  stack_of_right_children_.push_back(tree);
+  operator++();
+}
+
+inline Cord::ChunkIterator::ChunkIterator(cord_internal::CordRep* tree)
+    : bytes_remaining_(tree->length) {
+  InitTree(tree);
+}
+
 inline Cord::ChunkIterator::ChunkIterator(const Cord* cord)
     : bytes_remaining_(cord->size()) {
   if (cord->contents_.is_tree()) {
-    stack_of_right_children_.push_back(cord->contents_.as_tree());
-    operator++();
+    InitTree(cord->contents_.as_tree());
   } else {
     current_chunk_ =
         absl::string_view(cord->contents_.data(), bytes_remaining_);
@@ -1155,6 +1170,7 @@ inline void Cord::ChunkIterator::RemoveChunkPrefix(size_t n) {
 }
 
 inline void Cord::ChunkIterator::AdvanceBytes(size_t n) {
+  assert(bytes_remaining_ >= n);
   if (ABSL_PREDICT_TRUE(n < current_chunk_.size())) {
     RemoveChunkPrefix(n);
   } else if (n != 0) {

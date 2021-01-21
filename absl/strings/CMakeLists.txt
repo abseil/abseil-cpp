@@ -560,6 +560,7 @@ absl_cc_library(
     "internal/cord_internal.h"
     "internal/cord_rep_ring.h"
     "internal/cord_rep_ring.cc"
+    "internal/cord_rep_ring_reader.h"
     "internal/cord_rep_flat.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -628,5 +629,20 @@ absl_cc_test(
     absl::base
     absl::core_headers
     absl::raw_logging_internal
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    cord_ring_reader_test
+  SRCS
+    "cord_ring_reader_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::cord
+    absl::strings
+    absl::base
+    absl::core_headers
     gmock_main
 )
