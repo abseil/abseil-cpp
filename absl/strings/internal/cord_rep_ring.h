@@ -563,6 +563,17 @@ inline CordRepRing::Position CordRepRing::FindTail(index_type head,
   return (offset == length) ? Position{tail_, 0} : FindTailSlow(head, offset);
 }
 
+// Now that CordRepRing is defined, we can define CordRep's helper casts:
+inline CordRepRing* CordRep::ring() {
+  assert(tag == RING);
+  return static_cast<CordRepRing*>(this);
+}
+
+inline const CordRepRing* CordRep::ring() const {
+  assert(tag == RING);
+  return static_cast<const CordRepRing*>(this);
+}
+
 std::ostream& operator<<(std::ostream& s, const CordRepRing& rep);
 
 #ifdef __clang__

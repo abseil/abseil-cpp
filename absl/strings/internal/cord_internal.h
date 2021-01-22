@@ -456,8 +456,14 @@ class InlineData {
   struct AsTree {
     explicit constexpr AsTree(absl::cord_internal::CordRep* tree)
         : rep(tree), cordz_info(kNullCordzInfo) {}
-    absl::cord_internal::CordRep* rep;
-    alignas(sizeof(cordz_info_t)) cordz_info_t cordz_info;
+    // This union uses up extra space so that whether rep is 32 or 64 bits,
+    // cordz_info will still start at the eighth byte, and the last
+    // byte of cordz_info will still be the last byte of InlineData.
+    union {
+      absl::cord_internal::CordRep* rep;
+      cordz_info_t unused_aligner;
+    };
+    cordz_info_t cordz_info;
   };
 
   char& tag() { return reinterpret_cast<char*>(this)[kMaxInline]; }
@@ -503,26 +509,6 @@ inline CordRepExternal* CordRep::external() {
 inline const CordRepExternal* CordRep::external() const {
   assert(tag == EXTERNAL);
   return static_cast<const CordRepExternal*>(this);
-}
-
-inline CordRepFlat* CordRep::flat() {
-  assert(tag >= FLAT && tag <= MAX_FLAT_TAG);
-  return reinterpret_cast<CordRepFlat*>(this);
-}
-
-inline const CordRepFlat* CordRep::flat() const {
-  assert(tag >= FLAT && tag <= MAX_FLAT_TAG);
-  return reinterpret_cast<const CordRepFlat*>(this);
-}
-
-inline CordRepRing* CordRep::ring() {
-  assert(tag == RING);
-  return reinterpret_cast<CordRepRing*>(this);
-}
-
-inline const CordRepRing* CordRep::ring() const {
-  assert(tag == RING);
-  return reinterpret_cast<const CordRepRing*>(this);
 }
 
 inline CordRep* CordRep::Ref(CordRep* rep) {

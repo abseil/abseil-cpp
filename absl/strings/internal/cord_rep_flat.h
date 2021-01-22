@@ -127,6 +127,17 @@ struct CordRepFlat : public CordRep {
   size_t AllocatedSize() const { return TagToAllocatedSize(tag); }
 };
 
+// Now that CordRepFlat is defined, we can define CordRep's helper casts:
+inline CordRepFlat* CordRep::flat() {
+  assert(tag >= FLAT && tag <= MAX_FLAT_TAG);
+  return reinterpret_cast<CordRepFlat*>(this);
+}
+
+inline const CordRepFlat* CordRep::flat() const {
+  assert(tag >= FLAT && tag <= MAX_FLAT_TAG);
+  return reinterpret_cast<const CordRepFlat*>(this);
+}
+
 }  // namespace cord_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
