@@ -36,7 +36,9 @@ namespace cord_internal {
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wshadow"
+#if __has_warning("-Wshadow-field")
 #pragma clang diagnostic ignored "-Wshadow-field"
+#endif
 #endif
 
 namespace {
