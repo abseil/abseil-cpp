@@ -27,8 +27,8 @@ namespace {
 using Tag = absl::cleanup_internal::Tag;
 
 template <typename Type1, typename Type2>
-void AssertSameType() {
-  static_assert(std::is_same<Type1, Type2>::value, "");
+constexpr bool IsSame() {
+  return (std::is_same<Type1, Type2>::value);
 }
 
 struct IdentityFactory {
@@ -88,27 +88,31 @@ template <typename>
 struct CleanupTest : public ::testing::Test {};
 TYPED_TEST_SUITE(CleanupTest, CleanupTestParams);
 
-bool function_pointer_called = false;
-void FunctionPointerFunction() { function_pointer_called = true; }
+bool fn_ptr_called = false;
+void FnPtrFunction() { fn_ptr_called = true; }
 
 TYPED_TEST(CleanupTest, FactoryProducesCorrectType) {
   {
     auto callback = TypeParam::AsCallback([] {});
     auto cleanup = absl::MakeCleanup(std::move(callback));
 
-    AssertSameType<absl::Cleanup<Tag, decltype(callback)>, decltype(cleanup)>();
+    static_assert(
+        IsSame<absl::Cleanup<Tag, decltype(callback)>, decltype(cleanup)>(),
+        "");
   }
 
   {
-    auto cleanup = absl::MakeCleanup(&FunctionPointerFunction);
+    auto cleanup = absl::MakeCleanup(&FnPtrFunction);
 
-    AssertSameType<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>();
+    static_assert(IsSame<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>(),
+                  "");
   }
 
   {
-    auto cleanup = absl::MakeCleanup(FunctionPointerFunction);
+    auto cleanup = absl::MakeCleanup(FnPtrFunction);
 
-    AssertSameType<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>();
+    static_assert(IsSame<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>(),
+                  "");
   }
 }
 
@@ -118,19 +122,23 @@ TYPED_TEST(CleanupTest, CTADProducesCorrectType) {
     auto callback = TypeParam::AsCallback([] {});
     absl::Cleanup cleanup = std::move(callback);
 
-    AssertSameType<absl::Cleanup<Tag, decltype(callback)>, decltype(cleanup)>();
+    static_assert(
+        IsSame<absl::Cleanup<Tag, decltype(callback)>, decltype(cleanup)>(),
+        "");
   }
 
   {
-    absl::Cleanup cleanup = &FunctionPointerFunction;
+    absl::Cleanup cleanup = &FnPtrFunction;
 
-    AssertSameType<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>();
+    static_assert(IsSame<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>(),
+                  "");
   }
 
   {
-    absl::Cleanup cleanup = FunctionPointerFunction;
+    absl::Cleanup cleanup = FnPtrFunction;
 
-    AssertSameType<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>();
+    static_assert(IsSame<absl::Cleanup<Tag, void (*)()>, decltype(cleanup)>(),
+                  "");
   }
 }
 
@@ -140,7 +148,8 @@ TYPED_TEST(CleanupTest, FactoryAndCTADProduceSameType) {
     auto factory_cleanup = absl::MakeCleanup(callback);
     absl::Cleanup deduction_cleanup = callback;
 
-    AssertSameType<decltype(factory_cleanup), decltype(deduction_cleanup)>();
+    static_assert(
+        IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 
   {
@@ -148,7 +157,8 @@ TYPED_TEST(CleanupTest, FactoryAndCTADProduceSameType) {
         absl::MakeCleanup(FunctorClassFactory::AsCallback([] {}));
     absl::Cleanup deduction_cleanup = FunctorClassFactory::AsCallback([] {});
 
-    AssertSameType<decltype(factory_cleanup), decltype(deduction_cleanup)>();
+    static_assert(
+        IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 
   {
@@ -156,21 +166,24 @@ TYPED_TEST(CleanupTest, FactoryAndCTADProduceSameType) {
         absl::MakeCleanup(StdFunctionFactory::AsCallback([] {}));
     absl::Cleanup deduction_cleanup = StdFunctionFactory::AsCallback([] {});
 
-    AssertSameType<decltype(factory_cleanup), decltype(deduction_cleanup)>();
+    static_assert(
+        IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 
   {
-    auto factory_cleanup = absl::MakeCleanup(&FunctionPointerFunction);
-    absl::Cleanup deduction_cleanup = &FunctionPointerFunction;
+    auto factory_cleanup = absl::MakeCleanup(&FnPtrFunction);
+    absl::Cleanup deduction_cleanup = &FnPtrFunction;
 
-    AssertSameType<decltype(factory_cleanup), decltype(deduction_cleanup)>();
+    static_assert(
+        IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 
   {
-    auto factory_cleanup = absl::MakeCleanup(FunctionPointerFunction);
-    absl::Cleanup deduction_cleanup = FunctionPointerFunction;
+    auto factory_cleanup = absl::MakeCleanup(FnPtrFunction);
+    absl::Cleanup deduction_cleanup = FnPtrFunction;
 
-    AssertSameType<decltype(factory_cleanup), decltype(deduction_cleanup)>();
+    static_assert(
+        IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 }
 #endif  // defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
@@ -179,62 +192,76 @@ TYPED_TEST(CleanupTest, BasicUsage) {
   bool called = false;
 
   {
-    EXPECT_FALSE(called);
-
     auto cleanup =
         absl::MakeCleanup(TypeParam::AsCallback([&called] { called = true; }));
-
-    EXPECT_FALSE(called);
+    EXPECT_FALSE(called);  // Constructor shouldn't invoke the callback
   }
 
-  EXPECT_TRUE(called);
+  EXPECT_TRUE(called);  // Destructor should invoke the callback
 }
 
 TYPED_TEST(CleanupTest, BasicUsageWithFunctionPointer) {
-  function_pointer_called = false;
+  fn_ptr_called = false;
 
   {
-    EXPECT_FALSE(function_pointer_called);
-
-    auto cleanup =
-        absl::MakeCleanup(TypeParam::AsCallback(&FunctionPointerFunction));
-
-    EXPECT_FALSE(function_pointer_called);
+    auto cleanup = absl::MakeCleanup(TypeParam::AsCallback(&FnPtrFunction));
+    EXPECT_FALSE(fn_ptr_called);  // Constructor shouldn't invoke the callback
   }
 
-  EXPECT_TRUE(function_pointer_called);
+  EXPECT_TRUE(fn_ptr_called);  // Destructor should invoke the callback
 }
 
 TYPED_TEST(CleanupTest, Cancel) {
   bool called = false;
 
   {
-    EXPECT_FALSE(called);
-
     auto cleanup =
         absl::MakeCleanup(TypeParam::AsCallback([&called] { called = true; }));
-    std::move(cleanup).Cancel();
+    EXPECT_FALSE(called);  // Constructor shouldn't invoke the callback
 
-    EXPECT_FALSE(called);
+    std::move(cleanup).Cancel();
+    EXPECT_FALSE(called);  // Cancel shouldn't invoke the callback
   }
 
-  EXPECT_FALSE(called);
+  EXPECT_FALSE(called);  // Destructor shouldn't invoke the callback
 }
 
 TYPED_TEST(CleanupTest, Invoke) {
   bool called = false;
 
   {
-    EXPECT_FALSE(called);
-
     auto cleanup =
         absl::MakeCleanup(TypeParam::AsCallback([&called] { called = true; }));
-    std::move(cleanup).Invoke();
+    EXPECT_FALSE(called);  // Constructor shouldn't invoke the callback
 
-    EXPECT_TRUE(called);
+    std::move(cleanup).Invoke();
+    EXPECT_TRUE(called);  // Invoke should invoke the callback
+
+    called = false;  // Reset tracker before destructor runs
   }
 
-  EXPECT_TRUE(called);
+  EXPECT_FALSE(called);  // Destructor shouldn't invoke the callback
+}
+
+TYPED_TEST(CleanupTest, Move) {
+  bool called = false;
+
+  {
+    auto moved_from_cleanup =
+        absl::MakeCleanup(TypeParam::AsCallback([&called] { called = true; }));
+    EXPECT_FALSE(called);  // Constructor shouldn't invoke the callback
+
+    {
+      auto moved_to_cleanup = std::move(moved_from_cleanup);
+      EXPECT_FALSE(called);  // Move shouldn't invoke the callback
+    }
+
+    EXPECT_TRUE(called);  // Destructor should invoke the callback
+
+    called = false;  // Reset tracker before destructor runs
+  }
+
+  EXPECT_FALSE(called);  // Destructor shouldn't invoke the callback
 }
 
 }  // namespace

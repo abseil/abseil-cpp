@@ -24,36 +24,36 @@
 // ```
 //   void CopyGoodData(const char* input_path, const char* output_path) {
 //     FILE* in_file = fopen(input_path, "r");
-//     FILE* out_file = fopen(output_path, "w");
-//     if (in_file == nullptr || out_file == nullptr) return;
+//     if (in_file == nullptr) return;
 //
 //     // C++17 style using class template argument deduction
-//     absl::Cleanup in_closer = [&in_file] { fclose(in_file); };
+//     absl::Cleanup in_closer = [in_file] { fclose(in_file); };
+//
+//     FILE* out_file = fopen(output_path, "w");
+//     if (out_file == nullptr) return;  // `in_closer` will run
 //
 //     // C++11 style using the factory function
-//     auto out_closer = absl::MakeCleanup([&out_file] { fclose(out_file); });
-//
-//     // `fclose` will be called on all exit paths by the cleanup instances
+//     auto out_closer = absl::MakeCleanup([out_file] { fclose(out_file); });
 //
 //     Data data;
 //     while (ReadData(in_file, &data)) {
 //       if (data.IsBad()) {
 //         LOG(ERROR) << "Found bad data.";
-//         return;  // `in_closer` and `out_closer` will call their callbacks
+//         return;  // `in_closer` and `out_closer` will run
 //       }
 //       SaveData(out_file, &data);
 //     }
-//     return;  // `in_closer` and `out_closer` will call their callbacks
+//
+//     // `in_closer` and `out_closer` will run
 //   }
 // ```
 //
+// Methods:
+//
+// `std::move(cleanup).Cancel()` will prevent the callback from executing.
+//
 // `std::move(cleanup).Invoke()` will execute the callback early, before
 // destruction, and prevent the callback from executing in the destructor.
-//
-// Alternatively, `std::move(cleanup).Cancel()` will prevent the callback from
-// ever executing at all.
-//
-// Once a cleanup object has been `std::move(...)`-ed, it may not be used again.
 
 #ifndef ABSL_CLEANUP_CLEANUP_H_
 #define ABSL_CLEANUP_CLEANUP_H_
@@ -101,6 +101,14 @@ class ABSL_MUST_USE_RESULT Cleanup {
   cleanup_internal::Storage<Callback> storage_;
 };
 
+// `absl::Cleanup c = /* callback */;`
+//
+// C++17 type deduction API for creating an instance of `absl::Cleanup`.
+#if defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
+template <typename Callback>
+Cleanup(Callback callback) -> Cleanup<cleanup_internal::Tag, Callback>;
+#endif  // defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
+
 // `auto c = absl::MakeCleanup(/* callback */);`
 //
 // C++11 type deduction API for creating an instance of `absl::Cleanup`.
@@ -114,14 +122,6 @@ absl::Cleanup<cleanup_internal::Tag, Callback> MakeCleanup(Callback callback) {
 
   return {std::move(callback)};
 }
-
-// `absl::Cleanup c = /* callback */;`
-//
-// C++17 type deduction API for creating an instance of `absl::Cleanup`.
-#if defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
-template <typename Callback>
-Cleanup(Callback callback) -> Cleanup<cleanup_internal::Tag, Callback>;
-#endif  // defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
 
 ABSL_NAMESPACE_END
 }  // namespace absl

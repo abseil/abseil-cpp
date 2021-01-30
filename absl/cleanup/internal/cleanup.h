@@ -43,6 +43,8 @@ constexpr bool ReturnsVoid() {
 template <typename Callback>
 class Storage {
  public:
+  Storage() = delete;
+
   explicit Storage(Callback callback)
       : engaged_(true), callback_(std::move(callback)) {}
 
