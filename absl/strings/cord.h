@@ -289,7 +289,7 @@ class Cord {
   bool StartsWith(const Cord& rhs) const;
   bool StartsWith(absl::string_view rhs) const;
 
-  // Cord::EndsWidth()
+  // Cord::EndsWith()
   //
   // Determines whether the Cord ends with the passed string data `rhs`.
   bool EndsWith(absl::string_view rhs) const;

@@ -45,12 +45,12 @@ class Storage {
  public:
   Storage() = delete;
 
-  explicit Storage(Callback callback)
-      : engaged_(true), callback_(std::move(callback)) {}
+  Storage(Callback callback, bool engaged)
+      : callback_(std::move(callback)), engaged_(engaged) {}
 
   Storage(Storage&& other)
-      : engaged_(absl::exchange(other.engaged_, false)),
-        callback_(std::move(other.callback_)) {}
+      : callback_(std::move(other.callback_)),
+        engaged_(absl::exchange(other.engaged_, false)) {}
 
   Storage(const Storage& other) = delete;
 
@@ -67,8 +67,8 @@ class Storage {
   }
 
  private:
-  bool engaged_;
   Callback callback_;
+  bool engaged_;
 };
 
 }  // namespace cleanup_internal
