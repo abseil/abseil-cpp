@@ -25,7 +25,7 @@
 //
 // Because a Cord consists of these chunks, data can be added to or removed from
 // a Cord during its lifetime. Chunks may also be shared between Cords. Unlike a
-// `std::string`, a Cord can therefore accomodate data that changes over its
+// `std::string`, a Cord can therefore accommodate data that changes over its
 // lifetime, though it's not quite "mutable"; it can change only in the
 // attachment, detachment, or rearrangement of chunks of its constituent data.
 //
