@@ -77,7 +77,8 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
     (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI32) ||                   \
     (defined(__PPC__) && !defined(__PPC64__)) ||                             \
     (defined(__riscv) && __riscv_xlen == 32) ||                              \
-    (defined(__s390__) && !defined(__s390x__))
+    (defined(__s390__) && !defined(__s390x__)) ||                            \
+    (defined(__sparc__) && !defined(__arch64__))
   // On these architectures, implement mmap with mmap2.
   static int pagesize = 0;
   if (pagesize == 0) {
