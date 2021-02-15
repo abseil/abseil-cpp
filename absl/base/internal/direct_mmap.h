@@ -74,6 +74,7 @@ namespace base_internal {
 inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
                         off64_t offset) noexcept {
 #if defined(__i386__) || defined(__ARM_ARCH_3__) || defined(__ARM_EABI__) || \
+    defined(__m68k__) ||                                                     \
     (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI32) ||                   \
     (defined(__PPC__) && !defined(__PPC64__)) ||                             \
     (defined(__riscv) && __riscv_xlen == 32) ||                              \
