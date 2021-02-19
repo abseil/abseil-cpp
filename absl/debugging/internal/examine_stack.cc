@@ -51,6 +51,8 @@ void* GetProgramCounter(void* vuc) {
 #elif defined(__i386__)
     if (14 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs))
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[14]);
+#elif defined(__m68k__)
+    return reinterpret_cast<void*>(context->uc_mcontext.gregs[16]);
 #elif defined(__mips__)
     return reinterpret_cast<void*>(context->uc_mcontext.pc);
 #elif defined(__powerpc64__)
