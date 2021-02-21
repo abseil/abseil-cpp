@@ -50,6 +50,8 @@ void* GetProgramCounter(void* vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.sc_pc);
 #elif defined(__arm__)
     return reinterpret_cast<void*>(context->uc_mcontext.arm_pc);
+#elif defined(__hppa__)
+    return reinterpret_cast<void*>(context->uc_mcontext.sc_iaoq[0]);
 #elif defined(__i386__)
     if (14 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs))
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[14]);
