@@ -71,6 +71,8 @@ void* GetProgramCounter(void* vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr & 0x7fffffff);
 #elif defined(__s390__) && defined(__s390x__)
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr);
+#elif defined(__sh__)
+    return reinterpret_cast<void*>(context->uc_mcontext.pc);
 #elif defined(__sparc__) && !defined(__arch64__)
     return reinterpret_cast<void*>(context->uc_mcontext.gregs[19]);
 #elif defined(__sparc__) && defined(__arch64__)
