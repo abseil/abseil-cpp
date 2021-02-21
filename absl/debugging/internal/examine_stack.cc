@@ -46,6 +46,8 @@ void* GetProgramCounter(void* vuc) {
     ucontext_t* context = reinterpret_cast<ucontext_t*>(vuc);
 #if defined(__aarch64__)
     return reinterpret_cast<void*>(context->uc_mcontext.pc);
+#elif defined(__alpha__)
+    return reinterpret_cast<void*>(context->uc_mcontext.sc_pc);
 #elif defined(__arm__)
     return reinterpret_cast<void*>(context->uc_mcontext.arm_pc);
 #elif defined(__i386__)
