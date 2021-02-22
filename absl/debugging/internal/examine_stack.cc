@@ -46,11 +46,17 @@ void* GetProgramCounter(void* vuc) {
     ucontext_t* context = reinterpret_cast<ucontext_t*>(vuc);
 #if defined(__aarch64__)
     return reinterpret_cast<void*>(context->uc_mcontext.pc);
+#elif defined(__alpha__)
+    return reinterpret_cast<void*>(context->uc_mcontext.sc_pc);
 #elif defined(__arm__)
     return reinterpret_cast<void*>(context->uc_mcontext.arm_pc);
+#elif defined(__hppa__)
+    return reinterpret_cast<void*>(context->uc_mcontext.sc_iaoq[0]);
 #elif defined(__i386__)
     if (14 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs))
       return reinterpret_cast<void*>(context->uc_mcontext.gregs[14]);
+#elif defined(__ia64__)
+    return reinterpret_cast<void*>(context->uc_mcontext.sc_ip);
 #elif defined(__m68k__)
     return reinterpret_cast<void*>(context->uc_mcontext.gregs[16]);
 #elif defined(__mips__)
@@ -65,6 +71,8 @@ void* GetProgramCounter(void* vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr & 0x7fffffff);
 #elif defined(__s390__) && defined(__s390x__)
     return reinterpret_cast<void*>(context->uc_mcontext.psw.addr);
+#elif defined(__sh__)
+    return reinterpret_cast<void*>(context->uc_mcontext.pc);
 #elif defined(__sparc__) && !defined(__arch64__)
     return reinterpret_cast<void*>(context->uc_mcontext.gregs[19]);
 #elif defined(__sparc__) && defined(__arch64__)
