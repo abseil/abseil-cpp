@@ -24,7 +24,11 @@
 #define ABSL_STRINGS_NUMBERS_H_
 
 #ifdef __SSE4_2__
+#if defined(_WIN32) || defined(_WIN64)
+#include <intrin.h>
+#else
 #include <x86intrin.h>
+#endif
 #endif
 
 #include <cstddef>
