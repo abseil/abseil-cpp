@@ -597,7 +597,7 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   constexpr size_t AllocSize() const {
     static_assert(NumTypes == NumSizes, "You must specify sizes of all fields");
     return Offset<NumTypes - 1>() +
-           SizeOf<ElementType<NumTypes - 1>>::value * size_[NumTypes - 1];
+        SizeOf<ElementType<NumTypes - 1>>::value * size_[NumTypes - 1];
   }
 
   // If built with --config=asan, poisons padding bytes (if any) in the
