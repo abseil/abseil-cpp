@@ -1559,6 +1559,71 @@ TEST_F(CordRingTest, GetCharacterWithSubstring) {
   Unref(result);
 }
 
+TEST_F(CordRingTest, IsFlatSingleFlat) {
+  for (bool external : {false, true}) {
+    SCOPED_TRACE(external ? "With External" : "With Flat");
+    absl::string_view str = "Hello world";
+    CordRep* rep = external ? MakeExternal(str) : MakeFlat(str);
+    CordRepRing* ring = NeedsUnref(CordRepRing::Create(rep));
+
+    // The ring is a single non-fragmented flat:
+    absl::string_view fragment;
+    EXPECT_TRUE(ring->IsFlat(nullptr));
+    EXPECT_TRUE(ring->IsFlat(&fragment));
+    EXPECT_THAT(fragment, Eq("Hello world"));
+    fragment = "";
+    EXPECT_TRUE(ring->IsFlat(0, 11, nullptr));
+    EXPECT_TRUE(ring->IsFlat(0, 11, &fragment));
+    EXPECT_THAT(fragment, Eq("Hello world"));
+
+    // Arbitrary ranges must check true as well.
+    EXPECT_TRUE(ring->IsFlat(1, 4, &fragment));
+    EXPECT_THAT(fragment, Eq("ello"));
+    EXPECT_TRUE(ring->IsFlat(6, 5, &fragment));
+    EXPECT_THAT(fragment, Eq("world"));
+
+    Unref(ring);
+  }
+}
+
+TEST_F(CordRingTest, IsFlatMultiFlat) {
+  for (bool external : {false, true}) {
+    SCOPED_TRACE(external ? "With External" : "With Flat");
+    absl::string_view str1 = "Hello world";
+    absl::string_view str2 = "Halt and catch fire";
+    CordRep* rep1 = external ? MakeExternal(str1) : MakeFlat(str1);
+    CordRep* rep2 = external ? MakeExternal(str2) : MakeFlat(str2);
+    CordRepRing* ring = CordRepRing::Append(CordRepRing::Create(rep1), rep2);
+    NeedsUnref(ring);
+
+    // The ring is fragmented, IsFlat() on the entire cord must be false.
+    EXPECT_FALSE(ring->IsFlat(nullptr));
+    absl::string_view fragment = "Don't touch this";
+    EXPECT_FALSE(ring->IsFlat(&fragment));
+    EXPECT_THAT(fragment, Eq("Don't touch this"));
+
+    // Check for ranges exactly within both flats.
+    EXPECT_TRUE(ring->IsFlat(0, 11, &fragment));
+    EXPECT_THAT(fragment, Eq("Hello world"));
+    EXPECT_TRUE(ring->IsFlat(11, 19, &fragment));
+    EXPECT_THAT(fragment, Eq("Halt and catch fire"));
+
+    // Check for arbitrary partial range inside each flat.
+    EXPECT_TRUE(ring->IsFlat(1, 4, &fragment));
+    EXPECT_THAT(fragment, "ello");
+    EXPECT_TRUE(ring->IsFlat(26, 4, &fragment));
+    EXPECT_THAT(fragment, "fire");
+
+    // Check ranges spanning across both flats
+    fragment = "Don't touch this";
+    EXPECT_FALSE(ring->IsFlat(1, 18, &fragment));
+    EXPECT_FALSE(ring->IsFlat(10, 2, &fragment));
+    EXPECT_THAT(fragment, Eq("Don't touch this"));
+
+    Unref(ring);
+  }
+}
+
 TEST_F(CordRingTest, Dump) {
   std::stringstream ss;
   auto flats = MakeSpan(kFoxFlats);
