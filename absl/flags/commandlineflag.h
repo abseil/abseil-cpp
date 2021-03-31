@@ -153,7 +153,7 @@ class CommandLineFlag {
   bool ParseFrom(absl::string_view value, std::string* error);
 
  protected:
-  ~CommandLineFlag() = default;
+  virtual ~CommandLineFlag() = default;
 
  private:
   friend class flags_internal::PrivateHandleAccessor;
