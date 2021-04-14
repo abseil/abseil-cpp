@@ -552,24 +552,71 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    cord_internal
+  HDRS
+    "internal/cord_internal.h"
+    "internal/cord_rep_flat.h"
+    "internal/cord_rep_ring.h"
+    "internal/cord_rep_ring_reader.h"
+  SRCS
+    "internal/cord_internal.cc"
+    "internal/cord_rep_ring.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base_internal
+    absl::compressed_tuple
+    absl::config
+    absl::core_headers
+    absl::endian
+    absl::inlined_vector
+    absl::layout
+    absl::raw_logging_internal
+    absl::strings
+    absl::throw_delegate
+    absl::type_traits
+)
+
+absl_cc_library(
+  NAME
+    cordz_update_tracker
+  HDRS
+    "internal/cordz_update_tracker.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+)
+
+absl_cc_test(
+  NAME
+    cordz_update_tracker_test
+  SRCS
+    "internal/cordz_update_tracker_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::cordz_update_tracker
+    absl::core_headers
+    absl::synchronization
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     cord
   HDRS
     "cord.h"
   SRCS
     "cord.cc"
-    "internal/cord_internal.cc"
-    "internal/cord_internal.h"
-    "internal/cord_rep_ring.h"
-    "internal/cord_rep_ring.cc"
-    "internal/cord_rep_ring_reader.h"
-    "internal/cord_rep_flat.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
-    absl::base_internal
-    absl::compressed_tuple
     absl::config
+    absl::cord_internal
+    absl::cordz_update_tracker
     absl::core_headers
     absl::endian
     absl::fixed_array
@@ -578,8 +625,6 @@ absl_cc_library(
     absl::optional
     absl::raw_logging_internal
     absl::strings
-    absl::strings_internal
-    absl::throw_delegate
     absl::type_traits
   PUBLIC
 )
@@ -624,12 +669,12 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::config
-    absl::cord
-    absl::strings
     absl::base
+    absl::config
+    absl::cord_internal
     absl::core_headers
     absl::raw_logging_internal
+    absl::strings
     gmock_main
 )
 
@@ -641,9 +686,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::cord
-    absl::strings
     absl::base
+    absl::cord_internal
     absl::core_headers
+    absl::strings
     gmock_main
 )

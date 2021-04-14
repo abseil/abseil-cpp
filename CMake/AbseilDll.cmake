@@ -203,6 +203,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/cord_rep_ring.cc"
   "strings/internal/cord_rep_ring.h"
   "strings/internal/cord_rep_ring_reader.h"
+  "strings/internal/cordz_update_tracker.h"
   "strings/internal/charconv_bigint.cc"
   "strings/internal/charconv_bigint.h"
   "strings/internal/charconv_parse.cc"
