@@ -70,6 +70,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/macros.h"
@@ -80,6 +81,9 @@
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_ring.h"
 #include "absl/strings/internal/cord_rep_ring_reader.h"
+#include "absl/strings/internal/cordz_functions.h"
+#include "absl/strings/internal/cordz_info.h"
+#include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/string_constant.h"
 #include "absl/strings/string_view.h"
@@ -772,6 +776,20 @@ class Cord {
     // Resets the current cordz_info to null / empty.
     void clear_cordz_info() { data_.clear_cordz_info(); }
 
+    // Starts profiling this cord.
+    void StartProfiling();
+
+    // Starts profiling this cord which has been copied from `src`.
+    void StartProfiling(const Cord::InlineRep& src);
+
+    // Returns true if a Cord should be profiled and false otherwise.
+    static bool should_profile();
+
+    // Updates the cordz statistics. info may be nullptr if the CordzInfo object
+    // is unknown.
+    void UpdateCordzStatistics();
+    void UpdateCordzStatisticsSlow();
+
    private:
     friend class Cord;
 
@@ -943,6 +961,9 @@ inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src)
   if (is_tree()) {
     data_.clear_cordz_info();
     absl::cord_internal::CordRep::Ref(as_tree());
+    if (ABSL_PREDICT_FALSE(should_profile())) {
+      StartProfiling(src);
+    }
   }
 }
 
@@ -1004,6 +1025,9 @@ inline size_t Cord::InlineRep::size() const {
 
 inline void Cord::InlineRep::set_tree(absl::cord_internal::CordRep* rep) {
   if (rep == nullptr) {
+    if (ABSL_PREDICT_FALSE(is_profiled())) {
+      absl::cord_internal::CordzInfo::UntrackCord(cordz_info());
+    }
     ResetToEmpty();
   } else {
     if (data_.is_tree()) {
@@ -1013,7 +1037,11 @@ inline void Cord::InlineRep::set_tree(absl::cord_internal::CordRep* rep) {
     } else {
       // `data_` contains inlined data: initialize data_ to tree value `rep`.
       data_.make_tree(rep);
+      if (ABSL_PREDICT_FALSE(should_profile())) {
+        StartProfiling();
+      }
     }
+    UpdateCordzStatistics();
   }
 }
 
@@ -1024,9 +1052,13 @@ inline void Cord::InlineRep::replace_tree(absl::cord_internal::CordRep* rep) {
     return;
   }
   data_.set_tree(rep);
+  UpdateCordzStatistics();
 }
 
 inline absl::cord_internal::CordRep* Cord::InlineRep::clear() {
+  if (ABSL_PREDICT_FALSE(is_profiled())) {
+    absl::cord_internal::CordzInfo::UntrackCord(cordz_info());
+  }
   absl::cord_internal::CordRep* result = tree();
   ResetToEmpty();
   return result;
@@ -1037,6 +1069,15 @@ inline void Cord::InlineRep::CopyToArray(char* dst) const {
   size_t n = inline_size();
   assert(n != 0);
   cord_internal::SmallMemmove(dst, data_.as_chars(), n);
+}
+
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE bool Cord::InlineRep::should_profile() {
+  return absl::cord_internal::cordz_should_profile();
+}
+
+inline void Cord::InlineRep::UpdateCordzStatistics() {
+  if (ABSL_PREDICT_TRUE(!is_profiled())) return;
+  UpdateCordzStatisticsSlow();
 }
 
 constexpr inline Cord::Cord() noexcept {}

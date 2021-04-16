@@ -259,7 +259,7 @@ absl_cc_test(
 absl_cc_test(
   NAME
     str_join_test
-  SRCS
+ss  SRCS
     "str_join_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
@@ -605,6 +605,152 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    cordz_functions
+  HDRS
+    "internal/cordz_functions.h"
+  SRCS
+    "internal/cordz_functions.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::exponential_biased
+    absl::raw_logging_internal
+)
+
+absl_cc_test(
+  NAME
+    cordz_functions_test
+  SRCS
+    "internal/cordz_functions_test.cc"
+  DEPS
+    absl::config
+    absl::cord_test_helpers
+    absl::cordz_functions
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
+    cordz_statistics
+  HDRS
+    "internal/cordz_statistics.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::synchronization
+)
+
+absl_cc_library(
+  NAME
+    cordz_handle
+  HDRS
+    "internal/cordz_handle.h"
+  SRCS
+    "internal/cordz_handle.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::synchronization
+)
+
+absl_cc_test(
+  NAME
+    cordz_handle_test
+  SRCS
+    "internal/cordz_handle_test.cc"
+  DEPS
+    absl::config
+    absl::cord_test_helpers
+    absl::cordz_handle
+    absl::memory
+    absl::random_random
+    absl::random_distributions
+    absl::synchronization
+    absl::time
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
+    cordz_info
+  HDRS
+    "internal/cordz_info.h"
+  SRCS
+    "internal/cordz_info.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cordz_handle
+    absl::cordz_statistics
+    absl::core_headers
+    absl::span
+    absl::stacktrace
+    absl::synchronization
+)
+
+absl_cc_test(
+  NAME
+    cordz_info_test
+  SRCS
+    "internal/cordz_info_test.cc"
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cord_test_helpers
+    absl::cordz_handle
+    absl::cordz_info
+    absl::span
+    absl::stacktrace
+    absl::symbolize
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
+    cordz_sample_token
+  HDRS
+    "internal/cordz_sample_token.h"
+  SRCS
+    "internal/cordz_sample_token.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::cordz_handle
+    absl::cordz_info
+)
+
+absl_cc_test(
+  NAME
+    cordz_sample_token_test
+  SRCS
+    "internal/cordz_sample_token_test.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cordz_handle
+    absl::cordz_info
+    absl::cordz_info
+    absl::cordz_sample_token
+    absl::memory
+    absl::random_random
+    absl::synchronization
+    absl::thread_pool
+    absl::time
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     cord
   HDRS
     "cord.h"
@@ -616,6 +762,8 @@ absl_cc_library(
     absl::base
     absl::config
     absl::cord_internal
+    absl::cordz_functions
+    absl::cordz_info
     absl::cordz_update_tracker
     absl::core_headers
     absl::endian

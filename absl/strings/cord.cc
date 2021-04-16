@@ -38,6 +38,7 @@
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cord_rep_ring.h"
+#include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -426,6 +427,7 @@ void Cord::InlineRep::GetAppendRegion(char** region, size_t* size,
   CordRep* root = force_tree(max_length);
 
   if (PrepareAppendRegion(root, region, size, max_length)) {
+    UpdateCordzStatistics();
     return;
   }
 
@@ -460,6 +462,7 @@ void Cord::InlineRep::GetAppendRegion(char** region, size_t* size) {
   CordRep* root = force_tree(max_length);
 
   if (PrepareAppendRegion(root, region, size, max_length)) {
+    UpdateCordzStatistics();
     return;
   }
 
@@ -490,6 +493,27 @@ static bool RepMemoryUsageLeaf(const CordRep* rep, size_t* total_mem_usage) {
   return false;
 }
 
+void Cord::InlineRep::StartProfiling() {
+  CordRep* tree = as_tree();
+  auto* cordz_info = absl::cord_internal::CordzInfo::TrackCord(tree);
+  set_cordz_info(cordz_info);
+  cordz_info->RecordMetrics(size());
+}
+
+void Cord::InlineRep::StartProfiling(const Cord::InlineRep& src) {
+  CordRep* tree = as_tree();
+  absl::cord_internal::CordzInfo* parent =
+      src.is_profiled() ? src.cordz_info() : nullptr;
+  auto* cordz_info = absl::cord_internal::CordzInfo::TrackCord(tree, parent);
+  set_cordz_info(cordz_info);
+  cordz_info->RecordMetrics(size());
+}
+
+void Cord::InlineRep::UpdateCordzStatisticsSlow() {
+  CordRep* tree = as_tree();
+  data_.cordz_info()->RecordMetrics(tree->length);
+}
+
 void Cord::InlineRep::AssignSlow(const Cord::InlineRep& src) {
   UnrefTree();
 
@@ -497,11 +521,17 @@ void Cord::InlineRep::AssignSlow(const Cord::InlineRep& src) {
   if (is_tree()) {
     CordRep::Ref(tree());
     clear_cordz_info();
+    if (ABSL_PREDICT_FALSE(should_profile())) {
+      StartProfiling(src);
+    }
   }
 }
 
 void Cord::InlineRep::UnrefTree() {
   if (is_tree()) {
+    if (ABSL_PREDICT_FALSE(is_profiled())) {
+      absl::cord_internal::CordzInfo::UntrackCord(cordz_info());
+    }
     CordRep::Unref(tree());
   }
 }
@@ -552,6 +582,9 @@ template Cord::Cord(std::string&& src);
 // The destruction code is separate so that the compiler can determine
 // that it does not need to call the destructor on a moved-from Cord.
 void Cord::DestroyCordSlow() {
+  if (ABSL_PREDICT_FALSE(contents_.is_profiled())) {
+    absl::cord_internal::CordzInfo::UntrackCord(contents_.cordz_info());
+  }
   if (CordRep* tree = contents_.tree()) {
     CordRep::Unref(VerifyTree(tree));
   }
@@ -567,6 +600,10 @@ void Cord::Clear() {
 }
 
 Cord& Cord::operator=(absl::string_view src) {
+  if (ABSL_PREDICT_FALSE(contents_.is_profiled())) {
+    absl::cord_internal::CordzInfo::UntrackCord(contents_.cordz_info());
+    contents_.clear_cordz_info();
+  }
 
   const char* data = src.data();
   size_t length = src.size();
@@ -615,6 +652,7 @@ void Cord::InlineRep::AppendArray(const char* src_data, size_t src_size) {
     char* region;
     if (PrepareAppendRegion(root, &region, &appended, src_size)) {
       memcpy(region, src_data, appended);
+      UpdateCordzStatistics();
     }
   } else {
     // Try to fit in the inline buffer if possible.
