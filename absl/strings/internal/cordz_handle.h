@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
@@ -66,23 +67,42 @@ class CordzHandle {
   virtual ~CordzHandle();
 
  private:
-  // Returns true if the delete queue is empty. This method does not acquire the
-  // lock, but does a 'load acquire' observation on the delete queue tail. It
-  // is used inside Delete() to check for the presence of a delete queue without
-  // holding the lock. The assumption is that the caller is in the state of
-  // 'being deleted', and can not be newly discovered by a concurrent 'being
-  // constructed' snapshot instance. Practically, this means that any such
-  // discovery (`find`, 'first' or 'next', etc) must have proper 'happens before
-  // / after' semantics and atomic fences.
-  static bool UnsafeDeleteQueueEmpty() ABSL_NO_THREAD_SAFETY_ANALYSIS {
-    return dq_tail_.load(std::memory_order_acquire) == nullptr;
+  // Global queue data. CordzHandle stores a pointer to the global queue
+  // instance to harden against ODR violations.
+  struct Queue {
+    constexpr explicit Queue(absl::ConstInitType) : mutex(absl::kConstInit) {}
+
+    absl::Mutex mutex;
+    std::atomic<CordzHandle*> dq_tail ABSL_GUARDED_BY(mutex){nullptr};
+
+    // Returns true if this delete queue is empty. This method does not acquire
+    // the lock, but does a 'load acquire' observation on the delete queue tail.
+    // It is used inside Delete() to check for the presence of a delete queue
+    // without holding the lock. The assumption is that the caller is in the
+    // state of 'being deleted', and can not be newly discovered by a concurrent
+    // 'being constructed' snapshot instance. Practically, this means that any
+    // such discovery (`find`, 'first' or 'next', etc) must have proper 'happens
+    // before / after' semantics and atomic fences.
+    bool IsEmpty() const ABSL_NO_THREAD_SAFETY_ANALYSIS {
+      return dq_tail.load(std::memory_order_acquire) == nullptr;
+    }
+  };
+
+  void ODRCheck() const {
+#ifndef NDEBUG
+    ABSL_RAW_CHECK(queue_ == &global_queue_, "ODR violation in Cord");
+#endif
   }
 
+  ABSL_CONST_INIT static Queue global_queue_;
+  Queue* const queue_ = &global_queue_;
   const bool is_snapshot_;
-  static absl::Mutex mutex_;
-  static std::atomic<CordzHandle*> dq_tail_ ABSL_GUARDED_BY(mutex_);
-  CordzHandle* dq_prev_ ABSL_GUARDED_BY(mutex_) = nullptr;
-  CordzHandle* dq_next_ ABSL_GUARDED_BY(mutex_) = nullptr;
+
+  // dq_prev_ and dq_next_ require the global queue mutex to be held.
+  // Unfortunately we can't use thread annotations such that the thread safety
+  // analysis understands that queue_ and global_queue_ are one and the same.
+  CordzHandle* dq_prev_  = nullptr;
+  CordzHandle* dq_next_ = nullptr;
 };
 
 class CordzSnapshot : public CordzHandle {

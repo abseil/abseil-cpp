@@ -21,26 +21,26 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
-ABSL_CONST_INIT absl::Mutex CordzHandle::mutex_(absl::kConstInit);
-ABSL_CONST_INIT std::atomic<CordzHandle*> CordzHandle::dq_tail_{nullptr};
+ABSL_CONST_INIT CordzHandle::Queue CordzHandle::global_queue_(absl::kConstInit);
 
 CordzHandle::CordzHandle(bool is_snapshot) : is_snapshot_(is_snapshot) {
   if (is_snapshot) {
-    MutexLock lock(&mutex_);
-    CordzHandle* dq_tail = dq_tail_.load(std::memory_order_acquire);
+    MutexLock lock(&queue_->mutex);
+    CordzHandle* dq_tail = queue_->dq_tail.load(std::memory_order_acquire);
     if (dq_tail != nullptr) {
       dq_prev_ = dq_tail;
       dq_tail->dq_next_ = this;
     }
-    dq_tail_.store(this, std::memory_order_release);
+    queue_->dq_tail.store(this, std::memory_order_release);
   }
 }
 
 CordzHandle::~CordzHandle() {
+  ODRCheck();
   if (is_snapshot_) {
     std::vector<CordzHandle*> to_delete;
     {
-      absl::MutexLock lock(&mutex_);
+      absl::MutexLock lock(&queue_->mutex);
       CordzHandle* next = dq_next_;
       if (dq_prev_ == nullptr) {
         // We were head of the queue, delete every CordzHandle until we reach
@@ -56,7 +56,7 @@ CordzHandle::~CordzHandle() {
       if (next) {
         next->dq_prev_ = dq_prev_;
       } else {
-        dq_tail_.store(dq_prev_, std::memory_order_release);
+        queue_->dq_tail.store(dq_prev_, std::memory_order_release);
       }
     }
     for (CordzHandle* handle : to_delete) {
@@ -67,13 +67,15 @@ CordzHandle::~CordzHandle() {
 
 void CordzHandle::Delete(CordzHandle* handle) {
   if (handle) {
-    if (!handle->is_snapshot_ && !UnsafeDeleteQueueEmpty()) {
-      MutexLock lock(&mutex_);
-      CordzHandle* dq_tail = dq_tail_.load(std::memory_order_acquire);
+    handle->ODRCheck();
+    Queue* const queue = handle->queue_;
+    if (!handle->is_snapshot_ && !queue->IsEmpty()) {
+      MutexLock lock(&queue->mutex);
+      CordzHandle* dq_tail = queue->dq_tail.load(std::memory_order_acquire);
       if (dq_tail != nullptr) {
         handle->dq_prev_ = dq_tail;
         dq_tail->dq_next_ = handle;
-        dq_tail_.store(handle, std::memory_order_release);
+        queue->dq_tail.store(handle, std::memory_order_release);
         return;
       }
     }
@@ -83,8 +85,8 @@ void CordzHandle::Delete(CordzHandle* handle) {
 
 std::vector<const CordzHandle*> CordzHandle::DiagnosticsGetDeleteQueue() {
   std::vector<const CordzHandle*> handles;
-  MutexLock lock(&mutex_);
-  CordzHandle* dq_tail = dq_tail_.load(std::memory_order_acquire);
+  MutexLock lock(&global_queue_.mutex);
+  CordzHandle* dq_tail = global_queue_.dq_tail.load(std::memory_order_acquire);
   for (const CordzHandle* p = dq_tail; p; p = p->dq_prev_) {
     handles.push_back(p);
   }
@@ -93,12 +95,13 @@ std::vector<const CordzHandle*> CordzHandle::DiagnosticsGetDeleteQueue() {
 
 bool CordzHandle::DiagnosticsHandleIsSafeToInspect(
     const CordzHandle* handle) const {
+  ODRCheck();
   if (!is_snapshot_) return false;
   if (handle == nullptr) return true;
   if (handle->is_snapshot_) return false;
   bool snapshot_found = false;
-  MutexLock lock(&mutex_);
-  for (const CordzHandle* p = dq_tail_; p; p = p->dq_prev_) {
+  MutexLock lock(&queue_->mutex);
+  for (const CordzHandle* p = queue_->dq_tail; p; p = p->dq_prev_) {
     if (p == handle) return !snapshot_found;
     if (p == this) snapshot_found = true;
   }
@@ -108,12 +111,13 @@ bool CordzHandle::DiagnosticsHandleIsSafeToInspect(
 
 std::vector<const CordzHandle*>
 CordzHandle::DiagnosticsGetSafeToInspectDeletedHandles() {
+  ODRCheck();
   std::vector<const CordzHandle*> handles;
   if (!is_snapshot()) {
     return handles;
   }
 
-  MutexLock lock(&mutex_);
+  MutexLock lock(&queue_->mutex);
   for (const CordzHandle* p = dq_next_; p != nullptr; p = p->dq_next_) {
     if (!p->is_snapshot()) {
       handles.push_back(p);
