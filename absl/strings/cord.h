@@ -84,6 +84,7 @@
 #include "absl/strings/internal/cordz_functions.h"
 #include "absl/strings/internal/cordz_info.h"
 #include "absl/strings/internal/cordz_statistics.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/string_constant.h"
 #include "absl/strings/string_view.h"
@@ -668,6 +669,8 @@ class Cord {
   explicit constexpr Cord(strings_internal::StringConstant<T>);
 
  private:
+  using CordzUpdateTracker = cord_internal::CordzUpdateTracker;
+
   friend class CordTestPeer;
   friend bool operator==(const Cord& lhs, const Cord& rhs);
   friend bool operator==(const Cord& lhs, absl::string_view rhs);

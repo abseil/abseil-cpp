@@ -39,6 +39,7 @@
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cord_rep_ring.h"
 #include "absl/strings/internal/cordz_statistics.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -544,7 +545,10 @@ Cord::Cord(absl::string_view src) {
   if (n <= InlineRep::kMaxInline) {
     contents_.set_data(src.data(), n, false);
   } else {
-    contents_.set_tree(NewTree(src.data(), n, 0));
+    contents_.data_.make_tree(NewTree(src.data(), n, 0));
+    if (ABSL_PREDICT_FALSE(absl::cord_internal::cordz_should_profile())) {
+      contents_.StartProfiling();
+    }
   }
 }
 

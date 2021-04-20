@@ -19,6 +19,7 @@
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_statistics.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 
@@ -44,18 +45,15 @@ CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {
   return ci_next_unsafe();
 }
 
-CordzInfo* CordzInfo::TrackCord(CordRep* rep, const CordzInfo* src) {
-  CordzInfo* ci = new CordzInfo(rep);
-  if (src) {
-    ci->parent_stack_depth_ = src->stack_depth_;
-    memcpy(ci->parent_stack_, src->stack_, sizeof(void*) * src->stack_depth_);
-  }
+CordzInfo* CordzInfo::TrackCord(CordRep* rep, const CordzInfo* src,
+                                MethodIdentifier method) {
+  CordzInfo* ci = new CordzInfo(rep, src, method);
   ci->Track();
   return ci;
 }
 
-CordzInfo* CordzInfo::TrackCord(CordRep* rep) {
-  return TrackCord(rep, nullptr);
+CordzInfo* CordzInfo::TrackCord(CordRep* rep, MethodIdentifier method) {
+  return TrackCord(rep, nullptr, method);
 }
 
 void CordzInfo::UntrackCord(CordzInfo* cordz_info) {
@@ -66,12 +64,35 @@ void CordzInfo::UntrackCord(CordzInfo* cordz_info) {
   }
 }
 
-CordzInfo::CordzInfo(CordRep* rep)
+CordzInfo::MethodIdentifier CordzInfo::GetParentMethod(const CordzInfo* src) {
+  if (src == nullptr) return MethodIdentifier::kUnknown;
+  return src->parent_method_ != MethodIdentifier::kUnknown ? src->parent_method_
+                                                           : src->method_;
+}
+
+int CordzInfo::FillParentStack(const CordzInfo* src, void** stack) {
+  assert(stack);
+  if (src == nullptr) return 0;
+  if (src->parent_stack_depth_) {
+    memcpy(stack, src->parent_stack_, src->parent_stack_depth_ * sizeof(void*));
+    return src->parent_stack_depth_;
+  }
+  memcpy(stack, src->stack_, src->stack_depth_ * sizeof(void*));
+  return src->stack_depth_;
+}
+
+CordzInfo::CordzInfo(CordRep* rep, const CordzInfo* src,
+                     MethodIdentifier method)
     : rep_(rep),
       stack_depth_(absl::GetStackTrace(stack_, /*max_depth=*/kMaxStackDepth,
                                        /*skip_count=*/1)),
-      parent_stack_depth_(0),
-      create_time_(absl::Now()) {}
+      parent_stack_depth_(FillParentStack(src, parent_stack_)),
+      method_(method),
+      parent_method_(GetParentMethod(src)),
+      create_time_(absl::Now()),
+      size_(rep->length) {
+  update_tracker_.LossyAdd(method);
+}
 
 CordzInfo::~CordzInfo() {
   // `rep_` is potentially kept alive if CordzInfo is included
@@ -96,7 +117,7 @@ void CordzInfo::Untrack() {
   {
     // TODO(b/117940323): change this to assuming ownership instead once all
     // Cord logic is properly keeping `rep_` in sync with the Cord root rep.
-    absl::MutexLock lock(&mutex());
+    absl::MutexLock lock(&mutex_);
     rep_ = nullptr;
   }
 
@@ -120,9 +141,31 @@ void CordzInfo::Untrack() {
   }
 }
 
+void CordzInfo::Lock(MethodIdentifier method)
+    ABSL_EXCLUSIVE_LOCK_FUNCTION(mutex_) {
+  mutex_.Lock();
+  update_tracker_.LossyAdd(method);
+  assert(rep_);
+}
+
+void CordzInfo::Unlock() ABSL_UNLOCK_FUNCTION(mutex_) {
+  bool tracked = rep_ != nullptr;
+  if (rep_) {
+    size_.store(rep_->length);
+  }
+  mutex_.Unlock();
+  if (!tracked) {
+    Untrack();
+    CordzHandle::Delete(this);
+  }
+}
+
 void CordzInfo::SetCordRep(CordRep* rep) {
-  mutex().AssertHeld();
+  mutex_.AssertHeld();
   rep_ = rep;
+  if (rep) {
+    size_.store(rep->length);
+  }
 }
 
 absl::Span<void* const> CordzInfo::GetStack() const {
@@ -131,6 +174,15 @@ absl::Span<void* const> CordzInfo::GetStack() const {
 
 absl::Span<void* const> CordzInfo::GetParentStack() const {
   return absl::MakeConstSpan(parent_stack_, parent_stack_depth_);
+}
+
+CordzStatistics CordzInfo::GetCordzStatistics() const {
+  CordzStatistics stats;
+  stats.method = method_;
+  stats.parent_method = parent_method_;
+  stats.update_tracker = update_tracker_;
+  stats.size = size_.load(std::memory_order_relaxed);
+  return stats;
 }
 
 }  // namespace cord_internal

@@ -641,6 +641,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::cordz_update_tracker
     absl::synchronization
 )
 
@@ -690,6 +691,7 @@ absl_cc_library(
     absl::cord_internal
     absl::cordz_handle
     absl::cordz_statistics
+    absl::cordz_update_tracker
     absl::core_headers
     absl::span
     absl::stacktrace
@@ -707,6 +709,8 @@ absl_cc_test(
     absl::cord_test_helpers
     absl::cordz_handle
     absl::cordz_info
+    absl::cordz_statistics
+    absl::cordz_update_tracker
     absl::span
     absl::stacktrace
     absl::symbolize

@@ -368,6 +368,7 @@ cc_library(
         ":cord_internal",
         ":cordz_handle",
         ":cordz_statistics",
+        ":cordz_update_tracker",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/debugging:stacktrace",
@@ -406,6 +407,7 @@ cc_library(
     hdrs = ["internal/cordz_statistics.h"],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
+        ":cordz_update_tracker",
         "//absl/base:config",
     ],
 )
@@ -450,6 +452,8 @@ cc_test(
         ":cord_internal",
         ":cordz_handle",
         ":cordz_info",
+        ":cordz_statistics",
+        ":cordz_update_tracker",
         ":strings",
         "//absl/base:config",
         "//absl/debugging:stacktrace",

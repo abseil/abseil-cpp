@@ -36,13 +36,24 @@ using Methods = std::array<Method, Method::kNumMethods>;
 
 // Returns an array of all methods defined in `MethodIdentifier`
 Methods AllMethods() {
-  return Methods{Method::kAssignString,    Method::kAssignCord,
-                 Method::kMoveAssignCord,  Method::kAppendString,
-                 Method::kAppendCord,      Method::kMoveAppendCord,
-                 Method::kPrependString,   Method::kPrependCord,
-                 Method::kMovePrependCord, Method::kAppendExternalMemory,
-                 Method::kFlatten,         Method::kGetAppendRegion,
-                 Method::kRemovePrefix,    Method::kRemoveSuffic,
+  return Methods{Method::kUnknown,
+                 Method::kAppendCord,
+                 Method::kAppendExternalMemory,
+                 Method::kAppendString,
+                 Method::kAssignCord,
+                 Method::kAssignString,
+                 Method::kClear,
+                 Method::kConstructorCord,
+                 Method::kConstructorString,
+                 Method::kFlatten,
+                 Method::kGetAppendRegion,
+                 Method::kMoveAppendCord,
+                 Method::kMoveAssignCord,
+                 Method::kMovePrependCord,
+                 Method::kPrependCord,
+                 Method::kPrependString,
+                 Method::kRemovePrefix,
+                 Method::kRemoveSuffix,
                  Method::kSubCord};
 }
 

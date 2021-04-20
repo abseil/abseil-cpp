@@ -24,6 +24,7 @@
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_statistics.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 
@@ -42,13 +43,20 @@ namespace cord_internal {
 // the destructor of a CordzSampleToken object.
 class CordzInfo : public CordzHandle {
  public:
+  using MethodIdentifier = CordzUpdateTracker::MethodIdentifier;
+
   // All profiled Cords should be accompanied by a call to TrackCord.
   // TrackCord creates a CordzInfo instance which tracks important metrics of
   // the sampled cord. CordzInfo instances are placed in a global list which is
   // used to discover and snapshot all actively tracked cords.
   // Callers are responsible for calling UntrackCord() before the tracked Cord
   // instance is deleted, or to stop tracking the sampled Cord.
-  static CordzInfo* TrackCord(CordRep* rep);
+  // Callers are also responsible for guarding changes to `rep` through the
+  // Lock() and Unlock() calls, and calling SetCordRep() if the root of the
+  // sampled cord changes before the old root has been unreffed and/or deleted.
+  // `method` identifies the Cord method which initiated the cord to be sampled.
+  static CordzInfo* TrackCord(
+      CordRep* rep, MethodIdentifier method = MethodIdentifier::kUnknown);
 
   // Stops tracking changes for a sampled cord, and deletes the provided info.
   // This function must be called before the sampled cord instance is deleted,
@@ -58,10 +66,12 @@ class CordzInfo : public CordzHandle {
   static void UntrackCord(CordzInfo* cordz_info);
 
   // Identical to TrackCord(), except that this function fills the
-  // 'parent_stack' property of the returned CordzInfo instance from the
-  // provided `src` instance if `src` is not null.
+  // `parent_stack` and `parent_method` properties of the returned CordzInfo
+  // instance from the provided `src` instance if `src` is not null.
   // This function should be used for sampling 'copy constructed' cords.
-  static CordzInfo* TrackCord(CordRep* rep, const CordzInfo* src);
+  static CordzInfo* TrackCord(
+      CordRep* rep, const CordzInfo* src,
+      MethodIdentifier method = MethodIdentifier::kUnknown);
 
   CordzInfo() = delete;
   CordzInfo(const CordzInfo&) = delete;
@@ -73,17 +83,20 @@ class CordzInfo : public CordzHandle {
   // Retrieves the next oldest existing CordzInfo older than 'this' instance.
   CordzInfo* Next(const CordzSnapshot& snapshot) const;
 
-  // Returns a reference to the mutex guarding the `rep` property of this
-  // instance. CordzInfo instances hold a weak reference to the rep pointer of
-  // sampled cords, and rely on Cord logic to update the rep pointer when the
-  // underlying root tree or ring of the cord changes.
-  absl::Mutex& mutex() const { return mutex_; }
+  // Locks this instance for the update identified by `method`.
+  // Increases the count for `method` in `update_tracker`.
+  void Lock(MethodIdentifier method) ABSL_EXCLUSIVE_LOCK_FUNCTION(mutex_);
+
+  // Unlocks this instance. If the contained `rep` has been set to null
+  // indicating the Cord has been cleared or is otherwise no longer sampled,
+  // then this method will delete this CordzInfo instance.
+  void Unlock() ABSL_UNLOCK_FUNCTION(mutex_);
 
   // Updates the `rep' property of this instance. This methods is invoked by
   // Cord logic each time the root node of a sampled Cord changes, and before
   // the old root reference count is deleted. This guarantees that collection
   // code can always safely take a reference on the tracked cord.
-  // Requires `mutex()` to be held.
+  // Requires a lock to be held through the `Lock()` method.
   // TODO(b/117940323): annotate with ABSL_EXCLUSIVE_LOCKS_REQUIRED once all
   // Cord code is in a state where this can be proven true by the compiler.
   void SetCordRep(CordRep* rep);
@@ -106,15 +119,10 @@ class CordzInfo : public CordzHandle {
   // from, or being assigned the value of an existing (sampled) cord.
   absl::Span<void* const> GetParentStack() const;
 
-  // Retrieve the CordzStatistics associated with this Cord. The statistics are
-  // only updated when a Cord goes through a mutation, such as an Append or
-  // RemovePrefix. The refcounts can change due to external events, so the
-  // reported refcount stats might be incorrect.
-  CordzStatistics GetCordzStatistics() const {
-    CordzStatistics stats;
-    stats.size = size_.load(std::memory_order_relaxed);
-    return stats;
-  }
+  // Retrieves the CordzStatistics associated with this Cord. The statistics
+  // are only updated when a Cord goes through a mutation, such as an Append
+  // or RemovePrefix.
+  CordzStatistics GetCordzStatistics() const;
 
   // Records size metric for this CordzInfo instance.
   void RecordMetrics(int64_t size) {
@@ -124,8 +132,20 @@ class CordzInfo : public CordzHandle {
  private:
   static constexpr int kMaxStackDepth = 64;
 
-  explicit CordzInfo(CordRep* tree);
+  explicit CordzInfo(CordRep* rep, const CordzInfo* src,
+                     MethodIdentifier method);
   ~CordzInfo() override;
+
+  // Returns the parent method from `src`, which is either `parent_method_` or
+  // `method_` depending on `parent_method_` being kUnknown.
+  // Returns kUnknown if `src` is null.
+  static MethodIdentifier GetParentMethod(const CordzInfo* src);
+
+  // Fills the provided stack from `src`, copying either `parent_stack_` or
+  // `stack_` depending on `parent_stack_` being empty, returning the size of
+  // the parent stack.
+  // Returns 0 if `src` is null.
+  static int FillParentStack(const CordzInfo* src, void** stack);
 
   void Track();
   void Untrack();
@@ -149,12 +169,15 @@ class CordzInfo : public CordzHandle {
   std::atomic<CordzInfo*> ci_next_ ABSL_GUARDED_BY(ci_mutex_){nullptr};
 
   mutable absl::Mutex mutex_;
-  CordRep* rep_ ABSL_GUARDED_BY(mutex());
+  CordRep* rep_ ABSL_GUARDED_BY(mutex_);
 
   void* stack_[kMaxStackDepth];
   void* parent_stack_[kMaxStackDepth];
   const int stack_depth_;
-  int parent_stack_depth_;
+  const int parent_stack_depth_;
+  const MethodIdentifier method_;
+  const MethodIdentifier parent_method_;
+  CordzUpdateTracker update_tracker_;
   const absl::Time create_time_;
 
   // Last recorded size for the cord.

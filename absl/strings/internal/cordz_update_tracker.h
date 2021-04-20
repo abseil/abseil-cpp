@@ -38,20 +38,24 @@ class CordzUpdateTracker {
  public:
   // Tracked update methods.
   enum MethodIdentifier {
-    kAssignString,
-    kAssignCord,
-    kMoveAssignCord,
-    kAppendString,
+    kUnknown,
     kAppendCord,
-    kMoveAppendCord,
-    kPrependString,
-    kPrependCord,
-    kMovePrependCord,
     kAppendExternalMemory,
+    kAppendString,
+    kAssignCord,
+    kAssignString,
+    kClear,
+    kConstructorCord,
+    kConstructorString,
     kFlatten,
     kGetAppendRegion,
+    kMoveAppendCord,
+    kMoveAssignCord,
+    kMovePrependCord,
+    kPrependCord,
+    kPrependString,
     kRemovePrefix,
-    kRemoveSuffic,
+    kRemoveSuffix,
     kSubCord,
 
     // kNumMethods defines the number of entries: must be the last entry.

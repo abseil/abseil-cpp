@@ -18,6 +18,7 @@
 #include <cstdint>
 
 #include "absl/base/config.h"
+#include "absl/strings/internal/cordz_update_tracker.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -25,6 +26,8 @@ namespace cord_internal {
 
 // CordzStatistics captures some meta information about a Cord's shape.
 struct CordzStatistics {
+  using MethodIdentifier = CordzUpdateTracker::MethodIdentifier;
+
   // The size of the cord in bytes. This matches the result of Cord::size().
   int64_t size = 0;
 
@@ -46,6 +49,15 @@ struct CordzStatistics {
   // For ring buffer Cords, this includes the 'ring buffer' node.
   // A value of 0 implies the property has not been recorded.
   int64_t node_count = 0;
+
+  // The cord method responsible for sampling the cord.
+  MethodIdentifier method = MethodIdentifier::kUnknown;
+
+  // The cord method responsible for sampling the parent cord if applicable.
+  MethodIdentifier parent_method = MethodIdentifier::kUnknown;
+
+  // Update tracker tracking invocation count per cord method.
+  CordzUpdateTracker update_tracker;
 };
 
 }  // namespace cord_internal
