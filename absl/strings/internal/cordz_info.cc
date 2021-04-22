@@ -45,15 +45,22 @@ CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {
   return ci_next_unsafe();
 }
 
-CordzInfo* CordzInfo::TrackCord(CordRep* rep, const CordzInfo* src,
-                                MethodIdentifier method) {
-  CordzInfo* ci = new CordzInfo(rep, src, method);
-  ci->Track();
-  return ci;
+void CordzInfo::TrackCord(InlineData& cord, MethodIdentifier method) {
+  assert(cord.is_tree());
+  assert(!cord.is_profiled());
+  CordzInfo* cordz_info = new CordzInfo(cord.as_tree(), nullptr, method);
+  cord.set_cordz_info(cordz_info);
+  cordz_info->Track();
 }
 
-CordzInfo* CordzInfo::TrackCord(CordRep* rep, MethodIdentifier method) {
-  return TrackCord(rep, nullptr, method);
+void CordzInfo::TrackCord(InlineData& cord, const InlineData& src,
+                          MethodIdentifier method) {
+  assert(cord.is_tree());
+  assert(!cord.is_profiled());
+  auto* info = src.is_tree() && src.is_profiled() ? src.cordz_info() : nullptr;
+  CordzInfo* cordz_info = new CordzInfo(cord.as_tree(), info, method);
+  cord.set_cordz_info(cordz_info);
+  cordz_info->Track();
 }
 
 void CordzInfo::UntrackCord(CordzInfo* cordz_info) {
@@ -157,14 +164,6 @@ void CordzInfo::Unlock() ABSL_UNLOCK_FUNCTION(mutex_) {
   if (!tracked) {
     Untrack();
     CordzHandle::Delete(this);
-  }
-}
-
-void CordzInfo::SetCordRep(CordRep* rep) {
-  mutex_.AssertHeld();
-  rep_ = rep;
-  if (rep) {
-    size_.store(rep->length);
   }
 }
 

@@ -90,7 +90,14 @@ class CordzUpdateTracker {
   }
 
  private:
-  std::atomic<int64_t> values_[kNumMethods];
+  // Until C++20 std::atomic is not constexpr default-constructible, so we need
+  // a wrapper for this class to be constexpr constructible.
+  class Counter : public std::atomic<int64_t> {
+   public:
+    constexpr Counter() noexcept : std::atomic<int64_t>(0) {}
+  };
+
+  Counter values_[kNumMethods];
 };
 
 }  // namespace cord_internal

@@ -14,6 +14,10 @@
 
 #include "absl/strings/internal/cordz_sample_token.h"
 
+#include <memory>
+#include <type_traits>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
@@ -45,6 +49,16 @@ struct TestCordRep {
   }
   ~TestCordRep() { CordRepFlat::Delete(rep); }
 };
+
+struct TestCord {
+  TestCordRep rep;
+  InlineData data;
+
+  TestCord() { data.make_tree(rep.rep); }
+};
+
+// Used test values
+auto constexpr kTrackCordMethod = CordzUpdateTracker::kConstructorString;
 
 TEST(CordzSampleTokenTest, IteratorTraits) {
   static_assert(std::is_copy_constructible<CordzSampleToken::Iterator>::value,
@@ -83,12 +97,13 @@ TEST(CordzSampleTokenTest, IteratorEmpty) {
 }
 
 TEST(CordzSampleTokenTest, Iterator) {
-  TestCordRep rep1;
-  TestCordRep rep2;
-  TestCordRep rep3;
-  CordzInfo* info1 = CordzInfo::TrackCord(rep1.rep);
-  CordzInfo* info2 = CordzInfo::TrackCord(rep2.rep);
-  CordzInfo* info3 = CordzInfo::TrackCord(rep3.rep);
+  TestCord cord1, cord2, cord3;
+  CordzInfo::TrackCord(cord1.data, kTrackCordMethod);
+  CordzInfo* info1 = cord1.data.cordz_info();
+  CordzInfo::TrackCord(cord2.data, kTrackCordMethod);
+  CordzInfo* info2 = cord2.data.cordz_info();
+  CordzInfo::TrackCord(cord3.data, kTrackCordMethod);
+  CordzInfo* info3 = cord3.data.cordz_info();
 
   CordzSampleToken token;
   std::vector<const CordzInfo*> found;
@@ -104,22 +119,25 @@ TEST(CordzSampleTokenTest, Iterator) {
 }
 
 TEST(CordzSampleTokenTest, IteratorEquality) {
-  TestCordRep rep1;
-  TestCordRep rep2;
-  TestCordRep rep3;
-  CordzInfo* info1 = CordzInfo::TrackCord(rep1.rep);
+  TestCord cord1;
+  TestCord cord2;
+  TestCord cord3;
+  CordzInfo::TrackCord(cord1.data, kTrackCordMethod);
+  CordzInfo* info1 = cord1.data.cordz_info();
 
   CordzSampleToken token1;
   // lhs starts with the CordzInfo corresponding to cord1 at the head.
   CordzSampleToken::Iterator lhs = token1.begin();
 
-  CordzInfo* info2 = CordzInfo::TrackCord(rep2.rep);
+  CordzInfo::TrackCord(cord2.data, kTrackCordMethod);
+  CordzInfo* info2 = cord2.data.cordz_info();
 
   CordzSampleToken token2;
   // rhs starts with the CordzInfo corresponding to cord2 at the head.
   CordzSampleToken::Iterator rhs = token2.begin();
 
-  CordzInfo* info3 = CordzInfo::TrackCord(rep3.rep);
+  CordzInfo::TrackCord(cord3.data, kTrackCordMethod);
+  CordzInfo* info3 = cord3.data.cordz_info();
 
   // lhs is on cord1 while rhs is on cord2.
   EXPECT_THAT(lhs, Ne(rhs));
@@ -149,10 +167,8 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
   for (int i = 0; i < kNumThreads; ++i) {
     pool.Schedule([&stop]() {
       absl::BitGen gen;
-      TestCordRep reps[kNumCords];
-      CordzInfo* infos[kNumCords] = {nullptr};
-      std::vector<std::unique_ptr<CordzSampleToken>> tokens;
-      tokens.resize(kNumTokens);
+      TestCord cords[kNumCords];
+      std::unique_ptr<CordzSampleToken> tokens[kNumTokens];
 
       while (!stop.HasBeenNotified()) {
         // Randomly perform one of five actions:
@@ -163,36 +179,38 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
         //   5) Sample
         int index = absl::Uniform(gen, 0, kNumCords);
         if (absl::Bernoulli(gen, 0.5)) {
+          TestCord& cord = cords[index];
           // Track/untrack.
-          if (infos[index]) {
+          if (cord.data.is_profiled()) {
             // 1) Untrack
-            CordzInfo::UntrackCord(infos[index]);
-            infos[index] = nullptr;
+            CordzInfo::UntrackCord(cord.data.cordz_info());
+            cord.data.clear_cordz_info();;
           } else {
             // 2) Track
-            infos[index] = CordzInfo::TrackCord(reps[index].rep);
+            CordzInfo::TrackCord(cord.data, kTrackCordMethod);
           }
         } else {
-          if (tokens[index]) {
+          std::unique_ptr<CordzSampleToken>& token = tokens[index];
+          if (token) {
             if (absl::Bernoulli(gen, 0.5)) {
               // 3) Iterate over Cords visible to a token.
-              for (const CordzInfo& info : *tokens[index]) {
+              for (const CordzInfo& info : *token) {
                 // This is trivial work to allow us to compile the loop.
-                EXPECT_THAT(info.Next(*tokens[index]), Ne(&info));
+                EXPECT_THAT(info.Next(*token), Ne(&info));
               }
             } else {
               // 4) Unsample
-              tokens[index].reset();
+              token = nullptr;
             }
           } else {
             // 5) Sample
-            tokens[index] = absl::make_unique<CordzSampleToken>();
+            token = absl::make_unique<CordzSampleToken>();
           }
         }
       }
-      for (CordzInfo* info : infos) {
-        if (info != nullptr) {
-          CordzInfo::UntrackCord(info);
+      for (TestCord& cord : cords) {
+        if (cord.data.is_profiled()) {
+          CordzInfo::UntrackCord(cord.data.cordz_info());
         }
       }
     });

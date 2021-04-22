@@ -1,4 +1,4 @@
-// Copyright 2019 The Abseil Authors.
+// Copyright 2019 The Abseil Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +48,13 @@ struct TestCordRep {
   ~TestCordRep() { CordRepFlat::Delete(rep); }
 };
 
+struct TestCordData {
+  TestCordRep rep;
+  InlineData data;
+
+  TestCordData() { data.make_tree(rep.rep); }
+};
+
 // Used test values
 auto constexpr kUnknownMethod = CordzUpdateTracker::kUnknown;
 auto constexpr kTrackCordMethod = CordzUpdateTracker::kConstructorString;
@@ -72,18 +79,20 @@ std::string FormatStack(absl::Span<void* const> raw_stack) {
 }
 
 TEST(CordzInfoTest, TrackCord) {
-  TestCordRep rep;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
   ASSERT_THAT(info, Ne(nullptr));
   EXPECT_FALSE(info->is_snapshot());
   EXPECT_THAT(CordzInfo::Head(CordzSnapshot()), Eq(info));
-  EXPECT_THAT(info->GetCordRepForTesting(), Eq(rep.rep));
+  EXPECT_THAT(info->GetCordRepForTesting(), Eq(data.rep.rep));
   CordzInfo::UntrackCord(info);
 }
 
 TEST(CordzInfoTest, UntrackCord) {
-  TestCordRep rep;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
 
   CordzSnapshot snapshot;
   CordzInfo::UntrackCord(info);
@@ -93,21 +102,23 @@ TEST(CordzInfoTest, UntrackCord) {
 }
 
 TEST(CordzInfoTest, SetCordRep) {
-  TestCordRep rep;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
 
-  TestCordRep rep2;
+  TestCordRep rep;
   info->Lock(CordzUpdateTracker::kAppendCord);
-  info->SetCordRep(rep2.rep);
+  info->SetCordRep(rep.rep);
   info->Unlock();
-  EXPECT_THAT(info->GetCordRepForTesting(), Eq(rep2.rep));
+  EXPECT_THAT(info->GetCordRepForTesting(), Eq(rep.rep));
 
   CordzInfo::UntrackCord(info);
 }
 
 TEST(CordzInfoTest, SetCordRepNullUntracksCordOnUnlock) {
-  TestCordRep rep;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
 
   info->Lock(CordzUpdateTracker::kAppendString);
   info->SetCordRep(nullptr);
@@ -121,25 +132,29 @@ TEST(CordzInfoTest, SetCordRepNullUntracksCordOnUnlock) {
 #if GTEST_HAS_DEATH_TEST
 
 TEST(CordzInfoTest, SetCordRepRequiresMutex) {
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
   TestCordRep rep;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
-  TestCordRep rep2;
-  EXPECT_DEATH(info->SetCordRep(rep2.rep), ".*");
+  EXPECT_DEBUG_DEATH(info->SetCordRep(rep.rep), ".*");
   CordzInfo::UntrackCord(info);
 }
 
 #endif  // GTEST_HAS_DEATH_TEST
 
 TEST(CordzInfoTest, TrackUntrackHeadFirstV2) {
-  TestCordRep rep;
   CordzSnapshot snapshot;
   EXPECT_THAT(CordzInfo::Head(snapshot), Eq(nullptr));
 
-  CordzInfo* info1 = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info1 = data.data.cordz_info();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
 
-  CordzInfo* info2 = CordzInfo::TrackCord(rep.rep);
+  TestCordData data2;
+  CordzInfo::TrackCord(data2.data, kTrackCordMethod);
+  CordzInfo* info2 = data2.data.cordz_info();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info2));
   EXPECT_THAT(info2->Next(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
@@ -153,15 +168,18 @@ TEST(CordzInfoTest, TrackUntrackHeadFirstV2) {
 }
 
 TEST(CordzInfoTest, TrackUntrackTailFirstV2) {
-  TestCordRep rep;
   CordzSnapshot snapshot;
   EXPECT_THAT(CordzInfo::Head(snapshot), Eq(nullptr));
 
-  CordzInfo* info1 = CordzInfo::TrackCord(rep.rep);
+  TestCordData data;
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info1 = data.data.cordz_info();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
 
-  CordzInfo* info2 = CordzInfo::TrackCord(rep.rep);
+  TestCordData data2;
+  CordzInfo::TrackCord(data2.data, kTrackCordMethod);
+  CordzInfo* info2 = data2.data.cordz_info();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info2));
   EXPECT_THAT(info2->Next(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
@@ -175,7 +193,7 @@ TEST(CordzInfoTest, TrackUntrackTailFirstV2) {
 }
 
 TEST(CordzInfoTest, StackV2) {
-  TestCordRep rep;
+  TestCordData data;
   // kMaxStackDepth is intentionally less than 64 (which is the max depth that
   // Cordz will record) because if the actual stack depth is over 64
   // (which it is on Apple platforms) then the expected_stack will end up
@@ -186,7 +204,8 @@ TEST(CordzInfoTest, StackV2) {
   // makes small modifications to its testing stack. 50 is sufficient to prove
   // that we got a decent stack.
   static constexpr int kMaxStackDepth = 50;
-  CordzInfo* info = CordzInfo::TrackCord(rep.rep);
+  CordzInfo::TrackCord(data.data, kTrackCordMethod);
+  CordzInfo* info = data.data.cordz_info();
   std::vector<void*> local_stack;
   local_stack.resize(kMaxStackDepth);
   // In some environments we don't get stack traces. For example in Android
@@ -209,19 +228,21 @@ TEST(CordzInfoTest, StackV2) {
 }
 
 // Local helper functions to get different stacks for child and parent.
-CordzInfo* TrackChildCord(CordRep* rep, const CordzInfo* parent) {
-  return CordzInfo::TrackCord(rep, parent, kChildMethod);
+CordzInfo* TrackChildCord(InlineData& data, const InlineData& parent) {
+  CordzInfo::TrackCord(data, parent, kChildMethod);
+  return data.cordz_info();
 }
-CordzInfo* TrackParentCord(CordRep* rep) {
-  return CordzInfo::TrackCord(rep, kTrackCordMethod);
+CordzInfo* TrackParentCord(InlineData& data) {
+  CordzInfo::TrackCord(data, kTrackCordMethod);
+  return data.cordz_info();
 }
 
 TEST(CordzInfoTest, GetStatistics) {
-  TestCordRep rep;
-  CordzInfo* info = TrackParentCord(rep.rep);
+  TestCordData data;
+  CordzInfo* info = TrackParentCord(data.data);
 
   CordzStatistics statistics = info->GetCordzStatistics();
-  EXPECT_THAT(statistics.size, Eq(rep.rep->length));
+  EXPECT_THAT(statistics.size, Eq(data.rep.rep->length));
   EXPECT_THAT(statistics.method, Eq(kTrackCordMethod));
   EXPECT_THAT(statistics.parent_method, Eq(kUnknownMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kTrackCordMethod), Eq(1));
@@ -230,8 +251,8 @@ TEST(CordzInfoTest, GetStatistics) {
 }
 
 TEST(CordzInfoTest, LockCountsMethod) {
-  TestCordRep rep;
-  CordzInfo* info = TrackParentCord(rep.rep);
+  TestCordData data;
+  CordzInfo* info = TrackParentCord(data.data);
 
   info->Lock(kUpdateMethod);
   info->Unlock();
@@ -245,16 +266,17 @@ TEST(CordzInfoTest, LockCountsMethod) {
 }
 
 TEST(CordzInfoTest, FromParent) {
-  TestCordRep rep;
-  CordzInfo* info_parent = TrackParentCord(rep.rep);
-  CordzInfo* info_child = TrackChildCord(rep.rep, info_parent);
+  TestCordData parent;
+  TestCordData child;
+  CordzInfo* info_parent = TrackParentCord(parent.data);
+  CordzInfo* info_child = TrackChildCord(child.data, parent.data);
 
   std::string stack = FormatStack(info_parent->GetStack());
   std::string parent_stack = FormatStack(info_child->GetParentStack());
   EXPECT_THAT(stack, Eq(parent_stack));
 
   CordzStatistics statistics = info_child->GetCordzStatistics();
-  EXPECT_THAT(statistics.size, Eq(rep.rep->length));
+  EXPECT_THAT(statistics.size, Eq(child.rep.rep->length));
   EXPECT_THAT(statistics.method, Eq(kChildMethod));
   EXPECT_THAT(statistics.parent_method, Eq(kTrackCordMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kChildMethod), Eq(1));
@@ -263,12 +285,13 @@ TEST(CordzInfoTest, FromParent) {
   CordzInfo::UntrackCord(info_child);
 }
 
-TEST(CordzInfoTest, FromParentNullptr) {
-  TestCordRep rep;
-  CordzInfo* info = TrackChildCord(rep.rep, nullptr);
+TEST(CordzInfoTest, FromParentInlined) {
+  InlineData parent;
+  TestCordData child;
+  CordzInfo* info = TrackChildCord(child.data, parent);
   EXPECT_TRUE(info->GetParentStack().empty());
   CordzStatistics statistics = info->GetCordzStatistics();
-  EXPECT_THAT(statistics.size, Eq(rep.rep->length));
+  EXPECT_THAT(statistics.size, Eq(child.rep.rep->length));
   EXPECT_THAT(statistics.method, Eq(kChildMethod));
   EXPECT_THAT(statistics.parent_method, Eq(kUnknownMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kChildMethod), Eq(1));
@@ -276,8 +299,8 @@ TEST(CordzInfoTest, FromParentNullptr) {
 }
 
 TEST(CordzInfoTest, RecordMetrics) {
-  TestCordRep rep;
-  CordzInfo* info = TrackParentCord(rep.rep);
+  TestCordData data;
+  CordzInfo* info = TrackParentCord(data.data);
 
   CordzStatistics expected;
   expected.size = 100;

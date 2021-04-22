@@ -22,6 +22,7 @@
 #include "absl/base/config.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/internal/cord_internal.h"
+#include "absl/strings/internal/cordz_functions.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
@@ -41,22 +42,37 @@ namespace cord_internal {
 // and will either be deleted or appended to the global_delete_queue. If it is
 // placed on the global_delete_queue, the CordzInfo object will be cleaned in
 // the destructor of a CordzSampleToken object.
-class CordzInfo : public CordzHandle {
+class ABSL_LOCKABLE CordzInfo : public CordzHandle {
  public:
   using MethodIdentifier = CordzUpdateTracker::MethodIdentifier;
 
-  // All profiled Cords should be accompanied by a call to TrackCord.
   // TrackCord creates a CordzInfo instance which tracks important metrics of
-  // the sampled cord. CordzInfo instances are placed in a global list which is
-  // used to discover and snapshot all actively tracked cords.
-  // Callers are responsible for calling UntrackCord() before the tracked Cord
-  // instance is deleted, or to stop tracking the sampled Cord.
-  // Callers are also responsible for guarding changes to `rep` through the
-  // Lock() and Unlock() calls, and calling SetCordRep() if the root of the
-  // sampled cord changes before the old root has been unreffed and/or deleted.
-  // `method` identifies the Cord method which initiated the cord to be sampled.
-  static CordzInfo* TrackCord(
-      CordRep* rep, MethodIdentifier method = MethodIdentifier::kUnknown);
+  // a sampled cord, and stores the created CordzInfo instance into `cord'. All
+  // CordzInfo instances are placed in a global list which is used to discover
+  // and snapshot all actively tracked cords. Callers are responsible for
+  // calling UntrackCord() before the tracked Cord instance is deleted, or to
+  // stop tracking the sampled Cord. Callers are also responsible for guarding
+  // changes to the 'tree' value of a Cord (InlineData.tree) through the Lock()
+  // and Unlock() calls. Any change resulting in a new tree value for the cord
+  // requires a call to SetCordRep() before the old tree has been unreffed
+  // and/or deleted. `method` identifies the Cord public API method initiating
+  // the cord to be sampled.
+  // Requires `cord` to hold a tree, and `cord.cordz_info()` to be null.
+  static void TrackCord(InlineData& cord, MethodIdentifier method);
+
+  // Identical to TrackCord(), except that this function fills the
+  // `parent_stack` and `parent_method` properties of the returned CordzInfo
+  // instance from the provided `src` instance if `src` is sampled.
+  // This function should be used for sampling 'copy constructed' cords.
+  static void TrackCord(InlineData& cord, const InlineData& src,
+                        MethodIdentifier method);
+
+  // Maybe sample the cord identified by 'cord' for method 'method'.
+  // Uses `cordz_should_profile` to randomly pick cords to be sampled, and if
+  // so, invokes `TrackCord` to start sampling `cord`.
+  static void MaybeTrackCord(InlineData& cord, MethodIdentifier method);
+  static void MaybeTrackCord(InlineData& cord, const InlineData& src,
+                             MethodIdentifier method);
 
   // Stops tracking changes for a sampled cord, and deletes the provided info.
   // This function must be called before the sampled cord instance is deleted,
@@ -64,14 +80,6 @@ class CordzInfo : public CordzHandle {
   // This function may extend the lifetime of the cordrep in cases where the
   // CordInfo instance is being held by a concurrent collection thread.
   static void UntrackCord(CordzInfo* cordz_info);
-
-  // Identical to TrackCord(), except that this function fills the
-  // `parent_stack` and `parent_method` properties of the returned CordzInfo
-  // instance from the provided `src` instance if `src` is not null.
-  // This function should be used for sampling 'copy constructed' cords.
-  static CordzInfo* TrackCord(
-      CordRep* rep, const CordzInfo* src,
-      MethodIdentifier method = MethodIdentifier::kUnknown);
 
   CordzInfo() = delete;
   CordzInfo(const CordzInfo&) = delete;
@@ -91,6 +99,9 @@ class CordzInfo : public CordzHandle {
   // indicating the Cord has been cleared or is otherwise no longer sampled,
   // then this method will delete this CordzInfo instance.
   void Unlock() ABSL_UNLOCK_FUNCTION(mutex_);
+
+  // Asserts that this CordzInfo instance is locked.
+  void AssertHeld() ABSL_ASSERT_EXCLUSIVE_LOCK(mutex_);
 
   // Updates the `rep' property of this instance. This methods is invoked by
   // Cord logic each time the root node of a sampled Cord changes, and before
@@ -136,6 +147,9 @@ class CordzInfo : public CordzHandle {
                      MethodIdentifier method);
   ~CordzInfo() override;
 
+  void Track();
+  void Untrack();
+
   // Returns the parent method from `src`, which is either `parent_method_` or
   // `method_` depending on `parent_method_` being kUnknown.
   // Returns kUnknown if `src` is null.
@@ -146,9 +160,6 @@ class CordzInfo : public CordzHandle {
   // the parent stack.
   // Returns 0 if `src` is null.
   static int FillParentStack(const CordzInfo* src, void** stack);
-
-  void Track();
-  void Untrack();
 
   // 'Unsafe' head/next/prev accessors not requiring the lock being held.
   // These are used exclusively for iterations (Head / Next) where we enforce
@@ -183,6 +194,34 @@ class CordzInfo : public CordzHandle {
   // Last recorded size for the cord.
   std::atomic<int64_t> size_{0};
 };
+
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
+    InlineData& cord, MethodIdentifier method) {
+  if (ABSL_PREDICT_FALSE(cordz_should_profile())) {
+    TrackCord(cord, method);
+  }
+}
+
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
+    InlineData& cord, const InlineData& src, MethodIdentifier method) {
+  if (ABSL_PREDICT_FALSE(cordz_should_profile())) {
+    TrackCord(cord, src, method);
+  }
+}
+
+inline void CordzInfo::AssertHeld() ABSL_ASSERT_EXCLUSIVE_LOCK(mutex_) {
+#ifndef NDEBUG
+  mutex_.AssertHeld();
+#endif
+}
+
+inline void CordzInfo::SetCordRep(CordRep* rep) {
+  AssertHeld();
+  rep_ = rep;
+  if (rep) {
+    size_.store(rep->length);
+  }
+}
 
 }  // namespace cord_internal
 ABSL_NAMESPACE_END

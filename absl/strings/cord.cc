@@ -39,6 +39,7 @@
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cord_rep_ring.h"
 #include "absl/strings/internal/cordz_statistics.h"
+#include "absl/strings/internal/cordz_update_scope.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/str_cat.h"
@@ -55,8 +56,9 @@ using ::absl::cord_internal::CordRepExternal;
 using ::absl::cord_internal::CordRepFlat;
 using ::absl::cord_internal::CordRepRing;
 using ::absl::cord_internal::CordRepSubstring;
-using ::absl::cord_internal::kMinFlatLength;
+using ::absl::cord_internal::InlineData;
 using ::absl::cord_internal::kMaxFlatLength;
+using ::absl::cord_internal::kMinFlatLength;
 
 using ::absl::cord_internal::CONCAT;
 using ::absl::cord_internal::EXTERNAL;
@@ -301,16 +303,20 @@ inline char* Cord::InlineRep::set_data(size_t n) {
   return data_.as_chars();
 }
 
+static inline CordRepFlat* MakeFlat(const InlineData& data, size_t extra = 0) {
+  static_assert(kMinFlatLength >= sizeof(data), "");
+  size_t len = data.inline_size();
+  CordRepFlat* result = CordRepFlat::New(len + extra);
+  result->length = len;
+  memcpy(result->Data(), data.as_chars(), sizeof(data));
+  return result;
+}
+
 inline CordRep* Cord::InlineRep::force_tree(size_t extra_hint) {
   if (data_.is_tree()) {
     return data_.as_tree();
   }
-
-  size_t len = inline_size();
-  CordRepFlat* result = CordRepFlat::New(len + extra_hint);
-  result->length = len;
-  static_assert(kMinFlatLength >= sizeof(data_), "");
-  memcpy(result->Data(), data_.as_chars(), sizeof(data_));
+  CordRepFlat* result = MakeFlat(data_, extra_hint);
   set_tree(result);
   return result;
 }
@@ -494,22 +500,6 @@ static bool RepMemoryUsageLeaf(const CordRep* rep, size_t* total_mem_usage) {
   return false;
 }
 
-void Cord::InlineRep::StartProfiling() {
-  CordRep* tree = as_tree();
-  auto* cordz_info = absl::cord_internal::CordzInfo::TrackCord(tree);
-  set_cordz_info(cordz_info);
-  cordz_info->RecordMetrics(size());
-}
-
-void Cord::InlineRep::StartProfiling(const Cord::InlineRep& src) {
-  CordRep* tree = as_tree();
-  absl::cord_internal::CordzInfo* parent =
-      src.is_profiled() ? src.cordz_info() : nullptr;
-  auto* cordz_info = absl::cord_internal::CordzInfo::TrackCord(tree, parent);
-  set_cordz_info(cordz_info);
-  cordz_info->RecordMetrics(size());
-}
-
 void Cord::InlineRep::UpdateCordzStatisticsSlow() {
   CordRep* tree = as_tree();
   data_.cordz_info()->RecordMetrics(tree->length);
@@ -522,9 +512,7 @@ void Cord::InlineRep::AssignSlow(const Cord::InlineRep& src) {
   if (is_tree()) {
     CordRep::Ref(tree());
     clear_cordz_info();
-    if (ABSL_PREDICT_FALSE(should_profile())) {
-      StartProfiling(src);
-    }
+    CordzInfo::MaybeTrackCord(data_, CordzUpdateTracker::kAssignCord);
   }
 }
 
@@ -540,15 +528,14 @@ void Cord::InlineRep::UnrefTree() {
 // --------------------------------------------------------------------
 // Constructors and destructors
 
-Cord::Cord(absl::string_view src) {
+Cord::Cord(absl::string_view src) : contents_(InlineData::kDefaultInit) {
   const size_t n = src.size();
   if (n <= InlineRep::kMaxInline) {
-    contents_.set_data(src.data(), n, false);
+    contents_.set_data(src.data(), n, true);
   } else {
     contents_.data_.make_tree(NewTree(src.data(), n, 0));
-    if (ABSL_PREDICT_FALSE(absl::cord_internal::cordz_should_profile())) {
-      contents_.StartProfiling();
-    }
+    CordzInfo::MaybeTrackCord(contents_.data_,
+                              CordzUpdateTracker::kConstructorString);
   }
 }
 

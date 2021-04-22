@@ -689,6 +689,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::cord_internal
+    absl::cordz_functions
     absl::cordz_handle
     absl::cordz_statistics
     absl::cordz_update_tracker
@@ -756,6 +757,38 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    cordz_update_scope
+  HDRS
+    "internal/cordz_update_scope.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cordz_info
+    absl::cordz_update_tracker
+    absl::core_headers
+)
+
+absl_cc_test(
+  NAME
+    cordz_update_scope_test
+  SRCS
+    "internal/cordz_update_scope_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cordz_info
+    absl::cordz_update_scope
+    absl::cordz_update_tracker
+    absl::core_headers
+    gmock_main
+)
+
+absl_cc_library(
+  NAME
     cord
   HDRS
     "cord.h"
@@ -769,6 +802,7 @@ absl_cc_library(
     absl::cord_internal
     absl::cordz_functions
     absl::cordz_info
+    absl::cordz_update_scope
     absl::cordz_update_tracker
     absl::core_headers
     absl::endian
