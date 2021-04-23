@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/strings/cordz_test_helpers.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_handle.h"
 #include "absl/strings/internal/cordz_info.h"
@@ -38,24 +39,6 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Ne;
-
-struct TestCordRep {
-  CordRepFlat* rep;
-
-  TestCordRep() {
-    rep = CordRepFlat::New(100);
-    rep->length = 100;
-    memset(rep->Data(), 1, 100);
-  }
-  ~TestCordRep() { CordRepFlat::Delete(rep); }
-};
-
-struct TestCord {
-  TestCordRep rep;
-  InlineData data;
-
-  TestCord() { data.make_tree(rep.rep); }
-};
 
 // Used test values
 auto constexpr kTrackCordMethod = CordzUpdateTracker::kConstructorString;
@@ -97,7 +80,7 @@ TEST(CordzSampleTokenTest, IteratorEmpty) {
 }
 
 TEST(CordzSampleTokenTest, Iterator) {
-  TestCord cord1, cord2, cord3;
+  TestCordData cord1, cord2, cord3;
   CordzInfo::TrackCord(cord1.data, kTrackCordMethod);
   CordzInfo* info1 = cord1.data.cordz_info();
   CordzInfo::TrackCord(cord2.data, kTrackCordMethod);
@@ -119,9 +102,9 @@ TEST(CordzSampleTokenTest, Iterator) {
 }
 
 TEST(CordzSampleTokenTest, IteratorEquality) {
-  TestCord cord1;
-  TestCord cord2;
-  TestCord cord3;
+  TestCordData cord1;
+  TestCordData cord2;
+  TestCordData cord3;
   CordzInfo::TrackCord(cord1.data, kTrackCordMethod);
   CordzInfo* info1 = cord1.data.cordz_info();
 
@@ -167,7 +150,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
   for (int i = 0; i < kNumThreads; ++i) {
     pool.Schedule([&stop]() {
       absl::BitGen gen;
-      TestCord cords[kNumCords];
+      TestCordData cords[kNumCords];
       std::unique_ptr<CordzSampleToken> tokens[kNumTokens];
 
       while (!stop.HasBeenNotified()) {
@@ -179,7 +162,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
         //   5) Sample
         int index = absl::Uniform(gen, 0, kNumCords);
         if (absl::Bernoulli(gen, 0.5)) {
-          TestCord& cord = cords[index];
+          TestCordData& cord = cords[index];
           // Track/untrack.
           if (cord.data.is_profiled()) {
             // 1) Untrack
@@ -208,7 +191,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
           }
         }
       }
-      for (TestCord& cord : cords) {
+      for (TestCordData& cord : cords) {
         if (cord.data.is_profiled()) {
           CordzInfo::UntrackCord(cord.data.cordz_info());
         }

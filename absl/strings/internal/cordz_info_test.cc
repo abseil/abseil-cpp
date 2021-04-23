@@ -21,8 +21,10 @@
 #include "absl/base/config.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
+#include "absl/strings/cordz_test_helpers.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_handle.h"
+#include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
@@ -36,24 +38,6 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Ne;
-
-struct TestCordRep {
-  CordRepFlat* rep;
-
-  TestCordRep() {
-    rep = CordRepFlat::New(100);
-    rep->length = 100;
-    memset(rep->Data(), 1, 100);
-  }
-  ~TestCordRep() { CordRepFlat::Delete(rep); }
-};
-
-struct TestCordData {
-  TestCordRep rep;
-  InlineData data;
-
-  TestCordData() { data.make_tree(rep.rep); }
-};
 
 // Used test values
 auto constexpr kUnknownMethod = CordzUpdateTracker::kUnknown;

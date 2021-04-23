@@ -626,8 +626,8 @@ absl_cc_test(
     "internal/cordz_functions_test.cc"
   DEPS
     absl::config
-    absl::cord_test_helpers
     absl::cordz_functions
+    absl::cordz_test_helpers
     gmock_main
 )
 
@@ -667,8 +667,8 @@ absl_cc_test(
     "internal/cordz_handle_test.cc"
   DEPS
     absl::config
-    absl::cord_test_helpers
     absl::cordz_handle
+    absl::cordz_test_helpers
     absl::memory
     absl::random_random
     absl::random_distributions
@@ -707,10 +707,11 @@ absl_cc_test(
   DEPS
     absl::config
     absl::cord_internal
-    absl::cord_test_helpers
+    absl::cordz_test_helpers
     absl::cordz_handle
     absl::cordz_info
     absl::cordz_statistics
+    absl::cordz_test_helpers
     absl::cordz_update_tracker
     absl::span
     absl::stacktrace
@@ -747,6 +748,7 @@ absl_cc_test(
     absl::cordz_info
     absl::cordz_info
     absl::cordz_sample_token
+    absl::cordz_test_helpers
     absl::memory
     absl::random_random
     absl::synchronization
@@ -781,6 +783,7 @@ absl_cc_test(
     absl::config
     absl::cord_internal
     absl::cordz_info
+    absl::cordz_test_helpers
     absl::cordz_update_scope
     absl::cordz_update_tracker
     absl::core_headers
@@ -825,6 +828,26 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::cord
+    absl::cord_internal
+  TESTONLY
+)
+
+absl_cc_library(
+  NAME
+    cordz_test_helpers
+  HDRS
+    "cordz_test_helpers.h"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::cord
+    absl::cord_internal
+    absl::cordz_info
+    absl::cordz_sample_token
+    absl::cordz_statistics
+    absl::cordz_update_tracker
+    absl::core_headers
   TESTONLY
 )
 
@@ -841,6 +864,8 @@ absl_cc_test(
     absl::strings
     absl::base
     absl::config
+    absl::cord_test_helpers
+    absl::cordz_test_helpers
     absl::core_headers
     absl::endian
     absl::raw_logging_internal
@@ -876,6 +901,29 @@ absl_cc_test(
     absl::base
     absl::cord_internal
     absl::core_headers
+    absl::strings
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    cordz_test
+  SRCS
+    "cordz_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::cord
+    absl::cordz_test_helpers
+    absl::cordz_functions
+    absl::cordz_info
+    absl::cordz_sample_token
+    absl::cordz_statistics
+    absl::cordz_update_tracker
+    absl::base
+    absl::config
+    absl::core_headers
+    absl::raw_logging_internal
     absl::strings
     gmock_main
 )

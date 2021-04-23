@@ -17,6 +17,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/strings/cordz_test_helpers.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_info.h"
 #include "absl/strings/internal/cordz_update_tracker.h"
@@ -27,24 +28,6 @@ namespace cord_internal {
 
 namespace {
 
-struct TestCordRep {
-  CordRepFlat* rep;
-
-  TestCordRep() {
-    rep = CordRepFlat::New(100);
-    rep->length = 100;
-    memset(rep->Data(), 1, 100);
-  }
-  ~TestCordRep() { CordRepFlat::Delete(rep); }
-};
-
-struct TestCord {
-  TestCordRep rep;
-  InlineData data;
-
-  TestCord() { data.make_tree(rep.rep); }
-};
-
 // Used test values
 auto constexpr kTrackCordMethod = CordzUpdateTracker::kConstructorString;
 
@@ -53,7 +36,7 @@ TEST(CordzUpdateScopeTest, ScopeNullptr) {
 }
 
 TEST(CordzUpdateScopeTest, ScopeSampledCord) {
-  TestCord cord;
+  TestCordData cord;
   CordzInfo::TrackCord(cord.data, kTrackCordMethod);
   CordzUpdateScope scope(cord.data.cordz_info(), kTrackCordMethod);
   cord.data.cordz_info()->SetCordRep(nullptr);

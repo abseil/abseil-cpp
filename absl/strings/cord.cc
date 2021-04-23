@@ -342,14 +342,37 @@ static CordRepRing* ForceRing(CordRep* rep, size_t extra) {
   return (rep->tag == RING) ? rep->ring() : CordRepRing::Create(rep, extra);
 }
 
-void Cord::InlineRep::AppendTree(CordRep* tree) {
-  if (tree == nullptr) return;
-  if (data_.is_empty()) {
-    set_tree(tree);
-  } else if (cord_ring_enabled()) {
-    set_tree(CordRepRing::Append(ForceRing(force_tree(0), 1), tree));
+void Cord::InlineRep::AppendTreeToInlined(CordRep* tree,
+                                          MethodIdentifier method) {
+  assert(!is_tree());
+  if (!data_.is_empty()) {
+    CordRepFlat* flat = MakeFlat(data_);
+    if (cord_ring_enabled()) {
+      tree = CordRepRing::Append(CordRepRing::Create(flat, 1), tree);
+    } else {
+      tree = Concat(flat, tree);
+    }
+  }
+  EmplaceTree(tree, method);
+}
+
+void Cord::InlineRep::AppendTreeToTree(CordRep* tree, MethodIdentifier method) {
+  assert(is_tree());
+  const CordzUpdateScope scope(data_.cordz_info(), method);
+  if (cord_ring_enabled()) {
+    tree = CordRepRing::Append(ForceRing(data_.as_tree(), 1), tree);
   } else {
-    set_tree(Concat(force_tree(0), tree));
+    tree = Concat(data_.as_tree(), tree);
+  }
+  SetTree(tree, scope);
+}
+
+void Cord::InlineRep::AppendTree(CordRep* tree, MethodIdentifier method) {
+  if (tree == nullptr) return;
+  if (data_.is_tree()) {
+    AppendTreeToTree(tree, method);
+  } else {
+    AppendTreeToInlined(tree, method);
   }
 }
 
@@ -533,9 +556,8 @@ Cord::Cord(absl::string_view src) : contents_(InlineData::kDefaultInit) {
   if (n <= InlineRep::kMaxInline) {
     contents_.set_data(src.data(), n, true);
   } else {
-    contents_.data_.make_tree(NewTree(src.data(), n, 0));
-    CordzInfo::MaybeTrackCord(contents_.data_,
-                              CordzUpdateTracker::kConstructorString);
+    CordRep* rep = NewTree(src.data(), n, 0);
+    contents_.EmplaceTree(rep, CordzUpdateTracker::kConstructorString);
   }
 }
 
@@ -713,9 +735,15 @@ inline CordRep* Cord::TakeRep() && {
 template <typename C>
 inline void Cord::AppendImpl(C&& src) {
   if (empty()) {
-    // In case of an empty destination avoid allocating a new node, do not copy
-    // data.
-    *this = std::forward<C>(src);
+    // Since destination is empty, we can avoid allocating a node,
+    if (src.contents_.is_tree()) {
+      // by taking the tree directly
+      CordRep* rep = std::forward<C>(src).TakeRep();
+      contents_.EmplaceTree(rep, CordzUpdateTracker::kAppendCord);
+    } else {
+      // or copying over inline data
+      contents_.data_ = src.contents_.data_;
+    }
     return;
   }
 
@@ -746,7 +774,8 @@ inline void Cord::AppendImpl(C&& src) {
   }
 
   // Guaranteed to be a tree (kMaxBytesToCopy > kInlinedSize)
-  contents_.AppendTree(std::forward<C>(src).TakeRep());
+  CordRep* rep = std::forward<C>(src).TakeRep();
+  contents_.AppendTree(rep, CordzUpdateTracker::kAppendCord);
 }
 
 void Cord::Append(const Cord& src) { AppendImpl(src); }

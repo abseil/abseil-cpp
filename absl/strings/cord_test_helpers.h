@@ -18,6 +18,7 @@
 #define ABSL_STRINGS_CORD_TEST_HELPERS_H_
 
 #include "absl/strings/cord.h"
+#include "absl/strings/internal/cord_internal.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

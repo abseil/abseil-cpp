@@ -670,6 +670,7 @@ class Cord {
   explicit constexpr Cord(strings_internal::StringConstant<T>);
 
  private:
+  using CordRep = absl::cord_internal::CordRep;
   using CordzInfo = cord_internal::CordzInfo;
   using CordzUpdateScope = cord_internal::CordzUpdateScope;
   using CordzUpdateTracker = cord_internal::CordzUpdateTracker;
@@ -679,6 +680,8 @@ class Cord {
   friend class CordTestPeer;
   friend bool operator==(const Cord& lhs, const Cord& rhs);
   friend bool operator==(const Cord& lhs, absl::string_view rhs);
+
+  friend const CordzInfo* GetCordzInfoForTesting(const Cord& cord);
 
   // Calls the provided function once for each cord chunk, in order.  Unlike
   // Chunks(), this API will not allocate memory.
@@ -730,7 +733,23 @@ class Cord {
     void remove_prefix(size_t n);  // REQUIRES: holding data
     void AppendArray(const char* src_data, size_t src_size);
     absl::string_view FindFlatStartPiece() const;
-    void AppendTree(absl::cord_internal::CordRep* tree);
+
+    // Sets the tree value for this instance. `rep` must not be null.
+    // Requires the current instance to hold a tree, and a lock to be held on
+    // any CordzInfo referenced by this instance. The latter is enforced through
+    // the CordzUpdateScope argument. If the current instance is sampled, then
+    // the CordzInfo instance is updated to reference the new `rep` value.
+    void SetTree(CordRep* rep, const CordzUpdateScope& scope);
+
+    // Sets the tree value for this instance, and randomly samples this cord.
+    // This function disregards existing contents in `data_`, and should be
+    // called when a Cord is 'promoted' from an 'uninitialized' or 'inlined'
+    // value to a non-inlined (tree / ring) value.
+    void EmplaceTree(CordRep* rep, MethodIdentifier method);
+
+    void AppendTreeToInlined(CordRep* tree, MethodIdentifier method);
+    void AppendTreeToTree(CordRep* tree, MethodIdentifier method);
+    void AppendTree(CordRep* tree, MethodIdentifier method);
     void PrependTree(absl::cord_internal::CordRep* tree);
     void GetAppendRegion(char** region, size_t* size, size_t max_length);
     void GetAppendRegion(char** region, size_t* size);
@@ -1020,6 +1039,20 @@ inline bool Cord::InlineRep::empty() const { return data_.is_empty(); }
 
 inline size_t Cord::InlineRep::size() const {
   return is_tree() ? as_tree()->length : inline_size();
+}
+
+inline void Cord::InlineRep::EmplaceTree(CordRep* rep,
+                                         MethodIdentifier method) {
+  data_.make_tree(rep);
+  CordzInfo::MaybeTrackCord(data_, method);
+}
+
+inline void Cord::InlineRep::SetTree(CordRep* rep,
+                                     const CordzUpdateScope& scope) {
+  assert(rep);
+  assert(data_.is_tree());
+  data_.set_tree(rep);
+  scope.SetCordRep(rep);
 }
 
 inline void Cord::InlineRep::set_tree(absl::cord_internal::CordRep* rep) {
