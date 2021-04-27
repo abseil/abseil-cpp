@@ -15,6 +15,7 @@
 #include "absl/strings/internal/cordz_info.h"
 
 #include "absl/base/config.h"
+#include "absl/base/internal/spinlock.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_handle.h"
@@ -27,22 +28,34 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
+using ::absl::base_internal::SpinLockHolder;
+
 constexpr int CordzInfo::kMaxStackDepth;
 
-ABSL_CONST_INIT std::atomic<CordzInfo*> CordzInfo::ci_head_{nullptr};
-ABSL_CONST_INIT absl::Mutex CordzInfo::ci_mutex_(absl::kConstInit);
+ABSL_CONST_INIT CordzInfo::List CordzInfo::global_list_{absl::kConstInit};
 
 CordzInfo* CordzInfo::Head(const CordzSnapshot& snapshot) {
   ABSL_ASSERT(snapshot.is_snapshot());
-  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(ci_head_unsafe()));
-  return ci_head_unsafe();
+
+  // We can do an 'unsafe' load of 'head', as we are guaranteed that the
+  // instance it points to is kept alive by the provided CordzSnapshot, so we
+  // can simply return the current value using an acquire load.
+  // We do enforce in DEBUG builds that the 'head' value is present in the
+  // delete queue: ODR violations may lead to 'snapshot' and 'global_list_'
+  // being in different libraries / modules.
+  CordzInfo* head = global_list_.head.load(std::memory_order_acquire);
+  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(head));
+  return head;
 }
 
 CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {
   ABSL_ASSERT(snapshot.is_snapshot());
+
+  // Similar to the 'Head()' function, we do not need a mutex here.
+  CordzInfo* next = ci_next_.load(std::memory_order_acquire);
   ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(this));
-  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(ci_next_unsafe()));
-  return ci_next_unsafe();
+  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(next));
+  return next;
 }
 
 void CordzInfo::TrackCord(InlineData& cord, MethodIdentifier method) {
@@ -61,14 +74,6 @@ void CordzInfo::TrackCord(InlineData& cord, const InlineData& src,
   CordzInfo* cordz_info = new CordzInfo(cord.as_tree(), info, method);
   cord.set_cordz_info(cordz_info);
   cordz_info->Track();
-}
-
-void CordzInfo::UntrackCord(CordzInfo* cordz_info) {
-  assert(cordz_info);
-  if (cordz_info) {
-    cordz_info->Untrack();
-    CordzHandle::Delete(cordz_info);
-  }
 }
 
 CordzInfo::MethodIdentifier CordzInfo::GetParentMethod(const CordzInfo* src) {
@@ -110,14 +115,14 @@ CordzInfo::~CordzInfo() {
 }
 
 void CordzInfo::Track() {
-  absl::MutexLock l(&ci_mutex_);
+  SpinLockHolder l(&list_->mutex);
 
-  CordzInfo* const head = ci_head_.load(std::memory_order_acquire);
+  CordzInfo* const head = list_->head.load(std::memory_order_acquire);
   if (head != nullptr) {
     head->ci_prev_.store(this, std::memory_order_release);
   }
   ci_next_.store(head, std::memory_order_release);
-  ci_head_.store(this, std::memory_order_release);
+  list_->head.store(this, std::memory_order_release);
 }
 
 void CordzInfo::Untrack() {
@@ -128,24 +133,28 @@ void CordzInfo::Untrack() {
     rep_ = nullptr;
   }
 
-  absl::MutexLock l(&ci_mutex_);
+  ODRCheck();
+  {
+    SpinLockHolder l(&list_->mutex);
 
-  CordzInfo* const head = ci_head_.load(std::memory_order_acquire);
-  CordzInfo* const next = ci_next_.load(std::memory_order_acquire);
-  CordzInfo* const prev = ci_prev_.load(std::memory_order_acquire);
+    CordzInfo* const head = list_->head.load(std::memory_order_acquire);
+    CordzInfo* const next = ci_next_.load(std::memory_order_acquire);
+    CordzInfo* const prev = ci_prev_.load(std::memory_order_acquire);
 
-  if (next) {
-    ABSL_ASSERT(next->ci_prev_.load(std::memory_order_acquire) == this);
-    next->ci_prev_.store(prev, std::memory_order_release);
+    if (next) {
+      ABSL_ASSERT(next->ci_prev_.load(std::memory_order_acquire) == this);
+      next->ci_prev_.store(prev, std::memory_order_release);
+    }
+    if (prev) {
+      ABSL_ASSERT(head != this);
+      ABSL_ASSERT(prev->ci_next_.load(std::memory_order_acquire) == this);
+      prev->ci_next_.store(next, std::memory_order_release);
+    } else {
+      ABSL_ASSERT(head == this);
+      list_->head.store(next, std::memory_order_release);
+    }
   }
-  if (prev) {
-    ABSL_ASSERT(head != this);
-    ABSL_ASSERT(prev->ci_next_.load(std::memory_order_acquire) == this);
-    prev->ci_next_.store(next, std::memory_order_release);
-  } else {
-    ABSL_ASSERT(head == this);
-    ci_head_.store(next, std::memory_order_release);
-  }
+  CordzHandle::Delete(this);
 }
 
 void CordzInfo::Lock(MethodIdentifier method)
@@ -163,7 +172,6 @@ void CordzInfo::Unlock() ABSL_UNLOCK_FUNCTION(mutex_) {
   mutex_.Unlock();
   if (!tracked) {
     Untrack();
-    CordzHandle::Delete(this);
   }
 }
 

@@ -40,6 +40,12 @@ class ABSL_SCOPED_LOCKABLE CordzUpdateScope {
     }
   }
 
+  // CordzUpdateScope can not be copied or assigned to.
+  CordzUpdateScope(CordzUpdateScope&& rhs) = delete;
+  CordzUpdateScope(const CordzUpdateScope&) = delete;
+  CordzUpdateScope& operator=(CordzUpdateScope&& rhs) = delete;
+  CordzUpdateScope& operator=(const CordzUpdateScope&) = delete;
+
   ~CordzUpdateScope() ABSL_UNLOCK_FUNCTION() {
     if (ABSL_PREDICT_FALSE(info_)) {
       info_->Unlock();
@@ -55,7 +61,7 @@ class ABSL_SCOPED_LOCKABLE CordzUpdateScope {
   CordzInfo* info() const { return info_; }
 
  private:
-  CordzInfo* const info_;
+  CordzInfo* info_;
 };
 
 }  // namespace cord_internal

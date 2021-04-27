@@ -70,7 +70,7 @@ TEST(CordzInfoTest, TrackCord) {
   EXPECT_FALSE(info->is_snapshot());
   EXPECT_THAT(CordzInfo::Head(CordzSnapshot()), Eq(info));
   EXPECT_THAT(info->GetCordRepForTesting(), Eq(data.rep.rep));
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 TEST(CordzInfoTest, UntrackCord) {
@@ -79,7 +79,7 @@ TEST(CordzInfoTest, UntrackCord) {
   CordzInfo* info = data.data.cordz_info();
 
   CordzSnapshot snapshot;
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
   EXPECT_THAT(CordzInfo::Head(CordzSnapshot()), Eq(nullptr));
   EXPECT_THAT(info->GetCordRepForTesting(), Eq(nullptr));
   EXPECT_THAT(DeleteQueue(), ElementsAre(info, &snapshot));
@@ -96,7 +96,7 @@ TEST(CordzInfoTest, SetCordRep) {
   info->Unlock();
   EXPECT_THAT(info->GetCordRepForTesting(), Eq(rep.rep));
 
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 TEST(CordzInfoTest, SetCordRepNullUntracksCordOnUnlock) {
@@ -121,7 +121,7 @@ TEST(CordzInfoTest, SetCordRepRequiresMutex) {
   CordzInfo* info = data.data.cordz_info();
   TestCordRep rep;
   EXPECT_DEBUG_DEATH(info->SetCordRep(rep.rep), ".*");
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 #endif  // GTEST_HAS_DEATH_TEST
@@ -143,11 +143,11 @@ TEST(CordzInfoTest, TrackUntrackHeadFirstV2) {
   EXPECT_THAT(info2->Next(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
 
-  CordzInfo::UntrackCord(info2);
+  info2->Untrack();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
 
-  CordzInfo::UntrackCord(info1);
+  info1->Untrack();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(nullptr));
 }
 
@@ -168,11 +168,11 @@ TEST(CordzInfoTest, TrackUntrackTailFirstV2) {
   EXPECT_THAT(info2->Next(snapshot), Eq(info1));
   EXPECT_THAT(info1->Next(snapshot), Eq(nullptr));
 
-  CordzInfo::UntrackCord(info1);
+  info1->Untrack();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(info2));
   EXPECT_THAT(info2->Next(snapshot), Eq(nullptr));
 
-  CordzInfo::UntrackCord(info2);
+  info2->Untrack();
   ASSERT_THAT(CordzInfo::Head(snapshot), Eq(nullptr));
 }
 
@@ -208,7 +208,7 @@ TEST(CordzInfoTest, StackV2) {
   // got_stack.
   EXPECT_THAT(got_stack, HasSubstr(expected_stack));
 
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 // Local helper functions to get different stacks for child and parent.
@@ -231,7 +231,7 @@ TEST(CordzInfoTest, GetStatistics) {
   EXPECT_THAT(statistics.parent_method, Eq(kUnknownMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kTrackCordMethod), Eq(1));
 
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 TEST(CordzInfoTest, LockCountsMethod) {
@@ -246,7 +246,7 @@ TEST(CordzInfoTest, LockCountsMethod) {
   CordzStatistics statistics = info->GetCordzStatistics();
   EXPECT_THAT(statistics.update_tracker.Value(kUpdateMethod), Eq(2));
 
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 TEST(CordzInfoTest, FromParent) {
@@ -265,8 +265,8 @@ TEST(CordzInfoTest, FromParent) {
   EXPECT_THAT(statistics.parent_method, Eq(kTrackCordMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kChildMethod), Eq(1));
 
-  CordzInfo::UntrackCord(info_parent);
-  CordzInfo::UntrackCord(info_child);
+  info_parent->Untrack();
+  info_child->Untrack();
 }
 
 TEST(CordzInfoTest, FromParentInlined) {
@@ -279,7 +279,7 @@ TEST(CordzInfoTest, FromParentInlined) {
   EXPECT_THAT(statistics.method, Eq(kChildMethod));
   EXPECT_THAT(statistics.parent_method, Eq(kUnknownMethod));
   EXPECT_THAT(statistics.update_tracker.Value(kChildMethod), Eq(1));
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 TEST(CordzInfoTest, RecordMetrics) {
@@ -293,7 +293,7 @@ TEST(CordzInfoTest, RecordMetrics) {
   CordzStatistics actual = info->GetCordzStatistics();
   EXPECT_EQ(actual.size, expected.size);
 
-  CordzInfo::UntrackCord(info);
+  info->Untrack();
 }
 
 }  // namespace

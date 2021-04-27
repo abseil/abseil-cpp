@@ -16,16 +16,19 @@
 #include <atomic>
 
 #include "absl/base/internal/raw_logging.h"  // For ABSL_RAW_CHECK
+#include "absl/base/internal/spinlock.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
+using ::absl::base_internal::SpinLockHolder;
+
 ABSL_CONST_INIT CordzHandle::Queue CordzHandle::global_queue_(absl::kConstInit);
 
 CordzHandle::CordzHandle(bool is_snapshot) : is_snapshot_(is_snapshot) {
   if (is_snapshot) {
-    MutexLock lock(&queue_->mutex);
+    SpinLockHolder lock(&queue_->mutex);
     CordzHandle* dq_tail = queue_->dq_tail.load(std::memory_order_acquire);
     if (dq_tail != nullptr) {
       dq_prev_ = dq_tail;
@@ -40,7 +43,7 @@ CordzHandle::~CordzHandle() {
   if (is_snapshot_) {
     std::vector<CordzHandle*> to_delete;
     {
-      absl::MutexLock lock(&queue_->mutex);
+      SpinLockHolder lock(&queue_->mutex);
       CordzHandle* next = dq_next_;
       if (dq_prev_ == nullptr) {
         // We were head of the queue, delete every CordzHandle until we reach
@@ -70,7 +73,7 @@ void CordzHandle::Delete(CordzHandle* handle) {
     handle->ODRCheck();
     Queue* const queue = handle->queue_;
     if (!handle->is_snapshot_ && !queue->IsEmpty()) {
-      MutexLock lock(&queue->mutex);
+      SpinLockHolder lock(&queue->mutex);
       CordzHandle* dq_tail = queue->dq_tail.load(std::memory_order_acquire);
       if (dq_tail != nullptr) {
         handle->dq_prev_ = dq_tail;
@@ -85,7 +88,7 @@ void CordzHandle::Delete(CordzHandle* handle) {
 
 std::vector<const CordzHandle*> CordzHandle::DiagnosticsGetDeleteQueue() {
   std::vector<const CordzHandle*> handles;
-  MutexLock lock(&global_queue_.mutex);
+  SpinLockHolder lock(&global_queue_.mutex);
   CordzHandle* dq_tail = global_queue_.dq_tail.load(std::memory_order_acquire);
   for (const CordzHandle* p = dq_tail; p; p = p->dq_prev_) {
     handles.push_back(p);
@@ -100,7 +103,7 @@ bool CordzHandle::DiagnosticsHandleIsSafeToInspect(
   if (handle == nullptr) return true;
   if (handle->is_snapshot_) return false;
   bool snapshot_found = false;
-  MutexLock lock(&queue_->mutex);
+  SpinLockHolder lock(&queue_->mutex);
   for (const CordzHandle* p = queue_->dq_tail; p; p = p->dq_prev_) {
     if (p == handle) return !snapshot_found;
     if (p == this) snapshot_found = true;
@@ -117,7 +120,7 @@ CordzHandle::DiagnosticsGetSafeToInspectDeletedHandles() {
     return handles;
   }
 
-  MutexLock lock(&queue_->mutex);
+  SpinLockHolder lock(&queue_->mutex);
   for (const CordzHandle* p = dq_next_; p != nullptr; p = p->dq_next_) {
     if (!p->is_snapshot()) {
       handles.push_back(p);

@@ -96,9 +96,9 @@ TEST(CordzSampleTokenTest, Iterator) {
 
   EXPECT_THAT(found, ElementsAre(info3, info2, info1));
 
-  CordzInfo::UntrackCord(info1);
-  CordzInfo::UntrackCord(info2);
-  CordzInfo::UntrackCord(info3);
+  info1->Untrack();
+  info2->Untrack();
+  info3->Untrack();
 }
 
 TEST(CordzSampleTokenTest, IteratorEquality) {
@@ -135,9 +135,9 @@ TEST(CordzSampleTokenTest, IteratorEquality) {
   // Both lhs and rhs are done, so they are on nullptr.
   EXPECT_THAT(lhs, Eq(rhs));
 
-  CordzInfo::UntrackCord(info1);
-  CordzInfo::UntrackCord(info2);
-  CordzInfo::UntrackCord(info3);
+  info1->Untrack();
+  info2->Untrack();
+  info3->Untrack();
 }
 
 TEST(CordzSampleTokenTest, MultiThreaded) {
@@ -166,7 +166,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
           // Track/untrack.
           if (cord.data.is_profiled()) {
             // 1) Untrack
-            CordzInfo::UntrackCord(cord.data.cordz_info());
+            cord.data.cordz_info()->Untrack();
             cord.data.clear_cordz_info();;
           } else {
             // 2) Track
@@ -192,9 +192,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
         }
       }
       for (TestCordData& cord : cords) {
-        if (cord.data.is_profiled()) {
-          CordzInfo::UntrackCord(cord.data.cordz_info());
-        }
+        CordzInfo::MaybeUntrackCord(cord.data.cordz_info());
       }
     });
   }

@@ -15,6 +15,8 @@
 #ifndef ABSL_STRINGS_CORDZ_TEST_HELPERS_H_
 #define ABSL_STRINGS_CORDZ_TEST_HELPERS_H_
 
+#include <utility>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -32,6 +34,7 @@ ABSL_NAMESPACE_BEGIN
 // Returns the CordzInfo for the cord, or nullptr if the cord is not sampled.
 inline const cord_internal::CordzInfo* GetCordzInfoForTesting(
     const Cord& cord) {
+  if (cord.size() <= cord_internal::kMaxInline) return nullptr;
   return cord.contents_.cordz_info();
 }
 
@@ -44,11 +47,13 @@ inline bool CordzInfoIsListed(const cord_internal::CordzInfo* cordz_info,
   return false;
 }
 
-// Matcher on Cord that verifies all of:
+// Matcher on Cord* that verifies all of:
 // - the cord is sampled
 // - the CordzInfo of the cord is listed / discoverable.
 // - the reported CordzStatistics match the cord's actual properties
 // - the cord has an (initial) UpdateTracker count of 1 for `method`
+// This matcher accepts a const Cord* to avoid having the matcher dump
+// copious amounts of cord data on failures.
 MATCHER_P(HasValidCordzInfoOf, method, "CordzInfo matches cord") {
   const cord_internal::CordzInfo* cord_info = GetCordzInfoForTesting(arg);
   if (cord_info == nullptr) {

@@ -20,6 +20,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/spinlock.h"
 #include "absl/synchronization/mutex.h"
 
 namespace absl {
@@ -70,9 +71,11 @@ class CordzHandle {
   // Global queue data. CordzHandle stores a pointer to the global queue
   // instance to harden against ODR violations.
   struct Queue {
-    constexpr explicit Queue(absl::ConstInitType) : mutex(absl::kConstInit) {}
+    constexpr explicit Queue(absl::ConstInitType)
+        : mutex(absl::kConstInit,
+                absl::base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL) {}
 
-    absl::Mutex mutex;
+    absl::base_internal::SpinLock mutex;
     std::atomic<CordzHandle*> dq_tail ABSL_GUARDED_BY(mutex){nullptr};
 
     // Returns true if this delete queue is empty. This method does not acquire

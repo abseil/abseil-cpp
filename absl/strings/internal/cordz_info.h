@@ -20,6 +20,8 @@
 #include <functional>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/spinlock.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_functions.h"
@@ -79,17 +81,22 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   // and before the root cordrep of the sampled cord is unreffed.
   // This function may extend the lifetime of the cordrep in cases where the
   // CordInfo instance is being held by a concurrent collection thread.
-  static void UntrackCord(CordzInfo* cordz_info);
+  void Untrack();
+
+  // Invokes UntrackCord() on `info` if `info` is not null.
+  static void MaybeUntrackCord(CordzInfo* info);
 
   CordzInfo() = delete;
   CordzInfo(const CordzInfo&) = delete;
   CordzInfo& operator=(const CordzInfo&) = delete;
 
   // Retrieves the oldest existing CordzInfo.
-  static CordzInfo* Head(const CordzSnapshot& snapshot);
+  static CordzInfo* Head(const CordzSnapshot& snapshot)
+      ABSL_NO_THREAD_SAFETY_ANALYSIS;
 
   // Retrieves the next oldest existing CordzInfo older than 'this' instance.
-  CordzInfo* Next(const CordzSnapshot& snapshot) const;
+  CordzInfo* Next(const CordzSnapshot& snapshot) const
+      ABSL_NO_THREAD_SAFETY_ANALYSIS;
 
   // Locks this instance for the update identified by `method`.
   // Increases the count for `method` in `update_tracker`.
@@ -141,6 +148,17 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   }
 
  private:
+  // Global cordz info list. CordzInfo stores a pointer to the global list
+  // instance to harden against ODR violations.
+  struct List {
+    constexpr explicit List(absl::ConstInitType)
+        : mutex(absl::kConstInit,
+                absl::base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL) {}
+
+    absl::base_internal::SpinLock mutex;
+    std::atomic<CordzInfo*> head ABSL_GUARDED_BY(mutex){nullptr};
+  };
+
   static constexpr int kMaxStackDepth = 64;
 
   explicit CordzInfo(CordRep* rep, const CordzInfo* src,
@@ -148,7 +166,6 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   ~CordzInfo() override;
 
   void Track();
-  void Untrack();
 
   // Returns the parent method from `src`, which is either `parent_method_` or
   // `method_` depending on `parent_method_` being kUnknown.
@@ -161,23 +178,20 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   // Returns 0 if `src` is null.
   static int FillParentStack(const CordzInfo* src, void** stack);
 
-  // 'Unsafe' head/next/prev accessors not requiring the lock being held.
-  // These are used exclusively for iterations (Head / Next) where we enforce
-  // a token being held, so reading an 'old' / deleted pointer is fine.
-  static CordzInfo* ci_head_unsafe() ABSL_NO_THREAD_SAFETY_ANALYSIS {
-    return ci_head_.load(std::memory_order_acquire);
-  }
-  CordzInfo* ci_next_unsafe() const ABSL_NO_THREAD_SAFETY_ANALYSIS {
-    return ci_next_.load(std::memory_order_acquire);
-  }
-  CordzInfo* ci_prev_unsafe() const ABSL_NO_THREAD_SAFETY_ANALYSIS {
-    return ci_prev_.load(std::memory_order_acquire);
+  void ODRCheck() const {
+#ifndef NDEBUG
+    ABSL_RAW_CHECK(list_ == &global_list_, "ODR violation in Cord");
+#endif
   }
 
-  static absl::Mutex ci_mutex_;
-  static std::atomic<CordzInfo*> ci_head_ ABSL_GUARDED_BY(ci_mutex_);
-  std::atomic<CordzInfo*> ci_prev_ ABSL_GUARDED_BY(ci_mutex_){nullptr};
-  std::atomic<CordzInfo*> ci_next_ ABSL_GUARDED_BY(ci_mutex_){nullptr};
+  ABSL_CONST_INIT static List global_list_;
+  List* const list_ = &global_list_;
+
+  // ci_prev_ and ci_next_ require the global list mutex to be held.
+  // Unfortunately we can't use thread annotations such that the thread safety
+  // analysis understands that list_ and global_list_ are one and the same.
+  std::atomic<CordzInfo*> ci_prev_{nullptr};
+  std::atomic<CordzInfo*> ci_next_{nullptr};
 
   mutable absl::Mutex mutex_;
   CordRep* rep_ ABSL_GUARDED_BY(mutex_);
@@ -206,6 +220,13 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
     InlineData& cord, const InlineData& src, MethodIdentifier method) {
   if (ABSL_PREDICT_FALSE(cordz_should_profile())) {
     TrackCord(cord, src, method);
+  }
+}
+
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeUntrackCord(
+    CordzInfo* info) {
+  if (ABSL_PREDICT_FALSE(info)) {
+    info->Untrack();
   }
 }
 
