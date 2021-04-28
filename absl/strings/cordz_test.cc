@@ -52,6 +52,8 @@ inline void PrintTo(const Cord& cord, std::ostream* s) {
 
 namespace {
 
+auto constexpr kMaxInline = cord_internal::kMaxInline;
+
 // Returns a string_view value of the specified length
 // We do this to avoid 'consuming' large strings in Cord by default.
 absl::string_view MakeString(size_t size) {
@@ -139,6 +141,16 @@ TEST(CordzTest, MoveAssignCord) {
   EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
 }
 
+TEST_P(CordzUpdateTest, AssignSmallArray) {
+  cord() = MakeString(TestCordSize::kSmall);
+  EXPECT_THAT(cord(), HasValidCordzInfoOf(Method::kAssignString));
+}
+
+TEST_P(CordzUpdateTest, AssignInlinedArray) {
+  cord() = MakeString(TestCordSize::kInlined);
+  EXPECT_THAT(GetCordzInfoForTesting(cord()), Eq(nullptr));
+}
+
 TEST_P(CordzUpdateTest, AppendCord) {
   Cord src = UnsampledCord(MakeString(TestCordSize::kLarge));
   cord().Append(src);
@@ -164,6 +176,56 @@ TEST_P(CordzUpdateTest, AppendSmallArray) {
 TEST_P(CordzUpdateTest, AppendLargeArray) {
   cord().Append(MakeString(TestCordSize::kLarge));
   EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kAppendString)));
+}
+
+TEST(CordzTest, RemovePrefix) {
+  CordzSamplingIntervalHelper sample_every(1);
+  Cord cord(MakeString(TestCordSize::kLarge));
+
+  // Half the cord
+  cord.RemovePrefix(cord.size() / 2);
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kRemovePrefix, 1));
+
+  // TODO(mvels): RemovePrefix does not reset to inlined, except if empty?
+  cord.RemovePrefix(cord.size() - kMaxInline);
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kRemovePrefix, 2));
+
+  cord.RemovePrefix(cord.size());
+  EXPECT_THAT(GetCordzInfoForTesting(cord), Eq(nullptr));
+}
+
+TEST(CordzTest, RemoveSuffix) {
+  CordzSamplingIntervalHelper sample_every(1);
+  Cord cord(MakeString(TestCordSize::kLarge));
+
+  // Half the cord
+  cord.RemoveSuffix(cord.size() / 2);
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kRemoveSuffix, 1));
+
+  // TODO(mvels): RemoveSuffix does not reset to inlined, except if empty?
+  cord.RemoveSuffix(cord.size() - kMaxInline);
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kRemoveSuffix, 2));
+
+  cord.RemoveSuffix(cord.size());
+  EXPECT_THAT(GetCordzInfoForTesting(cord), Eq(nullptr));
+}
+
+TEST(CordzTest, SubCord) {
+  CordzSamplingIntervalHelper sample_every{1};
+  Cord src(MakeString(TestCordSize::kLarge));
+
+  Cord cord1 = src.Subcord(10, src.size() / 2);
+  EXPECT_THAT(cord1, HasValidCordzInfoOf(Method::kSubCord));
+
+  Cord cord2 = src.Subcord(10, kMaxInline + 1);
+  EXPECT_THAT(cord2, HasValidCordzInfoOf(Method::kSubCord));
+
+  Cord cord3 = src.Subcord(10, kMaxInline);
+  EXPECT_THAT(GetCordzInfoForTesting(cord3), Eq(nullptr));
 }
 
 }  // namespace

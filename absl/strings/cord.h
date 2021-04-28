@@ -692,6 +692,10 @@ class Cord {
   // called by Flatten() when the cord was not already flat.
   absl::string_view FlattenSlowPath();
 
+  // Copies `new_size` bytes starting at `pos` into `dest`. Requires at least
+  // `new_size` bytes to be available, and `new_size` to be <= kMaxInline.
+  void CopyDataAtPosition(size_t pos, size_t new_size, char* dest) const;
+
   // Actual cord contents are hidden inside the following simple
   // class so that we can isolate the bulk of cord.cc from changes
   // to the representation.
@@ -745,11 +749,20 @@ class Cord {
     // the CordzInfo instance is updated to reference the new `rep` value.
     void SetTree(CordRep* rep, const CordzUpdateScope& scope);
 
+    // Identical to SetTree(), except that `rep` is allowed to be null, in
+    // which case the current instance is reset to an empty value.
+    void SetTreeOrEmpty(CordRep* rep, const CordzUpdateScope& scope);
+
     // Sets the tree value for this instance, and randomly samples this cord.
     // This function disregards existing contents in `data_`, and should be
     // called when a Cord is 'promoted' from an 'uninitialized' or 'inlined'
     // value to a non-inlined (tree / ring) value.
     void EmplaceTree(CordRep* rep, MethodIdentifier method);
+
+    // Identical to EmplaceTree, except that it copies the parent stack from
+    // the provided `parent` data if the parent is sampled.
+    void EmplaceTree(CordRep* rep, const InlineData& parent,
+                     MethodIdentifier method);
 
     // Commits the change of a newly created, or updated `rep` root value into
     // this cord. `old_rep` indicates the old (inlined or tree) value of the
@@ -1071,11 +1084,28 @@ inline void Cord::InlineRep::EmplaceTree(CordRep* rep,
   CordzInfo::MaybeTrackCord(data_, method);
 }
 
+inline void Cord::InlineRep::EmplaceTree(CordRep* rep, const InlineData& parent,
+                                         MethodIdentifier method) {
+  data_.make_tree(rep);
+  CordzInfo::MaybeTrackCord(data_, parent, method);
+}
+
 inline void Cord::InlineRep::SetTree(CordRep* rep,
                                      const CordzUpdateScope& scope) {
   assert(rep);
   assert(data_.is_tree());
   data_.set_tree(rep);
+  scope.SetCordRep(rep);
+}
+
+inline void Cord::InlineRep::SetTreeOrEmpty(CordRep* rep,
+                                            const CordzUpdateScope& scope) {
+  assert(data_.is_tree());
+  if (rep) {
+    data_.set_tree(rep);
+  } else {
+    data_ = {};
+  }
   scope.SetCordRep(rep);
 }
 

@@ -852,6 +852,7 @@ absl_cc_library(
     absl::cordz_statistics
     absl::cordz_update_tracker
     absl::core_headers
+    absl::strings
   TESTONLY
 )
 
