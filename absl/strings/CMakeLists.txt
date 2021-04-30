@@ -830,6 +830,7 @@ absl_cc_library(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::config
     absl::cord
     absl::cord_internal
     absl::strings

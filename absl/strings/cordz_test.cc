@@ -34,6 +34,7 @@
 #ifdef ABSL_INTERNAL_CORDZ_ENABLED
 
 using testing::Eq;
+using testing::AnyOf;
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -84,22 +85,48 @@ class CordzUpdateTest : public testing::TestWithParam<TestCordSize> {
   Cord cord_{MakeString(GetParam())};
 };
 
+template <typename T>
+std::string ParamToString(::testing::TestParamInfo<T> param) {
+  return std::string(ToString(param.param));
+}
+
 INSTANTIATE_TEST_SUITE_P(WithParam, CordzUpdateTest,
                          testing::Values(TestCordSize::kEmpty,
                                          TestCordSize::kInlined,
                                          TestCordSize::kLarge),
                          TestParamToString);
 
-TEST(CordzTest, ConstructSmallString) {
+class CordzStringTest : public testing::TestWithParam<TestCordSize> {
+ private:
+  CordzSamplingIntervalHelper sample_every_{1};
+};
+
+INSTANTIATE_TEST_SUITE_P(WithParam, CordzStringTest,
+                         testing::Values(TestCordSize::kInlined,
+                                         TestCordSize::kStringSso1,
+                                         TestCordSize::kStringSso2,
+                                         TestCordSize::kSmall,
+                                         TestCordSize::kLarge),
+                         ParamToString<TestCordSize>);
+
+TEST(CordzTest, ConstructSmallArray) {
   CordzSamplingIntervalHelper sample_every{1};
   Cord cord(MakeString(TestCordSize::kSmall));
   EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
 }
 
-TEST(CordzTest, ConstructLargeString) {
+TEST(CordzTest, ConstructLargeArray) {
   CordzSamplingIntervalHelper sample_every{1};
   Cord cord(MakeString(TestCordSize::kLarge));
   EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+}
+
+TEST_P(CordzStringTest, ConstructString) {
+  CordzSamplingIntervalHelper sample_every{1};
+  Cord cord(std::string(Length(GetParam()), '.'));
+  if (Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  }
 }
 
 TEST(CordzTest, CopyConstruct) {
@@ -151,6 +178,28 @@ TEST_P(CordzUpdateTest, AssignInlinedArray) {
   EXPECT_THAT(GetCordzInfoForTesting(cord()), Eq(nullptr));
 }
 
+TEST_P(CordzStringTest, AssignStringToInlined) {
+  Cord cord;
+  cord = std::string(Length(GetParam()), '.');
+  if (Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kAssignString));
+  }
+}
+
+TEST_P(CordzStringTest, AssignStringToCord) {
+  Cord cord(MakeString(TestCordSize::kLarge));
+  cord = std::string(Length(GetParam()), '.');
+  if (Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+    EXPECT_THAT(cord, CordzMethodCountEq(Method::kAssignString, 1));
+  }
+}
+
+TEST_P(CordzUpdateTest, AssignInlinedString) {
+  cord() = std::string(Length(TestCordSize::kInlined), '.');
+  EXPECT_THAT(GetCordzInfoForTesting(cord()), Eq(nullptr));
+}
+
 TEST_P(CordzUpdateTest, AppendCord) {
   Cord src = UnsampledCord(MakeString(TestCordSize::kLarge));
   cord().Append(src);
@@ -162,12 +211,6 @@ TEST_P(CordzUpdateTest, MoveAppendCord) {
   EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kAppendCord)));
 }
 
-TEST_P(CordzUpdateTest, PrependCord) {
-  Cord src = UnsampledCord(MakeString(TestCordSize::kLarge));
-  cord().Prepend(src);
-  EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kPrependCord)));
-}
-
 TEST_P(CordzUpdateTest, AppendSmallArray) {
   cord().Append(MakeString(TestCordSize::kSmall));
   EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kAppendString)));
@@ -176,6 +219,80 @@ TEST_P(CordzUpdateTest, AppendSmallArray) {
 TEST_P(CordzUpdateTest, AppendLargeArray) {
   cord().Append(MakeString(TestCordSize::kLarge));
   EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kAppendString)));
+}
+
+TEST_P(CordzStringTest, AppendStringToEmpty) {
+  Cord cord;
+  cord.Append(std::string(Length(GetParam()), '.'));
+  if (Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kAppendString));
+  }
+}
+
+TEST_P(CordzStringTest, AppendStringToInlined) {
+  Cord cord(MakeString(TestCordSize::kInlined));
+  cord.Append(std::string(Length(GetParam()), '.'));
+  if (Length(TestCordSize::kInlined) + Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kAppendString));
+  }
+}
+
+TEST_P(CordzStringTest, AppendStringToCord) {
+  Cord cord(MakeString(TestCordSize::kLarge));
+  cord.Append(std::string(Length(GetParam()), '.'));
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kAppendString, 1));
+}
+
+TEST(CordzTest, MakeCordFromExternal) {
+  CordzSamplingIntervalHelper sample_every{1};
+  Cord cord = MakeCordFromExternal("Hello world", [](absl::string_view) {});
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kMakeCordFromExternal));
+}
+
+TEST(CordzTest, MakeCordFromEmptyExternal) {
+  CordzSamplingIntervalHelper sample_every{1};
+  Cord cord = MakeCordFromExternal({}, [](absl::string_view) {});
+  EXPECT_THAT(GetCordzInfoForTesting(cord), Eq(nullptr));
+}
+
+TEST_P(CordzUpdateTest, PrependCord) {
+  Cord src = UnsampledCord(MakeString(TestCordSize::kLarge));
+  cord().Prepend(src);
+  EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kPrependCord)));
+}
+
+TEST_P(CordzUpdateTest, PrependSmallArray) {
+  cord().Prepend(MakeString(TestCordSize::kSmall));
+  EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kPrependString)));
+}
+
+TEST_P(CordzUpdateTest, PrependLargeArray) {
+  cord().Prepend(MakeString(TestCordSize::kLarge));
+  EXPECT_THAT(cord(), HasValidCordzInfoOf(InitialOr(Method::kPrependString)));
+}
+
+TEST_P(CordzStringTest, PrependStringToEmpty) {
+  Cord cord;
+  cord.Prepend(std::string(Length(GetParam()), '.'));
+  if (Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kPrependString));
+  }
+}
+
+TEST_P(CordzStringTest, PrependStringToInlined) {
+  Cord cord(MakeString(TestCordSize::kInlined));
+  cord.Prepend(std::string(Length(GetParam()), '.'));
+  if (Length(TestCordSize::kInlined) + Length(GetParam()) > kMaxInline) {
+    EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kPrependString));
+  }
+}
+
+TEST_P(CordzStringTest, PrependStringToCord) {
+  Cord cord(MakeString(TestCordSize::kLarge));
+  cord.Prepend(std::string(Length(GetParam()), '.'));
+  EXPECT_THAT(cord, HasValidCordzInfoOf(Method::kConstructorString));
+  EXPECT_THAT(cord, CordzMethodCountEq(Method::kPrependString, 1));
 }
 
 TEST(CordzTest, RemovePrefix) {

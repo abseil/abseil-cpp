@@ -529,6 +529,7 @@ cc_library(
         ":cord",
         ":cord_internal",
         ":strings",
+        "//absl/base:config",
     ],
 )
 
