@@ -304,20 +304,6 @@ TEST(CordzInfoTest, FromParentInlined) {
   info->Untrack();
 }
 
-TEST(CordzInfoTest, RecordMetrics) {
-  TestCordData data;
-  CordzInfo* info = TrackParentCord(data.data);
-
-  CordzStatistics expected;
-  expected.size = 100;
-  info->RecordMetrics(expected.size);
-
-  CordzStatistics actual = info->GetCordzStatistics();
-  EXPECT_EQ(actual.size, expected.size);
-
-  info->Untrack();
-}
-
 }  // namespace
 }  // namespace cord_internal
 ABSL_NAMESPACE_END

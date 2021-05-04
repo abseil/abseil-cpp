@@ -1077,6 +1077,7 @@ inline cord_internal::CordRepFlat* Cord::InlineRep::MakeFlatWithExtraCapacity(
 
 inline void Cord::InlineRep::EmplaceTree(CordRep* rep,
                                          MethodIdentifier method) {
+  assert(rep);
   data_.make_tree(rep);
   CordzInfo::MaybeTrackCord(data_, method);
 }

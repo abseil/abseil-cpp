@@ -696,6 +696,7 @@ absl_cc_library(
     absl::cordz_statistics
     absl::cordz_update_tracker
     absl::core_headers
+    absl::inlined_vector
     absl::span
     absl::raw_logging_internal
     absl::stacktrace
@@ -719,6 +720,24 @@ absl_cc_test(
     absl::span
     absl::stacktrace
     absl::symbolize
+    gmock_main
+)
+
+absl_cc_test(
+  NAME
+    cordz_info_statistics_test
+  SRCS
+    "internal/cordz_info_statistics_test.cc"
+  DEPS
+    absl::config
+    absl::cord
+    absl::cord_internal
+    absl::cordz_info
+    absl::cordz_sample_token
+    absl::cordz_statistics
+    absl::cordz_update_scope
+    absl::cordz_update_tracker
+    absl::thread_pool
     gmock_main
 )
 

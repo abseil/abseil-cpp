@@ -147,11 +147,6 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   // or RemovePrefix.
   CordzStatistics GetCordzStatistics() const;
 
-  // Records size metric for this CordzInfo instance.
-  void RecordMetrics(int64_t size) {
-    size_.store(size, std::memory_order_relaxed);
-  }
-
  private:
   using SpinLock = absl::base_internal::SpinLock;
   using SpinLockHolder = ::absl::base_internal::SpinLockHolder;
@@ -215,9 +210,6 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   const MethodIdentifier parent_method_;
   CordzUpdateTracker update_tracker_;
   const absl::Time create_time_;
-
-  // Last recorded size for the cord.
-  std::atomic<int64_t> size_{0};
 };
 
 inline ABSL_ATTRIBUTE_ALWAYS_INLINE void CordzInfo::MaybeTrackCord(
@@ -250,9 +242,6 @@ inline void CordzInfo::AssertHeld() ABSL_ASSERT_EXCLUSIVE_LOCK(mutex_) {
 inline void CordzInfo::SetCordRep(CordRep* rep) {
   AssertHeld();
   rep_ = rep;
-  if (rep) {
-    size_.store(rep->length);
-  }
 }
 
 inline void CordzInfo::UnsafeSetCordRep(CordRep* rep) { rep_ = rep; }

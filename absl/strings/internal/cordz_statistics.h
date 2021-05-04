@@ -28,6 +28,15 @@ namespace cord_internal {
 struct CordzStatistics {
   using MethodIdentifier = CordzUpdateTracker::MethodIdentifier;
 
+  // Node counts information
+  struct NodeCounts {
+    size_t flat = 0;
+    size_t external = 0;
+    size_t substring = 0;
+    size_t concat = 0;
+    size_t ring = 0;
+  };
+
   // The size of the cord in bytes. This matches the result of Cord::size().
   int64_t size = 0;
 
@@ -49,6 +58,9 @@ struct CordzStatistics {
   // For ring buffer Cords, this includes the 'ring buffer' node.
   // A value of 0 implies the property has not been recorded.
   int64_t node_count = 0;
+
+  // Detailed node counts per type
+  NodeCounts node_counts;
 
   // The cord method responsible for sampling the cord.
   MethodIdentifier method = MethodIdentifier::kUnknown;
