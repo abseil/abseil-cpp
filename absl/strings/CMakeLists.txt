@@ -221,9 +221,9 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::base
     absl::core_headers
     absl::dynamic_annotations
+    absl::btree
     absl::flat_hash_map
     absl::node_hash_map
     gmock_main
