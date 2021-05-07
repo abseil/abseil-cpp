@@ -135,6 +135,23 @@ class CordRepAnalyzer {
     return (rep != nullptr && rep->tag == CONCAT) ? repref : RepRef{nullptr, 0};
   }
 
+  // Counts a flat of the provide allocated size
+  void CountFlat(size_t size) {
+    statistics_.node_count++;
+    statistics_.node_counts.flat++;
+    if (size <= 64) {
+      statistics_.node_counts.flat_64++;
+    } else if (size <= 128) {
+      statistics_.node_counts.flat_128++;
+    } else if (size <= 256) {
+      statistics_.node_counts.flat_256++;
+    } else if (size <= 512) {
+      statistics_.node_counts.flat_512++;
+    } else if (size <= 1024) {
+      statistics_.node_counts.flat_1k++;
+    }
+  }
+
   // Processes 'linear' reps (substring, flat, external) not requiring iteration
   // or recursion. Returns RefRep{null} if all reps were processed, else returns
   // the top-most non-linear concat or ring cordrep.
@@ -152,9 +169,9 @@ class CordRepAnalyzer {
 
     // Consume possible FLAT
     if (rep.rep->tag >= FLAT) {
-      statistics_.node_count++;
-      statistics_.node_counts.flat++;
-      memory_usage.Add(rep.rep->flat()->AllocatedSize(), rep.refcount);
+      size_t size = rep.rep->flat()->AllocatedSize();
+      CountFlat(size);
+      memory_usage.Add(size, rep.refcount);
       return RepRef{nullptr, 0};
     }
 
@@ -263,9 +280,15 @@ void CordzInfo::TrackCord(InlineData& cord, MethodIdentifier method) {
 void CordzInfo::TrackCord(InlineData& cord, const InlineData& src,
                           MethodIdentifier method) {
   assert(cord.is_tree());
-  assert(!cord.is_profiled());
-  auto* info = src.is_tree() && src.is_profiled() ? src.cordz_info() : nullptr;
-  CordzInfo* cordz_info = new CordzInfo(cord.as_tree(), info, method);
+  assert(src.is_tree());
+
+  // Unsample current as we the current cord is being replaced with 'src',
+  // so any method history is no longer relevant.
+  CordzInfo* cordz_info = cord.cordz_info();
+  if (cordz_info != nullptr) cordz_info->Untrack();
+
+  // Start new cord sample
+  cordz_info = new CordzInfo(cord.as_tree(), src.cordz_info(), method);
   cord.set_cordz_info(cordz_info);
   cordz_info->Track();
 }
@@ -297,6 +320,10 @@ CordzInfo::CordzInfo(CordRep* rep, const CordzInfo* src,
       parent_method_(GetParentMethod(src)),
       create_time_(absl::Now()) {
   update_tracker_.LossyAdd(method);
+  if (src) {
+    // Copy parent counters.
+    update_tracker_.LossyAdd(src->update_tracker_);
+  }
 }
 
 CordzInfo::~CordzInfo() {

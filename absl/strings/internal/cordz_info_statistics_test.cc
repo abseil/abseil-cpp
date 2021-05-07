@@ -42,10 +42,18 @@ inline void PrintTo(const CordzStatistics& stats, std::ostream* s) {
 
 namespace {
 
-// Creates a flat of the specified length
-CordRepFlat* Flat(int length = 512) {
-  auto* flat = CordRepFlat::New(length);
-  flat->length = length;
+// Creates a flat of the specified allocated size
+CordRepFlat* Flat(size_t size) {
+  // Round up to a tag size, as we are going to poke an exact tag size back into
+  // the allocated flat. 'size returning allocators' could grant us more than we
+  // wanted, but we are ok to poke the 'requested' size in the tag, even in the
+  // presence of sized deletes, so we need to make sure the size rounds
+  // perfectly to a tag value.
+  assert(size >= kMinFlatSize);
+  size = RoundUpForTag(size);
+  CordRepFlat* flat = CordRepFlat::New(size - kFlatOverhead);
+  flat->tag = AllocatedSizeToTag(size);
+  flat->length = size - kFlatOverhead;
   return flat;
 }
 
@@ -174,6 +182,11 @@ MATCHER_P(EqStatistics, stats, "Statistics equal expected values") {
   STATS_MATCHER_EXPECT_EQ(size);
   STATS_MATCHER_EXPECT_EQ(node_count);
   STATS_MATCHER_EXPECT_EQ(node_counts.flat);
+  STATS_MATCHER_EXPECT_EQ(node_counts.flat_64);
+  STATS_MATCHER_EXPECT_EQ(node_counts.flat_128);
+  STATS_MATCHER_EXPECT_EQ(node_counts.flat_256);
+  STATS_MATCHER_EXPECT_EQ(node_counts.flat_512);
+  STATS_MATCHER_EXPECT_EQ(node_counts.flat_1k);
   STATS_MATCHER_EXPECT_EQ(node_counts.external);
   STATS_MATCHER_EXPECT_EQ(node_counts.concat);
   STATS_MATCHER_EXPECT_EQ(node_counts.substring);
@@ -188,7 +201,7 @@ MATCHER_P(EqStatistics, stats, "Statistics equal expected values") {
 
 TEST(CordzInfoStatisticsTest, Flat) {
   RefHelper ref;
-  auto* flat = ref.NeedsUnref(Flat());
+  auto* flat = ref.NeedsUnref(Flat(512));
 
   CordzStatistics expected;
   expected.size = flat->length;
@@ -196,13 +209,14 @@ TEST(CordzInfoStatisticsTest, Flat) {
   expected.estimated_fair_share_memory_usage = expected.estimated_memory_usage;
   expected.node_count = 1;
   expected.node_counts.flat = 1;
+  expected.node_counts.flat_512 = 1;
 
   EXPECT_THAT(SampleCord(flat), EqStatistics(expected));
 }
 
 TEST(CordzInfoStatisticsTest, SharedFlat) {
   RefHelper ref;
-  auto* flat = ref.Ref(ref.NeedsUnref(Flat()));
+  auto* flat = ref.Ref(ref.NeedsUnref(Flat(64)));
 
   CordzStatistics expected;
   expected.size = flat->length;
@@ -210,6 +224,7 @@ TEST(CordzInfoStatisticsTest, SharedFlat) {
   expected.estimated_fair_share_memory_usage = SizeOf(flat) / 2;
   expected.node_count = 1;
   expected.node_counts.flat = 1;
+  expected.node_counts.flat_64 = 1;
 
   EXPECT_THAT(SampleCord(flat), EqStatistics(expected));
 }
@@ -244,7 +259,7 @@ TEST(CordzInfoStatisticsTest, SharedExternal) {
 
 TEST(CordzInfoStatisticsTest, Substring) {
   RefHelper ref;
-  auto* flat = Flat();
+  auto* flat = Flat(1024);
   auto* substring = ref.NeedsUnref(Substring(flat));
 
   CordzStatistics expected;
@@ -253,6 +268,7 @@ TEST(CordzInfoStatisticsTest, Substring) {
   expected.estimated_fair_share_memory_usage = expected.estimated_memory_usage;
   expected.node_count = 2;
   expected.node_counts.flat = 1;
+  expected.node_counts.flat_1k = 1;
   expected.node_counts.substring = 1;
 
   EXPECT_THAT(SampleCord(substring), EqStatistics(expected));
@@ -260,7 +276,7 @@ TEST(CordzInfoStatisticsTest, Substring) {
 
 TEST(CordzInfoStatisticsTest, SharedSubstring) {
   RefHelper ref;
-  auto* flat = ref.Ref(Flat(), 2);
+  auto* flat = ref.Ref(Flat(511), 2);
   auto* substring = ref.Ref(ref.NeedsUnref(Substring(flat)));
 
   CordzStatistics expected;
@@ -270,6 +286,7 @@ TEST(CordzInfoStatisticsTest, SharedSubstring) {
       SizeOf(substring) / 2 + SizeOf(flat) / 6;
   expected.node_count = 2;
   expected.node_counts.flat = 1;
+  expected.node_counts.flat_512 = 1;
   expected.node_counts.substring = 1;
 
   EXPECT_THAT(SampleCord(substring), EqStatistics(expected));
@@ -277,7 +294,7 @@ TEST(CordzInfoStatisticsTest, SharedSubstring) {
 
 TEST(CordzInfoStatisticsTest, Concat) {
   RefHelper ref;
-  auto* flat1 = Flat(20);
+  auto* flat1 = Flat(300);
   auto* flat2 = Flat(2000);
   auto* concat = ref.NeedsUnref(Concat(flat1, flat2));
 
@@ -288,6 +305,7 @@ TEST(CordzInfoStatisticsTest, Concat) {
   expected.estimated_fair_share_memory_usage = expected.estimated_memory_usage;
   expected.node_count = 3;
   expected.node_counts.flat = 2;
+  expected.node_counts.flat_512 = 1;
   expected.node_counts.concat = 1;
 
   EXPECT_THAT(SampleCord(concat), EqStatistics(expected));
@@ -295,9 +313,9 @@ TEST(CordzInfoStatisticsTest, Concat) {
 
 TEST(CordzInfoStatisticsTest, DeepConcat) {
   RefHelper ref;
-  auto* flat1 = Flat(20);
+  auto* flat1 = Flat(300);
   auto* flat2 = Flat(2000);
-  auto* flat3 = Flat(30);
+  auto* flat3 = Flat(400);
   auto* external = External(3000);
   auto* substring = Substring(external);
   auto* concat1 = Concat(flat1, flat2);
@@ -313,6 +331,7 @@ TEST(CordzInfoStatisticsTest, DeepConcat) {
 
   expected.node_count = 8;
   expected.node_counts.flat = 3;
+  expected.node_counts.flat_512 = 2;
   expected.node_counts.external = 1;
   expected.node_counts.concat = 3;
   expected.node_counts.substring = 1;
@@ -322,9 +341,9 @@ TEST(CordzInfoStatisticsTest, DeepConcat) {
 
 TEST(CordzInfoStatisticsTest, DeepSharedConcat) {
   RefHelper ref;
-  auto* flat1 = Flat(20);
+  auto* flat1 = Flat(40);
   auto* flat2 = ref.Ref(Flat(2000), 4);
-  auto* flat3 = Flat(30);
+  auto* flat3 = Flat(70);
   auto* external = ref.Ref(External(3000));
   auto* substring = ref.Ref(Substring(external), 3);
   auto* concat1 = Concat(flat1, flat2);
@@ -339,6 +358,8 @@ TEST(CordzInfoStatisticsTest, DeepSharedConcat) {
   expected.estimated_fair_share_memory_usage = FairShare(concat);
   expected.node_count = 8;
   expected.node_counts.flat = 3;
+  expected.node_counts.flat_64 = 1;
+  expected.node_counts.flat_128 = 1;
   expected.node_counts.external = 1;
   expected.node_counts.concat = 3;
   expected.node_counts.substring = 1;
@@ -348,9 +369,9 @@ TEST(CordzInfoStatisticsTest, DeepSharedConcat) {
 
 TEST(CordzInfoStatisticsTest, Ring) {
   RefHelper ref;
-  auto* flat1 = Flat(20);
+  auto* flat1 = Flat(240);
   auto* flat2 = Flat(2000);
-  auto* flat3 = Flat(30);
+  auto* flat3 = Flat(70);
   auto* external = External(3000);
   CordRepRing* ring = CordRepRing::Create(flat1);
   ring = CordRepRing::Append(ring, flat2);
@@ -365,6 +386,8 @@ TEST(CordzInfoStatisticsTest, Ring) {
   expected.estimated_fair_share_memory_usage = expected.estimated_memory_usage;
   expected.node_count = 5;
   expected.node_counts.flat = 3;
+  expected.node_counts.flat_128 = 1;
+  expected.node_counts.flat_256 = 1;
   expected.node_counts.external = 1;
   expected.node_counts.ring = 1;
 
@@ -373,9 +396,9 @@ TEST(CordzInfoStatisticsTest, Ring) {
 
 TEST(CordzInfoStatisticsTest, SharedSubstringRing) {
   RefHelper ref;
-  auto* flat1 = ref.Ref(Flat(20));
+  auto* flat1 = ref.Ref(Flat(240));
   auto* flat2 = Flat(200);
-  auto* flat3 = Flat(30);
+  auto* flat3 = Flat(70);
   auto* external = ref.Ref(External(3000), 5);
   CordRepRing* ring = CordRepRing::Create(flat1);
   ring = CordRepRing::Append(ring, flat2);
@@ -392,6 +415,8 @@ TEST(CordzInfoStatisticsTest, SharedSubstringRing) {
   expected.estimated_fair_share_memory_usage = FairShare(substring);
   expected.node_count = 6;
   expected.node_counts.flat = 3;
+  expected.node_counts.flat_128 = 1;
+  expected.node_counts.flat_256 = 2;
   expected.node_counts.external = 1;
   expected.node_counts.ring = 1;
   expected.node_counts.substring = 1;
@@ -447,7 +472,7 @@ TEST(CordzInfoStatisticsTest, ThreadSafety) {
                 cord.set_inline_size(0);
               } else {
                 // 50/50 Ring or Flat coin toss
-                CordRep* rep = Flat();
+                CordRep* rep = Flat(256);
                 rep = (coin_toss(gen) != 0) ? CordRepRing::Create(rep) : rep;
                 cord.make_tree(rep);
 

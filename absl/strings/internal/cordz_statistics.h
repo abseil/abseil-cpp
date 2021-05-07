@@ -30,11 +30,16 @@ struct CordzStatistics {
 
   // Node counts information
   struct NodeCounts {
-    size_t flat = 0;
-    size_t external = 0;
-    size_t substring = 0;
-    size_t concat = 0;
-    size_t ring = 0;
+    size_t flat = 0;       // #flats
+    size_t flat_64 = 0;    // #flats up to 64 bytes
+    size_t flat_128 = 0;   // #flats up to 128 bytes
+    size_t flat_256 = 0;   // #flats up to 256 bytes
+    size_t flat_512 = 0;   // #flats up to 512 bytes
+    size_t flat_1k = 0;    // #flats up to 1K bytes
+    size_t external = 0;   // #external reps
+    size_t substring = 0;  // #substring reps
+    size_t concat = 0;     // #concat reps
+    size_t ring = 0;       // #ring buffer reps
   };
 
   // The size of the cord in bytes. This matches the result of Cord::size().
