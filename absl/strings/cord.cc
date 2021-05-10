@@ -535,6 +535,23 @@ void Cord::InlineRep::AssignSlow(const Cord::InlineRep& src) {
     EmplaceTree(CordRep::Ref(src.as_tree()), src.data_, method);
     return;
   }
+
+  // See b/187581164: unsample cord if already sampled
+  // TODO(b/117940323): continuously 'assigned to' cords would reach 100%
+  // sampling probability. Imagine a cord x in some cache:
+  //   cache.SetCord(const Cord& foo) {
+  //     x = foo;
+  //   }
+  // CordzInfo::MaybeTrackCord does:
+  // x.profiled = foo.profiled | x.profiled | random(cordz_mean_interval)
+  // Which means it will on the long run converge to 'always samples'
+  // The real fix is in CordzMaybeTrackCord, but the below is a low risk
+  // forward fix for b/187581164 and similar BT benchmark regressions.
+  if (ABSL_PREDICT_FALSE(is_profiled())) {
+    cordz_info()->Untrack();
+    clear_cordz_info();
+  }
+
   CordRep* tree = as_tree();
   if (CordRep* src_tree = src.tree()) {
     data_.set_tree(CordRep::Ref(src_tree));
