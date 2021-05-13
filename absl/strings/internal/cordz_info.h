@@ -158,6 +158,11 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
     return rep_;
   }
 
+  // Sets the current value of `rep_` for testing purposes only.
+  void SetCordRepForTesting(CordRep* rep) ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    rep_ = rep;
+  }
+
   // Returns the stack trace for where the cord was first sampled. Cords are
   // potentially sampled when they promote from an inlined cord to a tree or
   // ring representation, which is not necessarily the location where the cord
