@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
@@ -142,6 +143,9 @@ bool ReadSeedMaterialFromGetEntropy(absl::Span<uint32_t> values) {
     if (result < 0) {
       return false;
     }
+    // https://github.com/google/sanitizers/issues/1173
+    // MemorySanitizer can't see through getentropy().
+    ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(buffer, to_read);
     buffer += to_read;
     buffer_size -= to_read;
   }
