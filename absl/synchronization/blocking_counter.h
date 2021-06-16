@@ -21,6 +21,7 @@
 #define ABSL_SYNCHRONIZATION_BLOCKING_COUNTER_H_
 
 #include <atomic>
+#include <limits>
 
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
