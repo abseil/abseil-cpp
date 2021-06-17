@@ -564,7 +564,7 @@ inline FindInfo find_first_non_full(ctrl_t* ctrl, size_t hash,
       return {seq.offset(mask.LowestBitSet()), seq.index()};
     }
     seq.next();
-    assert(seq.index() < capacity && "full table!");
+    assert(seq.index() <= capacity && "full table!");
   }
 }
 
@@ -1380,7 +1380,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) return end();
       seq.next();
-      assert(seq.index() < capacity_ && "full table!");
+      assert(seq.index() <= capacity_ && "full table!");
     }
   }
   template <class K = key_type>
@@ -1698,7 +1698,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) return false;
       seq.next();
-      assert(seq.index() < capacity_ && "full table!");
+      assert(seq.index() <= capacity_ && "full table!");
     }
     return false;
   }
@@ -1730,7 +1730,7 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MatchEmpty())) break;
       seq.next();
-      assert(seq.index() < capacity_ && "full table!");
+      assert(seq.index() <= capacity_ && "full table!");
     }
     return {prepare_insert(hash), true};
   }
