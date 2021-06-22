@@ -51,7 +51,7 @@ void ConvertDeletedToEmptyAndFullToDeleted(
     Group{pos}.ConvertSpecialToEmptyAndFullToDeleted(pos);
   }
   // Copy the cloned ctrl bytes.
-  std::memcpy(ctrl + capacity + 1, ctrl, Group::kWidth - 1);
+  std::memcpy(ctrl + capacity + 1, ctrl, NumClonedBytes());
   ctrl[capacity] = kSentinel;
 }
 

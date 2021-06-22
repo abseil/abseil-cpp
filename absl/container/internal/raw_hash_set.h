@@ -448,6 +448,10 @@ using Group = GroupSse2Impl;
 using Group = GroupPortableImpl;
 #endif
 
+// The number of cloned control bytes that we copy from the beginning to the
+// end of the control bytes array.
+constexpr size_t NumClonedBytes() { return Group::kWidth - 1; }
+
 template <class Policy, class Hash, class Eq, class Alloc>
 class raw_hash_set;
 
@@ -629,8 +633,8 @@ class raw_hash_set {
   static Layout MakeLayout(size_t capacity) {
     assert(IsValidCapacity(capacity));
     // The extra control bytes are for 1 sentinel byte followed by
-    // `Group::kWidth - 1` bytes that are cloned from the beginning.
-    return Layout(capacity + Group::kWidth, capacity);
+    // NumClonedBytes() bytes that are cloned from the beginning.
+    return Layout(capacity + 1 + NumClonedBytes(), capacity);
   }
 
   using AllocTraits = absl::allocator_traits<allocator_type>;
@@ -1796,8 +1800,8 @@ class raw_hash_set {
     }
 
     ctrl_[i] = h;
-    constexpr size_t kClonedBytes = Group::kWidth - 1;
-    ctrl_[((i - kClonedBytes) & capacity_) + (kClonedBytes & capacity_)] = h;
+    ctrl_[((i - NumClonedBytes()) & capacity_) +
+          (NumClonedBytes() & capacity_)] = h;
   }
 
   size_t& growth_left() { return settings_.template get<0>(); }
@@ -1816,10 +1820,10 @@ class raw_hash_set {
   // TODO(alkis): Investigate removing some of these fields:
   // - ctrl/slots can be derived from each other
   // - size can be moved into the slot array
-  ctrl_t* ctrl_ = EmptyGroup();    // [(capacity + Group::kWidth) * ctrl_t]
-  slot_type* slots_ = nullptr;     // [capacity * slot_type]
-  size_t size_ = 0;                // number of full slots
-  size_t capacity_ = 0;            // total number of slots
+  ctrl_t* ctrl_ = EmptyGroup();  // [(capacity + 1 + NumClonedBytes()) * ctrl_t]
+  slot_type* slots_ = nullptr;   // [capacity * slot_type]
+  size_t size_ = 0;              // number of full slots
+  size_t capacity_ = 0;          // total number of slots
   absl::container_internal::CompressedTuple<size_t /* growth_left */,
                                             HashtablezInfoHandle, hasher,
                                             key_equal, allocator_type>
