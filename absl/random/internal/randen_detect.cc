@@ -40,7 +40,9 @@
 #if defined(ABSL_INTERNAL_USE_X86_CPUID)
 #if defined(_WIN32) || defined(_WIN64)
 #include <intrin.h>  // NOLINT(build/include_order)
+#if defined(_MSC_VER)
 #pragma intrinsic(__cpuid)
+#endif
 #else
 // MSVC-equivalent __cpuid intrinsic function.
 static void __cpuid(int cpu_info[4], int info_type) {

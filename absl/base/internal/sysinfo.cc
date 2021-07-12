@@ -148,7 +148,11 @@ static double GetNominalCPUFrequency() {
   // API informing about CPU nominal frequency.
   return 1.0;
 #else
+
+#if defined(_MSC_VER)
 #pragma comment(lib, "advapi32.lib")  // For Reg* functions.
+#endif
+
   HKEY key;
   // Use the Reg* functions rather than the SH functions because shlwapi.dll
   // pulls in gdi32.dll which makes process destruction much more costly.

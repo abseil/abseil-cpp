@@ -20,7 +20,7 @@
 
 #include "absl/base/config.h"
 
-#if ABSL_HAVE_MMAP
+#ifdef ABSL_HAVE_MMAP
 
 #include <sys/mman.h>
 
@@ -35,6 +35,7 @@
 
 #include <linux/unistd.h>
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstdarg>
 #include <cstdint>
