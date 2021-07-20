@@ -72,7 +72,6 @@ def absl_random_randen_copts_init():
         "x64_windows_msvc",
         "x64_windows",
         "aarch64",
-        
     ]
     for cpu in cpu_configs:
         native.config_setting(
