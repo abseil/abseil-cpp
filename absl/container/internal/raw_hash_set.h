@@ -588,6 +588,31 @@ inline FindInfo find_first_non_full(ctrl_t* ctrl, size_t hash,
   }
 }
 
+// Reset all ctrl bytes back to kEmpty, except the sentinel.
+inline void ResetCtrl(size_t capacity, ctrl_t* ctrl, const void* slot,
+                      size_t slot_size) {
+  std::memset(ctrl, kEmpty, capacity + 1 + NumClonedBytes());
+  ctrl[capacity] = kSentinel;
+  SanitizerPoisonMemoryRegion(slot, slot_size * capacity);
+}
+
+// Sets the control byte, and if `i < NumClonedBytes()`, set the cloned byte
+// at the end too.
+inline void SetCtrl(size_t i, ctrl_t h, size_t capacity, ctrl_t* ctrl,
+                    const void* slot, size_t slot_size) {
+  assert(i < capacity);
+
+  auto* slot_i = static_cast<const char*>(slot) + i * slot_size;
+  if (IsFull(h)) {
+    SanitizerUnpoisonMemoryRegion(slot_i, slot_size);
+  } else {
+    SanitizerPoisonMemoryRegion(slot_i, slot_size);
+  }
+
+  ctrl[i] = h;
+  ctrl[((i - NumClonedBytes()) & capacity) + (NumClonedBytes() & capacity)] = h;
+}
+
 // Policy: a policy defines how to perform different operations on
 // the slots of the hashtable (see hash_policy_traits.h for the full interface
 // of policy).
@@ -925,7 +950,8 @@ class raw_hash_set {
     for (const auto& v : that) {
       const size_t hash = PolicyTraits::apply(HashElement{hash_ref()}, v);
       auto target = find_first_non_full(ctrl_, hash, capacity_);
-      set_ctrl(target.offset, H2(hash));
+      SetCtrl(target.offset, H2(hash), capacity_, ctrl_, slots_,
+              sizeof(slot_type));
       emplace_at(target.offset, v);
       infoz().RecordInsert(hash, target.probe_length);
     }
@@ -1028,7 +1054,7 @@ class raw_hash_set {
         }
       }
       size_ = 0;
-      reset_ctrl();
+      ResetCtrl(capacity_, ctrl_, slots_, sizeof(slot_type));
       reset_growth_left();
     }
     assert(empty());
@@ -1549,7 +1575,8 @@ class raw_hash_set {
         static_cast<size_t>(empty_after.TrailingZeros() +
                             empty_before.LeadingZeros()) < Group::kWidth;
 
-    set_ctrl(index, was_never_full ? kEmpty : kDeleted);
+    SetCtrl(index, was_never_full ? kEmpty : kDeleted, capacity_, ctrl_, slots_,
+            sizeof(slot_type));
     growth_left() += was_never_full;
     infoz().RecordErase();
   }
@@ -1576,7 +1603,7 @@ class raw_hash_set {
         Allocate<Layout::Alignment()>(&alloc_ref(), layout.AllocSize()));
     ctrl_ = layout.template Pointer<0>(mem);
     slots_ = layout.template Pointer<1>(mem);
-    reset_ctrl();
+    ResetCtrl(capacity_, ctrl_, slots_, sizeof(slot_type));
     reset_growth_left();
     infoz().RecordStorageChanged(size_, capacity_);
   }
@@ -1615,7 +1642,7 @@ class raw_hash_set {
         auto target = find_first_non_full(ctrl_, hash, capacity_);
         size_t new_i = target.offset;
         total_probe_length += target.probe_length;
-        set_ctrl(new_i, H2(hash));
+        SetCtrl(new_i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, old_slots + i);
       }
     }
@@ -1670,19 +1697,19 @@ class raw_hash_set {
 
       // Element doesn't move.
       if (ABSL_PREDICT_TRUE(probe_index(new_i) == probe_index(i))) {
-        set_ctrl(i, H2(hash));
+        SetCtrl(i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
         continue;
       }
       if (IsEmpty(ctrl_[new_i])) {
         // Transfer element to the empty spot.
-        // set_ctrl poisons/unpoisons the slots so we have to call it at the
+        // SetCtrl poisons/unpoisons the slots so we have to call it at the
         // right time.
-        set_ctrl(new_i, H2(hash));
+        SetCtrl(new_i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, slots_ + i);
-        set_ctrl(i, kEmpty);
+        SetCtrl(i, kEmpty, capacity_, ctrl_, slots_, sizeof(slot_type));
       } else {
         assert(IsDeleted(ctrl_[new_i]));
-        set_ctrl(new_i, H2(hash));
+        SetCtrl(new_i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
         // Until we are done rehashing, DELETED marks previously FULL slots.
         // Swap i and new_i elements.
         PolicyTraits::transfer(&alloc_ref(), slot, slots_ + i);
@@ -1698,8 +1725,50 @@ class raw_hash_set {
   void rehash_and_grow_if_necessary() {
     if (capacity_ == 0) {
       resize(1);
-    } else if (size() <= CapacityToGrowth(capacity()) / 2) {
+    } else if (capacity_ > Group::kWidth &&
+               // Do these calcuations in 64-bit to avoid overflow.
+               size() * uint64_t{32} <= capacity_ * uint64_t{25}) {
       // Squash DELETED without growing if there is enough capacity.
+      //
+      // Rehash in place if the current size is <= 25/32 of capacity_.
+      // Rationale for such a high factor: 1) drop_deletes_without_resize() is
+      // faster than resize, and 2) it takes quite a bit of work to add
+      // tombstones.  In the worst case, seems to take approximately 4
+      // insert/erase pairs to create a single tombstone and so if we are
+      // rehashing because of tombstones, we can afford to rehash-in-place as
+      // long as we are reclaiming at least 1/8 the capacity without doing more
+      // than 2X the work.  (Where "work" is defined to be size() for rehashing
+      // or rehashing in place, and 1 for an insert or erase.)  But rehashing in
+      // place is faster per operation than inserting or even doubling the size
+      // of the table, so we actually afford to reclaim even less space from a
+      // resize-in-place.  The decision is to rehash in place if we can reclaim
+      // at about 1/8th of the usable capacity (specifically 3/28 of the
+      // capacity) which means that the total cost of rehashing will be a small
+      // fraction of the total work.
+      //
+      // Here is output of an experiment using the BM_CacheInSteadyState
+      // benchmark running the old case (where we rehash-in-place only if we can
+      // reclaim at least 7/16*capacity_) vs. this code (which rehashes in place
+      // if we can recover 3/32*capacity_).
+      //
+      // Note that although in the worst-case number of rehashes jumped up from
+      // 15 to 190, but the number of operations per second is almost the same.
+      //
+      // Abridged output of running BM_CacheInSteadyState benchmark from
+      // raw_hash_set_benchmark.   N is the number of insert/erase operations.
+      //
+      //      | OLD (recover >= 7/16        | NEW (recover >= 3/32)
+      // size |    N/s LoadFactor NRehashes |    N/s LoadFactor NRehashes
+      //  448 | 145284       0.44        18 | 140118       0.44        19
+      //  493 | 152546       0.24        11 | 151417       0.48        28
+      //  538 | 151439       0.26        11 | 151152       0.53        38
+      //  583 | 151765       0.28        11 | 150572       0.57        50
+      //  628 | 150241       0.31        11 | 150853       0.61        66
+      //  672 | 149602       0.33        12 | 150110       0.66        90
+      //  717 | 149998       0.35        12 | 149531       0.70       129
+      //  762 | 149836       0.37        13 | 148559       0.74       190
+      //  807 | 149736       0.39        14 | 151107       0.39        14
+      //  852 | 150204       0.42        15 | 151019       0.42        15
       drop_deletes_without_resize();
     } else {
       // Otherwise grow the container.
@@ -1765,7 +1834,8 @@ class raw_hash_set {
     }
     ++size_;
     growth_left() -= IsEmpty(ctrl_[target.offset]);
-    set_ctrl(target.offset, H2(hash));
+    SetCtrl(target.offset, H2(hash), capacity_, ctrl_, slots_,
+            sizeof(slot_type));
     infoz().RecordInsert(hash, target.probe_length);
     return target.offset;
   }
@@ -1794,31 +1864,8 @@ class raw_hash_set {
  private:
   friend struct RawHashSetTestOnlyAccess;
 
-  // Reset all ctrl bytes back to kEmpty, except the sentinel.
-  void reset_ctrl() {
-    std::memset(ctrl_, kEmpty, capacity_ + Group::kWidth);
-    ctrl_[capacity_] = kSentinel;
-    SanitizerPoisonMemoryRegion(slots_, sizeof(slot_type) * capacity_);
-  }
-
   void reset_growth_left() {
     growth_left() = CapacityToGrowth(capacity()) - size_;
-  }
-
-  // Sets the control byte, and if `i < Group::kWidth - 1`, set the cloned byte
-  // at the end too.
-  void set_ctrl(size_t i, ctrl_t h) {
-    assert(i < capacity_);
-
-    if (IsFull(h)) {
-      SanitizerUnpoisonObject(slots_ + i);
-    } else {
-      SanitizerPoisonObject(slots_ + i);
-    }
-
-    ctrl_[i] = h;
-    ctrl_[((i - NumClonedBytes()) & capacity_) +
-          (NumClonedBytes() & capacity_)] = h;
   }
 
   size_t& growth_left() { return settings_.template get<0>(); }
