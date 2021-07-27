@@ -252,48 +252,57 @@ class BitMask {
   T mask_;
 };
 
-using ctrl_t = signed char;
 using h2_t = uint8_t;
 
 // The values here are selected for maximum performance. See the static asserts
-// below for details.
-enum Ctrl : ctrl_t {
+// below for details. We use an enum class so that when strict aliasing is
+// enabled, the compiler knows ctrl_t doesn't alias other types.
+enum class ctrl_t : int8_t {
   kEmpty = -128,   // 0b10000000
   kDeleted = -2,   // 0b11111110
   kSentinel = -1,  // 0b11111111
 };
 static_assert(
-    kEmpty & kDeleted & kSentinel & 0x80,
+    (static_cast<int8_t>(ctrl_t::kEmpty) &
+     static_cast<int8_t>(ctrl_t::kDeleted) &
+     static_cast<int8_t>(ctrl_t::kSentinel) & 0x80) != 0,
     "Special markers need to have the MSB to make checking for them efficient");
-static_assert(kEmpty < kSentinel && kDeleted < kSentinel,
-              "kEmpty and kDeleted must be smaller than kSentinel to make the "
-              "SIMD test of IsEmptyOrDeleted() efficient");
-static_assert(kSentinel == -1,
-              "kSentinel must be -1 to elide loading it from memory into SIMD "
-              "registers (pcmpeqd xmm, xmm)");
-static_assert(kEmpty == -128,
-              "kEmpty must be -128 to make the SIMD check for its "
+static_assert(
+    ctrl_t::kEmpty < ctrl_t::kSentinel && ctrl_t::kDeleted < ctrl_t::kSentinel,
+    "ctrl_t::kEmpty and ctrl_t::kDeleted must be smaller than "
+    "ctrl_t::kSentinel to make the SIMD test of IsEmptyOrDeleted() efficient");
+static_assert(
+    ctrl_t::kSentinel == static_cast<ctrl_t>(-1),
+    "ctrl_t::kSentinel must be -1 to elide loading it from memory into SIMD "
+    "registers (pcmpeqd xmm, xmm)");
+static_assert(ctrl_t::kEmpty == static_cast<ctrl_t>(-128),
+              "ctrl_t::kEmpty must be -128 to make the SIMD check for its "
               "existence efficient (psignb xmm, xmm)");
-static_assert(~kEmpty & ~kDeleted & kSentinel & 0x7F,
-              "kEmpty and kDeleted must share an unset bit that is not shared "
-              "by kSentinel to make the scalar test for MatchEmptyOrDeleted() "
-              "efficient");
-static_assert(kDeleted == -2,
-              "kDeleted must be -2 to make the implementation of "
+static_assert(
+    (~static_cast<int8_t>(ctrl_t::kEmpty) &
+     ~static_cast<int8_t>(ctrl_t::kDeleted) &
+     static_cast<int8_t>(ctrl_t::kSentinel) & 0x7F) != 0,
+    "ctrl_t::kEmpty and ctrl_t::kDeleted must share an unset bit that is not "
+    "shared by ctrl_t::kSentinel to make the scalar test for "
+    "MatchEmptyOrDeleted() efficient");
+static_assert(ctrl_t::kDeleted == static_cast<ctrl_t>(-2),
+              "ctrl_t::kDeleted must be -2 to make the implementation of "
               "ConvertSpecialToEmptyAndFullToDeleted efficient");
 
 // A single block of empty control bytes for tables without any slots allocated.
 // This enables removing a branch in the hot path of find().
 inline ctrl_t* EmptyGroup() {
   alignas(16) static constexpr ctrl_t empty_group[] = {
-      kSentinel, kEmpty, kEmpty, kEmpty, kEmpty, kEmpty, kEmpty, kEmpty,
-      kEmpty,    kEmpty, kEmpty, kEmpty, kEmpty, kEmpty, kEmpty, kEmpty};
+      ctrl_t::kSentinel, ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+      ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+      ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+      ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty};
   return const_cast<ctrl_t*>(empty_group);
 }
 
 // Mixes a randomly generated per-process seed with `hash` and `ctrl` to
 // randomize insertion order within groups.
-bool ShouldInsertBackwards(size_t hash, ctrl_t* ctrl);
+bool ShouldInsertBackwards(size_t hash, const ctrl_t* ctrl);
 
 // Returns a hash seed.
 //
@@ -309,12 +318,12 @@ inline size_t HashSeed(const ctrl_t* ctrl) {
 inline size_t H1(size_t hash, const ctrl_t* ctrl) {
   return (hash >> 7) ^ HashSeed(ctrl);
 }
-inline ctrl_t H2(size_t hash) { return hash & 0x7F; }
+inline h2_t H2(size_t hash) { return hash & 0x7F; }
 
-inline bool IsEmpty(ctrl_t c) { return c == kEmpty; }
-inline bool IsFull(ctrl_t c) { return c >= 0; }
-inline bool IsDeleted(ctrl_t c) { return c == kDeleted; }
-inline bool IsEmptyOrDeleted(ctrl_t c) { return c < kSentinel; }
+inline bool IsEmpty(ctrl_t c) { return c == ctrl_t::kEmpty; }
+inline bool IsFull(ctrl_t c) { return c >= static_cast<ctrl_t>(0); }
+inline bool IsDeleted(ctrl_t c) { return c == ctrl_t::kDeleted; }
+inline bool IsEmptyOrDeleted(ctrl_t c) { return c < ctrl_t::kSentinel; }
 
 #if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
 
@@ -351,24 +360,24 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
 #if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
-    // This only works because kEmpty is -128.
+    // This only works because ctrl_t::kEmpty is -128.
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl)));
 #else
-    return Match(static_cast<h2_t>(kEmpty));
+    return Match(static_cast<h2_t>(ctrl_t::kEmpty));
 #endif
   }
 
   // Returns a bitmask representing the positions of empty or deleted slots.
   BitMask<uint32_t, kWidth> MatchEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
+    auto special = _mm_set1_epi8(static_cast<int8_t>(ctrl_t::kSentinel));
     return BitMask<uint32_t, kWidth>(
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)));
   }
 
   // Returns the number of trailing empty or deleted elements in the group.
   uint32_t CountLeadingEmptyOrDeleted() const {
-    auto special = _mm_set1_epi8(kSentinel);
+    auto special = _mm_set1_epi8(static_cast<int8_t>(ctrl_t::kSentinel));
     return TrailingZeros(static_cast<uint32_t>(
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl)) + 1));
   }
@@ -403,7 +412,7 @@ struct GroupPortableImpl {
     //
     // Caveat: there are false positives but:
     // - they only occur if there is a real match
-    // - they never occur on kEmpty, kDeleted, kSentinel
+    // - they never occur on ctrl_t::kEmpty, ctrl_t::kDeleted, ctrl_t::kSentinel
     // - they will be handled gracefully by subsequent checks in code
     //
     // Example:
@@ -459,8 +468,8 @@ inline bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 
 // PRECONDITION:
 //   IsValidCapacity(capacity)
-//   ctrl[capacity] == kSentinel
-//   ctrl[i] != kSentinel for all i < capacity
+//   ctrl[capacity] == ctrl_t::kSentinel
+//   ctrl[i] != ctrl_t::kSentinel for all i < capacity
 // Applies mapping for every byte in ctrl:
 //   DELETED -> EMPTY
 //   EMPTY -> EMPTY
@@ -545,27 +554,28 @@ struct FindInfo {
 //  This is important to make 1 a valid capacity.
 //
 //  - In small mode only the first `capacity()` control bytes after the
-//  sentinel are valid. The rest contain dummy kEmpty values that do not
+//  sentinel are valid. The rest contain dummy ctrl_t::kEmpty values that do not
 //  represent a real slot. This is important to take into account on
 //  find_first_non_full(), where we never try ShouldInsertBackwards() for
 //  small tables.
 inline bool is_small(size_t capacity) { return capacity < Group::kWidth - 1; }
 
-inline probe_seq<Group::kWidth> probe(ctrl_t* ctrl, size_t hash,
+inline probe_seq<Group::kWidth> probe(const ctrl_t* ctrl, size_t hash,
                                       size_t capacity) {
   return probe_seq<Group::kWidth>(H1(hash, ctrl), capacity);
 }
 
 // Probes the raw_hash_set with the probe sequence for hash and returns the
 // pointer to the first empty or deleted slot.
-// NOTE: this function must work with tables having both kEmpty and kDelete
-// in one group. Such tables appears during drop_deletes_without_resize.
+// NOTE: this function must work with tables having both ctrl_t::kEmpty and
+// ctrl_t::kDeleted in one group. Such tables appears during
+// drop_deletes_without_resize.
 //
 // This function is very useful when insertions happen and:
 // - the input is already a set
 // - there are enough slots
 // - the element with the hash is not in the table
-inline FindInfo find_first_non_full(ctrl_t* ctrl, size_t hash,
+inline FindInfo find_first_non_full(const ctrl_t* ctrl, size_t hash,
                                     size_t capacity) {
   auto seq = probe(ctrl, hash, capacity);
   while (true) {
@@ -588,11 +598,12 @@ inline FindInfo find_first_non_full(ctrl_t* ctrl, size_t hash,
   }
 }
 
-// Reset all ctrl bytes back to kEmpty, except the sentinel.
+// Reset all ctrl bytes back to ctrl_t::kEmpty, except the sentinel.
 inline void ResetCtrl(size_t capacity, ctrl_t* ctrl, const void* slot,
                       size_t slot_size) {
-  std::memset(ctrl, kEmpty, capacity + 1 + NumClonedBytes());
-  ctrl[capacity] = kSentinel;
+  std::memset(ctrl, static_cast<int8_t>(ctrl_t::kEmpty),
+              capacity + 1 + NumClonedBytes());
+  ctrl[capacity] = ctrl_t::kSentinel;
   SanitizerPoisonMemoryRegion(slot, slot_size * capacity);
 }
 
@@ -611,6 +622,11 @@ inline void SetCtrl(size_t i, ctrl_t h, size_t capacity, ctrl_t* ctrl,
 
   ctrl[i] = h;
   ctrl[((i - NumClonedBytes()) & capacity) + (NumClonedBytes() & capacity)] = h;
+}
+
+inline void SetCtrl(size_t i, h2_t h, size_t capacity, ctrl_t* ctrl,
+                    const void* slot, size_t slot_size) {
+  SetCtrl(i, static_cast<ctrl_t>(h), capacity, ctrl, slot, slot_size);
 }
 
 // Policy: a policy defines how to perform different operations on
@@ -780,7 +796,7 @@ class raw_hash_set {
         ctrl_ += shift;
         slot_ += shift;
       }
-      if (ABSL_PREDICT_FALSE(*ctrl_ == kSentinel)) ctrl_ = nullptr;
+      if (ABSL_PREDICT_FALSE(*ctrl_ == ctrl_t::kSentinel)) ctrl_ = nullptr;
     }
 
     ctrl_t* ctrl_ = nullptr;
@@ -1575,8 +1591,8 @@ class raw_hash_set {
         static_cast<size_t>(empty_after.TrailingZeros() +
                             empty_before.LeadingZeros()) < Group::kWidth;
 
-    SetCtrl(index, was_never_full ? kEmpty : kDeleted, capacity_, ctrl_, slots_,
-            sizeof(slot_type));
+    SetCtrl(index, was_never_full ? ctrl_t::kEmpty : ctrl_t::kDeleted,
+            capacity_, ctrl_, slots_, sizeof(slot_type));
     growth_left() += was_never_full;
     infoz().RecordErase();
   }
@@ -1706,7 +1722,7 @@ class raw_hash_set {
         // right time.
         SetCtrl(new_i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
         PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, slots_ + i);
-        SetCtrl(i, kEmpty, capacity_, ctrl_, slots_, sizeof(slot_type));
+        SetCtrl(i, ctrl_t::kEmpty, capacity_, ctrl_, slots_, sizeof(slot_type));
       } else {
         assert(IsDeleted(ctrl_[new_i]));
         SetCtrl(new_i, H2(hash), capacity_, ctrl_, slots_, sizeof(slot_type));
