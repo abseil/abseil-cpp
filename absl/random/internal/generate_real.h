@@ -127,7 +127,7 @@ inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
 
   // Construct the 32-bit or 64-bit IEEE 754 floating-point value from
   // the individual fields: sign, exp, mantissa(bits).
-  uint_type val = (sign) | (static_cast<uint_type>(exp) << kExp) |
+  uint_type val = sign | (static_cast<uint_type>(exp) << kExp) |
                   (static_cast<uint_type>(bits) & kMask);
 
   // bit_cast to the output-type
