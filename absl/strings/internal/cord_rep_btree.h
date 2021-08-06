@@ -266,10 +266,28 @@ class CordRepBtree : public CordRep {
   // holding a FLAT or EXTERNAL child rep.
   static bool IsDataEdge(const CordRep* rep);
 
-  // Diagnostics
-  static bool IsValid(const CordRepBtree* tree);
-  static CordRepBtree* AssertValid(CordRepBtree* tree);
-  static const CordRepBtree* AssertValid(const CordRepBtree* tree);
+  // Diagnostics: returns true if `tree` is valid and internally consistent.
+  // If `shallow` is false, then the provided top level node and all child nodes
+  // below it are recursively checked. If `shallow` is true, only the provided
+  // node in `tree` and the cumulative length, type and height of the direct
+  // child nodes of `tree` are checked. The value of `shallow` is ignored if the
+  // internal `cord_btree_exhaustive_validation` diagnostics variable is true,
+  // in which case the performed validations works as if `shallow` were false.
+  // This function is intended for debugging and testing purposes only.
+  static bool IsValid(const CordRepBtree* tree, bool shallow = false);
+
+  // Diagnostics: asserts that the provided tree is valid.
+  // `AssertValid()` performs a shallow validation by default. `shallow` can be
+  // set to false in which case an exhaustive validation is performed. This
+  // function is implemented in terms of calling `IsValid()` and asserting the
+  // return value to be true. See `IsValid()` for more information.
+  // This function is intended for debugging and testing purposes only.
+  static CordRepBtree* AssertValid(CordRepBtree* tree, bool shallow = true);
+  static const CordRepBtree* AssertValid(const CordRepBtree* tree,
+                                         bool shallow = true);
+
+  // Diagnostics: dump the contents of this tree to `stream`.
+  // This function is intended for debugging and testing purposes only.
   static void Dump(const CordRep* rep, std::ostream& stream);
   static void Dump(const CordRep* rep, absl::string_view label,
                    std::ostream& stream);
@@ -834,11 +852,13 @@ inline CordRepBtree* CordRepBtree::Prepend(CordRepBtree* tree, CordRep* rep) {
 
 #ifdef NDEBUG
 
-inline CordRepBtree* CordRepBtree::AssertValid(CordRepBtree* tree) {
+inline CordRepBtree* CordRepBtree::AssertValid(CordRepBtree* tree,
+                                               bool /* shallow */) {
   return tree;
 }
 
-inline const CordRepBtree* CordRepBtree::AssertValid(const CordRepBtree* tree) {
+inline const CordRepBtree* CordRepBtree::AssertValid(const CordRepBtree* tree,
+                                                     bool /* shallow */) {
   return tree;
 }
 

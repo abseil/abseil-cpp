@@ -366,7 +366,7 @@ TEST(Cord, Subcord) {
 
   absl::Cord a;
   AppendWithFragments(s, &rng, &a);
-  ASSERT_EQ(s.size(), a.size());
+  ASSERT_EQ(s, std::string(a));
 
   // Check subcords of a, from a variety of interesting points.
   std::set<size_t> positions;

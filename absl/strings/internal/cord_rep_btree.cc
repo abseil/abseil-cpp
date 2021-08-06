@@ -32,6 +32,8 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
 
+constexpr size_t CordRepBtree::kMaxCapacity;  // NOLINT: needed for c++ < c++17
+
 namespace {
 
 using NodeStack = CordRepBtree * [CordRepBtree::kMaxDepth];
@@ -41,6 +43,10 @@ using CopyResult = CordRepBtree::CopyResult;
 
 constexpr auto kFront = CordRepBtree::kFront;
 constexpr auto kBack = CordRepBtree::kBack;
+
+inline bool exhaustive_validation() {
+  return cord_btree_exhaustive_validation.load(std::memory_order_relaxed);
+}
 
 // Implementation of the various 'Dump' functions.
 // Prints the entire tree structure or 'rep'. External callers should
@@ -357,7 +363,7 @@ void CordRepBtree::DestroyNonLeaf(CordRepBtree* tree, size_t begin,
   Delete(tree);
 }
 
-bool CordRepBtree::IsValid(const CordRepBtree* tree) {
+bool CordRepBtree::IsValid(const CordRepBtree* tree, bool shallow) {
 #define NODE_CHECK_VALID(x)                                           \
   if (!(x)) {                                                         \
     ABSL_RAW_LOG(ERROR, "CordRepBtree::CheckValid() FAILED: %s", #x); \
@@ -389,9 +395,9 @@ bool CordRepBtree::IsValid(const CordRepBtree* tree) {
     child_length += edge->length;
   }
   NODE_CHECK_EQ(child_length, tree->length);
-  if (tree->height() > 0) {
+  if ((!shallow || exhaustive_validation()) && tree->height() > 0) {
     for (CordRep* edge : tree->Edges()) {
-      if (!IsValid(edge->btree())) return false;
+      if (!IsValid(edge->btree(), shallow)) return false;
     }
   }
   return true;
@@ -402,16 +408,17 @@ bool CordRepBtree::IsValid(const CordRepBtree* tree) {
 
 #ifndef NDEBUG
 
-CordRepBtree* CordRepBtree::AssertValid(CordRepBtree* tree) {
-  if (!IsValid(tree)) {
+CordRepBtree* CordRepBtree::AssertValid(CordRepBtree* tree, bool shallow) {
+  if (!IsValid(tree, shallow)) {
     Dump(tree, "CordRepBtree validation failed:", false, std::cout);
     ABSL_RAW_LOG(FATAL, "CordRepBtree::CheckValid() FAILED");
   }
   return tree;
 }
 
-const CordRepBtree* CordRepBtree::AssertValid(const CordRepBtree* tree) {
-  if (!IsValid(tree)) {
+const CordRepBtree* CordRepBtree::AssertValid(const CordRepBtree* tree,
+                                              bool shallow) {
+  if (!IsValid(tree, shallow)) {
     Dump(tree, "CordRepBtree validation failed:", false, std::cout);
     ABSL_RAW_LOG(FATAL, "CordRepBtree::CheckValid() FAILED");
   }
