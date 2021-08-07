@@ -82,7 +82,7 @@ function(absl_cc_library)
     ${ARGN}
   )
 
-  if(ABSL_CC_LIB_TESTONLY AND NOT BUILD_TESTING)
+  if(ABSL_CC_LIB_TESTONLY AND NOT (BUILD_TESTING OR ABSL_BUILD_TESTONLY_LIBS))
     return()
   endif()
 

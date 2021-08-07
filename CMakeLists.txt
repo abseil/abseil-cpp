@@ -130,7 +130,10 @@ set(ABSL_LOCAL_GOOGLETEST_DIR "/usr/src/googletest" CACHE PATH
   "If ABSL_USE_GOOGLETEST_HEAD is OFF and ABSL_GOOGLETEST_URL is not set, specifies the directory of a local GoogleTest checkout."
   )
 
-if(BUILD_TESTING)
+option(ABSL_BUILD_TESTONLY_LIBS
+  "If ON, Abseil will build TESTONLY libraries even if Abseil tests are not built." OFF)
+
+if(BUILD_TESTING OR ABSL_BUILD_TESTONLY_LIBS)
   ## check targets
   if (ABSL_USE_EXTERNAL_GOOGLETEST)
     if (ABSL_FIND_GOOGLETEST)
