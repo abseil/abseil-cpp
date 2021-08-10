@@ -79,7 +79,7 @@ void DumpAll(const CordRep* rep, bool include_contents, std::ostream& stream,
   // indented by two spaces per recursive depth.
   stream << std::string(depth * 2, ' ') << sharing << " (" << sptr << ") ";
 
-  if (rep->tag == BTREE) {
+  if (rep->IsBtree()) {
     const CordRepBtree* node = rep->btree();
     std::string label =
         node->height() ? absl::StrCat("Node(", node->height(), ")") : "Leaf";
@@ -378,7 +378,7 @@ bool CordRepBtree::IsValid(const CordRepBtree* tree, bool shallow) {
   }
 
   NODE_CHECK_VALID(tree != nullptr);
-  NODE_CHECK_EQ(tree->tag, BTREE);
+  NODE_CHECK_VALID(tree->IsBtree());
   NODE_CHECK_VALID(tree->height() <= kMaxHeight);
   NODE_CHECK_VALID(tree->begin() < tree->capacity());
   NODE_CHECK_VALID(tree->end() <= tree->capacity());
@@ -387,7 +387,7 @@ bool CordRepBtree::IsValid(const CordRepBtree* tree, bool shallow) {
   for (CordRep* edge : tree->Edges()) {
     NODE_CHECK_VALID(edge != nullptr);
     if (tree->height() > 0) {
-      NODE_CHECK_VALID(edge->tag == BTREE);
+      NODE_CHECK_VALID(edge->IsBtree());
       NODE_CHECK_VALID(edge->btree()->height() == tree->height() - 1);
     } else {
       NODE_CHECK_VALID(IsDataEdge(edge));
@@ -889,7 +889,7 @@ Span<char> CordRepBtree::GetAppendBufferSlow(size_t size) {
 }
 
 CordRepBtree* CordRepBtree::CreateSlow(CordRep* rep) {
-  if (rep->tag == BTREE) return rep->btree();
+  if (rep->IsBtree()) return rep->btree();
 
   CordRepBtree* node = nullptr;
   auto consume = [&node](CordRep* r, size_t offset, size_t length) {
@@ -905,7 +905,7 @@ CordRepBtree* CordRepBtree::CreateSlow(CordRep* rep) {
 }
 
 CordRepBtree* CordRepBtree::AppendSlow(CordRepBtree* tree, CordRep* rep) {
-  if (ABSL_PREDICT_TRUE(rep->tag == BTREE)) {
+  if (ABSL_PREDICT_TRUE(rep->IsBtree())) {
     return MergeTrees(tree, rep->btree());
   }
   auto consume = [&tree](CordRep* r, size_t offset, size_t length) {
@@ -917,7 +917,7 @@ CordRepBtree* CordRepBtree::AppendSlow(CordRepBtree* tree, CordRep* rep) {
 }
 
 CordRepBtree* CordRepBtree::PrependSlow(CordRepBtree* tree, CordRep* rep) {
-  if (ABSL_PREDICT_TRUE(rep->tag == BTREE)) {
+  if (ABSL_PREDICT_TRUE(rep->IsBtree())) {
     return MergeTrees(rep->btree(), tree);
   }
   auto consume = [&tree](CordRep* r, size_t offset, size_t length) {

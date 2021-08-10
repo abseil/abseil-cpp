@@ -153,7 +153,7 @@ class CordRepBtree : public CordRep {
   };
 
   // Creates a btree from the given input. Adopts a ref of `rep`.
-  // If the input `rep` is itself a btree, i.e., `tag == BTREE`, then this
+  // If the input `rep` is itself a btree, i.e., `IsBtree()`, then this
   // function immediately returns `rep->btree()`. If the input is a valid data
   // edge (see IsDataEdge()), then a new leaf node is returned containing `rep`
   // as the sole data edge. Else, the input is assumed to be a (legacy) concat
@@ -514,12 +514,12 @@ class CordRepBtree : public CordRep {
 };
 
 inline CordRepBtree* CordRep::btree() {
-  assert(tag == BTREE);
+  assert(IsBtree());
   return static_cast<CordRepBtree*>(this);
 }
 
 inline const CordRepBtree* CordRep::btree() const {
-  assert(tag == BTREE);
+  assert(IsBtree());
   return static_cast<const CordRepBtree*>(this);
 }
 
@@ -589,7 +589,7 @@ inline CordRepBtree* CordRepBtree::New(int height) {
 
 inline CordRepBtree* CordRepBtree::New(CordRep* rep) {
   CordRepBtree* tree = new CordRepBtree;
-  int height = rep->tag == BTREE ? rep->btree()->height() + 1 : 0;
+  int height = rep->IsBtree() ? rep->btree()->height() + 1 : 0;
   tree->length = rep->length;
   tree->InitInstance(height, /*begin=*/0, /*end=*/1);
   tree->edges_[0] = rep;
