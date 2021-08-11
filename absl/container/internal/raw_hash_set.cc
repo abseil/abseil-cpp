@@ -23,7 +23,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-ABSL_CONST_INIT ABSL_DLL alignas(16) const ctrl_t kEmptyGroup[16] = {
+alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[16] = {
     ctrl_t::kSentinel, ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
