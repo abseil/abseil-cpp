@@ -170,7 +170,7 @@ absl_cc_test(
     GTest::gmock_main
 )
 
-absl_cc_library(
+absl_cc_test(
   NAME
     per_thread_sem_test_common
   SRCS

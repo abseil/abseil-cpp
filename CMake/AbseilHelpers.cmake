@@ -364,7 +364,7 @@ endfunction()
 #     GTest::gtest_main
 # )
 function(absl_cc_test)
-  if(NOT BUILD_TESTING)
+  if(NOT ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR ABSL_BUILD_TESTING) AND BUILD_TESTING))
     return()
   endif()
 

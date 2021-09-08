@@ -102,7 +102,6 @@ absl_cc_library(
     absl::config
     absl::raw_logging_internal
     absl::time_zone
-    GTest::gmock
   TESTONLY
 )
 

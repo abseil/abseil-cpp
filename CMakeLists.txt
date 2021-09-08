@@ -130,7 +130,10 @@ set(ABSL_LOCAL_GOOGLETEST_DIR "/usr/src/googletest" CACHE PATH
   "If ABSL_USE_GOOGLETEST_HEAD is OFF and ABSL_GOOGLETEST_URL is not set, specifies the directory of a local GoogleTest checkout."
   )
 
-if(BUILD_TESTING)
+option(ABSL_BUILD_TESTING
+  "If ON, abweil will build its tests even if abseil is a subproject." OFF)
+
+if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR ABSL_BUILD_TESTING) AND BUILD_TESTING)
   ## check targets
   if (ABSL_USE_EXTERNAL_GOOGLETEST)
     if (ABSL_FIND_GOOGLETEST)

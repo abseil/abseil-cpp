@@ -243,7 +243,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
 )
 
-absl_cc_library(
+absl_cc_test(
   NAME
     exception_safety_testing
   HDRS
@@ -375,7 +375,7 @@ absl_cc_test(
     GTest::gtest_main
 )
 
-absl_cc_library(
+absl_cc_test(
   NAME
     spinlock_test_common
   SRCS
