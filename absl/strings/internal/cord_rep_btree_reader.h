@@ -166,7 +166,7 @@ inline size_t CordRepBtreeReader::length() const {
 inline absl::string_view CordRepBtreeReader::Init(CordRepBtree* tree) {
   assert(tree != nullptr);
   const CordRep* edge = navigator_.InitFirst(tree);
-  remaining_ = tree->length - edge->length;;
+  remaining_ = tree->length - edge->length;
   return CordRepBtree::EdgeData(edge);
 }
 
