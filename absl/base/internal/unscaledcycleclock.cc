@@ -96,6 +96,8 @@ double UnscaledCycleClock::Frequency() {
                  &length, nullptr, 0);
   });
   return timebase_frequency;
+#elif defined(_AIX)
+  return static_cast<double>(512000000);
 #else
 #error Must implement UnscaledCycleClock::Frequency()
 #endif

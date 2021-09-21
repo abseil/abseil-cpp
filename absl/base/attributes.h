@@ -318,7 +318,11 @@
 // `__start_ ## name` and `__stop_ ## name` symbols to bracket the section.
 // This functionality is supported by GNU linker.
 #ifndef ABSL_ATTRIBUTE_SECTION_VARIABLE
+#ifdef _AIX
+#define ABSL_ATTRIBUTE_SECTION_VARIABLE(name)
+#else
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name) __attribute__((section(#name)))
+#endif
 #endif
 
 // ABSL_DECLARE_ATTRIBUTE_SECTION_VARS

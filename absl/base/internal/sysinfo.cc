@@ -135,7 +135,7 @@ static int GetNumCPUs() {
   // Other possibilities:
   //  - Read /sys/devices/system/cpu/online and use cpumask_parse()
   //  - sysconf(_SC_NPROCESSORS_ONLN)
-  return std::thread::hardware_concurrency();
+  return sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 }
 
