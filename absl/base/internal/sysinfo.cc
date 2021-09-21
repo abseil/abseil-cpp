@@ -131,11 +131,13 @@ static int GetNumCPUs() {
 #elif defined(_WIN32)
   const unsigned hardware_concurrency = Win32NumCPUs();
   return hardware_concurrency ? hardware_concurrency : 1;
+#elif defined (_AIX)
+  return sysconf(_SC_NPROCESSORS_ONLN);
 #else
   // Other possibilities:
   //  - Read /sys/devices/system/cpu/online and use cpumask_parse()
-  //  - sysconf(_SC_NPROCESSORS_ONLN)
-  return sysconf(_SC_NPROCESSORS_ONLN);
+  //  - sysconf(_SC_NPROCESSORS_ONLN); 
+  return std::thread::hardware_concurrency(); 
 #endif
 }
 
