@@ -87,6 +87,10 @@ int64_t UnscaledCycleClock::Now() {
 double UnscaledCycleClock::Frequency() {
 #ifdef __GLIBC__
   return __ppc_get_timebase_freq();
+#elif defined(_AIX)
+  // This is the same constant value as returned by
+  // __ppc_get_timebase_freq().
+  return static_cast<double>(512000000);
 #elif defined(__FreeBSD__)
   static once_flag init_timebase_frequency_once;
   static double timebase_frequency = 0.0;
@@ -96,8 +100,6 @@ double UnscaledCycleClock::Frequency() {
                  &length, nullptr, 0);
   });
   return timebase_frequency;
-#elif defined(_AIX)
-  return static_cast<double>(512000000);
 #else
 #error Must implement UnscaledCycleClock::Frequency()
 #endif
