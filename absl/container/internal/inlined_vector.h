@@ -98,7 +98,7 @@ template <typename A>
 void DestroyElements(NoTypeDeduction<A>& allocator, Pointer<A> destroy_first,
                      SizeType<A> destroy_size) {
   if (destroy_first != nullptr) {
-    for (auto i = destroy_size; i != 0;) {
+    for (SizeType<A> i = destroy_size; i != 0;) {
       --i;
       AllocatorTraits<A>::destroy(allocator, destroy_first + i);
     }
@@ -492,7 +492,7 @@ void Storage<T, N, A>::DestroyContents() {
 
 template <typename T, size_t N, typename A>
 void Storage<T, N, A>::InitFrom(const Storage& other) {
-  const auto n = other.GetSize();
+  const SizeType<A> n = other.GetSize();
   assert(n > 0);  // Empty sources handled handled in caller.
   ConstPointer<A> src;
   Pointer<A> dst;
@@ -598,9 +598,9 @@ template <typename ValueAdapter>
 auto Storage<T, N, A>::Resize(ValueAdapter values, SizeType<A> new_size)
     -> void {
   StorageView<A> storage_view = MakeStorageView();
-  auto* const base = storage_view.data;
+  Pointer<A> const base = storage_view.data;
   const SizeType<A> size = storage_view.size;
-  auto& alloc = GetAllocator();
+  A& alloc = GetAllocator();
   if (new_size <= size) {
     // Destroy extra old elements.
     DestroyElements<A>(alloc, base + new_size, size - new_size);
@@ -732,7 +732,7 @@ template <typename T, size_t N, typename A>
 template <typename... Args>
 auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> Reference<A> {
   StorageView<A> storage_view = MakeStorageView();
-  const auto n = storage_view.size;
+  const SizeType<A> n = storage_view.size;
   if (ABSL_PREDICT_TRUE(n != storage_view.capacity)) {
     // Fast path; new element fits.
     Pointer<A> last_ptr = storage_view.data + n;
