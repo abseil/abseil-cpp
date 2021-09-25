@@ -429,7 +429,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // if `T` can be constructed from a `U`. Can accept move or copy constructors.
   //
   // This constructor is explicit if `U` is not convertible to `T`. To avoid
-  // ambiguity, this constuctor is disabled if `U` is a `StatusOr<J>`, where `J`
+  // ambiguity, this constructor is disabled if `U` is a `StatusOr<J>`, where `J`
   // is convertible to `T`.
   template <
       typename U = T,
