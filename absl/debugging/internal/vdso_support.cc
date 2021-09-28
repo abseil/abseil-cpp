@@ -18,7 +18,7 @@
 
 #include "absl/debugging/internal/vdso_support.h"
 
-#ifdef ABSL_HAVE_VDSO_SUPPORT     // defined in vdso_support.h
+#ifdef ABSL_HAVE_VDSO_SUPPORT  // defined in vdso_support.h
 
 #if !defined(__has_include)
 #define __has_include(header) 0
@@ -96,7 +96,7 @@ const void *VDSOSupport::Init() {
       getcpu_fn_.store(&GetCPUViaSyscall, std::memory_order_relaxed);
       return nullptr;
     }
-    ElfW(auxv_t) aux;
+    ElfW_auxv_t aux;
     while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
       if (aux.a_type == AT_SYSINFO_EHDR) {
         vdso_base_.store(reinterpret_cast<void *>(aux.a_un.a_val),
@@ -135,9 +135,7 @@ const void *VDSOSupport::SetBase(const void *base) {
   return old_base;
 }
 
-bool VDSOSupport::LookupSymbol(const char *name,
-                               const char *version,
-                               int type,
+bool VDSOSupport::LookupSymbol(const char *name, const char *version, int type,
                                SymbolInfo *info) const {
   return image_.LookupSymbol(name, version, type, info);
 }

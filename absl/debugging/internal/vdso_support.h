@@ -86,8 +86,8 @@ class VDSOSupport {
   // Returns false if VDSO is not present, or doesn't contain given
   // symbol/version/type combination.
   // If info_out != nullptr, additional details are filled in.
-  bool LookupSymbol(const char *name, const char *version,
-                    int symbol_type, SymbolInfo *info_out) const;
+  bool LookupSymbol(const char *name, const char *version, int symbol_type,
+                    SymbolInfo *info_out) const;
 
   // Find info about symbol (if any) which overlaps given address.
   // Returns true if symbol was found; false if VDSO isn't present
@@ -125,11 +125,11 @@ class VDSOSupport {
   // The 'cache' parameter may be used by some versions of the kernel,
   // and should be nullptr or point to a static buffer containing at
   // least two 'long's.
-  static long InitAndGetCPU(unsigned *cpu, void *cache,     // NOLINT 'long'.
+  static long InitAndGetCPU(unsigned *cpu, void *cache,  // NOLINT 'long'.
                             void *unused);
   static long GetCPUViaSyscall(unsigned *cpu, void *cache,  // NOLINT 'long'.
                                void *unused);
-  typedef long (*GetCpuFn)(unsigned *cpu, void *cache,      // NOLINT 'long'.
+  typedef long (*GetCpuFn)(unsigned *cpu, void *cache,  // NOLINT 'long'.
                            void *unused);
 
   // This function pointer may point to InitAndGetCPU,
@@ -138,8 +138,8 @@ class VDSOSupport {
 
   friend int GetCPU(void);  // Needs access to getcpu_fn_.
 
-  VDSOSupport(const VDSOSupport&) = delete;
-  VDSOSupport& operator=(const VDSOSupport&) = delete;
+  VDSOSupport(const VDSOSupport &) = delete;
+  VDSOSupport &operator=(const VDSOSupport &) = delete;
 };
 
 // Same as sched_getcpu() on later glibc versions.

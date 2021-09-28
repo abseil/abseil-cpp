@@ -22,6 +22,7 @@
 // Including this will define the __GLIBC__ macro if glibc is being
 // used.
 #include <climits>
+#include <cstdint>
 
 #include "absl/base/config.h"
 
@@ -40,6 +41,48 @@
 
 #include <link.h>  // for ElfW
 
+#if defined(__FreeBSD__)
+
+using ElfW_Addr = Elf_Addr;
+using ElfW_Dyn = Elf_Dyn;
+using ElfW_Ehdr = Elf_Ehdr;
+using ElfW_Off = Elf_Off;
+using ElfW_Phdr = Elf_Phdr;
+using ElfW_Shdr = Elf_Shdr;
+using ElfW_Sym = Elf_Sym;
+using ElfW_Verdaux = Elf_Verdaux;
+using ElfW_Verdef = Elf_Verdef;
+using ElfW_Versym = Elf_Versym;
+using ElfW_Word = Elf_Word;
+
+#if INTPTR_MAX == INT64_MAX
+using ElfW_Xword = Elf64_Xword;
+using ElfW_auxv_t = Elf64_Auxinfo;
+#elif INTPTR_MAX == INT32_MAX
+using ElfW_Xword = Elf32_Xword;
+using ElfW_auxv_t = Elf32_Auxinfo;
+#else
+#error "Unsupported architecture."
+#endif
+
+#else
+
+using ElfW_Addr = ElfW(Addr);
+using ElfW_Dyn = ElfW(Dyn);
+using ElfW_Ehdr = ElfW(Ehdr);
+using ElfW_Off = ElfW(Off);
+using ElfW_Phdr = ElfW(Phdr);
+using ElfW_Shdr = ElfW(Shdr);
+using ElfW_Sym = ElfW(Sym);
+using ElfW_Verdaux = ElfW(Verdaux);
+using ElfW_Verdef = ElfW(Verdef);
+using ElfW_Versym = ElfW(Versym);
+using ElfW_Word = ElfW(Word);
+using ElfW_Xword = ElfW(Xword);
+using ElfW_auxv_t = ElfW(auxv_t);
+
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
@@ -53,17 +96,17 @@ class ElfMemImage {
  public:
   // Sentinel: there could never be an elf image at this address.
   static constexpr const void *const kInvalidBase =
-    static_cast<const void*>(&kInvalidBaseSentinel);
+      static_cast<const void *>(&kInvalidBaseSentinel);
 
   // Information about a single vdso symbol.
   // All pointers are into .dynsym, .dynstr, or .text of the VDSO.
   // Do not free() them or modify through them.
   struct SymbolInfo {
-    const char      *name;      // E.g. "__vdso_getcpu"
-    const char      *version;   // E.g. "LINUX_2.6", could be ""
-                                // for unversioned symbol.
-    const void      *address;   // Relocated symbol address.
-    const ElfW(Sym) *symbol;    // Symbol in the dynamic symbol table.
+    const char *name;        // E.g. "__vdso_getcpu"
+    const char *version;     // E.g. "LINUX_2.6", could be ""
+                             // for unversioned symbol.
+    const void *address;     // Relocated symbol address.
+    const ElfW_Sym *symbol;  // Symbol in the dynamic symbol table.
   };
 
   // Supports iteration over all dynamic symbols.
@@ -72,9 +115,10 @@ class ElfMemImage {
     friend class ElfMemImage;
     const SymbolInfo *operator->() const;
     const SymbolInfo &operator*() const;
-    SymbolIterator& operator++();
+    SymbolIterator &operator++();
     bool operator!=(const SymbolIterator &rhs) const;
     bool operator==(const SymbolIterator &rhs) const;
+
    private:
     SymbolIterator(const void *const image, int index);
     void Update(int incr);
@@ -83,19 +127,18 @@ class ElfMemImage {
     const void *const image_;
   };
 
-
   explicit ElfMemImage(const void *base);
-  void                 Init(const void *base);
-  bool                 IsPresent() const { return ehdr_ != nullptr; }
-  const ElfW(Phdr)*    GetPhdr(int index) const;
-  const ElfW(Sym)*     GetDynsym(int index) const;
-  const ElfW(Versym)*  GetVersym(int index) const;
-  const ElfW(Verdef)*  GetVerdef(int index) const;
-  const ElfW(Verdaux)* GetVerdefAux(const ElfW(Verdef) *verdef) const;
-  const char*          GetDynstr(ElfW(Word) offset) const;
-  const void*          GetSymAddr(const ElfW(Sym) *sym) const;
-  const char*          GetVerstr(ElfW(Word) offset) const;
-  int                  GetNumSymbols() const;
+  void Init(const void *base);
+  bool IsPresent() const { return ehdr_ != nullptr; }
+  const ElfW_Phdr *GetPhdr(int index) const;
+  const ElfW_Sym *GetDynsym(int index) const;
+  const ElfW_Versym *GetVersym(int index) const;
+  const ElfW_Verdef *GetVerdef(int index) const;
+  const ElfW_Verdaux *GetVerdefAux(const ElfW_Verdef *verdef) const;
+  const char *GetDynstr(ElfW_Word offset) const;
+  const void *GetSymAddr(const ElfW_Sym *sym) const;
+  const char *GetVerstr(ElfW_Word offset) const;
+  int GetNumSymbols() const;
 
   SymbolIterator begin() const;
   SymbolIterator end() const;
@@ -104,8 +147,8 @@ class ElfMemImage {
   // Returns false if image is not present, or doesn't contain given
   // symbol/version/type combination.
   // If info_out is non-null, additional details are filled in.
-  bool LookupSymbol(const char *name, const char *version,
-                    int symbol_type, SymbolInfo *info_out) const;
+  bool LookupSymbol(const char *name, const char *version, int symbol_type,
+                    SymbolInfo *info_out) const;
 
   // Find info about symbol (if any) which overlaps given address.
   // Returns true if symbol was found; false if image isn't present
@@ -114,15 +157,15 @@ class ElfMemImage {
   bool LookupSymbolByAddress(const void *address, SymbolInfo *info_out) const;
 
  private:
-  const ElfW(Ehdr) *ehdr_;
-  const ElfW(Sym) *dynsym_;
-  const ElfW(Versym) *versym_;
-  const ElfW(Verdef) *verdef_;
-  const ElfW(Word) *hash_;
+  const ElfW_Ehdr *ehdr_;
+  const ElfW_Sym *dynsym_;
+  const ElfW_Versym *versym_;
+  const ElfW_Verdef *verdef_;
+  const ElfW_Word *hash_;
   const char *dynstr_;
   size_t strsize_;
   size_t verdefnum_;
-  ElfW(Addr) link_base_;     // Link-time base (p_vaddr of first PT_LOAD).
+  ElfW_Addr link_base_;  // Link-time base (p_vaddr of first PT_LOAD).
 };
 
 }  // namespace debugging_internal

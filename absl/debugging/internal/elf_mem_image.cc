@@ -20,8 +20,10 @@
 #ifdef ABSL_HAVE_ELF_MEM_IMAGE  // defined in elf_mem_image.h
 
 #include <string.h>
+
 #include <cassert>
 #include <cstddef>
+
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 
@@ -46,19 +48,19 @@ namespace {
 
 #if __SIZEOF_POINTER__ == 4
 const int kElfClass = ELFCLASS32;
-int ElfBind(const ElfW(Sym) *symbol) { return ELF32_ST_BIND(symbol->st_info); }
-int ElfType(const ElfW(Sym) *symbol) { return ELF32_ST_TYPE(symbol->st_info); }
+int ElfBind(const ElfW_Sym *symbol) { return ELF32_ST_BIND(symbol->st_info); }
+int ElfType(const ElfW_Sym *symbol) { return ELF32_ST_TYPE(symbol->st_info); }
 #elif __SIZEOF_POINTER__ == 8
 const int kElfClass = ELFCLASS64;
-int ElfBind(const ElfW(Sym) *symbol) { return ELF64_ST_BIND(symbol->st_info); }
-int ElfType(const ElfW(Sym) *symbol) { return ELF64_ST_TYPE(symbol->st_info); }
+int ElfBind(const ElfW_Sym *symbol) { return ELF64_ST_BIND(symbol->st_info); }
+int ElfType(const ElfW_Sym *symbol) { return ELF64_ST_TYPE(symbol->st_info); }
 #else
 const int kElfClass = -1;
-int ElfBind(const ElfW(Sym) *) {
+int ElfBind(const ElfW_Sym *) {
   ABSL_RAW_LOG(FATAL, "Unexpected word size");
   return 0;
 }
-int ElfType(const ElfW(Sym) *) {
+int ElfType(const ElfW_Sym *) {
   ABSL_RAW_LOG(FATAL, "Unexpected word size");
   return 0;
 }
@@ -68,11 +70,10 @@ int ElfType(const ElfW(Sym) *) {
 // This is just a simple arithmetic and a glorified cast.
 // Callers are responsible for bounds checking.
 template <typename T>
-const T *GetTableElement(const ElfW(Ehdr) * ehdr, ElfW(Off) table_offset,
-                         ElfW(Word) element_size, size_t index) {
-  return reinterpret_cast<const T*>(reinterpret_cast<const char *>(ehdr)
-                                    + table_offset
-                                    + index * element_size);
+const T *GetTableElement(const ElfW_Ehdr *ehdr, ElfW_Off table_offset,
+                         ElfW_Word element_size, size_t index) {
+  return reinterpret_cast<const T *>(reinterpret_cast<const char *>(ehdr) +
+                                     table_offset + index * element_size);
 }
 
 }  // namespace
@@ -94,30 +95,28 @@ int ElfMemImage::GetNumSymbols() const {
   return hash_[1];
 }
 
-const ElfW(Sym) *ElfMemImage::GetDynsym(int index) const {
+const ElfW_Sym *ElfMemImage::GetDynsym(int index) const {
   ABSL_RAW_CHECK(index < GetNumSymbols(), "index out of range");
   return dynsym_ + index;
 }
 
-const ElfW(Versym) *ElfMemImage::GetVersym(int index) const {
+const ElfW_Versym *ElfMemImage::GetVersym(int index) const {
   ABSL_RAW_CHECK(index < GetNumSymbols(), "index out of range");
   return versym_ + index;
 }
 
-const ElfW(Phdr) *ElfMemImage::GetPhdr(int index) const {
+const ElfW_Phdr *ElfMemImage::GetPhdr(int index) const {
   ABSL_RAW_CHECK(index < ehdr_->e_phnum, "index out of range");
-  return GetTableElement<ElfW(Phdr)>(ehdr_,
-                                     ehdr_->e_phoff,
-                                     ehdr_->e_phentsize,
-                                     index);
+  return GetTableElement<ElfW_Phdr>(ehdr_, ehdr_->e_phoff, ehdr_->e_phentsize,
+                                    index);
 }
 
-const char *ElfMemImage::GetDynstr(ElfW(Word) offset) const {
+const char *ElfMemImage::GetDynstr(ElfW_Word offset) const {
   ABSL_RAW_CHECK(offset < strsize_, "offset out of range");
   return dynstr_ + offset;
 }
 
-const void *ElfMemImage::GetSymAddr(const ElfW(Sym) *sym) const {
+const void *ElfMemImage::GetSymAddr(const ElfW_Sym *sym) const {
   if (sym->st_shndx == SHN_UNDEF || sym->st_shndx >= SHN_LORESERVE) {
     // Symbol corresponds to "special" (e.g. SHN_ABS) section.
     return reinterpret_cast<const void *>(sym->st_value);
@@ -126,38 +125,36 @@ const void *ElfMemImage::GetSymAddr(const ElfW(Sym) *sym) const {
   return GetTableElement<char>(ehdr_, 0, 1, sym->st_value - link_base_);
 }
 
-const ElfW(Verdef) *ElfMemImage::GetVerdef(int index) const {
+const ElfW_Verdef *ElfMemImage::GetVerdef(int index) const {
   ABSL_RAW_CHECK(0 <= index && static_cast<size_t>(index) <= verdefnum_,
                  "index out of range");
-  const ElfW(Verdef) *version_definition = verdef_;
+  const ElfW_Verdef *version_definition = verdef_;
   while (version_definition->vd_ndx < index && version_definition->vd_next) {
     const char *const version_definition_as_char =
         reinterpret_cast<const char *>(version_definition);
-    version_definition =
-        reinterpret_cast<const ElfW(Verdef) *>(version_definition_as_char +
-                                               version_definition->vd_next);
+    version_definition = reinterpret_cast<const ElfW_Verdef *>(
+        version_definition_as_char + version_definition->vd_next);
   }
   return version_definition->vd_ndx == index ? version_definition : nullptr;
 }
 
-const ElfW(Verdaux) *ElfMemImage::GetVerdefAux(
-    const ElfW(Verdef) *verdef) const {
-  return reinterpret_cast<const ElfW(Verdaux) *>(verdef+1);
+const ElfW_Verdaux *ElfMemImage::GetVerdefAux(const ElfW_Verdef *verdef) const {
+  return reinterpret_cast<const ElfW_Verdaux *>(verdef + 1);
 }
 
-const char *ElfMemImage::GetVerstr(ElfW(Word) offset) const {
+const char *ElfMemImage::GetVerstr(ElfW_Word offset) const {
   ABSL_RAW_CHECK(offset < strsize_, "offset out of range");
   return dynstr_ + offset;
 }
 
 void ElfMemImage::Init(const void *base) {
-  ehdr_      = nullptr;
-  dynsym_    = nullptr;
-  dynstr_    = nullptr;
-  versym_    = nullptr;
-  verdef_    = nullptr;
-  hash_      = nullptr;
-  strsize_   = 0;
+  ehdr_ = nullptr;
+  dynsym_ = nullptr;
+  dynstr_ = nullptr;
+  versym_ = nullptr;
+  verdef_ = nullptr;
+  hash_ = nullptr;
+  strsize_ = 0;
   verdefnum_ = 0;
   link_base_ = ~0L;  // Sentinel: PT_LOAD .p_vaddr can't possibly be this.
   if (!base) {
@@ -195,10 +192,10 @@ void ElfMemImage::Init(const void *base) {
     }
   }
 
-  ehdr_ = reinterpret_cast<const ElfW(Ehdr) *>(base);
-  const ElfW(Phdr) *dynamic_program_header = nullptr;
+  ehdr_ = reinterpret_cast<const ElfW_Ehdr *>(base);
+  const ElfW_Phdr *dynamic_program_header = nullptr;
   for (int i = 0; i < ehdr_->e_phnum; ++i) {
-    const ElfW(Phdr) *const program_header = GetPhdr(i);
+    const ElfW_Phdr *const program_header = GetPhdr(i);
     switch (program_header->p_type) {
       case PT_LOAD:
         if (!~link_base_) {
@@ -218,26 +215,25 @@ void ElfMemImage::Init(const void *base) {
   }
   ptrdiff_t relocation =
       base_as_char - reinterpret_cast<const char *>(link_base_);
-  ElfW(Dyn) *dynamic_entry =
-      reinterpret_cast<ElfW(Dyn) *>(dynamic_program_header->p_vaddr +
-                                    relocation);
+  ElfW_Dyn *dynamic_entry = reinterpret_cast<ElfW_Dyn *>(
+      dynamic_program_header->p_vaddr + relocation);
   for (; dynamic_entry->d_tag != DT_NULL; ++dynamic_entry) {
-    const ElfW(Xword) value = dynamic_entry->d_un.d_val + relocation;
+    const ElfW_Xword value = dynamic_entry->d_un.d_val + relocation;
     switch (dynamic_entry->d_tag) {
       case DT_HASH:
-        hash_ = reinterpret_cast<ElfW(Word) *>(value);
+        hash_ = reinterpret_cast<ElfW_Word *>(value);
         break;
       case DT_SYMTAB:
-        dynsym_ = reinterpret_cast<ElfW(Sym) *>(value);
+        dynsym_ = reinterpret_cast<ElfW_Sym *>(value);
         break;
       case DT_STRTAB:
         dynstr_ = reinterpret_cast<const char *>(value);
         break;
       case DT_VERSYM:
-        versym_ = reinterpret_cast<ElfW(Versym) *>(value);
+        versym_ = reinterpret_cast<ElfW_Versym *>(value);
         break;
       case DT_VERDEF:
-        verdef_ = reinterpret_cast<ElfW(Verdef) *>(value);
+        verdef_ = reinterpret_cast<ElfW_Verdef *>(value);
         break;
       case DT_VERDEFNUM:
         verdefnum_ = dynamic_entry->d_un.d_val;
@@ -250,8 +246,8 @@ void ElfMemImage::Init(const void *base) {
         break;
     }
   }
-  if (!hash_ || !dynsym_ || !dynstr_ || !versym_ ||
-      !verdef_ || !verdefnum_ || !strsize_) {
+  if (!hash_ || !dynsym_ || !dynstr_ || !versym_ || !verdef_ || !verdefnum_ ||
+      !strsize_) {
     assert(false);  // invalid VDSO
     // Mark this image as not present. Can not recur infinitely.
     Init(nullptr);
@@ -259,11 +255,9 @@ void ElfMemImage::Init(const void *base) {
   }
 }
 
-bool ElfMemImage::LookupSymbol(const char *name,
-                               const char *version,
-                               int type,
+bool ElfMemImage::LookupSymbol(const char *name, const char *version, int type,
                                SymbolInfo *info_out) const {
-  for (const SymbolInfo& info : *this) {
+  for (const SymbolInfo &info : *this) {
     if (strcmp(info.name, name) == 0 && strcmp(info.version, version) == 0 &&
         ElfType(info.symbol) == type) {
       if (info_out) {
@@ -277,7 +271,7 @@ bool ElfMemImage::LookupSymbol(const char *name,
 
 bool ElfMemImage::LookupSymbolByAddress(const void *address,
                                         SymbolInfo *info_out) const {
-  for (const SymbolInfo& info : *this) {
+  for (const SymbolInfo &info : *this) {
     const char *const symbol_start =
         reinterpret_cast<const char *>(info.address);
     const char *const symbol_end = symbol_start + info.symbol->st_size;
@@ -302,14 +296,13 @@ bool ElfMemImage::LookupSymbolByAddress(const void *address,
 }
 
 ElfMemImage::SymbolIterator::SymbolIterator(const void *const image, int index)
-    : index_(index), image_(image) {
-}
+    : index_(index), image_(image) {}
 
 const ElfMemImage::SymbolInfo *ElfMemImage::SymbolIterator::operator->() const {
   return &info_;
 }
 
-const ElfMemImage::SymbolInfo& ElfMemImage::SymbolIterator::operator*() const {
+const ElfMemImage::SymbolInfo &ElfMemImage::SymbolIterator::operator*() const {
   return info_;
 }
 
@@ -347,12 +340,12 @@ void ElfMemImage::SymbolIterator::Update(int increment) {
     index_ = image->GetNumSymbols();
     return;
   }
-  const ElfW(Sym)    *symbol = image->GetDynsym(index_);
-  const ElfW(Versym) *version_symbol = image->GetVersym(index_);
+  const ElfW_Sym *symbol = image->GetDynsym(index_);
+  const ElfW_Versym *version_symbol = image->GetVersym(index_);
   ABSL_RAW_CHECK(symbol && version_symbol, "");
   const char *const symbol_name = image->GetDynstr(symbol->st_name);
-  const ElfW(Versym) version_index = version_symbol[0] & VERSYM_VERSION;
-  const ElfW(Verdef) *version_definition = nullptr;
+  const ElfW_Versym version_index = version_symbol[0] & VERSYM_VERSION;
+  const ElfW_Verdef *version_definition = nullptr;
   const char *version_name = "";
   if (symbol->st_shndx == SHN_UNDEF) {
     // Undefined symbols reference DT_VERNEED, not DT_VERDEF, and
@@ -367,13 +360,13 @@ void ElfMemImage::SymbolIterator::Update(int increment) {
     ABSL_RAW_CHECK(
         version_definition->vd_cnt == 1 || version_definition->vd_cnt == 2,
         "wrong number of entries");
-    const ElfW(Verdaux) *version_aux = image->GetVerdefAux(version_definition);
+    const ElfW_Verdaux *version_aux = image->GetVerdefAux(version_definition);
     version_name = image->GetVerstr(version_aux->vda_name);
   }
-  info_.name    = symbol_name;
+  info_.name = symbol_name;
   info_.version = version_name;
   info_.address = image->GetSymAddr(symbol);
-  info_.symbol  = symbol;
+  info_.symbol = symbol;
 }
 
 }  // namespace debugging_internal
