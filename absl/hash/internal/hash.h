@@ -635,6 +635,8 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
 }
 #endif
 
+// -----------------------------------------------------------------------------
+
 // hash_range_or_bytes()
 //
 // Mixes all values in the range [data, data+size) into the hash state.
