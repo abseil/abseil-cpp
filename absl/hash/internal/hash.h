@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -489,8 +490,8 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::vector
 //
-// Do not use this for vector<bool>. It does not have a .data(), and a fallback
-// for std::hash<> is most likely faster.
+// Do not use this for vector<bool> on Little Endian platforms. It does not have
+// a .data(), and a fallback for std::hash<> is most likely faster.
 template <typename H, typename T, typename Allocator>
 typename std::enable_if<is_hashable<T>::value && !std::is_same<T, bool>::value,
                         H>::type
@@ -499,6 +500,26 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
                                           vector.size()),
                     vector.size());
 }
+
+#if defined(ABSL_IS_BIG_ENDIAN)
+// AbslHashValue for hashing std::vector<bool>
+//
+// std::hash does not work correctly with vector<bool> on Big Endian platforms
+// therefore we need to implement a custom AbslHashValue for it.
+// More details on the bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+template <typename H, typename T, typename Allocator>
+typename std::enable_if<is_hashable<T>::value && std::is_same<T, bool>::value,
+                        H>::type
+AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
+  std::vector<char> v;
+  for (auto i : vector) {
+    v.push_back(i);
+  }
+  return H::combine(
+      H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
+      v.size());
+}
+#endif
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Ordered Associative Containers
@@ -592,11 +613,27 @@ AbslHashValue(H hash_state, const absl::variant<T...>& v) {
 // AbslHashValue for Other Types
 // -----------------------------------------------------------------------------
 
-// AbslHashValue for hashing std::bitset is not defined, for the same reason as
-// for vector<bool> (see std::vector above): It does not expose the raw bytes,
-// and a fallback to std::hash<> is most likely faster.
+// AbslHashValue for hashing std::bitset is not defined on Little Endian
+// platforms, for the same reason as for vector<bool> (see std::vector above):
+// It does not expose the raw bytes, and a fallback to std::hash<> is most
+// likely faster.
 
-// -----------------------------------------------------------------------------
+#if defined(ABSL_IS_BIG_ENDIAN)
+// AbslHashValue for hashing std::bitset
+//
+// std::hash does not work correctly with std::bitset on Big Ednain platforms.
+// see vector<bool> for more details.
+template <typename H, size_t N>
+H AbslHashValue(H hash_state, const std::bitset<N>& set) {
+  std::vector<char> v;
+  for (int i = 0; i < N; i++) {
+    v.push_back(set[i]);
+  }
+  return H::combine(
+      H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
+      v.size());
+}
+#endif
 
 // hash_range_or_bytes()
 //
