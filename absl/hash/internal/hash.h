@@ -511,9 +511,9 @@ template <typename H, typename T, typename Allocator>
 typename std::enable_if<is_hashable<T>::value && std::is_same<T, bool>::value,
                         H>::type
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
-  std::vector<char> v;
+  std::vector<unsigned char> v;
   for (auto i : vector) {
-    v.push_back(i);
+    v.push_back(static_cast<unsigned char>(i));
   }
   return H::combine(
       H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
@@ -622,12 +622,12 @@ AbslHashValue(H hash_state, const absl::variant<T...>& v) {
 // AbslHashValue for hashing std::bitset
 //
 // std::hash does not work correctly with std::bitset on Big Ednain platforms.
-// see vector<bool> for more details.
+// See vector<bool> for more details.
 template <typename H, size_t N>
 H AbslHashValue(H hash_state, const std::bitset<N>& set) {
-  std::vector<char> v;
+  std::vector<unsigned char> v;
   for (int i = 0; i < N; i++) {
-    v.push_back(set[i]);
+    v.push_back(static_cast<unsigned char>(set[i]));
   }
   return H::combine(
       H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
