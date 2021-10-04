@@ -501,23 +501,24 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
                     vector.size());
 }
 
-#if defined(ABSL_IS_BIG_ENDIAN)
+#if defined(ABSL_IS_BIG_ENDIAN) && \
+    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
 // AbslHashValue for hashing std::vector<bool>
 //
-// std::hash does not work correctly with vector<bool> on Big Endian platforms
-// therefore we need to implement a custom AbslHashValue for it.
-// More details on the bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+// std::hash in libstdc++ does not work correctly with vector<bool> on Big
+// Endian platforms therefore we need to implement a custom AbslHashValue for
+// it. More details on the bug:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
 template <typename H, typename T, typename Allocator>
 typename std::enable_if<is_hashable<T>::value && std::is_same<T, bool>::value,
                         H>::type
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
-  std::vector<unsigned char> v;
-  for (auto i : vector) {
-    v.push_back(static_cast<unsigned char>(i));
+  typename H::AbslInternalPiecewiseCombiner combiner;
+  for (const auto& i : vector) {
+    unsigned char c = static_cast<unsigned char>(i);
+    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
   }
-  return H::combine(
-      H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
-      v.size());
+  return H::combine(combiner.finalize(std::move(hash_state)), vector.size());
 }
 #endif
 
@@ -618,20 +619,21 @@ AbslHashValue(H hash_state, const absl::variant<T...>& v) {
 // It does not expose the raw bytes, and a fallback to std::hash<> is most
 // likely faster.
 
-#if defined(ABSL_IS_BIG_ENDIAN)
+#if defined(ABSL_IS_BIG_ENDIAN) && \
+    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
 // AbslHashValue for hashing std::bitset
 //
-// std::hash does not work correctly with std::bitset on Big Ednain platforms.
-// See vector<bool> for more details.
+// std::hash in libstdc++ does not work correctly with std::bitset on Big Endian
+// platforms therefore we need to implement a custom AbslHashValue for it. More
+// details on the bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
 template <typename H, size_t N>
 H AbslHashValue(H hash_state, const std::bitset<N>& set) {
-  std::vector<unsigned char> v;
+  typename H::AbslInternalPiecewiseCombiner combiner;
   for (int i = 0; i < N; i++) {
-    v.push_back(static_cast<unsigned char>(set[i]));
+    unsigned char c = static_cast<unsigned char>(set[i]);
+    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
   }
-  return H::combine(
-      H::combine_contiguous(std::move(hash_state), v.data(), v.size()),
-      v.size());
+  return H::combine(combiner.finalize(std::move(hash_state)), N);
 }
 #endif
 

@@ -452,8 +452,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0xdd497891465a2cc1, 0x6f1fe8c57a33072e, 0x2c9f4ec078c460c0,
       0x9a725bde8f6a1437, 0x6ce545fa3ef61e4d,
   };
-#else
-#if defined(__aarch64__)
+#elif defined(__aarch64__)
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
       0x45c0aadee165dcbe, 0x25ed8587f6f20d06, 0x5f23ae668ce7926d,
       0xfef74d1da0846719, 0x54478408e68cb7d4, 0xee27ddaf88c6fe68,
@@ -549,7 +548,6 @@ TEST(LowLevelHashTest, VerifyGolden) {
       0xecf3de1acd04651f, 0xcc0a40552559ff32, 0xc385c374f20315b1,
       0xb90208a4c7234183, 0x58aa1ca7a4c075d9,
   };
-#endif
 #endif
 
 #if UPDATE_GOLDEN
