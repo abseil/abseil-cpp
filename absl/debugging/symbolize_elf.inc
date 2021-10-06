@@ -51,7 +51,6 @@
 #include <dlfcn.h>
 #include <elf.h>
 #include <fcntl.h>
-#include <link.h>  // For ElfW() macro.
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -74,6 +73,7 @@
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/demangle.h"
+#include "absl/debugging/internal/link.h"  // for ElfW() macro
 #include "absl/debugging/internal/vdso_support.h"
 #include "absl/strings/string_view.h"
 
