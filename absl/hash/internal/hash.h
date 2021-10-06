@@ -490,8 +490,9 @@ typename std::enable_if<is_hashable<T>::value, H>::type AbslHashValue(
 
 // AbslHashValue for hashing std::vector
 //
-// Do not use this for vector<bool> on Little Endian platforms. It does not have
-// a .data(), and a fallback for std::hash<> is most likely faster.
+// Do not use this for vector<bool> on platforms that have a working
+// implementation of std::hash. It does not have a .data(), and a fallback for
+// std::hash<> is most likely faster.
 template <typename H, typename T, typename Allocator>
 typename std::enable_if<is_hashable<T>::value && !std::is_same<T, bool>::value,
                         H>::type
