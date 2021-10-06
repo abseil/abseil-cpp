@@ -39,49 +39,7 @@
 
 #ifdef ABSL_HAVE_ELF_MEM_IMAGE
 
-#include <link.h>  // for ElfW
-
-#if defined(__FreeBSD__)
-
-using ElfW_Addr = Elf_Addr;
-using ElfW_Dyn = Elf_Dyn;
-using ElfW_Ehdr = Elf_Ehdr;
-using ElfW_Off = Elf_Off;
-using ElfW_Phdr = Elf_Phdr;
-using ElfW_Shdr = Elf_Shdr;
-using ElfW_Sym = Elf_Sym;
-using ElfW_Verdaux = Elf_Verdaux;
-using ElfW_Verdef = Elf_Verdef;
-using ElfW_Versym = Elf_Versym;
-using ElfW_Word = Elf_Word;
-
-#if INTPTR_MAX == INT64_MAX
-using ElfW_Xword = Elf64_Xword;
-using ElfW_auxv_t = Elf64_Auxinfo;
-#elif INTPTR_MAX == INT32_MAX
-using ElfW_Xword = Elf32_Xword;
-using ElfW_auxv_t = Elf32_Auxinfo;
-#else
-#error "Unsupported architecture."
-#endif
-
-#else
-
-using ElfW_Addr = ElfW(Addr);
-using ElfW_Dyn = ElfW(Dyn);
-using ElfW_Ehdr = ElfW(Ehdr);
-using ElfW_Off = ElfW(Off);
-using ElfW_Phdr = ElfW(Phdr);
-using ElfW_Shdr = ElfW(Shdr);
-using ElfW_Sym = ElfW(Sym);
-using ElfW_Verdaux = ElfW(Verdaux);
-using ElfW_Verdef = ElfW(Verdef);
-using ElfW_Versym = ElfW(Versym);
-using ElfW_Word = ElfW(Word);
-using ElfW_Xword = ElfW(Xword);
-using ElfW_auxv_t = ElfW(auxv_t);
-
-#endif
+#include "absl/debugging/internal/link.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

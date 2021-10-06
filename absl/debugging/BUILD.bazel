@@ -76,6 +76,7 @@ cc_library(
     deps = [
         ":debugging_internal",
         ":demangle_internal",
+        ":link_internal",
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -170,6 +171,15 @@ cc_test(
 )
 
 cc_library(
+    name = "link_internal",
+    hdrs = [
+        "internal/link.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+)
+
+cc_library(
     name = "debugging_internal",
     srcs = [
         "internal/address_is_readable.cc",
@@ -184,6 +194,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":link_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",

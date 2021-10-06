@@ -51,7 +51,6 @@
 #include <dlfcn.h>
 #include <elf.h>
 #include <fcntl.h>
-#include <link.h>  // For ElfW() macro.
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -73,6 +72,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/port.h"
+#include "absl/debugging/internal/link.h"
 #include "absl/debugging/internal/demangle.h"
 #include "absl/debugging/internal/vdso_support.h"
 #include "absl/strings/string_view.h"
@@ -197,11 +197,11 @@ struct ObjFile {
   // object file.
   int fd;
   int elf_type;
-  ElfW(Ehdr) elf_header;
+  ElfW_Ehdr elf_header;
 
   // PT_LOAD program header describing executable code.
   // Normally we expect just one, but SWIFT binaries have two.
-  std::array<ElfW(Phdr), 2> phdr;
+  std::array<ElfW_Phdr, 2> phdr;
 };
 
 // Build 4-way associative cache for symbols. Within each cache line, symbols
@@ -333,12 +333,12 @@ class Symbolizer {
 
   char symbol_buf_[SYMBOL_BUF_SIZE];
 
-  // tmp_buf_ will be used to store arrays of ElfW(Shdr) and ElfW(Sym)
+  // tmp_buf_ will be used to store arrays of ElfW_Shdr and ElfW_Sym
   // so we ensure that tmp_buf_ is properly aligned to store either.
   alignas(16) char tmp_buf_[TMP_BUF_SIZE];
-  static_assert(alignof(ElfW(Shdr)) <= 16,
+  static_assert(alignof(ElfW_Shdr) <= 16,
                 "alignment of tmp buf too small for Shdr");
-  static_assert(alignof(ElfW(Sym)) <= 16,
+  static_assert(alignof(ElfW_Sym) <= 16,
                 "alignment of tmp buf too small for Sym");
 
   SymbolCacheLine symbol_cache_[SYMBOL_CACHE_LINES];
@@ -456,7 +456,7 @@ static bool ReadFromOffsetExact(const int fd, void *buf, const size_t count,
 
 // Returns elf_header.e_type if the file pointed by fd is an ELF binary.
 static int FileGetElfType(const int fd) {
-  ElfW(Ehdr) elf_header;
+  ElfW_Ehdr elf_header;
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
     return -1;
   }
@@ -472,9 +472,9 @@ static int FileGetElfType(const int fd) {
 // To keep stack consumption low, we would like this function to not get
 // inlined.
 static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
-    const int fd, ElfW(Half) sh_num, const off_t sh_offset, ElfW(Word) type,
-    ElfW(Shdr) * out, char *tmp_buf, int tmp_buf_size) {
-  ElfW(Shdr) *buf = reinterpret_cast<ElfW(Shdr) *>(tmp_buf);
+    const int fd, ElfW_Half sh_num, const off_t sh_offset, ElfW_Word type,
+    ElfW_Shdr * out, char *tmp_buf, int tmp_buf_size) {
+  ElfW_Shdr *buf = reinterpret_cast<ElfW_Shdr *>(tmp_buf);
   const int buf_entries = tmp_buf_size / sizeof(buf[0]);
   const int buf_bytes = buf_entries * sizeof(buf[0]);
 
@@ -512,13 +512,13 @@ const int kMaxSectionNameLen = 64;
 
 bool ForEachSection(int fd,
                     const std::function<bool(absl::string_view name,
-                                             const ElfW(Shdr) &)> &callback) {
-  ElfW(Ehdr) elf_header;
+                                             const ElfW_Shdr &)> &callback) {
+  ElfW_Ehdr elf_header;
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
     return false;
   }
 
-  ElfW(Shdr) shstrtab;
+  ElfW_Shdr shstrtab;
   off_t shstrtab_offset =
       (elf_header.e_shoff + elf_header.e_shentsize * elf_header.e_shstrndx);
   if (!ReadFromOffsetExact(fd, &shstrtab, sizeof(shstrtab), shstrtab_offset)) {
@@ -526,7 +526,7 @@ bool ForEachSection(int fd,
   }
 
   for (int i = 0; i < elf_header.e_shnum; ++i) {
-    ElfW(Shdr) out;
+    ElfW_Shdr out;
     off_t section_header_offset =
         (elf_header.e_shoff + elf_header.e_shentsize * i);
     if (!ReadFromOffsetExact(fd, &out, sizeof(out), section_header_offset)) {
@@ -553,7 +553,7 @@ bool ForEachSection(int fd,
 
 // name_len should include terminating '\0'.
 bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
-                            ElfW(Shdr) * out) {
+                            ElfW_Shdr * out) {
   char header_name[kMaxSectionNameLen];
   if (sizeof(header_name) < name_len) {
     ABSL_RAW_LOG(WARNING,
@@ -564,12 +564,12 @@ bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
     return false;
   }
 
-  ElfW(Ehdr) elf_header;
+  ElfW_Ehdr elf_header;
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
     return false;
   }
 
-  ElfW(Shdr) shstrtab;
+  ElfW_Shdr shstrtab;
   off_t shstrtab_offset =
       (elf_header.e_shoff + elf_header.e_shentsize * elf_header.e_shstrndx);
   if (!ReadFromOffsetExact(fd, &shstrtab, sizeof(shstrtab), shstrtab_offset)) {
@@ -599,8 +599,8 @@ bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
 
 // Compare symbols at in the same address.
 // Return true if we should pick symbol1.
-static bool ShouldPickFirstSymbol(const ElfW(Sym) & symbol1,
-                                  const ElfW(Sym) & symbol2) {
+static bool ShouldPickFirstSymbol(const ElfW_Sym & symbol1,
+                                  const ElfW_Sym & symbol2) {
   // If one of the symbols is weak and the other is not, pick the one
   // this is not a weak symbol.
   char bind1 = ELF_ST_BIND(symbol1.st_info);
@@ -633,7 +633,7 @@ static bool ShouldPickFirstSymbol(const ElfW(Sym) & symbol1,
 }
 
 // Return true if an address is inside a section.
-static bool InSection(const void *address, const ElfW(Shdr) * section) {
+static bool InSection(const void *address, const ElfW_Shdr * section) {
   const char *start = reinterpret_cast<const char *>(section->sh_addr);
   size_t size = static_cast<size_t>(section->sh_size);
   return start <= address && address < (start + size);
@@ -657,14 +657,14 @@ static const char *ComputeOffset(const char *base, ptrdiff_t offset) {
 // inlined.
 static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
     const void *const pc, const int fd, char *out, int out_size,
-    ptrdiff_t relocation, const ElfW(Shdr) * strtab, const ElfW(Shdr) * symtab,
-    const ElfW(Shdr) * opd, char *tmp_buf, int tmp_buf_size) {
+    ptrdiff_t relocation, const ElfW_Shdr * strtab, const ElfW_Shdr * symtab,
+    const ElfW_Shdr * opd, char *tmp_buf, int tmp_buf_size) {
   if (symtab == nullptr) {
     return SYMBOL_NOT_FOUND;
   }
 
   // Read multiple symbols at once to save read() calls.
-  ElfW(Sym) *buf = reinterpret_cast<ElfW(Sym) *>(tmp_buf);
+  ElfW_Sym *buf = reinterpret_cast<ElfW_Sym *>(tmp_buf);
   const int buf_entries = tmp_buf_size / sizeof(buf[0]);
 
   const int num_symbols = symtab->sh_size / symtab->sh_entsize;
@@ -679,7 +679,7 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
   const bool deref_function_descriptor_pointer =
       kPlatformUsesOPDSections && opd != nullptr && !pc_in_opd;
 
-  ElfW(Sym) best_match;
+  ElfW_Sym best_match;
   SafeMemZero(&best_match, sizeof(best_match));
   bool found_match = false;
   for (int i = 0; i < num_symbols;) {
@@ -692,7 +692,7 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
     const ssize_t num_symbols_in_buf = len / sizeof(buf[0]);
     SAFE_ASSERT(num_symbols_in_buf <= entries_in_chunk);
     for (int j = 0; j < num_symbols_in_buf; ++j) {
-      const ElfW(Sym) &symbol = buf[j];
+      const ElfW_Sym &symbol = buf[j];
 
       // For a DSO, a symbol address is relocated by the loading address.
       // We keep the original address for opd redirection below.
@@ -775,10 +775,10 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
 FindSymbolResult Symbolizer::GetSymbolFromObjectFile(
     const ObjFile &obj, const void *const pc, const ptrdiff_t relocation,
     char *out, int out_size, char *tmp_buf, int tmp_buf_size) {
-  ElfW(Shdr) symtab;
-  ElfW(Shdr) strtab;
-  ElfW(Shdr) opd;
-  ElfW(Shdr) *opd_ptr = nullptr;
+  ElfW_Shdr symtab;
+  ElfW_Shdr strtab;
+  ElfW_Shdr opd;
+  ElfW_Shdr *opd_ptr = nullptr;
 
   // On platforms using an .opd sections for function descriptor, read
   // the section header.  The .opd section is in data segment and should be
@@ -1293,7 +1293,7 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
     size_t phoff = obj->elf_header.e_phoff;
     size_t num_executable_load_segments = 0;
     for (int j = 0; j < phnum; j++) {
-      ElfW(Phdr) phdr;
+      ElfW_Phdr phdr;
       if (!ReadFromOffsetExact(obj->fd, &phdr, sizeof(phdr), phoff)) {
         ABSL_RAW_LOG(WARNING, "%s: failed to read program header %d",
                      obj->filename, j);
@@ -1351,9 +1351,9 @@ const char *Symbolizer::GetSymbol(const void *const pc) {
 
         // Note: some binaries have multiple "rx" LOAD segments. We must
         // find the right one.
-        ElfW(Phdr) *phdr = nullptr;
+        ElfW_Phdr *phdr = nullptr;
         for (size_t j = 0; j < obj->phdr.size(); j++) {
-          ElfW(Phdr) &p = obj->phdr[j];
+          ElfW_Phdr &p = obj->phdr[j];
           if (p.p_type != PT_LOAD) {
             // We only expect PT_LOADs. This must be PT_NULL that we didn't
             // write over (i.e. we exhausted all interesting PT_LOADs).
