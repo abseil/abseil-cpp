@@ -38,7 +38,11 @@
 
 #ifdef ABSL_HAVE_ELF_MEM_IMAGE
 
-#include "absl/debugging/internal/link.h"  // for ElfW() macro.
+#include <link.h>  // for ElfW() macro.
+
+#if defined(__FreeBSD__) && !defined(ElfW)
+#define ElfW(x) __ElfN(x)
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

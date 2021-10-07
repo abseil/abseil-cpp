@@ -18,7 +18,7 @@
 
 #include "absl/debugging/internal/vdso_support.h"
 
-#ifdef ABSL_HAVE_VDSO_SUPPORT     // defined in vdso_support.h
+#ifdef ABSL_HAVE_VDSO_SUPPORT  // defined in vdso_support.h
 
 #if !defined(__has_include)
 #define __has_include(header) 0
@@ -48,6 +48,18 @@
 
 #ifndef AT_SYSINFO_EHDR
 #define AT_SYSINFO_EHDR 33  // for crosstoolv10
+#endif
+
+#if defined(__FreeBSD__)
+
+#if !defined(Elf64_aux_t)
+using Elf64_aux_t = Elf64_Auxinfo;
+#endif
+
+#if !defined(Elf32_aux_t)
+using Elf32_aux_t = Elf32_Auxinfo;
+#endif
+
 #endif
 
 namespace absl {
@@ -135,9 +147,7 @@ const void *VDSOSupport::SetBase(const void *base) {
   return old_base;
 }
 
-bool VDSOSupport::LookupSymbol(const char *name,
-                               const char *version,
-                               int type,
+bool VDSOSupport::LookupSymbol(const char *name, const char *version, int type,
                                SymbolInfo *info) const {
   return image_.LookupSymbol(name, version, type, info);
 }

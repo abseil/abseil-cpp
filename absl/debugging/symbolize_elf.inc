@@ -50,6 +50,7 @@
 
 #include <dlfcn.h>
 #include <elf.h>
+#include <link.h>  // For ElfW() macro.
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -73,9 +74,12 @@
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/demangle.h"
-#include "absl/debugging/internal/link.h"  // for ElfW() macro
 #include "absl/debugging/internal/vdso_support.h"
 #include "absl/strings/string_view.h"
+
+#if defined(__FreeBSD__) && !defined(ElfW)
+#define ElfW(x) __ElfN(x)
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

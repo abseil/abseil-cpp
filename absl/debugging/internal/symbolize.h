@@ -33,11 +33,14 @@
 #define ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE 1
 
 #include <elf.h>
+#include <link.h>  // for ElfW() macro
 
 #include <functional>
 #include <string>
 
-#include "absl/debugging/internal/link.h"  // for ElfW() macro
+#if defined(__FreeBSD__) && !defined(ElfW)
+#define ElfW(x) __ElfN(x)
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
