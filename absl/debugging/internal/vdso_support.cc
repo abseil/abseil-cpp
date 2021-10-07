@@ -51,15 +51,8 @@
 #endif
 
 #if defined(__FreeBSD__)
-
-#if !defined(Elf64_aux_t)
-using Elf64_aux_t = Elf64_Auxinfo;
-#endif
-
-#if !defined(Elf32_aux_t)
-using Elf32_aux_t = Elf32_Auxinfo;
-#endif
-
+using Elf64_auxv_t = Elf64_Auxinfo;
+using Elf32_auxv_t = Elf32_Auxinfo;
 #endif
 
 namespace absl {
