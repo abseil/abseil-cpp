@@ -33,7 +33,7 @@
 #define ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE 1
 
 #include <elf.h>
-#include <link.h>  // for ElfW() macro
+#include <link.h>  // For ElfW() macro
 
 #include <functional>
 #include <string>

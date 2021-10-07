@@ -18,7 +18,7 @@
 
 #include "absl/debugging/internal/vdso_support.h"
 
-#ifdef ABSL_HAVE_VDSO_SUPPORT  // defined in vdso_support.h
+#ifdef ABSL_HAVE_VDSO_SUPPORT // defined in vdso_support.h
 
 #if !defined(__has_include)
 #define __has_include(header) 0
@@ -140,7 +140,9 @@ const void *VDSOSupport::SetBase(const void *base) {
   return old_base;
 }
 
-bool VDSOSupport::LookupSymbol(const char *name, const char *version, int type,
+bool VDSOSupport::LookupSymbol(const char *name,
+                               const char *version,
+                               int type,
                                SymbolInfo *info) const {
   return image_.LookupSymbol(name, version, type, info);
 }
