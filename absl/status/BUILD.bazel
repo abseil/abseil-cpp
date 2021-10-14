@@ -17,7 +17,6 @@
 # It will expand later to have utilities around `Status` like `StatusOr`,
 # `StatusBuilder` and macros.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
