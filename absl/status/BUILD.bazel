@@ -47,6 +47,7 @@ cc_library(
         "//absl/container:inlined_vector",
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
+        "//absl/functional:function_ref",
         "//absl/strings",
         "//absl/strings:cord",
         "//absl/strings:str_format",
