@@ -45,7 +45,7 @@ class RandenPool {
     return (std::numeric_limits<result_type>::max)();
   }
 
-  RandenPool() {}
+  RandenPool() = default;
 
   // Returns a single value.
   inline result_type operator()() { return Generate(); }

@@ -203,7 +203,7 @@ bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
         break;
       }
 
-      args_.push_back(std::string(stripped));
+      args_.emplace_back(stripped);
       continue;
     }
 

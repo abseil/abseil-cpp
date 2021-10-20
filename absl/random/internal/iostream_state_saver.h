@@ -35,7 +35,7 @@ class null_state_saver {
   using flags_type = std::ios_base::fmtflags;
 
   null_state_saver(T&, flags_type) {}
-  ~null_state_saver() {}
+  ~null_state_saver() = default;
 };
 
 // ostream_state_saver is a RAII object to save and restore the common

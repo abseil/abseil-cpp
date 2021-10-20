@@ -765,7 +765,7 @@ class raw_hash_set {
     using pointer = absl::remove_reference_t<reference>*;
     using difference_type = typename raw_hash_set::difference_type;
 
-    iterator() {}
+    iterator() = default;
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
@@ -834,7 +834,7 @@ class raw_hash_set {
     using pointer = typename raw_hash_set::const_pointer;
     using difference_type = typename raw_hash_set::difference_type;
 
-    const_iterator() {}
+    const_iterator() = default;
     // Implicit construction from iterator.
     const_iterator(iterator i) : inner_(std::move(i)) {}
 

@@ -1019,7 +1019,7 @@ union DestructibleUnionImpl<Head, Tail...> {
   explicit constexpr DestructibleUnionImpl(EmplaceTag<I>, P&&... args)
       : tail(EmplaceTag<I - 1>{}, absl::forward<P>(args)...) {}
 
-  ~DestructibleUnionImpl() {}
+  ~DestructibleUnionImpl() = default;
 
   Head head;
   TailUnion tail;

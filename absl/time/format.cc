@@ -135,7 +135,7 @@ bool ParseTime(absl::string_view format, absl::string_view input,
   if (b) {
     *time = Join(parts);
   } else if (err != nullptr) {
-    *err = error;
+    *err = std::move(error);
   }
   return b;
 }

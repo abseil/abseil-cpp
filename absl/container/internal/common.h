@@ -122,7 +122,7 @@ class node_handle : public node_handle_base<PolicyTraits, Alloc> {
  public:
   using value_type = typename PolicyTraits::value_type;
 
-  constexpr node_handle() {}
+  constexpr node_handle() = default;
 
   value_type& value() const { return PolicyTraits::element(this->slot()); }
 
@@ -144,7 +144,7 @@ class node_handle<Policy, PolicyTraits, Alloc,
   using key_type = typename Policy::key_type;
   using mapped_type = typename Policy::mapped_type;
 
-  constexpr node_handle() {}
+  constexpr node_handle() = default;
 
   // When C++17 is available, we can use std::launder to provide mutable
   // access to the key. Otherwise, we provide const access.

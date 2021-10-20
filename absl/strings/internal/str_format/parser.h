@@ -41,7 +41,7 @@ std::string LengthModToString(LengthMod v);
 
 // The analyzed properties of a single specified conversion.
 struct UnboundConversion {
-  UnboundConversion() {}
+  UnboundConversion() = default;
 
   class InputValue {
    public:

@@ -102,7 +102,7 @@ class CommandLineFlag {
     // All of this serves to avoid requiring `T` being default constructible.
     union U {
       T value;
-      U() {}
+      U() = default;
       ~U() { value.~T(); }
     };
     U u;

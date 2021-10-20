@@ -254,7 +254,7 @@ class InlinedVector {
     }
   }
 
-  ~InlinedVector() {}
+  ~InlinedVector() = default;
 
   // ---------------------------------------------------------------------------
   // InlinedVector Member Accessors
