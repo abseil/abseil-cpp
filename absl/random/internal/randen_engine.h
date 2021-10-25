@@ -122,9 +122,10 @@ class alignas(16) randen_engine {
       std::fill(std::begin(buffer) + requested_entropy, std::end(buffer), 0);
       seq.generate(std::begin(buffer), std::begin(buffer) + requested_entropy);
 #ifdef ABSL_IS_BIG_ENDIAN
-      // Reverse the seed byte order on Big Endian platforms.
-      for (int32_t i = 0; i < kBufferSize; ++i) {
-        buffer[i] = absl::little_endian::ToHost(buffer[i]);
+      // Randen expects the seed buffer to be in Little Endian; reverse it on
+      // Big Endian platforms.
+      for (sequence_result_type& e : buffer) {
+        e = absl::little_endian::FromHost(e);
       }
 #endif
       // The Randen paper suggests preferentially initializing even-numbered

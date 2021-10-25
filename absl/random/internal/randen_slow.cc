@@ -404,7 +404,7 @@ inline ABSL_RANDOM_INTERNAL_ATTRIBUTE_ALWAYS_INLINE void SwapEndian(
         static_cast<uint64_t>(state[block] >> 64));
     uint64_t new_hi = absl::little_endian::ToHost64(
         static_cast<uint64_t>((state[block] << 64) >> 64));
-    state[block] = ((absl::uint128)new_hi << 64) | new_lo;
+    state[block] = (static_cast<absl::uint128>(new_hi) << 64) | new_lo;
   }
 #endif
 }
