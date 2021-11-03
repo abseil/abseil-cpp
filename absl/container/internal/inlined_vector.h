@@ -94,16 +94,30 @@ struct TypeIdentity {
 template <typename T>
 using NoTypeDeduction = typename TypeIdentity<T>::type;
 
+template <typename A, bool IsTriviallyDestructible =
+                          absl::is_trivially_destructible<ValueType<A>>::value>
+struct DestroyAdapter;
+
 template <typename A>
-void DestroyElements(NoTypeDeduction<A>& allocator, Pointer<A> destroy_first,
-                     SizeType<A> destroy_size) {
-  if (destroy_first != nullptr) {
+struct DestroyAdapter<A, /* IsTriviallyDestructible */ false> {
+  static void DestroyElements(A& allocator, Pointer<A> destroy_first,
+                              SizeType<A> destroy_size) {
     for (SizeType<A> i = destroy_size; i != 0;) {
       --i;
       AllocatorTraits<A>::destroy(allocator, destroy_first + i);
     }
   }
-}
+};
+
+template <typename A>
+struct DestroyAdapter<A, /* IsTriviallyDestructible */ true> {
+  static void DestroyElements(A& allocator, Pointer<A> destroy_first,
+                              SizeType<A> destroy_size) {
+    static_cast<void>(allocator);
+    static_cast<void>(destroy_first);
+    static_cast<void>(destroy_size);
+  }
+};
 
 template <typename A>
 struct Allocation {
@@ -133,7 +147,7 @@ void ConstructElements(NoTypeDeduction<A>& allocator,
   for (SizeType<A> i = 0; i < construct_size; ++i) {
     ABSL_INTERNAL_TRY { values.ConstructNext(allocator, construct_first + i); }
     ABSL_INTERNAL_CATCH_ANY {
-      DestroyElements<A>(allocator, construct_first, i);
+      DestroyAdapter<A>::DestroyElements(allocator, construct_first, i);
       ABSL_INTERNAL_RETHROW;
     }
   }
@@ -253,7 +267,7 @@ class ConstructionTransaction {
 
   ~ConstructionTransaction() {
     if (DidConstruct()) {
-      DestroyElements<A>(GetAllocator(), GetData(), GetSize());
+      DestroyAdapter<A>::DestroyElements(GetAllocator(), GetData(), GetSize());
     }
   }
 
@@ -469,7 +483,7 @@ class Storage {
 template <typename T, size_t N, typename A>
 void Storage<T, N, A>::DestroyContents() {
   Pointer<A> data = GetIsAllocated() ? GetAllocatedData() : GetInlinedData();
-  DestroyElements<A>(GetAllocator(), data, GetSize());
+  DestroyAdapter<A>::DestroyElements(GetAllocator(), data, GetSize());
   DeallocateIfAllocated();
 }
 
@@ -566,7 +580,8 @@ auto Storage<T, N, A>::Assign(ValueAdapter values, SizeType<A> new_size)
   ConstructElements<A>(GetAllocator(), construct_loop.data(), values,
                        construct_loop.size());
 
-  DestroyElements<A>(GetAllocator(), destroy_loop.data(), destroy_loop.size());
+  DestroyAdapter<A>::DestroyElements(GetAllocator(), destroy_loop.data(),
+                                     destroy_loop.size());
 
   if (allocation_tx.DidAllocate()) {
     DeallocateIfAllocated();
@@ -587,7 +602,7 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, SizeType<A> new_size)
   A& alloc = GetAllocator();
   if (new_size <= size) {
     // Destroy extra old elements.
-    DestroyElements<A>(alloc, base + new_size, size - new_size);
+    DestroyAdapter<A>::DestroyElements(alloc, base + new_size, size - new_size);
   } else if (new_size <= storage_view.capacity) {
     // Construct new elements in place.
     ConstructElements<A>(alloc, base + size, values, new_size - size);
@@ -611,7 +626,7 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, SizeType<A> new_size)
         (MoveIterator<A>(base)));
     ConstructElements<A>(alloc, new_data, move_values, size);
 
-    DestroyElements<A>(alloc, base, size);
+    DestroyAdapter<A>::DestroyElements(alloc, base, size);
     std::move(construction_tx).Commit();
     DeallocateIfAllocated();
     SetAllocation(std::move(allocation_tx).Release());
@@ -650,7 +665,8 @@ auto Storage<T, N, A>::Insert(ConstIterator<A> pos, ValueAdapter values,
     ConstructElements<A>(GetAllocator(), new_data + insert_end_index,
                          move_values, storage_view.size - insert_index);
 
-    DestroyElements<A>(GetAllocator(), storage_view.data, storage_view.size);
+    DestroyAdapter<A>::DestroyElements(GetAllocator(), storage_view.data,
+                                       storage_view.size);
 
     std::move(construction_tx).Commit();
     std::move(move_construction_tx).Commit();
@@ -753,7 +769,8 @@ auto Storage<T, N, A>::EmplaceBackSlow(Args&&... args) -> Reference<A> {
     ABSL_INTERNAL_RETHROW;
   }
   // Destroy elements in old backing store.
-  DestroyElements<A>(GetAllocator(), storage_view.data, storage_view.size);
+  DestroyAdapter<A>::DestroyElements(GetAllocator(), storage_view.data,
+                                     storage_view.size);
 
   DeallocateIfAllocated();
   SetAllocation(std::move(allocation_tx).Release());
@@ -778,9 +795,9 @@ auto Storage<T, N, A>::Erase(ConstIterator<A> from, ConstIterator<A> to)
   AssignElements<A>(storage_view.data + erase_index, move_values,
                     storage_view.size - erase_end_index);
 
-  DestroyElements<A>(GetAllocator(),
-                     storage_view.data + (storage_view.size - erase_size),
-                     erase_size);
+  DestroyAdapter<A>::DestroyElements(
+      GetAllocator(), storage_view.data + (storage_view.size - erase_size),
+      erase_size);
 
   SubtractSize(erase_size);
   return Iterator<A>(storage_view.data + erase_index);
@@ -804,7 +821,8 @@ auto Storage<T, N, A>::Reserve(SizeType<A> requested_capacity) -> void {
   ConstructElements<A>(GetAllocator(), new_data, move_values,
                        storage_view.size);
 
-  DestroyElements<A>(GetAllocator(), storage_view.data, storage_view.size);
+  DestroyAdapter<A>::DestroyElements(GetAllocator(), storage_view.data,
+                                     storage_view.size);
 
   DeallocateIfAllocated();
   SetAllocation(std::move(allocation_tx).Release());
@@ -847,7 +865,8 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
     ABSL_INTERNAL_RETHROW;
   }
 
-  DestroyElements<A>(GetAllocator(), storage_view.data, storage_view.size);
+  DestroyAdapter<A>::DestroyElements(GetAllocator(), storage_view.data,
+                                     storage_view.size);
 
   MallocAdapter<A>::Deallocate(GetAllocator(), storage_view.data,
                                storage_view.capacity);
@@ -883,9 +902,10 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
                          move_values,
                          large_ptr->GetSize() - small_ptr->GetSize());
 
-    DestroyElements<A>(large_ptr->GetAllocator(),
-                       large_ptr->GetInlinedData() + small_ptr->GetSize(),
-                       large_ptr->GetSize() - small_ptr->GetSize());
+    DestroyAdapter<A>::DestroyElements(
+        large_ptr->GetAllocator(),
+        large_ptr->GetInlinedData() + small_ptr->GetSize(),
+        large_ptr->GetSize() - small_ptr->GetSize());
   } else {
     Storage* allocated_ptr = this;
     Storage* inlined_ptr = other_storage_ptr;
@@ -909,8 +929,9 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
       ABSL_INTERNAL_RETHROW;
     }
 
-    DestroyElements<A>(inlined_ptr->GetAllocator(),
-                       inlined_ptr->GetInlinedData(), inlined_ptr->GetSize());
+    DestroyAdapter<A>::DestroyElements(inlined_ptr->GetAllocator(),
+                                       inlined_ptr->GetInlinedData(),
+                                       inlined_ptr->GetSize());
 
     inlined_ptr->SetAllocation(
         {allocated_storage_view.data, allocated_storage_view.capacity});
