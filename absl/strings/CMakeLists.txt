@@ -558,6 +558,7 @@ absl_cc_library(
     "internal/cord_rep_btree.h"
     "internal/cord_rep_btree_navigator.h"
     "internal/cord_rep_btree_reader.h"
+    "internal/cord_rep_crc.h"
     "internal/cord_rep_consume.h"
     "internal/cord_rep_flat.h"
     "internal/cord_rep_ring.h"
@@ -567,6 +568,7 @@ absl_cc_library(
     "internal/cord_rep_btree.cc"
     "internal/cord_rep_btree_navigator.cc"
     "internal/cord_rep_btree_reader.cc"
+    "internal/cord_rep_crc.cc"
     "internal/cord_rep_consume.cc"
     "internal/cord_rep_ring.cc"
   COPTS
@@ -1008,6 +1010,20 @@ absl_cc_test(
     absl::core_headers
     absl::raw_logging_internal
     absl::strings
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
+    cord_rep_crc_test
+  SRCS
+    "internal/cord_rep_crc_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::cord_internal
+    absl::cord_rep_test_util
     GTest::gmock_main
 )
 

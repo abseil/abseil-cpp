@@ -37,6 +37,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cord_rep_btree.h"
+#include "absl/strings/internal/cord_rep_crc.h"
 #include "absl/strings/internal/cord_rep_flat.h"
 #include "absl/strings/internal/cordz_statistics.h"
 #include "absl/strings/internal/cordz_update_scope.h"
@@ -53,6 +54,7 @@ ABSL_NAMESPACE_BEGIN
 using ::absl::cord_internal::CordRep;
 using ::absl::cord_internal::CordRepBtree;
 using ::absl::cord_internal::CordRepConcat;
+using ::absl::cord_internal::CordRepCrc;
 using ::absl::cord_internal::CordRepExternal;
 using ::absl::cord_internal::CordRepFlat;
 using ::absl::cord_internal::CordRepSubstring;
@@ -1870,7 +1872,11 @@ static void DumpNode(CordRep* rep, bool include_data, std::ostream* os,
     *os << "]";
     *os << " " << (IsRootBalanced(rep) ? 'b' : 'u');
     *os << " " << std::setw(indent) << "";
-    if (rep->IsConcat()) {
+    if (rep->IsCrc()) {
+      *os << "CRC crc=" << rep->crc()->crc << "\n";
+      indent += kIndentStep;
+      rep = rep->crc()->child;
+    } else if (rep->IsConcat()) {
       *os << "CONCAT depth=" << Depth(rep) << "\n";
       indent += kIndentStep;
       indents.push_back(indent);
@@ -1922,6 +1928,7 @@ static bool VerifyNode(CordRep* root, CordRep* start_node,
     ABSL_INTERNAL_CHECK(node != nullptr, ReportError(root, node));
     if (node != root) {
       ABSL_INTERNAL_CHECK(node->length != 0, ReportError(root, node));
+      ABSL_INTERNAL_CHECK(!node->IsCrc(), ReportError(root, node));
     }
 
     if (node->IsConcat()) {
@@ -1949,6 +1956,12 @@ static bool VerifyNode(CordRep* root, CordRep* start_node,
       ABSL_INTERNAL_CHECK(node->substring()->start + node->length <=
                               node->substring()->child->length,
                           ReportError(root, node));
+    } else if (node->IsCrc()) {
+      ABSL_INTERNAL_CHECK(node->crc()->child != nullptr,
+                          ReportError(root, node));
+      ABSL_INTERNAL_CHECK(node->crc()->length == node->crc()->child->length,
+                          ReportError(root, node));
+      worklist.push_back(node->crc()->child);
     }
   } while (!worklist.empty());
   return true;
@@ -1957,6 +1970,11 @@ static bool VerifyNode(CordRep* root, CordRep* start_node,
 // Traverses the tree and computes the total memory allocated.
 /* static */ size_t Cord::MemoryUsageAux(const CordRep* rep) {
   size_t total_mem_usage = 0;
+
+  if (rep->IsCrc()) {
+    total_mem_usage += sizeof(CordRepCrc);
+    rep = rep->crc()->child;
+  }
 
   // Allow a quick exit for the common case that the root is a leaf.
   if (RepMemoryUsageLeaf(rep, &total_mem_usage)) {

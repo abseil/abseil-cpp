@@ -192,6 +192,7 @@ struct CordRepConcat;
 struct CordRepExternal;
 struct CordRepFlat;
 struct CordRepSubstring;
+struct CordRepCrc;
 class CordRepRing;
 class CordRepBtree;
 
@@ -199,18 +200,19 @@ class CordRepBtree;
 enum CordRepKind {
   CONCAT = 0,
   SUBSTRING = 1,
-  BTREE = 2,
-  RING = 3,
-  EXTERNAL = 4,
+  CRC = 2,
+  BTREE = 3,
+  RING = 4,
+  EXTERNAL = 5,
 
   // We have different tags for different sized flat arrays,
-  // starting with FLAT, and limited to MAX_FLAT_TAG. The 225 value is based on
+  // starting with FLAT, and limited to MAX_FLAT_TAG. The 226 value is based on
   // the current 'size to tag' encoding of 8 / 32 bytes. If a new tag is needed
   // in the future, then 'FLAT' and 'MAX_FLAT_TAG' should be adjusted as well
   // as the Tag <---> Size logic so that FLAT stil represents the minimum flat
   // allocation size. (32 bytes as of now).
-  FLAT = 5,
-  MAX_FLAT_TAG = 225
+  FLAT = 6,
+  MAX_FLAT_TAG = 226
 };
 
 // There are various locations where we want to check if some rep is a 'plain'
@@ -251,6 +253,7 @@ struct CordRep {
   constexpr bool IsRing() const { return tag == RING; }
   constexpr bool IsConcat() const { return tag == CONCAT; }
   constexpr bool IsSubstring() const { return tag == SUBSTRING; }
+  constexpr bool IsCrc() const { return tag == CRC; }
   constexpr bool IsExternal() const { return tag == EXTERNAL; }
   constexpr bool IsFlat() const { return tag >= FLAT; }
   constexpr bool IsBtree() const { return tag == BTREE; }
@@ -261,6 +264,8 @@ struct CordRep {
   inline const CordRepConcat* concat() const;
   inline CordRepSubstring* substring();
   inline const CordRepSubstring* substring() const;
+  inline CordRepCrc* crc();
+  inline const CordRepCrc* crc() const;
   inline CordRepExternal* external();
   inline const CordRepExternal* external() const;
   inline CordRepFlat* flat();
