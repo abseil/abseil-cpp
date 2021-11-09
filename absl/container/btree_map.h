@@ -35,14 +35,17 @@
 //
 // However, these types should not be considered drop-in replacements for
 // `std::map` and `std::multimap` as there are some API differences, which are
-// noted in this header file.
+// noted in this header file. The most consequential differences with respect to
+// migrating to b-tree from the STL types are listed in the next paragraph.
+// Other API differences are minor.
 //
 // Importantly, insertions and deletions may invalidate outstanding iterators,
 // pointers, and references to elements. Such invalidations are typically only
 // an issue if insertion and deletion operations are interleaved with the use of
 // more than one iterator, pointer, or reference simultaneously. For this
 // reason, `insert()` and `erase()` return a valid iterator at the current
-// position.
+// position. Another important difference is that key-types must be
+// copy-constructible.
 
 #ifndef ABSL_CONTAINER_BTREE_MAP_H_
 #define ABSL_CONTAINER_BTREE_MAP_H_
