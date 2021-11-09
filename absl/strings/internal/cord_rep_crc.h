@@ -76,6 +76,15 @@ inline CordRep* SkipCrcNode(CordRep* rep) {
   }
 }
 
+inline const CordRep* SkipCrcNode(const CordRep* rep) {
+  assert(rep != nullptr);
+  if (ABSL_PREDICT_FALSE(rep->IsCrc())) {
+    return rep->crc()->child;
+  } else {
+    return rep;
+  }
+}
+
 inline CordRepCrc* CordRep::crc() {
   assert(IsCrc());
   return static_cast<CordRepCrc*>(this);

@@ -568,6 +568,7 @@ absl_cc_library(
     "internal/cord_rep_btree.cc"
     "internal/cord_rep_btree_navigator.cc"
     "internal/cord_rep_btree_reader.cc"
+    "internal/cord_rep_concat.cc"
     "internal/cord_rep_crc.cc"
     "internal/cord_rep_consume.cc"
     "internal/cord_rep_ring.cc"
@@ -922,6 +923,7 @@ absl_cc_test(
     absl::cordz_test_helpers
     absl::core_headers
     absl::endian
+    absl::hash
     absl::random_random
     absl::raw_logging_internal
     absl::fixed_array
@@ -948,13 +950,17 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
-    cord_internal_test
+    cord_rep_concat_test
   SRCS
-    "internal/cord_internal_test.cc"
+    "internal/cord_rep_concat_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::base
+    absl::config
     absl::cord_internal
+    absl::cord_rep_test_util
+    absl::core_headers
     GTest::gmock_main
 )
 

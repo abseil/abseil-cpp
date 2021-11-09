@@ -87,9 +87,6 @@ class RefcountAndFlags {
   constexpr RefcountAndFlags() : count_{kRefIncrement} {}
   struct Immortal {};
   explicit constexpr RefcountAndFlags(Immortal) : count_(kImmortalFlag) {}
-  struct WithCrc {};
-  explicit constexpr RefcountAndFlags(WithCrc)
-      : count_(kCrcFlag | kRefIncrement) {}
 
   // Increments the reference count. Imposes no memory ordering.
   inline void Increment() {
@@ -125,32 +122,14 @@ class RefcountAndFlags {
     return count_.load(std::memory_order_acquire) >> kNumFlags;
   }
 
-  // Returns true if the referenced object carries a CRC value.
-  bool HasCrc() const {
-    return (count_.load(std::memory_order_relaxed) & kCrcFlag) != 0;
-  }
-
-  // Returns true iff the atomic integer is 1 and this node does not store
-  // a CRC.  When both these conditions are met, the current thread owns
-  // the reference and no other thread shares it, so its contents may be
-  // safely mutated.
-  //
-  // If the referenced item is shared, carries a CRC, or is immortal,
-  // it should not be modified in-place, and this function returns false.
-  //
-  // This call performs the memory barrier needed for the owning thread
-  // to act on the object, so that if it returns true, it may safely
-  // assume exclusive access to the object.
-  inline bool IsMutable() {
-    return (count_.load(std::memory_order_acquire)) == kRefIncrement;
-  }
-
-  // Returns whether the atomic integer is 1.  Similar to IsMutable(),
-  // but does not check for a stored CRC.  (An unshared node with a CRC is not
-  // mutable, because changing its data would invalidate the CRC.)
-  //
-  // When this returns true, there are no other references, and data sinks
-  // may safely adopt the children of the CordRep.
+  // Returns whether the atomic integer is 1.
+  // If the reference count is used in the conventional way, a
+  // reference count of 1 implies that the current thread owns the
+  // reference and no other thread shares it.
+  // This call performs the test for a reference count of one, and
+  // performs the memory barrier needed for the owning thread
+  // to act on the object, knowing that it has exclusive access to the
+  // object.  Always returns false when the immortal bit is set.
   inline bool IsOne() {
     return (count_.load(std::memory_order_acquire) & kRefcountMask) ==
            kRefIncrement;
@@ -170,14 +149,14 @@ class RefcountAndFlags {
     kNumFlags = 2,
 
     kImmortalFlag = 0x1,
-    kCrcFlag = 0x2,
+    kReservedFlag = 0x2,
     kRefIncrement = (1 << kNumFlags),
 
     // Bitmask to use when checking refcount by equality.  This masks out
     // all flags except kImmortalFlag, which is part of the refcount for
     // purposes of equality.  (A refcount of 0 or 1 does not count as 0 or 1
     // if the immortal bit is set.)
-    kRefcountMask = ~kCrcFlag,
+    kRefcountMask = ~kReservedFlag,
   };
 
   std::atomic<int32_t> count_;
@@ -227,6 +206,18 @@ static_assert(EXTERNAL == RING + 1, "BTREE and EXTERNAL not consecutive");
 static_assert(FLAT == EXTERNAL + 1, "EXTERNAL and FLAT not consecutive");
 
 struct CordRep {
+  // Result from an `extract edge` operation. Contains the (possibly changed)
+  // tree node as well as the extracted edge, or {tree, nullptr} if no edge
+  // could be extracted.
+  // On success, the returned `tree` value is null if `extracted` was the only
+  // data edge inside the tree, a data edge if there were only two data edges in
+  // the tree, or the (possibly new / smaller) remaining tree with the extracted
+  // data edge removed.
+  struct ExtractResult {
+    CordRep* tree;
+    CordRep* extracted;
+  };
+
   CordRep() = default;
   constexpr CordRep(RefcountAndFlags::Immortal immortal, size_t l)
       : length(l), refcount(immortal), tag(EXTERNAL), storage{} {}
@@ -294,6 +285,13 @@ struct CordRepConcat : public CordRep {
 
   uint8_t depth() const { return storage[0]; }
   void set_depth(uint8_t depth) { storage[0] = depth; }
+
+  // Extracts the right-most flat in the provided concat tree if the entire path
+  // to that flat is not shared, and the flat has the requested extra capacity.
+  // Returns the (potentially new) top level tree node and the extracted flat,
+  // or {tree, nullptr} if no flat was extracted.
+  static ExtractResult ExtractAppendBuffer(CordRepConcat* tree,
+                                           size_t extra_capacity);
 };
 
 struct CordRepSubstring : public CordRep {

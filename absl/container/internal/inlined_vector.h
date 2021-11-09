@@ -430,7 +430,7 @@ class Storage {
   }
 
   void SubtractSize(SizeType<A> count) {
-    assert(count <= GetSize());
+    ABSL_HARDENING_ASSERT(count <= GetSize());
 
     GetSizeAndIsAllocated() -= count << static_cast<SizeType<A>>(1);
   }
@@ -441,7 +441,8 @@ class Storage {
   }
 
   void MemcpyFrom(const Storage& other_storage) {
-    assert(IsMemcpyOk<A>::value || other_storage.GetIsAllocated());
+    ABSL_HARDENING_ASSERT(IsMemcpyOk<A>::value ||
+                          other_storage.GetIsAllocated());
 
     GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
     data_ = other_storage.data_;
@@ -490,7 +491,7 @@ void Storage<T, N, A>::DestroyContents() {
 template <typename T, size_t N, typename A>
 void Storage<T, N, A>::InitFrom(const Storage& other) {
   const SizeType<A> n = other.GetSize();
-  assert(n > 0);  // Empty sources handled handled in caller.
+  ABSL_HARDENING_ASSERT(n > 0);  // Empty sources handled handled in caller.
   ConstPointer<A> src;
   Pointer<A> dst;
   if (!other.GetIsAllocated()) {
@@ -522,8 +523,8 @@ template <typename ValueAdapter>
 auto Storage<T, N, A>::Initialize(ValueAdapter values, SizeType<A> new_size)
     -> void {
   // Only callable from constructors!
-  assert(!GetIsAllocated());
-  assert(GetSize() == 0);
+  ABSL_HARDENING_ASSERT(!GetIsAllocated());
+  ABSL_HARDENING_ASSERT(GetSize() == 0);
 
   Pointer<A> construct_data;
   if (new_size > GetInlinedCapacity()) {
@@ -832,7 +833,7 @@ auto Storage<T, N, A>::Reserve(SizeType<A> requested_capacity) -> void {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::ShrinkToFit() -> void {
   // May only be called on allocated instances!
-  assert(GetIsAllocated());
+  ABSL_HARDENING_ASSERT(GetIsAllocated());
 
   StorageView<A> storage_view{GetAllocatedData(), GetSize(),
                               GetAllocatedCapacity()};
@@ -881,7 +882,7 @@ auto Storage<T, N, A>::ShrinkToFit() -> void {
 template <typename T, size_t N, typename A>
 auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
   using std::swap;
-  assert(this != other_storage_ptr);
+  ABSL_HARDENING_ASSERT(this != other_storage_ptr);
 
   if (GetIsAllocated() && other_storage_ptr->GetIsAllocated()) {
     swap(data_.allocated, other_storage_ptr->data_.allocated);
