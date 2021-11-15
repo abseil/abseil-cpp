@@ -56,6 +56,14 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+namespace container_internal {
+
+template <typename Key, typename Data, typename Compare, typename Alloc,
+          int TargetNodeSize, bool Multi>
+struct map_params;
+
+}  // namespace container_internal
+
 // absl::btree_map<>
 //
 // An `absl::btree_map<K, V>` is an ordered associative container of
@@ -811,6 +819,58 @@ void erase_if(btree_multimap<K, V, C, A> &map, Pred pred) {
     }
   }
 }
+
+namespace container_internal {
+
+// A parameters structure for holding the type parameters for a btree_map.
+// Compare and Alloc should be nothrow copy-constructible.
+template <typename Key, typename Data, typename Compare, typename Alloc,
+          int TargetNodeSize, bool Multi>
+struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, Multi,
+                                  map_slot_policy<Key, Data>> {
+  using super_type = typename map_params::common_params;
+  using mapped_type = Data;
+  // This type allows us to move keys when it is safe to do so. It is safe
+  // for maps in which value_type and mutable_value_type are layout compatible.
+  using slot_policy = typename super_type::slot_policy;
+  using slot_type = typename super_type::slot_type;
+  using value_type = typename super_type::value_type;
+  using init_type = typename super_type::init_type;
+
+  using original_key_compare = typename super_type::original_key_compare;
+  // Reference: https://en.cppreference.com/w/cpp/container/map/value_compare
+  class value_compare {
+    template <typename Params>
+    friend class btree;
+
+   protected:
+    explicit value_compare(original_key_compare c) : comp(std::move(c)) {}
+
+    original_key_compare comp;  // NOLINT
+
+   public:
+    auto operator()(const value_type &lhs, const value_type &rhs) const
+        -> decltype(comp(lhs.first, rhs.first)) {
+      return comp(lhs.first, rhs.first);
+    }
+  };
+  using is_map_container = std::true_type;
+
+  template <typename V>
+  static auto key(const V &value) -> decltype(value.first) {
+    return value.first;
+  }
+  static const Key &key(const slot_type *s) { return slot_policy::key(s); }
+  static const Key &key(slot_type *s) { return slot_policy::key(s); }
+  // For use in node handle.
+  static auto mutable_key(slot_type *s)
+      -> decltype(slot_policy::mutable_key(s)) {
+    return slot_policy::mutable_key(s);
+  }
+  static mapped_type &value(value_type *value) { return value->second; }
+};
+
+}  // namespace container_internal
 
 ABSL_NAMESPACE_END
 }  // namespace absl
