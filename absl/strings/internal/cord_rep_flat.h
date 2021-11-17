@@ -117,6 +117,17 @@ struct CordRepFlat : public CordRep {
 #endif
   }
 
+  // Create a CordRepFlat containing `data`, with an optional additional
+  // extra capacity of up to `extra` bytes. Requires that `data.size()`
+  // is less than kMaxFlatLength.
+  static CordRepFlat* Create(absl::string_view data, size_t extra = 0) {
+    assert(data.size() <= kMaxFlatLength);
+    CordRepFlat* flat = New(data.size() + (std::min)(extra, kMaxFlatLength));
+    memcpy(flat->Data(), data.data(), data.size());
+    flat->length = data.size();
+    return flat;
+  }
+
   // Returns a pointer to the data inside this flat rep.
   char* Data() { return reinterpret_cast<char*>(storage); }
   const char* Data() const { return reinterpret_cast<const char*>(storage); }
