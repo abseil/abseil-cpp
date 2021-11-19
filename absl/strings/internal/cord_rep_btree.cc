@@ -380,18 +380,16 @@ void CordRepBtree::Dump(const CordRep* rep, std::ostream& stream) {
 template <size_t size>
 static void DestroyTree(CordRepBtree* tree) {
   for (CordRep* node : tree->Edges()) {
-    if (!node->refcount.Decrement()) {
-      for (CordRep* edge : node->btree()->Edges()) {
-        if (!edge->refcount.Decrement()) {
-          if (size == 1) {
-            DeleteLeafEdge(edge);
-          } else {
-            CordRepBtree::Destroy(edge->btree());
-          }
-        }
+    if (node->refcount.Decrement()) continue;
+    for (CordRep* edge : node->btree()->Edges()) {
+      if (edge->refcount.Decrement()) continue;
+      if (size == 1) {
+        DeleteLeafEdge(edge);
+      } else {
+        CordRepBtree::Destroy(edge->btree());
       }
-      CordRepBtree::Delete(node->btree());
     }
+    CordRepBtree::Delete(node->btree());
   }
   CordRepBtree::Delete(tree);
 }
