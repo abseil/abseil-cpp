@@ -398,8 +398,11 @@ void swap(btree_set<K, C, A> &x, btree_set<K, C, A> &y) {
 // absl::erase_if(absl::btree_set<>, Pred)
 //
 // Erases all elements that satisfy the predicate pred from the container.
+// Returns the number of erased elements.
 template <typename K, typename C, typename A, typename Pred>
-void erase_if(btree_set<K, C, A> &set, Pred pred) {
+typename btree_set<K, C, A>::size_type erase_if(btree_set<K, C, A> &set,
+                                                Pred pred) {
+  const auto initial_size = set.size();
   for (auto it = set.begin(); it != set.end();) {
     if (pred(*it)) {
       it = set.erase(it);
@@ -407,6 +410,7 @@ void erase_if(btree_set<K, C, A> &set, Pred pred) {
       ++it;
     }
   }
+  return initial_size - set.size();
 }
 
 // absl::btree_multiset<>
@@ -724,8 +728,11 @@ void swap(btree_multiset<K, C, A> &x, btree_multiset<K, C, A> &y) {
 // absl::erase_if(absl::btree_multiset<>, Pred)
 //
 // Erases all elements that satisfy the predicate pred from the container.
+// Returns the number of erased elements.
 template <typename K, typename C, typename A, typename Pred>
-void erase_if(btree_multiset<K, C, A> &set, Pred pred) {
+typename btree_multiset<K, C, A>::size_type erase_if(
+   btree_multiset<K, C, A> & set, Pred pred) {
+  const auto initial_size = set.size();
   for (auto it = set.begin(); it != set.end();) {
     if (pred(*it)) {
       it = set.erase(it);
@@ -733,6 +740,7 @@ void erase_if(btree_multiset<K, C, A> &set, Pred pred) {
       ++it;
     }
   }
+  return initial_size - set.size();
 }
 
 namespace container_internal {
