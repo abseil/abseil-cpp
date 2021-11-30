@@ -84,7 +84,11 @@ CONSTEXPR_F bool is_leap_year(year_t y) noexcept {
   return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
 }
 CONSTEXPR_F int year_index(year_t y, month_t m) noexcept {
-  return (static_cast<int>((y + (m > 2)) % 400) + 400) % 400;
+  int year_index = static_cast<int>((y + (m > 2)) % 400);
+  if (year_index < 0) {
+    year_index += 400;
+  }
+  return year_index;
 }
 CONSTEXPR_F int days_per_century(year_t y, month_t m) noexcept {
   const int yi = year_index(y, m);
