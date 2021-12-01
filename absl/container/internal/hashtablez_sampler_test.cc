@@ -83,7 +83,7 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   absl::MutexLock l(&info.init_mu);
   info.PrepareForSampling();
 
-  info.inline_element_size = test_element_size;
+  info.inline_element_size.store(test_element_size, std::memory_order_relaxed);
   EXPECT_EQ(info.capacity.load(), 0);
   EXPECT_EQ(info.size.load(), 0);
   EXPECT_EQ(info.num_erases.load(), 0);
@@ -95,7 +95,7 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.hashes_bitwise_xor.load(), 0);
   EXPECT_EQ(info.max_reserve.load(), 0);
   EXPECT_GE(info.create_time, test_start);
-  EXPECT_EQ(info.inline_element_size, test_element_size);
+  EXPECT_EQ(info.inline_element_size.load(), test_element_size);
 
   info.capacity.store(1, std::memory_order_relaxed);
   info.size.store(1, std::memory_order_relaxed);
@@ -119,7 +119,7 @@ TEST(HashtablezInfoTest, PrepareForSampling) {
   EXPECT_EQ(info.hashes_bitwise_and.load(), ~size_t{});
   EXPECT_EQ(info.hashes_bitwise_xor.load(), 0);
   EXPECT_EQ(info.max_reserve.load(), 0);
-  EXPECT_EQ(info.inline_element_size, test_element_size);
+  EXPECT_EQ(info.inline_element_size.load(), test_element_size);
   EXPECT_GE(info.create_time, test_start);
 }
 
@@ -162,7 +162,7 @@ TEST(HashtablezInfoTest, RecordErase) {
   HashtablezInfo info;
   absl::MutexLock l(&info.init_mu);
   info.PrepareForSampling();
-  info.inline_element_size = test_element_size;
+  info.inline_element_size.store(test_element_size);
   EXPECT_EQ(info.num_erases.load(), 0);
   EXPECT_EQ(info.size.load(), 0);
   RecordInsertSlow(&info, 0x0000FF00, 6 * kProbeLength);
@@ -170,7 +170,7 @@ TEST(HashtablezInfoTest, RecordErase) {
   RecordEraseSlow(&info);
   EXPECT_EQ(info.size.load(), 0);
   EXPECT_EQ(info.num_erases.load(), 1);
-  EXPECT_EQ(info.inline_element_size, test_element_size);
+  EXPECT_EQ(info.inline_element_size.load(), test_element_size);
 }
 
 TEST(HashtablezInfoTest, RecordRehash) {
@@ -178,7 +178,7 @@ TEST(HashtablezInfoTest, RecordRehash) {
   HashtablezInfo info;
   absl::MutexLock l(&info.init_mu);
   info.PrepareForSampling();
-  info.inline_element_size = test_element_size;
+  info.inline_element_size.store(test_element_size);
   RecordInsertSlow(&info, 0x1, 0);
   RecordInsertSlow(&info, 0x2, kProbeLength);
   RecordInsertSlow(&info, 0x4, kProbeLength);
@@ -197,7 +197,7 @@ TEST(HashtablezInfoTest, RecordRehash) {
   EXPECT_EQ(info.total_probe_length.load(), 3);
   EXPECT_EQ(info.num_erases.load(), 0);
   EXPECT_EQ(info.num_rehashes.load(), 1);
-  EXPECT_EQ(info.inline_element_size, test_element_size);
+  EXPECT_EQ(info.inline_element_size.load(), test_element_size);
 }
 
 TEST(HashtablezInfoTest, RecordReservation) {

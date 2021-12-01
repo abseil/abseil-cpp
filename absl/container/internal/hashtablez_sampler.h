@@ -82,16 +82,27 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> hashes_bitwise_xor;
   std::atomic<size_t> max_reserve;
 
+  // One could imagine that inline_element_size could be non-atomic, since it
+  // *almost* follows the rules for the fields that are set by
+  // `PrepareForSampling`.  However, TSAN reports a race (see b/207323922) in
+  // which
+  //   A: Thread 1: Register() returns, unlocking init_mu.
+  //   B: Thread 2: Iterate() is called, locking init_mu.
+  //   C: Thread 1: inlined_element_size is stored.
+  //   D: Thread 2: inlined_element_size is accessed (a race).
+  // A simple solution is to make inline_element_size atomic so that we treat it
+  // at as we do the other atomic fields.
+  std::atomic<size_t> inline_element_size;
+
   // All of the fields below are set by `PrepareForSampling`, they must not be
   // mutated in `Record*` functions.  They are logically `const` in that sense.
-  // These are guarded by init_mu, but that is not externalized to clients, who
-  // can only read them during `HashtablezSampler::Iterate` which will hold the
-  // lock.
+  // These are guarded by init_mu, but that is not externalized to clients,
+  // which can read them only during `SampleRecorder::Iterate` which will hold
+  // the lock.
   static constexpr int kMaxStackDepth = 64;
   absl::Time create_time;
   int32_t depth;
   void* stack[kMaxStackDepth];
-  size_t inline_element_size;
 };
 
 inline void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {

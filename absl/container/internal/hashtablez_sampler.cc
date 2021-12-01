@@ -111,7 +111,8 @@ HashtablezInfo* SampleSlow(int64_t* next_sample, size_t inline_element_size) {
   if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     *next_sample = 1;
     HashtablezInfo* result = GlobalHashtablezSampler().Register();
-    result->inline_element_size = inline_element_size;
+    result->inline_element_size.store(inline_element_size,
+                                      std::memory_order_relaxed);
     return result;
   }
 
@@ -138,7 +139,8 @@ HashtablezInfo* SampleSlow(int64_t* next_sample, size_t inline_element_size) {
   }
 
   HashtablezInfo* result = GlobalHashtablezSampler().Register();
-  result->inline_element_size = inline_element_size;
+  result->inline_element_size.store(inline_element_size,
+                                    std::memory_order_relaxed);
   return result;
 #endif
 }

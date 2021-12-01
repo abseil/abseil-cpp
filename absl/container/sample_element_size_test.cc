@@ -51,7 +51,8 @@ void TestInlineElementSize(
   size_t new_count = 0;
   sampler.Iterate([&](const HashtablezInfo& info) {
     if (preexisting_info.insert(&info).second) {
-      EXPECT_EQ(info.inline_element_size, expected_element_size);
+      EXPECT_EQ(info.inline_element_size.load(std::memory_order_relaxed),
+                expected_element_size);
       ++new_count;
     }
   });
