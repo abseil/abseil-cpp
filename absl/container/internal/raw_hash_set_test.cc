@@ -2075,8 +2075,7 @@ TEST(RawHashSamplerTest, Sample) {
           std::memory_order_relaxed)]++;
       reservations[info.max_reserve.load(std::memory_order_relaxed)]++;
     }
-    EXPECT_EQ(info.inline_element_size.load(std::memory_order_relaxed),
-              sizeof(int64_t));
+    EXPECT_EQ(info.inline_element_size, sizeof(int64_t));
     ++end_size;
   });
 

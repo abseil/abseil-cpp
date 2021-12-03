@@ -402,15 +402,7 @@ void swap(btree_set<K, C, A> &x, btree_set<K, C, A> &y) {
 template <typename K, typename C, typename A, typename Pred>
 typename btree_set<K, C, A>::size_type erase_if(btree_set<K, C, A> &set,
                                                 Pred pred) {
-  const auto initial_size = set.size();
-  for (auto it = set.begin(); it != set.end();) {
-    if (pred(*it)) {
-      it = set.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  return initial_size - set.size();
+  return container_internal::btree_access::erase_if(set, std::move(pred));
 }
 
 // absl::btree_multiset<>
@@ -732,15 +724,7 @@ void swap(btree_multiset<K, C, A> &x, btree_multiset<K, C, A> &y) {
 template <typename K, typename C, typename A, typename Pred>
 typename btree_multiset<K, C, A>::size_type erase_if(
    btree_multiset<K, C, A> & set, Pred pred) {
-  const auto initial_size = set.size();
-  for (auto it = set.begin(); it != set.end();) {
-    if (pred(*it)) {
-      it = set.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  return initial_size - set.size();
+  return container_internal::btree_access::erase_if(set, std::move(pred));
 }
 
 namespace container_internal {

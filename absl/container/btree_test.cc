@@ -2490,6 +2490,20 @@ TEST(Btree, EraseIf) {
     EXPECT_EQ(erase_if(s, &IsEven), 2);
     EXPECT_THAT(s, ElementsAre(1, 3, 5));
   }
+  // Test that erase_if invokes the predicate once per element.
+  {
+    absl::btree_set<int> s;
+    for (int i = 0; i < 1000; ++i) s.insert(i);
+    int pred_calls = 0;
+    EXPECT_EQ(erase_if(s,
+                       [&pred_calls](int k) {
+                         ++pred_calls;
+                         return k % 2;
+                       }),
+              500);
+    EXPECT_THAT(s, SizeIs(500));
+    EXPECT_EQ(pred_calls, 1000);
+  }
 }
 
 TEST(Btree, InsertOrAssign) {

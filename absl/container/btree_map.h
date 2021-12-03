@@ -482,15 +482,7 @@ void swap(btree_map<K, V, C, A> &x, btree_map<K, V, C, A> &y) {
 template <typename K, typename V, typename C, typename A, typename Pred>
 typename btree_map<K, V, C, A>::size_type erase_if(
     btree_map<K, V, C, A> &map, Pred pred) {
-  const auto initial_size = map.size();
-  for (auto it = map.begin(); it != map.end();) {
-    if (pred(*it)) {
-      it = map.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  return initial_size - map.size();
+  return container_internal::btree_access::erase_if(map, std::move(pred));
 }
 
 // absl::btree_multimap
@@ -817,15 +809,7 @@ void swap(btree_multimap<K, V, C, A> &x, btree_multimap<K, V, C, A> &y) {
 template <typename K, typename V, typename C, typename A, typename Pred>
 typename btree_multimap<K, V, C, A>::size_type erase_if(
     btree_multimap<K, V, C, A> &map, Pred pred) {
-  const auto initial_size = map.size();
-  for (auto it = map.begin(); it != map.end();) {
-    if (pred(*it)) {
-      it = map.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  return initial_size - map.size();
+  return container_internal::btree_access::erase_if(map, std::move(pred));
 }
 
 namespace container_internal {
