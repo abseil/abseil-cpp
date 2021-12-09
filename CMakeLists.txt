@@ -46,9 +46,10 @@ if (POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)
 endif (POLICY CMP0091)
 
-# Set BUILD_TESTING to OFF by default.
+# Set BUILD_TESTING and BUILD_COVERAGE_TESTING to OFF by default.
 # This must come before the project() and include(CTest) lines.
 OPTION(BUILD_TESTING "Build tests" OFF)
+OPTION(BUILD_COVERAGE_TESTING "Build converagetests" OFF)
 
 project(absl LANGUAGES CXX)
 include(CTest)

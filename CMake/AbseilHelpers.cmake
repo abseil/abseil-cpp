@@ -407,10 +407,18 @@ function(absl_cc_test)
     PRIVATE ${ABSL_CC_TEST_COPTS}
   )
 
-  target_link_libraries(${_NAME}
-    PUBLIC ${ABSL_CC_TEST_DEPS}
-    PRIVATE ${ABSL_CC_TEST_LINKOPTS}
-  )
+  if (BUILD_COVERAGE_TESTING)
+    target_link_libraries(${_NAME}
+      PUBLIC ${ABSL_CC_TEST_DEPS}
+      PRIVATE ${ABSL_CC_TEST_LINKOPTS}
+      "-lgcov"
+    )
+  else()
+    target_link_libraries(${_NAME}
+      PUBLIC ${ABSL_CC_TEST_DEPS}
+      PRIVATE ${ABSL_CC_TEST_LINKOPTS}
+    )
+  endif()
   # Add all Abseil targets to a folder in the IDE for organization.
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 

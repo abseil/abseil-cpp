@@ -33,8 +33,13 @@ endif()
 
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(ABSL_DEFAULT_COPTS "${ABSL_GCC_FLAGS}")
-  set(ABSL_TEST_COPTS "${ABSL_GCC_FLAGS};${ABSL_GCC_TEST_FLAGS}")
+  if(BUILD_COVERAGE_TESTING)
+    set(ABSL_DEFAULT_COPTS "-O0;-Wall;-fprofile-arcs;-ftest-coverage;${ABSL_GCC_FLAGS}")
+    set(ABSL_TEST_COPTS "-O0;-Wall;-fprofile-arcs;-ftest-coverage;${ABSL_GCC_FLAGS};${ABSL_GCC_TEST_FLAGS}")
+  else()
+    set(ABSL_DEFAULT_COPTS "${ABSL_GCC_FLAGS}")
+    set(ABSL_TEST_COPTS "${ABSL_GCC_FLAGS};${ABSL_GCC_TEST_FLAGS}")
+  endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")  # MATCHES so we get both Clang and AppleClang
   if(MSVC)
     # clang-cl is half MSVC, half LLVM
