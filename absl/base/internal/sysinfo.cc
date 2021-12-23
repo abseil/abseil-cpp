@@ -77,7 +77,9 @@ DWORD Win32CountSetBits(ULONG_PTR bitMask) {
 // 0 if the number of processors is not available or can not be computed.
 // https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformation
 int Win32NumCPUs() {
+#ifdef _MSC_VER
 #pragma comment(lib, "kernel32.lib")
+#endif
   using Info = SYSTEM_LOGICAL_PROCESSOR_INFORMATION;
 
   DWORD info_size = sizeof(Info);
@@ -150,7 +152,9 @@ static double GetNominalCPUFrequency() {
   // API informing about CPU nominal frequency.
   return 1.0;
 #else
+#ifdef _MSC_VER
 #pragma comment(lib, "advapi32.lib")  // For Reg* functions.
+#endif
   HKEY key;
   // Use the Reg* functions rather than the SH functions because shlwapi.dll
   // pulls in gdi32.dll which makes process destruction much more costly.
