@@ -66,6 +66,14 @@
 #define ABSL_HAVE_CPP_ATTRIBUTE(x) 0
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1922
+// MSVC only allows simple identifier in feature-test macros,
+// and reports IntelliSense error otherwise.
+#define ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(x) 0
+#else
+#define ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(x) ABSL_HAVE_CPP_ATTRIBUTE(x)
+#endif
+
 // -----------------------------------------------------------------------------
 // Function Attributes
 // -----------------------------------------------------------------------------
@@ -493,7 +501,7 @@
 //
 // XRay isn't currently supported on Android:
 // https://github.com/android/ndk/issues/368
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::xray_always_instrument) && \
+#if ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(clang::xray_always_instrument) && \
     !defined(ABSL_NO_XRAY_ATTRIBUTES) && !defined(__ANDROID__)
 #define ABSL_XRAY_ALWAYS_INSTRUMENT [[clang::xray_always_instrument]]
 #define ABSL_XRAY_NEVER_INSTRUMENT [[clang::xray_never_instrument]]
@@ -517,7 +525,7 @@
 // The clang-tidy check bugprone-use-after-move allows member functions marked
 // with this attribute to be called on objects that have been moved from;
 // without the attribute, this would result in a use-after-move warning.
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::reinitializes)
+#if ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(clang::reinitializes)
 #define ABSL_ATTRIBUTE_REINITIALIZES [[clang::reinitializes]]
 #else
 #define ABSL_ATTRIBUTE_REINITIALIZES
@@ -684,7 +692,7 @@
 //   MyType MyClass::my_var = MakeMyType(...);
 //
 // Note that this attribute is redundant if the variable is declared constexpr.
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
+#if ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(clang::require_constant_initialization)
 #define ABSL_CONST_INIT [[clang::require_constant_initialization]]
 #else
 #define ABSL_CONST_INIT
@@ -703,7 +711,7 @@
 // Example:
 //
 //  ABSL_ATTRIBUTE_PURE_FUNCTION int64_t ToInt64Milliseconds(Duration d);
-#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::pure)
+#if ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(gnu::pure)
 #define ABSL_ATTRIBUTE_PURE_FUNCTION [[gnu::pure]]
 #elif ABSL_HAVE_ATTRIBUTE(pure)
 #define ABSL_ATTRIBUTE_PURE_FUNCTION __attribute__((pure))
@@ -725,7 +733,7 @@
 //
 // See also the upstream documentation:
 // https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetimebound)
+#if ABSL_HAVE_CPP_ATTRIBUTE_QUALIFIED(clang::lifetimebound)
 #define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]
 #elif ABSL_HAVE_ATTRIBUTE(lifetimebound)
 #define ABSL_ATTRIBUTE_LIFETIME_BOUND __attribute__((lifetimebound))
