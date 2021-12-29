@@ -157,7 +157,7 @@ if(BUILD_TESTING AND ABSL_BUILD_TESTING)
     include(CMake/Googletest/DownloadGTest.cmake)
   endif()
 
-  if (NOT ABSL_FIND_GOOGLETEST)
+  if (ABSL_USE_EXTERNAL_GOOGLETEST AND NOT ABSL_FIND_GOOGLETEST)
     # When Google Test is included directly rather than through find_package, the aliases are missing.
     add_library(GTest::gtest ALIAS gtest)
     add_library(GTest::gtest_main ALIAS gtest_main)
