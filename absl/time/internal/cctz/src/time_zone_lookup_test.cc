@@ -687,7 +687,12 @@ TEST(TimeZones, LoadZonesConcurrently) {
     }
   };
 
+#if define(__Fuchsia__)
+  const std::size_t n_threads = 64;
+#else
   const std::size_t n_threads = 128;
+#endif
+
   std::vector<std::thread> threads;
   std::vector<std::set<std::string>> thread_failures(n_threads);
   for (std::size_t i = 0; i != n_threads; ++i) {
