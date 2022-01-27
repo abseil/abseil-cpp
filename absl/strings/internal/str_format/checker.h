@@ -22,7 +22,6 @@
 // Compile time check support for entry points.
 
 #ifndef ABSL_INTERNAL_ENABLE_FORMAT_CHECKER
-
 // We disable format checker under vscode intellisense compilation.
 // See https://github.com/microsoft/vscode-cpptools/issues/3683 for
 // more details.
