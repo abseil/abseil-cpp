@@ -46,6 +46,7 @@ if [[ -n "${ALTERNATE_OPTIONS:-}" ]]; then
 fi
 
 ${BAZEL_BIN} test ... \
+  --copt="-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1" \
   --copt=-Werror \
   --keep_going \
   --show_timestamps \
