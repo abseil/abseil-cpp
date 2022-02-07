@@ -39,7 +39,7 @@ void CordRep::Destroy(CordRep* rep) {
   absl::InlinedVector<CordRep*, Constants::kInlinedVectorSize> pending;
   while (true) {
     assert(!rep->refcount.IsImmortal());
-    if (rep->tag == CONCAT) {
+    if (rep->IsConcat()) {
       CordRepConcat* rep_concat = rep->concat();
       CordRep* right = rep_concat->right;
       if (!right->refcount.Decrement()) {
