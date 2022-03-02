@@ -260,7 +260,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
       # Abseil libraries require C++11 as the current minimum standard.
       # Top-level application CMake projects should ensure a consistent C++
       # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
-      target_compile_features(${_NAME} PUBLIC cxx_std_11)
+      target_compile_features(${_NAME} PUBLIC cxx_std_${ABSL_CXX_STANDARD})
     else()
       # Note: This is legacy (before CMake 3.8) behavior. Setting the
       # target-level CXX_STANDARD property to ABSL_CXX_STANDARD (which is
@@ -420,7 +420,7 @@ function(absl_cc_test)
     # Abseil libraries require C++11 as the current minimum standard.
     # Top-level application CMake projects should ensure a consistent C++
     # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
-    target_compile_features(${_NAME} PUBLIC cxx_std_11)
+    target_compile_features(${_NAME} PUBLIC cxx_std_${ABSL_CXX_STANDARD})
   else()
     # Note: This is legacy (before CMake 3.8) behavior. Setting the
     # target-level CXX_STANDARD property to ABSL_CXX_STANDARD (which is
