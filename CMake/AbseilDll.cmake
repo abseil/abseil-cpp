@@ -522,6 +522,25 @@ function(absl_make_dll)
     PRIVATE
       ${ABSL_DEFAULT_LINKOPTS}
   )
+
+  if(ABSL_PROPAGATE_CXX_STD)
+    # Abseil libraries require C++11 as the current minimum standard.
+    # Top-level application CMake projects should ensure a consistent C++
+    # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
+    target_compile_features(abseil_dll PUBLIC cxx_std_${ABSL_CXX_STANDARD})
+  else()
+    # Note: This is legacy (before CMake 3.8) behavior. Setting the
+    # target-level CXX_STANDARD property to ABSL_CXX_STANDARD (which is
+    # initialized by CMAKE_CXX_STANDARD) should have no real effect, since
+    # that is the default value anyway.
+    #
+    # CXX_STANDARD_REQUIRED does guard against the top-level CMake project
+    # not having enabled CMAKE_CXX_STANDARD_REQUIRED (which prevents
+    # "decaying" to an older standard if the requested one isn't available).
+    set_property(TARGET abseil_dll PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+    set_property(TARGET abseil_dll PROPERTY CXX_STANDARD_REQUIRED ON)
+  endif()
+
   set_property(TARGET abseil_dll PROPERTY LINKER_LANGUAGE "CXX")
   target_include_directories(
     abseil_dll
