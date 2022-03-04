@@ -301,7 +301,12 @@ static_assert(ctrl_t::kDeleted == static_cast<ctrl_t>(-2),
 
 // A single block of empty control bytes for tables without any slots allocated.
 // This enables removing a branch in the hot path of find().
-ABSL_DLL extern const ctrl_t kEmptyGroup[16];
+alignas(16) ABSL_CONST_INIT ABSL_DLL constexpr ctrl_t kEmptyGroup[16] = {
+    ctrl_t::kSentinel, ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
+    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty};
+
 inline ctrl_t* EmptyGroup() {
   return const_cast<ctrl_t*>(kEmptyGroup);
 }

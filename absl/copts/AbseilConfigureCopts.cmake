@@ -98,6 +98,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   set(ABSL_DEFAULT_COPTS "${ABSL_MSVC_FLAGS}")
   set(ABSL_TEST_COPTS "${ABSL_MSVC_FLAGS};${ABSL_MSVC_TEST_FLAGS}")
   set(ABSL_DEFAULT_LINKOPTS "${ABSL_MSVC_LINKOPTS}")
+  # make extern constexpr work correctly on MSVC, see
+  # https://docs.microsoft.com/en-us/cpp/cpp/extern-cpp#extern-constexpr-linkage
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:externConstexpr")
 else()
   message(WARNING "Unknown compiler: ${CMAKE_CXX_COMPILER}.  Building with no default flags")
   set(ABSL_DEFAULT_COPTS "")
