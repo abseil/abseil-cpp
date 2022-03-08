@@ -352,7 +352,7 @@ void ElfMemImage::SymbolIterator::Update(int increment) {
   ABSL_RAW_CHECK(symbol && version_symbol, "");
   const char *const symbol_name = image->GetDynstr(symbol->st_name);
 #if defined(__NetBSD__)
-  int version_index = version_symbol->vs_vers & VERSYM_VERSION;
+  const int version_index = version_symbol->vs_vers & VERSYM_VERSION;
 #else
   const ElfW(Versym) version_index = version_symbol[0] & VERSYM_VERSION;
 #endif
