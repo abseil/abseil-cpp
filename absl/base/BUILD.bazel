@@ -162,6 +162,9 @@ cc_library(
         "//absl:msvc_compiler": [],
         "//absl:clang-cl_compiler": [],
         "//absl:wasm": [],
+        "//absl:wasm32": [],
+        "@platforms//cpu:wasm32": [],
+        "@platforms//cpu:wasm64": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = [

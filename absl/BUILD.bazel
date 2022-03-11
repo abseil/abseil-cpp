@@ -66,6 +66,14 @@ config_setting(
 config_setting(
     name = "wasm",
     values = {
+        "cpu": "wasm",
+    },
+    visibility = [":__subpackages__"],
+)
+
+config_setting(
+    name = "wasm32",
+    values = {
         "cpu": "wasm32",
     },
     visibility = [":__subpackages__"],
