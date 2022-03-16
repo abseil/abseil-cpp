@@ -131,7 +131,9 @@ double UnscaledCycleClock::Frequency() {
 
 #elif defined(_M_IX86) || defined(_M_X64)
 
+#if !defined(_M_ARM64EC)
 #pragma intrinsic(__rdtsc)
+#endif
 
 int64_t UnscaledCycleClock::Now() { return __rdtsc(); }
 
