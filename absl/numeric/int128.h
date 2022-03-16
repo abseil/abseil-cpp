@@ -46,7 +46,11 @@
 #define ABSL_INTERNAL_WCHAR_T __wchar_t
 #if defined(_M_X64)
 #include <intrin.h>
+// ARM64EC is a Microsoft-designed ARM64 ABI compatible with AMD64 applications on ARM64 Windows 11.
+// The ARM64EC does not support _umul128 as an intrinsic, but an inline function.
+#if !defined(_M_ARM64EC)
 #pragma intrinsic(_umul128)
+#endif  // defined(_M_ARM64EC)
 #endif  // defined(_M_X64)
 #else   // defined(_MSC_VER)
 #define ABSL_INTERNAL_WCHAR_T wchar_t
