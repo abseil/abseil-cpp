@@ -132,6 +132,8 @@ double UnscaledCycleClock::Frequency() {
 #elif defined(_M_IX86) || defined(_M_X64)
 
 #if !defined(_M_ARM64EC)
+// ARM64EC is a Microsoft-designed ARM64 ABI compatible with AMD64 applications on ARM64 Windows 11.
+// The ARM64EC does not support __rdtsc as an intrinsic, but an inline function.
 #pragma intrinsic(__rdtsc)
 #endif
 
