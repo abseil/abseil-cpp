@@ -146,7 +146,8 @@ static void DumpPCAndFrameSizeAndSymbol(void (*writerfn)(const char*, void*),
                                         const char* const prefix) {
   char tmp[1024];
   const char* symbol = "(unknown)";
-  if (absl::Symbolize(symbolize_pc, tmp, sizeof(tmp))) {
+  if (absl::Symbolize(symbolize_pc, tmp, sizeof(tmp)) ||
+      (pc != symbolize_pc && absl::Symbolize(pc, tmp, sizeof(tmp)))) {
     symbol = tmp;
   }
   char buf[1024];
