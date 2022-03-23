@@ -338,7 +338,17 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #if (defined(__clang__) && !defined(_WIN32)) || \
     (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ >= 9) ||                \
     (defined(__GNUC__) && !defined(__clang__) && !defined(__CUDACC__))
+#if !defined(__has_feature)
 #define ABSL_HAVE_INTRINSIC_INT128 1
+#else
+#if __has_feature(undefined_behavior_sanitizer)
+#if !(defined(__GLIBCPP__) || defined(__GLIBCXX__))
+#define ABSL_HAVE_INTRINSIC_INT128 1
+#endif
+#else
+#define ABSL_HAVE_INTRINSIC_INT128 1
+#endif
+#endif
 #elif defined(__CUDACC__)
 // __CUDACC_VER__ is a full version number before CUDA 9, and is defined to a
 // string explaining that it has been removed starting with CUDA 9. We use
