@@ -216,7 +216,11 @@ class SynchronizationStorage {
   explicit SynchronizationStorage(base_internal::LinkerInitialized) {}
 
   constexpr explicit SynchronizationStorage(absl::ConstInitType)
+#if !defined(__QNX__)
       : is_dynamic_(false), once_(), space_{{0}} {}
+#else
+      : is_dynamic_(false), once_(), space_{0} {}
+#endif
 
   SynchronizationStorage(SynchronizationStorage&) = delete;
   SynchronizationStorage& operator=(SynchronizationStorage&) = delete;
