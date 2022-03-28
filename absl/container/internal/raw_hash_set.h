@@ -176,6 +176,18 @@
 #ifndef ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
 #define ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
 
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
+
+#ifdef __SSSE3__
+#include <tmmintrin.h>
+#endif
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -187,6 +199,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
@@ -196,7 +209,6 @@
 #include "absl/container/internal/hash_policy_traits.h"
 #include "absl/container/internal/hashtable_debug_hooks.h"
 #include "absl/container/internal/hashtablez_sampler.h"
-#include "absl/container/internal/have_sse.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
@@ -461,7 +473,7 @@ inline bool IsFull(ctrl_t c) { return c >= static_cast<ctrl_t>(0); }
 inline bool IsDeleted(ctrl_t c) { return c == ctrl_t::kDeleted; }
 inline bool IsEmptyOrDeleted(ctrl_t c) { return c < ctrl_t::kSentinel; }
 
-#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
+#ifdef ABSL_INTERNAL_HAVE_SSE2
 // Quick reference guide for intrinsics used below:
 //
 // * __m128i: An XMM (128-bit) word.
@@ -522,7 +534,7 @@ struct GroupSse2Impl {
 
   // Returns a bitmask representing the positions of empty slots.
   BitMask<uint32_t, kWidth> MatchEmpty() const {
-#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
+#ifdef ABSL_INTERNAL_HAVE_SSSE3
     // This only works because ctrl_t::kEmpty is -128.
     return BitMask<uint32_t, kWidth>(
         static_cast<uint32_t>(_mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl))));
@@ -548,7 +560,7 @@ struct GroupSse2Impl {
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     auto msbs = _mm_set1_epi8(static_cast<char>(-128));
     auto x126 = _mm_set1_epi8(126);
-#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSSE3
+#ifdef ABSL_INTERNAL_HAVE_SSSE3
     auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
 #else
     auto zero = _mm_setzero_si128();
@@ -614,7 +626,7 @@ struct GroupPortableImpl {
   uint64_t ctrl;
 };
 
-#if ABSL_INTERNAL_RAW_HASH_SET_HAVE_SSE2
+#ifdef ABSL_INTERNAL_HAVE_SSE2
 using Group = GroupSse2Impl;
 #else
 using Group = GroupPortableImpl;
@@ -700,13 +712,8 @@ size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
   return 0;
 }
 
-inline void AssertIsFull(ctrl_t* ctrl) {
-  ABSL_HARDENING_ASSERT(
-      (ctrl != nullptr && IsFull(*ctrl)) &&
-      "Invalid operation on iterator. The element might have "
-      "been erased, the table might have rehashed, or this may "
-      "be an end() iterator.");
-}
+#define ABSL_INTERNAL_ASSERT_IS_FULL(ctrl, msg) \
+  ABSL_HARDENING_ASSERT((ctrl != nullptr && IsFull(*ctrl)) && msg);
 
 inline void AssertIsValid(ctrl_t* ctrl) {
   ABSL_HARDENING_ASSERT(
@@ -942,16 +949,22 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      AssertIsFull(ctrl_);
+      ABSL_INTERNAL_ASSERT_IS_FULL(ctrl_,
+                                   "operator*() called on invalid iterator.");
       return PolicyTraits::element(slot_);
     }
 
     // PRECONDITION: not an end() iterator.
-    pointer operator->() const { return &operator*(); }
+    pointer operator->() const {
+      ABSL_INTERNAL_ASSERT_IS_FULL(ctrl_,
+                                   "operator-> called on invalid iterator.");
+      return &operator*();
+    }
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      AssertIsFull(ctrl_);
+      ABSL_INTERNAL_ASSERT_IS_FULL(ctrl_,
+                                   "operator++ called on invalid iterator.");
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -1500,7 +1513,8 @@ class raw_hash_set {
   // This overload is necessary because otherwise erase<K>(const K&) would be
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
-    AssertIsFull(it.ctrl_);
+    ABSL_INTERNAL_ASSERT_IS_FULL(it.ctrl_,
+                                 "erase() called on invalid iterator.")
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1534,7 +1548,8 @@ class raw_hash_set {
   }
 
   node_type extract(const_iterator position) {
-    AssertIsFull(position.inner_.ctrl_);
+    ABSL_INTERNAL_ASSERT_IS_FULL(position.inner_.ctrl_,
+                                 "extract() called on invalid iterator.")
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
@@ -2262,5 +2277,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+#undef ABSL_INTERNAL_ASSERT_IS_FULL
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
