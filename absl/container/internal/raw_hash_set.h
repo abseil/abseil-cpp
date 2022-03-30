@@ -713,7 +713,7 @@ size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
 }
 
 #define ABSL_INTERNAL_ASSERT_IS_FULL(ctrl, msg) \
-  ABSL_HARDENING_ASSERT((ctrl != nullptr && IsFull(*ctrl)) && msg);
+  ABSL_HARDENING_ASSERT((ctrl != nullptr && IsFull(*ctrl)) && msg)
 
 inline void AssertIsValid(ctrl_t* ctrl) {
   ABSL_HARDENING_ASSERT(
@@ -1514,7 +1514,7 @@ class raw_hash_set {
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
     ABSL_INTERNAL_ASSERT_IS_FULL(it.ctrl_,
-                                 "erase() called on invalid iterator.")
+                                 "erase() called on invalid iterator.");
     PolicyTraits::destroy(&alloc_ref(), it.slot_);
     erase_meta_only(it);
   }
@@ -1549,7 +1549,7 @@ class raw_hash_set {
 
   node_type extract(const_iterator position) {
     ABSL_INTERNAL_ASSERT_IS_FULL(position.inner_.ctrl_,
-                                 "extract() called on invalid iterator.")
+                                 "extract() called on invalid iterator.");
     auto node =
         CommonAccess::Transfer<node_type>(alloc_ref(), position.inner_.slot_);
     erase_meta_only(position);
