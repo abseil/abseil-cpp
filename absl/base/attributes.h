@@ -213,6 +213,9 @@
 // https://gcc.gnu.org/gcc-4.8/changes.html
 #if ABSL_HAVE_ATTRIBUTE(no_sanitize_address)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
+#elif defined(_MSC_VER) && _MSC_VER >= 1928
+// https://docs.microsoft.com/en-us/cpp/cpp/no-sanitize-address
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __declspec(no_sanitize_address)
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 #endif
