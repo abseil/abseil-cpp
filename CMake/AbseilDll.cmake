@@ -26,6 +26,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/low_level_alloc.h"
   "base/internal/low_level_scheduling.h"
   "base/internal/per_thread_tls.h"
+  "base/internal/prefetch.h"
   "base/internal/pretty_function.h"
   "base/internal/raw_logging.cc"
   "base/internal/raw_logging.h"
