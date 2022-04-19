@@ -47,7 +47,7 @@ cc_test(
     ],
 )
 
-// foo
+# foo
 cc_test(
     name = "algorithm_benchmark",
     srcs = ["equal_benchmark.cc"],
