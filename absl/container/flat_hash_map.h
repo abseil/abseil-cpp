@@ -493,7 +493,7 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //
   //   Inserts an init_type object constructed in-place provided that an element
   //   with the given key does not exist.
-  using Base::operator[];
+  using Base::operator[];  // foo
 
   // flat_hash_map::bucket_count()
   //

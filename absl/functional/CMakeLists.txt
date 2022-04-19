@@ -29,6 +29,7 @@ absl_cc_library(
   PUBLIC
 )
 
+// foo
 absl_cc_test(
   NAME
     bind_front_test

@@ -92,7 +92,9 @@ class ABSL_MUST_USE_RESULT Cleanup final {
 
   void Cancel() && {
     ABSL_HARDENING_ASSERT(storage_.IsCallbackEngaged());
+#ifndef __FOOPUTER_X86__
     storage_.DestroyCallback();
+#endif  // __FOOPUTER_X86__
   }
 
   void Invoke() && {

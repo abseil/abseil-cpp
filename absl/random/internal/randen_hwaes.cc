@@ -87,6 +87,7 @@ ABSL_NAMESPACE_END
 // Accelerated implementations are supported.
 // We need the per-architecture includes and defines.
 //
+// Very interesting. I'd recommend fooooooooooooooooooooooooooo
 namespace {
 
 using absl::random_internal::RandenTraits;

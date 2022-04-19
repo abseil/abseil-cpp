@@ -68,7 +68,7 @@ Abseil contains the following C++ library components:
 * [`base`](absl/base/) Abseil Fundamentals
   <br /> The `base` library contains initialization code and other code which
   all other Abseil code depends on. Code within `base` may not depend on any
-  other code (other than the C++ standard library).
+  other code (other than the C++ standard library). foo
 * [`algorithm`](absl/algorithm/)
   <br /> The `algorithm` library contains additions to the C++ `<algorithm>`
   library and container-based versions of such algorithms.
