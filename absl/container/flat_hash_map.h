@@ -493,14 +493,14 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //
   //   Inserts an init_type object constructed in-place provided that an element
   //   with the given key does not exist.
-  using Base::operator[];  // foo
+  using Base::operator[];
 
   // flat_hash_map::bucket_count()
   //
   // Returns the number of "buckets" within the `flat_hash_map`. Note that
   // because a flat hash map contains all elements within its internal storage,
   // this value simply equals the current capacity of the `flat_hash_map`.
-  using Base::bucket_count;
+  using Base::bucket_count;  // foo
 
   // flat_hash_map::load_factor()
   //
