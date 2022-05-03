@@ -90,7 +90,7 @@ ABSL_NAMESPACE_END
 //
 // This macro is inspired by
 // https://akrzemi1.wordpress.com/2017/05/18/asserts-in-constexpr-functions/
-#if defined(NDEBUG)
+#if defined(NDEBUG) && !defined(ABSL_ENABLE_DEBUG_ASSERTS)
 #define ABSL_ASSERT(expr) \
   (false ? static_cast<void>(expr) : static_cast<void>(0))
 #else
