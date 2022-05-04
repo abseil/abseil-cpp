@@ -148,11 +148,12 @@ bool RawLoggingFullySupported();
 // 'severity' is the severity level of the message being written.
 // 'file' and 'line' are the file and line number where the ABSL_RAW_LOG macro
 // was located.
-// 'buffer' and 'buf_size' are pointers to the buffer and buffer size.  If the
-// hook writes a prefix, it must increment *buffer and decrement *buf_size
+// 'buf' and 'buf_size' are pointers to the buffer and buffer size.  If the
+// hook writes a prefix, it must increment *buf and decrement *buf_size
 // accordingly.
-using LogPrefixHook = bool (*)(absl::LogSeverity severity, const char* file,
-                               int line, char** buffer, int* buf_size);
+using LogFilterAndPrefixHook = bool (*)(absl::LogSeverity severity,
+                                        const char* file, int line, char** buf,
+                                        int* buf_size);
 
 // Function type for a raw_logging customization hook called to abort a process
 // when a FATAL message is logged.  If the provided AbortHook() returns, the
@@ -162,7 +163,7 @@ using LogPrefixHook = bool (*)(absl::LogSeverity severity, const char* file,
 // was located.
 // The NUL-terminated logged message lives in the buffer between 'buf_start'
 // and 'buf_end'.  'prefix_end' points to the first non-prefix character of the
-// buffer (as written by the LogPrefixHook.)
+// buffer (as written by the LogFilterAndPrefixHook.)
 using AbortHook = void (*)(const char* file, int line, const char* buf_start,
                            const char* prefix_end, const char* buf_end);
 
@@ -184,7 +185,7 @@ ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES ABSL_DLL extern base_internal::AtomicHook<
 //
 // These functions are safe to call at any point during initialization; they do
 // not block or malloc, and are async-signal safe.
-void RegisterLogPrefixHook(LogPrefixHook func);
+void RegisterLogFilterAndPrefixHook(LogFilterAndPrefixHook func);
 void RegisterAbortHook(AbortHook func);
 void RegisterInternalLogFunction(InternalLogFunction func);
 
