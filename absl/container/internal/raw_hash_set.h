@@ -228,7 +228,7 @@ void SwapAlloc(AllocType& /*lhs*/, AllocType& /*rhs*/,
 //
 // Currently, the sequence is a triangular progression of the form
 //
-//   p(i) := Width * (i^2 - i)/2 + hash (mod mask + 1)
+//   p(i) := Width * (i^2 + i)/2 + hash (mod mask + 1)
 //
 // The use of `Width` ensures that each probe step does not overlap groups;
 // the sequence effectively outputs the addresses of *groups* (although not
@@ -241,6 +241,10 @@ void SwapAlloc(AllocType& /*lhs*/, AllocType& /*rhs*/,
 // for selecting candidates. However, when those candidates' slots are
 // actually inspected, there are no corresponding slots for the cloned bytes,
 // so we need to make sure we've treated those offsets as "wrapping around".
+//
+// It turns out that this probe sequence visits every group exactly once if the
+// number of groups is a power of two, since (i^2+i)/2 is a bijection in
+// Z/(2^m). See https://en.wikipedia.org/wiki/Quadratic_probing
 template <size_t Width>
 class probe_seq {
  public:
