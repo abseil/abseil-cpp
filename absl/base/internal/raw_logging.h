@@ -161,6 +161,9 @@ using LogFilterAndPrefixHook = bool (*)(absl::LogSeverity severity,
 // The NUL-terminated logged message lives in the buffer between 'buf_start'
 // and 'buf_end'.  'prefix_end' points to the first non-prefix character of the
 // buffer (as written by the LogFilterAndPrefixHook.)
+//
+// The lifetime of the filename and message buffers will not end while the
+// process remains alive.
 using AbortHook = void (*)(const char* file, int line, const char* buf_start,
                            const char* prefix_end, const char* buf_end);
 
