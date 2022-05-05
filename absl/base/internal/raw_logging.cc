@@ -24,6 +24,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
+#include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
 
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
@@ -169,7 +170,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
     } else {
       DoRawLog(&buf, &size, "%s", kTruncated);
     }
-    SafeWriteToStderr(buffer, strlen(buffer));
+    AsyncSignalSafeWriteToStderr(buffer, strlen(buffer));
   }
 #else
   static_cast<void>(format);
@@ -196,8 +197,11 @@ void DefaultInternalLog(absl::LogSeverity severity, const char* file, int line,
 
 }  // namespace
 
-void SafeWriteToStderr(const char *s, size_t len) {
+void AsyncSignalSafeWriteToStderr(const char* s, size_t len) {
+  absl::base_internal::ErrnoSaver errno_saver;
 #if defined(ABSL_HAVE_SYSCALL_WRITE)
+  // We prefer calling write via `syscall` to minimize the risk of libc doing
+  // something "helpful".
   syscall(SYS_write, STDERR_FILENO, s, len);
 #elif defined(ABSL_HAVE_POSIX_WRITE)
   write(STDERR_FILENO, s, len);
