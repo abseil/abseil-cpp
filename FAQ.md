@@ -32,7 +32,7 @@ are developing a library designed to be used by other clients, you should
 instead leave `CMAKE_CXX_STANDARD` unset and configure the minimum C++ standard
 required by each of your library targets via `target_compile_features`. See the
 [CMake build
-instructions](https://github.com/abseil/abseil-cpp/blob/master/CMake/README.md)
+instructions](https://github.com/abseil/abseil-cpp/blob/master/CMake/README.md) 
 for more information.
 
 For a longer answer to this question and to understand why some other approaches
