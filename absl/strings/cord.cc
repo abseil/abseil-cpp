@@ -516,6 +516,7 @@ inline void Cord::AppendImpl(C&& src) {
   }
 
   // Guaranteed to be a tree (kMaxBytesToCopy > kInlinedSize)
+  ABSL_ASSUME(src.contents_.is_tree());
   CordRep* rep = cord_internal::RemoveCrcNode(std::forward<C>(src).TakeRep());
   contents_.AppendTree(rep, CordzUpdateTracker::kAppendCord);
 }
