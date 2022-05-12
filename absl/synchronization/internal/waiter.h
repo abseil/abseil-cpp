@@ -136,7 +136,7 @@ class Waiter {
   // REQUIRES: WinHelper::GetLock(this) must be held.
   void InternalCondVarPoke();
 
-  // We can't include Windows.h in our headers, so we use aligned charachter
+  // We can't include Windows.h in our headers, so we use aligned character
   // buffers to define the storage of SRWLOCK and CONDITION_VARIABLE.
   alignas(void*) unsigned char mu_storage_[sizeof(void*)];
   alignas(void*) unsigned char cv_storage_[sizeof(void*)];
