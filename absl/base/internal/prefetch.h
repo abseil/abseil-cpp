@@ -72,6 +72,8 @@ void PrefetchNta(const void* addr);
 
 #if ABSL_HAVE_BUILTIN(__builtin_prefetch) || defined(__GNUC__)
 
+#define ABSL_INTERNAL_HAVE_PREFETCH 1
+
 // See __builtin_prefetch:
 // https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html.
 //
