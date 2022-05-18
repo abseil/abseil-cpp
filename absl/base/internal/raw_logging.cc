@@ -174,6 +174,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 #else
   static_cast<void>(format);
   static_cast<void>(ap);
+  static_cast<void>(enabled);
 #endif
 
   // Abort the process after logging a FATAL message, even if the output itself
