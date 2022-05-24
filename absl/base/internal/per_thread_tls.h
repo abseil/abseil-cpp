@@ -38,6 +38,9 @@
 #error ABSL_PER_THREAD_TLS cannot be directly set
 #elif defined(ABSL_PER_THREAD_TLS_KEYWORD)
 #error ABSL_PER_THREAD_TLS_KEYWORD cannot be directly set
+#elif defined(__cplusplus) && __cplusplus >= 201103L
+#define ABSL_PER_THREAD_TLS_KEYWORD thread_local
+#define ABSL_PER_THREAD_TLS 1
 #elif defined(ABSL_HAVE_TLS)
 #define ABSL_PER_THREAD_TLS_KEYWORD __thread
 #define ABSL_PER_THREAD_TLS 1
