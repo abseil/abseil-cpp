@@ -504,8 +504,8 @@ struct SearchResult {
 template <typename V>
 struct SearchResult<V, false> {
   SearchResult() {}
-  explicit SearchResult(V value) : value(value) {}
-  SearchResult(V value, MatchKind /*match*/) : value(value) {}
+  explicit SearchResult(V v) : value(v) {}
+  SearchResult(V v, MatchKind /*match*/) : value(v) {}
 
   V value;
 
