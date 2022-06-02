@@ -693,6 +693,7 @@ cc_test(
         "benchmark",
         "no_test_ios_x86_64",
         "no_test_loonix",  # Crashing.
+        "no_test_wasm",
     ],
     deps = [
         ":nanobenchmark",
