@@ -174,7 +174,7 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(
 //
 // 2. auto a = PairArgs(args...);
 //    std::pair<F, S> p(std::piecewise_construct,
-//                      std::move(p.first), std::move(p.second));
+//                      std::move(a.first), std::move(a.second));
 inline std::pair<std::tuple<>, std::tuple<>> PairArgs() { return {}; }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(F&& f, S&& s) {
