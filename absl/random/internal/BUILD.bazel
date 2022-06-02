@@ -222,8 +222,8 @@ cc_library(
         ":salted_seed_seq",
         ":seed_material",
         "//absl/base:core_headers",
+        "//absl/container:inlined_vector",
         "//absl/meta:type_traits",
-        "//absl/types:optional",
         "//absl/types:span",
     ],
 )
