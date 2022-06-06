@@ -415,9 +415,11 @@ cc_library(
         "cord.cc",
         "cord_analysis.cc",
         "cord_analysis.h",
+        "cord_buffer.cc",
     ],
     hdrs = [
         "cord.h",
+        "cord_buffer.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     deps = [
@@ -698,6 +700,22 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "cord_buffer_test",
+    size = "small",
+    srcs = ["cord_buffer_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":cord",
+        ":cord_internal",
+        ":cord_rep_test_util",
+        "//absl/base:config",
+        "//absl/types:span",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
