@@ -898,4 +898,13 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_HAVE_ARM_ACLE 1
 #endif
 
+// ABSL_INTERNAL_HAVE_ARM_NEON is used for compile-time detection of NEON (ARM
+// SIMD).
+#ifdef ABSL_INTERNAL_HAVE_ARM_NEON
+#error ABSL_INTERNAL_HAVE_ARM_NEON cannot be directly set
+#elif defined(__ARM_NEON)
+#define ABSL_INTERNAL_HAVE_ARM_NEON 1
+#endif
+
+
 #endif  // ABSL_BASE_CONFIG_H_
