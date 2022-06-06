@@ -128,6 +128,7 @@ cc_library(
     name = "mock_distributions",
     testonly = 1,
     hdrs = ["mock_distributions.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":distributions",
         ":mocking_bit_gen",
