@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <memory>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
@@ -103,6 +104,12 @@ class TestZoneInfoSource : public cctz::ZoneInfoSource {
   const char* const end_;
 };
 
+std::unique_ptr<cctz::ZoneInfoSource> EmbeddedTestZone(const char* data,
+                                                       std::size_t size) {
+  return std::unique_ptr<cctz::ZoneInfoSource>(
+      new TestZoneInfoSource(data, size));
+}
+
 std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
     const std::string& name,
     const std::function<std::unique_ptr<cctz::ZoneInfoSource>(
@@ -110,12 +117,14 @@ std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
   for (const ZoneInfo& zoneinfo : kZoneInfo) {
     if (name == zoneinfo.name) {
       if (zoneinfo.data == nullptr) return nullptr;
-      return std::unique_ptr<cctz::ZoneInfoSource>(
-          new TestZoneInfoSource(zoneinfo.data, zoneinfo.length));
+      return EmbeddedTestZone(zoneinfo.data, zoneinfo.length);
     }
   }
-  ABSL_RAW_LOG(FATAL, "Unexpected time zone \"%s\" in test", name.c_str());
-  return nullptr;
+
+  // The embedded tzdata database knows nothing about this zone. Return
+  // something so the tests can proceed.
+  return EmbeddedTestZone(reinterpret_cast<char*>(America_Los_Angeles),
+                          America_Los_Angeles_len);
 }
 
 }  // namespace
