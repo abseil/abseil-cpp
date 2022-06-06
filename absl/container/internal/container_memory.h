@@ -433,33 +433,6 @@ struct map_slot_policy {
     }
     destroy(alloc, old_slot);
   }
-
-  template <class Allocator>
-  static void swap(Allocator* alloc, slot_type* a, slot_type* b) {
-    if (kMutableKeys::value) {
-      using std::swap;
-      swap(a->mutable_value, b->mutable_value);
-    } else {
-      value_type tmp = std::move(a->value);
-      absl::allocator_traits<Allocator>::destroy(*alloc, &a->value);
-      absl::allocator_traits<Allocator>::construct(*alloc, &a->value,
-                                                   std::move(b->value));
-      absl::allocator_traits<Allocator>::destroy(*alloc, &b->value);
-      absl::allocator_traits<Allocator>::construct(*alloc, &b->value,
-                                                   std::move(tmp));
-    }
-  }
-
-  template <class Allocator>
-  static void move(Allocator* alloc, slot_type* src, slot_type* dest) {
-    if (kMutableKeys::value) {
-      dest->mutable_value = std::move(src->mutable_value);
-    } else {
-      absl::allocator_traits<Allocator>::destroy(*alloc, &dest->value);
-      absl::allocator_traits<Allocator>::construct(*alloc, &dest->value,
-                                                   std::move(src->value));
-    }
-  }
 };
 
 }  // namespace container_internal
