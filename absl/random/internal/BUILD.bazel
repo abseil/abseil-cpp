@@ -502,6 +502,7 @@ cc_test(
 cc_library(
     name = "mock_helpers",
     hdrs = ["mock_helpers.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:fast_type_id",
         "//absl/types:optional",
@@ -512,6 +513,7 @@ cc_library(
     name = "mock_overload_set",
     testonly = 1,
     hdrs = ["mock_overload_set.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":mock_helpers",
         "//absl/random:mocking_bit_gen",

@@ -16,6 +16,7 @@
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
+    "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
 
@@ -65,6 +66,7 @@ cc_library(
         "substitute.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":internal",
         "//absl/base",
@@ -95,6 +97,7 @@ cc_library(
         "internal/utf8.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -288,6 +291,7 @@ cc_library(
         "internal/cord_rep_ring_reader.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//visibility:private",
     ],
@@ -391,6 +395,7 @@ cc_library(
     name = "cordz_update_tracker",
     hdrs = ["internal/cordz_update_tracker.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -422,6 +427,7 @@ cc_library(
         "cord_buffer.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":cord_internal",
         ":cordz_functions",
@@ -452,6 +458,7 @@ cc_library(
     srcs = ["internal/cordz_handle.cc"],
     hdrs = ["internal/cordz_handle.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -468,6 +475,7 @@ cc_library(
     srcs = ["internal/cordz_info.cc"],
     hdrs = ["internal/cordz_info.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -492,6 +500,7 @@ cc_library(
     name = "cordz_update_scope",
     hdrs = ["internal/cordz_update_scope.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -524,6 +533,7 @@ cc_library(
     srcs = ["internal/cordz_sample_token.cc"],
     hdrs = ["internal/cordz_sample_token.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -539,6 +549,7 @@ cc_library(
     srcs = ["internal/cordz_functions.cc"],
     hdrs = ["internal/cordz_functions.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -554,6 +565,7 @@ cc_library(
     name = "cordz_statistics",
     hdrs = ["internal/cordz_statistics.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
@@ -663,6 +675,7 @@ cc_library(
         "cord_test_helpers.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":cord",
         ":cord_internal",
@@ -676,6 +689,7 @@ cc_library(
     testonly = 1,
     hdrs = ["internal/cord_rep_test_util.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":cord_internal",
         ":strings",
@@ -689,6 +703,7 @@ cc_library(
     testonly = 1,
     hdrs = ["cordz_test_helpers.h"],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":cord",
         ":cord_internal",
@@ -1097,6 +1112,7 @@ cc_library(
         "str_format.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":str_format_internal",
     ],
@@ -1122,6 +1138,7 @@ cc_library(
         "internal/str_format/parser.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
@@ -1246,6 +1263,7 @@ cc_library(
     testonly = True,
     srcs = ["internal/pow10_helper.cc"],
     hdrs = ["internal/pow10_helper.h"],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = ["//absl/base:config"],
 )
