@@ -21,8 +21,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
 constexpr size_t CordBuffer::kDefaultLimit;
 constexpr size_t CordBuffer::kCustomLimit;
+#endif
 
 ABSL_NAMESPACE_END
 }  // namespace absl

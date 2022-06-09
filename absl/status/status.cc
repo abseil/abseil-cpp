@@ -195,7 +195,9 @@ const std::string* Status::EmptyString() {
   return &empty.str;
 }
 
+#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
 constexpr const char Status::kMovedFromString[];
+#endif
 
 const std::string* Status::MovedFromString() {
   static std::string* moved_from_string = new std::string(kMovedFromString);

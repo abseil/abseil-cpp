@@ -160,7 +160,9 @@ static CordRep* CordRepFromString(std::string&& src) {
 // --------------------------------------------------------------------
 // Cord::InlineRep functions
 
+#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
 constexpr unsigned char Cord::InlineRep::kMaxInline;
+#endif
 
 inline void Cord::InlineRep::set_data(const char* data, size_t n) {
   static_assert(kMaxInline == 15, "set_data is hard-coded for a length of 15");
