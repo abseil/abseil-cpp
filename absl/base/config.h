@@ -860,21 +860,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_HAVE_SSSE3 1
 #endif
 
-// ABSL_INTERNAL_HAVE_ARM_ACLE is used for compile-time detection of ACLE (ARM
-// C language extensions).
-#ifdef ABSL_INTERNAL_HAVE_ARM_ACLE
-#error ABSL_INTERNAL_HAVE_ARM_ACLE cannot be directly set
-// __cls, __rbit were added quite late in clang. They are not supported
-// by GCC as well. __cls can be replaced with __builtin_clrsb but clang does
-// not recognize cls instruction in latest versions.
-// TODO(b/233604649): Relax to __builtin_clrsb and __builtin_bitreverse64 (note
-// that the latter is not supported by GCC).
-#elif defined(__ARM_ACLE) && defined(__clang__) && \
-    ABSL_HAVE_BUILTIN(__builtin_arm_cls64) &&      \
-    ABSL_HAVE_BUILTIN(__builtin_arm_rbit64)
-#define ABSL_INTERNAL_HAVE_ARM_ACLE 1
-#endif
-
 // ABSL_INTERNAL_HAVE_ARM_NEON is used for compile-time detection of NEON (ARM
 // SIMD).
 #ifdef ABSL_INTERNAL_HAVE_ARM_NEON

@@ -188,10 +188,6 @@
 #include <arm_neon.h>
 #endif
 
-#ifdef __ARM_ACLE
-#include <arm_acle.h>
-#endif
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -634,29 +630,12 @@ struct GroupAArch64Impl {
 
   uint32_t CountLeadingEmptyOrDeleted() const {
     uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(ctrl), 0);
-    assert(IsEmptyOrDeleted(static_cast<ctrl_t>(mask & 0xff)));
-    constexpr uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
-#if defined(ABSL_INTERNAL_HAVE_ARM_ACLE)
-    // cls: Count leading sign bits.
-    // clsll(1ull << 63) -> 0
-    // clsll((1ull << 63) | (1ull << 62)) -> 1
-    // clsll((1ull << 63) | (1ull << 61)) -> 0
-    // clsll(~0ull) -> 63
-    // clsll(1) -> 62
-    // clsll(3) -> 61
-    // clsll(5) -> 60
-    // Note that CountLeadingEmptyOrDeleted is called when first control block
-    // is kDeleted or kEmpty. The implementation is similar to GroupPortableImpl
-    // but avoids +1 and __clsll returns result not including the high bit. Thus
-    // saves one cycle.
-    // kEmpty = -128,   // 0b10000000
-    // kDeleted = -2,   // 0b11111110
-    // ~ctrl & (ctrl >> 7) will have the lowest bit set to 1. After rbit,
-    // it will the highest one.
-    return (__clsll(__rbitll((~mask & (mask >> 7)) | gaps)) + 8) >> 3;
-#else
-    return (TrailingZeros(((~mask & (mask >> 7)) | gaps) + 1) + 7) >> 3;
-#endif  // ABSL_INTERNAL_HAVE_ARM_ACLE
+    // ctrl | ~(ctrl >> 7) will have the lowest bit set to zero for kEmpty and
+    // kDeleted. We lower all other bits and count number of trailing zeros.
+    // Clang and GCC optimize countr_zero to rbit+clz without any check for 0,
+    // so we should be fine.
+    constexpr uint64_t bits = 0x0101010101010101ULL;
+    return countr_zero((mask | ~(mask >> 7)) & bits) >> 3;
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -711,8 +690,10 @@ struct GroupPortableImpl {
   }
 
   uint32_t CountLeadingEmptyOrDeleted() const {
-    constexpr uint64_t gaps = 0x00FEFEFEFEFEFEFEULL;
-    return (TrailingZeros(((~ctrl & (ctrl >> 7)) | gaps) + 1) + 7) >> 3;
+    // ctrl | ~(ctrl >> 7) will have the lowest bit set to zero for kEmpty and
+    // kDeleted. We lower all other bits and count number of trailing zeros.
+    constexpr uint64_t bits = 0x0101010101010101ULL;
+    return countr_zero((ctrl | ~(ctrl >> 7)) & bits) >> 3;
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
