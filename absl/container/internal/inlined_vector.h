@@ -610,7 +610,7 @@ auto Storage<T, N, A>::Resize(ValueAdapter values, SizeType<A> new_size)
     // Steps:
     //  a. Allocate new backing store.
     //  b. Construct new elements in new backing store.
-    //  c. Move existing elements from old backing store to now.
+    //  c. Move existing elements from old backing store to new backing store.
     //  d. Destroy all elements in old backing store.
     // Use transactional wrappers for the first two steps so we can roll
     // back if necessary due to exceptions.

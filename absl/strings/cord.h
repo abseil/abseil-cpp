@@ -467,7 +467,7 @@ class Cord {
     CordRepBtreeReader btree_reader_;
   };
 
-  // Cord::ChunkIterator::chunk_begin()
+  // Cord::chunk_begin()
   //
   // Returns an iterator to the first chunk of the `Cord`.
   //
@@ -483,7 +483,7 @@ class Cord {
   //   }
   ChunkIterator chunk_begin() const;
 
-  // Cord::ChunkItertator::chunk_end()
+  // Cord::chunk_end()
   //
   // Returns an iterator one increment past the last chunk of the `Cord`.
   //
@@ -493,7 +493,7 @@ class Cord {
   ChunkIterator chunk_end() const;
 
   //----------------------------------------------------------------------------
-  // Cord::ChunkIterator::ChunkRange
+  // Cord::ChunkRange
   //----------------------------------------------------------------------------
   //
   // `ChunkRange` is a helper class for iterating over the chunks of the `Cord`,
@@ -527,9 +527,9 @@ class Cord {
 
   // Cord::Chunks()
   //
-  // Returns a `Cord::ChunkIterator::ChunkRange` for iterating over the chunks
-  // of a `Cord` with a range-based for-loop. For most iteration tasks on a
-  // Cord, use `Cord::Chunks()` to retrieve this iterator.
+  // Returns a `Cord::ChunkRange` for iterating over the chunks of a `Cord` with
+  // a range-based for-loop. For most iteration tasks on a Cord, use
+  // `Cord::Chunks()` to retrieve this iterator.
   //
   // Example:
   //
@@ -595,7 +595,7 @@ class Cord {
     ChunkIterator chunk_iterator_;
   };
 
-  // Cord::CharIterator::AdvanceAndRead()
+  // Cord::AdvanceAndRead()
   //
   // Advances the `Cord::CharIterator` by `n_bytes` and returns the bytes
   // advanced as a separate `Cord`. `n_bytes` must be less than or equal to the
@@ -603,21 +603,21 @@ class Cord {
   // valid to pass `char_end()` and `0`.
   static Cord AdvanceAndRead(CharIterator* it, size_t n_bytes);
 
-  // Cord::CharIterator::Advance()
+  // Cord::Advance()
   //
   // Advances the `Cord::CharIterator` by `n_bytes`. `n_bytes` must be less than
   // or equal to the number of bytes remaining within the Cord; otherwise,
   // behavior is undefined. It is valid to pass `char_end()` and `0`.
   static void Advance(CharIterator* it, size_t n_bytes);
 
-  // Cord::CharIterator::ChunkRemaining()
+  // Cord::ChunkRemaining()
   //
   // Returns the longest contiguous view starting at the iterator's position.
   //
   // `it` must be dereferenceable.
   static absl::string_view ChunkRemaining(const CharIterator& it);
 
-  // Cord::CharIterator::char_begin()
+  // Cord::char_begin()
   //
   // Returns an iterator to the first character of the `Cord`.
   //
@@ -626,7 +626,7 @@ class Cord {
   // a `CharIterator` where range-based for-loops may not be available.
   CharIterator char_begin() const;
 
-  // Cord::CharIterator::char_end()
+  // Cord::char_end()
   //
   // Returns an iterator to one past the last character of the `Cord`.
   //
@@ -635,7 +635,7 @@ class Cord {
   // a `CharIterator` where range-based for-loops are not useful.
   CharIterator char_end() const;
 
-  // Cord::CharIterator::CharRange
+  // Cord::CharRange
   //
   // `CharRange` is a helper class for iterating over the characters of a
   // producing an iterator which can be used within a range-based for loop.
@@ -666,11 +666,11 @@ class Cord {
     const Cord* cord_;
   };
 
-  // Cord::CharIterator::Chars()
+  // Cord::Chars()
   //
-  // Returns a `Cord::CharIterator` for iterating over the characters of a
-  // `Cord` with a range-based for-loop. For most character-based iteration
-  // tasks on a Cord, use `Cord::Chars()` to retrieve this iterator.
+  // Returns a `Cord::CharRange` for iterating over the characters of a `Cord`
+  // with a range-based for-loop. For most character-based iteration tasks on a
+  // Cord, use `Cord::Chars()` to retrieve this iterator.
   //
   // Example:
   //
