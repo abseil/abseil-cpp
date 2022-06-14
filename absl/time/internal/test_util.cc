@@ -68,10 +68,6 @@ const struct ZoneInfo {
     {"Invalid/TimeZone", nullptr, 0},
     {"", nullptr, 0},
 
-    // Also allow for loading the local time zone under TZ=US/Pacific.
-    {"US/Pacific",  //
-     reinterpret_cast<char*>(America_Los_Angeles), America_Los_Angeles_len},
-
     // Allows use of the local time zone from a system-specific location.
 #ifdef _MSC_VER
     {"localtime",  //
@@ -104,12 +100,6 @@ class TestZoneInfoSource : public cctz::ZoneInfoSource {
   const char* const end_;
 };
 
-std::unique_ptr<cctz::ZoneInfoSource> EmbeddedTestZone(const char* data,
-                                                       std::size_t size) {
-  return std::unique_ptr<cctz::ZoneInfoSource>(
-      new TestZoneInfoSource(data, size));
-}
-
 std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
     const std::string& name,
     const std::function<std::unique_ptr<cctz::ZoneInfoSource>(
@@ -117,14 +107,15 @@ std::unique_ptr<cctz::ZoneInfoSource> TestFactory(
   for (const ZoneInfo& zoneinfo : kZoneInfo) {
     if (name == zoneinfo.name) {
       if (zoneinfo.data == nullptr) return nullptr;
-      return EmbeddedTestZone(zoneinfo.data, zoneinfo.length);
+      return std::unique_ptr<cctz::ZoneInfoSource>(
+          new TestZoneInfoSource(zoneinfo.data, zoneinfo.length));
     }
   }
 
-  // The embedded tzdata database knows nothing about this zone. Return
-  // something so the tests can proceed.
-  return EmbeddedTestZone(reinterpret_cast<char*>(America_Los_Angeles),
-                          America_Los_Angeles_len);
+  // The embedded zoneinfo data does not include the zone, so fallback to
+  // built-in UTC. The tests have been crafted so that this should only
+  // happen when testing absl::LocalTimeZone() with an unconstrained ${TZ}.
+  return nullptr;
 }
 
 }  // namespace
