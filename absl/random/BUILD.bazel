@@ -100,8 +100,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":seed_gen_exception",
-        "//absl/container:inlined_vector",
-        "//absl/random/internal:nonsecure_base",
+        "//absl/base:config",
         "//absl/random/internal:pool_urbg",
         "//absl/random/internal:salted_seed_seq",
         "//absl/random/internal:seed_material",
