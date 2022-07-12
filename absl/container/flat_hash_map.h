@@ -228,11 +228,9 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //   NOTE: returning `void` in this case is different than that of STL
   //   containers in general and `std::unordered_map` in particular (which
   //   return an iterator to the element following the erased element). If that
-  //   iterator is needed, copy the iterator before erasing:
+  //   iterator is needed, simply post increment the iterator:
   //
-  //     // `erase()` will invalidate `it`, so advance `it` first.
-  //     auto copy_it = it++;
-  //     m.erase(copy_it);
+  //     map.erase(it++);
   //
   // iterator erase(const_iterator first, const_iterator last):
   //
