@@ -442,8 +442,8 @@ static ssize_t ReadFromOffset(const int fd, void *buf, const size_t count,
                               const off_t offset) {
   off_t off = lseek(fd, offset, SEEK_SET);
   if (off == (off_t)-1) {
-    ABSL_RAW_LOG(WARNING, "lseek(%d, %ju, SEEK_SET) failed: errno=%d", fd,
-                 static_cast<uintmax_t>(offset), errno);
+    ABSL_RAW_LOG(WARNING, "lseek(%d, %jd, SEEK_SET) failed: errno=%d", fd,
+                 static_cast<intmax_t>(offset), errno);
     return -1;
   }
   return ReadPersistent(fd, buf, count);
@@ -492,9 +492,9 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
     if (len % sizeof(buf[0]) != 0) {
       ABSL_RAW_LOG(
           WARNING,
-          "Reading %zd bytes from offset %ju returned %zd which is not a "
+          "Reading %zd bytes from offset %jd returned %zd which is not a "
           "multiple of %zu.",
-          num_bytes_to_read, static_cast<uintmax_t>(offset), len,
+          num_bytes_to_read, static_cast<intmax_t>(offset), len,
           sizeof(buf[0]));
       return false;
     }
