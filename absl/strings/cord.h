@@ -874,9 +874,6 @@ class Cord {
     void PrependTreeToTree(CordRep* tree, MethodIdentifier method);
     void PrependTree(CordRep* tree, MethodIdentifier method);
 
-    template <bool has_length>
-    void GetAppendRegion(char** region, size_t* size, size_t length);
-
     bool IsSame(const InlineRep& other) const {
       return memcmp(&data_, &other.data_, sizeof(data_)) == 0;
     }
