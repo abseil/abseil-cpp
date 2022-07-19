@@ -489,6 +489,13 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
         (buf_bytes > num_bytes_left) ? num_bytes_left : buf_bytes;
     const off_t offset = sh_offset + i * sizeof(buf[0]);
     const ssize_t len = ReadFromOffset(fd, buf, num_bytes_to_read, offset);
+    if (len < 0) {
+      ABSL_RAW_LOG(
+          WARNING,
+          "Reading %zd bytes from offset %ju returned %zd which is negative.",
+          num_bytes_to_read, static_cast<intmax_t>(offset), len);
+      return false;
+    }
     if (len % sizeof(buf[0]) != 0) {
       ABSL_RAW_LOG(
           WARNING,
@@ -693,6 +700,7 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
     const int entries_in_chunk = std::min(num_remaining_symbols, buf_entries);
     const int bytes_in_chunk = entries_in_chunk * sizeof(buf[0]);
     const ssize_t len = ReadFromOffset(fd, buf, bytes_in_chunk, offset);
+    SAFE_ASSERT(len >= 0);
     SAFE_ASSERT(len % sizeof(buf[0]) == 0);
     const ssize_t num_symbols_in_buf = len / sizeof(buf[0]);
     SAFE_ASSERT(num_symbols_in_buf <= entries_in_chunk);
