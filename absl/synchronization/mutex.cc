@@ -430,7 +430,7 @@ static void PostSynchEvent(void *obj, int ev) {
     char buffer[ABSL_ARRAYSIZE(pcs) * 24];
     int pos = snprintf(buffer, sizeof (buffer), " @");
     for (int i = 0; i != n; i++) {
-      int b += snprintf(&buffer[pos], sizeof (buffer) - pos, " %p", pcs[i]);
+      int b = snprintf(&buffer[pos], sizeof (buffer) - pos, " %p", pcs[i]);
       if (b < 0 || b >= sizeof (buffer) - pos) {
         break;
       }
