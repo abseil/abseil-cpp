@@ -333,8 +333,14 @@ void AppendPieces(std::string* dest,
 
 ABSL_MUST_USE_RESULT inline std::string StrCat() { return std::string(); }
 
-ABSL_MUST_USE_RESULT inline std::string StrCat(const AlphaNum& a) {
-  return std::string(a.data(), a.size());
+template<typename Arg>
+ABSL_MUST_USE_RESULT inline std::string StrCat(Arg&& arg) {
+  if constexpr (std::is_same_v<Arg&&, std::string&&>) {
+    return std::move(arg);
+  } else {
+    const AlphaNum& a{std::forward<Arg>(arg)};
+    return std::string(a.data(), a.size());
+  }
 }
 
 ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b);
