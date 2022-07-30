@@ -35,6 +35,7 @@ list(APPEND ABSL_CLANG_CL_TEST_FLAGS
 list(APPEND ABSL_GCC_FLAGS
     "-Wall"
     "-Wextra"
+    "-Wno-pedantic"
     "-Wcast-qual"
     "-Wconversion-null"
     "-Wformat-security"

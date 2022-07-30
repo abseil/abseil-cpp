@@ -52,6 +52,7 @@ COPT_VARS = {
     "ABSL_GCC_FLAGS": [
         "-Wall",
         "-Wextra",
+        "-Wno-pedantic",
         "-Wcast-qual",
         "-Wconversion-null",
         "-Wformat-security",
