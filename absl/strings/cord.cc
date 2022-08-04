@@ -20,7 +20,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iomanip>
-#include <ios>
 #include <iostream>
 #include <limits>
 #include <ostream>
@@ -185,7 +184,7 @@ inline void Cord::InlineRep::reduce_size(size_t n) {
   assert(tag >= n);
   tag -= n;
   memset(data_.as_chars() + tag, 0, n);
-  set_inline_size(tag);
+  set_inline_size(static_cast<char>(tag));
 }
 
 inline void Cord::InlineRep::remove_prefix(size_t n) {
@@ -1099,7 +1098,7 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
                          : current_leaf_;
   const char* data = payload->IsExternal() ? payload->external()->base
                                            : payload->flat()->Data();
-  const size_t offset = static_cast<size_t>(current_chunk_.data() - data);
+  const size_t offset = current_chunk_.data() - data;
 
   auto* tree = CordRepSubstring::Substring(payload, offset, n);
   subcord.contents_.EmplaceTree(VerifyTree(tree), method);
@@ -1309,7 +1308,7 @@ static bool VerifyNode(CordRep* root, CordRep* start_node,
 
 std::ostream& operator<<(std::ostream& out, const Cord& cord) {
   for (absl::string_view chunk : cord.Chunks()) {
-    out.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+    out.write(chunk.data(), chunk.size());
   }
   return out;
 }
