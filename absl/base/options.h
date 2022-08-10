@@ -70,7 +70,7 @@
 // Include a standard library header to allow configuration based on the
 // standard library in use.
 #ifdef __cplusplus
-#include <ciso646>
+#include <iso646.h>
 #endif
 
 // -----------------------------------------------------------------------------
