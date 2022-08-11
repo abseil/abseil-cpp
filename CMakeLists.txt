@@ -71,7 +71,7 @@ if((${CMAKE_VERSION} VERSION_GREATER_EQUAL 3.8) AND (NOT ABSL_PROPAGATE_CXX_STD)
 endif()
 
 option(ABSL_USE_SYSTEM_INCLUDES
-  "Mark C++ include directories with `SYSTEM` to prevent warnings from headers when using Abseil with incompatible warning flags"
+  "Silence warnings in Abseil headers by marking them as `SYSTEM` includes"
   OFF)
 
 list(APPEND CMAKE_MODULE_PATH
