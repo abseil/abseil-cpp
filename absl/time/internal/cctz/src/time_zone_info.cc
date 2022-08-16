@@ -349,7 +349,6 @@ bool TimeZoneInfo::ExtendTransitions() {
 
   PosixTimeZone posix;
   if (!ParsePosixSpec(future_spec_, &posix)) return false;
-  if (AllYearDST(posix)) return true;  // last transition still prevails
 
   // Find transition type for the future std specification.
   std::uint_least8_t std_ti;
@@ -366,6 +365,12 @@ bool TimeZoneInfo::ExtendTransitions() {
   std::uint_least8_t dst_ti;
   if (!GetTransitionType(posix.dst_offset, true, posix.dst_abbr, &dst_ti))
     return false;
+
+  if (AllYearDST(posix)) {  // dst only
+    // The future specification should match the last transition, and
+    // that means that handling the future will fall out naturally.
+    return EquivTransitions(transitions_.back().type_index, dst_ti);
+  }
 
   // Extend the transitions for an additional 400 years using the
   // future specification. Years beyond those can be handled by
