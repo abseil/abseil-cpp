@@ -32,6 +32,10 @@
 // Much of raw_logging.cc becomes a no-op when we can't output messages,
 // although a FATAL ABSL_RAW_LOG message will still abort the process.
 
+#if !defined(__has_include)
+#define __has_include(header) 0
+#endif
+
 // ABSL_HAVE_POSIX_WRITE is defined when the platform provides posix write()
 // (as from unistd.h)
 //
@@ -61,7 +65,7 @@
 #undef ABSL_HAVE_SYSCALL_WRITE
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && __has_include(<io.h>)
 #include <io.h>
 
 #define ABSL_HAVE_RAW_IO 1
