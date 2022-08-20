@@ -30,7 +30,6 @@
 #define ABSL_BASE_INTERNAL_SPINLOCK_H_
 
 #include <stdint.h>
-#include <sys/types.h>
 
 #include <atomic>
 
