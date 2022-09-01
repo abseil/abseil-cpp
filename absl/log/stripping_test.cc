@@ -227,7 +227,7 @@ class StrippingTest : public ::testing::Test {
       path.resize(path.size() * 2, _T('\0'));
     }
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
-        _tfopen(path.c_str(), "rb"), [](FILE* fp) { fclose(fp); });
+        _tfopen(path.c_str(), _T("rb")), [](FILE* fp) { fclose(fp); });
     if (!fp) absl::FPrintF(stderr, "Failed to open executable\n");
     return fp;
 #else
