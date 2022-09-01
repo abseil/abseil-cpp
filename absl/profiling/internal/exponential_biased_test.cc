@@ -94,14 +94,13 @@ double AndersonDarlingPValue(int n, double z) {
 }
 
 double AndersonDarlingStatistic(const std::vector<double>& random_sample) {
-  size_t n = random_sample.size();
+  int n = random_sample.size();
   double ad_sum = 0;
-  for (size_t i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {
     ad_sum += (2 * i + 1) *
               std::log(random_sample[i] * (1 - random_sample[n - 1 - i]));
   }
-  const auto n_as_double = static_cast<double>(n);
-  double ad_statistic = -n_as_double - 1 / n_as_double * ad_sum;
+  double ad_statistic = -n - 1 / static_cast<double>(n) * ad_sum;
   return ad_statistic;
 }
 
@@ -112,15 +111,14 @@ double AndersonDarlingStatistic(const std::vector<double>& random_sample) {
 // Marsaglia and Marsaglia for details.
 double AndersonDarlingTest(const std::vector<double>& random_sample) {
   double ad_statistic = AndersonDarlingStatistic(random_sample);
-  double p = AndersonDarlingPValue(static_cast<int>(random_sample.size()),
-                                   ad_statistic);
+  double p = AndersonDarlingPValue(random_sample.size(), ad_statistic);
   return p;
 }
 
 TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
   ExponentialBiased eb;
   for (int runs = 0; runs < 10; ++runs) {
-    for (int64_t flips = eb.GetSkipCount(1); flips > 0; --flips) {
+    for (int flips = eb.GetSkipCount(1); flips > 0; --flips) {
       printf("head...");
     }
     printf("tail\n");
@@ -134,7 +132,7 @@ TEST(ExponentialBiasedTest, CoinTossDemoWithGetSkipCount) {
 
 TEST(ExponentialBiasedTest, SampleDemoWithStride) {
   ExponentialBiased eb;
-  int64_t stride = eb.GetStride(10);
+  int stride = eb.GetStride(10);
   int samples = 0;
   for (int i = 0; i < 10000000; ++i) {
     if (--stride == 0) {
@@ -149,7 +147,7 @@ TEST(ExponentialBiasedTest, SampleDemoWithStride) {
 // Testing that NextRandom generates uniform random numbers. Applies the
 // Anderson-Darling test for uniformity
 TEST(ExponentialBiasedTest, TestNextRandom) {
-  for (auto n : std::vector<size_t>({
+  for (auto n : std::vector<int>({
            10,  // Check short-range correlation
            100, 1000,
            10000  // Make sure there's no systemic error
@@ -163,7 +161,7 @@ TEST(ExponentialBiasedTest, TestNextRandom) {
     }
     std::vector<uint64_t> int_random_sample(n);
     // Collect samples
-    for (size_t i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
       int_random_sample[i] = x;
       x = ExponentialBiased::NextRandom(x);
     }
@@ -171,7 +169,7 @@ TEST(ExponentialBiasedTest, TestNextRandom) {
     std::sort(int_random_sample.begin(), int_random_sample.end());
     std::vector<double> random_sample(n);
     // Convert them to uniform randoms (in the range [0,1])
-    for (size_t i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
       random_sample[i] =
           static_cast<double>(int_random_sample[i]) / max_prng_value;
     }
