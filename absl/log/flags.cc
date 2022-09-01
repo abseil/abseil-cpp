@@ -39,6 +39,8 @@ namespace {
 void SyncLoggingFlags() {
   absl::SetFlag(&FLAGS_minloglevel, static_cast<int>(absl::MinLogLevel()));
   absl::SetFlag(&FLAGS_log_prefix, absl::ShouldPrependLogPrefix());
+  absl::SetFlag(&FLAGS_stderrthreshold,
+                static_cast<int>(absl::StderrThreshold()));
 }
 
 bool RegisterSyncLoggingFlags() {

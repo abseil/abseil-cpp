@@ -53,38 +53,104 @@ TEST_F(LogFlagsTest, StderrKnobsDefault) {
 }
 
 TEST_F(LogFlagsTest, SetStderrThreshold) {
-  absl::SetFlag(&FLAGS_stderrthreshold,
-                static_cast<int>(absl::LogSeverityAtLeast::kInfo));
+  // Verify that the API and the flag agree.
+  EXPECT_EQ(absl::GetFlag(FLAGS_stderrthreshold),
+            static_cast<int>(absl::StderrThreshold()));
 
-  EXPECT_EQ(absl::StderrThreshold(), absl::LogSeverityAtLeast::kInfo);
+  // Verify that setting the flag changes the value at the API level.
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::SetFlag(&FLAGS_stderrthreshold, static_cast<int>(level));
 
-  absl::SetFlag(&FLAGS_stderrthreshold,
-                static_cast<int>(absl::LogSeverityAtLeast::kError));
+    EXPECT_EQ(absl::StderrThreshold(), level);
+  }
 
-  EXPECT_EQ(absl::StderrThreshold(), absl::LogSeverityAtLeast::kError);
+  // Verify that setting the value through the API changes the flag value
+  // as well.
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::SetStderrThreshold(level);
+
+    EXPECT_EQ(absl::GetFlag(FLAGS_stderrthreshold), static_cast<int>(level));
+  }
+
+  // Verify that the scoped API changes both the API and the flag.
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kWarning);
+
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::ScopedStderrThreshold scoped_threshold(level);
+
+    EXPECT_EQ(absl::StderrThreshold(), level);
+    EXPECT_EQ(absl::GetFlag(FLAGS_stderrthreshold), static_cast<int>(level));
+  }
+
+  // ...and that going out of scope restores both.
+  EXPECT_EQ(absl::StderrThreshold(), absl::LogSeverityAtLeast::kWarning);
+  EXPECT_EQ(absl::GetFlag(FLAGS_stderrthreshold),
+            static_cast<int>(absl::LogSeverityAtLeast::kWarning));
 }
 
 TEST_F(LogFlagsTest, SetMinLogLevel) {
-  absl::SetFlag(&FLAGS_minloglevel,
-                static_cast<int>(absl::LogSeverityAtLeast::kError));
+  // Verify that the API and the flag agree.
+  EXPECT_EQ(absl::GetFlag(FLAGS_minloglevel),
+            static_cast<int>(absl::MinLogLevel()));
 
-  EXPECT_EQ(absl::MinLogLevel(), absl::LogSeverityAtLeast::kError);
+  // Verify that setting the flag changes the value at the API level.
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::SetFlag(&FLAGS_minloglevel, static_cast<int>(level));
 
-  absl::log_internal::ScopedMinLogLevel scoped_min_log_level(
-      absl::LogSeverityAtLeast::kWarning);
+    EXPECT_EQ(absl::MinLogLevel(), level);
+  }
 
+  // Verify that setting the value through the API changes the flag value
+  // as well.
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::SetMinLogLevel(level);
+
+    EXPECT_EQ(absl::GetFlag(FLAGS_minloglevel), static_cast<int>(level));
+  }
+
+  // Verify that the scoped API changes both the API and the flag.
+  absl::SetMinLogLevel(absl::LogSeverityAtLeast::kWarning);
+
+  for (const absl::LogSeverityAtLeast level :
+       {absl::LogSeverityAtLeast::kInfo, absl::LogSeverityAtLeast::kError,
+        absl::LogSeverityAtLeast::kInfinity}) {
+    absl::log_internal::ScopedMinLogLevel scoped_threshold(level);
+
+    EXPECT_EQ(absl::MinLogLevel(), level);
+    EXPECT_EQ(absl::GetFlag(FLAGS_minloglevel), static_cast<int>(level));
+  }
+
+  // ...and that going out of scope restores both.
+  EXPECT_EQ(absl::MinLogLevel(), absl::LogSeverityAtLeast::kWarning);
   EXPECT_EQ(absl::GetFlag(FLAGS_minloglevel),
             static_cast<int>(absl::LogSeverityAtLeast::kWarning));
 }
 
 TEST_F(LogFlagsTest, PrependLogPrefix) {
-  absl::SetFlag(&FLAGS_log_prefix, false);
+  // Verify that the API and the flag agree.
+  EXPECT_EQ(absl::GetFlag(FLAGS_log_prefix), absl::ShouldPrependLogPrefix());
 
-  EXPECT_EQ(absl::ShouldPrependLogPrefix(), false);
+  // Verify that setting the flag changes the value at the API level.
+  for (const bool value : {false, true}) {
+    absl::SetFlag(&FLAGS_log_prefix, value);
+    EXPECT_EQ(absl::ShouldPrependLogPrefix(), value);
+  }
 
-  absl::EnableLogPrefix(true);
-
-  EXPECT_EQ(absl::GetFlag(FLAGS_log_prefix), true);
+  // Verify that setting the value through the API changes the flag.
+  for (const bool value : {false, true}) {
+    absl::EnableLogPrefix(value);
+    EXPECT_EQ(absl::GetFlag(FLAGS_log_prefix), value);
+  }
 }
 
 TEST_F(LogFlagsTest, EmptyBacktraceAtFlag) {
