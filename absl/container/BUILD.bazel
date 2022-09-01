@@ -959,7 +959,6 @@ cc_test(
         "//absl/flags:flag",
         "//absl/hash:hash_testing",
         "//absl/memory",
-        "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/types:compare",
         "@com_google_googletest//:gtest_main",
