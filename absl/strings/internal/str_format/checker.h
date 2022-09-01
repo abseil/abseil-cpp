@@ -82,11 +82,10 @@ constexpr string_view ConsumeFront(string_view str, size_t len = 1) {
 }
 
 constexpr string_view ConsumeAnyOf(string_view format, const char* chars) {
-  if (ContainsChar(chars, GetChar(format, 0))) {
-    return ConsumeAnyOf(ConsumeFront(format), chars);
-  } else {
-    return format;
+  while (ContainsChar(chars, GetChar(format, 0))) {
+    format = ConsumeFront(format);
   }
+  return format;
 }
 
 constexpr bool IsDigit(char c) { return c >= '0' && c <= '9'; }
@@ -108,13 +107,14 @@ struct Integer {
   }
 };
 
-constexpr Integer ParseDigits(string_view format, int value = 0) {
-  if (IsDigit(GetChar(format, 0))) {
-    return ParseDigits(ConsumeFront(format),
-                       10 * value + GetChar(format, 0) - '0');
-  } else {
-    return Integer{format, value};
+constexpr Integer ParseDigits(string_view format) {
+  int value = 0;
+  while (IsDigit(GetChar(format, 0))) {
+    value = 10 * value + GetChar(format, 0) - '0';
+    format = ConsumeFront(format);
   }
+
+  return Integer{format, value};
 }
 
 // Parse digits for a positional argument.
@@ -283,11 +283,9 @@ class FormatParser {
   // We use an inner function to increase the recursion limit.
   // The inner function consumes up to `limit` characters on every run.
   // This increases the limit from 512 to ~512*limit.
-  static constexpr string_view ConsumeNonPercentInner(string_view format,
-                                                      int limit = 20) {
-    if (FoundPercent(format) || !limit) {
-      return format;
-    } else {
+  static constexpr string_view ConsumeNonPercentInner(string_view format) {
+    int limit = 20;
+    while (!FoundPercent(format) && limit != 0) {
       size_t len = 0;
 
       if (GetChar(format, 0) == '%' && GetChar(format, 1) == '%') {
@@ -296,26 +294,29 @@ class FormatParser {
         len = 1;
       }
 
-      return ConsumeNonPercentInner(ConsumeFront(format, len), limit - 1);
+      format = ConsumeFront(format, len);
+      --limit;
     }
+
+    return format;
   }
 
   // Consume characters until the next conversion spec %.
   // It skips %%.
   static constexpr string_view ConsumeNonPercent(string_view format) {
-    if (FoundPercent(format)) {
-      return format;
-    } else {
-      return ConsumeNonPercent(ConsumeNonPercentInner(format));
+    while (!FoundPercent(format)) {
+      format = ConsumeNonPercentInner(format);
     }
+
+    return format;
   }
 
   static constexpr bool IsPositional(string_view format) {
-    if (IsDigit(GetChar(format, 0))) {
-      return IsPositional(ConsumeFront(format));
-    } else {
-      return GetChar(format, 0) == '$';
+    while (IsDigit(GetChar(format, 0))) {
+      format = ConsumeFront(format);
     }
+
+    return GetChar(format, 0) == '$';
   }
 
   constexpr bool RunImpl(bool is_positional) const {
