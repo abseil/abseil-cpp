@@ -31,14 +31,15 @@
 
 #if defined(ABSL_ARCH_X86_64)
 #define ABSL_INTERNAL_USE_X86_CPUID
-#elif defined(ABSL_ARCH_PPC) || defined(ABSL_ARCH_ARM) || \
-    defined(ABSL_ARCH_AARCH64)
+#elif defined(ABSL_ARCH_PPC) || defined(ABSL_ARCH_ARM) || defined(ABSL_ARCH_AARCH64)
 #if defined(__ANDROID__)
 #define ABSL_INTERNAL_USE_ANDROID_GETAUXVAL
 #define ABSL_INTERNAL_USE_GETAUXVAL
 #elif defined(__linux__) && defined(ABSL_HAVE_GETAUXVAL)
 #define ABSL_INTERNAL_USE_LINUX_GETAUXVAL
 #define ABSL_INTERNAL_USE_GETAUXVAL
+#elif defined(__APPLE__) && defined(ABSL_ARCH_PPC)
+#define ABSL_INTERNAL_USE_PPC_CPUINFO
 #endif
 #endif
 
@@ -55,6 +56,11 @@ static void __cpuid(int cpu_info[4], int info_type) {
 }
 #endif
 #endif  // ABSL_INTERNAL_USE_X86_CPUID
+
+#if defined(ABSL_INTERNAL_USE_PPC_CPUINFO)
+#include <mach/mach.h>
+#include <mach/machine.h>
+#endif // ABSL_INTERNAL_USE_PPC_CPUINFO
 
 // On linux, just use the c-library getauxval call.
 #if defined(ABSL_INTERNAL_USE_LINUX_GETAUXVAL)

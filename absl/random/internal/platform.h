@@ -67,8 +67,8 @@
 #define ABSL_ARCH_AARCH64
 #elif defined(__arm__) || defined(__ARMEL__) || defined(_M_ARM)
 #define ABSL_ARCH_ARM
-#elif defined(__powerpc64__) || defined(__PPC64__) || defined(__powerpc__) || \
-    defined(__ppc__) || defined(__PPC__)
+#elif defined(__powerpc64__) || defined(__PPC64__) || defined(__ppc64__) || \
+     defined(__powerpc__) || defined(__PPC__) || defined(__ppc__) || defined(__POWERPC__)
 #define ABSL_ARCH_PPC
 #else
 // Unsupported architecture.
@@ -105,9 +105,11 @@
 
 #elif defined(ABSL_ARCH_PPC)
 
+#if defined(__APPLE__) // G4 and G5 ISA have Altivec, but do not support VSX and CRYPTO
+#undef ABSL_HAVE_ACCELERATED_AES
+#define ABSL_HAVE_ACCELERATED_AES 0
 // Rely on VSX and CRYPTO extensions for vcipher on PowerPC.
-#if (defined(__VEC__) || defined(__ALTIVEC__)) && defined(__VSX__) && \
-    defined(__CRYPTO__)
+#elif (defined(__VEC__) || defined(__ALTIVEC__)) && defined(__VSX__) && defined(__CRYPTO__)
 #undef ABSL_HAVE_ACCELERATED_AES
 #define ABSL_HAVE_ACCELERATED_AES 1
 #endif
@@ -151,6 +153,10 @@
 // (This captures a lot of Android configurations.)
 #undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
+#elif defined(__APPLE__) && defined(ABSL_ARCH_PPC)
+// Darwin PPC
+#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
+#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 0
 #endif
 
 // NaCl does not allow dispatch.

@@ -223,6 +223,12 @@ void* GetProgramCounter(void* const vuc) {
 #else
     return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.rip);
 #endif
+#elif defined(__ppc__) || defined(__ppc64__)
+#if __DARWIN_UNIX03
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->__ss.__srr0);
+#else
+    return reinterpret_cast<void*>(signal_ucontext->uc_mcontext->ss.srr0);
+#endif
 #endif
   }
 #elif defined(__akaros__)
