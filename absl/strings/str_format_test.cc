@@ -291,8 +291,6 @@ TEST_F(FormatEntryPointTest, FormatStreamed) {
 
 TEST_F(FormatEntryPointTest, FormatStreamedWithV) {
   EXPECT_EQ("123", StrFormat("%v", FormatStreamed(123)));
-  EXPECT_EQ("  123", StrFormat("%5v", FormatStreamed(123)));
-  EXPECT_EQ("123  ", StrFormat("%-5v", FormatStreamed(123)));
   EXPECT_EQ("X", StrFormat("%v", FormatStreamed(streamed_test::X())));
   EXPECT_EQ("123", StrFormat("%v", FormatStreamed(StreamFormat("%d", 123))));
 }

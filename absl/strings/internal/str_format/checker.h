@@ -212,6 +212,10 @@ class ConvParser {
   constexpr ConvParser ParseConversion() const {
     char first_char = GetChar(format_, 0);
 
+    if (first_char == 'v' && *(format_.data() - 1) != '%') {
+      return SetError(true);
+    }
+
     if (is_positional_) {
       return VerifyPositional({ConsumeFront(format_), arg_position_},
                               first_char);
