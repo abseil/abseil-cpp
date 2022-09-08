@@ -762,10 +762,9 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
     const ssize_t n_read = ReadFromOffset(fd, out, out_size, off);
     if (n_read <= 0) {
       // This should never happen.
-      ABSL_RAW_LOG(
-          WARNING,
-          "Unable to read from fd %d at offset %" PRId64 ": n_read = %zd", fd,
-          off, n_read);
+      ABSL_RAW_LOG(WARNING,
+                   "Unable to read from fd %d at offset %lld: n_read = %zd", fd,
+                   static_cast<long long>(off), n_read);
       return SYMBOL_NOT_FOUND;
     }
     ABSL_RAW_CHECK(static_cast<size_t>(n_read) <= out_size,
