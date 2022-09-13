@@ -205,7 +205,8 @@ struct ObjFile {
 
   // PT_LOAD program header describing executable code.
   // Normally we expect just one, but SWIFT binaries have two.
-  std::array<ElfW(Phdr), 2> phdr;
+  // CUDA binaries have 3 (see cr/473913254 description).
+  std::array<ElfW(Phdr), 4> phdr;
 };
 
 // Build 4-way associative cache for symbols. Within each cache line, symbols
