@@ -1343,8 +1343,9 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       if (num_executable_load_segments < obj->phdr.size()) {
         memcpy(&obj->phdr[num_executable_load_segments++], &phdr, sizeof(phdr));
       } else {
-        ABSL_RAW_LOG(WARNING, "%s: too many executable LOAD segments",
-                     obj->filename);
+        ABSL_RAW_LOG(
+            WARNING, "%s: too many executable LOAD segments: %zu >= %zu",
+            obj->filename, num_executable_load_segments, obj->phdr.size());
         break;
       }
     }
