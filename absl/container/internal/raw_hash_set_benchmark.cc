@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
+#include <cmath>
 #include <numeric>
+#include <utility>
 #include <random>
 #include <vector>
 
@@ -235,10 +238,22 @@ void BM_Iteration(benchmark::State& state) {
 }
 
 BENCHMARK(BM_Iteration)
+    ->ArgPair(1, 1)
+    ->ArgPair(2, 2)
+    ->ArgPair(4, 4)
+    ->ArgPair(7, 7)
     ->ArgPair(10, 10)
-    ->ArgPair(20, 20)
+    ->ArgPair(15, 15)
+    ->ArgPair(16, 16)
+    ->ArgPair(54, 54)
     ->ArgPair(100, 100)
     ->ArgPair(400, 400)
+    // empty
+    ->ArgPair(0, 0)
+    ->ArgPair(10, 0)
+    ->ArgPair(100, 0)
+    ->ArgPair(1000, 0)
+    ->ArgPair(10000, 0)
     // sparse
     ->ArgPair(100, 1)
     ->ArgPair(1000, 10);
