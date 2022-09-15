@@ -301,7 +301,7 @@ struct is_trivially_destructible
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
     : std::is_trivially_destructible<T> {
 #else
-    : std::integral_constant<bool, __has_trivial_destructor(T) &&
+    : std::integral_constant<bool, __is_trivially_destructible(T) &&
                                    std::is_destructible<T>::value> {
 #endif
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
@@ -354,7 +354,7 @@ struct is_trivially_default_constructible
 #if defined(ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE)
     : std::is_trivially_default_constructible<T> {
 #else
-    : std::integral_constant<bool, __has_trivial_constructor(T) &&
+    : std::integral_constant<bool, __is_trivially_constructible(T) &&
                                    std::is_default_constructible<T>::value &&
                                    is_trivially_destructible<T>::value> {
 #endif
@@ -506,7 +506,7 @@ struct is_trivially_copy_assignable
     : std::is_trivially_copy_assignable<T> {
 #else
     : std::integral_constant<
-          bool, __has_trivial_assign(typename std::remove_reference<T>::type) &&
+          bool, __is_trivially_assignable(typename std::remove_reference<T>::type) &&
                     absl::is_copy_assignable<T>::value> {
 #endif
 #ifdef ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
@@ -577,8 +577,8 @@ class is_trivially_copyable_impl {
 
  public:
   static constexpr bool kValue =
-      (__has_trivial_copy(ExtentsRemoved) || !kIsCopyOrMoveConstructible) &&
-      (__has_trivial_assign(ExtentsRemoved) || !kIsCopyOrMoveAssignable) &&
+      (__is_trivially_copyable(ExtentsRemoved) || !kIsCopyOrMoveConstructible) &&
+      (__is_trivially_assignable(ExtentsRemoved) || !kIsCopyOrMoveAssignable) &&
       (kIsCopyOrMoveConstructible || kIsCopyOrMoveAssignable) &&
       is_trivially_destructible<ExtentsRemoved>::value &&
       // We need to check for this explicitly because otherwise we'll say
