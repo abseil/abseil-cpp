@@ -278,11 +278,32 @@ bool ConvertIntImplInnerSlow(const IntDigits &as_digits,
   return true;
 }
 
+template <typename T,
+          typename std::enable_if<(std::is_integral<T>::value &&
+                                   std::is_signed<T>::value) ||
+                                      std::is_same<T, int128>::value,
+                                  int>::type = 0>
+constexpr auto ConvertV(T) {
+  return FormatConversionCharInternal::d;
+}
+
+template <typename T,
+          typename std::enable_if<(std::is_integral<T>::value &&
+                                   std::is_unsigned<T>::value) ||
+                                      std::is_same<T, uint128>::value,
+                                  int>::type = 0>
+constexpr auto ConvertV(T) {
+  return FormatConversionCharInternal::u;
+}
+
 template <typename T>
-bool ConvertIntArg(T v, const FormatConversionSpecImpl conv,
-                   FormatSinkImpl *sink) {
+bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
   using U = typename MakeUnsigned<T>::type;
   IntDigits as_digits;
+
+  if (conv.conversion_char() == FormatConversionCharInternal::v) {
+    conv.set_conversion_char(ConvertV(T{}));
+  }
 
   // This odd casting is due to a bug in -Wswitch behavior in gcc49 which causes
   // it to complain about a switch/case type mismatch, even though both are
@@ -334,8 +355,11 @@ bool ConvertIntArg(T v, const FormatConversionSpecImpl conv,
 }
 
 template <typename T>
-bool ConvertFloatArg(T v, const FormatConversionSpecImpl conv,
-                     FormatSinkImpl *sink) {
+bool ConvertFloatArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
+  if (conv.conversion_char() == FormatConversionCharInternal::v) {
+    conv.set_conversion_char(FormatConversionCharInternal::g);
+  }
+
   return FormatConversionCharIsFloat(conv.conversion_char()) &&
          ConvertFloatImpl(v, conv, sink);
 }
@@ -413,19 +437,18 @@ FloatingConvertResult FormatConvertImpl(long double v,
 }
 
 // ==================== Chars ====================
-IntegralConvertResult FormatConvertImpl(char v,
-                                        const FormatConversionSpecImpl conv,
-                                        FormatSinkImpl *sink) {
+CharConvertResult FormatConvertImpl(char v, const FormatConversionSpecImpl conv,
+                                    FormatSinkImpl *sink) {
   return {ConvertIntArg(v, conv, sink)};
 }
-IntegralConvertResult FormatConvertImpl(signed char v,
-                                        const FormatConversionSpecImpl conv,
-                                        FormatSinkImpl *sink) {
+CharConvertResult FormatConvertImpl(signed char v,
+                                    const FormatConversionSpecImpl conv,
+                                    FormatSinkImpl *sink) {
   return {ConvertIntArg(v, conv, sink)};
 }
-IntegralConvertResult FormatConvertImpl(unsigned char v,
-                                        const FormatConversionSpecImpl conv,
-                                        FormatSinkImpl *sink) {
+CharConvertResult FormatConvertImpl(unsigned char v,
+                                    const FormatConversionSpecImpl conv,
+                                    FormatSinkImpl *sink) {
   return {ConvertIntArg(v, conv, sink)};
 }
 

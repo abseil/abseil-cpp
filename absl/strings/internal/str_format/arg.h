@@ -176,9 +176,15 @@ StringConvertResult FormatConvertImpl(const AbslCord& value,
 using IntegralConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
     FormatConversionCharSetInternal::c,
     FormatConversionCharSetInternal::kNumeric,
+    FormatConversionCharSetInternal::kStar,
+    FormatConversionCharSetInternal::v)>;
+using FloatingConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
+    FormatConversionCharSetInternal::kFloating,
+    FormatConversionCharSetInternal::v)>;
+using CharConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
+    FormatConversionCharSetInternal::c,
+    FormatConversionCharSetInternal::kNumeric,
     FormatConversionCharSetInternal::kStar)>;
-using FloatingConvertResult =
-    ArgConvertResult<FormatConversionCharSetInternal::kFloating>;
 
 // Floats.
 FloatingConvertResult FormatConvertImpl(float v, FormatConversionSpecImpl conv,
@@ -190,14 +196,14 @@ FloatingConvertResult FormatConvertImpl(long double v,
                                         FormatSinkImpl* sink);
 
 // Chars.
-IntegralConvertResult FormatConvertImpl(char v, FormatConversionSpecImpl conv,
-                                        FormatSinkImpl* sink);
-IntegralConvertResult FormatConvertImpl(signed char v,
-                                        FormatConversionSpecImpl conv,
-                                        FormatSinkImpl* sink);
-IntegralConvertResult FormatConvertImpl(unsigned char v,
-                                        FormatConversionSpecImpl conv,
-                                        FormatSinkImpl* sink);
+CharConvertResult FormatConvertImpl(char v, FormatConversionSpecImpl conv,
+                                    FormatSinkImpl* sink);
+CharConvertResult FormatConvertImpl(signed char v,
+                                    FormatConversionSpecImpl conv,
+                                    FormatSinkImpl* sink);
+CharConvertResult FormatConvertImpl(unsigned char v,
+                                    FormatConversionSpecImpl conv,
+                                    FormatSinkImpl* sink);
 
 // Ints.
 IntegralConvertResult FormatConvertImpl(short v,  // NOLINT
