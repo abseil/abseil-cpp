@@ -1020,6 +1020,17 @@ TEST_F(ParsedFormatTest, RegressionMixPositional) {
                             absl::FormatConversionCharSet::o>::New("%1$d %o")));
 }
 
+TEST_F(ParsedFormatTest, DisallowModifiersWithV) {
+  auto f = ParsedFormat<'v'>::New("ABC%80vDEF");
+  EXPECT_EQ(f, nullptr);
+
+  f = ParsedFormat<'v'>::New("ABC%0vDEF");
+  EXPECT_EQ(f, nullptr);
+
+  f = ParsedFormat<'v'>::New("ABC%.1vDEF");
+  EXPECT_EQ(f, nullptr);
+}
+
 using FormatWrapperTest = ::testing::Test;
 
 // Plain wrapper for StrFormat.
