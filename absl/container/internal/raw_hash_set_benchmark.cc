@@ -15,8 +15,8 @@
 #include <array>
 #include <cmath>
 #include <numeric>
-#include <utility>
 #include <random>
+#include <utility>
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
@@ -258,22 +258,60 @@ BENCHMARK(BM_Iteration)
     ->ArgPair(100, 1)
     ->ArgPair(1000, 10);
 
-void BM_CopyCtor(benchmark::State& state) {
+void BM_CopyCtorSparseInt(benchmark::State& state) {
   std::random_device rd;
   std::mt19937 rng(rd());
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
-  while (t.size() < state.range(0)) {
+  size_t size = state.range(0);
+  t.reserve(size * 10);
+  while (t.size() < size) {
     t.emplace(dist(rng));
   }
 
-  for (auto _ : state) {
+  for (auto i : state) {
     IntTable t2 = t;
     benchmark::DoNotOptimize(t2);
   }
 }
-BENCHMARK(BM_CopyCtor)->Range(128, 4096);
+BENCHMARK(BM_CopyCtorSparseInt)->Range(128, 4096);
+
+void BM_CopyCtorInt(benchmark::State& state) {
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  IntTable t;
+  std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
+
+  size_t size = state.range(0);
+  while (t.size() < size) {
+    t.emplace(dist(rng));
+  }
+
+  for (auto i : state) {
+    IntTable t2 = t;
+    benchmark::DoNotOptimize(t2);
+  }
+}
+BENCHMARK(BM_CopyCtorInt)->Range(128, 4096);
+
+void BM_CopyCtorString(benchmark::State& state) {
+  std::random_device rd;
+  std::mt19937 rng(rd());
+  StringTable t;
+  std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
+
+  size_t size = state.range(0);
+  while (t.size() < size) {
+    t.emplace(std::to_string(dist(rng)), std::to_string(dist(rng)));
+  }
+
+  for (auto i : state) {
+    StringTable t2 = t;
+    benchmark::DoNotOptimize(t2);
+  }
+}
+BENCHMARK(BM_CopyCtorString)->Range(128, 4096);
 
 void BM_CopyAssign(benchmark::State& state) {
   std::random_device rd;
