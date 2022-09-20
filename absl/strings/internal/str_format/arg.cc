@@ -344,7 +344,7 @@ bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
       return ConvertFloatImpl(static_cast<double>(v), conv, sink);
 
     default:
-       ABSL_ASSUME(false);
+      ABSL_ASSUME(false);
   }
 
   if (conv.is_basic()) {
@@ -375,6 +375,15 @@ inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
 }
 
 }  // namespace
+
+bool ConvertBoolArg(bool v, FormatSinkImpl *sink) {
+  if (v) {
+    sink->Append("true");
+  } else {
+    sink->Append("false");
+  }
+  return true;
+}
 
 // ==================== Strings ====================
 StringConvertResult FormatConvertImpl(const std::string &v,

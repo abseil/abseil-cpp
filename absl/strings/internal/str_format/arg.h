@@ -186,6 +186,8 @@ using CharConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
     FormatConversionCharSetInternal::kNumeric,
     FormatConversionCharSetInternal::kStar)>;
 
+bool ConvertBoolArg(bool v, FormatSinkImpl* sink);
+
 // Floats.
 FloatingConvertResult FormatConvertImpl(float v, FormatConversionSpecImpl conv,
                                         FormatSinkImpl* sink);
@@ -234,9 +236,16 @@ IntegralConvertResult FormatConvertImpl(int128 v, FormatConversionSpecImpl conv,
 IntegralConvertResult FormatConvertImpl(uint128 v,
                                         FormatConversionSpecImpl conv,
                                         FormatSinkImpl* sink);
+
+// This function needs to be a template due to ambiguity regarding type
+// conversions.
 template <typename T, enable_if_t<std::is_same<T, bool>::value, int> = 0>
 IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
                                         FormatSinkImpl* sink) {
+  if (conv.conversion_char() == FormatConversionCharInternal::v) {
+    return {ConvertBoolArg(v, sink)};
+  }
+
   return FormatConvertImpl(static_cast<int>(v), conv, sink);
 }
 

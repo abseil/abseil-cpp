@@ -265,7 +265,7 @@ TEST_F(FormatEntryPointTest, Stream) {
     std::ostringstream oss;
     oss << StreamFormat(*parsed, 123, 3, 49, "multistreaming!!!", 1.01, 1.01);
     int fmt_result = snprintf(&*buf.begin(), buf.size(), fmt.c_str(),  //
-                                 123, 3, 49, "multistreaming!!!", 1.01, 1.01);
+                              123, 3, 49, "multistreaming!!!", 1.01, 1.01);
     ASSERT_TRUE(oss) << fmt;
     ASSERT_TRUE(fmt_result >= 0 && static_cast<size_t>(fmt_result) < buf.size())
         << fmt_result;
@@ -644,6 +644,11 @@ TEST(StrFormat, BehavesAsDocumented) {
   EXPECT_EQ(StrFormat("%zd", int{1}), "1");
   EXPECT_EQ(StrFormat("%td", int{1}), "1");
   EXPECT_EQ(StrFormat("%qd", int{1}), "1");
+
+  // Bool is handled correctly depending on whether %v is used
+  EXPECT_EQ(StrFormat("%v", true), "true");
+  EXPECT_EQ(StrFormat("%v", false), "false");
+  EXPECT_EQ(StrFormat("%d", true), "1");
 }
 
 using str_format_internal::ExtendedParsedFormat;
