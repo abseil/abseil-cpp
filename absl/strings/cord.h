@@ -20,8 +20,7 @@
 // structure. A Cord is a string-like sequence of characters optimized for
 // specific use cases. Unlike a `std::string`, which stores an array of
 // contiguous characters, Cord data is stored in a structure consisting of
-// separate, reference-counted "chunks." (Currently, this implementation is a
-// tree structure, though that implementation may change.)
+// separate, reference-counted "chunks."
 //
 // Because a Cord consists of these chunks, data can be added to or removed from
 // a Cord during its lifetime. Chunks may also be shared between Cords. Unlike a
