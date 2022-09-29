@@ -60,7 +60,12 @@ struct HasUserDefinedConvert<T, void_t<decltype(AbslFormatConvert(
                                     std::declval<FormatSink*>()))>>
     : std::true_type {};
 
-void AbslFormatConvert();  // Stops the lexical name lookup
+// These declarations prevent ADL lookup from continuing in absl namespaces,
+// we are deliberately using these as ADL hooks and want them to consider
+// non-absl namespaces only.
+void AbslFormatConvert();
+void AbslStringify();
+
 template <typename T>
 auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
                        FormatSinkImpl* sink)
@@ -76,7 +81,6 @@ auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
   return AbslFormatConvert(v, fcs, &fs);
 }
 
-void AbslStringify();  // Stops the lexical name lookup
 template <typename T>
 auto FormatConvertImpl(const T& v, FormatConversionSpecImpl,
                        FormatSinkImpl* sink)
