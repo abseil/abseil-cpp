@@ -111,11 +111,11 @@ struct FloatTraits<double> {
   //
   // 9999999999999999999, with 19 nines but no decimal point, is the largest
   // "repeated nines" integer that fits in a uint64_t.
-  static constexpr int kEiselLemireMinInclExp10 = -324 - 18;
+  static constexpr int kEiselLemireMinInclusiveExp10 = -324 - 18;
 
   // The smallest positive integer N such that parsing 1eN produces infinity.
   // Parsing a smaller N will produce something finite.
-  static constexpr int kEiselLemireMaxExclExp10 = 309;
+  static constexpr int kEiselLemireMaxExclusiveExp10 = 309;
 
   static double MakeNan(const char* tagp) {
     // Support nan no matter which namespace it's in.  Some platforms
@@ -180,8 +180,8 @@ struct FloatTraits<float> {
   static constexpr int kExponentBias = 127;
   static constexpr int kEiselLemireShift = 38;
   static constexpr uint64_t kEiselLemireMask = uint64_t{0x3FFFFFFFFF};
-  static constexpr int kEiselLemireMinInclExp10 = -46 - 18;
-  static constexpr int kEiselLemireMaxExclExp10 = 39;
+  static constexpr int kEiselLemireMinInclusiveExp10 = -46 - 18;
+  static constexpr int kEiselLemireMaxExclusiveExp10 = 39;
 
   static float MakeNan(const char* tagp) {
     // Support nanf no matter which namespace it's in.  Some platforms
@@ -232,8 +232,8 @@ struct FloatTraits<float> {
 // Lookups into the power-of-10 table must first check the Power10Overflow() and
 // Power10Underflow() functions, to avoid out-of-bounds table access.
 //
-// Indexes into these tables are biased by -kPower10TableMin, and the table has
-// values in the range [kPower10TableMin, kPower10TableMax].
+// Indexes into these tables are biased by -kPower10TableMinInclusive. Valid
+// indexes range from kPower10TableMinInclusive to kPower10TableMaxExclusive.
 extern const uint64_t kPower10MantissaHighTable[];  // High 64 of 128 bits.
 extern const uint64_t kPower10MantissaLowTable[];   // Low  64 of 128 bits.
 extern const int16_t kPower10ExponentTable[];
@@ -241,28 +241,28 @@ extern const int16_t kPower10ExponentTable[];
 // The smallest (inclusive) allowed value for use with the Power10Mantissa()
 // and Power10Exponent() functions below.  (If a smaller exponent is needed in
 // calculations, the end result is guaranteed to underflow.)
-constexpr int kPower10TableMin = -342;
+constexpr int kPower10TableMinInclusive = -342;
 
-// The largest (inclusive) allowed value for use with the Power10Mantissa() and
-// Power10Exponent() functions below.  (If a smaller exponent is needed in
-// calculations, the end result is guaranteed to overflow.)
-constexpr int kPower10TableMax = 308;
+// The largest (exclusive) allowed value for use with the Power10Mantissa() and
+// Power10Exponent() functions below.  (If a larger-or-equal exponent is needed
+// in calculations, the end result is guaranteed to overflow.)
+constexpr int kPower10TableMaxExclusive = 309;
 
 uint64_t Power10Mantissa(int n) {
-  return kPower10MantissaHighTable[n - kPower10TableMin];
+  return kPower10MantissaHighTable[n - kPower10TableMinInclusive];
 }
 
 int Power10Exponent(int n) {
-  return kPower10ExponentTable[n - kPower10TableMin];
+  return kPower10ExponentTable[n - kPower10TableMinInclusive];
 }
 
 // Returns true if n is large enough that 10**n always results in an IEEE
 // overflow.
-bool Power10Overflow(int n) { return n > kPower10TableMax; }
+bool Power10Overflow(int n) { return n >= kPower10TableMaxExclusive; }
 
 // Returns true if n is small enough that 10**n times a ParsedFloat mantissa
 // always results in an IEEE underflow.
-bool Power10Underflow(int n) { return n < kPower10TableMin; }
+bool Power10Underflow(int n) { return n < kPower10TableMinInclusive; }
 
 // Returns true if Power10Mantissa(n) * 2**Power10Exponent(n) is exactly equal
 // to 10**n numerically.  Put another way, this returns true if there is no
@@ -656,11 +656,11 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
                  FloatType* value, std::errc* ec) {
   uint64_t man = input.mantissa;
   int exp10 = input.exponent;
-  if (exp10 < FloatTraits<FloatType>::kEiselLemireMinInclExp10) {
+  if (exp10 < FloatTraits<FloatType>::kEiselLemireMinInclusiveExp10) {
     *value = negative ? -0.0 : 0.0;
     *ec = std::errc::result_out_of_range;
     return true;
-  } else if (exp10 >= FloatTraits<FloatType>::kEiselLemireMaxExclExp10) {
+  } else if (exp10 >= FloatTraits<FloatType>::kEiselLemireMaxExclusiveExp10) {
     // Return max (a finite value) consistent with from_chars and DR 3081. For
     // SimpleAtod and SimpleAtof, post-processing will return infinity.
     *value = negative ? -std::numeric_limits<FloatType>::max()
@@ -669,17 +669,16 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
     return true;
   }
 
-  // Assert that (kPower10TableMin <= exp10) and (exp10 <= kPower10TableMax).
+  // Assert kPower10TableMinInclusive <= exp10 < kPower10TableMaxExclusive.
   // Equivalently, !Power10Underflow(exp10) and !Power10Overflow(exp10).
-  //
-  // The +1 is because kEiselLemireMaxExclExp10 is an exclusive bound but
-  // kPower10TableMax is inclusive.
   static_assert(
-      FloatTraits<FloatType>::kEiselLemireMinInclExp10 >= kPower10TableMin,
-      "(exp10 - kPower10TableMin) within kPower10MantissaHighTable bounds");
+      FloatTraits<FloatType>::kEiselLemireMinInclusiveExp10 >=
+          kPower10TableMinInclusive,
+      "(exp10-kPower10TableMinInclusive) in kPower10MantissaHighTable bounds");
   static_assert(
-      FloatTraits<FloatType>::kEiselLemireMaxExclExp10 <= kPower10TableMax + 1,
-      "(exp10 - kPower10TableMin) within kPower10MantissaHighTable bounds");
+      FloatTraits<FloatType>::kEiselLemireMaxExclusiveExp10 <=
+          kPower10TableMaxExclusive,
+      "(exp10-kPower10TableMinInclusive) in kPower10MantissaHighTable bounds");
 
   // The terse (+) comments in this function body refer to sections of the
   // https://nigeltao.github.io/blog/2020/eisel-lemire.html blog post.
@@ -704,18 +703,19 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
                             FloatTraits<FloatType>::kExponentBias - clz);
 
   // (+) Multiplication.
-  uint128 x =
-      static_cast<uint128>(man) *
-      static_cast<uint128>(kPower10MantissaHighTable[exp10 - kPower10TableMin]);
+  uint128 x = static_cast<uint128>(man) *
+              static_cast<uint128>(
+                  kPower10MantissaHighTable[exp10 - kPower10TableMinInclusive]);
 
   // (+) Wider Approximation.
   static constexpr uint64_t high64_mask =
       FloatTraits<FloatType>::kEiselLemireMask;
   if (((Uint128High64(x) & high64_mask) == high64_mask) &&
       (man > (std::numeric_limits<uint64_t>::max() - Uint128Low64(x)))) {
-    uint128 y = static_cast<uint128>(man) *
-                static_cast<uint128>(
-                    kPower10MantissaLowTable[exp10 - kPower10TableMin]);
+    uint128 y =
+        static_cast<uint128>(man) *
+        static_cast<uint128>(
+            kPower10MantissaLowTable[exp10 - kPower10TableMinInclusive]);
     x += Uint128High64(y);
     // For example, parsing "4503599627370497.5" will take the if-true
     // branch here (for double precision), since:
@@ -926,13 +926,17 @@ from_chars_result from_chars(const char* first, const char* last, float& value,
 
 namespace {
 
-// Table of powers of 10, from kPower10TableMin to kPower10TableMax.
+// Table of powers of 10, from kPower10TableMinInclusive to
+// kPower10TableMaxExclusive.
 //
-// kPower10MantissaHighTable[i - kPower10TableMin] stores the 64-bit mantissa
-// (high bit always on), and kPower10ExponentTable[i - kPower10TableMin] stores
-// the power-of-two exponent.  For a given number i, this gives the unique
-// mantissa and exponent such that mantissa * 2**exponent <= 10**i < (mantissa
-// + 1) * 2**exponent.
+// kPower10MantissaHighTable[i - kPower10TableMinInclusive] stores the 64-bit
+// mantissa. The high bit is always on.
+//
+// kPower10ExponentTable[i - kPower10TableMinInclusive] stores the power-of-two
+// exponent.
+//
+// For a given number i, this gives the unique mantissa and exponent such that
+// (mantissa * 2**exponent) <= 10**i < ((mantissa + 1) * 2**exponent).
 //
 // kPower10MantissaLowTable extends that 64-bit mantissa to 128 bits.
 //
