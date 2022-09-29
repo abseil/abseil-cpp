@@ -894,9 +894,8 @@ class Cord {
       // memcpy is much faster when operating on a known size. On most supported
       // platforms, the small string optimization is large enough that resizing
       // to 15 bytes does not cause a memory allocation.
-      absl::strings_internal::STLStringResizeUninitialized(dst,
-                                                           sizeof(data_) - 1);
-      memcpy(&(*dst)[0], &data_, sizeof(data_) - 1);
+      absl::strings_internal::STLStringResizeUninitialized(dst, kMaxInline);
+      memcpy(&(*dst)[0], data_.as_chars(), kMaxInline);
       // erase is faster than resize because the logic for memory allocation is
       // not needed.
       dst->erase(inline_size());
@@ -1189,7 +1188,7 @@ inline cord_internal::CordRepFlat* Cord::InlineRep::MakeFlatWithExtraCapacity(
   size_t len = data_.inline_size();
   auto* result = CordRepFlat::New(len + extra);
   result->length = len;
-  memcpy(result->Data(), data_.as_chars(), sizeof(data_));
+  memcpy(result->Data(), data_.as_chars(), InlineRep::kMaxInline);
   return result;
 }
 
