@@ -876,20 +876,6 @@ class Cord {
     bool IsSame(const InlineRep& other) const {
       return memcmp(&data_, &other.data_, sizeof(data_)) == 0;
     }
-    int BitwiseCompare(const InlineRep& other) const {
-      uint64_t x, y;
-      // Use memcpy to avoid aliasing issues.
-      memcpy(&x, &data_, sizeof(x));
-      memcpy(&y, &other.data_, sizeof(y));
-      if (x == y) {
-        memcpy(&x, reinterpret_cast<const char*>(&data_) + 8, sizeof(x));
-        memcpy(&y, reinterpret_cast<const char*>(&other.data_) + 8, sizeof(y));
-        if (x == y) return 0;
-      }
-      return absl::big_endian::FromHost64(x) < absl::big_endian::FromHost64(y)
-                 ? -1
-                 : 1;
-    }
     void CopyTo(std::string* dst) const {
       // memcpy is much faster when operating on a known size. On most supported
       // platforms, the small string optimization is large enough that resizing
@@ -1387,7 +1373,7 @@ extern template void Cord::Prepend(std::string&& src);
 
 inline int Cord::Compare(const Cord& rhs) const {
   if (!contents_.is_tree() && !rhs.contents_.is_tree()) {
-    return contents_.BitwiseCompare(rhs.contents_);
+    return contents_.data_.Compare(rhs.contents_.data_);
   }
 
   return CompareImpl(rhs);
