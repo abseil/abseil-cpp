@@ -1013,17 +1013,17 @@ namespace cord_internal {
 
 // Fast implementation of memmove for up to 15 bytes. This implementation is
 // safe for overlapping regions. If nullify_tail is true, the destination is
-// padded with '\0' up to 16 bytes.
+// padded with '\0' up to 15 bytes.
 template <bool nullify_tail = false>
 inline void SmallMemmove(char* dst, const char* src, size_t n) {
   if (n >= 8) {
-    assert(n <= 16);
+    assert(n <= 15);
     uint64_t buf1;
     uint64_t buf2;
     memcpy(&buf1, src, 8);
     memcpy(&buf2, src + n - 8, 8);
     if (nullify_tail) {
-      memset(dst + 8, 0, 8);
+      memset(dst + 7, 0, 8);
     }
     memcpy(dst, &buf1, 8);
     memcpy(dst + n - 8, &buf2, 8);
@@ -1034,7 +1034,7 @@ inline void SmallMemmove(char* dst, const char* src, size_t n) {
     memcpy(&buf2, src + n - 4, 4);
     if (nullify_tail) {
       memset(dst + 4, 0, 4);
-      memset(dst + 8, 0, 8);
+      memset(dst + 7, 0, 8);
     }
     memcpy(dst, &buf1, 4);
     memcpy(dst + n - 4, &buf2, 4);
@@ -1045,7 +1045,7 @@ inline void SmallMemmove(char* dst, const char* src, size_t n) {
       dst[n - 1] = src[n - 1];
     }
     if (nullify_tail) {
-      memset(dst + 8, 0, 8);
+      memset(dst + 7, 0, 8);
       memset(dst + n, 0, 8);
     }
   }
