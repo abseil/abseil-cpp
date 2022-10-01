@@ -868,18 +868,6 @@ struct IsNeitherSelfNorInPlace<Self, in_place_type_t<T>> : std::false_type {};
 template <class Self, std::size_t I>
 struct IsNeitherSelfNorInPlace<Self, in_place_index_t<I>> : std::false_type {};
 
-template <class Variant, class T, class = void>
-struct ConversionIsPossibleImpl : std::false_type {};
-
-template <class Variant, class T>
-struct ConversionIsPossibleImpl<
-    Variant, T,
-    void_t<decltype(ImaginaryFun<Variant>::Run(std::declval<T>(), {}))>>
-    : std::true_type {};
-
-template <class Variant, class T>
-struct ConversionIsPossible : ConversionIsPossibleImpl<Variant, T>::type {};
-
 template <class Variant, class T>
 struct IndexOfConstructedType<
     Variant, T,
