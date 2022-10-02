@@ -347,7 +347,7 @@ bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
     } else {
       ptrdiff_t nan_size = input.subrange_end - input.subrange_begin;
       nan_size = std::min(nan_size, kNanBufferSize - 1);
-      std::copy_n(input.subrange_begin, nan_size, n_char_sequence);
+      std::copy_n(input.subrange_begin, nan_size, const_cast<char *>(n_char_sequence));
       n_char_sequence[nan_size] = '\0';
     }
     char* nan_argument = const_cast<char*>(n_char_sequence);
