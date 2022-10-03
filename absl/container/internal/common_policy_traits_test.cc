@@ -27,7 +27,7 @@ namespace container_internal {
 namespace {
 
 using ::testing::MockFunction;
-using ::testing::Return;
+using ::testing::AnyNumber;
 using ::testing::ReturnRef;
 
 using Slot = int;
@@ -101,9 +101,10 @@ TEST_F(Test, element) {
 
 TEST_F(Test, without_transfer) {
   int b = 42;
-  EXPECT_CALL(element, Call(&b)).WillOnce(::testing::ReturnRef(b));
-  EXPECT_CALL(construct, Call(&alloc, &a, b));
-  EXPECT_CALL(destroy, Call(&alloc, &b));
+  EXPECT_CALL(element, Call(&a)).Times(AnyNumber()).WillOnce(ReturnRef(a));
+  EXPECT_CALL(element, Call(&b)).WillOnce(ReturnRef(b));
+  EXPECT_CALL(construct, Call(&alloc, &a, b)).Times(AnyNumber());
+  EXPECT_CALL(destroy, Call(&alloc, &b)).Times(AnyNumber());
   common_policy_traits<PolicyWithoutOptionalOps>::transfer(&alloc, &a, &b);
 }
 

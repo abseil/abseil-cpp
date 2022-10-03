@@ -16,6 +16,7 @@
 #define ABSL_CONTAINER_INTERNAL_COMMON_POLICY_TRAITS_H_
 
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <type_traits>
@@ -32,7 +33,8 @@ template <class Policy, class = void>
 struct common_policy_traits {
   // The actual object stored in the container.
   using slot_type = typename Policy::slot_type;
-
+  using reference = decltype(Policy::element(std::declval<slot_type*>()));
+  using value_type = typename std::remove_reference<reference>::type;
 
   // PRECONDITION: `slot` is UNINITIALIZED
   // POSTCONDITION: `slot` is INITIALIZED
@@ -89,6 +91,17 @@ struct common_policy_traits {
   template <class Alloc>
   static void transfer_impl(Alloc* alloc, slot_type* new_slot,
                             slot_type* old_slot, char) {
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+    if (absl::is_trivially_relocatable<value_type>()) {
+      // TODO(b/247130232): remove cast after fixing class-memaccess warning.
+      std::memcpy(static_cast<void*>(
+                      std::launder(const_cast<std::remove_const_t<value_type>*>(
+                          &element(new_slot)))),
+                  &element(old_slot), sizeof(value_type));
+      return;
+    }
+#endif
+
     construct(alloc, new_slot, std::move(element(old_slot)));
     destroy(alloc, old_slot);
   }
