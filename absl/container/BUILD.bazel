@@ -637,6 +637,8 @@ cc_test(
     ],
     deps = [
         ":container_memory",
+        ":flat_hash_map",
+        ":flat_hash_set",
         ":hash_function_defaults",
         ":hash_policy_testing",
         ":hashtable_debug",
@@ -646,6 +648,7 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/base:prefetch",
         "//absl/base:raw_logging_internal",
+        "//absl/log",
         "//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
