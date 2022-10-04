@@ -334,24 +334,23 @@ template <typename FloatType>
 bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
                     FloatType* value) {
   if (input.type == strings_internal::FloatType::kNan) {
-    // A bug in both clang and gcc would cause the compiler to optimize away the
-    // buffer we are building below.  Declaring the buffer volatile avoids the
+    // A bug in gcc would cause the compiler to optimize away the buffer 
+    // we are building below.  Declaring the buffer volatile avoids the
     // issue, and has no measurable performance impact in microbenchmarks.
     //
-    // https://bugs.llvm.org/show_bug.cgi?id=37778
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86113
     constexpr ptrdiff_t kNanBufferSize = 128;
+#ifdef __GNUC__
     volatile char n_char_sequence[kNanBufferSize];
+#else
+    char n_char_sequence[kNanBufferSize];
+#endif
     if (input.subrange_begin == nullptr) {
       n_char_sequence[0] = '\0';
     } else {
       ptrdiff_t nan_size = input.subrange_end - input.subrange_begin;
       nan_size = std::min(nan_size, kNanBufferSize - 1);
-#ifdef __GNUC__
       std::copy_n(input.subrange_begin, nan_size, n_char_sequence);
-#else
-      std::copy_n(input.subrange_begin, nan_size, const_cast<char *>(n_char_sequence));
-#endif
       n_char_sequence[nan_size] = '\0';
     }
     char* nan_argument = const_cast<char*>(n_char_sequence);
