@@ -722,12 +722,15 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::container_memory
+    absl::flat_hash_map
+    absl::flat_hash_set
     absl::hash_function_defaults
     absl::hash_policy_testing
     absl::hashtable_debug
     absl::raw_hash_set
     absl::base
     absl::config
+    absl::log
     absl::core_headers
     absl::prefetch
     absl::raw_logging_internal
