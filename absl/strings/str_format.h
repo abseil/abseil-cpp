@@ -789,6 +789,11 @@ class FormatSink {
     return sink_->PutPaddedString(v, width, precision, left);
   }
 
+  // Support `absl::Format(&sink, format, args...)`.
+  friend void AbslFormatFlush(FormatSink* sink, absl::string_view v) {
+    sink->Append(v);
+  }
+
  private:
   friend str_format_internal::FormatSinkImpl;
   explicit FormatSink(str_format_internal::FormatSinkImpl* s) : sink_(s) {}
