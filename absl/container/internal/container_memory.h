@@ -338,70 +338,24 @@ union map_slot_type {
 };
 
 template <class K, class V>
-struct map_slot_policy {
+using MutableKeys = memory_internal::IsLayoutCompatible<K, V>;
+
+template <class K, class V>
+struct map_slot_policy_base {
   using slot_type = map_slot_type<K, V>;
   using value_type = std::pair<const K, V>;
-  using mutable_value_type =
-      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
 
- private:
+ protected:
   static void emplace(slot_type* slot) {
     // The construction of union doesn't do anything at runtime but it allows us
     // to access its members without violating aliasing rules.
     new (slot) slot_type;
   }
-  // If pair<const K, V> and pair<K, V> are layout-compatible, we can accept one
-  // or the other via slot_type. We are also free to access the key via
-  // slot_type::key in this case.
-  using kMutableKeys = memory_internal::IsLayoutCompatible<K, V>;
 
  public:
   static value_type& element(slot_type* slot) { return slot->value; }
   static const value_type& element(const slot_type* slot) {
     return slot->value;
-  }
-
-  // When C++17 is available, we can use std::launder to provide mutable
-  // access to the key for use in node handle.
-#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
-  static K& mutable_key(slot_type* slot) {
-    // Still check for kMutableKeys so that we can avoid calling std::launder
-    // unless necessary because it can interfere with optimizations.
-    return kMutableKeys::value ? slot->key
-                               : *std::launder(const_cast<K*>(
-                                     std::addressof(slot->value.first)));
-  }
-#else  // !(defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606)
-  static const K& mutable_key(slot_type* slot) { return key(slot); }
-#endif
-
-  static const K& key(const slot_type* slot) {
-    return kMutableKeys::value ? slot->key : slot->value.first;
-  }
-
-  template <class Allocator, class... Args>
-  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
-    emplace(slot);
-    if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
-                                                   std::forward<Args>(args)...);
-    } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
-                                                   std::forward<Args>(args)...);
-    }
-  }
-
-  // Construct this slot by moving from another slot.
-  template <class Allocator>
-  static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
-    emplace(slot);
-    if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(
-          *alloc, &slot->mutable_value, std::move(other->mutable_value));
-    } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
-                                                   std::move(other->value));
-    }
   }
 
   // Construct this slot by copying from another slot.
@@ -415,11 +369,51 @@ struct map_slot_policy {
 
   template <class Allocator>
   static void destroy(Allocator* alloc, slot_type* slot) {
-    if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
-    } else {
-      absl::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
-    }
+    absl::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
+  }
+};
+
+template <class K, class V, bool B = MutableKeys<K, V>::value>
+struct map_slot_policy;
+
+template <class K, class V>
+struct map_slot_policy<K, V, false> : map_slot_policy_base<K, V> {
+  using slot_type = map_slot_type<K, V>;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type =
+      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
+
+  using base = typename map_slot_policy::map_slot_policy_base;
+  using base::construct;
+  using base::destroy;
+  using base::element;
+  using base::emplace;
+
+  // When C++17 is available, we can use std::launder to provide mutable
+  // access to the key for use in node handle.
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+  static K& mutable_key(slot_type* slot) {
+    return *std::launder(const_cast<K*>(std::addressof(slot->value.first)));
+  }
+#else  // !(defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606)
+  static const K& mutable_key(slot_type* slot) { return key(slot); }
+#endif
+
+  static const K& key(const slot_type* slot) { return slot->value.first; }
+
+  template <class Allocator, class... Args>
+  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
+    emplace(slot);
+    absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
+                                                 std::forward<Args>(args)...);
+  }
+
+  // Construct this slot by moving from another slot.
+  template <class Allocator>
+  static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
+    emplace(slot);
+    absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
+                                                 std::move(other->value));
   }
 
   template <class Allocator>
@@ -436,13 +430,63 @@ struct map_slot_policy {
     }
 #endif
 
-    if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(
-          *alloc, &new_slot->mutable_value, std::move(old_slot->mutable_value));
-    } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
-                                                   std::move(old_slot->value));
+    absl::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
+                                                 std::move(old_slot->value));
+    destroy(alloc, old_slot);
+  }
+};
+
+// If pair<const K, V> and pair<K, V> are layout-compatible, we can accept one
+// or the other via slot_type. We are also free to access the key via
+// slot_type::key in this case.
+template <class K, class V>
+struct map_slot_policy<K, V, true> : map_slot_policy_base<K, V> {
+  using slot_type = map_slot_type<K, V>;
+  using value_type = std::pair<const K, V>;
+  using mutable_value_type =
+      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
+
+  using base = typename map_slot_policy::map_slot_policy_base;
+  using base::construct;
+  using base::destroy;
+  using base::element;
+  using base::emplace;
+
+  static K& mutable_key(slot_type* slot) { return slot->key; }
+
+  static const K& key(const slot_type* slot) { return slot->key; }
+
+  template <class Allocator, class... Args>
+  static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
+    emplace(slot);
+    absl::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
+                                                 std::forward<Args>(args)...);
+  }
+
+  // Construct this slot by moving from another slot.
+  template <class Allocator>
+  static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
+    emplace(slot);
+    absl::allocator_traits<Allocator>::construct(
+        *alloc, &slot->mutable_value, std::move(other->mutable_value));
+  }
+
+  template <class Allocator>
+  static void transfer(Allocator* alloc, slot_type* new_slot,
+                       slot_type* old_slot) {
+    emplace(new_slot);
+#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
+    if (absl::is_trivially_relocatable<value_type>()) {
+      // TODO(b/247130232,b/251814870): remove casts after fixing warnings.
+      std::memcpy(static_cast<void*>(std::launder(&new_slot->value)),
+                  static_cast<const void*>(&old_slot->value),
+                  sizeof(value_type));
+      return;
     }
+#endif
+
+    absl::allocator_traits<Allocator>::construct(
+        *alloc, &new_slot->mutable_value, std::move(old_slot->mutable_value));
     destroy(alloc, old_slot);
   }
 };
