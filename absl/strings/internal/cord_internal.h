@@ -425,12 +425,12 @@ constexpr char GetOrNull(absl::string_view data, size_t pos) {
 
 // We store cordz_info as 64 bit pointer value in little endian format. This
 // guarantees that the least significant byte of cordz_info matches the first
-// byte of the inline data representation in as_chars_, which holds the inlined
-// size or the 'is_tree' bit.
+// byte of the inline data representation in `inline_data`, which holds the
+// inlined size or the 'is_tree' bit.
 using cordz_info_t = int64_t;
 
-// Assert that the `cordz_info` pointer value perfectly overlaps the last half
-// of `as_chars_` and can hold a pointer value.
+// Assert that the `cordz_info` pointer value perfectly overlaps the first half
+// of `inline_data` and can hold a pointer value.
 static_assert(sizeof(cordz_info_t) * 2 == kMaxInline + 1, "");
 static_assert(sizeof(cordz_info_t) >= sizeof(intptr_t), "");
 
@@ -461,138 +461,85 @@ class InlineData {
   // is actively inspected and used by gdb pretty printing code.
   static constexpr size_t kTagOffset = 0;
 
-  constexpr InlineData() : as_chars_{0} {}
-  explicit InlineData(DefaultInitType) {}
-  explicit constexpr InlineData(CordRep* rep) : as_tree_(rep) {}
-  explicit constexpr InlineData(absl::string_view chars)
-      : as_chars_{static_cast<char>((chars.size() << 1)),
-                  GetOrNull(chars, 0),
-                  GetOrNull(chars, 1),
-                  GetOrNull(chars, 2),
-                  GetOrNull(chars, 3),
-                  GetOrNull(chars, 4),
-                  GetOrNull(chars, 5),
-                  GetOrNull(chars, 6),
-                  GetOrNull(chars, 7),
-                  GetOrNull(chars, 8),
-                  GetOrNull(chars, 9),
-                  GetOrNull(chars, 10),
-                  GetOrNull(chars, 11),
-                  GetOrNull(chars, 12),
-                  GetOrNull(chars, 13),
-                  GetOrNull(chars, 14)} {}
+  constexpr InlineData() = default;
+  explicit InlineData(DefaultInitType init) : rep_(init) {}
+  explicit constexpr InlineData(CordRep* tree) : rep_(tree) {}
+  explicit constexpr InlineData(absl::string_view chars) : rep_(chars) {}
 
   // Returns true if the current instance is empty.
   // The 'empty value' is an inlined data value of zero length.
-  bool is_empty() const { return tag() == 0; }
+  bool is_empty() const { return rep_.is_empty(); }
 
   // Returns true if the current instance holds a tree value.
-  bool is_tree() const { return (tag() & 1) != 0; }
+  bool is_tree() const { return rep_.is_tree(); }
 
   // Returns true if the current instance holds a cordz_info value.
   // Requires the current instance to hold a tree value.
-  bool is_profiled() const {
-    assert(is_tree());
-    return as_tree_.cordz_info != kNullCordzInfo;
-  }
+  bool is_profiled() const { return rep_.is_profiled(); }
 
   // Returns true if either of the provided instances hold a cordz_info value.
   // This method is more efficient than the equivalent `data1.is_profiled() ||
   // data2.is_profiled()`. Requires both arguments to hold a tree.
   static bool is_either_profiled(const InlineData& data1,
                                  const InlineData& data2) {
-    assert(data1.is_tree() && data2.is_tree());
-    return (data1.as_tree_.cordz_info | data2.as_tree_.cordz_info) !=
-           kNullCordzInfo;
+    return Rep::is_either_profiled(data1.rep_, data2.rep_);
   }
 
   // Returns the cordz_info sampling instance for this instance, or nullptr
   // if the current instance is not sampled and does not have CordzInfo data.
   // Requires the current instance to hold a tree value.
-  CordzInfo* cordz_info() const {
-    assert(is_tree());
-    intptr_t info = static_cast<intptr_t>(absl::little_endian::ToHost64(
-        static_cast<uint64_t>(as_tree_.cordz_info)));
-    assert(info & 1);
-    return reinterpret_cast<CordzInfo*>(info - 1);
-  }
+  CordzInfo* cordz_info() const { return rep_.cordz_info(); }
 
   // Sets the current cordz_info sampling instance for this instance, or nullptr
   // if the current instance is not sampled and does not have CordzInfo data.
   // Requires the current instance to hold a tree value.
   void set_cordz_info(CordzInfo* cordz_info) {
-    assert(is_tree());
-    uintptr_t info = reinterpret_cast<uintptr_t>(cordz_info) | 1;
-    as_tree_.cordz_info =
-        static_cast<cordz_info_t>(absl::little_endian::FromHost64(info));
+    rep_.set_cordz_info(cordz_info);
   }
 
   // Resets the current cordz_info to null / empty.
-  void clear_cordz_info() {
-    assert(is_tree());
-    as_tree_.cordz_info = kNullCordzInfo;
-  }
+  void clear_cordz_info() { rep_.clear_cordz_info(); }
 
   // Returns a read only pointer to the character data inside this instance.
   // Requires the current instance to hold inline data.
-  const char* as_chars() const {
-    assert(!is_tree());
-    return &as_chars_[1];
-  }
+  const char* as_chars() const { return rep_.as_chars(); }
 
   // Returns a mutable pointer to the character data inside this instance.
   // Should be used for 'write only' operations setting an inlined value.
-  // Applications can set the value of inlined data either before or after
-  // setting the inlined size, i.e., both of the below are valid:
+  // Requires the current instance to hold inline data. Applications MUST set
+  // the inline size BEFORE setting the value of the inline data.
   //
-  //   // Set inlined data and inline size
-  //   memcpy(data_.as_chars(), data, size);
-  //   data_.set_inline_size(size);
-  //
-  //   // Set inlined size and inline data
+  //   // Set inlined size and inline data. (Correct way).
   //   data_.set_inline_size(size);
   //   memcpy(data_.as_chars(), data, size);
   //
-  // It's an error to read from the returned pointer without a preceding write
-  // if the current instance does not hold inline data, i.e.: is_tree() == true.
-  char* as_chars() { return &as_chars_[1]; }
+  //   // The below code will lead to UB / memory sanitizer failures!
+  //   memcpy(data_.as_chars(), data, size);
+  //   data_.set_inline_size(size);
+  //
+  char* as_chars() { return rep_.as_chars(); }
 
   // Returns the tree value of this value.
   // Requires the current instance to hold a tree value.
-  CordRep* as_tree() const {
-    assert(is_tree());
-    return as_tree_.rep;
-  }
+  CordRep* as_tree() const { return rep_.as_tree(); }
 
   // Initialize this instance to holding the tree value `rep`,
   // initializing the cordz_info to null, i.e.: 'not profiled'.
-  void make_tree(CordRep* rep) {
-    as_tree_.rep = rep;
-    as_tree_.cordz_info = kNullCordzInfo;
-  }
+  void make_tree(CordRep* tree) { rep_.make_tree(tree); }
 
   // Set the tree value of this instance to 'rep`.
   // Requires the current instance to already hold a tree value.
   // Does not affect the value of cordz_info.
-  void set_tree(CordRep* rep) {
-    assert(is_tree());
-    as_tree_.rep = rep;
-  }
+  void set_tree(CordRep* rep) { rep_.set_tree(rep); }
 
   // Returns the size of the inlined character data inside this instance.
   // Requires the current instance to hold inline data.
-  size_t inline_size() const {
-    assert(!is_tree());
-    return static_cast<size_t>(tag()) >> 1;
-  }
+  size_t inline_size() const { return rep_.inline_size(); }
 
   // Sets the size of the inlined character data inside this instance.
   // Requires `size` to be <= kMaxInline.
   // See the documentation on 'as_chars()' for more information and examples.
-  void set_inline_size(size_t size) {
-    ABSL_ASSERT(size <= kMaxInline);
-    tag() = static_cast<char>(size << 1);
-  }
+  void set_inline_size(size_t size) { rep_.set_inline_size(size); }
 
   // Compares 'this' inlined data  with rhs. The comparison is a straightforward
   // lexicographic comparison. `Compare()` returns values as follows:
@@ -602,14 +549,14 @@ class InlineData {
   //    1  'this' InlineData instance larger
   int Compare(const InlineData& rhs) const {
     uint64_t x, y;
-    memcpy(&x, as_chars(), sizeof(x));
-    memcpy(&y, rhs.as_chars(), sizeof(y));
+    memcpy(&x, rep_.as_chars(), sizeof(x));
+    memcpy(&y, rhs.rep_.as_chars(), sizeof(y));
     if (x == y) {
-      memcpy(&x, as_chars() + 7, sizeof(x));
-      memcpy(&y, rhs.as_chars() + 7, sizeof(y));
+      memcpy(&x, rep_.as_chars() + 7, sizeof(x));
+      memcpy(&y, rhs.rep_.as_chars() + 7, sizeof(y));
       if (x == y) {
-        if (inline_size() == rhs.inline_size()) return 0;
-        return inline_size() < rhs.inline_size() ? -1 : 1;
+        if (rep_.inline_size() == rhs.rep_.inline_size()) return 0;
+        return rep_.inline_size() < rhs.rep_.inline_size() ? -1 : 1;
       }
     }
     x = absl::big_endian::FromHost64(x);
@@ -618,24 +565,115 @@ class InlineData {
   }
 
  private:
-  // See cordz_info_t for forced alignment and size of `cordz_info` details.
-  struct AsTree {
-    explicit constexpr AsTree(absl::cord_internal::CordRep* tree) : rep(tree) {}
-    cordz_info_t cordz_info = kNullCordzInfo;
-    absl::cord_internal::CordRep* rep;
-  };
+  struct Rep {
+    constexpr Rep() : inline_data{0} {}
+    explicit Rep(DefaultInitType) {}
+    explicit constexpr Rep(CordRep* rep) : tree_data(rep) {}
+    explicit constexpr Rep(absl::string_view chars)
+        : inline_data{static_cast<char>((chars.size() << 1)),
+                      GetOrNull(chars, 0),
+                      GetOrNull(chars, 1),
+                      GetOrNull(chars, 2),
+                      GetOrNull(chars, 3),
+                      GetOrNull(chars, 4),
+                      GetOrNull(chars, 5),
+                      GetOrNull(chars, 6),
+                      GetOrNull(chars, 7),
+                      GetOrNull(chars, 8),
+                      GetOrNull(chars, 9),
+                      GetOrNull(chars, 10),
+                      GetOrNull(chars, 11),
+                      GetOrNull(chars, 12),
+                      GetOrNull(chars, 13),
+                      GetOrNull(chars, 14)} {}
 
-  int8_t& tag() { return reinterpret_cast<int8_t*>(this)[0]; }
-  int8_t tag() const { return reinterpret_cast<const int8_t*>(this)[0]; }
+    int8_t& tag() { return reinterpret_cast<int8_t*>(this)[0]; }
+    int8_t tag() const { return reinterpret_cast<const int8_t*>(this)[0]; }
 
-  // If the data has length <= kMaxInline, we store it in `as_chars_`, and
-  // store the size in the last char of `as_chars_` shifted left + 1.
-  // Else we store it in a tree and store a pointer to that tree in
-  // `as_tree_.rep` and store a tag in `tagged_size`.
-  union {
-    char as_chars_[kMaxInline + 1];
-    AsTree as_tree_;
-  };
+    bool is_empty() const { return tag() == 0; }
+
+    bool is_tree() const { return (tag() & 1) != 0; }
+
+    bool is_profiled() const {
+      assert(is_tree());
+      return tree_data.cordz_info != kNullCordzInfo;
+    }
+
+    static bool is_either_profiled(const Rep& rep1, const Rep& rep2) {
+      assert(rep1.is_tree() && rep2.is_tree());
+      return (rep1.tree_data.cordz_info | rep2.tree_data.cordz_info) !=
+             kNullCordzInfo;
+    }
+
+    CordzInfo* cordz_info() const {
+      assert(is_tree());
+      intptr_t info = static_cast<intptr_t>(absl::little_endian::ToHost64(
+          static_cast<uint64_t>(tree_data.cordz_info)));
+      assert(info & 1);
+      return reinterpret_cast<CordzInfo*>(info - 1);
+    }
+
+    void set_cordz_info(CordzInfo* cordz_info) {
+      assert(is_tree());
+      uintptr_t info = reinterpret_cast<uintptr_t>(cordz_info) | 1;
+      tree_data.cordz_info =
+          static_cast<cordz_info_t>(absl::little_endian::FromHost64(info));
+    }
+
+    void clear_cordz_info() {
+      assert(is_tree());
+      tree_data.cordz_info = kNullCordzInfo;
+    }
+
+    char* as_chars() { return &inline_data[1]; }
+
+    const char* as_chars() const {
+      assert(!is_tree());
+      return &inline_data[1];
+    }
+
+    CordRep* as_tree() const {
+      assert(is_tree());
+      return tree_data.rep;
+    }
+
+    void make_tree(CordRep* rep) {
+      tree_data.rep = rep;
+      tree_data.cordz_info = kNullCordzInfo;
+    }
+
+    void set_tree(CordRep* rep) {
+      assert(is_tree());
+      tree_data.rep = rep;
+    }
+
+    size_t inline_size() const {
+      assert(!is_tree());
+      return static_cast<size_t>(tag()) >> 1;
+    }
+
+    void set_inline_size(size_t size) {
+      ABSL_ASSERT(size <= kMaxInline);
+      tag() = static_cast<char>(size << 1);
+    }
+
+    struct AsTree {
+      explicit constexpr AsTree(absl::cord_internal::CordRep* tree)
+          : rep(tree) {}
+      cordz_info_t cordz_info = kNullCordzInfo;
+      absl::cord_internal::CordRep* rep;
+    };
+
+    // If the data has length <= kMaxInline, we store it in `inline_data`, and
+    // store the size in the first char of `inline_data` shifted left + 1.
+    // Else we store it in a tree and store a pointer to that tree in
+    // `tree_data.rep` and store a tag in `tagged_size` which also overlaps with
+    // cordz_info data, i.e., cordz_info will always be odd, 1 meaning nullptr.
+    union {
+      char inline_data[kMaxInline + 1];
+      AsTree tree_data;
+    };
+  } rep_;
 };
 
 static_assert(sizeof(InlineData) == kMaxInline + 1, "");
