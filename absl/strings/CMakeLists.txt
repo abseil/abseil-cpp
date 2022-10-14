@@ -41,6 +41,7 @@ absl_cc_library(
     "internal/charconv_parse.h"
     "internal/memutil.cc"
     "internal/memutil.h"
+    "internal/stringify_sink.h"
     "internal/stl_type_traits.h"
     "internal/str_join_internal.h"
     "internal/str_split_internal.h"

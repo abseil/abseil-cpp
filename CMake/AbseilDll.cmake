@@ -240,6 +240,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/cordz_update_tracker.h"
   "strings/internal/stl_type_traits.h"
   "strings/internal/string_constant.h"
+  "strings/internal/stringify_sink.h"
   "strings/match.cc"
   "strings/match.h"
   "strings/numbers.cc"
