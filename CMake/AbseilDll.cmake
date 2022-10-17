@@ -238,6 +238,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/cordz_statistics.h"
   "strings/internal/cordz_update_scope.h"
   "strings/internal/cordz_update_tracker.h"
+  "strings/internal/damerau_levenshtein_distance.h"
+  "strings/internal/damerau_levenshtein_distance.cc"
   "strings/internal/stl_type_traits.h"
   "strings/internal/string_constant.h"
   "strings/internal/stringify_sink.h"
