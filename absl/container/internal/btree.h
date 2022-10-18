@@ -2444,7 +2444,7 @@ auto btree<P>::rebalance_after_delete(iterator iter) -> iterator {
 template <typename P>
 auto btree<P>::erase_range(iterator begin, iterator end)
     -> std::pair<size_type, iterator> {
-  size_type count = static_cast<size_type>(std::distance(begin, end));
+  size_type count = static_cast<size_type>(end - begin);
   assert(count >= 0);
 
   if (count == 0) {
