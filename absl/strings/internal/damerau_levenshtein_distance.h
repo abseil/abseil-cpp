@@ -25,8 +25,8 @@ ABSL_NAMESPACE_BEGIN
 namespace strings_internal {
 // Calculate DamerauLevenshtein distance between two strings.
 // When the distance is larger than cutoff, the code just returns cutoff + 1.
-size_t CappedDamerauLevenshteinDistance(absl::string_view s1,
-                                        absl::string_view s2, uint8_t cutoff);
+uint8_t CappedDamerauLevenshteinDistance(absl::string_view s1,
+                                         absl::string_view s2, uint8_t cutoff);
 
 }  // namespace strings_internal
 ABSL_NAMESPACE_END
