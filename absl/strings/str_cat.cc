@@ -30,15 +30,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-namespace strings_internal {
-void StringifySink::Append(size_t count, char ch) { buffer_.append(count, ch); }
-
-void StringifySink::Append(string_view v) {
-  buffer_.append(v.data(), v.size());
-}
-
-}  // namespace strings_internal
-
 AlphaNum::AlphaNum(Hex hex) {
   static_assert(numbers_internal::kFastToBufferSize >= 32,
                 "This function only works when output buffer >= 32 bytes long");
