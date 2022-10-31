@@ -502,9 +502,9 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
   // encoded zoneinfo. The ttisstd/ttisgmt indicators only apply when
   // interpreting a POSIX spec that does not include start/end rules, and
   // that isn't the case here (see "zic -p").
-  bp += (8 + 4) * hdr.leapcnt;  // leap-time + TAI-UTC
-  bp += 1 * hdr.ttisstdcnt;     // UTC/local indicators
-  bp += 1 * hdr.ttisutcnt;      // standard/wall indicators
+  bp += (time_len + 4) * hdr.leapcnt;  // leap-time + TAI-UTC
+  bp += 1 * hdr.ttisstdcnt;            // UTC/local indicators
+  bp += 1 * hdr.ttisutcnt;             // standard/wall indicators
   assert(bp == tbuf.data() + tbuf.size());
 
   future_spec_.clear();
