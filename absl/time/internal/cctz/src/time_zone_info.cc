@@ -533,8 +533,8 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
 
   // Trim redundant transitions. zic may have added these to work around
   // differences between the glibc and reference implementations (see
-  // zic.c:dontmerge) and the Qt library (see zic.c:WORK_AROUND_QTBUG_53071).
-  // For us, they just get in the way when we do future_spec_ extension.
+  // zic.c:dontmerge) or to avoid bugs in old readers. For us, they just
+  // get in the way when we do future_spec_ extension.
   while (hdr.timecnt > 1) {
     if (!EquivTransitions(transitions_[hdr.timecnt - 1].type_index,
                           transitions_[hdr.timecnt - 2].type_index)) {
