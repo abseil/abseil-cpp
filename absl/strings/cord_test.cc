@@ -2856,6 +2856,12 @@ TEST_P(CordTest, ExpectedChecksum) {
       EXPECT_EQ(c1.ExpectedChecksum().value_or(0), 12345);
       EXPECT_EQ(c1, base_value);
 
+      // Test that setting an expected checksum again doesn't crash or leak
+      // memory.
+      c1.SetExpectedChecksum(12345);
+      EXPECT_EQ(c1.ExpectedChecksum().value_or(0), 12345);
+      EXPECT_EQ(c1, base_value);
+
       // CRC persists through copies, assignments, and moves:
       absl::Cord c1_copy_construct = c1;
       EXPECT_EQ(c1_copy_construct.ExpectedChecksum().value_or(0), 12345);
@@ -2963,6 +2969,12 @@ TEST_P(CordTest, ChecksummedEmptyCord) {
   EXPECT_FALSE(c1.ExpectedChecksum().has_value());
 
   // Setting an expected checksum works.
+  c1.SetExpectedChecksum(12345);
+  EXPECT_EQ(c1.ExpectedChecksum().value_or(0), 12345);
+  EXPECT_EQ(c1, "");
+  EXPECT_TRUE(c1.empty());
+
+  // Test that setting an expected checksum again doesn't crash or leak memory.
   c1.SetExpectedChecksum(12345);
   EXPECT_EQ(c1.ExpectedChecksum().value_or(0), 12345);
   EXPECT_EQ(c1, "");

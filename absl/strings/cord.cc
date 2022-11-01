@@ -857,6 +857,7 @@ inline absl::string_view Cord::InlineRep::FindFlatStartPiece() const {
 void Cord::SetExpectedChecksum(uint32_t crc) {
   auto constexpr method = CordzUpdateTracker::kSetExpectedChecksum;
   if (empty()) {
+    contents_.MaybeRemoveEmptyCrcNode();
     CordRep* rep = CordRepCrc::New(nullptr, crc);
     contents_.EmplaceTree(rep, method);
   } else if (!contents_.is_tree()) {
