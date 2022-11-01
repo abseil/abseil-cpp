@@ -73,9 +73,6 @@ cc_library(
         "include/cctz/zone_info_source.h",
     ],
     linkopts = select({
-        ":osx": [
-            "-framework Foundation",
-        ],
         ":ios": [
             "-framework Foundation",
         ],
