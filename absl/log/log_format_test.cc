@@ -32,6 +32,7 @@
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 
 namespace {
@@ -865,6 +866,111 @@ TEST(LogFormatTest, CustomNonCopyable) {
   LOG(INFO) << value;
 }
 
+struct Point {
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const Point& p) {
+    absl::Format(&sink, "(%d, %d)", p.x, p.y);
+  }
+
+  int x = 10;
+  int y = 20;
+};
+
+TEST(LogFormatTest, AbslStringifyExample) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  Point p;
+
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
+          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "(10, 20)" })pb")))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << p;
+}
+
+struct PointWithAbslStringifiyAndOstream {
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink,
+                            const PointWithAbslStringifiyAndOstream& p) {
+    absl::Format(&sink, "(%d, %d)", p.x, p.y);
+  }
+
+  int x = 10;
+  int y = 20;
+};
+
+ABSL_ATTRIBUTE_UNUSED std::ostream& operator<<(
+    std::ostream& os, const PointWithAbslStringifiyAndOstream&) {
+  return os << "Default to AbslStringify()";
+}
+
+TEST(LogFormatTest, CustomWithAbslStringifyAndOstream) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  PointWithAbslStringifiyAndOstream p;
+
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
+          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "(10, 20)" })pb")))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << p;
+}
+
+struct PointStreamsNothing {
+  template <typename Sink>
+  friend void AbslStringify(Sink&, const PointStreamsNothing&) {}
+
+  int x = 10;
+  int y = 20;
+};
+
+TEST(LogFormatTest, AbslStringifyStreamsNothing) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  PointStreamsNothing p;
+
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(Eq("77")), TextMessage(Eq(absl::StrCat(p, 77))),
+                 ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "77" })pb")))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << p << 77;
+}
+
+struct PointMultipleAppend {
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const PointMultipleAppend& p) {
+    sink.Append("(");
+    sink.Append(absl::StrCat(p.x, ", ", p.y, ")"));
+  }
+
+  int x = 10;
+  int y = 20;
+};
+
+TEST(LogFormatTest, AbslStringifyMultipleAppend) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  PointMultipleAppend p;
+
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
+          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "(" }
+                                           value { str: "10, 20)" })pb")))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << p;
+}
+
 TEST(ManipulatorLogFormatTest, BoolAlphaTrue) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
@@ -1499,6 +1605,31 @@ TEST(ManipulatorLogFormatTest, CustomClassStreamsNothing) {
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value << 77;
+}
+
+struct PointPercentV {
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const PointPercentV& p) {
+    absl::Format(&sink, "(%v, %v)", p.x, p.y);
+  }
+
+  int x = 10;
+  int y = 20;
+};
+
+TEST(ManipulatorLogFormatTest, IOManipsDoNotAffectAbslStringify) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  PointPercentV p;
+
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
+          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "(10, 20)" })pb")))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << std::hex << p;
 }
 
 // Tests that verify the behavior when more data are streamed into a `LOG`

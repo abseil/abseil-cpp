@@ -681,6 +681,7 @@ absl_cc_test(
     absl::log_internal_config
     absl::log_internal_test_matchers
     absl::scoped_mock_log
+    absl::str_format
     absl::strings
     GTest::gmock
     GTest::gtest_main

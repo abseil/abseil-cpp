@@ -23,6 +23,7 @@ absl_cc_library(
     "escaping.h"
     "internal/damerau_levenshtein_distance.h"
     "internal/string_constant.h"
+    "internal/has_absl_stringify.h"
     "match.h"
     "numbers.h"
     "str_cat.h"

@@ -95,6 +95,7 @@
 #include <vector>
 
 #include "absl/base/port.h"
+#include "absl/strings/internal/has_absl_stringify.h"
 #include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"

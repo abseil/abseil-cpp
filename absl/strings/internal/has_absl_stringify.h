@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ABSL_STRINGS_INTERNAL_STRINGIFY_SINK_H_
-#define ABSL_STRINGS_INTERNAL_STRINGIFY_SINK_H_
-
+#ifndef ABSL_STRINGS_INTERNAL_HAS_ABSL_STRINGIFY_H_
+#define ABSL_STRINGS_INTERNAL_HAS_ABSL_STRINGIFY_H_
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -25,33 +24,32 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace strings_internal {
-class StringifySink {
+
+// This is an empty class not intended to be used. It exists so that
+// `HasAbslStringify` can reference a universal class rather than needing to be
+// copied for each new sink.
+class UnimplementedSink {
  public:
   void Append(size_t count, char ch);
 
   void Append(string_view v);
 
   // Support `absl::Format(&sink, format, args...)`.
-  friend void AbslFormatFlush(StringifySink* sink, absl::string_view v) {
-    sink->Append(v);
-  }
-
- private:
-  template <typename T>
-  friend string_view ExtractStringification(StringifySink& sink, const T& v);
-
-  std::string buffer_;
+  friend void AbslFormatFlush(UnimplementedSink* sink, absl::string_view v);
 };
 
+template <typename T, typename = void>
+struct HasAbslStringify : std::false_type {};
+
 template <typename T>
-string_view ExtractStringification(StringifySink& sink, const T& v) {
-  AbslStringify(sink, v);
-  return sink.buffer_;
-}
+struct HasAbslStringify<
+    T, std::enable_if_t<std::is_void<decltype(AbslStringify(
+           std::declval<strings_internal::UnimplementedSink&>(),
+           std::declval<const T&>()))>::value>> : std::true_type {};
 
 }  // namespace strings_internal
 
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_STRINGS_INTERNAL_STRINGIFY_SINK_H_
+#endif  // ABSL_STRINGS_INTERNAL_HAS_ABSL_STRINGIFY_H_

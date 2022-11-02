@@ -324,6 +324,7 @@ cc_test(
         "//absl/log/internal:config",
         "//absl/log/internal:test_matchers",
         "//absl/strings",
+        "//absl/strings:str_format",
         "@com_google_googletest//:gtest_main",
     ],
 )
