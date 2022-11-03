@@ -195,7 +195,8 @@ union TypeErasedState {
 template <class T>
 T& ObjectInLocalStorage(TypeErasedState* const state) {
   // We launder here because the storage may be reused with the same type.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
+    (!defined(__clang__) || ABSL_INTERNAL_HAVE_MIN_CLANG_VERSION(6, 0))
   return *std::launder(reinterpret_cast<T*>(&state->storage));
 #elif ABSL_HAVE_BUILTIN(__builtin_launder)
   return *__builtin_launder(reinterpret_cast<T*>(&state->storage));
