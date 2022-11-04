@@ -17,10 +17,12 @@
 
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/log/internal/config.h"
 #include "absl/log/internal/test_helpers.h"
