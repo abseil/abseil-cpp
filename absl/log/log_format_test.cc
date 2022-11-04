@@ -648,13 +648,15 @@ TYPED_TEST(VoidPtrLogFormatTest, NonNull) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(AnyOf(Eq("0xdeadbeef"), Eq("DEADBEEF"),
-                                           Eq("00000000DEADBEEF"))),
-                         ENCODED_MESSAGE(EqualsProto(R"pb(value {
-                                                            str: "0xdeadbeef"
-                                                          })pb")))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(
+              AnyOf(Eq("0xdeadbeef"), Eq("DEADBEEF"), Eq("00000000DEADBEEF"))),
+          ENCODED_MESSAGE(AnyOf(
+              EqualsProto(R"pb(value { str: "0xdeadbeef" })pb"),
+              EqualsProto(R"pb(value { str: "00000000DEADBEEF" })pb"))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -1286,8 +1288,11 @@ TEST(ManipulatorLogFormatTest, FixedAndScientificFloat) {
       Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                  TextMessage(AnyOf(Eq("0x1.25bb50p+26"), Eq("0x1.25bb5p+26"),
                                    Eq("0x1.25bb500000000p+26"))),
-                 ENCODED_MESSAGE(EqualsProto(R"pb(
-                   value { str: "0x1.25bb5p+26" })pb")))));
+                 ENCODED_MESSAGE(
+                     AnyOf(EqualsProto(R"pb(value { str: "0x1.25bb5p+26" })pb"),
+                           EqualsProto(R"pb(value {
+                                              str: "0x1.25bb500000000p+26"
+                                            })pb"))))));
 
   test_sink.StartCapturingLogs();
 
@@ -1316,8 +1321,11 @@ TEST(ManipulatorLogFormatTest, HexfloatFloat) {
       Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                  TextMessage(AnyOf(Eq("0x1.25bb50p+26"), Eq("0x1.25bb5p+26"),
                                    Eq("0x1.25bb500000000p+26"))),
-                 ENCODED_MESSAGE(EqualsProto(R"pb(
-                   value { str: "0x1.25bb5p+26" })pb")))));
+                 ENCODED_MESSAGE(
+                     AnyOf(EqualsProto(R"pb(value { str: "0x1.25bb5p+26" })pb"),
+                           EqualsProto(R"pb(value {
+                                              str: "0x1.25bb500000000p+26"
+                                            })pb"))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hexfloat << value;
