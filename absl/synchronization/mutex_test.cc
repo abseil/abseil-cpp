@@ -295,8 +295,9 @@ static void TestTime(TestContext *cxt, int c, bool use_cv) {
                      "TestTime failed");
     }
     elapsed = absl::Now() - start;
-    ABSL_RAW_CHECK(absl::Seconds(0.9) <= elapsed &&
-                   elapsed <= absl::Seconds(2.0), "TestTime failed");
+    ABSL_RAW_CHECK(
+        absl::Seconds(0.9) <= elapsed && elapsed <= absl::Seconds(2.0),
+        "TestTime failed");
     ABSL_RAW_CHECK(cxt->g0 == cxt->threads, "TestTime failed");
 
   } else if (c == 1) {
@@ -343,7 +344,7 @@ static void TestMuTime(TestContext *cxt, int c) { TestTime(cxt, c, false); }
 static void TestCVTime(TestContext *cxt, int c) { TestTime(cxt, c, true); }
 
 static void EndTest(int *c0, int *c1, absl::Mutex *mu, absl::CondVar *cv,
-                    const std::function<void(int)>& cb) {
+                    const std::function<void(int)> &cb) {
   mu->Lock();
   int c = (*c0)++;
   mu->Unlock();
@@ -366,9 +367,9 @@ static int RunTestCommon(TestContext *cxt, void (*test)(TestContext *cxt, int),
   cxt->threads = threads;
   absl::synchronization_internal::ThreadPool tp(threads);
   for (int i = 0; i != threads; i++) {
-    tp.Schedule(std::bind(&EndTest, &c0, &c1, &mu2, &cv2,
-                          std::function<void(int)>(
-                              std::bind(test, cxt, std::placeholders::_1))));
+    tp.Schedule(std::bind(
+        &EndTest, &c0, &c1, &mu2, &cv2,
+        std::function<void(int)>(std::bind(test, cxt, std::placeholders::_1))));
   }
   mu2.Lock();
   while (c1 != threads) {
@@ -682,14 +683,14 @@ struct LockWhenTestStruct {
   bool waiting = false;
 };
 
-static bool LockWhenTestIsCond(LockWhenTestStruct* s) {
+static bool LockWhenTestIsCond(LockWhenTestStruct *s) {
   s->mu2.Lock();
   s->waiting = true;
   s->mu2.Unlock();
   return s->cond;
 }
 
-static void LockWhenTestWaitForIsCond(LockWhenTestStruct* s) {
+static void LockWhenTestWaitForIsCond(LockWhenTestStruct *s) {
   s->mu1.LockWhen(absl::Condition(&LockWhenTestIsCond, s));
   s->mu1.Unlock();
 }
@@ -1694,8 +1695,7 @@ TEST(Mutex, Timed) {
 TEST(Mutex, CVTime) {
   int threads = 10;  // Use a fixed thread count of 10
   int iterations = 1;
-  EXPECT_EQ(RunTest(&TestCVTime, threads, iterations, 1),
-            threads * iterations);
+  EXPECT_EQ(RunTest(&TestCVTime, threads, iterations, 1), threads * iterations);
 }
 
 TEST(Mutex, MuTime) {
@@ -1729,5 +1729,96 @@ TEST(Mutex, SignalExitedThread) {
   }
   for (auto &th : top) th.join();
 }
+
+#ifdef _MSC_VER
+
+// Declare classes of the various MSVC inheritance types.
+class __single_inheritance SingleInheritance{};
+class __multiple_inheritance MultipleInheritance;
+class __virtual_inheritance VirtualInheritance;
+class UnknownInheritance;
+
+TEST(ConditionTest, MicrosoftMethodPointerSize) {
+  // This test verifies expectations about sizes of MSVC pointers to methods.
+  // Pointers to methods are distinguished by whether their class hierachies
+  // contain single inheritance, multiple inheritance, or virtual inheritence.
+  void (SingleInheritance::*single_inheritance)();
+  void (MultipleInheritance::*multiple_inheritance)();
+  void (VirtualInheritance::*virtual_inheritance)();
+  void (UnknownInheritance::*unknown_inheritance)();
+
+#if defined(_M_IX86) || defined(_M_ARM)
+  static_assert(sizeof(single_inheritance) == 4,
+                "Unexpected sizeof(single_inheritance).");
+  static_assert(sizeof(multiple_inheritance) == 8,
+                "Unexpected sizeof(multiple_inheritance).");
+  static_assert(sizeof(virtual_inheritance) == 12,
+                "Unexpected sizeof(virtual_inheritance).");
+#elif defined(_M_X64) || defined(__aarch64__)
+  static_assert(sizeof(single_inheritance) == 8,
+                "Unexpected sizeof(single_inheritance).");
+  static_assert(sizeof(multiple_inheritance) == 16,
+                "Unexpected sizeof(multiple_inheritance).");
+  static_assert(sizeof(virtual_inheritance) == 16,
+                "Unexpected sizeof(virtual_inheritance).");
+#endif
+  static_assert(sizeof(unknown_inheritance) >= sizeof(virtual_inheritance),
+                "Failed invariant: sizeof(unknown_inheritance) >= "
+                "sizeof(virtual_inheritance)!");
+}
+
+class Callback {
+  bool x = true;
+
+ public:
+  Callback() {}
+  bool method() {
+    x = !x;
+    return x;
+  }
+};
+
+class M2 {
+  bool x = true;
+
+ public:
+  M2() {}
+  bool method2() {
+    x = !x;
+    return x;
+  }
+};
+
+class MultipleInheritance : public Callback, public M2 {};
+
+TEST(ConditionTest, ConditionWithMultipleInheritanceMethod) {
+  // This test ensures that Condition can deal with method pointers from classes
+  // with multiple inheritance.
+  MultipleInheritance object = MultipleInheritance();
+  absl::Condition condition(&object, &MultipleInheritance::method);
+  EXPECT_FALSE(condition.Eval());
+  EXPECT_TRUE(condition.Eval());
+}
+
+class __virtual_inheritance VirtualInheritance : virtual public Callback {
+  bool x = false;
+
+ public:
+  VirtualInheritance() {}
+  bool method() {
+    x = !x;
+    return x;
+  }
+};
+
+TEST(ConditionTest, ConditionWithVirtualInheritanceMethod) {
+  // This test ensures that Condition can deal with method pointers from classes
+  // with virtual inheritance.
+  VirtualInheritance object = VirtualInheritance();
+  absl::Condition condition(&object, &VirtualInheritance::method);
+  EXPECT_TRUE(condition.Eval());
+  EXPECT_FALSE(condition.Eval());
+}
+#endif
 
 }  // namespace

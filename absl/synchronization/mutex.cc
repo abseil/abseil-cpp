@@ -37,6 +37,8 @@
 #include <atomic>
 #include <cinttypes>
 #include <cstddef>
+#include <cstring>
+#include <iterator>
 #include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
@@ -2780,25 +2782,32 @@ static bool Dereference(void *arg) {
   return *(static_cast<bool *>(arg));
 }
 
-Condition::Condition() {}   // null constructor, used for kTrue only
+Condition::Condition() = default;  // null constructor, used for kTrue only
 const Condition Condition::kTrue;
 
 Condition::Condition(bool (*func)(void *), void *arg)
     : eval_(&CallVoidPtrFunction),
-      function_(func),
-      method_(nullptr),
-      arg_(arg) {}
+      arg_(arg) {
+  static_assert(sizeof(&func) <= sizeof(callback_),
+                "An overlarge function pointer passed to Condition.");
+  StoreCallback(func);
+}
 
 bool Condition::CallVoidPtrFunction(const Condition *c) {
-  return (*c->function_)(c->arg_);
+  using FunctionPointer = bool (*)(void *);
+  FunctionPointer function_pointer;
+  std::memcpy(&function_pointer, c->callback_, sizeof(function_pointer));
+  return (*function_pointer)(c->arg_);
 }
 
 Condition::Condition(const bool *cond)
     : eval_(CallVoidPtrFunction),
-      function_(Dereference),
-      method_(nullptr),
       // const_cast is safe since Dereference does not modify arg
-      arg_(const_cast<bool *>(cond)) {}
+      arg_(const_cast<bool *>(cond)) {
+  using FunctionPointer = bool (*)(void *);
+  const FunctionPointer dereference = Dereference;
+  StoreCallback(dereference);
+}
 
 bool Condition::Eval() const {
   // eval_ == null for kTrue
@@ -2806,14 +2815,15 @@ bool Condition::Eval() const {
 }
 
 bool Condition::GuaranteedEqual(const Condition *a, const Condition *b) {
-  if (a == nullptr) {
+  // kTrue logic.
+  if (a == nullptr || a->eval_ == nullptr) {
     return b == nullptr || b->eval_ == nullptr;
+  }else  if (b == nullptr || b->eval_ == nullptr) {
+    return false;
   }
-  if (b == nullptr || b->eval_ == nullptr) {
-    return a->eval_ == nullptr;
-  }
-  return a->eval_ == b->eval_ && a->function_ == b->function_ &&
-         a->arg_ == b->arg_ && a->method_ == b->method_;
+  // Check equality of the representative fields.
+  return a->eval_ == b->eval_ && a->arg_ == b->arg_ &&
+         !memcmp(a->callback_, b->callback_, sizeof(ConservativeMethodPointer));
 }
 
 ABSL_NAMESPACE_END
