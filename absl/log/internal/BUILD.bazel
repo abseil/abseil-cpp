@@ -91,6 +91,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":append_truncated",
         ":config",
         ":globals",
         "//absl/base:config",
@@ -132,6 +133,7 @@ cc_library(
         "//absl/log:__pkg__",
     ],
     deps = [
+        ":append_truncated",
         ":config",
         ":format",
         ":globals",
@@ -154,6 +156,18 @@ cc_library(
         "//absl/strings",
         "//absl/strings:str_format",
         "//absl/time",
+        "//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "append_truncated",
+    hdrs = ["append_truncated.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/strings",
         "//absl/types:span",
     ],
 )

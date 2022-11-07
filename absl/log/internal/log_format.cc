@@ -32,6 +32,7 @@
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/optimization.h"
+#include "absl/log/internal/append_truncated.h"
 #include "absl/log/internal/config.h"
 #include "absl/log/internal/globals.h"
 #include "absl/strings/numbers.h"
@@ -143,15 +144,6 @@ size_t FormatBoundedFields(absl::LogSeverity severity, absl::Time timestamp,
   return bytes_formatted;
 }
 
-// Copies into `dst` as many bytes of `src` as will fit, then advances `dst`
-// past the copied bytes and returns the number of bytes written.
-size_t AppendTruncated(absl::string_view src, absl::Span<char>& dst) {
-  if (src.size() > dst.size()) src = src.substr(0, dst.size());
-  memcpy(dst.data(), src.data(), src.size());
-  dst.remove_prefix(src.size());
-  return src.size();
-}
-
 size_t FormatLineNumber(int line, absl::Span<char>& buf) {
   constexpr size_t kLineFieldMaxLen =
       sizeof(":] ") + (1 + std::numeric_limits<int>::digits10 + 1) - sizeof("");
@@ -199,7 +191,7 @@ size_t FormatLogPrefix(absl::LogSeverity severity, absl::Time timestamp,
                        log_internal::Tid tid, absl::string_view basename,
                        int line, absl::Span<char>& buf) {
   auto prefix_size = FormatBoundedFields(severity, timestamp, tid, buf);
-  prefix_size += AppendTruncated(basename, buf);
+  prefix_size += log_internal::AppendTruncated(basename, buf);
   prefix_size += FormatLineNumber(line, buf);
   return prefix_size;
 }

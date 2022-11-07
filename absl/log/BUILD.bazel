@@ -303,6 +303,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:log_severity",
+        "//absl/log/internal:append_truncated",
         "//absl/log/internal:format",
         "//absl/log/internal:test_helpers",
         "//absl/strings",

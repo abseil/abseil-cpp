@@ -96,6 +96,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::log_internal_append_truncated
     absl::log_internal_config
     absl::log_internal_globals
     absl::log_severity
@@ -143,6 +144,7 @@ absl_cc_library(
     absl::errno_saver
     absl::inlined_vector
     absl::examine_stack
+    absl::log_internal_append_truncated
     absl::log_internal_config
     absl::log_internal_format
     absl::log_internal_globals
@@ -316,6 +318,22 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+)
+
+absl_cc_library(
+  NAME
+    log_internal_append_truncated
+  SRCS
+  HDRS
+    "internal/append_truncated.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::strings
+    absl::span
 )
 
 # Public targets
@@ -636,6 +654,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::log_entry
+    absl::log_internal_append_truncated
     absl::log_internal_format
     absl::log_internal_globals
     absl::log_internal_test_helpers

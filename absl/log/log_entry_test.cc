@@ -30,6 +30,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"
+#include "absl/log/internal/append_truncated.h"
 #include "absl/log/internal/log_format.h"
 #include "absl/log/internal/test_helpers.h"
 #include "absl/strings/numbers.h"
@@ -40,7 +41,6 @@
 #include "absl/types/span.h"
 
 namespace {
-
 using ::absl::log_internal::LogEntryTestPeer;
 using ::testing::Eq;
 using ::testing::IsTrue;
@@ -49,16 +49,6 @@ using ::testing::StrEq;
 
 auto* test_env ABSL_ATTRIBUTE_UNUSED = ::testing::AddGlobalTestEnvironment(
     new absl::log_internal::LogTestEnvironment);
-
-// Copies into `dst` as many bytes of `src` as will fit, then truncates the
-// copied bytes from the front of `dst` and returns the number of bytes written.
-size_t AppendTruncated(absl::string_view src, absl::Span<char>& dst) {
-  if (src.size() > dst.size()) src = src.substr(0, dst.size());
-  memcpy(dst.data(), src.data(), src.size());
-  dst.remove_prefix(src.size());
-  return src.size();
-}
-
 }  // namespace
 
 namespace absl {
@@ -103,7 +93,7 @@ class LogEntryTestPeer {
 
     EXPECT_THAT(entry_.prefix_len_,
                 Eq(static_cast<size_t>(view.data() - buf_.data())));
-    AppendTruncated(text_message, view);
+    log_internal::AppendTruncated(text_message, view);
     view = absl::Span<char>(view.data(), view.size() + 2);
     view[0] = '\n';
     view[1] = '\0';
