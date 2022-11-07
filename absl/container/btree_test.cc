@@ -74,6 +74,16 @@ void CheckPairEquals(const std::pair<T, U> &x, const std::pair<V, W> &y) {
   CheckPairEquals(x.first, y.first);
   CheckPairEquals(x.second, y.second);
 }
+
+bool IsAssertEnabled() {
+  // Use an assert with side-effects to figure out if they are actually enabled.
+  bool assert_enabled = false;
+  assert([&]() {  // NOLINT
+    assert_enabled = true;
+    return true;
+  }());
+  return assert_enabled;
+}
 }  // namespace
 
 // The base class for a sorted associative container checker. TreeType is the
@@ -1651,10 +1661,9 @@ TEST(Btree, BtreeMultisetEmplace) {
   auto iter = s.emplace(value_to_insert);
   ASSERT_NE(iter, s.end());
   EXPECT_EQ(*iter, value_to_insert);
-  auto iter2 = s.emplace(value_to_insert);
-  EXPECT_NE(iter2, iter);
-  ASSERT_NE(iter2, s.end());
-  EXPECT_EQ(*iter2, value_to_insert);
+  iter = s.emplace(value_to_insert);
+  ASSERT_NE(iter, s.end());
+  EXPECT_EQ(*iter, value_to_insert);
   auto result = s.equal_range(value_to_insert);
   EXPECT_EQ(std::distance(result.first, result.second), 2);
 }
@@ -1665,44 +1674,45 @@ TEST(Btree, BtreeMultisetEmplaceHint) {
   auto iter = s.emplace(value_to_insert);
   ASSERT_NE(iter, s.end());
   EXPECT_EQ(*iter, value_to_insert);
-  auto emplace_iter = s.emplace_hint(iter, value_to_insert);
-  EXPECT_NE(emplace_iter, iter);
-  ASSERT_NE(emplace_iter, s.end());
-  EXPECT_EQ(*emplace_iter, value_to_insert);
+  iter = s.emplace_hint(iter, value_to_insert);
+  // The new element should be before the previously inserted one.
+  EXPECT_EQ(iter, s.lower_bound(value_to_insert));
+  ASSERT_NE(iter, s.end());
+  EXPECT_EQ(*iter, value_to_insert);
 }
 
 TEST(Btree, BtreeMultimapEmplace) {
   const int key_to_insert = 123456;
   const char value0[] = "a";
-  absl::btree_multimap<int, std::string> s;
-  auto iter = s.emplace(key_to_insert, value0);
-  ASSERT_NE(iter, s.end());
+  absl::btree_multimap<int, std::string> m;
+  auto iter = m.emplace(key_to_insert, value0);
+  ASSERT_NE(iter, m.end());
   EXPECT_EQ(iter->first, key_to_insert);
   EXPECT_EQ(iter->second, value0);
   const char value1[] = "b";
-  auto iter2 = s.emplace(key_to_insert, value1);
-  EXPECT_NE(iter2, iter);
-  ASSERT_NE(iter2, s.end());
-  EXPECT_EQ(iter2->first, key_to_insert);
-  EXPECT_EQ(iter2->second, value1);
-  auto result = s.equal_range(key_to_insert);
+  iter = m.emplace(key_to_insert, value1);
+  ASSERT_NE(iter, m.end());
+  EXPECT_EQ(iter->first, key_to_insert);
+  EXPECT_EQ(iter->second, value1);
+  auto result = m.equal_range(key_to_insert);
   EXPECT_EQ(std::distance(result.first, result.second), 2);
 }
 
 TEST(Btree, BtreeMultimapEmplaceHint) {
   const int key_to_insert = 123456;
   const char value0[] = "a";
-  absl::btree_multimap<int, std::string> s;
-  auto iter = s.emplace(key_to_insert, value0);
-  ASSERT_NE(iter, s.end());
+  absl::btree_multimap<int, std::string> m;
+  auto iter = m.emplace(key_to_insert, value0);
+  ASSERT_NE(iter, m.end());
   EXPECT_EQ(iter->first, key_to_insert);
   EXPECT_EQ(iter->second, value0);
   const char value1[] = "b";
-  auto emplace_iter = s.emplace_hint(iter, key_to_insert, value1);
-  EXPECT_NE(emplace_iter, iter);
-  ASSERT_NE(emplace_iter, s.end());
-  EXPECT_EQ(emplace_iter->first, key_to_insert);
-  EXPECT_EQ(emplace_iter->second, value1);
+  iter = m.emplace_hint(iter, key_to_insert, value1);
+  // The new element should be before the previously inserted one.
+  EXPECT_EQ(iter, m.lower_bound(key_to_insert));
+  ASSERT_NE(iter, m.end());
+  EXPECT_EQ(iter->first, key_to_insert);
+  EXPECT_EQ(iter->second, value1);
 }
 
 TEST(Btree, ConstIteratorAccessors) {
@@ -3005,8 +3015,9 @@ TEST(Btree, ConstructImplicitlyWithUnadaptedComparator) {
   absl::btree_set<MultiKey, MultiKeyComp> set = {{}, MultiKeyComp{}};
 }
 
-#ifndef NDEBUG
 TEST(Btree, InvalidComparatorsCaught) {
+  if (!IsAssertEnabled()) GTEST_SKIP() << "Assertions not enabled.";
+
   {
     struct ZeroAlwaysLessCmp {
       bool operator()(int lhs, int rhs) const {
@@ -3054,7 +3065,6 @@ TEST(Btree, InvalidComparatorsCaught) {
     EXPECT_DEATH(set.insert({0, 1, 2}), "lhs_comp_rhs < 0 -> rhs_comp_lhs > 0");
   }
 }
-#endif
 
 #ifndef _MSC_VER
 // This test crashes on MSVC.
@@ -3340,13 +3350,13 @@ TEST(Btree, IteratorSubtraction) {
   }
 }
 
-#ifndef NDEBUG
 TEST(Btree, DereferencingEndIterator) {
+  if (!IsAssertEnabled()) GTEST_SKIP() << "Assertions not enabled.";
+
   absl::btree_set<int> set;
   for (int i = 0; i < 1000; ++i) set.insert(i);
   EXPECT_DEATH(*set.end(), R"regex(Dereferencing end\(\) iterator)regex");
 }
-#endif
 
 }  // namespace
 }  // namespace container_internal
