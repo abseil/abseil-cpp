@@ -50,7 +50,6 @@
 #include "absl/log/log_sink.h"
 #include "absl/log/log_sink_registry.h"
 #include "absl/memory/memory.h"
-#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"

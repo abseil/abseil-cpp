@@ -154,7 +154,6 @@ cc_library(
         "//absl/log:log_sink_registry",
         "//absl/memory",
         "//absl/strings",
-        "//absl/strings:str_format",
         "//absl/time",
         "//absl/types:span",
     ],
