@@ -91,6 +91,24 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/tracked.h"
   "container/node_hash_map.h"
   "container/node_hash_set.h"
+  "crc/crc32c.cc"
+  "crc/crc32c.h"
+  "crc/internal/cpu_detect.cc"
+  "crc/internal/cpu_detect.h"
+  "crc/internal/crc32c.h"
+  "crc/internal/crc32c_inline.h"
+  "crc/internal/crc32_x86_arm_combined_simd.h"
+  "crc/internal/crc.cc"
+  "crc/internal/crc.h"
+  "crc/internal/crc_internal.h"
+  "crc/internal/crc_x86_arm_combined.cc"
+  "crc/internal/crc_memcpy_fallback.cc"
+  "crc/internal/crc_memcpy.h"
+  "crc/internal/crc_memcpy_x86_64.cc"
+  "crc/internal/crc_non_temporal_memcpy.cc"
+  "crc/internal/crc_x86_arm_combined.cc"
+  "crc/internal/non_temporal_arm_intrinsics.h"
+  "crc/internal/non_temporal_memcpy.h"
   "debugging/failure_signal_handler.cc"
   "debugging/failure_signal_handler.h"
   "debugging/leak_check.h"
@@ -386,6 +404,9 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "cord"
   "core_headers"
   "counting_allocator"
+  "crc_cpu_detect",
+  "crc_internal",
+  "crc32c",
   "debugging"
   "debugging_internal"
   "demangle_internal"
@@ -418,6 +439,8 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "node_hash_map"
   "node_hash_set"
   "node_slot_policy"
+  "non_temporal_arm_intrinsics",
+  "non_temporal_memcpy",
   "numeric"
   "optional"
   "periodic_sampler"
