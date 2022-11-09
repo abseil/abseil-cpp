@@ -809,10 +809,42 @@ size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
         "the table might have rehashed.");                                    \
   } while (0)
 
-inline void AssertIsValid(ctrl_t* ctrl) {
+// Note that for comparisons, null/end iterators are valid.
+inline void AssertIsValidForComparison(const ctrl_t* ctrl) {
   ABSL_HARDENING_ASSERT((ctrl == nullptr || IsFull(*ctrl)) &&
-                        "Invalid operation on iterator. The element might have "
+                        "Invalid iterator comparison. The element might have "
                         "been erased or the table might have rehashed.");
+}
+
+// If the two iterators come from the same container, then their pointers will
+// interleave such that ctrl_a <= ctrl_b < slot_a <= slot_b or vice/versa.
+// Note: we take slots by reference so that it's not UB if they're uninitialized
+// as long as we don't read them (when ctrl is null).
+inline bool AreItersFromSameContainer(const ctrl_t* ctrl_a,
+                                      const ctrl_t* ctrl_b,
+                                      const void* const& slot_a,
+                                      const void* const& slot_b) {
+  // If either control byte is null, then we can't tell.
+  if (ctrl_a == nullptr || ctrl_b == nullptr) return true;
+  const void* low_slot = slot_a;
+  const void* hi_slot = slot_b;
+  if (ctrl_a > ctrl_b) {
+    std::swap(ctrl_a, ctrl_b);
+    std::swap(low_slot, hi_slot);
+  }
+  return ctrl_b < low_slot && low_slot <= hi_slot;
+}
+
+// Asserts that two iterators come from the same container.
+// Note: we take slots by reference so that it's not UB if they're uninitialized
+// as long as we don't read them (when ctrl is null).
+inline void AssertSameContainer(const ctrl_t* ctrl_a, const ctrl_t* ctrl_b,
+                                const void* const& slot_a,
+                                const void* const& slot_b) {
+  ABSL_HARDENING_ASSERT(
+      AreItersFromSameContainer(ctrl_a, ctrl_b, slot_a, slot_b) &&
+      "Invalid iterator comparison. The iterators may be from different "
+      "containers or the container might have rehashed.");
 }
 
 struct FindInfo {
@@ -1067,8 +1099,9 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
-      AssertIsValid(a.ctrl_);
-      AssertIsValid(b.ctrl_);
+      AssertSameContainer(a.ctrl_, b.ctrl_, a.slot_, b.slot_);
+      AssertIsValidForComparison(a.ctrl_);
+      AssertIsValidForComparison(b.ctrl_);
       return a.ctrl_ == b.ctrl_;
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
