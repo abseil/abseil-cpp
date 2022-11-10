@@ -206,6 +206,8 @@ CpuType GetCpuType() {
   }
 }
 
+bool SupportsArmCRC32PMULL() { return false; }
+
 #elif defined(__aarch64__) && defined(__linux__)
 
 #define ABSL_INTERNAL_AARCH64_ID_REG_READ(id, val) \
@@ -239,6 +241,8 @@ bool SupportsArmCRC32PMULL() {
 #else
 
 CpuType GetCpuType() { return CpuType::kUnknown; }
+
+bool SupportsArmCRC32PMULL() { return false; }
 
 #endif
 

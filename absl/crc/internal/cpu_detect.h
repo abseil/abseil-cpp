@@ -43,14 +43,12 @@ enum class CpuType {
 // the host CPU is of unknown type, or if detection otherwise fails.
 CpuType GetCpuType();
 
-#if defined(__aarch64__)
 // Returns whether the host CPU supports the CPU features needed for our
 // accelerated implementations. The CpuTypes enumerated above apart from
 // kUnknown support the required features. On unknown CPUs, we can use
 // this to see if it's safe to use hardware acceleration, though without any
 // tuning.
 bool SupportsArmCRC32PMULL();
-#endif
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
