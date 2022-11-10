@@ -372,12 +372,16 @@ void LogMessage::Flush() {
   }
 
   // Have we already seen a fatal message?
-  ABSL_CONST_INIT static std::atomic_flag seen_fatal = ATOMIC_FLAG_INIT;
+  ABSL_CONST_INIT static std::atomic<bool> seen_fatal(false);
   if (data_->entry.log_severity() == absl::LogSeverity::kFatal &&
       absl::log_internal::ExitOnDFatal()) {
     // Exactly one LOG(FATAL) message is responsible for aborting the process,
     // even if multiple threads LOG(FATAL) concurrently.
-    data_->first_fatal = !seen_fatal.test_and_set(std::memory_order_relaxed);
+    bool expected_seen_fatal = false;
+    if (seen_fatal.compare_exchange_strong(expected_seen_fatal, true,
+                                           std::memory_order_relaxed)) {
+      data_->first_fatal = true;
+    }
   }
 
   data_->entry.text_message_with_prefix_and_newline_and_nul_ =
