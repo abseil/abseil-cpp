@@ -318,7 +318,8 @@ class AlphaNum {
   // This overload matches only scoped enums.
   template <typename T,
             typename = typename std::enable_if<
-                std::is_enum<T>{} && !std::is_convertible<T, int>{}>::type>
+                std::is_enum<T>{} && !std::is_convertible<T, int>{} &&
+                !strings_internal::HasAbslStringify<T>::value>::type>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(static_cast<typename std::underlying_type<T>::type>(e)) {}
 

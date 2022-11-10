@@ -1135,6 +1135,18 @@ TEST_F(FormatExtensionTest, AbslStringifyExampleUsingFormat) {
   EXPECT_EQ(absl::StrFormat("a %v z", p), "a (10, 20) z");
 }
 
+enum class EnumWithStringify { Many = 0, Choices = 1 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, EnumWithStringify e) {
+  absl::Format(&sink, "%s", e == EnumWithStringify::Many ? "Many" : "Choices");
+}
+
+TEST_F(FormatExtensionTest, AbslStringifyWithEnum) {
+  const auto e = EnumWithStringify::Choices;
+  EXPECT_EQ(absl::StrFormat("My choice is %v", e), "My choice is Choices");
+}
+
 }  // namespace
 
 // Some codegen thunks that we can use to easily dump the generated assembly for
