@@ -3358,6 +3358,31 @@ TEST(Btree, DereferencingEndIterator) {
   EXPECT_DEATH(*set.end(), R"regex(Dereferencing end\(\) iterator)regex");
 }
 
+TEST(Btree, InvalidIteratorComparison) {
+  if (!IsAssertEnabled()) GTEST_SKIP() << "Assertions not enabled.";
+
+  absl::btree_set<int> set1, set2;
+  for (int i = 0; i < 1000; ++i) {
+    set1.insert(i);
+    set2.insert(i);
+  }
+
+  constexpr const char *kValueInitDeathMessage =
+      "Comparing default-constructed iterator with .*non-default-constructed "
+      "iterator";
+  typename absl::btree_set<int>::iterator iter1, iter2;
+  EXPECT_EQ(iter1, iter2);
+  EXPECT_DEATH(void(set1.begin() == iter1), kValueInitDeathMessage);
+  EXPECT_DEATH(void(iter1 == set1.begin()), kValueInitDeathMessage);
+
+  constexpr const char *kDifferentContainerDeathMessage =
+      "Comparing iterators from different containers";
+  iter1 = set1.begin();
+  iter2 = set2.begin();
+  EXPECT_DEATH(void(iter1 == iter2), kDifferentContainerDeathMessage);
+  EXPECT_DEATH(void(iter2 == iter1), kDifferentContainerDeathMessage);
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
