@@ -1364,7 +1364,7 @@ class raw_hash_set {
         typename AllocTraits::propagate_on_container_move_assignment());
   }
 
-  ~raw_hash_set() { destroy_slots(); }
+  ~raw_hash_set() { destroy_slots(/*reset=*/false); }
 
   iterator begin() {
     auto it = iterator_at(0);
@@ -1394,7 +1394,7 @@ class raw_hash_set {
     // largest bucket_count() threshold for which iteration is still fast and
     // past that we simply deallocate the array.
     if (capacity_ > 127) {
-      destroy_slots();
+      destroy_slots(/*reset=*/true);
 
       infoz().RecordClearedReservation();
     } else if (capacity_) {
@@ -1707,7 +1707,7 @@ class raw_hash_set {
   void rehash(size_t n) {
     if (n == 0 && capacity_ == 0) return;
     if (n == 0 && size_ == 0) {
-      destroy_slots();
+      destroy_slots(/*reset=*/true);
       infoz().RecordStorageChanged(0, 0);
       infoz().RecordClearedReservation();
       return;
@@ -1985,11 +1985,11 @@ class raw_hash_set {
     infoz().RecordStorageChanged(size_, capacity_);
   }
 
-  // Destroys all slots in the backing array, frees the backing array, and
-  // clears all top-level book-keeping data.
+  // Destroys all slots in the backing array, frees the backing array,
+  // If reset is true, also clears all top-level book-keeping data.
   //
   // This essentially implements `map = raw_hash_set();`.
-  void destroy_slots() {
+  void destroy_slots(bool reset) {
     if (!capacity_) return;
     for (size_t i = 0; i != capacity_; ++i) {
       if (IsFull(ctrl_[i])) {
@@ -2002,11 +2002,13 @@ class raw_hash_set {
     Deallocate<alignof(slot_type)>(
         &alloc_ref(), ctrl_,
         AllocSize(capacity_, sizeof(slot_type), alignof(slot_type)));
-    ctrl_ = EmptyGroup();
-    slots_ = nullptr;
-    size_ = 0;
-    capacity_ = 0;
-    growth_left() = 0;
+    if (reset) {
+      ctrl_ = EmptyGroup();
+      slots_ = nullptr;
+      size_ = 0;
+      capacity_ = 0;
+      growth_left() = 0;
+    }
   }
 
   void resize(size_t new_capacity) {
