@@ -151,7 +151,21 @@ TEST(ThrowDelegate, ThrowStdUnderflowErrorString) {
 }
 
 TEST(ThrowDelegate, ThrowStdBadFunctionCallNoWhat) {
-  ExpectThrowNoWhat<std::bad_function_call>(ThrowStdBadFunctionCall);
+#ifdef ABSL_HAVE_EXCEPTIONS
+  try {
+    ThrowStdBadFunctionCall();
+    FAIL() << "Didn't throw";
+  } catch (const std::bad_function_call&) {
+  }
+#ifdef _LIBCPP_VERSION
+  catch (const std::exception&) {
+    // https://reviews.llvm.org/D92397 causes issues with the vtable for
+    // std::bad_function_call when using libc++ as a shared library.
+  }
+#endif
+#else
+  EXPECT_DEATH_IF_SUPPORTED(ThrowStdBadFunctionCall(), "");
+#endif
 }
 
 TEST(ThrowDelegate, ThrowStdBadAllocNoWhat) {
