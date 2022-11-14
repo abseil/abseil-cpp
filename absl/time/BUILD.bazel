@@ -87,6 +87,8 @@ cc_test(
         "time_zone_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
+    data = ["//absl/time/internal/cctz:zoneinfo"],
+    env = {"TZDIR": "absl/time/internal/cctz/testdata/zoneinfo"},
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":test_util",
@@ -133,6 +135,8 @@ cc_test(
         "time_benchmark.cc",
     ],
     copts = ABSL_TEST_COPTS,
+    data = ["//absl/time/internal/cctz:zoneinfo"],
+    env = {"TZDIR": "absl/time/internal/cctz/testdata/zoneinfo"},
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "benchmark",
