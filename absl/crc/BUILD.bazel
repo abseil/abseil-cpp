@@ -134,6 +134,8 @@ cc_test(
     name = "crc_memcpy_test",
     size = "large",
     srcs = ["internal/crc_memcpy_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     shard_count = 3,
     visibility = ["//visibility:private"],
     deps = [
@@ -149,6 +151,8 @@ cc_test(
 cc_test(
     name = "non_temporal_memcpy_test",
     srcs = ["internal/non_temporal_memcpy_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":non_temporal_memcpy",

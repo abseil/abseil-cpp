@@ -40,7 +40,7 @@ class NonTemporalMemcpyTest : public testing::TestWithParam<TestParam> {
     a_.resize(buf_size);
     b_.resize(buf_size);
     for (size_t i = 0; i < buf_size; i++) {
-      a_[i] = i % 256;
+      a_[i] = static_cast<uint8_t>(i % 256);
       b_[i] = ~a_[i];
     }
   }
