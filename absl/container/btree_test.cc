@@ -2123,6 +2123,79 @@ TEST(Btree, ExtractMultiMapEquivalentKeys) {
   }
 }
 
+TEST(Btree, ExtractAndGetNextSet) {
+  absl::btree_set<int> src = {1, 2, 3, 4, 5};
+  auto it = src.find(3);
+  auto extracted_and_next = src.extract_and_get_next(it);
+  EXPECT_THAT(src, ElementsAre(1, 2, 4, 5));
+  EXPECT_EQ(extracted_and_next.node.value(), 3);
+  EXPECT_EQ(*extracted_and_next.next, 4);
+}
+
+TEST(Btree, ExtractAndGetNextMultiSet) {
+  absl::btree_multiset<int> src = {1, 2, 3, 4, 5};
+  auto it = src.find(3);
+  auto extracted_and_next = src.extract_and_get_next(it);
+  EXPECT_THAT(src, ElementsAre(1, 2, 4, 5));
+  EXPECT_EQ(extracted_and_next.node.value(), 3);
+  EXPECT_EQ(*extracted_and_next.next, 4);
+}
+
+TEST(Btree, ExtractAndGetNextMap) {
+  absl::btree_map<int, int> src = {{1, 2}, {3, 4}, {5, 6}};
+  auto it = src.find(3);
+  auto extracted_and_next = src.extract_and_get_next(it);
+  EXPECT_THAT(src, ElementsAre(Pair(1, 2), Pair(5, 6)));
+  EXPECT_EQ(extracted_and_next.node.key(), 3);
+  EXPECT_EQ(extracted_and_next.node.mapped(), 4);
+  EXPECT_THAT(*extracted_and_next.next, Pair(5, 6));
+}
+
+TEST(Btree, ExtractAndGetNextMultiMap) {
+  absl::btree_multimap<int, int> src = {{1, 2}, {3, 4}, {5, 6}};
+  auto it = src.find(3);
+  auto extracted_and_next = src.extract_and_get_next(it);
+  EXPECT_THAT(src, ElementsAre(Pair(1, 2), Pair(5, 6)));
+  EXPECT_EQ(extracted_and_next.node.key(), 3);
+  EXPECT_EQ(extracted_and_next.node.mapped(), 4);
+  EXPECT_THAT(*extracted_and_next.next, Pair(5, 6));
+}
+
+TEST(Btree, ExtractAndGetNextEndIter) {
+  absl::btree_set<int> src = {1, 2, 3, 4, 5};
+  auto it = src.find(5);
+  auto extracted_and_next = src.extract_and_get_next(it);
+  EXPECT_THAT(src, ElementsAre(1, 2, 3, 4));
+  EXPECT_EQ(extracted_and_next.node.value(), 5);
+  EXPECT_EQ(extracted_and_next.next, src.end());
+}
+
+TEST(Btree, ExtractDoesntCauseExtraMoves) {
+#ifdef _MSC_VER
+  GTEST_SKIP() << "This test fails on MSVC.";
+#endif
+
+  using Set = absl::btree_set<MovableOnlyInstance>;
+  std::array<std::function<void(Set &)>, 3> extracters = {
+      [](Set &s) { auto node = s.extract(s.begin()); },
+      [](Set &s) { auto ret = s.extract_and_get_next(s.begin()); },
+      [](Set &s) { auto node = s.extract(MovableOnlyInstance(0)); }};
+
+  InstanceTracker tracker;
+  for (int i = 0; i < 3; ++i) {
+    Set s;
+    s.insert(MovableOnlyInstance(0));
+    tracker.ResetCopiesMovesSwaps();
+
+    extracters[i](s);
+    // We expect to see exactly 1 move: from the original slot into the
+    // extracted node.
+    EXPECT_EQ(tracker.copies(), 0) << i;
+    EXPECT_EQ(tracker.moves(), 1) << i;
+    EXPECT_EQ(tracker.swaps(), 0) << i;
+  }
+}
+
 // For multisets, insert with hint also affects correctness because we need to
 // insert immediately before the hint if possible.
 struct InsertMultiHintData {
