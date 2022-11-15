@@ -136,8 +136,9 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::synchronization
+    absl::any_invocable
     absl::core_headers
+    absl::synchronization
   TESTONLY
 )
 
