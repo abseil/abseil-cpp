@@ -19,6 +19,7 @@
 #include <iterator>
 #include <random>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "gmock/gmock.h"
