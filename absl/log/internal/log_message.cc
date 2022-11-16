@@ -148,7 +148,10 @@ class LogEntryStreambuf final : public std::streambuf {
       absl::Span<char> remaining = buf_;
       prefix_len_ = log_internal::FormatLogPrefix(
           entry_.log_severity(), entry_.timestamp(), entry_.tid(),
-          entry_.source_basename(), entry_.source_line(), remaining);
+          entry_.source_basename(), entry_.source_line(),
+          log_internal::ThreadIsLoggingToLogSink() ? PrefixFormat::kRaw
+                                                   : PrefixFormat::kNotRaw,
+          remaining);
       pbump(static_cast<int>(prefix_len_));
     }
   }

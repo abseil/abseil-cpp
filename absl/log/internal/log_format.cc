@@ -169,13 +169,13 @@ std::string FormatLogMessage(absl::LogSeverity severity,
                              absl::CivilSecond civil_second,
                              absl::Duration subsecond, log_internal::Tid tid,
                              absl::string_view basename, int line,
-                             absl::string_view message) {
+                             PrefixFormat format, absl::string_view message) {
   return absl::StrFormat(
-      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d] %s",
+      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d] %s%s",
       absl::LogSeverityName(severity)[0], civil_second.month(),
       civil_second.day(), civil_second.hour(), civil_second.minute(),
       civil_second.second(), absl::ToInt64Microseconds(subsecond), tid,
-      basename, line, message);
+      basename, line, format == PrefixFormat::kRaw ? "RAW: " : "", message);
 }
 
 // This method is fairly hot, and the library always passes a huge `buf`, so we
@@ -189,10 +189,12 @@ std::string FormatLogMessage(absl::LogSeverity severity,
 // 3. line number and bracket
 size_t FormatLogPrefix(absl::LogSeverity severity, absl::Time timestamp,
                        log_internal::Tid tid, absl::string_view basename,
-                       int line, absl::Span<char>& buf) {
+                       int line, PrefixFormat format, absl::Span<char>& buf) {
   auto prefix_size = FormatBoundedFields(severity, timestamp, tid, buf);
   prefix_size += log_internal::AppendTruncated(basename, buf);
   prefix_size += FormatLineNumber(line, buf);
+  if (format == PrefixFormat::kRaw)
+    prefix_size += log_internal::AppendTruncated("RAW: ", buf);
   return prefix_size;
 }
 
