@@ -26,7 +26,6 @@
 #endif
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
@@ -612,8 +611,9 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
       test_sink,
       Send(AllOf(
           TextMessage(MatchesOstream(comparison_stream)),
-          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"), Eq("-nan(ind)"))),
-          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "-nan" })pb")))));
+          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"),
+          Eq("-nan(ind)"))), ENCODED_MESSAGE(EqualsProto(R"pb(value { str:
+          "-nan" })pb")))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -1642,19 +1642,20 @@ TEST(ManipulatorLogFormatTest, IOManipsDoNotAffectAbslStringify) {
 
 // Tests that verify the behavior when more data are streamed into a `LOG`
 // statement than fit in the buffer.
-// Structured logging scenario is tested in other unit tests since the output is
-// significantly different.
+// Structured logging scenario is tested in other unit tests since the output
+// is significantly different.
 TEST(OverflowTest, TruncatesStrings) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
-  // This message is too long and should be truncated to some unspecified size
-  // no greater than the buffer size but not too much less either. It should be
-  // truncated rather than discarded.
+  // This message is too long and should be truncated to some unspecified
+  // size no greater than the buffer size but not too much less either. It
+  // should be truncated rather than discarded.
   constexpr size_t buffer_size = 15000;
 
   EXPECT_CALL(test_sink,
               Send(TextMessage(
-                  AllOf(SizeIs(AllOf(Ge(buffer_size - 256), Le(buffer_size))),
+                  AllOf(SizeIs(AllOf(Ge(buffer_size - 256),
+                                     Le(buffer_size))),
                         Each(Eq('x'))))));
 
   test_sink.StartCapturingLogs();

@@ -134,7 +134,6 @@ cc_library(
     ],
     deps = [
         ":append_truncated",
-        ":config",
         ":format",
         ":globals",
         ":log_sink_set",
@@ -241,7 +240,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":config",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:log_severity",
@@ -276,7 +274,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":config",
         ":test_helpers",
         "//absl/base:config",
         "//absl/base:core_headers",

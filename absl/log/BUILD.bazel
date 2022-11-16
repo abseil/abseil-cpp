@@ -322,7 +322,6 @@ cc_test(
     deps = [
         ":log",
         ":scoped_mock_log",
-        "//absl/log/internal:config",
         "//absl/log/internal:test_matchers",
         "//absl/strings",
         "//absl/strings:str_format",

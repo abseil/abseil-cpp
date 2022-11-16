@@ -42,7 +42,6 @@
 #include "absl/debugging/internal/examine_stack.h"
 #include "absl/log/globals.h"
 #include "absl/log/internal/append_truncated.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/globals.h"
 #include "absl/log/internal/log_format.h"
 #include "absl/log/internal/log_sink_set.h"
@@ -87,8 +86,8 @@ void WriteToStream(const char* data, void* os) {
 
 // A write-only `std::streambuf` that writes into an `absl::Span<char>`.
 //
-// This class is responsible for writing a metadata prefix just before the first
-// data are streamed in.  The metadata are subject to change (cf.
+// This class is responsible for writing a metadata prefix just before the
+// first data are streamed in.  The metadata are subject to change (cf.
 // `LogMessage::AtLocation`) until then, so we wait as long as possible.
 //
 // This class is also responsible for reserving space for a trailing newline
@@ -96,7 +95,8 @@ void WriteToStream(const char* data, void* os) {
 // streamed in.
 class LogEntryStreambuf final : public std::streambuf {
  public:
-  explicit LogEntryStreambuf(absl::Span<char> buf, const absl::LogEntry& entry)
+  explicit LogEntryStreambuf(absl::Span<char> buf,
+                             const absl::LogEntry& entry)
       : buf_(buf), entry_(entry), prefix_len_(0), finalized_(false) {
     // To detect when data are first written, we leave the put area null,
     // override `overflow`, and check ourselves in `xsputn`.
@@ -107,7 +107,8 @@ class LogEntryStreambuf final : public std::streambuf {
 
   absl::Span<const char> Finalize() {
     assert(!finalized_);
-    // If no data were ever streamed in, this is where we must write the prefix.
+    // If no data were ever streamed in, this is where we must write the
+    // prefix.
     if (pbase() == nullptr) Initialize();
     // Here we reclaim the two bytes we reserved.
     ptrdiff_t idx = pptr() - pbase();
@@ -140,8 +141,8 @@ class LogEntryStreambuf final : public std::streambuf {
 
  private:
   void Initialize() {
-    // Here we reserve two bytes in our buffer to guarantee `Finalize` space to
-    // add a trailing "\n\0".
+    // Here we reserve two bytes in our buffer to guarantee `Finalize` space
+    // to add a trailing "\n\0".
     assert(buf_.size() >= 2);
     setp(buf_.data(), buf_.data() + buf_.size() - 2);
     if (entry_.prefix()) {
@@ -157,7 +158,8 @@ class LogEntryStreambuf final : public std::streambuf {
   }
 
   size_t Append(absl::string_view data) {
-    absl::Span<char> remaining(pptr(), static_cast<size_t>(epptr() - pptr()));
+    absl::Span<char> remaining(pptr(),
+                               static_cast<size_t>(epptr() - pptr()));
     const size_t written = log_internal::AppendTruncated(data, remaining);
     pbump(static_cast<int>(written));
     return written;
@@ -202,7 +204,7 @@ LogMessage::LogMessageData::LogMessageData(const char* file, int line,
                                            absl::LogSeverity severity,
                                            absl::Time timestamp)
     : extra_sinks_only(false),
-      streambuf_(absl::MakeSpan(string_buf), entry) {
+  streambuf_(absl::MakeSpan(string_buf), entry) {
   entry.full_filename_ = file;
   entry.base_filename_ = Basename(file);
   entry.line_ = line;
@@ -216,8 +218,7 @@ LogMessage::LogMessageData::LogMessageData(const char* file, int line,
 LogMessage::LogMessage(const char* file, int line, absl::LogSeverity severity)
     : data_(
           absl::make_unique<LogMessageData>(file, line, severity, absl::Now()))
-      ,
-      stream_(&data_->streambuf_)
+, stream_(&data_->streambuf_)
 {
   data_->first_fatal = false;
   data_->is_perror = false;
@@ -225,8 +226,8 @@ LogMessage::LogMessage(const char* file, int line, absl::LogSeverity severity)
 
   // Legacy defaults for LOG's ostream:
   stream_.setf(std::ios_base::showbase | std::ios_base::boolalpha);
-  // `fill('0')` is omitted here because its effects are very different without
-  // structured logging.  Resolution is tracked in b/111310488.
+  // `fill('0')` is omitted here because its effects are very different
+  // without structured logging.  Resolution is tracked in b/111310488.
 
   // This logs a backtrace even if the location is subsequently changed using
   // AtLocation.  This quirk, and the behavior when AtLocation is called twice,

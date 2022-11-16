@@ -37,7 +37,6 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/nullguard.h"
 #include "absl/log/log_entry.h"
 #include "absl/log/log_sink.h"
@@ -234,9 +233,10 @@ class StringifySink final {
 };
 
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
-template <typename T,
-          typename std::enable_if<strings_internal::HasAbslStringify<T>::value,
-                                  int>::type>
+template <
+    typename T,
+    typename std::enable_if<strings_internal::HasAbslStringify<T>::value,
+                            int>::type>
 LogMessage& LogMessage::operator<<(const T& v) {
   StringifySink sink(*this);
   // Replace with public API.
@@ -245,9 +245,10 @@ LogMessage& LogMessage::operator<<(const T& v) {
 }
 
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
-template <typename T,
-          typename std::enable_if<!strings_internal::HasAbslStringify<T>::value,
-                                  int>::type>
+template <
+    typename T,
+    typename std::enable_if<!strings_internal::HasAbslStringify<T>::value,
+                            int>::type>
 LogMessage& LogMessage::operator<<(const T& v) {
   stream_ << log_internal::NullGuard<T>().Guard(v);
   return *this;
@@ -299,7 +300,8 @@ extern template LogMessage& LogMessage::operator<<(const float& v);
 extern template LogMessage& LogMessage::operator<<(const double& v);
 extern template LogMessage& LogMessage::operator<<(const bool& v);
 extern template LogMessage& LogMessage::operator<<(const std::string& v);
-extern template LogMessage& LogMessage::operator<<(const absl::string_view& v);
+extern template LogMessage& LogMessage::operator<<(
+    const absl::string_view& v);
 
 // `LogMessageFatal` ensures the process will exit in failure after logging this
 // message.

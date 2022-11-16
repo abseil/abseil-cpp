@@ -145,7 +145,6 @@ absl_cc_library(
     absl::inlined_vector
     absl::examine_stack
     absl::log_internal_append_truncated
-    absl::log_internal_config
     absl::log_internal_format
     absl::log_internal_globals
     absl::log_internal_log_sink_set
@@ -253,7 +252,6 @@ absl_cc_library(
   DEPS
     absl::config
     absl::log_entry
-    absl::log_internal_config
     absl::log_severity
     absl::strings
     absl::time
@@ -295,7 +293,6 @@ absl_cc_library(
   DEPS
     absl::config
     absl::log_entry
-    absl::log_internal_config
     absl::log_internal_test_helpers
     absl::log_severity
     absl::strings
@@ -696,7 +693,6 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::log
-    absl::log_internal_config
     absl::log_internal_test_matchers
     absl::scoped_mock_log
     absl::str_format

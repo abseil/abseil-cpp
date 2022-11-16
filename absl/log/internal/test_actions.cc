@@ -21,7 +21,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/log/internal/config.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -49,7 +48,8 @@ void WriteEntryToStderr::operator()(const absl::LogEntry& entry) const {
             << "  log_severity: " << entry.log_severity() << "\n"       //
             << "  timestamp: " << entry.timestamp() << "\n"             //
             << "  text_message: \"" << text_message << "\"\n"           //
-            << "  verbosity: " << entry.verbosity() << "\n"             //
+            << "  verbosity: " << entry.verbosity()
+            << "\n"  //
             << "}\n";
 }
 
