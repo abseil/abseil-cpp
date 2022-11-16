@@ -63,6 +63,7 @@ TEST(WrapUniqueTest, WrapUnique) {
   }
   EXPECT_EQ(0, DestructorVerifier::instance_count());
 }
+
 TEST(MakeUniqueTest, Basic) {
   std::unique_ptr<std::string> p = absl::make_unique<std::string>();
   EXPECT_EQ("", *p);
@@ -164,7 +165,7 @@ struct ArrayWatch {
   }
 };
 
-TEST(Make_UniqueTest, Array) {
+TEST(MakeUniqueTest, Array) {
   // Ensure state is clean before we start so that these tests
   // are order-agnostic.
   ArrayWatch::allocs().clear();
@@ -175,7 +176,7 @@ TEST(Make_UniqueTest, Array) {
   EXPECT_THAT(ArrayWatch::allocs(), ElementsAre(5 * sizeof(ArrayWatch)));
 }
 
-TEST(Make_UniqueTest, NotAmbiguousWithStdMakeUnique) {
+TEST(MakeUniqueTest, NotAmbiguousWithStdMakeUnique) {
   // Ensure that absl::make_unique is not ambiguous with std::make_unique.
   // In C++14 mode, the below call to make_unique has both types as candidates.
   struct TakesStdType {
