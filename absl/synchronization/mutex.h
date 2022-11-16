@@ -751,21 +751,19 @@ class Condition {
   // multiple inheritance are bigger than those of classes with single
   // inheritance. Other variations also exist.
 
-  // A good way to allocate enough space for *any* pointer in these ABIs is to
-  // employ a class declaration with no definition. Because the inheritance
-  // structure is not available for this declaration, the compiler must
-  // assume, conservatively, that its method pointers have the largest possible
-  // size.
-  class OpaqueClass;
-  using ConservativeMethodPointer = bool (OpaqueClass::*)();
-  static_assert(sizeof(bool(OpaqueClass::*)()) >= sizeof(bool (*)(void *)),
-                "Unsupported platform.");
-
+#ifndef _MSC_VER
   // Allocation for a function pointer or method pointer.
   // The {0} initializer ensures that all unused bytes of this buffer are
   // always zeroed out.  This is necessary, because GuaranteedEqual() compares
   // all of the bytes, unaware of which bytes are relevant to a given `eval_`.
-  char callback_[sizeof(ConservativeMethodPointer)] = {0};
+  using MethodPtr = bool (Condition::*)();
+  char callback_[sizeof(MethodPtr)] = {0};
+#else
+  // It is well known that the larget MSVC pointer-to-member is 24 bytes. This
+  // may be the largest known pointer-to-member of any platform. For this
+  // reason we will allocate 24 bytes for MSVC platform toolchains.
+  char callback_[24] = {0};
+#endif
 
   // Function with which to evaluate callbacks and/or arguments.
   bool (*eval_)(const Condition*);

@@ -224,6 +224,18 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "mutex_method_pointer_test",
+    srcs = ["mutex_method_pointer_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":synchronization",
+        "//absl/base:config",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "mutex_benchmark_common",
     testonly = 1,

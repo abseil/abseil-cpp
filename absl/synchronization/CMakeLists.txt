@@ -163,6 +163,20 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    mutex_method_pointer_test
+  SRCS
+    "mutex_method_pointer_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::config
+    absl::synchronization
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
     notification_test
   SRCS
     "notification_test.cc"

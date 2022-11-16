@@ -2823,7 +2823,7 @@ bool Condition::GuaranteedEqual(const Condition *a, const Condition *b) {
   }
   // Check equality of the representative fields.
   return a->eval_ == b->eval_ && a->arg_ == b->arg_ &&
-         !memcmp(a->callback_, b->callback_, sizeof(ConservativeMethodPointer));
+         !memcmp(a->callback_, b->callback_, sizeof(a->callback_));
 }
 
 ABSL_NAMESPACE_END
