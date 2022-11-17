@@ -40,16 +40,19 @@ void WriteEntryToStderr::operator()(const absl::LogEntry& entry) const {
   const std::string source_filename = absl::CHexEscape(entry.source_filename());
   const std::string source_basename = absl::CHexEscape(entry.source_basename());
   const std::string text_message = absl::CHexEscape(entry.text_message());
-  std::cerr << "LogEntry{\n"                                            //
-            << "  source_filename: \"" << source_filename << "\"\n"     //
-            << "  source_basename: \"" << source_basename << "\"\n"     //
-            << "  source_line: " << entry.source_line() << "\n"         //
-            << "  prefix: " << (entry.prefix() ? "true\n" : "false\n")  //
-            << "  log_severity: " << entry.log_severity() << "\n"       //
-            << "  timestamp: " << entry.timestamp() << "\n"             //
-            << "  text_message: \"" << text_message << "\"\n"           //
-            << "  verbosity: " << entry.verbosity()
-            << "\n"  //
+  const std::string encoded_message = absl::CHexEscape(entry.encoded_message());
+  std::string encoded_message_str;
+  std::cerr << "LogEntry{\n"                                               //
+            << "  source_filename: \"" << source_filename << "\"\n"        //
+            << "  source_basename: \"" << source_basename << "\"\n"        //
+            << "  source_line: " << entry.source_line() << "\n"            //
+            << "  prefix: " << (entry.prefix() ? "true\n" : "false\n")     //
+            << "  log_severity: " << entry.log_severity() << "\n"          //
+            << "  timestamp: " << entry.timestamp() << "\n"                //
+            << "  text_message: \"" << text_message << "\"\n"              //
+            << "  verbosity: " << entry.verbosity() << "\n"                //
+            << "  encoded_message (raw): \"" << encoded_message << "\"\n"  //
+            << encoded_message_str                                         //
             << "}\n";
 }
 

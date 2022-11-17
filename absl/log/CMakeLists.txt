@@ -128,6 +128,25 @@ absl_cc_library(
 
 absl_cc_library(
   NAME
+    log_internal_proto
+  SRCS
+    "internal/proto.cc"
+  HDRS
+    "internal/proto.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::base
+    absl::config
+    absl::core_headers
+    absl::strings
+    absl::span
+)
+
+absl_cc_library(
+  NAME
     log_internal_message
   SRCS
     "internal/log_message.cc"
@@ -147,6 +166,7 @@ absl_cc_library(
     absl::log_internal_append_truncated
     absl::log_internal_format
     absl::log_internal_globals
+    absl::log_internal_proto
     absl::log_internal_log_sink_set
     absl::log_internal_nullguard
     absl::log_globals
@@ -251,6 +271,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::log_entry
     absl::log_severity
     absl::strings
@@ -292,6 +313,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::log_entry
     absl::log_internal_test_helpers
     absl::log_severity
@@ -551,6 +573,37 @@ absl_cc_library(
     GTest::gtest
   PUBLIC
   TESTONLY
+)
+
+absl_cc_library(
+  NAME
+    log_internal_structured
+  HDRS
+    "internal/structured.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::log_internal_message
+    absl::strings
+)
+
+absl_cc_library(
+  NAME
+    log_structured
+  HDRS
+    "structured.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::log_internal_structured
+    absl::strings
+  PUBLIC
 )
 
 # Test targets
@@ -849,6 +902,26 @@ absl_cc_test(
     absl::strerror
     absl::strings
     absl::str_format
+    GTest::gmock
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
+    log_structured_test
+  SRCS
+    "structured_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::core_headers
+    absl::log
+    absl::log_internal_test_helpers
+    absl::log_internal_test_matchers
+    absl::log_structured
+    absl::scoped_mock_log
     GTest::gmock
     GTest::gtest_main
 )

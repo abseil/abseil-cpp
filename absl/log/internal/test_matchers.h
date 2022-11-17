@@ -79,7 +79,6 @@ namespace log_internal {
     const std::ostringstream& stream);
 ::testing::Matcher<const std::string&> DeathTestValidateExpectations();
 
-// This feature coming soon =).
 #define ENCODED_MESSAGE(message_matcher) ::testing::_
 
 }  // namespace log_internal

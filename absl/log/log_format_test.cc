@@ -16,7 +16,9 @@
 #include <math.h>
 
 #include <iomanip>
+#include <ios>
 #include <limits>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -41,15 +43,16 @@ using ::absl::log_internal::TextPrefix;
 
 using ::testing::AllOf;
 using ::testing::AnyOf;
+using ::testing::Each;
+using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Ge;
 using ::testing::IsEmpty;
+using ::testing::Le;
+using ::testing::ResultOf;
+using ::testing::SizeIs;
 using ::testing::Truly;
 using ::testing::Types;
-
-using ::testing::Each;
-using ::testing::Ge;
-using ::testing::Le;
-using ::testing::SizeIs;
 
 // Some aspects of formatting streamed data (e.g. pointer handling) are
 // implementation-defined.  Others are buggy in supported implementations.
@@ -611,10 +614,11 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
       test_sink,
       Send(AllOf(
           TextMessage(MatchesOstream(comparison_stream)),
-          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"),
-          Eq("-nan(ind)"))), ENCODED_MESSAGE(EqualsProto(R"pb(value { str:
-          "-nan" })pb")))));
-
+          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"), Eq("-nan(ind)"))),
+          ENCODED_MESSAGE(
+              AnyOf(EqualsProto(R"pb(value { str: "-nan" })pb"),
+                    EqualsProto(R"pb(value { str: "nan" })pb"),
+                    EqualsProto(R"pb(value { str: "-nan(ind)" })pb"))))));
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
 }
@@ -1372,9 +1376,12 @@ TEST(ManipulatorLogFormatTest, Endl) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::endl;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("\n")))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("\n")),
+          ENCODED_MESSAGE(EqualsProto(R"pb(value { str: "\n" })pb")))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::endl;
@@ -1640,26 +1647,32 @@ TEST(ManipulatorLogFormatTest, IOManipsDoNotAffectAbslStringify) {
   LOG(INFO) << std::hex << p;
 }
 
-// Tests that verify the behavior when more data are streamed into a `LOG`
-// statement than fit in the buffer.
-// Structured logging scenario is tested in other unit tests since the output
-// is significantly different.
-TEST(OverflowTest, TruncatesStrings) {
+TEST(StructuredLoggingOverflowTest, TruncatesStrings) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
-  // This message is too long and should be truncated to some unspecified
-  // size no greater than the buffer size but not too much less either. It
-  // should be truncated rather than discarded.
-  constexpr size_t buffer_size = 15000;
-
-  EXPECT_CALL(test_sink,
-              Send(TextMessage(
-                  AllOf(SizeIs(AllOf(Ge(buffer_size - 256),
-                                     Le(buffer_size))),
-                        Each(Eq('x'))))));
+  // This message is too long and should be truncated to some unspecified size
+  // no greater than the buffer size but not too much less either.  It should be
+  // truncated rather than discarded.
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(AllOf(
+              SizeIs(AllOf(Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                           Le(absl::log_internal::kLogMessageBufferSize))),
+              Each(Eq('x')))),
+          ENCODED_MESSAGE(ResultOf(
+              [](const logging::proto::Event& e) { return e.value(); },
+              ElementsAre(ResultOf(
+                  [](const logging::proto::Value& v) {
+                    return std::string(v.str());
+                  },
+                  AllOf(SizeIs(AllOf(
+                            Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                            Le(absl::log_internal::kLogMessageBufferSize))),
+                        Each(Eq('x'))))))))));
 
   test_sink.StartCapturingLogs();
-  LOG(INFO) << std::string(2 * buffer_size, 'x');
+  LOG(INFO) << std::string(2 * absl::log_internal::kLogMessageBufferSize, 'x');
 }
 
 }  // namespace
