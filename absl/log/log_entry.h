@@ -49,7 +49,7 @@ class LogMessage;
 // Represents a single entry in a log, i.e., one `LOG` statement or failed
 // `CHECK`.
 //
-// `LogEntry` is copyable and thread-compatible.
+// `LogEntry` is thread-compatible.
 class LogEntry final {
  public:
   using tid_t = log_internal::Tid;
