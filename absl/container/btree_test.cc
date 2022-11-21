@@ -3167,6 +3167,14 @@ TEST(Btree, InvalidIteratorUse) {
     set.erase(1);
     EXPECT_DEATH(*it, "invalidated iterator");
   }
+  {
+    absl::btree_set<int> set;
+    for (int i = 0; i < 10; ++i) set.insert(i);
+    auto it = set.insert(20).first;
+    set.insert(30);
+    EXPECT_DEATH(void(it == set.begin()), "invalidated iterator");
+    EXPECT_DEATH(void(set.begin() == it), "invalidated iterator");
+  }
 }
 #endif
 
