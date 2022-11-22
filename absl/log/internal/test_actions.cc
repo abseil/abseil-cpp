@@ -18,6 +18,7 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"

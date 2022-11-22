@@ -106,7 +106,8 @@ bool EncodeBytesTruncate(uint64_t tag, absl::Span<const char> value,
   const uint64_t tag_type = MakeTagType(tag, WireType::kLengthDelimited);
   const uint64_t tag_type_size = VarintSize(tag_type);
   uint64_t length = value.size();
-  const uint64_t length_size = VarintSize(length);
+  const uint64_t length_size =
+      VarintSize(std::min<uint64_t>(length, buf->size()));
   if (tag_type_size + length_size <= buf->size() &&
       tag_type_size + length_size + value.size() > buf->size()) {
     value.remove_suffix(tag_type_size + length_size + value.size() -

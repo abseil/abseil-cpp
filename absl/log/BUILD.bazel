@@ -332,6 +332,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":check",
         ":log",
         ":scoped_mock_log",
         "//absl/log/internal:test_matchers",

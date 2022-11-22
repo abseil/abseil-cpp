@@ -216,6 +216,13 @@ class LogMessage {
     absl::Span<char> string_start_;
   };
 
+  enum class StringType {
+    kLiteral,
+    kNotLiteral,
+  };
+  void CopyToEncodedBuffer(absl::string_view str,
+                           StringType str_type) ABSL_ATTRIBUTE_NOINLINE;
+
   // Returns `true` if the message is fatal or enabled debug-fatal.
   bool IsFatal() const;
 
@@ -227,9 +234,6 @@ class LogMessage {
 
   // Checks `FLAGS_log_backtrace_at` and appends a backtrace if appropriate.
   void LogBacktraceIfNeeded();
-
-  LogMessage& LogString(bool literal,
-                        absl::string_view str) ABSL_ATTRIBUTE_NOINLINE;
 
   // This should be the first data member so that its initializer captures errno
   // before any other initializers alter it (e.g. with calls to new) and so that
@@ -282,15 +286,15 @@ LogMessage& LogMessage::operator<<(const T& v) {
 
 template <int SIZE>
 LogMessage& LogMessage::operator<<(const char (&buf)[SIZE]) {
-  const bool literal = true;
-  return LogString(literal, buf);
+  CopyToEncodedBuffer(buf, StringType::kLiteral);
+  return *this;
 }
 
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
 template <int SIZE>
 LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
-  const bool literal = false;
-  return LogString(literal, buf);
+  CopyToEncodedBuffer(buf, StringType::kNotLiteral);
+  return *this;
 }
 // We instantiate these specializations in the library's TU to save space in
 // other TUs.  Since the template is marked `ABSL_ATTRIBUTE_NOINLINE` we will be

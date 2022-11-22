@@ -38,6 +38,10 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
+// In some configurations, Googletest's string matchers (e.g.
+// `::testing::EndsWith`) need help to match `absl::string_view`.
+::testing::Matcher<absl::string_view> AsString(
+    const ::testing::Matcher<const std::string&>& str_matcher);
 
 // These matchers correspond to the components of `absl::LogEntry`.
 ::testing::Matcher<const absl::LogEntry&> SourceFilename(
@@ -79,6 +83,8 @@ namespace log_internal {
     const std::ostringstream& stream);
 ::testing::Matcher<const std::string&> DeathTestValidateExpectations();
 
+::testing::Matcher<const absl::LogEntry&> RawEncodedMessage(
+    const ::testing::Matcher<absl::string_view>& raw_encoded_message);
 #define ENCODED_MESSAGE(message_matcher) ::testing::_
 
 }  // namespace log_internal

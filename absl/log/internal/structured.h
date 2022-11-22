@@ -41,12 +41,13 @@ class ABSL_MUST_USE_RESULT AsLiteralImpl final {
   friend std::ostream& operator<<(std::ostream& os, AsLiteralImpl as_literal) {
     return os << as_literal.str_;
   }
-  log_internal::LogMessage& AddToMessage(log_internal::LogMessage& m) {
-    return m.LogString(/* literal = */ true, str_);
+  void AddToMessage(log_internal::LogMessage& m) {
+    m.CopyToEncodedBuffer(str_, log_internal::LogMessage::StringType::kLiteral);
   }
   friend log_internal::LogMessage& operator<<(log_internal::LogMessage& m,
                                               AsLiteralImpl as_literal) {
-    return as_literal.AddToMessage(m);
+    as_literal.AddToMessage(m);
+    return m;
   }
 };
 

@@ -745,6 +745,7 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::check
     absl::log
     absl::log_internal_test_matchers
     absl::scoped_mock_log
