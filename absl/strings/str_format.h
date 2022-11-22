@@ -193,7 +193,7 @@ class FormatCountCapture {
 // A format string generally follows the POSIX syntax as used within the POSIX
 // `printf` specification. (Exceptions are noted below.)
 //
-// (See http://pubs.opengroup.org/onlinepubs/9699919799/functions/fprintf.html.)
+// (See http://pubs.opengroup.org/onlinepubs/9699919799/functions/fprintf.html)
 //
 // In specific, the `FormatSpec` supports the following type specifiers:
 //   * `c` for characters
