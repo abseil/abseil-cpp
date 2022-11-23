@@ -24,29 +24,28 @@
 #include <sys/auxv.h>
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <intrin.h>
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
 
-#if defined(__x86_64__)
-
-// Inline cpuid instruction. %rbx is occasionally used to address stack
-// variables in presence of dynamic allocas. Preserve the %rbx register via
-// %rdi to work around a clang bug https://bugs.llvm.org/show_bug.cgi?id=17907
-// (%rbx in an output constraint is not considered a clobbered register).
-//
-// a_inp and c_inp are the input parameters eax and ecx of the CPUID
-// instruction.
-// a, b, c, and d contain the contents of eax, ebx, ecx, and edx as returned by
-// the CPUID instruction
-#define ABSL_INTERNAL_GETCPUID(a, b, c, d, a_inp, c_inp) \
-  asm("mov %%rbx, %%rdi\n"                               \
-      "cpuid\n"                                          \
-      "xchg %%rdi, %%rbx\n"                              \
-      : "=a"(a), "=D"(b), "=c"(c), "=d"(d)               \
-      : "a"(a_inp), "2"(c_inp))
+#if defined(__x86_64__) || defined(_M_X64)
 
 namespace {
+
+#if !defined(_WIN32) && !defined(_WIN64)
+// MSVC defines this function for us.
+// https://learn.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex
+static void __cpuid(int cpu_info[4], int info_type) {
+  __asm__ volatile("cpuid \n\t"
+                   : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]),
+                     "=d"(cpu_info[3])
+                   : "a"(info_type), "c"(0));
+}
+#endif  // !defined(_WIN32) && !defined(_WIN64)
 
 enum class Vendor {
   kUnknown,
@@ -55,14 +54,14 @@ enum class Vendor {
 };
 
 Vendor GetVendor() {
-  uint32_t eax, ebx, ecx, edx;
+  // Get the vendor string (issue CPUID with eax = 0).
+  int cpu_info[4];
+  __cpuid(cpu_info, 0);
 
-  // Get vendor string (issue CPUID with eax = 0)
-  ABSL_INTERNAL_GETCPUID(eax, ebx, ecx, edx, 0, 0);
   std::string vendor;
-  vendor.append(reinterpret_cast<char*>(&ebx), 4);
-  vendor.append(reinterpret_cast<char*>(&edx), 4);
-  vendor.append(reinterpret_cast<char*>(&ecx), 4);
+  vendor.append(reinterpret_cast<char*>(&cpu_info[1]), 4);
+  vendor.append(reinterpret_cast<char*>(&cpu_info[3]), 4);
+  vendor.append(reinterpret_cast<char*>(&cpu_info[2]), 4);
   if (vendor == "GenuineIntel") {
     return Vendor::kIntel;
   } else if (vendor == "AuthenticAmd") {
@@ -73,13 +72,14 @@ Vendor GetVendor() {
 }
 
 CpuType GetIntelCpuType() {
-  uint32_t eax, ebx, ecx, edx;
-  // to get general information and extended features we send eax = 1 and
+  // To get general information and extended features we send eax = 1 and
   // ecx = 0 to cpuid.  The response is returned in eax, ebx, ecx and edx.
   // (See Intel 64 and IA-32 Architectures Software Developer's Manual
   // Volume 2A: Instruction Set Reference, A-M CPUID).
   // https://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-vol-2a-manual.html
-  ABSL_INTERNAL_GETCPUID(eax, ebx, ecx, edx, 1, 0);
+  // https://learn.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex
+  int cpu_info[4];
+  __cpuid(cpu_info, 1);
 
   // Response in eax bits as follows:
   // 0-3 (stepping id)
@@ -89,12 +89,12 @@ CpuType GetIntelCpuType() {
   // 16-19 (extended model)
   // 20-27 (extended family)
 
-  int family = (eax >> 8) & 0x0f;
-  int model_num = (eax >> 4) & 0x0f;
-  int ext_family = (eax >> 20) & 0xff;
-  int ext_model_num = (eax >> 16) & 0x0f;
+  int family = (cpu_info[0] >> 8) & 0x0f;
+  int model_num = (cpu_info[0] >> 4) & 0x0f;
+  int ext_family = (cpu_info[0] >> 20) & 0xff;
+  int ext_model_num = (cpu_info[0] >> 16) & 0x0f;
 
-  int brand_id = ebx & 0xff;
+  int brand_id = cpu_info[1] & 0xff;
 
   // Process the extended family and model info if necessary
   if (family == 0x0f) {
@@ -123,7 +123,7 @@ CpuType GetIntelCpuType() {
             case 0x56:  // BroadwellDE
               return CpuType::kIntelBroadwell;
             case 0x55:                 // Skylake Xeon
-              if ((eax & 0x0f) < 5) {  // stepping < 5 is skylake
+              if ((cpu_info[0] & 0x0f) < 5) {  // stepping < 5 is skylake
                 return CpuType::kIntelSkylakeXeon;
               } else {  // stepping >= 5 is cascadelake
                 return CpuType::kIntelCascadelakeXeon;
@@ -142,12 +142,13 @@ CpuType GetIntelCpuType() {
 }
 
 CpuType GetAmdCpuType() {
-  uint32_t eax, ebx, ecx, edx;
-  // to get general information and extended features we send eax = 1 and
+  // To get general information and extended features we send eax = 1 and
   // ecx = 0 to cpuid.  The response is returned in eax, ebx, ecx and edx.
   // (See Intel 64 and IA-32 Architectures Software Developer's Manual
   // Volume 2A: Instruction Set Reference, A-M CPUID).
-  ABSL_INTERNAL_GETCPUID(eax, ebx, ecx, edx, 1, 0);
+  // https://learn.microsoft.com/en-us/cpp/intrinsics/cpuid-cpuidex
+  int cpu_info[4];
+  __cpuid(cpu_info, 1);
 
   // Response in eax bits as follows:
   // 0-3 (stepping id)
@@ -157,10 +158,10 @@ CpuType GetAmdCpuType() {
   // 16-19 (extended model)
   // 20-27 (extended family)
 
-  int family = (eax >> 8) & 0x0f;
-  int model_num = (eax >> 4) & 0x0f;
-  int ext_family = (eax >> 20) & 0xff;
-  int ext_model_num = (eax >> 16) & 0x0f;
+  int family = (cpu_info[0] >> 8) & 0x0f;
+  int model_num = (cpu_info[0] >> 4) & 0x0f;
+  int ext_family = (cpu_info[0] >> 20) & 0xff;
+  int ext_model_num = (cpu_info[0] >> 16) & 0x0f;
 
   if (family == 0x0f) {
     family += ext_family;

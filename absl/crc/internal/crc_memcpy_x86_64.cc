@@ -38,24 +38,27 @@
 // using 3 CRCs over fixed-size blocks where the zero-extensions required for
 // CRC32C::Concat can be precomputed.
 
+#ifdef __SSE4_2__
+#include <immintrin.h>
+#endif
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 #include <cstddef>
 #include <cstdint>
-
-#include "absl/crc/crc32c.h"
-#include "absl/strings/string_view.h"
-
-#ifdef __SSE4_2__
-
-#include <emmintrin.h>
-#include <x86intrin.h>
-
 #include <type_traits>
 
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/prefetch.h"
 #include "absl/base/optimization.h"
+#include "absl/crc/crc32c.h"
 #include "absl/crc/internal/cpu_detect.h"
 #include "absl/crc/internal/crc_memcpy.h"
+#include "absl/strings/string_view.h"
+
+#if defined(__SSE4_2__) || (defined(_MSC_VER) && defined(__AVX__))
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -88,7 +91,9 @@ inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
   uint64_t int_data[kIntLoadsPerVec * int_regions];
 
   while (copy_rounds > 0) {
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
     for (int i = 0; i < vec_regions; i++) {
       int region = i;
 
@@ -109,7 +114,9 @@ inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
                                             _mm_extract_epi64(data[i], 1)));
     }
 
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
     for (int i = 0; i < int_regions; i++) {
       int region = vec_regions + i;
 
@@ -117,7 +124,9 @@ inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
           reinterpret_cast<const uint64_t*>(*src + region_size * region);
       auto* udst = reinterpret_cast<uint64_t*>(*dst + region_size * region);
 
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
       for (int j = 0; j < kIntLoadsPerVec; j++) {
         int data_index = i * kIntLoadsPerVec + j;
 
@@ -238,7 +247,9 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
   // Main loop.
   while (copy_rounds > kBlocksPerCacheLine) {
     // Prefetch kPrefetchAhead bytes ahead of each pointer.
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
     for (int i = 0; i < kRegions; i++) {
       absl::base_internal::PrefetchT0(src_bytes + kPrefetchAhead +
                                       region_size * i);
@@ -247,10 +258,14 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
     }
 
     // Load and store data, computing CRC on the way.
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
     for (int i = 0; i < kBlocksPerCacheLine; i++) {
       // Copy and CRC the data for the CRC regions.
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
       for (int j = 0; j < vec_regions; j++) {
         // Cycle which regions get vector load/store and integer load/store, to
         // engage prefetching logic around vector load/stores and save issue
@@ -276,7 +291,9 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
       }
 
       // Preload the partial CRCs for the CLMUL subregions.
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
       for (int j = 0; j < int_regions; j++) {
         // Cycle which regions get vector load/store and integer load/store, to
         // engage prefetching logic around vector load/stores and save issue
@@ -288,7 +305,9 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
         auto* udst =
             reinterpret_cast<uint64_t*>(dst_bytes + region_size * region);
 
+#ifdef __GNUC__
 #pragma unroll_completely
+#endif
         for (int k = 0; k < kIntLoadsPerVec; k++) {
           int data_index = j * kIntLoadsPerVec + k;
 
@@ -432,4 +451,4 @@ std::unique_ptr<CrcMemcpyEngine> CrcMemcpy::GetTestEngine(int vector,
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // __SSE4_2__
+#endif  // defined(__SSE4_2__) || (defined(_MSC_VER) && defined(__AVX__))

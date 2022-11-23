@@ -15,6 +15,30 @@
 #ifndef ABSL_CRC_INTERNAL_NON_TEMPORAL_MEMCPY_H_
 #define ABSL_CRC_INTERNAL_NON_TEMPORAL_MEMCPY_H_
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
+#ifdef __SSE__
+#include <xmmintrin.h>
+#endif
+
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
+
+#ifdef __SSE3__
+#include <pmmintrin.h>
+#endif
+
+#ifdef __AVX__
+#include <immintrin.h>
+#endif
+
+#ifdef __aarch64__
+#include "absl/crc/internal/non_temporal_arm_intrinsics.h"
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -23,38 +47,24 @@
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
 
-#ifdef __SSE__
-// Only include if we're running on a CPU that supports SSE ISA, needed for
-// sfence
-#include <immintrin.h>  // IWYU pragma: keep
-#endif
-#ifdef __SSE2__
-// Only include if we're running on a CPU that supports SSE2 ISA, needed for
-// movdqa, movdqu, movntdq
-#include <emmintrin.h>  // IWYU pragma: keep
-#endif
-#ifdef __aarch64__
-// Only include if we're running on a CPU that supports ARM NEON ISA, needed for
-// sfence, movdqa, movdqu, movntdq
-#include "absl/crc/internal/non_temporal_arm_intrinsics.h"
-#endif
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
+
 // This non-temporal memcpy does regular load and non-temporal store memory
 // copy. It is compatible to both 16-byte aligned and unaligned addresses. If
 // data at the destination is not immediately accessed, using non-temporal
 // memcpy can save 1 DRAM load of the destination cacheline.
-
-constexpr int kCacheLineSize = ABSL_CACHELINE_SIZE;
+constexpr size_t kCacheLineSize = ABSL_CACHELINE_SIZE;
 
 // If the objects overlap, the behavior is undefined.
-// MSVC does not have proper header support for some of these intrinsics,
-// so it should go to fallback
 inline void *non_temporal_store_memcpy(void *__restrict dst,
                                        const void *__restrict src, size_t len) {
-#if (defined(__SSE3__) || defined(__aarch64__)) && !defined(_MSC_VER)
+#if defined(__SSE3__) || defined(__aarch64__) ||        \
+    (defined(_MSC_VER) && defined(__AVX__))
+  // This implementation requires SSE3.
+  // MSVC cannot target SSE3 directly, but when MSVC targets AVX,
+  // SSE3 support is implied.
   uint8_t *d = reinterpret_cast<uint8_t *>(dst);
   const uint8_t *s = reinterpret_cast<const uint8_t *>(src);
 
@@ -104,17 +114,15 @@ inline void *non_temporal_store_memcpy(void *__restrict dst,
   }
   return dst;
 #else
-  // Fallback to regular memcpy when SSE2/3 & aarch64 is not available.
+  // Fallback to regular memcpy.
   return memcpy(dst, src, len);
-#endif  // __SSE3__ || __aarch64__
+#endif  // __SSE3__ || __aarch64__ || (_MSC_VER && __AVX__)
 }
 
-// MSVC does not have proper header support for some of these intrinsics,
-// so it should go to fallback
 inline void *non_temporal_store_memcpy_avx(void *__restrict dst,
                                            const void *__restrict src,
                                            size_t len) {
-#if defined(__AVX__) && !defined(_MSC_VER)
+#ifdef __AVX__
   uint8_t *d = reinterpret_cast<uint8_t *>(dst);
   const uint8_t *s = reinterpret_cast<const uint8_t *>(src);
 

@@ -25,10 +25,16 @@
 // We define a translation layer for both x86 and ARM for the ease of use and
 // most performance gains.
 
-// We need CRC (part of sse4.2) and PCLMULQDQ instructions.
+// We need CRC (part of SSE 4.2) and PCLMULQDQ instructions.
 #if defined(__SSE4_2__) && defined(__PCLMUL__)
 
 #include <x86intrin.h>
+#define ABSL_CRC_INTERNAL_HAVE_X86_SIMD
+
+#elif defined(_MSC_VER) && defined(__AVX__)
+
+// MSVC AVX (/arch:AVX) implies SSE 4.2 and PCLMULQDQ.
+#include <intrin.h>
 #define ABSL_CRC_INTERNAL_HAVE_X86_SIMD
 
 #elif defined(__aarch64__) && defined(__LITTLE_ENDIAN__) && \

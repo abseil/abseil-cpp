@@ -35,6 +35,9 @@
 #define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
 #elif defined(__SSE4_2__) && defined(__PCLMUL__)
 #define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
+#elif defined(_MSC_VER) && defined(__AVX__)
+// MSVC AVX support (/arch:AVX) implies SSE 4.2 and PCLMUL support.
+#define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
 #endif
 
 namespace absl {
