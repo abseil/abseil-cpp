@@ -64,7 +64,7 @@ Vendor GetVendor() {
   vendor.append(reinterpret_cast<char*>(&cpu_info[2]), 4);
   if (vendor == "GenuineIntel") {
     return Vendor::kIntel;
-  } else if (vendor == "AuthenticAmd") {
+  } else if (vendor == "AuthenticAMD") {
     return Vendor::kAmd;
   } else {
     return Vendor::kUnknown;
