@@ -404,9 +404,9 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "cord"
   "core_headers"
   "counting_allocator"
-  "crc_cpu_detect",
-  "crc_internal",
-  "crc32c",
+  "crc_cpu_detect"
+  "crc_internal"
+  "crc32c"
   "debugging"
   "debugging_internal"
   "demangle_internal"
@@ -439,8 +439,8 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "node_hash_map"
   "node_hash_set"
   "node_slot_policy"
-  "non_temporal_arm_intrinsics",
-  "non_temporal_memcpy",
+  "non_temporal_arm_intrinsics"
+  "non_temporal_memcpy"
   "numeric"
   "optional"
   "periodic_sampler"
