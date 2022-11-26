@@ -51,7 +51,7 @@ constexpr crc32c_t ToCrc32c(uint32_t n) {
 // operator^
 //
 // Performs a bitwise XOR on two CRC32C values
-inline crc32c_t operator^(crc32c_t lhs, crc32c_t rhs) {
+constexpr crc32c_t operator^(crc32c_t lhs, crc32c_t rhs) {
   const auto lhs_int = static_cast<uint32_t>(lhs);
   const auto rhs_int = static_cast<uint32_t>(rhs);
   return ToCrc32c(lhs_int ^ rhs_int);
