@@ -164,7 +164,7 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
     void* __restrict dst, const void* __restrict src, std::size_t length,
     crc32c_t initial_crc) const {
   constexpr std::size_t kRegions = vec_regions + int_regions;
-  constexpr crc32c_t kCrcDataXor = crc32c_t{0xffffffff};
+  constexpr crc32c_t kCrcDataXor = ToCrc32c(0xffffffffU);
   constexpr std::size_t kBlockSize = sizeof(__m128i);
   constexpr std::size_t kCopyRoundSize = kRegions * kBlockSize;
 
