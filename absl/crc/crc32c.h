@@ -26,7 +26,6 @@
 #define ABSL_CRC_CRC32C_H_
 
 #include <cstdint>
-#include <iostream>
 #include <ostream>
 
 #include "absl/crc/internal/crc32c_inline.h"
