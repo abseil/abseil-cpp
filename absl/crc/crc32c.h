@@ -46,7 +46,7 @@ enum class crc32c_t : uint32_t {};
 //
 // Converts a uint32_t value to crc32c_t. This API is necessary in C++14
 // and earlier. Code targeting C++17-or-later can instead use `crc32c_t{n}`.
-inline crc32c_t ToCrc32c(uint32_t n) {
+constexpr crc32c_t ToCrc32c(uint32_t n) {
   return static_cast<crc32c_t>(n);
 }
 // operator^
