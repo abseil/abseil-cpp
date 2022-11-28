@@ -33,6 +33,13 @@ inline size_t AppendTruncated(absl::string_view src, absl::Span<char> &dst) {
   dst.remove_prefix(src.size());
   return src.size();
 }
+// Likewise, but `n` copies of `c`.
+inline size_t AppendTruncated(char c, size_t n, absl::Span<char> &dst) {
+  if (n > dst.size()) n = dst.size();
+  memset(dst.data(), c, n);
+  dst.remove_prefix(n);
+  return n;
+}
 }  // namespace log_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

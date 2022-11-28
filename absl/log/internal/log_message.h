@@ -47,8 +47,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
-class AsLiteralImpl;
-
 constexpr int kLogMessageBufferSize = 15000;
 
 class LogMessage {
@@ -195,6 +193,7 @@ class LogMessage {
  private:
   struct LogMessageData;  // Opaque type containing message state
   friend class AsLiteralImpl;
+  friend class StringifySink;
 
   // This streambuf writes directly into the structured logging buffer so that
   // arbitrary types can be encoded as string data (using
@@ -221,6 +220,8 @@ class LogMessage {
     kNotLiteral,
   };
   void CopyToEncodedBuffer(absl::string_view str,
+                           StringType str_type) ABSL_ATTRIBUTE_NOINLINE;
+  void CopyToEncodedBuffer(char ch, size_t num,
                            StringType str_type) ABSL_ATTRIBUTE_NOINLINE;
 
   // Returns `true` if the message is fatal or enabled debug-fatal.
@@ -250,9 +251,14 @@ class StringifySink final {
  public:
   explicit StringifySink(LogMessage& message) : message_(message) {}
 
-  void Append(size_t count, char ch) { message_ << std::string(count, ch); }
+  void Append(size_t count, char ch) {
+    message_.CopyToEncodedBuffer(ch, count,
+                                 LogMessage::StringType::kNotLiteral);
+  }
 
-  void Append(absl::string_view v) { message_ << v; }
+  void Append(absl::string_view v) {
+    message_.CopyToEncodedBuffer(v, LogMessage::StringType::kNotLiteral);
+  }
 
   // For types that implement `AbslStringify` using `absl::Format()`.
   friend void AbslFormatFlush(StringifySink* sink, absl::string_view v) {

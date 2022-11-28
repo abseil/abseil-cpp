@@ -540,6 +540,27 @@ void LogMessage::CopyToEncodedBuffer(absl::string_view str,
     data_->encoded_remaining.remove_suffix(data_->encoded_remaining.size());
   }
 }
+void LogMessage::CopyToEncodedBuffer(char ch, size_t num, StringType str_type) {
+  auto encoded_remaining_copy = data_->encoded_remaining;
+  auto value_start = EncodeMessageStart(
+      EventTag::kValue, BufferSizeFor(WireType::kLengthDelimited) + num,
+      &encoded_remaining_copy);
+  auto str_start = EncodeMessageStart(str_type == StringType::kLiteral
+                                          ? ValueTag::kStringLiteral
+                                          : ValueTag::kString,
+                                      num, &encoded_remaining_copy);
+  if (str_start.data()) {
+    // The field headers fit.
+    log_internal::AppendTruncated(ch, num, encoded_remaining_copy);
+    EncodeMessageLength(str_start, &encoded_remaining_copy);
+    EncodeMessageLength(value_start, &encoded_remaining_copy);
+    data_->encoded_remaining = encoded_remaining_copy;
+  } else {
+    // The field header(s) did not fit; zero `encoded_remaining` so we don't
+    // write anything else later.
+    data_->encoded_remaining.remove_suffix(data_->encoded_remaining.size());
+  }
+}
 
 LogMessageFatal::LogMessageFatal(const char* file, int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {}
