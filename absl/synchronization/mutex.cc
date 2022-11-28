@@ -591,10 +591,15 @@ static SynchLocksHeld *Synch_GetAllLocks() {
 void Mutex::IncrementSynchSem(Mutex *mu, PerThreadSynch *w) {
   if (mu) {
     ABSL_TSAN_MUTEX_PRE_DIVERT(mu, 0);
-  }
-  PerThreadSem::Post(w->thread_identity());
-  if (mu) {
+    // We miss synchronization around passing PerThreadSynch between threads
+    // since it happens inside of the Mutex code, so we need to ignore all
+    // accesses to the object.
+    ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
+    PerThreadSem::Post(w->thread_identity());
+    ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_END();
     ABSL_TSAN_MUTEX_POST_DIVERT(mu, 0);
+  } else {
+    PerThreadSem::Post(w->thread_identity());
   }
 }
 
