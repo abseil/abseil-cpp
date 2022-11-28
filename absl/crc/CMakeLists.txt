@@ -26,7 +26,7 @@ absl_cc_library(
     absl::base
     absl::config
 )
-  
+
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
@@ -101,6 +101,8 @@ absl_cc_library(
     "internal/non_temporal_arm_intrinsics.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
 )
 
 # Internal-only target, do not depend on directly.
