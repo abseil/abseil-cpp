@@ -56,8 +56,8 @@ namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
   template <typename C>
-  static auto GetSlots(const C& c) -> decltype(c.slots_) {
-    return c.slots_;
+  static auto GetSlots(const C& c) -> decltype(c.slot_array()) {
+    return c.slot_array();
   }
 };
 
@@ -455,12 +455,12 @@ TEST(Table, EmptyFunctorOptimization) {
   static_assert(std::is_empty<std::allocator<int>>::value, "");
 
   struct MockTable {
+    void* infoz;
     void* ctrl;
     void* slots;
     size_t size;
     size_t capacity;
     size_t growth_left;
-    void* infoz;
   };
   struct MockTableInfozDisabled {
     void* ctrl;
