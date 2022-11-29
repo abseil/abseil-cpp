@@ -40,7 +40,7 @@ class CrcMemcpy {
  public:
   static crc32c_t CrcAndCopy(void* __restrict dst, const void* __restrict src,
                              std::size_t length,
-                             crc32c_t initial_crc = ToCrc32c(0),
+                             crc32c_t initial_crc = crc32c_t{0},
                              bool non_temporal = false) {
     static const ArchSpecificEngines engines = GetArchSpecificEngines();
     auto* engine = non_temporal ? engines.non_temporal : engines.temporal;
@@ -100,7 +100,7 @@ class CrcNonTemporalMemcpyAVXEngine : public CrcMemcpyEngine {
 // the generic fallback version.
 inline crc32c_t Crc32CAndCopy(void* __restrict dst, const void* __restrict src,
                               std::size_t length,
-                              crc32c_t initial_crc = ToCrc32c(0),
+                              crc32c_t initial_crc = crc32c_t{0},
                               bool non_temporal = false) {
   return CrcMemcpy::CrcAndCopy(dst, src, length, initial_crc, non_temporal);
 }

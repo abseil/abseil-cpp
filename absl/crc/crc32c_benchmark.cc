@@ -44,7 +44,7 @@ BENCHMARK(BM_Calculate)->Arg(0)->Arg(1)->Arg(100)->Arg(10000)->Arg(500000);
 void BM_Extend(benchmark::State& state) {
   int len = state.range(0);
   std::string extension = TestString(len);
-  absl::crc32c_t base = absl::ToCrc32c(0xC99465AA);  // CRC32C of "Hello World"
+  absl::crc32c_t base = absl::crc32c_t{0xC99465AA};  // CRC32C of "Hello World"
   for (auto s : state) {
     benchmark::DoNotOptimize(base);
     benchmark::DoNotOptimize(extension);
@@ -55,7 +55,7 @@ void BM_Extend(benchmark::State& state) {
 BENCHMARK(BM_Extend)->Arg(0)->Arg(1)->Arg(100)->Arg(10000)->Arg(500000);
 
 void BM_ExtendByZeroes(benchmark::State& state) {
-  absl::crc32c_t base = absl::ToCrc32c(0xC99465AA);  // CRC32C of "Hello World"
+  absl::crc32c_t base = absl::crc32c_t{0xC99465AA};  // CRC32C of "Hello World"
   int num_zeroes = state.range(0);
   for (auto s : state) {
     benchmark::DoNotOptimize(base);
@@ -70,7 +70,7 @@ BENCHMARK(BM_ExtendByZeroes)
     ->Range(1, 1 << 20);
 
 void BM_UnextendByZeroes(benchmark::State& state) {
-  absl::crc32c_t base = absl::ToCrc32c(0xdeadbeef);
+  absl::crc32c_t base = absl::crc32c_t{0xdeadbeef};
   int num_zeroes = state.range(0);
   for (auto s : state) {
     benchmark::DoNotOptimize(base);
@@ -90,7 +90,7 @@ void BM_Concat(benchmark::State& state) {
   std::string string_b = TestString(string_b_len);
 
   // CRC32C of "Hello World"
-  absl::crc32c_t crc_a = absl::ToCrc32c(0xC99465AA);
+  absl::crc32c_t crc_a = absl::crc32c_t{0xC99465AA};
   absl::crc32c_t crc_b = absl::ComputeCrc32c(string_b);
 
   for (auto s : state) {

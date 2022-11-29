@@ -108,7 +108,7 @@ TEST_P(x86ParamTest, SmallCorrectnessCheckSourceAlignment) {
             static_cast<char>(absl::Uniform<unsigned char>(gen_));
       }
       absl::crc32c_t initial_crc =
-          absl::ToCrc32c(absl::Uniform<uint32_t>(gen_));
+          absl::crc32c_t{absl::Uniform<uint32_t>(gen_)};
       absl::crc32c_t experiment_crc =
           engine_->Compute(destination_.get(), source_.get() + source_alignment,
                            size, initial_crc);
@@ -139,7 +139,7 @@ TEST_P(x86ParamTest, SmallCorrectnessCheckDestAlignment) {
             static_cast<char>(absl::Uniform<unsigned char>(gen_));
       }
       absl::crc32c_t initial_crc =
-          absl::ToCrc32c(absl::Uniform<uint32_t>(gen_));
+          absl::crc32c_t{absl::Uniform<uint32_t>(gen_)};
       absl::crc32c_t experiment_crc =
           engine_->Compute(destination_.get() + dest_alignment, source_.get(),
                            size, initial_crc);
