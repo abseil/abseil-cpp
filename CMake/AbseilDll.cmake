@@ -295,6 +295,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/str_format/bind.cc"
   "strings/internal/str_format/bind.h"
   "strings/internal/str_format/checker.h"
+  "strings/internal/str_format/constexpr_parser.h"
   "strings/internal/str_format/extension.cc"
   "strings/internal/str_format/extension.h"
   "strings/internal/str_format/float_conversion.cc"

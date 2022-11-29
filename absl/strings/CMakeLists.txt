@@ -413,6 +413,7 @@ absl_cc_library(
     "internal/str_format/arg.h"
     "internal/str_format/bind.h"
     "internal/str_format/checker.h"
+    "internal/str_format/constexpr_parser.h"
     "internal/str_format/extension.h"
     "internal/str_format/float_conversion.h"
     "internal/str_format/output.h"
