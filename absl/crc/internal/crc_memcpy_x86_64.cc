@@ -46,6 +46,7 @@
 #include <intrin.h>
 #endif
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -87,8 +88,8 @@ constexpr int kIntLoadsPerVec = sizeof(__m128i) / sizeof(uint64_t);
 template <int vec_regions, int int_regions>
 inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
                           size_t region_size, size_t copy_rounds) {
-  __m128i data[vec_regions];
-  uint64_t int_data[kIntLoadsPerVec * int_regions];
+  std::array<__m128i, vec_regions> data;
+  std::array<uint64_t, kIntLoadsPerVec * int_regions> int_data;
 
   while (copy_rounds > 0) {
 #ifdef __GNUC__
@@ -241,8 +242,8 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
   const std::size_t tail_size = length - (kRegions * region_size);
 
   // Holding registers for data in each region.
-  __m128i vec_data[vec_regions];
-  uint64_t int_data[int_regions * kIntLoadsPerVec];
+  std::array<__m128i, vec_regions> vec_data;
+  std::array<uint64_t, int_regions * kIntLoadsPerVec> int_data;
 
   // Main loop.
   while (copy_rounds > kBlocksPerCacheLine) {
