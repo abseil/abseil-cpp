@@ -78,7 +78,7 @@ inline crc32c_t ShortCrcCopy(char* dst, const char* src, std::size_t length,
     ++src;
     ++dst;
   }
-  return ToCrc32c(crc_uint32);
+  return crc32c_t{crc_uint32};
 }
 
 constexpr int kIntLoadsPerVec = sizeof(__m128i) / sizeof(uint64_t);
@@ -108,10 +108,10 @@ inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
       _mm_store_si128(vdst, data[i]);
 
       // Compute the running CRC
-      crcs[region] = ToCrc32c(_mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
-                                            _mm_extract_epi64(data[i], 0)));
-      crcs[region] = ToCrc32c(_mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
-                                            _mm_extract_epi64(data[i], 1)));
+      crcs[region] = crc32c_t{static_cast<uint32_t>(_mm_crc32_u64(
+          static_cast<uint32_t>(crcs[region]), _mm_extract_epi64(data[i], 0)))};
+      crcs[region] = crc32c_t{static_cast<uint32_t>(_mm_crc32_u64(
+          static_cast<uint32_t>(crcs[region]), _mm_extract_epi64(data[i], 1)))};
     }
 
 #ifdef __GNUC__
@@ -131,8 +131,8 @@ inline void LargeTailCopy(crc32c_t* crcs, char** dst, const char** src,
         int data_index = i * kIntLoadsPerVec + j;
 
         int_data[data_index] = *(usrc + j);
-        crcs[region] = ToCrc32c(_mm_crc32_u64(
-            static_cast<uint32_t>(crcs[region]), int_data[data_index]));
+        crcs[region] = crc32c_t{static_cast<uint32_t>(_mm_crc32_u64(
+            static_cast<uint32_t>(crcs[region]), int_data[data_index]))};
 
         *(udst + j) = int_data[data_index];
       }
@@ -279,12 +279,12 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
 
         // Load and CRC data.
         vec_data[j] = _mm_loadu_si128(src + i);
-        crcs[region] =
-            ToCrc32c(_mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
-                                   _mm_extract_epi64(vec_data[j], 0)));
-        crcs[region] =
-            ToCrc32c(_mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
-                                   _mm_extract_epi64(vec_data[j], 1)));
+        crcs[region] = crc32c_t{static_cast<uint32_t>(
+            _mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
+                          _mm_extract_epi64(vec_data[j], 0)))};
+        crcs[region] = crc32c_t{static_cast<uint32_t>(
+            _mm_crc32_u64(static_cast<uint32_t>(crcs[region]),
+                          _mm_extract_epi64(vec_data[j], 1)))};
 
         // Store the data.
         _mm_store_si128(dst + i, vec_data[j]);
@@ -313,8 +313,8 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
 
           // Load and CRC the data.
           int_data[data_index] = *(usrc + i * kIntLoadsPerVec + k);
-          crcs[region] = ToCrc32c(_mm_crc32_u64(
-              static_cast<uint32_t>(crcs[region]), int_data[data_index]));
+          crcs[region] = crc32c_t{static_cast<uint32_t>(_mm_crc32_u64(
+              static_cast<uint32_t>(crcs[region]), int_data[data_index]))};
 
           // Store the data.
           *(udst + i * kIntLoadsPerVec + k) = int_data[data_index];
