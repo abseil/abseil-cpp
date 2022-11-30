@@ -729,7 +729,7 @@ class Condition {
       : Condition(obj, static_cast<bool (T::*)() const>(&T::operator())) {}
 
   // A Condition that always returns `true`.
-  static const Condition kTrue;
+  ABSL_CONST_INIT static const Condition kTrue;
 
   // Evaluates the condition.
   bool Eval() const;
@@ -766,10 +766,10 @@ class Condition {
 #endif
 
   // Function with which to evaluate callbacks and/or arguments.
-  bool (*eval_)(const Condition*);
+  bool (*eval_)(const Condition*) = nullptr;
 
   // Either an argument for a function call or an object for a method call.
-  void *arg_;
+  void *arg_ = nullptr;
 
   // Various functions eval_ can point to:
   static bool CallVoidPtrFunction(const Condition*);
@@ -790,7 +790,8 @@ class Condition {
     std::memcpy(callback, callback_, sizeof(*callback));
   }
 
-  Condition();        // null constructor used only to create kTrue
+  // Used only to create kTrue.
+  constexpr Condition() = default;
 };
 
 // -----------------------------------------------------------------------------

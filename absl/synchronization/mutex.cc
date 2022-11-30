@@ -2787,8 +2787,7 @@ static bool Dereference(void *arg) {
   return *(static_cast<bool *>(arg));
 }
 
-Condition::Condition() = default;  // null constructor, used for kTrue only
-const Condition Condition::kTrue;
+ABSL_CONST_INIT const Condition Condition::kTrue;
 
 Condition::Condition(bool (*func)(void *), void *arg)
     : eval_(&CallVoidPtrFunction),
