@@ -74,7 +74,7 @@ inline void *non_temporal_store_memcpy(void *__restrict dst,
     uintptr_t bytes_before_alignment_boundary =
         kCacheLineSize -
         (reinterpret_cast<uintptr_t>(d) & (kCacheLineSize - 1));
-    int header_len = (std::min)(bytes_before_alignment_boundary, len);
+    size_t header_len = (std::min)(bytes_before_alignment_boundary, len);
     assert(bytes_before_alignment_boundary < kCacheLineSize);
     memcpy(d, s, header_len);
     d += header_len;
@@ -87,7 +87,7 @@ inline void *non_temporal_store_memcpy(void *__restrict dst,
     __m128i *dst_cacheline = reinterpret_cast<__m128i *>(d);
     const __m128i *src_cacheline = reinterpret_cast<const __m128i *>(s);
     constexpr int kOpsPerCacheLine = kCacheLineSize / sizeof(__m128i);
-    uint64_t loops = len / kCacheLineSize;
+    size_t loops = len / kCacheLineSize;
 
     while (len >= kCacheLineSize) {
       __m128i temp1, temp2, temp3, temp4;
@@ -132,7 +132,7 @@ inline void *non_temporal_store_memcpy_avx(void *__restrict dst,
     uintptr_t bytes_before_alignment_boundary =
         kCacheLineSize -
         (reinterpret_cast<uintptr_t>(d) & (kCacheLineSize - 1));
-    int header_len = (std::min)(bytes_before_alignment_boundary, len);
+    size_t header_len = (std::min)(bytes_before_alignment_boundary, len);
     assert(bytes_before_alignment_boundary < kCacheLineSize);
     memcpy(d, s, header_len);
     d += header_len;
@@ -145,7 +145,7 @@ inline void *non_temporal_store_memcpy_avx(void *__restrict dst,
     __m256i *dst_cacheline = reinterpret_cast<__m256i *>(d);
     const __m256i *src_cacheline = reinterpret_cast<const __m256i *>(s);
     constexpr int kOpsPerCacheLine = kCacheLineSize / sizeof(__m256i);
-    int loops = len / kCacheLineSize;
+    size_t loops = len / kCacheLineSize;
 
     while (len >= kCacheLineSize) {
       __m256i temp1, temp2;

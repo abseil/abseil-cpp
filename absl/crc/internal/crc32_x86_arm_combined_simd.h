@@ -129,7 +129,7 @@ inline uint32_t CRC32_u32(uint32_t crc, uint32_t v) {
 }
 
 inline uint32_t CRC32_u64(uint32_t crc, uint64_t v) {
-  return _mm_crc32_u64(crc, v);
+  return static_cast<uint32_t>(_mm_crc32_u64(crc, v));
 }
 
 inline V128 V128_Load(const V128* src) { return _mm_load_si128(src); }
@@ -157,7 +157,7 @@ inline V128 V128_Xor(const V128 l, const V128 r) { return _mm_xor_si128(l, r); }
 inline V128 V128_And(const V128 l, const V128 r) { return _mm_and_si128(l, r); }
 
 inline V128 V128_From2x64(const uint64_t l, const uint64_t r) {
-  return _mm_set_epi64x(l, r);
+  return _mm_set_epi64x(static_cast<int64_t>(l), static_cast<int64_t>(r));
 }
 
 template <int imm>

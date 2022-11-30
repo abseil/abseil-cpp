@@ -15,6 +15,7 @@
 #include "absl/crc/crc32c.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -90,7 +91,8 @@ TEST(CRC32C, ExtendByZeroes) {
   std::string base = "hello world";
   absl::crc32c_t base_crc = absl::crc32c_t{0xc99465aa};
 
-  for (const size_t extend_by : {100, 10000, 100000}) {
+  constexpr size_t kExtendByValues[] = {100, 10000, 100000};
+  for (const size_t extend_by : kExtendByValues) {
     SCOPED_TRACE(extend_by);
     absl::crc32c_t crc2 = absl::ExtendCrc32cByZeroes(base_crc, extend_by);
     EXPECT_EQ(crc2, absl::ComputeCrc32c(base + std::string(extend_by, '\0')));
@@ -98,10 +100,13 @@ TEST(CRC32C, ExtendByZeroes) {
 }
 
 TEST(CRC32C, UnextendByZeroes) {
+  constexpr size_t kExtendByValues[] = {2, 200, 20000, 200000, 20000000};
+  constexpr size_t kUnextendByValues[] = {0, 100, 10000, 100000, 10000000};
+
   for (auto seed_crc : {absl::crc32c_t{0}, absl::crc32c_t{0xc99465aa}}) {
     SCOPED_TRACE(seed_crc);
-    for (const size_t size_1 : {2, 200, 20000, 200000, 20000000}) {
-      for (const size_t size_2 : {0, 100, 10000, 100000, 10000000}) {
+    for (const size_t size_1 : kExtendByValues) {
+      for (const size_t size_2 : kUnextendByValues) {
         size_t extend_size = std::max(size_1, size_2);
         size_t unextend_size = std::min(size_1, size_2);
         SCOPED_TRACE(extend_size);
@@ -120,7 +125,9 @@ TEST(CRC32C, UnextendByZeroes) {
       }
     }
   }
-  for (const size_t size : {0, 1, 100, 10000}) {
+
+  constexpr size_t kSizes[] = {0, 1, 100, 10000};
+  for (const size_t size : kSizes) {
     SCOPED_TRACE(size);
     std::string string_before = TestString(size);
     std::string string_after = string_before + std::string(size, '\0');
@@ -146,7 +153,8 @@ TEST(CRC32C, Concat) {
 }
 
 TEST(CRC32C, Memcpy) {
-  for (size_t bytes : {0, 1, 20, 500, 100000}) {
+  constexpr size_t kBytesSize[] = {0, 1, 20, 500, 100000};
+  for (size_t bytes : kBytesSize) {
     SCOPED_TRACE(bytes);
     std::string sample_string = TestString(bytes);
     std::string target_buffer = std::string(bytes, '\0');
