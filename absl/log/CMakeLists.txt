@@ -17,6 +17,24 @@
 # Internal targets
 absl_cc_library(
   NAME
+    log_internal_check_impl
+  SRCS
+  HDRS
+    "internal/check_impl.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::core_headers
+    absl::log_internal_check_op
+    absl::log_internal_conditions
+    absl::log_internal_message
+    absl::log_internal_strip
+)
+
+absl_cc_library(
+  NAME
     log_internal_check_op
   SRCS
     "internal/check_op.cc"
@@ -124,6 +142,22 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::strings
     absl::time
+)
+
+absl_cc_library(
+  NAME
+    log_internal_log_impl
+  SRCS
+  HDRS
+    "internal/log_impl.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::log_internal_conditions
+    absl::log_internal_message
+    absl::log_internal_strip
 )
 
 absl_cc_library(
@@ -366,6 +400,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::log_internal_check_impl
     absl::core_headers
     absl::log_internal_check_op
     absl::log_internal_conditions
@@ -467,9 +502,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::log_internal_conditions
-    absl::log_internal_message
-    absl::log_internal_strip
+    absl::log_internal_log_impl
   PUBLIC
 )
 

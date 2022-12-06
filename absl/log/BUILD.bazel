@@ -32,7 +32,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base:core_headers",
+        "//absl/log/internal:check_impl",
         "//absl/log/internal:check_op",
         "//absl/log/internal:conditions",
         "//absl/log/internal:log_message",
@@ -114,9 +114,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/log/internal:conditions",
-        "//absl/log/internal:log_message",
-        "//absl/log/internal:strip",
+        "//absl/log/internal:log_impl",
     ],
 )
 
