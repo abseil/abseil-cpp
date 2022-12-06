@@ -42,7 +42,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <iostream>
 
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
