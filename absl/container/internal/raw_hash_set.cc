@@ -90,7 +90,7 @@ static inline void* PrevSlot(void* slot, size_t slot_size) {
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(slot) - slot_size);
 }
 
-void DropDeletesWithoutResize(CommonFields& common, size_t& growth_left,
+void DropDeletesWithoutResize(CommonFields& common,
                               const PolicyFunctions& policy, void* tmp_space) {
   void* set = &common;
   void* slot_array = common.slots_;
@@ -167,12 +167,11 @@ void DropDeletesWithoutResize(CommonFields& common, size_t& growth_left,
       slot_ptr = PrevSlot(slot_ptr, slot_size);
     }
   }
-  ResetGrowthLeft(common, growth_left);
+  ResetGrowthLeft(common);
   common.infoz().RecordRehash(total_probe_length);
 }
 
-void EraseMetaOnly(CommonFields& c, size_t& growth_left, ctrl_t* it,
-                   size_t slot_size) {
+void EraseMetaOnly(CommonFields& c, ctrl_t* it, size_t slot_size) {
   assert(IsFull(*it) && "erasing a dangling iterator");
   --c.size_;
   const auto index = static_cast<size_t>(it - c.control_);
@@ -190,15 +189,15 @@ void EraseMetaOnly(CommonFields& c, size_t& growth_left, ctrl_t* it,
 
   SetCtrl(c, index, was_never_full ? ctrl_t::kEmpty : ctrl_t::kDeleted,
           slot_size);
-  growth_left += (was_never_full ? 1 : 0);
+  c.growth_left_ += (was_never_full ? 1 : 0);
   c.infoz().RecordErase();
 }
 
-void ClearBackingArray(CommonFields& c, size_t& growth_left,
-                       const PolicyFunctions& policy, bool reuse) {
+void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
+                       bool reuse) {
   if (reuse) {
     c.size_ = 0;
-    ResetCtrl(c, growth_left, policy.slot_size);
+    ResetCtrl(c, policy.slot_size);
     c.infoz().RecordStorageChanged(0, c.capacity_);
   } else {
     void* set = &c;
@@ -207,7 +206,7 @@ void ClearBackingArray(CommonFields& c, size_t& growth_left,
     c.slots_ = nullptr;
     c.size_ = 0;
     c.capacity_ = 0;
-    growth_left = 0;
+    c.growth_left_ = 0;
     c.infoz().RecordClearedReservation();
     assert(c.size_ == 0);
     c.infoz().RecordStorageChanged(0, 0);
