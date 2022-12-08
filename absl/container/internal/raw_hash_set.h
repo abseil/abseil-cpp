@@ -1300,9 +1300,9 @@ class raw_hash_set {
     using pointer = typename raw_hash_set::const_pointer;
     using difference_type = typename raw_hash_set::difference_type;
 
-    const_iterator() {}
+    const_iterator() = default;
     // Implicit construction from iterator.
-    const_iterator(iterator i) : inner_(std::move(i)) {}
+    const_iterator(iterator i) : inner_(std::move(i)) {}  // NOLINT
 
     reference operator*() const { return *inner_; }
     pointer operator->() const { return inner_.operator->(); }
@@ -1330,6 +1330,8 @@ class raw_hash_set {
   using node_type = node_handle<Policy, hash_policy_traits<Policy>, Alloc>;
   using insert_return_type = InsertReturnType<iterator, node_type>;
 
+  // Note: can't use `= default` due to non-default noexcept (causes
+  // problems for some compilers). NOLINTNEXTLINE
   raw_hash_set() noexcept(
       std::is_nothrow_default_constructible<hasher>::value&&
           std::is_nothrow_default_constructible<key_equal>::value&&
@@ -1494,6 +1496,7 @@ class raw_hash_set {
               std::is_nothrow_move_assignable<key_equal>::value) {
     // TODO(sbenza): We should only use the operations from the noexcept clause
     // to make sure we actually adhere to that contract.
+    // NOLINTNEXTLINE: not returning *this for performance.
     return move_assign(
         std::move(that),
         typename AllocTraits::propagate_on_container_move_assignment());

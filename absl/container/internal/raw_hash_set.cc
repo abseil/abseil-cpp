@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstring>
 
 #include "absl/base/config.h"
 
@@ -182,10 +183,10 @@ void EraseMetaOnly(CommonFields& c, ctrl_t* it, size_t slot_size) {
   // We count how many consecutive non empties we have to the right and to the
   // left of `it`. If the sum is >= kWidth then there is at least one probe
   // window that might have seen a full group.
-  bool was_never_full =
-      empty_before && empty_after &&
-      static_cast<size_t>(empty_after.TrailingZeros() +
-                          empty_before.LeadingZeros()) < Group::kWidth;
+  bool was_never_full = empty_before && empty_after &&
+                        static_cast<size_t>(empty_after.TrailingZeros()) +
+                                empty_before.LeadingZeros() <
+                            Group::kWidth;
 
   SetCtrl(c, index, was_never_full ? ctrl_t::kEmpty : ctrl_t::kDeleted,
           slot_size);
