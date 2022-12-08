@@ -54,7 +54,7 @@
 // Might produce a message like:
 //
 //   Check failed: !cheese.empty() Out of Cheese
-#define CHECK(condition) ABSL_CHECK_IMPL(condition)
+#define CHECK(condition) ABSL_CHECK_IMPL(condition, #condition)
 
 // QCHECK()
 //
@@ -62,7 +62,7 @@
 // not run registered error handlers (as `QFATAL`).  It is useful when the
 // problem is definitely unrelated to program flow, e.g. when validating user
 // input.
-#define QCHECK(condition) ABSL_QCHECK_IMPL(condition)
+#define QCHECK(condition) ABSL_QCHECK_IMPL(condition, #condition)
 
 // PCHECK()
 //

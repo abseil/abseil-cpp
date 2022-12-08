@@ -22,22 +22,23 @@
 #include "absl/log/internal/strip.h"
 
 // CHECK
-#define ABSL_CHECK_IMPL(condition)                                    \
+#define ABSL_CHECK_IMPL(condition, condition_str)                     \
   ABSL_LOG_INTERNAL_CONDITION_FATAL(STATELESS,                        \
                                     ABSL_PREDICT_FALSE(!(condition))) \
-  ABSL_LOG_INTERNAL_CHECK(#condition).InternalStream()
+  ABSL_LOG_INTERNAL_CHECK(condition_str).InternalStream()
 
-#define ABSL_QCHECK_IMPL(condition)                                    \
+#define ABSL_QCHECK_IMPL(condition, condition_str)                     \
   ABSL_LOG_INTERNAL_CONDITION_QFATAL(STATELESS,                        \
                                      ABSL_PREDICT_FALSE(!(condition))) \
-  ABSL_LOG_INTERNAL_QCHECK(#condition).InternalStream()
+  ABSL_LOG_INTERNAL_QCHECK(condition_str).InternalStream()
 
-#define ABSL_PCHECK_IMPL(condition) ABSL_CHECK_IMPL(condition).WithPerror()
+#define ABSL_PCHECK_IMPL(condition) \
+  ABSL_CHECK_IMPL(condition, #condition).WithPerror()
 
 #ifndef NDEBUG
-#define ABSL_DCHECK_IMPL(condition) ABSL_CHECK_IMPL(condition)
+#define ABSL_DCHECK_IMPL(condition) ABSL_CHECK_IMPL(condition, #condition)
 #else
-#define ABSL_DCHECK_IMPL(condition) ABSL_CHECK_IMPL(true || (condition))
+#define ABSL_DCHECK_IMPL(condition) ABSL_CHECK_IMPL(true || (condition), "true")
 #endif
 
 // CHECK_EQ

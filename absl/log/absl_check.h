@@ -37,8 +37,8 @@
 
 #include "absl/log/internal/check_impl.h"
 
-#define ABSL_CHECK(condition) ABSL_CHECK_IMPL(condition)
-#define ABSL_QCHECK(condition) ABSL_QCHECK_IMPL(condition)
+#define ABSL_CHECK(condition) ABSL_CHECK_IMPL(condition, #condition)
+#define ABSL_QCHECK(condition) ABSL_QCHECK_IMPL(condition, #condition)
 #define ABSL_PCHECK(condition) ABSL_PCHECK_IMPL(condition)
 #define ABSL_DCHECK(condition) ABSL_DCHECK_IMPL(condition)
 

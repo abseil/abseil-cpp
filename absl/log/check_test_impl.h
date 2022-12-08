@@ -120,6 +120,19 @@ TEST(CHECKDeathTest, TestChecksWithSideEffects) {
 
 #if GTEST_HAS_DEATH_TEST
 
+TEST(CHECKTest, TestMacroExpansionInMessage) {
+#define MACRO(x) x
+  auto MessageGen = []() { ABSL_TEST_CHECK(MACRO(false)); };
+  EXPECT_DEATH(MessageGen(), HasSubstr("MACRO(false)"));
+#undef MACRO
+}
+
+TEST(CHECKTest, TestNestedMacroExpansionInMessage) {
+#define MACRO(x) x
+  EXPECT_DEATH(ABSL_TEST_CHECK(MACRO(false)), HasSubstr("MACRO(false)"));
+#undef MACRO
+}
+
 TEST(CHECKDeachTest, TestOrderOfInvocationsBetweenCheckAndMessage) {
   int counter = 0;
 
