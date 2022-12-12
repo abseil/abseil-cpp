@@ -29,13 +29,8 @@
 #include "absl/memory/memory.h"
 #include "absl/numeric/bits.h"
 
-#if defined(__aarch64__) && defined(__LITTLE_ENDIAN__) && \
-    defined(__ARM_FEATURE_CRC32) && defined(__ARM_NEON)
-#define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
-#elif defined(__SSE4_2__) && defined(__PCLMUL__)
-#define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
-#elif defined(_MSC_VER) && defined(__AVX__)
-// MSVC AVX support (/arch:AVX) implies SSE 4.2 and PCLMUL support.
+#if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD) || \
+    defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
 #define ABSL_INTERNAL_CAN_USE_SIMD_CRC32C
 #endif
 
