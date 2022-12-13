@@ -204,6 +204,7 @@ cc_binary(
     deps = [
         ":crc32c",
         "//absl/memory",
+        "//absl/strings",
         "@com_github_google_benchmark//:benchmark_main",
     ],
 )

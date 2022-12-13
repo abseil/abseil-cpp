@@ -429,6 +429,12 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
           ABSL_INTERNAL_STEP8BY3(l64, l641, l642, p, p1, p2);
           ABSL_INTERNAL_STEP8BY3(l64, l641, l642, p, p1, p2);
           ABSL_INTERNAL_STEP8BY3(l64, l641, l642, p, p1, p2);
+          base_internal::PrefetchT0(
+              reinterpret_cast<const char*>(p + kPrefetchHorizonMedium));
+          base_internal::PrefetchT0(
+              reinterpret_cast<const char*>(p1 + kPrefetchHorizonMedium));
+          base_internal::PrefetchT0(
+              reinterpret_cast<const char*>(p2 + kPrefetchHorizonMedium));
         }
         // Don't run crc on last 8 bytes.
         ABSL_INTERNAL_STEP8BY3(l64, l641, l642, p, p1, p2);
