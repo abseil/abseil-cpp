@@ -604,7 +604,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
-    absl::log
+    absl::absl_log
     absl::log_severity
     absl::optional
     absl::strings

@@ -186,7 +186,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":log",
+        ":absl_log",
         "//absl/base:config",
         "//absl/base:log_severity",
         "//absl/strings",
