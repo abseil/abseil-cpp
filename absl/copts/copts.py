@@ -57,6 +57,7 @@ ABSL_LLVM_FLAGS = [
     "-Wpointer-arith",
     "-Wself-assign",
     "-Wshadow-all",
+    "-Wshorten-64-to-32",
     "-Wstring-conversion",
     "-Wtautological-overlap-compare",
     "-Wtautological-unsigned-zero-compare",
