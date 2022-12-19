@@ -421,6 +421,7 @@ cc_test(
         "//absl/log/internal:test_matchers",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/types:optional",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -859,6 +859,7 @@ absl_cc_test(
     absl::check
     absl::log
     absl::log_internal_test_matchers
+    absl::optional
     absl::scoped_mock_log
     absl::str_format
     absl::strings
