@@ -629,14 +629,16 @@ struct GroupAArch64Impl {
   }
 
   uint32_t CountLeadingEmptyOrDeleted() const {
-    uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(ctrl), 0);
-    // ctrl | ~(ctrl >> 7) will have the lowest bit set to zero for kEmpty and
-    // kDeleted. We lower all other bits and count number of trailing zeros.
+    uint64_t mask =
+        vget_lane_u64(vreinterpret_u64_u8(vcle_s8(
+                          vdup_n_s8(static_cast<int8_t>(ctrl_t::kSentinel)),
+                          vreinterpret_s8_u8(ctrl))),
+                      0);
+    // Similar to MaskEmptyorDeleted() but we invert the logic to invert the
+    // produced bitfield. We then count number of trailing zeros.
     // Clang and GCC optimize countr_zero to rbit+clz without any check for 0,
     // so we should be fine.
-    constexpr uint64_t bits = 0x0101010101010101ULL;
-    return static_cast<uint32_t>(countr_zero((mask | ~(mask >> 7)) & bits) >>
-                                 3);
+    return static_cast<uint32_t>(countr_zero(mask)) >> 3;
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
