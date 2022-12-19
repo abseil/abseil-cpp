@@ -98,6 +98,7 @@ ABSL_LLVM_FLAGS = [
     "-Wself-assign",
     "-Wshadow-all",
     "-Wshorten-64-to-32",
+    "-Wsign-conversion",
     "-Wstring-conversion",
     "-Wtautological-overlap-compare",
     "-Wtautological-unsigned-zero-compare",
