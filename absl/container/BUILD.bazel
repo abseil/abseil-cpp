@@ -393,6 +393,9 @@ cc_library(
     hdrs = ["internal/hash_function_defaults.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//visibility:private",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/hash",
