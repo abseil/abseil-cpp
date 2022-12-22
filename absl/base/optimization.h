@@ -222,6 +222,7 @@
 // When NDEBUG is defined, reaching ABSL_UNREACHABLE() is undefined behavior.
 #define ABSL_UNREACHABLE()                       \
   do {                                           \
+    /* NOLINTNEXTLINE: misc-static-assert */     \
     assert(false && "ABSL_UNREACHABLE reached"); \
     ABSL_INTERNAL_UNREACHABLE_IMPL();            \
   } while (false)
