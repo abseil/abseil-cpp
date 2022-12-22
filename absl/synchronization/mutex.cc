@@ -54,6 +54,7 @@
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
@@ -1791,7 +1792,7 @@ static intptr_t ClearDesignatedWakerMask(int flag) {
     case 1:  // blocked; turn off the designated waker bit
       return ~static_cast<intptr_t>(kMuDesig);
   }
-  ABSL_INTERNAL_UNREACHABLE;
+  ABSL_UNREACHABLE();
 }
 
 // Conditionally ignores the existence of waiting writers if a reader that has
@@ -1805,7 +1806,7 @@ static intptr_t IgnoreWaitingWritersMask(int flag) {
     case 1:  // blocked; pretend there are no waiting writers
       return ~static_cast<intptr_t>(kMuWrWait);
   }
-  ABSL_INTERNAL_UNREACHABLE;
+  ABSL_UNREACHABLE();
 }
 
 // Internal version of LockWhen().  See LockSlowWithDeadline()
