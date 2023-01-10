@@ -91,6 +91,46 @@ enum Constants {
 // Emits a fatal error "Unexpected node type: xyz" and aborts the program.
 ABSL_ATTRIBUTE_NORETURN void LogFatalNodeType(CordRep* rep);
 
+// Fast implementation of memmove for up to 15 bytes. This implementation is
+// safe for overlapping regions. If nullify_tail is true, the destination is
+// padded with '\0' up to 15 bytes.
+template <bool nullify_tail = false>
+inline void SmallMemmove(char* dst, const char* src, size_t n) {
+  if (n >= 8) {
+    assert(n <= 15);
+    uint64_t buf1;
+    uint64_t buf2;
+    memcpy(&buf1, src, 8);
+    memcpy(&buf2, src + n - 8, 8);
+    if (nullify_tail) {
+      memset(dst + 7, 0, 8);
+    }
+    memcpy(dst, &buf1, 8);
+    memcpy(dst + n - 8, &buf2, 8);
+  } else if (n >= 4) {
+    uint32_t buf1;
+    uint32_t buf2;
+    memcpy(&buf1, src, 4);
+    memcpy(&buf2, src + n - 4, 4);
+    if (nullify_tail) {
+      memset(dst + 4, 0, 4);
+      memset(dst + 7, 0, 8);
+    }
+    memcpy(dst, &buf1, 4);
+    memcpy(dst + n - 4, &buf2, 4);
+  } else {
+    if (n != 0) {
+      dst[0] = src[0];
+      dst[n / 2] = src[n / 2];
+      dst[n - 1] = src[n - 1];
+    }
+    if (nullify_tail) {
+      memset(dst + 7, 0, 8);
+      memset(dst + n, 0, 8);
+    }
+  }
+}
+
 // Compact class for tracking the reference count and state flags for CordRep
 // instances.  Data is stored in an atomic int32_t for compactness and speed.
 class RefcountAndFlags {
@@ -479,6 +519,13 @@ class InlineData {
   constexpr InlineData(const InlineData& rhs) = default;
   InlineData& operator=(const InlineData& rhs) = default;
 
+  friend bool operator==(const InlineData& lhs, const InlineData& rhs) {
+    return memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
+  }
+  friend bool operator!=(const InlineData& lhs, const InlineData& rhs) {
+    return !operator==(lhs, rhs);
+  }
+
   // Returns true if the current instance is empty.
   // The 'empty value' is an inlined data value of zero length.
   bool is_empty() const { return rep_.tag() == 0; }
@@ -559,6 +606,17 @@ class InlineData {
   CordRep* as_tree() const {
     assert(is_tree());
     return rep_.tree();
+  }
+
+  void set_inline_data(const char* data, size_t n) {
+    ABSL_ASSERT(n <= kMaxInline);
+    rep_.set_tag(static_cast<int8_t>(n << 1));
+    SmallMemmove<true>(rep_.as_chars(), data, n);
+  }
+
+  void copy_max_inline_to(char* dst) const {
+    assert(!is_tree());
+    memcpy(dst, as_chars(), kMaxInline);
   }
 
   // Initialize this instance to holding the tree value `rep`,
