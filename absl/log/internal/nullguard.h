@@ -24,6 +24,7 @@
 #ifndef ABSL_LOG_INTERNAL_NULLGUARD_H_
 #define ABSL_LOG_INTERNAL_NULLGUARD_H_
 
+#include <array>
 #include <cstddef>
 
 #include "absl/base/config.h"
@@ -43,6 +44,34 @@ struct NullGuard<char*> final {
 template <>
 struct NullGuard<const char*> final {
   static const char* Guard(const char* v) { return v ? v : "(null)"; }
+};
+constexpr std::array<signed char, 7> kSignedCharNull{
+    {'(', 'n', 'u', 'l', 'l', ')', '\0'}};
+template <>
+struct NullGuard<signed char*> final {
+  static const signed char* Guard(const signed char* v) {
+    return v ? v : kSignedCharNull.data();
+  }
+};
+template <>
+struct NullGuard<const signed char*> final {
+  static const signed char* Guard(const signed char* v) {
+    return v ? v : kSignedCharNull.data();
+  }
+};
+constexpr std::array<unsigned char, 7> kUnsignedCharNull{
+    {'(', 'n', 'u', 'l', 'l', ')', '\0'}};
+template <>
+struct NullGuard<unsigned char*> final {
+  static const unsigned char* Guard(const unsigned char* v) {
+    return v ? v : kUnsignedCharNull.data();
+  }
+};
+template <>
+struct NullGuard<const unsigned char*> final {
+  static const unsigned char* Guard(const unsigned char* v) {
+    return v ? v : kUnsignedCharNull.data();
+  }
 };
 template <>
 struct NullGuard<std::nullptr_t> final {
