@@ -307,7 +307,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     if(ABSL_ENABLE_INSTALL)
       set_target_properties(${_NAME} PROPERTIES
         OUTPUT_NAME "absl_${_NAME}"
-        SOVERSION 0
+        SOVERSION "2301.0.0"
       )
     endif()
   else()
