@@ -32,6 +32,7 @@ namespace {
 
 using ::absl::test_internal::CopyableMovableInstance;
 using ::absl::test_internal::InstanceTracker;
+using ::absl::test_internal::MovableOnlyInstance;
 using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Gt;
