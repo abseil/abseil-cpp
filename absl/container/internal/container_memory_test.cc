@@ -251,6 +251,28 @@ TEST(MapSlotPolicy, ConstKeyAndValue) {
   EXPECT_EQ(tracker.copies(), 0);
 }
 
+TEST(MapSlotPolicy, MovableOnlyKeyAndValue) {
+  using slot_policy = map_slot_policy<MovableOnlyInstance, MovableOnlyInstance>;
+  using slot_type = typename slot_policy::slot_type;
+
+  union Slots {
+    Slots() {}
+    ~Slots() {}
+    slot_type slots[100];
+  } slots;
+
+  std::allocator<std::pair<MovableOnlyInstance, MovableOnlyInstance>> alloc;
+  InstanceTracker tracker;
+  slot_policy::construct(&alloc, &slots.slots[0], MovableOnlyInstance(1),
+                         MovableOnlyInstance(1));
+  for (int i = 0; i < 99; ++i) {
+    slot_policy::transfer(&alloc, &slots.slots[i + 1], &slots.slots[i]);
+  }
+  slot_policy::destroy(&alloc, &slots.slots[99]);
+
+  EXPECT_EQ(tracker.copies(), 0);
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
