@@ -267,12 +267,20 @@ static void **NextStackFrame(void **old_fp, const void *uc,
     // guessed frame pointers incorrectly and now risk a paging fault
     // dereferencing a wrong frame pointer. Or maybe not because large frames
     // are possible as well. The main stack is assumed to be readable,
-    // so we assume the large frame is legit if we know the stack bounds and are
-    // within the stack.
-    if (new_fp_u - old_fp_u > kMaxFrameBytes &&
-        (stack_high == kUnknownStackEnd ||
-         !(stack_low < new_fp_u && new_fp_u <= stack_high))) {
-      return nullptr;
+    // so we assume the large frame is legit if we know the real stack bounds
+    // and are within the stack.
+    if (new_fp_u - old_fp_u > kMaxFrameBytes) {
+      if (stack_high < kUnknownStackEnd &&
+          static_cast<size_t>(getpagesize()) < stack_low) {
+        // Stack bounds are known.
+        if (!(stack_low < new_fp_u && new_fp_u <= stack_high)) {
+          // new_fp_u is not within the known stack.
+          return nullptr;
+        }
+      } else {
+        // Stack bounds are unknown, prefer truncated stack to possible crash.
+        return nullptr;
+      }
     }
     if (stack_low < old_fp_u && old_fp_u <= stack_high) {
       // Old BP was in the expected stack region...
