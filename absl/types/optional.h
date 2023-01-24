@@ -414,7 +414,7 @@ class optional : private optional_internal::optional_data<T>,
   // `optional` is empty, behavior is undefined.
   //
   // If you need myOpt->foo in constexpr, use (*myOpt).foo instead.
-  const T* operator->() const {
+  constexpr const T* operator->() const {
     ABSL_HARDENING_ASSERT(this->engaged_);
     return std::addressof(this->data_);
   }
