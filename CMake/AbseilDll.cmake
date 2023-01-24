@@ -575,10 +575,10 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "hash/hash_testing.h"
   "log/scoped_mock_log.cc"
   "log/scoped_mock_log.h"
+  "random/internal/mock_helpers.h"
   "random/internal/mock_overload_set.h"
   "random/mocking_bit_gen.h"
   "random/mock_distributions.h"
-  "random/mock_helpers.h"
   "strings/cordz_test_helpers.h"
   "strings/cord_test_helpers.h"
 )
