@@ -83,6 +83,11 @@ using IsMemcpyOk =
                       absl::is_trivially_copy_assignable<ValueType<A>>,
                       absl::is_trivially_destructible<ValueType<A>>>;
 
+template <typename A>
+using IsMoveAssignOk = std::is_move_assignable<ValueType<A>>;
+template <typename A>
+using IsSwapOk = absl::type_traits_internal::IsSwappable<ValueType<A>>;
+
 template <typename T>
 struct TypeIdentity {
   using type = T;
@@ -120,8 +125,8 @@ struct DestroyAdapter<A, /* IsTriviallyDestructible */ true> {
 
 template <typename A>
 struct Allocation {
-  Pointer<A> data;
-  SizeType<A> capacity;
+  Pointer<A> data = nullptr;
+  SizeType<A> capacity = 0;
 };
 
 template <typename A,
@@ -297,6 +302,20 @@ class ConstructionTransaction {
 template <typename T, size_t N, typename A>
 class Storage {
  public:
+  struct MemcpyPolicy {};
+  struct ElementwiseAssignPolicy {};
+  struct ElementwiseSwapPolicy {};
+  struct ElementwiseConstructPolicy {};
+
+  using MoveAssignmentPolicy = absl::conditional_t<
+      IsMemcpyOk<A>::value, MemcpyPolicy,
+      absl::conditional_t<IsMoveAssignOk<A>::value, ElementwiseAssignPolicy,
+                          ElementwiseConstructPolicy>>;
+  using SwapPolicy = absl::conditional_t<
+      IsMemcpyOk<A>::value, MemcpyPolicy,
+      absl::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
+                          ElementwiseConstructPolicy>>;
+
   static SizeType<A> NextCapacity(SizeType<A> current_capacity) {
     return current_capacity * 2;
   }
@@ -360,7 +379,9 @@ class Storage {
     return data_.allocated.allocated_capacity;
   }
 
-  SizeType<A> GetInlinedCapacity() const { return static_cast<SizeType<A>>(N); }
+  SizeType<A> GetInlinedCapacity() const {
+    return static_cast<SizeType<A>>(kOptimalInlinedSize);
+  }
 
   StorageView<A> MakeStorageView() {
     return GetIsAllocated() ? StorageView<A>{GetAllocatedData(), GetSize(),
@@ -464,14 +485,28 @@ class Storage {
     SizeType<A> allocated_capacity;
   };
 
+  // `kOptimalInlinedSize` is an automatically adjusted inlined capacity of the
+  // `InlinedVector`. Sometimes, it is possible to increase the capacity (from
+  // the user requested `N`) without increasing the size of the `InlinedVector`.
+  static constexpr size_t kOptimalInlinedSize =
+      (std::max)(N, sizeof(Allocated) / sizeof(ValueType<A>));
+
   struct Inlined {
-    alignas(ValueType<A>) char inlined_data[sizeof(ValueType<A>[N])];
+    alignas(ValueType<A>) char inlined_data[sizeof(
+        ValueType<A>[kOptimalInlinedSize])];
   };
 
   union Data {
     Allocated allocated;
     Inlined inlined;
   };
+
+  void SwapN(ElementwiseSwapPolicy, Storage* other, SizeType<A> n);
+  void SwapN(ElementwiseConstructPolicy, Storage* other, SizeType<A> n);
+
+  void SwapInlinedElements(MemcpyPolicy, Storage* other);
+  template <typename NotMemcpyPolicy>
+  void SwapInlinedElements(NotMemcpyPolicy, Storage* other);
 
   template <typename... Args>
   ABSL_ATTRIBUTE_NOINLINE Reference<A> EmplaceBackSlow(Args&&... args);
@@ -886,26 +921,7 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
   if (GetIsAllocated() && other_storage_ptr->GetIsAllocated()) {
     swap(data_.allocated, other_storage_ptr->data_.allocated);
   } else if (!GetIsAllocated() && !other_storage_ptr->GetIsAllocated()) {
-    Storage* small_ptr = this;
-    Storage* large_ptr = other_storage_ptr;
-    if (small_ptr->GetSize() > large_ptr->GetSize()) swap(small_ptr, large_ptr);
-
-    for (SizeType<A> i = 0; i < small_ptr->GetSize(); ++i) {
-      swap(small_ptr->GetInlinedData()[i], large_ptr->GetInlinedData()[i]);
-    }
-
-    IteratorValueAdapter<A, MoveIterator<A>> move_values(
-        MoveIterator<A>(large_ptr->GetInlinedData() + small_ptr->GetSize()));
-
-    ConstructElements<A>(large_ptr->GetAllocator(),
-                         small_ptr->GetInlinedData() + small_ptr->GetSize(),
-                         move_values,
-                         large_ptr->GetSize() - small_ptr->GetSize());
-
-    DestroyAdapter<A>::DestroyElements(
-        large_ptr->GetAllocator(),
-        large_ptr->GetInlinedData() + small_ptr->GetSize(),
-        large_ptr->GetSize() - small_ptr->GetSize());
+    SwapInlinedElements(SwapPolicy{}, other_storage_ptr);
   } else {
     Storage* allocated_ptr = this;
     Storage* inlined_ptr = other_storage_ptr;
@@ -939,6 +955,68 @@ auto Storage<T, N, A>::Swap(Storage* other_storage_ptr) -> void {
 
   swap(GetSizeAndIsAllocated(), other_storage_ptr->GetSizeAndIsAllocated());
   swap(GetAllocator(), other_storage_ptr->GetAllocator());
+}
+
+template <typename T, size_t N, typename A>
+void Storage<T, N, A>::SwapN(ElementwiseSwapPolicy, Storage* other,
+                             SizeType<A> n) {
+  std::swap_ranges(GetInlinedData(), GetInlinedData() + n,
+                   other->GetInlinedData());
+}
+
+template <typename T, size_t N, typename A>
+void Storage<T, N, A>::SwapN(ElementwiseConstructPolicy, Storage* other,
+                             SizeType<A> n) {
+  Pointer<A> a = GetInlinedData();
+  Pointer<A> b = other->GetInlinedData();
+  // see note on allocators in `SwapInlinedElements`.
+  A& allocator_a = GetAllocator();
+  A& allocator_b = other->GetAllocator();
+  for (SizeType<A> i = 0; i < n; ++i, ++a, ++b) {
+    ValueType<A> tmp(std::move(*a));
+
+    AllocatorTraits<A>::destroy(allocator_a, a);
+    AllocatorTraits<A>::construct(allocator_b, a, std::move(*b));
+
+    AllocatorTraits<A>::destroy(allocator_b, b);
+    AllocatorTraits<A>::construct(allocator_a, b, std::move(tmp));
+  }
+}
+
+template <typename T, size_t N, typename A>
+void Storage<T, N, A>::SwapInlinedElements(MemcpyPolicy, Storage* other) {
+  Data tmp = data_;
+  data_ = other->data_;
+  other->data_ = tmp;
+}
+
+template <typename T, size_t N, typename A>
+template <typename NotMemcpyPolicy>
+void Storage<T, N, A>::SwapInlinedElements(NotMemcpyPolicy policy,
+                                           Storage* other) {
+  // Note: `destroy` needs to use pre-swap allocator while `construct` -
+  // post-swap allocator. Allocators will be swaped later on outside of
+  // `SwapInlinedElements`.
+  Storage* small_ptr = this;
+  Storage* large_ptr = other;
+  if (small_ptr->GetSize() > large_ptr->GetSize()) {
+    std::swap(small_ptr, large_ptr);
+  }
+
+  auto small_size = small_ptr->GetSize();
+  auto diff = large_ptr->GetSize() - small_size;
+  SwapN(policy, other, small_size);
+
+  IteratorValueAdapter<A, MoveIterator<A>> move_values(
+      MoveIterator<A>(large_ptr->GetInlinedData() + small_size));
+
+  ConstructElements<A>(large_ptr->GetAllocator(),
+                       small_ptr->GetInlinedData() + small_size, move_values,
+                       diff);
+
+  DestroyAdapter<A>::DestroyElements(large_ptr->GetAllocator(),
+                                     large_ptr->GetInlinedData() + small_size,
+                                     diff);
 }
 
 // End ignore "array-bounds"

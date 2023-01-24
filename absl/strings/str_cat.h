@@ -48,6 +48,40 @@
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using
 // a `PadSpec` enum.
 //
+// User-defined types can be formatted with the `AbslStringify()` customization
+// point. The API relies on detecting an overload in the user-defined type's
+// namespace of a free (non-member) `AbslStringify()` function as a definition
+// (typically declared as a friend and implemented in-line.
+// with the following signature:
+//
+// class MyClass { ... };
+//
+// template <typename Sink>
+// void AbslStringify(Sink& sink, const MyClass& value);
+//
+// An `AbslStringify()` overload for a type should only be declared in the same
+// file and namespace as said type.
+//
+// Note that `AbslStringify()` also supports use with `absl::StrFormat()` and
+// `absl::Substitute()`.
+//
+// Example:
+//
+// struct Point {
+//   // To add formatting support to `Point`, we simply need to add a free
+//   // (non-member) function `AbslStringify()`. This method specifies how
+//   // Point should be printed when absl::StrCat() is called on it. You can add
+//   // such a free function using a friend declaration within the body of the
+//   // class. The sink parameter is a templated type to avoid requiring
+//   // dependencies.
+//   template <typename Sink> friend void AbslStringify(Sink&
+//   sink, const Point& p) {
+//     absl::Format(&sink, "(%v, %v)", p.x, p.y);
+//   }
+//
+//   int x;
+//   int y;
+// };
 // -----------------------------------------------------------------------------
 
 #ifndef ABSL_STRINGS_STR_CAT_H_
@@ -61,6 +95,8 @@
 #include <vector>
 
 #include "absl/base/port.h"
+#include "absl/strings/internal/has_absl_stringify.h"
+#include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 
@@ -76,32 +112,6 @@ struct AlphaNumBuffer {
   std::array<char, max_size> data;
   size_t size;
 };
-
-class StringifySink {
- public:
-  void Append(size_t count, char ch);
-
-  void Append(string_view v);
-
-  bool PutPaddedString(string_view v, int width, int precision, bool left);
-
-  // Support `absl::Format(&sink, format, args...)`.
-  friend void AbslFormatFlush(StringifySink* sink, absl::string_view v) {
-    sink->Append(v);
-  }
-
-  template <typename T>
-  friend string_view ExtractStringification(StringifySink& sink, const T& v);
-
- private:
-  std::string buffer_;
-};
-
-template <typename T>
-string_view ExtractStringification(StringifySink& sink, const T& v) {
-  AbslStringify(sink, v);
-  return sink.buffer_;
-}
 
 }  // namespace strings_internal
 
@@ -232,17 +242,10 @@ struct Dec {
 // -----------------------------------------------------------------------------
 //
 // The `AlphaNum` class acts as the main parameter type for `StrCat()` and
-// `StrAppend()`, providing efficient conversion of numeric, boolean, and
-// hexadecimal values (through the `Hex` type) into strings.
-
-template <typename T, typename = void>
-struct HasAbslStringify : std::false_type {};
-
-template <typename T>
-struct HasAbslStringify<T, std::enable_if_t<std::is_void<decltype(AbslStringify(
-                               std::declval<strings_internal::StringifySink&>(),
-                               std::declval<const T&>()))>::value>>
-    : std::true_type {};
+// `StrAppend()`, providing efficient conversion of numeric, boolean, decimal,
+// and hexadecimal values (through the `Dec` and `Hex` types) into strings.
+// `AlphaNum` should only be used as a function parameter. Do not instantiate
+//  `AlphaNum` directly as a stack variable.
 
 class AlphaNum {
  public:
@@ -292,7 +295,7 @@ class AlphaNum {
   AlphaNum(absl::string_view pc) : piece_(pc) {}  // NOLINT(runtime/explicit)
 
   template <typename T, typename = typename std::enable_if<
-                            HasAbslStringify<T>::value>::type>
+                            strings_internal::HasAbslStringify<T>::value>::type>
   AlphaNum(                                         // NOLINT(runtime/explicit)
       const T& v,                                   // NOLINT(runtime/explicit)
       strings_internal::StringifySink&& sink = {})  // NOLINT(runtime/explicit)
@@ -317,7 +320,8 @@ class AlphaNum {
   // This overload matches only scoped enums.
   template <typename T,
             typename = typename std::enable_if<
-                std::is_enum<T>{} && !std::is_convertible<T, int>{}>::type>
+                std::is_enum<T>{} && !std::is_convertible<T, int>{} &&
+                !strings_internal::HasAbslStringify<T>::value>::type>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(static_cast<typename std::underlying_type<T>::type>(e)) {}
 

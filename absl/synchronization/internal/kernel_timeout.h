@@ -19,8 +19,8 @@
 // Constructible from a absl::Time (for a timeout to be respected) or {}
 // (for "no timeout".)
 // This is a private low-level API for use by a handful of low-level
-// components that are friends of this class. Higher-level components
-// should build APIs based on absl::Time and absl::Duration.
+// components. Higher-level components should build APIs based on
+// absl::Time and absl::Duration.
 
 #ifndef ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
 #define ABSL_SYNCHRONIZATION_INTERNAL_KERNEL_TIMEOUT_H_
@@ -28,6 +28,7 @@
 #include <time.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 
 #include "absl/base/internal/raw_logging.h"
@@ -38,7 +39,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-class Futex;
 class Waiter;
 
 class KernelTimeout {
@@ -60,7 +60,10 @@ class KernelTimeout {
 
   // Convert to parameter for sem_timedwait/futex/similar.  Only for approved
   // users.  Do not call if !has_timeout.
-  struct timespec MakeAbsTimespec();
+  struct timespec MakeAbsTimespec() const;
+
+  // Convert to unix epoch nanos.  Do not call if !has_timeout.
+  int64_t MakeAbsNanos() const;
 
  private:
   // internal rep, not user visible: ns after unix epoch.
@@ -120,13 +123,12 @@ class KernelTimeout {
     }
     return 0;
   }
-#endif
 
-  friend class Futex;
   friend class Waiter;
+#endif
 };
 
-inline struct timespec KernelTimeout::MakeAbsTimespec() {
+inline struct timespec KernelTimeout::MakeAbsTimespec() const {
   int64_t n = ns_;
   static const int64_t kNanosPerSecond = 1000 * 1000 * 1000;
   if (n == 0) {
@@ -148,6 +150,17 @@ inline struct timespec KernelTimeout::MakeAbsTimespec() {
   abstime.tv_sec = static_cast<time_t>(seconds);
   abstime.tv_nsec = static_cast<decltype(abstime.tv_nsec)>(n % kNanosPerSecond);
   return abstime;
+}
+
+inline int64_t KernelTimeout::MakeAbsNanos() const {
+  if (ns_ == 0) {
+    ABSL_RAW_LOG(
+        ERROR, "Tried to create a timeout from a non-timeout; never do this.");
+    // But we'll try to continue sanely.  no-timeout ~= saturated timeout.
+    return (std::numeric_limits<int64_t>::max)();
+  }
+
+  return ns_;
 }
 
 }  // namespace synchronization_internal

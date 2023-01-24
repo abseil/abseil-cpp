@@ -16,6 +16,7 @@
 #include <cmath>
 #include <numeric>
 #include <random>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -477,6 +478,24 @@ void BM_DropDeletes(benchmark::State& state) {
 }
 BENCHMARK(BM_DropDeletes);
 
+void BM_Resize(benchmark::State& state) {
+  // For now just measure a small cheap hash table since we
+  // are mostly interested in the overhead of type-erasure
+  // in resize().
+  constexpr int kElements = 64;
+  const int kCapacity = kElements * 2;
+
+  IntTable table;
+  for (int i = 0; i < kElements; i++) {
+    table.insert(i);
+  }
+  for (auto unused : state) {
+    table.rehash(0);
+    table.rehash(kCapacity);
+  }
+}
+BENCHMARK(BM_Resize);
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
@@ -491,6 +510,12 @@ auto CodegenAbslRawHashSetInt64Find(absl::container_internal::IntTable* table,
 
 bool CodegenAbslRawHashSetInt64FindNeEnd(
     absl::container_internal::IntTable* table, int64_t key) {
+  return table->find(key) != table->end();
+}
+
+// This is useful because the find isn't inlined but the iterator comparison is.
+bool CodegenAbslRawHashSetStringFindNeEnd(
+    absl::container_internal::StringTable* table, const std::string& key) {
   return table->find(key) != table->end();
 }
 
@@ -513,6 +538,7 @@ void CodegenAbslRawHashSetInt64Iterate(
 int odr =
     (::benchmark::DoNotOptimize(std::make_tuple(
          &CodegenAbslRawHashSetInt64Find, &CodegenAbslRawHashSetInt64FindNeEnd,
+         &CodegenAbslRawHashSetStringFindNeEnd,
          &CodegenAbslRawHashSetInt64Insert, &CodegenAbslRawHashSetInt64Contains,
          &CodegenAbslRawHashSetInt64Iterate)),
      1);

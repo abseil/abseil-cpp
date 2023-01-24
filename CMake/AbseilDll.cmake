@@ -91,6 +91,26 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/tracked.h"
   "container/node_hash_map.h"
   "container/node_hash_set.h"
+  "crc/crc32c.cc"
+  "crc/crc32c.h"
+  "crc/internal/cpu_detect.cc"
+  "crc/internal/cpu_detect.h"
+  "crc/internal/crc32c.h"
+  "crc/internal/crc32c_inline.h"
+  "crc/internal/crc32_x86_arm_combined_simd.h"
+  "crc/internal/crc.cc"
+  "crc/internal/crc.h"
+  "crc/internal/crc_cord_state.cc"
+  "crc/internal/crc_cord_state.h"
+  "crc/internal/crc_internal.h"
+  "crc/internal/crc_x86_arm_combined.cc"
+  "crc/internal/crc_memcpy_fallback.cc"
+  "crc/internal/crc_memcpy.h"
+  "crc/internal/crc_memcpy_x86_64.cc"
+  "crc/internal/crc_non_temporal_memcpy.cc"
+  "crc/internal/crc_x86_arm_combined.cc"
+  "crc/internal/non_temporal_arm_intrinsics.h"
+  "crc/internal/non_temporal_memcpy.h"
   "debugging/failure_signal_handler.cc"
   "debugging/failure_signal_handler.h"
   "debugging/leak_check.h"
@@ -238,8 +258,13 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/cordz_statistics.h"
   "strings/internal/cordz_update_scope.h"
   "strings/internal/cordz_update_tracker.h"
+  "strings/internal/damerau_levenshtein_distance.h"
+  "strings/internal/damerau_levenshtein_distance.cc"
   "strings/internal/stl_type_traits.h"
   "strings/internal/string_constant.h"
+  "strings/internal/stringify_sink.h"
+  "strings/internal/stringify_sink.cc"
+  "strings/internal/has_absl_stringify.h"
   "strings/match.cc"
   "strings/match.h"
   "strings/numbers.cc"
@@ -272,6 +297,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/str_format/bind.cc"
   "strings/internal/str_format/bind.h"
   "strings/internal/str_format/checker.h"
+  "strings/internal/str_format/constexpr_parser.h"
   "strings/internal/str_format/extension.cc"
   "strings/internal/str_format/extension.h"
   "strings/internal/str_format/float_conversion.cc"
@@ -381,6 +407,9 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "cord"
   "core_headers"
   "counting_allocator"
+  "crc_cpu_detect"
+  "crc_internal"
+  "crc32c"
   "debugging"
   "debugging_internal"
   "demangle_internal"
@@ -413,6 +442,8 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "node_hash_map"
   "node_hash_set"
   "node_slot_policy"
+  "non_temporal_arm_intrinsics"
+  "non_temporal_memcpy"
   "numeric"
   "optional"
   "periodic_sampler"
@@ -471,6 +502,35 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "utility"
   "variant"
 )
+
+function(_absl_target_compile_features_if_available TARGET TYPE FEATURE)
+  if(FEATURE IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+    target_compile_features(${TARGET} ${TYPE} ${FEATURE})
+  else()
+    message(WARNING "Feature ${FEATURE} is unknown for the CXX compiler")
+  endif()
+endfunction()
+
+include(CheckCXXSourceCompiles)
+
+check_cxx_source_compiles(
+  [==[
+#ifdef _MSC_VER
+#  if _MSVC_LANG < 201700L
+#    error "The compiler defaults or is configured for C++ < 17"
+#  endif
+#elif __cplusplus < 201700L
+#  error "The compiler defaults or is configured for C++ < 17"
+#endif
+int main() { return 0; }
+]==]
+  ABSL_INTERNAL_AT_LEAST_CXX17)
+
+if(ABSL_INTERNAL_AT_LEAST_CXX17)
+  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
+else()
+  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_14)
+endif()
 
 function(absl_internal_dll_contains)
   cmake_parse_arguments(ABSL_INTERNAL_DLL
@@ -542,6 +602,33 @@ function(absl_make_dll)
       ${ABSL_DEFAULT_COPTS}
   )
 
+  foreach(cflag ${ABSL_CC_LIB_COPTS})
+    if(${cflag} MATCHES "^(-Wno|/wd)")
+      # These flags are needed to suppress warnings that might fire in our headers.
+      set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
+    elseif(${cflag} MATCHES "^(-W|/w[1234eo])")
+      # Don't impose our warnings on others.
+    else()
+      set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
+    endif()
+  endforeach()
+  string(REPLACE ";" " " PC_LINKOPTS "${ABSL_CC_LIB_LINKOPTS}")
+
+  FILE(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/lib/pkgconfig/abseil_dll.pc" CONTENT "\
+prefix=${CMAKE_INSTALL_PREFIX}\n\
+exec_prefix=\${prefix}\n\
+libdir=${CMAKE_INSTALL_FULL_LIBDIR}\n\
+includedir=${CMAKE_INSTALL_FULL_INCLUDEDIR}\n\
+\n\
+Name: abseil_dll\n\
+Description: Abseil DLL library\n\
+URL: https://abseil.io/\n\
+Version: ${absl_VERSION}\n\
+Libs: -L\${libdir} ${PC_LINKOPTS} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:-labseil_dll>\n\
+Cflags: -I\${includedir}${PC_CFLAGS}\n")
+  INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/abseil_dll.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
   target_compile_definitions(
     abseil_dll
     PRIVATE
@@ -551,6 +638,25 @@ function(absl_make_dll)
       ${ABSL_CC_LIB_DEFINES}
       ABSL_CONSUME_DLL
   )
+
+  if(ABSL_PROPAGATE_CXX_STD)
+    # Abseil libraries require C++14 as the current minimum standard. When
+    # compiled with C++17 (either because it is the compiler's default or
+    # explicitly requested), then Abseil requires C++17.
+    _absl_target_compile_features_if_available(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
+  else()
+    # Note: This is legacy (before CMake 3.8) behavior. Setting the
+    # target-level CXX_STANDARD property to ABSL_CXX_STANDARD (which is
+    # initialized by CMAKE_CXX_STANDARD) should have no real effect, since
+    # that is the default value anyway.
+    #
+    # CXX_STANDARD_REQUIRED does guard against the top-level CMake project
+    # not having enabled CMAKE_CXX_STANDARD_REQUIRED (which prevents
+    # "decaying" to an older standard if the requested one isn't available).
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD ${ABSL_CXX_STANDARD})
+    set_property(TARGET ${_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+  endif()
+
   install(TARGETS abseil_dll EXPORT ${PROJECT_NAME}Targets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

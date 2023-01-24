@@ -443,7 +443,7 @@ TEST(StrCat, AvoidsMemcpyWithNullptr) {
   EXPECT_EQ(result, "12345");
 }
 
-#ifdef GTEST_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST
 TEST(StrAppend, Death) {
   std::string s = "self";
   // on linux it's "assertion", on mac it's "Assertion",
@@ -648,6 +648,18 @@ TEST(StrCat, AbslStringifyExampleUsingFormat) {
   PointStringifyUsingFormat p;
   EXPECT_EQ(absl::StrCat(p), "(10, 20)");
   EXPECT_EQ(absl::StrCat("a ", p, " z"), "a (10, 20) z");
+}
+
+enum class EnumWithStringify { Many = 0, Choices = 1 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, EnumWithStringify e) {
+  absl::Format(&sink, "%s", e == EnumWithStringify::Many ? "Many" : "Choices");
+}
+
+TEST(StrCat, AbslStringifyWithEnum) {
+  const auto e = EnumWithStringify::Choices;
+  EXPECT_EQ(absl::StrCat(e), "Choices");
 }
 
 }  // namespace

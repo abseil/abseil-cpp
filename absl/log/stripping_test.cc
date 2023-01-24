@@ -215,7 +215,8 @@ class StrippingTest : public ::testing::Test {
 #elif defined(_WIN32)
     std::basic_string<TCHAR> path(4096, _T('\0'));
     while (true) {
-      const uint32_t ret = ::GetModuleFileName(nullptr, &path[0], path.size());
+      const uint32_t ret = ::GetModuleFileName(nullptr, &path[0],
+                                               static_cast<DWORD>(path.size()));
       if (ret == 0) {
         absl::FPrintF(
             stderr,
@@ -326,7 +327,7 @@ TEST_F(StrippingTest, Level) {
     // level that shouldn't be stripped.
     EXPECT_THAT(exe.get(), FileHasSubstr(needle));
   } else {
-#if defined(_MSC_VER) || defined(__APPLE__)
+#if (defined(_MSC_VER) && !defined(__clang__)) || defined(__APPLE__)
     // Dead code elimination misses this case.
 #else
     // All levels should be stripped, so it doesn't matter what the severity

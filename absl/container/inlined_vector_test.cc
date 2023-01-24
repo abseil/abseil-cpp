@@ -16,12 +16,14 @@
 
 #include <algorithm>
 #include <forward_list>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <scoped_allocator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -49,6 +51,7 @@ using testing::ElementsAre;
 using testing::ElementsAreArray;
 using testing::Eq;
 using testing::Gt;
+using testing::Pointwise;
 using testing::PrintToString;
 
 using IntVec = absl::InlinedVector<int, 8>;
@@ -1205,6 +1208,8 @@ TYPED_TEST_P(InstanceTest, CountConstructorsDestructorsOnMoveAssignment) {
 }
 
 TEST(CountElemAssign, SimpleTypeWithInlineBacking) {
+  const size_t inlined_capacity = absl::InlinedVector<int, 2>().capacity();
+
   for (size_t original_size = 0; original_size <= 5; ++original_size) {
     SCOPED_TRACE(original_size);
     // Original contents are [12345, 12345, ...]
@@ -1214,9 +1219,9 @@ TEST(CountElemAssign, SimpleTypeWithInlineBacking) {
                                   original_contents.end());
     v.assign(2, 123);
     EXPECT_THAT(v, AllOf(SizeIs(2u), ElementsAre(123, 123)));
-    if (original_size <= 2) {
+    if (original_size <= inlined_capacity) {
       // If the original had inline backing, it should stay inline.
-      EXPECT_EQ(2u, v.capacity());
+      EXPECT_EQ(v.capacity(), inlined_capacity);
     }
   }
 }
@@ -1357,6 +1362,8 @@ TEST(RangedConstructor, ElementsAreConstructed) {
 }
 
 TEST(RangedAssign, SimpleType) {
+  const size_t inlined_capacity = absl::InlinedVector<int, 3>().capacity();
+
   // Test for all combinations of original sizes (empty and non-empty inline,
   // and out of line) and target sizes.
   for (size_t original_size = 0; original_size <= 5; ++original_size) {
@@ -1364,13 +1371,13 @@ TEST(RangedAssign, SimpleType) {
     // Original contents are [12345, 12345, ...]
     std::vector<int> original_contents(original_size, 12345);
 
-    for (int target_size = 0; target_size <= 5; ++target_size) {
+    for (size_t target_size = 0; target_size <= 5; ++target_size) {
       SCOPED_TRACE(target_size);
 
       // New contents are [3, 4, ...]
       std::vector<int> new_contents;
-      for (int i = 0; i < target_size; ++i) {
-        new_contents.push_back(i + 3);
+      for (size_t i = 0; i < target_size; ++i) {
+        new_contents.push_back(static_cast<int>(i + 3));
       }
 
       absl::InlinedVector<int, 3> v(original_contents.begin(),
@@ -1379,9 +1386,10 @@ TEST(RangedAssign, SimpleType) {
 
       EXPECT_EQ(new_contents.size(), v.size());
       EXPECT_LE(new_contents.size(), v.capacity());
-      if (target_size <= 3 && original_size <= 3) {
+      if (target_size <= inlined_capacity &&
+          original_size <= inlined_capacity) {
         // Storage should stay inline when target size is small.
-        EXPECT_EQ(3u, v.capacity());
+        EXPECT_EQ(v.capacity(), inlined_capacity);
       }
       EXPECT_THAT(v, ElementsAreArray(new_contents));
     }
@@ -1467,9 +1475,12 @@ TEST(InitializerListConstructor, DisparateTypesInList) {
 }
 
 TEST(InitializerListConstructor, ComplexTypeWithInlineBacking) {
-  EXPECT_THAT((absl::InlinedVector<CopyableMovableInstance, 1>{
-                  CopyableMovableInstance(0)}),
-              AllOf(SizeIs(1u), CapacityIs(1u), ElementsAre(ValueIs(0))));
+  const size_t inlined_capacity =
+      absl::InlinedVector<CopyableMovableInstance, 1>().capacity();
+  EXPECT_THAT(
+      (absl::InlinedVector<CopyableMovableInstance, 1>{
+          CopyableMovableInstance(0)}),
+      AllOf(SizeIs(1u), CapacityIs(inlined_capacity), ElementsAre(ValueIs(0))));
 }
 
 TEST(InitializerListConstructor, ComplexTypeWithReallocationRequired) {
@@ -1822,6 +1833,228 @@ TEST(InlinedVectorTest, AbslHashValueWorks) {
   }
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(cases));
+}
+
+class MoveConstructibleOnlyInstance
+    : public absl::test_internal::BaseCountedInstance {
+ public:
+  explicit MoveConstructibleOnlyInstance(int x) : BaseCountedInstance(x) {}
+  MoveConstructibleOnlyInstance(MoveConstructibleOnlyInstance&& other) =
+      default;
+  MoveConstructibleOnlyInstance& operator=(
+      MoveConstructibleOnlyInstance&& other) = delete;
+};
+
+MATCHER(HasValue, "") {
+  return ::testing::get<0>(arg).value() == ::testing::get<1>(arg);
+}
+
+TEST(NonAssignableMoveAssignmentTest, AllocatedToInline) {
+  using X = MoveConstructibleOnlyInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> inlined;
+  inlined.emplace_back(1);
+  absl::InlinedVector<X, 2> allocated;
+  allocated.emplace_back(1);
+  allocated.emplace_back(2);
+  allocated.emplace_back(3);
+  tracker.ResetCopiesMovesSwaps();
+
+  inlined = std::move(allocated);
+  // passed ownership of the allocated storage
+  EXPECT_EQ(tracker.moves(), 0);
+  EXPECT_EQ(tracker.live_instances(), 3);
+
+  EXPECT_THAT(inlined, Pointwise(HasValue(), {1, 2, 3}));
+}
+
+TEST(NonAssignableMoveAssignmentTest, InlineToAllocated) {
+  using X = MoveConstructibleOnlyInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> inlined;
+  inlined.emplace_back(1);
+  absl::InlinedVector<X, 2> allocated;
+  allocated.emplace_back(1);
+  allocated.emplace_back(2);
+  allocated.emplace_back(3);
+  tracker.ResetCopiesMovesSwaps();
+
+  allocated = std::move(inlined);
+  // Moved elements
+  EXPECT_EQ(tracker.moves(), 1);
+  EXPECT_EQ(tracker.live_instances(), 1);
+
+  EXPECT_THAT(allocated, Pointwise(HasValue(), {1}));
+}
+
+TEST(NonAssignableMoveAssignmentTest, InlineToInline) {
+  using X = MoveConstructibleOnlyInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> inlined_a;
+  inlined_a.emplace_back(1);
+  absl::InlinedVector<X, 2> inlined_b;
+  inlined_b.emplace_back(1);
+  tracker.ResetCopiesMovesSwaps();
+
+  inlined_a = std::move(inlined_b);
+  // Moved elements
+  EXPECT_EQ(tracker.moves(), 1);
+  EXPECT_EQ(tracker.live_instances(), 1);
+
+  EXPECT_THAT(inlined_a, Pointwise(HasValue(), {1}));
+}
+
+TEST(NonAssignableMoveAssignmentTest, AllocatedToAllocated) {
+  using X = MoveConstructibleOnlyInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> allocated_a;
+  allocated_a.emplace_back(1);
+  allocated_a.emplace_back(2);
+  allocated_a.emplace_back(3);
+  absl::InlinedVector<X, 2> allocated_b;
+  allocated_b.emplace_back(4);
+  allocated_b.emplace_back(5);
+  allocated_b.emplace_back(6);
+  allocated_b.emplace_back(7);
+  tracker.ResetCopiesMovesSwaps();
+
+  allocated_a = std::move(allocated_b);
+  // passed ownership of the allocated storage
+  EXPECT_EQ(tracker.moves(), 0);
+  EXPECT_EQ(tracker.live_instances(), 4);
+
+  EXPECT_THAT(allocated_a, Pointwise(HasValue(), {4, 5, 6, 7}));
+}
+
+TEST(NonAssignableMoveAssignmentTest, AssignThis) {
+  using X = MoveConstructibleOnlyInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> v;
+  v.emplace_back(1);
+  v.emplace_back(2);
+  v.emplace_back(3);
+
+  tracker.ResetCopiesMovesSwaps();
+
+  // Obfuscated in order to pass -Wself-move.
+  v = std::move(*std::addressof(v));
+  // nothing happens
+  EXPECT_EQ(tracker.moves(), 0);
+  EXPECT_EQ(tracker.live_instances(), 3);
+
+  EXPECT_THAT(v, Pointwise(HasValue(), {1, 2, 3}));
+}
+
+class NonSwappableInstance : public absl::test_internal::BaseCountedInstance {
+ public:
+  explicit NonSwappableInstance(int x) : BaseCountedInstance(x) {}
+  NonSwappableInstance(const NonSwappableInstance& other) = default;
+  NonSwappableInstance& operator=(const NonSwappableInstance& other) = default;
+  NonSwappableInstance(NonSwappableInstance&& other) = default;
+  NonSwappableInstance& operator=(NonSwappableInstance&& other) = default;
+};
+
+void swap(NonSwappableInstance&, NonSwappableInstance&) = delete;
+
+TEST(NonSwappableSwapTest, InlineAndAllocatedTransferStorageAndMove) {
+  using X = NonSwappableInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> inlined;
+  inlined.emplace_back(1);
+  absl::InlinedVector<X, 2> allocated;
+  allocated.emplace_back(1);
+  allocated.emplace_back(2);
+  allocated.emplace_back(3);
+  tracker.ResetCopiesMovesSwaps();
+
+  inlined.swap(allocated);
+  EXPECT_EQ(tracker.moves(), 1);
+  EXPECT_EQ(tracker.live_instances(), 4);
+
+  EXPECT_THAT(inlined, Pointwise(HasValue(), {1, 2, 3}));
+}
+
+TEST(NonSwappableSwapTest, InlineAndInlineMoveIndividualElements) {
+  using X = NonSwappableInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> inlined_a;
+  inlined_a.emplace_back(1);
+  absl::InlinedVector<X, 2> inlined_b;
+  inlined_b.emplace_back(2);
+  tracker.ResetCopiesMovesSwaps();
+
+  inlined_a.swap(inlined_b);
+  EXPECT_EQ(tracker.moves(), 3);
+  EXPECT_EQ(tracker.live_instances(), 2);
+
+  EXPECT_THAT(inlined_a, Pointwise(HasValue(), {2}));
+  EXPECT_THAT(inlined_b, Pointwise(HasValue(), {1}));
+}
+
+TEST(NonSwappableSwapTest, AllocatedAndAllocatedOnlyTransferStorage) {
+  using X = NonSwappableInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> allocated_a;
+  allocated_a.emplace_back(1);
+  allocated_a.emplace_back(2);
+  allocated_a.emplace_back(3);
+  absl::InlinedVector<X, 2> allocated_b;
+  allocated_b.emplace_back(4);
+  allocated_b.emplace_back(5);
+  allocated_b.emplace_back(6);
+  allocated_b.emplace_back(7);
+  tracker.ResetCopiesMovesSwaps();
+
+  allocated_a.swap(allocated_b);
+  EXPECT_EQ(tracker.moves(), 0);
+  EXPECT_EQ(tracker.live_instances(), 7);
+
+  EXPECT_THAT(allocated_a, Pointwise(HasValue(), {4, 5, 6, 7}));
+  EXPECT_THAT(allocated_b, Pointwise(HasValue(), {1, 2, 3}));
+}
+
+TEST(NonSwappableSwapTest, SwapThis) {
+  using X = NonSwappableInstance;
+  InstanceTracker tracker;
+  absl::InlinedVector<X, 2> v;
+  v.emplace_back(1);
+  v.emplace_back(2);
+  v.emplace_back(3);
+
+  tracker.ResetCopiesMovesSwaps();
+
+  v.swap(v);
+  EXPECT_EQ(tracker.moves(), 0);
+  EXPECT_EQ(tracker.live_instances(), 3);
+
+  EXPECT_THAT(v, Pointwise(HasValue(), {1, 2, 3}));
+}
+
+template <size_t N>
+using CharVec = absl::InlinedVector<char, N>;
+
+// Warning: This struct "simulates" the type `InlinedVector::Storage::Allocated`
+// to make reasonable expectations for inlined storage capacity optimization. If
+// implementation changes `Allocated`, then `MySpan` and tests that use it need
+// to be updated accordingly.
+template <typename T>
+struct MySpan {
+  T* data;
+  size_t size;
+};
+
+TEST(StorageTest, InlinedCapacityAutoIncrease) {
+  // The requested capacity is auto increased to `sizeof(MySpan<char>)`.
+  EXPECT_GT(CharVec<1>().capacity(), 1);
+  EXPECT_EQ(CharVec<1>().capacity(), sizeof(MySpan<char>));
+  EXPECT_EQ(CharVec<1>().capacity(), CharVec<2>().capacity());
+  EXPECT_EQ(sizeof(CharVec<1>), sizeof(CharVec<2>));
+
+  // The requested capacity is auto increased to
+  // `sizeof(MySpan<int>) / sizeof(int)`.
+  EXPECT_GT((absl::InlinedVector<int, 1>().capacity()), 1);
+  EXPECT_EQ((absl::InlinedVector<int, 1>().capacity()),
+            sizeof(MySpan<int>) / sizeof(int));
 }
 
 }  // anonymous namespace

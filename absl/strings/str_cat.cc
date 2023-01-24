@@ -30,39 +30,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-namespace strings_internal {
-void StringifySink::Append(size_t count, char ch) { buffer_.append(count, ch); }
-
-void StringifySink::Append(string_view v) {
-  buffer_.append(v.data(), v.size());
-}
-
-bool StringifySink::PutPaddedString(string_view v, int width, int precision,
-                                    bool left) {
-  size_t space_remaining = 0;
-
-  if (width >= 0) space_remaining = static_cast<size_t>(width);
-
-  size_t n = v.size();
-
-  if (precision >= 0) n = (std::min)(n, static_cast<size_t>(precision));
-
-  string_view shown(v.data(), n);
-
-  if (shown.size() < space_remaining) {
-    space_remaining = space_remaining - shown.size();
-  } else {
-    space_remaining = 0;
-  }
-
-  if (!left) Append(space_remaining, ' ');
-  Append(shown);
-  if (left) Append(space_remaining, ' ');
-  return true;
-}
-
-}  // namespace strings_internal
-
 AlphaNum::AlphaNum(Hex hex) {
   static_assert(numbers_internal::kFastToBufferSize >= 32,
                 "This function only works when output buffer >= 32 bytes long");
@@ -177,12 +144,12 @@ namespace strings_internal {
 std::string CatPieces(std::initializer_list<absl::string_view> pieces) {
   std::string result;
   size_t total_size = 0;
-  for (const absl::string_view& piece : pieces) total_size += piece.size();
+  for (absl::string_view piece : pieces) total_size += piece.size();
   strings_internal::STLStringResizeUninitialized(&result, total_size);
 
   char* const begin = &result[0];
   char* out = begin;
-  for (const absl::string_view& piece : pieces) {
+  for (absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
     if (this_size != 0) {
       memcpy(out, piece.data(), this_size);
@@ -206,7 +173,7 @@ void AppendPieces(std::string* dest,
                   std::initializer_list<absl::string_view> pieces) {
   size_t old_size = dest->size();
   size_t total_size = old_size;
-  for (const absl::string_view& piece : pieces) {
+  for (absl::string_view piece : pieces) {
     ASSERT_NO_OVERLAP(*dest, piece);
     total_size += piece.size();
   }
@@ -214,7 +181,7 @@ void AppendPieces(std::string* dest,
 
   char* const begin = &(*dest)[0];
   char* out = begin + old_size;
-  for (const absl::string_view& piece : pieces) {
+  for (absl::string_view piece : pieces) {
     const size_t this_size = piece.size();
     if (this_size != 0) {
       memcpy(out, piece.data(), this_size);

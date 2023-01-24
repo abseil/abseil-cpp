@@ -66,6 +66,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/invoke.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
@@ -281,7 +282,7 @@ void LocalManagerNontrivial(FunctionToCall operation,
       from_object.~T();  // Must not throw. // NOLINT
       return;
   }
-  ABSL_INTERNAL_UNREACHABLE;
+  ABSL_UNREACHABLE();
 }
 
 // The invoker that is used when a target function is in local storage
@@ -319,7 +320,7 @@ inline void RemoteManagerTrivial(FunctionToCall operation,
 #endif  // __cpp_sized_deallocation
       return;
   }
-  ABSL_INTERNAL_UNREACHABLE;
+  ABSL_UNREACHABLE();
 }
 
 // The manager that is used when a target function is in remote storage and the
@@ -341,7 +342,7 @@ void RemoteManagerNontrivial(FunctionToCall operation,
       ::delete static_cast<T*>(from->remote.target);  // Must not throw.
       return;
   }
-  ABSL_INTERNAL_UNREACHABLE;
+  ABSL_UNREACHABLE();
 }
 
 // The invoker that is used when a target function is in remote storage
@@ -809,11 +810,31 @@ using CanAssignReferenceWrapper = TrueAlias<
         : Core(absl::in_place_type<absl::decay_t<T> inv_quals>,                \
                std::forward<Args>(args)...) {}                                 \
                                                                                \
+    InvokerType<noex, ReturnType, P...>* ExtractInvoker() cv {                 \
+      using QualifiedTestType = int cv ref;                                    \
+      auto* invoker = this->invoker_;                                          \
+      if (!std::is_const<QualifiedTestType>::value &&                          \
+          std::is_rvalue_reference<QualifiedTestType>::value) {                \
+        ABSL_HARDENING_ASSERT([this]() {                                       \
+          /* We checked that this isn't const above, so const_cast is safe */  \
+          const_cast<Impl*>(this)->invoker_ =                                  \
+              [](TypeErasedState*,                                             \
+                 ForwardedParameterType<P>...) noexcept(noex) -> ReturnType {  \
+            ABSL_HARDENING_ASSERT(false && "AnyInvocable use-after-move");     \
+            std::terminate();                                                  \
+          };                                                                   \
+          return this->HasValue();                                             \
+        }());                                                                  \
+      }                                                                        \
+      return invoker;                                                          \
+    }                                                                          \
+                                                                               \
     /*The actual invocation operation with the proper signature*/              \
     ReturnType operator()(P... args) cv ref noexcept(noex) {                   \
       assert(this->invoker_ != nullptr);                                       \
-      return this->invoker_(const_cast<TypeErasedState*>(&this->state_),       \
-                            static_cast<ForwardedParameterType<P>>(args)...);  \
+      return this->ExtractInvoker()(                                           \
+          const_cast<TypeErasedState*>(&this->state_),                         \
+          static_cast<ForwardedParameterType<P>>(args)...);                    \
     }                                                                          \
   }
 

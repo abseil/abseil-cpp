@@ -114,18 +114,6 @@ struct VoidTImpl {
   using type = void;
 };
 
-// This trick to retrieve a default alignment is necessary for our
-// implementation of aligned_storage_t to be consistent with any implementation
-// of std::aligned_storage.
-template <size_t Len, typename T = std::aligned_storage<Len>>
-struct default_alignment_of_aligned_storage;
-
-template <size_t Len, size_t Align>
-struct default_alignment_of_aligned_storage<Len,
-                                            std::aligned_storage<Len, Align>> {
-  static constexpr size_t value = Align;
-};
-
 ////////////////////////////////
 // Library Fundamentals V2 TS //
 ////////////////////////////////
@@ -642,6 +630,21 @@ using remove_extent_t = typename std::remove_extent<T>::type;
 template <typename T>
 using remove_all_extents_t = typename std::remove_all_extents<T>::type;
 
+namespace type_traits_internal {
+// This trick to retrieve a default alignment is necessary for our
+// implementation of aligned_storage_t to be consistent with any
+// implementation of std::aligned_storage.
+template <size_t Len, typename T = std::aligned_storage<Len>>
+struct default_alignment_of_aligned_storage;
+
+template <size_t Len, size_t Align>
+struct default_alignment_of_aligned_storage<
+    Len, std::aligned_storage<Len, Align>> {
+  static constexpr size_t value = Align;
+};
+}  // namespace type_traits_internal
+
+// TODO(b/260219225): std::aligned_storage(_t) is deprecated in C++23.
 template <size_t Len, size_t Align = type_traits_internal::
                           default_alignment_of_aligned_storage<Len>::value>
 using aligned_storage_t = typename std::aligned_storage<Len, Align>::type;
@@ -841,6 +844,45 @@ template <class T>
 struct is_trivially_relocatable : std::integral_constant<bool, false> {};
 #endif
 
+// absl::is_constant_evaluated()
+//
+// Detects whether the function call occurs within a constant-evaluated context.
+// Returns true if the evaluation of the call occurs within the evaluation of an
+// expression or conversion that is manifestly constant-evaluated; otherwise
+// returns false.
+//
+// This function is implemented in terms of `std::is_constant_evaluated` for
+// c++20 and up. For older c++ versions, the function is implemented in terms
+// of `__builtin_is_constant_evaluated` if available, otherwise the function
+// will fail to compile.
+//
+// Applications can inspect `ABSL_HAVE_CONSTANT_EVALUATED` at compile time
+// to check if this function is supported.
+//
+// Example:
+//
+// constexpr MyClass::MyClass(int param) {
+// #ifdef ABSL_HAVE_CONSTANT_EVALUATED
+//   if (!absl::is_constant_evaluated()) {
+//     ABSL_LOG(INFO) << "MyClass(" << param << ")";
+//   }
+// #endif  // ABSL_HAVE_CONSTANT_EVALUATED
+// }
+//
+// Upstream documentation:
+//
+// http://en.cppreference.com/w/cpp/types/is_constant_evaluated
+// http://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html#:~:text=__builtin_is_constant_evaluated
+//
+#if defined(ABSL_HAVE_CONSTANT_EVALUATED)
+constexpr bool is_constant_evaluated() noexcept {
+#ifdef __cpp_lib_is_constant_evaluated
+  return std::is_constant_evaluated();
+#elif ABSL_HAVE_BUILTIN(__builtin_is_constant_evaluated)
+  return __builtin_is_constant_evaluated();
+#endif
+}
+#endif  // ABSL_HAVE_CONSTANT_EVALUATED
 ABSL_NAMESPACE_END
 }  // namespace absl
 

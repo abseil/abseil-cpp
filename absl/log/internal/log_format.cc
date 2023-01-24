@@ -32,6 +32,7 @@
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/optimization.h"
+#include "absl/log/internal/append_truncated.h"
 #include "absl/log/internal/config.h"
 #include "absl/log/internal/globals.h"
 #include "absl/strings/numbers.h"
@@ -45,6 +46,31 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 namespace {
+
+// This templated function avoids compiler warnings about tautological
+// comparisons when log_internal::Tid is unsigned. It can be replaced with a
+// constexpr if once the minimum C++ version Abseil suppports is C++17.
+template <typename T>
+inline std::enable_if_t<!std::is_signed<T>::value>
+PutLeadingWhitespace(T tid, char*& p) {
+  if (tid < 10) *p++ = ' ';
+  if (tid < 100) *p++ = ' ';
+  if (tid < 1000) *p++ = ' ';
+  if (tid < 10000) *p++ = ' ';
+  if (tid < 100000) *p++ = ' ';
+  if (tid < 1000000) *p++ = ' ';
+}
+
+template <typename T>
+inline std::enable_if_t<std::is_signed<T>::value>
+PutLeadingWhitespace(T tid, char*& p) {
+  if (tid >= 0 && tid < 10) *p++ = ' ';
+  if (tid > -10 && tid < 100) *p++ = ' ';
+  if (tid > -100 && tid < 1000) *p++ = ' ';
+  if (tid > -1000 && tid < 10000) *p++ = ' ';
+  if (tid > -10000 && tid < 100000) *p++ = ' ';
+  if (tid > -100000 && tid < 1000000) *p++ = ' ';
+}
 
 // The fields before the filename are all fixed-width except for the thread ID,
 // which is of bounded width.
@@ -110,27 +136,12 @@ size_t FormatBoundedFields(absl::LogSeverity severity, absl::Time timestamp,
   absl::numbers_internal::PutTwoDigits(static_cast<size_t>(usecs % 100), p);
   p += 2;
   *p++ = ' ';
-  constexpr bool unsigned_tid_t = !std::is_signed<log_internal::Tid>::value;
-  if ((unsigned_tid_t || tid >= 0) && tid < 10) *p++ = ' ';
-  if ((unsigned_tid_t || tid > -10) && tid < 100) *p++ = ' ';
-  if ((unsigned_tid_t || tid > -100) && tid < 1000) *p++ = ' ';
-  if ((unsigned_tid_t || tid > -1000) && tid < 10000) *p++ = ' ';
-  if ((unsigned_tid_t || tid > -10000) && tid < 100000) *p++ = ' ';
-  if ((unsigned_tid_t || tid > -100000) && tid < 1000000) *p++ = ' ';
+  PutLeadingWhitespace(tid, p);
   p = absl::numbers_internal::FastIntToBuffer(tid, p);
   *p++ = ' ';
   const size_t bytes_formatted = static_cast<size_t>(p - buf.data());
   buf.remove_prefix(bytes_formatted);
   return bytes_formatted;
-}
-
-// Copies into `dst` as many bytes of `src` as will fit, then advances `dst`
-// past the copied bytes and returns the number of bytes written.
-size_t AppendTruncated(absl::string_view src, absl::Span<char>& dst) {
-  if (src.size() > dst.size()) src = src.substr(0, dst.size());
-  memcpy(dst.data(), src.data(), src.size());
-  dst.remove_prefix(src.size());
-  return src.size();
 }
 
 size_t FormatLineNumber(int line, absl::Span<char>& buf) {
@@ -158,13 +169,13 @@ std::string FormatLogMessage(absl::LogSeverity severity,
                              absl::CivilSecond civil_second,
                              absl::Duration subsecond, log_internal::Tid tid,
                              absl::string_view basename, int line,
-                             absl::string_view message) {
+                             PrefixFormat format, absl::string_view message) {
   return absl::StrFormat(
-      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d] %s",
+      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d] %s%s",
       absl::LogSeverityName(severity)[0], civil_second.month(),
       civil_second.day(), civil_second.hour(), civil_second.minute(),
       civil_second.second(), absl::ToInt64Microseconds(subsecond), tid,
-      basename, line, message);
+      basename, line, format == PrefixFormat::kRaw ? "RAW: " : "", message);
 }
 
 // This method is fairly hot, and the library always passes a huge `buf`, so we
@@ -178,10 +189,12 @@ std::string FormatLogMessage(absl::LogSeverity severity,
 // 3. line number and bracket
 size_t FormatLogPrefix(absl::LogSeverity severity, absl::Time timestamp,
                        log_internal::Tid tid, absl::string_view basename,
-                       int line, absl::Span<char>& buf) {
+                       int line, PrefixFormat format, absl::Span<char>& buf) {
   auto prefix_size = FormatBoundedFields(severity, timestamp, tid, buf);
-  prefix_size += AppendTruncated(basename, buf);
+  prefix_size += log_internal::AppendTruncated(basename, buf);
   prefix_size += FormatLineNumber(line, buf);
+  if (format == PrefixFormat::kRaw)
+    prefix_size += log_internal::AppendTruncated("RAW: ", buf);
   return prefix_size;
 }
 
