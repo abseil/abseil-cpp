@@ -322,6 +322,7 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
         "//absl/container:compressed_tuple",
+        "//absl/container:container_memory",
         "//absl/container:inlined_vector",
         "//absl/container:layout",
         "//absl/crc:crc_cord_state",
