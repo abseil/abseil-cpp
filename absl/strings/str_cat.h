@@ -94,6 +94,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/port.h"
 #include "absl/strings/internal/has_absl_stringify.h"
 #include "absl/strings/internal/stringify_sink.h"
@@ -287,23 +288,28 @@ class AlphaNum {
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)
-      const strings_internal::AlphaNumBuffer<size>& buf)
+      const strings_internal::AlphaNumBuffer<size>& buf
+          ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(&buf.data[0], buf.size) {}
 
-  AlphaNum(const char* c_str)                     // NOLINT(runtime/explicit)
-      : piece_(NullSafeStringView(c_str)) {}      // NOLINT(runtime/explicit)
-  AlphaNum(absl::string_view pc) : piece_(pc) {}  // NOLINT(runtime/explicit)
+  AlphaNum(const char* c_str  // NOLINT(runtime/explicit)
+               ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : piece_(NullSafeStringView(c_str)) {}
+  AlphaNum(absl::string_view pc  // NOLINT(runtime/explicit)
+               ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : piece_(pc) {}
 
   template <typename T, typename = typename std::enable_if<
                             strings_internal::HasAbslStringify<T>::value>::type>
-  AlphaNum(                                         // NOLINT(runtime/explicit)
-      const T& v,                                   // NOLINT(runtime/explicit)
-      strings_internal::StringifySink&& sink = {})  // NOLINT(runtime/explicit)
+  AlphaNum(  // NOLINT(runtime/explicit)
+      const T& v ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      strings_internal::StringifySink&& sink ABSL_ATTRIBUTE_LIFETIME_BOUND = {})
       : piece_(strings_internal::ExtractStringification(sink, v)) {}
 
   template <typename Allocator>
   AlphaNum(  // NOLINT(runtime/explicit)
-      const std::basic_string<char, std::char_traits<char>, Allocator>& str)
+      const std::basic_string<char, std::char_traits<char>, Allocator>& str
+          ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(str) {}
 
   // Use string literals ":" instead of character literals ':'.
