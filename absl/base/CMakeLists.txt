@@ -645,11 +645,11 @@ absl_cc_test(
     GTest::gtest_main
 )
 
-# Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
     prefetch
   HDRS
+    "prefetch.h"
     "internal/prefetch.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -663,6 +663,7 @@ absl_cc_test(
   NAME
     prefetch_test
   SRCS
+    "prefetch_test.cc"
     "internal/prefetch_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}

@@ -732,21 +732,22 @@ cc_test(
 
 cc_library(
     name = "prefetch",
-    hdrs = ["internal/prefetch.h"],
+    hdrs = [
+        "internal/prefetch.h",
+        "prefetch.h",
+    ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl:__subpackages__",
-    ],
-    deps = [
-        ":config",
-    ],
+    deps = [":config"],
 )
 
 cc_test(
     name = "prefetch_test",
     size = "small",
-    srcs = ["internal/prefetch_test.cc"],
+    srcs = [
+        "internal/prefetch_test.cc",
+        "prefetch_test.cc",
+    ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
