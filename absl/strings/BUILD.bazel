@@ -457,7 +457,6 @@ cc_library(
         ":cordz_update_scope",
         ":cordz_update_tracker",
         ":internal",
-        ":str_format",
         ":strings",
         "//absl/base",
         "//absl/base:config",
