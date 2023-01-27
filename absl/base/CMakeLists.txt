@@ -657,6 +657,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers  # TODO(b/265984188): remove
 )
 
 absl_cc_test(
