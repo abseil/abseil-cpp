@@ -465,7 +465,9 @@ class Storage {
                           other_storage.GetIsAllocated());
 
     GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
-    data_ = other_storage.data_;
+    if (GetSizeAndIsAllocated()) {
+      data_ = other_storage.data_;
+    }
   }
 
   void DeallocateIfAllocated() {
