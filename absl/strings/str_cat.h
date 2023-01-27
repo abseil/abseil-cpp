@@ -87,8 +87,10 @@
 #ifndef ABSL_STRINGS_STR_CAT_H_
 #define ABSL_STRINGS_STR_CAT_H_
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -202,6 +204,27 @@ struct Hex {
   explicit Hex(Pointee* v, PadSpec spec = absl::kNoPad)
       : Hex(spec, reinterpret_cast<uintptr_t>(v)) {}
 
+  template <typename S>
+  friend void AbslStringify(S& sink, Hex hex) {
+    static_assert(
+        numbers_internal::kFastToBufferSize >= 32,
+        "This function only works when output buffer >= 32 bytes long");
+    char buffer[numbers_internal::kFastToBufferSize];
+    char* const end = &buffer[numbers_internal::kFastToBufferSize];
+    auto real_width =
+        absl::numbers_internal::FastHexToBufferZeroPad16(hex.value, end - 16);
+    if (real_width >= hex.width) {
+      sink.Append(absl::string_view(end - real_width, real_width));
+    } else {
+      // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
+      // max pad width can be up to 20.
+      std::memset(end - 32, hex.fill, 16);
+      // Patch up everything else up to the real_width.
+      std::memset(end - real_width - 16, hex.fill, 16);
+      sink.Append(absl::string_view(end - hex.width, hex.width));
+    }
+  }
+
  private:
   Hex(PadSpec spec, uint64_t v)
       : value(v),
@@ -236,6 +259,38 @@ struct Dec {
                                              : spec - absl::kZeroPad2 + 2),
         fill(spec >= absl::kSpacePad2 ? ' ' : '0'),
         neg(v < 0) {}
+
+  template <typename S>
+  friend void AbslStringify(S& sink, Dec dec) {
+    assert(dec.width <= numbers_internal::kFastToBufferSize);
+    char buffer[numbers_internal::kFastToBufferSize];
+    char* const end = &buffer[numbers_internal::kFastToBufferSize];
+    char* const minfill = end - dec.width;
+    char* writer = end;
+    uint64_t val = dec.value;
+    while (val > 9) {
+      *--writer = '0' + (val % 10);
+      val /= 10;
+    }
+    *--writer = '0' + static_cast<char>(val);
+    if (dec.neg) *--writer = '-';
+
+    ptrdiff_t fillers = writer - minfill;
+    if (fillers > 0) {
+      // Tricky: if the fill character is ' ', then it's <fill><+/-><digits>
+      // But...: if the fill character is '0', then it's <+/-><fill><digits>
+      bool add_sign_again = false;
+      if (dec.neg && dec.fill == '0') {  // If filling with '0',
+        ++writer;                    // ignore the sign we just added
+        add_sign_again = true;       // and re-add the sign later.
+      }
+      writer -= fillers;
+      std::fill_n(writer, fillers, dec.fill);
+      if (add_sign_again) *--writer = '-';
+    }
+
+    sink.Append(absl::string_view(writer, static_cast<size_t>(end - writer)));
+  }
 };
 
 // -----------------------------------------------------------------------------
@@ -282,9 +337,6 @@ class AlphaNum {
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
   AlphaNum(double f)  // NOLINT(runtime/explicit)
       : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
-
-  AlphaNum(Hex hex);  // NOLINT(runtime/explicit)
-  AlphaNum(Dec dec);  // NOLINT(runtime/explicit)
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)
