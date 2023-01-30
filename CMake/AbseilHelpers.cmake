@@ -132,10 +132,12 @@ function(absl_cc_library)
   if (${ABSL_BUILD_DLL})
     if(ABSL_ENABLE_INSTALL)
       absl_internal_dll_contains(TARGET ${_NAME} OUTPUT _in_dll)
+      absl_internal_test_dll_contains(TARGET ${_NAME} OUTPUT _in_test_dll)
     else()
       absl_internal_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_dll)
+      absl_internal_test_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_test_dll)
     endif()
-    if (${_in_dll})
+    if (${_in_dll} OR ${_in_test_dll})
       # This target should be replaced by the DLL
       set(_build_type "dll")
       set(ABSL_CC_LIB_IS_INTERFACE 1)
@@ -412,7 +414,7 @@ function(absl_cc_test)
   target_sources(${_NAME} PRIVATE ${ABSL_CC_TEST_SRCS})
   target_include_directories(${_NAME}
     PUBLIC ${ABSL_COMMON_INCLUDE_DIRS}
-    PRIVATE ${GMOCK_INCLUDE_DIRS} ${GTEST_INCLUDE_DIRS}
+    PRIVATE ${absl_gtest_src_dir}/googletest/include ${absl_gtest_src_dir}/googlemock/include
   )
 
   if (${ABSL_BUILD_DLL})
@@ -420,6 +422,7 @@ function(absl_cc_test)
       PUBLIC
         ${ABSL_CC_TEST_DEFINES}
         ABSL_CONSUME_DLL
+        ABSL_CONSUME_TEST_DLL
         GTEST_LINKED_AS_SHARED_LIBRARY=1
     )
 
