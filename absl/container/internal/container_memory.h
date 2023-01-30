@@ -269,8 +269,30 @@ struct OffsetOf<Pair, typename std::is_standard_layout<Pair>::type> {
   static constexpr size_t kSecond = offsetof(Pair, second);
 };
 
+template <class T, class V = void>
+struct IsCompleteType {
+  static constexpr bool value = false;
+};
+
+template <class T>
+struct IsCompleteType<T, decltype(void(sizeof(T)))> {
+  static constexpr bool value = true;
+};
+
 template <class K, class V>
+struct IsCompletePair {
+  static constexpr bool value =
+      IsCompleteType<K>::value && IsCompleteType<V>::value;
+};
+
+template <class K, class V, class T = void>
 struct IsLayoutCompatible {
+  static constexpr bool value = false;
+};
+
+template <class K, class V>
+struct IsLayoutCompatible<
+    K, V, typename std::enable_if<IsCompletePair<K, V>::value>::type> {
  private:
   struct Pair {
     K first;
