@@ -623,6 +623,7 @@ cc_library(
         "//absl/base:endian",
         "//absl/base:prefetch",
         "//absl/base:raw_logging_internal",
+        "//absl/hash",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
