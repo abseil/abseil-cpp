@@ -705,7 +705,6 @@ absl_cc_library(
     absl::container_memory
     absl::core_headers
     absl::endian
-    absl::hash
     absl::hash_policy_traits
     absl::hashtable_debug_hooks
     absl::hashtablez_sampler
