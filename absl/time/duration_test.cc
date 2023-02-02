@@ -16,8 +16,9 @@
 #include <winsock2.h>  // for timeval
 #endif
 
-#include <chrono>  // NOLINT(build/c++11)
+#include <array>
 #include <cfloat>
+#include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
 #include <cstdint>
 #include <ctime>
@@ -1851,6 +1852,13 @@ TEST(Duration, FormatParseRoundTrip) {
   TEST_PARSE_ROUNDTRIP(huge_range + (absl::Seconds(1) - absl::Nanoseconds(1)));
 
 #undef TEST_PARSE_ROUNDTRIP
+}
+
+TEST(Duration, NoPadding) {
+  // Should match the size of a struct with uint32_t alignment and no padding.
+  using NoPadding = std::array<uint32_t, 3>;
+  EXPECT_EQ(sizeof(NoPadding), sizeof(absl::Duration));
+  EXPECT_EQ(alignof(NoPadding), alignof(absl::Duration));
 }
 
 }  // namespace
