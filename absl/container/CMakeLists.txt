@@ -592,8 +592,10 @@ absl_cc_library(
     absl::base
     absl::config
     absl::exponential_biased
+    absl::raw_logging_internal
     absl::sample_recorder
     absl::synchronization
+    absl::time
 )
 
 absl_cc_test(
