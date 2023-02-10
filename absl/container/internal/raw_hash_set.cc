@@ -19,6 +19,7 @@
 #include <cstring>
 
 #include "absl/base/config.h"
+#include "absl/base/dynamic_annotations.h"
 #include "absl/hash/hash.h"
 
 namespace absl {
@@ -44,6 +45,11 @@ constexpr size_t Group::kWidth;
 inline size_t RandomSeed() {
 #ifdef ABSL_HAVE_THREAD_LOCAL
   static thread_local size_t counter = 0;
+  // On Linux kernels >= 5.4 the MSAN runtime has a false-positive when
+  // accessing thread local storage data from loaded libraries
+  // (https://github.com/google/sanitizers/issues/1265), for this reason counter
+  // needs to be annotated as initialized.
+  ABSL_ANNOTATE_MEMORY_IS_INITIALIZED(&counter, sizeof(size_t));
   size_t value = ++counter;
 #else   // ABSL_HAVE_THREAD_LOCAL
   static std::atomic<size_t> counter(0);
