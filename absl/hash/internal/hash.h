@@ -1083,7 +1083,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
     unsigned char significant0 = mem0;
 #else
     unsigned char significant2 = mem0;
-    unsigned char significant1 = mem1;
+    unsigned char significant1 = len == 2 ? mem0 : mem1;
     unsigned char significant0 = mem2;
 #endif
     return static_cast<uint32_t>(significant0 |                     //
