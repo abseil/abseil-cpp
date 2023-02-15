@@ -89,7 +89,7 @@ int64_t KernelTimeout::MakeAbsNanos() const {
   int64_t nanos = RawNanos();
 
   if (is_relative_timeout()) {
-    int64_t now = ToUnixNanos(absl::Now());
+    int64_t now = absl::GetCurrentTimeNanos();
     if (nanos > kMaxNanos - now) {
       // Overflow.
       nanos = kMaxNanos;
@@ -118,7 +118,7 @@ struct timespec KernelTimeout::MakeRelativeTimespec() const {
   }
 
   int64_t nanos = RawNanos();
-  int64_t now = ToUnixNanos(absl::Now());
+  int64_t now = absl::GetCurrentTimeNanos();
   if (now > nanos) {
     // Convert past values to 0 to be safe.
     nanos = 0;
@@ -146,7 +146,7 @@ KernelTimeout::DWord KernelTimeout::InMillisecondsFromNow() const {
     return static_cast<DWord>(ms);
   }
 
-  int64_t now = ToUnixNanos(absl::Now());
+  int64_t now = absl::GetCurrentTimeNanos();
   if (nanos >= now) {
     // Round up so that now + ms_from_now >= nanos.
     constexpr uint64_t kMaxValueNanos =
