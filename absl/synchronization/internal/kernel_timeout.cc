@@ -15,6 +15,7 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 
 #include <algorithm>
+#include <chrono>  // NOLINT(build/c++11)
 #include <cstdint>
 #include <ctime>
 #include <limits>
@@ -161,6 +162,46 @@ KernelTimeout::DWord KernelTimeout::InMillisecondsFromNow() const {
     return static_cast<DWord>(ms_from_now);
   }
   return DWord{0};
+}
+
+std::chrono::time_point<std::chrono::system_clock>
+KernelTimeout::ToChronoTimePoint() const {
+  if (!has_timeout()) {
+    return std::chrono::time_point<std::chrono::system_clock>::max();
+  }
+
+  // The cast to std::microseconds is because (on some platforms) the
+  // std::ratio used by std::chrono::steady_clock doesn't convert to
+  // std::nanoseconds, so it doesn't compile.
+  auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::nanoseconds(RawNanos()));
+  if (is_relative_timeout()) {
+    auto now = std::chrono::system_clock::now();
+    if (micros >
+        std::chrono::time_point<std::chrono::system_clock>::max() - now) {
+      // Overflow.
+      return std::chrono::time_point<std::chrono::system_clock>::max();
+    }
+    return now + micros;
+  }
+  return std::chrono::system_clock::from_time_t(0) + micros;
+}
+
+std::chrono::nanoseconds KernelTimeout::ToChronoDuration() const {
+  if (!has_timeout()) {
+    return std::chrono::nanoseconds::max();
+  }
+  if (is_absolute_timeout()) {
+    auto d = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::nanoseconds(RawNanos()) -
+        (std::chrono::system_clock::now() -
+         std::chrono::system_clock::from_time_t(0)));
+    if (d < std::chrono::nanoseconds(0)) {
+      d = std::chrono::nanoseconds(0);
+    }
+    return d;
+  }
+  return std::chrono::nanoseconds(RawNanos());
 }
 
 }  // namespace synchronization_internal
