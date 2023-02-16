@@ -124,7 +124,9 @@ class ParsedFormatBase {
 
   ParsedFormatBase(const ParsedFormatBase& other) { *this = other; }
 
-  ParsedFormatBase(ParsedFormatBase&& other) { *this = std::move(other); }
+  ParsedFormatBase(ParsedFormatBase&& other) noexcept {
+    *this = std::move(other);
+  }
 
   ParsedFormatBase& operator=(const ParsedFormatBase& other) {
     if (this == &other) return *this;
@@ -136,7 +138,7 @@ class ParsedFormatBase {
     return *this;
   }
 
-  ParsedFormatBase& operator=(ParsedFormatBase&& other) {
+  ParsedFormatBase& operator=(ParsedFormatBase&& other) noexcept {
     if (this == &other) return *this;
     has_error_ = other.has_error_;
     data_ = std::move(other.data_);
@@ -185,7 +187,6 @@ class ParsedFormatBase {
   std::unique_ptr<char[]> data_;
   std::vector<ConversionItem> items_;
 };
-
 
 // A value type representing a preparsed format.  These can be created, copied
 // around, and reused to speed up formatting loops.

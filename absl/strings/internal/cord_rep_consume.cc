@@ -54,7 +54,7 @@ void Consume(CordRep* rep, ConsumeFn consume_fn) {
 }
 
 void ReverseConsume(CordRep* rep, ConsumeFn consume_fn) {
-  return Consume(rep, std::move(consume_fn));
+  return Consume(rep, consume_fn);
 }
 
 }  // namespace cord_internal

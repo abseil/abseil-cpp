@@ -42,7 +42,7 @@ CrcCordState::CrcCordState(const CrcCordState& other)
 }
 
 CrcCordState::CrcCordState(CrcCordState&& other)
-    : refcounted_rep_(other.refcounted_rep_) {
+    : refcounted_rep_(other.refcounted_rep_) noexcept {
   // Make `other` valid for use after move.
   other.refcounted_rep_ = RefSharedEmptyRep();
 }
@@ -56,7 +56,7 @@ CrcCordState& CrcCordState::operator=(const CrcCordState& other) {
   return *this;
 }
 
-CrcCordState& CrcCordState::operator=(CrcCordState&& other) {
+CrcCordState& CrcCordState::operator=(CrcCordState&& other) noexcept {
   if (this != &other) {
     Unref(refcounted_rep_);
     refcounted_rep_ = other.refcounted_rep_;
@@ -66,9 +66,7 @@ CrcCordState& CrcCordState::operator=(CrcCordState&& other) {
   return *this;
 }
 
-CrcCordState::~CrcCordState() {
-  Unref(refcounted_rep_);
-}
+CrcCordState::~CrcCordState() { Unref(refcounted_rep_); }
 
 crc32c_t CrcCordState::Checksum() const {
   if (rep().prefix_crc.empty()) {

@@ -55,7 +55,7 @@ class Storage {
     is_callback_engaged_ = true;
   }
 
-  Storage(Storage&& other) {
+  Storage(Storage&& other) noexcept {
     ABSL_HARDENING_ASSERT(other.IsCallbackEngaged());
 
     ::new (GetCallbackBuffer()) Callback(std::move(other.GetCallback()));

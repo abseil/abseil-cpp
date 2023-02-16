@@ -69,14 +69,13 @@ class OStringStream final : public std::ostream {
   //
   // The destructor of OStringStream doesn't use the std::string. It's OK to
   // destroy the std::string before the stream.
-  explicit OStringStream(std::string* str)
-      : std::ostream(&buf_), buf_(str) {}
-  OStringStream(OStringStream&& that)
+  explicit OStringStream(std::string* str) : std::ostream(&buf_), buf_(str) {}
+  OStringStream(OStringStream&& that) noexcept
       : std::ostream(std::move(static_cast<std::ostream&>(that))),
         buf_(that.buf_) {
     rdbuf(&buf_);
   }
-  OStringStream& operator=(OStringStream&& that) {
+  OStringStream& operator=(OStringStream&& that) noexcept {
     std::ostream::operator=(std::move(static_cast<std::ostream&>(that)));
     buf_ = that.buf_;
     rdbuf(&buf_);

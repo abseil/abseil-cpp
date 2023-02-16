@@ -40,7 +40,8 @@ BadStatusOrAccess& BadStatusOrAccess::operator=(
   return *this;
 }
 
-BadStatusOrAccess& BadStatusOrAccess::operator=(BadStatusOrAccess&& other) {
+BadStatusOrAccess& BadStatusOrAccess::operator=(
+    BadStatusOrAccess&& other) noexcept {
   // Ensure assignment is correct regardless of whether this->InitWhat() has
   // already been called.
   other.InitWhat();
@@ -49,7 +50,7 @@ BadStatusOrAccess& BadStatusOrAccess::operator=(BadStatusOrAccess&& other) {
   return *this;
 }
 
-BadStatusOrAccess::BadStatusOrAccess(BadStatusOrAccess&& other)
+BadStatusOrAccess::BadStatusOrAccess(BadStatusOrAccess&& other) noexcept
     : status_(std::move(other.status_)) {}
 
 const char* BadStatusOrAccess::what() const noexcept {

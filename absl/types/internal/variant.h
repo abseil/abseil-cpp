@@ -1274,12 +1274,12 @@ class VariantStateBaseDestructorNontrivial : protected VariantStateBase<T...> {
   using Base::Base;
 
   VariantStateBaseDestructorNontrivial() = default;
-  VariantStateBaseDestructorNontrivial(VariantStateBaseDestructorNontrivial&&) =
-      default;
+  VariantStateBaseDestructorNontrivial(
+      VariantStateBaseDestructorNontrivial&&) noexcept = default;
   VariantStateBaseDestructorNontrivial(
       const VariantStateBaseDestructorNontrivial&) = default;
   VariantStateBaseDestructorNontrivial& operator=(
-      VariantStateBaseDestructorNontrivial&&) = default;
+      VariantStateBaseDestructorNontrivial&&) noexcept = default;
   VariantStateBaseDestructorNontrivial& operator=(
       const VariantStateBaseDestructorNontrivial&) = default;
 
@@ -1340,7 +1340,8 @@ class VariantMoveBaseNontrivial : protected VariantStateBaseDestructor<T...> {
 
   VariantMoveBaseNontrivial(VariantMoveBaseNontrivial const&) = default;
 
-  VariantMoveBaseNontrivial& operator=(VariantMoveBaseNontrivial&&) = default;
+  VariantMoveBaseNontrivial& operator=(VariantMoveBaseNontrivial&&) noexcept =
+      default;
   VariantMoveBaseNontrivial& operator=(VariantMoveBaseNontrivial const&) =
       default;
 
@@ -1358,7 +1359,7 @@ class VariantCopyBaseNontrivial : protected VariantMoveBase<T...> {
   using Base::Base;
 
   VariantCopyBaseNontrivial() = default;
-  VariantCopyBaseNontrivial(VariantCopyBaseNontrivial&&) = default;
+  VariantCopyBaseNontrivial(VariantCopyBaseNontrivial&&) noexcept = default;
 
   struct Construct {
     template <std::size_t I>
@@ -1381,7 +1382,8 @@ class VariantCopyBaseNontrivial : protected VariantMoveBase<T...> {
     index_ = other.index_;
   }
 
-  VariantCopyBaseNontrivial& operator=(VariantCopyBaseNontrivial&&) = default;
+  VariantCopyBaseNontrivial& operator=(VariantCopyBaseNontrivial&&) noexcept =
+      default;
   VariantCopyBaseNontrivial& operator=(VariantCopyBaseNontrivial const&) =
       default;
 
@@ -1401,7 +1403,8 @@ class VariantMoveAssignBaseNontrivial : protected VariantCopyBase<T...> {
   using Base::Base;
 
   VariantMoveAssignBaseNontrivial() = default;
-  VariantMoveAssignBaseNontrivial(VariantMoveAssignBaseNontrivial&&) = default;
+  VariantMoveAssignBaseNontrivial(VariantMoveAssignBaseNontrivial&&) noexcept =
+      default;
   VariantMoveAssignBaseNontrivial(const VariantMoveAssignBaseNontrivial&) =
       default;
   VariantMoveAssignBaseNontrivial& operator=(
@@ -1432,11 +1435,12 @@ class VariantCopyAssignBaseNontrivial : protected VariantMoveAssignBase<T...> {
   using Base::Base;
 
   VariantCopyAssignBaseNontrivial() = default;
-  VariantCopyAssignBaseNontrivial(VariantCopyAssignBaseNontrivial&&) = default;
+  VariantCopyAssignBaseNontrivial(VariantCopyAssignBaseNontrivial&&) noexcept =
+      default;
   VariantCopyAssignBaseNontrivial(const VariantCopyAssignBaseNontrivial&) =
       default;
   VariantCopyAssignBaseNontrivial& operator=(
-      VariantCopyAssignBaseNontrivial&&) = default;
+      VariantCopyAssignBaseNontrivial&&) noexcept = default;
 
   VariantCopyAssignBaseNontrivial& operator=(
       const VariantCopyAssignBaseNontrivial& other) {

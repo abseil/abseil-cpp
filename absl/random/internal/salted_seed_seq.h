@@ -61,8 +61,8 @@ class SaltedSeedSeq {
   SaltedSeedSeq(const SaltedSeedSeq&) = delete;
   SaltedSeedSeq& operator=(const SaltedSeedSeq&) = delete;
 
-  SaltedSeedSeq(SaltedSeedSeq&&) = default;
-  SaltedSeedSeq& operator=(SaltedSeedSeq&&) = default;
+  SaltedSeedSeq(SaltedSeedSeq&&) noexcept = default;
+  SaltedSeedSeq& operator=(SaltedSeedSeq&&) noexcept = default;
 
   template <typename RandomAccessIterator>
   void generate(RandomAccessIterator begin, RandomAccessIterator end) {

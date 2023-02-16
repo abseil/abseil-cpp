@@ -106,8 +106,8 @@ class PoolURBG {
   }
 
   // move-constructor does move cache.
-  PoolURBG(PoolURBG&&) = default;
-  PoolURBG& operator=(PoolURBG&&) = default;
+  PoolURBG(PoolURBG&&) noexcept = default;
+  PoolURBG& operator=(PoolURBG&&) noexcept = default;
 
   inline result_type operator()() {
     if (next_ >= kBufferSize) {

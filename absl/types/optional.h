@@ -139,7 +139,7 @@ class optional : private optional_internal::optional_data<T>,
   optional(const optional&) = default;
 
   // Move constructor, standard semantics
-  optional(optional&&) = default;
+  optional(optional&&) noexcept = default;
 
   // Constructs a non-empty `optional` direct-initialized value of type `T` from
   // the arguments `std::forward<Args>(args)...`  within the `optional`.
@@ -279,7 +279,7 @@ class optional : private optional_internal::optional_data<T>,
   optional& operator=(const optional& src) = default;
 
   // Move assignment operator, standard semantics
-  optional& operator=(optional&& src) = default;
+  optional& operator=(optional&& src) noexcept = default;
 
   // Value assignment operators
   template <typename U = T,

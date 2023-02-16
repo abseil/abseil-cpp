@@ -77,8 +77,8 @@ class BadStatusOrAccess : public std::exception {
 
   BadStatusOrAccess(const BadStatusOrAccess& other);
   BadStatusOrAccess& operator=(const BadStatusOrAccess& other);
-  BadStatusOrAccess(BadStatusOrAccess&& other);
-  BadStatusOrAccess& operator=(BadStatusOrAccess&& other);
+  BadStatusOrAccess(BadStatusOrAccess&& other) noexcept;
+  BadStatusOrAccess& operator=(BadStatusOrAccess&& other) noexcept;
 
   // BadStatusOrAccess::what()
   //
@@ -218,10 +218,10 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   StatusOr& operator=(const StatusOr&) = default;
 
   // `StatusOr<T>` is move constructible if `T` is move constructible.
-  StatusOr(StatusOr&&) = default;
+  StatusOr(StatusOr&&) noexcept = default;
   // `StatusOr<T>` is moveAssignable if `T` is move constructible and move
   // assignable.
-  StatusOr& operator=(StatusOr&&) = default;
+  StatusOr& operator=(StatusOr&&) noexcept = default;
 
   // Converting Constructors
 

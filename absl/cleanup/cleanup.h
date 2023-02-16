@@ -88,7 +88,7 @@ class ABSL_MUST_USE_RESULT Cleanup final {
  public:
   Cleanup(Callback callback) : storage_(std::move(callback)) {}  // NOLINT
 
-  Cleanup(Cleanup&& other) = default;
+  Cleanup(Cleanup&& other) noexcept = default;
 
   void Cancel() && {
     ABSL_HARDENING_ASSERT(storage_.IsCallbackEngaged());

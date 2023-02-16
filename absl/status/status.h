@@ -445,7 +445,7 @@ class Status final {
 
   // The moved-from state is valid but unspecified.
   Status(Status&&) noexcept;
-  Status& operator=(Status&&);
+  Status& operator=(Status&&) noexcept;
 
   ~Status();
 
@@ -775,7 +775,7 @@ inline Status::Status(Status&& x) noexcept : rep_(x.rep_) {
   x.rep_ = MovedFromRep();
 }
 
-inline Status& Status::operator=(Status&& x) {
+inline Status& Status::operator=(Status&& x) noexcept {
   uintptr_t old_rep = rep_;
   if (x.rep_ != old_rep) {
     rep_ = x.rep_;

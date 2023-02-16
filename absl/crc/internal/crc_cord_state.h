@@ -43,14 +43,14 @@ class CrcCordState {
   // Constructors.
   CrcCordState();
   CrcCordState(const CrcCordState&);
-  CrcCordState(CrcCordState&&);
+  CrcCordState(CrcCordState&&) noexcept;
 
   // Destructor. Atomically unreferences the data.
   ~CrcCordState();
 
   // Copy and move operators.
   CrcCordState& operator=(const CrcCordState&);
-  CrcCordState& operator=(CrcCordState&&);
+  CrcCordState& operator=(CrcCordState&&) noexcept;
 
   // A (length, crc) pair.
   struct PrefixCrc {
