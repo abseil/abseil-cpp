@@ -106,7 +106,7 @@ absl::string_view Basename(absl::string_view filepath) {
 #else
   size_t path = filepath.find_last_of('/');
 #endif
-  if (path != filepath.npos) filepath.remove_prefix(path + 1);
+  if (path != std::string::npos) filepath.remove_prefix(path + 1);
   return filepath;
 }
 

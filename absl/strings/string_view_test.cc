@@ -1110,7 +1110,7 @@ TEST(StringViewTest, ConstexprCompiles) {
   EXPECT_EQ(np, nullptr);
   EXPECT_NE(cstr_ptr, nullptr);
 
-  constexpr size_t sp_npos = sp.npos;
+  constexpr size_t sp_npos = std::string::npos;
   EXPECT_EQ(sp_npos, static_cast<size_t>(-1));
 }
 

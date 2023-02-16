@@ -116,7 +116,7 @@ class FileHasSubstrMatcher final : public ::testing::MatcherInterface<FILE*> {
       }
       const absl::string_view haystack(&buf[0], buf_data_size);
       const auto off = haystack.find(needle_);
-      if (off != haystack.npos) {
+      if (off != std::string::npos) {
         *listener << "string found at offset " << buf_start_offset + off;
         return true;
       }

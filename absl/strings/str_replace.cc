@@ -43,7 +43,7 @@ int ApplySubstitutions(
       substitutions += 1;
     }
     sub.offset = s.find(sub.old, pos);
-    if (sub.offset == s.npos) {
+    if (sub.offset == std::string::npos) {
       subs.pop_back();
     } else {
       // Insertion sort to ensure the last ViableSubstitution continues to be

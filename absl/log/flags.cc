@@ -93,7 +93,7 @@ ABSL_FLAG(std::string, log_backtrace_at, "",
       if (log_backtrace_at.empty()) return;
 
       const size_t last_colon = log_backtrace_at.rfind(':');
-      if (last_colon == log_backtrace_at.npos) return;
+      if (last_colon == std::string::npos) return;
 
       const absl::string_view file =
           absl::string_view(log_backtrace_at).substr(0, last_colon);

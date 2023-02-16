@@ -165,7 +165,7 @@ std::vector<ViableSubstitution> FindSubstitutions(
     absl::string_view old(get<0>(rep));
 
     size_t pos = s.find(old);
-    if (pos == s.npos) continue;
+    if (pos == std::string::npos) continue;
 
     // Ignore attempts to replace "". This condition is almost never true,
     // but above condition is frequently true. That's why we test for this

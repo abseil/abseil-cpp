@@ -45,11 +45,11 @@ ABSL_NAMESPACE_BEGIN
 // Returns whether a given string `haystack` contains the substring `needle`.
 inline bool StrContains(absl::string_view haystack,
                         absl::string_view needle) noexcept {
-  return haystack.find(needle, 0) != haystack.npos;
+  return haystack.find(needle, 0) != std::string::npos;
 }
 
 inline bool StrContains(absl::string_view haystack, char needle) noexcept {
-  return haystack.find(needle) != haystack.npos;
+  return haystack.find(needle) != std::string::npos;
 }
 
 // StartsWith()
