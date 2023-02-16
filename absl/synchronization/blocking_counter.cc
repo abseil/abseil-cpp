@@ -31,7 +31,7 @@ bool IsDone(void *arg) { return *reinterpret_cast<bool *>(arg); }
 BlockingCounter::BlockingCounter(int initial_count)
     : count_(initial_count),
       num_waiting_(0),
-      done_{initial_count == 0 ? true : false} {
+      done_{initial_count == 0} {
   ABSL_RAW_CHECK(initial_count >= 0, "BlockingCounter initial_count negative");
 }
 

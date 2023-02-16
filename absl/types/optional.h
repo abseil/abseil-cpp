@@ -604,7 +604,7 @@ constexpr auto operator==(const optional<T>& x, const optional<U>& y)
     -> decltype(optional_internal::convertible_to_bool(*x == *y)) {
   return static_cast<bool>(x) != static_cast<bool>(y)
              ? false
-             : static_cast<bool>(x) == false ? true
+             : !static_cast<bool>(x) ? true
                                              : static_cast<bool>(*x == *y);
 }
 
@@ -615,7 +615,7 @@ constexpr auto operator!=(const optional<T>& x, const optional<U>& y)
     -> decltype(optional_internal::convertible_to_bool(*x != *y)) {
   return static_cast<bool>(x) != static_cast<bool>(y)
              ? true
-             : static_cast<bool>(x) == false ? false
+             : !static_cast<bool>(x) ? false
                                              : static_cast<bool>(*x != *y);
 }
 // Returns: If !y, false; otherwise, if !x, true; otherwise *x < *y.

@@ -914,7 +914,7 @@ static bool ParseSeqId(State *state) {
   if (guard.IsTooComplex()) return false;
   const char *p = RemainingInput(state);
   for (; *p != '\0'; ++p) {
-    if (!IsDigit(*p) && !(*p >= 'A' && *p <= 'Z')) {
+    if (!IsDigit(*p) && IsLower(*p)) {
       break;
     }
   }
