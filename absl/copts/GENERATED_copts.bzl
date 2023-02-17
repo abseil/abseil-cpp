@@ -225,6 +225,4 @@ ABSL_RANDOM_HWAES_MSVC_X64_FLAGS = [
 ]
 
 ABSL_RANDOM_HWAES_X64_FLAGS = [
-    "-maes",
-    "-msse4.1",
 ]
