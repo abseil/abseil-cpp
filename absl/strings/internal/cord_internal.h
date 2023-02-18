@@ -768,18 +768,22 @@ class InlineData {
     }
 
 #ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
-    Rep SanitizerSafeCopy() const {
-      Rep res;
-      if (is_tree()) {
-        res = *this;
+    constexpr Rep SanitizerSafeCopy() const {
+      if (!absl::is_constant_evaluated()) {
+        Rep res;
+        if (is_tree()) {
+          res = *this;
+        } else {
+          res.set_tag(tag());
+          memcpy(res.as_chars(), as_chars(), inline_size());
+        }
+        return res;
       } else {
-        res.set_tag(tag());
-        memcpy(res.as_chars(), as_chars(), inline_size());
+        return *this;
       }
-      return res;
     }
 #else
-    const Rep& SanitizerSafeCopy() const { return *this; }
+    constexpr const Rep& SanitizerSafeCopy() const { return *this; }
 #endif
 
     // If the data has length <= kMaxInline, we store it in `data`, and
