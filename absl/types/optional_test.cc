@@ -138,15 +138,6 @@ struct Listenable {
 
 StructorListener* Listenable::listener = nullptr;
 
-// ABSL_HAVE_NO_CONSTEXPR_INITIALIZER_LIST is defined to 1 when the standard
-// library implementation doesn't marked initializer_list's default constructor
-// constexpr. The C++11 standard doesn't specify constexpr on it, but C++14
-// added it. However, libstdc++ 4.7 marked it constexpr.
-#if defined(_LIBCPP_VERSION) && \
-    (_LIBCPP_STD_VER <= 11 || defined(_LIBCPP_HAS_NO_CXX14_CONSTEXPR))
-#define ABSL_HAVE_NO_CONSTEXPR_INITIALIZER_LIST 1
-#endif
-
 struct ConstexprType {
   enum CtorTypes {
     kCtorDefault,
@@ -156,10 +147,8 @@ struct ConstexprType {
   };
   constexpr ConstexprType() : x(kCtorDefault) {}
   constexpr explicit ConstexprType(int i) : x(kCtorInt) {}
-#ifndef ABSL_HAVE_NO_CONSTEXPR_INITIALIZER_LIST
   constexpr ConstexprType(std::initializer_list<int> il)
       : x(kCtorInitializerList) {}
-#endif
   constexpr ConstexprType(const char*)  // NOLINT(runtime/explicit)
       : x(kCtorConstChar) {}
   int x;
@@ -352,11 +341,9 @@ TEST(optionalTest, InPlaceConstructor) {
   constexpr absl::optional<ConstexprType> opt1{absl::in_place_t(), 1};
   static_assert(opt1, "");
   static_assert((*opt1).x == ConstexprType::kCtorInt, "");
-#ifndef ABSL_HAVE_NO_CONSTEXPR_INITIALIZER_LIST
   constexpr absl::optional<ConstexprType> opt2{absl::in_place_t(), {1, 2}};
   static_assert(opt2, "");
   static_assert((*opt2).x == ConstexprType::kCtorInitializerList, "");
-#endif
 
   EXPECT_FALSE((std::is_constructible<absl::optional<ConvertsFromInPlaceT>,
                                       absl::in_place_t>::value));
