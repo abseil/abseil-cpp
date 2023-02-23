@@ -675,9 +675,10 @@ struct GroupAArch64Impl {
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     uint64_t mask = vget_lane_u64(vreinterpret_u64_u8(ctrl), 0);
     constexpr uint64_t msbs = 0x8080808080808080ULL;
-    constexpr uint64_t lsbs = 0x0101010101010101ULL;
-    auto x = mask & msbs;
-    auto res = (~x + (x >> 7)) & ~lsbs;
+    constexpr uint64_t slsbs = 0x0202020202020202ULL;
+    constexpr uint64_t midbs = 0x7e7e7e7e7e7e7e7eULL;
+    auto x = slsbs & (mask >> 6);
+    auto res = (x + midbs) | msbs;
     little_endian::Store64(dst, res);
   }
 
