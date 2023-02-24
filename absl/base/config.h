@@ -878,7 +878,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // RTTI support.
 #ifdef ABSL_INTERNAL_HAS_RTTI
 #error ABSL_INTERNAL_HAS_RTTI cannot be directly set
-#elif !defined(__GNUC__) || defined(__GXX_RTTI)
+#elif (defined(__GNUC__) && defined(__GXX_RTTI)) || \
+    (defined(_MSC_VER) && defined(_CPPRTTI)) ||     \
+    (!defined(__GNUC__) && !defined(_MSC_VER))
 #define ABSL_INTERNAL_HAS_RTTI 1
 #endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
 
