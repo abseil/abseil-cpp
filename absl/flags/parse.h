@@ -90,17 +90,10 @@ bool ParseAbseilFlagsOnly(int argc, char* argv[],
 
 // ReportUnrecognizedFlags()
 //
-// Reports an error for all non-ignored unrecognized flags in the provided
-// `unrecognized_flags` list.
-//
-// If `report_fatal_error` is true, the fatal error is reported and program is
-// aborted. Otherwise non-fatal error is reported for all flags.
-//
-// This function returns true if any non-ignored unrecognized flags were
-// located in the list and false otherwise.
+// Reports an error to `stderr` for all non-ignored unrecognized flags in
+// the provided `unrecognized_flags` list.
 void ReportUnrecognizedFlags(
-    const std::vector<UnrecognizedFlag>& unrecognized_flags,
-    bool report_fatal_error);
+    const std::vector<UnrecognizedFlag>& unrecognized_flags);
 
 // ParseCommandLine()
 //

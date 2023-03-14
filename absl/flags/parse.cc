@@ -22,7 +22,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <iterator>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -600,6 +599,34 @@ bool CanIgnoreUndefinedFlag(absl::string_view flag_name) {
   return false;
 }
 
+// --------------------------------------------------------------------
+
+void ReportUnrecognizedFlags(
+    const std::vector<UnrecognizedFlag>& unrecognized_flags,
+    bool report_as_fatal_error) {
+  for (const auto& unrecognized : unrecognized_flags) {
+    // Verify if flag_name has the "no" already removed
+    std::vector<std::string> misspelling_hints;
+    if (unrecognized.source == UnrecognizedFlag::kFromArgv) {
+      misspelling_hints =
+          flags_internal::GetMisspellingHints(unrecognized.flag_name);
+    }
+
+    if (misspelling_hints.empty()) {
+      flags_internal::ReportUsageError(
+          absl::StrCat("Unknown command line flag '", unrecognized.flag_name,
+                       "'"),
+          report_as_fatal_error);
+    } else {
+      flags_internal::ReportUsageError(
+          absl::StrCat("Unknown command line flag '", unrecognized.flag_name,
+                       "'. Did you mean: ",
+                       absl::StrJoin(misspelling_hints, ", "), " ?"),
+          report_as_fatal_error);
+    }
+  }
+}
+
 }  // namespace
 
 // --------------------------------------------------------------------
@@ -674,12 +701,15 @@ std::vector<char*> ParseCommandLineImpl(int argc, char* argv[],
       argc, argv, positional_args, unrecognized_flags);
 
   if (undef_flag_action != OnUndefinedFlag::kIgnoreUndefined) {
-    ReportUnrecognizedFlags(
-        unrecognized_flags,
-        undef_flag_action ==
-            flags_internal::OnUndefinedFlag::kAbortIfUndefined);
+    if (parse_successful &&
+        undef_flag_action == OnUndefinedFlag::kAbortIfUndefined) {
+      if (!unrecognized_flags.empty()) { parse_successful = false; }
+    }
 
-    if (!unrecognized_flags.empty()) { parse_successful = false; }
+    flags_internal::ReportUnrecognizedFlags(
+        unrecognized_flags,
+        !parse_successful &&
+            (undef_flag_action == OnUndefinedFlag::kAbortIfUndefined));
   }
 
 #if ABSL_FLAGS_STRIP_NAMES
@@ -871,29 +901,8 @@ bool ParseAbseilFlagsOnly(int argc, char* argv[],
 // --------------------------------------------------------------------
 
 void ReportUnrecognizedFlags(
-    const std::vector<UnrecognizedFlag>& unrecognized_flags,
-    bool report_fatal_error) {
-  for (const auto& unrecognized : unrecognized_flags) {
-    // Verify if flag_name has the "no" already removed
-    std::vector<std::string> misspelling_hints;
-    if (unrecognized.source == UnrecognizedFlag::kFromArgv) {
-      misspelling_hints =
-          flags_internal::GetMisspellingHints(unrecognized.flag_name);
-    }
-
-    if (misspelling_hints.empty()) {
-      flags_internal::ReportUsageError(
-          absl::StrCat("Unknown command line flag '", unrecognized.flag_name,
-                       "'"),
-          report_fatal_error);
-    } else {
-      flags_internal::ReportUsageError(
-          absl::StrCat("Unknown command line flag '", unrecognized.flag_name,
-                       "'. Did you mean: ",
-                       absl::StrJoin(misspelling_hints, ", "), " ?"),
-          report_fatal_error);
-    }
-  }
+    const std::vector<UnrecognizedFlag>& unrecognized_flags) {
+  flags_internal::ReportUnrecognizedFlags(unrecognized_flags, true);
 }
 
 // --------------------------------------------------------------------
