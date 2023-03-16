@@ -846,9 +846,10 @@ void HexStringToBytesInternal(const char* from, T to, size_t num) {
 template <typename T>
 void BytesToHexStringInternal(const unsigned char* src, T dest, size_t num) {
   auto dest_ptr = &dest[0];
-  for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr, dest_ptr += 2) {
+  for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr) {
     const char* hex_p = &numbers_internal::kHexTable[*src_ptr * 2];
-    std::copy(hex_p, hex_p + 2, dest_ptr);
+    *dest_ptr++ = *hex_p++;
+    *dest_ptr++ = *hex_p;
   }
 }
 

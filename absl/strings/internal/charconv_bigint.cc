@@ -296,9 +296,9 @@ template <int max_words>
         std::min(n / kLargePowerOfFiveStep, kLargestPowerOfFiveIndex);
     if (first_pass) {
       // just copy, rather than multiplying by 1
-      std::copy(
+      std::copy_n(
           LargePowerOfFiveData(big_power),
-          LargePowerOfFiveData(big_power) + LargePowerOfFiveSize(big_power),
+          LargePowerOfFiveSize(big_power),
           answer.words_);
       answer.size_ = LargePowerOfFiveSize(big_power);
       first_pass = false;
