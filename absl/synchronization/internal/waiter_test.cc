@@ -22,6 +22,7 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/synchronization/internal/pthread_waiter.h"
 #include "absl/synchronization/internal/sem_waiter.h"
+#include "absl/synchronization/internal/stdcpp_waiter.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/internal/win32_waiter.h"
 #include "absl/time/clock.h"
@@ -146,6 +147,10 @@ INSTANTIATE_TYPED_TEST_SUITE_P(Sem, WaiterTest,
 #ifdef ABSL_INTERNAL_HAVE_WIN32_WAITER
 INSTANTIATE_TYPED_TEST_SUITE_P(Win32, WaiterTest,
                                absl::synchronization_internal::Win32Waiter);
+#endif
+#ifdef ABSL_INTERNAL_HAVE_STDCPP_WAITER
+INSTANTIATE_TYPED_TEST_SUITE_P(Stdcpp, WaiterTest,
+                               absl::synchronization_internal::StdcppWaiter);
 #endif
 
 }  // namespace
