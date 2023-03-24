@@ -743,23 +743,66 @@ TEST(TypeTraitsTest, IsNothrowSwappable) {
   EXPECT_TRUE(IsNothrowSwappable<adl_namespace::SpecialNoexceptSwap>::value);
 }
 
-TEST(TrivallyRelocatable, Sanity) {
-#if !defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) || \
-    !ABSL_HAVE_BUILTIN(__is_trivially_relocatable)
-  GTEST_SKIP() << "No trivial ABI support.";
+// A user-provided move constructor disqualifies a type from being trivially
+// relocatable.
+TEST(TriviallyRelocatable, UserProvidedMoveConstructor) {
+  struct S {
+    S(S&&) {}  // NOLINT(modernize-use-equals-default)
+  };
+
+  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+}
+
+// A user-provided copy constructor disqualifies a type from being trivially
+// relocatable.
+TEST(TriviallyRelocatable, UserProvidedCopyConstructor) {
+  struct S {
+    S(const S&) {}  // NOLINT(modernize-use-equals-default)
+  };
+
+  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+}
+
+// HACK: disable this test on Windows, which includes lexan, which gives the
+// incorrect result for this case (http://b/275003464).
+//
+// TODO(b/275003464): make this hack more precise after figuring out how to
+// detect --config=lexan in particular. If there is no reliable way, modify
+// --config=lexan itself to set a define we can use.
+//
+// TODO(b/274984172): hoist this hack to the definition of
+// absl::is_trivially_relocatable itself, since it's currently giving the wrong
+// results under lexan. We can't trust __is_trivially_relocatable on that
+// platform.
+//
+// TODO(b/275003464): remove this hack when the bug is fixed.
+#if !(defined(_WIN32) || defined(_WIN64))
+// A user-provided destructor disqualifies a type from being trivially
+// relocatable.
+TEST(TriviallyRelocatable, UserProvidedDestructor) {
+  struct S {
+    ~S() {}  // NOLINT(modernize-use-equals-default)
+  };
+
+  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+}
 #endif
 
-  struct Trivial {};
-  struct NonTrivial {
-    NonTrivial(const NonTrivial&) {}  // NOLINT
+#if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) && \
+    ABSL_HAVE_BUILTIN(__is_trivially_relocatable)
+// A type marked with the "trivial ABI" attribute is trivially relocatable even
+// if it has user-provided move/copy constructors and a user-provided
+// destructor.
+TEST(TrivallyRelocatable, TrivialAbi) {
+  struct ABSL_ATTRIBUTE_TRIVIAL_ABI S {
+    S(S&&) {}       // NOLINT(modernize-use-equals-default)
+    S(const S&) {}  // NOLINT(modernize-use-equals-default)
+    ~S() {}         // NOLINT(modernize-use-equals-default)
   };
-  struct ABSL_ATTRIBUTE_TRIVIAL_ABI TrivialAbi {
-    TrivialAbi(const TrivialAbi&) {}  // NOLINT
-  };
-  EXPECT_TRUE(absl::is_trivially_relocatable<Trivial>::value);
-  EXPECT_FALSE(absl::is_trivially_relocatable<NonTrivial>::value);
-  EXPECT_TRUE(absl::is_trivially_relocatable<TrivialAbi>::value);
+
+  static_assert(absl::is_trivially_relocatable<S>::value, "");
 }
+#endif
 
 #ifdef ABSL_HAVE_CONSTANT_EVALUATED
 
