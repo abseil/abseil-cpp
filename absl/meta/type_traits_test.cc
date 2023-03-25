@@ -743,6 +743,23 @@ TEST(TypeTraitsTest, IsNothrowSwappable) {
   EXPECT_TRUE(IsNothrowSwappable<adl_namespace::SpecialNoexceptSwap>::value);
 }
 
+TEST(TriviallyRelocatable, PrimitiveTypes) {
+  static_assert(absl::is_trivially_relocatable<int>::value, "");
+  static_assert(absl::is_trivially_relocatable<char>::value, "");
+  static_assert(absl::is_trivially_relocatable<void*>::value, "");
+}
+
+// User-defined types can be trivially relocatable as long as they don't have a
+// user-provided move constructor or destructor.
+TEST(TriviallyRelocatable, UserDefinedTriviallyReconstructible) {
+  struct S {
+    int x;
+    int y;
+  };
+
+  static_assert(absl::is_trivially_relocatable<S>::value, "");
+}
+
 // A user-provided move constructor disqualifies a type from being trivially
 // relocatable.
 TEST(TriviallyRelocatable, UserProvidedMoveConstructor) {

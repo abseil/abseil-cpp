@@ -497,12 +497,20 @@ using swap_internal::StdSwapIsUnconstrained;
 // https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__is_trivially_relocatable
 //
 #if ABSL_HAVE_BUILTIN(__is_trivially_relocatable)
+// If the compiler offers a builtin that tells us the answer, we can use that.
+// This covers all of the cases in the fallback below, plus types that opt in
+// using e.g. [[clang::trivial_abi]].
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};
 #else
+// Otherwise we use a fallback that detects only those types we can feasibly
+// detect. Any time that has trivial move-construction and destruction
+// operations is by definition trivally relocatable.
 template <class T>
-struct is_trivially_relocatable : std::integral_constant<bool, false> {};
+struct is_trivially_relocatable
+    : absl::conjunction<absl::is_trivially_move_constructible<T>,
+                        absl::is_trivially_destructible<T>> {};
 #endif
 
 // absl::is_constant_evaluated()
