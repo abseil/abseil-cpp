@@ -474,9 +474,14 @@ using swap_internal::StdSwapIsUnconstrained;
 }  // namespace type_traits_internal
 
 // absl::is_trivially_relocatable<T>
-// Detects whether a type is "trivially relocatable" -- meaning it can be
-// relocated without invoking the constructor/destructor, using a form of move
-// elision.
+//
+// Detects whether a type is known to be "trivially relocatable" -- meaning it
+// can be relocated without invoking the constructor/destructor, using a form of
+// move elision.
+//
+// This trait is conservative, for backwards compatibility. If it's true then
+// the type is definitely trivially relocatable, but if it's false then the type
+// may or may not be.
 //
 // Example:
 //
