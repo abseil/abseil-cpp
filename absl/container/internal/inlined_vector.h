@@ -374,15 +374,10 @@ class Storage {
     }
 
     // Fast path: if no destructors need to be run and we know the allocator
-    // doesn't do anything fancy, then all we need to do is allocate (and maybe
-    // not even that).
-    //
-    // TODO(b/274984172): the conditions on copy constructibility/assignability
-    // are unnecessary, and are here only for historical reasons. Remove them.
+    // doesn't do anything fancy, then all we need to do is deallocate (and
+    // maybe not even that).
     if (absl::is_trivially_destructible<ValueType<A>>::value &&
-        std::is_same<A, std::allocator<ValueType<A>>>::value &&
-        absl::is_trivially_copy_constructible<ValueType<A>>::value &&
-        absl::is_trivially_copy_assignable<ValueType<A>>::value) {
+        std::is_same<A, std::allocator<ValueType<A>>>::value) {
       DeallocateIfAllocated();
       return;
     }
