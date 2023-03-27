@@ -780,20 +780,6 @@ TEST(TriviallyRelocatable, UserProvidedCopyConstructor) {
   static_assert(!absl::is_trivially_relocatable<S>::value, "");
 }
 
-// HACK: disable this test on Windows, which includes lexan, which gives the
-// incorrect result for this case (http://b/275003464).
-//
-// TODO(b/275003464): make this hack more precise after figuring out how to
-// detect --config=lexan in particular. If there is no reliable way, modify
-// --config=lexan itself to set a define we can use.
-//
-// TODO(b/274984172): hoist this hack to the definition of
-// absl::is_trivially_relocatable itself, since it's currently giving the wrong
-// results under lexan. We can't trust __is_trivially_relocatable on that
-// platform.
-//
-// TODO(b/275003464): remove this hack when the bug is fixed.
-#if !(defined(_WIN32) || defined(_WIN64))
 // A user-provided destructor disqualifies a type from being trivially
 // relocatable.
 TEST(TriviallyRelocatable, UserProvidedDestructor) {
@@ -803,10 +789,12 @@ TEST(TriviallyRelocatable, UserProvidedDestructor) {
 
   static_assert(!absl::is_trivially_relocatable<S>::value, "");
 }
-#endif
 
-#if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) && \
-    ABSL_HAVE_BUILTIN(__is_trivially_relocatable)
+// TODO(b/275003464): remove the opt-out for Clang on Windows once
+// __is_trivially_relocatable is used there again.
+#if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) &&      \
+    ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
+    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64)))
 // A type marked with the "trivial ABI" attribute is trivially relocatable even
 // if it has user-provided move/copy constructors and a user-provided
 // destructor.

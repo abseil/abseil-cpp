@@ -495,11 +495,18 @@ using swap_internal::StdSwapIsUnconstrained;
 // Upstream documentation:
 //
 // https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__is_trivially_relocatable
-//
-#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable)
+
 // If the compiler offers a builtin that tells us the answer, we can use that.
 // This covers all of the cases in the fallback below, plus types that opt in
 // using e.g. [[clang::trivial_abi]].
+//
+// Clang on Windows has the builtin, but it falsely claims types with a
+// user-provided destructor are trivial (http://b/275003464). So we opt out
+// there.
+//
+// TODO(b/275003464): remove the opt-out once the bug is fixed.
+#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
+    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64)))
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};
