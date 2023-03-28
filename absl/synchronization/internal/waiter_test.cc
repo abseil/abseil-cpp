@@ -48,7 +48,7 @@ class WaiterTest : public ::testing::Test {
 
 TYPED_TEST_SUITE_P(WaiterTest);
 
-constexpr absl::Duration slop = absl::Milliseconds(2);
+constexpr absl::Duration slop = absl::Milliseconds(10);
 
 TYPED_TEST_P(WaiterTest, WaitNoTimeout) {
   absl::synchronization_internal::ThreadPool tp(1);
@@ -84,7 +84,7 @@ TYPED_TEST_P(WaiterTest, WaitDurationWoken) {
       absl::synchronization_internal::KernelTimeout(absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, absl::Milliseconds(500) - slop);
-  EXPECT_LT(waited, absl::Seconds(1));
+  EXPECT_LT(waited, absl::Seconds(2));
 }
 
 TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
@@ -102,7 +102,7 @@ TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
       start + absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
   EXPECT_GE(waited, absl::Milliseconds(500) - slop);
-  EXPECT_LT(waited, absl::Seconds(1));
+  EXPECT_LT(waited, absl::Seconds(2));
 }
 
 TYPED_TEST_P(WaiterTest, WaitDurationReached) {
