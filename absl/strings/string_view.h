@@ -27,21 +27,7 @@
 #ifndef ABSL_STRINGS_STRING_VIEW_H_
 #define ABSL_STRINGS_STRING_VIEW_H_
 
-#include <algorithm>
-#include <cassert>
-#include <cstddef>
-#include <cstring>
-#include <iosfwd>
-#include <iterator>
-#include <limits>
-#include <string>
-
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
-#include "absl/base/macros.h"
-#include "absl/base/optimization.h"
-#include "absl/base/port.h"
 
 #ifdef ABSL_USES_STD_STRING_VIEW
 
@@ -54,6 +40,21 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 #else  // ABSL_USES_STD_STRING_VIEW
+
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+#include <iosfwd>
+#include <iterator>
+#include <limits>
+#include <string>
+
+#include "absl/base/attributes.h"
+#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/macros.h"
+#include "absl/base/optimization.h"
+#include "absl/base/port.h"
 
 #if ABSL_HAVE_BUILTIN(__builtin_memcmp) ||        \
     (defined(__GNUC__) && !defined(__clang__)) || \
@@ -685,7 +686,9 @@ ABSL_NAMESPACE_BEGIN
 // Provided because std::string_view::substr throws if `pos > size()`
 inline string_view ClippedSubstr(string_view s, size_t pos,
                                  size_t n = string_view::npos) {
-  pos = (std::min)(pos, static_cast<size_t>(s.size()));
+  if (pos > s.size()) {
+    pos = static_cast<size_t>(s.size());
+  }
   return s.substr(pos, n);
 }
 
