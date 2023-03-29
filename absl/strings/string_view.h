@@ -686,7 +686,7 @@ ABSL_NAMESPACE_BEGIN
 // Provided because std::string_view::substr throws if `pos > size()`
 inline string_view ClippedSubstr(string_view s, size_t pos,
                                  size_t n = string_view::npos) {
-  if (pos > s.size()) {
+  if (pos > static_cast<size_t>(s.size())) {
     pos = static_cast<size_t>(s.size());
   }
   return s.substr(pos, n);
