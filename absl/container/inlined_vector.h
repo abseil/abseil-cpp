@@ -233,26 +233,15 @@ class InlinedVector {
     // remove its own reference to them. It's as if we had individually
     // move-constructed each value and then destroyed the original.
     //
-    // TODO(b/274984172): we check for copy-constructibility here only for
-    // historical reasons. This is too strict: we are simulating move
-    // construction here. In fact this is arguably incorrect, since in theory a
-    // type might be trivially copy-constructible but not trivially
-    // move-constructible.
-    //
-    // TODO(b/274984172): the condition on copy-assignability is here only for
-    // historical reasons. It doesn't make semantic sense: we don't need to be
-    // able to copy assign here, we are doing an "as-if" move construction.
-    //
     // TODO(b/274984172): a move construction followed by destroying the source
     // is a "relocation" in the language of P1144R4. So actually the minimum
     // condition we need here (in addition to the allocator) is "trivially
     // relocatable". Relaxing this would allow using memcpy with types like
     // std::unique_ptr that opt in to declaring themselves trivially relocatable
     // despite not being trivially move-constructible and/oror destructible.
-    if (absl::is_trivially_copy_constructible<value_type>::value &&
+    if (absl::is_trivially_move_constructible<value_type>::value &&
         absl::is_trivially_destructible<value_type>::value &&
-        std::is_same<A, std::allocator<value_type>>::value &&
-        absl::is_trivially_copy_assignable<value_type>::value) {
+        std::is_same<A, std::allocator<value_type>>::value) {
       storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
       return;
@@ -298,26 +287,15 @@ class InlinedVector {
     // remove its own reference to them. It's as if we had individually
     // move-constructed each value and then destroyed the original.
     //
-    // TODO(b/274984172): we check for copy-constructibility here only for
-    // historical reasons. This is too strict: we are simulating move
-    // construction here. In fact this is arguably incorrect, since in theory a
-    // type might be trivially copy-constructible but not trivially
-    // move-constructible.
-    //
-    // TODO(b/274984172): the condition on copy-assignability is here only for
-    // historical reasons. It doesn't make semantic sense: we don't need to be
-    // able to copy assign here, we are doing an "as-if" move construction.
-    //
     // TODO(b/274984172): a move construction followed by destroying the source
     // is a "relocation" in the language of P1144R4. So actually the minimum
     // condition we need here (in addition to the allocator) is "trivially
     // relocatable". Relaxing this would allow using memcpy with types like
     // std::unique_ptr that opt in to declaring themselves trivially relocatable
     // despite not being trivially move-constructible and/oror destructible.
-    if (absl::is_trivially_copy_constructible<value_type>::value &&
+    if (absl::is_trivially_move_constructible<value_type>::value &&
         absl::is_trivially_destructible<value_type>::value &&
-        std::is_same<A, std::allocator<value_type>>::value &&
-        absl::is_trivially_copy_assignable<value_type>::value) {
+        std::is_same<A, std::allocator<value_type>>::value) {
       storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
       return;
