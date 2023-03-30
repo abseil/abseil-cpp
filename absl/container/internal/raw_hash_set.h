@@ -2190,7 +2190,6 @@ class raw_hash_set {
       // and have potentially sampled the hashtable.
       infoz().RecordReservation(n);
     }
-    common().reset_reserved_growth(n);
   }
 
   // Extension API: support for heterogeneous keys.
@@ -2437,6 +2436,7 @@ class raw_hash_set {
           AllocSize(old_capacity, sizeof(slot_type), alignof(slot_type)));
     }
     infoz().RecordRehash(total_probe_length);
+    common().reset_reserved_growth(new_capacity);
   }
 
   // Prunes control bytes to remove as many tombstones as possible.
