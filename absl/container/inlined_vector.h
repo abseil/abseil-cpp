@@ -189,18 +189,8 @@ class InlinedVector {
     // allocator doesn't do anything fancy, and there is nothing on the heap
     // then we know it is legal for us to simply memcpy the other vector's
     // inlined bytes to form our copy of its elements.
-    //
-    // TODO(b/274984172): the condition on copy-assignability is here only for
-    // historical reasons. It doesn't make semantic sense: we don't need to be
-    // able to copy assign here, we are doing an "as-if" copy construction.
-    //
-    // TODO(b/274984172): the condition on trivial destructibility is here only
-    // for historical reasons. It doesn't make sense: there is no destruction
-    // here.
     if (absl::is_trivially_copy_constructible<value_type>::value &&
         std::is_same<A, std::allocator<value_type>>::value &&
-        absl::is_trivially_copy_assignable<value_type>::value &&
-        absl::is_trivially_destructible<value_type>::value &&
         !other.storage_.GetIsAllocated()) {
       storage_.MemcpyFrom(other.storage_);
       return;
