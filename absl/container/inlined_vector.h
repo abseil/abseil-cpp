@@ -831,10 +831,9 @@ class InlinedVector {
   friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
 
   void MoveAssignment(MemcpyPolicy, InlinedVector&& other) {
-    // TODO(b/274984172): we shouldn't need to do this. We already know the
-    // elements are trivially destructible when our move-assignment policy is
-    // MemcpyPolicy. Except the other overloads of MoveAssignment call this one.
-    // Make them not.
+    // TODO(b/274984172): we shouldn't need to do this, since we already know
+    // the elements are trivially destructible when our move-assignment policy
+    // is MemcpyPolicy.
     inlined_vector_internal::DestroyAdapter<A>::DestroyElements(
         storage_.GetAllocator(), data(), size());
     storage_.DeallocateIfAllocated();
@@ -843,12 +842,27 @@ class InlinedVector {
     other.storage_.SetInlinedSize(0);
   }
 
+  // Destroy our existing elements, if any, and adopt the heap-allocated
+  // elements of the other vector.
+  //
+  // REQUIRES: other.storage_.GetIsAllocated()
+  void DestroyExistingAndAdopt(InlinedVector&& other) {
+    ABSL_HARDENING_ASSERT(other.storage_.GetIsAllocated());
+
+    inlined_vector_internal::DestroyAdapter<A>::DestroyElements(
+        storage_.GetAllocator(), data(), size());
+    storage_.DeallocateIfAllocated();
+
+    storage_.MemcpyFrom(other.storage_);
+    other.storage_.SetInlinedSize(0);
+  }
+
   void MoveAssignment(ElementwiseAssignPolicy, InlinedVector&& other) {
     // Fast path: if the other vector is on the heap then we don't worry about
     // actually move-assigning each element. Instead we only throw away our own
     // existing elements and adopt the heap allocation of the other vector.
     if (other.storage_.GetIsAllocated()) {
-      MoveAssignment(MemcpyPolicy{}, std::move(other));
+      DestroyExistingAndAdopt(std::move(other));
       return;
     }
 
@@ -862,7 +876,7 @@ class InlinedVector {
     // actually move-assigning each element. Instead we only throw away our own
     // existing elements and adopt the heap allocation of the other vector.
     if (other.storage_.GetIsAllocated()) {
-      MoveAssignment(MemcpyPolicy{}, std::move(other));
+      DestroyExistingAndAdopt(std::move(other));
       return;
     }
 
