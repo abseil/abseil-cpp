@@ -831,14 +831,19 @@ class InlinedVector {
   friend H AbslHashValue(H h, const absl::InlinedVector<TheT, TheN, TheA>& a);
 
   void MoveAssignment(MemcpyPolicy, InlinedVector&& other) {
-    // TODO(b/274984172): we shouldn't need to do this, since we already know
-    // the elements are trivially destructible when our move-assignment policy
-    // is MemcpyPolicy.
-    inlined_vector_internal::DestroyAdapter<A>::DestroyElements(
-        storage_.GetAllocator(), data(), size());
-    storage_.DeallocateIfAllocated();
-    storage_.MemcpyFrom(other.storage_);
+    // Assumption check: we shouldn't be told to use memcpy to implement move
+    // asignment unless we have trivially destructible elements and an allocator
+    // that does nothing fancy.
+    static_assert(absl::is_trivially_destructible<value_type>::value, "");
+    static_assert(std::is_same<A, std::allocator<value_type>>::value, "");
 
+    // Throw away our existing heap allocation, if any. There is no need to
+    // destroy the existing elements one by one because we know they are
+    // trivially destructible.
+    storage_.DeallocateIfAllocated();
+
+    // Adopt the other vector's inline elements or heap allocation.
+    storage_.MemcpyFrom(other.storage_);
     other.storage_.SetInlinedSize(0);
   }
 
