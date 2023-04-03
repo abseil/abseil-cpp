@@ -156,7 +156,7 @@ class flat_hash_map : public absl::container_internal::raw_hash_map<
   //
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::flat_hash_map<int, std::string> map7(v.begin(), v.end());
-  flat_hash_map() {}
+  constexpr flat_hash_map() {}
   using Base::Base;
 
   // flat_hash_map::begin()

@@ -59,7 +59,7 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   using iterator = typename raw_hash_map::raw_hash_set::iterator;
   using const_iterator = typename raw_hash_map::raw_hash_set::const_iterator;
 
-  raw_hash_map() {}
+  constexpr raw_hash_map() {}
   using raw_hash_map::raw_hash_set::raw_hash_set;
 
   // The last two template parameters ensure that both arguments are rvalues

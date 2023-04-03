@@ -487,7 +487,7 @@ static_assert(ctrl_t::kDeleted == static_cast<ctrl_t>(-2),
 ABSL_DLL extern const ctrl_t kEmptyGroup[16];
 
 // Returns a pointer to a control byte group that can be used by empty tables.
-inline ctrl_t* EmptyGroup() {
+constexpr inline ctrl_t* EmptyGroup() {
   // Const must be cast away here; no uses of this function will actually write
   // to it, because it is only used for empty tables.
   return const_cast<ctrl_t*>(kEmptyGroup);
@@ -1643,7 +1643,7 @@ class raw_hash_set {
 
   // Note: can't use `= default` due to non-default noexcept (causes
   // problems for some compilers). NOLINTNEXTLINE
-  raw_hash_set() noexcept(
+  constexpr raw_hash_set() noexcept(
       std::is_nothrow_default_constructible<hasher>::value&&
           std::is_nothrow_default_constructible<key_equal>::value&&
               std::is_nothrow_default_constructible<allocator_type>::value) {}

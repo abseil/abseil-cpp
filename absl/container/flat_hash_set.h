@@ -148,7 +148,7 @@ class flat_hash_set
   //
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::flat_hash_set<std::string> set7(v.begin(), v.end());
-  flat_hash_set() {}
+  constexpr flat_hash_set() {}
   using Base::Base;
 
   // flat_hash_set::begin()
