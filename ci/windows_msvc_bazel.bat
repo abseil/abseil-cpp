@@ -28,9 +28,6 @@ IF "%STD%"=="" SET STD=c++14
 :: The default is fastbuild
 IF "%COMPILATION_MODE%"=="" SET COMPILATION_MODE=fastbuild
 
-:: Do not skip time_test by default (https://b/163035516).
-IF "%SKIP_TIME_TESTS_BROKEN_ON_MSVC_OPT%"=="" SET SKIP_TIME_TESTS_BROKEN_ON_MSVC_OPT=0
-
 :: Copy the alternate option file, if specified.
 IF NOT "%ALTERNATE_OPTIONS%"=="" copy %ALTERNATE_OPTIONS% absl\base\options.h
 
@@ -42,7 +39,6 @@ IF NOT "%ALTERNATE_OPTIONS%"=="" copy %ALTERNATE_OPTIONS% absl\base\options.h
   --compilation_mode=%COMPILATION_MODE% ^
   --copt=/WX ^
   --copt=/std:%STD% ^
-  --copt=/DABSL_SKIP_TIME_TESTS_BROKEN_ON_MSVC_OPT=%SKIP_TIME_TESTS_BROKEN_ON_MSVC_OPT% ^
   --define=absl=1 ^
   --distdir=%KOKORO_GFILE_DIR%\distdir ^
   --features=external_include_paths ^
