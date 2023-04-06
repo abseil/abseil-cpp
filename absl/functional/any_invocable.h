@@ -266,7 +266,7 @@ class AnyInvocable : private internal_any_invocable::Impl<Sig> {
   // Exchanges the targets of `*this` and `other`.
   void swap(AnyInvocable& other) noexcept { std::swap(*this, other); }
 
-  // abl::AnyInvocable::operator bool()
+  // absl::AnyInvocable::operator bool()
   //
   // Returns `true` if `*this` is not empty.
   explicit operator bool() const noexcept { return this->HasValue(); }
