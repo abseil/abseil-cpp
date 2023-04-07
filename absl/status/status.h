@@ -92,7 +92,7 @@ ABSL_NAMESPACE_BEGIN
 enum class StatusCode : int {
   // StatusCode::kOk
   //
-  // kOK (gRPC code "OK") does not indicate an error; this value is returned on
+  // kOK (gRPC code "OK") indicates no error; this value is returned on
   // success. It is typical to check for this value before proceeding on any
   // given call across an API or RPC boundary. To check this value, use the
   // `absl::Status::ok()` member function rather than inspecting the raw code.
