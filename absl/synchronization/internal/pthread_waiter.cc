@@ -78,6 +78,11 @@ PthreadWaiter::PthreadWaiter() : waiter_count_(0), wakeup_count_(0) {
 #define ABSL_INTERNAL_HAS_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP 1
 #endif
 
+#if defined(__GLIBC__) && \
+    (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 30))
+#define ABSL_INTERNAL_HAVE_PTHREAD_COND_CLOCKWAIT 1
+#endif
+
 // Calls pthread_cond_timedwait() or possibly something else like
 // pthread_cond_timedwait_relative_np() depending on the platform and
 // KernelTimeout requested. The return value is the same as the return
@@ -94,6 +99,11 @@ int PthreadWaiter::TimedWait(KernelTimeout t) {
 #ifdef ABSL_INTERNAL_HAS_PTHREAD_COND_TIMEDWAIT_RELATIVE_NP
     const auto rel_timeout = t.MakeRelativeTimespec();
     return pthread_cond_timedwait_relative_np(&cv_, &mu_, &rel_timeout);
+#elif defined(ABSL_INTERNAL_HAVE_PTHREAD_COND_CLOCKWAIT) && \
+    defined(CLOCK_MONOTONIC)
+    const auto abs_clock_timeout = t.MakeClockAbsoluteTimespec(CLOCK_MONOTONIC);
+    return pthread_cond_clockwait(&cv_, &mu_, CLOCK_MONOTONIC,
+                                  &abs_clock_timeout);
 #endif
   }
 
