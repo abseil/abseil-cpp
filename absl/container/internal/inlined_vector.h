@@ -326,12 +326,8 @@ class Storage {
       // then it's safe for us to simply swap the bytes in the inline storage.
       // It's as if we had move-constructed a temporary vector, move-assigned
       // one to the other, then move-assigned the first from the temporary.
-      //
-      // TODO(b/274984172): we check for copy-constructability and
-      // -assignability here only for historical reasons. This is too strict: we
-      // are simulating move operations here.
-      absl::conjunction<absl::is_trivially_copy_constructible<ValueType<A>>,
-                        absl::is_trivially_copy_assignable<ValueType<A>>,
+      absl::conjunction<absl::is_trivially_move_constructible<ValueType<A>>,
+                        absl::is_trivially_move_assignable<ValueType<A>>,
                         absl::is_trivially_destructible<ValueType<A>>,
                         std::is_same<A, std::allocator<ValueType<A>>>>::value,
       MemcpyPolicy,
