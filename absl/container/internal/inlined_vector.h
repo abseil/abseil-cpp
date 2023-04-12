@@ -595,18 +595,8 @@ void Storage<T, N, A>::InitFrom(const Storage& other) {
   // Fast path: if the value type is trivially copy constructible and we know
   // the allocator doesn't do anything fancy, then we know it is legal for us to
   // simply memcpy the other vector's elements.
-  //
-  // TODO(b/274984172): the condition on copy-assignability is here only for
-  // historical reasons. It doesn't make semantic sense: we don't need to be
-  // able to copy assign here, we are doing an "as-if" copy construction.
-  //
-  // TODO(b/274984172): the condition on trivial destructibility is here only
-  // for historical reasons. It doesn't make sense: there is no destruction
-  // here.
   if (absl::is_trivially_copy_constructible<ValueType<A>>::value &&
-      std::is_same<A, std::allocator<ValueType<A>>>::value &&
-      absl::is_trivially_copy_assignable<ValueType<A>>::value &&
-      absl::is_trivially_destructible<ValueType<A>>::value) {
+      std::is_same<A, std::allocator<ValueType<A>>>::value) {
     std::memcpy(reinterpret_cast<char*>(dst),
                 reinterpret_cast<const char*>(src), n * sizeof(ValueType<A>));
   } else {
