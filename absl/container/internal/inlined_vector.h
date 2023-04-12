@@ -301,7 +301,7 @@ class Storage {
   struct ElementwiseConstructPolicy {};
 
   using MoveAssignmentPolicy = absl::conditional_t<
-      // Fast path: if the value type can be trivally move assigned and
+      // Fast path: if the value type can be trivially move assigned and
       // destroyed, and we know the allocator doesn't do anything fancy, then
       // it's safe for us to simply adopt the contents of the storage for
       // `other` and remove its own reference to them. It's as if we had
@@ -332,7 +332,7 @@ class Storage {
 
   // The policy to be used specifically when swapping inlined elements.
   using SwapInlinedElementsPolicy = absl::conditional_t<
-      // Fast path: if the value type can be trivally move constructed/assigned
+      // Fast path: if the value type can be trivially move constructed/assigned
       // and destroyed, and we know the allocator doesn't do anything fancy,
       // then it's safe for us to simply swap the bytes in the inline storage.
       // It's as if we had move-constructed a temporary vector, move-assigned
@@ -505,8 +505,10 @@ class Storage {
     // we know the allocator doesn't do anything fancy, and one of the following
     // holds:
     //
-    //  *  It's possible to trivially move construct/assign the elements and
-    //     then destroy the source.
+    //  *  The elements are trivially relocatable.
+    //
+    //  *  It's possible to trivially assign the elements and then destroy the
+    //     source.
     //
     //  *  It's possible to trivially copy construct/assign the elements.
     //
@@ -517,10 +519,11 @@ class Storage {
           (std::is_same<A, std::allocator<V>>::value &&
            (
                // First case above
-               ((absl::is_trivially_move_constructible<V>::value ||
-                 absl::is_trivially_move_assignable<V>::value) &&
-                absl::is_trivially_destructible<V>::value) ||
+               absl::is_trivially_relocatable<V>::value ||
                // Second case above
+               (absl::is_trivially_move_assignable<V>::value &&
+                absl::is_trivially_destructible<V>::value) ||
+               // Third case above
                (absl::is_trivially_copy_constructible<V>::value ||
                 absl::is_trivially_copy_assignable<V>::value))));
     }
