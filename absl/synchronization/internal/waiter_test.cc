@@ -14,9 +14,11 @@
 
 #include "absl/synchronization/internal/waiter.h"
 
+#include <ctime>
 #include <iostream>
 #include <ostream>
 
+#include "absl/random/random.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/futex_waiter.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
@@ -28,6 +30,24 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gtest/gtest.h"
+
+// Test go/btm support by randomizing the value clock_gettime() for
+// CLOCK_MONOTONIC. This works by overriding a weak symbol in glibc.
+// We should be resistant to this randomization when !SupportsSteadyClock().
+#ifdef __GOOGLE_GRTE_VERSION__
+extern "C" int __clock_gettime(clockid_t c, struct timespec* ts);
+
+extern "C" int clock_gettime(clockid_t c, struct timespec* ts) {
+  if (c == CLOCK_MONOTONIC &&
+      !absl::synchronization_internal::KernelTimeout::SupportsSteadyClock()) {
+    absl::SharedBitGen gen;
+    ts->tv_sec = absl::Uniform(gen, 0, 1'000'000'000);
+    ts->tv_nsec = absl::Uniform(gen, 0, 1'000'000'000);
+    return 0;
+  }
+  return __clock_gettime(c, ts);
+}
+#endif  // __GOOGLE_GRTE_VERSION__
 
 namespace {
 

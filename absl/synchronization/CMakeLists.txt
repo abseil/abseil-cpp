@@ -44,7 +44,9 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
+    absl::base
     absl::config
+    absl::core_headers
     absl::raw_logging_internal
     absl::time
 )
@@ -59,6 +61,7 @@ absl_cc_test(
   DEPS
     absl::kernel_timeout_internal
     absl::config
+    absl::random_random
     absl::time
     GTest::gmock_main
 )
@@ -257,6 +260,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::kernel_timeout_internal
+    absl::random_random
     absl::synchronization
     absl::thread_pool
     absl::time
