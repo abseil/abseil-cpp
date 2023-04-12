@@ -306,20 +306,9 @@ class Storage {
       // it's safe for us to simply adopt the contents of the storage for
       // `other` and remove its own reference to them. It's as if we had
       // individually move-assigned each value and then destroyed the original.
-      //
-      // TODO(b/274984172): we check for copy-assignability here only for
-      // historical reasons. This is too strict: we are simulating move
-      // assignment here.
-      //
-      // TODO(b/274984172): the condition on copy-constructibility is here only
-      // for historical reasons. It doesn't make semantic sense: we don't need
-      // to be able to copy construct here, we are doing an "as-if" move
-      // assignment.
-      absl::conjunction<
-          absl::is_trivially_copy_assignable<ValueType<A>>,
-          absl::is_trivially_destructible<ValueType<A>>,
-          std::is_same<A, std::allocator<ValueType<A>>>,
-          absl::is_trivially_copy_constructible<ValueType<A>>>::value,
+      absl::conjunction<absl::is_trivially_move_assignable<ValueType<A>>,
+                        absl::is_trivially_destructible<ValueType<A>>,
+                        std::is_same<A, std::allocator<ValueType<A>>>>::value,
       MemcpyPolicy,
       // Otherwise we use move assignment if possible. If not, we simulate
       // move assignment using move construction.
