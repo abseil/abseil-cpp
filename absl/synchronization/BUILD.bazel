@@ -351,6 +351,7 @@ cc_test(
         ":kernel_timeout_internal",
         ":synchronization",
         ":thread_pool",
+        "//absl/base:config",
         "//absl/random",
         "//absl/time",
         "@com_google_googletest//:gtest_main",

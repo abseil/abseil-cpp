@@ -259,6 +259,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::config
     absl::kernel_timeout_internal
     absl::random_random
     absl::synchronization
