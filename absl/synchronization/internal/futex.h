@@ -32,6 +32,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <limits>
 
 #include "absl/base/optimization.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
@@ -79,6 +80,18 @@ namespace synchronization_internal {
 
 #if defined(SYS_futex_time64) && !defined(SYS_futex)
 #define SYS_futex SYS_futex_time64
+using futex_timespec = struct timespec;
+#else
+// Platform can use 64-bit time_t definition even on 32-bit userspace builds,
+// while SYS_futex (__NR_futex) kernel implementation expects 32-bit time_t as
+// the type of tv_sec for 32-bit programs. So we define the futex_timespec that
+// matches the kernel timespec definition. It should be safe to use this struct
+// for 64-bit userspace builds too, since it will use another SYS_futex kernel
+// call with 64-bit tv_sec inside timespec.
+struct futex_timespec {
+  long tv_sec;
+  long tv_nsec;
+};
 #endif
 
 class FutexImpl {
@@ -93,12 +106,14 @@ class FutexImpl {
   // CLOCK_REALTIME reaches `*abs_timeout`, or until woken by `Wake()`.
   static int WaitAbsoluteTimeout(std::atomic<int32_t>* v, int32_t val,
                                  const struct timespec* abs_timeout) {
+    futex_timespec ts;
+
     // https://locklessinc.com/articles/futex_cheat_sheet/
     // Unlike FUTEX_WAIT, FUTEX_WAIT_BITSET uses absolute time.
-    auto err =
-        syscall(SYS_futex, reinterpret_cast<int32_t*>(v),
-                FUTEX_WAIT_BITSET | FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME,
-                val, abs_timeout, nullptr, FUTEX_BITSET_MATCH_ANY);
+    auto err = syscall(
+        SYS_futex, reinterpret_cast<int32_t*>(v),
+        FUTEX_WAIT_BITSET | FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME, val,
+        FutexTimespec(&ts, abs_timeout), nullptr, FUTEX_BITSET_MATCH_ANY);
     if (err != 0) {
       return -errno;
     }
@@ -109,10 +124,13 @@ class FutexImpl {
   // `*rel_timeout` has elapsed, or until woken by `Wake()`.
   static int WaitRelativeTimeout(std::atomic<int32_t>* v, int32_t val,
                                  const struct timespec* rel_timeout) {
+    futex_timespec ts;
+
     // Atomically check that the futex value is still 0, and if it
     // is, sleep until abs_timeout or until woken by FUTEX_WAKE.
-    auto err = syscall(SYS_futex, reinterpret_cast<int32_t*>(v),
-                       FUTEX_PRIVATE_FLAG, val, rel_timeout);
+    auto err =
+        syscall(SYS_futex, reinterpret_cast<int32_t*>(v), FUTEX_PRIVATE_FLAG,
+                val, FutexTimespec(&ts, rel_timeout));
     if (err != 0) {
       return -errno;
     }
@@ -127,6 +145,25 @@ class FutexImpl {
       return -errno;
     }
     return 0;
+  }
+
+ private:
+  static futex_timespec* FutexTimespec(futex_timespec* fts,
+                                       const struct timespec* ts) {
+    if (!ts) return nullptr;
+
+    using FutexSeconds = decltype(fts->tv_sec);
+    using FutexNanoseconds = decltype(fts->tv_nsec);
+
+    constexpr auto max_value{std::numeric_limits<FutexSeconds>::max()};
+    if (ts->tv_sec > max_value) {
+      fts->tv_sec = max_value;
+    } else {
+      fts->tv_sec = static_cast<FutexSeconds>(ts->tv_sec);
+    }
+
+    fts->tv_nsec = static_cast<FutexNanoseconds>(ts->tv_nsec);
+    return fts;
   }
 };
 
