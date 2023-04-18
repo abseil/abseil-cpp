@@ -123,7 +123,7 @@ namespace log_internal {
 
 bool ShouldLogBacktraceAt(absl::string_view file, int line) {
   const size_t flag_hash =
-      log_backtrace_at_hash.load(std::memory_order_acquire);
+      log_backtrace_at_hash.load(std::memory_order_relaxed);
 
   return flag_hash != 0 && flag_hash == HashSiteForLogBacktraceAt(file, line);
 }
@@ -132,7 +132,11 @@ bool ShouldLogBacktraceAt(absl::string_view file, int line) {
 
 void SetLogBacktraceLocation(absl::string_view file, int line) {
   log_backtrace_at_hash.store(HashSiteForLogBacktraceAt(file, line),
-                              std::memory_order_release);
+                              std::memory_order_relaxed);
+}
+
+void ClearLogBacktraceLocation() {
+  log_backtrace_at_hash.store(0, std::memory_order_relaxed);
 }
 
 bool ShouldPrependLogPrefix() {

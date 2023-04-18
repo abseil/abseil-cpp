@@ -110,8 +110,8 @@ class ScopedStderrThreshold final {
 // Log Backtrace At
 //------------------------------------------------------------------------------
 //
-// Users can request backtrace to be logged at specific locations, specified
-// by file and line number.
+// Users can request an existing `LOG` statement, specified by file and line
+// number, to also include a backtrace when logged.
 
 // ShouldLogBacktraceAt()
 //
@@ -123,8 +123,15 @@ ABSL_MUST_USE_RESULT bool ShouldLogBacktraceAt(absl::string_view file,
 
 // SetLogBacktraceLocation()
 //
-// Sets the location the backtrace should be logged at.
+// Sets the location the backtrace should be logged at.  If the specified
+// location isn't a `LOG` statement, the effect will be the same as
+// `ClearLogBacktraceLocation` (but less efficient).
 void SetLogBacktraceLocation(absl::string_view file, int line);
+
+// ClearLogBacktraceLocation()
+//
+// Clears the set location so that backtraces will no longer be logged at it.
+void ClearLogBacktraceLocation();
 
 //------------------------------------------------------------------------------
 // Prepend Log Prefix
