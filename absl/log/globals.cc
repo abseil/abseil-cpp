@@ -14,14 +14,17 @@
 
 #include "absl/log/globals.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/atomic_hook.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/log_severity.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
@@ -42,6 +45,9 @@ ABSL_CONST_INIT std::atomic<int> stderrthreshold{
 // very hot codepath.
 ABSL_CONST_INIT std::atomic<size_t> log_backtrace_at_hash{0};
 ABSL_CONST_INIT std::atomic<bool> prepend_log_prefix{true};
+
+constexpr char kDefaultAndroidTag[] = "native";
+ABSL_CONST_INIT std::atomic<const char*> android_log_tag{kDefaultAndroidTag};
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
 absl::base_internal::AtomicHook<log_internal::LoggingGlobalsListener>
@@ -117,6 +123,26 @@ ScopedStderrThreshold::ScopedStderrThreshold(absl::LogSeverityAtLeast severity)
 
 ScopedStderrThreshold::~ScopedStderrThreshold() {
   absl::SetStderrThreshold(saved_severity_);
+}
+
+namespace log_internal {
+
+const char* GetAndroidNativeTag() {
+  return android_log_tag.load(std::memory_order_acquire);
+}
+
+}  // namespace log_internal
+
+void SetAndroidNativeTag(const char* tag) {
+  ABSL_CONST_INIT static std::atomic<const std::string*> user_log_tag(nullptr);
+  ABSL_INTERNAL_CHECK(tag, "tag must be non-null.");
+
+  const std::string* tag_str = new std::string(tag);
+  ABSL_INTERNAL_CHECK(
+      android_log_tag.exchange(tag_str->c_str(), std::memory_order_acq_rel) ==
+          kDefaultAndroidTag,
+      "SetAndroidNativeTag() must only be called once per process!");
+  user_log_tag.store(tag_str, std::memory_order_relaxed);
 }
 
 namespace log_internal {

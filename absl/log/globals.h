@@ -152,6 +152,29 @@ ABSL_MUST_USE_RESULT bool ShouldPrependLogPrefix();
 // This function is async-signal-safe.
 void EnableLogPrefix(bool on_off);
 
+//------------------------------------------------------------------------------
+// Configure Android Native Log Tag
+//------------------------------------------------------------------------------
+//
+// The logging library forwards to the Android system log API when built for
+// Android.  That API takes a string "tag" value in addition to a message and
+// severity level.  The tag is used to identify the source of messages and to
+// filter them.  This library uses the tag "native" by default.
+
+// SetAndroidNativeTag()
+//
+// Stores a copy of the string pointed to by `tag` and uses it as the Android
+// logging tag thereafter. `tag` must not be null.
+// This function must not be called more than once!
+void SetAndroidNativeTag(const char* tag);
+
+namespace log_internal {
+// GetAndroidNativeTag()
+//
+// Returns the configured Android logging tag.
+const char* GetAndroidNativeTag();
+}  // namespace log_internal
+
 namespace log_internal {
 
 using LoggingGlobalsListener = void (*)();
