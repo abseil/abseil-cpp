@@ -711,7 +711,7 @@ bool IncrementNibble(size_t nibble_index, Int* n) {
   constexpr size_t kShift = sizeof(Int) * 8 - 1;
   constexpr size_t kNumNibbles = sizeof(Int) * 8 / 4;
   Int before = *n >> kShift;
-  // Here we essentially want to take the number 1 and move it into the requsted
+  // Here we essentially want to take the number 1 and move it into the requested
   // nibble, then add it to *n to effectively increment the nibble. However,
   // ASan will complain if we try to shift the 1 beyond the limits of the Int,
   // i.e., if the nibble_index is out of range. So therefore we check for this
