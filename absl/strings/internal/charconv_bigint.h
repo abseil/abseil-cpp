@@ -121,7 +121,7 @@ class BigUnsigned {
           ++size_;
         }
       }
-      std::fill(words_, words_ + word_shift, 0u);
+      std::fill_n(words_, word_shift, 0u);
     }
   }
 
@@ -197,7 +197,7 @@ class BigUnsigned {
   }
 
   void SetToZero() {
-    std::fill(words_, words_ + size_, 0u);
+    std::fill_n(words_, size_, 0u);
     size_ = 0;
   }
 
