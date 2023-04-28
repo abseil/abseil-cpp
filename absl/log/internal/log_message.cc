@@ -234,6 +234,13 @@ LogMessage::LogMessage(const char* file, int line, absl::LogSeverity severity)
   LogBacktraceIfNeeded();
 }
 
+LogMessage::LogMessage(const char* file, int line, InfoTag)
+    : LogMessage(file, line, absl::LogSeverity::kInfo) {}
+LogMessage::LogMessage(const char* file, int line, WarningTag)
+    : LogMessage(file, line, absl::LogSeverity::kWarning) {}
+LogMessage::LogMessage(const char* file, int line, ErrorTag)
+    : LogMessage(file, line, absl::LogSeverity::kError) {}
+
 LogMessage::~LogMessage() {
 #ifdef ABSL_MIN_LOG_LEVEL
   if (data_->entry.log_severity() <
@@ -383,8 +390,7 @@ template LogMessage& LogMessage::operator<<(const double& v);
 template LogMessage& LogMessage::operator<<(const bool& v);
 
 void LogMessage::Flush() {
-  if (data_->entry.log_severity() < absl::MinLogLevel())
-    return;
+  if (data_->entry.log_severity() < absl::MinLogLevel()) return;
 
   if (data_->is_perror) {
     InternalStream() << ": " << absl::base_internal::StrError(errno_saver_())
@@ -427,7 +433,7 @@ LogMessage::OstreamView::OstreamView(LogMessageData& message_data)
                          &encoded_remaining_copy_);
   string_start_ =
       EncodeMessageStart(ValueTag::kString, encoded_remaining_copy_.size(),
-                       &encoded_remaining_copy_);
+                         &encoded_remaining_copy_);
   setp(encoded_remaining_copy_.data(),
        encoded_remaining_copy_.data() + encoded_remaining_copy_.size());
   data_.manipulated.rdbuf(this);

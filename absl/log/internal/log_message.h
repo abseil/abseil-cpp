@@ -51,9 +51,21 @@ constexpr int kLogMessageBufferSize = 15000;
 
 class LogMessage {
  public:
+  struct InfoTag {};
+  struct WarningTag {};
+  struct ErrorTag {};
+
   // Used for `LOG`.
   LogMessage(const char* file, int line,
              absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
+  // These constructors are slightly smaller/faster to call; the severity is
+  // curried into the function pointer.
+  LogMessage(const char* file, int line,
+             InfoTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
+  LogMessage(const char* file, int line,
+             WarningTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
+  LogMessage(const char* file, int line,
+             ErrorTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
   ~LogMessage() ABSL_ATTRIBUTE_COLD;
