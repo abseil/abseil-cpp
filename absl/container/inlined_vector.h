@@ -816,8 +816,8 @@ class InlinedVector {
 
   void MoveAssignment(MemcpyPolicy, InlinedVector&& other) {
     // Assumption check: we shouldn't be told to use memcpy to implement move
-    // asignment unless we have trivially destructible elements and an allocator
-    // that does nothing fancy.
+    // assignment unless we have trivially destructible elements and an
+    // allocator that does nothing fancy.
     static_assert(absl::is_trivially_destructible<value_type>::value, "");
     static_assert(std::is_same<A, std::allocator<value_type>>::value, "");
 
