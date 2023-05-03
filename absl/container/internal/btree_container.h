@@ -434,37 +434,43 @@ class btree_map_container : public btree_set_container<Tree> {
   // Note: the nullptr template arguments and extra `const M&` overloads allow
   // for supporting bitfield arguments.
   template <typename K = key_type, class M>
-  std::pair<iterator, bool> insert_or_assign(const key_arg<K> &k,
-                                             const M &obj) {
+  std::pair<iterator, bool> insert_or_assign(const key_arg<K> &k, const M &obj)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_impl(k, obj);
   }
   template <typename K = key_type, class M, K * = nullptr>
-  std::pair<iterator, bool> insert_or_assign(key_arg<K> &&k, const M &obj) {
+  std::pair<iterator, bool> insert_or_assign(key_arg<K> &&k, const M &obj)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_impl(std::forward<K>(k), obj);
   }
   template <typename K = key_type, class M, M * = nullptr>
-  std::pair<iterator, bool> insert_or_assign(const key_arg<K> &k, M &&obj) {
+  std::pair<iterator, bool> insert_or_assign(const key_arg<K> &k, M &&obj)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_impl(k, std::forward<M>(obj));
   }
   template <typename K = key_type, class M, K * = nullptr, M * = nullptr>
-  std::pair<iterator, bool> insert_or_assign(key_arg<K> &&k, M &&obj) {
+  std::pair<iterator, bool> insert_or_assign(key_arg<K> &&k, M &&obj)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_impl(std::forward<K>(k), std::forward<M>(obj));
   }
   template <typename K = key_type, class M>
   iterator insert_or_assign(const_iterator hint, const key_arg<K> &k,
-                            const M &obj) {
+                            const M &obj) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_hint_impl(hint, k, obj);
   }
   template <typename K = key_type, class M, K * = nullptr>
-  iterator insert_or_assign(const_iterator hint, key_arg<K> &&k, const M &obj) {
+  iterator insert_or_assign(const_iterator hint, key_arg<K> &&k,
+                            const M &obj) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_hint_impl(hint, std::forward<K>(k), obj);
   }
   template <typename K = key_type, class M, M * = nullptr>
-  iterator insert_or_assign(const_iterator hint, const key_arg<K> &k, M &&obj) {
+  iterator insert_or_assign(const_iterator hint, const key_arg<K> &k,
+                            M &&obj) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_hint_impl(hint, k, std::forward<M>(obj));
   }
   template <typename K = key_type, class M, K * = nullptr, M * = nullptr>
-  iterator insert_or_assign(const_iterator hint, key_arg<K> &&k, M &&obj) {
+  iterator insert_or_assign(const_iterator hint, key_arg<K> &&k,
+                            M &&obj) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert_or_assign_hint_impl(hint, std::forward<K>(k),
                                       std::forward<M>(obj));
   }
@@ -472,44 +478,48 @@ class btree_map_container : public btree_set_container<Tree> {
   template <typename K = key_type, typename... Args,
             typename absl::enable_if_t<
                 !std::is_convertible<K, const_iterator>::value, int> = 0>
-  std::pair<iterator, bool> try_emplace(const key_arg<K> &k, Args &&... args) {
+  std::pair<iterator, bool> try_emplace(const key_arg<K> &k, Args &&...args)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(k, std::forward<Args>(args)...);
   }
   template <typename K = key_type, typename... Args,
             typename absl::enable_if_t<
                 !std::is_convertible<K, const_iterator>::value, int> = 0>
-  std::pair<iterator, bool> try_emplace(key_arg<K> &&k, Args &&... args) {
+  std::pair<iterator, bool> try_emplace(key_arg<K> &&k, Args &&...args)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(std::forward<K>(k), std::forward<Args>(args)...);
   }
   template <typename K = key_type, typename... Args>
   iterator try_emplace(const_iterator hint, const key_arg<K> &k,
-                       Args &&... args) {
+                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_hint_impl(hint, k, std::forward<Args>(args)...);
   }
   template <typename K = key_type, typename... Args>
-  iterator try_emplace(const_iterator hint, key_arg<K> &&k, Args &&... args) {
+  iterator try_emplace(const_iterator hint, key_arg<K> &&k,
+                       Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_hint_impl(hint, std::forward<K>(k),
                                  std::forward<Args>(args)...);
   }
 
   template <typename K = key_type>
-  mapped_type &operator[](const key_arg<K> &k) {
+  mapped_type &operator[](const key_arg<K> &k) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace(k).first->second;
   }
   template <typename K = key_type>
-  mapped_type &operator[](key_arg<K> &&k) {
+  mapped_type &operator[](key_arg<K> &&k) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace(std::forward<K>(k)).first->second;
   }
 
   template <typename K = key_type>
-  mapped_type &at(const key_arg<K> &key) {
+  mapped_type &at(const key_arg<K> &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
     if (it == this->end())
       base_internal::ThrowStdOutOfRange("absl::btree_map::at");
     return it->second;
   }
   template <typename K = key_type>
-  const mapped_type &at(const key_arg<K> &key) const {
+  const mapped_type &at(const key_arg<K> &key) const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
     if (it == this->end())
       base_internal::ThrowStdOutOfRange("absl::btree_map::at");
@@ -600,14 +610,18 @@ class btree_multiset_container : public btree_container<Tree> {
       : btree_multiset_container(init.begin(), init.end(), alloc) {}
 
   // Insertion routines.
-  iterator insert(const value_type &v) { return this->tree_.insert_multi(v); }
-  iterator insert(value_type &&v) {
+  iterator insert(const value_type &v) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return this->tree_.insert_multi(v);
+  }
+  iterator insert(value_type &&v) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->tree_.insert_multi(std::move(v));
   }
-  iterator insert(const_iterator hint, const value_type &v) {
+  iterator insert(const_iterator hint,
+                  const value_type &v) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->tree_.insert_hint_multi(iterator(hint), v);
   }
-  iterator insert(const_iterator hint, value_type &&v) {
+  iterator insert(const_iterator hint,
+                  value_type &&v) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->tree_.insert_hint_multi(iterator(hint), std::move(v));
   }
   template <typename InputIterator>
@@ -618,21 +632,22 @@ class btree_multiset_container : public btree_container<Tree> {
     this->tree_.insert_iterator_multi(init.begin(), init.end());
   }
   template <typename... Args>
-  iterator emplace(Args &&... args) {
+  iterator emplace(Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     // Use a node handle to manage a temp slot.
     auto node = CommonAccess::Construct<node_type>(this->get_allocator(),
                                                    std::forward<Args>(args)...);
     return this->tree_.insert_multi(CommonAccess::GetSlot(node));
   }
   template <typename... Args>
-  iterator emplace_hint(const_iterator hint, Args &&... args) {
+  iterator emplace_hint(const_iterator hint,
+                        Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     // Use a node handle to manage a temp slot.
     auto node = CommonAccess::Construct<node_type>(this->get_allocator(),
                                                    std::forward<Args>(args)...);
     return this->tree_.insert_hint_multi(iterator(hint),
                                          CommonAccess::GetSlot(node));
   }
-  iterator insert(node_type &&node) {
+  iterator insert(node_type &&node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (!node) return this->end();
     iterator res =
         this->tree_.insert_multi(params_type::key(CommonAccess::GetSlot(node)),
@@ -640,7 +655,8 @@ class btree_multiset_container : public btree_container<Tree> {
     CommonAccess::Destroy(&node);
     return res;
   }
-  iterator insert(const_iterator hint, node_type &&node) {
+  iterator insert(const_iterator hint,
+                  node_type &&node) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (!node) return this->end();
     iterator res = this->tree_.insert_hint_multi(
         iterator(hint),
