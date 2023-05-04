@@ -1444,54 +1444,43 @@ class btree {
   btree &operator=(const btree &other);
   btree &operator=(btree &&other) noexcept;
 
-  iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return iterator(leftmost());
-  }
-  const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_iterator(leftmost());
-  }
-  iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return iterator(rightmost(), rightmost()->finish());
-  }
-  const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator begin() { return iterator(leftmost()); }
+  const_iterator begin() const { return const_iterator(leftmost()); }
+  iterator end() { return iterator(rightmost(), rightmost()->finish()); }
+  const_iterator end() const {
     return const_iterator(rightmost(), rightmost()->finish());
   }
-  reverse_iterator rbegin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return reverse_iterator(end());
-  }
-  const_reverse_iterator rbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
+  const_reverse_iterator rbegin() const {
     return const_reverse_iterator(end());
   }
-  reverse_iterator rend() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return reverse_iterator(begin());
-  }
-  const_reverse_iterator rend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  reverse_iterator rend() { return reverse_iterator(begin()); }
+  const_reverse_iterator rend() const {
     return const_reverse_iterator(begin());
   }
 
   // Finds the first element whose key is not less than `key`.
   template <typename K>
-  iterator lower_bound(const K &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator lower_bound(const K &key) {
     return internal_end(internal_lower_bound(key).value);
   }
   template <typename K>
-  const_iterator lower_bound(const K &key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const_iterator lower_bound(const K &key) const {
     return internal_end(internal_lower_bound(key).value);
   }
 
   // Finds the first element whose key is not less than `key` and also returns
   // whether that element is equal to `key`.
   template <typename K>
-  std::pair<iterator, bool> lower_bound_equal(const K &key) const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::pair<iterator, bool> lower_bound_equal(const K &key) const;
 
   // Finds the first element whose key is greater than `key`.
   template <typename K>
-  iterator upper_bound(const K &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator upper_bound(const K &key) {
     return internal_end(internal_upper_bound(key));
   }
   template <typename K>
-  const_iterator upper_bound(const K &key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const_iterator upper_bound(const K &key) const {
     return internal_end(internal_upper_bound(key));
   }
 
@@ -1499,11 +1488,9 @@ class btree {
   // the returned pair is equal to lower_bound(key). The second member of the
   // pair is equal to upper_bound(key).
   template <typename K>
-  std::pair<iterator, iterator> equal_range(const K &key)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::pair<iterator, iterator> equal_range(const K &key);
   template <typename K>
-  std::pair<const_iterator, const_iterator> equal_range(const K &key) const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::pair<const_iterator, const_iterator> equal_range(const K &key) const {
     return const_cast<btree *>(this)->equal_range(key);
   }
 
@@ -1512,8 +1499,7 @@ class btree {
   // Requirement: if `key` already exists in the btree, does not consume `args`.
   // Requirement: `key` is never referenced after consuming `args`.
   template <typename K, typename... Args>
-  std::pair<iterator, bool> insert_unique(const K &key, Args &&...args)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::pair<iterator, bool> insert_unique(const K &key, Args &&...args);
 
   // Inserts with hint. Checks to see if the value should be placed immediately
   // before `position` in the tree. If so, then the insertion will take
@@ -1523,8 +1509,7 @@ class btree {
   // Requirement: `key` is never referenced after consuming `args`.
   template <typename K, typename... Args>
   std::pair<iterator, bool> insert_hint_unique(iterator position, const K &key,
-                                               Args &&...args)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+                                               Args &&...args);
 
   // Insert a range of values into the btree.
   // Note: the first overload avoids constructing a value_type if the key
@@ -1541,12 +1526,11 @@ class btree {
 
   // Inserts a value into the btree.
   template <typename ValueType>
-  iterator insert_multi(const key_type &key,
-                        ValueType &&v) ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  iterator insert_multi(const key_type &key, ValueType &&v);
 
   // Inserts a value into the btree.
   template <typename ValueType>
-  iterator insert_multi(ValueType &&v) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator insert_multi(ValueType &&v) {
     return insert_multi(params_type::key(v), std::forward<ValueType>(v));
   }
 
@@ -1555,8 +1539,7 @@ class btree {
   // amortized constant time. If not, the insertion will take amortized
   // logarithmic time as if a call to insert_multi(v) were made.
   template <typename ValueType>
-  iterator insert_hint_multi(iterator position,
-                             ValueType &&v) ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  iterator insert_hint_multi(iterator position, ValueType &&v);
 
   // Insert a range of values into the btree.
   template <typename InputIterator>
@@ -1567,21 +1550,20 @@ class btree {
   // (i.e. not equal to end()).  Return an iterator pointing to the node after
   // the one that was erased (or end() if none exists).
   // Requirement: does not read the value at `*iter`.
-  iterator erase(iterator iter) ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  iterator erase(iterator iter);
 
   // Erases range. Returns the number of keys erased and an iterator pointing
   // to the element after the last erased element.
-  std::pair<size_type, iterator> erase_range(iterator begin, iterator end)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::pair<size_type, iterator> erase_range(iterator begin, iterator end);
 
   // Finds an element with key equivalent to `key` or returns `end()` if `key`
   // is not present.
   template <typename K>
-  iterator find(const K &key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator find(const K &key) {
     return internal_end(internal_find(key));
   }
   template <typename K>
-  const_iterator find(const K &key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const_iterator find(const K &key) const {
     return internal_end(internal_find(key));
   }
 
@@ -1591,7 +1573,7 @@ class btree {
   // Swaps the contents of `this` and `other`.
   void swap(btree &other);
 
-  const key_compare &key_comp() const noexcept ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const key_compare &key_comp() const noexcept {
     return rightmost_.template get<0>();
   }
   template <typename K1, typename K2>
