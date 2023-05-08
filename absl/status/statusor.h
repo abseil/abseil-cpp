@@ -146,7 +146,7 @@ class ABSL_MUST_USE_RESULT StatusOr;
 //
 //   absl::StatusOr<int> i = GetCount();
 //   if (i.ok()) {
-//     updated_total += *i
+//     updated_total += *i;
 //   }
 //
 // NOTE: using `absl::StatusOr<T>::value()` when no valid value is present will
