@@ -33,7 +33,7 @@ ABSL_CONST_INIT std::atomic<bool> cord_ring_buffer_enabled(
     kCordEnableRingBufferDefault);
 ABSL_CONST_INIT std::atomic<bool> shallow_subcords_enabled(
     kCordShallowSubcordsDefault);
-ABSL_CONST_INIT std::atomic<bool> cord_btree_exhaustive_validation(false);
+ABSL_CONST_INIT ABSL_DLL std::atomic<bool> cord_btree_exhaustive_validation(false);
 
 void LogFatalNodeType(CordRep* rep) {
   ABSL_INTERNAL_LOG(FATAL, absl::StrCat("Unexpected node type: ",

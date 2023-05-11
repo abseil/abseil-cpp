@@ -73,7 +73,7 @@ extern std::atomic<bool> shallow_subcords_enabled;
 // in debug assertions, and code that calls `IsValid()` explicitly. By default,
 // assertions should be relatively cheap and AssertValid() can easily lead to
 // O(n^2) complexity as recursive / full tree validation is O(n).
-extern std::atomic<bool> cord_btree_exhaustive_validation;
+ABSL_DLL extern std::atomic<bool> cord_btree_exhaustive_validation;
 
 inline void enable_cord_ring_buffer(bool enable) {
   cord_ring_buffer_enabled.store(enable, std::memory_order_relaxed);
