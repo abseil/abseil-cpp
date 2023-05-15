@@ -32,7 +32,7 @@ namespace cord_internal {
 // has gained visibility into a CordzInfo object, that CordzInfo object will not
 // be deleted prematurely. This allows the profiler to inspect all CordzInfo
 // objects that are alive without needing to hold a global lock.
-class CordzHandle {
+class ABSL_DLL CordzHandle {
  public:
   CordzHandle() : CordzHandle(false) {}
 
