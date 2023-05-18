@@ -35,6 +35,11 @@
 #include <zircon/types.h>
 #endif
 
+#if defined(_MSC_VER)
+#include <Windows.h>
+#include <timezoneapi.h>
+#endif
+
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -208,8 +213,9 @@ time_zone local_time_zone() {
   char* localtime_env = nullptr;
   if (strcmp(zone, "localtime") == 0) {
 #if defined(_MSC_VER)
-    // System-specific default is just "localtime".
-    _dupenv_s(&localtime_env, nullptr, "LOCALTIME");
+    TIME_ZONE_INFORMATION zi = {};
+    GetTimeZoneInformation(&zi);
+    return fixed_time_zone(seconds(-zi.Bias * 60));
 #else
     zone = "/etc/localtime";  // System-specific default.
     localtime_env = std::getenv("LOCALTIME");
