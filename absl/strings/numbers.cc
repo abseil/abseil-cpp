@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
@@ -172,7 +173,7 @@ inline char* EncodeHundred(uint32_t n, char* out_str) {
   uint32_t mod10 = n - 10u * div10;
   base += div10 + (mod10 << 8);
   base >>= num_digits & 8;
-  memcpy(out_str, &base, 2);
+  little_endian::Store16(out_str, static_cast<uint16_t>(base));
   return out_str + 2 + num_digits;
 }
 
@@ -198,7 +199,7 @@ inline char* EncodeTenThousand(uint32_t n, char* out_str) {
   uint32_t zeroes = static_cast<uint32_t>(absl::countr_zero(tens)) & (0 - 8ull);
   tens += kFourZeroBytes;
   tens >>= zeroes;
-  memcpy(out_str, &tens, sizeof(tens));
+  little_endian::Store32(out_str, tens);
   return out_str + sizeof(tens) - zeroes / 8;
 }
 
@@ -227,7 +228,7 @@ inline char* EncodeFullU32(uint32_t n, char* out_str) {
         & (0 - 8ull);
     uint64_t bottom_res = bottom + kEightZeroBytes;
     bottom_res >>= zeroes;
-    memcpy(out_str, &bottom_res, sizeof(bottom));
+    little_endian::Store64(out_str, bottom_res);
     return out_str + sizeof(bottom) - zeroes / 8;
   }
   uint32_t top = n / 100'000'000;
@@ -235,7 +236,7 @@ inline char* EncodeFullU32(uint32_t n, char* out_str) {
   uint64_t bottom = PrepareTenThousands(n / 10000, n % 10000);
   uint64_t bottom_res = bottom + kEightZeroBytes;
   out_str = EncodeHundred(top, out_str);
-  memcpy(out_str, &bottom_res, sizeof(bottom));
+  little_endian::Store64(out_str, bottom_res);
   return out_str + sizeof(bottom);
 }
 
@@ -279,7 +280,7 @@ char* numbers_internal::FastIntToBuffer(uint64_t i, char* buffer) {
       PrepareTenThousands(mod08 / 10000, mod08 % 10000) + kEightZeroBytes;
   if (i < 10'000'000'000ull) {
     buffer = EncodeHundred(static_cast<uint32_t>(div08), buffer);
-    memcpy(buffer, &mod_result, 8);
+    little_endian::Store64(buffer, mod_result);
     buffer += 8;
     goto set_last_zero;
   }
@@ -287,7 +288,7 @@ char* numbers_internal::FastIntToBuffer(uint64_t i, char* buffer) {
   // i < 10**16, in this case 8+8
   if (i < 10'000'000'000'000'000ull) {
     buffer = EncodeFullU32(static_cast<uint32_t>(div08), buffer);
-    memcpy(buffer, &mod_result, 8);
+    little_endian::Store64(buffer, mod_result);
     buffer += 8;
     goto set_last_zero;
   } else {
@@ -297,9 +298,9 @@ char* numbers_internal::FastIntToBuffer(uint64_t i, char* buffer) {
     uint64_t mid_result = div08 - div016 * 100'000'000ull;
     mid_result = PrepareTenThousands(mid_result / 10000, mid_result % 10000) +
                  kEightZeroBytes;
-    memcpy(buffer, &mid_result, 8);
+    little_endian::Store64(buffer, mid_result);
     buffer += 8;
-    memcpy(buffer, &mod_result, 8);
+    little_endian::Store64(buffer, mod_result);
     buffer += 8;
     goto set_last_zero;
   }
