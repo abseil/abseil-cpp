@@ -135,8 +135,16 @@ void InvokeR(F&& f, P&&... args) {
 template <class ReturnType, class F, class... P,
           absl::enable_if_t<!std::is_void<ReturnType>::value, int> = 0>
 ReturnType InvokeR(F&& f, P&&... args) {
+  // GCC 12 has a false-positive -Wmaybe-uninitialized warning here.
+#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
   return absl::base_internal::invoke(std::forward<F>(f),
                                      std::forward<P>(args)...);
+#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
+#pragma GCC diagnostic pop
+#endif
 }
 
 //
