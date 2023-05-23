@@ -905,7 +905,6 @@ absl_cc_test(
     absl::log_sink
     absl::log_sink_registry
     absl::log_severity
-    absl::raw_logging_internal
     absl::scoped_mock_log
     absl::strings
     GTest::gtest_main

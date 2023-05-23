@@ -459,7 +459,6 @@ cc_test(
         ":log_sink_registry",
         ":scoped_mock_log",
         "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
         "//absl/log/internal:test_actions",
         "//absl/log/internal:test_helpers",
         "//absl/log/internal:test_matchers",
