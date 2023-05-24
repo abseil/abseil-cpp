@@ -79,6 +79,42 @@ list(APPEND ABSL_GCC_TEST_FLAGS
     "-Wno-unused-private-field"
 )
 
+list(APPEND ABSL_INTEL_LLVM_CLANG_CL_FLAGS
+    "/W3"
+    "/DNOMINMAX"
+    "/DWIN32_LEAN_AND_MEAN"
+    "/D_CRT_SECURE_NO_WARNINGS"
+    "/D_SCL_SECURE_NO_WARNINGS"
+    "/D_ENABLE_EXTENDED_ALIGNED_STORAGE"
+    "/fp:precise"
+)
+
+list(APPEND ABSL_INTEL_LLVM_CLANG_CL_TEST_FLAGS
+    "/W3"
+    "/DNOMINMAX"
+    "/DWIN32_LEAN_AND_MEAN"
+    "/D_CRT_SECURE_NO_WARNINGS"
+    "/D_SCL_SECURE_NO_WARNINGS"
+    "/D_ENABLE_EXTENDED_ALIGNED_STORAGE"
+    "/fp:precise"
+    "-Wno-deprecated-declarations"
+    "-Wno-implicit-int-conversion"
+    "-Wno-missing-prototypes"
+    "-Wno-missing-variable-declarations"
+    "-Wno-shadow"
+    "-Wno-shorten-64-to-32"
+    "-Wno-sign-compare"
+    "-Wno-sign-conversion"
+    "-Wno-unreachable-code-loop-increment"
+    "-Wno-unused-function"
+    "-Wno-unused-member-function"
+    "-Wno-unused-parameter"
+    "-Wno-unused-private-field"
+    "-Wno-unused-template"
+    "-Wno-used-but-marked-unused"
+    "-Wno-gnu-zero-variadic-macro-arguments"
+)
+
 list(APPEND ABSL_INTEL_LLVM_FLAGS
     "-Wall"
     "-Wextra"
