@@ -83,6 +83,12 @@ ABSL_LLVM_FLAGS = [
     "-DNOMINMAX",
 ]
 
+ABSL_INTEL_LLVM_EXTRA_FLAGS = [
+    # IntelLLVM uses fp-model=fast by default for Release builds,
+    # which breaks NaN and Inf handling.
+    "-fp-model=precise",
+]
+  
 ABSL_LLVM_TEST_ADDITIONAL_FLAGS = [
     "-Wno-deprecated-declarations",
     "-Wno-implicit-int-conversion",
@@ -159,6 +165,11 @@ COPT_VARS = {
     "ABSL_LLVM_FLAGS": ABSL_LLVM_FLAGS,
     "ABSL_LLVM_TEST_FLAGS": GccStyleFilterAndCombine(
         ABSL_LLVM_FLAGS, ABSL_LLVM_TEST_ADDITIONAL_FLAGS),
+    "ABSL_INTEL_LLVM_FLAGS": GccStyleFilterAndCombine(
+        ABSL_LLVM_FLAGS, ABSL_INTEL_LLVM_EXTRA_FLAGS),
+    "ABSL_INTEL_LLVM_TEST_FLAGS": GccStyleFilterAndCombine(
+        GccStyleFilterAndCombine(ABSL_LLVM_FLAGS, ABSL_INTEL_LLVM_EXTRA_FLAGS),
+        ABSL_LLVM_TEST_ADDITIONAL_FLAGS),
     "ABSL_CLANG_CL_FLAGS":
         MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES,
     "ABSL_CLANG_CL_TEST_FLAGS":
