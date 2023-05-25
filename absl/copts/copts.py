@@ -86,7 +86,7 @@ ABSL_LLVM_FLAGS = [
 ABSL_INTEL_LLVM_ADDITIONAL_FLAGS = [
     # IntelLLVM uses fp-model=fast by default for Release builds,
     # which breaks NaN and Inf handling.
-    "-fp-model=precise",
+    "-ffp-model=precise",
 ]
 
 ABSL_INTEL_LLVM_CLANG_CL_ADDITIONAL_FLAGS = [

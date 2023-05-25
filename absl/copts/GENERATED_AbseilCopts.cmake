@@ -151,7 +151,7 @@ list(APPEND ABSL_INTEL_LLVM_FLAGS
     "-Wno-implicit-int-float-conversion"
     "-Wno-unknown-warning-option"
     "-DNOMINMAX"
-    "-fp-model=precise"
+    "-ffp-model=precise"
 )
 
 list(APPEND ABSL_INTEL_LLVM_TEST_FLAGS
@@ -188,7 +188,7 @@ list(APPEND ABSL_INTEL_LLVM_TEST_FLAGS
     "-Wno-implicit-int-float-conversion"
     "-Wno-unknown-warning-option"
     "-DNOMINMAX"
-    "-fp-model=precise"
+    "-ffp-model=precise"
     "-Wno-deprecated-declarations"
     "-Wno-implicit-int-conversion"
     "-Wno-missing-prototypes"
