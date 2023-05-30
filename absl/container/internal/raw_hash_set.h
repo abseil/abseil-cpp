@@ -961,7 +961,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
       compressed_tuple_{0u, HashtablezInfoHandle{}};
 };
 
-// Returns he number of "cloned control bytes".
+// Returns the number of "cloned control bytes".
 //
 // This is the number of control bytes that are present both at the beginning
 // of the control byte array and at the end, such that we can create a
