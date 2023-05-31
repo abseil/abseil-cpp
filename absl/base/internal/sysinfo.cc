@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -225,8 +226,8 @@ static int64_t ReadMonotonicClockNanos() {
   int rc = clock_gettime(CLOCK_MONOTONIC, &t);
 #endif
   if (rc != 0) {
-    perror("clock_gettime() failed");
-    abort();
+    ABSL_INTERNAL_LOG(
+        FATAL, "clock_gettime() failed: (" + std::to_string(errno) + ")");
   }
   return int64_t{t.tv_sec} * 1000000000 + t.tv_nsec;
 }
