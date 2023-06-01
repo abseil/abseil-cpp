@@ -376,12 +376,12 @@ class NonIterableBitMask {
     return static_cast<uint32_t>((bit_width(mask_) - 1) >> Shift);
   }
 
-  // Return the number of trailing zero *abstract* bits.
+  // Returns the number of trailing zero *abstract* bits.
   uint32_t TrailingZeros() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
 
-  // Return the number of leading zero *abstract* bits.
+  // Returns the number of leading zero *abstract* bits.
   uint32_t LeadingZeros() const {
     constexpr int total_significant_bits = SignificantBits << Shift;
     constexpr int extra_bits = sizeof(T) * 8 - total_significant_bits;
@@ -1361,7 +1361,7 @@ ABSL_ATTRIBUTE_NOINLINE void InitializeSlots(CommonFields& c, Alloc alloc) {
 struct PolicyFunctions {
   size_t slot_size;
 
-  // Return the hash of the pointed-to slot.
+  // Returns the hash of the pointed-to slot.
   size_t (*hash_slot)(void* set, void* slot);
 
   // Transfer the contents of src_slot to dst_slot.
