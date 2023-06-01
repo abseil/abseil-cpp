@@ -89,10 +89,12 @@ class beta_distribution {
         method_ = JOEHNK;
         a_ = result_type(1) / alpha_;
         b_ = result_type(1) / beta_;
+#if !defined(__FAST_MATH__) || !__FAST_MATH__
         if (std::isinf(a_) || std::isinf(b_)) {
           method_ = DEGENERATE_SMALL;
           x_ = inverted_ ? result_type(1) : result_type(0);
         }
+#endif
         return;
       }
       if (a_ >= ThresholdForLargeA()) {

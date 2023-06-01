@@ -86,13 +86,20 @@ constexpr int64_t kint64min = std::numeric_limits<int64_t>::min();
 
 // Can't use std::isinfinite() because it doesn't exist on windows.
 inline bool IsFinite(double d) {
+#if defined(__FAST_MATH__) && __FAST_MATH__
+  (void)d;
+  return true;
+#else
   if (std::isnan(d)) return false;
   return d != std::numeric_limits<double>::infinity() &&
          d != -std::numeric_limits<double>::infinity();
+#endif
 }
 
 inline bool IsValidDivisor(double d) {
+#if !defined(__FAST_MATH__) || !__FAST_MATH__
   if (std::isnan(d)) return false;
+#endif
   return d != 0.0;
 }
 

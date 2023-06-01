@@ -1039,6 +1039,12 @@ bool ConvertNonNumericFloats(char sign_char, Float v,
                              FormatSinkImpl *sink) {
   char text[4], *ptr = text;
   if (sign_char != '\0') *ptr++ = sign_char;
+#if defined(__FAST_MATH__) && __FAST_MATH__
+  (void) v;
+  (void)conv;
+  (void)sink;
+  return false;
+#else
   if (std::isnan(v)) {
     ptr = std::copy_n(
         FormatConversionCharIsUpper(conv.conversion_char()) ? "NAN" : "nan", 3,
@@ -1054,6 +1060,7 @@ bool ConvertNonNumericFloats(char sign_char, Float v,
   return sink->PutPaddedString(
       string_view(text, static_cast<size_t>(ptr - text)), conv.width(), -1,
       conv.has_left_flag());
+#endif
 }
 
 // Round up the last digit of the value.

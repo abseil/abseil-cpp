@@ -177,7 +177,9 @@ std::string UnparseFloatingPointVal(T v) {
   // conversions, but may not be enough to represent all the values correctly.
   std::string digit10_str =
       absl::StrFormat("%.*g", std::numeric_limits<T>::digits10, v);
+#if !defined(__FAST_MATH__) || !__FAST_MATH__
   if (std::isnan(v) || std::isinf(v)) return digit10_str;
+#endif
 
   T roundtrip_val = 0;
   std::string err;

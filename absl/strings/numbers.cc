@@ -533,10 +533,12 @@ size_t numbers_internal::SixDigitsToBuffer(double d, char* const buffer) {
                        // FloatToBuffer always returns the address of the buffer
                        // passed in.
 
+#if !defined(__FAST_MATH__) || !__FAST_MATH__
   if (std::isnan(d)) {
     strcpy(out, "nan");  // NOLINT(runtime/printf)
     return 3;
   }
+#endif
   if (d == 0) {  // +0 and -0 are handled here
     if (std::signbit(d)) *out++ = '-';
     *out++ = '0';
