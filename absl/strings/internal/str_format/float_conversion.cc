@@ -1040,7 +1040,7 @@ bool ConvertNonNumericFloats(char sign_char, Float v,
   char text[4], *ptr = text;
   if (sign_char != '\0') *ptr++ = sign_char;
 #if defined(__FAST_MATH__) && __FAST_MATH__
-  (void) v;
+  (void)v;
   (void)conv;
   (void)sink;
   return false;
