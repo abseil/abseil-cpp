@@ -148,11 +148,12 @@ std::string win32_local_time_zone(const HMODULE combase) {
     UINT32 wlen;
     const PCWSTR tz_wstr = windows_get_string_raw_buffer(tz_hstr, &wlen);
     if (tz_wstr) {
-      const int size = WideCharToMultiByte(CP_UTF8, 0, tz_wstr, wlen, nullptr,
-                                           0, nullptr, nullptr);
-      result.resize(size);
-      WideCharToMultiByte(CP_UTF8, 0, tz_wstr, wlen, &result[0], size, nullptr,
-                          nullptr);
+      const int size =
+          WideCharToMultiByte(CP_UTF8, 0, tz_wstr, static_cast<int>(wlen),
+                              nullptr, 0, nullptr, nullptr);
+      result.resize(static_cast<size_t>(size));
+      WideCharToMultiByte(CP_UTF8, 0, tz_wstr, static_cast<int>(wlen),
+                          &result[0], size, nullptr, nullptr);
     }
     windows_delete_string(tz_hstr);
   }
