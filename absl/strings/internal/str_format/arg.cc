@@ -278,24 +278,6 @@ bool ConvertIntImplInnerSlow(const IntDigits &as_digits,
   return true;
 }
 
-template <typename T,
-          typename std::enable_if<(std::is_integral<T>::value &&
-                                   std::is_signed<T>::value) ||
-                                      std::is_same<T, int128>::value,
-                                  int>::type = 0>
-constexpr auto ConvertV(T) {
-  return FormatConversionCharInternal::d;
-}
-
-template <typename T,
-          typename std::enable_if<(std::is_integral<T>::value &&
-                                   std::is_unsigned<T>::value) ||
-                                      std::is_same<T, uint128>::value,
-                                  int>::type = 0>
-constexpr auto ConvertV(T) {
-  return FormatConversionCharInternal::u;
-}
-
 template <typename T>
 bool ConvertFloatArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
   if (conv.conversion_char() == FormatConversionCharInternal::v) {
@@ -332,10 +314,6 @@ bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
   using U = typename MakeUnsigned<T>::type;
   IntDigits as_digits;
 
-  if (conv.conversion_char() == FormatConversionCharInternal::v) {
-    conv.set_conversion_char(ConvertV(T{}));
-  }
-
   // This odd casting is due to a bug in -Wswitch behavior in gcc49 which causes
   // it to complain about a switch/case type mismatch, even though both are
   // FormatConverionChar.  Likely this is because at this point
@@ -361,6 +339,7 @@ bool ConvertIntArg(T v, FormatConversionSpecImpl conv, FormatSinkImpl *sink) {
 
     case static_cast<uint8_t>(FormatConversionCharInternal::d):
     case static_cast<uint8_t>(FormatConversionCharInternal::i):
+    case static_cast<uint8_t>(FormatConversionCharInternal::v):
       as_digits.PrintAsDec(v);
       break;
 
