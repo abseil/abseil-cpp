@@ -426,6 +426,15 @@ pid_t GetTID() {
   return static_cast<pid_t>(tid);
 }
 
+#elif defined(__native_client__)
+
+pid_t GetTID() {
+  auto* thread = pthread_self();
+  static_assert(sizeof(pid_t) == sizeof(thread),
+                "In NaCL int expected to be the same size as a pointer");
+  return reinterpret_cast<pid_t>(thread);
+}
+
 #else
 
 // Fallback implementation of `GetTID` using `pthread_self`.
