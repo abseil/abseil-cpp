@@ -461,18 +461,18 @@ CharConvertResult FormatConvertImpl(char v, const FormatConversionSpecImpl conv,
                                     FormatSinkImpl *sink) {
   return {ConvertIntArg(v, conv, sink)};
 }
-CharConvertResult FormatConvertImpl(signed char v,
-                                    const FormatConversionSpecImpl conv,
-                                    FormatSinkImpl *sink) {
-  return {ConvertIntArg(v, conv, sink)};
-}
-CharConvertResult FormatConvertImpl(unsigned char v,
-                                    const FormatConversionSpecImpl conv,
-                                    FormatSinkImpl *sink) {
-  return {ConvertIntArg(v, conv, sink)};
-}
 
 // ==================== Ints ====================
+IntegralConvertResult FormatConvertImpl(signed char v,
+                                        const FormatConversionSpecImpl conv,
+                                        FormatSinkImpl *sink) {
+  return {ConvertIntArg(v, conv, sink)};
+}
+IntegralConvertResult FormatConvertImpl(unsigned char v,
+                                        const FormatConversionSpecImpl conv,
+                                        FormatSinkImpl *sink) {
+  return {ConvertIntArg(v, conv, sink)};
+}
 IntegralConvertResult FormatConvertImpl(short v,  // NOLINT
                                         const FormatConversionSpecImpl conv,
                                         FormatSinkImpl *sink) {
