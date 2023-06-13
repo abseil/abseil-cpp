@@ -106,7 +106,7 @@ class IntDigits {
     char *p = storage_ + sizeof(storage_);
     do {
       p -= 2;
-      numbers_internal::PutTwoDigits(static_cast<size_t>(v % 100), p);
+      numbers_internal::PutTwoDigits(static_cast<uint32_t>(v % 100), p);
       v /= 100;
     } while (v);
     if (p[0] == '0') {
