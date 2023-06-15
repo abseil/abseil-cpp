@@ -177,7 +177,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
     } else {
       DoRawLog(&buf, &size, "%s", kTruncated);
     }
-    AsyncSignalSafeWriteToStderr(buffer, strlen(buffer));
+    AsyncSignalSafeWriteError(buffer, strlen(buffer));
   }
 #else
   static_cast<void>(format);
@@ -205,7 +205,7 @@ void DefaultInternalLog(absl::LogSeverity severity, const char* file, int line,
 
 }  // namespace
 
-void AsyncSignalSafeWriteToStderr(const char* s, size_t len) {
+void AsyncSignalSafeWriteError(const char* s, size_t len) {
   absl::base_internal::ErrnoSaver errno_saver;
 #if defined(__EMSCRIPTEN__)
   // In WebAssembly, bypass filesystem emulation via fwrite.
