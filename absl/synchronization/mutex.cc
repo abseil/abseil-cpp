@@ -639,18 +639,18 @@ void Mutex::InternalAttemptToUseMutexInFatalSignalHandler() {
 //  o kMuWriter / kMuReader == kMuWrWait / kMuWait,
 //    to enable the bit-twiddling trick in CheckForMutexCorruption().
 static const intptr_t kMuReader      = 0x0001L;  // a reader holds the lock
-static const intptr_t kMuDesig       = 0x0002L;  // there's a designated waker
-static const intptr_t kMuWait        = 0x0004L;  // threads are waiting
-static const intptr_t kMuWriter      = 0x0008L;  // a writer holds the lock
-static const intptr_t kMuEvent       = 0x0010L;  // record this mutex's events
+// There's a designated waker.
 // INVARIANT1:  there's a thread that was blocked on the mutex, is
 // no longer, yet has not yet acquired the mutex.  If there's a
 // designated waker, all threads can avoid taking the slow path in
 // unlock because the designated waker will subsequently acquire
 // the lock and wake someone.  To maintain INVARIANT1 the bit is
 // set when a thread is unblocked(INV1a), and threads that were
-// unblocked reset the bit when they either acquire or re-block
-// (INV1b).
+// unblocked reset the bit when they either acquire or re-block (INV1b).
+static const intptr_t kMuDesig = 0x0002L;
+static const intptr_t kMuWait = 0x0004L;         // threads are waiting
+static const intptr_t kMuWriter = 0x0008L;       // a writer holds the lock
+static const intptr_t kMuEvent = 0x0010L;        // record this mutex's events
 static const intptr_t kMuWrWait      = 0x0020L;  // runnable writer is waiting
                                                  // for a reader
 static const intptr_t kMuSpin        = 0x0040L;  // spinlock protects wait list
