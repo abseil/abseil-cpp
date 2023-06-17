@@ -280,11 +280,13 @@ struct NoDeleter {
   void operator()(const T* ptr) const {}
 };
 
-using PointerTypes =
-    ::testing::Types<const int*, int*, std::unique_ptr<const int>,
-                     std::unique_ptr<const int, NoDeleter>,
-                     std::unique_ptr<int>, std::unique_ptr<int, NoDeleter>,
-                     std::shared_ptr<const int>, std::shared_ptr<int>>;
+using PointerTypes = ::testing::Types<
+    const int*, int*, std::unique_ptr<const int>,
+    std::unique_ptr<const int, NoDeleter>, std::unique_ptr<int>,
+    std::unique_ptr<int, NoDeleter>, std::unique_ptr<const int[]>,
+    std::unique_ptr<const int[], NoDeleter>, std::unique_ptr<int[]>,
+    std::unique_ptr<int[], NoDeleter>, std::shared_ptr<const int>,
+    std::shared_ptr<int>, std::shared_ptr<const int[]>, std::shared_ptr<int[]>>;
 
 template <class T>
 struct EqPointer : ::testing::Test {
@@ -309,17 +311,33 @@ TYPED_TEST(EqPointer, Works) {
   const int* cptr = ptr;
   std::unique_ptr<int, NoDeleter> uptr(ptr);
   std::unique_ptr<const int, NoDeleter> cuptr(ptr);
+  auto saptr = std::shared_ptr<int[]>(new int[1]);
+  std::shared_ptr<const int[]> csaptr = saptr;
+  int* aptr = saptr.get();
+  const int* captr = aptr;
+  std::unique_ptr<int[], NoDeleter> uaptr(aptr);
+  std::unique_ptr<const int[], NoDeleter> cuaptr(aptr);
 
   EXPECT_TRUE(eq(ptr, cptr));
   EXPECT_TRUE(eq(ptr, sptr));
   EXPECT_TRUE(eq(ptr, uptr));
   EXPECT_TRUE(eq(ptr, csptr));
   EXPECT_TRUE(eq(ptr, cuptr));
+  EXPECT_TRUE(eq(aptr, captr));
+  EXPECT_TRUE(eq(aptr, saptr));
+  EXPECT_TRUE(eq(aptr, uaptr));
+  EXPECT_TRUE(eq(aptr, csaptr));
+  EXPECT_TRUE(eq(aptr, cuaptr));
   EXPECT_FALSE(eq(&dummy, cptr));
   EXPECT_FALSE(eq(&dummy, sptr));
   EXPECT_FALSE(eq(&dummy, uptr));
   EXPECT_FALSE(eq(&dummy, csptr));
   EXPECT_FALSE(eq(&dummy, cuptr));
+  EXPECT_FALSE(eq(&dummy, captr));
+  EXPECT_FALSE(eq(&dummy, saptr));
+  EXPECT_FALSE(eq(&dummy, uaptr));
+  EXPECT_FALSE(eq(&dummy, csaptr));
+  EXPECT_FALSE(eq(&dummy, cuaptr));
 }
 
 TEST(Hash, DerivedAndBase) {
@@ -359,17 +377,33 @@ TYPED_TEST(HashPointer, Works) {
   const int* cptr = ptr;
   std::unique_ptr<int, NoDeleter> uptr(ptr);
   std::unique_ptr<const int, NoDeleter> cuptr(ptr);
+  auto saptr = std::shared_ptr<int[]>(new int[1]);
+  std::shared_ptr<const int[]> csaptr = saptr;
+  int* aptr = saptr.get();
+  const int* captr = aptr;
+  std::unique_ptr<int[], NoDeleter> uaptr(aptr);
+  std::unique_ptr<const int[], NoDeleter> cuaptr(aptr);
 
   EXPECT_EQ(hash(ptr), hash(cptr));
   EXPECT_EQ(hash(ptr), hash(sptr));
   EXPECT_EQ(hash(ptr), hash(uptr));
   EXPECT_EQ(hash(ptr), hash(csptr));
   EXPECT_EQ(hash(ptr), hash(cuptr));
+  EXPECT_EQ(hash(aptr), hash(captr));
+  EXPECT_EQ(hash(aptr), hash(saptr));
+  EXPECT_EQ(hash(aptr), hash(uaptr));
+  EXPECT_EQ(hash(aptr), hash(csaptr));
+  EXPECT_EQ(hash(aptr), hash(cuaptr));
   EXPECT_NE(hash(&dummy), hash(cptr));
   EXPECT_NE(hash(&dummy), hash(sptr));
   EXPECT_NE(hash(&dummy), hash(uptr));
   EXPECT_NE(hash(&dummy), hash(csptr));
   EXPECT_NE(hash(&dummy), hash(cuptr));
+  EXPECT_NE(hash(&dummy), hash(captr));
+  EXPECT_NE(hash(&dummy), hash(saptr));
+  EXPECT_NE(hash(&dummy), hash(uaptr));
+  EXPECT_NE(hash(&dummy), hash(csaptr));
+  EXPECT_NE(hash(&dummy), hash(cuaptr));
 }
 
 TEST(EqCord, Works) {

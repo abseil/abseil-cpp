@@ -185,8 +185,12 @@ struct HashEq<T*> {
 
 template <class T, class D>
 struct HashEq<std::unique_ptr<T, D>> : HashEq<T*> {};
+template <class T, class D>
+struct HashEq<std::unique_ptr<T[], D>> : HashEq<T*> {};
 template <class T>
 struct HashEq<std::shared_ptr<T>> : HashEq<T*> {};
+template <class T>
+struct HashEq<std::shared_ptr<T[]>> : HashEq<T*> {};
 
 // This header's visibility is restricted.  If you need to access the default
 // hasher please use the container's ::hasher alias instead.
