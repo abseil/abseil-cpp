@@ -35,10 +35,8 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cinttypes>
 #include <cstddef>
 #include <cstring>
-#include <iterator>
 #include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
@@ -55,7 +53,6 @@
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/optimization.h"
-#include "absl/base/port.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
 #include "absl/synchronization/internal/graphcycles.h"
@@ -63,6 +60,7 @@
 #include "absl/time/time.h"
 
 using absl::base_internal::CurrentThreadIdentityIfPresent;
+using absl::base_internal::CycleClock;
 using absl::base_internal::PerThreadSynch;
 using absl::base_internal::SchedulingGuard;
 using absl::base_internal::ThreadIdentity;
@@ -144,22 +142,21 @@ absl::Duration MeasureTimeToYield() {
 const MutexGlobals& GetMutexGlobals() {
   ABSL_CONST_INIT static MutexGlobals data;
   absl::base_internal::LowLevelCallOnce(&data.once, [&]() {
-    const int num_cpus = absl::base_internal::NumCPUs();
-    data.spinloop_iterations = num_cpus > 1 ? 1500 : 0;
-    // If this a uniprocessor, only yield/sleep.
-    // Real-time threads are often unable to yield, so the sleep time needs
-    // to be long enough to keep the calling thread asleep until scheduling
-    // happens.
-    // If this is multiprocessor, allow spinning. If the mode is
-    // aggressive then spin many times before yielding.  If the mode is
-    // gentle then spin only a few times before yielding.  Aggressive spinning
-    // is used to ensure that an Unlock() call, which must get the spin lock
-    // for any thread to make progress gets it without undue delay.
-    if (num_cpus > 1) {
+    if (absl::base_internal::NumCPUs() > 1) {
+      // If this is multiprocessor, allow spinning. If the mode is
+      // aggressive then spin many times before yielding. If the mode is
+      // gentle then spin only a few times before yielding. Aggressive spinning
+      // is used to ensure that an Unlock() call, which must get the spin lock
+      // for any thread to make progress gets it without undue delay.
+      data.spinloop_iterations = 1500;
       data.mutex_sleep_spins[AGGRESSIVE] = 5000;
       data.mutex_sleep_spins[GENTLE] = 250;
       data.mutex_sleep_time = absl::Microseconds(10);
     } else {
+      // If this a uniprocessor, only yield/sleep. Real-time threads are often
+      // unable to yield, so the sleep time needs to be long enough to keep
+      // the calling thread asleep until scheduling happens.
+      data.spinloop_iterations = 0;
       data.mutex_sleep_spins[AGGRESSIVE] = 0;
       data.mutex_sleep_spins[GENTLE] = 0;
       data.mutex_sleep_time = MeasureTimeToYield() * 5;
@@ -505,7 +502,7 @@ struct SynchWaitParams {
         cvmu(cvmu_arg),
         thread(thread_arg),
         cv_word(cv_word_arg),
-        contention_start_cycles(base_internal::CycleClock::Now()),
+        contention_start_cycles(CycleClock::Now()),
         should_submit_contention_data(false) {}
 
   const Mutex::MuHow how;  // How this thread needs to wait.
@@ -922,11 +919,11 @@ static PerThreadSynch* Enqueue(PerThreadSynch* head, SynchWaitParams* waitp,
   s->wake = false;     // not being woken
   s->cond_waiter = ((flags & kMuIsCond) != 0);
 #ifdef ABSL_HAVE_PTHREAD_GETSCHEDPARAM
-  int64_t now_cycles = base_internal::CycleClock::Now();
+  int64_t now_cycles = CycleClock::Now();
   if (s->next_priority_read_cycles < now_cycles) {
     // Every so often, update our idea of the thread's priority.
     // pthread_getschedparam() is 5% of the block/wakeup time;
-    // base_internal::CycleClock::Now() is 0.5%.
+    // CycleClock::Now() is 0.5%.
     int policy;
     struct sched_param param;
     const int err = pthread_getschedparam(pthread_self(), &policy, &param);
@@ -935,8 +932,7 @@ static PerThreadSynch* Enqueue(PerThreadSynch* head, SynchWaitParams* waitp,
     } else {
       s->priority = param.sched_priority;
       s->next_priority_read_cycles =
-          now_cycles +
-          static_cast<int64_t>(base_internal::CycleClock::Frequency());
+          now_cycles + static_cast<int64_t>(CycleClock::Frequency());
     }
   }
 #endif
@@ -2372,7 +2368,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
   if (wake_list != kPerThreadSynchNull) {
     int64_t total_wait_cycles = 0;
     int64_t max_wait_cycles = 0;
-    int64_t now = base_internal::CycleClock::Now();
+    int64_t now = CycleClock::Now();
     do {
       // Profile lock contention events only if the waiter was trying to acquire
       // the lock, not waiting on a condition variable or Condition.
