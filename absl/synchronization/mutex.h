@@ -513,7 +513,7 @@ class ABSL_LOCKABLE Mutex {
       base_internal::PerThreadSynch* w);  // used for CondVar->Mutex transfer
 
   // Catch the error of writing Mutex when intending MutexLock.
-  Mutex(const volatile Mutex* /*ignored*/) {}  // NOLINT(runtime/explicit)
+  explicit Mutex(const volatile Mutex* /*ignored*/) {}
 
   Mutex(const Mutex&) = delete;
   Mutex& operator=(const Mutex&) = delete;

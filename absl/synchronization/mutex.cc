@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <thread>  // NOLINT(build/c++11)
 
