@@ -36,7 +36,6 @@
 #include <limits>
 #include <string>
 
-// foo
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/throw_delegate.h"
@@ -225,7 +224,7 @@ class string_view {
   //
   // Returns a const iterator pointing to the first character at the beginning
   // of the `string_view`, or `end()` if the `string_view` is empty.
-  constexpr const_iterator cbegin() const noexcept { return begin(); }
+  constexpr const_iterator cbegin() const noexcept { return begin(); }  // foo
 
   // string_view::cend()
   //
