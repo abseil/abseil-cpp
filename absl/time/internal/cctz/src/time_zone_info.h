@@ -18,7 +18,6 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -65,9 +64,12 @@ struct TransitionType {
 // A time zone backed by the IANA Time Zone Database (zoneinfo).
 class TimeZoneInfo : public TimeZoneIf {
  public:
-  // Factories.
-  static std::unique_ptr<TimeZoneInfo> UTC();  // never fails
-  static std::unique_ptr<TimeZoneInfo> Make(const std::string& name);
+  TimeZoneInfo() = default;
+  TimeZoneInfo(const TimeZoneInfo&) = delete;
+  TimeZoneInfo& operator=(const TimeZoneInfo&) = delete;
+
+  // Loads the zoneinfo for the given name, returning true if successful.
+  bool Load(const std::string& name);
 
   // TimeZoneIf implementations.
   time_zone::absolute_lookup BreakTime(
@@ -81,9 +83,17 @@ class TimeZoneInfo : public TimeZoneIf {
   std::string Description() const override;
 
  private:
-  TimeZoneInfo() = default;
-  TimeZoneInfo(const TimeZoneInfo&) = delete;
-  TimeZoneInfo& operator=(const TimeZoneInfo&) = delete;
+  struct Header {            // counts of:
+    std::size_t timecnt;     // transition times
+    std::size_t typecnt;     // transition types
+    std::size_t charcnt;     // zone abbreviation characters
+    std::size_t leapcnt;     // leap seconds (we expect none)
+    std::size_t ttisstdcnt;  // UTC/local indicators (unused)
+    std::size_t ttisutcnt;   // standard/wall indicators (unused)
+
+    bool Build(const tzhead& tzh);
+    std::size_t DataLength(std::size_t time_len) const;
+  };
 
   bool GetTransitionType(std::int_fast32_t utc_offset, bool is_dst,
                          const std::string& abbr, std::uint_least8_t* index);
@@ -92,7 +102,6 @@ class TimeZoneInfo : public TimeZoneIf {
   bool ExtendTransitions();
 
   bool ResetToBuiltinUTC(const seconds& offset);
-  bool Load(const std::string& name);
   bool Load(ZoneInfoSource* zip);
 
   // Helpers for BreakTime() and MakeTime().

@@ -62,7 +62,7 @@ auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
 }
 #elif defined(__native_client__) || defined(__myriad2__) || \
     defined(__EMSCRIPTEN__)
-// Uses the globals: '_timezone' and 'tzname'.
+// Uses the globals: 'timezone' and 'tzname'.
 auto tm_gmtoff(const std::tm& tm) -> decltype(_timezone + 0) {
   const bool is_dst = tm.tm_isdst > 0;
   return _timezone + (is_dst ? 60 * 60 : 0);
@@ -193,9 +193,8 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, tm_gmtoff_t offset) {
 
 }  // namespace
 
-std::unique_ptr<TimeZoneLibC> TimeZoneLibC::Make(const std::string& name) {
-  return std::unique_ptr<TimeZoneLibC>(new TimeZoneLibC(name));
-}
+TimeZoneLibC::TimeZoneLibC(const std::string& name)
+    : local_(name == "localtime") {}
 
 time_zone::absolute_lookup TimeZoneLibC::BreakTime(
     const time_point<seconds>& tp) const {
@@ -323,9 +322,6 @@ std::string TimeZoneLibC::Version() const {
 std::string TimeZoneLibC::Description() const {
   return local_ ? "localtime" : "UTC";
 }
-
-TimeZoneLibC::TimeZoneLibC(const std::string& name)
-    : local_(name == "localtime") {}
 
 }  // namespace cctz
 }  // namespace time_internal

@@ -78,11 +78,7 @@ class time_zone::Impl {
   std::string Description() const { return zone_->Description(); }
 
  private:
-  Impl();
   explicit Impl(const std::string& name);
-  Impl(const Impl&) = delete;
-  Impl& operator=(const Impl&) = delete;
-
   static const Impl* UTCImpl();
 
   const std::string name_;

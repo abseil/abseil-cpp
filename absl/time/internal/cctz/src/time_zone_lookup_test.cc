@@ -734,10 +734,6 @@ TEST(TimeZone, UTC) {
   time_zone loaded_utc0;
   EXPECT_TRUE(load_time_zone("UTC0", &loaded_utc0));
   EXPECT_EQ(loaded_utc0, utc);
-
-  time_zone loaded_bad;
-  EXPECT_FALSE(load_time_zone("Invalid/TimeZone", &loaded_bad));
-  EXPECT_EQ(loaded_bad, utc);
 }
 
 TEST(TimeZone, NamedTimeZones) {
