@@ -924,4 +924,24 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
 #endif
 
+// ABSL_INTERNAL_EMSCRIPTEN_VERSION combines Emscripten's three version macros
+// into an integer that can be compared against.
+#ifdef ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#error ABSL_INTERNAL_EMSCRIPTEN_VERSION cannot be directly set
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten/version.h>
+#ifdef __EMSCRIPTEN_major__
+#if __EMSCRIPTEN_minor__ >= 1000
+#error __EMSCRIPTEN_minor__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#endif
+#if __EMSCRIPTEN_tiny__ >= 1000
+#error __EMSCRIPTEN_tiny__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#endif
+#define ABSL_INTERNAL_EMSCRIPTEN_VERSION                          \
+  ((__EMSCRIPTEN_major__)*1000000 + (__EMSCRIPTEN_minor__)*1000 + \
+   (__EMSCRIPTEN_tiny__))
+#endif
+#endif
+
 #endif  // ABSL_BASE_CONFIG_H_
