@@ -487,6 +487,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #elif defined(__Fuchsia__)
 // Signals don't exist on fuchsia.
 #elif defined(__native_client__)
+// Signals don't exist on hexagon/QuRT
+#elif defined(__hexagon__)
 #else
 // other standard libraries
 #define ABSL_HAVE_ALARM 1
