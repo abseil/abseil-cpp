@@ -164,7 +164,7 @@ namespace absl {
 // Example:
 //
 // // `employee` is designated as not null.
-// void PaySalary(absl::NotNull<Employee *> employee) {
+// void PaySalary(absl::Nonnull<Employee *> employee) {
 //   pay(*employee);  // OK to dereference
 // }
 template <typename T>
