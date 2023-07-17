@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/hash/hash.h"
@@ -27,9 +28,17 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
-// A single block of empty control bytes for tables without any slots allocated.
-// This enables removing a branch in the hot path of find().
-alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[16] = {
+// We have space for `growth_left` before a single block of control bytes. A
+// single block of empty control bytes for tables without any slots allocated.
+// This enables removing a branch in the hot path of find(). In order to ensure
+// that the control bytes are aligned to 16, we have 16 bytes before the control
+// bytes even though growth_left only needs 8.
+constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
+alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
+    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
+    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
+    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
+    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
     ctrl_t::kSentinel, ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
@@ -239,12 +248,12 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
     c.infoz().RecordStorageChanged(0, c.capacity());
   } else {
     void* set = &c;
-    (*policy.dealloc)(set, policy, c.control(), c.slots_ptr(), c.capacity());
+    (*policy.dealloc)(set, policy, c.backing_array_start(), c.slots_ptr(),
+                      c.capacity());
     c.set_control(EmptyGroup());
     c.set_generation_ptr(EmptyGeneration());
     c.set_slots(nullptr);
     c.set_capacity(0);
-    c.set_growth_left(0);
     c.infoz().RecordClearedReservation();
     assert(c.size() == 0);
     c.infoz().RecordStorageChanged(0, 0);
