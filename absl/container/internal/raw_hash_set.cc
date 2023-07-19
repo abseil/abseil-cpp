@@ -140,7 +140,7 @@ static inline void* PrevSlot(void* slot, size_t slot_size) {
 void DropDeletesWithoutResize(CommonFields& common,
                               const PolicyFunctions& policy, void* tmp_space) {
   void* set = &common;
-  void* slot_array = common.slots_ptr();
+  void* slot_array = common.slot_array();
   const size_t capacity = common.capacity();
   assert(IsValidCapacity(capacity));
   assert(!is_small(capacity));
@@ -248,7 +248,7 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
     c.infoz().RecordStorageChanged(0, c.capacity());
   } else {
     void* set = &c;
-    (*policy.dealloc)(set, policy, c.backing_array_start(), c.slots_ptr(),
+    (*policy.dealloc)(set, policy, c.backing_array_start(), c.slot_array(),
                       c.capacity());
     c.set_control(EmptyGroup());
     c.set_generation_ptr(EmptyGeneration());

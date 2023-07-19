@@ -916,7 +916,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
         // Explicitly copying fields into "this" and then resetting "that"
         // fields generates less code then calling absl::exchange per field.
         control_(that.control()),
-        slots_(that.slots_ptr()),
+        slots_(that.slot_array()),
         capacity_(that.capacity()),
         compressed_tuple_(that.size(), std::move(that.infoz())) {
     that.set_control(EmptyGroup());
@@ -935,7 +935,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
   // Note: we can't use slots() because Qt defines "slots" as a macro.
-  void* slots_ptr() const { return slots_; }
+  void* slot_array() const { return slots_; }
   void set_slots(void* s) { slots_ = s; }
 
   // The number of filled slots.
@@ -1302,7 +1302,7 @@ inline void ResetCtrl(CommonFields& common, size_t slot_size) {
   std::memset(ctrl, static_cast<int8_t>(ctrl_t::kEmpty),
               capacity + 1 + NumClonedBytes());
   ctrl[capacity] = ctrl_t::kSentinel;
-  SanitizerPoisonMemoryRegion(common.slots_ptr(), slot_size * capacity);
+  SanitizerPoisonMemoryRegion(common.slot_array(), slot_size * capacity);
   ResetGrowthLeft(common);
 }
 
@@ -1315,7 +1315,7 @@ inline void SetCtrl(const CommonFields& common, size_t i, ctrl_t h,
   const size_t capacity = common.capacity();
   assert(i < capacity);
 
-  auto* slot_i = static_cast<const char*>(common.slots_ptr()) + i * slot_size;
+  auto* slot_i = static_cast<const char*>(common.slot_array()) + i * slot_size;
   if (IsFull(h)) {
     SanitizerUnpoisonMemoryRegion(slot_i, slot_size);
   } else {
@@ -1374,7 +1374,7 @@ ABSL_ATTRIBUTE_NOINLINE void InitializeSlots(CommonFields& c, Alloc alloc) {
   // a workaround while we plan the exact guarantee we want to provide.
   const size_t sample_size =
       (std::is_same<Alloc, std::allocator<char>>::value &&
-       c.slots_ptr() == nullptr)
+       c.slot_array() == nullptr)
           ? SizeOfSlot
           : 0;
 
@@ -2708,7 +2708,7 @@ class raw_hash_set {
 
   ctrl_t* control() const { return common().control(); }
   slot_type* slot_array() const {
-    return static_cast<slot_type*>(common().slots_ptr());
+    return static_cast<slot_type*>(common().slot_array());
   }
   HashtablezInfoHandle& infoz() { return common().infoz(); }
 
