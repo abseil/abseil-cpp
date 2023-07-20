@@ -1910,8 +1910,7 @@ class raw_hash_set {
       // Already guaranteed to be empty; so nothing to do.
     } else {
       destroy_slots();
-      ClearBackingArray(common(), GetPolicyFunctions(),
-                        /*reuse=*/cap < 128);
+      ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/cap < 128);
     }
     common().set_reserved_growth(0);
   }
@@ -2165,6 +2164,14 @@ class raw_hash_set {
 
   iterator erase(const_iterator first,
                  const_iterator last) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    // We check for empty first because ClearBackingArray requires that
+    // capacity() > 0 as a precondition.
+    if (empty()) return end();
+    if (first == begin() && last == end()) {
+      destroy_slots();
+      ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/true);
+      return end();
+    }
     while (first != last) {
       erase(first++);
     }
@@ -2224,8 +2231,7 @@ class raw_hash_set {
   void rehash(size_t n) {
     if (n == 0 && capacity() == 0) return;
     if (n == 0 && size() == 0) {
-      ClearBackingArray(common(), GetPolicyFunctions(),
-                        /*reuse=*/false);
+      ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/false);
       return;
     }
 

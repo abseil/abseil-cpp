@@ -1093,6 +1093,14 @@ TEST(Table, EraseMaintainsValidIterator) {
   EXPECT_EQ(num_erase_calls, kNumElements);
 }
 
+TEST(Table, EraseBeginEnd) {
+  IntTable t;
+  for (int i = 0; i < 10; ++i) t.insert(i);
+  EXPECT_EQ(t.size(), 10);
+  t.erase(t.begin(), t.end());
+  EXPECT_EQ(t.size(), 0);
+}
+
 // Collect N bad keys by following algorithm:
 // 1. Create an empty table and reserve it to 2 * N.
 // 2. Insert N random elements.
