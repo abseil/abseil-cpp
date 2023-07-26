@@ -786,8 +786,11 @@ class CommonFieldsGenerationInfoEnabled {
  public:
   CommonFieldsGenerationInfoEnabled() = default;
   CommonFieldsGenerationInfoEnabled(CommonFieldsGenerationInfoEnabled&& that)
-      : reserved_growth_(that.reserved_growth_), generation_(that.generation_) {
+      : reserved_growth_(that.reserved_growth_),
+        reservation_size_(that.reservation_size_),
+        generation_(that.generation_) {
     that.reserved_growth_ = 0;
+    that.reservation_size_ = 0;
     that.generation_ = EmptyGeneration();
   }
   CommonFieldsGenerationInfoEnabled& operator=(
@@ -813,6 +816,8 @@ class CommonFieldsGenerationInfoEnabled {
   }
   size_t reserved_growth() const { return reserved_growth_; }
   void set_reserved_growth(size_t r) { reserved_growth_ = r; }
+  size_t reservation_size() const { return reservation_size_; }
+  void set_reservation_size(size_t r) { reservation_size_ = r; }
   GenerationType generation() const { return *generation_; }
   void set_generation(GenerationType g) { *generation_ = g; }
   GenerationType* generation_ptr() const { return generation_; }
@@ -820,10 +825,14 @@ class CommonFieldsGenerationInfoEnabled {
 
  private:
   // The number of insertions remaining that are guaranteed to not rehash due to
-  // a prior call to reserve. Note: we store reserved growth rather than
+  // a prior call to reserve. Note: we store reserved growth in addition to
   // reservation size because calls to erase() decrease size_ but don't decrease
   // reserved growth.
   size_t reserved_growth_ = 0;
+  // The maximum argument to reserve() since the container was cleared. We need
+  // to keep track of this, in addition to reserved growth, because we reset
+  // reserved growth to this when erase(begin(), end()) is called.
+  size_t reservation_size_ = 0;
   // Pointer to the generation counter, which is used to validate iterators and
   // is stored in the backing array between the control bytes and the slots.
   // Note that we can't store the generation inside the container itself and
@@ -851,6 +860,8 @@ class CommonFieldsGenerationInfoDisabled {
   void reset_reserved_growth(size_t, size_t) {}
   size_t reserved_growth() const { return 0; }
   void set_reserved_growth(size_t) {}
+  size_t reservation_size() const { return 0; }
+  void set_reservation_size(size_t) {}
   GenerationType generation() const { return 0; }
   void set_generation(GenerationType) {}
   GenerationType* generation_ptr() const { return nullptr; }
@@ -969,6 +980,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
   void reset_reserved_growth(size_t reservation) {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
+  }
+
+  // Returns the number of control bytes set to kDeleted. For testing only.
+  size_t TombstonesCount() const {
+    return static_cast<size_t>(
+        std::count(control(), control() + capacity(), ctrl_t::kDeleted));
   }
 
  private:
@@ -1913,6 +1930,7 @@ class raw_hash_set {
       ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/cap < 128);
     }
     common().set_reserved_growth(0);
+    common().set_reservation_size(0);
   }
 
   inline void destroy_slots() {
@@ -2168,8 +2186,12 @@ class raw_hash_set {
     // capacity() > 0 as a precondition.
     if (empty()) return end();
     if (first == begin() && last == end()) {
+      // TODO(ezb): we access control bytes in destroy_slots so it could make
+      // sense to combine destroy_slots and ClearBackingArray to avoid cache
+      // misses when the table is large. Note that we also do this in clear().
       destroy_slots();
       ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/true);
+      common().set_reserved_growth(common().reservation_size());
       return end();
     }
     while (first != last) {
@@ -2258,6 +2280,7 @@ class raw_hash_set {
       infoz().RecordReservation(n);
     }
     common().reset_reserved_growth(n);
+    common().set_reservation_size(n);
   }
 
   // Extension API: support for heterogeneous keys.
