@@ -54,10 +54,6 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
 )
 
-if(APPLE)
-  find_library(CoreFoundation CoreFoundation)
-endif()
-
 absl_cc_library(
   NAME
     time_zone
@@ -85,7 +81,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     Threads::Threads
-    $<$<PLATFORM_ID:Darwin>:${CoreFoundation}>
+    $<$<PLATFORM_ID:Darwin>:-Wl,-framework,CoreFoundation>
 )
 
 # Internal-only target, do not depend on directly.
