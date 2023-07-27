@@ -1632,6 +1632,13 @@ TEST(DynamicVec, EmplaceBack) {
   EXPECT_EQ(v.size(), 1u);
 }
 
+TEST(DynamicVec, EmplaceBackAfterHeapAllocation) {
+  DynamicVec v;
+  v.reserve(10);
+  v.emplace_back(Dynamic{});
+  EXPECT_EQ(v.size(), 1u);
+}
+
 TEST(AllocatorSupportTest, Constructors) {
   using MyAlloc = CountingAllocator<int>;
   using AllocVec = absl::InlinedVector<int, 4, MyAlloc>;
