@@ -215,7 +215,7 @@
     ABSL_HAVE_ATTRIBUTE(no_sanitize_address)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
 #elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && defined(_MSC_VER) && \
-    _MSC_VER >= 1928
+    defined(__SANITIZE_ADDRESS__)
 // https://docs.microsoft.com/en-us/cpp/cpp/no-sanitize-address
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __declspec(no_sanitize_address)
 #elif defined(ABSL_HAVE_HWADDRESS_SANITIZER) && ABSL_HAVE_ATTRIBUTE(no_sanitize)
