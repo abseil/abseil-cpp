@@ -2156,7 +2156,7 @@ TEST(TableDeathTest, InvalidIteratorAsserts) {
 // use-of-uninitialized-value in msan, or invalidated iterator assertions.
 constexpr const char* kInvalidIteratorDeathMessage =
     "heap-use-after-free|use-of-uninitialized-value|invalidated "
-    "iterator|Invalid iterator";
+    "iterator|Invalid iterator|invalid iterator";
 
 // MSVC doesn't support | in regex.
 #if defined(_MSC_VER)
