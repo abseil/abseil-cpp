@@ -26,6 +26,10 @@
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 
+#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {

@@ -40,6 +40,10 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 
+#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 using testing::Contains;
 
 #ifdef _WIN32
