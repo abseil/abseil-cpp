@@ -2204,10 +2204,14 @@ TEST(TableDeathTest, IteratorInvalidAssertsEqualityOperator) {
   for (int i = 0; i < 10; ++i) t1.insert(i);
   // There should have been a rehash in t1.
   if (kMsvc) return;  // MSVC doesn't support | in regex.
+
+  // NOTE(b/293887834): After rehashing, iterators will contain pointers to
+  // freed memory, which may be detected by ThreadSanitizer.
   const char* const kRehashedDeathMessage =
       SwisstableGenerationsEnabled()
           ? kInvalidIteratorDeathMessage
-          : "Invalid iterator comparison.*might have rehashed.*config=asan";
+          : "Invalid iterator comparison.*might have rehashed.*config=asan"
+            "|ThreadSanitizer: heap-use-after-free";
   EXPECT_DEATH_IF_SUPPORTED(void(iter1 == t1.begin()), kRehashedDeathMessage);
 }
 
