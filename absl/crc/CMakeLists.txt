@@ -91,6 +91,7 @@ absl_cc_test(
   DEPS
     absl::crc32c
     absl::strings
+    absl::str_format
     GTest::gtest_main
 )
 

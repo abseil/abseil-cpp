@@ -62,6 +62,11 @@ class crc32c_t final {
 
   friend bool operator!=(crc32c_t lhs, crc32c_t rhs) { return !(lhs == rhs); }
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, crc32c_t crc) {
+    absl::Format(&sink, "%08x", static_cast<uint32_t>(crc));
+  }
+
  private:
   uint32_t crc_;
 };
