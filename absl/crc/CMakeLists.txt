@@ -77,6 +77,7 @@ absl_cc_library(
     absl::dynamic_annotations
     absl::endian
     absl::prefetch
+    absl::str_format
     absl::strings
 )
 

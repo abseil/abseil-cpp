@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -190,5 +191,23 @@ TEST(CRC32C, RemoveSuffix) {
   absl::crc32c_t crc_ab = absl::ComputeCrc32c(hello_world);
 
   EXPECT_EQ(absl::RemoveCrc32cSuffix(crc_ab, crc_b, world.size()), crc_a);
+}
+
+TEST(CRC32C, InsertionOperator) {
+  {
+    std::ostringstream buf;
+    buf << absl::crc32c_t{0xc99465aa};
+    EXPECT_EQ(buf.str(), "c99465aa");
+  }
+  {
+    std::ostringstream buf;
+    buf << absl::crc32c_t{0};
+    EXPECT_EQ(buf.str(), "00000000");
+  }
+  {
+    std::ostringstream buf;
+    buf << absl::crc32c_t{17};
+    EXPECT_EQ(buf.str(), "00000011");
+  }
 }
 }  // namespace
