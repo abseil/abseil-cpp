@@ -1027,9 +1027,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
  private:
-  // TODO(b/259599413): Investigate removing some of these fields:
+  // TODO(b/182800944): Investigate removing some of these fields:
   // - control/slots can be derived from each other
-  // - we can use 6 bits for capacity since it's always a power of two minus 1
 
   // The control bytes (and, also, a pointer near to the base of the backing
   // array).
@@ -1044,6 +1043,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // `control`. May be null for empty tables.
   void* slots_ = nullptr;
 
+  // The number of slots in the backing array. This is always 2^N-1 for an
+  // integer N. NOTE: we tried experimenting with compressing the capacity and
+  // storing it together with size_: (a) using 6 bits to store the corresponding
+  // power (N in 2^N-1), and (b) storing 2^N as the most significant bit of
+  // size_ and storing size in the low bits. Both of these experiments were
+  // regressions, presumably because we need capacity to do find operations.
   size_t capacity_ = 0;
 
   // Bundle together size and HashtablezInfoHandle to ensure EBO for
