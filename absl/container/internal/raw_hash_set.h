@@ -361,7 +361,7 @@ uint32_t TrailingZeros(T x) {
 // width of an abstract bit in the representation.
 // This mask provides operations for any number of real bits set in an abstract
 // bit. To add iteration on top of that, implementation must guarantee no more
-// than one real bit is set in an abstract bit.
+// than the most significant real bit is set in a set abstract bit.
 template <class T, int SignificantBits, int Shift = 0>
 class NonIterableBitMask {
  public:
@@ -418,6 +418,10 @@ class BitMask : public NonIterableBitMask<T, SignificantBits, Shift> {
   using const_iterator = BitMask;
 
   BitMask& operator++() {
+    if (Shift == 3) {
+      constexpr uint64_t msbs = 0x8080808080808080ULL;
+      this->mask_ &= msbs;
+    }
     this->mask_ &= (this->mask_ - 1);
     return *this;
   }
@@ -651,9 +655,8 @@ struct GroupAArch64Impl {
   BitMask<uint64_t, kWidth, 3> Match(h2_t hash) const {
     uint8x8_t dup = vdup_n_u8(hash);
     auto mask = vceq_u8(ctrl, dup);
-    constexpr uint64_t msbs = 0x8080808080808080ULL;
     return BitMask<uint64_t, kWidth, 3>(
-        vget_lane_u64(vreinterpret_u64_u8(mask), 0) & msbs);
+        vget_lane_u64(vreinterpret_u64_u8(mask), 0));
   }
 
   NonIterableBitMask<uint64_t, kWidth, 3> MaskEmpty() const {
