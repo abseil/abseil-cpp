@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -70,22 +71,11 @@ using ::absl::cord_internal::kMaxBytesToCopy;
 
 static void DumpNode(CordRep* rep, bool include_data, std::ostream* os,
                      int indent = 0);
-static bool VerifyNode(CordRep* root, CordRep* start_node,
-                       bool full_validation);
+static bool VerifyNode(CordRep* root, CordRep* start_node);
 
 static inline CordRep* VerifyTree(CordRep* node) {
-  // Verification is expensive, so only do it in debug mode.
-  // Even in debug mode we normally do only light validation.
-  // If you are debugging Cord itself, you should define the
-  // macro EXTRA_CORD_VALIDATION, e.g. by adding
-  // --copt=-DEXTRA_CORD_VALIDATION to the blaze line.
-#ifdef EXTRA_CORD_VALIDATION
-  assert(node == nullptr || VerifyNode(node, node, /*full_validation=*/true));
-#else   // EXTRA_CORD_VALIDATION
-  assert(node == nullptr || VerifyNode(node, node, /*full_validation=*/false));
-#endif  // EXTRA_CORD_VALIDATION
+  assert(node == nullptr || VerifyNode(node, node));
   static_cast<void>(&VerifyNode);
-
   return node;
 }
 
@@ -1310,8 +1300,7 @@ static std::string ReportError(CordRep* root, CordRep* node) {
   return buf.str();
 }
 
-static bool VerifyNode(CordRep* root, CordRep* start_node,
-                       bool /* full_validation */) {
+static bool VerifyNode(CordRep* root, CordRep* start_node) {
   absl::InlinedVector<CordRep*, 2> worklist;
   worklist.push_back(start_node);
   do {
