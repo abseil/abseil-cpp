@@ -737,14 +737,15 @@ class Cord {
   //
   // If this cord's representation is a single flat array, returns a
   // string_view referencing that array.  Otherwise returns nullopt.
-  absl::optional<absl::string_view> TryFlat() const;
+  absl::optional<absl::string_view> TryFlat() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // Cord::Flatten()
   //
   // Flattens the cord into a single array and returns a view of the data.
   //
   // If the cord was already flat, the contents are not modified.
-  absl::string_view Flatten();
+  absl::string_view Flatten() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // Supports absl::Cord as a sink object for absl::Format().
   friend void AbslFormatFlush(absl::Cord* cord, absl::string_view part) {
