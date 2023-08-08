@@ -16,15 +16,14 @@
 
 #include <assert.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 
-#include "absl/strings/ascii.h"
+#include "absl/base/config.h"
 #include "absl/strings/internal/resize_uninitialized.h"
-#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {

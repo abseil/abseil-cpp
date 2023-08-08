@@ -16,11 +16,15 @@
 
 #include <list>
 #include <map>
+#include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 
 TEST(StrReplaceAll, OneReplacement) {
   std::string s;
