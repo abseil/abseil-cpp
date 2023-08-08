@@ -179,7 +179,7 @@ TEST(StrReplaceAll, ReplacementsInPlaceInMap) {
 }
 
 struct Cont {
-  Cont() {}
+  Cont() = default;
   explicit Cont(absl::string_view src) : data(src) {}
 
   absl::string_view data;
