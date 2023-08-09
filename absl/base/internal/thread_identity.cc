@@ -16,7 +16,11 @@
 
 #if !defined(_WIN32) || defined(__MINGW32__)
 #include <pthread.h>
+#ifndef __wasi__
+// WASI does not provide this header, either way we disable use
+// of signals with it below.
 #include <signal.h>
+#endif
 #endif
 
 #include <atomic>
