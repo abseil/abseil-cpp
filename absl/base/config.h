@@ -837,11 +837,16 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // RTTI support.
 #ifdef ABSL_INTERNAL_HAS_RTTI
 #error ABSL_INTERNAL_HAS_RTTI cannot be directly set
-#elif (defined(__GNUC__) && defined(__GXX_RTTI)) || \
-    (defined(_MSC_VER) && defined(_CPPRTTI)) ||     \
-    (!defined(__GNUC__) && !defined(_MSC_VER))
+#elif ABSL_HAVE_FEATURE(cxx_rtti)
 #define ABSL_INTERNAL_HAS_RTTI 1
-#endif  // !defined(__GNUC__) || defined(__GXX_RTTI)
+#elif defined(__GNUC__) && defined(__GXX_RTTI)
+#define ABSL_INTERNAL_HAS_RTTI 1
+#elif defined(_MSC_VER) && defined(_CPPRTTI)
+#define ABSL_INTERNAL_HAS_RTTI 1
+#elif !defined(__GNUC__) && !defined(_MSC_VER)
+// Unknown compiler, default to RTTI
+#define ABSL_INTERNAL_HAS_RTTI 1
+#endif
 
 // ABSL_INTERNAL_HAVE_SSE is used for compile-time detection of SSE support.
 // See https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html for an overview of
