@@ -357,6 +357,18 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "fnmatch",
+    srcs = ["fnmatch.cc"],
+    hdrs = ["fnmatch.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/strings",
+    ],
+)
+
 # Test targets
 cc_test(
     name = "stderr_log_sink_test",
@@ -378,6 +390,17 @@ cc_test(
         "//absl/base:log_severity",
         "//absl/log",
         "//absl/log:globals",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "fnmatch_test",
+    srcs = ["fnmatch_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":fnmatch",
         "@com_google_googletest//:gtest_main",
     ],
 )
