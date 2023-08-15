@@ -404,3 +404,15 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "fnmatch_benchmark",
+    srcs = ["fnmatch_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    deps = [
+        ":fnmatch",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)

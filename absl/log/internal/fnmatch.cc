@@ -14,6 +14,8 @@
 
 #include "absl/log/internal/fnmatch.h"
 
+#include <cstddef>
+
 #include "absl/base/config.h"
 #include "absl/strings/string_view.h"
 
@@ -21,31 +23,49 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 bool FNMatch(absl::string_view pattern, absl::string_view str) {
+  bool in_wildcard_match = false;
   while (true) {
     if (pattern.empty()) {
       // `pattern` is exhausted; succeed if all of `str` was consumed matching
       // it.
-      return str.empty();
+      return in_wildcard_match || str.empty();
     }
     if (str.empty()) {
       // `str` is exhausted; succeed if `pattern` is empty or all '*'s.
       return pattern.find_first_not_of('*') == pattern.npos;
     }
-    if (pattern.front() == '*') {
-      pattern.remove_prefix(1);
-      if (pattern.empty()) return true;
-      do {
-        if (FNMatch(pattern, str)) return true;
+    switch (pattern.front()) {
+      case '*':
+        pattern.remove_prefix(1);
+        in_wildcard_match = true;
+        break;
+      case '?':
+        pattern.remove_prefix(1);
         str.remove_prefix(1);
-      } while (!str.empty());
-      return false;
+        break;
+      default:
+        if (in_wildcard_match) {
+          absl::string_view fixed_portion = pattern;
+          const size_t end = fixed_portion.find_first_of("*?");
+          if (end != fixed_portion.npos) {
+            fixed_portion = fixed_portion.substr(0, end);
+          }
+          const size_t match = str.find(fixed_portion);
+          if (match == str.npos) {
+            return false;
+          }
+          pattern.remove_prefix(fixed_portion.size());
+          str.remove_prefix(match + fixed_portion.size());
+          in_wildcard_match = false;
+        } else {
+          if (pattern.front() != str.front()) {
+            return false;
+          }
+          pattern.remove_prefix(1);
+          str.remove_prefix(1);
+        }
+        break;
     }
-    if (pattern.front() == '?' || pattern.front() == str.front()) {
-      pattern.remove_prefix(1);
-      str.remove_prefix(1);
-      continue;
-    }
-    return false;
   }
 }
 }  // namespace log_internal
