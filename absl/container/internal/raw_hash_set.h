@@ -1906,8 +1906,8 @@ class raw_hash_set {
       std::swap(common(), that.common());
     } else {
       reserve(that.size());
-      // Note: this will copy elements of dense_set and unordered_set instead of
-      // moving them. This can be fixed if it ever becomes an issue.
+      // Note: this will copy keys instead of moving them. This can be fixed if
+      // it ever becomes an issue.
       for (auto& elem : that) insert(std::move(elem));
     }
   }
