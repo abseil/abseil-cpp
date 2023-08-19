@@ -557,6 +557,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Checks whether C++17 std::any is available.
 #ifdef ABSL_HAVE_STD_ANY
 #error "ABSL_HAVE_STD_ANY cannot be directly set."
+#elif defined(__cpp_lib_any)
+#define ABSL_HAVE_STD_ANY 1
 #elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
     !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
@@ -568,6 +570,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Checks whether C++17 std::optional is available.
 #ifdef ABSL_HAVE_STD_OPTIONAL
 #error "ABSL_HAVE_STD_OPTIONAL cannot be directly set."
+#elif defined(__cpp_lib_optional)
+#define ABSL_HAVE_STD_OPTIONAL 1
 #elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
     !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
@@ -579,6 +583,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Checks whether C++17 std::variant is available.
 #ifdef ABSL_HAVE_STD_VARIANT
 #error "ABSL_HAVE_STD_VARIANT cannot be directly set."
+#elif defined(__cpp_lib_variant)
+#define ABSL_HAVE_STD_VARIANT 1
 #elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
     !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
@@ -590,6 +596,8 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Checks whether C++17 std::string_view is available.
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 #error "ABSL_HAVE_STD_STRING_VIEW cannot be directly set."
+#elif defined(__cpp_lib_string_view)
+#define ABSL_HAVE_STD_STRING_VIEW 1
 #elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 #define ABSL_HAVE_STD_STRING_VIEW 1
