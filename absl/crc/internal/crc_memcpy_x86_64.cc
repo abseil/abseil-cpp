@@ -348,7 +348,6 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
   // Get the underlying architecture.
   CpuType cpu_type = GetCpuType();
   switch (cpu_type) {
-    case CpuType::kUnknown:
     case CpuType::kAmdRome:
     case CpuType::kAmdNaples:
     case CpuType::kIntelCascadelakeXeon:
