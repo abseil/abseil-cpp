@@ -161,7 +161,6 @@ cc_library(
 cc_library(
     name = "core_headers",
     srcs = [
-        "internal/thread_annotations.h",
     ],
     hdrs = [
         "attributes.h",

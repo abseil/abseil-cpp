@@ -44,7 +44,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/spinlock_wait.h"
   "base/internal/sysinfo.cc"
   "base/internal/sysinfo.h"
-  "base/internal/thread_annotations.h"
   "base/internal/thread_identity.cc"
   "base/internal/thread_identity.h"
   "base/internal/throw_delegate.cc"

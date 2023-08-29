@@ -156,7 +156,6 @@ absl_cc_library(
     "optimization.h"
     "port.h"
     "thread_annotations.h"
-    "internal/thread_annotations.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
