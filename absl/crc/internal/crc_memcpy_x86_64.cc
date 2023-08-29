@@ -350,6 +350,9 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
   switch (cpu_type) {
     case CpuType::kAmdRome:
     case CpuType::kAmdNaples:
+    case CpuType::kAmdMilan:
+    case CpuType::kAmdGenoa:
+    case CpuType::kAmdRyzenV3000:
     case CpuType::kIntelCascadelakeXeon:
     case CpuType::kIntelSkylakeXeon:
     case CpuType::kIntelSkylake:
@@ -385,6 +388,9 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
     // strided access to each region, and do the right thing.
     case CpuType::kAmdRome:
     case CpuType::kAmdNaples:
+    case CpuType::kAmdMilan:
+    case CpuType::kAmdGenoa:
+    case CpuType::kAmdRyzenV3000:
       return {
           /*.temporal=*/new AcceleratedCrcMemcpyEngine<1, 2>(),
           /*.non_temporal=*/new CrcNonTemporalMemcpyAVXEngine(),
