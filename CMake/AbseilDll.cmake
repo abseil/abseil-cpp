@@ -107,7 +107,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "crc/internal/crc_x86_arm_combined.cc"
   "crc/internal/crc_memcpy_fallback.cc"
   "crc/internal/crc_memcpy.h"
-  "crc/internal/crc_memcpy_x86_arm_combined.cc"
+  "crc/internal/crc_memcpy_x86_64.cc"
   "crc/internal/crc_non_temporal_memcpy.cc"
   "crc/internal/crc_x86_arm_combined.cc"
   "crc/internal/non_temporal_arm_intrinsics.h"

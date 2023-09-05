@@ -54,8 +54,7 @@ absl::crc32c_t FallbackCrcMemcpyEngine::Compute(void* __restrict dst,
 }
 
 // Compile the following only if we don't have
-#if !defined(ABSL_INTERNAL_HAVE_X86_64_ACCELERATED_CRC_MEMCPY_ENGINE) && \
-    !defined(ABSL_INTERNAL_HAVE_ARM_ACCELERATED_CRC_MEMCPY_ENGINE)
+#ifndef ABSL_INTERNAL_HAVE_X86_64_ACCELERATED_CRC_MEMCPY_ENGINE
 
 CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
   CrcMemcpy::ArchSpecificEngines engines;
@@ -69,8 +68,7 @@ std::unique_ptr<CrcMemcpyEngine> CrcMemcpy::GetTestEngine(int /*vector*/,
   return std::make_unique<FallbackCrcMemcpyEngine>();
 }
 
-#endif  // !ABSL_INTERNAL_HAVE_X86_64_ACCELERATED_CRC_MEMCPY_ENGINE &&
-        // !ABSL_INTERNAL_HAVE_ARM_ACCELERATED_CRC_MEMCPY_ENGINE
+#endif  // ABSL_INTERNAL_HAVE_X86_64_ACCELERATED_CRC_MEMCPY_ENGINE
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
