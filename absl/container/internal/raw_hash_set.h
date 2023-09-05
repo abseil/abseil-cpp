@@ -2914,18 +2914,6 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
     }
     return m;
   }
-
-  static size_t LowerBoundAllocatedByteSize(size_t size) {
-    size_t capacity = GrowthToLowerboundCapacity(size);
-    if (capacity == 0) return 0;
-    size_t m = AllocSize(NormalizeCapacity(capacity), sizeof(Slot),
-                         alignof(Slot), /*has_infoz=*/false);
-    size_t per_slot = Traits::space_used(static_cast<const Slot*>(nullptr));
-    if (per_slot != ~size_t{}) {
-      m += per_slot * size;
-    }
-    return m;
-  }
 };
 
 }  // namespace hashtable_debug_internal
