@@ -34,6 +34,14 @@
 #include <sys/sysctl.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#endif
+
+#ifdef __NetBSD__
+#include <lwp.h>
+#endif
+
 #if defined(__myriad2__)
 #include <rtems.h>
 #endif
@@ -421,7 +429,7 @@ pid_t GetTID() {
   return tid;
 }
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__)
 
 pid_t GetTID() {
   uint64_t tid;
@@ -431,6 +439,14 @@ pid_t GetTID() {
   pthread_threadid_np(nullptr, &tid);
   return static_cast<pid_t>(tid);
 }
+
+#elif defined(__OpenBSD__)
+
+pid_t GetTID() { return getthrid(); }
+
+#elif defined(__NetBSD__)
+
+pid_t GetTID() { return static_cast<pid_t>(_lwp_self()); }
 
 #elif defined(__native_client__)
 
