@@ -24,7 +24,7 @@
 // version of these macros which forwards to the correct macro on each compiler.
 #if defined(_MSC_VER)
 #define ABSL_PRETTY_FUNCTION __FUNCSIG__
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
 #define ABSL_PRETTY_FUNCTION __PRETTY_FUNCTION__
 #else
 #error "Unsupported compiler"
