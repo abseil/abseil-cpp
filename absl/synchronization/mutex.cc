@@ -1522,104 +1522,25 @@ void Mutex::ReaderLock() {
   ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
 }
 
-void Mutex::LockWhen(const Condition& cond) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
+bool Mutex::LockWhenCommon(const Condition& cond,
+                           synchronization_internal::KernelTimeout t,
+                           bool write) {
+  MuHow how = write ? kExclusive : kShared;
+  ABSL_TSAN_MUTEX_PRE_LOCK(this, TsanFlags(how));
   GraphId id = DebugOnlyDeadlockCheck(this);
-  this->LockSlow(kExclusive, &cond, 0);
+  bool res = LockSlowWithDeadline(how, &cond, t, 0);
   DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
-}
-
-bool Mutex::LockWhenWithTimeout(const Condition& cond, absl::Duration timeout) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
-  GraphId id = DebugOnlyDeadlockCheck(this);
-  bool res = LockSlowWithDeadline(kExclusive, &cond, KernelTimeout(timeout), 0);
-  DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
-  return res;
-}
-
-bool Mutex::LockWhenWithDeadline(const Condition& cond, absl::Time deadline) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
-  GraphId id = DebugOnlyDeadlockCheck(this);
-  bool res =
-      LockSlowWithDeadline(kExclusive, &cond, KernelTimeout(deadline), 0);
-  DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
-  return res;
-}
-
-void Mutex::ReaderLockWhen(const Condition& cond) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
-  GraphId id = DebugOnlyDeadlockCheck(this);
-  this->LockSlow(kShared, &cond, 0);
-  DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
-}
-
-bool Mutex::ReaderLockWhenWithTimeout(const Condition& cond,
-                                      absl::Duration timeout) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
-  GraphId id = DebugOnlyDeadlockCheck(this);
-  bool res = LockSlowWithDeadline(kShared, &cond, KernelTimeout(timeout), 0);
-  DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
-  return res;
-}
-
-bool Mutex::ReaderLockWhenWithDeadline(const Condition& cond,
-                                       absl::Time deadline) {
-  ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
-  GraphId id = DebugOnlyDeadlockCheck(this);
-  bool res = LockSlowWithDeadline(kShared, &cond, KernelTimeout(deadline), 0);
-  DebugOnlyLockEnter(this, id);
-  ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
-  return res;
-}
-
-void Mutex::Await(const Condition& cond) {
-  if (cond.Eval()) {  // condition already true; nothing to do
-    if (kDebugMode) {
-      this->AssertReaderHeld();
-    }
-  } else {  // normal case
-    ABSL_RAW_CHECK(this->AwaitCommon(cond, KernelTimeout::Never()),
-                   "condition untrue on return from Await");
-  }
-}
-
-bool Mutex::AwaitWithTimeout(const Condition& cond, absl::Duration timeout) {
-  if (cond.Eval()) {  // condition already true; nothing to do
-    if (kDebugMode) {
-      this->AssertReaderHeld();
-    }
-    return true;
-  }
-
-  KernelTimeout t{timeout};
-  bool res = this->AwaitCommon(cond, t);
-  ABSL_RAW_CHECK(res || t.has_timeout(),
-                 "condition untrue on return from Await");
-  return res;
-}
-
-bool Mutex::AwaitWithDeadline(const Condition& cond, absl::Time deadline) {
-  if (cond.Eval()) {  // condition already true; nothing to do
-    if (kDebugMode) {
-      this->AssertReaderHeld();
-    }
-    return true;
-  }
-
-  KernelTimeout t{deadline};
-  bool res = this->AwaitCommon(cond, t);
-  ABSL_RAW_CHECK(res || t.has_timeout(),
-                 "condition untrue on return from Await");
+  ABSL_TSAN_MUTEX_POST_LOCK(this, TsanFlags(how), 0);
   return res;
 }
 
 bool Mutex::AwaitCommon(const Condition& cond, KernelTimeout t) {
-  this->AssertReaderHeld();
+  if (kDebugMode) {
+    this->AssertReaderHeld();
+  }
+  if (cond.Eval()) {  // condition already true; nothing to do
+    return true;
+  }
   MuHow how =
       (mu_.load(std::memory_order_relaxed) & kMuWriter) ? kExclusive : kShared;
   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, TsanFlags(how));
@@ -1634,6 +1555,8 @@ bool Mutex::AwaitCommon(const Condition& cond, KernelTimeout t) {
   bool res = waitp.cond != nullptr ||  // => cond known true from LockSlowLoop
              EvalConditionAnnotated(&cond, this, true, false, how == kShared);
   ABSL_TSAN_MUTEX_POST_LOCK(this, TsanFlags(how), 0);
+  ABSL_RAW_CHECK(res || t.has_timeout(),
+                 "condition untrue on return from Await");
   return res;
 }
 
@@ -2653,16 +2576,6 @@ bool CondVar::WaitCommon(Mutex* mutex, KernelTimeout t) {
   ABSL_TSAN_MUTEX_POST_LOCK(mutex, TsanFlags(mutex_how), 0);
   return rc;
 }
-
-bool CondVar::WaitWithTimeout(Mutex* mu, absl::Duration timeout) {
-  return WaitCommon(mu, KernelTimeout(timeout));
-}
-
-bool CondVar::WaitWithDeadline(Mutex* mu, absl::Time deadline) {
-  return WaitCommon(mu, KernelTimeout(deadline));
-}
-
-void CondVar::Wait(Mutex* mu) { WaitCommon(mu, KernelTimeout::Never()); }
 
 // Wake thread w
 // If it was a timed wait, w will be waiting on w->cv
