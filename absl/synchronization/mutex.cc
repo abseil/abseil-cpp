@@ -579,31 +579,25 @@ static SynchLocksHeld* Synch_GetAllLocks() {
 
 // Post on "w"'s associated PerThreadSem.
 void Mutex::IncrementSynchSem(Mutex* mu, PerThreadSynch* w) {
-  if (mu) {
-    ABSL_TSAN_MUTEX_PRE_DIVERT(mu, 0);
-    // We miss synchronization around passing PerThreadSynch between threads
-    // since it happens inside of the Mutex code, so we need to ignore all
-    // accesses to the object.
-    ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
-    PerThreadSem::Post(w->thread_identity());
-    ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_END();
-    ABSL_TSAN_MUTEX_POST_DIVERT(mu, 0);
-  } else {
-    PerThreadSem::Post(w->thread_identity());
-  }
+  static_cast<void>(mu);  // Prevent unused param warning in non-TSAN builds.
+  ABSL_TSAN_MUTEX_PRE_DIVERT(mu, 0);
+  // We miss synchronization around passing PerThreadSynch between threads
+  // since it happens inside of the Mutex code, so we need to ignore all
+  // accesses to the object.
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_BEGIN();
+  PerThreadSem::Post(w->thread_identity());
+  ABSL_ANNOTATE_IGNORE_READS_AND_WRITES_END();
+  ABSL_TSAN_MUTEX_POST_DIVERT(mu, 0);
 }
 
 // Wait on "w"'s associated PerThreadSem; returns false if timeout expired.
 bool Mutex::DecrementSynchSem(Mutex* mu, PerThreadSynch* w, KernelTimeout t) {
-  if (mu) {
-    ABSL_TSAN_MUTEX_PRE_DIVERT(mu, 0);
-  }
+  static_cast<void>(mu);  // Prevent unused param warning in non-TSAN builds.
+  ABSL_TSAN_MUTEX_PRE_DIVERT(mu, 0);
   assert(w == Synch_GetPerThread());
   static_cast<void>(w);
   bool res = PerThreadSem::Wait(t);
-  if (mu) {
-    ABSL_TSAN_MUTEX_POST_DIVERT(mu, 0);
-  }
+  ABSL_TSAN_MUTEX_POST_DIVERT(mu, 0);
   return res;
 }
 
@@ -2582,7 +2576,7 @@ bool CondVar::WaitCommon(Mutex* mutex, KernelTimeout t) {
 // Otherwise, if it was not a Mutex mutex, w will be waiting on w->sem
 // Otherwise, w is transferred to the Mutex mutex via Mutex::Fer().
 void CondVar::Wakeup(PerThreadSynch* w) {
-  if (w->waitp->timeout.has_timeout() || w->waitp->cvmu == nullptr) {
+  if (w->waitp->timeout.has_timeout()) {
     // The waiting thread only needs to observe "w->state == kAvailable" to be
     // released, we must cache "cvmu" before clearing "next".
     Mutex* mu = w->waitp->cvmu;
