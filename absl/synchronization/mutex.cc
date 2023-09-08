@@ -966,8 +966,7 @@ static PerThreadSynch* Enqueue(PerThreadSynch* head, SynchWaitParams* waitp,
         } while (s->priority <= advance_to->priority);
         // termination guaranteed because s->priority > head->priority
         // and head is the end of a skip chain
-      } else if (waitp->how == kExclusive &&
-                 Condition::GuaranteedEqual(waitp->cond, nullptr)) {
+      } else if (waitp->how == kExclusive && waitp->cond == nullptr) {
         // An unlocker could be scanning the queue, but we know it will recheck
         // the queue front for writers that have no condition, which is what s
         // is, so an insert at front is safe.
@@ -1627,15 +1626,11 @@ bool Mutex::AwaitCommon(const Condition& cond, KernelTimeout t) {
   SynchWaitParams waitp(how, &cond, t, nullptr /*no cvmu*/,
                         Synch_GetPerThreadAnnotated(this),
                         nullptr /*no cv_word*/);
-  int flags = kMuHasBlocked;
-  if (!Condition::GuaranteedEqual(&cond, nullptr)) {
-    flags |= kMuIsCond;
-  }
   this->UnlockSlow(&waitp);
   this->Block(waitp.thread);
   ABSL_TSAN_MUTEX_POST_UNLOCK(this, TsanFlags(how));
   ABSL_TSAN_MUTEX_PRE_LOCK(this, TsanFlags(how));
-  this->LockSlowLoop(&waitp, flags);
+  this->LockSlowLoop(&waitp, kMuHasBlocked | kMuIsCond);
   bool res = waitp.cond != nullptr ||  // => cond known true from LockSlowLoop
              EvalConditionAnnotated(&cond, this, true, false, how == kShared);
   ABSL_TSAN_MUTEX_POST_LOCK(this, TsanFlags(how), 0);
@@ -1917,7 +1912,7 @@ bool Mutex::LockSlowWithDeadline(MuHow how, const Condition* cond,
   SynchWaitParams waitp(how, cond, t, nullptr /*no cvmu*/,
                         Synch_GetPerThreadAnnotated(this),
                         nullptr /*no cv_word*/);
-  if (!Condition::GuaranteedEqual(cond, nullptr)) {
+  if (cond != nullptr) {
     flags |= kMuIsCond;
   }
   if (unlock) {
@@ -2211,7 +2206,7 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
         }
       }
       if (h->next->waitp->how == kExclusive &&
-          Condition::GuaranteedEqual(h->next->waitp->cond, nullptr)) {
+          h->next->waitp->cond == nullptr) {
         // easy case: writer with no condition; no need to search
         pw = h;  // wake w, the successor of h (=pw)
         w = h->next;
@@ -2815,17 +2810,11 @@ Condition::Condition(const bool* cond)
   StoreCallback(dereference);
 }
 
-bool Condition::Eval() const {
-  // eval_ == null for kTrue
-  return (this->eval_ == nullptr) || (*this->eval_)(this);
-}
+bool Condition::Eval() const { return (*this->eval_)(this); }
 
 bool Condition::GuaranteedEqual(const Condition* a, const Condition* b) {
-  // kTrue logic.
-  if (a == nullptr || a->eval_ == nullptr) {
-    return b == nullptr || b->eval_ == nullptr;
-  } else if (b == nullptr || b->eval_ == nullptr) {
-    return false;
+  if (a == nullptr || b == nullptr) {
+    return a == nullptr && b == nullptr;
   }
   // Check equality of the representative fields.
   return a->eval_ == b->eval_ && a->arg_ == b->arg_ &&

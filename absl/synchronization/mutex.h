@@ -807,10 +807,10 @@ class Condition {
 #endif
 
   // Function with which to evaluate callbacks and/or arguments.
-  bool (*eval_)(const Condition*) = nullptr;
+  bool (*const eval_)(const Condition*);
 
   // Either an argument for a function call or an object for a method call.
-  void* arg_ = nullptr;
+  void* const arg_;
 
   // Various functions eval_ can point to:
   static bool CallVoidPtrFunction(const Condition*);
@@ -833,8 +833,10 @@ class Condition {
     std::memcpy(callback, callback_, sizeof(*callback));
   }
 
+  static bool AlwaysTrue(const Condition*) { return true; }
+
   // Used only to create kTrue.
-  constexpr Condition() = default;
+  constexpr Condition() : eval_(AlwaysTrue), arg_(nullptr) {}
 };
 
 // -----------------------------------------------------------------------------
