@@ -2102,7 +2102,6 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
   // head of the list searched previously, or zero
   PerThreadSynch* old_h = nullptr;
   // a condition that's known to be false.
-  const Condition* known_false = nullptr;
   PerThreadSynch* wake_list = kPerThreadSynchNull;  // list of threads to wake
   intptr_t wr_wait = 0;  // set to kMuWrWait if we wake a reader and a
                          // later writer could have acquired the lock
@@ -2289,10 +2288,8 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
           w_walk->wake = false;
           if (w_walk->waitp->cond ==
                   nullptr ||  // no condition => vacuously true OR
-              (w_walk->waitp->cond != known_false &&
-               // this thread's condition is not known false, AND
-               //  is in fact true
-               EvalConditionIgnored(this, w_walk->waitp->cond))) {
+                              // this thread's condition is true
+              EvalConditionIgnored(this, w_walk->waitp->cond)) {
             if (w == nullptr) {
               w_walk->wake = true;  // can wake this waiter
               w = w_walk;
@@ -2306,8 +2303,6 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
             } else {  // writer with true condition
               wr_wait = kMuWrWait;
             }
-          } else {                              // can't wake; condition false
-            known_false = w_walk->waitp->cond;  // remember last false condition
           }
           if (w_walk->wake) {  // we're waking reader w_walk
             pw_walk = w_walk;  // don't skip similar waiters
@@ -2814,7 +2809,7 @@ bool Condition::Eval() const { return (*this->eval_)(this); }
 
 bool Condition::GuaranteedEqual(const Condition* a, const Condition* b) {
   if (a == nullptr || b == nullptr) {
-    return a == nullptr && b == nullptr;
+    return a == b;
   }
   // Check equality of the representative fields.
   return a->eval_ == b->eval_ && a->arg_ == b->arg_ &&
