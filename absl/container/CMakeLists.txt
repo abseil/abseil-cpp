@@ -338,6 +338,8 @@ absl_cc_test(
     "-DUNORDERED_SET_CXX17"
   DEPS
     absl::check
+    absl::config
+    absl::container_memory
     absl::flat_hash_set
     absl::hash_generator_testing
     absl::memory
