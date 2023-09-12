@@ -499,6 +499,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":common_policy_traits",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -582,6 +583,7 @@ cc_test(
     deps = [
         ":hash_policy_traits",
         ":node_slot_policy",
+        "//absl/base:config",
         "@com_google_googletest//:gtest_main",
     ],
 )
