@@ -306,6 +306,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/stringify_sink.h"
   "strings/internal/stringify_sink.cc"
   "strings/internal/has_absl_stringify.h"
+  "strings/has_absl_stringify.h"
   "strings/match.cc"
   "strings/match.h"
   "strings/numbers.cc"
