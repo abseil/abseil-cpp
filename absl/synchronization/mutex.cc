@@ -2325,10 +2325,10 @@ void Mutex::Fer(PerThreadSynch* w) {
   int c = 0;
   ABSL_RAW_CHECK(w->waitp->cond == nullptr,
                  "Mutex::Fer while waiting on Condition");
-  ABSL_RAW_CHECK(!w->waitp->timeout.has_timeout(),
-                 "Mutex::Fer while in timed wait");
   ABSL_RAW_CHECK(w->waitp->cv_word == nullptr,
                  "Mutex::Fer with pending CondVar queueing");
+  // The CondVar timeout is not relevant for the Mutex wait.
+  w->waitp->timeout = {};
   for (;;) {
     intptr_t v = mu_.load(std::memory_order_relaxed);
     // Note: must not queue if the mutex is unlocked (nobody will wake it).
@@ -2571,23 +2571,6 @@ bool CondVar::WaitCommon(Mutex* mutex, KernelTimeout t) {
   return rc;
 }
 
-// Wake thread w
-// If it was a timed wait, w will be waiting on w->cv
-// Otherwise, if it was not a Mutex mutex, w will be waiting on w->sem
-// Otherwise, w is transferred to the Mutex mutex via Mutex::Fer().
-void CondVar::Wakeup(PerThreadSynch* w) {
-  if (w->waitp->timeout.has_timeout()) {
-    // The waiting thread only needs to observe "w->state == kAvailable" to be
-    // released, we must cache "cvmu" before clearing "next".
-    Mutex* mu = w->waitp->cvmu;
-    w->next = nullptr;
-    w->state.store(PerThreadSynch::kAvailable, std::memory_order_release);
-    Mutex::IncrementSynchSem(mu, w);
-  } else {
-    w->waitp->cvmu->Fer(w);
-  }
-}
-
 void CondVar::Signal() {
   SchedulingGuard::ScopedDisable disable_rescheduling;
   ABSL_TSAN_MUTEX_PRE_SIGNAL(nullptr, 0);
@@ -2612,7 +2595,7 @@ void CondVar::Signal() {
       cv_.store((v & kCvEvent) | reinterpret_cast<intptr_t>(h),
                 std::memory_order_release);
       if (w != nullptr) {
-        CondVar::Wakeup(w);  // wake waiter, if there was one
+        w->waitp->cvmu->Fer(w);  // wake waiter, if there was one
         cond_var_tracer("Signal wakeup", this);
       }
       if ((v & kCvEvent) != 0) {
@@ -2648,7 +2631,7 @@ void CondVar::SignalAll() {
         do {  // for every thread, wake it up
           w = n;
           n = n->next;
-          CondVar::Wakeup(w);
+          w->waitp->cvmu->Fer(w);
         } while (w != h);
         cond_var_tracer("SignalAll wakeup", this);
       }
