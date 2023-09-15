@@ -859,8 +859,10 @@ class Condition {
     std::memcpy(callback, callback_, sizeof(*callback));
   }
 
+  static bool AlwaysTrue(const Condition*) { return true; }
+
   // Used only to create kTrue.
-  constexpr Condition() = default;
+  constexpr Condition() : eval_(AlwaysTrue), arg_(nullptr) {}
 };
 
 // -----------------------------------------------------------------------------
