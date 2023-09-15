@@ -274,7 +274,7 @@ inline int V128_Extract32(const V128 l) {
 
 template <int imm>
 inline uint64_t V128_Extract64(const V128 l) {
-  return vgetq_lane_s64(vreinterpretq_s64_u64(l), imm);
+  return vgetq_lane_u64(l, imm);
 }
 
 inline int64_t V128_Low64(const V128 l) {
