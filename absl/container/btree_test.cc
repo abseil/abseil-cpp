@@ -2515,14 +2515,14 @@ TEST(Btree, MoveAssignmentAllocatorPropagation) {
   InstanceTracker tracker;
 
   int64_t bytes1 = 0, bytes2 = 0;
-  PropagatingCountingAlloc<MovableOnlyInstance> allocator1(&bytes1);
-  PropagatingCountingAlloc<MovableOnlyInstance> allocator2(&bytes2);
+  MoveAssignPropagatingCountingAlloc<MovableOnlyInstance> allocator1(&bytes1);
+  MoveAssignPropagatingCountingAlloc<MovableOnlyInstance> allocator2(&bytes2);
   std::less<MovableOnlyInstance> cmp;
 
   // Test propagating allocator_type.
   {
     absl::btree_set<MovableOnlyInstance, std::less<MovableOnlyInstance>,
-                    PropagatingCountingAlloc<MovableOnlyInstance>>
+                    MoveAssignPropagatingCountingAlloc<MovableOnlyInstance>>
         set1(cmp, allocator1), set2(cmp, allocator2);
 
     for (int i = 0; i < 100; ++i) set1.insert(MovableOnlyInstance(i));
