@@ -75,7 +75,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/common_policy_traits.h"
   "container/internal/compressed_tuple.h"
   "container/internal/container_memory.h"
-  "container/internal/counting_allocator.h"
   "container/internal/hash_function_defaults.h"
   "container/internal/hash_policy_traits.h"
   "container/internal/hashtable_debug.h"
