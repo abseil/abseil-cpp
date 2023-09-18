@@ -249,6 +249,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/uniform_real_distribution.h"
   "random/zipf_distribution.h"
   "status/internal/status_internal.h"
+  "status/internal/status_internal.cc"
   "status/internal/statusor_internal.h"
   "status/status.h"
   "status/status.cc"
