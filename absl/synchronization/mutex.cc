@@ -1582,26 +1582,36 @@ bool Mutex::AwaitCommon(const Condition& cond, KernelTimeout t) {
 bool Mutex::TryLock() {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_lock);
   intptr_t v = mu_.load(std::memory_order_relaxed);
-  if ((v & (kMuWriter | kMuReader | kMuEvent)) == 0 &&  // try fast acquire
-      mu_.compare_exchange_strong(v, kMuWriter | v, std::memory_order_acquire,
-                                  std::memory_order_relaxed)) {
+  // Try fast acquire.
+  if (ABSL_PREDICT_TRUE((v & (kMuWriter | kMuReader | kMuEvent)) == 0)) {
+    if (ABSL_PREDICT_TRUE(mu_.compare_exchange_strong(
+            v, kMuWriter | v, std::memory_order_acquire,
+            std::memory_order_relaxed))) {
+      DebugOnlyLockEnter(this);
+      ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_lock, 0);
+      return true;
+    }
+  } else if (ABSL_PREDICT_FALSE((v & kMuEvent) != 0)) {
+    // We're recording events.
+    return TryLockSlow();
+  }
+  ABSL_TSAN_MUTEX_POST_LOCK(
+      this, __tsan_mutex_try_lock | __tsan_mutex_try_lock_failed, 0);
+  return false;
+}
+
+ABSL_ATTRIBUTE_NOINLINE bool Mutex::TryLockSlow() {
+  intptr_t v = mu_.load(std::memory_order_relaxed);
+  if ((v & kExclusive->slow_need_zero) == 0 &&  // try fast acquire
+      mu_.compare_exchange_strong(
+          v, (kExclusive->fast_or | v) + kExclusive->fast_add,
+          std::memory_order_acquire, std::memory_order_relaxed)) {
     DebugOnlyLockEnter(this);
+    PostSynchEvent(this, SYNCH_EV_TRYLOCK_SUCCESS);
     ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_lock, 0);
     return true;
   }
-  if ((v & kMuEvent) != 0) {                      // we're recording events
-    if ((v & kExclusive->slow_need_zero) == 0 &&  // try fast acquire
-        mu_.compare_exchange_strong(
-            v, (kExclusive->fast_or | v) + kExclusive->fast_add,
-            std::memory_order_acquire, std::memory_order_relaxed)) {
-      DebugOnlyLockEnter(this);
-      PostSynchEvent(this, SYNCH_EV_TRYLOCK_SUCCESS);
-      ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_lock, 0);
-      return true;
-    } else {
-      PostSynchEvent(this, SYNCH_EV_TRYLOCK_FAILED);
-    }
-  }
+  PostSynchEvent(this, SYNCH_EV_TRYLOCK_FAILED);
   ABSL_TSAN_MUTEX_POST_LOCK(
       this, __tsan_mutex_try_lock | __tsan_mutex_try_lock_failed, 0);
   return false;
@@ -1611,41 +1621,57 @@ bool Mutex::ReaderTryLock() {
   ABSL_TSAN_MUTEX_PRE_LOCK(this,
                            __tsan_mutex_read_lock | __tsan_mutex_try_lock);
   intptr_t v = mu_.load(std::memory_order_relaxed);
+  // Clang tends to unroll the loop when compiling with optimization.
+  // But in this case it just unnecessary increases code size.
+  // If CAS is failing due to contention, the jump cost is negligible.
+#if defined(__clang__)
+#pragma nounroll
+#endif
   // The while-loops (here and below) iterate only if the mutex word keeps
-  // changing (typically because the reader count changes) under the CAS.  We
-  // limit the number of attempts to avoid having to think about livelock.
-  int loop_limit = 5;
-  while ((v & (kMuWriter | kMuWait | kMuEvent)) == 0 && loop_limit != 0) {
-    if (mu_.compare_exchange_strong(v, (kMuReader | v) + kMuOne,
-                                    std::memory_order_acquire,
-                                    std::memory_order_relaxed)) {
+  // changing (typically because the reader count changes) under the CAS.
+  // We limit the number of attempts to avoid having to think about livelock.
+  for (int loop_limit = 5; loop_limit != 0; loop_limit--) {
+    if (ABSL_PREDICT_FALSE((v & (kMuWriter | kMuWait | kMuEvent)) != 0)) {
+      break;
+    }
+    if (ABSL_PREDICT_TRUE(mu_.compare_exchange_strong(
+            v, (kMuReader | v) + kMuOne, std::memory_order_acquire,
+            std::memory_order_relaxed))) {
       DebugOnlyLockEnter(this);
       ABSL_TSAN_MUTEX_POST_LOCK(
           this, __tsan_mutex_read_lock | __tsan_mutex_try_lock, 0);
       return true;
     }
-    loop_limit--;
-    v = mu_.load(std::memory_order_relaxed);
   }
-  if ((v & kMuEvent) != 0) {  // we're recording events
-    loop_limit = 5;
-    while ((v & kShared->slow_need_zero) == 0 && loop_limit != 0) {
-      if (mu_.compare_exchange_strong(v, (kMuReader | v) + kMuOne,
-                                      std::memory_order_acquire,
-                                      std::memory_order_relaxed)) {
-        DebugOnlyLockEnter(this);
-        PostSynchEvent(this, SYNCH_EV_READERTRYLOCK_SUCCESS);
-        ABSL_TSAN_MUTEX_POST_LOCK(
-            this, __tsan_mutex_read_lock | __tsan_mutex_try_lock, 0);
-        return true;
-      }
-      loop_limit--;
-      v = mu_.load(std::memory_order_relaxed);
-    }
-    if ((v & kMuEvent) != 0) {
-      PostSynchEvent(this, SYNCH_EV_READERTRYLOCK_FAILED);
+  if (ABSL_PREDICT_TRUE((v & kMuEvent) == 0)) {
+    ABSL_TSAN_MUTEX_POST_LOCK(this,
+                              __tsan_mutex_read_lock | __tsan_mutex_try_lock |
+                                  __tsan_mutex_try_lock_failed,
+                              0);
+    return false;
+  }
+  // we're recording events
+  return ReaderTryLockSlow();
+}
+
+ABSL_ATTRIBUTE_NOINLINE bool Mutex::ReaderTryLockSlow() {
+  intptr_t v = mu_.load(std::memory_order_relaxed);
+#if defined(__clang__)
+#pragma nounroll
+#endif
+  for (int loop_limit = 5; loop_limit != 0; loop_limit--) {
+    if ((v & kShared->slow_need_zero) == 0 &&
+        mu_.compare_exchange_strong(v, (kMuReader | v) + kMuOne,
+                                    std::memory_order_acquire,
+                                    std::memory_order_relaxed)) {
+      DebugOnlyLockEnter(this);
+      PostSynchEvent(this, SYNCH_EV_READERTRYLOCK_SUCCESS);
+      ABSL_TSAN_MUTEX_POST_LOCK(
+          this, __tsan_mutex_read_lock | __tsan_mutex_try_lock, 0);
+      return true;
     }
   }
+  PostSynchEvent(this, SYNCH_EV_READERTRYLOCK_FAILED);
   ABSL_TSAN_MUTEX_POST_LOCK(this,
                             __tsan_mutex_read_lock | __tsan_mutex_try_lock |
                                 __tsan_mutex_try_lock_failed,
