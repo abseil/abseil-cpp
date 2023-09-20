@@ -1523,12 +1523,19 @@ void Mutex::ReaderLock() {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
   GraphId id = DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
-  // try fast acquire, then slow loop
-  if ((v & (kMuWriter | kMuWait | kMuEvent)) != 0 ||
-      !mu_.compare_exchange_strong(v, (kMuReader | v) + kMuOne,
-                                   std::memory_order_acquire,
-                                   std::memory_order_relaxed)) {
-    this->LockSlow(kShared, nullptr, 0);
+  for (;;) {
+    // If there are non-readers holding the lock, use the slow loop.
+    if (ABSL_PREDICT_FALSE(v & (kMuWriter | kMuWait | kMuEvent)) != 0) {
+      this->LockSlow(kShared, nullptr, 0);
+      break;
+    }
+    // We can avoid the loop and only use the CAS when the lock is free or
+    // only held by readers.
+    if (ABSL_PREDICT_TRUE(mu_.compare_exchange_strong(
+            v, (kMuReader | v) + kMuOne, std::memory_order_acquire,
+            std::memory_order_relaxed))) {
+      break;
+    }
   }
   DebugOnlyLockEnter(this, id);
   ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_read_lock, 0);
@@ -1702,16 +1709,20 @@ void Mutex::ReaderUnlock() {
   DebugOnlyLockLeave(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
   assert((v & (kMuWriter | kMuReader)) == kMuReader);
-  if ((v & (kMuReader | kMuWait | kMuEvent)) == kMuReader) {
+  for (;;) {
+    if (ABSL_PREDICT_FALSE((v & (kMuReader | kMuWait | kMuEvent)) !=
+                           kMuReader)) {
+      this->UnlockSlow(nullptr /*no waitp*/);  // take slow path
+      break;
+    }
     // fast reader release (reader with no waiters)
     intptr_t clear = ExactlyOneReader(v) ? kMuReader | kMuOne : kMuOne;
-    if (mu_.compare_exchange_strong(v, v - clear, std::memory_order_release,
-                                    std::memory_order_relaxed)) {
-      ABSL_TSAN_MUTEX_POST_UNLOCK(this, __tsan_mutex_read_lock);
-      return;
+    if (ABSL_PREDICT_TRUE(
+            mu_.compare_exchange_strong(v, v - clear, std::memory_order_release,
+                                        std::memory_order_relaxed))) {
+      break;
     }
   }
-  this->UnlockSlow(nullptr /*no waitp*/);  // take slow path
   ABSL_TSAN_MUTEX_POST_UNLOCK(this, __tsan_mutex_read_lock);
 }
 
