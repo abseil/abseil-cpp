@@ -129,11 +129,10 @@ enum DelayMode { AGGRESSIVE, GENTLE };
 
 struct ABSL_CACHELINE_ALIGNED MutexGlobals {
   absl::once_flag once;
+  int spinloop_iterations = 0;
   int32_t mutex_sleep_spins[2] = {};
   absl::Duration mutex_sleep_time;
 };
-
-std::atomic<int> spinloop_iterations{-1};
 
 absl::Duration MeasureTimeToYield() {
   absl::Time before = absl::Now();
@@ -145,11 +144,12 @@ const MutexGlobals& GetMutexGlobals() {
   ABSL_CONST_INIT static MutexGlobals data;
   absl::base_internal::LowLevelCallOnce(&data.once, [&]() {
     if (absl::base_internal::NumCPUs() > 1) {
-      // If the mode is aggressive then spin many times before yielding.
-      // If the mode is gentle then spin only a few times before yielding.
-      // Aggressive spinning is used to ensure that an Unlock() call,
-      // which must get the spin lock for any thread to make progress gets it
-      // without undue delay.
+      // If this is multiprocessor, allow spinning. If the mode is
+      // aggressive then spin many times before yielding. If the mode is
+      // gentle then spin only a few times before yielding. Aggressive spinning
+      // is used to ensure that an Unlock() call, which must get the spin lock
+      // for any thread to make progress gets it without undue delay.
+      data.spinloop_iterations = 1500;
       data.mutex_sleep_spins[AGGRESSIVE] = 5000;
       data.mutex_sleep_spins[GENTLE] = 250;
       data.mutex_sleep_time = absl::Microseconds(10);
@@ -157,6 +157,7 @@ const MutexGlobals& GetMutexGlobals() {
       // If this a uniprocessor, only yield/sleep. Real-time threads are often
       // unable to yield, so the sleep time needs to be long enough to keep
       // the calling thread asleep until scheduling happens.
+      data.spinloop_iterations = 0;
       data.mutex_sleep_spins[AGGRESSIVE] = 0;
       data.mutex_sleep_spins[GENTLE] = 0;
       data.mutex_sleep_time = MeasureTimeToYield() * 5;
@@ -1486,7 +1487,7 @@ void Mutex::AssertNotHeld() const {
 // Attempt to acquire *mu, and return whether successful.  The implementation
 // may spin for a short while if the lock cannot be acquired immediately.
 static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
-  int c = spinloop_iterations.load(std::memory_order_relaxed);
+  int c = GetMutexGlobals().spinloop_iterations;
   do {  // do/while somewhat faster on AMD
     intptr_t v = mu->load(std::memory_order_relaxed);
     if ((v & (kMuReader | kMuEvent)) != 0) {
@@ -1506,12 +1507,11 @@ void Mutex::Lock() {
   GraphId id = DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
   // try fast acquire, then spin loop
-  if (ABSL_PREDICT_FALSE((v & (kMuWriter | kMuReader | kMuEvent)) != 0) ||
-      ABSL_PREDICT_FALSE(!mu_.compare_exchange_strong(
-          v, kMuWriter | v, std::memory_order_acquire,
-          std::memory_order_relaxed))) {
+  if ((v & (kMuWriter | kMuReader | kMuEvent)) != 0 ||
+      !mu_.compare_exchange_strong(v, kMuWriter | v, std::memory_order_acquire,
+                                   std::memory_order_relaxed)) {
     // try spin acquire, then slow loop
-    if (ABSL_PREDICT_FALSE(!TryAcquireWithSpinning(&this->mu_))) {
+    if (!TryAcquireWithSpinning(&this->mu_)) {
       this->LockSlow(kExclusive, nullptr, 0);
     }
   }
@@ -1783,16 +1783,6 @@ static intptr_t IgnoreWaitingWritersMask(int flag) {
 // Internal version of LockWhen().  See LockSlowWithDeadline()
 ABSL_ATTRIBUTE_NOINLINE void Mutex::LockSlow(MuHow how, const Condition* cond,
                                              int flags) {
-  if (ABSL_PREDICT_FALSE(spinloop_iterations.load(std::memory_order_relaxed) <
-                         0)) {
-    if (absl::base_internal::NumCPUs() > 1) {
-      // If this is multiprocessor, allow spinning.
-      spinloop_iterations.store(1500, std::memory_order_relaxed);
-    } else {
-      // If this a uniprocessor, only yield/sleep.
-      spinloop_iterations.store(0, std::memory_order_relaxed);
-    }
-  }
   ABSL_RAW_CHECK(
       this->LockSlowWithDeadline(how, cond, KernelTimeout::Never(), flags),
       "condition untrue on return from LockSlow");
