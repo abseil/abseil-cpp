@@ -16,7 +16,7 @@
 #ifndef ABSL_SYNCHRONIZATION_INTERNAL_PTHREAD_WAITER_H_
 #define ABSL_SYNCHRONIZATION_INTERNAL_PTHREAD_WAITER_H_
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 #include <pthread.h>
 
 #include "absl/base/config.h"

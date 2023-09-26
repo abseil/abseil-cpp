@@ -20,7 +20,7 @@
 #include <sdkddkver.h>
 #endif
 
-#if defined(_WIN32) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
+#if defined(_MSC_VER) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 
 #include "absl/base/config.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
