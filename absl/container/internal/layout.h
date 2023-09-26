@@ -172,7 +172,6 @@
 #include <utility>
 
 #include "absl/base/config.h"
-#include "absl/debugging/internal/demangle.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
@@ -180,6 +179,14 @@
 
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
+#endif
+
+#if defined(__GXX_RTTI)
+#define ABSL_INTERNAL_HAS_CXA_DEMANGLE
+#endif
+
+#ifdef ABSL_INTERNAL_HAS_CXA_DEMANGLE
+#include <cxxabi.h>
 #endif
 
 namespace absl {
@@ -287,9 +294,19 @@ constexpr size_t Max(size_t a, size_t b, Ts... rest) {
 template <class T>
 std::string TypeName() {
   std::string out;
-  absl::StrAppend(&out, "<",
-                  absl::debugging_internal::DemangleString(typeid(T).name()),
-                  ">");
+  int status = 0;
+  char* demangled = nullptr;
+#ifdef ABSL_INTERNAL_HAS_CXA_DEMANGLE
+  demangled = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status);
+#endif
+  if (status == 0 && demangled != nullptr) {  // Demangling succeeded.
+    absl::StrAppend(&out, "<", demangled, ">");
+    free(demangled);
+  } else {
+#if defined(__GXX_RTTI) || defined(_CPPRTTI)
+    absl::StrAppend(&out, "<", typeid(T).name(), ">");
+#endif
+  }
   return out;
 }
 

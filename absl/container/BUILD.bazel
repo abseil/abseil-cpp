@@ -731,7 +731,6 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/debugging:demangle_internal",
         "//absl/meta:type_traits",
         "//absl/strings",
         "//absl/types:span",
