@@ -28,16 +28,6 @@ ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 namespace {
 
-// A wrapper function for Demangle() to make the unit test simple.
-static const char *DemangleIt(const char * const mangled) {
-  static char demangled[4096];
-  if (Demangle(mangled, demangled, sizeof(demangled))) {
-    return demangled;
-  } else {
-    return mangled;
-  }
-}
-
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];
