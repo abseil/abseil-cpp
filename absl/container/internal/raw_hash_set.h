@@ -187,7 +187,6 @@
 #include <iterator>
 #include <limits>
 #include <memory>
-#include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -1213,17 +1212,17 @@ inline void AssertIsFull(const ctrl_t* ctrl, GenerationType generation,
                  operation);
   }
   if (SwisstableGenerationsEnabled()) {
-    if (generation != *generation_ptr) {
-      ABSL_INTERNAL_LOG(FATAL,
-                        std::string(operation) +
-                            " called on invalid iterator. The table could have "
-                            "rehashed since this iterator was initialized.");
+    if (ABSL_PREDICT_FALSE(generation != *generation_ptr)) {
+      ABSL_RAW_LOG(FATAL,
+                   "%s called on invalid iterator. The table could have "
+                   "rehashed since this iterator was initialized.",
+                   operation);
     }
-    if (!IsFull(*ctrl)) {
-      ABSL_INTERNAL_LOG(
+    if (ABSL_PREDICT_FALSE(!IsFull(*ctrl))) {
+      ABSL_RAW_LOG(
           FATAL,
-          std::string(operation) +
-              " called on invalid iterator. The element was likely erased.");
+          "%s called on invalid iterator. The element was likely erased.",
+          operation);
     }
   } else {
     if (ABSL_PREDICT_FALSE(!IsFull(*ctrl))) {
@@ -1245,13 +1244,13 @@ inline void AssertIsValidForComparison(const ctrl_t* ctrl,
   const bool ctrl_is_valid_for_comparison =
       ctrl == nullptr || ctrl == EmptyGroup() || IsFull(*ctrl);
   if (SwisstableGenerationsEnabled()) {
-    if (generation != *generation_ptr) {
-      ABSL_INTERNAL_LOG(FATAL,
+    if (ABSL_PREDICT_FALSE(generation != *generation_ptr)) {
+      ABSL_RAW_LOG(FATAL,
                         "Invalid iterator comparison. The table could have "
                         "rehashed since this iterator was initialized.");
     }
-    if (!ctrl_is_valid_for_comparison) {
-      ABSL_INTERNAL_LOG(
+    if (ABSL_PREDICT_FALSE(!ctrl_is_valid_for_comparison)) {
+      ABSL_RAW_LOG(
           FATAL, "Invalid iterator comparison. The element was likely erased.");
     }
   } else {
@@ -1307,30 +1306,30 @@ inline void AssertSameContainer(const ctrl_t* ctrl_a, const ctrl_t* ctrl_b,
   if (a_is_default && b_is_default) return;
 
   if (SwisstableGenerationsEnabled()) {
-    if (generation_ptr_a == generation_ptr_b) return;
+    if (ABSL_PREDICT_TRUE(generation_ptr_a == generation_ptr_b)) return;
     const bool a_is_empty = IsEmptyGeneration(generation_ptr_a);
     const bool b_is_empty = IsEmptyGeneration(generation_ptr_b);
     if (a_is_empty != b_is_empty) {
-      ABSL_INTERNAL_LOG(FATAL,
-                        "Invalid iterator comparison. Comparing iterator from "
-                        "a non-empty hashtable with an iterator from an empty "
-                        "hashtable.");
+      ABSL_RAW_LOG(FATAL,
+                   "Invalid iterator comparison. Comparing iterator from a "
+                   "non-empty hashtable with an iterator from an empty "
+                   "hashtable.");
     }
     if (a_is_empty && b_is_empty) {
-      ABSL_INTERNAL_LOG(FATAL,
-                        "Invalid iterator comparison. Comparing iterators from "
-                        "different empty hashtables.");
+      ABSL_RAW_LOG(FATAL,
+                   "Invalid iterator comparison. Comparing iterators from "
+                   "different empty hashtables.");
     }
     const bool a_is_end = ctrl_a == nullptr;
     const bool b_is_end = ctrl_b == nullptr;
     if (a_is_end || b_is_end) {
-      ABSL_INTERNAL_LOG(FATAL,
-                        "Invalid iterator comparison. Comparing iterator with "
-                        "an end() iterator from a different hashtable.");
+      ABSL_RAW_LOG(FATAL,
+                   "Invalid iterator comparison. Comparing iterator with an "
+                   "end() iterator from a different hashtable.");
     }
-    ABSL_INTERNAL_LOG(FATAL,
-                      "Invalid iterator comparison. Comparing non-end() "
-                      "iterators from different hashtables.");
+    ABSL_RAW_LOG(FATAL,
+                 "Invalid iterator comparison. Comparing non-end() iterators "
+                 "from different hashtables.");
   } else {
     ABSL_HARDENING_ASSERT(
         AreItersFromSameContainer(ctrl_a, ctrl_b, slot_a, slot_b) &&
