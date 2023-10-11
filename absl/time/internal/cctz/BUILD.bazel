@@ -12,7 +12,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-package(features = ["-parse_headers"])
+package(features = [
+    "-parse_headers",
+    "header_modules",
+])
 
 licenses(["notice"])
 
