@@ -619,6 +619,8 @@ cc_library(
     deps = [
         ":container_memory",
         ":raw_hash_set",
+        "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/base:throw_delegate",
     ],
 )
