@@ -408,7 +408,9 @@ class NonIterableBitMask {
   uint32_t LeadingZeros() const {
     constexpr int total_significant_bits = SignificantBits << Shift;
     constexpr int extra_bits = sizeof(T) * 8 - total_significant_bits;
-    return static_cast<uint32_t>(countl_zero(mask_ << extra_bits)) >> Shift;
+    return static_cast<uint32_t>(
+               countl_zero(static_cast<T>(mask_ << extra_bits))) >>
+           Shift;
   }
 
   T mask_;
@@ -614,29 +616,31 @@ struct GroupSse2Impl {
   }
 
   // Returns a bitmask representing the positions of slots that match hash.
-  BitMask<uint32_t, kWidth> Match(h2_t hash) const {
+  BitMask<uint16_t, kWidth> Match(h2_t hash) const {
     auto match = _mm_set1_epi8(static_cast<char>(hash));
-    return BitMask<uint32_t, kWidth>(
-        static_cast<uint32_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+    BitMask<uint16_t, kWidth> result = BitMask<uint16_t, kWidth>(0);
+    result = BitMask<uint16_t, kWidth>(
+        static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+    return result;
   }
 
   // Returns a bitmask representing the positions of empty slots.
-  NonIterableBitMask<uint32_t, kWidth> MaskEmpty() const {
+  NonIterableBitMask<uint16_t, kWidth> MaskEmpty() const {
 #ifdef ABSL_INTERNAL_HAVE_SSSE3
     // This only works because ctrl_t::kEmpty is -128.
-    return NonIterableBitMask<uint32_t, kWidth>(
-        static_cast<uint32_t>(_mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl))));
+    return NonIterableBitMask<uint16_t, kWidth>(
+        static_cast<uint16_t>(_mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl))));
 #else
     auto match = _mm_set1_epi8(static_cast<char>(ctrl_t::kEmpty));
-    return NonIterableBitMask<uint32_t, kWidth>(
-        static_cast<uint32_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+    return NonIterableBitMask<uint16_t, kWidth>(
+        static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
 #endif
   }
 
   // Returns a bitmask representing the positions of empty or deleted slots.
-  NonIterableBitMask<uint32_t, kWidth> MaskEmptyOrDeleted() const {
+  NonIterableBitMask<uint16_t, kWidth> MaskEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel));
-    return NonIterableBitMask<uint32_t, kWidth>(static_cast<uint32_t>(
+    return NonIterableBitMask<uint16_t, kWidth>(static_cast<uint16_t>(
         _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl))));
   }
 
