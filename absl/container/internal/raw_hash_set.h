@@ -846,9 +846,10 @@ class CommonFieldsGenerationInfoEnabled {
     if (reserved_growth_ > 0) {
       if (--reserved_growth_ == 0) reserved_growth_ = kReservedGrowthJustRanOut;
     } else {
-      *generation_ = NextGeneration(*generation_);
+      increment_generation();
     }
   }
+  void increment_generation() { *generation_ = NextGeneration(*generation_); }
   void reset_reserved_growth(size_t reservation, size_t size) {
     reserved_growth_ = reservation - size;
   }
@@ -895,6 +896,7 @@ class CommonFieldsGenerationInfoDisabled {
     return false;
   }
   void maybe_increment_generation_on_insert() {}
+  void increment_generation() {}
   void reset_reserved_growth(size_t, size_t) {}
   size_t reserved_growth() const { return 0; }
   void set_reserved_growth(size_t) {}
@@ -1066,6 +1068,10 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return CommonFieldsGenerationInfo::
         should_rehash_for_bug_detection_on_insert(control(), capacity());
   }
+  void maybe_increment_generation_on_move() {
+    if (capacity() == 0) return;
+    increment_generation();
+  }
   void reset_reserved_growth(size_t reservation) {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
   }
@@ -1219,7 +1225,7 @@ inline void AssertIsFull(const ctrl_t* ctrl, GenerationType generation,
     if (ABSL_PREDICT_FALSE(generation != *generation_ptr)) {
       ABSL_RAW_LOG(FATAL,
                    "%s called on invalid iterator. The table could have "
-                   "rehashed since this iterator was initialized.",
+                   "rehashed or moved since this iterator was initialized.",
                    operation);
     }
     if (ABSL_PREDICT_FALSE(!IsFull(*ctrl))) {
@@ -1250,8 +1256,8 @@ inline void AssertIsValidForComparison(const ctrl_t* ctrl,
   if (SwisstableGenerationsEnabled()) {
     if (ABSL_PREDICT_FALSE(generation != *generation_ptr)) {
       ABSL_RAW_LOG(FATAL,
-                        "Invalid iterator comparison. The table could have "
-                        "rehashed since this iterator was initialized.");
+                   "Invalid iterator comparison. The table could have rehashed "
+                   "or moved since this iterator was initialized.");
     }
     if (ABSL_PREDICT_FALSE(!ctrl_is_valid_for_comparison)) {
       ABSL_RAW_LOG(
@@ -1338,8 +1344,8 @@ inline void AssertSameContainer(const ctrl_t* ctrl_a, const ctrl_t* ctrl_b,
     ABSL_HARDENING_ASSERT(
         AreItersFromSameContainer(ctrl_a, ctrl_b, slot_a, slot_b) &&
         "Invalid iterator comparison. The iterators may be from different "
-        "containers or the container might have rehashed. Consider running "
-        "with --config=asan to diagnose rehashing issues.");
+        "containers or the container might have rehashed or moved. Consider "
+        "running with --config=asan to diagnose issues.");
   }
 }
 
@@ -1926,6 +1932,7 @@ class raw_hash_set {
         settings_(std::move(that.common()), that.hash_ref(), that.eq_ref(),
                   that.alloc_ref()) {
     that.common() = CommonFields{};
+    common().maybe_increment_generation_on_move();
   }
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
@@ -1935,6 +1942,7 @@ class raw_hash_set {
     } else {
       move_elements_allocs_unequal(std::move(that));
     }
+    common().maybe_increment_generation_on_move();
   }
 
   raw_hash_set& operator=(const raw_hash_set& that) {
@@ -2707,6 +2715,7 @@ class raw_hash_set {
     CopyAlloc(alloc_ref(), that.alloc_ref(),
               std::integral_constant<bool, propagate_alloc>());
     that.common() = CommonFields{};
+    common().maybe_increment_generation_on_move();
     return *this;
   }
 
@@ -2741,6 +2750,7 @@ class raw_hash_set {
     // TODO(b/296061262): move instead of copying hash/eq.
     hash_ref() = that.hash_ref();
     eq_ref() = that.eq_ref();
+    common().maybe_increment_generation_on_move();
     return move_elements_allocs_unequal(std::move(that));
   }
 
