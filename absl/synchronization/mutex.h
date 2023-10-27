@@ -536,7 +536,6 @@ class ABSL_LOCKABLE Mutex {
   void Block(base_internal::PerThreadSynch* s);
   // Wake a thread; return successor.
   base_internal::PerThreadSynch* Wakeup(base_internal::PerThreadSynch* w);
-  void Dtor();
 
   friend class CondVar;   // for access to Trans()/Fer().
   void Trans(MuHow how);  // used for CondVar->Mutex transfer
@@ -910,6 +909,7 @@ class CondVar {
   // A `CondVar` allocated on the heap or on the stack can use the this
   // constructor.
   CondVar();
+  ~CondVar();
 
   // CondVar::Wait()
   //
@@ -1060,15 +1060,6 @@ inline Mutex::Mutex() : mu_(0) {
 }
 
 inline constexpr Mutex::Mutex(absl::ConstInitType) : mu_(0) {}
-
-#if !defined(__APPLE__) && !defined(ABSL_BUILD_DLL)
-inline Mutex::~Mutex() { Dtor(); }
-#endif
-
-#if defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
-// Use default (empty) destructor in release build for performance reasons.
-inline void Mutex::Dtor() {}
-#endif
 
 inline CondVar::CondVar() : cv_(0) {}
 
