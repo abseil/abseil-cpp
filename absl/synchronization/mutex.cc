@@ -202,31 +202,23 @@ int MutexDelay(int32_t c, int mode) {
 // Ensure that "(*pv & bits) == bits" by doing an atomic update of "*pv" to
 // "*pv | bits" if necessary.  Wait until (*pv & wait_until_clear)==0
 // before making any change.
+// Returns true if bits were previously unset and set by the call.
 // This is used to set flags in mutex and condition variable words.
-static void AtomicSetBits(std::atomic<intptr_t>* pv, intptr_t bits,
+static bool AtomicSetBits(std::atomic<intptr_t>* pv, intptr_t bits,
                           intptr_t wait_until_clear) {
-  intptr_t v;
-  do {
-    v = pv->load(std::memory_order_relaxed);
-  } while ((v & bits) != bits &&
-           ((v & wait_until_clear) != 0 ||
-            !pv->compare_exchange_weak(v, v | bits, std::memory_order_release,
-                                       std::memory_order_relaxed)));
-}
-
-// Ensure that "(*pv & bits) == 0" by doing an atomic update of "*pv" to
-// "*pv & ~bits" if necessary.  Wait until (*pv & wait_until_clear)==0
-// before making any change.
-// This is used to unset flags in mutex and condition variable words.
-static void AtomicClearBits(std::atomic<intptr_t>* pv, intptr_t bits,
-                            intptr_t wait_until_clear) {
-  intptr_t v;
-  do {
-    v = pv->load(std::memory_order_relaxed);
-  } while ((v & bits) != 0 &&
-           ((v & wait_until_clear) != 0 ||
-            !pv->compare_exchange_weak(v, v & ~bits, std::memory_order_release,
-                                       std::memory_order_relaxed)));
+  for (;;) {
+    intptr_t v = pv->load(std::memory_order_relaxed);
+    if ((v & bits) == bits) {
+      return false;
+    }
+    if ((v & wait_until_clear) != 0) {
+      continue;
+    }
+    if (pv->compare_exchange_weak(v, v | bits, std::memory_order_release,
+                                  std::memory_order_relaxed)) {
+      return true;
+    }
+  }
 }
 
 //------------------------------------------------------------------
@@ -337,12 +329,49 @@ static SynchEvent* EnsureSynchEvent(std::atomic<intptr_t>* addr,
                                     const char* name, intptr_t bits,
                                     intptr_t lockbit) {
   uint32_t h = reinterpret_cast<uintptr_t>(addr) % kNSynchEvent;
-  SynchEvent* e;
-  // first look for existing SynchEvent struct..
   synch_event_mu.Lock();
-  for (e = synch_event[h];
-       e != nullptr && e->masked_addr != base_internal::HidePtr(addr);
-       e = e->next) {
+  // When a Mutex/CondVar is destroyed, we don't remove the associated
+  // SynchEvent to keep destructors empty in release builds for performance
+  // reasons. If the current call is the first to set bits (kMuEvent/kCVEvent),
+  // we don't look up the existing even because (if it exists, it must be for
+  // the previous Mutex/CondVar that existed at the same address).
+  // The leaking events must not be a problem for tests, which should create
+  // bounded amount of events. And debug logging is not supposed to be enabled
+  // in production. However, if it's accidentally enabled, or briefly enabled
+  // for some debugging, we don't want to crash the program. Instead we drop
+  // all events, if we accumulated too many of them. Size of a single event
+  // is ~48 bytes, so 100K events is ~5 MB.
+  // Additionally we could delete the old event for the same address,
+  // but it would require a better hashmap (if we accumulate too many events,
+  // linked lists will grow and traversing them will be very slow).
+  constexpr size_t kMaxSynchEventCount = 100 << 10;
+  // Total number of live synch events.
+  static size_t synch_event_count ABSL_GUARDED_BY(synch_event_mu);
+  if (++synch_event_count > kMaxSynchEventCount) {
+    synch_event_count = 0;
+    ABSL_RAW_LOG(ERROR,
+                 "Accumulated %zu Mutex debug objects. If you see this"
+                 " in production, it may mean that the production code"
+                 " accidentally calls "
+                 "Mutex/CondVar::EnableDebugLog/EnableInvariantDebugging.",
+                 kMaxSynchEventCount);
+    for (auto*& head : synch_event) {
+      for (auto* e = head; e != nullptr;) {
+        SynchEvent* next = e->next;
+        if (--(e->refcount) == 0) {
+          base_internal::LowLevelAlloc::Free(e);
+        }
+        e = next;
+      }
+      head = nullptr;
+    }
+  }
+  SynchEvent* e = nullptr;
+  if (!AtomicSetBits(addr, bits, lockbit)) {
+    for (e = synch_event[h];
+         e != nullptr && e->masked_addr != base_internal::HidePtr(addr);
+         e = e->next) {
+    }
   }
   if (e == nullptr) {  // no SynchEvent struct found; make one.
     if (name == nullptr) {
@@ -358,18 +387,12 @@ static SynchEvent* EnsureSynchEvent(std::atomic<intptr_t>* addr,
     e->log = false;
     strcpy(e->name, name);  // NOLINT(runtime/printf)
     e->next = synch_event[h];
-    AtomicSetBits(addr, bits, lockbit);
     synch_event[h] = e;
   } else {
     e->refcount++;  // for return value
   }
   synch_event_mu.Unlock();
   return e;
-}
-
-// Deallocate the SynchEvent *e, whose refcount has fallen to zero.
-static void DeleteSynchEvent(SynchEvent* e) {
-  base_internal::LowLevelAlloc::Free(e);
 }
 
 // Decrement the reference count of *e, or do nothing if e==null.
@@ -379,33 +402,8 @@ static void UnrefSynchEvent(SynchEvent* e) {
     bool del = (--(e->refcount) == 0);
     synch_event_mu.Unlock();
     if (del) {
-      DeleteSynchEvent(e);
+      base_internal::LowLevelAlloc::Free(e);
     }
-  }
-}
-
-// Forget the mapping from the object (Mutex or CondVar) at address addr
-// to SynchEvent object, and clear "bits" in its word (waiting until lockbit
-// is clear before doing so).
-static void ForgetSynchEvent(std::atomic<intptr_t>* addr, intptr_t bits,
-                             intptr_t lockbit) {
-  uint32_t h = reinterpret_cast<uintptr_t>(addr) % kNSynchEvent;
-  SynchEvent** pe;
-  SynchEvent* e;
-  synch_event_mu.Lock();
-  for (pe = &synch_event[h];
-       (e = *pe) != nullptr && e->masked_addr != base_internal::HidePtr(addr);
-       pe = &e->next) {
-  }
-  bool del = false;
-  if (e != nullptr) {
-    *pe = e->next;
-    del = (--(e->refcount) == 0);
-  }
-  AtomicClearBits(addr, bits, lockbit);
-  synch_event_mu.Unlock();
-  if (del) {
-    DeleteSynchEvent(e);
   }
 }
 
@@ -732,25 +730,35 @@ static unsigned TsanFlags(Mutex::MuHow how) {
 }
 #endif
 
-static bool DebugOnlyIsExiting() {
-  return false;
-}
+#if defined(__APPLE__) || defined(ABSL_BUILD_DLL)
+// When building a dll symbol export lists may reference the destructor
+// and want it to be an exported symbol rather than an inline function.
+// Some apple builds also do dynamic library build but don't say it explicitly.
+Mutex::~Mutex() { Dtor(); }
+#endif
 
-Mutex::~Mutex() {
-  intptr_t v = mu_.load(std::memory_order_relaxed);
-  if ((v & kMuEvent) != 0 && !DebugOnlyIsExiting()) {
-    ForgetSynchEvent(&this->mu_, kMuEvent, kMuSpin);
-  }
+#if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER)
+void Mutex::Dtor() {
   if (kDebugMode) {
     this->ForgetDeadlockInfo();
   }
   ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static);
 }
+#endif
 
 void Mutex::EnableDebugLog(const char* name) {
   SynchEvent* e = EnsureSynchEvent(&this->mu_, name, kMuEvent, kMuSpin);
   e->log = true;
   UnrefSynchEvent(e);
+  // This prevents "error: undefined symbol: absl::Mutex::~Mutex()"
+  // in a release build (NDEBUG defined) when a test does "#undef NDEBUG"
+  // to use assert macro. In such case, the test does not get the dtor
+  // definition because it's supposed to be outline when NDEBUG is not defined,
+  // and this source file does not define one either because NDEBUG is defined.
+  // Since it's not possible to take address of a destructor, we move the
+  // actual destructor code into the separate Dtor function and force the
+  // compiler to emit this function even if it's inline by taking its address.
+  ABSL_ATTRIBUTE_UNUSED volatile auto dtor = &Mutex::Dtor;
 }
 
 void EnableMutexInvariantDebugging(bool enabled) {
@@ -2468,12 +2476,6 @@ void CondVar::EnableDebugLog(const char* name) {
   SynchEvent* e = EnsureSynchEvent(&this->cv_, name, kCvEvent, kCvSpin);
   e->log = true;
   UnrefSynchEvent(e);
-}
-
-CondVar::~CondVar() {
-  if ((cv_.load(std::memory_order_relaxed) & kCvEvent) != 0) {
-    ForgetSynchEvent(&this->cv_, kCvEvent, kCvSpin);
-  }
 }
 
 // Remove thread s from the list of waiters on this condition variable.
