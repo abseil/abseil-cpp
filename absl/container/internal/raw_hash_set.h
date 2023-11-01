@@ -840,6 +840,9 @@ class CommonFieldsGenerationInfoEnabled {
   // whenever reserved_growth_ is zero.
   bool should_rehash_for_bug_detection_on_insert(const ctrl_t* ctrl,
                                                  size_t capacity) const;
+  // Similar to above, except that we don't depend on reserved_growth_.
+  bool should_rehash_for_bug_detection_on_move(const ctrl_t* ctrl,
+                                               size_t capacity) const;
   void maybe_increment_generation_on_insert() {
     if (reserved_growth_ == kReservedGrowthJustRanOut) reserved_growth_ = 0;
 
@@ -893,6 +896,9 @@ class CommonFieldsGenerationInfoDisabled {
       CommonFieldsGenerationInfoDisabled&&) = default;
 
   bool should_rehash_for_bug_detection_on_insert(const ctrl_t*, size_t) const {
+    return false;
+  }
+  bool should_rehash_for_bug_detection_on_move(const ctrl_t*, size_t) const {
     return false;
   }
   void maybe_increment_generation_on_insert() {}
@@ -1067,6 +1073,10 @@ class CommonFields : public CommonFieldsGenerationInfo {
   bool should_rehash_for_bug_detection_on_insert() const {
     return CommonFieldsGenerationInfo::
         should_rehash_for_bug_detection_on_insert(control(), capacity());
+  }
+  bool should_rehash_for_bug_detection_on_move() const {
+    return CommonFieldsGenerationInfo::
+        should_rehash_for_bug_detection_on_move(control(), capacity());
   }
   void maybe_increment_generation_on_move() {
     if (capacity() == 0) return;
@@ -1932,17 +1942,17 @@ class raw_hash_set {
         settings_(std::move(that.common()), that.hash_ref(), that.eq_ref(),
                   that.alloc_ref()) {
     that.common() = CommonFields{};
-    common().maybe_increment_generation_on_move();
+    maybe_increment_generation_or_rehash_on_move();
   }
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
       : settings_(CommonFields{}, that.hash_ref(), that.eq_ref(), a) {
     if (a == that.alloc_ref()) {
       std::swap(common(), that.common());
+      maybe_increment_generation_or_rehash_on_move();
     } else {
       move_elements_allocs_unequal(std::move(that));
     }
-    common().maybe_increment_generation_on_move();
   }
 
   raw_hash_set& operator=(const raw_hash_set& that) {
@@ -2720,6 +2730,13 @@ class raw_hash_set {
     }
   }
 
+  void maybe_increment_generation_or_rehash_on_move() {
+    common().maybe_increment_generation_on_move();
+    if (!empty() && common().should_rehash_for_bug_detection_on_move()) {
+      resize(capacity());
+    }
+  }
+
   template<bool propagate_alloc>
   raw_hash_set& assign_impl(raw_hash_set&& that) {
     // We don't bother checking for this/that aliasing. We just need to avoid
@@ -2732,7 +2749,7 @@ class raw_hash_set {
     CopyAlloc(alloc_ref(), that.alloc_ref(),
               std::integral_constant<bool, propagate_alloc>());
     that.common() = CommonFields{};
-    common().maybe_increment_generation_on_move();
+    maybe_increment_generation_or_rehash_on_move();
     return *this;
   }
 
@@ -2746,6 +2763,7 @@ class raw_hash_set {
     }
     that.dealloc();
     that.common() = CommonFields{};
+    maybe_increment_generation_or_rehash_on_move();
     return *this;
   }
 
@@ -2767,7 +2785,6 @@ class raw_hash_set {
     // TODO(b/296061262): move instead of copying hash/eq.
     hash_ref() = that.hash_ref();
     eq_ref() = that.eq_ref();
-    common().maybe_increment_generation_on_move();
     return move_elements_allocs_unequal(std::move(that));
   }
 

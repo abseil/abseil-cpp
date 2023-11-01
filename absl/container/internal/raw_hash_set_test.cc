@@ -2375,10 +2375,17 @@ TEST(Iterator, InvalidUseWithMoveCrashesWithSanitizers) {
   IntTable t1, t2;
   t1.insert(1);
   auto it = t1.begin();
+  // ptr will become invalidated on rehash.
+  const int64_t* ptr = &*it;
+  (void)ptr;
+
   t2 = std::move(t1);
   EXPECT_DEATH_IF_SUPPORTED(*it, kInvalidIteratorDeathMessage);
   EXPECT_DEATH_IF_SUPPORTED(void(it == t2.begin()),
                             kInvalidIteratorDeathMessage);
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+  EXPECT_DEATH_IF_SUPPORTED(std::cout << *ptr, "heap-use-after-free");
+#endif
 }
 
 TEST(Table, ReservedGrowthUpdatesWhenTableDoesntGrow) {
