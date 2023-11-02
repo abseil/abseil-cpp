@@ -42,6 +42,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__cpp_lib_filesystem)
+#include <filesystem>
+#endif
+
 #include "absl/base/config.h"
 #include "absl/base/internal/unaligned_access.h"
 #include "absl/base/port.h"
@@ -563,6 +567,15 @@ H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
 }
 
 #endif  // ABSL_HAVE_STD_STRING_VIEW
+
+#if defined(__cpp_lib_filesystem)
+
+template <typename H>
+H AbslHashValue(H hash_state, const std::filesystem::path& path) {
+    return AbslHashValue(std::move(hash_state), path.native());
+}
+
+#endif
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Sequence Containers
