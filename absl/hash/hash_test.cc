@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
 #include <ios>
@@ -34,6 +35,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <version>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -477,6 +479,19 @@ TEST(HashValueTest, U32StringView) {
                       std::u32string_view(U"ABC"),
                       std::u32string_view(U"Some other different string_view"),
                       std::u32string_view(U"Iñtërnâtiônàlizætiøn"))));
+#endif
+}
+
+TEST(HashValueTest, StdFilesystemPath) {
+#ifndef __cpp_lib_filesystem
+  GTEST_SKIP()
+#else
+  namespace fs = std::filesystem;
+  EXPECT_TRUE((is_hashable<std::filesystem::path>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(fs::path(), fs::path("a/b/c"),
+                      fs::path(u8"Iñ/tër/nât/iôn/àli/zæt/iøn"))));
 #endif
 }
 

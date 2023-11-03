@@ -41,6 +41,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <version>
 
 #if defined(__cpp_lib_filesystem)
 #include <filesystem>
@@ -572,7 +573,10 @@ H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
 
 template <typename H>
 H AbslHashValue(H hash_state, const std::filesystem::path& path) {
-    return AbslHashValue(std::move(hash_state), path.native());
+  using PathView = std::basic_string_view<std::filesystem::path::value_type>;
+  PathView view = path.native();
+  return H::combine(
+      H::combine_contiguous(std::move(hash_state), view.data(), view.size()));
 }
 
 #endif
