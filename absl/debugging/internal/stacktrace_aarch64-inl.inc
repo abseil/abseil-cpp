@@ -193,7 +193,7 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
 
   // Assume that the first page is not stack.
   StackInfo stack_info;
-  stack_info.stack_low = getpagesize();
+  stack_info.stack_low = static_cast<uintptr_t>(getpagesize());
   stack_info.stack_high = kUnknownStackEnd;
   stack_info.sig_stack_low = stack_info.stack_low;
   stack_info.sig_stack_high = kUnknownStackEnd;
