@@ -1,3 +1,4 @@
+[log (1).txt](https://github.com/abseil/abseil-cpp/files/13292288/log.1.txt)
 # Abseil FAQ
 
 ## Is Abseil the right home for my utility library?
