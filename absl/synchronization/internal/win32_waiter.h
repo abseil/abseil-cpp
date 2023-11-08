@@ -17,6 +17,7 @@
 #define ABSL_SYNCHRONIZATION_INTERNAL_WIN32_WAITER_H_
 
 #ifdef _WIN32
+#include <windows.h>
 #include <sdkddkver.h>
 #endif
 
