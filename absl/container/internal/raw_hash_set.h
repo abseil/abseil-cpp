@@ -2161,7 +2161,7 @@ class raw_hash_set {
     alignas(slot_type) unsigned char raw[sizeof(slot_type)];
     slot_type* slot = reinterpret_cast<slot_type*>(&raw);
 
-    construct(slot, std::forward<Args>(args)...);
+    PolicyTraits::construct(&alloc_ref(), slot, std::forward<Args>(args)...);
     const auto& elem = PolicyTraits::element(slot);
     return PolicyTraits::apply(InsertSlot<true>{*this, std::move(*slot)}, elem);
   }
@@ -2266,7 +2266,7 @@ class raw_hash_set {
   // a better match if non-const iterator is passed as an argument.
   void erase(iterator it) {
     AssertIsFull(it.control(), it.generation(), it.generation_ptr(), "erase()");
-    destroy(it.slot());
+    PolicyTraits::destroy(&alloc_ref(), it.slot());
     erase_meta_only(it);
   }
 
@@ -2558,9 +2558,10 @@ class raw_hash_set {
     std::pair<iterator, bool> operator()(const K& key, Args&&...) && {
       auto res = s.find_or_prepare_insert(key);
       if (res.second) {
-        s.transfer(s.slot_array() + res.first, &slot);
+        PolicyTraits::transfer(&s.alloc_ref(), s.slot_array() + res.first,
+                               &slot);
       } else if (do_destroy) {
-        s.destroy(&slot);
+        PolicyTraits::destroy(&s.alloc_ref(), &slot);
       }
       return {s.iterator_at(res.first), res.second};
     }
@@ -2569,31 +2570,13 @@ class raw_hash_set {
     slot_type&& slot;
   };
 
-  // Helpers to enable sanitizer mode validation to protect against reentrant
-  // calls during element constructor/destructor.
-  template <typename... Args>
-  inline void construct(slot_type* slot, Args&&... args) {
-    RunWithReentrancyGuard(*this, alloc_ref(), [&] {
-      PolicyTraits::construct(&alloc_ref(), slot, std::forward<Args>(args)...);
-    });
-  }
-  inline void destroy(slot_type* slot) {
-    RunWithReentrancyGuard(*this, alloc_ref(),
-                           [&] { PolicyTraits::destroy(&alloc_ref(), slot); });
-  }
-  inline void transfer(slot_type* to, slot_type* from) {
-    RunWithReentrancyGuard(*this, alloc_ref(), [&] {
-      PolicyTraits::transfer(&alloc_ref(), to, from);
-    });
-  }
-
   inline void destroy_slots() {
     const size_t cap = capacity();
     const ctrl_t* ctrl = control();
     slot_type* slot = slot_array();
     for (size_t i = 0; i != cap; ++i) {
       if (IsFull(ctrl[i])) {
-        destroy(slot + i);
+        PolicyTraits::destroy(&alloc_ref(), slot + i);
       }
     }
   }
@@ -2656,7 +2639,7 @@ class raw_hash_set {
         size_t new_i = target.offset;
         total_probe_length += target.probe_length;
         SetCtrl(common(), new_i, H2(hash), sizeof(slot_type));
-        transfer(new_slots + new_i, old_slots + i);
+        PolicyTraits::transfer(&alloc_ref(), new_slots + new_i, old_slots + i);
       }
     }
     if (old_capacity) {
@@ -2766,7 +2749,7 @@ class raw_hash_set {
     reserve(size);
     for (iterator it = that.begin(); it != that.end(); ++it) {
       insert(std::move(PolicyTraits::element(it.slot())));
-      that.destroy(it.slot());
+      PolicyTraits::destroy(&that.alloc_ref(), it.slot());
     }
     that.dealloc();
     that.common() = CommonFields{};
@@ -2857,7 +2840,8 @@ class raw_hash_set {
   // POSTCONDITION: *m.iterator_at(i) == value_type(forward<Args>(args)...).
   template <class... Args>
   void emplace_at(size_t i, Args&&... args) {
-    construct(slot_array() + i, std::forward<Args>(args)...);
+    PolicyTraits::construct(&alloc_ref(), slot_array() + i,
+                            std::forward<Args>(args)...);
 
     assert(PolicyTraits::apply(FindElement{*this}, *iterator_at(i)) ==
                iterator_at(i) &&
@@ -2923,7 +2907,8 @@ class raw_hash_set {
   }
   static void transfer_slot_fn(void* set, void* dst, void* src) {
     auto* h = static_cast<raw_hash_set*>(set);
-    h->transfer(static_cast<slot_type*>(dst), static_cast<slot_type*>(src));
+    PolicyTraits::transfer(&h->alloc_ref(), static_cast<slot_type*>(dst),
+                           static_cast<slot_type*>(src));
   }
   // Note: dealloc_fn will only be used if we have a non-standard allocator.
   static void dealloc_fn(CommonFields& common, const PolicyFunctions&) {
