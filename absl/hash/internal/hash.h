@@ -56,6 +56,10 @@
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#include <filesystem>  // NOLINT
+#endif
+
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 #include <string_view>
 #endif
@@ -577,6 +581,24 @@ H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
 }
 
 #endif  // ABSL_HAVE_STD_STRING_VIEW
+
+#if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L
+
+// Support std::filesystem::path. The SFINAE is required because some string
+// types are implicitly convertible to std::filesystem::path.
+template <typename Path, typename H,
+          typename = absl::enable_if_t<
+              std::is_same_v<Path, std::filesystem::path>>>
+H AbslHashValue(H hash_state, const Path& path) {
+  // This is implemented by deferring to the standard library to compute the
+  // hash.  The standard library requires that for two paths, `p1 == p2`, then
+  // `hash_value(p1) == hash_value(p2)`. `AbslHashValue` has the same
+  // requirement. Since `operator==` does platform specific matching, deferring
+  // to the standard library is the simplest approach.
+  return H::combine(std::move(hash_state), std::filesystem::hash_value(path));
+}
+
+#endif  // defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Sequence Containers
