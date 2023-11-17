@@ -61,7 +61,8 @@
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
+    !defined(_LIBCPP_HAS_NO_FILESYSTEM_LIBRARY)
 #include <filesystem>  // NOLINT
 #endif
 
