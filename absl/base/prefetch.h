@@ -34,7 +34,9 @@
 #if defined(_MSC_VER) && _MSC_VER >= 1900 && \
     (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
+#if !defined(_M_ARM64EC)
 #pragma intrinsic(_mm_prefetch)
+#endif
 #endif
 
 namespace absl {
