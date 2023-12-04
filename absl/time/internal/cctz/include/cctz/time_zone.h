@@ -35,6 +35,11 @@ ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
 
+// Allows the client application to load in-memory zoneinfo files.
+// data must remain valid for the lifetime of the program.
+void load_static_zone_info_file(const std::string& name, const char* data, size_t size);
+void unload_static_zone_info_files();
+
 // Convenience aliases. Not intended as public API points.
 template <typename D>
 using time_point = std::chrono::time_point<std::chrono::system_clock, D>;

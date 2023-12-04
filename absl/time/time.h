@@ -93,6 +93,12 @@ struct timeval;
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+// Allows the client application to add in-memory zoneinfo files. data must remain valid for the lifetime of the
+// program. These functions are not thread safe. Callers must ensure that no concurrent time zone lookups are
+// performed while loading or unloading static zoneinfo files.
+void LoadStaticZoneInfoFile(const std::string& name, absl::string_view data);
+void UnloadStaticZoneInfoFiles();
+
 class Duration;  // Defined below
 class Time;      // Defined below
 class TimeZone;  // Defined below

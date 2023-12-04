@@ -44,6 +44,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -56,6 +57,23 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace time_internal {
 namespace cctz {
+
+// Storage for StaticZoneInfoSource.
+struct StaticZoneInfoFile
+{
+  const char* data;
+  size_t size;
+};
+
+static std::unordered_map<std::string, StaticZoneInfoFile> static_zoneinfo_data;
+
+void load_static_zone_info_file(const std::string& name, const char* data, size_t size) {
+  static_zoneinfo_data[name] = {data, size};
+}
+
+void unload_static_zone_info_files() {
+  static_zoneinfo_data.clear();
+}
 
 namespace {
 
@@ -392,6 +410,47 @@ inline FilePtr FOpen(const char* path, const char* mode) {
   // TODO: Enable the close-on-exec flag.
   return FilePtr(fopen(path, mode), fclose);
 #endif
+}
+
+// An implementation of ZoneInfoSource backed by static in-memory data.
+class StaticZoneInfoSource : public ZoneInfoSource {
+  public:
+    static std::unique_ptr<ZoneInfoSource> Open(const std::string& name);
+
+    std::size_t Read(void* ptr, std::size_t size) override {
+      size = std::min(size, len_);
+      memcpy(ptr, file_.data + offset_, size);
+      offset_ += size;
+      len_ -= size;
+      return size;
+    }
+    int Skip(std::size_t offset) override {
+      offset = std::min(offset, len_);
+      offset_ += offset;
+      len_ -= offset;
+      return 0;
+    }
+    std::string Version() const override {
+      return std::string();
+    }
+
+  protected:
+    explicit StaticZoneInfoSource(const StaticZoneInfoFile& file)
+        : file_(file), len_(file.size) {}
+
+  private:
+    const StaticZoneInfoFile& file_;
+    std::size_t offset_ = 0;
+    std::size_t len_;
+};
+
+std::unique_ptr<ZoneInfoSource> StaticZoneInfoSource::Open(
+    const std::string& name) {
+  auto it = static_zoneinfo_data.find(name);
+  if (it == static_zoneinfo_data.end()) {
+    return nullptr;
+  }
+  return std::unique_ptr<ZoneInfoSource>(new StaticZoneInfoSource(it->second));
 }
 
 // A stdio(3)-backed implementation of ZoneInfoSource.
@@ -821,6 +880,7 @@ bool TimeZoneInfo::Load(const std::string& name) {
         if (auto z = FileZoneInfoSource::Open(n)) return z;
         if (auto z = AndroidZoneInfoSource::Open(n)) return z;
         if (auto z = FuchsiaZoneInfoSource::Open(n)) return z;
+        if (auto z = StaticZoneInfoSource::Open(n)) return z;
         return nullptr;
       });
   return zip != nullptr && Load(zip.get());

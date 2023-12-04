@@ -503,5 +503,13 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
   return tm;
 }
 
+void LoadStaticZoneInfoFile(const std::string& name, absl::string_view data) {
+  cctz::load_static_zone_info_file(name, data.data(), data.size());
+}
+
+void UnloadStaticZoneInfoFiles() {
+  cctz::unload_static_zone_info_files();
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl
