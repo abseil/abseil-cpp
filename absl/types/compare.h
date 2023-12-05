@@ -30,6 +30,17 @@
 #ifndef ABSL_TYPES_COMPARE_H_
 #define ABSL_TYPES_COMPARE_H_
 
+#include "absl/base/config.h"
+
+#ifdef ABSL_USES_STD_ORDERING
+
+#include <compare>  // IWYU pragma: export
+#include <type_traits>
+
+#include "absl/meta/type_traits.h"
+
+#else
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -39,8 +50,19 @@
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+#ifdef ABSL_USES_STD_ORDERING
+
+using std::partial_ordering;
+using std::strong_ordering;
+using std::weak_ordering;
+
+#else
+
 namespace compare_internal {
 
 using value_type = int8_t;
@@ -418,6 +440,8 @@ ABSL_COMPARE_INLINE_INIT(strong_ordering, greater,
 #undef ABSL_COMPARE_INLINE_BASECLASS_DECL
 #undef ABSL_COMPARE_INLINE_SUBCLASS_DECL
 #undef ABSL_COMPARE_INLINE_INIT
+
+#endif  // ABSL_USES_STD_ORDERING
 
 namespace compare_internal {
 // We also provide these comparator adapter functions for internal absl use.
