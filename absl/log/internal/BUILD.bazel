@@ -153,6 +153,7 @@ cc_library(
         ":conditions",
         ":log_message",
         ":strip",
+        "//absl/log:vlog_is_on",
     ],
 )
 
