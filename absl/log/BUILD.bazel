@@ -50,7 +50,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":vlog_is_on",
         "//absl/log/internal:log_impl",
     ],
 )
@@ -239,8 +238,8 @@ cc_library(
 )
 
 cc_library(
-    name = "vlog_is_on",
-    hdrs = ["vlog_is_on.h"],
+    name = "absl_vlog_is_on",
+    hdrs = ["absl_vlog_is_on.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
@@ -251,6 +250,19 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/log/internal:vlog_config",
         "//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "vlog_is_on",
+    hdrs = ["vlog_is_on.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/log:__subpackages__",
+    ],
+    deps = [
+        ":absl_vlog_is_on",
     ],
 )
 

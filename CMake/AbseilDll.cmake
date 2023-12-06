@@ -150,6 +150,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "hash/internal/low_level_hash.cc"
   "log/absl_check.h"
   "log/absl_log.h"
+  "log/absl_vlog_is_on.h"
   "log/check.h"
   "log/die_if_null.cc"
   "log/die_if_null.h"

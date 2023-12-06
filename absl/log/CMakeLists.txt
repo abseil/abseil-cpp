@@ -157,7 +157,7 @@ absl_cc_library(
     absl::log_internal_conditions
     absl::log_internal_message
     absl::log_internal_strip
-    absl::vlog_is_on
+    absl::absl_vlog_is_on
 )
 
 absl_cc_library(
@@ -419,7 +419,6 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::log_internal_log_impl
-    absl::vlog_is_on
   PUBLIC
 )
 
@@ -698,6 +697,21 @@ absl_cc_library(
     absl::optional
 )
 
+absl_cc_library(
+  NAME
+    absl_vlog_is_on
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  HDRS
+    "absl_vlog_is_on.h"
+  DEPS
+    absl::vlog_config_internal
+    absl::config
+    absl::core_headers
+    absl::strings
+)
 
 absl_cc_library(
   NAME
@@ -709,10 +723,7 @@ absl_cc_library(
   HDRS
     "vlog_is_on.h"
   DEPS
-    absl::vlog_config_internal
-    absl::config
-    absl::core_headers
-    absl::strings
+    absl::absl_vlog_is_on
 )
 
 absl_cc_test(
