@@ -680,9 +680,9 @@ absl_cc_library(
   NAME
     vlog_config_internal
   SRCS
-    "vlog_config.cc"
+    "internal/vlog_config.cc"
   HDRS
-    "vlog_config.h"
+    "internal/vlog_config.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS

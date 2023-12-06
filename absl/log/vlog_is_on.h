@@ -58,7 +58,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/log/vlog_config.h"  // IWYU pragma: export
+#include "absl/log/internal/vlog_config.h"  // IWYU pragma: export
 #include "absl/strings/string_view.h"
 
 // IWYU pragma: private, include "absl/log/log.h"
@@ -81,13 +81,13 @@
 //
 // VLOG_IS_ON is not async signal safe, but it is guaranteed not to allocate
 // new memory.
-#define VLOG_IS_ON(verbose_level)                               \
-  (ABSL_LOG_INTERNAL_MAX_LOG_VERBOSITY_CHECK(verbose_level)[]() \
-       ->::absl::VLogSite *                                     \
-   {                                                            \
-     ABSL_CONST_INIT static ::absl::VLogSite site(__FILE__);    \
-     return &site;                                              \
-   }()                                                          \
+#define VLOG_IS_ON(verbose_level)                                          \
+  (ABSL_LOG_INTERNAL_MAX_LOG_VERBOSITY_CHECK(verbose_level)[]()            \
+       ->::absl::log_internal::VLogSite *                                  \
+   {                                                                       \
+     ABSL_CONST_INIT static ::absl::log_internal::VLogSite site(__FILE__); \
+     return &site;                                                         \
+   }()                                                                     \
        ->IsEnabled(verbose_level))
 
 namespace absl {

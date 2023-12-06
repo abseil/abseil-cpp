@@ -28,7 +28,7 @@
 #include "absl/flags/marshalling.h"
 #include "absl/log/globals.h"
 #include "absl/log/internal/config.h"
-#include "absl/log/vlog_config.h"
+#include "absl/log/internal/vlog_config.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 

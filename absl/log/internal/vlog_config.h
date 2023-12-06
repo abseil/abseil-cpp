@@ -21,8 +21,8 @@
 // It also declares and defines multiple internal utilities used to implement
 // `VLOG`, such as `VLogSiteManager`.
 
-#ifndef ABSL_LOG_VLOG_CONFIG_H_
-#define ABSL_LOG_VLOG_CONFIG_H_
+#ifndef ABSL_LOG_INTERNAL_VLOG_CONFIG_H_
+#define ABSL_LOG_INTERNAL_VLOG_CONFIG_H_
 
 // IWYU pragma: private, include "absl/log/log.h"
 
@@ -40,13 +40,14 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-class VLogSite;
 namespace log_internal {
+
 class SyntheticBinary;
+class VLogSite;
+
 int RegisterAndInitialize(VLogSite* v);
 void UpdateVLogSites();
 constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
-}  // namespace log_internal
 
 // Represents a unique callsite for a `VLOG()` or `VLOG_IS_ON()` call.
 //
@@ -122,7 +123,6 @@ class VLogSite final {
 static_assert(std::is_trivially_destructible<VLogSite>::value,
               "VLogSite must be trivially destructible");
 
-namespace log_internal {
 // Returns the current verbose log level of `file`.
 // Does not allocate memory.
 int VLogLevel(absl::string_view file);
@@ -155,8 +155,9 @@ void OnVLogVerbosityUpdate(std::function<void()> cb);
 
 // Does not allocate memory.
 VLogSite* SetVModuleListHeadForTestOnly(VLogSite* v);
+
 }  // namespace log_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-#endif  // ABSL_LOG_VLOG_CONFIG_H_
+#endif  // ABSL_LOG_INTERNAL_VLOG_CONFIG_H_

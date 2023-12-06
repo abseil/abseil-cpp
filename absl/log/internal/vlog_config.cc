@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/log/vlog_config.h"
+#include "absl/log/internal/vlog_config.h"
 
 #include <stddef.h>
 
@@ -42,6 +42,7 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
+
 namespace {
 bool ModuleIsPath(absl::string_view module_pattern) {
 #ifdef _WIN32
@@ -51,7 +52,6 @@ bool ModuleIsPath(absl::string_view module_pattern) {
 #endif
 }
 }  // namespace
-}  // namespace log_internal
 
 bool VLogSite::SlowIsEnabled(int stale_v, int level) {
   if (ABSL_PREDICT_TRUE(stale_v != kUninitialized)) {
@@ -71,7 +71,6 @@ bool VLogSite::SlowIsEnabled3(int stale_v) { return SlowIsEnabled(stale_v, 3); }
 bool VLogSite::SlowIsEnabled4(int stale_v) { return SlowIsEnabled(stale_v, 4); }
 bool VLogSite::SlowIsEnabled5(int stale_v) { return SlowIsEnabled(stale_v, 5); }
 
-namespace log_internal {
 namespace {
 struct VModuleInfo final {
   std::string module_pattern;
