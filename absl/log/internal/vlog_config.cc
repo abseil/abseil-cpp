@@ -28,6 +28,7 @@
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/base/internal/spinlock.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/internal/fnmatch.h"
@@ -90,23 +91,29 @@ struct VModuleInfo final {
 // be a `SpinLock` that prevents fiber scheduling instead of a `Mutex`.
 ABSL_CONST_INIT absl::base_internal::SpinLock mutex(
     absl::kConstInit, absl::base_internal::SCHEDULE_KERNEL_ONLY);
-// `update_sites_mutex` serializes updates to all of the sites (i.e. those in
+
+// `GetUpdateSitesMutex()` serializes updates to all of the sites (i.e. those in
 // `site_list_head`) themselves.
-ABSL_CONST_INIT absl::Mutex update_sites_mutex
-    ABSL_ACQUIRED_AFTER(mutex)(absl::kConstInit);
+absl::Mutex* GetUpdateSitesMutex() {
+  // Chromium requires no global destructors, so we can't use the
+  // absl::kConstInit idiom since absl::Mutex as a non-trivial destructor.
+  static absl::NoDestructor<absl::Mutex> update_sites_mutex ABSL_ACQUIRED_AFTER(
+      mutex);
+  return update_sites_mutex.get();
+}
 
 ABSL_CONST_INIT int global_v ABSL_GUARDED_BY(mutex) = 0;
 // `site_list_head` is the head of a singly-linked list.  Traversal, insertion,
 // and reads are atomic, so no locks are required, but updates to existing
-// elements are guarded by `update_sites_mutex`.
+// elements are guarded by `GetUpdateSitesMutex()`.
 ABSL_CONST_INIT std::atomic<VLogSite*> site_list_head{nullptr};
 ABSL_CONST_INIT std::vector<VModuleInfo>* vmodule_info ABSL_GUARDED_BY(mutex)
     ABSL_PT_GUARDED_BY(mutex){nullptr};
 
 // Only used for lisp.
 ABSL_CONST_INIT std::vector<std::function<void()>>* update_callbacks
-    ABSL_GUARDED_BY(update_sites_mutex)
-        ABSL_PT_GUARDED_BY(update_sites_mutex){nullptr};
+    ABSL_GUARDED_BY(GetUpdateSitesMutex())
+        ABSL_PT_GUARDED_BY(GetUpdateSitesMutex()){nullptr};
 
 // Allocates memory.
 std::vector<VModuleInfo>& get_vmodule_info()
@@ -243,16 +250,16 @@ int RegisterAndInitialize(VLogSite* v) ABSL_LOCKS_EXCLUDED(mutex) {
 }
 
 void UpdateVLogSites() ABSL_UNLOCK_FUNCTION(mutex)
-    ABSL_LOCKS_EXCLUDED(update_sites_mutex) {
+    ABSL_LOCKS_EXCLUDED(GetUpdateSitesMutex()) {
   std::vector<VModuleInfo> infos = get_vmodule_info();
   int current_global_v = global_v;
-  // We need to grab `update_sites_mutex` before we release `mutex` to ensure
+  // We need to grab `GetUpdateSitesMutex()` before we release `mutex` to ensure
   // that updates are not interleaved (resulting in an inconsistent final state)
   // and to ensure that the final state in the sites matches the final state of
   // `vmodule_info`. We unlock `mutex` to ensure that uninitialized sites don't
   // have to wait on all updates in order to acquire `mutex` and initialize
   // themselves.
-  absl::MutexLock ul(&update_sites_mutex);
+  absl::MutexLock ul(GetUpdateSitesMutex());
   mutex.Unlock();
   VLogSite* n = site_list_head.load(std::memory_order_seq_cst);
   // Because sites are added to the list in the order they are executed, there
@@ -275,7 +282,7 @@ void UpdateVLogSites() ABSL_UNLOCK_FUNCTION(mutex)
 }
 
 void UpdateVModule(absl::string_view vmodule)
-    ABSL_LOCKS_EXCLUDED(mutex, update_sites_mutex) {
+    ABSL_LOCKS_EXCLUDED(mutex, GetUpdateSitesMutex()) {
   std::vector<std::pair<absl::string_view, int>> glob_levels;
   for (absl::string_view glob_level : absl::StrSplit(vmodule, ',')) {
     const size_t eq = glob_level.rfind('=');
@@ -296,7 +303,7 @@ void UpdateVModule(absl::string_view vmodule)
 }
 
 int UpdateGlobalVLogLevel(int v)
-    ABSL_LOCKS_EXCLUDED(mutex, update_sites_mutex) {
+    ABSL_LOCKS_EXCLUDED(mutex, GetUpdateSitesMutex()) {
   mutex.Lock();  // Unlocked by UpdateVLogSites().
   const int old_global_v = global_v;
   if (v == global_v) {
@@ -309,7 +316,7 @@ int UpdateGlobalVLogLevel(int v)
 }
 
 int PrependVModule(absl::string_view module_pattern, int log_level)
-    ABSL_LOCKS_EXCLUDED(mutex, update_sites_mutex) {
+    ABSL_LOCKS_EXCLUDED(mutex, GetUpdateSitesMutex()) {
   mutex.Lock();  // Unlocked by UpdateVLogSites().
   int old_v = PrependVModuleLocked(module_pattern, log_level);
   UpdateVLogSites();
@@ -317,8 +324,8 @@ int PrependVModule(absl::string_view module_pattern, int log_level)
 }
 
 void OnVLogVerbosityUpdate(std::function<void()> cb)
-    ABSL_LOCKS_EXCLUDED(update_sites_mutex) {
-  absl::MutexLock ul(&update_sites_mutex);
+    ABSL_LOCKS_EXCLUDED(GetUpdateSitesMutex()) {
+  absl::MutexLock ul(GetUpdateSitesMutex());
   if (!update_callbacks)
     update_callbacks = new std::vector<std::function<void()>>;
   update_callbacks->push_back(std::move(cb));

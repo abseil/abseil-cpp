@@ -692,6 +692,7 @@ absl_cc_library(
     absl::core_headers
     absl::log_internal_fnmatch
     absl::memory
+    absl::no_destructor
     absl::strings
     absl::synchronization
     absl::optional
