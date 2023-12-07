@@ -324,6 +324,20 @@ ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const unsigned char*);
 ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void*);
 #undef ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN
 
+// `ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT` skips formatting the Check_OP result
+// string iff `ABSL_MIN_LOG_LEVEL` exceeds `kFatal`, instead returning an empty
+// string.
+#ifdef ABSL_MIN_LOG_LEVEL
+#define ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT(U1, U2, v1, v2, exprtext) \
+  ((::absl::LogSeverity::kFatal >=                                       \
+    static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL))                \
+       ? MakeCheckOpString<U1, U2>(v1, v2, exprtext)                     \
+       : new std::string())
+#else
+#define ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT(U1, U2, v1, v2, exprtext) \
+  MakeCheckOpString<U1, U2>(v1, v2, exprtext)
+#endif
+
 // Helper functions for `ABSL_LOG_INTERNAL_CHECK_OP` macro family.  The
 // `(int, int)` override works around the issue that the compiler will not
 // instantiate the template version of the function on values of unnamed enum
@@ -336,7 +350,8 @@ ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void*);
     using U2 = CheckOpStreamType<T2>;                                    \
     return ABSL_PREDICT_TRUE(v1 op v2)                                   \
                ? nullptr                                                 \
-               : MakeCheckOpString<U1, U2>(v1, v2, exprtext);            \
+               : ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT(U1, U2, v1, v2,  \
+                                                        exprtext);       \
   }                                                                      \
   inline constexpr ::std::string* name##Impl(int v1, int v2,             \
                                              const char* exprtext) {     \
@@ -349,6 +364,7 @@ ABSL_LOG_INTERNAL_CHECK_OP_IMPL(Check_LE, <=)
 ABSL_LOG_INTERNAL_CHECK_OP_IMPL(Check_LT, <)
 ABSL_LOG_INTERNAL_CHECK_OP_IMPL(Check_GE, >=)
 ABSL_LOG_INTERNAL_CHECK_OP_IMPL(Check_GT, >)
+#undef ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT
 #undef ABSL_LOG_INTERNAL_CHECK_OP_IMPL
 
 std::string* CheckstrcmptrueImpl(const char* s1, const char* s2,
