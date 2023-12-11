@@ -79,6 +79,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/strings/internal/str_format/arg.h"  // IWYU pragma: export
 #include "absl/strings/internal/str_format/bind.h"  // IWYU pragma: export
 #include "absl/strings/internal/str_format/checker.h"  // IWYU pragma: export
@@ -110,7 +111,8 @@ class UntypedFormatSpec {
   explicit UntypedFormatSpec(string_view s) : spec_(s) {}
 
  protected:
-  explicit UntypedFormatSpec(const str_format_internal::ParsedFormatBase* pc)
+  explicit UntypedFormatSpec(
+      absl::Nonnull<const str_format_internal::ParsedFormatBase*> pc)
       : spec_(pc) {}
 
  private:
@@ -150,7 +152,7 @@ str_format_internal::StreamedWrapper<T> FormatStreamed(const T& v) {
 //   EXPECT_EQ(8, n);
 class FormatCountCapture {
  public:
-  explicit FormatCountCapture(int* p) : p_(p) {}
+  explicit FormatCountCapture(absl::Nonnull<int*> p) : p_(p) {}
 
  private:
   // FormatCountCaptureHelper is used to define FormatConvertImpl() for this
@@ -159,8 +161,8 @@ class FormatCountCapture {
   // Unused() is here because of the false positive from -Wunused-private-field
   // p_ is used in the templated function of the friend FormatCountCaptureHelper
   // class.
-  int* Unused() { return p_; }
-  int* p_;
+  absl::Nonnull<int*> Unused() { return p_; }
+  absl::Nonnull<int*> p_;
 };
 
 // FormatSpec
@@ -375,7 +377,7 @@ ABSL_MUST_USE_RESULT std::string StrFormat(const FormatSpec<Args...>& format,
 //   std::string orig("For example PI is approximately ");
 //   std::cout << StrAppendFormat(&orig, "%12.6f", 3.14);
 template <typename... Args>
-std::string& StrAppendFormat(std::string* dst,
+std::string& StrAppendFormat(absl::Nonnull<std::string*> dst,
                              const FormatSpec<Args...>& format,
                              const Args&... args) {
   return str_format_internal::AppendPack(
@@ -435,7 +437,7 @@ int PrintF(const FormatSpec<Args...>& format, const Args&... args) {
 //   Outputs: "The capital of Mongolia is Ulaanbaatar"
 //
 template <typename... Args>
-int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
+int FPrintF(absl::Nonnull<std::FILE*> output, const FormatSpec<Args...>& format,
             const Args&... args) {
   return str_format_internal::FprintF(
       output, str_format_internal::UntypedFormatSpecImpl::Extract(format),
@@ -464,8 +466,8 @@ int FPrintF(std::FILE* output, const FormatSpec<Args...>& format,
 //   Post-condition: output == "The capital of Mongolia is Ulaanbaatar"
 //
 template <typename... Args>
-int SNPrintF(char* output, std::size_t size, const FormatSpec<Args...>& format,
-             const Args&... args) {
+int SNPrintF(absl::Nonnull<char*> output, std::size_t size,
+             const FormatSpec<Args...>& format, const Args&... args) {
   return str_format_internal::SnprintF(
       output, size, str_format_internal::UntypedFormatSpecImpl::Extract(format),
       {str_format_internal::FormatArgImpl(args)...});
@@ -498,7 +500,7 @@ class FormatRawSink {
   template <typename T,
             typename = typename std::enable_if<std::is_constructible<
                 str_format_internal::FormatRawSinkImpl, T*>::value>::type>
-  FormatRawSink(T* raw)  // NOLINT
+  FormatRawSink(absl::Nonnull<T*> raw)  // NOLINT
       : sink_(raw) {}
 
  private:
@@ -855,14 +857,16 @@ class FormatSink {
   }
 
   // Support `absl::Format(&sink, format, args...)`.
-  friend void AbslFormatFlush(FormatSink* sink, absl::string_view v) {
+  friend void AbslFormatFlush(absl::Nonnull<FormatSink*> sink,
+                              absl::string_view v) {
     sink->Append(v);
   }
 
  private:
   friend str_format_internal::FormatSinkImpl;
-  explicit FormatSink(str_format_internal::FormatSinkImpl* s) : sink_(s) {}
-  str_format_internal::FormatSinkImpl* sink_;
+  explicit FormatSink(absl::Nonnull<str_format_internal::FormatSinkImpl*> s)
+      : sink_(s) {}
+  absl::Nonnull<str_format_internal::FormatSinkImpl*> sink_;
 };
 
 // FormatConvertResult

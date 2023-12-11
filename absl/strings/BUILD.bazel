@@ -41,6 +41,7 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
         "//absl/base:throw_delegate",
     ],
 )
@@ -103,6 +104,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:nullability",
         "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
         "//absl/memory",
@@ -588,6 +590,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:nullability",
         "//absl/base:raw_logging_internal",
         "//absl/container:inlined_vector",
         "//absl/crc:crc32c",
@@ -869,6 +872,7 @@ cc_library(
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -1250,6 +1254,7 @@ cc_library(
         ":string_view",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
         "//absl/types:span",
     ],
 )
