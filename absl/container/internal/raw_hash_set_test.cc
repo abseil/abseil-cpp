@@ -49,8 +49,12 @@
 #include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/hash_policy_testing.h"
 #include "absl/container/internal/hashtable_debug.h"
+#include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/container/internal/test_allocator.h"
+#include "absl/hash/hash.h"
 #include "absl/log/log.h"
+#include "absl/memory/memory.h"
+#include "absl/meta/type_traits.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -2593,6 +2597,69 @@ using RawHashSetAlloc = raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
                                      std::equal_to<int64_t>, Alloc>;
 
 TEST(Table, AllocatorPropagation) { TestAllocPropagation<RawHashSetAlloc>(); }
+
+struct CountedHash {
+  size_t operator()(int value) const {
+    ++count;
+    return static_cast<size_t>(value);
+  }
+  mutable int count = 0;
+};
+
+struct CountedHashIntTable
+    : raw_hash_set<IntPolicy, CountedHash, std::equal_to<int>,
+                   std::allocator<int>> {
+  using Base = typename CountedHashIntTable::raw_hash_set;
+  using Base::Base;
+};
+
+TEST(Table, CountedHash) {
+  // Verify that raw_hash_set does not compute redundant hashes.
+#ifdef NDEBUG
+  constexpr bool kExpectMinimumHashes = true;
+#else
+  constexpr bool kExpectMinimumHashes = false;
+#endif
+  if (!kExpectMinimumHashes) {
+    GTEST_SKIP() << "Only run under NDEBUG: `assert` statements may cause "
+                    "redundant hashing.";
+  }
+
+  using Table = CountedHashIntTable;
+  auto HashCount = [](const Table& t) { return t.hash_function().count; };
+  {
+    Table t;
+    EXPECT_EQ(HashCount(t), 0);
+  }
+  {
+    Table t;
+    t.insert(1);
+    EXPECT_EQ(HashCount(t), 1);
+    t.erase(1);
+    EXPECT_EQ(HashCount(t), 2);
+  }
+  {
+    Table t;
+    t.insert(3);
+    EXPECT_EQ(HashCount(t), 1);
+    auto node = t.extract(3);
+    EXPECT_EQ(HashCount(t), 2);
+    t.insert(std::move(node));
+    EXPECT_EQ(HashCount(t), 3);
+  }
+  {
+    Table t;
+    t.emplace(5);
+    EXPECT_EQ(HashCount(t), 1);
+  }
+  {
+    Table src;
+    src.insert(7);
+    Table dst;
+    dst.merge(src);
+    EXPECT_EQ(HashCount(dst), 1);
+  }
+}
 
 }  // namespace
 }  // namespace container_internal
