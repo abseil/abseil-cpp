@@ -232,6 +232,25 @@ TEST(Group, MaskEmpty) {
   }
 }
 
+TEST(Group, MaskFull) {
+  if (Group::kWidth == 16) {
+    ctrl_t group[] = {
+        ctrl_t::kEmpty, CtrlT(1),          ctrl_t::kDeleted,  CtrlT(3),
+        ctrl_t::kEmpty, CtrlT(5),          ctrl_t::kSentinel, CtrlT(7),
+        CtrlT(7),       CtrlT(5),          ctrl_t::kDeleted,  CtrlT(1),
+        CtrlT(1),       ctrl_t::kSentinel, ctrl_t::kEmpty,    CtrlT(1)};
+    EXPECT_THAT(Group{group}.MaskFull(),
+                ElementsAre(1, 3, 5, 7, 8, 9, 11, 12, 15));
+  } else if (Group::kWidth == 8) {
+    ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), ctrl_t::kEmpty,
+                      ctrl_t::kDeleted,  CtrlT(2), ctrl_t::kSentinel,
+                      ctrl_t::kSentinel, CtrlT(1)};
+    EXPECT_THAT(Group{group}.MaskFull(), ElementsAre(1, 4, 7));
+  } else {
+    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+  }
+}
+
 TEST(Group, MaskEmptyOrDeleted) {
   if (Group::kWidth == 16) {
     ctrl_t group[] = {ctrl_t::kEmpty,   CtrlT(1), ctrl_t::kEmpty,    CtrlT(3),
@@ -294,8 +313,8 @@ TEST(Group, CountLeadingEmptyOrDeleted) {
       std::vector<ctrl_t> f(Group::kWidth, empty);
       f[Group::kWidth * 2 / 3] = full;
       f[Group::kWidth / 2] = full;
-      EXPECT_EQ(
-          Group::kWidth / 2, Group{f.data()}.CountLeadingEmptyOrDeleted());
+      EXPECT_EQ(Group::kWidth / 2,
+                Group{f.data()}.CountLeadingEmptyOrDeleted());
     }
   }
 }
@@ -433,7 +452,8 @@ struct CustomAlloc : std::allocator<T> {
   template <typename U>
   explicit CustomAlloc(const CustomAlloc<U>& /*other*/) {}
 
-  template<class U> struct rebind {
+  template <class U>
+  struct rebind {
     using other = CustomAlloc<U>;
   };
 };
@@ -1361,15 +1381,15 @@ ExpectedStats XorSeedExpectedStats() {
   switch (container_internal::Group::kWidth) {
     case 8:
       if (kRandomizesInserts) {
-  return {0.05,
-          1.0,
-          {{0.95, 0.5}},
-          {{0.95, 0}, {0.99, 2}, {0.999, 4}, {0.9999, 10}}};
+        return {0.05,
+                1.0,
+                {{0.95, 0.5}},
+                {{0.95, 0}, {0.99, 2}, {0.999, 4}, {0.9999, 10}}};
       } else {
-  return {0.05,
-          2.0,
-          {{0.95, 0.1}},
-          {{0.95, 0}, {0.99, 2}, {0.999, 4}, {0.9999, 10}}};
+        return {0.05,
+                2.0,
+                {{0.95, 0.1}},
+                {{0.95, 0}, {0.99, 2}, {0.999, 4}, {0.9999, 10}}};
       }
     case 16:
       if (kRandomizesInserts) {
@@ -1415,7 +1435,7 @@ ProbeStats CollectProbeStatsOnLinearlyTransformedKeys(
   std::random_device rd;
   std::mt19937 rng(rd());
   auto linear_transform = [](size_t x, size_t y) { return x * 17 + y * 13; };
-  std::uniform_int_distribution<size_t> dist(0, keys.size()-1);
+  std::uniform_int_distribution<size_t> dist(0, keys.size() - 1);
   while (num_iters--) {
     IntTable t1;
     size_t num_keys = keys.size() / 10;
