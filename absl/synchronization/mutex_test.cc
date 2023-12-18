@@ -977,6 +977,15 @@ TEST(Mutex, FunctionPointerConditionWithDerivedToBaseConversion) {
                                      const Derived *>::value));
 }
 
+struct Constable {
+  bool WotsAllThisThen() const { return true; }
+};
+
+TEST(Mutex, FunctionPointerConditionWithConstMethod) {
+  const Constable chapman;
+  EXPECT_TRUE(absl::Condition(&chapman, &Constable::WotsAllThisThen).Eval());
+}
+
 struct True {
   template <class... Args>
   bool operator()(Args...) const {
