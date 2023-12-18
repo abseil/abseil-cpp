@@ -14,6 +14,8 @@
 
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
 #include <random>
 #include <tuple>
@@ -204,6 +206,22 @@ void CacheInSteadyStateArgs(Benchmark* bm) {
         capacity * (max_load_factor + i * max_load_factor / kNumPoints) / 2));
 }
 BENCHMARK(BM_CacheInSteadyState)->Apply(CacheInSteadyStateArgs);
+
+void BM_EraseEmplace(benchmark::State& state) {
+  IntTable t;
+  int64_t size = state.range(0);
+  for (int64_t i = 0; i < size; ++i) {
+    t.emplace(i);
+  }
+  while (state.KeepRunningBatch(size)) {
+    for (int64_t i = 0; i < size; ++i) {
+      benchmark::DoNotOptimize(t);
+      t.erase(i);
+      t.emplace(i);
+    }
+  }
+}
+BENCHMARK(BM_EraseEmplace)->Arg(1)->Arg(2)->Arg(4)->Arg(8)->Arg(16)->Arg(100);
 
 void BM_EndComparison(benchmark::State& state) {
   StringTable t = {{"a", "a"}, {"b", "b"}};
