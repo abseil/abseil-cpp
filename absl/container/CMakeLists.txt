@@ -177,6 +177,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::compressed_tuple
+    absl::config
     absl::core_headers
     absl::memory
     absl::span
