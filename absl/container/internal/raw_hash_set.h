@@ -1788,7 +1788,7 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        bool reuse);
 
 // Type-erased version of raw_hash_set::erase_meta_only.
-void EraseMetaOnly(CommonFields& c, ctrl_t* it, size_t slot_size);
+void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size);
 
 // Function to place in PolicyFunctions::dealloc for raw_hash_sets
 // that are using std::allocator. This allows us to share the same
@@ -2871,7 +2871,8 @@ class raw_hash_set {
   // This merely updates the pertinent control byte. This can be used in
   // conjunction with Policy::transfer to move the object to another place.
   void erase_meta_only(const_iterator it) {
-    EraseMetaOnly(common(), it.control(), sizeof(slot_type));
+    EraseMetaOnly(common(), static_cast<size_t>(it.control() - control()),
+                  sizeof(slot_type));
   }
 
   // Resizes table to the new capacity and move all elements to the new

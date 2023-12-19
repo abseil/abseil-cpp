@@ -653,6 +653,23 @@ TEST(Table, InsertCollisionAndFindAfterDelete) {
   EXPECT_TRUE(t.empty());
 }
 
+TEST(Table, EraseInSmallTables) {
+  for (int64_t size = 0; size < 64; ++size) {
+    IntTable t;
+    for (int64_t i = 0; i < size; ++i) {
+      t.insert(i);
+    }
+    for (int64_t i = 0; i < size; ++i) {
+      t.erase(i);
+      EXPECT_EQ(t.size(), size - i - 1);
+      for (int64_t j = i + 1; j < size; ++j) {
+        EXPECT_THAT(*t.find(j), j);
+      }
+    }
+    EXPECT_TRUE(t.empty());
+  }
+}
+
 TEST(Table, InsertWithinCapacity) {
   IntTable t;
   t.reserve(10);
