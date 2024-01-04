@@ -1,5 +1,7 @@
 version: 0.1 
 cli:
   version: 1.18.1
+api:
+  address: api.trunk-staging.io:8443
 merge: 
   required_statuses: []
