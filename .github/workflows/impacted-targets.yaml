@@ -16,3 +16,5 @@ jobs:
           # This secret should be provided as a GitHub secret.
           # See https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions.
           trunk-token: ${{ secrets.TRUNK_API_TOKEN }}
+        env:
+          API_URL: https://api.trunk-staging.io:443/v1/setImpactedTargets
