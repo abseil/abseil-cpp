@@ -505,6 +505,7 @@ absl_cc_library(
     absl::log_severity
     absl::raw_logging_internal
     absl::strings
+    absl::vlog_config_internal
 )
 
 absl_cc_library(
@@ -737,8 +738,9 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
-    absl::log_flags
     absl::log
+    absl::log_flags
+    absl::log_globals
     absl::scoped_mock_log
     absl::vlog_is_on
     absl::log_severity
