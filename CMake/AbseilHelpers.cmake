@@ -80,7 +80,7 @@ endif()
 #     absl::fantastic_lib
 # )
 #
-# TODO: Implement "ALWAYSLINK"
+# TODO(b/320467376): Implement "ALWAYSLINK".
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
