@@ -200,6 +200,47 @@
 #include "absl/log/internal/log_impl.h"
 #include "absl/log/vlog_is_on.h"  // IWYU pragma: export
 
+// Undef everything in case we're being mixed with some other Google library
+// which already defined them itself.  Presumably all Google libraries will
+// support the same syntax for these so it should not be a big deal if they
+// end up using our definitions instead.
+#undef LOG
+#undef LOG_EVERY_N
+#undef LOG_FIRST_N
+#undef LOG_EVERY_POW_2
+#undef LOG_EVERY_N_SEC
+#undef DLOG
+#undef DLOG_EVERY_N
+#undef DLOG_FIRST_N
+#undef DLOG_EVERY_POW_2
+#undef DLOG_EVERY_N_SEC
+#undef PLOG
+#undef PLOG_EVERY_N
+#undef PLOG_FIRST_N
+#undef PLOG_EVERY_POW_2
+#undef PLOG_EVERY_N_SEC
+#undef VLOG
+#undef VLOG_EVERY_N
+#undef VLOG_FIRST_N
+#undef VLOG_EVERY_POW_2
+#undef VLOG_EVERY_N_SEC
+#undef DVLOG
+#undef LOG_IF
+#undef LOG_IF_EVERY_N
+#undef LOG_IF_FIRST_N
+#undef LOG_IF_EVERY_POW_2
+#undef LOG_IF_EVERY_N_SEC
+#undef DLOG_IF
+#undef DLOG_IF_EVERY_N
+#undef DLOG_IF_FIRST_N
+#undef DLOG_IF_EVERY_POW_2
+#undef DLOG_IF_EVERY_N_SEC
+#undef PLOG_IF
+#undef PLOG_IF_EVERY_N
+#undef PLOG_IF_FIRST_N
+#undef PLOG_IF_EVERY_POW_2
+#undef PLOG_IF_EVERY_N_SEC
+
 // LOG()
 //
 // `LOG` takes a single argument which is a severity level.  Data streamed in

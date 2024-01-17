@@ -40,6 +40,36 @@
 #include "absl/log/internal/log_message.h"  // IWYU pragma: export
 #include "absl/log/internal/strip.h"        // IWYU pragma: export
 
+// Undef everything in case we're being mixed with some other Google library
+// which already defined them itself.  Presumably all Google libraries will
+// support the same syntax for these so it should not be a big deal if they
+// end up using our definitions instead.
+#undef CHECK
+#undef CHECK_EQ
+#undef CHECK_NE
+#undef CHECK_LT
+#undef CHECK_LE
+#undef CHECK_GT
+#undef CHECK_GE
+
+#undef DCHECK
+#undef DCHECK_EQ
+#undef DCHECK_NE
+#undef DCHECK_LT
+#undef DCHECK_LE
+#undef DCHECK_GT
+#undef DCHECK_GE
+
+#undef QCHECK
+#undef QCHECK_EQ
+#undef QCHECK_NE
+#undef QCHECK_LT
+#undef QCHECK_LE
+#undef QCHECK_GT
+#undef QCHECK_GE
+
+#undef PCHECK
+
 // CHECK()
 //
 // `CHECK` terminates the program with a fatal error if `condition` is not true.
