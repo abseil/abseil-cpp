@@ -994,25 +994,6 @@ TEST(optionalTest, PointerStuff) {
 #endif
 #endif
 
-// MSVC has a bug with "cv-qualifiers in class construction", fixed in 2017. See
-// https://docs.microsoft.com/en-us/cpp/cpp-conformance-improvements-2017#bug-fixes
-// The compiler some incorrectly ignores the cv-qualifier when generating a
-// class object via a constructor call. For example:
-//
-// class optional {
-//   constexpr T&& value() &&;
-//   constexpr const T&& value() const &&;
-// }
-//
-// using COI = const absl::optional<int>;
-// static_assert(2 == COI(2).value(), "");  // const &&
-//
-// This should invoke the "const &&" overload but since it ignores the const
-// qualifier it finds the "&&" overload the best candidate.
-#if defined(_MSC_VER) && _MSC_VER < 1910
-#define ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG
-#endif
-
 TEST(optionalTest, Value) {
   using O = absl::optional<std::string>;
   using CO = const absl::optional<std::string>;
@@ -1032,8 +1013,7 @@ TEST(optionalTest, Value) {
   EXPECT_EQ("c&", TypeQuals(clvalue.value()));
   EXPECT_EQ("c&", TypeQuals(lvalue_c.value()));
   EXPECT_EQ("&&", TypeQuals(O(absl::in_place, "xvalue").value()));
-#if !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG) && \
-    !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
+#ifndef ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG
   EXPECT_EQ("c&&", TypeQuals(CO(absl::in_place, "cxvalue").value()));
 #endif
   EXPECT_EQ("c&&", TypeQuals(OC(absl::in_place, "xvalue_c").value()));
@@ -1083,8 +1063,7 @@ TEST(optionalTest, DerefOperator) {
   EXPECT_EQ("&", TypeQuals(*lvalue));
   EXPECT_EQ("c&", TypeQuals(*clvalue));
   EXPECT_EQ("&&", TypeQuals(*O(absl::in_place, "xvalue")));
-#if !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG) && \
-    !defined(ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG)
+#ifndef ABSL_SKIP_OVERLOAD_TEST_DUE_TO_GCC_BUG
   EXPECT_EQ("c&&", TypeQuals(*CO(absl::in_place, "cxvalue")));
 #endif
   EXPECT_EQ("c&&", TypeQuals(*OC(absl::in_place, "xvalue_c")));
@@ -1117,11 +1096,9 @@ TEST(optionalTest, ValueOr) {
   constexpr absl::optional<double> copt_empty, copt_set = {1.2};
   static_assert(42.0 == copt_empty.value_or(42), "");
   static_assert(1.2 == copt_set.value_or(42), "");
-#ifndef ABSL_SKIP_OVERLOAD_TEST_DUE_TO_MSVC_BUG
   using COD = const absl::optional<double>;
   static_assert(42.0 == COD().value_or(42), "");
   static_assert(1.2 == COD(1.2).value_or(42), "");
-#endif
 }
 
 // make_optional cannot be constexpr until C++17
