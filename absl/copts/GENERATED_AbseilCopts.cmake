@@ -52,6 +52,7 @@ list(APPEND ABSL_GCC_FLAGS
     "-Wvarargs"
     "-Wvla"
     "-Wwrite-strings"
+    "-Wnon-virtual-dtor"
     "-DNOMINMAX"
 )
 

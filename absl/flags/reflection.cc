@@ -217,6 +217,10 @@ void FinalizeRegistry() {
 
 namespace {
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#endif
 class RetiredFlagObj final : public CommandLineFlag {
  public:
   constexpr RetiredFlagObj(const char* name, FlagFastTypeId type_id)
@@ -276,6 +280,9 @@ class RetiredFlagObj final : public CommandLineFlag {
   const char* const name_;
   const FlagFastTypeId type_id_;
 };
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 

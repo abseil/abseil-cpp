@@ -425,6 +425,10 @@ struct DynValueDeleter {
 
 class FlagState;
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#endif
 class FlagImpl final : public CommandLineFlag {
  public:
   constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
@@ -624,6 +628,9 @@ class FlagImpl final : public CommandLineFlag {
   // problems.
   alignas(absl::Mutex) mutable char data_guard_[sizeof(absl::Mutex)];
 };
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // The Flag object parameterized by the flag's value type. This class implements
