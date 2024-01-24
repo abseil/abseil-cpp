@@ -602,6 +602,7 @@ absl_cc_library(
     absl::base
     absl::config
     absl::exponential_biased
+    absl::no_destructor
     absl::raw_logging_internal
     absl::sample_recorder
     absl::synchronization
