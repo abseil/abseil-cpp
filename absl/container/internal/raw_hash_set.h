@@ -80,7 +80,7 @@
 //     slot_type slots[capacity];
 //   };
 //
-// The length of this array is computed by `AllocSize()` below.
+// The length of this array is computed by `RawHashSetLayout::alloc_size` below.
 //
 // Control bytes (`ctrl_t`) are bytes (collected into groups of a
 // platform-specific size) that define the state of the corresponding slot in
@@ -983,12 +983,6 @@ using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 // A valid capacity is a non-zero integer `2^m - 1`.
 inline bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 
-// Computes the offset from the start of the backing allocation of control.
-// infoz and growth_left are stored at the beginning of the backing array.
-inline size_t ControlOffset(bool has_infoz) {
-  return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(size_t);
-}
-
 // Returns the number of "cloned control bytes".
 //
 // This is the number of control bytes that are present both at the beginning
@@ -996,29 +990,57 @@ inline size_t ControlOffset(bool has_infoz) {
 // `Group::kWidth`-width probe window starting from any control byte.
 constexpr size_t NumClonedBytes() { return Group::kWidth - 1; }
 
-// Given the capacity of a table, computes the offset (from the start of the
-// backing allocation) of the generation counter (if it exists).
-inline size_t GenerationOffset(size_t capacity, bool has_infoz) {
-  assert(IsValidCapacity(capacity));
-  const size_t num_control_bytes = capacity + 1 + NumClonedBytes();
-  return ControlOffset(has_infoz) + num_control_bytes;
+// Returns the number of control bytes including cloned.
+inline size_t NumControlBytes(size_t capacity) {
+  return capacity + 1 + NumClonedBytes();
 }
 
-// Given the capacity of a table, computes the offset (from the start of the
-// backing allocation) at which the slots begin.
-inline size_t SlotOffset(size_t capacity, size_t slot_align, bool has_infoz) {
-  assert(IsValidCapacity(capacity));
-  return (GenerationOffset(capacity, has_infoz) + NumGenerationBytes() +
-          slot_align - 1) &
-         (~slot_align + 1);
+// Computes the offset from the start of the backing allocation of control.
+// infoz and growth_left are stored at the beginning of the backing array.
+inline static size_t ControlOffset(bool has_infoz) {
+  return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(size_t);
 }
 
-// Given the capacity of a table, computes the total size of the backing
-// array.
-inline size_t AllocSize(size_t capacity, size_t slot_size, size_t slot_align,
-                        bool has_infoz) {
-  return SlotOffset(capacity, slot_align, has_infoz) + capacity * slot_size;
-}
+// Helper class for computing offsets and allocation size of hash set fields.
+class RawHashSetLayout {
+ public:
+  explicit RawHashSetLayout(size_t capacity, size_t slot_align, bool has_infoz)
+      : capacity_(capacity),
+        control_offset_(ControlOffset(has_infoz)),
+        generation_offset_(control_offset_ + NumControlBytes(capacity)),
+        slot_offset_(
+            (generation_offset_ + NumGenerationBytes() + slot_align - 1) &
+            (~slot_align + 1)) {
+    assert(IsValidCapacity(capacity));
+  }
+
+  // Returns the capacity of a table.
+  size_t capacity() const { return capacity_; }
+
+  // Returns precomputed offset from the start of the backing allocation of
+  // control.
+  size_t control_offset() const { return control_offset_; }
+
+  // Given the capacity of a table, computes the offset (from the start of the
+  // backing allocation) of the generation counter (if it exists).
+  size_t generation_offset() const { return generation_offset_; }
+
+  // Given the capacity of a table, computes the offset (from the start of the
+  // backing allocation) at which the slots begin.
+  size_t slot_offset() const { return slot_offset_; }
+
+  // Given the capacity of a table, computes the total size of the backing
+  // array.
+  size_t alloc_size(size_t slot_size) const {
+    return slot_offset_ + capacity_ * slot_size;
+  }
+
+ private:
+  size_t capacity_;
+  size_t control_offset_;
+  size_t generation_offset_;
+  size_t slot_offset_;
+};
 
 // CommonFields hold the fields in raw_hash_set that do not depend
 // on template parameters. This allows us to conveniently pass all
@@ -1116,7 +1138,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   // The size of the backing array allocation.
   size_t alloc_size(size_t slot_size, size_t slot_align) const {
-    return AllocSize(capacity(), slot_size, slot_align, has_infoz());
+    return RawHashSetLayout(capacity(), slot_align, has_infoz())
+        .alloc_size(slot_size);
   }
 
   // Returns the number of control bytes set to kDeleted. For testing only.
@@ -1608,27 +1631,25 @@ class HashSetResizeHelper {
         sample_size > 0 ? Sample(sample_size) : c.infoz();
 
     const bool has_infoz = infoz.IsSampled();
-    const size_t cap = c.capacity();
-    const size_t alloc_size =
-        AllocSize(cap, SizeOfSlot, AlignOfSlot, has_infoz);
-    char* mem = static_cast<char*>(
-        Allocate<BackingArrayAlignment(AlignOfSlot)>(&alloc, alloc_size));
+    RawHashSetLayout layout(c.capacity(), AlignOfSlot, has_infoz);
+    char* mem = static_cast<char*>(Allocate<BackingArrayAlignment(AlignOfSlot)>(
+        &alloc, layout.alloc_size(SizeOfSlot)));
     const GenerationType old_generation = c.generation();
-    c.set_generation_ptr(reinterpret_cast<GenerationType*>(
-        mem + GenerationOffset(cap, has_infoz)));
+    c.set_generation_ptr(
+        reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
     c.set_generation(NextGeneration(old_generation));
-    c.set_control(reinterpret_cast<ctrl_t*>(mem + ControlOffset(has_infoz)));
-    c.set_slots(mem + SlotOffset(cap, AlignOfSlot, has_infoz));
+    c.set_control(reinterpret_cast<ctrl_t*>(mem + layout.control_offset()));
+    c.set_slots(mem + layout.slot_offset());
     ResetGrowthLeft(c);
 
     const bool grow_single_group =
-        IsGrowingIntoSingleGroupApplicable(old_capacity_, c.capacity());
+        IsGrowingIntoSingleGroupApplicable(old_capacity_, layout.capacity());
     if (old_capacity_ != 0 && grow_single_group) {
       if (TransferUsesMemcpy) {
         GrowSizeIntoSingleGroupTransferable(c, old_slots, SizeOfSlot);
         DeallocateOld<AlignOfSlot>(alloc, SizeOfSlot, old_slots);
       } else {
-        GrowIntoSingleGroupShuffleControlBytes(c.control(), c.capacity());
+        GrowIntoSingleGroupShuffleControlBytes(c.control(), layout.capacity());
       }
     } else {
       ResetCtrl(c, SizeOfSlot);
@@ -1636,7 +1657,7 @@ class HashSetResizeHelper {
 
     c.set_has_infoz(has_infoz);
     if (has_infoz) {
-      infoz.RecordStorageChanged(c.size(), cap);
+      infoz.RecordStorageChanged(c.size(), layout.capacity());
       if (grow_single_group || old_capacity_ == 0) {
         infoz.RecordRehash(0);
       }
@@ -1675,9 +1696,10 @@ class HashSetResizeHelper {
   template <size_t AlignOfSlot, class CharAlloc>
   void DeallocateOld(CharAlloc alloc_ref, size_t slot_size, void* old_slots) {
     SanitizerUnpoisonMemoryRegion(old_slots, slot_size * old_capacity_);
+    auto layout = RawHashSetLayout(old_capacity_, AlignOfSlot, had_infoz_);
     Deallocate<BackingArrayAlignment(AlignOfSlot)>(
-        &alloc_ref, old_ctrl_ - ControlOffset(had_infoz_),
-        AllocSize(old_capacity_, slot_size, AlignOfSlot, had_infoz_));
+        &alloc_ref, old_ctrl_ - layout.control_offset(),
+        layout.alloc_size(slot_size));
   }
 
  private:
