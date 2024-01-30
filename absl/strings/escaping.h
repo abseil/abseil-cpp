@@ -66,7 +66,7 @@ ABSL_NAMESPACE_BEGIN
 //
 //   std::string s = "foo\\rbar\\nbaz\\t";
 //   std::string unescaped_s;
-//   if (!absl::CUnescape(s, &unescaped_s) {
+//   if (!absl::CUnescape(s, &unescaped_s)) {
 //     ...
 //   }
 //   EXPECT_EQ(unescaped_s, "foo\rbar\nbaz\t");
