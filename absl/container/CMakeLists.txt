@@ -213,6 +213,7 @@ absl_cc_library(
   DEPS
     absl::config
     GTest::gmock
+  TESTONLY
 )
 
 absl_cc_test(
