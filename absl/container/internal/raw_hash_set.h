@@ -2881,6 +2881,7 @@ class raw_hash_set {
   }
 
   inline void destroy_slots() {
+    if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
     const size_t cap = capacity();
     const ctrl_t* ctrl = control();
     slot_type* slot = slot_array();
