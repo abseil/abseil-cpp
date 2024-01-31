@@ -108,7 +108,7 @@ cc_test(
 
 cc_binary(
     name = "fixed_array_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["fixed_array_benchmark.cc"],
     copts = ABSL_TEST_COPTS + ["$(STACK_FRAME_UNLIMITED)"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -151,7 +151,7 @@ cc_library(
 
 cc_library(
     name = "test_allocator",
-    testonly = 1,
+    testonly = True,
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     textual_hdrs = ["internal/test_allocator.h"],
@@ -181,7 +181,7 @@ cc_test(
 
 cc_binary(
     name = "inlined_vector_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["inlined_vector_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -210,7 +210,7 @@ cc_test(
 
 cc_library(
     name = "test_instance_tracker",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/test_instance_tracker.cc"],
     hdrs = ["internal/test_instance_tracker.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -449,7 +449,7 @@ cc_test(
 
 cc_library(
     name = "hash_generator_testing",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/hash_generator_testing.cc"],
     hdrs = ["internal/hash_generator_testing.h"],
     copts = ABSL_TEST_COPTS,
@@ -465,7 +465,7 @@ cc_library(
 
 cc_library(
     name = "hash_policy_testing",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/hash_policy_testing.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -707,7 +707,7 @@ cc_test(
 
 cc_binary(
     name = "raw_hash_set_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/raw_hash_set_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -724,7 +724,7 @@ cc_binary(
 
 cc_binary(
     name = "raw_hash_set_probe_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/raw_hash_set_probe_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = select({
@@ -798,7 +798,7 @@ cc_test(
 
 cc_binary(
     name = "layout_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/layout_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -814,7 +814,7 @@ cc_binary(
 
 cc_library(
     name = "tracked",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/tracked.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -825,7 +825,7 @@ cc_library(
 
 cc_library(
     name = "unordered_map_constructor_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_map_constructor_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -838,7 +838,7 @@ cc_library(
 
 cc_library(
     name = "unordered_map_lookup_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_map_lookup_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -851,7 +851,7 @@ cc_library(
 
 cc_library(
     name = "unordered_map_modifiers_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_map_modifiers_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -864,7 +864,7 @@ cc_library(
 
 cc_library(
     name = "unordered_set_constructor_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_set_constructor_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -878,7 +878,7 @@ cc_library(
 
 cc_library(
     name = "unordered_set_members_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_set_members_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -890,7 +890,7 @@ cc_library(
 
 cc_library(
     name = "unordered_map_members_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_map_members_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -902,7 +902,7 @@ cc_library(
 
 cc_library(
     name = "unordered_set_lookup_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_set_lookup_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -915,7 +915,7 @@ cc_library(
 
 cc_library(
     name = "unordered_set_modifiers_test",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/unordered_set_modifiers_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -1008,7 +1008,7 @@ cc_library(
 
 cc_library(
     name = "btree_test_common",
-    testonly = 1,
+    testonly = True,
     hdrs = ["btree_test.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -1059,7 +1059,7 @@ cc_test(
 
 cc_binary(
     name = "btree_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = [
         "btree_benchmark.cc",
     ],

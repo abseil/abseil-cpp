@@ -404,7 +404,7 @@ cc_test(
 
 cc_binary(
     name = "flag_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = [
         "flag_benchmark.cc",
     ],
