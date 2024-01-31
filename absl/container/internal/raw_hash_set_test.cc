@@ -405,6 +405,11 @@ struct ValuePolicy {
     return absl::container_internal::DecomposeValue(
         std::forward<F>(f), std::forward<Args>(args)...);
   }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 using IntPolicy = ValuePolicy<int64_t>;
@@ -467,6 +472,11 @@ class StringPolicy {
                              PairArgs(std::forward<Args>(args)...))) {
     return apply_impl(std::forward<F>(f),
                       PairArgs(std::forward<Args>(args)...));
+  }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
   }
 };
 
@@ -923,6 +933,11 @@ struct DecomposePolicy {
   static auto apply(F&& f, const T& x) -> decltype(std::forward<F>(f)(x, x)) {
     return std::forward<F>(f)(x, x);
   }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 template <typename Hash, typename Eq>
@@ -1083,7 +1098,7 @@ size_t MaxDensitySize(size_t n) {
 }
 
 struct Modulo1000Hash {
-  size_t operator()(int x) const { return x % 1000; }
+  size_t operator()(int64_t x) const { return static_cast<size_t>(x) % 1000; }
 };
 
 struct Modulo1000HashTable
@@ -2664,7 +2679,7 @@ using RawHashSetAlloc = raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
 TEST(Table, AllocatorPropagation) { TestAllocPropagation<RawHashSetAlloc>(); }
 
 struct CountedHash {
-  size_t operator()(int value) const {
+  size_t operator()(int64_t value) const {
     ++count;
     return static_cast<size_t>(value);
   }

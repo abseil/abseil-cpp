@@ -357,6 +357,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":container_memory",
         ":hash_function_defaults",
         ":node_slot_policy",
         ":raw_hash_set",
@@ -504,6 +505,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":container_memory",
         ":hash_policy_traits",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -714,6 +716,7 @@ cc_binary(
     tags = ["benchmark"],
     visibility = ["//visibility:private"],
     deps = [
+        ":container_memory",
         ":hash_function_defaults",
         ":raw_hash_set",
         "//absl/base:raw_logging_internal",
@@ -753,6 +756,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":container_memory",
         ":raw_hash_set",
         ":tracked",
         "//absl/base:config",

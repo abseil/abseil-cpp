@@ -1802,7 +1802,7 @@ struct PolicyFunctions {
   size_t slot_size;
 
   // Returns the hash of the pointed-to slot.
-  size_t (*hash_slot)(void* set, void* slot);
+  size_t (*hash_slot)(const void* hash_fn, void* slot);
 
   // Transfer the contents of src_slot to dst_slot.
   void (*transfer)(void* set, void* dst_slot, void* src_slot);
@@ -1847,7 +1847,7 @@ ABSL_ATTRIBUTE_NOINLINE void TransferRelocatable(void*, void* dst, void* src) {
 }
 
 // Type-erased version of raw_hash_set::drop_deletes_without_resize.
-void DropDeletesWithoutResize(CommonFields& common,
+void DropDeletesWithoutResize(CommonFields& common, const void* hash_fn,
                               const PolicyFunctions& policy, void* tmp_space);
 
 // A SwissTable.
@@ -2989,7 +2989,7 @@ class raw_hash_set {
   inline void drop_deletes_without_resize() {
     // Stack-allocate space for swapping elements.
     alignas(slot_type) unsigned char tmp[sizeof(slot_type)];
-    DropDeletesWithoutResize(common(), GetPolicyFunctions(), tmp);
+    DropDeletesWithoutResize(common(), &hash_ref(), GetPolicyFunctions(), tmp);
   }
 
   // Called whenever the table *might* need to conditionally grow.
@@ -3238,13 +3238,6 @@ class raw_hash_set {
     return settings_.template get<3>();
   }
 
-  // Make type-specific functions for this type's PolicyFunctions struct.
-  static size_t hash_slot_fn(void* set, void* slot) {
-    auto* h = static_cast<raw_hash_set*>(set);
-    return PolicyTraits::apply(
-        HashElement{h->hash_ref()},
-        PolicyTraits::element(static_cast<slot_type*>(slot)));
-  }
   static void transfer_slot_fn(void* set, void* dst, void* src) {
     auto* h = static_cast<raw_hash_set*>(set);
     h->transfer(static_cast<slot_type*>(dst), static_cast<slot_type*>(src));
@@ -3266,7 +3259,7 @@ class raw_hash_set {
   static const PolicyFunctions& GetPolicyFunctions() {
     static constexpr PolicyFunctions value = {
         sizeof(slot_type),
-        &raw_hash_set::hash_slot_fn,
+        PolicyTraits::template get_hash_slot_fn<hasher>(),
         PolicyTraits::transfer_uses_memcpy()
             ? TransferRelocatable<sizeof(slot_type)>
             : &raw_hash_set::transfer_slot_fn,
