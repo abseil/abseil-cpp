@@ -64,6 +64,10 @@ namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
   template <typename C>
+  static auto GetCommon(const C& c) -> decltype(c.common()) {
+    return c.common();
+  }
+  template <typename C>
   static auto GetSlots(const C& c) -> decltype(c.slot_array()) {
     return c.slot_array();
   }
@@ -2738,6 +2742,37 @@ TEST(Table, CountedHash) {
     Table dst;
     dst.merge(src);
     EXPECT_EQ(HashCount(dst), 1);
+  }
+}
+
+TEST(Table, IterateOverFullSlotsEmpty) {
+  IntTable t;
+  auto fail_if_any = [](int64_t* i) { FAIL() << "expected no slots " << i; };
+  container_internal::IterateOverFullSlots(
+      RawHashSetTestOnlyAccess::GetCommon(t),
+      RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+  for (size_t i = 0; i < 256; ++i) {
+    t.reserve(i);
+    container_internal::IterateOverFullSlots(
+        RawHashSetTestOnlyAccess::GetCommon(t),
+        RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+  }
+}
+
+TEST(Table, IterateOverFullSlotsFull) {
+  IntTable t;
+
+  std::vector<int64_t> expected_slots;
+  for (int64_t i = 0; i < 128; ++i) {
+    t.insert(i);
+    expected_slots.push_back(i);
+
+    std::vector<int64_t> slots;
+    container_internal::IterateOverFullSlots(
+        RawHashSetTestOnlyAccess::GetCommon(t),
+        RawHashSetTestOnlyAccess::GetSlots(t),
+        [&slots](int64_t* i) { slots.push_back(*i); });
+    EXPECT_THAT(slots, testing::UnorderedElementsAreArray(expected_slots));
   }
 }
 

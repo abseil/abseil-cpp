@@ -822,21 +822,21 @@ struct GroupPortableImpl {
 
 #ifdef ABSL_INTERNAL_HAVE_SSE2
 using Group = GroupSse2Impl;
-using GroupEmptyOrDeleted = GroupSse2Impl;
+using GroupFullEmptyOrDeleted = GroupSse2Impl;
 #elif defined(ABSL_INTERNAL_HAVE_ARM_NEON) && defined(ABSL_IS_LITTLE_ENDIAN)
 using Group = GroupAArch64Impl;
 // For Aarch64, we use the portable implementation for counting and masking
-// empty or deleted group elements. This is to avoid the latency of moving
+// full, empty or deleted group elements. This is to avoid the latency of moving
 // between data GPRs and Neon registers when it does not provide a benefit.
 // Using Neon is profitable when we call Match(), but is not when we don't,
-// which is the case when we do *EmptyOrDeleted operations. It is difficult to
-// make a similar approach beneficial on other architectures such as x86 since
-// they have much lower GPR <-> vector register transfer latency and 16-wide
-// Groups.
-using GroupEmptyOrDeleted = GroupPortableImpl;
+// which is the case when we do *EmptyOrDeleted and MaskFull operations.
+// It is difficult to make a similar approach beneficial on other architectures
+// such as x86 since they have much lower GPR <-> vector register transfer
+// latency and 16-wide Groups.
+using GroupFullEmptyOrDeleted = GroupPortableImpl;
 #else
 using Group = GroupPortableImpl;
-using GroupEmptyOrDeleted = GroupPortableImpl;
+using GroupFullEmptyOrDeleted = GroupPortableImpl;
 #endif
 
 // When there is an insertion with no reserved growth, we rehash with
@@ -1463,7 +1463,7 @@ inline FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
   auto seq = probe(common, hash);
   const ctrl_t* ctrl = common.control();
   while (true) {
-    GroupEmptyOrDeleted g{ctrl + seq.offset()};
+    GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
     auto mask = g.MaskEmptyOrDeleted();
     if (mask) {
 #if !defined(NDEBUG)
@@ -1543,6 +1543,44 @@ constexpr size_t BackingArrayAlignment(size_t align_of_slot) {
 inline void* SlotAddress(void* slot_array, size_t slot, size_t slot_size) {
   return reinterpret_cast<void*>(reinterpret_cast<char*>(slot_array) +
                                  (slot * slot_size));
+}
+
+// Iterates over all full slots and calls `cb(SlotType*)`.
+// NOTE: no erasure from this table allowed during Callback call.
+template <class SlotType, class Callback>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
+    const CommonFields& c, SlotType* slot, Callback cb) {
+  const size_t cap = c.capacity();
+  const ctrl_t* ctrl = c.control();
+  if (is_small(cap)) {
+    // Mirrored/cloned control bytes in small table are also located in the
+    // first group (starting from position 0). We are taking group from position
+    // `capacity` in order to avoid duplicates.
+
+    // Small tables capacity fits into portable group, where
+    // GroupPortableImpl::MaskFull is more efficient for the
+    // capacity <= GroupPortableImpl::kWidth.
+    assert(cap <= GroupPortableImpl::kWidth &&
+           "unexpectedly large small capacity");
+    static_assert(Group::kWidth >= GroupPortableImpl::kWidth,
+                  "unexpected group width");
+    // Group starts from kSentinel slot, so indices in the mask will
+    // be increased by 1.
+    --slot;
+    for (uint32_t i : GroupPortableImpl(ctrl + cap).MaskFull()) {
+      cb(slot + i);
+    }
+    return;
+  }
+  size_t remaining = c.size();
+  while (remaining != 0) {
+    for (uint32_t i : GroupFullEmptyOrDeleted(ctrl).MaskFull()) {
+      cb(slot + i);
+      --remaining;
+    }
+    slot += Group::kWidth;
+    ctrl += Group::kWidth;
+  }
 }
 
 // Helper class to perform resize of the hash set.
@@ -2028,7 +2066,7 @@ class raw_hash_set {
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
         uint32_t shift =
-            GroupEmptyOrDeleted{ctrl_}.CountLeadingEmptyOrDeleted();
+            GroupFullEmptyOrDeleted{ctrl_}.CountLeadingEmptyOrDeleted();
         ctrl_ += shift;
         slot_ += shift;
       }
@@ -2889,14 +2927,10 @@ class raw_hash_set {
 
   inline void destroy_slots() {
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
-    const size_t cap = capacity();
-    const ctrl_t* ctrl = control();
-    slot_type* slot = slot_array();
-    for (size_t i = 0; i != cap; ++i) {
-      if (IsFull(ctrl[i])) {
-        destroy(slot + i);
-      }
-    }
+    IterateOverFullSlots(common(), slot_array(),
+                         [&](slot_type* slot) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+                           this->destroy(slot);
+                         });
   }
 
   inline void dealloc() {
