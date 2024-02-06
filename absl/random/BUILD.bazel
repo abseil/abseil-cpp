@@ -108,9 +108,11 @@ cc_library(
     deps = [
         ":seed_gen_exception",
         "//absl/base:config",
+        "//absl/base:nullability",
         "//absl/random/internal:pool_urbg",
         "//absl/random/internal:salted_seed_seq",
         "//absl/random/internal:seed_material",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
