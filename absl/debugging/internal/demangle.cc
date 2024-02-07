@@ -1461,6 +1461,9 @@ static bool ParseTemplateArgs(State *state) {
 //                 ::= <expr-primary>
 //                 ::= J <template-arg>* E        # argument pack
 //                 ::= X <expression> E
+//                 ::= Tk <type> <type>           # constraint
+//
+// TODO(b/323420445): Support templated constraints.
 static bool ParseTemplateArg(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1560,6 +1563,12 @@ static bool ParseTemplateArg(State *state) {
     return true;
   }
   state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Tk") && ParseType(state) && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
   return false;
 }
 

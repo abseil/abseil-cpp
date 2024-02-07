@@ -31,6 +31,39 @@ namespace {
 
 using ::testing::ContainsRegex;
 
+TEST(Demangle, FunctionTemplate) {
+  char tmp[100];
+
+  // template <typename T>
+  // int foo(T);
+  //
+  // foo<int>(5);
+  ASSERT_TRUE(Demangle("_Z3fooIiEiT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
+TEST(Demangle, FunctionTemplateWithNesting) {
+  char tmp[100];
+
+  // template <typename T>
+  // int foo(T);
+  //
+  // foo<Wrapper<int>>({ .value = 5 });
+  ASSERT_TRUE(Demangle("_Z3fooI7WrapperIiEEiT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
+TEST(Demangle, FunctionTemplateWithConstraint) {
+  char tmp[100];
+
+  // template <std::integral T>
+  // int foo(T);
+  //
+  // foo<Wrapper<int>(5);
+  ASSERT_TRUE(Demangle("_Z3fooITkSt8integraliEiT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];
