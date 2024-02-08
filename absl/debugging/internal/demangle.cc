@@ -570,6 +570,7 @@ static bool ParseClassEnumType(State *state);
 static bool ParseArrayType(State *state);
 static bool ParsePointerToMemberType(State *state);
 static bool ParseTemplateParam(State *state);
+static bool ParseTemplateParamDecl(State *state);
 static bool ParseTemplateTemplateParam(State *state);
 static bool ParseTemplateArgs(State *state);
 static bool ParseTemplateArg(State *state);
@@ -624,6 +625,9 @@ static bool ParseMangledName(State *state) {
 // <encoding> ::= <(function) name> <bare-function-type>
 //            ::= <(data) name>
 //            ::= <special-name>
+//
+// NOTE: Based on http://shortn/_Hoq9qG83rx
+// TODO(b/324066279): Add support for [Q <requires-clause expression>].
 static bool ParseEncoding(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1431,6 +1435,52 @@ static bool ParseTemplateParam(State *state) {
   return false;
 }
 
+// <template-param-decl>
+//   ::= Ty                                  # template type parameter
+//   ::= Tk <concept name> [<template-args>] # constrained type parameter
+//   ::= Tn <type>                           # template non-type parameter
+//   ::= Tt <template-param-decl>* E         # template template parameter
+//   ::= Tp <template-param-decl>            # template parameter pack
+//
+// NOTE: <concept name> is just a <name>: http://shortn/_MqJVyr0fc1
+// TODO(b/324066279): Implement optional suffix for `Tt`:
+// [Q <requires-clause expr>]
+static bool ParseTemplateParamDecl(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+
+  if (ParseTwoCharToken(state, "Ty")) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Tk") && ParseName(state) &&
+      Optional(ParseTemplateArgs(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Tn") && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Tt") &&
+      ZeroOrMore(ParseTemplateParamDecl, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Tp") && ParseTemplateParamDecl(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  return false;
+}
+
 // <template-template-param> ::= <template-param>
 //                           ::= <substitution>
 static bool ParseTemplateTemplateParam(State *state) {
@@ -1442,6 +1492,9 @@ static bool ParseTemplateTemplateParam(State *state) {
 }
 
 // <template-args> ::= I <template-arg>+ E
+//
+// TODO(b/324066279): Implement optional [Q <requires-clause expr>] before E.
+// See: http://shortn/_Z7yM7PonSD
 static bool ParseTemplateArgs(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1457,13 +1510,11 @@ static bool ParseTemplateArgs(State *state) {
   return false;
 }
 
-// <template-arg>  ::= <type>
+// <template-arg>  ::= <template-param-decl> <template-arg>
+//                 ::= <type>
 //                 ::= <expr-primary>
 //                 ::= J <template-arg>* E        # argument pack
 //                 ::= X <expression> E
-//                 ::= Tk <type> <type>           # constraint
-//
-// TODO(b/323420445): Support templated constraints.
 static bool ParseTemplateArg(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1564,7 +1615,7 @@ static bool ParseTemplateArg(State *state) {
   }
   state->parse_state = copy;
 
-  if (ParseTwoCharToken(state, "Tk") && ParseType(state) && ParseType(state)) {
+  if (ParseTemplateParamDecl(state) && ParseTemplateArg(state)) {
     return true;
   }
   state->parse_state = copy;
