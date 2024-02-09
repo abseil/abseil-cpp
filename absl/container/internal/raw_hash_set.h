@@ -2027,6 +2027,7 @@ class raw_hash_set {
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
+      if (ABSL_PREDICT_FALSE(*ctrl_ == ctrl_t::kSentinel)) ctrl_ = nullptr;
       return *this;
     }
     // PRECONDITION: not an end() iterator.
@@ -2061,10 +2062,8 @@ class raw_hash_set {
     explicit iterator(const GenerationType* generation_ptr)
         : HashSetIteratorGenerationInfo(generation_ptr), ctrl_(nullptr) {}
 
-    // Fixes up `ctrl_` to point to a full by advancing it and `slot_` until
-    // they reach one.
-    //
-    // If a sentinel is reached, we null `ctrl_` out instead.
+    // Fixes up `ctrl_` to point to a full or sentinel by advancing `ctrl_` and
+    // `slot_` until they reach one.
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
         uint32_t shift =
@@ -2072,7 +2071,6 @@ class raw_hash_set {
         ctrl_ += shift;
         slot_ += shift;
       }
-      if (ABSL_PREDICT_FALSE(*ctrl_ == ctrl_t::kSentinel)) ctrl_ = nullptr;
     }
 
     ctrl_t* control() const { return ctrl_; }
@@ -2369,8 +2367,11 @@ class raw_hash_set {
   ~raw_hash_set() { destructor_impl(); }
 
   iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    // TODO(b/324478958): Consider reverting if no impact.
+    if (ABSL_PREDICT_FALSE(empty())) return end();
     auto it = iterator_at(0);
     it.skip_empty_or_deleted();
+    assert(IsFull(*it.control()));
     return it;
   }
   iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {
