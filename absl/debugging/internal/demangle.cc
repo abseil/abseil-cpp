@@ -579,6 +579,7 @@ static bool ParseUnresolvedName(State *state);
 static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValue(State *state);
+static bool ParseRequiresClauseExpression(State *state);
 static bool ParseLocalName(State *state);
 static bool ParseLocalNameSuffix(State *state);
 static bool ParseDiscriminator(State *state);
@@ -623,25 +624,38 @@ static bool ParseMangledName(State *state) {
 }
 
 // <encoding> ::= <(function) name> <bare-function-type>
+//                [`Q` <requires-clause expr>]
 //            ::= <(data) name>
 //            ::= <special-name>
 //
 // NOTE: Based on http://shortn/_Hoq9qG83rx
-// TODO(b/324066279): Add support for [Q <requires-clause expression>].
 static bool ParseEncoding(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
-  // Implementing the first two productions together as <name>
-  // [<bare-function-type>] avoids exponential blowup of backtracking.
+  // Since the first two productions both start with <name>, attempt
+  // to parse it only once to avoid exponential blowup of backtracking.
   //
-  // Since Optional(...) can't fail, there's no need to copy the state for
-  // backtracking.
-  if (ParseName(state) && Optional(ParseBareFunctionType(state))) {
-    return true;
+  // We're careful about exponential blowup because <encoding> recursively
+  // appears in other productions downstream of its first two productions,
+  // which means that every call to `ParseName` would possibly indirectly
+  // result in two calls to `ParseName` etc.
+  if (ParseName(state)) {
+    if (!ParseBareFunctionType(state)) {
+      return true;  // <(data) name>
+    }
+
+    // Parsed: <(function) name> <bare-function-type>
+    // Pending: [`Q` <requires-clause expr>]
+    ParseState copy = state->parse_state;
+    if (ParseOneCharToken(state, 'Q') && ParseRequiresClauseExpression(state)) {
+      return true;  // <(function) name> <bare-function-type> `Q` <requires>
+    }
+    state->parse_state = copy;
+    return true;  // <(function) name> <bare-function-type>
   }
 
   if (ParseSpecialName(state)) {
-    return true;
+    return true;  // <special-name>
   }
   return false;
 }
@@ -1914,6 +1928,26 @@ static bool ParseExprCastValue(State *state) {
   state->parse_state = copy;
 
   return false;
+}
+
+// <requires-clause expr> is just an <expression>: http://shortn/_9E1Ul0rIM8
+//
+// Does not emit the parsed `requires` clause to simplify the implementation.
+// In other words, these two functions' mangled names will demangle identically:
+//
+// template <typename T>
+// int foo(T) requires IsIntegral<T>;
+//
+// vs.
+//
+// template <typename T>
+// int foo(T);
+static bool ParseRequiresClauseExpression(State *state) {
+  bool original_append = state->parse_state.append;
+  DisableAppend(state);
+  bool result = ParseExpression(state);
+  RestoreAppend(state, original_append);
+  return result;
 }
 
 // <local-name> ::= Z <(function) encoding> E <(entity) name> [<discriminator>]

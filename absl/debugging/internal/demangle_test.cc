@@ -64,6 +64,17 @@ TEST(Demangle, FunctionTemplateWithNonTypeParamConstraint) {
   EXPECT_STREQ(tmp, "foo<>()");
 }
 
+TEST(Demangle, FunctionTemplateWithFunctionRequiresClause) {
+  char tmp[100];
+
+  // template <typename T>
+  // int foo() requires std::integral<T>;
+  //
+  // foo<int>();
+  ASSERT_TRUE(Demangle("_Z3fooIiEivQsr3stdE8integralIT_E", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
 TEST(Demangle, FunctionTemplateWithAutoParam) {
   char tmp[100];
 
