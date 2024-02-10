@@ -579,7 +579,7 @@ static bool ParseUnresolvedName(State *state);
 static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValue(State *state);
-static bool ParseRequiresClauseExpression(State *state);
+static bool ParseQRequiresClauseExpr(State *state);
 static bool ParseLocalName(State *state);
 static bool ParseLocalNameSuffix(State *state);
 static bool ParseDiscriminator(State *state);
@@ -646,12 +646,8 @@ static bool ParseEncoding(State *state) {
 
     // Parsed: <(function) name> <bare-function-type>
     // Pending: [`Q` <requires-clause expr>]
-    ParseState copy = state->parse_state;
-    if (ParseOneCharToken(state, 'Q') && ParseRequiresClauseExpression(state)) {
-      return true;  // <(function) name> <bare-function-type> `Q` <requires>
-    }
-    state->parse_state = copy;
-    return true;  // <(function) name> <bare-function-type>
+    ParseQRequiresClauseExpr(state);  // restores state on failure
+    return true;
   }
 
   if (ParseSpecialName(state)) {
@@ -1505,16 +1501,14 @@ static bool ParseTemplateTemplateParam(State *state) {
           ParseSubstitution(state, /*accept_std=*/false));
 }
 
-// <template-args> ::= I <template-arg>+ E
-//
-// TODO(b/324066279): Implement optional [Q <requires-clause expr>] before E.
-// See: http://shortn/_Z7yM7PonSD
+// <template-args> ::= I <template-arg>+ [Q <requires-clause expr>] E
 static bool ParseTemplateArgs(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
   DisableAppend(state);
   if (ParseOneCharToken(state, 'I') && OneOrMore(ParseTemplateArg, state) &&
+      Optional(ParseQRequiresClauseExpr(state)) &&
       ParseOneCharToken(state, 'E')) {
     RestoreAppend(state, copy.append);
     MaybeAppend(state, "<>");
@@ -1930,7 +1924,12 @@ static bool ParseExprCastValue(State *state) {
   return false;
 }
 
-// <requires-clause expr> is just an <expression>: http://shortn/_9E1Ul0rIM8
+// Parses `Q <requires-clause expr>`.
+// If parsing fails, applies backtracking to `state`.
+//
+// This function covers two symbols instead of one for convenience,
+// because in LLVM's Itanium ABI mangling grammar, <requires-clause expr>
+// always appears after Q.
 //
 // Does not emit the parsed `requires` clause to simplify the implementation.
 // In other words, these two functions' mangled names will demangle identically:
@@ -1942,12 +1941,19 @@ static bool ParseExprCastValue(State *state) {
 //
 // template <typename T>
 // int foo(T);
-static bool ParseRequiresClauseExpression(State *state) {
-  bool original_append = state->parse_state.append;
+static bool ParseQRequiresClauseExpr(State *state) {
+  ParseState copy = state->parse_state;
   DisableAppend(state);
-  bool result = ParseExpression(state);
-  RestoreAppend(state, original_append);
-  return result;
+
+  // <requires-clause expr> is just an <expression>: http://shortn/_9E1Ul0rIM8
+  if (ParseOneCharToken(state, 'Q') && ParseExpression(state)) {
+    RestoreAppend(state, copy.append);
+    return true;
+  }
+
+  // also restores append
+  state->parse_state = copy;
+  return false;
 }
 
 // <local-name> ::= Z <(function) encoding> E <(entity) name> [<discriminator>]

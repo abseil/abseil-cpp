@@ -75,6 +75,42 @@ TEST(Demangle, FunctionTemplateWithFunctionRequiresClause) {
   EXPECT_STREQ(tmp, "foo<>()");
 }
 
+TEST(Demangle, FunctionWithTemplateParamRequiresClause) {
+  char tmp[100];
+
+  // template <typename T>
+  //     requires std::integral<T>
+  // int foo();
+  //
+  // foo<int>();
+  ASSERT_TRUE(Demangle("_Z3fooIiQsr3stdE8integralIT_EEiv", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
+TEST(Demangle, FunctionWithTemplateParamAndFunctionRequiresClauses) {
+  char tmp[100];
+
+  // template <typename T>
+  //     requires std::integral<T>
+  // int foo() requires std::integral<T>;
+  //
+  // foo<int>();
+  ASSERT_TRUE(Demangle("_Z3fooIiQsr3stdE8integralIT_EEivQsr3stdE8integralIS0_E",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
+TEST(Demangle, FunctionTemplateBacktracksOnMalformedRequiresClause) {
+  char tmp[100];
+
+  // template <typename T>
+  // int foo(T);
+  //
+  // foo<int>(5);
+  // Except there's an extra `Q` where the mangled requires clause would be.
+  ASSERT_FALSE(Demangle("_Z3fooIiQEiT_", tmp, sizeof(tmp)));
+}
+
 TEST(Demangle, FunctionTemplateWithAutoParam) {
   char tmp[100];
 
