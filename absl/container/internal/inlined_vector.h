@@ -322,14 +322,13 @@ class Storage {
 
   // The policy to be used specifically when swapping inlined elements.
   using SwapInlinedElementsPolicy = absl::conditional_t<
-      // Fast path: if the value type can be trivially move constructed/assigned
-      // and destroyed, and we know the allocator doesn't do anything fancy,
-      // then it's safe for us to simply swap the bytes in the inline storage.
-      // It's as if we had move-constructed a temporary vector, move-assigned
-      // one to the other, then move-assigned the first from the temporary.
-      absl::conjunction<absl::is_trivially_move_constructible<ValueType<A>>,
-                        absl::is_trivially_move_assignable<ValueType<A>>,
-                        absl::is_trivially_destructible<ValueType<A>>,
+      // Fast path: if the value type can be trivially relocated, and we
+      // know the allocator doesn't do anything fancy, then it's safe for us
+      // to simply swap the bytes in the inline storage. It's as if we had
+      // relocated the first vector's elements into temporary storage,
+      // relocated the second's elements into the (now-empty) first's,
+      // and then relocated from temporary storage into the second.
+      absl::conjunction<absl::is_trivially_relocatable<ValueType<A>>,
                         std::is_same<A, std::allocator<ValueType<A>>>>::value,
       MemcpyPolicy,
       absl::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
