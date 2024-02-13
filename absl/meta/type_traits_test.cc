@@ -751,7 +751,7 @@ TEST(TriviallyRelocatable, PrimitiveTypes) {
 
 // User-defined types can be trivially relocatable as long as they don't have a
 // user-provided move constructor or destructor.
-TEST(TriviallyRelocatable, UserDefinedTriviallyReconstructible) {
+TEST(TriviallyRelocatable, UserDefinedTriviallyRelocatable) {
   struct S {
     int x;
     int y;
@@ -799,12 +799,13 @@ TEST(TriviallyRelocatable, UserProvidedDestructor) {
     !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
     !defined(__APPLE__)
 // A type marked with the "trivial ABI" attribute is trivially relocatable even
-// if it has user-provided move/copy constructors and a user-provided
-// destructor.
-TEST(TrivallyRelocatable, TrivialAbi) {
+// if it has user-provided special members.
+TEST(TriviallyRelocatable, TrivialAbi) {
   struct ABSL_ATTRIBUTE_TRIVIAL_ABI S {
     S(S&&) {}       // NOLINT(modernize-use-equals-default)
     S(const S&) {}  // NOLINT(modernize-use-equals-default)
+    void operator=(S&&) {}
+    void operator=(const S&) {}
     ~S() {}         // NOLINT(modernize-use-equals-default)
   };
 
@@ -824,7 +825,7 @@ constexpr int64_t NegateIfConstantEvaluated(int64_t i) {
 
 #endif  // ABSL_HAVE_CONSTANT_EVALUATED
 
-TEST(TrivallyRelocatable, is_constant_evaluated) {
+TEST(IsConstantEvaluated, is_constant_evaluated) {
 #ifdef ABSL_HAVE_CONSTANT_EVALUATED
   constexpr int64_t constant = NegateIfConstantEvaluated(42);
   EXPECT_EQ(constant, -42);

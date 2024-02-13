@@ -471,12 +471,17 @@ using swap_internal::StdSwapIsUnconstrained;
 // absl::is_trivially_relocatable<T>
 //
 // Detects whether a type is known to be "trivially relocatable" -- meaning it
-// can be relocated without invoking the constructor/destructor, using a form of
-// move elision.
+// can be relocated from one place to another as if by memcpy/memmove.
+// This implies that its object representation doesn't depend on its address,
+// and also its move constructor and destructor don't do anything strange.
 //
-// This trait is conservative, for backwards compatibility. If it's true then
-// the type is definitely trivially relocatable, but if it's false then the type
-// may or may not be.
+// This trait is conservative. If it's true then the type is definitely
+// trivially relocatable, but there are many types which are "Platonically"
+// trivially relocatable but for which the type trait returns false because
+// it can't introspect into the special members and see that they're not
+// doing anything strange. (For example, std::vector<int> is trivially
+// relocatable on every known STL implementation, but
+// absl::is_trivially_relocatable<std::vector<int>> remains false.)
 //
 // Example:
 //
