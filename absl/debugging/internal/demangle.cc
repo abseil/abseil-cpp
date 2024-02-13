@@ -1942,6 +1942,8 @@ static bool ParseExprCastValue(State *state) {
 // template <typename T>
 // int foo(T);
 static bool ParseQRequiresClauseExpr(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
   DisableAppend(state);
 
