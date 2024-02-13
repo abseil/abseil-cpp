@@ -473,7 +473,7 @@ using swap_internal::StdSwapIsUnconstrained;
 // Detects whether a type is known to be "trivially relocatable" -- meaning it
 // can be relocated from one place to another as if by memcpy/memmove.
 // This implies that its object representation doesn't depend on its address,
-// and also its move constructor and destructor don't do anything strange.
+// and also none of its special member functions do anything strange.
 //
 // This trait is conservative. If it's true then the type is definitely
 // trivially relocatable, but there are many types which are "Platonically"
@@ -514,22 +514,27 @@ using swap_internal::StdSwapIsUnconstrained;
 // TODO(b/324278148): If all versions we use have the bug fixed, then
 // remove the condition.
 //
+// Clang on all platforms fails to detect that a type with a user-provided
+// move-assignment operator is not trivially relocatable. So in fact we
+// opt out of Clang altogether, for now.
+//
+// TODO: remove the opt-out once Clang's behavior is fixed.
+//
 // According to https://github.com/abseil/abseil-cpp/issues/1479, this does not
 // work with NVCC either.
-#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) &&                 \
-    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
-    !(defined(__APPLE__)) && !defined(__NVCC__)
+#if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
+    (defined(__cpp_impl_trivially_relocatable) ||    \
+     (!defined(__clang__) && !defined(__APPLE__) && !defined(__NVCC__)))
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};
 #else
 // Otherwise we use a fallback that detects only those types we can feasibly
-// detect. Any time that has trivial move-construction and destruction
-// operations is by definition trivially relocatable.
+// detect. Any type that is trivially copyable is by definition trivially
+// relocatable.
 template <class T>
 struct is_trivially_relocatable
-    : absl::conjunction<absl::is_trivially_move_constructible<T>,
-                        absl::is_trivially_destructible<T>> {};
+    : std::is_trivially_copyable<T> {};
 #endif
 
 // absl::is_constant_evaluated()

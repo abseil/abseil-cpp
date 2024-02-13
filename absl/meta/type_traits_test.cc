@@ -780,6 +780,28 @@ TEST(TriviallyRelocatable, UserProvidedCopyConstructor) {
   static_assert(!absl::is_trivially_relocatable<S>::value, "");
 }
 
+// A user-provided copy assignment operator disqualifies a type from
+// being trivially relocatable.
+TEST(TriviallyRelocatable, UserProvidedCopyAssignment) {
+  struct S {
+    S(const S&) = default;
+    S& operator=(const S&) { return *this; }  // NOLINT(modernize-use-equals-default)
+  };
+
+  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+}
+
+// A user-provided move assignment operator disqualifies a type from
+// being trivially relocatable.
+TEST(TriviallyRelocatable, UserProvidedMoveAssignment) {
+  struct S {
+    S(S&&) = default;
+    S& operator=(S&&) { return *this; }  // NOLINT(modernize-use-equals-default)
+  };
+
+  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+}
+
 // A user-provided destructor disqualifies a type from being trivially
 // relocatable.
 TEST(TriviallyRelocatable, UserProvidedDestructor) {
@@ -796,8 +818,8 @@ TEST(TriviallyRelocatable, UserProvidedDestructor) {
 // __is_trivially_relocatable is fixed there.
 #if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) &&                      \
     ABSL_HAVE_BUILTIN(__is_trivially_relocatable) &&                 \
-    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
-    !defined(__APPLE__)
+    (defined(__cpp_impl_trivially_relocatable) ||                    \
+     (!defined(__clang__) && !defined(__APPLE__) && !defined(__NVCC__)))
 // A type marked with the "trivial ABI" attribute is trivially relocatable even
 // if it has user-provided special members.
 TEST(TriviallyRelocatable, TrivialAbi) {
