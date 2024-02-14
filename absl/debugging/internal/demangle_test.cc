@@ -150,6 +150,38 @@ TEST(Demangle, FunctionTemplateTemplateParamWithConstrainedArg) {
   EXPECT_STREQ(tmp, "foo<>()");
 }
 
+TEST(Demangle, NonTemplateBuiltinType) {
+  char tmp[100];
+
+  // void foo(__my_builtin_type t);
+  //
+  // foo({});
+  ASSERT_TRUE(Demangle("_Z3foou17__my_builtin_type", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo()");
+}
+
+TEST(Demangle, SingleArgTemplateBuiltinType) {
+  char tmp[100];
+
+  // template <typename T>
+  // __my_builtin_type<T> foo();
+  //
+  // foo<int>();
+  ASSERT_TRUE(Demangle("_Z3fooIiEu17__my_builtin_typeIT_Ev", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
+}
+
+TEST(Demangle, FailsOnTwoArgTemplateBuiltinType) {
+  char tmp[100];
+
+  // template <typename T, typename U>
+  // __my_builtin_type<T, U> foo();
+  //
+  // foo<int, char>();
+  ASSERT_FALSE(
+      Demangle("_Z3fooIicEu17__my_builtin_typeIT_T0_Ev", tmp, sizeof(tmp)));
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];

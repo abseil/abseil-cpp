@@ -1297,32 +1297,39 @@ static bool ParseCVQualifiers(State *state) {
 }
 
 // <builtin-type> ::= v, etc.  # single-character builtin types
-//                ::= u <source-name>
+//                ::= u <source-name> [I <type> E]
 //                ::= Dd, etc.  # two-character builtin types
 //
 // Not supported:
 //                ::= DF <number> _ # _FloatN (N bits)
 //
+// NOTE: [I <type> E] is a vendor extension (http://shortn/_FrINpH1XC5).
 static bool ParseBuiltinType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
-  const AbbrevPair *p;
-  for (p = kBuiltinTypeList; p->abbrev != nullptr; ++p) {
+
+  for (const AbbrevPair *p = kBuiltinTypeList; p->abbrev != nullptr; ++p) {
     // Guaranteed only 1- or 2-character strings in kBuiltinTypeList.
     if (p->abbrev[1] == '\0') {
       if (ParseOneCharToken(state, p->abbrev[0])) {
         MaybeAppend(state, p->real_name);
-        return true;
+        return true;  // ::= v, etc.  # single-character builtin types
       }
     } else if (p->abbrev[2] == '\0' && ParseTwoCharToken(state, p->abbrev)) {
       MaybeAppend(state, p->real_name);
-      return true;
+      return true;  // ::= Dd, etc.  # two-character builtin types
     }
   }
 
   ParseState copy = state->parse_state;
   if (ParseOneCharToken(state, 'u') && ParseSourceName(state)) {
-    return true;
+    copy = state->parse_state;
+    if (ParseOneCharToken(state, 'I') && ParseType(state) &&
+        ParseOneCharToken(state, 'E')) {
+      return true;  // ::= u <source-name> I <type> E
+    }
+    state->parse_state = copy;
+    return true;  // ::= u <source-name>
   }
   state->parse_state = copy;
   return false;
