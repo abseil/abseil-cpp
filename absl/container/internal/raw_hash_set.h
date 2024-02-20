@@ -2849,8 +2849,7 @@ class raw_hash_set {
   template <class K = key_type>
   const_iterator find(const key_arg<K>& key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    prefetch_heap_block();
-    return find(key, hash_ref()(key));
+    return const_cast<raw_hash_set*>(this)->find(key);
   }
 
   template <class K = key_type>
