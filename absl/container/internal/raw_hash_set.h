@@ -2329,7 +2329,7 @@ class raw_hash_set {
                                      PolicyTraits::element(that_slot))) == h2 &&
               "hash function value changed unexpectedly during the copy");
           SetCtrl(common(), offset, h2, sizeof(slot_type));
-          emplace_at(offset, PolicyTraits::element(that_slot));
+          emplace_at(iterator_at(offset), PolicyTraits::element(that_slot));
           common().maybe_increment_generation_on_insert();
         });
     if (shift != 0) {
@@ -2629,11 +2629,11 @@ class raw_hash_set {
                         F&& f) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = find_or_prepare_insert(key);
     if (res.second) {
-      slot_type* slot = slot_array() + res.first;
+      slot_type* slot = res.first.slot();
       std::forward<F>(f)(constructor(&alloc_ref(), &slot));
       assert(!slot);
     }
-    return iterator_at(res.first);
+    return res.first;
   }
 
   // Extension API: support for heterogeneous keys.
@@ -2956,7 +2956,7 @@ class raw_hash_set {
       if (res.second) {
         s.emplace_at(res.first, std::forward<Args>(args)...);
       }
-      return {s.iterator_at(res.first), res.second};
+      return res;
     }
     raw_hash_set& s;
   };
@@ -2967,11 +2967,11 @@ class raw_hash_set {
     std::pair<iterator, bool> operator()(const K& key, Args&&...) && {
       auto res = s.find_or_prepare_insert(key);
       if (res.second) {
-        s.transfer(s.slot_array() + res.first, &slot);
+        s.transfer(res.first.slot(), &slot);
       } else if (do_destroy) {
         s.destroy(&slot);
       }
-      return {s.iterator_at(res.first), res.second};
+      return res;
     }
     raw_hash_set& s;
     // Constructed slot. Either moved into place or destroyed.
@@ -3208,11 +3208,11 @@ class raw_hash_set {
   }
 
  protected:
-  // Attempts to find `key` in the table; if it isn't found, returns a slot that
-  // the value can be inserted into, with the control byte already set to
-  // `key`'s H2.
+  // Attempts to find `key` in the table; if it isn't found, returns an iterator
+  // where the value can be inserted into, with the control byte already set to
+  // `key`'s H2. Returns a bool indicating whether an insertion can take place.
   template <class K>
-  std::pair<size_t, bool> find_or_prepare_insert(const K& key) {
+  std::pair<iterator, bool> find_or_prepare_insert(const K& key) {
     prefetch_heap_block();
     auto hash = hash_ref()(key);
     auto seq = probe(common(), hash);
@@ -3223,13 +3223,13 @@ class raw_hash_set {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
                 EqualElement<K>{key, eq_ref()},
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
-          return {seq.offset(i), false};
+          return {iterator_at(seq.offset(i)), false};
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) break;
       seq.next();
       assert(seq.index() <= capacity() && "full table!");
     }
-    return {prepare_insert(hash), true};
+    return {iterator_at(prepare_insert(hash)), true};
   }
 
   // Given the hash of a value not currently in the table, finds the next
@@ -3272,16 +3272,15 @@ class raw_hash_set {
   // after an unsuccessful find_or_prepare_insert() and before any other
   // modifications happen in the raw_hash_set.
   //
-  // PRECONDITION: i is an index returned from find_or_prepare_insert(k), where
-  // k is the key decomposed from `forward<Args>(args)...`, and the bool
-  // returned by find_or_prepare_insert(k) was true.
+  // PRECONDITION: iter was returned from find_or_prepare_insert(k), where k is
+  // the key decomposed from `forward<Args>(args)...`, and the bool returned by
+  // find_or_prepare_insert(k) was true.
   // POSTCONDITION: *m.iterator_at(i) == value_type(forward<Args>(args)...).
   template <class... Args>
-  void emplace_at(size_t i, Args&&... args) {
-    construct(slot_array() + i, std::forward<Args>(args)...);
+  void emplace_at(iterator iter, Args&&... args) {
+    construct(iter.slot(), std::forward<Args>(args)...);
 
-    assert(PolicyTraits::apply(FindElement{*this}, *iterator_at(i)) ==
-               iterator_at(i) &&
+    assert(PolicyTraits::apply(FindElement{*this}, *iter) == iter &&
            "constructed value does not match the lookup key");
   }
 
