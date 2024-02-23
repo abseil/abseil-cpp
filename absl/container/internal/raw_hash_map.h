@@ -198,10 +198,11 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   std::pair<iterator, bool> insert_or_assign_impl(K&& k, V&& v)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
-    if (res.second)
+    if (res.second) {
       this->emplace_at(res.first, std::forward<K>(k), std::forward<V>(v));
-    else
+    } else {
       Policy::value(&*res.first) = std::forward<V>(v);
+    }
     return res;
   }
 
@@ -209,10 +210,11 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
   std::pair<iterator, bool> try_emplace_impl(K&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
-    if (res.second)
+    if (res.second) {
       this->emplace_at(res.first, std::piecewise_construct,
                        std::forward_as_tuple(std::forward<K>(k)),
                        std::forward_as_tuple(std::forward<Args>(args)...));
+    }
     return res;
   }
 };
