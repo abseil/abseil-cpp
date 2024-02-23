@@ -1623,8 +1623,10 @@ class HashSetResizeHelper {
         old_capacity_(c.capacity()),
         had_infoz_(c.has_infoz()) {}
 
-  // Optimized for small groups version of `find_first_non_full` applicable
-  // only right after calling `raw_hash_set::resize`.
+  // Optimized for small groups version of `find_first_non_full`.
+  // Beneficial only right after calling `raw_hash_set::resize`.
+  // It is safe to call in case capacity is big or was not changed, but there
+  // will be no performance benefit.
   // It has implicit assumption that `resize` will call
   // `GrowSizeIntoSingleGroup*` in case `IsGrowingIntoSingleGroupApplicable`.
   // Falls back to `find_first_non_full` in case of big groups, so it is
@@ -3244,21 +3246,21 @@ class raw_hash_set {
       const size_t cap = capacity();
       resize(growth_left() > 0 ? cap : NextCapacity(cap));
     }
-    auto target = find_first_non_full(common(), hash);
-    if (!rehash_for_bug_detection &&
-        ABSL_PREDICT_FALSE(growth_left() == 0 &&
-                           !IsDeleted(control()[target.offset]))) {
-      size_t old_capacity = capacity();
+    FindInfo target;
+    if (!rehash_for_bug_detection && ABSL_PREDICT_FALSE(growth_left() == 0)) {
+      const size_t old_capacity = capacity();
       rehash_and_grow_if_necessary();
-      // NOTE: It is safe to use `FindFirstNonFullAfterResize`.
-      // `FindFirstNonFullAfterResize` must be called right after resize.
+      // NOTE: It is safe to use `FindFirstNonFullAfterResize` after
+      // `rehash_and_grow_if_necessary`, whether capacity changes or not.
       // `rehash_and_grow_if_necessary` may *not* call `resize`
       // and perform `drop_deletes_without_resize` instead. But this
-      // could happen only on big tables.
+      // could happen only on big tables and will not change capacity.
       // For big tables `FindFirstNonFullAfterResize` will always
-      // fallback to normal `find_first_non_full`, so it is safe to use it.
+      // fallback to normal `find_first_non_full`.
       target = HashSetResizeHelper::FindFirstNonFullAfterResize(
           common(), old_capacity, hash);
+    } else {
+      target = find_first_non_full(common(), hash);
     }
     common().increment_size();
     set_growth_left(growth_left() - IsEmpty(control()[target.offset]));
