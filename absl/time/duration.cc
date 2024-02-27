@@ -342,19 +342,10 @@ inline bool IDivFastPath(const Duration num, const Duration den, int64_t* q,
 
 }  // namespace
 
-namespace time_internal {
+namespace {
 
-// The 'satq' argument indicates whether the quotient should saturate at the
-// bounds of int64_t.  If it does saturate, the difference will spill over to
-// the remainder.  If it does not saturate, the remainder remain accurate,
-// but the returned quotient will over/underflow int64_t and should not be used.
-int64_t IDivDuration(bool satq, const Duration num, const Duration den,
+int64_t IDivSlowPath(bool satq, const Duration num, const Duration den,
                      Duration* rem) {
-  int64_t q = 0;
-  if (IDivFastPath(num, den, &q, rem)) {
-    return q;
-  }
-
   const bool num_neg = num < ZeroDuration();
   const bool den_neg = den < ZeroDuration();
   const bool quotient_neg = num_neg != den_neg;
@@ -391,7 +382,27 @@ int64_t IDivDuration(bool satq, const Duration num, const Duration den,
   return -static_cast<int64_t>(Uint128Low64(quotient128 - 1) & kint64max) - 1;
 }
 
-}  // namespace time_internal
+// The 'satq' argument indicates whether the quotient should saturate at the
+// bounds of int64_t.  If it does saturate, the difference will spill over to
+// the remainder.  If it does not saturate, the remainder remain accurate,
+// but the returned quotient will over/underflow int64_t and should not be used.
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int64_t IDivDurationImpl(bool satq,
+                                                             const Duration num,
+                                                             const Duration den,
+                                                             Duration* rem) {
+  int64_t q = 0;
+  if (IDivFastPath(num, den, &q, rem)) {
+    return q;
+  }
+  return IDivSlowPath(satq, num, den, rem);
+}
+
+}  // namespace
+
+int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
+  return IDivDurationImpl(true, num, den,
+                          rem);  // trunc towards zero
+}
 
 //
 // Additive operators.
@@ -475,7 +486,7 @@ Duration& Duration::operator/=(double r) {
 }
 
 Duration& Duration::operator%=(Duration rhs) {
-  time_internal::IDivDuration(false, *this, rhs, this);
+  IDivDurationImpl(false, *this, rhs, this);
   return *this;
 }
 
@@ -501,9 +512,7 @@ double FDivDuration(Duration num, Duration den) {
 // Trunc/Floor/Ceil.
 //
 
-Duration Trunc(Duration d, Duration unit) {
-  return d - (d % unit);
-}
+Duration Trunc(Duration d, Duration unit) { return d - (d % unit); }
 
 Duration Floor(const Duration d, const Duration unit) {
   const absl::Duration td = Trunc(d, unit);
@@ -591,15 +600,9 @@ double ToDoubleMicroseconds(Duration d) {
 double ToDoubleMilliseconds(Duration d) {
   return FDivDuration(d, Milliseconds(1));
 }
-double ToDoubleSeconds(Duration d) {
-  return FDivDuration(d, Seconds(1));
-}
-double ToDoubleMinutes(Duration d) {
-  return FDivDuration(d, Minutes(1));
-}
-double ToDoubleHours(Duration d) {
-  return FDivDuration(d, Hours(1));
-}
+double ToDoubleSeconds(Duration d) { return FDivDuration(d, Seconds(1)); }
+double ToDoubleMinutes(Duration d) { return FDivDuration(d, Minutes(1)); }
+double ToDoubleHours(Duration d) { return FDivDuration(d, Hours(1)); }
 
 timespec ToTimespec(Duration d) {
   timespec ts;
