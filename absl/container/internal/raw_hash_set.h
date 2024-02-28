@@ -571,7 +571,9 @@ inline h2_t H2(size_t hash) { return hash & 0x7F; }
 
 // Helpers for checking the state of a control byte.
 inline bool IsEmpty(ctrl_t c) { return c == ctrl_t::kEmpty; }
-inline bool IsFull(ctrl_t c) { return c >= static_cast<ctrl_t>(0); }
+inline bool IsFull(ctrl_t c) {
+  return static_cast<std::underlying_type_t<ctrl_t>>(c) >= 0;
+}
 inline bool IsDeleted(ctrl_t c) { return c == ctrl_t::kDeleted; }
 inline bool IsEmptyOrDeleted(ctrl_t c) { return c < ctrl_t::kSentinel; }
 
