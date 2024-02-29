@@ -53,7 +53,7 @@
 #if ABSL_USE_UNSCALED_CYCLECLOCK
 // This macro can be used to test if UnscaledCycleClock::Frequency()
 // is NominalCPUFrequency() on a particular platform.
-#if (defined(__i386__) || defined(__x86_64__) || defined(__riscv) || \
+#if (defined(__i386__) || defined(__x86_64__) || \
      defined(_M_IX86) || defined(_M_X64))
 #define ABSL_INTERNAL_UNSCALED_CYCLECLOCK_FREQUENCY_IS_CPU_FREQUENCY
 #endif

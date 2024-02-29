@@ -125,7 +125,7 @@ double UnscaledCycleClock::Frequency() {
 
 int64_t UnscaledCycleClock::Now() {
   int64_t virtual_timer_value;
-  asm volatile("rdcycle %0" : "=r"(virtual_timer_value));
+  asm volatile("rdtime %0" : "=r"(virtual_timer_value));
   return virtual_timer_value;
 }
 
