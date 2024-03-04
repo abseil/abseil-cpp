@@ -546,7 +546,27 @@ inline bool IsEmptyGeneration(const GenerationType* generation) {
 
 // Mixes a randomly generated per-process seed with `hash` and `ctrl` to
 // randomize insertion order within groups.
-bool ShouldInsertBackwards(size_t hash, const ctrl_t* ctrl);
+bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
+                                   const ctrl_t* ctrl);
+
+// Returns insert position for the given mask.
+// We want to add entropy even when ASLR is not enabled.
+// In debug build we will randomly insert in either the front or back of
+// the group.
+// TODO(kfm,sbenza): revisit after we do unconditional mixing
+template <class Mask>
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto GetInsertionOffset(
+    Mask mask, ABSL_ATTRIBUTE_UNUSED size_t capacity,
+    ABSL_ATTRIBUTE_UNUSED size_t hash,
+    ABSL_ATTRIBUTE_UNUSED const ctrl_t* ctrl) {
+#if defined(NDEBUG)
+  return mask.LowestBitSet();
+#else
+  return ShouldInsertBackwardsForDebug(capacity, hash, ctrl)
+             ? mask.HighestBitSet()
+             : mask.LowestBitSet();
+#endif
+}
 
 // Returns a per-table, hash salt, which changes on resize. This gets mixed into
 // H1 to randomize iteration order per-table.
@@ -1495,16 +1515,9 @@ inline FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
     GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
     auto mask = g.MaskEmptyOrDeleted();
     if (mask) {
-#if !defined(NDEBUG)
-      // We want to add entropy even when ASLR is not enabled.
-      // In debug build we will randomly insert in either the front or back of
-      // the group.
-      // TODO(kfm,sbenza): revisit after we do unconditional mixing
-      if (!is_small(common.capacity()) && ShouldInsertBackwards(hash, ctrl)) {
-        return {seq.offset(mask.HighestBitSet()), seq.index()};
-      }
-#endif
-      return {seq.offset(mask.LowestBitSet()), seq.index()};
+      return {
+          seq.offset(GetInsertionOffset(mask, common.capacity(), hash, ctrl)),
+          seq.index()};
     }
     seq.next();
     assert(seq.index() <= common.capacity() && "full table!");

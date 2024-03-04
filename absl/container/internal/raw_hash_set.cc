@@ -104,10 +104,11 @@ bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
   return ShouldRehashForBugDetection(ctrl, capacity);
 }
 
-bool ShouldInsertBackwards(size_t hash, const ctrl_t* ctrl) {
+bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
+                                   const ctrl_t* ctrl) {
   // To avoid problems with weak hashes and single bit tests, we use % 13.
   // TODO(kfm,sbenza): revisit after we do unconditional mixing
-  return (H1(hash, ctrl) ^ RandomSeed()) % 13 > 6;
+  return !is_small(capacity) && (H1(hash, ctrl) ^ RandomSeed()) % 13 > 6;
 }
 
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
