@@ -140,6 +140,10 @@ cc_library(
         "policy_checks.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    # This library is the root of the absl dependency tree.
+    # If we add this `includes` path here, then all absl headers
+    # can be included via angle brackets in external projects.
+    includes = ["../.."],
     linkopts = ABSL_DEFAULT_LINKOPTS,
 )
 
