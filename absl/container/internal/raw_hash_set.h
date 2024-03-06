@@ -2672,8 +2672,8 @@ class raw_hash_set {
     const size_t cap = common().capacity();
     // Use local variables because compiler complains about using functions in
     // assume.
-    static constexpr bool kSooEnabled = SooEnabled();
-    static constexpr size_t kSooCapacity = SooCapacity();
+    ABSL_ATTRIBUTE_UNUSED static constexpr bool kSooEnabled = SooEnabled();
+    ABSL_ATTRIBUTE_UNUSED static constexpr size_t kSooCapacity = SooCapacity();
     ABSL_ASSUME(!kSooEnabled || cap >= kSooCapacity);
     return cap;
   }
