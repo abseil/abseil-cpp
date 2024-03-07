@@ -3295,14 +3295,13 @@ class raw_hash_set {
   iterator find_non_soo(const key_arg<K>& key, size_t hash) {
     assert(!is_soo());
     auto seq = probe(common(), hash);
-    slot_type* slot_ptr = slot_array();
     const ctrl_t* ctrl = control();
     while (true) {
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(H2(hash))) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
                 EqualElement<K>{key, eq_ref()},
-                PolicyTraits::element(slot_ptr + seq.offset(i)))))
+                PolicyTraits::element(slot_array() + seq.offset(i)))))
           return iterator_at(seq.offset(i));
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
