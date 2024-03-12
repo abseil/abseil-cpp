@@ -2195,11 +2195,6 @@ class raw_hash_set {
            sizeof(slot_type) <= sizeof(HeapOrSoo) &&
            alignof(slot_type) <= alignof(HeapOrSoo);
   }
-  // TODO(b/289225379): this is used for pretty printing in GDB/LLDB, but if we
-  // use this instead of SooEnabled(), then we get compile errors in some OSS
-  // compilers due to incomplete mapped_type in flat_hash_map. We need to
-  // resolve this before launching SOO.
-  // constexpr static bool kSooEnabled = SooEnabled();
 
   // Whether `size` fits in the SOO capacity of this table.
   bool fits_in_soo(size_t size) const {
@@ -2689,9 +2684,9 @@ class raw_hash_set {
     const size_t cap = common().capacity();
     // Use local variables because compiler complains about using functions in
     // assume.
-    ABSL_ATTRIBUTE_UNUSED static constexpr bool kSooEnabled = SooEnabled();
-    ABSL_ATTRIBUTE_UNUSED static constexpr size_t kSooCapacity = SooCapacity();
-    ABSL_ASSUME(!kSooEnabled || cap >= kSooCapacity);
+    ABSL_ATTRIBUTE_UNUSED static constexpr bool kEnabled = SooEnabled();
+    ABSL_ATTRIBUTE_UNUSED static constexpr size_t kCapacity = SooCapacity();
+    ABSL_ASSUME(!kEnabled || cap >= kCapacity);
     return cap;
   }
   size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
