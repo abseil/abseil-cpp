@@ -196,7 +196,6 @@ crc32c_t AcceleratedCrcMemcpyEngine<vec_regions, int_regions>::Compute(
 
   // Start work on the CRC: undo the XOR from the previous calculation or set up
   // the initial value of the CRC.
-  // initial_crc ^= kCrcDataXor;
   initial_crc = crc32c_t{static_cast<uint32_t>(initial_crc) ^ kCrcDataXor};
 
   // Do an initial alignment copy, so we can use aligned store instructions to
