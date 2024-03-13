@@ -18,6 +18,7 @@ ABSL_GCC_FLAGS = [
     "-Wconversion-null",
     "-Wformat-security",
     "-Wmissing-declarations",
+    "-Wnon-virtual-dtor",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wundef",
