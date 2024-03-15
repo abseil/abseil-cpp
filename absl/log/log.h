@@ -198,7 +198,6 @@
 #define ABSL_LOG_LOG_H_
 
 #include "absl/log/internal/log_impl.h"
-#include "absl/log/vlog_is_on.h"  // IWYU pragma: export
 
 // LOG()
 //
