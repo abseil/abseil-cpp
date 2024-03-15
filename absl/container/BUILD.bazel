@@ -734,9 +734,7 @@ cc_binary(
     testonly = True,
     srcs = ["internal/raw_hash_set_probe_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//conditions:default": [],
-    }) + ABSL_DEFAULT_LINKOPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["benchmark"],
     visibility = ["//visibility:private"],
     deps = [

@@ -66,11 +66,7 @@ cc_library(
     deps = [
         ":civil_time",
         "//absl/base:config",
-    ] + select(
-        {
-            "//conditions:default": [],
-        },
-    ),
+    ],
 )
 
 ### tests

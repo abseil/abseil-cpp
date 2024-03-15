@@ -410,9 +410,7 @@ cc_binary(
         "flag_benchmark.cc",
     ],
     copts = ABSL_TEST_COPTS,
-    linkopts = select({
-        "//conditions:default": [],
-    }) + ABSL_DEFAULT_LINKOPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["benchmark"],
     visibility = ["//visibility:private"],
     deps = [

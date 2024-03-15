@@ -202,9 +202,7 @@ cc_library(
         "internal/direct_mmap.h",
         "internal/low_level_alloc.h",
     ],
-    copts = ABSL_DEFAULT_COPTS + select({
-        "//conditions:default": [],
-    }),
+    copts = ABSL_DEFAULT_COPTS,
     linkopts = select({
         "//absl:msvc_compiler": [],
         "//absl:clang-cl_compiler": [],

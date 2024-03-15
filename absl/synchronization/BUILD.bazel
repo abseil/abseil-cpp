@@ -41,9 +41,7 @@ cc_library(
     hdrs = [
         "internal/graphcycles.h",
     ],
-    copts = ABSL_DEFAULT_COPTS + select({
-        "//conditions:default": [],
-    }),
+    copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base",
@@ -69,9 +67,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/time",
-    ] + select({
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_test(
@@ -144,9 +140,7 @@ cc_library(
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
         "//absl/time",
-    ] + select({
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_test(
