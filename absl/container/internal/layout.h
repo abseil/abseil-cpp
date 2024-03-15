@@ -504,9 +504,7 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   // Note: We're not using ElementType alias here because it does not compile
   // under MSVC.
   template <class Char>
-  std::tuple<CopyConst<
-      Char, typename std::tuple_element<OffsetSeq, ElementTypes>::type>*...>
-  Pointers(Char* p) const {
+  auto Pointers(Char* p) const {
     return std::tuple<CopyConst<Char, ElementType<OffsetSeq>>*...>(
         Pointer<OffsetSeq>(p)...);
   }
@@ -562,9 +560,7 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   // Note: We're not using ElementType alias here because it does not compile
   // under MSVC.
   template <class Char>
-  std::tuple<SliceType<CopyConst<
-      Char, typename std::tuple_element<SizeSeq, ElementTypes>::type>>...>
-  Slices(Char* p) const {
+  auto Slices(Char* p) const {
     // Workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63875 (fixed
     // in 6.1).
     (void)p;
