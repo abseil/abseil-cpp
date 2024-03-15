@@ -171,6 +171,7 @@
 #include <typeinfo>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/debugging/internal/demangle.h"
 #include "absl/meta/type_traits.h"
@@ -559,11 +560,11 @@ class LayoutImpl<std::tuple<Elements...>, absl::index_sequence<SizeSeq...>,
   //
   // Note: We're not using ElementType alias here because it does not compile
   // under MSVC.
+  //
+  // Note: We mark the parameter as unused because GCC detects it is not used
+  // when `SizeSeq` is empty [-Werror=unused-but-set-parameter].
   template <class Char>
-  auto Slices(Char* p) const {
-    // Workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63875 (fixed
-    // in 6.1).
-    (void)p;
+  auto Slices(ABSL_ATTRIBUTE_UNUSED Char* p) const {
     return std::tuple<SliceType<CopyConst<Char, ElementType<SizeSeq>>>...>(
         Slice<SizeSeq>(p)...);
   }
