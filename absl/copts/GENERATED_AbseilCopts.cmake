@@ -84,6 +84,7 @@ list(APPEND ABSL_GCC_TEST_FLAGS
 list(APPEND ABSL_LLVM_FLAGS
     "-Wall"
     "-Wextra"
+    "-Wc++98-compat-extra-semi"
     "-Wcast-qual"
     "-Wconversion"
     "-Wdead-code-aggressive"
@@ -123,6 +124,7 @@ list(APPEND ABSL_LLVM_FLAGS
 list(APPEND ABSL_LLVM_TEST_FLAGS
     "-Wall"
     "-Wextra"
+    "-Wc++98-compat-extra-semi"
     "-Wcast-qual"
     "-Wconversion"
     "-Wdead-code-aggressive"

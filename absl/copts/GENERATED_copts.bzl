@@ -85,6 +85,7 @@ ABSL_GCC_TEST_FLAGS = [
 ABSL_LLVM_FLAGS = [
     "-Wall",
     "-Wextra",
+    "-Wc++98-compat-extra-semi",
     "-Wcast-qual",
     "-Wconversion",
     "-Wdead-code-aggressive",
@@ -124,6 +125,7 @@ ABSL_LLVM_FLAGS = [
 ABSL_LLVM_TEST_FLAGS = [
     "-Wall",
     "-Wextra",
+    "-Wc++98-compat-extra-semi",
     "-Wcast-qual",
     "-Wconversion",
     "-Wdead-code-aggressive",
