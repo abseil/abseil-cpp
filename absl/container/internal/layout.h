@@ -797,8 +797,8 @@ class LayoutWithStaticSizes
   // `-1`) or a variable with signed type is used, then it can generate a
   // warning about a potentially unsafe implicit cast. It would be great if we
   // could do this for Partial() too, but unfortunately as of C++23 there seems
-  // to be no way to define a function with a variable number of paramters of a
-  // certain type, a.k.a. homogenous function parameter packs. So we're forced
+  // to be no way to define a function with a variable number of parameters of a
+  // certain type, a.k.a. homogeneous function parameter packs. So we're forced
   // to choose between explicitly casting the arguments to size_t, which
   // suppresses all warnings, even potentially valid ones, or implicitly casting
   // them to size_t, which generates bogus warnings whenever literal arguments
