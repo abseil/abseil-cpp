@@ -85,9 +85,9 @@
 // generate optimal code. To help the compiler do that in more cases, you can
 // specify the fixed sizes using `WithStaticSizes`. This ensures that all
 // computations that can be performed at compile time are indeed performed at
-// compile time. E.g.:
+// compile time. Note that sometimes the `template` keyword is needed. E.g.:
 //
-//   using SL = L::WithStaticSizes<1, 1>;
+//   using SL = L::template WithStaticSizes<1, 1>;
 //
 //   void Use(unsigned char* p) {
 //     // First, extract N and M.
