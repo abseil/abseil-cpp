@@ -36,22 +36,29 @@ if [[ -z ${ABSL_CMAKE_BUILD_SHARED:-} ]]; then
   ABSL_CMAKE_BUILD_SHARED="OFF ON"
 fi
 
+if [[ -z ${ABSL_CMAKE_BUILD_HARDENED:-} ]]; then
+  ABSL_CMAKE_BUILD_HARDENED="OFF ON"
+fi
+
 for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
   for build_shared in ${ABSL_CMAKE_BUILD_SHARED}; do
-    BUILD_DIR=$(mktemp -d ${compilation_mode}.XXXXXXXX)
-    cd ${BUILD_DIR}
+    for build_hardened in ${ABSL_CMAKE_BUILD_HARDENED}; do
+      BUILD_DIR=$(mktemp -d ${compilation_mode}.XXXXXXXX)
+      cd ${BUILD_DIR}
 
-    # TODO(absl-team): Enable -Werror once all warnings are fixed.
-    time cmake ${ABSEIL_ROOT} \
-      -GXcode \
-      -DBUILD_SHARED_LIBS=${build_shared} \
-      -DABSL_BUILD_TESTING=ON \
-      -DCMAKE_BUILD_TYPE=${compilation_mode} \
-      -DCMAKE_CXX_STANDARD=14 \
-      -DCMAKE_MODULE_LINKER_FLAGS="-Wl,--no-undefined" \
-      -DABSL_GOOGLETEST_DOWNLOAD_URL="${ABSL_GOOGLETEST_DOWNLOAD_URL}"
-    time cmake --build .
-    time TZDIR=${ABSEIL_ROOT}/absl/time/internal/cctz/testdata/zoneinfo \
-      ctest -C ${compilation_mode} --output-on-failure
+      # TODO(absl-team): Enable -Werror once all warnings are fixed.
+      time cmake ${ABSEIL_ROOT} \
+        -GXcode \
+        -DBUILD_SHARED_LIBS=${build_shared} \
+        -DABSL_BUILD_TESTING=ON \
+        -DCMAKE_BUILD_TYPE=${compilation_mode} \
+        -DCMAKE_CXX_STANDARD=14 \
+        -DCMAKE_MODULE_LINKER_FLAGS="-Wl,--no-undefined" \
+        -DABSL_GOOGLETEST_DOWNLOAD_URL="${ABSL_GOOGLETEST_DOWNLOAD_URL}" \
+        -DABSL_USE_HARDENED_MODE=${build_hardened}
+      time cmake --build .
+      time TZDIR=${ABSEIL_ROOT}/absl/time/internal/cctz/testdata/zoneinfo \
+        ctest -C ${compilation_mode} --output-on-failure
+    done
   done
 done

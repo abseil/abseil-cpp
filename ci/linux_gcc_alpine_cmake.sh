@@ -34,32 +34,39 @@ if [[ -z ${ABSL_CMAKE_BUILD_SHARED:-} ]]; then
   ABSL_CMAKE_BUILD_SHARED="OFF ON"
 fi
 
+if [[ -z ${ABSL_CMAKE_BUILD_HARDENED:-} ]]; then
+  ABSL_CMAKE_BUILD_HARDENED="OFF ON"
+fi
+
 source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
 readonly DOCKER_CONTAINER=${LINUX_ALPINE_CONTAINER}
 
 for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
     for build_shared in ${ABSL_CMAKE_BUILD_SHARED}; do
-      time docker run \
-        --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp,readonly \
-        --tmpfs=/buildfs:exec \
-        --workdir=/buildfs \
-        --cap-add=SYS_PTRACE \
-        --rm \
-        -e CFLAGS="-Werror" \
-        -e CXXFLAGS="-Werror" \
-        ${DOCKER_EXTRA_ARGS:-} \
-        "${DOCKER_CONTAINER}" \
-        /bin/sh -c "
-          cmake /abseil-cpp \
-            -DABSL_GOOGLETEST_DOWNLOAD_URL=${ABSL_GOOGLETEST_DOWNLOAD_URL} \
-            -DABSL_BUILD_TESTING=ON \
-            -DCMAKE_BUILD_TYPE=${compilation_mode} \
-            -DCMAKE_CXX_STANDARD=${std} \
-            -DCMAKE_MODULE_LINKER_FLAGS=\"-Wl,--no-undefined\" && \
-          make -j$(nproc) && \
-          TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo \
-          ctest -j$(nproc) --output-on-failure"
+      for build_hardened in ${ABSL_CMAKE_BUILD_HARDENED}; do
+        time docker run \
+          --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp,readonly \
+          --tmpfs=/buildfs:exec \
+          --workdir=/buildfs \
+          --cap-add=SYS_PTRACE \
+          --rm \
+          -e CFLAGS="-Werror" \
+          -e CXXFLAGS="-Werror" \
+          ${DOCKER_EXTRA_ARGS:-} \
+          "${DOCKER_CONTAINER}" \
+          /bin/sh -c "
+            cmake /abseil-cpp \
+              -DABSL_GOOGLETEST_DOWNLOAD_URL=${ABSL_GOOGLETEST_DOWNLOAD_URL} \
+              -DABSL_BUILD_TESTING=ON \
+              -DCMAKE_BUILD_TYPE=${compilation_mode} \
+              -DCMAKE_CXX_STANDARD=${std} \
+              -DCMAKE_MODULE_LINKER_FLAGS=\"-Wl,--no-undefined\" \
+              -DABSL_USE_HARDENED_MODE=${build_hardened} && \
+            make -j$(nproc) && \
+            TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo \
+            ctest -j$(nproc) --output-on-failure"
+      done
     done
   done
 done
