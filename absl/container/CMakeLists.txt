@@ -753,11 +753,13 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::check
     absl::config
     absl::container_memory
     absl::core_headers
     absl::flat_hash_map
     absl::flat_hash_set
+    absl::function_ref
     absl::hash
     absl::hash_function_defaults
     absl::hash_policy_testing
