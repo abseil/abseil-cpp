@@ -150,7 +150,7 @@ set(ABSL_LOCAL_GOOGLETEST_DIR "/usr/src/googletest" CACHE PATH
   )
 
 option(ABSL_USE_HARDENED_MODE
-  "If ON, abseil will sue hardened mode." OFF)
+  "If ON, Abseil will use hardened mode." OFF)
 
 if((BUILD_TESTING AND ABSL_BUILD_TESTING) OR ABSL_BUILD_TEST_HELPERS)
   if (ABSL_USE_EXTERNAL_GOOGLETEST)
