@@ -73,6 +73,7 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   // Puts the object into a clean state, fills in the logically `const` members,
   // blocking for any readers that are currently sampling the object.
   void PrepareForSampling(int64_t stride, size_t inline_element_size_value,
+                          size_t key_size, size_t value_size,
                           uint16_t soo_capacity_value)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(init_mu);
 
@@ -104,6 +105,8 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   uint16_t soo_capacity;
   void* stack[kMaxStackDepth];
   size_t inline_element_size;  // How big is the slot in bytes?
+  size_t key_size;             // sizeof(key_type)
+  size_t value_size;           // sizeof(value_type)
 };
 
 void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length);
@@ -128,7 +131,8 @@ struct SamplingState {
 };
 
 HashtablezInfo* SampleSlow(SamplingState& next_sample,
-                           size_t inline_element_size, uint16_t soo_capacity);
+                           size_t inline_element_size, size_t key_size,
+                           size_t value_size, uint16_t soo_capacity);
 void UnsampleSlow(HashtablezInfo* info);
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
@@ -218,13 +222,16 @@ extern ABSL_PER_THREAD_TLS_KEYWORD SamplingState global_next_sample;
 // Returns a sampling handle.
 inline HashtablezInfoHandle Sample(
     ABSL_ATTRIBUTE_UNUSED size_t inline_element_size,
+    ABSL_ATTRIBUTE_UNUSED size_t key_size,
+    ABSL_ATTRIBUTE_UNUSED size_t value_size,
     ABSL_ATTRIBUTE_UNUSED uint16_t soo_capacity) {
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
   if (ABSL_PREDICT_TRUE(--global_next_sample.next_sample > 0)) {
     return HashtablezInfoHandle(nullptr);
   }
-  return HashtablezInfoHandle(
-      SampleSlow(global_next_sample, inline_element_size, soo_capacity));
+  return HashtablezInfoHandle(SampleSlow(global_next_sample,
+                                         inline_element_size, key_size,
+                                         value_size, soo_capacity));
 #else
   return HashtablezInfoHandle(nullptr);
 #endif  // !ABSL_PER_THREAD_TLS

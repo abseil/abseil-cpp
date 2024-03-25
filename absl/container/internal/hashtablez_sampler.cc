@@ -79,6 +79,8 @@ HashtablezInfo::~HashtablezInfo() = default;
 
 void HashtablezInfo::PrepareForSampling(int64_t stride,
                                         size_t inline_element_size_value,
+                                        size_t key_size_value,
+                                        size_t value_size_value,
                                         uint16_t soo_capacity_value) {
   capacity.store(0, std::memory_order_relaxed);
   size.store(0, std::memory_order_relaxed);
@@ -99,6 +101,8 @@ void HashtablezInfo::PrepareForSampling(int64_t stride,
   depth = absl::GetStackTrace(stack, HashtablezInfo::kMaxStackDepth,
                               /* skip_count= */ 0);
   inline_element_size = inline_element_size_value;
+  key_size = key_size_value;
+  value_size = value_size_value;
   soo_capacity = soo_capacity_value;
 }
 
@@ -123,12 +127,13 @@ static bool ShouldForceSampling() {
 }
 
 HashtablezInfo* SampleSlow(SamplingState& next_sample,
-                           size_t inline_element_size, uint16_t soo_capacity) {
+                           size_t inline_element_size, size_t key_size,
+                           size_t value_size, uint16_t soo_capacity) {
   if (ABSL_PREDICT_FALSE(ShouldForceSampling())) {
     next_sample.next_sample = 1;
     const int64_t old_stride = exchange(next_sample.sample_stride, 1);
     HashtablezInfo* result = GlobalHashtablezSampler().Register(
-        old_stride, inline_element_size, soo_capacity);
+        old_stride, inline_element_size, key_size, value_size, soo_capacity);
     return result;
   }
 
@@ -158,11 +163,12 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
   // that case.
   if (first) {
     if (ABSL_PREDICT_TRUE(--next_sample.next_sample > 0)) return nullptr;
-    return SampleSlow(next_sample, inline_element_size, soo_capacity);
+    return SampleSlow(next_sample, inline_element_size, key_size, value_size,
+                      soo_capacity);
   }
 
   return GlobalHashtablezSampler().Register(old_stride, inline_element_size,
-                                            soo_capacity);
+                                            key_size, value_size, soo_capacity);
 #endif
 }
 

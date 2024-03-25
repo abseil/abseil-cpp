@@ -2571,6 +2571,8 @@ TYPED_TEST_P(RawHashSamplerTest, Sample) {
         std::memory_order_relaxed)]++;
     reservations[info.max_reserve.load(std::memory_order_relaxed)]++;
     EXPECT_EQ(info.inline_element_size, sizeof(typename TypeParam::value_type));
+    EXPECT_EQ(info.key_size, sizeof(typename TypeParam::key_type));
+    EXPECT_EQ(info.value_size, sizeof(typename TypeParam::value_type));
 
     if (soo_enabled) {
       EXPECT_EQ(info.soo_capacity, SooCapacity());

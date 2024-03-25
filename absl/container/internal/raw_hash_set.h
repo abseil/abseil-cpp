@@ -1786,7 +1786,8 @@ constexpr bool ShouldSampleHashtablezInfo() {
 }
 
 template <bool kSooEnabled>
-HashtablezInfoHandle SampleHashtablezInfo(size_t sizeof_slot,
+HashtablezInfoHandle SampleHashtablezInfo(size_t sizeof_slot, size_t sizeof_key,
+                                          size_t sizeof_value,
                                           size_t old_capacity, bool was_soo,
                                           HashtablezInfoHandle forced_infoz,
                                           CommonFields& c) {
@@ -1794,12 +1795,12 @@ HashtablezInfoHandle SampleHashtablezInfo(size_t sizeof_slot,
   // In SOO, we sample on the first insertion so if this is an empty SOO case
   // (e.g. when reserve is called), then we still need to sample.
   if (kSooEnabled && was_soo && c.size() == 0) {
-    return Sample(sizeof_slot, SooCapacity());
+    return Sample(sizeof_slot, sizeof_key, sizeof_value, SooCapacity());
   }
   // For non-SOO cases, we sample whenever the capacity is increasing from zero
   // to non-zero.
   if (!kSooEnabled && old_capacity == 0) {
-    return Sample(sizeof_slot, 0);
+    return Sample(sizeof_slot, sizeof_key, sizeof_value, 0);
   }
   return c.infoz();
 }
@@ -1902,12 +1903,15 @@ class HashSetResizeHelper {
   template <typename Alloc, size_t SizeOfSlot, bool TransferUsesMemcpy,
             bool SooEnabled, size_t AlignOfSlot>
   ABSL_ATTRIBUTE_NOINLINE bool InitializeSlots(CommonFields& c, Alloc alloc,
-                                               ctrl_t soo_slot_h2) {
+                                               ctrl_t soo_slot_h2,
+                                               size_t key_size,
+                                               size_t value_size) {
     assert(c.capacity());
     HashtablezInfoHandle infoz =
         ShouldSampleHashtablezInfo<Alloc>()
-            ? SampleHashtablezInfo<SooEnabled>(SizeOfSlot, old_capacity_,
-                                               was_soo_, forced_infoz_, c)
+            ? SampleHashtablezInfo<SooEnabled>(SizeOfSlot, key_size, value_size,
+                                               old_capacity_, was_soo_,
+                                               forced_infoz_, c)
             : HashtablezInfoHandle{};
 
     const bool has_infoz = infoz.IsSampled();
@@ -3362,7 +3366,8 @@ class raw_hash_set {
   inline HashtablezInfoHandle try_sample_soo() {
     assert(is_soo());
     if (!ShouldSampleHashtablezInfo<CharAlloc>()) return HashtablezInfoHandle{};
-    return Sample(sizeof(slot_type), SooCapacity());
+    return Sample(sizeof(slot_type), sizeof(key_type), sizeof(value_type),
+                  SooCapacity());
   }
 
   inline void destroy_slots() {
@@ -3458,7 +3463,8 @@ class raw_hash_set {
         resize_helper.InitializeSlots<CharAlloc, sizeof(slot_type),
                                       PolicyTraits::transfer_uses_memcpy(),
                                       SooEnabled(), alignof(slot_type)>(
-            common(), CharAlloc(alloc_ref()), soo_slot_h2);
+            common(), CharAlloc(alloc_ref()), soo_slot_h2, sizeof(key_type),
+            sizeof(value_type));
 
     // In the SooEnabled() case, capacity is never 0 so we don't check.
     if (!SooEnabled() && resize_helper.old_capacity() == 0) {
