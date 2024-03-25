@@ -53,11 +53,11 @@
 #include <functional>
 #include <iterator>
 #include <limits>
-#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/common.h"
@@ -70,7 +70,6 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
-#include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -475,7 +474,7 @@ struct SearchResult {
 // useful information.
 template <typename V>
 struct SearchResult<V, false> {
-  SearchResult() {}
+  SearchResult() = default;
   explicit SearchResult(V v) : value(v) {}
   SearchResult(V v, MatchKind /*match*/) : value(v) {}
 
