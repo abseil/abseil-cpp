@@ -726,6 +726,7 @@ cc_binary(
         ":hash_function_defaults",
         ":raw_hash_set",
         "//absl/base:raw_logging_internal",
+        "//absl/random",
         "//absl/strings:str_format",
         "@com_github_google_benchmark//:benchmark_main",
     ],
