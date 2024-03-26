@@ -425,8 +425,8 @@ Cord& Cord::operator=(absl::string_view src) {
 // we keep it here to make diffs easier.
 void Cord::InlineRep::AppendArray(absl::string_view src,
                                   MethodIdentifier method) {
-  MaybeRemoveEmptyCrcNode();
   if (src.empty()) return;  // memcpy(_, nullptr, 0) is undefined.
+  MaybeRemoveEmptyCrcNode();
 
   size_t appended = 0;
   CordRep* rep = tree();
