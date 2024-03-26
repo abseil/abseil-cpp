@@ -1131,24 +1131,27 @@ struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
 struct full_soo_tag_t {};
 
+// Suppress erroneous uninitialized memory errors on GCC. For example, GCC
+// thinks that the call to slot_array() in find_or_prepare_insert() is reading
+// uninitialized memory, but slot_array is only called there when the table is
+// non-empty and this memory is initialized when the table is non-empty.
+#if !defined(__clang__) && defined(__GNUC__)
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x)                    \
+  _Pragma("GCC diagnostic push")                                   \
+      _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")  \
+          _Pragma("GCC diagnostic ignored \"-Wuninitialized\"") x; \
+  _Pragma("GCC diagnostic pop")
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) \
+  ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(return x)
+#else
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x) x
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) return x
+#endif
+
 // This allows us to work around an uninitialized memory warning when
 // constructing begin() iterators in empty hashtables.
 union MaybeInitializedPtr {
-  void* get() const {
-    // Suppress erroneous uninitialized memory errors on GCC. GCC thinks that
-    // the call to slot_array() in find_or_prepare_insert() is reading
-    // uninitialized memory, but slot_array is only called there when the table
-    // is non-empty and this memory is initialized when the table is non-empty.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#pragma GCC diagnostic ignored "-Wuninitialized"
-#endif
-    return p;
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-  }
+  void* get() const { ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(p); }
   void set(void* ptr) { p = ptr; }
 
   void* p;
@@ -1180,6 +1183,25 @@ union HeapOrSoo {
   HeapOrSoo() = default;
   explicit HeapOrSoo(ctrl_t* c) : heap(c) {}
 
+  ctrl_t*& control() {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.control);
+  }
+  ctrl_t* control() const {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.control);
+  }
+  MaybeInitializedPtr& slot_array() {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.slot_array);
+  }
+  MaybeInitializedPtr slot_array() const {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.slot_array);
+  }
+  void* get_soo_data() {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(soo_data);
+  }
+  const void* get_soo_data() const {
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(soo_data);
+  }
+
   HeapPtrs heap;
   unsigned char soo_data[sizeof(HeapPtrs)];
 };
@@ -1208,14 +1230,14 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
   // The inline data for SOO is written on top of control_/slots_.
-  const void* soo_data() const { return heap_or_soo_.soo_data; }
-  void* soo_data() { return heap_or_soo_.soo_data; }
+  const void* soo_data() const { return heap_or_soo_.get_soo_data(); }
+  void* soo_data() { return heap_or_soo_.get_soo_data(); }
 
   HeapOrSoo heap_or_soo() const { return heap_or_soo_; }
   const HeapOrSoo& heap_or_soo_ref() const { return heap_or_soo_; }
 
-  ctrl_t* control() const { return heap_or_soo_.heap.control; }
-  void set_control(ctrl_t* c) { heap_or_soo_.heap.control = c; }
+  ctrl_t* control() const { return heap_or_soo_.control(); }
+  void set_control(ctrl_t* c) { heap_or_soo_.control() = c; }
   void* backing_array_start() const {
     // growth_left (and maybe infoz) is stored before control bytes.
     assert(reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
@@ -1223,19 +1245,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
   // Note: we can't use slots() because Qt defines "slots" as a macro.
-  void* slot_array() const { return heap_or_soo_.heap.slot_array.get(); }
-  MaybeInitializedPtr slots_union() const {
-    // Suppress erroneous uninitialized memory errors on GCC.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-    return heap_or_soo_.heap.slot_array;
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-  }
-  void set_slots(void* s) { heap_or_soo_.heap.slot_array.set(s); }
+  void* slot_array() const { return heap_or_soo_.slot_array().get(); }
+  MaybeInitializedPtr slots_union() const { return heap_or_soo_.slot_array(); }
+  void set_slots(void* s) { heap_or_soo_.slot_array().set(s); }
 
   // The number of filled slots.
   size_t size() const { return size_ >> HasInfozShift(); }
@@ -1850,14 +1862,14 @@ class HashSetResizeHelper {
   }
 
   HeapOrSoo& old_heap_or_soo() { return old_heap_or_soo_; }
-  void* old_soo_data() { return old_heap_or_soo_.soo_data; }
+  void* old_soo_data() { return old_heap_or_soo_.get_soo_data(); }
   ctrl_t* old_ctrl() const {
     assert(!was_soo_);
-    return old_heap_or_soo_.heap.control;
+    return old_heap_or_soo_.control();
   }
   void* old_slots() const {
     assert(!was_soo_);
-    return old_heap_or_soo_.heap.slot_array.get();
+    return old_heap_or_soo_.slot_array().get();
   }
   size_t old_capacity() const { return old_capacity_; }
 
@@ -3393,7 +3405,9 @@ class raw_hash_set {
   inline void destructor_impl() {
     if (capacity() == 0) return;
     if (is_soo()) {
-      if (!empty()) destroy(soo_slot());
+      if (!empty()) {
+        ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(destroy(soo_slot()));
+      }
       return;
     }
     destroy_slots();
@@ -3977,5 +3991,7 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 #undef ABSL_SWISSTABLE_ENABLE_GENERATIONS
+#undef ABSL_SWISSTABLE_IGNORE_UNINITIALIZED
+#undef ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
