@@ -77,9 +77,10 @@ namespace container_internal {
 
 #ifdef ABSL_BTREE_ENABLE_GENERATIONS
 #error ABSL_BTREE_ENABLE_GENERATIONS cannot be directly set
-#elif defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
-    defined(ABSL_HAVE_HWADDRESS_SANITIZER) || \
-    defined(ABSL_HAVE_MEMORY_SANITIZER)
+#elif (defined(ABSL_HAVE_ADDRESS_SANITIZER) ||   \
+       defined(ABSL_HAVE_HWADDRESS_SANITIZER) || \
+       defined(ABSL_HAVE_MEMORY_SANITIZER)) &&   \
+    !defined(NDEBUG_SANITIZER)  // If defined, performance is important.
 // When compiled in sanitizer mode, we add generation integers to the nodes and
 // iterators. When iterators are used, we validate that the container has not
 // been mutated since the iterator was constructed.
