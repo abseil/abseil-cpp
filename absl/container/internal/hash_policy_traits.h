@@ -168,7 +168,7 @@ struct hash_policy_traits : common_policy_traits<Policy> {
 #endif
   }
 
-  // Whether small object optimization is enabled. True by default.
+  // Whether small object optimization is enabled. False by default.
   static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
 
  private:
@@ -197,7 +197,7 @@ struct hash_policy_traits : common_policy_traits<Policy> {
     return P::soo_enabled();
   }
 
-  static constexpr bool soo_enabled_impl(Rank0) { return true; }
+  static constexpr bool soo_enabled_impl(Rank0) { return false; }
 };
 
 }  // namespace container_internal
