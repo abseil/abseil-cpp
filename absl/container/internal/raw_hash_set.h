@@ -571,6 +571,16 @@ inline bool IsEmptyGeneration(const GenerationType* generation) {
 bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
                                    const ctrl_t* ctrl);
 
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool ShouldInsertBackwards(
+    ABSL_ATTRIBUTE_UNUSED size_t capacity, ABSL_ATTRIBUTE_UNUSED size_t hash,
+    ABSL_ATTRIBUTE_UNUSED const ctrl_t* ctrl) {
+#if defined(NDEBUG)
+  return false;
+#else
+  return ShouldInsertBackwardsForDebug(capacity, hash, ctrl);
+#endif
+}
+
 // Returns insert position for the given mask.
 // We want to add entropy even when ASLR is not enabled.
 // In debug build we will randomly insert in either the front or back of
@@ -1057,8 +1067,8 @@ using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 // Stored the information regarding number of slots we can still fill
 // without needing to rehash.
 //
-// We want to ensure sufficient number of kEmpty slots in the table in order
-// to keep probe sequences relatively short. kEmpty slot in the probe group
+// We want to ensure sufficient number of empty slots in the table in order
+// to keep probe sequences relatively short. Empty slot in the probe group
 // is required to stop probing.
 //
 // Tombstones (kDeleted slots) are not included in the growth capacity,
@@ -1066,8 +1076,8 @@ using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 // full slots.
 //
 // GrowthInfo also stores a bit that encodes whether table may have any
-// kDeleted slots.
-// Most of the tables (>95%) have no kDeleted slots, so some functions can
+// deleted slots.
+// Most of the tables (>95%) have no deleted slots, so some functions can
 // be more efficient with this information.
 //
 // Callers can also force a rehash via the standard `rehash(0)`,
@@ -1734,6 +1744,10 @@ template <typename = void>
 inline FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
   auto seq = probe(common, hash);
   const ctrl_t* ctrl = common.control();
+  if (IsEmptyOrDeleted(ctrl[seq.offset()]) &&
+      !ShouldInsertBackwards(common.capacity(), hash, ctrl)) {
+    return {seq.offset(), /*probe_length=*/0};
+  }
   while (true) {
     GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
     auto mask = g.MaskEmptyOrDeleted();
@@ -3815,11 +3829,17 @@ class raw_hash_set {
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
           return {iterator_at(seq.offset(i)), false};
       }
-      if (ABSL_PREDICT_TRUE(g.MaskEmpty())) break;
+      auto mask_empty = g.MaskEmpty();
+      if (ABSL_PREDICT_TRUE(mask_empty)) {
+        size_t target = seq.offset(
+            GetInsertionOffset(mask_empty, capacity(), hash, control()));
+        return {
+            iterator_at(prepare_insert(hash, FindInfo{target, seq.index()})),
+            true};
+      }
       seq.next();
       assert(seq.index() <= capacity() && "full table!");
     }
-    return {iterator_at(prepare_insert(hash)), true};
   }
 
  protected:
@@ -3832,35 +3852,55 @@ class raw_hash_set {
     return find_or_prepare_insert_non_soo(key);
   }
 
-  // Given the hash of a value not currently in the table, finds the next
-  // viable slot index to insert it at.
+  // Given the hash of a value not currently in the table and the first empty
+  // slot in the probe sequence, finds the viable slot index to insert it at.
+  //
+  // In case there's no space left, the table can be resized or rehashed
+  // (see rehash_and_grow_if_necessary).
+  //
+  // In case of absence of deleted slots and positive growth_left, element can
+  // be inserted in the provided `target` position.
+  //
+  // When table has deleted slots (according to GrowthInfo), target position
+  // will be searched one more time using `find_first_non_full`.
   //
   // REQUIRES: At least one non-full slot available.
-  size_t prepare_insert(size_t hash) ABSL_ATTRIBUTE_NOINLINE {
+  // REQUIRES: `target` is a valid empty position to insert.
+  size_t prepare_insert(size_t hash, FindInfo target) ABSL_ATTRIBUTE_NOINLINE {
     assert(!is_soo());
-    const bool rehash_for_bug_detection =
-        common().should_rehash_for_bug_detection_on_insert();
-    if (rehash_for_bug_detection) {
-      // Move to a different heap allocation in order to detect bugs.
-      const size_t cap = capacity();
-      resize(growth_left() > 0 ? cap : NextCapacity(cap));
-    }
-    FindInfo target;
-    if (!rehash_for_bug_detection &&
-        ABSL_PREDICT_FALSE(growth_left() == 0)) {
-      const size_t old_capacity = capacity();
-      rehash_and_grow_if_necessary();
-      // NOTE: It is safe to use `FindFirstNonFullAfterResize` after
-      // `rehash_and_grow_if_necessary`, whether capacity changes or not.
-      // `rehash_and_grow_if_necessary` may *not* call `resize`
-      // and perform `drop_deletes_without_resize` instead. But this
-      // could happen only on big tables and will not change capacity.
-      // For big tables `FindFirstNonFullAfterResize` will always
-      // fallback to normal `find_first_non_full`.
-      target = HashSetResizeHelper::FindFirstNonFullAfterResize(
-          common(), old_capacity, hash);
-    } else {
-      target = find_first_non_full(common(), hash);
+    // When there are no deleted slots in the table
+    // and growth_left is positive, we can insert at the first
+    // empty slot in the probe sequence (target).
+    bool use_target_hint = false;
+    // Optimization is disabled on enabled generations.
+    // We have to rehash even sparse tables randomly in such mode.
+#ifndef ABSL_SWISSTABLE_ENABLE_GENERATIONS
+    use_target_hint = growth_info().HasNoDeletedAndGrowthLeft();
+#endif
+    if (ABSL_PREDICT_FALSE(!use_target_hint)) {
+      const bool rehash_for_bug_detection =
+          common().should_rehash_for_bug_detection_on_insert();
+      if (rehash_for_bug_detection) {
+        // Move to a different heap allocation in order to detect bugs.
+        const size_t cap = capacity();
+        resize(growth_left() > 0 ? cap : NextCapacity(cap));
+      }
+      if (!rehash_for_bug_detection &&
+          ABSL_PREDICT_FALSE(growth_left() == 0)) {
+        const size_t old_capacity = capacity();
+        rehash_and_grow_if_necessary();
+        // NOTE: It is safe to use `FindFirstNonFullAfterResize` after
+        // `rehash_and_grow_if_necessary`, whether capacity changes or not.
+        // `rehash_and_grow_if_necessary` may *not* call `resize`
+        // and perform `drop_deletes_without_resize` instead. But this
+        // could happen only on big tables and will not change capacity.
+        // For big tables `FindFirstNonFullAfterResize` will always
+        // fallback to normal `find_first_non_full`.
+        target = HashSetResizeHelper::FindFirstNonFullAfterResize(
+            common(), old_capacity, hash);
+      } else {
+        target = find_first_non_full(common(), hash);
+      }
     }
     PrepareInsertCommon(common());
     growth_info().OverwriteControlAsFull(control()[target.offset]);
