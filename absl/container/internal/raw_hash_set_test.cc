@@ -92,6 +92,78 @@ using ::testing::UnorderedElementsAre;
 // Convenience function to static cast to ctrl_t.
 ctrl_t CtrlT(int i) { return static_cast<ctrl_t>(i); }
 
+TEST(GrowthInfoTest, GetGrowthLeft) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  EXPECT_EQ(gi.GetGrowthLeft(), 5);
+  gi.OverwriteFullAsDeleted();
+  EXPECT_EQ(gi.GetGrowthLeft(), 5);
+}
+
+TEST(GrowthInfoTest, HasNoDeleted) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  EXPECT_TRUE(gi.HasNoDeleted());
+  gi.OverwriteFullAsDeleted();
+  EXPECT_FALSE(gi.HasNoDeleted());
+  // After reinitialization we have no deleted slots.
+  gi.InitGrowthLeftNoDeleted(5);
+  EXPECT_TRUE(gi.HasNoDeleted());
+}
+
+TEST(GrowthInfoTest, HasNoDeletedAndGrowthLeft) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  EXPECT_TRUE(gi.HasNoDeletedAndGrowthLeft());
+  gi.OverwriteFullAsDeleted();
+  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
+  gi.InitGrowthLeftNoDeleted(0);
+  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
+  gi.OverwriteFullAsDeleted();
+  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
+  // After reinitialization we have no deleted slots.
+  gi.InitGrowthLeftNoDeleted(5);
+  EXPECT_TRUE(gi.HasNoDeletedAndGrowthLeft());
+}
+
+TEST(GrowthInfoTest, OverwriteFullAsEmpty) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  gi.OverwriteFullAsEmpty();
+  EXPECT_EQ(gi.GetGrowthLeft(), 6);
+  gi.OverwriteFullAsDeleted();
+  EXPECT_EQ(gi.GetGrowthLeft(), 6);
+  gi.OverwriteFullAsEmpty();
+  EXPECT_EQ(gi.GetGrowthLeft(), 7);
+  EXPECT_FALSE(gi.HasNoDeleted());
+}
+
+TEST(GrowthInfoTest, OverwriteEmptyAsFull) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  gi.OverwriteEmptyAsFull();
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
+  gi.OverwriteFullAsDeleted();
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
+  gi.OverwriteEmptyAsFull();
+  EXPECT_EQ(gi.GetGrowthLeft(), 3);
+  EXPECT_FALSE(gi.HasNoDeleted());
+}
+
+TEST(GrowthInfoTest, OverwriteControlAsFull) {
+  GrowthInfo gi;
+  gi.InitGrowthLeftNoDeleted(5);
+  gi.OverwriteControlAsFull(ctrl_t::kEmpty);
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
+  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
+  gi.OverwriteFullAsDeleted();
+  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
+  // We do not count number of deleted, so the bit sticks till the next rehash.
+  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
+  EXPECT_FALSE(gi.HasNoDeleted());
+}
+
 TEST(Util, NormalizeCapacity) {
   EXPECT_EQ(1, NormalizeCapacity(0));
   EXPECT_EQ(1, NormalizeCapacity(1));

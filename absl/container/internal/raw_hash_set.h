@@ -1054,6 +1054,88 @@ using CommonFieldsGenerationInfo = CommonFieldsGenerationInfoDisabled;
 using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 #endif
 
+// Stored the information regarding number of slots we can still fill
+// without needing to rehash.
+//
+// We want to ensure sufficient number of kEmpty slots in the table in order
+// to keep probe sequences relatively short. kEmpty slot in the probe group
+// is required to stop probing.
+//
+// Tombstones (kDeleted slots) are not included in the growth capacity,
+// because we'd like to rehash when the table is filled with tombstones and/or
+// full slots.
+//
+// GrowthInfo also stores a bit that encodes whether table may have any
+// kDeleted slots.
+// Most of the tables (>95%) have no kDeleted slots, so some functions can
+// be more efficient with this information.
+//
+// Callers can also force a rehash via the standard `rehash(0)`,
+// which will recompute this value as a side-effect.
+//
+// See also `CapacityToGrowth()`.
+class GrowthInfo {
+ public:
+  // Leaves data member uninitialized.
+  GrowthInfo() = default;
+
+  // Initializes the GrowthInfo assuming we can grow `growth_left` elements
+  // and there are no kDeleted slots in the table.
+  void InitGrowthLeftNoDeleted(size_t growth_left) {
+    growth_left_info_ = growth_left;
+  }
+
+  // Overwrites single full slot with an empty slot.
+  void OverwriteFullAsEmpty() { ++growth_left_info_; }
+
+  // Overwrites single empty slot with a full slot.
+  void OverwriteEmptyAsFull() {
+    assert(GetGrowthLeft() > 0);
+    --growth_left_info_;
+  }
+
+  // Overwrites several empty slots with full slots.
+  void OverwriteManyEmptyAsFull(size_t cnt) {
+    assert(GetGrowthLeft() >= cnt);
+    growth_left_info_ -= cnt;
+  }
+
+  // Overwrites specified control element with full slot.
+  void OverwriteControlAsFull(ctrl_t ctrl) {
+    assert(GetGrowthLeft() >= static_cast<size_t>(IsEmpty(ctrl)));
+    growth_left_info_ -= static_cast<size_t>(IsEmpty(ctrl));
+  }
+
+  // Overwrites single full slot with a deleted slot.
+  void OverwriteFullAsDeleted() { growth_left_info_ |= kDeletedBit; }
+
+  // Returns true if table satisfies two properties:
+  // 1. Guaranteed to have no kDeleted slots.
+  // 2. There is a place for at least one element to grow.
+  bool HasNoDeletedAndGrowthLeft() const {
+    return static_cast<std::make_signed_t<size_t>>(growth_left_info_) > 0;
+  }
+
+  // Returns true if table guaranteed to have no k
+  bool HasNoDeleted() const {
+    return static_cast<std::make_signed_t<size_t>>(growth_left_info_) >= 0;
+  }
+
+  // Returns the number of elements left to grow.
+  size_t GetGrowthLeft() const {
+    return growth_left_info_ & kGrowthLeftMask;
+  }
+
+ private:
+  static constexpr size_t kGrowthLeftMask = ((~size_t{}) >> 1);
+  static constexpr size_t kDeletedBit = ~kGrowthLeftMask;
+  // Topmost bit signal whenever there are deleted slots.
+  size_t growth_left_info_;
+};
+
+static_assert(sizeof(GrowthInfo) == sizeof(size_t), "");
+static_assert(alignof(GrowthInfo) == alignof(size_t), "");
+
 // Returns whether `n` is a valid capacity (i.e., number of slots).
 //
 // A valid capacity is a non-zero integer `2^m - 1`.
