@@ -1154,9 +1154,9 @@ constexpr size_t NumControlBytes(size_t capacity) {
 }
 
 // Computes the offset from the start of the backing allocation of control.
-// infoz and growth_left are stored at the beginning of the backing array.
+// infoz and growth_info are stored at the beginning of the backing array.
 inline static size_t ControlOffset(bool has_infoz) {
-  return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(size_t);
+  return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(GrowthInfo);
 }
 
 // Helper class for computing offsets and allocation size of hash set fields.
@@ -1249,7 +1249,7 @@ struct HeapPtrs {
   // This contains `capacity + 1 + NumClonedBytes()` entries, even
   // when the table is empty (hence EmptyGroup).
   //
-  // Note that growth_left is stored immediately before this pointer.
+  // Note that growth_info is stored immediately before this pointer.
   // May be uninitialized for SOO tables.
   ctrl_t* control;
 
@@ -1321,7 +1321,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   ctrl_t* control() const { return heap_or_soo_.control(); }
   void set_control(ctrl_t* c) { heap_or_soo_.control() = c; }
   void* backing_array_start() const {
-    // growth_left (and maybe infoz) is stored before control bytes.
+    // growth_info (and maybe infoz) is stored before control bytes.
     assert(reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
     return control() - ControlOffset(has_infoz());
   }
@@ -1362,17 +1362,15 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   // The number of slots we can still fill without needing to rehash.
   // This is stored in the heap allocation before the control bytes.
-  // TODO(b/289225379): experiment with moving growth_left back inline to
+  // TODO(b/289225379): experiment with moving growth_info back inline to
   // increase room for SOO.
-  size_t growth_left() const {
-    const size_t* gl_ptr = reinterpret_cast<size_t*>(control()) - 1;
-    assert(reinterpret_cast<uintptr_t>(gl_ptr) % alignof(size_t) == 0);
+  GrowthInfo& growth_info() {
+    auto* gl_ptr = reinterpret_cast<GrowthInfo*>(control()) - 1;
+    assert(reinterpret_cast<uintptr_t>(gl_ptr) % alignof(GrowthInfo) == 0);
     return *gl_ptr;
   }
-  void set_growth_left(size_t gl) {
-    size_t* gl_ptr = reinterpret_cast<size_t*>(control()) - 1;
-    assert(reinterpret_cast<uintptr_t>(gl_ptr) % alignof(size_t) == 0);
-    *gl_ptr = gl;
+  GrowthInfo growth_info() const {
+    return const_cast<CommonFields*>(this)->growth_info();
   }
 
   bool has_infoz() const {
@@ -1759,7 +1757,8 @@ extern template FindInfo find_first_non_full(const CommonFields&, size_t);
 FindInfo find_first_non_full_outofline(const CommonFields&, size_t);
 
 inline void ResetGrowthLeft(CommonFields& common) {
-  common.set_growth_left(CapacityToGrowth(common.capacity()) - common.size());
+  common.growth_info().InitGrowthLeftNoDeleted(
+      CapacityToGrowth(common.capacity()) - common.size());
 }
 
 // Sets `ctrl` to `{kEmpty, kSentinel, ..., kEmpty}`, marking the entire
@@ -1818,9 +1817,9 @@ inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, h2_t h,
   SetCtrlInSingleGroupTable(c, i, static_cast<ctrl_t>(h), slot_size);
 }
 
-// growth_left (which is a size_t) is stored with the backing array.
+// growth_info (which is a size_t) is stored with the backing array.
 constexpr size_t BackingArrayAlignment(size_t align_of_slot) {
-  return (std::max)(align_of_slot, alignof(size_t));
+  return (std::max)(align_of_slot, alignof(GrowthInfo));
 }
 
 // Returns the address of the ith slot in slots where each slot occupies
@@ -2717,7 +2716,7 @@ class raw_hash_set {
       infoz().RecordStorageChanged(size, cap);
     }
     common().set_size(size);
-    set_growth_left(growth_left() - size);
+    growth_info().OverwriteManyEmptyAsFull(size);
   }
 
   ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(
@@ -3847,7 +3846,8 @@ class raw_hash_set {
       resize(growth_left() > 0 ? cap : NextCapacity(cap));
     }
     FindInfo target;
-    if (!rehash_for_bug_detection && ABSL_PREDICT_FALSE(growth_left() == 0)) {
+    if (!rehash_for_bug_detection &&
+        ABSL_PREDICT_FALSE(growth_left() == 0)) {
       const size_t old_capacity = capacity();
       rehash_and_grow_if_necessary();
       // NOTE: It is safe to use `FindFirstNonFullAfterResize` after
@@ -3863,7 +3863,7 @@ class raw_hash_set {
       target = find_first_non_full(common(), hash);
     }
     PrepareInsertCommon(common());
-    set_growth_left(growth_left() - IsEmpty(control()[target.offset]));
+    growth_info().OverwriteControlAsFull(control()[target.offset]);
     SetCtrl(common(), target.offset, H2(hash), sizeof(slot_type));
     infoz().RecordInsert(hash, target.probe_length);
     return target.offset;
@@ -3909,11 +3909,16 @@ class raw_hash_set {
   // See `CapacityToGrowth()`.
   size_t growth_left() const {
     assert(!is_soo());
-    return common().growth_left();
+    return growth_info().GetGrowthLeft();
   }
-  void set_growth_left(size_t gl) {
+
+  GrowthInfo& growth_info() {
     assert(!is_soo());
-    return common().set_growth_left(gl);
+    return common().growth_info();
+  }
+  GrowthInfo growth_info() const {
+    assert(!is_soo());
+    return common().growth_info();
   }
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and

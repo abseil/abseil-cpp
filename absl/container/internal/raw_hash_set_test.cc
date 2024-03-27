@@ -1825,6 +1825,27 @@ TEST(Table, EraseInsertProbing) {
   EXPECT_THAT(t, UnorderedElementsAre(1, 10, 3, 11, 12));
 }
 
+TEST(Table, GrowthInfoDeletedBit) {
+  BadTable t;
+  EXPECT_TRUE(
+      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  int64_t init_count = static_cast<int64_t>(
+      CapacityToGrowth(NormalizeCapacity(Group::kWidth + 1)));
+  for (int64_t i = 0; i < init_count; ++i) {
+    t.insert(i);
+  }
+  EXPECT_TRUE(
+      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  t.erase(0);
+  EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 1);
+  EXPECT_FALSE(
+      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  t.rehash(0);
+  EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 0);
+  EXPECT_TRUE(
+      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+}
+
 TYPED_TEST_P(SooTest, Clear) {
   TypeParam t;
   EXPECT_TRUE(t.find(0) == t.end());
