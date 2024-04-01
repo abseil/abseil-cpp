@@ -26,9 +26,31 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
+#ifdef ABSL_HAVE_STD_STRING_VIEW
+#include <string_view>
+#endif
+
 namespace {
 
 using ::testing::StaticAssertTypeEq;
+
+template <typename T>
+using IsOwnerAndNotView =
+    absl::conjunction<absl::type_traits_internal::IsOwner<T>,
+                      absl::negation<absl::type_traits_internal::IsView<T>>>;
+
+static_assert(IsOwnerAndNotView<std::vector<int>>::value,
+              "vector is an owner, not a view");
+static_assert(IsOwnerAndNotView<std::string>::value,
+              "string is an owner, not a view");
+static_assert(IsOwnerAndNotView<std::wstring>::value,
+              "wstring is an owner, not a view");
+#ifdef ABSL_HAVE_STD_STRING_VIEW
+static_assert(!IsOwnerAndNotView<std::string_view>::value,
+              "string_view is a view, not an owner");
+static_assert(!IsOwnerAndNotView<std::wstring_view>::value,
+              "wstring_view is a view, not an owner");
+#endif
 
 template <class T, class U>
 struct simple_pair {

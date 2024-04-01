@@ -37,10 +37,20 @@
 
 #include <cstddef>
 #include <functional>
+#include <string>
 #include <type_traits>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+
+#ifdef __cpp_lib_span
+#include <span>  // NOLINT(build/c++20)
+#endif
+
+#ifdef ABSL_HAVE_STD_STRING_VIEW
+#include <string_view>
+#endif
 
 // Defines the default alignment. `__STDCPP_DEFAULT_NEW_ALIGNMENT__` is a C++17
 // feature.
@@ -553,6 +563,97 @@ constexpr bool is_constant_evaluated() noexcept {
 #endif
 }
 #endif  // ABSL_HAVE_CONSTANT_EVALUATED
+
+namespace type_traits_internal {
+
+// Detects if a class's definition has declared itself to be an owner by
+// declaring
+//   using absl_internal_is_view = std::true_type;
+// as a member.
+// Types that don't want either must either omit this declaration entirely, or
+// (if e.g. inheriting from a base class) define the member to something that
+// isn't a Boolean trait class, such as `void`.
+// Do not specialize or use this directly. It's an implementation detail.
+template <typename T, typename = void>
+struct IsOwnerImpl : std::false_type {
+  static_assert(std::is_same<T, absl::remove_cvref_t<T>>::value,
+                "type must lack qualifiers");
+};
+
+template <typename T>
+struct IsOwnerImpl<
+    T,
+    std::enable_if_t<std::is_class<typename T::absl_internal_is_view>::value>>
+    : absl::negation<typename T::absl_internal_is_view> {};
+
+// A trait to determine whether a type is an owner.
+// Do *not* depend on the correctness of this trait for correct code behavior.
+// It is only a safety feature and its value may change in the future.
+// Do not specialize this; instead, define the member trait inside your type so
+// that it can be auto-detected, and to prevent ODR violations.
+// If it ever becomes possible to detect [[gsl::Owner]], we should leverage it:
+// https://wg21.link/p1179
+template <typename T>
+struct IsOwner : IsOwnerImpl<T> {};
+
+template <typename T, typename Traits, typename Alloc>
+struct IsOwner<std::basic_string<T, Traits, Alloc>> : std::true_type {};
+
+template <typename T, typename Alloc>
+struct IsOwner<std::vector<T, Alloc>> : std::true_type {};
+
+// Detects if a class's definition has declared itself to be a view by declaring
+//   using absl_internal_is_view = std::true_type;
+// as a member.
+// Do not specialize or use this directly.
+template <typename T, typename = void>
+struct IsViewImpl : std::false_type {
+  static_assert(std::is_same<T, absl::remove_cvref_t<T>>::value,
+                "type must lack qualifiers");
+};
+
+template <typename T>
+struct IsViewImpl<
+    T,
+    std::enable_if_t<std::is_class<typename T::absl_internal_is_view>::value>>
+    : T::absl_internal_is_view {};
+
+// A trait to determine whether a type is a view.
+// Do *not* depend on the correctness of this trait for correct code behavior.
+// It is only a safety feature, and its value may change in the future.
+// Do not specialize this trait. Instead, define the member
+//   using absl_internal_is_view = std::true_type;
+// in your class to allow its detection while preventing ODR violations.
+// If it ever becomes possible to detect [[gsl::Pointer]], we should leverage
+// it: https://wg21.link/p1179
+template <typename T>
+struct IsView : std::integral_constant<bool, std::is_pointer<T>::value ||
+                                                 IsViewImpl<T>::value> {};
+
+#ifdef ABSL_HAVE_STD_STRING_VIEW
+template <typename Char, typename Traits>
+struct IsView<std::basic_string_view<Char, Traits>> : std::true_type {};
+#endif
+
+#ifdef __cpp_lib_span
+template <typename T>
+struct IsView<std::span<T>> : std::true_type {};
+#endif
+
+// Determines whether the assignment of the given types is lifetime-bound.
+// Do *not* depend on the correctness of this trait for correct code behavior.
+// It is only a safety feature and its value may change in the future.
+// If it ever becomes possible to detect [[clang::lifetimebound]] directly,
+// we should change the implementation to leverage that.
+// Until then, we consider an assignment from an "owner" (such as std::string)
+// to a "view" (such as std::string_view) to be a lifetime-bound assignment.
+template <typename T, typename U>
+using IsLifetimeBoundAssignment =
+    std::integral_constant<bool, IsView<absl::remove_cvref_t<T>>::value &&
+                                     IsOwner<absl::remove_cvref_t<U>>::value>;
+
+}  // namespace type_traits_internal
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 
