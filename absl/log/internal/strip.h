@@ -20,6 +20,7 @@
 #ifndef ABSL_LOG_INTERNAL_STRIP_H_
 #define ABSL_LOG_INTERNAL_STRIP_H_
 
+#include "absl/base/attributes.h"  // IWYU pragma: keep
 #include "absl/base/log_severity.h"
 #include "absl/log/internal/log_message.h"
 #include "absl/log/internal/nullstream.h"
@@ -29,6 +30,9 @@
 // of defines comes in three flavors: vanilla, plus two variants that strip some
 // logging in subtly different ways for subtly different reasons (see below).
 #if defined(STRIP_LOG) && STRIP_LOG
+
+#define ABSL_LOG_INTERNAL_ATTRIBUTE_UNUSED_IF_STRIP_LOG ABSL_ATTRIBUTE_UNUSED
+
 #define ABSL_LOGGING_INTERNAL_LOG_INFO ::absl::log_internal::NullStream()
 #define ABSL_LOGGING_INTERNAL_LOG_WARNING ::absl::log_internal::NullStream()
 #define ABSL_LOGGING_INTERNAL_LOG_ERROR ::absl::log_internal::NullStream()
@@ -48,7 +52,11 @@
 #define ABSL_LOG_INTERNAL_CHECK(failure_message) ABSL_LOGGING_INTERNAL_LOG_FATAL
 #define ABSL_LOG_INTERNAL_QCHECK(failure_message) \
   ABSL_LOGGING_INTERNAL_LOG_QFATAL
+
 #else  // !defined(STRIP_LOG) || !STRIP_LOG
+
+#define ABSL_LOG_INTERNAL_ATTRIBUTE_UNUSED_IF_STRIP_LOG
+
 #define ABSL_LOGGING_INTERNAL_LOG_INFO \
   ::absl::log_internal::LogMessage(    \
       __FILE__, __LINE__, ::absl::log_internal::LogMessage::InfoTag{})
