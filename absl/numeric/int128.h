@@ -269,7 +269,9 @@ class numeric_limits<absl::uint128> {
   static constexpr bool has_infinity = false;
   static constexpr bool has_quiet_NaN = false;
   static constexpr bool has_signaling_NaN = false;
+ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
   static constexpr float_denorm_style has_denorm = denorm_absent;
+ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
   static constexpr bool has_denorm_loss = false;
   static constexpr float_round_style round_style = round_toward_zero;
   static constexpr bool is_iec559 = false;
@@ -512,7 +514,9 @@ class numeric_limits<absl::int128> {
   static constexpr bool has_infinity = false;
   static constexpr bool has_quiet_NaN = false;
   static constexpr bool has_signaling_NaN = false;
+ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
   static constexpr float_denorm_style has_denorm = denorm_absent;
+ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
   static constexpr bool has_denorm_loss = false;
   static constexpr float_round_style round_style = round_toward_zero;
   static constexpr bool is_iec559 = false;
