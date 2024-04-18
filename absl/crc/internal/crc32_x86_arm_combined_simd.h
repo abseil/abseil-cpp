@@ -33,8 +33,7 @@
 #include <x86intrin.h>
 #define ABSL_CRC_INTERNAL_HAVE_X86_SIMD
 
-#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__) && \
-    defined(_M_AMD64)
+#elif defined(_MSC_VER) && defined(__AVX__)
 
 // MSVC AVX (/arch:AVX) implies SSE 4.2 and PCLMULQDQ.
 #include <intrin.h>
