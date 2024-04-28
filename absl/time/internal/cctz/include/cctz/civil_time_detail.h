@@ -561,44 +561,43 @@ CONSTEXPR_F weekday get_weekday(const civil_second& cs) noexcept {
 
 ////////////////////////////////////////////////////////////////////////
 
-CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
-  CONSTEXPR_D weekday k_weekdays_forw[14] = {
-      weekday::monday,    weekday::tuesday,  weekday::wednesday,
-      weekday::thursday,  weekday::friday,   weekday::saturday,
-      weekday::sunday,    weekday::monday,   weekday::tuesday,
-      weekday::wednesday, weekday::thursday, weekday::friday,
-      weekday::saturday,  weekday::sunday,
-  };
-  weekday base = get_weekday(cd);
-  for (int i = 0;; ++i) {
-    if (base == k_weekdays_forw[i]) {
-      for (int j = i + 1;; ++j) {
-        if (wd == k_weekdays_forw[j]) {
-          return cd + (j - i);
-        }
-      }
-    }
+CONSTEXPR_F std::int_fast8_t get_day_num(weekday wd) noexcept {
+  switch (wd) {
+    case weekday::monday:
+      return 0;
+    case weekday::tuesday:
+      return 1;
+    case weekday::wednesday:
+      return 2;
+    case weekday::thursday:
+      return 3;
+    case weekday::friday:
+      return 4; 
+    case weekday::saturday:
+      return 5;
+    case weekday::sunday:
+      return 6;
   }
+
+  return 0; /*NOTREACHED*/
+}
+
+CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
+  std::int_fast8_t weekday_diff = get_day_num(wd) - get_day_num(get_weekday(cd));
+  if (weekday_diff <= 0) {
+    weekday_diff += 7;
+  }
+
+  return cd + weekday_diff;
 }
 
 CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
-  CONSTEXPR_D weekday k_weekdays_back[14] = {
-      weekday::sunday,   weekday::saturday,  weekday::friday,
-      weekday::thursday, weekday::wednesday, weekday::tuesday,
-      weekday::monday,   weekday::sunday,    weekday::saturday,
-      weekday::friday,   weekday::thursday,  weekday::wednesday,
-      weekday::tuesday,  weekday::monday,
-  };
-  weekday base = get_weekday(cd);
-  for (int i = 0;; ++i) {
-    if (base == k_weekdays_back[i]) {
-      for (int j = i + 1;; ++j) {
-        if (wd == k_weekdays_back[j]) {
-          return cd - (j - i);
-        }
-      }
-    }
+  std::int_fast8_t weekday_diff = get_day_num(get_weekday(cd)) - get_day_num(wd);
+  if (weekday_diff <= 0) {
+    weekday_diff += 7;
   }
+
+  return cd - weekday_diff;
 }
 
 CONSTEXPR_F int get_yearday(const civil_second& cs) noexcept {
