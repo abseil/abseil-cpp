@@ -69,7 +69,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "gmock/gmock.h"
+#include "gmock/gmock.h"  // gmock_for_status_matchers.h
 #include "absl/base/config.h"
 #include "absl/status/internal/status_matchers.h"
 
