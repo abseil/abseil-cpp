@@ -98,6 +98,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::status
+    absl::status_matchers
     absl::statusor
     absl::strings
     GTest::gmock_main

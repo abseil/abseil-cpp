@@ -118,6 +118,7 @@ cc_test(
     srcs = ["statusor_test.cc"],
     deps = [
         ":status",
+        ":status_matchers",
         ":statusor",
         "//absl/base",
         "//absl/memory",
