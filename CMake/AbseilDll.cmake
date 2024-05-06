@@ -124,6 +124,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/internal/address_is_readable.h"
   "debugging/internal/demangle.cc"
   "debugging/internal/demangle.h"
+  "debugging/internal/demangle_rust.cc"
+  "debugging/internal/demangle_rust.h"
   "debugging/internal/elf_mem_image.cc"
   "debugging/internal/elf_mem_image.h"
   "debugging/internal/examine_stack.cc"
