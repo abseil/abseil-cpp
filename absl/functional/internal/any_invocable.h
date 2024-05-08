@@ -39,7 +39,7 @@
 //    target object, directly returning the result.                           //
 //                                                                            //
 // When in the logically empty state, the manager function is an empty        //
-// function and the invoker function is one that would be undefined-behavior  //
+// function and the invoker function is one that would be undefined behavior  //
 // to call.                                                                   //
 //                                                                            //
 // An additional optimization is performed when converting from one           //
