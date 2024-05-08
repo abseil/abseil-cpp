@@ -19,11 +19,11 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-// This implementation of the proposed `any_invocable` uses an approach that  //
-// chooses between local storage and remote storage for the contained target  //
-// object based on the target object's size, alignment requirements, and      //
-// whether or not it has a nothrow move constructor. Additional optimizations //
-// are performed when the object is a trivially copyable type [basic.types].  //
+// This implementation chooses between local storage and remote storage for   //
+// the contained target object based on the target object's size, alignment   //
+// requirements, and whether or not it has a nothrow move constructor.        //
+// Additional optimizations are performed when the object is a trivially      //
+// copyable type [basic.types].                                               //
 //                                                                            //
 // There are three datamembers per `AnyInvocable` instance                    //
 //                                                                            //
