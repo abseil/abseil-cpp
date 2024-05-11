@@ -270,15 +270,15 @@ std::string StrJoin(const Range& range, absl::string_view separator) {
 }
 
 template <typename T>
-std::string StrJoin(std::initializer_list<T> il,
-                    absl::string_view separator) {
+std::string StrJoin(std::initializer_list<T> il, absl::string_view separator) {
   return strings_internal::JoinRange(il, separator);
 }
 
 template <typename... T>
 std::string StrJoin(const std::tuple<T...>& value,
                     absl::string_view separator) {
-  return strings_internal::JoinAlgorithm(value, separator, AlphaNumFormatter());
+  return strings_internal::JoinTuple(value, separator,
+                                     std::index_sequence_for<T...>{});
 }
 
 ABSL_NAMESPACE_END
