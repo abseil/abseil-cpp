@@ -37,6 +37,33 @@ bool IsUpper(char c) { return 'A' <= c && c <= 'Z'; }
 bool IsAlpha(char c) { return IsLower(c) || IsUpper(c); }
 bool IsIdentifierChar(char c) { return IsAlpha(c) || IsDigit(c) || c == '_'; }
 
+const char* BasicTypeName(char c) {
+  switch (c) {
+    case 'a': return "i8";
+    case 'b': return "bool";
+    case 'c': return "char";
+    case 'd': return "f64";
+    case 'e': return "str";
+    case 'f': return "f32";
+    case 'h': return "u8";
+    case 'i': return "isize";
+    case 'j': return "usize";
+    case 'l': return "i32";
+    case 'm': return "u32";
+    case 'n': return "i128";
+    case 'o': return "u128";
+    case 'p': return "_";
+    case 's': return "i16";
+    case 't': return "u16";
+    case 'u': return "()";
+    case 'v': return "...";
+    case 'x': return "i64";
+    case 'y': return "u64";
+    case 'z': return "!";
+  }
+  return nullptr;
+}
+
 // Parser for Rust symbol mangling v0, whose grammar is defined here:
 //
 // https://doc.rust-lang.org/rustc/symbol-mangling/v0.html#symbol-grammar-summary
@@ -115,12 +142,16 @@ class RustSymbolParser {
 
         // path -> crate-root | inherent-impl | trait-impl | trait-definition |
         //         nested-path | generic-args | backref
+        //
+        // Note that ABSL_DEMANGLER_RECURSE does not work inside a nested switch
+        // (which would hide the generated case label).  Thus we jump out of the
+        // inner switch with gotos before performing any fake recursion.
         path:
           switch (Take()) {
             case 'C': goto crate_root;
             case 'M': return false;  // inherent-impl not yet implemented
             case 'X': return false;  // trait-impl not yet implemented
-            case 'Y': return false;  // trait-definition not yet implemented
+            case 'Y': goto trait_definition;
             case 'N': goto nested_path;
             case 'I': return false;  // generic-args not yet implemented
             case 'B': return false;  // backref not yet implemented
@@ -132,7 +163,16 @@ class RustSymbolParser {
           if (!ParseIdentifier()) return false;
           continue;
 
-        // nested-path -> N namespace path identifier (N consumed above)
+        // trait-definition -> Y type path (Y already consumed)
+        trait_definition:
+          if (!Emit("<")) return false;
+          ABSL_DEMANGLER_RECURSE(type, kTraitDefinitionInfix);
+          if (!Emit(" as ")) return false;
+          ABSL_DEMANGLER_RECURSE(path, kTraitDefinitionEnding);
+          if (!Emit(">")) return false;
+          continue;
+
+        // nested-path -> N namespace path identifier (N already consumed)
         // namespace -> lower | upper
         nested_path:
           // Uppercase namespaces must be saved on the stack so we can print
@@ -156,6 +196,98 @@ class RustSymbolParser {
 
           // Neither upper or lower
           return false;
+
+        // type -> basic-type | array-type | slice-type | tuple-type |
+        //         ref-type | mut-ref-type | const-ptr-type | mut-ptr-type |
+        //         fn-type | dyn-trait-type | path | backref
+        //
+        // We use ifs instead of switch (Take()) because the default case jumps
+        // to path, which will need to see the first character not yet Taken
+        // from the input.  Because we do not use a nested switch here,
+        // ABSL_DEMANGLER_RECURSE works fine in the 'S' case.
+        type:
+          if (IsLower(Peek())) {
+            const char* type_name = BasicTypeName(Take());
+            if (type_name == nullptr || !Emit(type_name)) return false;
+            continue;
+          }
+          if (Eat('A')) return false;  // array-type not yet implemented
+          if (Eat('S')) {
+            if (!Emit("[")) return false;
+            ABSL_DEMANGLER_RECURSE(type, kSliceEnding);
+            if (!Emit("]")) return false;
+            continue;
+          }
+          if (Eat('T')) goto tuple_type;
+          if (Eat('R')) {
+            if (!Emit("&")) return false;
+            if (Eat('L')) return false;  // lifetime not yet implemented
+            goto type;
+          }
+          if (Eat('Q')) {
+            if (!Emit("&mut ")) return false;
+            if (Eat('L')) return false;  // lifetime not yet implemented
+            goto type;
+          }
+          if (Eat('P')) {
+            if (!Emit("*const ")) return false;
+            goto type;
+          }
+          if (Eat('O')) {
+            if (!Emit("*mut ")) return false;
+            goto type;
+          }
+          if (Eat('F')) return false;  // fn-type not yet implemented
+          if (Eat('D')) return false;  // dyn-trait-type not yet implemented
+          if (Eat('B')) return false;  // backref not yet implemented
+          goto path;
+
+        // tuple-type -> T type* E (T already consumed)
+        tuple_type:
+          if (!Emit("(")) return false;
+
+          // The toolchain should call the unit type u instead of TE, but the
+          // grammar and other demanglers also recognize TE, so we do too.
+          if (Eat('E')) {
+            if (!Emit(")")) return false;
+            continue;
+          }
+
+          // A tuple with one element is rendered (type,) instead of (type).
+          ABSL_DEMANGLER_RECURSE(type, kAfterFirstTupleElement);
+          if (Eat('E')) {
+            if (!Emit(",)")) return false;
+            continue;
+          }
+
+          // A tuple with two elements is of course (x, y).
+          if (!Emit(", ")) return false;
+          ABSL_DEMANGLER_RECURSE(type, kAfterSecondTupleElement);
+          if (Eat('E')) {
+            if (!Emit(")")) return false;
+            continue;
+          }
+
+          // And (x, y, z) for three elements.
+          if (!Emit(", ")) return false;
+          ABSL_DEMANGLER_RECURSE(type, kAfterThirdTupleElement);
+          if (Eat('E')) {
+            if (!Emit(")")) return false;
+            continue;
+          }
+
+          // For longer tuples we write (x, y, z, ...), printing none of the
+          // content of the fourth and later types.  Thus we avoid exhausting
+          // output buffers and human readers' patience when some library has a
+          // long tuple as an implementation detail, without having to
+          // completely obfuscate all tuples.
+          if (!Emit(", ...)")) return false;
+          ++silence_depth_;
+          while (!Eat('E')) {
+            ABSL_DEMANGLER_RECURSE(type, kAfterSubsequentTupleElement);
+          }
+          --silence_depth_;
+          continue;
       }
     }
 
@@ -169,6 +301,13 @@ class RustSymbolParser {
     kVendorSpecificSuffix,
     kIdentifierInUppercaseNamespace,
     kIdentifierInLowercaseNamespace,
+    kTraitDefinitionInfix,
+    kTraitDefinitionEnding,
+    kSliceEnding,
+    kAfterFirstTupleElement,
+    kAfterSecondTupleElement,
+    kAfterThirdTupleElement,
+    kAfterSubsequentTupleElement,
   };
 
   // Element count for the stack_ array.  A larger kStackSize accommodates more
@@ -320,6 +459,8 @@ class RustSymbolParser {
 
     // Emit the beginnings of braced forms like {shim:vtable#0}.
     if (uppercase_namespace == '\0') {
+      // Decoding of Punycode is not yet implemented.  For now we emit
+      // "{Punycode ...}" with the raw encoding inside.
       if (is_punycoded && !Emit("{Punycode ")) return false;
     } else {
       switch (uppercase_namespace) {
