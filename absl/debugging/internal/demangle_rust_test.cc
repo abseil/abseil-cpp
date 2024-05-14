@@ -211,86 +211,86 @@ TEST(DemangleRust, NestedUppercaseNamespaces) {
 
 TEST(DemangleRust, TraitDefinition) {
   EXPECT_DEMANGLING(
-      "_RNvYNvC7crate_a9my_structNvC7crate_b8my_trait1f",
+      "_RNvYNtC7crate_a9my_structNtC7crate_b8my_trait1f",
       "<crate_a::my_struct as crate_b::my_trait>::f");
 }
 
 TEST(DemangleRust, BasicTypeNames) {
-  EXPECT_DEMANGLING("_RNvYaNvC1c1t1f", "<i8 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYbNvC1c1t1f", "<bool as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYcNvC1c1t1f", "<char as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYdNvC1c1t1f", "<f64 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYeNvC1c1t1f", "<str as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYfNvC1c1t1f", "<f32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYhNvC1c1t1f", "<u8 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYiNvC1c1t1f", "<isize as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYjNvC1c1t1f", "<usize as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYlNvC1c1t1f", "<i32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYmNvC1c1t1f", "<u32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYnNvC1c1t1f", "<i128 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYoNvC1c1t1f", "<u128 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYpNvC1c1t1f", "<_ as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYsNvC1c1t1f", "<i16 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYtNvC1c1t1f", "<u16 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYuNvC1c1t1f", "<() as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYvNvC1c1t1f", "<... as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYxNvC1c1t1f", "<i64 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYyNvC1c1t1f", "<u64 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYzNvC1c1t1f", "<! as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYaNtC1c1t1f", "<i8 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYbNtC1c1t1f", "<bool as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYcNtC1c1t1f", "<char as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYdNtC1c1t1f", "<f64 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYeNtC1c1t1f", "<str as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYfNtC1c1t1f", "<f32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYhNtC1c1t1f", "<u8 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYiNtC1c1t1f", "<isize as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYjNtC1c1t1f", "<usize as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYlNtC1c1t1f", "<i32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYmNtC1c1t1f", "<u32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYnNtC1c1t1f", "<i128 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYoNtC1c1t1f", "<u128 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYpNtC1c1t1f", "<_ as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYsNtC1c1t1f", "<i16 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYtNtC1c1t1f", "<u16 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYuNtC1c1t1f", "<() as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYvNtC1c1t1f", "<... as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYxNtC1c1t1f", "<i64 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYyNtC1c1t1f", "<u64 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYzNtC1c1t1f", "<! as c::t>::f");
 
-  EXPECT_DEMANGLING_FAILS("_RNvYkNvC1c1t1f");
+  EXPECT_DEMANGLING_FAILS("_RNvYkNtC1c1t1f");
 }
 
 TEST(DemangleRust, SliceTypes) {
-  EXPECT_DEMANGLING("_RNvYSlNvC1c1t1f", "<[i32] as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYSNvC1d1sNvC1c1t1f", "<[d::s] as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYSlNtC1c1t1f", "<[i32] as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYSNtC1d1sNtC1c1t1f", "<[d::s] as c::t>::f");
 }
 
 TEST(DemangleRust, ImmutableReferenceTypes) {
-  EXPECT_DEMANGLING("_RNvYRlNvC1c1t1f", "<&i32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYRNvC1d1sNvC1c1t1f", "<&d::s as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYRlNtC1c1t1f", "<&i32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYRNtC1d1sNtC1c1t1f", "<&d::s as c::t>::f");
 }
 
 TEST(DemangleRust, MutableReferenceTypes) {
-  EXPECT_DEMANGLING("_RNvYQlNvC1c1t1f", "<&mut i32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYQNvC1d1sNvC1c1t1f", "<&mut d::s as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYQlNtC1c1t1f", "<&mut i32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYQNtC1d1sNtC1c1t1f", "<&mut d::s as c::t>::f");
 }
 
 TEST(DemangleRust, ConstantRawPointerTypes) {
-  EXPECT_DEMANGLING("_RNvYPlNvC1c1t1f", "<*const i32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYPNvC1d1sNvC1c1t1f", "<*const d::s as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYPlNtC1c1t1f", "<*const i32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYPNtC1d1sNtC1c1t1f", "<*const d::s as c::t>::f");
 }
 
 TEST(DemangleRust, MutableRawPointerTypes) {
-  EXPECT_DEMANGLING("_RNvYOlNvC1c1t1f", "<*mut i32 as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYONvC1d1sNvC1c1t1f", "<*mut d::s as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYOlNtC1c1t1f", "<*mut i32 as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYONtC1d1sNtC1c1t1f", "<*mut d::s as c::t>::f");
 }
 
 TEST(DemangleRust, TupleLength0) {
-  EXPECT_DEMANGLING("_RNvYTENvC1c1t1f", "<() as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYTENtC1c1t1f", "<() as c::t>::f");
 }
 
 TEST(DemangleRust, TupleLength1) {
-  EXPECT_DEMANGLING("_RNvYTlENvC1c1t1f", "<(i32,) as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYTNvC1d1sENvC1c1t1f", "<(d::s,) as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYTlENtC1c1t1f", "<(i32,) as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYTNtC1d1sENtC1c1t1f", "<(d::s,) as c::t>::f");
 }
 
 TEST(DemangleRust, TupleLength2) {
-  EXPECT_DEMANGLING("_RNvYTlmENvC1c1t1f", "<(i32, u32) as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYTNvC1d1xNvC1e1yENvC1c1t1f",
+  EXPECT_DEMANGLING("_RNvYTlmENtC1c1t1f", "<(i32, u32) as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYTNtC1d1xNtC1e1yENtC1c1t1f",
                     "<(d::x, e::y) as c::t>::f");
 }
 
 TEST(DemangleRust, TupleLength3) {
-  EXPECT_DEMANGLING("_RNvYTlmnENvC1c1t1f", "<(i32, u32, i128) as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYTNvC1d1xNvC1e1yNvC1f1zENvC1c1t1f",
+  EXPECT_DEMANGLING("_RNvYTlmnENtC1c1t1f", "<(i32, u32, i128) as c::t>::f");
+  EXPECT_DEMANGLING("_RNvYTNtC1d1xNtC1e1yNtC1f1zENtC1c1t1f",
                     "<(d::x, e::y, f::z) as c::t>::f");
 }
 
 TEST(DemangleRust, LongerTuplesAbbreviated) {
-  EXPECT_DEMANGLING("_RNvYTlmnoENvC1c1t1f",
+  EXPECT_DEMANGLING("_RNvYTlmnoENtC1c1t1f",
                     "<(i32, u32, i128, ...) as c::t>::f");
-  EXPECT_DEMANGLING("_RNvYTlmnNvC1d1xNvC1e1yENvC1c1t1f",
+  EXPECT_DEMANGLING("_RNvYTlmnNtC1d1xNtC1e1yENtC1c1t1f",
                     "<(i32, u32, i128, ...) as c::t>::f");
 }
 
