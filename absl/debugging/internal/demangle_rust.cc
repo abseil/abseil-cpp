@@ -154,7 +154,7 @@ class RustSymbolParser {
             case 'Y': goto trait_definition;
             case 'N': goto nested_path;
             case 'I': return false;  // generic-args not yet implemented
-            case 'B': return false;  // backref not yet implemented
+            case 'B': goto path_backref;
             default: return false;
           }
 
@@ -239,7 +239,7 @@ class RustSymbolParser {
           }
           if (Eat('F')) return false;  // fn-type not yet implemented
           if (Eat('D')) return false;  // dyn-trait-type not yet implemented
-          if (Eat('B')) return false;  // backref not yet implemented
+          if (Eat('B')) goto type_backref;
           goto path;
 
         // tuple-type -> T type* E (T already consumed)
@@ -288,6 +288,32 @@ class RustSymbolParser {
           }
           --silence_depth_;
           continue;
+
+        // backref -> B base-62-number (B already consumed)
+        //
+        // The BeginBackref call parses and range-checks the base-62-number.  We
+        // always do that much.
+        //
+        // The recursive call parses and prints what the backref points at.  We
+        // save CPU and stack by skipping this work if the output would be
+        // suppressed anyway.
+        path_backref:
+          if (!BeginBackref()) return false;
+          if (silence_depth_ == 0) {
+            ABSL_DEMANGLER_RECURSE(path, kPathBackrefEnding);
+          }
+          EndBackref();
+          continue;
+
+        // This represents the same backref production as in path_backref but
+        // parses the target as a type instead of a path.
+        type_backref:
+          if (!BeginBackref()) return false;
+          if (silence_depth_ == 0) {
+            ABSL_DEMANGLER_RECURSE(type, kTypeBackrefEnding);
+          }
+          EndBackref();
+          continue;
       }
     }
 
@@ -308,12 +334,22 @@ class RustSymbolParser {
     kAfterSecondTupleElement,
     kAfterThirdTupleElement,
     kAfterSubsequentTupleElement,
+    kPathBackrefEnding,
+    kTypeBackrefEnding,
   };
 
-  // Element count for the stack_ array.  A larger kStackSize accommodates more
+  // Element counts for the stack arrays.  Larger stack sizes accommodate more
   // deeply nested names at the cost of a larger footprint on the C++ call
   // stack.
-  enum { kStackSize = 256 };
+  enum {
+    // Maximum (recursive calls + N<uppercase> nested-names) open at one time.
+    kStackSize = 256,
+
+    // Maximum number of nested backrefs.  We can keep this stack pretty small
+    // because we do not follow backrefs inside generic-args or other contexts
+    // that suppress printing, so deep stacking is unlikely in practice.
+    kPositionStackSize = 16,
+  };
 
   // Returns the next input character without consuming it.
   char Peek() const { return encoding_[pos_]; }
@@ -536,6 +572,58 @@ class RustSymbolParser {
   // is not empty (data_stack_pointer_ < kStackSize).
   std::uint8_t PopByte() { return stack_[data_stack_pointer_++]; }
 
+  // Pushes position onto the position stack and returns true if the stack is
+  // not full, else returns false.
+  ABSL_MUST_USE_RESULT bool PushPosition(int position) {
+    if (position_depth_ == kPositionStackSize) return false;
+    position_stack_[position_depth_++] = position;
+    return true;
+  }
+
+  // Pops the last pushed input position.  Requires that the position stack is
+  // not empty (position_depth_ > 0).
+  int PopPosition() { return position_stack_[--position_depth_]; }
+
+  // Consumes a base-62-number denoting a backref target, pushes the current
+  // input position on the data stack, and sets the input position to the
+  // beginning of the backref target.  Returns true on success.  Returns false
+  // if parsing failed, the stack is exhausted, or the backref target position
+  // is out of range.
+  ABSL_MUST_USE_RESULT bool BeginBackref() {
+    // backref = B base-62-number (B already consumed)
+    //
+    // Reject backrefs that don't parse, overflow int, or don't point backward.
+    // If the offset looks fine, adjust it to account for the _R prefix.
+    int offset = 0;
+    const int offset_of_this_backref =
+        pos_ - 2 /* _R */ - 1 /* B already consumed */;
+    if (!ParseBase62Number(offset) || offset < 0 ||
+        offset >= offset_of_this_backref) {
+      return false;
+    }
+    offset += 2;
+
+    // Save the old position to restore later.
+    if (!PushPosition(pos_)) return false;
+
+    // Move the input position to the backref target.
+    //
+    // Note that we do not check whether the new position points to the
+    // beginning of a construct matching the context in which the backref
+    // appeared.  We just jump to it and see whether nested parsing succeeds.
+    // We therefore accept various wrong manglings, e.g., a type backref
+    // pointing to an 'l' character inside an identifier, which happens to mean
+    // i32 when parsed as a type mangling.  This saves the complexity and RAM
+    // footprint of remembering which offsets began which kinds of
+    // substructures.  Existing demanglers take similar shortcuts.
+    pos_ = offset;
+    return true;
+  }
+
+  // Cleans up after a backref production by restoring the previous input
+  // position from the data stack.
+  void EndBackref() { pos_ = PopPosition(); }
+
   // Call and data stacks reside in stack_.  The leftmost depth_ elements
   // contain ReturnAddresses pushed by ABSL_DEMANGLER_RECURSE.  The elements
   // from index data_stack_pointer_ to the right edge of stack_ contain bytes
@@ -544,14 +632,19 @@ class RustSymbolParser {
   int data_stack_pointer_ = kStackSize;
   int depth_ = 0;
 
+  // The leftmost position_depth_ elements of position_stack_ contain the input
+  // positions to return to after fully printing the targets of backrefs.
+  int position_stack_[kPositionStackSize] = {};
+  int position_depth_ = 0;
+
   // Anything parsed while silence_depth_ > 0 contributes nothing to the
   // demangled output.  For constructs omitted from the demangling, such as
   // impl-path and the contents of generic-args, we will increment
   // silence_depth_ on the way in and decrement silence_depth_ on the way out.
   int silence_depth_ = 0;
 
-  // Input: encoding_ points just after the _R in a Rust mangled symbol, and
-  // encoding_[pos_] is the next input character to be scanned.
+  // Input: encoding_ points to a Rust mangled symbol, and encoding_[pos_] is
+  // the next input character to be scanned.
   int pos_ = 0;
   const char* encoding_ = nullptr;
 
