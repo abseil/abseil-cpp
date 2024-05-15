@@ -89,11 +89,12 @@ class RustSymbolParser {
     // Recursive-descent parsing is a beautifully readable translation of a
     // grammar, but it risks stack overflow if implemented by naive recursion on
     // the C++ call stack.  So we simulate recursion by goto and switch instead,
-    // keeping a bounded stack of "return addresses" in the stack_ member.
+    // keeping a bounded stack of "return addresses" in the recursion_stack_
+    // member.
     //
     // The callee argument is a statement label.  We goto that label after
-    // saving the "return address" on stack_.  The next continue statement in
-    // the for loop below "returns" from this "call".
+    // saving the "return address" on recursion_stack_.  The next continue
+    // statement in the for loop below "returns" from this "call".
     //
     // The caller argument names the return point.  Each value of caller must
     // appear in only one ABSL_DEMANGLER_RECURSE call and be listed in the
@@ -107,9 +108,9 @@ class RustSymbolParser {
     // ParseIdentifier.
 #define ABSL_DEMANGLER_RECURSE(callee, caller) \
     do { \
-      if (depth_ == data_stack_pointer_) return false; \
+      if (recursion_depth_ == kStackSize) return false; \
       /* The next continue will switch on this saved value ... */ \
-      stack_[depth_++] = caller; \
+      recursion_stack_[recursion_depth_++] = caller; \
       goto callee; \
       /* ... and will land here, resuming the suspended code. */ \
       case caller: {} \
@@ -119,10 +120,10 @@ class RustSymbolParser {
     // excessively complex input and infinite-loop bugs.
     int iter = 0;
     goto whole_encoding;
-    for (; iter < kMaxReturns && depth_ > 0; ++iter) {
+    for (; iter < kMaxReturns && recursion_depth_ > 0; ++iter) {
       // This switch resumes the code path most recently suspended by
       // ABSL_DEMANGLER_RECURSE.
-      switch (static_cast<ReturnAddress>(stack_[--depth_])) {
+      switch (recursion_stack_[--recursion_depth_]) {
         //
         // symbol-name ->
         // _R decimal-number? path instantiating-crate? vendor-specific-suffix?
@@ -175,13 +176,13 @@ class RustSymbolParser {
         // nested-path -> N namespace path identifier (N already consumed)
         // namespace -> lower | upper
         nested_path:
-          // Uppercase namespaces must be saved on the stack so we can print
+          // Uppercase namespaces must be saved on a stack so we can print
           // ::{closure#0} or ::{shim:vtable#0} or ::{X:name#0} as needed.
           if (IsUpper(Peek())) {
-            if (!PushByte(static_cast<std::uint8_t>(Take()))) return false;
+            if (!PushNamespace(Take())) return false;
             ABSL_DEMANGLER_RECURSE(path, kIdentifierInUppercaseNamespace);
             if (!Emit("::")) return false;
-            if (!ParseIdentifier(static_cast<char>(PopByte()))) return false;
+            if (!ParseIdentifier(PopNamespace())) return false;
             continue;
           }
 
@@ -342,8 +343,13 @@ class RustSymbolParser {
   // deeply nested names at the cost of a larger footprint on the C++ call
   // stack.
   enum {
-    // Maximum (recursive calls + N<uppercase> nested-names) open at one time.
+    // Maximum recursive calls outstanding at one time.
     kStackSize = 256,
+
+    // Maximum N<uppercase> nested-paths open at once.  We do not expect
+    // closures inside closures inside closures as much as functions inside
+    // modules inside other modules, so we can use a smaller array here.
+    kNamespaceStackSize = 64,
 
     // Maximum number of nested backrefs.  We can keep this stack pretty small
     // because we do not follow backrefs inside generic-args or other contexts
@@ -560,17 +566,17 @@ class RustSymbolParser {
     return true;
   }
 
-  // Pushes byte onto the data stack (the right side of stack_) and returns
-  // true if stack_ is not full, else returns false.
-  ABSL_MUST_USE_RESULT bool PushByte(std::uint8_t byte) {
-    if (depth_ == data_stack_pointer_) return false;
-    stack_[--data_stack_pointer_] = byte;
+  // Pushes ns onto the namespace stack and returns true if the stack is not
+  // full, else returns false.
+  ABSL_MUST_USE_RESULT bool PushNamespace(char ns) {
+    if (namespace_depth_ == kNamespaceStackSize) return false;
+    namespace_stack_[namespace_depth_++] = ns;
     return true;
   }
 
-  // Pops the last pushed data byte from stack_.  Requires that the data stack
-  // is not empty (data_stack_pointer_ < kStackSize).
-  std::uint8_t PopByte() { return stack_[data_stack_pointer_++]; }
+  // Pops the last pushed namespace.  Requires that the namespace stack is not
+  // empty (namespace_depth_ > 0).
+  char PopNamespace() { return namespace_stack_[--namespace_depth_]; }
 
   // Pushes position onto the position stack and returns true if the stack is
   // not full, else returns false.
@@ -624,13 +630,16 @@ class RustSymbolParser {
   // position from the data stack.
   void EndBackref() { pos_ = PopPosition(); }
 
-  // Call and data stacks reside in stack_.  The leftmost depth_ elements
-  // contain ReturnAddresses pushed by ABSL_DEMANGLER_RECURSE.  The elements
-  // from index data_stack_pointer_ to the right edge of stack_ contain bytes
-  // pushed by PushByte.
-  std::uint8_t stack_[kStackSize] = {};
-  int data_stack_pointer_ = kStackSize;
-  int depth_ = 0;
+  // The leftmost recursion_depth_ elements of recursion_stack_ contain the
+  // ReturnAddresses pushed by ABSL_DEMANGLER_RECURSE calls not yet completed.
+  ReturnAddress recursion_stack_[kStackSize] = {};
+  int recursion_depth_ = 0;
+
+  // The leftmost namespace_depth_ elements of namespace_stack_ contain the
+  // uppercase namespace identifiers for open nested-paths, e.g., 'C' for a
+  // closure.
+  char namespace_stack_[kNamespaceStackSize] = {};
+  int namespace_depth_ = 0;
 
   // The leftmost position_depth_ elements of position_stack_ contain the input
   // positions to return to after fully printing the targets of backrefs.
