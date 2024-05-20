@@ -77,6 +77,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::fast_type_id
     absl::optional
 )
@@ -92,6 +93,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::random_mocking_bit_gen
     absl::random_internal_mock_helpers
   TESTONLY
@@ -108,17 +110,15 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
+    absl::core_headers
     absl::flat_hash_map
     absl::raw_logging_internal
-    absl::random_distributions
-    absl::random_internal_distribution_caller
+    absl::random_internal_mock_helpers
     absl::random_internal_mock_overload_set
+    absl::random_internal_mock_validators
     absl::random_random
-    absl::strings
-    absl::span
-    absl::type_traits
     absl::utility
-    absl::variant
     GTest::gmock
     GTest::gtest
   PUBLIC
@@ -135,6 +135,7 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::random_distributions
     absl::random_mocking_bit_gen
     absl::random_random
     GTest::gmock
@@ -1170,6 +1171,26 @@ absl_cc_library(
     absl::config
     absl::random_internal_traits
     absl::type_traits
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    random_internal_mock_validators
+  HDRS
+    "internal/mock_validators.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::random_internal_iostream_state_saver
+    absl::random_internal_uniform_helper
+    absl::config
+    absl::raw_logging_internal
+    absl::strings
+    absl::string_view
+  TESTONLY
 )
 
 # Internal-only target, do not depend on directly.
