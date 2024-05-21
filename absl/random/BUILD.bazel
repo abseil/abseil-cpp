@@ -483,6 +483,7 @@ cc_test(
         ":mock_distributions",
         ":mocking_bit_gen",
         ":random",
+        "//absl/numeric:int128",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

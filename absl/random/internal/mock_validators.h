@@ -31,6 +31,7 @@ namespace random_internal {
 template <typename NumType>
 class UniformDistributionValidator {
  public:
+  // Handle absl::Uniform<NumType>(gen, absl::IntervalTag, lo, hi).
   template <typename TagType>
   static void Validate(NumType x, TagType tag, NumType lo, NumType hi) {
     // For invalid ranges, absl::Uniform() simply returns one of the bounds.
@@ -39,17 +40,16 @@ class UniformDistributionValidator {
     ValidateImpl(std::is_floating_point<NumType>{}, x, tag, lo, hi);
   }
 
+  // Handle absl::Uniform<NumType>(gen, lo, hi).
   static void Validate(NumType x, NumType lo, NumType hi) {
     Validate(x, IntervalClosedOpenTag(), lo, hi);
   }
 
-  template <typename NumType_ = NumType>
+  // Handle absl::Uniform<NumType>(gen).
   static void Validate(NumType) {
     // absl::Uniform<NumType>(gen) spans the entire range of `NumType`, so any
-    // value is okay.
-    static_assert(std::is_integral<NumType_>{},
-                  "Non-integer types may have valid values outside of the full "
-                  "range (e.g. floating point NaN).");
+    // value is okay. This overload exists because the validation logic attempts
+    // to call it anyway rather than adding extra SFINAE.
   }
 
  private:

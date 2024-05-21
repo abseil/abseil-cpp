@@ -19,6 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/numeric/int128.h"
 #include "absl/random/distributions.h"
 #include "absl/random/mocking_bit_gen.h"
 #include "absl/random/random.h"
@@ -79,6 +80,14 @@ TEST(MockUniform, OutOfBoundsIsAllowed) {
 
   EXPECT_CALL(absl::MockUniform<int>(), Call(gen, 1, 100)).WillOnce(Return(0));
   EXPECT_EQ(absl::Uniform<int>(gen, 1, 100), 0);
+}
+
+TEST(ValidatedMockDistributions, UniformUInt128Works) {
+  absl::random_internal::MockingBitGenImpl<true> gen;
+
+  EXPECT_CALL(absl::MockUniform<absl::uint128>(), Call(gen))
+      .WillOnce(Return(absl::Uint128Max()));
+  EXPECT_EQ(absl::Uniform<absl::uint128>(gen), absl::Uint128Max());
 }
 
 TEST(ValidatedMockDistributions, UniformDoubleBoundaryCases) {

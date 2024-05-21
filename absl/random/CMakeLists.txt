@@ -1206,6 +1206,7 @@ absl_cc_test(
   DEPS
     absl::random_internal_uniform_helper
     GTest::gtest_main
+    absl::int128
 )
 
 # Internal-only target, do not depend on directly.
