@@ -36,6 +36,7 @@ bool IsLower(char c) { return 'a' <= c && c <= 'z'; }
 bool IsUpper(char c) { return 'A' <= c && c <= 'Z'; }
 bool IsAlpha(char c) { return IsLower(c) || IsUpper(c); }
 bool IsIdentifierChar(char c) { return IsAlpha(c) || IsDigit(c) || c == '_'; }
+bool IsLowerHexDigit(char c) { return IsDigit(c) || ('a' <= c && c <= 'f'); }
 
 const char* BasicTypeName(char c) {
   switch (c) {
@@ -212,7 +213,15 @@ class RustSymbolParser {
             if (type_name == nullptr || !Emit(type_name)) return false;
             continue;
           }
-          if (Eat('A')) return false;  // array-type not yet implemented
+          if (Eat('A')) {
+            // array-type = A type const
+            if (!Emit("[")) return false;
+            ABSL_DEMANGLER_RECURSE(type, kArraySize);
+            if (!Emit("; ")) return false;
+            ABSL_DEMANGLER_RECURSE(constant, kFinishArray);
+            if (!Emit("]")) return false;
+            continue;
+          }
           if (Eat('S')) {
             if (!Emit("[")) return false;
             ABSL_DEMANGLER_RECURSE(type, kSliceEnding);
@@ -290,6 +299,48 @@ class RustSymbolParser {
           --silence_depth_;
           continue;
 
+        // const -> type const-data | p | backref
+        //
+        // const is a C++ keyword, so we use the label `constant` instead.
+        constant:
+          if (Eat('B')) goto const_backref;
+          if (Eat('p')) {
+            if (!Emit("_")) return false;
+            continue;
+          }
+
+          // Scan the type without printing it.
+          //
+          // The Rust language restricts the type of a const generic argument
+          // much more than the mangling grammar does.  We do not enforce this.
+          //
+          // We also do not bother printing false, true, 'A', and '\u{abcd}' for
+          // the types bool and char.  Because we do not print generic-args
+          // contents, we expect to print constants only in array sizes, and
+          // those should not be bool or char.
+          ++silence_depth_;
+          ABSL_DEMANGLER_RECURSE(type, kConstData);
+          --silence_depth_;
+
+          // const-data -> n? hex-digit* _
+          //
+          // Although the grammar doesn't say this, existing demanglers expect
+          // that zero is 0, not an empty digit sequence, and no nonzero value
+          // may have leading zero digits.  Also n0_ is accepted and printed as
+          // -0, though a toolchain will probably never write that encoding.
+          if (Eat('n') && !EmitChar('-')) return false;
+          if (!Emit("0x")) return false;
+          if (Eat('0')) {
+            if (!EmitChar('0')) return false;
+            if (!Eat('_')) return false;
+            continue;
+          }
+          while (IsLowerHexDigit(Peek())) {
+            if (!EmitChar(Take())) return false;
+          }
+          if (!Eat('_')) return false;
+          continue;
+
         // generic-args -> I path generic-arg* E (I already consumed)
         //
         // We follow the C++ demangler in omitting all the arguments from the
@@ -307,7 +358,7 @@ class RustSymbolParser {
         // generic-arg -> lifetime | type | K const
         generic_arg:
           if (Eat('L')) return false;  // lifetime not yet implemented
-          if (Eat('K')) return false;  // const not yet implemented
+          if (Eat('K')) goto constant;
           goto type;
 
         // backref -> B base-62-number (B already consumed)
@@ -335,6 +386,14 @@ class RustSymbolParser {
           }
           EndBackref();
           continue;
+
+        const_backref:
+          if (!BeginBackref()) return false;
+          if (silence_depth_ == 0) {
+            ABSL_DEMANGLER_RECURSE(constant, kConstantBackrefEnding);
+          }
+          EndBackref();
+          continue;
       }
     }
 
@@ -350,15 +409,19 @@ class RustSymbolParser {
     kIdentifierInLowercaseNamespace,
     kTraitDefinitionInfix,
     kTraitDefinitionEnding,
+    kArraySize,
+    kFinishArray,
     kSliceEnding,
     kAfterFirstTupleElement,
     kAfterSecondTupleElement,
     kAfterThirdTupleElement,
     kAfterSubsequentTupleElement,
+    kConstData,
     kBeginGenericArgList,
     kContinueGenericArgList,
     kPathBackrefEnding,
     kTypeBackrefEnding,
+    kConstantBackrefEnding,
   };
 
   // Element counts for the stack arrays.  Larger stack sizes accommodate more
