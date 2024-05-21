@@ -154,7 +154,7 @@ class RustSymbolParser {
             case 'X': return false;  // trait-impl not yet implemented
             case 'Y': goto trait_definition;
             case 'N': goto nested_path;
-            case 'I': return false;  // generic-args not yet implemented
+            case 'I': goto generic_args;
             case 'B': goto path_backref;
             default: return false;
           }
@@ -290,6 +290,26 @@ class RustSymbolParser {
           --silence_depth_;
           continue;
 
+        // generic-args -> I path generic-arg* E (I already consumed)
+        //
+        // We follow the C++ demangler in omitting all the arguments from the
+        // output, printing only the list opening and closing tokens.
+        generic_args:
+          ABSL_DEMANGLER_RECURSE(path, kBeginGenericArgList);
+          if (!Emit("::<>")) return false;
+          ++silence_depth_;
+          while (!Eat('E')) {
+            ABSL_DEMANGLER_RECURSE(generic_arg, kContinueGenericArgList);
+          }
+          --silence_depth_;
+          continue;
+
+        // generic-arg -> lifetime | type | K const
+        generic_arg:
+          if (Eat('L')) return false;  // lifetime not yet implemented
+          if (Eat('K')) return false;  // const not yet implemented
+          goto type;
+
         // backref -> B base-62-number (B already consumed)
         //
         // The BeginBackref call parses and range-checks the base-62-number.  We
@@ -335,6 +355,8 @@ class RustSymbolParser {
     kAfterSecondTupleElement,
     kAfterThirdTupleElement,
     kAfterSubsequentTupleElement,
+    kBeginGenericArgList,
+    kContinueGenericArgList,
     kPathBackrefEnding,
     kTypeBackrefEnding,
   };

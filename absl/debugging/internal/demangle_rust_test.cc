@@ -360,6 +360,45 @@ TEST(DemangleRust, ReturnFromBackrefToInputPosition256) {
                     " as c::t>::f");
 }
 
+TEST(DemangleRust, EmptyGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fE", "c::f::<>");
+}
+
+TEST(DemangleRust, OneSimpleTypeInGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1flE",  // c::f::<i32>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, OneTupleInGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fTlmEE",  // c::f::<(i32, u32)>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, OnePathInGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fNtC1d1sE",  // c::f::<d::s>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, LongerGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1flmRNtC1d1sE",  // c::f::<i32, u32, &d::s>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, BackrefInGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fRlB7_NtB2_1sE",  // c::f::<&i32, &i32, c::s>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, NestedGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fINtB2_1slEmE",  // c::f::<c::s::<i32>, u32>
+                    "c::f::<>");
+}
+
+TEST(DemangleRust, MonomorphicEntityNestedInsideGeneric) {
+  EXPECT_DEMANGLING("_RNvINvC1c1fppE1g",  // c::f::<_, _>::g
+                    "c::f::<>::g");
+}
+
 }  // namespace
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END
