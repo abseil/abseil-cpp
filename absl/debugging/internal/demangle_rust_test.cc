@@ -453,6 +453,31 @@ TEST(DemangleRust, NumberPlaceholder) {
                     "c::f::<>::g");
 }
 
+TEST(DemangleRust, InherentImplWithoutDisambiguator) {
+  EXPECT_DEMANGLING("_RNvMNtC8my_crate6my_modNtB2_9my_struct7my_func",
+                    "<my_crate::my_mod::my_struct>::my_func");
+}
+
+TEST(DemangleRust, InherentImplWithDisambiguator) {
+  EXPECT_DEMANGLING("_RNvMs_NtC8my_crate6my_modNtB4_9my_struct7my_func",
+                    "<my_crate::my_mod::my_struct>::my_func");
+}
+
+TEST(DemangleRust, TraitImplWithoutDisambiguator) {
+  EXPECT_DEMANGLING("_RNvXC8my_crateNtB2_9my_structNtB2_8my_trait7my_func",
+                    "<my_crate::my_struct as my_crate::my_trait>::my_func");
+}
+
+TEST(DemangleRust, TraitImplWithDisambiguator) {
+  EXPECT_DEMANGLING("_RNvXs_C8my_crateNtB4_9my_structNtB4_8my_trait7my_func",
+                    "<my_crate::my_struct as my_crate::my_trait>::my_func");
+}
+
+TEST(DemangleRust, TraitImplWithNonpathSelfType) {
+  EXPECT_DEMANGLING("_RNvXC8my_crateRlNtB2_8my_trait7my_func",
+                    "<&i32 as my_crate::my_trait>::my_func");
+}
+
 }  // namespace
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

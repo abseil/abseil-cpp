@@ -151,8 +151,8 @@ class RustSymbolParser {
         path:
           switch (Take()) {
             case 'C': goto crate_root;
-            case 'M': return false;  // inherent-impl not yet implemented
-            case 'X': return false;  // trait-impl not yet implemented
+            case 'M': goto inherent_impl;
+            case 'X': goto trait_impl;
             case 'Y': goto trait_definition;
             case 'N': goto nested_path;
             case 'I': goto generic_args;
@@ -163,6 +163,35 @@ class RustSymbolParser {
         // crate-root -> C identifier (C consumed above)
         crate_root:
           if (!ParseIdentifier()) return false;
+          continue;
+
+        // inherent-impl -> M impl-path type (M already consumed)
+        inherent_impl:
+          if (!Emit("<")) return false;
+          ABSL_DEMANGLER_RECURSE(impl_path, kInherentImplType);
+          ABSL_DEMANGLER_RECURSE(type, kInherentImplEnding);
+          if (!Emit(">")) return false;
+          continue;
+
+        // trait-impl -> X impl-path type path (X already consumed)
+        trait_impl:
+          if (!Emit("<")) return false;
+          ABSL_DEMANGLER_RECURSE(impl_path, kTraitImplType);
+          ABSL_DEMANGLER_RECURSE(type, kTraitImplInfix);
+          if (!Emit(" as ")) return false;
+          ABSL_DEMANGLER_RECURSE(path, kTraitImplEnding);
+          if (!Emit(">")) return false;
+          continue;
+
+        // impl-path -> disambiguator? path (but never print it!)
+        impl_path:
+          ++silence_depth_;
+          {
+            int ignored_disambiguator;
+            if (!ParseDisambiguator(ignored_disambiguator)) return false;
+          }
+          ABSL_DEMANGLER_RECURSE(path, kImplPathEnding);
+          --silence_depth_;
           continue;
 
         // trait-definition -> Y type path (Y already consumed)
@@ -407,6 +436,12 @@ class RustSymbolParser {
     kVendorSpecificSuffix,
     kIdentifierInUppercaseNamespace,
     kIdentifierInLowercaseNamespace,
+    kInherentImplType,
+    kInherentImplEnding,
+    kTraitImplType,
+    kTraitImplInfix,
+    kTraitImplEnding,
+    kImplPathEnding,
     kTraitDefinitionInfix,
     kTraitDefinitionEnding,
     kArraySize,
