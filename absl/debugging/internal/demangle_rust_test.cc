@@ -478,6 +478,62 @@ TEST(DemangleRust, TraitImplWithNonpathSelfType) {
                     "<&i32 as my_crate::my_trait>::my_func");
 }
 
+TEST(DemangleRust, ThunkType) {
+  EXPECT_DEMANGLING("_RNvYFEuNtC1c1t1f",  // <fn() as c::t>::f
+                    "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, NontrivialFunctionReturnType) {
+  EXPECT_DEMANGLING(
+      "_RNvYFERTlmENtC1c1t1f",  // <fn() -> &(i32, u32) as c::t>::f
+      "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, OneParameterType) {
+  EXPECT_DEMANGLING("_RNvYFlEuNtC1c1t1f",  // <fn(i32) as c::t>::f
+                    "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, TwoParameterTypes) {
+  EXPECT_DEMANGLING("_RNvYFlmEuNtC1c1t1f",  // <fn(i32, u32) as c::t>::f
+                    "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, ExternC) {
+  EXPECT_DEMANGLING("_RNvYFKCEuNtC1c1t1f",  // <extern "C" fn() as c::t>>::f
+                    "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, ExternOther) {
+  EXPECT_DEMANGLING(
+      "_RNvYFK5not_CEuNtC1c1t1f",  // <extern "not-C" fn() as c::t>::f
+      "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, Unsafe) {
+  EXPECT_DEMANGLING("_RNvYFUEuNtC1c1t1f",  // <unsafe fn() as c::t>::f
+                    "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, Binder) {
+  EXPECT_DEMANGLING(
+      // <for<'a> fn(&'a i32) -> &'a i32 as c::t>::f
+      "_RNvYFG_RL0_lEB5_NtC1c1t1f",
+      "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, AllFnSigFeaturesInOrder) {
+  EXPECT_DEMANGLING(
+      // <for<'a> unsafe extern "C" fn(&'a i32) -> &'a i32 as c::t>::f
+      "_RNvYFG_UKCRL0_lEB8_NtC1c1t1f",
+      "<fn... as c::t>::f");
+}
+
+TEST(DemangleRust, LifetimeInGenericArgs) {
+  EXPECT_DEMANGLING("_RINvC1c1fINtB2_1sL_EE",  // c::f::<c::s::<'_>>
+                    "c::f::<>");
+}
+
 }  // namespace
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

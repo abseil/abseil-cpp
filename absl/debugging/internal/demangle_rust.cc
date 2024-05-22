@@ -260,12 +260,12 @@ class RustSymbolParser {
           if (Eat('T')) goto tuple_type;
           if (Eat('R')) {
             if (!Emit("&")) return false;
-            if (Eat('L')) return false;  // lifetime not yet implemented
+            if (!ParseOptionalLifetime()) return false;
             goto type;
           }
           if (Eat('Q')) {
             if (!Emit("&mut ")) return false;
-            if (Eat('L')) return false;  // lifetime not yet implemented
+            if (!ParseOptionalLifetime()) return false;
             goto type;
           }
           if (Eat('P')) {
@@ -276,7 +276,7 @@ class RustSymbolParser {
             if (!Emit("*mut ")) return false;
             goto type;
           }
-          if (Eat('F')) return false;  // fn-type not yet implemented
+          if (Eat('F')) goto fn_type;
           if (Eat('D')) return false;  // dyn-trait-type not yet implemented
           if (Eat('B')) goto type_backref;
           goto path;
@@ -325,6 +325,27 @@ class RustSymbolParser {
           while (!Eat('E')) {
             ABSL_DEMANGLER_RECURSE(type, kAfterSubsequentTupleElement);
           }
+          --silence_depth_;
+          continue;
+
+        // fn-type -> F fn-sig (F already consumed)
+        // fn-sig -> binder? U? (K abi)? type* E type
+        // abi -> C | undisambiguated-identifier
+        //
+        // We follow the C++ demangler in suppressing details of function
+        // signatures.  Every function type is rendered "fn...".
+        fn_type:
+          if (!Emit("fn...")) return false;
+          ++silence_depth_;
+          if (!ParseOptionalBinder()) return false;
+          (void)Eat('U');
+          if (Eat('K')) {
+            if (!Eat('C') && !ParseUndisambiguatedIdentifier()) return false;
+          }
+          while (!Eat('E')) {
+            ABSL_DEMANGLER_RECURSE(type, kContinueParameterList);
+          }
+          ABSL_DEMANGLER_RECURSE(type, kFinishFn);
           --silence_depth_;
           continue;
 
@@ -386,7 +407,10 @@ class RustSymbolParser {
 
         // generic-arg -> lifetime | type | K const
         generic_arg:
-          if (Eat('L')) return false;  // lifetime not yet implemented
+          if (Peek() == 'L') {
+            if (!ParseOptionalLifetime()) return false;
+            continue;
+          }
           if (Eat('K')) goto constant;
           goto type;
 
@@ -451,6 +475,8 @@ class RustSymbolParser {
     kAfterSecondTupleElement,
     kAfterThirdTupleElement,
     kAfterSubsequentTupleElement,
+    kContinueParameterList,
+    kFinishFn,
     kConstData,
     kBeginGenericArgList,
     kContinueGenericArgList,
@@ -612,6 +638,20 @@ class RustSymbolParser {
     int disambiguator = 0;
     if (!ParseDisambiguator(disambiguator)) return false;
 
+    return ParseUndisambiguatedIdentifier(uppercase_namespace, disambiguator);
+  }
+
+  // Consumes from the input an identifier with no preceding disambiguator,
+  // returning true on success.
+  //
+  // When ParseIdentifier calls this, it passes the N<namespace> character and
+  // disambiguator value so that "{closure#42}" and similar forms can be
+  // rendered correctly.
+  //
+  // At other appearances of undisambiguated-identifier in the grammar, this
+  // treatment is not applicable, and the call site omits both arguments.
+  ABSL_MUST_USE_RESULT bool ParseUndisambiguatedIdentifier(
+      char uppercase_namespace = '\0', int disambiguator = 0) {
     // undisambiguated-identifier -> u? decimal-number _? bytes
     const bool is_punycoded = Eat('u');
     if (!IsDigit(Peek())) return false;
@@ -684,6 +724,30 @@ class RustSymbolParser {
     if (IsDigit(Peek())) return false;  // too big
     value = encoded_number;
     return true;
+  }
+
+  // Consumes a binder of higher-ranked lifetimes if one is present.  On success
+  // returns true and discards the encoded lifetime count.  On parse failure
+  // returns false.
+  ABSL_MUST_USE_RESULT bool ParseOptionalBinder() {
+    // binder -> G base-62-number
+    if (!Eat('G')) return true;
+    int ignored_binding_count;
+    return ParseBase62Number(ignored_binding_count);
+  }
+
+  // Consumes a lifetime if one is present.
+  //
+  // On success returns true and discards the lifetime index.  We do not print
+  // or even range-check lifetimes because they are a finer detail than other
+  // things we omit from output, such as the entire contents of generic-args.
+  //
+  // On parse failure returns false.
+  ABSL_MUST_USE_RESULT bool ParseOptionalLifetime() {
+    // lifetime -> L base-62-number
+    if (!Eat('L')) return true;
+    int ignored_de_bruijn_index;
+    return ParseBase62Number(ignored_de_bruijn_index);
   }
 
   // Pushes ns onto the namespace stack and returns true if the stack is not
