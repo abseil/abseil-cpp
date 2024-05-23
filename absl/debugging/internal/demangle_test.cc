@@ -349,6 +349,28 @@ TEST(Demangle, SizeofPacks) {
   EXPECT_STREQ("g<>()", tmp);
 }
 
+TEST(Demangle, Spaceship) {
+  char tmp[80];
+
+  // #include <compare>
+  //
+  // struct S { auto operator<=>(const S&) const = default; };
+  // auto (S::*f) = &S::operator<=>;  // make sure S::operator<=> is emitted
+  //
+  // template <class T> auto g(T x, T y) -> decltype(x <=> y) {
+  //   return x <=> y;
+  // }
+  // template auto g<S>(S x, S y) -> decltype(x <=> y);
+
+  // S::operator<=>(S const&) const
+  EXPECT_TRUE(Demangle("_ZNK1SssERKS_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator<=>()", tmp);
+
+  // decltype(fp <=> fp0) g<S>(S, S)
+  EXPECT_TRUE(Demangle("_Z1gI1SEDTssfp_fp0_ET_S2_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("g<>()", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {

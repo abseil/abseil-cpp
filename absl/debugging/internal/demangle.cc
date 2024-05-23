@@ -81,6 +81,7 @@ static const AbbrevPair kOperatorList[] = {
     {"rs", ">>", 2},
     {"lS", "<<=", 2},
     {"rS", ">>=", 2},
+    {"ss", "<=>", 2},
     {"eq", "==", 2},
     {"ne", "!=", 2},
     {"lt", "<", 2},
