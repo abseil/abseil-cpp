@@ -534,6 +534,50 @@ TEST(DemangleRust, LifetimeInGenericArgs) {
                     "c::f::<>");
 }
 
+TEST(DemangleRust, EmptyDynTrait) {
+  // This shouldn't happen, but the grammar allows it and existing demanglers
+  // accept it.
+  EXPECT_DEMANGLING("_RNvYDEL_NtC1c1t1f",
+                    "<dyn  as c::t>::f");
+}
+
+TEST(DemangleRust, SimpleDynTrait) {
+  EXPECT_DEMANGLING("_RNvYDNtC1c1tEL_NtC1d1u1f",
+                    "<dyn c::t as d::u>::f");
+}
+
+TEST(DemangleRust, DynTraitWithOneAssociatedType) {
+  EXPECT_DEMANGLING(
+      "_RNvYDNtC1c1tp1xlEL_NtC1d1u1f",  // <dyn c::t<x = i32> as d::u>::f
+      "<dyn c::t<> as d::u>::f");
+}
+
+TEST(DemangleRust, DynTraitWithTwoAssociatedTypes) {
+  EXPECT_DEMANGLING(
+      // <dyn c::t<x = i32, y = u32> as d::u>::f
+      "_RNvYDNtC1c1tp1xlp1ymEL_NtC1d1u1f",
+      "<dyn c::t<> as d::u>::f");
+}
+
+TEST(DemangleRust, DynTraitPlusAutoTrait) {
+  EXPECT_DEMANGLING(
+      "_RNvYDNtC1c1tNtNtC3std6marker4SendEL_NtC1d1u1f",
+      "<dyn c::t + std::marker::Send as d::u>::f");
+}
+
+TEST(DemangleRust, DynTraitPlusTwoAutoTraits) {
+  EXPECT_DEMANGLING(
+      "_RNvYDNtC1c1tNtNtC3std6marker4CopyNtBc_4SyncEL_NtC1d1u1f",
+      "<dyn c::t + std::marker::Copy + std::marker::Sync as d::u>::f");
+}
+
+TEST(DemangleRust, HigherRankedDynTrait) {
+  EXPECT_DEMANGLING(
+      // <dyn for<'a> c::t::<&'a i32> as d::u>::f
+      "_RNvYDG_INtC1c1tRL0_lEEL_NtC1d1u1f",
+      "<dyn c::t::<> as d::u>::f");
+}
+
 }  // namespace
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

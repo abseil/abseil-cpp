@@ -277,7 +277,7 @@ class RustSymbolParser {
             goto type;
           }
           if (Eat('F')) goto fn_type;
-          if (Eat('D')) return false;  // dyn-trait-type not yet implemented
+          if (Eat('D')) goto dyn_trait_type;
           if (Eat('B')) goto type_backref;
           goto path;
 
@@ -347,6 +347,54 @@ class RustSymbolParser {
           }
           ABSL_DEMANGLER_RECURSE(type, kFinishFn);
           --silence_depth_;
+          continue;
+
+        // dyn-trait-type -> D dyn-bounds lifetime (D already consumed)
+        // dyn-bounds -> binder? dyn-trait* E
+        //
+        // The grammar strangely allows an empty trait list, even though the
+        // compiler should never output one.  We follow existing demanglers in
+        // rendering DEL_ as "dyn ".
+        //
+        // Because auto traits lengthen a type name considerably without
+        // providing much value to a search for related source code, it would be
+        // desirable to abbreviate
+        //     dyn main::Trait + std::marker::Copy + std::marker::Send
+        // to
+        //     dyn main::Trait + ...,
+        // eliding the auto traits.  But it is difficult to do so correctly, in
+        // part because there is no guarantee that the mangling will list the
+        // main trait first.  So we just print all the traits in their order of
+        // appearance in the mangled name.
+        dyn_trait_type:
+          if (!Emit("dyn ")) return false;
+          if (!ParseOptionalBinder()) return false;
+          if (!Eat('E')) {
+            ABSL_DEMANGLER_RECURSE(dyn_trait, kBeginAutoTraits);
+            while (!Eat('E')) {
+              if (!Emit(" + ")) return false;
+              ABSL_DEMANGLER_RECURSE(dyn_trait, kContinueAutoTraits);
+            }
+          }
+          if (!ParseRequiredLifetime()) return false;
+          continue;
+
+        // dyn-trait -> path dyn-trait-assoc-binding*
+        // dyn-trait-assoc-binding -> p undisambiguated-identifier type
+        //
+        // We render nonempty binding lists as <>, omitting their contents as
+        // for generic-args.
+        dyn_trait:
+          ABSL_DEMANGLER_RECURSE(path, kContinueDynTrait);
+          if (Peek() == 'p') {
+            if (!Emit("<>")) return false;
+            ++silence_depth_;
+            while (Eat('p')) {
+              if (!ParseUndisambiguatedIdentifier()) return false;
+              ABSL_DEMANGLER_RECURSE(type, kContinueAssocBinding);
+            }
+            --silence_depth_;
+          }
           continue;
 
         // const -> type const-data | p | backref
@@ -477,6 +525,10 @@ class RustSymbolParser {
     kAfterSubsequentTupleElement,
     kContinueParameterList,
     kFinishFn,
+    kBeginAutoTraits,
+    kContinueAutoTraits,
+    kContinueDynTrait,
+    kContinueAssocBinding,
     kConstData,
     kBeginGenericArgList,
     kContinueGenericArgList,
@@ -748,6 +800,13 @@ class RustSymbolParser {
     if (!Eat('L')) return true;
     int ignored_de_bruijn_index;
     return ParseBase62Number(ignored_de_bruijn_index);
+  }
+
+  // Consumes a lifetime just like ParseOptionalLifetime, but returns false if
+  // there is no lifetime here.
+  ABSL_MUST_USE_RESULT bool ParseRequiredLifetime() {
+    if (Peek() != 'L') return false;
+    return ParseOptionalLifetime();
   }
 
   // Pushes ns onto the namespace stack and returns true if the stack is not
