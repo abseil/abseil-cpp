@@ -585,7 +585,7 @@ static bool ParseFunctionParam(State* state);
 static bool ParseBracedExpression(State *state);
 static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
-static bool ParseExprCastValue(State *state);
+static bool ParseExprCastValueAndTrailingE(State *state);
 static bool ParseQRequiresClauseExpr(State *state);
 static bool ParseLocalName(State *state);
 static bool ParseLocalNameSuffix(State *state);
@@ -1633,7 +1633,7 @@ static bool ParseTemplateArg(State *state) {
   //     ::= L <source-name> [<template-args>] [<expr-cast-value> E]
   if (ParseLocalSourceName(state) && Optional(ParseTemplateArgs(state))) {
     copy = state->parse_state;
-    if (ParseExprCastValue(state) && ParseOneCharToken(state, 'E')) {
+    if (ParseExprCastValueAndTrailingE(state)) {
       return true;
     }
     state->parse_state = copy;
@@ -2005,7 +2005,7 @@ static bool ParseExprPrimary(State *state) {
 
   // The merged cast production.
   if (ParseOneCharToken(state, 'L') && ParseType(state) &&
-      ParseExprCastValue(state)) {
+      ParseExprCastValueAndTrailingE(state)) {
     return true;
   }
   state->parse_state = copy;
@@ -2020,7 +2020,7 @@ static bool ParseExprPrimary(State *state) {
 }
 
 // <number> or <float>, followed by 'E', as described above ParseExprPrimary.
-static bool ParseExprCastValue(State *state) {
+static bool ParseExprCastValueAndTrailingE(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   // We have to be able to backtrack after accepting a number because we could
