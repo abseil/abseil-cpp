@@ -100,6 +100,7 @@ static const AbbrevPair kOperatorList[] = {
     {"qu", "?", 3},
     {"st", "sizeof", 0},  // Special syntax
     {"sz", "sizeof", 1},  // Not a real operator name, but used in expressions.
+    {"sZ", "sizeof...", 0},  // Special syntax
     {nullptr, nullptr, 0},
 };
 
@@ -579,6 +580,7 @@ static bool ParseTemplateArg(State *state);
 static bool ParseBaseUnresolvedName(State *state);
 static bool ParseUnresolvedName(State *state);
 static bool ParseUnionSelector(State* state);
+static bool ParseFunctionParam(State* state);
 static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValue(State *state);
@@ -1751,6 +1753,34 @@ static bool ParseUnionSelector(State *state) {
   return ParseOneCharToken(state, '_') && Optional(ParseNumber(state, nullptr));
 }
 
+// <function-param> ::= fp <(top-level) CV-qualifiers> _
+//                  ::= fp <(top-level) CV-qualifiers> <number> _
+//                  ::= fL <number> p <(top-level) CV-qualifiers> _
+//                  ::= fL <number> p <(top-level) CV-qualifiers> <number> _
+static bool ParseFunctionParam(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  ParseState copy = state->parse_state;
+
+  // Function-param expression (level 0).
+  if (ParseTwoCharToken(state, "fp") && Optional(ParseCVQualifiers(state)) &&
+      Optional(ParseNumber(state, nullptr)) && ParseOneCharToken(state, '_')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Function-param expression (level 1+).
+  if (ParseTwoCharToken(state, "fL") && Optional(ParseNumber(state, nullptr)) &&
+      ParseOneCharToken(state, 'p') && Optional(ParseCVQualifiers(state)) &&
+      Optional(ParseNumber(state, nullptr)) && ParseOneCharToken(state, '_')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  return false;
+}
+
 // <expression> ::= <1-ary operator-name> <expression>
 //              ::= <2-ary operator-name> <expression> <expression>
 //              ::= <3-ary operator-name> <expression> <expression> <expression>
@@ -1762,16 +1792,14 @@ static bool ParseUnionSelector(State *state) {
 //              ::= st <type>
 //              ::= <template-param>
 //              ::= <function-param>
+//              ::= sZ <template-param>
+//              ::= sZ <function-param>
 //              ::= <expr-primary>
 //              ::= dt <expression> <unresolved-name> # expr.name
 //              ::= pt <expression> <unresolved-name> # expr->name
 //              ::= sp <expression>         # argument pack expansion
 //              ::= sr <type> <unqualified-name> <template-args>
 //              ::= sr <type> <unqualified-name>
-// <function-param> ::= fp <(top-level) CV-qualifiers> _
-//                  ::= fp <(top-level) CV-qualifiers> <number> _
-//                  ::= fL <number> p <(top-level) CV-qualifiers> _
-//                  ::= fL <number> p <(top-level) CV-qualifiers> <number> _
 static bool ParseExpression(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1808,19 +1836,8 @@ static bool ParseExpression(State *state) {
   }
   state->parse_state = copy;
 
-  // Function-param expression (level 0).
-  if (ParseTwoCharToken(state, "fp") && Optional(ParseCVQualifiers(state)) &&
-      Optional(ParseNumber(state, nullptr)) && ParseOneCharToken(state, '_')) {
-    return true;
-  }
-  state->parse_state = copy;
-
-  // Function-param expression (level 1+).
-  if (ParseTwoCharToken(state, "fL") && Optional(ParseNumber(state, nullptr)) &&
-      ParseOneCharToken(state, 'p') && Optional(ParseCVQualifiers(state)) &&
-      Optional(ParseNumber(state, nullptr)) && ParseOneCharToken(state, '_')) {
-    return true;
-  }
+  // <expression> ::= <function-param>
+  if (ParseFunctionParam(state)) return true;
   state->parse_state = copy;
 
   // Parse the conversion expressions jointly to avoid re-parsing the <type> in
@@ -1862,6 +1879,16 @@ static bool ParseExpression(State *state) {
 
   // sizeof type
   if (ParseTwoCharToken(state, "st") && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // sizeof...(pack)
+  //
+  // <expression> ::= sZ <template-param>
+  //              ::= sZ <function-param>
+  if (ParseTwoCharToken(state, "sZ") &&
+      (ParseFunctionParam(state) || ParseTemplateParam(state))) {
     return true;
   }
   state->parse_state = copy;

@@ -329,6 +329,26 @@ TEST(Demangle, SubobjectAddresses) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SizeofPacks) {
+  char tmp[80];
+
+  // template <std::size_t i> struct S {};
+  //
+  // template <class... T> auto f(T... p) -> S<sizeof...(T)> { return {}; }
+  // template auto f<int, long>(int, long) -> S<2>;
+  //
+  // template <class... T> auto g(T... p) -> S<sizeof...(p)> { return {}; }
+  // template auto g<int, long>(int, long) -> S<2>;
+
+  // S<sizeof...(int, long)> f<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1fIJilEE1SIXsZT_EEDpT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // S<sizeof... (fp)> g<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1gIJilEE1SIXsZfp_EEDpT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("g<>()", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
