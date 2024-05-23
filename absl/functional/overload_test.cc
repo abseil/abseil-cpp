@@ -32,12 +32,10 @@ namespace {
 
 TEST(OverloadTest, DispatchConsidersTypeWithAutoFallback) {
   auto overloaded = absl::Overload{
-      [](int v) -> std::string { return absl::StrCat("int ", v); },
-      [](double v) -> std::string { return absl::StrCat("double ", v); },
-      [](const char* v) -> std::string {
-        return absl::StrCat("const char* ", v);
-      },
-      [](auto v) -> std::string { return absl::StrCat("auto ", v); },
+      [](int v) { return absl::StrCat("int ", v); },
+      [](double v) { return absl::StrCat("double ", v); },
+      [](const char* v) { return absl::StrCat("const char* ", v); },
+      [](auto v) { return absl::StrCat("auto ", v); },
   };
 
   EXPECT_EQ("int 1", overloaded(1));
