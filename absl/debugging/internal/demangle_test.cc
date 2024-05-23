@@ -300,6 +300,35 @@ TEST(Demangle, AbiTags) {
   EXPECT_STREQ("C[abi:bar][abi:foo]()", tmp);
 }
 
+// Test subobject-address template parameters.
+TEST(Demangle, SubobjectAddresses) {
+  char tmp[80];
+
+  // void f<a.<char const at offset 123>>()
+  EXPECT_TRUE(Demangle("_Z1fIXsoKcL_Z1aE123EEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<&a.<char const at offset 0>>()
+  EXPECT_TRUE(Demangle("_Z1fIXadsoKcL_Z1aEEEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<&a.<char const at offset 123>>()
+  EXPECT_TRUE(Demangle("_Z1fIXadsoKcL_Z1aE123EEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<&a.<char const at offset 123>>(), past the end this time
+  EXPECT_TRUE(Demangle("_Z1fIXadsoKcL_Z1aE123pEEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<&a.<char const at offset 0>>() with union-selectors
+  EXPECT_TRUE(Demangle("_Z1fIXadsoKcL_Z1aE__1_234EEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<&a.<char const at offset 123>>(), past the end, with union-selector
+  EXPECT_TRUE(Demangle("_Z1fIXadsoKcL_Z1aE123_456pEEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
