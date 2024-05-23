@@ -371,6 +371,57 @@ TEST(Demangle, Spaceship) {
   EXPECT_STREQ("g<>()", tmp);
 }
 
+TEST(Demangle, DirectListInitialization) {
+  char tmp[80];
+
+  // template <class T> decltype(T{}) f() { return T{}; }
+  // template decltype(int{}) f<int>();
+  //
+  // struct XYZ { int x, y, z; };
+  // template <class T> decltype(T{1, 2, 3}) g() { return T{1, 2, 3}; }
+  // template decltype(XYZ{1, 2, 3}) g<XYZ>();
+  //
+  // template <class T> decltype(T{.x = 1, .y = 2, .z = 3}) h() {
+  //   return T{.x = 1, .y = 2, .z = 3};
+  // }
+  // template decltype(XYZ{.x = 1, .y = 2, .z = 3}) h<XYZ>();
+  //
+  // // The following two cases require full C99 designated initializers,
+  // // not part of C++ but likely available as an extension if you ask your
+  // // compiler nicely.
+  //
+  // struct A { int a[4]; };
+  // template <class T> decltype(T{.a[2] = 42}) i() { return T{.a[2] = 42}; }
+  // template decltype(A{.a[2] = 42}) i<A>();
+  //
+  // template <class T> decltype(T{.a[1 ... 3] = 42}) j() {
+  //   return T{.a[1 ... 3] = 42};
+  // }
+  // template decltype(A{.a[1 ... 3] = 42}) j<A>();
+
+  // decltype(int{}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_EEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // decltype(XYZ{1, 2, 3}) g<XYZ>()
+  EXPECT_TRUE(Demangle("_Z1gI3XYZEDTtlT_Li1ELi2ELi3EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("g<>()", tmp);
+
+  // decltype(XYZ{.x = 1, .y = 2, .z = 3}) h<XYZ>()
+  EXPECT_TRUE(Demangle("_Z1hI3XYZEDTtlT_di1xLi1Edi1yLi2Edi1zLi3EEEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("h<>()", tmp);
+
+  // decltype(A{.a[2] = 42}) i<A>()
+  EXPECT_TRUE(Demangle("_Z1iI1AEDTtlT_di1adxLi2ELi42EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("i<>()", tmp);
+
+  // decltype(A{.a[1 ... 3] = 42}) j<A>()
+  EXPECT_TRUE(Demangle("_Z1jI1AEDTtlT_di1adXLi1ELi3ELi42EEEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("j<>()", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {

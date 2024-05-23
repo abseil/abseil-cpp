@@ -582,6 +582,7 @@ static bool ParseBaseUnresolvedName(State *state);
 static bool ParseUnresolvedName(State *state);
 static bool ParseUnionSelector(State* state);
 static bool ParseFunctionParam(State* state);
+static bool ParseBracedExpression(State *state);
 static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValue(State *state);
@@ -1782,6 +1783,38 @@ static bool ParseFunctionParam(State *state) {
   return false;
 }
 
+// <braced-expression> ::= <expression>
+//                     ::= di <field source-name> <braced-expression>
+//                     ::= dx <index expression> <braced-expression>
+//                     ::= dX <expression> <expression> <braced-expression>
+static bool ParseBracedExpression(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  ParseState copy = state->parse_state;
+
+  if (ParseTwoCharToken(state, "di") && ParseSourceName(state) &&
+      ParseBracedExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "dx") && ParseExpression(state) &&
+      ParseBracedExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "dX") &&
+      ParseExpression(state) && ParseExpression(state) &&
+      ParseBracedExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  return ParseExpression(state);
+}
+
 // <expression> ::= <1-ary operator-name> <expression>
 //              ::= <2-ary operator-name> <expression> <expression>
 //              ::= <3-ary operator-name> <expression> <expression> <expression>
@@ -1790,6 +1823,7 @@ static bool ParseFunctionParam(State *state) {
 //              ::= so <type> <expression> [<number>] <union-selector>* [p] E
 //              ::= cv <type> <expression>      # type (expression)
 //              ::= cv <type> _ <expression>* E # type (expr-list)
+//              ::= tl <type> <braced-expression>* E
 //              ::= st <type>
 //              ::= <template-param>
 //              ::= <function-param>
@@ -1839,6 +1873,14 @@ static bool ParseExpression(State *state) {
 
   // <expression> ::= <function-param>
   if (ParseFunctionParam(state)) return true;
+  state->parse_state = copy;
+
+  // <expression> ::= tl <type> <braced-expression>* E
+  if (ParseTwoCharToken(state, "tl") && ParseType(state) &&
+      ZeroOrMore(ParseBracedExpression, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
   state->parse_state = copy;
 
   // Parse the conversion expressions jointly to avoid re-parsing the <type> in
