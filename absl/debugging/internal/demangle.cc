@@ -300,8 +300,8 @@ static bool ParseOneCharToken(State *state, const char one_char_token) {
   return false;
 }
 
-// Returns true and advances "mangled_cur" if we find "two_char_token"
-// at "mangled_cur" position.  It is assumed that "two_char_token" does
+// Returns true and advances "mangled_idx" if we find "two_char_token"
+// at "mangled_idx" position.  It is assumed that "two_char_token" does
 // not contain '\0'.
 static bool ParseTwoCharToken(State *state, const char *two_char_token) {
   ComplexityGuard guard(state);
@@ -309,6 +309,21 @@ static bool ParseTwoCharToken(State *state, const char *two_char_token) {
   if (RemainingInput(state)[0] == two_char_token[0] &&
       RemainingInput(state)[1] == two_char_token[1]) {
     state->parse_state.mangled_idx += 2;
+    return true;
+  }
+  return false;
+}
+
+// Returns true and advances "mangled_idx" if we find "three_char_token"
+// at "mangled_idx" position.  It is assumed that "three_char_token" does
+// not contain '\0'.
+static bool ParseThreeCharToken(State *state, const char *three_char_token) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  if (RemainingInput(state)[0] == three_char_token[0] &&
+      RemainingInput(state)[1] == three_char_token[1] &&
+      RemainingInput(state)[2] == three_char_token[2]) {
+    state->parse_state.mangled_idx += 3;
     return true;
   }
   return false;
@@ -1759,6 +1774,7 @@ static bool ParseUnionSelector(State *state) {
 //                  ::= fp <(top-level) CV-qualifiers> <number> _
 //                  ::= fL <number> p <(top-level) CV-qualifiers> _
 //                  ::= fL <number> p <(top-level) CV-qualifiers> <number> _
+//                  ::= fpT  # this
 static bool ParseFunctionParam(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1780,7 +1796,7 @@ static bool ParseFunctionParam(State *state) {
   }
   state->parse_state = copy;
 
-  return false;
+  return ParseThreeCharToken(state, "fpT");
 }
 
 // <braced-expression> ::= <expression>

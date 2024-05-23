@@ -308,6 +308,14 @@ TEST(Demangle, AbiTags) {
   EXPECT_STREQ("C[abi:bar][abi:foo]()", tmp);
 }
 
+TEST(Demangle, ThisPointerInDependentSignature) {
+  char tmp[80];
+
+  // decltype(g<int>(this)) S::f<int>()
+  EXPECT_TRUE(Demangle("_ZN1S1fIiEEDTcl1gIT_EfpTEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::f<>()", tmp);
+}
+
 // Test subobject-address template parameters.
 TEST(Demangle, SubobjectAddresses) {
   char tmp[80];
