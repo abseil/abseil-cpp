@@ -1851,6 +1851,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= sp <expression>         # argument pack expansion
 //              ::= sr <type> <unqualified-name> <template-args>
 //              ::= sr <type> <unqualified-name>
+//              ::= u <source-name> <template-arg>* E  # vendor extension
 static bool ParseExpression(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1970,6 +1971,13 @@ static bool ParseExpression(State *state) {
 
   // Parameter pack expansion
   if (ParseTwoCharToken(state, "sp") && ParseExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Vendor extended expressions
+  if (ParseOneCharToken(state, 'u') && ParseSourceName(state) &&
+      ZeroOrMore(ParseTemplateArg, state) && ParseOneCharToken(state, 'E')) {
     return true;
   }
   state->parse_state = copy;

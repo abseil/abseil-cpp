@@ -387,6 +387,18 @@ TEST(Demangle, Spaceship) {
   EXPECT_STREQ("g<>()", tmp);
 }
 
+TEST(Demangle, VendorExtendedExpressions) {
+  char tmp[80];
+
+  // void f<__e()>()
+  EXPECT_TRUE(Demangle("_Z1fIXu3__eEEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // void f<__e(int, long)>()
+  EXPECT_TRUE(Demangle("_Z1fIXu3__eilEEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, DirectListInitialization) {
   char tmp[80];
 
