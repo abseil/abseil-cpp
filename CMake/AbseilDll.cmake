@@ -675,12 +675,7 @@ function(absl_internal_dll_contains)
 
   STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_DLL_TARGET})
 
-  list(FIND
-    ABSL_INTERNAL_DLL_TARGETS
-    "${_target}"
-    _index)
-
-  if (${_index} GREATER -1)
+  if (_target IN_LIST ABSL_INTERNAL_DLL_TARGETS)
     set(${ABSL_INTERNAL_DLL_OUTPUT} 1 PARENT_SCOPE)
   else()
     set(${ABSL_INTERNAL_DLL_OUTPUT} 0 PARENT_SCOPE)
@@ -697,12 +692,7 @@ function(absl_internal_test_dll_contains)
 
   STRING(REGEX REPLACE "^absl::" "" _target ${ABSL_INTERNAL_TEST_DLL_TARGET})
 
-  list(FIND
-    ABSL_INTERNAL_TEST_DLL_TARGETS
-    "${_target}"
-    _index)
-
-  if (${_index} GREATER -1)
+  if (_target IN_LIST ABSL_INTERNAL_TEST_DLL_TARGETS)
     set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 1 PARENT_SCOPE)
   else()
     set(${ABSL_INTERNAL_TEST_DLL_OUTPUT} 0 PARENT_SCOPE)
