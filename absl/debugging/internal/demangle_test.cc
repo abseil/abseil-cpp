@@ -212,6 +212,97 @@ TEST(Demangle, TemplateParamSubstitutionWithGenericLambda) {
   EXPECT_STREQ(tmp, "Fooer<>::foo<>()");
 }
 
+TEST(Demangle, LambdaRequiresTrue) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const requires true
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QLb1E", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresSimpleExpression) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const requires 2 + 2 == 4
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QeqplLi2ELi2ELi4E",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingTrue) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const requires requires { true; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXLb1EE", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingConcept) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const
+  // requires requires { std::same_as<decltype(fp), int>; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXsr3stdE7same_asIDtfp_EiEE",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingNoexceptExpression) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const
+  // requires requires { {fp + fp} noexcept; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXplfp_fp_NE", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingReturnTypeConstraint) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const
+  // requires requires { {fp + fp} -> std::same_as<decltype(fp)>; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXplfp_fp_RNSt7same_asIDtfp_EEEE",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionWithBothNoexceptAndReturnType) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const
+  // requires requires { {fp + fp} noexcept -> std::same_as<decltype(fp)>; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXplfp_fp_NRNSt7same_asIDtfp_EEEE",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingType) {
+  char tmp[100];
+
+  // auto $_0::operator()<S>(S) const
+  // requires requires { typename S::T; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clI1SEEDaT_QrqTNS2_1TEE", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionNestingAnotherRequires) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const requires requires { requires true; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqQLb1EE", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
+TEST(Demangle, LambdaRequiresRequiresExpressionContainingTwoRequirements) {
+  char tmp[100];
+
+  // auto $_0::operator()<int>(int) const
+  // requires requires { requires true; requires 2 + 2 == 4; }
+  ASSERT_TRUE(Demangle("_ZNK3$_0clIiEEDaT_QrqXLb1EXeqplLi2ELi2ELi4EE",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "$_0::operator()<>()");
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];

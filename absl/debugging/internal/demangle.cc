@@ -602,6 +602,7 @@ static bool ParseExpression(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValueAndTrailingE(State *state);
 static bool ParseQRequiresClauseExpr(State *state);
+static bool ParseRequirement(State *state);
 static bool ParseLocalName(State *state);
 static bool ParseLocalNameSuffix(State *state);
 static bool ParseDiscriminator(State *state);
@@ -1852,6 +1853,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= sr <type> <unqualified-name> <template-args>
 //              ::= sr <type> <unqualified-name>
 //              ::= u <source-name> <template-arg>* E  # vendor extension
+//              ::= rq <requirement>+ E
 static bool ParseExpression(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1982,6 +1984,15 @@ static bool ParseExpression(State *state) {
   }
   state->parse_state = copy;
 
+  // <expression> ::= rq <requirement>+ E
+  //
+  // https://github.com/itanium-cxx-abi/cxx-abi/issues/24
+  if (ParseTwoCharToken(state, "rq") && OneOrMore(ParseRequirement, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
   return ParseUnresolvedName(state);
 }
 
@@ -2095,6 +2106,39 @@ static bool ParseQRequiresClauseExpr(State *state) {
 
   // also restores append
   state->parse_state = copy;
+  return false;
+}
+
+// <requirement> ::= X <expression> [N] [R <type-constraint>]
+// <requirement> ::= T <type>
+// <requirement> ::= Q <constraint-expression>
+//
+// <type-constraint> ::= <name>
+//
+// <constraint-expression> ::= <expression>
+//
+// https://github.com/itanium-cxx-abi/cxx-abi/issues/24
+static bool ParseRequirement(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  ParseState copy = state->parse_state;
+
+  if (ParseOneCharToken(state, 'X') && ParseExpression(state) &&
+      Optional(ParseOneCharToken(state, 'N')) &&
+      // This logic backtracks cleanly if we eat an R but a valid type doesn't
+      // follow it.
+      (!ParseOneCharToken(state, 'R') || ParseName(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseOneCharToken(state, 'T') && ParseType(state)) return true;
+  state->parse_state = copy;
+
+  if (ParseOneCharToken(state, 'Q') && ParseExpression(state)) return true;
+  state->parse_state = copy;
+
   return false;
 }
 
