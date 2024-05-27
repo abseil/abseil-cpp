@@ -508,6 +508,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "log_internal_check_op"
   "log_internal_conditions"
   "log_internal_config"
+  "log_internal_fnmatch"
   "log_internal_format"
   "log_internal_globals"
   "log_internal_log_impl"
@@ -587,6 +588,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "strerror"
   "strings"
   "strings_internal"
+  "string_view"
   "symbolize"
   "synchronization"
   "thread_pool"
@@ -597,6 +599,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "type_traits"
   "utility"
   "variant"
+  "vlog_config_internal"
 )
 
 set(ABSL_INTERNAL_TEST_DLL_FILES
