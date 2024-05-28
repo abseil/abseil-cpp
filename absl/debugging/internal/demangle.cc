@@ -861,7 +861,11 @@ static bool ParseLocalSourceName(State *state) {
 // <unnamed-type-name> ::= Ut [<(nonnegative) number>] _
 //                     ::= <closure-type-name>
 // <closure-type-name> ::= Ul <lambda-sig> E [<(nonnegative) number>] _
-// <lambda-sig>        ::= <(parameter) type>+
+// <lambda-sig>        ::= <template-param-decl>* <(parameter) type>+
+//
+// For <template-param-decl>* in <lambda-sig> see:
+//
+// https://github.com/itanium-cxx-abi/cxx-abi/issues/31
 static bool ParseUnnamedTypeName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -884,6 +888,7 @@ static bool ParseUnnamedTypeName(State *state) {
   // Closure type.
   which = -1;
   if (ParseTwoCharToken(state, "Ul") && DisableAppend(state) &&
+      ZeroOrMore(ParseTemplateParamDecl, state) &&
       OneOrMore(ParseType, state) && RestoreAppend(state, copy.append) &&
       ParseOneCharToken(state, 'E') && Optional(ParseNumber(state, &which)) &&
       which <= std::numeric_limits<int>::max() - 2 &&  // Don't overflow.

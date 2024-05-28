@@ -303,6 +303,48 @@ TEST(Demangle, LambdaRequiresRequiresExpressionContainingTwoRequirements) {
   EXPECT_STREQ(tmp, "$_0::operator()<>()");
 }
 
+TEST(Demangle, LambdaWithExplicitTypeArgument) {
+  char tmp[100];
+
+  // Source:
+  //
+  // template <class T> T f(T t) {
+  //   return []<class U>(U u) { return u + u; }(t);
+  // }
+  //
+  // template int f<int>(int);
+  //
+  // Full LLVM demangling of the lambda call operator:
+  //
+  // auto int f<int>(int)::'lambda'<typename $T>(int)::
+  // operator()<int>(int) const
+  ASSERT_TRUE(Demangle("_ZZ1fIiET_S0_ENKUlTyS0_E_clIiEEDaS0_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "f<>()::{lambda()#1}::operator()<>()");
+}
+
+TEST(Demangle, LambdaWithExplicitPackArgument) {
+  char tmp[100];
+
+  // Source:
+  //
+  // template <class T> T h(T t) {
+  //   return []<class... U>(U... u) {
+  //     return ((u + u) + ... + 0);
+  //   }(t);
+  // }
+  //
+  // template int h<int>(int);
+  //
+  // Full LLVM demangling of the lambda call operator:
+  //
+  // auto int f<int>(int)::'lambda'<typename ...$T>($T...)::
+  // operator()<int>($T...) const
+  ASSERT_TRUE(Demangle("_ZZ1fIiET_S0_ENKUlTpTyDpT_E_clIJiEEEDaS2_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "f<>()::{lambda()#1}::operator()<>()");
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];
