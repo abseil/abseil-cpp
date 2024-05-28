@@ -506,6 +506,65 @@ TEST(Demangle, SubobjectAddresses) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, UnaryFoldExpressions) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <bool b> struct S {};
+  //
+  // template <class... T> auto f(T... t) -> S<((sizeof(T) == 4) || ...)> {
+  //   return {};
+  // }
+  //
+  // void g() { f(1, 2L); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // S<((sizeof (int) == 4, sizeof (long) == 4) || ...)> f<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1fIJilEE1SIXfrooeqstT_Li4EEEDpS1_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // The like with a left fold.
+  //
+  // S<(... || (sizeof (int) == 4, sizeof (long) == 4))> f<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1fIJilEE1SIXflooeqstT_Li4EEEDpS1_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, BinaryFoldExpressions) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <bool b> struct S {};
+  //
+  // template <class... T> auto f(T... t)
+  //     -> S<((sizeof(T) == 4) || ... || false)> {
+  //   return {};
+  // }
+  //
+  // void g() { f(1, 2L); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // S<((sizeof (int) == 4, sizeof (long) == 4) || ... || false)>
+  // f<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1fIJilEE1SIXfRooeqstT_Li4ELb0EEEDpS1_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // The like with a left fold.
+  //
+  // S<(false || ... || (sizeof (int) == 4, sizeof (long) == 4))>
+  // f<int, long>(int, long)
+  EXPECT_TRUE(Demangle("_Z1fIJilEE1SIXfLooLb0EeqstT_Li4EEEDpS1_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, SizeofPacks) {
   char tmp[80];
 

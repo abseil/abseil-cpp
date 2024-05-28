@@ -1885,6 +1885,10 @@ static bool ParseBracedExpression(State *state) {
 //              ::= dt <expression> <unresolved-name> # expr.name
 //              ::= pt <expression> <unresolved-name> # expr->name
 //              ::= sp <expression>         # argument pack expansion
+//              ::= fl <binary operator-name> <expression>
+//              ::= fr <binary operator-name> <expression>
+//              ::= fL <binary operator-name> <expression> <expression>
+//              ::= fR <binary operator-name> <expression> <expression>
 //              ::= sr <type> <unqualified-name> <template-args>
 //              ::= sr <type> <unqualified-name>
 //              ::= u <source-name> <template-arg>* E  # vendor extension
@@ -1986,6 +1990,27 @@ static bool ParseExpression(State *state) {
   //              ::= sZ <function-param>
   if (ParseTwoCharToken(state, "sZ") &&
       (ParseFunctionParam(state) || ParseTemplateParam(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Unary folds (... op pack) and (pack op ...).
+  //
+  // <expression> ::= fl <binary operator-name> <expression>
+  //              ::= fr <binary operator-name> <expression>
+  if ((ParseTwoCharToken(state, "fl") || ParseTwoCharToken(state, "fr")) &&
+      ParseOperatorName(state, nullptr) && ParseExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Binary folds (init op ... op pack) and (pack op ... op init).
+  //
+  // <expression> ::= fL <binary operator-name> <expression> <expression>
+  //              ::= fR <binary operator-name> <expression> <expression>
+  if ((ParseTwoCharToken(state, "fL") || ParseTwoCharToken(state, "fR")) &&
+      ParseOperatorName(state, nullptr) && ParseExpression(state) &&
+      ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;
