@@ -1956,8 +1956,10 @@ static bool ParseExpression(State *state) {
   state->parse_state = copy;
 
   // Object and pointer member access expressions.
+  //
+  // <expression> ::= (dt | pt) <expression> <unresolved-name>
   if ((ParseTwoCharToken(state, "dt") || ParseTwoCharToken(state, "pt")) &&
-      ParseExpression(state) && ParseType(state)) {
+      ParseExpression(state) && ParseUnresolvedName(state)) {
     return true;
   }
   state->parse_state = copy;

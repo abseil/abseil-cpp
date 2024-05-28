@@ -407,6 +407,14 @@ TEST(Demangle, ThisPointerInDependentSignature) {
   EXPECT_STREQ("S::f<>()", tmp);
 }
 
+TEST(Demangle, DependentMemberOperatorCall) {
+  char tmp[80];
+
+  // decltype(fp.operator()()) f<C>(C)
+  EXPECT_TRUE(Demangle("_Z1fI1CEDTcldtfp_onclEET_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 // Test subobject-address template parameters.
 TEST(Demangle, SubobjectAddresses) {
   char tmp[80];
