@@ -375,6 +375,26 @@ TEST(Demangle, LiteralOfGlobalNamespaceEnumType) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, NullptrLiterals) {
+  char tmp[80];
+
+  // void f<nullptr>()
+  EXPECT_TRUE(Demangle("_Z1fILDnEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // also void f<nullptr>()
+  EXPECT_TRUE(Demangle("_Z1fILDn0EEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, StringLiterals) {
+  char tmp[80];
+
+  // void f<"<char const [42]>">()
+  EXPECT_TRUE(Demangle("_Z1fILA42_KcEEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 // Test the GNU abi_tag extension.
 TEST(Demangle, AbiTags) {
   char tmp[80];

@@ -2040,10 +2040,35 @@ static bool ParseExprPrimary(State *state) {
     return false;
   }
 
-  // The merged cast production.
-  if (ParseOneCharToken(state, 'L') && ParseType(state) &&
-      ParseExprCastValueAndTrailingE(state)) {
-    return true;
+  if (ParseOneCharToken(state, 'L')) {
+    // There are two special cases in which a literal may or must contain a type
+    // without a value.  The first is that both LDnE and LDn0E are valid
+    // encodings of nullptr, used in different situations.  Recognize LDnE here,
+    // leaving LDn0E to be recognized by the general logic afterward.
+    if (ParseThreeCharToken(state, "DnE")) return true;
+
+    // The second special case is a string literal, currently mangled in C++98
+    // style as LA<length + 1>_KcE.  This is inadequate to support C++11 and
+    // later versions, and the discussion of this problem has not converged.
+    //
+    // https://github.com/itanium-cxx-abi/cxx-abi/issues/64
+    //
+    // For now the bare-type mangling is what's used in practice, so we
+    // recognize this form and only this form if an array type appears here.
+    // Someday we'll probably have to accept a new form of value mangling in
+    // LA...E constructs.  (Note also that C++20 allows a wide range of
+    // class-type objects as template arguments, so someday their values will be
+    // mangled and we'll have to recognize them here too.)
+    if (RemainingInput(state)[0] == 'A' /* an array type follows */) {
+      if (ParseType(state) && ParseOneCharToken(state, 'E')) return true;
+      state->parse_state = copy;
+      return false;
+    }
+
+    // The merged cast production.
+    if (ParseType(state) && ParseExprCastValueAndTrailingE(state)) {
+      return true;
+    }
   }
   state->parse_state = copy;
 
