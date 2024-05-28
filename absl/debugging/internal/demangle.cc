@@ -1386,19 +1386,30 @@ static bool ParseExceptionSpec(State *state) {
   return false;
 }
 
-// <function-type> ::= [exception-spec] F [Y] <bare-function-type> [O] E
+// <function-type> ::=
+//     [exception-spec] F [Y] <bare-function-type> [<ref-qualifier>] E
+//
+// <ref-qualifier> ::= R | O
 static bool ParseFunctionType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (Optional(ParseExceptionSpec(state)) && ParseOneCharToken(state, 'F') &&
-      Optional(ParseOneCharToken(state, 'Y')) && ParseBareFunctionType(state) &&
-      Optional(ParseOneCharToken(state, 'O')) &&
-      ParseOneCharToken(state, 'E')) {
-    return true;
+  Optional(ParseExceptionSpec(state));
+  if (!ParseOneCharToken(state, 'F')) {
+    state->parse_state = copy;
+    return false;
   }
-  state->parse_state = copy;
-  return false;
+  Optional(ParseOneCharToken(state, 'Y'));
+  if (!ParseBareFunctionType(state)) {
+    state->parse_state = copy;
+    return false;
+  }
+  Optional(ParseCharClass(state, "RO"));
+  if (!ParseOneCharToken(state, 'E')) {
+    state->parse_state = copy;
+    return false;
+  }
+  return true;
 }
 
 // <bare-function-type> ::= <(signature) type>+

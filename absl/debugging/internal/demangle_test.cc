@@ -569,6 +569,26 @@ TEST(Demangle, DirectListInitialization) {
   EXPECT_STREQ("j<>()", tmp);
 }
 
+TEST(Demangle, ReferenceQualifiedFunctionTypes) {
+  char tmp[80];
+
+  // void f(void (*)() const &, int)
+  EXPECT_TRUE(Demangle("_Z1fPKFvvREi", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+
+  // void f(void (*)() &&, int)
+  EXPECT_TRUE(Demangle("_Z1fPFvvOEi", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+
+  // void f(void (*)(int&) &, int)
+  EXPECT_TRUE(Demangle("_Z1fPFvRiREi", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+
+  // void f(void (*)(S&&) &&, int)
+  EXPECT_TRUE(Demangle("_Z1fPFvO1SOEi", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
