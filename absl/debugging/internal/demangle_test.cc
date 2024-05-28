@@ -631,6 +631,16 @@ TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   EXPECT_STREQ("f()", tmp);
 }
 
+TEST(Demangle, ThreadLocalWrappers) {
+  char tmp[80];
+
+  EXPECT_TRUE(Demangle("_ZTWN2ns3varE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("thread-local wrapper routine for ns::var", tmp);
+
+  EXPECT_TRUE(Demangle("_ZTHN2ns3varE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("thread-local initialization routine for ns::var", tmp);
+}
+
 // Test one Rust symbol to exercise Demangle's delegation path.  Rust demangling
 // itself is more thoroughly tested in demangle_rust_test.cc.
 TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {

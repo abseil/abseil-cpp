@@ -1049,7 +1049,8 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= TT <type>
 //                ::= TI <type>
 //                ::= TS <type>
-//                ::= TH <type>  # thread-local
+//                ::= TW <name>  # thread-local wrapper
+//                ::= TH <name>  # thread-local initialization
 //                ::= Tc <call-offset> <call-offset> <(base) encoding>
 //                ::= GV <(object) name>
 //                ::= T <call-offset> <(base) encoding>
@@ -1062,13 +1063,31 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= Th <call-offset> <(base) encoding>
 //                ::= Tv <call-offset> <(base) encoding>
 //
-// Note: we don't care much about them since they don't appear in
-// stack traces.  The are special data.
+// Note: Most of these are special data, not functions that occur in stack
+// traces.  Exceptions are TW and TH, which denote functions supporting the
+// thread_local feature.  For these see:
+//
+// https://maskray.me/blog/2021-02-14-all-about-thread-local-storage
 static bool ParseSpecialName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTISH") &&
+
+  if (ParseTwoCharToken(state, "TW")) {
+    MaybeAppend(state, "thread-local wrapper routine for ");
+    if (ParseName(state)) return true;
+    state->parse_state = copy;
+    return false;
+  }
+
+  if (ParseTwoCharToken(state, "TH")) {
+    MaybeAppend(state, "thread-local initialization routine for ");
+    if (ParseName(state)) return true;
+    state->parse_state = copy;
+    return false;
+  }
+
+  if (ParseOneCharToken(state, 'T') && ParseCharClass(state, "VTIS") &&
       ParseType(state)) {
     return true;
   }
