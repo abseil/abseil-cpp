@@ -303,6 +303,14 @@ TEST(Demangle, LambdaRequiresRequiresExpressionContainingTwoRequirements) {
   EXPECT_STREQ(tmp, "$_0::operator()<>()");
 }
 
+TEST(Demangle, RequiresExpressionWithItsOwnParameter) {
+  char tmp[100];
+
+  // S<requires (int) { fp + fp; }> f<int>(int)
+  ASSERT_TRUE(Demangle("_Z1fIiE1SIXrQT__XplfL0p_fp_EEES1_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "f<>()");
+}
+
 TEST(Demangle, LambdaWithExplicitTypeArgument) {
   char tmp[100];
 

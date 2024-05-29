@@ -1922,6 +1922,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= sr <type> <unqualified-name>
 //              ::= u <source-name> <template-arg>* E  # vendor extension
 //              ::= rq <requirement>+ E
+//              ::= rQ <bare-function-type> _ <requirement>+ E
 static bool ParseExpression(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -2088,6 +2089,16 @@ static bool ParseExpression(State *state) {
   //
   // https://github.com/itanium-cxx-abi/cxx-abi/issues/24
   if (ParseTwoCharToken(state, "rq") && OneOrMore(ParseRequirement, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // <expression> ::= rQ <bare-function-type> _ <requirement>+ E
+  //
+  // https://github.com/itanium-cxx-abi/cxx-abi/issues/24
+  if (ParseTwoCharToken(state, "rQ") && ParseBareFunctionType(state) &&
+      ParseOneCharToken(state, '_') && OneOrMore(ParseRequirement, state) &&
       ParseOneCharToken(state, 'E')) {
     return true;
   }
