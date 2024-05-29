@@ -1877,6 +1877,10 @@ static bool ParseBracedExpression(State *state) {
 //              ::= cv <type> <expression>      # type (expression)
 //              ::= cv <type> _ <expression>* E # type (expr-list)
 //              ::= tl <type> <braced-expression>* E
+//              ::= dc <type> <expression>
+//              ::= sc <type> <expression>
+//              ::= cc <type> <expression>
+//              ::= rc <type> <expression>
 //              ::= st <type>
 //              ::= <template-param>
 //              ::= <function-param>
@@ -1938,6 +1942,15 @@ static bool ParseExpression(State *state) {
   if (ParseTwoCharToken(state, "tl") && ParseType(state) &&
       ZeroOrMore(ParseBracedExpression, state) &&
       ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // dynamic_cast, static_cast, const_cast, reinterpret_cast.
+  //
+  // <expression> ::= (dc | sc | cc | rc) <type> <expression>
+  if (ParseCharClass(state, "dscr") && ParseOneCharToken(state, 'c') &&
+      ParseType(state) && ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;

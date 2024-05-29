@@ -706,6 +706,76 @@ TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   EXPECT_STREQ("f()", tmp);
 }
 
+TEST(Demangle, DynamicCast) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p) -> decltype(dynamic_cast<const T*>(p)) {
+  //   return p;
+  // }
+  // struct S {};
+  // void g(S* p) { f(p); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(dynamic_cast<S const*>(fp)) f<S>(S*)
+  EXPECT_TRUE(Demangle("_Z1fI1SEDTdcPKT_fp_EPS1_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, StaticCast) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p) -> decltype(static_cast<const T*>(p)) {
+  //   return p;
+  // }
+  // void g(int* p) { f(p); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(static_cast<int const*>(fp)) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTscPKT_fp_EPS0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, ConstCast) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p) -> decltype(const_cast<const T*>(p)) {
+  //   return p;
+  // }
+  // void g(int* p) { f(p); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(const_cast<int const*>(fp)) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTccPKT_fp_EPS0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, ReinterpretCast) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p)
+  //     -> decltype(reinterpret_cast<const T*>(p)) {
+  //   return p;
+  // }
+  // void g(int* p) { f(p); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(reinterpret_cast<int const*>(fp)) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTrcPKT_fp_EPS0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ThreadLocalWrappers) {
   char tmp[80];
 
