@@ -747,7 +747,12 @@ function(absl_make_dll)
   else()
     set(_dll "abseil_dll")
     set(_dll_files ${ABSL_INTERNAL_DLL_FILES})
-    set(_dll_libs "")
+    set(_dll_libs
+      Threads::Threads
+      # TODO(#1495): Use $<LINK_LIBRARY:FRAMEWORK,CoreFoundation> once our
+      # minimum CMake version >= 3.24
+      $<$<PLATFORM_ID:Darwin>:-Wl,-framework,CoreFoundation>
+    )
     set(_dll_compile_definitions "")
     set(_dll_includes "")
     set(_dll_consume "ABSL_CONSUME_DLL")

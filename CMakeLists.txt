@@ -149,6 +149,14 @@ set(ABSL_LOCAL_GOOGLETEST_DIR "/usr/src/googletest" CACHE PATH
   "If ABSL_USE_GOOGLETEST_HEAD is OFF and ABSL_GOOGLETEST_URL is not set, specifies the directory of a local GoogleTest checkout."
   )
 
+option(ABSL_BUILD_MONOLITHIC_SHARED_LIBS
+  "Build Abseil as a single shared library (always enabled for Windows)"
+  OFF
+)
+if(NOT BUILD_SHARED_LIBS AND ABSL_BUILD_MONOLITHIC_SHARED_LIBS)
+  message(WARNING "Not building a shared library because BUILD_SHARED_LIBS is not set. Ignoring ABSL_BUILD_MONOLITHIC_SHARED_LIBS.")
+endif()
+
 if((BUILD_TESTING AND ABSL_BUILD_TESTING) OR ABSL_BUILD_TEST_HELPERS)
   if (ABSL_USE_EXTERNAL_GOOGLETEST)
     if (ABSL_FIND_GOOGLETEST)
