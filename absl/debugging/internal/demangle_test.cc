@@ -477,6 +477,22 @@ TEST(Demangle, DependentMemberOperatorCall) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, TypeNestedUnderDecltype) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> struct S { using t = int; };
+  // template <class T> decltype(S<T>{})::t f() { return {}; }
+  // void g() { f<int>(); }
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(S<int>{})::t f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiENDTtl1SIT_EEE1tEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 // Test subobject-address template parameters.
 TEST(Demangle, SubobjectAddresses) {
   char tmp[80];

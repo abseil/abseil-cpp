@@ -760,6 +760,7 @@ static bool ParseNestedName(State *state) {
 // <prefix> ::= <prefix> <unqualified-name>
 //          ::= <template-prefix> <template-args>
 //          ::= <template-param>
+//          ::= <decltype>
 //          ::= <substitution>
 //          ::= # empty
 // <template-prefix> ::= <prefix> <(template) unqualified-name>
@@ -771,7 +772,7 @@ static bool ParsePrefix(State *state) {
   bool has_something = false;
   while (true) {
     MaybeAppendSeparator(state);
-    if (ParseTemplateParam(state) ||
+    if (ParseTemplateParam(state) || ParseDecltype(state) ||
         ParseSubstitution(state, /*accept_std=*/true) ||
         ParseUnscopedName(state) ||
         (ParseOneCharToken(state, 'M') && ParseUnnamedTypeName(state))) {
