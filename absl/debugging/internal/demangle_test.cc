@@ -372,6 +372,21 @@ TEST(Demangle, SubstpackNotationForTroublesomeTemplatePack) {
   EXPECT_STREQ(tmp, "A<>::f<>()");
 }
 
+TEST(Demangle, TemplateTemplateParamAppearingAsBackrefFollowedByTemplateArgs) {
+  char tmp[100];
+
+  // Source:
+  //
+  // template <template <class> class C> struct W {
+  //   template <class T> static decltype(C<T>::m()) f() { return {}; }
+  // };
+  //
+  // template <class T> struct S { static int m() { return 0; } };
+  // template decltype(S<int>::m()) W<S>::f<int>();
+  ASSERT_TRUE(Demangle("_ZN1WI1SE1fIiEEDTclsrS0_IT_EE1mEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "W<>::f<>()");
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];

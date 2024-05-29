@@ -612,6 +612,7 @@ static bool ParseTemplateArgs(State *state);
 static bool ParseTemplateArg(State *state);
 static bool ParseBaseUnresolvedName(State *state);
 static bool ParseUnresolvedName(State *state);
+static bool ParseUnresolvedQualifierLevel(State *state);
 static bool ParseUnionSelector(State* state);
 static bool ParseFunctionParam(State* state);
 static bool ParseBracedExpression(State *state);
@@ -1826,7 +1827,7 @@ static bool ParseUnresolvedName(State *state) {
 
   if (ParseTwoCharToken(state, "sr") && ParseOneCharToken(state, 'N') &&
       ParseUnresolvedType(state) &&
-      OneOrMore(/* <unresolved-qualifier-level> ::= */ ParseSimpleId, state) &&
+      OneOrMore(ParseUnresolvedQualifierLevel, state) &&
       ParseOneCharToken(state, 'E') && ParseBaseUnresolvedName(state)) {
     return true;
   }
@@ -1834,12 +1835,35 @@ static bool ParseUnresolvedName(State *state) {
 
   if (Optional(ParseTwoCharToken(state, "gs")) &&
       ParseTwoCharToken(state, "sr") &&
-      OneOrMore(/* <unresolved-qualifier-level> ::= */ ParseSimpleId, state) &&
+      OneOrMore(ParseUnresolvedQualifierLevel, state) &&
       ParseOneCharToken(state, 'E') && ParseBaseUnresolvedName(state)) {
     return true;
   }
   state->parse_state = copy;
 
+  return false;
+}
+
+// <unresolved-qualifier-level> ::= <simple-id>
+//                              ::= <substitution> <template-args>
+//
+// The production <substitution> <template-args> is nonstandard but is observed
+// in practice.  An upstream discussion on the best shape of <unresolved-name>
+// has not converged:
+//
+// https://github.com/itanium-cxx-abi/cxx-abi/issues/38
+static bool ParseUnresolvedQualifierLevel(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+
+  if (ParseSimpleId(state)) return true;
+
+  ParseState copy = state->parse_state;
+  if (ParseSubstitution(state, /*accept_std=*/false) &&
+      ParseTemplateArgs(state)) {
+    return true;
+  }
+  state->parse_state = copy;
   return false;
 }
 
