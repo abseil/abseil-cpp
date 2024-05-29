@@ -585,6 +585,7 @@ static bool ParseCVQualifiers(State *state);
 static bool ParseBuiltinType(State *state);
 static bool ParseFunctionType(State *state);
 static bool ParseBareFunctionType(State *state);
+static bool ParseOverloadAttribute(State *state);
 static bool ParseClassEnumType(State *state);
 static bool ParseArrayType(State *state);
 static bool ParsePointerToMemberType(State *state);
@@ -1437,15 +1438,38 @@ static bool ParseFunctionType(State *state) {
   return true;
 }
 
-// <bare-function-type> ::= <(signature) type>+
+// <bare-function-type> ::= <overload-attribute>* <(signature) type>+
+//
+// The <overload-attribute>* prefix is nonstandard; see the comment on
+// ParseOverloadAttribute.
 static bool ParseBareFunctionType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
   DisableAppend(state);
-  if (OneOrMore(ParseType, state)) {
+  if (ZeroOrMore(ParseOverloadAttribute, state) &&
+      OneOrMore(ParseType, state)) {
     RestoreAppend(state, copy.append);
     MaybeAppend(state, "()");
+    return true;
+  }
+  state->parse_state = copy;
+  return false;
+}
+
+// <overload-attribute> ::= Ua <name>
+//
+// The nonstandard <overload-attribute> production is sufficient to accept the
+// current implementation of __attribute__((enable_if(condition, "message")))
+// and future attributes of a similar shape.  See
+// https://clang.llvm.org/docs/AttributeReference.html#enable-if and the
+// definition of CXXNameMangler::mangleFunctionEncodingBareType in Clang's
+// source code.
+static bool ParseOverloadAttribute(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+  if (ParseTwoCharToken(state, "Ua") && ParseName(state)) {
     return true;
   }
   state->parse_state = copy;

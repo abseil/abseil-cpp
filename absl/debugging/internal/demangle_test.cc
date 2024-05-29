@@ -461,6 +461,42 @@ TEST(Demangle, AbiTags) {
   EXPECT_STREQ("C[abi:bar][abi:foo]()", tmp);
 }
 
+TEST(Demangle, EnableIfAttributeOnGlobalFunction) {
+  char tmp[80];
+
+  // int f(long l) __attribute__((enable_if(l >= 0, ""))) { return l; }
+  //
+  // f(long) [enable_if:fp >= 0]
+  EXPECT_TRUE(Demangle("_Z1fUa9enable_ifIXgefL0p_Li0EEEl", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+}
+
+TEST(Demangle, EnableIfAttributeOnNamespaceScopeFunction) {
+  char tmp[80];
+
+  // namespace ns {
+  // int f(long l) __attribute__((enable_if(l >= 0, ""))) { return l; }
+  // }  // namespace ns
+  //
+  // ns::f(long) [enable_if:fp >= 0]
+  EXPECT_TRUE(Demangle("_ZN2ns1fEUa9enable_ifIXgefL0p_Li0EEEl",
+              tmp, sizeof(tmp)));
+  EXPECT_STREQ("ns::f()", tmp);
+}
+
+TEST(Demangle, EnableIfAttributeOnFunctionTemplate) {
+  char tmp[80];
+
+  // template <class T>
+  // T f(T t) __attribute__((enable_if(t >= T{}, ""))) { return t; }
+  // template int f<int>(int);
+  //
+  // int f<int>(int) [enable_if:fp >= int{}]
+  EXPECT_TRUE(Demangle("_Z1fIiEUa9enable_ifIXgefL0p_tliEEET_S0_",
+              tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ThisPointerInDependentSignature) {
   char tmp[80];
 
