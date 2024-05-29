@@ -329,6 +329,22 @@ static bool ParseThreeCharToken(State *state, const char *three_char_token) {
   return false;
 }
 
+// Returns true and advances "mangled_idx" if we find a copy of the
+// NUL-terminated string "long_token" at "mangled_idx" position.
+static bool ParseLongToken(State *state, const char *long_token) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  int i = 0;
+  for (; long_token[i] != '\0'; ++i) {
+    // Note that we cannot run off the end of the NUL-terminated input here.
+    // Inside the loop body, long_token[i] is known to be different from NUL.
+    // So if we read the NUL on the end of the input here, we return at once.
+    if (RemainingInput(state)[i] != long_token[i]) return false;
+  }
+  state->parse_state.mangled_idx += i;
+  return true;
+}
+
 // Returns true and advances "mangled_cur" if we find any character in
 // "char_class" at "mangled_cur" position.
 static bool ParseCharClass(State *state, const char *char_class) {
@@ -1329,7 +1345,10 @@ static bool ParseType(State *state) {
   }
   state->parse_state = copy;
 
-  return false;
+  // For this notation see CXXNameMangler::mangleType in Clang's source code.
+  // The relevant logic and its comment "not clear how to mangle this!" date
+  // from 2011, so it may be with us awhile.
+  return ParseLongToken(state, "_SUBSTPACK_");
 }
 
 // <CV-qualifiers> ::= [r] [V] [K]

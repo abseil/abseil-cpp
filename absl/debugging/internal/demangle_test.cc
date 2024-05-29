@@ -353,6 +353,25 @@ TEST(Demangle, LambdaWithExplicitPackArgument) {
   EXPECT_STREQ(tmp, "f<>()::{lambda()#1}::operator()<>()");
 }
 
+TEST(Demangle, SubstpackNotationForTroublesomeTemplatePack) {
+  char tmp[100];
+
+  // Source:
+  //
+  // template <template <class> class, template <class> class> struct B {};
+  //
+  // template <template <class> class... T> struct A {
+  //   template <template <class> class... U> void f(B<T, U>&&...) {}
+  // };
+  //
+  // template void A<>::f<>();
+  //
+  // LLVM can't demangle its own _SUBSTPACK_ notation.
+  ASSERT_TRUE(Demangle("_ZN1AIJEE1fIJEEEvDpO1BI_SUBSTPACK_T_E",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "A<>::f<>()");
+}
+
 // Test corner cases of boundary conditions.
 TEST(Demangle, CornerCases) {
   char tmp[10];
