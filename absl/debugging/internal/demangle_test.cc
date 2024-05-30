@@ -353,6 +353,34 @@ TEST(Demangle, LambdaWithExplicitPackArgument) {
   EXPECT_STREQ(tmp, "f<>()::{lambda()#1}::operator()<>()");
 }
 
+TEST(Demangle, LambdaInClassMemberDefaultArgument) {
+  char tmp[100];
+
+  // Source:
+  //
+  // struct S {
+  //   static auto f(void (*g)() = [] {}) { return g; }
+  // };
+  // void (*p)() = S::f();
+  //
+  // Full LLVM demangling of the lambda call operator:
+  //
+  // S::f(void (*)())::'lambda'()::operator()() const
+  //
+  // Full GNU binutils demangling:
+  //
+  // S::f(void (*)())::{default arg#1}::{lambda()#1}::operator()() const
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd_NKUlvE_clEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "S::f()::{default arg#1}::{lambda()#1}::operator()()");
+
+  // The same but in the second rightmost default argument.
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd0_NKUlvE_clEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "S::f()::{default arg#2}::{lambda()#1}::operator()()");
+
+  // Reject negative <(parameter) number> values.
+  ASSERT_FALSE(Demangle("_ZZN1S1fEPFvvEEdn1_NKUlvE_clEv", tmp, sizeof(tmp)));
+}
+
 TEST(Demangle, SubstpackNotationForTroublesomeTemplatePack) {
   char tmp[100];
 

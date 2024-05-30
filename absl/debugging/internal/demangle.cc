@@ -2323,29 +2323,55 @@ static bool ParseRequirement(State *state) {
 
 // <local-name> ::= Z <(function) encoding> E <(entity) name> [<discriminator>]
 //              ::= Z <(function) encoding> E s [<discriminator>]
+//              ::= Z <(function) encoding> E d [<(parameter) number>] _ <name>
 //
 // Parsing a common prefix of these two productions together avoids an
 // exponential blowup of backtracking.  Parse like:
 //   <local-name> := Z <encoding> E <local-name-suffix>
 //   <local-name-suffix> ::= s [<discriminator>]
+//                       ::= d [<(parameter) number>] _ <name>
 //                       ::= <name> [<discriminator>]
 
 static bool ParseLocalNameSuffix(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
 
+  // <local-name-suffix> ::= d [<(parameter) number>] _ <name>
+  if (ParseOneCharToken(state, 'd') &&
+      (IsDigit(RemainingInput(state)[0]) || RemainingInput(state)[0] == '_')) {
+    int number = -1;
+    Optional(ParseNumber(state, &number));
+    number += 2;
+
+    // The ::{default arg#1}:: infix must be rendered before the lambda itself,
+    // so print this before parsing the rest of the <local-name-suffix>.
+    MaybeAppend(state, "::{default arg#");
+    MaybeAppendDecimal(state, number);
+    MaybeAppend(state, "}::");
+    if (ParseOneCharToken(state, '_') && ParseName(state)) return true;
+
+    // On late parse failure, roll back not only the input but also the output,
+    // whose trailing NUL was overwritten.
+    state->parse_state = copy;
+    if (state->parse_state.append) {
+      state->out[state->parse_state.out_cur_idx] = '\0';
+    }
+    return false;
+  }
+  state->parse_state = copy;
+
+  // <local-name-suffix> ::= <name> [<discriminator>]
   if (MaybeAppend(state, "::") && ParseName(state) &&
       Optional(ParseDiscriminator(state))) {
     return true;
   }
-
-  // Since we're not going to overwrite the above "::" by re-parsing the
-  // <encoding> (whose trailing '\0' byte was in the byte now holding the
-  // first ':'), we have to rollback the "::" if the <name> parse failed.
+  state->parse_state = copy;
   if (state->parse_state.append) {
-    state->out[state->parse_state.out_cur_idx - 2] = '\0';
+    state->out[state->parse_state.out_cur_idx] = '\0';
   }
 
+  // <local-name-suffix> ::= s [<discriminator>]
   return ParseOneCharToken(state, 's') && Optional(ParseDiscriminator(state));
 }
 
