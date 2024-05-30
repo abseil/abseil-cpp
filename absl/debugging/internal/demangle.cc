@@ -621,6 +621,7 @@ static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValueAndTrailingE(State *state);
 static bool ParseQRequiresClauseExpr(State *state);
 static bool ParseRequirement(State *state);
+static bool ParseTypeConstraint(State *state);
 static bool ParseLocalName(State *state);
 static bool ParseLocalNameSuffix(State *state);
 static bool ParseDiscriminator(State *state);
@@ -1274,6 +1275,7 @@ static bool ParseDecltype(State *state) {
 //        ::= <substitution>
 //        ::= Dp <type>          # pack expansion of (C++0x)
 //        ::= Dv <num-elems> _   # GNU vector extension
+//        ::= Dk <type-constraint>  # constrained auto
 //
 static bool ParseType(State *state) {
   ComplexityGuard guard(state);
@@ -1342,6 +1344,11 @@ static bool ParseType(State *state) {
 
   if (ParseTwoCharToken(state, "Dv") && ParseNumber(state, nullptr) &&
       ParseOneCharToken(state, '_')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "Dk") && ParseTypeConstraint(state)) {
     return true;
   }
   state->parse_state = copy;
@@ -2292,8 +2299,6 @@ static bool ParseQRequiresClauseExpr(State *state) {
 // <requirement> ::= T <type>
 // <requirement> ::= Q <constraint-expression>
 //
-// <type-constraint> ::= <name>
-//
 // <constraint-expression> ::= <expression>
 //
 // https://github.com/itanium-cxx-abi/cxx-abi/issues/24
@@ -2307,7 +2312,7 @@ static bool ParseRequirement(State *state) {
       Optional(ParseOneCharToken(state, 'N')) &&
       // This logic backtracks cleanly if we eat an R but a valid type doesn't
       // follow it.
-      (!ParseOneCharToken(state, 'R') || ParseName(state))) {
+      (!ParseOneCharToken(state, 'R') || ParseTypeConstraint(state))) {
     return true;
   }
   state->parse_state = copy;
@@ -2319,6 +2324,11 @@ static bool ParseRequirement(State *state) {
   state->parse_state = copy;
 
   return false;
+}
+
+// <type-constraint> ::= <name>
+static bool ParseTypeConstraint(State *state) {
+  return ParseName(state);
 }
 
 // <local-name> ::= Z <(function) encoding> E <(entity) name> [<discriminator>]

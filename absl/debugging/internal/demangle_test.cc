@@ -150,6 +150,16 @@ TEST(Demangle, FunctionTemplateTemplateParamWithConstrainedArg) {
   EXPECT_STREQ(tmp, "foo<>()");
 }
 
+TEST(Demangle, ConstrainedAutoInFunctionTemplate) {
+  char tmp[100];
+
+  // template <typename T> concept C = true;
+  // template <C auto N> void f() {}
+  // template void f<0>();
+  ASSERT_TRUE(Demangle("_Z1fITnDk1CLi0EEvv", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "f<>()");
+}
+
 TEST(Demangle, NonTemplateBuiltinType) {
   char tmp[100];
 
