@@ -479,6 +479,53 @@ TEST(Demangle, Clones) {
   EXPECT_FALSE(Demangle("_ZL3Foov.isra.2.constprop.", tmp, sizeof(tmp)));
 }
 
+TEST(Demangle, Discriminators) {
+  char tmp[80];
+
+  // Source:
+  //
+  // using Thunk = void (*)();
+  //
+  // Thunk* f() {
+  //   static Thunk thunks[12] = {};
+  //
+  // #define THUNK(i) [backslash here]
+  //   do { struct S { static void g() {} }; thunks[i] = &S::g; } while (0)
+  //
+  //   THUNK(0);
+  //   [... repeat for 1 to 10 ...]
+  //   THUNK(11);
+  //
+  //   return thunks;
+  // }
+  //
+  // The test inputs are manglings of some of the S::g member functions.
+
+  // The first one omits the discriminator.
+  EXPECT_TRUE(Demangle("_ZZ1fvEN1S1gEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()::S::g()", tmp);
+
+  // The second one encodes 0.
+  EXPECT_TRUE(Demangle("_ZZ1fvEN1S1gE_0v", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()::S::g()", tmp);
+
+  // The eleventh one encodes 9.
+  EXPECT_TRUE(Demangle("_ZZ1fvEN1S1gE_9v", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()::S::g()", tmp);
+
+  // The twelfth one encodes 10 with extra underscores delimiting it.
+  EXPECT_TRUE(Demangle("_ZZ1fvEN1S1gE__10_v", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()::S::g()", tmp);
+}
+
+TEST(Demangle, SingleDigitDiscriminatorFollowedByADigit) {
+  char tmp[80];
+
+  // Don't parse 911 as a number.
+  EXPECT_TRUE(Demangle("_ZZ1fvEN1S1gE_911return_type", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()::S::g()", tmp);
+}
+
 TEST(Demangle, LiteralOfGlobalNamespaceEnumType) {
   char tmp[80];
 

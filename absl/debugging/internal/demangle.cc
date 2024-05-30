@@ -2387,12 +2387,22 @@ static bool ParseLocalName(State *state) {
   return false;
 }
 
-// <discriminator> := _ <(non-negative) number>
+// <discriminator> := _ <digit>
+//                 := __ <number (>= 10)> _
 static bool ParseDiscriminator(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, '_') && ParseNumber(state, nullptr)) {
+
+  // Both forms start with _ so parse that first.
+  if (!ParseOneCharToken(state, '_')) return false;
+
+  // <digit>
+  if (ParseDigit(state, nullptr)) return true;
+
+  // _ <number> _
+  if (ParseOneCharToken(state, '_') && ParseNumber(state, nullptr) &&
+      ParseOneCharToken(state, '_')) {
     return true;
   }
   state->parse_state = copy;
