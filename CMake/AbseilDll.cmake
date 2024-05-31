@@ -827,7 +827,10 @@ function(absl_make_dll)
       ${_dll_libs}
       ${ABSL_DEFAULT_LINKOPTS}
   )
-  set_property(TARGET ${_dll} PROPERTY LINKER_LANGUAGE "CXX")
+  set_target_properties(${_dll} PROPERTIES
+    LINKER_LANGUAGE "CXX"
+    SOVERSION ${ABSL_SOVERSION}
+  )
   target_include_directories(
     ${_dll}
     PUBLIC

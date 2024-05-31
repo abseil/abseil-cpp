@@ -59,6 +59,7 @@ if (POLICY CMP0141)
 endif (POLICY CMP0141)
 
 project(absl LANGUAGES CXX)
+set(ABSL_SOVERSION 0)
 include(CTest)
 
 # Output directory is correct by default for most build setups. However, when
