@@ -876,6 +876,66 @@ TEST(Demangle, DirectListInitialization) {
   EXPECT_STREQ("j<>()", tmp);
 }
 
+TEST(Demangle, SimpleInitializerLists) {
+  char tmp[80];
+
+  // Common preamble of source-code examples in this test function:
+  //
+  // #include <initializer_list>
+  //
+  // template <class T> void g(std::initializer_list<T>) {}
+
+  // Source:
+  //
+  // template <class T> auto f() -> decltype(g<T>({})) {}
+  // template auto f<int>() -> decltype(g<int>({}));
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(g<int>({})) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcl1gIT_EilEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // Source:
+  //
+  // template <class T> auto f(T x) -> decltype(g({x})) {}
+  // template auto f<int>(int x) -> decltype(g({x}));
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(g({fp})) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcl1gilfp_EEET_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // Source:
+  //
+  // template <class T> auto f(T x, T y) -> decltype(g({x, y})) {}
+  // template auto f<int>(int x, int y) -> decltype(g({x, y}));
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(g({fp, fp0})) f<int>(int, int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcl1gilfp_fp0_EEET_S1_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, BracedListImplicitlyConstructingAClassObject) {
+  char tmp[80];
+
+  // Source:
+  //
+  // struct S { int v; };
+  // void g(S) {}
+  // template <class T> auto f(T x) -> decltype(g({.v = x})) {}
+  // template auto f<int>(int x) -> decltype(g({.v = x}));
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(g({.v = fp})) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcl1gildi1vfp_EEET_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   char tmp[80];
 

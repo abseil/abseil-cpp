@@ -1951,6 +1951,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= cv <type> <expression>      # type (expression)
 //              ::= cv <type> _ <expression>* E # type (expr-list)
 //              ::= tl <type> <braced-expression>* E
+//              ::= il <braced-expression>* E
 //              ::= dc <type> <expression>
 //              ::= sc <type> <expression>
 //              ::= cc <type> <expression>
@@ -2015,6 +2016,14 @@ static bool ParseExpression(State *state) {
 
   // <expression> ::= tl <type> <braced-expression>* E
   if (ParseTwoCharToken(state, "tl") && ParseType(state) &&
+      ZeroOrMore(ParseBracedExpression, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // <expression> ::= il <braced-expression>* E
+  if (ParseTwoCharToken(state, "il") &&
       ZeroOrMore(ParseBracedExpression, state) &&
       ParseOneCharToken(state, 'E')) {
     return true;
