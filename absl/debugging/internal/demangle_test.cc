@@ -812,6 +812,22 @@ TEST(Demangle, SizeofPacks) {
   EXPECT_STREQ("g<>()", tmp);
 }
 
+TEST(Demangle, SizeofPackInvolvingAnAliasTemplate) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class... T> using A = char[sizeof...(T)];
+  // template <class... U> void f(const A<U..., int>&) {}
+  // template void f<int>(const A<int, int>&);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // void f<int>(char const (&) [sizeof... (int, int)])
+  EXPECT_TRUE(Demangle("_Z1fIJiEEvRAsPDpT_iE_Kc", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, Spaceship) {
   char tmp[80];
 

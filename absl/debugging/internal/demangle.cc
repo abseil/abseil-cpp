@@ -1978,6 +1978,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= <function-param>
 //              ::= sZ <template-param>
 //              ::= sZ <function-param>
+//              ::= sP <template-arg>* E
 //              ::= <expr-primary>
 //              ::= dt <expression> <unresolved-name> # expr.name
 //              ::= pt <expression> <unresolved-name> # expr->name
@@ -2105,6 +2106,15 @@ static bool ParseExpression(State *state) {
   //              ::= sZ <function-param>
   if (ParseTwoCharToken(state, "sZ") &&
       (ParseFunctionParam(state) || ParseTemplateParam(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // sizeof...(pack) captured from an alias template
+  //
+  // <expression> ::= sP <template-arg>* E
+  if (ParseTwoCharToken(state, "sP") && ZeroOrMore(ParseTemplateArg, state) &&
+      ParseOneCharToken(state, 'E')) {
     return true;
   }
   state->parse_state = copy;
