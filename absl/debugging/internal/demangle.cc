@@ -2352,6 +2352,12 @@ static bool ParseLocalNameSuffix(State *state) {
       (IsDigit(RemainingInput(state)[0]) || RemainingInput(state)[0] == '_')) {
     int number = -1;
     Optional(ParseNumber(state, &number));
+    if (number < -1 || number > 2147483645) {
+      // Work around overflow cases.  We do not expect these outside of a fuzzer
+      // or other source of adversarial input.  If we do detect overflow here,
+      // we'll print {default arg#1}.
+      number = -1;
+    }
     number += 2;
 
     // The ::{default arg#1}:: infix must be rendered before the lambda itself,

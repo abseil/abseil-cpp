@@ -391,6 +391,33 @@ TEST(Demangle, LambdaInClassMemberDefaultArgument) {
   ASSERT_FALSE(Demangle("_ZZN1S1fEPFvvEEdn1_NKUlvE_clEv", tmp, sizeof(tmp)));
 }
 
+TEST(Demangle, AvoidSignedOverflowForUnfortunateParameterNumbers) {
+  char tmp[100];
+
+  // Here <number> + 2 fits in an int, but just barely.  (We expect no such
+  // input in practice: real functions don't have billions of arguments.)
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd2147483645_NKUlvE_clEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp,
+               "S::f()::{default arg#2147483647}::{lambda()#1}::operator()()");
+
+  // Now <number> is an int, but <number> + 2 is not.
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd2147483646_NKUlvE_clEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "S::f()::{default arg#1}::{lambda()#1}::operator()()");
+
+  // <number> is the largest int.
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd2147483647_NKUlvE_clEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "S::f()::{default arg#1}::{lambda()#1}::operator()()");
+
+  // <number> itself does not fit into an int.  ParseNumber truncates the value
+  // to int, yielding a large negative number, which we strain out.
+  ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd2147483648_NKUlvE_clEv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "S::f()::{default arg#1}::{lambda()#1}::operator()()");
+}
+
 TEST(Demangle, SubstpackNotationForTroublesomeTemplatePack) {
   char tmp[100];
 
