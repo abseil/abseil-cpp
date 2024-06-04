@@ -599,6 +599,7 @@ static bool ParseDecltype(State *state);
 static bool ParseType(State *state);
 static bool ParseCVQualifiers(State *state);
 static bool ParseBuiltinType(State *state);
+static bool ParseVendorExtendedType(State *state);
 static bool ParseFunctionType(State *state);
 static bool ParseBareFunctionType(State *state);
 static bool ParseOverloadAttribute(State *state);
@@ -785,6 +786,7 @@ static bool ParseNestedName(State *state) {
 // <template-prefix> ::= <prefix> <(template) unqualified-name>
 //                   ::= <template-param>
 //                   ::= <substitution>
+//                   ::= <vendor-extended-type>
 static bool ParsePrefix(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -793,6 +795,11 @@ static bool ParsePrefix(State *state) {
     MaybeAppendSeparator(state);
     if (ParseTemplateParam(state) || ParseDecltype(state) ||
         ParseSubstitution(state, /*accept_std=*/true) ||
+        // Although the official grammar does not mention it, nested-names
+        // shaped like Nu14__some_builtinIiE6memberE occur in practice, and it
+        // is not clear what else a compiler is supposed to do when a
+        // vendor-extended type has named members.
+        ParseVendorExtendedType(state) ||
         ParseUnscopedName(state) ||
         (ParseOneCharToken(state, 'M') && ParseUnnamedTypeName(state))) {
       has_something = true;
@@ -1373,7 +1380,7 @@ static bool ParseCVQualifiers(State *state) {
 }
 
 // <builtin-type> ::= v, etc.  # single-character builtin types
-//                ::= u <source-name> [I <type> E]
+//                ::= <vendor-extended-type>
 //                ::= Dd, etc.  # two-character builtin types
 //
 // Not supported:
@@ -1396,6 +1403,16 @@ static bool ParseBuiltinType(State *state) {
       return true;  // ::= Dd, etc.  # two-character builtin types
     }
   }
+
+  return ParseVendorExtendedType(state);
+}
+
+// <vendor-extended-type> ::= u <source-name> [I <type> E]
+//
+// NOTE: [I <type> E] is a vendor extension (http://shortn/_FrINpH1XC5).
+static bool ParseVendorExtendedType(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
 
   ParseState copy = state->parse_state;
   if (ParseOneCharToken(state, 'u') && ParseSourceName(state)) {

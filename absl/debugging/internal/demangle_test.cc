@@ -192,6 +192,27 @@ TEST(Demangle, FailsOnTwoArgTemplateBuiltinType) {
       Demangle("_Z3fooIicEu17__my_builtin_typeIT_T0_Ev", tmp, sizeof(tmp)));
 }
 
+TEST(Demangle, TypeNestedUnderTemplatedBuiltinType) {
+  char tmp[100];
+
+  // Source:
+  //
+  // template <typename T>
+  // typename std::remove_reference_t<T>::type f(T t);
+  //
+  // struct C { using type = C; };
+  //
+  // f<const C&>(C{});
+  //
+  // These days std::remove_reference_t is implemented in terms of a vendor
+  // builtin __remove_reference_t.  A full demangling might look like:
+  //
+  // __remove_reference_t<C const&>::type f<C const&>(C const&)
+  ASSERT_TRUE(Demangle("_Z1fIRK1CENu20__remove_reference_tIT_E4typeES3_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, TemplateTemplateParamSubstitution) {
   char tmp[100];
 
