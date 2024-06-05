@@ -1068,6 +1068,86 @@ TEST(Demangle, BracedListImplicitlyConstructingAClassObject) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SimpleNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T}) f() { return T{}; }
+  // template decltype(int{*new int}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denw_S0_EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, NewExpressionWithEmptyParentheses) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T()}) f() { return T{}; }
+  // template decltype(int{*new int()}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denw_S0_piEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, NewExpressionWithNonemptyParentheses) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T(42)}) f() { return T{}; }
+  // template decltype(int{*new int(42)}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new int(42))}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denw_S0_piLi42EEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, PlacementNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #include <new>
+  //
+  // template <class T> auto f(T t) -> decltype(T{*new (&t) T(42)}) {
+  //   return t;
+  // }
+  // template auto f<int>(int t) -> decltype(int{*new (&t) int(42)});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new(&fp) int(42))}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denwadfp__S0_piLi42EEEES0_",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, GlobalScopeNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*::new T}) f() { return T{}; }
+  // template decltype(int{*::new int}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(::new int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_degsnw_S0_EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   char tmp[80];
 

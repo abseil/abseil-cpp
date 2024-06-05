@@ -618,6 +618,7 @@ static bool ParseUnionSelector(State* state);
 static bool ParseFunctionParam(State* state);
 static bool ParseBracedExpression(State *state);
 static bool ParseExpression(State *state);
+static bool ParseInitializer(State *state);
 static bool ParseExprPrimary(State *state);
 static bool ParseExprCastValueAndTrailingE(State *state);
 static bool ParseQRequiresClauseExpr(State *state);
@@ -1993,6 +1994,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= cv <type> _ <expression>* E # type (expr-list)
 //              ::= tl <type> <braced-expression>* E
 //              ::= il <braced-expression>* E
+//              ::= [gs] nw <expression>* _ <type> E
+//              ::= [gs] nw <expression>* _ <type> <initializer>
 //              ::= dc <type> <expression>
 //              ::= sc <type> <expression>
 //              ::= cc <type> <expression>
@@ -2084,6 +2087,17 @@ static bool ParseExpression(State *state) {
   if (ParseTwoCharToken(state, "il") &&
       ZeroOrMore(ParseBracedExpression, state) &&
       ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // <expression> ::= [gs] nw <expression>* _ <type> E
+  //              ::= [gs] nw <expression>* _ <type> <initializer>
+  if (Optional(ParseTwoCharToken(state, "gs")) &&
+      ParseTwoCharToken(state, "nw") &&
+      ZeroOrMore(ParseExpression, state) && ParseOneCharToken(state, '_') &&
+      ParseType(state) &&
+      (ParseOneCharToken(state, 'E') || ParseInitializer(state))) {
     return true;
   }
   state->parse_state = copy;
@@ -2270,6 +2284,20 @@ static bool ParseExpression(State *state) {
   state->parse_state = copy;
 
   return ParseUnresolvedName(state);
+}
+
+// <initializer> ::= pi <expression>* E
+static bool ParseInitializer(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+
+  if (ParseTwoCharToken(state, "pi") && ZeroOrMore(ParseExpression, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+  return false;
 }
 
 // <expr-primary> ::= L <type> <(value) number> E
