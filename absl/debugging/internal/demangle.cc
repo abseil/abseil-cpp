@@ -2014,6 +2014,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= fr <binary operator-name> <expression>
 //              ::= fL <binary operator-name> <expression> <expression>
 //              ::= fR <binary operator-name> <expression> <expression>
+//              ::= tw <expression>
+//              ::= tr
 //              ::= sr <type> <unqualified-name> <template-args>
 //              ::= sr <type> <unqualified-name>
 //              ::= u <source-name> <template-arg>* E  # vendor extension
@@ -2196,6 +2198,15 @@ static bool ParseExpression(State *state) {
     return true;
   }
   state->parse_state = copy;
+
+  // tw <expression>: throw e
+  if (ParseTwoCharToken(state, "tw") && ParseExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // tr: throw (rethrows an exception from the handler that caught it)
+  if (ParseTwoCharToken(state, "tr")) return true;
 
   // Object and pointer member access expressions.
   //

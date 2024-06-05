@@ -1177,6 +1177,36 @@ TEST(Demangle, NoexceptExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, UnaryThrow) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <bool b> decltype(b ? throw b : 0) f() { return 0; }
+  // template decltype(false ? throw false : 0) f<false>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(false ? throw false : 0) f<false>()
+  EXPECT_TRUE(Demangle("_Z1fILb0EEDTquT_twT_Li0EEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, NullaryThrow) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <bool b> decltype(b ? throw : 0) f() { return 0; }
+  // template decltype(false ? throw : 0) f<false>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(false ? throw : 0) f<false>()
+  EXPECT_TRUE(Demangle("_Z1fILb0EEDTquT_trLi0EEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ThreadLocalWrappers) {
   char tmp[80];
 
