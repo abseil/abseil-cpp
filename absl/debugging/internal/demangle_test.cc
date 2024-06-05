@@ -1098,6 +1098,36 @@ TEST(Demangle, ReinterpretCast) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, AlignofType) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> T f(T (&a)[alignof(T)]) { return a[0]; }
+  // template int f<int>(int (&)[alignof(int)]);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // int f<int>(int (&) [alignof (int)])
+  EXPECT_TRUE(Demangle("_Z1fIiET_RAatS0__S0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, AlignofExpression) {
+  char tmp[80];
+
+  // Source (note that this uses a GNU extension; it is not standard C++):
+  //
+  // template <class T> T f(T (&a)[alignof(T{})]) { return a[0]; }
+  // template int f<int>(int (&)[alignof(int{})]);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // int f<int>(int (&) [alignof (int{})])
+  EXPECT_TRUE(Demangle("_Z1fIiET_RAaztlS0_E_S0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ThreadLocalWrappers) {
   char tmp[80];
 

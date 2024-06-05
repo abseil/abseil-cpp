@@ -1996,6 +1996,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= cc <type> <expression>
 //              ::= rc <type> <expression>
 //              ::= st <type>
+//              ::= at <type>
+//              ::= az <expression>
 //              ::= <template-param>
 //              ::= <function-param>
 //              ::= sZ <template-param>
@@ -2118,6 +2120,18 @@ static bool ParseExpression(State *state) {
 
   // sizeof type
   if (ParseTwoCharToken(state, "st") && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // alignof(type)
+  if (ParseTwoCharToken(state, "at") && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // alignof(expression), a GNU extension
+  if (ParseTwoCharToken(state, "az") && ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;
