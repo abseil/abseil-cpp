@@ -821,6 +821,7 @@ static bool ParsePrefix(State *state) {
 //                    ::= <source-name> [<abi-tags>]
 //                    ::= <local-source-name> [<abi-tags>]
 //                    ::= <unnamed-type-name> [<abi-tags>]
+//                    ::= DC <source-name>+ E  # C++17 structured binding
 //
 // <local-source-name> is a GCC extension; see below.
 static bool ParseUnqualifiedName(State *state) {
@@ -831,6 +832,14 @@ static bool ParseUnqualifiedName(State *state) {
       ParseUnnamedTypeName(state)) {
     return ParseAbiTags(state);
   }
+
+  // DC <source-name>+ E
+  ParseState copy = state->parse_state;
+  if (ParseTwoCharToken(state, "DC") && OneOrMore(ParseSourceName, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
   return false;
 }
 

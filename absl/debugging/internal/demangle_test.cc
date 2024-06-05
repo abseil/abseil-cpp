@@ -632,6 +632,21 @@ TEST(Demangle, GlobalInitializers) {
   EXPECT_STREQ("reference temporary for v", tmp);
 }
 
+TEST(Demangle, StructuredBindings) {
+  char tmp[80];
+
+  // Source:
+  //
+  // struct S { int a, b; };
+  // const auto& [x, y] = S{1, 2};
+
+  // [x, y]
+  EXPECT_TRUE(Demangle("_ZDC1x1yE", tmp, sizeof(tmp)));
+
+  // reference temporary for [x, y]
+  EXPECT_TRUE(Demangle("_ZGRDC1x1yE_", tmp, sizeof(tmp)));
+}
+
 // Test the GNU abi_tag extension.
 TEST(Demangle, AbiTags) {
   char tmp[80];
