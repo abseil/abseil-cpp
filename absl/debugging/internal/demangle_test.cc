@@ -612,6 +612,26 @@ TEST(Demangle, StringLiterals) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, GlobalInitializers) {
+  char tmp[80];
+
+  // old form without suffix
+  EXPECT_TRUE(Demangle("_ZGR1v", tmp, sizeof(tmp)));
+  EXPECT_STREQ("reference temporary for v", tmp);
+
+  // modern form for the whole initializer
+  EXPECT_TRUE(Demangle("_ZGR1v_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("reference temporary for v", tmp);
+
+  // next subobject in depth-first preorder traversal
+  EXPECT_TRUE(Demangle("_ZGR1v0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("reference temporary for v", tmp);
+
+  // subobject with a larger seq-id
+  EXPECT_TRUE(Demangle("_ZGR1v1Z_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("reference temporary for v", tmp);
+}
+
 // Test the GNU abi_tag extension.
 TEST(Demangle, AbiTags) {
   char tmp[80];

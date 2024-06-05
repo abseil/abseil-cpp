@@ -1080,12 +1080,13 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= TH <name>  # thread-local initialization
 //                ::= Tc <call-offset> <call-offset> <(base) encoding>
 //                ::= GV <(object) name>
+//                ::= GR <(object) name> [<seq-id>] _
 //                ::= T <call-offset> <(base) encoding>
 // G++ extensions:
 //                ::= TC <type> <(offset) number> _ <(base) type>
 //                ::= TF <type>
 //                ::= TJ <type>
-//                ::= GR <name>
+//                ::= GR <name>  # without final _, perhaps an earlier form?
 //                ::= GA <encoding>
 //                ::= Th <call-offset> <(base) encoding>
 //                ::= Tv <call-offset> <(base) encoding>
@@ -1152,10 +1153,22 @@ static bool ParseSpecialName(State *state) {
   }
   state->parse_state = copy;
 
-  if (ParseTwoCharToken(state, "GR") && ParseName(state)) {
+  // <special-name> ::= GR <(object) name> [<seq-id>] _  # modern standard
+  //                ::= GR <(object) name>  # also recognized
+  if (ParseTwoCharToken(state, "GR")) {
+    MaybeAppend(state, "reference temporary for ");
+    if (!ParseName(state)) {
+      state->parse_state = copy;
+      return false;
+    }
+    const bool has_seq_id = ParseSeqId(state);
+    const bool has_underscore = ParseOneCharToken(state, '_');
+    if (has_seq_id && !has_underscore) {
+      state->parse_state = copy;
+      return false;
+    }
     return true;
   }
-  state->parse_state = copy;
 
   if (ParseTwoCharToken(state, "GA") && ParseEncoding(state)) {
     return true;
