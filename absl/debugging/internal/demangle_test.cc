@@ -1098,6 +1098,40 @@ TEST(Demangle, ReinterpretCast) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, TypeidType) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #include <typeinfo>
+  //
+  // template <class T> decltype(typeid(T).name()) f(T) { return nullptr; }
+  // template decltype(typeid(int).name()) f<int>(int);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(typeid (int).name()) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcldttiT_4nameEES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, TypeidExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #include <typeinfo>
+  //
+  // template <class T> decltype(typeid(T{}).name()) f(T) { return nullptr; }
+  // template decltype(typeid(int{}).name()) f<int>(int);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(typeid (int{}).name()) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTcldttetlT_E4nameEES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, AlignofType) {
   char tmp[80];
 

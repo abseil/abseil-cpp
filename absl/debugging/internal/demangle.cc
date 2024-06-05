@@ -1995,6 +1995,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= sc <type> <expression>
 //              ::= cc <type> <expression>
 //              ::= rc <type> <expression>
+//              ::= ti <type>
+//              ::= te <expression>
 //              ::= st <type>
 //              ::= at <type>
 //              ::= az <expression>
@@ -2116,6 +2118,18 @@ static bool ParseExpression(State *state) {
         (arity < 1 || ParseExpression(state))) {
       return true;
     }
+  }
+  state->parse_state = copy;
+
+  // typeid(type)
+  if (ParseTwoCharToken(state, "ti") && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // typeid(expression)
+  if (ParseTwoCharToken(state, "te") && ParseExpression(state)) {
+    return true;
   }
   state->parse_state = copy;
 
