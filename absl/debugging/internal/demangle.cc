@@ -1998,6 +1998,7 @@ static bool ParseBracedExpression(State *state) {
 //              ::= st <type>
 //              ::= at <type>
 //              ::= az <expression>
+//              ::= nx <expression>
 //              ::= <template-param>
 //              ::= <function-param>
 //              ::= sZ <template-param>
@@ -2132,6 +2133,12 @@ static bool ParseExpression(State *state) {
 
   // alignof(expression), a GNU extension
   if (ParseTwoCharToken(state, "az") && ParseExpression(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // noexcept(expression) appearing as an expression in a dependent signature
+  if (ParseTwoCharToken(state, "nx") && ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;

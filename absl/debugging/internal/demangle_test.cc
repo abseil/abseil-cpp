@@ -1128,6 +1128,21 @@ TEST(Demangle, AlignofExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, NoexceptExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> void f(T (&a)[noexcept(T{})]) {}
+  // template void f<int>(int (&)[noexcept(int{})]);
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // void f<int>(int (&) [noexcept (int{})])
+  EXPECT_TRUE(Demangle("_Z1fIiEvRAnxtlT_E_S0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ThreadLocalWrappers) {
   char tmp[80];
 
