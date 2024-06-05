@@ -1984,6 +1984,8 @@ static bool ParseBracedExpression(State *state) {
 // <expression> ::= <1-ary operator-name> <expression>
 //              ::= <2-ary operator-name> <expression> <expression>
 //              ::= <3-ary operator-name> <expression> <expression> <expression>
+//              ::= pp_ <expression>  # ++e; pp <expression> is e++
+//              ::= mm_ <expression>  # --e; mm <expression> is e--
 //              ::= cl <expression>+ E
 //              ::= cp <simple-id> <expression>* E # Clang-specific.
 //              ::= so <type> <expression> [<number>] <union-selector>* [p] E
@@ -2033,6 +2035,15 @@ static bool ParseExpression(State *state) {
   // Object/function call expression.
   if (ParseTwoCharToken(state, "cl") && OneOrMore(ParseExpression, state) &&
       ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Preincrement and predecrement.  Postincrement and postdecrement are handled
+  // by the operator-name logic later on.
+  if ((ParseThreeCharToken(state, "pp_") ||
+       ParseThreeCharToken(state, "mm_")) &&
+      ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;

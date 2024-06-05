@@ -768,6 +768,66 @@ TEST(Demangle, SubobjectAddresses) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, Preincrement) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T t) -> decltype(T{++t}) { return t; }
+  // template auto f<int>(int t) -> decltype(int{++t});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{++fp}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_pp_fp_EES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, Postincrement) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T t) -> decltype(T{t++}) { return t; }
+  // template auto f<int>(int t) -> decltype(int{t++});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{fp++}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_ppfp_EES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, Predecrement) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T t) -> decltype(T{--t}) { return t; }
+  // template auto f<int>(int t) -> decltype(int{--t});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{--fp}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_mm_fp_EES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, Postdecrement) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T t) -> decltype(T{t--}) { return t; }
+  // template auto f<int>(int t) -> decltype(int{t--});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{fp--}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_mmfp_EES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, UnaryFoldExpressions) {
   char tmp[80];
 
