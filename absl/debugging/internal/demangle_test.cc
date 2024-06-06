@@ -1258,6 +1258,66 @@ TEST(Demangle, ArrayNewExpressionWithTwoElementsInBraces) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SimpleDeleteExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p) -> decltype(delete p) {}
+  // template auto f<int>(int* p) -> decltype(delete p);
+  //
+  // LLVM demangling:
+  //
+  // decltype(delete fp) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTdlfp_EPT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, GlobalScopeDeleteExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* p) -> decltype(::delete p) {}
+  // template auto f<int>(int* p) -> decltype(::delete p);
+  //
+  // LLVM demangling:
+  //
+  // decltype(::delete fp) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTgsdlfp_EPT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, SimpleArrayDeleteExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* a) -> decltype(delete[] a) {}
+  // template auto f<int>(int* a) -> decltype(delete[] a);
+  //
+  // LLVM demangling:
+  //
+  // decltype(delete[] fp) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTdafp_EPT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, GlobalScopeArrayDeleteExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> auto f(T* a) -> decltype(::delete[] a) {}
+  // template auto f<int>(int* a) -> decltype(::delete[] a);
+  //
+  // LLVM demangling:
+  //
+  // decltype(::delete[] fp) f<int>(int*)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTgsdafp_EPT_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   char tmp[80];
 

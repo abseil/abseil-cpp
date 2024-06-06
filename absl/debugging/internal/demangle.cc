@@ -46,11 +46,11 @@ typedef struct {
 
 // List of operators from Itanium C++ ABI.
 static const AbbrevPair kOperatorList[] = {
-    // New has special syntax (not currently supported).
+    // New has special syntax.
     {"nw", "new", 0},
     {"na", "new[]", 0},
 
-    // Works except that the 'gs' prefix is not supported.
+    // Special-cased elsewhere to support the optional gs prefix.
     {"dl", "delete", 1},
     {"da", "delete[]", 1},
 
@@ -1998,6 +1998,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= [gs] nw <expression>* _ <type> <initializer>
 //              ::= [gs] na <expression>* _ <type> E
 //              ::= [gs] na <expression>* _ <type> <initializer>
+//              ::= [gs] dl <expression>
+//              ::= [gs] da <expression>
 //              ::= dc <type> <expression>
 //              ::= sc <type> <expression>
 //              ::= cc <type> <expression>
@@ -2102,6 +2104,15 @@ static bool ParseExpression(State *state) {
       ZeroOrMore(ParseExpression, state) && ParseOneCharToken(state, '_') &&
       ParseType(state) &&
       (ParseOneCharToken(state, 'E') || ParseInitializer(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // <expression> ::= [gs] dl <expression>
+  //              ::= [gs] da <expression>
+  if (Optional(ParseTwoCharToken(state, "gs")) &&
+      (ParseTwoCharToken(state, "dl") || ParseTwoCharToken(state, "da")) &&
+      ParseExpression(state)) {
     return true;
   }
   state->parse_state = copy;
