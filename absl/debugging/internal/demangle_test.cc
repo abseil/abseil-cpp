@@ -1148,6 +1148,36 @@ TEST(Demangle, GlobalScopeNewExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, NewExpressionWithEmptyBraces) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T{}}) f() { return T{}; }
+  // template decltype(int{*new int{}}) f<int>();
+  //
+  // GNU demangling:
+  //
+  // decltype (int{*(new int{})}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denw_S0_ilEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, NewExpressionWithNonemptyBraces) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T{42}}) f() { return T{}; }
+  // template decltype(int{*new int{42}}) f<int>();
+  //
+  // GNU demangling:
+  //
+  // decltype (int{*(new int{42})}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denw_S0_ilLi42EEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, SimpleArrayNewExpression) {
   char tmp[80];
 
@@ -1209,6 +1239,22 @@ TEST(Demangle, GlobalScopeArrayNewExpression) {
   //
   // decltype(int{*(::new[] int)}) f<int>()
   EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_degsna_S0_EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, ArrayNewExpressionWithTwoElementsInBraces) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T[2]{1, 2}}) f() { return T{}; }
+  // template decltype(int{*new int[2]{1, 2}}) f<int>();
+  //
+  // GNU demangling:
+  //
+  // decltype (int{*(new int{1, 2})}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_dena_S0_ilLi1ELi2EEEEv",
+                       tmp, sizeof(tmp)));
   EXPECT_STREQ("f<>()", tmp);
 }
 

@@ -2291,12 +2291,24 @@ static bool ParseExpression(State *state) {
 }
 
 // <initializer> ::= pi <expression>* E
+//               ::= il <braced-expression>* E
+//
+// The il ... E form is not in the ABI spec but is seen in practice for
+// braced-init-lists in new-expressions, which are standard syntax from C++11
+// on.
 static bool ParseInitializer(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
 
   if (ParseTwoCharToken(state, "pi") && ZeroOrMore(ParseExpression, state) &&
+      ParseOneCharToken(state, 'E')) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "il") &&
+      ZeroOrMore(ParseBracedExpression, state) &&
       ParseOneCharToken(state, 'E')) {
     return true;
   }
