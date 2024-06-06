@@ -1544,10 +1544,23 @@ static bool ParseOverloadAttribute(State *state) {
 }
 
 // <class-enum-type> ::= <name>
+//                   ::= Ts <name>  # struct Name or class Name
+//                   ::= Tu <name>  # union Name
+//                   ::= Te <name>  # enum Name
+//
+// See http://shortn/_W3YrltiEd0.
 static bool ParseClassEnumType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
-  return ParseName(state);
+  ParseState copy = state->parse_state;
+  if (Optional(ParseTwoCharToken(state, "Ts") ||
+               ParseTwoCharToken(state, "Tu") ||
+               ParseTwoCharToken(state, "Te")) &&
+      ParseName(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+  return false;
 }
 
 // <array-type> ::= A <(positive dimension) number> _ <(element) type>

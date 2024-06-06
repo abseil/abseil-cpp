@@ -739,6 +739,30 @@ TEST(Demangle, TypeNestedUnderDecltype) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, ElaboratedTypes) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> struct S { class C {}; };
+  // template <class T> void f(class S<T>::C) {}
+  // template void f<int>(class S<int>::C);
+  //
+  // LLVM demangling:
+  //
+  // void f<int>(struct S<int>::C)
+  EXPECT_TRUE(Demangle("_Z1fIiEvTsN1SIT_E1CE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // The like for unions.
+  EXPECT_TRUE(Demangle("_Z1fIiEvTuN1SIT_E1CE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // The like for enums.
+  EXPECT_TRUE(Demangle("_Z1fIiEvTeN1SIT_E1CE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 // Test subobject-address template parameters.
 TEST(Demangle, SubobjectAddresses) {
   char tmp[80];
