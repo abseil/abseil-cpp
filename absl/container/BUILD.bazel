@@ -265,11 +265,13 @@ cc_test(
     deps = [
         ":flat_hash_map",
         ":hash_generator_testing",
+        ":hash_policy_testing",
         ":test_allocator",
         ":unordered_map_constructor_test",
         ":unordered_map_lookup_test",
         ":unordered_map_members_test",
         ":unordered_map_modifiers_test",
+        "//absl/base:config",
         "//absl/log:check",
         "//absl/meta:type_traits",
         "//absl/types:any",

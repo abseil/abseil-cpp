@@ -3293,6 +3293,40 @@ TEST(Table, ReserveToNonSoo) {
   }
 }
 
+struct InconsistentHashEqType {
+  InconsistentHashEqType(int v1, int v2) : v1(v1), v2(v2) {}
+  template <typename H>
+  friend H AbslHashValue(H h, InconsistentHashEqType t) {
+    return H::combine(std::move(h), t.v1);
+  }
+  bool operator==(InconsistentHashEqType t) const { return v2 == t.v2; }
+  int v1, v2;
+};
+
+TEST(Iterator, InconsistentHashEqFunctorsValidation) {
+  if (!IsAssertEnabled()) GTEST_SKIP() << "Assertions not enabled.";
+
+  ValueTable<InconsistentHashEqType> t;
+  for (int i = 0; i < 10; ++i) t.insert({i, i});
+  // We need to find/insert multiple times to guarantee that we get the
+  // assertion because it's possible for the hash to collide with the inserted
+  // element that has v2==0. In those cases, the new element won't be inserted.
+  auto find_conflicting_elems = [&] {
+    for (int i = 100; i < 20000; ++i) {
+      EXPECT_EQ(t.find({i, 0}), t.end());
+    }
+  };
+  EXPECT_DEATH_IF_SUPPORTED(find_conflicting_elems(),
+                            "hash/eq functors are inconsistent.");
+  auto insert_conflicting_elems = [&] {
+    for (int i = 100; i < 20000; ++i) {
+      EXPECT_EQ(t.insert({i, 0}).second, false);
+    }
+  };
+  EXPECT_DEATH_IF_SUPPORTED(insert_conflicting_elems(),
+                            "hash/eq functors are inconsistent.");
+}
+
 REGISTER_TYPED_TEST_SUITE_P(
     SooTest, Empty, Clear, ClearBug, Contains1, Contains2, ContainsEmpty,
     CopyConstruct, CopyDifferentCapacities, CopyDifferentSizes,

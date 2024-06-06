@@ -306,8 +306,10 @@ absl_cc_test(
   DEPS
     absl::any
     absl::check
+    absl::config
     absl::flat_hash_map
     absl::hash_generator_testing
+    absl::hash_policy_testing
     absl::test_allocator
     absl::type_traits
     absl::unordered_map_constructor_test

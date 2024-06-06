@@ -3317,11 +3317,13 @@ class raw_hash_set {
   template <class K = key_type>
   iterator find(const key_arg<K>& key,
                 size_t hash) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    AssertHashEqConsistent(key);
     if (is_soo()) return find_soo(key);
     return find_non_soo(key, hash);
   }
   template <class K = key_type>
   iterator find(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    AssertHashEqConsistent(key);
     if (is_soo()) return find_soo(key);
     prefetch_heap_block();
     return find_non_soo(key, hash_ref()(key));
@@ -3822,11 +3824,58 @@ class raw_hash_set {
   }
 
  protected:
+  // Asserts that hash and equal functors provided by the user are consistent,
+  // meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
+  template <class K>
+  void AssertHashEqConsistent(ABSL_ATTRIBUTE_UNUSED const K& key) {
+#ifndef NDEBUG
+    if (empty()) return;
+
+    const size_t hash_of_arg = hash_ref()(key);
+    const auto assert_consistent = [&](const ctrl_t*, slot_type* slot) {
+      const value_type& element = PolicyTraits::element(slot);
+      const bool is_key_equal =
+          PolicyTraits::apply(EqualElement<K>{key, eq_ref()}, element);
+      if (!is_key_equal) return;
+
+      const size_t hash_of_slot =
+          PolicyTraits::apply(HashElement{hash_ref()}, element);
+      const bool is_hash_equal = hash_of_arg == hash_of_slot;
+      if (!is_hash_equal) {
+        // In this case, we're going to crash. Do a couple of other checks for
+        // idempotence issues. Recalculating hash/eq here is also convenient for
+        // debugging with gdb/lldb.
+        const size_t once_more_hash_arg = hash_ref()(key);
+        assert(hash_of_arg == once_more_hash_arg && "hash is not idempotent.");
+        const size_t once_more_hash_slot =
+            PolicyTraits::apply(HashElement{hash_ref()}, element);
+        assert(hash_of_slot == once_more_hash_slot &&
+               "hash is not idempotent.");
+        const bool once_more_eq =
+            PolicyTraits::apply(EqualElement<K>{key, eq_ref()}, element);
+        assert(is_key_equal == once_more_eq && "equality is not idempotent.");
+      }
+      assert((!is_key_equal || is_hash_equal) &&
+             "eq(k1, k2) must imply that hash(k1) == hash(k2). "
+             "hash/eq functors are inconsistent.");
+    };
+
+    if (is_soo()) {
+      assert_consistent(/*unused*/ nullptr, soo_slot());
+      return;
+    }
+    // We only do validation for small tables so that it's constant time.
+    if (capacity() > 16) return;
+    IterateOverFullSlots(common(), slot_array(), assert_consistent);
+#endif
+  }
+
   // Attempts to find `key` in the table; if it isn't found, returns an iterator
   // where the value can be inserted into, with the control byte already set to
   // `key`'s H2. Returns a bool indicating whether an insertion can take place.
   template <class K>
   std::pair<iterator, bool> find_or_prepare_insert(const K& key) {
+    AssertHashEqConsistent(key);
     if (is_soo()) return find_or_prepare_insert_soo(key);
     return find_or_prepare_insert_non_soo(key);
   }
