@@ -160,6 +160,34 @@ TEST(Demangle, ConstrainedAutoInFunctionTemplate) {
   EXPECT_STREQ(tmp, "f<>()");
 }
 
+TEST(Demangle, ConstrainedFriendFunctionTemplate) {
+  char tmp[100];
+
+  // Source:
+  //
+  // namespace ns {
+  // template <class T> struct Y {
+  //   friend void y(Y) requires true {}
+  // };
+  // }  // namespace ns
+  //
+  // y(ns::Y<int>{});
+  //
+  // LLVM demangling:
+  //
+  // ns::Y<int>::friend y(ns::Y<int>) requires true
+  ASSERT_TRUE(Demangle("_ZN2ns1YIiEF1yES1_QLb1E", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "ns::Y<>::friend y()");
+}
+
+TEST(Demangle, ConstrainedFriendOperatorTemplate) {
+  char tmp[100];
+
+  // ns::Y<int>::friend operator*(ns::Y<int>) requires true
+  ASSERT_TRUE(Demangle("_ZN2ns1YIiEFdeES1_QLb1E", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "ns::Y<>::friend operator*()");
+}
+
 TEST(Demangle, NonTemplateBuiltinType) {
   char tmp[100];
 

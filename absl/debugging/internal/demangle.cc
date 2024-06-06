@@ -823,8 +823,13 @@ static bool ParsePrefix(State *state) {
 //                    ::= <local-source-name> [<abi-tags>]
 //                    ::= <unnamed-type-name> [<abi-tags>]
 //                    ::= DC <source-name>+ E  # C++17 structured binding
+//                    ::= F <source-name>  # C++20 constrained friend
+//                    ::= F <operator-name>  # C++20 constrained friend
 //
 // <local-source-name> is a GCC extension; see below.
+//
+// For the F notation for constrained friends, see
+// https://github.com/itanium-cxx-abi/cxx-abi/issues/24#issuecomment-1491130332.
 static bool ParseUnqualifiedName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -841,6 +846,15 @@ static bool ParseUnqualifiedName(State *state) {
     return true;
   }
   state->parse_state = copy;
+
+  // F <source-name>
+  // F <operator-name>
+  if (ParseOneCharToken(state, 'F') && MaybeAppend(state, "friend ") &&
+      (ParseSourceName(state) || ParseOperatorName(state, nullptr))) {
+    return true;
+  }
+  state->parse_state = copy;
+
   return false;
 }
 
