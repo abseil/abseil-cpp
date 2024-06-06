@@ -671,6 +671,66 @@ TEST(Demangle, AbiTags) {
   EXPECT_STREQ("C[abi:bar][abi:foo]()", tmp);
 }
 
+TEST(Demangle, SimpleGnuVectorSize) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #define VECTOR(size) __attribute__((vector_size(size)))
+  // void f(int x VECTOR(32)) {}
+  //
+  // The attribute's size is a number of bytes.  The compiler verifies that this
+  // value corresponds to a whole number of elements and emits the number of
+  // elements as a <number> in the mangling.  With sizeof(int) == 4, that yields
+  // 32/4 = 8.
+  //
+  // LLVM demangling:
+  //
+  // f(int vector[8])
+  EXPECT_TRUE(Demangle("_Z1fDv8_i", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+}
+
+TEST(Demangle, GnuVectorSizeIsATemplateParameter) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #define VECTOR(size) __attribute__((vector_size(size)))
+  // template <int n> void f(int x VECTOR(n)) {}
+  // template void f<32>(int x VECTOR(32));
+  //
+  // LLVM demangling:
+  //
+  // void f<32>(int vector[32])
+  //
+  // Because the size was dependent on a template parameter, it was encoded
+  // using the general expression encoding.  Nothing in the mangling says how
+  // big the element type is, so the demangler is unable to show the element
+  // count 8 instead of the byte count 32.  Arguably it would have been better
+  // to make the narrow production encode the byte count, so that nondependent
+  // and dependent versions of a 32-byte vector would both come out as
+  // vector[32].
+  EXPECT_TRUE(Demangle("_Z1fILi32EEvDvT__i", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, GnuVectorSizeIsADependentOperatorExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #define VECTOR(size) __attribute__((vector_size(size)))
+  // template <int n> void f(int x VECTOR(2 * n)) {}
+  // template void f<32>(int x VECTOR(2 * 32));
+  //
+  // LLVM demangling:
+  //
+  // void f<32>(int vector[2 * 32])
+  EXPECT_TRUE(Demangle("_Z1fILi32EEvDvmlLi2ET__i", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, EnableIfAttributeOnGlobalFunction) {
   char tmp[80];
 

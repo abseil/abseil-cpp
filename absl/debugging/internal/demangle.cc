@@ -1304,7 +1304,8 @@ static bool ParseDecltype(State *state) {
 //        ::= <decltype>
 //        ::= <substitution>
 //        ::= Dp <type>          # pack expansion of (C++0x)
-//        ::= Dv <num-elems> _   # GNU vector extension
+//        ::= Dv <(elements) number> _ <type>  # GNU vector extension
+//        ::= Dv <(bytes) expression> _ <type>
 //        ::= Dk <type-constraint>  # constrained auto
 //
 static bool ParseType(State *state) {
@@ -1372,8 +1373,16 @@ static bool ParseType(State *state) {
     return true;
   }
 
+  // GNU vector extension Dv <number> _ <type>
   if (ParseTwoCharToken(state, "Dv") && ParseNumber(state, nullptr) &&
-      ParseOneCharToken(state, '_')) {
+      ParseOneCharToken(state, '_') && ParseType(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  // GNU vector extension Dv <expression> _ <type>
+  if (ParseTwoCharToken(state, "Dv") && ParseExpression(state) &&
+      ParseOneCharToken(state, '_') && ParseType(state)) {
     return true;
   }
   state->parse_state = copy;
