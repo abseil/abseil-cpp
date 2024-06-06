@@ -1035,6 +1035,20 @@ TEST(Demangle, SizeofPackInvolvingAnAliasTemplate) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, UserDefinedLiteral) {
+  char tmp[80];
+
+  // Source:
+  //
+  // unsigned long long operator""_lit(unsigned long long x) { return x; }
+  //
+  // LLVM demangling:
+  //
+  // operator"" _lit(unsigned long long)
+  EXPECT_TRUE(Demangle("_Zli4_lity", tmp, sizeof(tmp)));
+  EXPECT_STREQ("operator\"\" _lit()", tmp);
+}
+
 TEST(Demangle, Spaceship) {
   char tmp[80];
 

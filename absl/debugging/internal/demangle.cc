@@ -14,8 +14,6 @@
 
 // For reference check out:
 // https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling
-//
-// Note that we only have partial C++11 support yet.
 
 #include "absl/debugging/internal/demangle.h"
 
@@ -1044,6 +1042,7 @@ static bool ParseIdentifier(State *state, size_t length) {
 
 // <operator-name> ::= nw, and other two letters cases
 //                 ::= cv <type>  # (cast)
+//                 ::= li <source-name>  # C++11 user-defined literal
 //                 ::= v  <digit> <source-name> # vendor extended operator
 static bool ParseOperatorName(State *state, int *arity) {
   ComplexityGuard guard(state);
@@ -1059,6 +1058,13 @@ static bool ParseOperatorName(State *state, int *arity) {
     if (arity != nullptr) {
       *arity = 1;
     }
+    return true;
+  }
+  state->parse_state = copy;
+
+  // Then user-defined literals.
+  if (ParseTwoCharToken(state, "li") && MaybeAppend(state, "operator\"\" ") &&
+      ParseSourceName(state)) {
     return true;
   }
   state->parse_state = copy;
