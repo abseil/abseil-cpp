@@ -1148,6 +1148,70 @@ TEST(Demangle, GlobalScopeNewExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SimpleArrayNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T[1]}) f() { return T{}; }
+  // template decltype(int{*new int[1]}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new[] int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_dena_S0_EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, ArrayNewExpressionWithEmptyParentheses) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*new T[1]()}) f() { return T{}; }
+  // template decltype(int{*new int[1]()}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new[] int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_dena_S0_piEEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, ArrayPlacementNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // #include <new>
+  //
+  // template <class T> auto f(T t) -> decltype(T{*new (&t) T[1]}) {
+  //   return T{};
+  // }
+  // template auto f<int>(int t) -> decltype(int{*new (&t) int[1]});
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(new[](&fp) int)}) f<int>(int)
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_denaadfp__S0_EEES0_", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
+TEST(Demangle, GlobalScopeArrayNewExpression) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <class T> decltype(T{*::new T[1]}) f() { return T{}; }
+  // template decltype(int{*::new int[1]}) f<int>();
+  //
+  // Full LLVM demangling of the instantiation of f:
+  //
+  // decltype(int{*(::new[] int)}) f<int>()
+  EXPECT_TRUE(Demangle("_Z1fIiEDTtlT_degsna_S0_EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, ReferenceQualifiedFunctionTypes) {
   char tmp[80];
 

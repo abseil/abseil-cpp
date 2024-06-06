@@ -1996,6 +1996,8 @@ static bool ParseBracedExpression(State *state) {
 //              ::= il <braced-expression>* E
 //              ::= [gs] nw <expression>* _ <type> E
 //              ::= [gs] nw <expression>* _ <type> <initializer>
+//              ::= [gs] na <expression>* _ <type> E
+//              ::= [gs] na <expression>* _ <type> <initializer>
 //              ::= dc <type> <expression>
 //              ::= sc <type> <expression>
 //              ::= cc <type> <expression>
@@ -2093,8 +2095,10 @@ static bool ParseExpression(State *state) {
 
   // <expression> ::= [gs] nw <expression>* _ <type> E
   //              ::= [gs] nw <expression>* _ <type> <initializer>
+  //              ::= [gs] na <expression>* _ <type> E
+  //              ::= [gs] na <expression>* _ <type> <initializer>
   if (Optional(ParseTwoCharToken(state, "gs")) &&
-      ParseTwoCharToken(state, "nw") &&
+      (ParseTwoCharToken(state, "nw") || ParseTwoCharToken(state, "na")) &&
       ZeroOrMore(ParseExpression, state) && ParseOneCharToken(state, '_') &&
       ParseType(state) &&
       (ParseOneCharToken(state, 'E') || ParseInitializer(state))) {
