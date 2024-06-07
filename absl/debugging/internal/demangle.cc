@@ -2476,8 +2476,15 @@ static bool ParseExprCastValueAndTrailingE(State *state) {
   }
   state->parse_state = copy;
 
-  if (ParseFloatNumber(state) && ParseOneCharToken(state, 'E')) {
-    return true;
+  if (ParseFloatNumber(state)) {
+    // <float> for ordinary floating-point types
+    if (ParseOneCharToken(state, 'E')) return true;
+
+    // <float> _ <float> for complex floating-point types
+    if (ParseOneCharToken(state, '_') && ParseFloatNumber(state) &&
+        ParseOneCharToken(state, 'E')) {
+      return true;
+    }
   }
   state->parse_state = copy;
 

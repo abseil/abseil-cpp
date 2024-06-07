@@ -641,6 +641,25 @@ TEST(Demangle, StringLiterals) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, ComplexFloatingPointLiterals) {
+  char tmp[80];
+
+  // Source (use g++ -fext-numeric-literals to compile):
+  //
+  // using C = double _Complex;
+  // template <class T> void f(char (&)[sizeof(C{sizeof(T)} + 4.0j)]) {}
+  // template void f<int>(char (&)[sizeof(C{sizeof(int)} + 4.0j)]);
+  //
+  // GNU demangling:
+  //
+  // void f<int>(char (&) [sizeof (double _Complex{sizeof (int)}+
+  // ((double _Complex)0000000000000000_4010000000000000))])
+  EXPECT_TRUE(Demangle(
+      "_Z1fIiEvRAszpltlCdstT_ELS0_0000000000000000_4010000000000000E_c",
+      tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, GlobalInitializers) {
   char tmp[80];
 
