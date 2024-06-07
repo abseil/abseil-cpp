@@ -598,6 +598,7 @@ static bool ParseCtorDtorName(State *state);
 static bool ParseDecltype(State *state);
 static bool ParseType(State *state);
 static bool ParseCVQualifiers(State *state);
+static bool ParseExtendedQualifier(State *state);
 static bool ParseBuiltinType(State *state);
 static bool ParseVendorExtendedType(State *state);
 static bool ParseFunctionType(State *state);
@@ -1322,7 +1323,6 @@ static bool ParseDecltype(State *state) {
 //        ::= O <type>   # rvalue reference-to (C++0x)
 //        ::= C <type>   # complex pair (C 2000)
 //        ::= G <type>   # imaginary (C 2000)
-//        ::= U <source-name> <type>  # vendor extended type qualifier
 //        ::= <builtin-type>
 //        ::= <function-type>
 //        ::= <class-enum-type>  # note: just an alias for <name>
@@ -1378,12 +1378,6 @@ static bool ParseType(State *state) {
   }
   state->parse_state = copy;
 
-  if (ParseOneCharToken(state, 'U') && ParseSourceName(state) &&
-      ParseType(state)) {
-    return true;
-  }
-  state->parse_state = copy;
-
   if (ParseBuiltinType(state) || ParseFunctionType(state) ||
       ParseClassEnumType(state) || ParseArrayType(state) ||
       ParsePointerToMemberType(state) || ParseDecltype(state) ||
@@ -1427,17 +1421,33 @@ static bool ParseType(State *state) {
   return ParseLongToken(state, "_SUBSTPACK_");
 }
 
+// <qualifiers> ::= <extended-qualifier>* <CV-qualifiers>
 // <CV-qualifiers> ::= [r] [V] [K]
+//
 // We don't allow empty <CV-qualifiers> to avoid infinite loop in
 // ParseType().
 static bool ParseCVQualifiers(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   int num_cv_qualifiers = 0;
+  while (ParseExtendedQualifier(state)) ++num_cv_qualifiers;
   num_cv_qualifiers += ParseOneCharToken(state, 'r');
   num_cv_qualifiers += ParseOneCharToken(state, 'V');
   num_cv_qualifiers += ParseOneCharToken(state, 'K');
   return num_cv_qualifiers > 0;
+}
+
+// <extended-qualifier> ::= U <source-name> [<template-args>]
+static bool ParseExtendedQualifier(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+  if (ParseOneCharToken(state, 'U') && ParseSourceName(state) &&
+      Optional(ParseTemplateArgs(state))) {
+    return true;
+  }
+  state->parse_state = copy;
+  return false;
 }
 
 // <builtin-type> ::= v, etc.  # single-character builtin types

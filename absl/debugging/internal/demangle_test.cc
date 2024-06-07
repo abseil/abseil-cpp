@@ -760,6 +760,40 @@ TEST(Demangle, GnuVectorSizeIsADependentOperatorExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SimpleAddressSpace) {
+  char tmp[80];
+
+  // Source:
+  //
+  // void f(const int __attribute__((address_space(128)))*) {}
+  //
+  // LLVM demangling:
+  //
+  // f(int const AS128*)
+  //
+  // Itanium ABI 5.1.5.1, "Qualified types", notes that address_space is mangled
+  // nonuniformly as a legacy exception: the number is part of the source-name
+  // if nondependent but is an expression in template-args if dependent.  Thus
+  // it is a convenient test case for both forms.
+  EXPECT_TRUE(Demangle("_Z1fPU5AS128Ki", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+}
+
+TEST(Demangle, DependentAddressSpace) {
+  char tmp[80];
+
+  // Source:
+  //
+  // template <int n> void f (const int __attribute__((address_space(n)))*) {}
+  // template void f<128>(const int __attribute__((address_space(128)))*);
+  //
+  // LLVM demangling:
+  //
+  // void f<128>(int AS<128>*)
+  EXPECT_TRUE(Demangle("_Z1fILi128EEvPU2ASIT_Ei", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+}
+
 TEST(Demangle, TransactionSafeEntryPoint) {
   char tmp[80];
 
