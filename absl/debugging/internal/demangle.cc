@@ -1453,12 +1453,43 @@ static bool ParseExtendedQualifier(State *state) {
 // <builtin-type> ::= v, etc.  # single-character builtin types
 //                ::= <vendor-extended-type>
 //                ::= Dd, etc.  # two-character builtin types
+//                ::= DB (<number> | <expression>) _  # _BitInt(N)
+//                ::= DU (<number> | <expression>) _  # unsigned _BitInt(N)
 //
 // Not supported:
 //                ::= DF <number> _ # _FloatN (N bits)
 static bool ParseBuiltinType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+
+  // DB (<number> | <expression>) _  # _BitInt(N)
+  // DU (<number> | <expression>) _  # unsigned _BitInt(N)
+  if (ParseTwoCharToken(state, "DB") ||
+      (ParseTwoCharToken(state, "DU") && MaybeAppend(state, "unsigned "))) {
+    bool append = state->parse_state.append;
+    DisableAppend(state);
+    int number = -1;
+    if (!ParseNumber(state, &number) && !ParseExpression(state)) {
+      state->parse_state = copy;
+      return false;
+    }
+    RestoreAppend(state, append);
+
+    if (!ParseOneCharToken(state, '_')) {
+      state->parse_state = copy;
+      return false;
+    }
+
+    MaybeAppend(state, "_BitInt(");
+    if (number >= 0) {
+      MaybeAppendDecimal(state, number);
+    } else {
+      MaybeAppend(state, "?");  // the best we can do for dependent sizes
+    }
+    MaybeAppend(state, ")");
+    return true;
+  }
 
   for (const AbbrevPair *p = kBuiltinTypeList; p->abbrev != nullptr; ++p) {
     // Guaranteed only 1- or 2-character strings in kBuiltinTypeList.

@@ -660,6 +660,30 @@ TEST(Demangle, ComplexFloatingPointLiterals) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, SimpleSignedBitInt) {
+  char tmp[80];
+
+  // S::operator _BitInt(256)() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDB256_Ev", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator _BitInt(256)()", tmp);
+}
+
+TEST(Demangle, SimpleUnsignedBitInt) {
+  char tmp[80];
+
+  // S::operator unsigned _BitInt(256)() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDU256_Ev", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator unsigned _BitInt(256)()", tmp);
+}
+
+TEST(Demangle, DependentBitInt) {
+  char tmp[80];
+
+  // S::operator _BitInt(256)<256>() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDBT__ILi256EEEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator _BitInt(?)<>()", tmp);
+}
+
 TEST(Demangle, GlobalInitializers) {
   char tmp[80];
 
