@@ -1112,6 +1112,7 @@ static bool ParseOperatorName(State *state, int *arity) {
 //                ::= GV <(object) name>
 //                ::= GR <(object) name> [<seq-id>] _
 //                ::= T <call-offset> <(base) encoding>
+//                ::= GTt <encoding>  # transaction-safe entry point
 // G++ extensions:
 //                ::= TC <type> <(offset) number> _ <(base) type>
 //                ::= TF <type>
@@ -1201,6 +1202,12 @@ static bool ParseSpecialName(State *state) {
   }
 
   if (ParseTwoCharToken(state, "GA") && ParseEncoding(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseThreeCharToken(state, "GTt") &&
+      MaybeAppend(state, "transaction clone for ") && ParseEncoding(state)) {
     return true;
   }
   state->parse_state = copy;
@@ -1509,7 +1516,7 @@ static bool ParseExceptionSpec(State *state) {
 }
 
 // <function-type> ::=
-//     [exception-spec] F [Y] <bare-function-type> [<ref-qualifier>] E
+//     [exception-spec] [Dx] F [Y] <bare-function-type> [<ref-qualifier>] E
 //
 // <ref-qualifier> ::= R | O
 static bool ParseFunctionType(State *state) {
@@ -1517,6 +1524,7 @@ static bool ParseFunctionType(State *state) {
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
   Optional(ParseExceptionSpec(state));
+  Optional(ParseTwoCharToken(state, "Dx"));
   if (!ParseOneCharToken(state, 'F')) {
     state->parse_state = copy;
     return false;

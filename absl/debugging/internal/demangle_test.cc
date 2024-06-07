@@ -759,6 +759,21 @@ TEST(Demangle, GnuVectorSizeIsADependentOperatorExpression) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, TransactionSafeEntryPoint) {
+  char tmp[80];
+
+  EXPECT_TRUE(Demangle("_ZGTt1fv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("transaction clone for f()", tmp);
+}
+
+TEST(Demangle, TransactionSafeFunctionType) {
+  char tmp[80];
+
+  // GNU demangling: f(void (*)() transaction_safe)
+  EXPECT_TRUE(Demangle("_Z1fPDxFvvE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("f()", tmp);
+}
+
 TEST(Demangle, EnableIfAttributeOnGlobalFunction) {
   char tmp[80];
 
