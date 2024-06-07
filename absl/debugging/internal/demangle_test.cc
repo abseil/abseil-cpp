@@ -209,15 +209,16 @@ TEST(Demangle, SingleArgTemplateBuiltinType) {
   EXPECT_STREQ(tmp, "foo<>()");
 }
 
-TEST(Demangle, FailsOnTwoArgTemplateBuiltinType) {
+TEST(Demangle, TwoArgTemplateBuiltinType) {
   char tmp[100];
 
   // template <typename T, typename U>
   // __my_builtin_type<T, U> foo();
   //
   // foo<int, char>();
-  ASSERT_FALSE(
+  ASSERT_TRUE(
       Demangle("_Z3fooIicEu17__my_builtin_typeIT_T0_Ev", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "foo<>()");
 }
 
 TEST(Demangle, TypeNestedUnderTemplatedBuiltinType) {

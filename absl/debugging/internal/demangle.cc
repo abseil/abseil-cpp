@@ -1444,8 +1444,6 @@ static bool ParseCVQualifiers(State *state) {
 //
 // Not supported:
 //                ::= DF <number> _ # _FloatN (N bits)
-//
-// NOTE: [I <type> E] is a vendor extension (http://shortn/_FrINpH1XC5).
 static bool ParseBuiltinType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1466,22 +1464,15 @@ static bool ParseBuiltinType(State *state) {
   return ParseVendorExtendedType(state);
 }
 
-// <vendor-extended-type> ::= u <source-name> [I <type> E]
-//
-// NOTE: [I <type> E] is a vendor extension (http://shortn/_FrINpH1XC5).
+// <vendor-extended-type> ::= u <source-name> [<template-args>]
 static bool ParseVendorExtendedType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
 
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'u') && ParseSourceName(state)) {
-    copy = state->parse_state;
-    if (ParseOneCharToken(state, 'I') && ParseType(state) &&
-        ParseOneCharToken(state, 'E')) {
-      return true;  // ::= u <source-name> I <type> E
-    }
-    state->parse_state = copy;
-    return true;  // ::= u <source-name>
+  if (ParseOneCharToken(state, 'u') && ParseSourceName(state) &&
+      Optional(ParseTemplateArgs(state))) {
+    return true;
   }
   state->parse_state = copy;
   return false;
