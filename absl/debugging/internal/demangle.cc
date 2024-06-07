@@ -52,6 +52,8 @@ static const AbbrevPair kOperatorList[] = {
     {"dl", "delete", 1},
     {"da", "delete[]", 1},
 
+    {"aw", "co_await", 1},
+
     {"ps", "+", 1},  // "positive"
     {"ng", "-", 1},  // "negative"
     {"ad", "&", 1},  // "address-of"

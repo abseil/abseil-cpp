@@ -1087,6 +1087,14 @@ TEST(Demangle, Spaceship) {
   EXPECT_STREQ("g<>()", tmp);
 }
 
+TEST(Demangle, CoAwait) {
+  char tmp[80];
+
+  // ns::Awaitable::operator co_await() const
+  EXPECT_TRUE(Demangle("_ZNK2ns9AwaitableawEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("ns::Awaitable::operator co_await()", tmp);
+}
+
 TEST(Demangle, VendorExtendedExpressions) {
   char tmp[80];
 
