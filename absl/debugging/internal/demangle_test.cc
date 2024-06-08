@@ -660,6 +660,30 @@ TEST(Demangle, ComplexFloatingPointLiterals) {
   EXPECT_STREQ("f<>()", tmp);
 }
 
+TEST(Demangle, Float128) {
+  char tmp[80];
+
+  // S::operator _Float128() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDF128_Ev", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator _Float128()", tmp);
+}
+
+TEST(Demangle, Float128x) {
+  char tmp[80];
+
+  // S::operator _Float128x() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDF128xEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator _Float128x()", tmp);
+}
+
+TEST(Demangle, Bfloat16) {
+  char tmp[80];
+
+  // S::operator std::bfloat16_t() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvDF16bEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator std::bfloat16_t()", tmp);
+}
+
 TEST(Demangle, SimpleSignedBitInt) {
   char tmp[80];
 

@@ -1455,9 +1455,14 @@ static bool ParseExtendedQualifier(State *state) {
 //                ::= Dd, etc.  # two-character builtin types
 //                ::= DB (<number> | <expression>) _  # _BitInt(N)
 //                ::= DU (<number> | <expression>) _  # unsigned _BitInt(N)
+//                ::= DF <number> _  # _FloatN (N bits)
+//                ::= DF <number> x  # _FloatNx
+//                ::= DF16b  # std::bfloat16_t
 //
 // Not supported:
-//                ::= DF <number> _ # _FloatN (N bits)
+//                ::= [DS] DA <fixed-point-size>
+//                ::= [DS] DR <fixed-point-size>
+// because real implementations of N1169 fixed-point are scant.
 static bool ParseBuiltinType(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1489,6 +1494,30 @@ static bool ParseBuiltinType(State *state) {
     }
     MaybeAppend(state, ")");
     return true;
+  }
+
+  // DF <number> _  # _FloatN
+  // DF <number> x  # _FloatNx
+  // DF16b  # std::bfloat16_t
+  if (ParseTwoCharToken(state, "DF")) {
+    if (ParseThreeCharToken(state, "16b")) {
+      MaybeAppend(state, "std::bfloat16_t");
+      return true;
+    }
+    int number = 0;
+    if (!ParseNumber(state, &number)) {
+      state->parse_state = copy;
+      return false;
+    }
+    MaybeAppend(state, "_Float");
+    MaybeAppendDecimal(state, number);
+    if (ParseOneCharToken(state, 'x')) {
+      MaybeAppend(state, "x");
+      return true;
+    }
+    if (ParseOneCharToken(state, '_')) return true;
+    state->parse_state = copy;
+    return false;
   }
 
   for (const AbbrevPair *p = kBuiltinTypeList; p->abbrev != nullptr; ++p) {
