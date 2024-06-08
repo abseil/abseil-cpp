@@ -589,6 +589,7 @@ static bool ParseFloatNumber(State *state);
 static bool ParseSeqId(State *state);
 static bool ParseIdentifier(State *state, size_t length);
 static bool ParseOperatorName(State *state, int *arity);
+static bool ParseConversionOperatorType(State *state);
 static bool ParseSpecialName(State *state);
 static bool ParseCallOffset(State *state);
 static bool ParseNVOffset(State *state);
@@ -1056,7 +1057,7 @@ static bool ParseOperatorName(State *state, int *arity) {
   // First check with "cv" (cast) case.
   ParseState copy = state->parse_state;
   if (ParseTwoCharToken(state, "cv") && MaybeAppend(state, "operator ") &&
-      EnterNestedName(state) && ParseType(state) &&
+      EnterNestedName(state) && ParseConversionOperatorType(state) &&
       LeaveNestedName(state, copy.nest_level)) {
     if (arity != nullptr) {
       *arity = 1;
@@ -1103,6 +1104,65 @@ static bool ParseOperatorName(State *state, int *arity) {
     }
   }
   return false;
+}
+
+// <operator-name> ::= cv <type>  # (cast)
+//
+// The name of a conversion operator is the one place where cv-qualifiers, *, &,
+// and other simple type combinators are expected to appear in our stripped-down
+// demangling (elsewhere they appear in function signatures or template
+// arguments, which we omit from the output).  We make reasonable efforts to
+// render simple cases accurately.
+static bool ParseConversionOperatorType(State *state) {
+  ComplexityGuard guard(state);
+  if (guard.IsTooComplex()) return false;
+  ParseState copy = state->parse_state;
+
+  // Scan pointers, const, and other easy mangling prefixes with postfix
+  // demanglings.  Remember the range of input for later rescanning.
+  //
+  // See `ParseType` and the `switch` below for the meaning of each char.
+  const char* begin_simple_prefixes = RemainingInput(state);
+  while (ParseCharClass(state, "OPRCGrVK")) {}
+  const char* end_simple_prefixes = RemainingInput(state);
+
+  // Emit the base type first.
+  if (!ParseType(state)) {
+    state->parse_state = copy;
+    return false;
+  }
+
+  // Then rescan the easy type combinators in reverse order to emit their
+  // demanglings in the expected output order.
+  while (begin_simple_prefixes != end_simple_prefixes) {
+    switch (*--end_simple_prefixes) {
+      case 'P':
+        MaybeAppend(state, "*");
+        break;
+      case 'R':
+        MaybeAppend(state, "&");
+        break;
+      case 'O':
+        MaybeAppend(state, "&&");
+        break;
+      case 'C':
+        MaybeAppend(state, " _Complex");
+        break;
+      case 'G':
+        MaybeAppend(state, " _Imaginary");
+        break;
+      case 'r':
+        MaybeAppend(state, " restrict");
+        break;
+      case 'V':
+        MaybeAppend(state, " volatile");
+        break;
+      case 'K':
+        MaybeAppend(state, " const");
+        break;
+    }
+  }
+  return true;
 }
 
 // <special-name> ::= TV <type>
@@ -1442,12 +1502,18 @@ static bool ParseExtendedQualifier(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
   ParseState copy = state->parse_state;
-  if (ParseOneCharToken(state, 'U') && ParseSourceName(state) &&
-      Optional(ParseTemplateArgs(state))) {
-    return true;
+
+  if (!ParseOneCharToken(state, 'U')) return false;
+
+  bool append = state->parse_state.append;
+  DisableAppend(state);
+  if (!ParseSourceName(state)) {
+    state->parse_state = copy;
+    return false;
   }
-  state->parse_state = copy;
-  return false;
+  Optional(ParseTemplateArgs(state));
+  RestoreAppend(state, append);
+  return true;
 }
 
 // <builtin-type> ::= v, etc.  # single-character builtin types

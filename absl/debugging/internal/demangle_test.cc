@@ -708,6 +708,73 @@ TEST(Demangle, DependentBitInt) {
   EXPECT_STREQ("S::operator _BitInt(?)<>()", tmp);
 }
 
+TEST(Demangle, ConversionToPointerType) {
+  char tmp[80];
+
+  // S::operator int*() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvPiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int*()", tmp);
+}
+
+TEST(Demangle, ConversionToLvalueReferenceType) {
+  char tmp[80];
+
+  // S::operator int&() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvRiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int&()", tmp);
+}
+
+TEST(Demangle, ConversionToRvalueReferenceType) {
+  char tmp[80];
+
+  // S::operator int&&() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvOiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int&&()", tmp);
+}
+
+TEST(Demangle, ConversionToComplexFloatingPointType) {
+  char tmp[80];
+
+  // S::operator float _Complex() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvCfEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator float _Complex()", tmp);
+}
+
+TEST(Demangle, ConversionToImaginaryFloatingPointType) {
+  char tmp[80];
+
+  // S::operator float _Imaginary() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvGfEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator float _Imaginary()", tmp);
+}
+
+TEST(Demangle, ConversionToPointerToCvQualifiedType) {
+  char tmp[80];
+
+  // S::operator int const volatile restrict*() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvPrVKiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int const volatile restrict*()", tmp);
+}
+
+TEST(Demangle, ConversionToLayeredPointerType) {
+  char tmp[80];
+
+  // S::operator int const* const*() const
+  EXPECT_TRUE(Demangle("_ZNK1ScvPKPKiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int const* const*()", tmp);
+}
+
+TEST(Demangle, ConversionToTypeWithExtendedQualifier) {
+  char tmp[80];
+
+  // S::operator int const AS128*() const
+  //
+  // Because our scan of easy type constructors stops at the extended qualifier,
+  // the demangling preserves the * but loses the const.
+  EXPECT_TRUE(Demangle("_ZNK1ScvPU5AS128KiEv", tmp, sizeof(tmp)));
+  EXPECT_STREQ("S::operator int*()", tmp);
+}
+
 TEST(Demangle, GlobalInitializers) {
   char tmp[80];
 
