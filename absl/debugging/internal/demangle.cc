@@ -2034,6 +2034,13 @@ static bool ParseBaseUnresolvedName(State *state) {
 //                         <base-unresolved-name>
 //                   ::= [gs] sr <unresolved-qualifier-level>+ E
 //                         <base-unresolved-name>
+//                   ::= sr St <simple-id> <simple-id>  # nonstandard
+//
+// The last case is not part of the official grammar but has been observed in
+// real-world examples that the GNU demangler (but not the LLVM demangler) is
+// able to decode; see demangle_test.cc for one such symbol name.  The shape
+// sr St <simple-id> <simple-id> was inferred by closed-box testing of the GNU
+// demangler.
 static bool ParseUnresolvedName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -2063,6 +2070,12 @@ static bool ParseUnresolvedName(State *state) {
       ParseTwoCharToken(state, "sr") &&
       OneOrMore(ParseUnresolvedQualifierLevel, state) &&
       ParseOneCharToken(state, 'E') && ParseBaseUnresolvedName(state)) {
+    return true;
+  }
+  state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "sr") && ParseTwoCharToken(state, "St") &&
+      ParseSimpleId(state) && ParseSimpleId(state)) {
     return true;
   }
   state->parse_state = copy;
