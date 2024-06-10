@@ -783,10 +783,12 @@ absl_cc_test(
     absl::hashtablez_sampler
     absl::log
     absl::memory
+    absl::node_hash_set
     absl::prefetch
     absl::raw_hash_set
     absl::strings
     absl::test_allocator
+    absl::test_instance_tracker
     absl::type_traits
     GTest::gmock_main
 )

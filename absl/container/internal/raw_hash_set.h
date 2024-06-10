@@ -1222,6 +1222,8 @@ class RawHashSetLayout {
   size_t slot_offset_;
 };
 
+struct HashtableFreeFunctionsAccess;
+
 // We only allow a maximum of 1 SOO element, which makes the implementation
 // much simpler. Complications with multiple SOO elements include:
 // - Satisfying the guarantee that erasing one element doesn't invalidate
@@ -1858,8 +1860,9 @@ inline void* SlotAddress(void* slot_array, size_t slot, size_t slot_size) {
 }
 
 // Iterates over all full slots and calls `cb(const ctrl_t*, SlotType*)`.
-// NOTE: no erasure from this table allowed during Callback call.
-template <class SlotType, class Callback>
+// If kAllowRemoveReentrance is false, no erasure from this table allowed during
+// Callback call. This mode is slightly faster.
+template <bool kAllowRemoveReentrance, class SlotType, class Callback>
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
     const CommonFields& c, SlotType* slot, Callback cb) {
   const size_t cap = c.capacity();
@@ -1882,18 +1885,25 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
     --ctrl;
     --slot;
     for (uint32_t i : mask) {
-      cb(ctrl + i, slot + i);
+      if (!kAllowRemoveReentrance || ABSL_PREDICT_TRUE(IsFull(ctrl[i]))) {
+        cb(ctrl + i, slot + i);
+      }
     }
     return;
   }
   size_t remaining = c.size();
   while (remaining != 0) {
     for (uint32_t i : GroupFullEmptyOrDeleted(ctrl).MaskFull()) {
-      cb(ctrl + i, slot + i);
+      if (!kAllowRemoveReentrance || ABSL_PREDICT_TRUE(IsFull(ctrl[i]))) {
+        cb(ctrl + i, slot + i);
+      }
       --remaining;
     }
-    slot += Group::kWidth;
     ctrl += Group::kWidth;
+    if (kAllowRemoveReentrance && *(ctrl - 1) == ctrl_t::kSentinel) {
+      break;
+    }
+    slot += Group::kWidth;
   }
 }
 
@@ -2430,6 +2440,7 @@ class raw_hash_set {
 
   class iterator : private HashSetIteratorGenerationInfo {
     friend class raw_hash_set;
+    friend struct HashtableFreeFunctionsAccess;
 
    public:
     using iterator_category = std::forward_iterator_tag;
@@ -2736,7 +2747,7 @@ class raw_hash_set {
     size_t offset = cap;
     const size_t shift =
         is_single_group(cap) ? (PerTableSalt(control()) | 1) : 0;
-    IterateOverFullSlots(
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
         that.common(), that.slot_array(),
         [&](const ctrl_t* that_ctrl,
             slot_type* that_slot) ABSL_ATTRIBUTE_ALWAYS_INLINE {
@@ -3411,6 +3422,8 @@ class raw_hash_set {
   friend struct absl::container_internal::hashtable_debug_internal::
       HashtableDebugAccess;
 
+  friend struct absl::container_internal::HashtableFreeFunctionsAccess;
+
   struct FindElement {
     template <class K, class... Args>
     const_iterator operator()(const K& key, Args&&...) const {
@@ -3521,7 +3534,7 @@ class raw_hash_set {
   inline void destroy_slots() {
     assert(!is_soo());
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
-    IterateOverFullSlots(
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
         common(), slot_array(),
         [&](const ctrl_t*, slot_type* slot)
             ABSL_ATTRIBUTE_ALWAYS_INLINE { this->destroy(slot); });
@@ -3866,7 +3879,8 @@ class raw_hash_set {
     }
     // We only do validation for small tables so that it's constant time.
     if (capacity() > 16) return;
-    IterateOverFullSlots(common(), slot_array(), assert_consistent);
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
+        common(), slot_array(), assert_consistent);
 #endif
   }
 
@@ -4030,19 +4044,41 @@ class raw_hash_set {
                 key_equal{}, allocator_type{}};
 };
 
+// Friend access for free functions in raw_hash_set.h.
+struct HashtableFreeFunctionsAccess {
+  template <class Predicate, typename Set>
+  static typename Set::size_type EraseIf(Predicate& pred, Set* c) {
+    if (c->empty()) {
+      return 0;
+    }
+    if (c->is_soo()) {
+      auto it = c->soo_iterator();
+      if (!pred(*it)) {
+        return 0;
+      }
+      c->destroy(it.slot());
+      c->common().set_empty_soo();
+      return 1;
+    }
+    size_t num_deleted = 0;
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/true>(
+        c->common(), c->slot_array(), [&](const ctrl_t* ctrl, auto* slot) {
+          if (pred(Set::PolicyTraits::element(slot))) {
+            c->destroy(slot);
+            EraseMetaOnly(c->common(), static_cast<size_t>(ctrl - c->control()),
+                          sizeof(*slot));
+            ++num_deleted;
+          }
+        });
+    return num_deleted;
+  }
+};
+
 // Erases all elements that satisfy the predicate `pred` from the container `c`.
 template <typename P, typename H, typename E, typename A, typename Predicate>
 typename raw_hash_set<P, H, E, A>::size_type EraseIf(
     Predicate& pred, raw_hash_set<P, H, E, A>* c) {
-  const auto initial_size = c->size();
-  for (auto it = c->begin(), last = c->end(); it != last;) {
-    if (pred(*it)) {
-      c->erase(it++);
-    } else {
-      ++it;
-    }
-  }
-  return initial_size - c->size();
+  return HashtableFreeFunctionsAccess::EraseIf(pred, c);
 }
 
 namespace hashtable_debug_internal {
