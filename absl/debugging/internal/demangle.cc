@@ -1176,6 +1176,7 @@ static bool ParseConversionOperatorType(State *state) {
 //                ::= GR <(object) name> [<seq-id>] _
 //                ::= T <call-offset> <(base) encoding>
 //                ::= GTt <encoding>  # transaction-safe entry point
+//                ::= TA <template-arg>  # nontype template parameter object
 // G++ extensions:
 //                ::= TC <type> <(offset) number> _ <(base) type>
 //                ::= TF <type>
@@ -1190,6 +1191,8 @@ static bool ParseConversionOperatorType(State *state) {
 // thread_local feature.  For these see:
 //
 // https://maskray.me/blog/2021-02-14-all-about-thread-local-storage
+//
+// For TA see https://github.com/itanium-cxx-abi/cxx-abi/issues/63.
 static bool ParseSpecialName(State *state) {
   ComplexityGuard guard(state);
   if (guard.IsTooComplex()) return false;
@@ -1280,6 +1283,18 @@ static bool ParseSpecialName(State *state) {
     return true;
   }
   state->parse_state = copy;
+
+  if (ParseTwoCharToken(state, "TA")) {
+    bool append = state->parse_state.append;
+    DisableAppend(state);
+    if (ParseTemplateArg(state)) {
+      RestoreAppend(state, append);
+      MaybeAppend(state, "template parameter object");
+      return true;
+    }
+  }
+  state->parse_state = copy;
+
   return false;
 }
 

@@ -943,6 +943,29 @@ TEST(Demangle, TransactionSafeFunctionType) {
   EXPECT_STREQ("f()", tmp);
 }
 
+TEST(Demangle, TemplateParameterObject) {
+  char tmp[80];
+
+  // Source:
+  //
+  // struct S { int x, y; };
+  // template <S s, const S* p = &s> void f() {}
+  // template void f<S{1, 2}>();
+  //
+  // LLVM demangling:
+  //
+  // void f<S{1, 2}, &template parameter object for S{1, 2}>()
+  EXPECT_TRUE(Demangle("_Z1fIXtl1SLi1ELi2EEEXadL_ZTAXtlS0_Li1ELi2EEEEEEvv",
+                       tmp, sizeof(tmp)));
+  EXPECT_STREQ("f<>()", tmp);
+
+  // The name of the object standing alone.
+  //
+  // LLVM demangling: template parameter object for S{1, 2}
+  EXPECT_TRUE(Demangle("_ZTAXtl1SLi1ELi2EEE", tmp, sizeof(tmp)));
+  EXPECT_STREQ("template parameter object", tmp);
+}
+
 TEST(Demangle, EnableIfAttributeOnGlobalFunction) {
   char tmp[80];
 
