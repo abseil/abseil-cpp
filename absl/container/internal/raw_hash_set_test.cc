@@ -3121,34 +3121,6 @@ TYPED_TEST(SooTest, EraseIfPartial) {
   }
 }
 
-// Test that we are allowed to erase during the callback in erase_if.
-// TODO(b/345744331): Consider to change behavior to disallow erasure in the
-// callback.
-TYPED_TEST(SooTest, EraseIfReentry) {
-  for (int size = 0; size < 100; ++size) {
-    SCOPED_TRACE(absl::StrCat(size));
-    TypeParam t;
-    std::vector<int64_t> expected;
-    for (int i = 0; i < size; ++i) {
-      t.insert(i);
-      if (i % 4 == 1 || i % 4 == 2) {
-        expected.push_back(i);
-      }
-    }
-    auto pred = [&](const auto& x) {
-      auto value = static_cast<int64_t>(x);
-      int64_t group = value / 4;
-      t.erase(group * 4);
-      if (value % 4 == 3) {
-        return true;
-      }
-      return false;
-    };
-    absl::container_internal::EraseIf(pred, &t);
-    ASSERT_THAT(t, testing::UnorderedElementsAreArray(expected));
-  }
-}
-
 TEST(Table, EraseBeginEndResetsReservedGrowth) {
   bool frozen = false;
   BadHashFreezableIntTable t{FreezableAlloc<int64_t>(&frozen)};

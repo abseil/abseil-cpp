@@ -1902,6 +1902,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
     ctrl += Group::kWidth;
     if (kAllowRemoveReentrance && *(ctrl - 1) == ctrl_t::kSentinel) {
       break;
+    } else {
+      assert((remaining == 0 || *(ctrl - 1) != ctrl_t::kSentinel) &&
+             "element was erased from hash table unexpectedly");
     }
     slot += Group::kWidth;
   }
@@ -4061,7 +4064,7 @@ struct HashtableFreeFunctionsAccess {
       return 1;
     }
     size_t num_deleted = 0;
-    IterateOverFullSlots</*kAllowRemoveReentrance=*/true>(
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
         c->common(), c->slot_array(), [&](const ctrl_t* ctrl, auto* slot) {
           if (pred(Set::PolicyTraits::element(slot))) {
             c->destroy(slot);
