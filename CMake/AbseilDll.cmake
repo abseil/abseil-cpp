@@ -122,6 +122,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/symbolize.h"
   "debugging/internal/address_is_readable.cc"
   "debugging/internal/address_is_readable.h"
+  "debugging/internal/bounded_utf8_length_sequence.h"
   "debugging/internal/demangle.cc"
   "debugging/internal/demangle.h"
   "debugging/internal/demangle_rust.cc"

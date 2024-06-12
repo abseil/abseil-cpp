@@ -225,6 +225,7 @@ cc_library(
         "internal/utf8_for_code_point.cc",
     ],
     hdrs = [
+        "internal/bounded_utf8_length_sequence.h",
         "internal/demangle.h",
         "internal/demangle_rust.h",
         "internal/utf8_for_code_point.h",
@@ -239,6 +240,20 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/numeric:bits",
+    ],
+)
+
+cc_test(
+    name = "bounded_utf8_length_sequence_test",
+    srcs = ["internal/bounded_utf8_length_sequence_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":demangle_internal",
+        "//absl/base:config",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

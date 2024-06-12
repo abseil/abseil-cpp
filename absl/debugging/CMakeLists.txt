@@ -195,6 +195,7 @@ absl_cc_library(
   NAME
     demangle_internal
   HDRS
+    "internal/bounded_utf8_length_sequence.h"
     "internal/demangle.h"
     "internal/demangle_rust.h"
     "internal/utf8_for_code_point.h"
@@ -206,8 +207,22 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::base
+    absl::bits
     absl::core_headers
   PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    bounded_utf8_length_sequence_test
+  SRCS
+    "internal/bounded_utf8_length_sequence_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::demangle_internal
+    absl::config
+    GTest::gmock_main
 )
 
 absl_cc_test(
