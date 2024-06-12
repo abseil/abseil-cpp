@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <string>
 
@@ -191,9 +192,50 @@ typedef struct {
   int recursion_depth;        // For stack exhaustion prevention.
   int steps;               // Cap how much work we'll do, regardless of depth.
   ParseState parse_state;  // Backtrackable state copied for most frames.
+
+  // Conditionally compiled support for marking the position of the first
+  // construct Demangle couldn't parse.  This preprocessor symbol is intended
+  // for use by Abseil demangler maintainers only; its behavior is not part of
+  // Abseil's public interface.
+#ifdef ABSL_INTERNAL_DEMANGLE_RECORDS_HIGH_WATER_MARK
+  int high_water_mark;  // Input position where parsing failed.
+  bool too_complex;  // True if any guard.IsTooComplex() call returned true.
+#endif
 } State;
 
 namespace {
+
+#ifdef ABSL_INTERNAL_DEMANGLE_RECORDS_HIGH_WATER_MARK
+void UpdateHighWaterMark(State *state) {
+  if (state->high_water_mark < state->parse_state.mangled_idx) {
+    state->high_water_mark = state->parse_state.mangled_idx;
+  }
+}
+
+void ReportHighWaterMark(State *state) {
+  // Write out the mangled name with the trouble point marked, provided that the
+  // output buffer is large enough and the mangled name did not hit a complexity
+  // limit (in which case the high water mark wouldn't point out an unparsable
+  // construct, only the point where a budget ran out).
+  const size_t input_length = std::strlen(state->mangled_begin);
+  if (input_length + 6 > static_cast<size_t>(state->out_end_idx) ||
+      state->too_complex) {
+    if (state->out_end_idx > 0) state->out[0] = '\0';
+    return;
+  }
+  const size_t high_water_mark = static_cast<size_t>(state->high_water_mark);
+  std::memcpy(state->out, state->mangled_begin, high_water_mark);
+  std::memcpy(state->out + high_water_mark, "--!--", 5);
+  std::memcpy(state->out + high_water_mark + 5,
+              state->mangled_begin + high_water_mark,
+              input_length - high_water_mark);
+  state->out[input_length + 5] = '\0';
+}
+#else
+void UpdateHighWaterMark(State *) {}
+void ReportHighWaterMark(State *) {}
+#endif
+
 // Prevent deep recursion / stack exhaustion.
 // Also prevent unbounded handling of complex inputs.
 class ComplexityGuard {
@@ -205,7 +247,7 @@ class ComplexityGuard {
   ~ComplexityGuard() { --state_->recursion_depth; }
 
   // 256 levels of recursion seems like a reasonable upper limit on depth.
-  // 128 is not enough to demagle synthetic tests from demangle_unittest.txt:
+  // 128 is not enough to demangle synthetic tests from demangle_unittest.txt:
   // "_ZaaZZZZ..." and "_ZaaZcvZcvZ..."
   static constexpr int kRecursionDepthLimit = 256;
 
@@ -226,8 +268,14 @@ class ComplexityGuard {
   static constexpr int kParseStepsLimit = 1 << 17;
 
   bool IsTooComplex() const {
-    return state_->recursion_depth > kRecursionDepthLimit ||
-           state_->steps > kParseStepsLimit;
+    if (state_->recursion_depth > kRecursionDepthLimit ||
+        state_->steps > kParseStepsLimit) {
+#ifdef ABSL_INTERNAL_DEMANGLE_RECORDS_HIGH_WATER_MARK
+      state_->too_complex = true;
+#endif
+      return true;
+    }
+    return false;
   }
 
  private:
@@ -274,6 +322,10 @@ static void InitState(State* state,
   state->out_end_idx = static_cast<int>(out_size);
   state->recursion_depth = 0;
   state->steps = 0;
+#ifdef ABSL_INTERNAL_DEMANGLE_RECORDS_HIGH_WATER_MARK
+  state->high_water_mark = 0;
+  state->too_complex = false;
+#endif
 
   state->parse_state.mangled_idx = 0;
   state->parse_state.out_cur_idx = 0;
@@ -295,6 +347,7 @@ static bool ParseOneCharToken(State *state, const char one_char_token) {
   if (guard.IsTooComplex()) return false;
   if (RemainingInput(state)[0] == one_char_token) {
     ++state->parse_state.mangled_idx;
+    UpdateHighWaterMark(state);
     return true;
   }
   return false;
@@ -309,6 +362,7 @@ static bool ParseTwoCharToken(State *state, const char *two_char_token) {
   if (RemainingInput(state)[0] == two_char_token[0] &&
       RemainingInput(state)[1] == two_char_token[1]) {
     state->parse_state.mangled_idx += 2;
+    UpdateHighWaterMark(state);
     return true;
   }
   return false;
@@ -324,6 +378,7 @@ static bool ParseThreeCharToken(State *state, const char *three_char_token) {
       RemainingInput(state)[1] == three_char_token[1] &&
       RemainingInput(state)[2] == three_char_token[2]) {
     state->parse_state.mangled_idx += 3;
+    UpdateHighWaterMark(state);
     return true;
   }
   return false;
@@ -342,6 +397,7 @@ static bool ParseLongToken(State *state, const char *long_token) {
     if (RemainingInput(state)[i] != long_token[i]) return false;
   }
   state->parse_state.mangled_idx += i;
+  UpdateHighWaterMark(state);
   return true;
 }
 
@@ -357,6 +413,7 @@ static bool ParseCharClass(State *state, const char *char_class) {
   for (; *p != '\0'; ++p) {
     if (RemainingInput(state)[0] == *p) {
       ++state->parse_state.mangled_idx;
+      UpdateHighWaterMark(state);
       return true;
     }
   }
@@ -983,6 +1040,7 @@ static bool ParseNumber(State *state, int *number_out) {
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
     state->parse_state.mangled_idx += p - RemainingInput(state);
+    UpdateHighWaterMark(state);
     if (number_out != nullptr) {
       // Note: possibly truncate "number".
       *number_out = static_cast<int>(number);
@@ -1005,6 +1063,7 @@ static bool ParseFloatNumber(State *state) {
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
     state->parse_state.mangled_idx += p - RemainingInput(state);
+    UpdateHighWaterMark(state);
     return true;
   }
   return false;
@@ -1023,6 +1082,7 @@ static bool ParseSeqId(State *state) {
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
     state->parse_state.mangled_idx += p - RemainingInput(state);
+    UpdateHighWaterMark(state);
     return true;
   }
   return false;
@@ -1041,6 +1101,7 @@ static bool ParseIdentifier(State *state, size_t length) {
     MaybeAppendWithLength(state, RemainingInput(state), length);
   }
   state->parse_state.mangled_idx += length;
+  UpdateHighWaterMark(state);
   return true;
 }
 
@@ -1100,6 +1161,7 @@ static bool ParseOperatorName(State *state, int *arity) {
       }
       MaybeAppend(state, p->real_name);
       state->parse_state.mangled_idx += 2;
+      UpdateHighWaterMark(state);
       return true;
     }
   }
@@ -2848,6 +2910,7 @@ static bool ParseSubstitution(State *state, bool accept_std) {
           MaybeAppend(state, p->real_name);
         }
         ++state->parse_state.mangled_idx;
+        UpdateHighWaterMark(state);
         return true;
       }
     }
@@ -2873,10 +2936,13 @@ static bool ParseTopLevelMangledName(State *state) {
         MaybeAppend(state, RemainingInput(state));
         return true;
       }
+      ReportHighWaterMark(state);
       return false;  // Unconsumed suffix.
     }
     return true;
   }
+
+  ReportHighWaterMark(state);
   return false;
 }
 
