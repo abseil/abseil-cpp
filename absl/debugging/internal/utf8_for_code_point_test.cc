@@ -25,32 +25,32 @@ namespace debugging_internal {
 namespace {
 
 TEST(Utf8ForCodePointTest, RecognizesTheSmallestCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0});
+  Utf8ForCodePoint utf8(uint64_t{0});
   ASSERT_EQ(utf8.length, 1);
   EXPECT_EQ(utf8.bytes[0], '\0');
 }
 
 TEST(Utf8ForCodePointTest, RecognizesAsciiSmallA) {
-  Utf8ForCodePoint utf8(std::uint64_t{'a'});
+  Utf8ForCodePoint utf8(uint64_t{'a'});
   ASSERT_EQ(utf8.length, 1);
   EXPECT_EQ(utf8.bytes[0], 'a');
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheLargestOneByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x7f});
+  Utf8ForCodePoint utf8(uint64_t{0x7f});
   ASSERT_EQ(utf8.length, 1);
   EXPECT_EQ(utf8.bytes[0], '\x7f');
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheSmallestTwoByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x80});
+  Utf8ForCodePoint utf8(uint64_t{0x80});
   ASSERT_EQ(utf8.length, 2);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xc2));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0x80));
 }
 
 TEST(Utf8ForCodePointTest, RecognizesSmallNWithTilde) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xf1});
+  Utf8ForCodePoint utf8(uint64_t{0xf1});
   ASSERT_EQ(utf8.length, 2);
   const char* want = "ñ";
   EXPECT_EQ(utf8.bytes[0], want[0]);
@@ -58,7 +58,7 @@ TEST(Utf8ForCodePointTest, RecognizesSmallNWithTilde) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesCapitalPi) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x3a0});
+  Utf8ForCodePoint utf8(uint64_t{0x3a0});
   ASSERT_EQ(utf8.length, 2);
   const char* want = "Π";
   EXPECT_EQ(utf8.bytes[0], want[0]);
@@ -66,14 +66,14 @@ TEST(Utf8ForCodePointTest, RecognizesCapitalPi) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheLargestTwoByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x7ff});
+  Utf8ForCodePoint utf8(uint64_t{0x7ff});
   ASSERT_EQ(utf8.length, 2);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xdf));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0xbf));
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheSmallestThreeByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x800});
+  Utf8ForCodePoint utf8(uint64_t{0x800});
   ASSERT_EQ(utf8.length, 3);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xe0));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0xa0));
@@ -81,7 +81,7 @@ TEST(Utf8ForCodePointTest, RecognizesTheSmallestThreeByteCodePoint) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheChineseCharacterZhong1AsInZhong1Wen2) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x4e2d});
+  Utf8ForCodePoint utf8(uint64_t{0x4e2d});
   ASSERT_EQ(utf8.length, 3);
   const char* want = "中";
   EXPECT_EQ(utf8.bytes[0], want[0]);
@@ -90,7 +90,7 @@ TEST(Utf8ForCodePointTest, RecognizesTheChineseCharacterZhong1AsInZhong1Wen2) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesOneBeforeTheSmallestSurrogate) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xd7ff});
+  Utf8ForCodePoint utf8(uint64_t{0xd7ff});
   ASSERT_EQ(utf8.length, 3);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xed));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0x9f));
@@ -98,17 +98,17 @@ TEST(Utf8ForCodePointTest, RecognizesOneBeforeTheSmallestSurrogate) {
 }
 
 TEST(Utf8ForCodePointTest, RejectsTheSmallestSurrogate) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xd800});
+  Utf8ForCodePoint utf8(uint64_t{0xd800});
   EXPECT_EQ(utf8.length, 0);
 }
 
 TEST(Utf8ForCodePointTest, RejectsTheLargestSurrogate) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xdfff});
+  Utf8ForCodePoint utf8(uint64_t{0xdfff});
   EXPECT_EQ(utf8.length, 0);
 }
 
 TEST(Utf8ForCodePointTest, RecognizesOnePastTheLargestSurrogate) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xe000});
+  Utf8ForCodePoint utf8(uint64_t{0xe000});
   ASSERT_EQ(utf8.length, 3);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xee));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0x80));
@@ -116,7 +116,7 @@ TEST(Utf8ForCodePointTest, RecognizesOnePastTheLargestSurrogate) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheLargestThreeByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xffff});
+  Utf8ForCodePoint utf8(uint64_t{0xffff});
   ASSERT_EQ(utf8.length, 3);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xef));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0xbf));
@@ -124,7 +124,7 @@ TEST(Utf8ForCodePointTest, RecognizesTheLargestThreeByteCodePoint) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheSmallestFourByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x10000});
+  Utf8ForCodePoint utf8(uint64_t{0x10000});
   ASSERT_EQ(utf8.length, 4);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xf0));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0x90));
@@ -133,7 +133,7 @@ TEST(Utf8ForCodePointTest, RecognizesTheSmallestFourByteCodePoint) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheJackOfHearts) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x1f0bb});
+  Utf8ForCodePoint utf8(uint64_t{0x1f0bb});
   ASSERT_EQ(utf8.length, 4);
   const char* want = "🂻";
   EXPECT_EQ(utf8.bytes[0], want[0]);
@@ -143,7 +143,7 @@ TEST(Utf8ForCodePointTest, RecognizesTheJackOfHearts) {
 }
 
 TEST(Utf8ForCodePointTest, RecognizesTheLargestFourByteCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x10ffff});
+  Utf8ForCodePoint utf8(uint64_t{0x10ffff});
   ASSERT_EQ(utf8.length, 4);
   EXPECT_EQ(utf8.bytes[0], static_cast<char>(0xf4));
   EXPECT_EQ(utf8.bytes[1], static_cast<char>(0x8f));
@@ -152,21 +152,21 @@ TEST(Utf8ForCodePointTest, RecognizesTheLargestFourByteCodePoint) {
 }
 
 TEST(Utf8ForCodePointTest, RejectsTheSmallestOverlargeCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0x110000});
+  Utf8ForCodePoint utf8(uint64_t{0x110000});
   EXPECT_EQ(utf8.length, 0);
 }
 
 TEST(Utf8ForCodePointTest, RejectsAThroughlyOverlargeCodePoint) {
-  Utf8ForCodePoint utf8(std::uint64_t{0xffffffff00000000});
+  Utf8ForCodePoint utf8(uint64_t{0xffffffff00000000});
   EXPECT_EQ(utf8.length, 0);
 }
 
 TEST(Utf8ForCodePointTest, OkReturnsTrueForAValidCodePoint) {
-  EXPECT_TRUE(Utf8ForCodePoint(std::uint64_t{0}).ok());
+  EXPECT_TRUE(Utf8ForCodePoint(uint64_t{0}).ok());
 }
 
 TEST(Utf8ForCodePointTest, OkReturnsFalseForAnInvalidCodePoint) {
-  EXPECT_FALSE(Utf8ForCodePoint(std::uint64_t{0xffffffff00000000}).ok());
+  EXPECT_FALSE(Utf8ForCodePoint(uint64_t{0xffffffff00000000}).ok());
 }
 
 }  // namespace

@@ -1209,7 +1209,7 @@ TEST(Demangle, BinaryFoldExpressions) {
 TEST(Demangle, SizeofPacks) {
   char tmp[80];
 
-  // template <std::size_t i> struct S {};
+  // template <size_t i> struct S {};
   //
   // template <class... T> auto f(T... p) -> S<sizeof...(T)> { return {}; }
   // template auto f<int, long>(int, long) -> S<2>;
