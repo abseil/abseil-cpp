@@ -128,9 +128,17 @@
 //
 // By default, nullability annotations are applicable to raw and smart
 // pointers. User-defined types can indicate compatibility with nullability
-// annotations by providing an `absl_nullability_compatible` nested type. The
-// actual definition of this inner type is not relevant as it is used merely as
-// a marker. It is common to use a using declaration of
+// annotations by adding the ABSL_NULLABILITY_COMPATIBLE attribute.
+//
+// // Example:
+// struct ABSL_NULLABILITY_COMPATIBLE MyPtr {
+//   ...
+// };
+//
+// Note: For the time being, nullability-compatible classes should additionally
+// be marked with an `absl_nullability_compatible` nested type (this will soon
+// be deprecated). The actual definition of this inner type is not relevant as
+// it is used merely as a marker. It is common to use a using declaration of
 // `absl_nullability_compatible` set to void.
 //
 // // Example:
@@ -223,5 +231,20 @@ using NullabilityUnknown = nullability_internal::NullabilityUnknownImpl<T>;
 
 ABSL_NAMESPACE_END
 }  // namespace absl
+
+// ABSL_NULLABILITY_COMPATIBLE
+//
+// Indicates that a class is compatible with nullability annotations.
+//
+// For example:
+//
+// struct ABSL_NULLABILITY_COMPATIBLE MyPtr {
+//   ...
+// };
+#if ABSL_HAVE_FEATURE(nullability_on_classes)
+#define ABSL_NULLABILITY_COMPATIBLE _Nullable
+#else
+#define ABSL_NULLABILITY_COMPATIBLE
+#endif
 
 #endif  // ABSL_BASE_NULLABILITY_H_
