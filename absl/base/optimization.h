@@ -24,6 +24,10 @@
 
 #include <assert.h>
 
+#if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
+#include <utility>
+#endif
+
 #include "absl/base/config.h"
 #include "absl/base/options.h"
 
