@@ -26,6 +26,8 @@
 //
 // In most cases, your default choice for a hash map should be a map of type
 // `flat_hash_map`.
+//
+// `flat_hash_map` is not exception-safe.
 
 #ifndef ABSL_CONTAINER_FLAT_HASH_MAP_H_
 #define ABSL_CONTAINER_FLAT_HASH_MAP_H_

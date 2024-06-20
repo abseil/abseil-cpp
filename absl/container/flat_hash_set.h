@@ -26,6 +26,9 @@
 //
 // In most cases, your default choice for a hash set should be a set of type
 // `flat_hash_set`.
+//
+// `flat_hash_set` is not exception-safe.
+
 #ifndef ABSL_CONTAINER_FLAT_HASH_SET_H_
 #define ABSL_CONTAINER_FLAT_HASH_SET_H_
 

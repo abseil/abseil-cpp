@@ -31,6 +31,8 @@
 // `node_hash_set` should be an easy migration. Consider migrating to
 // `node_hash_set` and perhaps converting to a more efficient `flat_hash_set`
 // upon further review.
+//
+// `node_hash_set` is not exception-safe.
 
 #ifndef ABSL_CONTAINER_NODE_HASH_SET_H_
 #define ABSL_CONTAINER_NODE_HASH_SET_H_

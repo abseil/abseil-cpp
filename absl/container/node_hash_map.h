@@ -32,6 +32,8 @@
 // migration, because it guarantees pointer stability. Consider migrating to
 // `node_hash_map` and perhaps converting to a more efficient `flat_hash_map`
 // upon further review.
+//
+// `node_hash_map` is not exception-safe.
 
 #ifndef ABSL_CONTAINER_NODE_HASH_MAP_H_
 #define ABSL_CONTAINER_NODE_HASH_MAP_H_
