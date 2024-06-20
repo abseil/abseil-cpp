@@ -4075,6 +4075,23 @@ struct HashtableFreeFunctionsAccess {
         });
     return num_deleted;
   }
+
+  template <class Callback, typename Set>
+  static void ForEach(Callback& cb, Set* c) {
+    if (c->empty()) {
+      return;
+    }
+    if (c->is_soo()) {
+      cb(*c->soo_iterator());
+      return;
+    }
+    using ElementTypeWithConstness = decltype(*c->begin());
+    IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
+        c->common(), c->slot_array(), [&cb](const ctrl_t*, auto* slot) {
+          ElementTypeWithConstness& element = Set::PolicyTraits::element(slot);
+          cb(element);
+        });
+  }
 };
 
 // Erases all elements that satisfy the predicate `pred` from the container `c`.
@@ -4082,6 +4099,16 @@ template <typename P, typename H, typename E, typename A, typename Predicate>
 typename raw_hash_set<P, H, E, A>::size_type EraseIf(
     Predicate& pred, raw_hash_set<P, H, E, A>* c) {
   return HashtableFreeFunctionsAccess::EraseIf(pred, c);
+}
+
+// Calls `cb` for all elements in the container `c`.
+template <typename P, typename H, typename E, typename A, typename Callback>
+void ForEach(Callback& cb, raw_hash_set<P, H, E, A>* c) {
+  return HashtableFreeFunctionsAccess::ForEach(cb, c);
+}
+template <typename P, typename H, typename E, typename A, typename Callback>
+void ForEach(Callback& cb, const raw_hash_set<P, H, E, A>* c) {
+  return HashtableFreeFunctionsAccess::ForEach(cb, c);
 }
 
 namespace hashtable_debug_internal {

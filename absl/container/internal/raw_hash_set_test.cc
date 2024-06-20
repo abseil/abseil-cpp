@@ -3121,6 +3121,58 @@ TYPED_TEST(SooTest, EraseIfPartial) {
   }
 }
 
+TYPED_TEST(SooTest, ForEach) {
+  TypeParam t;
+  std::vector<int64_t> expected;
+  for (int size = 0; size < 100; ++size) {
+    SCOPED_TRACE(size);
+    {
+      SCOPED_TRACE("mutable iteration");
+      std::vector<int64_t> actual;
+      auto f = [&](auto& x) { actual.push_back(static_cast<int64_t>(x)); };
+      absl::container_internal::ForEach(f, &t);
+      ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected));
+    }
+    {
+      SCOPED_TRACE("const iteration");
+      std::vector<int64_t> actual;
+      auto f = [&](auto& x) {
+        static_assert(
+            std::is_const<std::remove_reference_t<decltype(x)>>::value,
+            "no mutable values should be passed to const ForEach");
+        actual.push_back(static_cast<int64_t>(x));
+      };
+      const auto& ct = t;
+      absl::container_internal::ForEach(f, &ct);
+      ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected));
+    }
+    t.insert(size);
+    expected.push_back(size);
+  }
+}
+
+TEST(Table, ForEachMutate) {
+  StringTable t;
+  using ValueType = StringTable::value_type;
+  std::vector<ValueType> expected;
+  for (int size = 0; size < 100; ++size) {
+    SCOPED_TRACE(size);
+    std::vector<ValueType> actual;
+    auto f = [&](ValueType& x) {
+      actual.push_back(x);
+      x.second += "a";
+    };
+    absl::container_internal::ForEach(f, &t);
+    ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected));
+    for (ValueType& v : expected) {
+      v.second += "a";
+    }
+    ASSERT_THAT(t, testing::UnorderedElementsAreArray(expected));
+    t.emplace(std::to_string(size), std::to_string(size));
+    expected.emplace_back(std::to_string(size), std::to_string(size));
+  }
+}
+
 TEST(Table, EraseBeginEndResetsReservedGrowth) {
   bool frozen = false;
   BadHashFreezableIntTable t{FreezableAlloc<int64_t>(&frozen)};
