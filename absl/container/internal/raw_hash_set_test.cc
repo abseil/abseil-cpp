@@ -3334,12 +3334,12 @@ TEST(Table, IterateOverFullSlotsEmpty) {
   auto fail_if_any = [](const ctrl_t*, auto* i) {
     FAIL() << "expected no slots " << **i;
   };
-  container_internal::IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
+  container_internal::IterateOverFullSlots(
       RawHashSetTestOnlyAccess::GetCommon(t),
       RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
   for (size_t i = 0; i < 256; ++i) {
     t.reserve(i);
-    container_internal::IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
+    container_internal::IterateOverFullSlots(
         RawHashSetTestOnlyAccess::GetCommon(t),
         RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
   }
@@ -3354,7 +3354,7 @@ TEST(Table, IterateOverFullSlotsFull) {
     expected_slots.push_back(idx);
 
     std::vector<int64_t> slots;
-    container_internal::IterateOverFullSlots</*kAllowRemoveReentrance=*/false>(
+    container_internal::IterateOverFullSlots(
         RawHashSetTestOnlyAccess::GetCommon(t),
         RawHashSetTestOnlyAccess::GetSlots(t),
         [&t, &slots](const ctrl_t* ctrl, auto* i) {
@@ -3365,41 +3365,6 @@ TEST(Table, IterateOverFullSlotsFull) {
           slots.push_back(**i);
         });
     EXPECT_THAT(slots, testing::UnorderedElementsAreArray(expected_slots));
-  }
-}
-
-TEST(Table, IterateOverFullSlotsAllowReentrance) {
-  std::vector<int64_t> expected_values;
-  for (int64_t idx = 0; idx < 128; ++idx) {
-    NonSooIntTable t;
-    for (int val = 0; val <= idx; ++val) {
-      t.insert(val);
-    }
-
-    // We are inserting only even values.
-    // Only one element across 2*k and 2*k+1 should be visited.
-    if (idx % 2 == 0) {
-      expected_values.push_back(idx);
-    }
-
-    std::vector<int64_t> actual_values;
-    container_internal::IterateOverFullSlots</*kAllowRemoveReentrance=*/true>(
-        RawHashSetTestOnlyAccess::GetCommon(t),
-        RawHashSetTestOnlyAccess::GetSlots(t),
-        [&t, &actual_values](const ctrl_t* ctrl, auto* i) {
-          int64_t value = **i;
-          // Erase the other element from 2*k and 2*k+1 pair.
-          t.erase(value ^ 1);
-          ptrdiff_t ctrl_offset =
-              ctrl - RawHashSetTestOnlyAccess::GetCommon(t).control();
-          ptrdiff_t slot_offset = i - RawHashSetTestOnlyAccess::GetSlots(t);
-          ASSERT_EQ(ctrl_offset, slot_offset);
-          // Add an even value from the pair.
-          // Only one element for each 2*k and 2*k+1 pair should be inserted.
-          actual_values.push_back(value - value % 2);
-        });
-    EXPECT_THAT(actual_values,
-                testing::UnorderedElementsAreArray(expected_values));
   }
 }
 
