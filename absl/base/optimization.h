@@ -23,6 +23,7 @@
 #define ABSL_BASE_OPTIMIZATION_H_
 
 #include <assert.h>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/options.h"
