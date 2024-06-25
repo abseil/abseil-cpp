@@ -25,7 +25,7 @@
 #include <sanitizer/asan_interface.h>
 #elif defined(ABSL_HAVE_MEMORY_SANITIZER)
 #include <sanitizer/msan_interface.h>
-#elif defined(ABSL_HAVE_MMAP) && !defined(SGX_SIM)
+#elif defined(ABSL_HAVE_MMAP)
 #include <sys/mman.h>
 #elif defined(_MSC_VER)
 #include <windows.h>
