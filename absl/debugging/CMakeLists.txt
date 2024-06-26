@@ -196,10 +196,12 @@ absl_cc_library(
     demangle_internal
   HDRS
     "internal/bounded_utf8_length_sequence.h"
+    "internal/decode_rust_punycode.h"
     "internal/demangle.h"
     "internal/demangle_rust.h"
     "internal/utf8_for_code_point.h"
   SRCS
+    "internal/decode_rust_punycode.cc"
     "internal/demangle.cc"
     "internal/demangle_rust.cc"
     "internal/utf8_for_code_point.cc"
@@ -209,6 +211,7 @@ absl_cc_library(
     absl::base
     absl::bits
     absl::core_headers
+    absl::nullability
   PUBLIC
 )
 
@@ -217,6 +220,19 @@ absl_cc_test(
     bounded_utf8_length_sequence_test
   SRCS
     "internal/bounded_utf8_length_sequence_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::demangle_internal
+    absl::config
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
+    decode_rust_punycode_test
+  SRCS
+    "internal/decode_rust_punycode_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
