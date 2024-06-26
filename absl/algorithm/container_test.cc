@@ -113,6 +113,11 @@ TEST_F(NonMutatingTest, FindReturnsCorrectType) {
   absl::c_find(absl::implicit_cast<const std::list<int>&>(sequence_), 3);
 }
 
+TEST_F(NonMutatingTest, Contains) {
+  EXPECT_TRUE(absl::c_contains(container_, 3));
+  EXPECT_FALSE(absl::c_contains(container_, 4));
+}
+
 TEST_F(NonMutatingTest, FindIf) { absl::c_find_if(container_, Predicate); }
 
 TEST_F(NonMutatingTest, FindIfNot) {
@@ -303,6 +308,17 @@ TEST_F(NonMutatingTest, Search) {
 TEST_F(NonMutatingTest, SearchWithPredicate) {
   absl::c_search(sequence_, vector_, BinPredicate);
   absl::c_search(vector_, sequence_, BinPredicate);
+}
+
+TEST_F(NonMutatingTest, ContainsSubrange) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_));
+  EXPECT_TRUE(absl::c_contains_subrange(array_, sequence_));
+}
+
+TEST_F(NonMutatingTest, ContainsSubrangeWithPredicate) {
+  EXPECT_TRUE(absl::c_contains_subrange(sequence_, vector_, Equals));
+  EXPECT_TRUE(absl::c_contains_subrange(vector_, sequence_, Equals));
 }
 
 TEST_F(NonMutatingTest, SearchN) { absl::c_search_n(sequence_, 3, 1); }

@@ -211,6 +211,16 @@ container_algorithm_internal::ContainerIter<C> c_find(C& c, T&& value) {
                    std::forward<T>(value));
 }
 
+// c_contains()
+//
+// Container-based version of the <algorithm> `std::ranges::contains()` C++23
+// function to search a container for a value.
+template <typename Sequence, typename T>
+bool c_contains(const Sequence& sequence, T&& value) {
+  return absl::c_find(sequence, std::forward<T>(value)) !=
+         container_algorithm_internal::c_end(sequence);
+}
+
 // c_find_if()
 //
 // Container-based version of the <algorithm> `std::find_if()` function to find
@@ -425,6 +435,26 @@ container_algorithm_internal::ContainerIter<Sequence1> c_search(
                      container_algorithm_internal::c_begin(subsequence),
                      container_algorithm_internal::c_end(subsequence),
                      std::forward<BinaryPredicate>(pred));
+}
+
+// c_contains_subrange()
+//
+// Container-based version of the <algorithm> `std::ranges::contains_subrange()`
+// C++23 function to search a container for a subsequence.
+template <typename Sequence1, typename Sequence2>
+bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence) {
+  return absl::c_search(sequence, subsequence) !=
+         container_algorithm_internal::c_end(sequence);
+}
+
+// Overload of c_contains_subrange() for using a predicate evaluation other than
+// `==` as the function's test condition.
+template <typename Sequence1, typename Sequence2, typename BinaryPredicate>
+bool c_contains_subrange(Sequence1& sequence, Sequence2& subsequence,
+                         BinaryPredicate&& pred) {
+  return absl::c_search(sequence, subsequence,
+                        std::forward<BinaryPredicate>(pred)) !=
+         container_algorithm_internal::c_end(sequence);
 }
 
 // c_search_n()
