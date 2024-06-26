@@ -35,7 +35,11 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 namespace {
+#if defined(__powerpc64__)
+constexpr size_t kPageSize = 1 << 16;
+#else
 constexpr size_t kPageSize = 1 << 12;
+#endif
 alignas(kPageSize) static char poison_page[kPageSize];
 }  // namespace
 
