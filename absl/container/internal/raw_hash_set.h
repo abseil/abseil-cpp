@@ -1860,8 +1860,8 @@ inline void* SlotAddress(void* slot_array, size_t slot, size_t slot_size) {
 }
 
 // Iterates over all full slots and calls `cb(const ctrl_t*, SlotType*)`.
-// If kAllowRemoveReentrance is false, no erasure from this table allowed during
-// Callback call. This mode is slightly faster.
+// No insertion to the table allowed during Callback call.
+// Erasure is allowed only for the element passed to the callback.
 template <class SlotType, class Callback>
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
     const CommonFields& c, SlotType* slot, Callback cb) {
@@ -1890,16 +1890,22 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
     return;
   }
   size_t remaining = c.size();
+  ABSL_ATTRIBUTE_UNUSED const size_t original_size_for_assert = remaining;
   while (remaining != 0) {
     for (uint32_t i : GroupFullEmptyOrDeleted(ctrl).MaskFull()) {
+      assert(IsFull(ctrl[i]) && "hash table was modified unexpectedly");
       cb(ctrl + i, slot + i);
       --remaining;
     }
     ctrl += Group::kWidth;
     slot += Group::kWidth;
     assert((remaining == 0 || *(ctrl - 1) != ctrl_t::kSentinel) &&
-            "element was erased from hash table unexpectedly");
+           "hash table was modified unexpectedly");
   }
+  // NOTE: erasure of the current element is allowed in callback for
+  // absl::erase_if specialization. So we use `>=`.
+  assert(original_size_for_assert >= c.size() &&
+         "hash table was modified unexpectedly");
 }
 
 template <typename CharAlloc>
@@ -4049,12 +4055,14 @@ struct HashtableFreeFunctionsAccess {
     if (c->is_soo()) {
       auto it = c->soo_iterator();
       if (!pred(*it)) {
+        assert(c->size() == 1 && "hash table was modified unexpectedly");
         return 0;
       }
       c->destroy(it.slot());
       c->common().set_empty_soo();
       return 1;
     }
+    ABSL_ATTRIBUTE_UNUSED const size_t original_size_for_assert = c->size();
     size_t num_deleted = 0;
     IterateOverFullSlots(
         c->common(), c->slot_array(), [&](const ctrl_t* ctrl, auto* slot) {
@@ -4065,6 +4073,10 @@ struct HashtableFreeFunctionsAccess {
             ++num_deleted;
           }
         });
+    // NOTE: IterateOverFullSlots allow removal of the current element, so we
+    // verify the size additionally here.
+    assert(original_size_for_assert - num_deleted == c->size() &&
+           "hash table was modified unexpectedly");
     return num_deleted;
   }
 
