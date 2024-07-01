@@ -195,6 +195,9 @@
 // ABSL_ATTRIBUTE_NORETURN
 //
 // Tells the compiler that a given function never returns.
+//
+// Deprecated: Prefer the `[[noreturn]]` attribute standardized by C++11 over
+// this macro.
 #if ABSL_HAVE_ATTRIBUTE(noreturn) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_NORETURN __attribute__((noreturn))
 #elif defined(_MSC_VER)
