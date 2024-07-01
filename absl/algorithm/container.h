@@ -52,6 +52,7 @@
 #include <vector>
 
 #include "absl/algorithm/algorithm.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/meta/type_traits.h"
@@ -93,17 +94,17 @@ using ContainerPointerType =
 //   using std::end;
 //   std::foo(begin(c), end(c));
 // becomes
-//   std::foo(container_algorithm_internal::begin(c),
-//            container_algorithm_internal::end(c));
+//   std::foo(container_algorithm_internal::c_begin(c),
+//            container_algorithm_internal::c_end(c));
 // These are meant for internal use only.
 
 template <typename C>
-ContainerIter<C> c_begin(C& c) {
+ABSL_CONSTEXPR_SINCE_CXX17 ContainerIter<C> c_begin(C& c) {
   return begin(c);
 }
 
 template <typename C>
-ContainerIter<C> c_end(C& c) {
+ABSL_CONSTEXPR_SINCE_CXX17 ContainerIter<C> c_end(C& c) {
   return end(c);
 }
 
@@ -146,8 +147,9 @@ bool c_linear_search(const C& c, EqualityComparable&& value) {
 // Container-based version of the <iterator> `std::distance()` function to
 // return the number of elements within a container.
 template <typename C>
-container_algorithm_internal::ContainerDifferenceType<const C> c_distance(
-    const C& c) {
+ABSL_CONSTEXPR_SINCE_CXX17
+    container_algorithm_internal::ContainerDifferenceType<const C>
+    c_distance(const C& c) {
   return std::distance(container_algorithm_internal::c_begin(c),
                        container_algorithm_internal::c_end(c));
 }

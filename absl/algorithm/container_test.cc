@@ -15,6 +15,7 @@
 #include "absl/algorithm/container.h"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -31,6 +32,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
 #include "absl/types/span.h"
@@ -1159,5 +1161,14 @@ TEST(MutatingTest, PermutationOperations) {
   absl::c_prev_permutation(permuted);
   EXPECT_EQ(initial, permuted);
 }
+
+#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
+    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+TEST(ConstexprTest, Distance) {
+  // Works at compile time with constexpr containers.
+  static_assert(absl::c_distance(std::array<int, 3>()) == 3);
+}
+#endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
+        //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 
 }  // namespace
