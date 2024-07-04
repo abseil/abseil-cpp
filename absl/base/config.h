@@ -941,25 +941,25 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_CONSTANT_EVALUATED 1
 #endif
 
-// ABSL_CONSTEXPR_SINCE_CXXYY is used to conditionally define constexpr for
-// different C++ versions.
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201402L
-#define ABSL_CONSTEXPR_SINCE_CXX14 constexpr
-#else
-#define ABSL_CONSTEXPR_SINCE_CXX14
-#endif
+// ABSL_INTERNAL_CONSTEXPR_SINCE_CXXYY is used to conditionally define constexpr
+// for different C++ versions.
+//
+// These macros are an implementation detail and will be unconditionally removed
+// once the minimum supported C++ version catches up to a given version.
+//
+// For this reason, this symbol is considered INTERNAL and code outside of
+// Abseil must not use it.
 #if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_CONSTEXPR_SINCE_CXX17 constexpr
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 constexpr
 #else
-#define ABSL_CONSTEXPR_SINCE_CXX17
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 #endif
 #if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-#define ABSL_CONSTEXPR_SINCE_CXX20 constexpr
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 constexpr
 #else
-#define ABSL_CONSTEXPR_SINCE_CXX20
+#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 #endif
 
 // ABSL_INTERNAL_EMSCRIPTEN_VERSION combines Emscripten's three version macros

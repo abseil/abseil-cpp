@@ -1168,6 +1168,42 @@ TEST(ConstexprTest, Distance) {
   // Works at compile time with constexpr containers.
   static_assert(absl::c_distance(std::array<int, 3>()) == 3);
 }
+
+TEST(ConstexprTest, MinElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray) == 1);
+}
+
+TEST(ConstexprTest, MinElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_min_element(kArray, std::greater<int>()) == 3);
+}
+
+TEST(ConstexprTest, MaxElement) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray) == 3);
+}
+
+TEST(ConstexprTest, MaxElementWithPredicate) {
+  constexpr std::array<int, 3> kArray = {1, 2, 3};
+  static_assert(*absl::c_max_element(kArray, std::greater<int>()) == 1);
+}
+
+TEST(ConstexprTest, MinMaxElement) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair = absl::c_minmax_element(kArray);
+  static_assert(*kMinMaxPair.first == 1);
+  static_assert(*kMinMaxPair.second == 3);
+}
+
+TEST(ConstexprTest, MinMaxElementWithPredicate) {
+  static constexpr std::array<int, 3> kArray = {1, 2, 3};
+  constexpr auto kMinMaxPair =
+      absl::c_minmax_element(kArray, std::greater<int>());
+  static_assert(*kMinMaxPair.first == 3);
+  static_assert(*kMinMaxPair.second == 1);
+}
+
 #endif  // defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&
         //  ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 
