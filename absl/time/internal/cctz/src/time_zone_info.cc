@@ -556,7 +556,7 @@ std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
   const auto prefixes = name_absolute ? kEmptyPrefix : kTzdataPrefixes;
 
   // Fuchsia builds place zoneinfo files at "<prefix><format><name>".
-  for (const std::string prefix : prefixes) {
+  for (const std::string& prefix : prefixes) {
     std::string path = prefix;
     if (!prefix.empty()) path += "zoneinfo/tzif2/";  // format
     path.append(name, pos, std::string::npos);
