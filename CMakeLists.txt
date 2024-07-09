@@ -15,43 +15,8 @@
 #
 
 # https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md
-# As of 2022-09-06, CMake 3.10 is the minimum supported version.
-cmake_minimum_required(VERSION 3.10)
-
-# Compiler id for Apple Clang is now AppleClang.
-if (POLICY CMP0025)
-  cmake_policy(SET CMP0025 NEW)
-endif (POLICY CMP0025)
-
-# if command can use IN_LIST
-if (POLICY CMP0057)
-  cmake_policy(SET CMP0057 NEW)
-endif (POLICY CMP0057)
-
-# Project version variables are the empty string if version is unspecified
-if (POLICY CMP0048)
-  cmake_policy(SET CMP0048 NEW)
-endif (POLICY CMP0048)
-
-# Honor the GTest_ROOT variable if specified
-if (POLICY CMP0074)
-  cmake_policy(SET CMP0074 NEW)
-endif (POLICY CMP0074)
-
-# option() honor variables
-if (POLICY CMP0077)
-  cmake_policy(SET CMP0077 NEW)
-endif (POLICY CMP0077)
-
-# Allow the user to specify the MSVC runtime
-if (POLICY CMP0091)
-  cmake_policy(SET CMP0091 NEW)
-endif (POLICY CMP0091)
-
-# try_compile() honors the CMAKE_CXX_STANDARD value
-if (POLICY CMP0067)
-  cmake_policy(SET CMP0067 NEW)
-endif (POLICY CMP0067)
+# As of 2024-07-01, CMake 3.16 is the minimum supported version.
+cmake_minimum_required(VERSION 3.16)
 
 # Allow the user to specify the CMAKE_MSVC_DEBUG_INFORMATION_FORMAT
 if (POLICY CMP0141)
