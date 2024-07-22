@@ -49,6 +49,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/thread_identity.h"
   "base/internal/throw_delegate.cc"
   "base/internal/throw_delegate.h"
+  "base/internal/tracing.cc"
+  "base/internal/tracing.h"
   "base/internal/tsan_mutex_interface.h"
   "base/internal/unaligned_access.h"
   "base/internal/unscaledcycleclock.cc"
