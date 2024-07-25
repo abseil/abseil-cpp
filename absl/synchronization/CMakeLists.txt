@@ -113,6 +113,7 @@ absl_cc_library(
     absl::stacktrace
     absl::symbolize
     absl::time
+    absl::tracing_internal
     Threads::Threads
   PUBLIC
 )
@@ -140,6 +141,7 @@ absl_cc_test(
   DEPS
     absl::synchronization
     absl::time
+    absl::tracing_internal
     GTest::gmock_main
 )
 
