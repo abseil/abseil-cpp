@@ -349,8 +349,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER node_hash_set
   // node_hash_set::swap(node_hash_set& other)
   //
   // Exchanges the contents of this `node_hash_set` with those of the `other`
-  // node hash set, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // node hash set.
   //
   // All iterators and references on the `node_hash_set` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.

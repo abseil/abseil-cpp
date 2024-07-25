@@ -426,8 +426,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER flat_hash_map
   // flat_hash_map::swap(flat_hash_map& other)
   //
   // Exchanges the contents of this `flat_hash_map` with those of the `other`
-  // flat hash map, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // flat hash map.
   //
   // All iterators and references on the `flat_hash_map` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.

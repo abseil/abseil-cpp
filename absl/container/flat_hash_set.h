@@ -360,8 +360,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER flat_hash_set
   // flat_hash_set::swap(flat_hash_set& other)
   //
   // Exchanges the contents of this `flat_hash_set` with those of the `other`
-  // flat hash set, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // flat hash set.
   //
   // All iterators and references on the `flat_hash_set` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.

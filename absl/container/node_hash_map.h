@@ -417,8 +417,7 @@ class ABSL_INTERNAL_ATTRIBUTE_OWNER node_hash_map
   // node_hash_map::swap(node_hash_map& other)
   //
   // Exchanges the contents of this `node_hash_map` with those of the `other`
-  // node hash map, avoiding invocation of any move, copy, or swap operations on
-  // individual elements.
+  // node hash map.
   //
   // All iterators and references on the `node_hash_map` remain valid, excepting
   // for the past-the-end iterator, which is invalidated.
