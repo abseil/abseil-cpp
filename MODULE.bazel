@@ -36,7 +36,8 @@ bazel_dep(name = "google_benchmark",
 
 bazel_dep(name = "googletest",
           version = "1.15.0",
-          repo_name = "com_google_googletest")
+          repo_name = "com_google_googletest",
+          dev_dependency = True)
 
 bazel_dep(name = "platforms",
           version = "0.0.10")
