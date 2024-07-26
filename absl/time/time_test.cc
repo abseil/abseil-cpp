@@ -25,9 +25,9 @@
 
 #include <chrono>  // NOLINT(build/c++11)
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 #include <compare>
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
 #include <cstring>
 #include <ctime>
@@ -213,7 +213,7 @@ TEST(Time, RelationalOperators) {
   static_assert(t1 >= t1, "");
   static_assert(t3 >= t1, "");
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
   static_assert((t1 <=> t1) == std::strong_ordering::equal, "");
   static_assert((t2 <=> t2) == std::strong_ordering::equal, "");
@@ -227,7 +227,7 @@ TEST(Time, RelationalOperators) {
   static_assert((t3 <=> t2) == std::strong_ordering::greater, "");
   static_assert((t3 <=> t1) == std::strong_ordering::greater, "");
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 }
 
 TEST(Time, Infinity) {
@@ -239,14 +239,14 @@ TEST(Time, Infinity) {
   static_assert(ipast < ifuture, "");
   static_assert(ifuture > ipast, "");
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
   static_assert((ifuture <=> ifuture) == std::strong_ordering::equal, "");
   static_assert((ipast <=> ipast) == std::strong_ordering::equal, "");
   static_assert((ipast <=> ifuture) == std::strong_ordering::less, "");
   static_assert((ifuture <=> ipast) == std::strong_ordering::greater, "");
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
   // Arithmetic saturates
   EXPECT_EQ(ifuture, ifuture + absl::Seconds(1));
@@ -263,14 +263,14 @@ TEST(Time, Infinity) {
   static_assert(t < ifuture, "");
   static_assert(t > ipast, "");
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
   static_assert((t <=> ifuture) == std::strong_ordering::less, "");
   static_assert((t <=> ipast) == std::strong_ordering::greater, "");
   static_assert((ipast <=> t) == std::strong_ordering::less, "");
   static_assert((ifuture <=> t) == std::strong_ordering::greater, "");
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
   EXPECT_EQ(ifuture, t + absl::InfiniteDuration());
   EXPECT_EQ(ipast, t - absl::InfiniteDuration());
