@@ -22,7 +22,7 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
 // Well known Abseil object types that have causality.
-enum class ObjectKind { kUnknown, kBlockingCounter };
+enum class ObjectKind { kUnknown, kBlockingCounter, kNotification };
 
 // `TraceWait` and `TraceContinue` record the start and end of a potentially
 // blocking wait operation on `object`. `object` typically represents a higher

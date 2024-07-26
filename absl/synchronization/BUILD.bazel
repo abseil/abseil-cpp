@@ -324,6 +324,9 @@ cc_test(
     tags = ["no_test_lexan"],
     deps = [
         ":synchronization",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:tracing_internal",
         "//absl/time",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",

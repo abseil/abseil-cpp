@@ -112,6 +112,7 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::stacktrace
     absl::symbolize
+    absl::tracing_internal
     absl::time
     absl::tracing_internal
     Threads::Threads
@@ -217,8 +218,12 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::base
+    absl::config
+    absl::core_headers
     absl::synchronization
     absl::time
+    absl::tracing_internal
     GTest::gmock_main
 )
 
