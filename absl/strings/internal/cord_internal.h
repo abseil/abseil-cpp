@@ -717,7 +717,6 @@ class InlineData {
     // Break compiler optimization for cases when value is allocated on the
     // stack. Compiler assumes that the the variable is fully accessible
     // regardless of our poisoning.
-    // False report: https://github.com/llvm/llvm-project/issues/100639
     // Missing report: https://github.com/llvm/llvm-project/issues/100640
     const Rep* self() const {
       const Rep* volatile ptr = this;
