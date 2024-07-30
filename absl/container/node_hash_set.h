@@ -466,6 +466,21 @@ typename node_hash_set<T, H, E, A>::size_type erase_if(
   return container_internal::EraseIf(pred, &c);
 }
 
+// swap(node_hash_set<>, node_hash_set<>)
+//
+// Swaps the contents of two `node_hash_set` containers.
+//
+// NOTE: we need to define this function template in order for
+// `flat_hash_set::swap` to be called instead of `std::swap`. Even though we
+// have `swap(raw_hash_set&, raw_hash_set&)` defined, that function requires a
+// derived-to-base conversion, whereas `std::swap` is a function template so
+// `std::swap` will be preferred by compiler.
+template <typename T, typename H, typename E, typename A>
+void swap(node_hash_set<T, H, E, A>& x,
+          node_hash_set<T, H, E, A>& y) noexcept(noexcept(x.swap(y))) {
+  return x.swap(y);
+}
+
 namespace container_internal {
 
 // c_for_each_fast(node_hash_set<>, Function)
