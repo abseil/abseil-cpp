@@ -195,7 +195,7 @@ function(absl_cc_library)
         # specified platform. Filter both of them out before the successor
         # reaches the "^-m" filter.
         set(skip_next_cflag ON)
-      elseif(${cflag} MATCHES "^(-Wno|/wd)")
+      elseif(${cflag} MATCHES "^(-Wno-|/wd)")
         # These flags are needed to suppress warnings that might fire in our headers.
         set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
       elseif(${cflag} MATCHES "^(-W|/w[1234eo])")
