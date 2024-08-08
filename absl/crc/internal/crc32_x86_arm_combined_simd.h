@@ -25,16 +25,14 @@
 // We define a translation layer for both x86 and ARM for the ease of use and
 // most performance gains.
 
-// This implementation requires 64-bit CRC instructions (part of SSE 4.2) and
-// PCLMULQDQ instructions. 32-bit builds with SSE 4.2 do exist, so the
-// __x86_64__ condition is necessary.
-#if defined(__x86_64__) && defined(__SSE4_2__) && defined(__PCLMUL__)
+// This implementation requires CRC instructions (part of SSE 4.2) and
+// PCLMULQDQ instructions.
+#if defined(__SSE4_2__) && defined(__PCLMUL__)
 
 #include <x86intrin.h>
 #define ABSL_CRC_INTERNAL_HAVE_X86_SIMD
 
-#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__) && \
-    defined(_M_AMD64)
+#elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__)
 
 // MSVC AVX (/arch:AVX) implies SSE 4.2 and PCLMULQDQ.
 #include <intrin.h>
@@ -143,7 +141,13 @@ inline uint32_t CRC32_u32(uint32_t crc, uint32_t v) {
 }
 
 inline uint32_t CRC32_u64(uint32_t crc, uint64_t v) {
+#if defined(__x86_64__) || defined(_M_X64)
   return static_cast<uint32_t>(_mm_crc32_u64(crc, v));
+#else
+  uint32_t v_lo = static_cast<uint32_t>(v);
+  uint32_t v_hi = static_cast<uint32_t>(v >> 32);
+  return _mm_crc32_u32(_mm_crc32_u32(crc, v_lo), v_hi);
+#endif
 }
 
 inline V128 V128_Load(const V128* src) { return _mm_load_si128(src); }
@@ -188,10 +192,24 @@ inline int V128_Extract32(const V128 l) {
 
 template <int imm>
 inline uint64_t V128_Extract64(const V128 l) {
+#if defined(__x86_64__) || defined(_M_X64)
   return static_cast<uint64_t>(_mm_extract_epi64(l, imm));
+#else
+  uint32_t r_lo = static_cast<uint32_t>(_mm_extract_epi32(l, imm * 2 + 0));
+  uint32_t r_hi = static_cast<uint32_t>(_mm_extract_epi32(l, imm * 2 + 1));
+  return (static_cast<uint64_t>(r_hi) << 32) | r_lo;
+#endif
 }
 
-inline int64_t V128_Low64(const V128 l) { return _mm_cvtsi128_si64(l); }
+inline int64_t V128_Low64(const V128 l) {
+#if defined(__x86_64__) || defined(_M_X64)
+  return _mm_cvtsi128_si64(l);
+#else
+  uint32_t r_lo = static_cast<uint32_t>(_mm_extract_epi32(l, 0));
+  uint32_t r_hi = static_cast<uint32_t>(_mm_extract_epi32(l, 1));
+  return static_cast<int64_t>((static_cast<uint64_t>(r_hi) << 32) | r_lo);
+#endif
+}
 
 inline V128 V128_Add64(const V128 l, const V128 r) {
   return _mm_add_epi64(l, r);
