@@ -14,6 +14,15 @@
 # limitations under the License.
 #
 
+string(SUBSTRING ${CMAKE_SYSTEM} 0 3 system_os)
+if(system_os STREQUAL "AIX")
+  set(BTREE_TEST "-Wl,-bkeepfile:CMakeFiles/absl_btree_test.dir/btree_test.cc.o")
+  set(FIXED_ARRAY_TEST "-Wl,-bkeepfile:CMakeFiles/absl_fixed_array_test.dir/fixed_array_test.cc.o")
+  set(FIXED_ARRAY_EXCEPTION_TEST "-Wl,-bkeepfile:CMakeFiles/absl_fixed_array_exception_safety_test.dir/fixed_array_exception_safety_test.cc.o")
+  set(INLINED_VECTOR_TEST "-Wl,-bkeepfile:CMakeFiles/absl_inlined_vector_test.dir/inlined_vector_test.cc.o")
+  set(INLINED_VECTOR_EXCEPTION_TEST "-Wl,-bkeepfile:CMakeFiles/absl_inlined_vector_exception_safety_test.dir/inlined_vector_exception_safety_test.cc.o")
+endif()
+
 absl_cc_library(
   NAME
     btree
@@ -71,6 +80,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
+    ${BTREE_TEST}
   DEPS
     absl::algorithm_container
     absl::btree
@@ -143,6 +153,8 @@ absl_cc_test(
     "fixed_array_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${FIXED_ARRAY_TEST}
   DEPS
     absl::fixed_array
     absl::config
@@ -160,6 +172,8 @@ absl_cc_test(
     "fixed_array_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${FIXED_ARRAY_EXCEPTION_TEST}
   DEPS
     absl::fixed_array
     absl::config
@@ -224,6 +238,8 @@ absl_cc_test(
     "inlined_vector_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${INLINED_VECTOR_TEST}
   DEPS
     absl::check
     absl::config
@@ -245,6 +261,8 @@ absl_cc_test(
     "inlined_vector_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${INLINED_VECTOR_EXCEPTION_TEST}
   DEPS
     absl::inlined_vector
     absl::config

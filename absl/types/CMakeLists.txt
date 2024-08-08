@@ -13,6 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+string(SUBSTRING ${CMAKE_SYSTEM} 0 3 system_os)
+if(system_os STREQUAL "AIX")
+  set(ANY_TEST "-Wl,-bkeepfile:CMakeFiles/absl_any_test.dir/any_test.cc.o")
+  set(ANY_TEST_NOEXCEPTION "-Wl,-bkeepfile:CMakeFiles/absl_any_test_noexceptions.dir/any_test.cc.o")
+  set(ANY_EXCEPTION_SAFETY_TEST "-Wl,-bkeepfile:CMakeFiles/absl_any_exception_safety_test.dir/any_exception_safety_test.cc.o")
+  set(SPAN_TEST "-Wl,-bkeepfile:CMakeFiles/absl_span_test.dir/span_test.cc.o")
+  set(SPAN_TEST_NOEXCEPTION "-Wl,-bkeepfile:CMakeFiles/absl_span_test_noexceptions.dir/span_test.cc.o")
+  set(OPTIONAL_TEST "-Wl,-bkeepfile:CMakeFiles/absl_optional_test.dir/optional_test.cc.o")
+  set(OPTIONAL_SAFETY_TEST "-Wl,-bkeepfile:CMakeFiles/absl_optional_exception_safety_test.dir/optional_exception_safety_test.cc.o")
+  set(VARIANT_TEST "-Wl,-bkeepfile:CMakeFiles/absl_variant_test.dir/variant_test.cc.o")
+  set(VARIANT_SAFETY_TEST "-Wl,-bkeepfile:CMakeFiles/absl_variant_exception_safety_test.dir/variant_exception_safety_test.cc.o")
+endif()
+
 absl_cc_library(
   NAME
     any
@@ -64,6 +78,8 @@ absl_cc_test(
     "any_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ANY_TEST}
   DEPS
     absl::any
     absl::config
@@ -80,6 +96,8 @@ absl_cc_test(
     "any_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ANY_TEST_NOEXCEPTION}
   DEPS
     absl::any
     absl::config
@@ -96,6 +114,8 @@ absl_cc_test(
     "any_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ANY_EXCEPTION_SAFETY_TEST}
   DEPS
     absl::any
     absl::config
@@ -128,6 +148,8 @@ absl_cc_test(
     "span_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${SPAN_TEST}
   DEPS
     absl::span
     absl::base
@@ -149,6 +171,8 @@ absl_cc_test(
     "span_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${SPAN_TEST_NOEXCEPTION}
   DEPS
     absl::span
     absl::base
@@ -220,6 +244,8 @@ absl_cc_test(
     "optional_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${OPTIONAL_TEST}
   DEPS
     absl::optional
     absl::config
@@ -236,6 +262,8 @@ absl_cc_test(
     "optional_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${OPTIONAL_SAFETY_TEST}
   DEPS
     absl::optional
     absl::config
@@ -269,6 +297,8 @@ absl_cc_test(
     "variant_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${VARIANT_TEST}
   DEPS
     absl::variant
     absl::config
@@ -313,6 +343,8 @@ absl_cc_test(
     "variant_exception_safety_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${VARIANT_SAFETY_TEST}
   DEPS
     absl::variant
     absl::config
