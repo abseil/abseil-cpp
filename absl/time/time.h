@@ -76,9 +76,9 @@ struct timeval;
 #endif
 #include <chrono>  // NOLINT(build/c++11)
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 #include <compare>
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
 #include <cmath>
 #include <cstdint>
@@ -89,6 +89,7 @@ struct timeval;
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <version>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -313,12 +314,12 @@ class Duration {
 
 // Relational Operators
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Duration lhs, Duration rhs);
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Duration lhs,
                                                        Duration rhs);
@@ -853,9 +854,9 @@ class Time {
   friend constexpr Time time_internal::FromUnixDuration(Duration d);
   friend constexpr Duration time_internal::ToUnixDuration(Time t);
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
   friend constexpr std::strong_ordering operator<=>(Time lhs, Time rhs);
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
   friend constexpr bool operator<(Time lhs, Time rhs);
   friend constexpr bool operator==(Time lhs, Time rhs);
@@ -868,14 +869,14 @@ class Time {
 };
 
 // Relational Operators
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Time lhs, Time rhs) {
   return lhs.rep_ <=> rhs.rep_;
 }
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Time lhs, Time rhs) {
   return lhs.rep_ < rhs.rep_;
@@ -1753,7 +1754,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator<(Duration lhs,
 }
 
 
-#ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
     Duration lhs, Duration rhs) {
@@ -1769,7 +1770,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr std::strong_ordering operator<=>(
              : lhs_lo <=> rhs_lo;
 }
 
-#endif  // __cpp_impl_three_way_comparison
+#endif  // __cpp_lib_three_way_comparison
 
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr bool operator==(Duration lhs,
                                                         Duration rhs) {
