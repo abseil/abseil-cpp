@@ -540,8 +540,8 @@ ABSL_DLL extern const ctrl_t kEmptyGroup[32];
 // classes of bugs.
 enum InvalidCapacity : size_t {
   kAboveMaxValidCapacity = ~size_t{} - 100,
-  // Used for reentrancy assertions.
-  kInvalidReentrance,
+  kReentrance,
+  kDestroyed,
 };
 
 // Returns a pointer to a control byte group that can be used by empty tables.
@@ -1462,7 +1462,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return;
 #endif
     const size_t cap = capacity();
-    set_capacity(kInvalidReentrance);
+    set_capacity(InvalidCapacity::kReentrance);
     f();
     set_capacity(cap);
   }
@@ -2858,7 +2858,12 @@ class raw_hash_set {
         typename AllocTraits::propagate_on_container_move_assignment());
   }
 
-  ~raw_hash_set() { destructor_impl(); }
+  ~raw_hash_set() {
+    destructor_impl();
+#ifndef NDEBUG
+    common().set_capacity(InvalidCapacity::kDestroyed);
+#endif
+  }
 
   iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(empty())) return end();
@@ -3875,11 +3880,13 @@ class raw_hash_set {
   }
 
   // Asserts that the capacity is not a sentinel invalid value.
-  // TODO(b/296061262): also add asserts for moved-from and destroyed states.
+  // TODO(b/296061262): also add asserts for moved-from state.
   void AssertNotDebugCapacity() const {
-    assert(capacity() != kInvalidReentrance &&
+    assert(capacity() != InvalidCapacity::kReentrance &&
            "reentrant container access during element construction/destruction "
            "is not allowed.");
+    assert(capacity() != InvalidCapacity::kDestroyed &&
+           "use of destroyed hash table.");
   }
 
   // Asserts that hash and equal functors provided by the user are consistent,
