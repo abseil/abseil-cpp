@@ -844,10 +844,16 @@
 //     return s;  // warning: address of stack memory returned
 //   }
 //
+// We disable this on Clang versions < 13 because of the following
+// false-positive:
+//
+//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//
 // See the following links for details:
 // https://reviews.llvm.org/D64448
 // https://lists.llvm.org/pipermail/cfe-dev/2018-November/060355.html
-#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Pointer)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Pointer) && \
+    (!defined(__clang_major__) || __clang_major__ >= 13)
 #define ABSL_ATTRIBUTE_VIEW [[gsl::Pointer]]
 #else
 #define ABSL_ATTRIBUTE_VIEW
@@ -870,10 +876,16 @@
 //     return s;  // warning: address of stack memory returned
 //   }
 //
+// We disable this on Clang versions < 13 because of the following
+// false-positive:
+//
+//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//
 // See the following links for details:
 // https://reviews.llvm.org/D64448
 // https://lists.llvm.org/pipermail/cfe-dev/2018-November/060355.html
-#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Owner)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Owner) && \
+    (!defined(__clang_major__) || __clang_major__ >= 13)
 #define ABSL_ATTRIBUTE_OWNER [[gsl::Owner]]
 #else
 #define ABSL_ATTRIBUTE_OWNER
