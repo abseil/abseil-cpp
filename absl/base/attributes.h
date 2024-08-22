@@ -858,7 +858,6 @@
 #else
 #define ABSL_ATTRIBUTE_VIEW
 #endif
-#define ABSL_INTERNAL_ATTRIBUTE_VIEW ABSL_ATTRIBUTE_VIEW  // Deprecated
 
 // ABSL_ATTRIBUTE_OWNER indicates that a type is a container, smart pointer, or
 // similar class that owns all the data that it points to.
@@ -890,7 +889,6 @@
 #else
 #define ABSL_ATTRIBUTE_OWNER
 #endif
-#define ABSL_INTERNAL_ATTRIBUTE_OWNER ABSL_ATTRIBUTE_OWNER  // Deprecated
 
 // ABSL_ATTRIBUTE_TRIVIAL_ABI
 // Indicates that a type is "trivially relocatable" -- meaning it can be
