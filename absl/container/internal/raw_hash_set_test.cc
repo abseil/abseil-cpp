@@ -3674,6 +3674,29 @@ TEST(Table, DestroyedCallsFail) {
 #endif
 }
 
+TEST(Table, MovedFromCallsFail) {
+  if (!SwisstableGenerationsEnabled()) {
+    GTEST_SKIP() << "Moved-from checks only enabled in sanitizer mode.";
+    return;
+  }
+
+  {
+    ABSL_ATTRIBUTE_UNUSED IntTable t1, t2;
+    t1.insert(1);
+    t2 = std::move(t1);
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_DEATH_IF_SUPPORTED(t1.contains(1), "");
+  }
+  {
+    ABSL_ATTRIBUTE_UNUSED IntTable t1;
+    t1.insert(1);
+    ABSL_ATTRIBUTE_UNUSED IntTable t2(std::move(t1));
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_DEATH_IF_SUPPORTED(t1.contains(1), "");
+    t1.clear();  // Clearing a moved-from table is allowed.
+  }
+}
+
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
