@@ -58,13 +58,13 @@ constexpr bool kStackGrowsDown = true;
 // ...). We then self-send this signal, and after the signal handler returns,
 // look at the alternate stack buffer to see what portion has been touched.
 //
-// This trick gives us the the stack footprint of the signal handler.  But the
+// This trick gives us the stack footprint of the signal handler.  But the
 // signal handler, even before the code for it is exercised, consumes some
 // stack already. We however only want the stack usage of the code inside the
 // signal handler. To measure this accurately, we install two signal handlers:
 // one that does nothing and just returns, and the user-provided signal
 // handler. The difference between the stack consumption of these two signals
-// handlers should give us the stack foorprint of interest.
+// handlers should give us the stack footprint of interest.
 
 void EmptySignalHandler(int) {}
 

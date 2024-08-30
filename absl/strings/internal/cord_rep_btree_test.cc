@@ -539,7 +539,7 @@ TEST_P(CordRepBtreeTest, PrependToTreeOneDeep) {
   for (size_t i = max_cap + 1; i < max_cap * max_cap; ++i) {
     // Ref top level tree based on param.
     // Ref leaf node once every 4 iterations which should not have an observable
-    // effect other than than the leaf itself is copied.
+    // effect other than the leaf itself is copied.
     refs.RefIf(shared(), tree);
     refs.RefIf(i % 4 == 0, tree->Edges().back());
 

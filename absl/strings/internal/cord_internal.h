@@ -715,7 +715,7 @@ class InlineData {
 
 #ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
     // Break compiler optimization for cases when value is allocated on the
-    // stack. Compiler assumes that the the variable is fully accessible
+    // stack. Compiler assumes that the variable is fully accessible
     // regardless of our poisoning.
     // Missing report: https://github.com/llvm/llvm-project/issues/100640
     const Rep* self() const {

@@ -84,7 +84,7 @@ HelpMode ParseAbseilFlagsOnlyImpl(
 // if any were present on the command line.
 //
 // All the remaining positional arguments including original program name
-// (argv[0]) are are returned in the `positional_args` output parameter.
+// (argv[0]) are returned in the `positional_args` output parameter.
 //
 // All unrecognized flags that are not otherwise ignored are returned in the
 // `unrecognized_flags` output parameter. Note that the special `undefok`

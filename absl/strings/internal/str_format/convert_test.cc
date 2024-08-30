@@ -237,7 +237,7 @@ NativePrintfTraits VerifyNativeImplementationImpl() {
   // to meet three requirements:
   //
   //   - The threshold for rounding up is 8 (for e.g. MSVC uses 9).
-  //   - If the digits lower than than the 8 are non-zero then we round up.
+  //   - If the digits lower than the 8 are non-zero then we round up.
   //   - If the digits lower than the 8 are all zero then we round toward even.
   //
   // The numbers below represent all the cases covering {below,at,above} the
