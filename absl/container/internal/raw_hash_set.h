@@ -3777,7 +3777,7 @@ class raw_hash_set {
     // We only enable moved-from validation when generations are enabled (rather
     // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
     // translation units but not in others.
-    if (SwisstableGenerationsEnabled() && this != &that) {
+    if (SwisstableGenerationsEnabled()) {
       that.common().set_capacity(InvalidCapacity::kMovedFrom);
     }
     if (!SwisstableGenerationsEnabled() || capacity() == DefaultCapacity() ||

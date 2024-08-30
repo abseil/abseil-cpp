@@ -2091,6 +2091,10 @@ TEST(Table, MoveSelfAssign) {
   t.emplace("a", "b");
   EXPECT_EQ(1, t.size());
   t = std::move(*&t);
+  if (SwisstableGenerationsEnabled()) {
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_DEATH_IF_SUPPORTED(t.contains("a"), "");
+  }
   // As long as we don't crash, it's fine.
 }
 
