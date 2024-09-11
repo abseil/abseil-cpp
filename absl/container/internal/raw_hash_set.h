@@ -3213,6 +3213,8 @@ class raw_hash_set {
   // If the element already exists in `this`, it is left unmodified in `src`.
   template <typename H, typename E>
   void merge(raw_hash_set<Policy, H, E, Alloc>& src) {  // NOLINT
+    AssertNotDebugCapacity();
+    src.AssertNotDebugCapacity();
     assert(this != &src);
     // Returns whether insertion took place.
     const auto insert_slot = [this](slot_type* src_slot) {
@@ -3263,6 +3265,8 @@ class raw_hash_set {
       IsNoThrowSwappable<hasher>() && IsNoThrowSwappable<key_equal>() &&
       IsNoThrowSwappable<allocator_type>(
           typename AllocTraits::propagate_on_container_swap{})) {
+    AssertNotDebugCapacity();
+    that.AssertNotDebugCapacity();
     using std::swap;
     swap_common(that);
     swap(hash_ref(), that.hash_ref());
