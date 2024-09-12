@@ -702,10 +702,8 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of slots that match hash.
   BitMask<uint16_t, kWidth> Match(h2_t hash) const {
     auto match = _mm_set1_epi8(static_cast<char>(hash));
-    BitMask<uint16_t, kWidth> result = BitMask<uint16_t, kWidth>(0);
-    result = BitMask<uint16_t, kWidth>(
+    return BitMask<uint16_t, kWidth>(
         static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
-    return result;
   }
 
   // Returns a bitmask representing the positions of empty slots.
