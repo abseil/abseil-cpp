@@ -2886,6 +2886,7 @@ class raw_hash_set {
     return it;
   }
   iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    AssertNotDebugCapacity();
     return iterator(common().generation_ptr());
   }
 
@@ -2893,7 +2894,7 @@ class raw_hash_set {
     return const_cast<raw_hash_set*>(this)->begin();
   }
   const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return iterator(common().generation_ptr());
+    return const_cast<raw_hash_set*>(this)->end();
   }
   const_iterator cbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return begin();
@@ -2901,7 +2902,10 @@ class raw_hash_set {
   const_iterator cend() const ABSL_ATTRIBUTE_LIFETIME_BOUND { return end(); }
 
   bool empty() const { return !size(); }
-  size_t size() const { return common().size(); }
+  size_t size() const {
+    AssertNotDebugCapacity();
+    return common().size();
+  }
   size_t capacity() const {
     const size_t cap = common().capacity();
     // Compiler complains when using functions in ASSUME so use local variable.
