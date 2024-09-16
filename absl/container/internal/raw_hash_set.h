@@ -2748,6 +2748,7 @@ class raw_hash_set {
   raw_hash_set(const raw_hash_set& that, const allocator_type& a)
       : raw_hash_set(GrowthToLowerboundCapacity(that.size()), that.hash_ref(),
                      that.eq_ref(), a) {
+    that.AssertNotDebugCapacity();
     const size_t size = that.size();
     if (size == 0) {
       return;
@@ -2843,6 +2844,7 @@ class raw_hash_set {
   }
 
   raw_hash_set& operator=(const raw_hash_set& that) {
+    that.AssertNotDebugCapacity();
     if (ABSL_PREDICT_FALSE(this == &that)) return *this;
     constexpr bool propagate_alloc =
         AllocTraits::propagate_on_container_copy_assignment::value;

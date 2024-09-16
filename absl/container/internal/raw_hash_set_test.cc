@@ -3694,6 +3694,8 @@ TEST(Table, MovedFromCallsFail) {
     EXPECT_DEATH_IF_SUPPORTED(t1.swap(t3), "moved-from");
     // NOLINTNEXTLINE(bugprone-use-after-move)
     EXPECT_DEATH_IF_SUPPORTED(t1.merge(t3), "moved-from");
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_DEATH_IF_SUPPORTED(IntTable{t1}, "moved-from");
   }
   {
     ABSL_ATTRIBUTE_UNUSED IntTable t1;
