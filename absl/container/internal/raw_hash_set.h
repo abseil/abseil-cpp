@@ -1245,6 +1245,10 @@ constexpr size_t SooCapacity() { return 1; }
 struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
 struct full_soo_tag_t {};
+// Sentinel value to indicate non-SOO construction for moved-from values.
+struct moved_from_non_soo_tag_t {};
+// Sentinel value to indicate an uninitialized CommonFields for use in swapping.
+struct uninitialized_tag_t {};
 
 // Suppress erroneous uninitialized memory errors on GCC. For example, GCC
 // thinks that the call to slot_array() in find_or_prepare_insert() is reading
@@ -1330,6 +1334,10 @@ class CommonFields : public CommonFieldsGenerationInfo {
   explicit CommonFields(soo_tag_t) : capacity_(SooCapacity()), size_(0) {}
   explicit CommonFields(full_soo_tag_t)
       : capacity_(SooCapacity()), size_(size_t{1} << HasInfozShift()) {}
+  // For non-SOO moved-from values, we only need to initialize capacity_.
+  explicit CommonFields(moved_from_non_soo_tag_t) : capacity_(0) {}
+  // For use in swapping.
+  explicit CommonFields(uninitialized_tag_t) {}
 
   // Not copyable
   CommonFields(const CommonFields&) = delete;
@@ -1342,6 +1350,13 @@ class CommonFields : public CommonFieldsGenerationInfo {
   template <bool kSooEnabled>
   static CommonFields CreateDefault() {
     return kSooEnabled ? CommonFields{soo_tag_t{}} : CommonFields{};
+  }
+  template <bool kSooEnabled>
+  static CommonFields CreateMovedFrom() {
+    // For SOO, we still need to initialize the size to 0 to distinguish between
+    // full/empty SOO cases.
+    return kSooEnabled ? CommonFields{soo_tag_t{}}
+                       : CommonFields{moved_from_non_soo_tag_t{}};
   }
 
   // The inline data for SOO is written on top of control_/slots_.
@@ -1442,6 +1457,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
   size_t alloc_size(size_t slot_size, size_t slot_align) const {
     return RawHashSetLayout(capacity(), slot_align, has_infoz())
         .alloc_size(slot_size);
+  }
+
+  // Initialize fields that are left uninitialized by moved-from constructor.
+  void reinitialize_moved_from_non_soo() {
+    size_ = 0;
+    heap_or_soo_ = HeapOrSoo(EmptyGroup());
   }
 
   // Move fields other than heap_or_soo_.
@@ -2828,7 +2849,7 @@ class raw_hash_set {
     if (!PolicyTraits::transfer_uses_memcpy() && that.is_full_soo()) {
       transfer(soo_slot(), that.soo_slot());
     }
-    that.common() = CommonFields::CreateDefault<SooEnabled()>();
+    that.common() = CommonFields::CreateMovedFrom<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
   }
 
@@ -2931,7 +2952,7 @@ class raw_hash_set {
     // past that we simply deallocate the array.
     const size_t cap = capacity();
     if (cap == 0) {
-      // Already guaranteed to be empty; so nothing to do.
+      common().reinitialize_moved_from_non_soo();
     } else if (is_soo()) {
       if (!empty()) destroy(soo_slot());
       common().set_empty_soo();
@@ -3359,7 +3380,7 @@ class raw_hash_set {
   // specific benchmarks indicating its importance.
   template <class K = key_type>
   void prefetch(const key_arg<K>& key) const {
-    if (SooEnabled() ? is_soo() : capacity() == 0) return;
+    if (capacity() == DefaultCapacity()) return;
     (void)key;
     // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
@@ -3775,7 +3796,7 @@ class raw_hash_set {
       swap(common(), that.common());
       return;
     }
-    CommonFields tmp = CommonFields::CreateDefault<SooEnabled()>();
+    CommonFields tmp = CommonFields(uninitialized_tag_t{});
     const bool that_is_full_soo = that.is_full_soo();
     move_common(that_is_full_soo, that.alloc_ref(), tmp,
                 std::move(that.common()));
@@ -3814,7 +3835,7 @@ class raw_hash_set {
     eq_ref() = that.eq_ref();
     CopyAlloc(alloc_ref(), that.alloc_ref(),
               std::integral_constant<bool, propagate_alloc>());
-    that.common() = CommonFields::CreateDefault<SooEnabled()>();
+    that.common() = CommonFields::CreateMovedFrom<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
   }
@@ -3828,7 +3849,7 @@ class raw_hash_set {
       that.destroy(it.slot());
     }
     if (!that.is_soo()) that.dealloc();
-    that.common() = CommonFields::CreateDefault<SooEnabled()>();
+    that.common() = CommonFields::CreateMovedFrom<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
   }
