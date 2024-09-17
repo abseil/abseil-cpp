@@ -1353,10 +1353,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
   template <bool kSooEnabled>
   static CommonFields CreateMovedFrom() {
-    // For SOO, we still need to initialize the size to 0 to distinguish between
-    // full/empty SOO cases.
-    return kSooEnabled ? CommonFields{soo_tag_t{}}
-                       : CommonFields{moved_from_non_soo_tag_t{}};
+    return CreateDefault<kSooEnabled>();
   }
 
   // The inline data for SOO is written on top of control_/slots_.
