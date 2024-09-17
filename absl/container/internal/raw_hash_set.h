@@ -1245,6 +1245,8 @@ constexpr size_t SooCapacity() { return 1; }
 struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
 struct full_soo_tag_t {};
+// Sentinel type to indicate non-SOO CommonFields construction.
+struct non_soo_tag_t {};
 // Sentinel value to indicate non-SOO construction for moved-from values.
 struct moved_from_non_soo_tag_t {};
 // Sentinel value to indicate an uninitialized CommonFields for use in swapping.
@@ -1330,10 +1332,11 @@ union HeapOrSoo {
 // of this state to helper functions as a single argument.
 class CommonFields : public CommonFieldsGenerationInfo {
  public:
-  CommonFields() : capacity_(0), size_(0), heap_or_soo_(EmptyGroup()) {}
   explicit CommonFields(soo_tag_t) : capacity_(SooCapacity()), size_(0) {}
   explicit CommonFields(full_soo_tag_t)
       : capacity_(SooCapacity()), size_(size_t{1} << HasInfozShift()) {}
+  explicit CommonFields(non_soo_tag_t)
+      : capacity_(0), size_(0), heap_or_soo_(EmptyGroup()) {}
   // For non-SOO moved-from values, we only need to initialize capacity_.
   explicit CommonFields(moved_from_non_soo_tag_t) : capacity_(0) {}
   // For use in swapping.
@@ -1349,7 +1352,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   template <bool kSooEnabled>
   static CommonFields CreateDefault() {
-    return kSooEnabled ? CommonFields{soo_tag_t{}} : CommonFields{};
+    return kSooEnabled ? CommonFields{soo_tag_t{}}
+                       : CommonFields{non_soo_tag_t{}};
   }
   template <bool kSooEnabled>
   static CommonFields CreateMovedFrom() {
@@ -3932,6 +3936,10 @@ class raw_hash_set {
 
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const {
+    if (ABSL_PREDICT_TRUE(capacity() <
+                          InvalidCapacity::kAboveMaxValidCapacity)) {
+      return;
+    }
     assert(capacity() != InvalidCapacity::kReentrance &&
            "Reentrant container access during element construction/destruction "
            "is not allowed.");
