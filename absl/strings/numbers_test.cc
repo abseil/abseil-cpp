@@ -279,6 +279,64 @@ void VerifySimpleAtoiBad(in_val_type in_value) {
 }
 
 TEST(NumbersTest, Atoi) {
+  // SimpleAtoi(absl::string_view, int8_t)
+  VerifySimpleAtoiGood<int8_t, int64_t>(0, 0);
+  VerifySimpleAtoiGood<int8_t, int64_t>(42, 42);
+  VerifySimpleAtoiGood<int8_t, int64_t>(-42, -42);
+
+  VerifySimpleAtoiGood<int8_t, int64_t>(std::numeric_limits<int8_t>::min(),
+                                        std::numeric_limits<int8_t>::min());
+  VerifySimpleAtoiGood<int8_t, int64_t>(std::numeric_limits<int8_t>::max(),
+                                        std::numeric_limits<int8_t>::max());
+
+  VerifySimpleAtoiBad<int8_t, int64_t>(std::numeric_limits<uint8_t>::max());
+  VerifySimpleAtoiBad<int8_t, int64_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiBad<int8_t, int64_t>(std::numeric_limits<int16_t>::max());
+
+
+  // SimpleAtoi(absl::string_view, uint8_t)
+  VerifySimpleAtoiGood<uint8_t, int64_t>(0, 0);
+  VerifySimpleAtoiGood<uint8_t, int64_t>(42, 42);
+  VerifySimpleAtoiBad<uint8_t, int64_t>(-42);
+
+  VerifySimpleAtoiBad<uint8_t, int64_t>(std::numeric_limits<int8_t>::min());
+  VerifySimpleAtoiGood<uint8_t, int64_t>(std::numeric_limits<int8_t>::max(),
+                                         std::numeric_limits<int8_t>::max());
+  VerifySimpleAtoiGood<uint8_t, int64_t>(std::numeric_limits<uint8_t>::max(),
+                                         std::numeric_limits<uint8_t>::max());
+
+  VerifySimpleAtoiBad<uint8_t, int64_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiBad<uint8_t, int64_t>(std::numeric_limits<int16_t>::max());
+  VerifySimpleAtoiBad<uint8_t, int64_t>(std::numeric_limits<uint16_t>::max());
+
+  // SimpleAtoi(absl::string_view, int16_t)
+  VerifySimpleAtoiGood<int16_t>(0, 0);
+  VerifySimpleAtoiGood<int16_t>(42, 42);
+  VerifySimpleAtoiGood<int16_t>(-42, -42);
+
+  VerifySimpleAtoiGood<int16_t>(std::numeric_limits<int16_t>::min(),
+                                std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiGood<int16_t>(std::numeric_limits<int16_t>::max(),
+                                std::numeric_limits<int16_t>::max());
+
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<uint16_t>::max());
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<int32_t>::min());
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<int32_t>::max());
+
+  // SimpleAtoi(absl::string_view, uint16_t)
+  VerifySimpleAtoiGood<uint16_t>(0, 0);
+  VerifySimpleAtoiGood<uint16_t>(42, 42);
+  VerifySimpleAtoiBad<uint16_t>(-42);
+
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiGood<uint16_t>(std::numeric_limits<int16_t>::max(),
+                                 std::numeric_limits<int16_t>::max());
+  VerifySimpleAtoiGood<uint16_t>(std::numeric_limits<uint16_t>::max(),
+                                 std::numeric_limits<uint16_t>::max());
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int32_t>::min());
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int32_t>::max());
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<uint32_t>::max());
+
   // SimpleAtoi(absl::string_view, int32_t)
   VerifySimpleAtoiGood<int32_t>(0, 0);
   VerifySimpleAtoiGood<int32_t>(42, 42);

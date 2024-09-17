@@ -1110,6 +1110,16 @@ ABSL_CONST_INIT ABSL_DLL const char kHexTable[513] =
     "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
     "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
+bool safe_strto8_base(absl::string_view text, absl::Nonnull<int8_t*> value,
+                      int base) {
+  return safe_int_internal<int8_t>(text, value, base);
+}
+
+bool safe_strto16_base(absl::string_view text, absl::Nonnull<int16_t*> value,
+                       int base) {
+  return safe_int_internal<int16_t>(text, value, base);
+}
+
 bool safe_strto32_base(absl::string_view text, absl::Nonnull<int32_t*> value,
                        int base) {
   return safe_int_internal<int32_t>(text, value, base);
@@ -1123,6 +1133,16 @@ bool safe_strto64_base(absl::string_view text, absl::Nonnull<int64_t*> value,
 bool safe_strto128_base(absl::string_view text, absl::Nonnull<int128*> value,
                         int base) {
   return safe_int_internal<absl::int128>(text, value, base);
+}
+
+bool safe_strtou8_base(absl::string_view text, absl::Nonnull<uint8_t*> value,
+                       int base) {
+  return safe_uint_internal<uint8_t>(text, value, base);
+}
+
+bool safe_strtou16_base(absl::string_view text, absl::Nonnull<uint16_t*> value,
+                        int base) {
+  return safe_uint_internal<uint16_t>(text, value, base);
 }
 
 bool safe_strtou32_base(absl::string_view text, absl::Nonnull<uint32_t*> value,
