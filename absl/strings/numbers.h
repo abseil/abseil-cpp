@@ -222,7 +222,7 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s,
   // with enums, and it also serves to check that int_type is not a pointer.
   // If one day something like std::is_signed<enum E> works, switch to it.
   // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
+  constexpr bool kIsSigned = static_cast<int_type>(-1) < 0;
   constexpr bool kUse64Bit = sizeof(*out) == 64 / 8;
   if (kIsSigned) {
     if (kUse64Bit) {
