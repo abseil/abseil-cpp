@@ -373,6 +373,9 @@ class MaskedPointer {
 
   static constexpr int RequiredAlignment() { return 4; }
 
+#ifdef __QNX__
+  constexpr explicit MaskedPointer() : ptr_(nullptr) {}
+#endif
   constexpr explicit MaskedPointer(ptr_t rhs) : ptr_(rhs) {}
   MaskedPointer(ptr_t rhs, bool is_candidate);
 
