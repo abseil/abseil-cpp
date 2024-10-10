@@ -142,12 +142,20 @@ void PutTwoDigits(uint32_t i, absl::Nonnull<char*> buf);
 
 // safe_strto?() functions for implementing SimpleAtoi()
 
+bool safe_strto8_base(absl::string_view text, absl::Nonnull<int8_t*> value,
+                      int base);
+bool safe_strto16_base(absl::string_view text, absl::Nonnull<int16_t*> value,
+                       int base);
 bool safe_strto32_base(absl::string_view text, absl::Nonnull<int32_t*> value,
                        int base);
 bool safe_strto64_base(absl::string_view text, absl::Nonnull<int64_t*> value,
                        int base);
 bool safe_strto128_base(absl::string_view text,
                         absl::Nonnull<absl::int128*> value, int base);
+bool safe_strtou8_base(absl::string_view text, absl::Nonnull<uint8_t*> value,
+                       int base);
+bool safe_strtou16_base(absl::string_view text, absl::Nonnull<uint16_t*> value,
+                        int base);
 bool safe_strtou32_base(absl::string_view text, absl::Nonnull<uint32_t*> value,
                         int base);
 bool safe_strtou64_base(absl::string_view text, absl::Nonnull<uint64_t*> value,
@@ -213,8 +221,9 @@ template <typename int_type>
 ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s,
                                            absl::Nonnull<int_type*> out,
                                            int base) {
-  static_assert(sizeof(*out) == 4 || sizeof(*out) == 8,
-                "SimpleAtoi works only with 32-bit or 64-bit integers.");
+  static_assert(sizeof(*out) == 1 || sizeof(*out) == 2 ||
+                sizeof(*out) == 4 || sizeof(*out) == 8,
+                "SimpleAtoi works only with 8, 16, 32, or 64-bit integers.");
   static_assert(!std::is_floating_point<int_type>::value,
                 "Use SimpleAtof or SimpleAtod instead.");
   bool parsed;
@@ -222,26 +231,42 @@ ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s,
   // with enums, and it also serves to check that int_type is not a pointer.
   // If one day something like std::is_signed<enum E> works, switch to it.
   // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
-  constexpr bool kUse64Bit = sizeof(*out) == 64 / 8;
+  constexpr bool kIsSigned = static_cast<int_type>(-1) < 0;
+  constexpr int kIntTypeSize = sizeof(*out) * 8;
   if (kIsSigned) {
-    if (kUse64Bit) {
+    if (kIntTypeSize == 64) {
       int64_t val;
       parsed = numbers_internal::safe_strto64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else if (kIntTypeSize == 32) {
       int32_t val;
       parsed = numbers_internal::safe_strto32_base(s, &val, base);
       *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 16) {
+      int16_t val;
+      parsed = numbers_internal::safe_strto16_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 8) {
+      int8_t val;
+      parsed = numbers_internal::safe_strto8_base(s, &val, base);
+      *out = static_cast<int_type>(val);
     }
   } else {
-    if (kUse64Bit) {
+    if (kIntTypeSize == 64) {
       uint64_t val;
       parsed = numbers_internal::safe_strtou64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else if (kIntTypeSize == 32) {
       uint32_t val;
       parsed = numbers_internal::safe_strtou32_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 16) {
+      uint16_t val;
+      parsed = numbers_internal::safe_strtou16_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 8) {
+      uint8_t val;
+      parsed = numbers_internal::safe_strtou8_base(s, &val, base);
       *out = static_cast<int_type>(val);
     }
   }
