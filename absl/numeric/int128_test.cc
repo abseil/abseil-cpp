@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/casts.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
@@ -1280,6 +1281,52 @@ TEST(Int128, NumericLimitsTest) {
   EXPECT_EQ(absl::Int128Min(), std::numeric_limits<absl::int128>::min());
   EXPECT_EQ(absl::Int128Min(), std::numeric_limits<absl::int128>::lowest());
   EXPECT_EQ(absl::Int128Max(), std::numeric_limits<absl::int128>::max());
+}
+
+TEST(Int128, BitCastable) {
+  // NOTE: This test is not intended to be an example that demonstrate usages of
+  // `static_cast` and `std::bit_cast`, rather it is here simply to verify
+  // behavior. When deciding whether you should use `static_cast` or
+  // `std::bit_cast` when converting between `absl::int128` and `absl::uint128`,
+  // use your best judgement. As a rule of thumb, use the same cast that you
+  // would use when converting between the signed and unsigned counterparts of a
+  // builtin integral type.
+
+  // Verify bit casting between signed and unsigned works with regards to two's
+  // complement. This verifies we exhibit the same behavior as a theoretical
+  // builtin int128_t and uint128_t in C++20 onwards.
+  EXPECT_EQ(absl::bit_cast<absl::uint128>(absl::int128(-1)),
+            std::numeric_limits<absl::uint128>::max());
+  EXPECT_EQ(
+      absl::bit_cast<absl::int128>(std::numeric_limits<absl::uint128>::max()),
+      absl::int128(-1));
+  EXPECT_EQ(
+      absl::bit_cast<absl::uint128>(std::numeric_limits<absl::int128>::min()),
+      absl::uint128(1) << 127);
+  EXPECT_EQ(absl::bit_cast<absl::int128>(absl::uint128(1) << 127),
+            std::numeric_limits<absl::int128>::min());
+  EXPECT_EQ(
+      absl::bit_cast<absl::uint128>(std::numeric_limits<absl::int128>::max()),
+      (absl::uint128(1) << 127) - 1);
+  EXPECT_EQ(absl::bit_cast<absl::int128>((absl::uint128(1) << 127) - 1),
+            std::numeric_limits<absl::int128>::max());
+
+  // Also verify static casting has the same behavior as bit casting.
+  EXPECT_EQ(static_cast<absl::uint128>(absl::int128(-1)),
+            std::numeric_limits<absl::uint128>::max());
+  EXPECT_EQ(
+      static_cast<absl::int128>(std::numeric_limits<absl::uint128>::max()),
+      absl::int128(-1));
+  EXPECT_EQ(
+      static_cast<absl::uint128>(std::numeric_limits<absl::int128>::min()),
+      absl::uint128(1) << 127);
+  EXPECT_EQ(static_cast<absl::int128>(absl::uint128(1) << 127),
+            std::numeric_limits<absl::int128>::min());
+  EXPECT_EQ(
+      static_cast<absl::uint128>(std::numeric_limits<absl::int128>::max()),
+      (absl::uint128(1) << 127) - 1);
+  EXPECT_EQ(static_cast<absl::int128>((absl::uint128(1) << 127) - 1),
+            std::numeric_limits<absl::int128>::max());
 }
 
 }  // namespace
