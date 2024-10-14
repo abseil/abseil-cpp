@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 #include <random>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -474,29 +475,51 @@ TEST(Uint128, NumericLimitsTest) {
   EXPECT_EQ(absl::Uint128Max(), std::numeric_limits<absl::uint128>::max());
 }
 
+// Some arbitrary constant to test hashing. The first hex digits of pi.
+constexpr absl::uint128 kPi = (absl::uint128(0x3243f6a8885a308d) << 64) |
+                              absl::uint128(0x313198a2e0370734);
+
 TEST(Uint128, Hash) {
-  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+  using Ext128 = unsigned __int128;
+#endif
+  // Make the tuple outside the EXPECT_TRUE because putting the #if inside the
+  // macro argument is not ok.
+  const auto values = std::make_tuple(
       // Some simple values
-      absl::uint128{0},
-      absl::uint128{1},
-      ~absl::uint128{},
+      absl::uint128{0}, absl::uint128{1}, ~absl::uint128{},
       // 64 bit limits
       absl::uint128{std::numeric_limits<int64_t>::max()},
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 0,
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 1,
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 2,
       // Keeping high same
-      absl::uint128{1} << 62,
-      absl::uint128{1} << 63,
+      absl::uint128{1} << 62, absl::uint128{1} << 63,
       // Keeping low same
-      absl::uint128{1} << 64,
-      absl::uint128{1} << 65,
+      absl::uint128{1} << 64, absl::uint128{1} << 65,
       // 128 bit limits
       std::numeric_limits<absl::uint128>::max(),
       std::numeric_limits<absl::uint128>::max() - 1,
       std::numeric_limits<absl::uint128>::min() + 1,
       std::numeric_limits<absl::uint128>::min(),
-  }));
+      // arbitrary constant
+      kPi
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+      // Same but with the intrinsic to verify that they match
+      ,
+      Ext128{0}, Ext128{1}, ~Ext128{},
+      Ext128{std::numeric_limits<int64_t>::max()},
+      Ext128{std::numeric_limits<uint64_t>::max()} + 0,
+      Ext128{std::numeric_limits<uint64_t>::max()} + 1,
+      Ext128{std::numeric_limits<uint64_t>::max()} + 2, Ext128{1} << 62,
+      Ext128{1} << 63, Ext128{1} << 64, Ext128{1} << 65,
+      std::numeric_limits<Ext128>::max(),
+      std::numeric_limits<Ext128>::max() - 1,
+      std::numeric_limits<Ext128>::min() + 1,
+      std::numeric_limits<Ext128>::min(), static_cast<Ext128>(kPi)
+#endif
+  );
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
 }
 
 
