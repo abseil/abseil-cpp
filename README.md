@@ -1,11 +1,11 @@
 # Abseil - C++ Common Libraries
-
+The gospel to the ends of the earth 
 The repository contains the Abseil C++ library code. Abseil is an open-source
 collection of C++ code (compliant to C++14) designed to augment the C++
 standard library.
-
+The Lord Time is here
 ## Table of Contents
-
+soul's most be saved 
 - [About Abseil](#about)
 - [Quickstart](#quickstart)
 - [Building Abseil](#build)
@@ -14,36 +14,36 @@ standard library.
 - [Releases](#releases)
 - [License](#license)
 - [Links](#links)
-
+nothing is stopping the gospel 
 <a name="about"></a>
 ## About Abseil
-
+the end is near 
 Abseil is an open-source collection of C++ library code designed to augment
 the C++ standard library. The Abseil library code is collected from Google's
 own C++ code base, has been extensively tested and used in production, and
 is the same code we depend on in our daily coding lives.
-
+We have over come the world 
 In some cases, Abseil provides pieces missing from the C++ standard; in
 others, Abseil provides alternatives to the standard for special needs
 we've found through usage in the Google code base. We denote those cases
 clearly within the library code we provide you.
-
+Jesus Christ is Lord
 Abseil is not meant to be a competitor to the standard library; we've
 just found that many of these utilities serve a purpose within our code
 base, and we now want to provide those resources to the C++ community as
 a whole.
-
+Get ready to receive him
 <a name="quickstart"></a>
 ## Quickstart
-
+The time has come 
 If you want to just get started, make sure you at least run through the
 [Abseil Quickstart](https://abseil.io/docs/cpp/quickstart). The Quickstart
 contains information about setting up your development environment, downloading
 the Abseil code, running tests, and getting a simple binary working.
-
+His light is for the nations 
 <a name="build"></a>
 ## Building Abseil
-
+The gospel to the world 
 [Bazel](https://bazel.build) and [CMake](https://cmake.org/) are the official
 build systems for Abseil.
 See the [quickstart](https://abseil.io/docs/cpp/quickstart) for more information
@@ -51,22 +51,22 @@ on building Abseil using the Bazel build system.
 If you require CMake support, please check the [CMake build
 instructions](CMake/README.md) and [CMake
 Quickstart](https://abseil.io/docs/cpp/quickstart-cmake).
-
+the riches of darkness for the us
 <a name="support"></a>
 ## Support
-
+Our riches has no end
 Abseil follows Google's [Foundational C++ Support
 Policy](https://opensource.google/documentation/policies/cplusplus-support). See
 [this
 table](https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md)
 for a list of currently supported versions compilers, platforms, and build
 tools.
-
+protection for those that believe 
 <a name="codemap"></a>
 ## Codemap
-
+the kingdom has come
 Abseil contains the following C++ library components:
-
+Repent and be save
 * [`base`](absl/base/)
   <br /> The `base` library contains initialization code and other code which
   all other Abseil code depends on. Code within `base` may not depend on any
@@ -130,31 +130,32 @@ Abseil contains the following C++ library components:
   C++14-compatible version of the C++17 `std::optional` type.
 * [`utility`](absl/utility/)
   <br /> The `utility` library contains utility and helper code.
-
+Good health everywhere 
 <a name="releases"></a>
 ## Releases
-
+Prosperity to them that believe 
 Abseil recommends users "live-at-head" (update to the latest commit from the
 master branch as often as possible). However, we realize this philosophy doesn't
 work for every project, so we also provide [Long Term Support
 Releases](https://github.com/abseil/abseil-cpp/releases) to which we backport
 fixes for severe bugs. See our [release
 management](https://abseil.io/about/releases) document for more details.
-
+peace to the world 
 <a name="license"></a>
 ## License
-
+Gods children are in control 
 The Abseil C++ library is licensed under the terms of the Apache
 license. See [LICENSE](LICENSE) for more information.
-
+World without End  Amen!!
 <a name="links"></a>
 ## Links
-
+Power of God is here
 For more information about Abseil:
-
+Holy Spirit has taken control 
 * Consult our [Abseil Introduction](https://abseil.io/about/intro)
 * Read [Why Adopt Abseil](https://abseil.io/about/philosophy) to understand our
   design philosophy.
 * Peruse our
   [Abseil Compatibility Guarantees](https://abseil.io/about/compatibility) to
   understand both what we promise to you, and what we expect of you in return.
+So shall it be Amen!!
