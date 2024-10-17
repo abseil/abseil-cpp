@@ -31,10 +31,10 @@ http_archive(
 # RE2 (the regular expression library used by GoogleTest)
 http_archive(
     name = "com_googlesource_code_re2",
+    repo_mapping = {"@abseil-cpp": "@com_google_absl"},
     sha256 = "eb2df807c781601c14a260a507a5bb4509be1ee626024cb45acbd57cb9d4032b",
     strip_prefix = "re2-2024-07-02",
     urls = ["https://github.com/google/re2/releases/download/2024-07-02/re2-2024-07-02.tar.gz"],
-    repo_mapping = {"@abseil-cpp": "@com_google_absl"},
 )
 
 # Google benchmark.
@@ -55,9 +55,19 @@ http_archive(
 # Bazel platform rules.
 http_archive(
     name = "platforms",
+    sha256 = "218efe8ee736d26a3572663b374a253c012b716d8af0c07e842e82f238a0a7ee",
     urls = [
         "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.10/platforms-0.0.10.tar.gz",
         "https://github.com/bazelbuild/platforms/releases/download/0.0.10/platforms-0.0.10.tar.gz",
     ],
-    sha256 = "218efe8ee736d26a3572663b374a253c012b716d8af0c07e842e82f238a0a7ee",
+)
+
+http_archive(
+    name = "rules_cc",
+    sha256 = "d9bdd3ec66b6871456ec9c965809f43a0901e692d754885e89293807762d3d80",
+    strip_prefix = "rules_cc-0.0.13",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_cc/releases/download/0.0.13/rules_cc-0.0.13.tar.gz",
+        "https://github.com/bazelbuild/rules_cc/releases/download/0.0.13/rules_cc-0.0.13.tar.gz",
+    ],
 )
