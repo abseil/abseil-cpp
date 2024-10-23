@@ -14,6 +14,12 @@
 # limitations under the License.
 #
 
+string(SUBSTRING ${CMAKE_SYSTEM} 0 3 system_os)
+if(system_os STREQUAL "AIX")
+  set(STRING_VIEW_TEST "-Wl,-bkeepfile:CMakeFiles/absl_string_view_test.dir/string_view_test.cc.o")
+  set(STR_SPLIT_TEST "-Wl,-bkeepfile:CMakeFiles/absl_str_split_test.dir/str_split_test.cc.o")
+endif()
+
 absl_cc_library(
   NAME
     string_view
@@ -268,6 +274,8 @@ absl_cc_test(
     "string_view_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${STRING_VIEW_TEST}
   DEPS
     absl::strings
     absl::config
@@ -309,6 +317,8 @@ absl_cc_test(
     "str_split_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${STR_SPLIT_TEST}
   DEPS
     absl::strings
     absl::core_headers

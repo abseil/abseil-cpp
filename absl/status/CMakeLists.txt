@@ -13,6 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+string(SUBSTRING ${CMAKE_SYSTEM} 0 3 system_os)
+if(system_os STREQUAL "AIX")
+  set(STATUSOR_TEST "-Wl,-bkeepfile:CMakeFiles/absl_statusor_test.dir/statusor_test.cc.o")
+endif()
+
 absl_cc_library(
   NAME
     status
@@ -96,6 +102,8 @@ absl_cc_test(
    "statusor_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${STATUSOR_TEST}
   DEPS
     absl::status
     absl::status_matchers

@@ -16,6 +16,12 @@
 
 find_library(LIBRT rt)
 
+string(SUBSTRING ${CMAKE_SYSTEM} 0 3 system_os)
+if(system_os STREQUAL "AIX")
+  set(SAFETY_TESTING_TEST "-Wl,-bkeepfile:CMakeFiles/absl_absl_exception_safety_testing_test.dir/exception_safety_testing_test.cc.o")
+  set(DELEGATE_TEST "-Wl,-bkeepfile:CMakeFiles/absl_throw_delegate_test.dir/throw_delegate_test.cc.o")
+endif()
+
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
@@ -336,6 +342,8 @@ absl_cc_test(
     "exception_safety_testing_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${SAFETY_TESTING_TEST}
   DEPS
     absl::exception_safety_testing
     absl::memory
@@ -405,6 +413,8 @@ absl_cc_test(
     "throw_delegate_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${DELEGATE_TEST}
   DEPS
     absl::base
     absl::config
