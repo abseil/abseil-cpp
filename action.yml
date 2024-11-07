@@ -1,0 +1,43 @@
+name: abseil-cpp
+description: 'Builds and install abseil-cpp using CMake on the current runner'
+branding:
+  icon: package
+  color: yellow
+
+inputs:
+  cmake-version:
+    description: "version of CMake to use"
+    required: false
+    default: ""
+  cmake-cxx-standard:
+    description: "standard to pass to CMake"
+    required: false
+    default: "14"
+
+runs:
+  using: composite
+  steps:
+    - uses: jwlawson/actions-setup-cmake@802fa1a2c4e212495c05bf94dba2704a92a472be # v2.0.2
+      with:
+        cmake-version: ${{ inputs.cmake-version }}
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        repository: abseil/abseil-cpp
+        path: ./_abseil-cpp/
+    - shell: bash
+      run: mkdir ./_abseil-cpp/build/
+    - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+      with:
+        path: ./_abseil-cpp/build/
+        key: abseil-cpp-${{ runner.os }}-${{ runner.arch }}
+    - shell: bash
+      run: cmake -DCMAKE_CXX_STANDARD=${{ inputs.cmake-cxx-standard }} ..
+      working-directory: ./_abseil-cpp/build/
+    - shell: bash
+      run: cmake --build . --target install
+      working-directory: ./_abseil-cpp/build/
+    - shell: bash
+      run: cmake --install .
+      working-directory: ./_abseil-cpp/build/
+    - shell: bash
+      run: rm -rf ./_abseil-cpp/
