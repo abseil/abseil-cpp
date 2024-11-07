@@ -31,13 +31,10 @@ runs:
         path: ./_abseil-cpp/build/
         key: abseil-cpp-${{ runner.os }}-${{ runner.arch }}
     - shell: bash
-      run: cmake -DCMAKE_CXX_STANDARD=${{ inputs.cmake-cxx-standard }} ..
-      working-directory: ./_abseil-cpp/build/
-    - shell: bash
-      run: cmake --build . --target install
-      working-directory: ./_abseil-cpp/build/
-    - shell: bash
-      run: cmake --install .
+      run: |
+        cmake -DCMAKE_CXX_STANDARD=${{ inputs.cmake-cxx-standard }} ..
+        cmake --build . --target install
+        cmake --install .
       working-directory: ./_abseil-cpp/build/
     - shell: bash
       run: rm -rf ./_abseil-cpp/
