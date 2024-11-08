@@ -187,6 +187,7 @@ cc_library(
     deps = [
         ":log_sink",
         "//absl/base:config",
+        "//absl/base:nullability",
         "//absl/log/internal:log_sink_set",
     ],
 )

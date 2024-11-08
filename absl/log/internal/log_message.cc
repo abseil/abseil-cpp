@@ -418,23 +418,26 @@ LogMessage& LogMessage::operator<<(std::ios_base& (*m)(std::ios_base& os)) {
   data_->manipulated << m;
   return *this;
 }
+// NOLINTBEGIN(runtime/int)
+// NOLINTBEGIN(google-runtime-int)
 template LogMessage& LogMessage::operator<<(const char& v);
 template LogMessage& LogMessage::operator<<(const signed char& v);
 template LogMessage& LogMessage::operator<<(const unsigned char& v);
-template LogMessage& LogMessage::operator<<(const short& v);           // NOLINT
-template LogMessage& LogMessage::operator<<(const unsigned short& v);  // NOLINT
+template LogMessage& LogMessage::operator<<(const short& v);
+template LogMessage& LogMessage::operator<<(const unsigned short& v);
 template LogMessage& LogMessage::operator<<(const int& v);
 template LogMessage& LogMessage::operator<<(const unsigned int& v);
-template LogMessage& LogMessage::operator<<(const long& v);           // NOLINT
-template LogMessage& LogMessage::operator<<(const unsigned long& v);  // NOLINT
-template LogMessage& LogMessage::operator<<(const long long& v);      // NOLINT
-template LogMessage& LogMessage::operator<<(
-    const unsigned long long& v);  // NOLINT
+template LogMessage& LogMessage::operator<<(const long& v);
+template LogMessage& LogMessage::operator<<(const unsigned long& v);
+template LogMessage& LogMessage::operator<<(const long long& v);
+template LogMessage& LogMessage::operator<<(const unsigned long long& v);
 template LogMessage& LogMessage::operator<<(void* const& v);
 template LogMessage& LogMessage::operator<<(const void* const& v);
 template LogMessage& LogMessage::operator<<(const float& v);
 template LogMessage& LogMessage::operator<<(const double& v);
 template LogMessage& LogMessage::operator<<(const bool& v);
+// NOLINTEND(google-runtime-int)
+// NOLINTEND(runtime/int)
 
 void LogMessage::Flush() {
   if (data_->entry.log_severity() < absl::MinLogLevel()) return;
