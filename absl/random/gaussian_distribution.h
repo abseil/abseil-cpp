@@ -57,7 +57,7 @@ class ABSL_DLL gaussian_distribution_base {
                                 bool neg);
 
   // Constants used for the gaussian distribution.
-  static constexpr double kR = 3.442619855899;  // Start of the tail.
+  static constexpr double kR = 3.442619855899;          // Start of the tail.
   static constexpr double kRInv = 0.29047645161474317;  // ~= (1.0 / kR) .
   static constexpr double kV = 9.91256303526217e-3;
   static constexpr uint64_t kMask = 0x07f;

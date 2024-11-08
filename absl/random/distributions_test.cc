@@ -97,17 +97,16 @@ void CheckArgsInferType() {
 
 template <typename A, typename B, typename ExplicitRet>
 auto ExplicitUniformReturnT(int) -> decltype(absl::Uniform<ExplicitRet>(
-                                     std::declval<absl::InsecureBitGen&>(),
-                                     std::declval<A>(), std::declval<B>()));
+    std::declval<absl::InsecureBitGen&>(), std::declval<A>(),
+    std::declval<B>()));
 
 template <typename, typename, typename ExplicitRet>
 Invalid ExplicitUniformReturnT(...);
 
 template <typename TagType, typename A, typename B, typename ExplicitRet>
-auto ExplicitTaggedUniformReturnT(int)
-    -> decltype(absl::Uniform<ExplicitRet>(
-        std::declval<TagType>(), std::declval<absl::InsecureBitGen&>(),
-        std::declval<A>(), std::declval<B>()));
+auto ExplicitTaggedUniformReturnT(int) -> decltype(absl::Uniform<ExplicitRet>(
+    std::declval<TagType>(), std::declval<absl::InsecureBitGen&>(),
+    std::declval<A>(), std::declval<B>()));
 
 template <typename, typename, typename, typename ExplicitRet>
 Invalid ExplicitTaggedUniformReturnT(...);

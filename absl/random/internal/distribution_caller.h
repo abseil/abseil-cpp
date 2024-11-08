@@ -17,8 +17,8 @@
 #ifndef ABSL_RANDOM_INTERNAL_DISTRIBUTION_CALLER_H_
 #define ABSL_RANDOM_INTERNAL_DISTRIBUTION_CALLER_H_
 
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/fast_type_id.h"

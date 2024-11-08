@@ -221,7 +221,7 @@ zipf_distribution<IntType>::operator()(
     const double v = uniform_double(g);
     const double u = p.hxm_ + v * p.hx0_minus_hxm_;
     const double x = p.hinv(u);
-    k = rint(x);              // std::floor(x + 0.5);
+    k = rint(x);                                   // std::floor(x + 0.5);
     if (k > static_cast<double>(p.k())) continue;  // reject k > max_k
     if (k - x <= p.s_) break;
     const double h = p.h(k + 0.5);
