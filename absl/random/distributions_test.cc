@@ -470,6 +470,13 @@ TEST_F(RandomDistributionsTest, Zipf) {
   EXPECT_NEAR(6.5944, moments.mean, 2000) << moments;
 }
 
+TEST_F(RandomDistributionsTest, ZipfWithZeroMax) {
+  absl::InsecureBitGen gen;
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_EQ(0, absl::Zipf(gen, 0));
+  }
+}
+
 TEST_F(RandomDistributionsTest, Gaussian) {
   std::vector<double> values(kSize);
 

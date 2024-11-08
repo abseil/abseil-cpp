@@ -57,7 +57,7 @@ class zipf_distribution {
    public:
     using distribution_type = zipf_distribution;
 
-    // Preconditions: k > 0, v > 0, q > 1
+    // Preconditions: k >= 0, v > 0, q > 1
     // The precondidtions are validated when NDEBUG is not defined via
     // a pair of assert() directives.
     // If NDEBUG is defined and either or both of these parameters take invalid
@@ -152,7 +152,7 @@ zipf_distribution<IntType>::param_type::param_type(
     : k_(k), q_(q), v_(v), one_minus_q_(1 - q) {
   assert(q > 1);
   assert(v > 0);
-  assert(k > 0);
+  assert(k >= 0);
   one_minus_q_inv_ = 1 / one_minus_q_;
 
   // Setup for the ZRI algorithm (pg 17 of the paper).
