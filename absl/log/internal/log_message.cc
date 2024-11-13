@@ -578,16 +578,17 @@ void LogMessage::LogBacktraceIfNeeded() {
 template <LogMessage::StringType str_type>
 void LogMessage::CopyToEncodedBuffer(absl::string_view str) {
   auto encoded_remaining_copy = data_->encoded_remaining();
+  constexpr uint8_t tag_value = str_type == StringType::kLiteral
+                                    ? ValueTag::kStringLiteral
+                                    : ValueTag::kString;
   auto start = EncodeMessageStart(
-      EventTag::kValue, BufferSizeFor(WireType::kLengthDelimited) + str.size(),
+      EventTag::kValue,
+      BufferSizeFor(tag_value, WireType::kLengthDelimited) + str.size(),
       &encoded_remaining_copy);
   // If the `logging.proto.Event.value` field header did not fit,
   // `EncodeMessageStart` will have zeroed `encoded_remaining_copy`'s size and
   // `EncodeStringTruncate` will fail too.
-  if (EncodeStringTruncate(str_type == StringType::kLiteral
-                               ? ValueTag::kStringLiteral
-                               : ValueTag::kString,
-                           str, &encoded_remaining_copy)) {
+  if (EncodeStringTruncate(tag_value, str, &encoded_remaining_copy)) {
     // The string may have been truncated, but the field header fit.
     EncodeMessageLength(start, &encoded_remaining_copy);
     data_->encoded_remaining() = encoded_remaining_copy;
@@ -604,13 +605,14 @@ template void LogMessage::CopyToEncodedBuffer<
 template <LogMessage::StringType str_type>
 void LogMessage::CopyToEncodedBuffer(char ch, size_t num) {
   auto encoded_remaining_copy = data_->encoded_remaining();
+  constexpr uint8_t tag_value = str_type == StringType::kLiteral
+                                    ? ValueTag::kStringLiteral
+                                    : ValueTag::kString;
   auto value_start = EncodeMessageStart(
-      EventTag::kValue, BufferSizeFor(WireType::kLengthDelimited) + num,
+      EventTag::kValue,
+      BufferSizeFor(tag_value, WireType::kLengthDelimited) + num,
       &encoded_remaining_copy);
-  auto str_start = EncodeMessageStart(str_type == StringType::kLiteral
-                                          ? ValueTag::kStringLiteral
-                                          : ValueTag::kString,
-                                      num, &encoded_remaining_copy);
+  auto str_start = EncodeMessageStart(tag_value, num, &encoded_remaining_copy);
   if (str_start.data()) {
     // The field headers fit.
     log_internal::AppendTruncated(ch, num, encoded_remaining_copy);
