@@ -26,7 +26,7 @@
 #endif
 
 #if defined(__Fuchsia__)
-#include <fuchsia/intl/cpp/fidl.h>
+#include <fidl/fuchsia.intl/cpp/fidl.h>
 #include <lib/async-loop/cpp/loop.h>
 #include <lib/fdio/directory.h>
 #include <zircon/types.h>
@@ -219,32 +219,29 @@ time_zone local_time_zone() {
     // Note: We can't use the synchronous FIDL API here because it doesn't
     // allow timeouts; if the FIDL call failed, local_time_zone() would never
     // return.
-
     const zx::duration kTimeout = zx::msec(500);
 
     // Don't attach to the thread because otherwise the thread's dispatcher
     // would be set to null when the loop is destroyed, causing any other FIDL
     // code running on the same thread to crash.
     async::Loop loop(&kAsyncLoopConfigNeverAttachToThread);
-
-    fuchsia::intl::PropertyProviderHandle handle;
+    auto endpoints = fidl::Endpoints<fuchsia_intl::PropertyProvider>::Create();
     zx_status_t status = fdio_service_connect_by_name(
-        fuchsia::intl::PropertyProvider::Name_,
-        handle.NewRequest().TakeChannel().release());
+        fidl::DiscoverableProtocolName<fuchsia_intl::PropertyProvider>,
+        endpoints.server.TakeChannel().release());
     if (status != ZX_OK) {
       return;
     }
+    fidl::Client intl_provider(std::move(endpoints.client), loop.dispatcher());
 
-    fuchsia::intl::PropertyProviderPtr intl_provider;
-    status = intl_provider.Bind(std::move(handle), loop.dispatcher());
-    if (status != ZX_OK) {
-      return;
-    }
-
-    intl_provider->GetProfile(
-        [&loop, &primary_tz](fuchsia::intl::Profile profile) {
-          if (!profile.time_zones().empty()) {
-            primary_tz = profile.time_zones()[0].id;
+    // Attempt to initialize the time zone only once, and fail quietly.
+    // The end result of an error is an empty time zone string.
+    intl_provider->GetProfile().Then(
+        [&loop, &primary_tz](
+            fidl::Result<fuchsia_intl::PropertyProvider::GetProfile>& result) {
+          if (result.is_ok()) {
+            const auto& response = result.value();
+            primary_tz = response.profile().time_zones().value()[0].id();
           }
           loop.Quit();
         });
