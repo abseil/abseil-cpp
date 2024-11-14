@@ -665,6 +665,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::log_internal_message
     absl::strings
 )
@@ -680,6 +681,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::log_internal_structured
     absl::strings
   PUBLIC

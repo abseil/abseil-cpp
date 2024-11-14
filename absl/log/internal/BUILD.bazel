@@ -281,6 +281,7 @@ cc_library(
     deps = [
         ":log_message",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings",
     ],
 )
