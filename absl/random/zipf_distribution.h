@@ -22,6 +22,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "absl/base/config.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
 #include "absl/random/uniform_real_distribution.h"
@@ -58,7 +59,7 @@ class zipf_distribution {
     using distribution_type = zipf_distribution;
 
     // Preconditions: k >= 0, v > 0, q > 1
-    // The precondidtions are validated when NDEBUG is not defined via
+    // The preconditions are validated when NDEBUG is not defined via
     // a pair of assert() directives.
     // If NDEBUG is defined and either or both of these parameters take invalid
     // values, the behavior of the class is undefined.

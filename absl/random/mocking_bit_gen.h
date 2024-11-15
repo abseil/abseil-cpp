@@ -17,12 +17,12 @@
 // -----------------------------------------------------------------------------
 //
 // This file includes an `absl::MockingBitGen` class to use as a mock within the
-// Googletest testing framework. Such a mock is useful to provide deterministic
+// GoogleTest testing framework. Such a mock is useful to provide deterministic
 // values as return values within (otherwise random) Abseil distribution
 // functions. Such determinism within a mock is useful within testing frameworks
 // to test otherwise indeterminate APIs.
 //
-// More information about the Googletest testing framework is available at
+// More information about the GoogleTest testing framework is available at
 // https://github.com/google/googletest
 
 #ifndef ABSL_RANDOM_MOCKING_BIT_GEN_H_
@@ -34,7 +34,6 @@
 #include <utility>
 
 #include "gmock/gmock.h"
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/fast_type_id.h"
 #include "absl/container/flat_hash_map.h"
@@ -58,7 +57,7 @@ class MockHelpers;
 //
 // `absl::MockingBitGen` is a mock Uniform Random Bit Generator (URBG) class
 // which can act in place of an `absl::BitGen` URBG within tests using the
-// Googletest testing framework.
+// GoogleTest testing framework.
 //
 // Usage:
 //
