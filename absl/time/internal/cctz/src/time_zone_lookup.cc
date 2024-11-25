@@ -67,7 +67,7 @@ namespace {
 #if defined(USE_WIN32_LOCAL_TIME_ZONE)
 // Calls the WinRT Calendar.GetTimeZone method to obtain the IANA ID of the
 // local time zone. Returns an empty vector in case of an error.
-std::string win32_local_time_zone(const HMODULE combase) {
+static std::string win32_local_time_zone(const HMODULE combase) {
   std::string result;
   const auto ro_activate_instance =
       reinterpret_cast<decltype(&RoActivateInstance)>(
@@ -137,6 +137,43 @@ std::string win32_local_time_zone(const HMODULE combase) {
   time_zone->Release();
   calendar->Release();
   return result;
+}
+
+static std::string get_once_win32_local_time_zone() {
+  // Use the WinRT Calendar class to get the local time zone. This feature is
+  // available on Windows 10 and later. The library is dynamically linked to
+  // maintain binary compatibility with Windows XP - Windows 7. On Windows 8,
+  // The combase.dll API functions are available but the RoActivateInstance
+  // call will fail for the Calendar class.
+  std::string winrt_tz;
+  const HMODULE combase =
+      LoadLibraryEx(_T("combase.dll"), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if (combase) {
+    const auto ro_initialize = reinterpret_cast<decltype(&::RoInitialize)>(
+        GetProcAddress(combase, "RoInitialize"));
+    const auto ro_uninitialize = reinterpret_cast<decltype(&::RoUninitialize)>(
+        GetProcAddress(combase, "RoUninitialize"));
+    if (ro_initialize && ro_uninitialize) {
+      const HRESULT hr = ro_initialize(RO_INIT_MULTITHREADED);
+      // RPC_E_CHANGED_MODE means that a previous RoInitialize call specified
+      // a different concurrency model. The WinRT runtime is initialized and
+      // should work for our purpose here, but we should *not* call
+      // RoUninitialize because it's a failure.
+      if (SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE) {
+        winrt_tz = win32_local_time_zone(combase);
+        if (SUCCEEDED(hr)) {
+          ro_uninitialize();
+        }
+      }
+    }
+    FreeLibrary(combase);
+  }
+  return winrt_tz;
+}
+
+static std::string& cached_win32_local_time_zone() {
+  static std::string cached_time_zone = get_once_win32_local_time_zone();
+  return cached_time_zone;
 }
 #endif
 }  // namespace
@@ -256,34 +293,7 @@ time_zone local_time_zone() {
   }
 #endif
 #if defined(USE_WIN32_LOCAL_TIME_ZONE)
-  // Use the WinRT Calendar class to get the local time zone. This feature is
-  // available on Windows 10 and later. The library is dynamically linked to
-  // maintain binary compatibility with Windows XP - Windows 7. On Windows 8,
-  // The combase.dll API functions are available but the RoActivateInstance
-  // call will fail for the Calendar class.
-  std::string winrt_tz;
-  const HMODULE combase =
-      LoadLibraryEx(_T("combase.dll"), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-  if (combase) {
-    const auto ro_initialize = reinterpret_cast<decltype(&::RoInitialize)>(
-        GetProcAddress(combase, "RoInitialize"));
-    const auto ro_uninitialize = reinterpret_cast<decltype(&::RoUninitialize)>(
-        GetProcAddress(combase, "RoUninitialize"));
-    if (ro_initialize && ro_uninitialize) {
-      const HRESULT hr = ro_initialize(RO_INIT_MULTITHREADED);
-      // RPC_E_CHANGED_MODE means that a previous RoInitialize call specified
-      // a different concurrency model. The WinRT runtime is initialized and
-      // should work for our purpose here, but we should *not* call
-      // RoUninitialize because it's a failure.
-      if (SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE) {
-        winrt_tz = win32_local_time_zone(combase);
-        if (SUCCEEDED(hr)) {
-          ro_uninitialize();
-        }
-      }
-    }
-    FreeLibrary(combase);
-  }
+  std::string winrt_tz = cached_win32_local_time_zone();
   if (!winrt_tz.empty()) {
     zone = winrt_tz.c_str();
   }
