@@ -2014,14 +2014,14 @@ class HashSetResizeHelper {
     }
     // Find a location for the new element non-deterministically.
     // Note that any position is correct.
-    // It will located at `half_old_capacity` or one of the other
+    // It will be located at `0` or one of the other
     // empty slots with approximately 50% probability each.
     size_t offset = probe(c, hash).offset();
 
     // Note that we intentionally use unsigned int underflow.
     if (offset - (old_capacity + 1) >= old_capacity) {
       // Offset fall on kSentinel or into the mostly occupied first half.
-      offset = old_capacity / 2;
+      offset = 0;
     }
     ABSL_SWISSTABLE_ASSERT(IsEmpty(c.control()[offset]));
     return FindInfo{offset, 0};
@@ -2148,16 +2148,14 @@ class HashSetResizeHelper {
     using slot_type = typename PolicyTraits::slot_type;
     ABSL_SWISSTABLE_ASSERT(is_single_group(c.capacity()));
 
-    auto* new_slots = static_cast<slot_type*>(c.slot_array());
+    auto* new_slots = static_cast<slot_type*>(c.slot_array()) + 1;
     auto* old_slots_ptr = static_cast<slot_type*>(old_slots());
+    auto* old_ctrl_ptr = old_ctrl();
 
-    size_t shuffle_bit = old_capacity_ / 2 + 1;
-    for (size_t i = 0; i < old_capacity_; ++i) {
-      if (IsFull(old_ctrl()[i])) {
-        size_t new_i = i ^ shuffle_bit;
-        SanitizerUnpoisonMemoryRegion(new_slots + new_i, sizeof(slot_type));
-        PolicyTraits::transfer(&alloc_ref, new_slots + new_i,
-                               old_slots_ptr + i);
+    for (size_t i = 0; i < old_capacity_; ++i, ++new_slots) {
+      if (IsFull(old_ctrl_ptr[i])) {
+        SanitizerUnpoisonMemoryRegion(new_slots, sizeof(slot_type));
+        PolicyTraits::transfer(&alloc_ref, new_slots, old_slots_ptr + i);
       }
     }
     PoisonSingleGroupEmptySlots(c, sizeof(slot_type));
@@ -2199,27 +2197,25 @@ class HashSetResizeHelper {
   // 1. new_ctrl is allocated for new_capacity,
   //    but not initialized.
   // 2. new_capacity is a single group.
+  // 3. old_capacity > 0.
   //
   // All elements are transferred into the first `old_capacity + 1` positions
-  // of the new_ctrl. Elements are rotated by `old_capacity_ / 2 + 1` positions
-  // in order to change an order and keep it non deterministic.
-  // Although rotation itself deterministic, position of the new added element
-  // will be based on `H1` and is not deterministic.
+  // of the new_ctrl. Elements are shifted by 1 in order to keep a space at the
+  // beginning for the new element.
+  // Position of the new added element will be based on `H1` and is not
+  // deterministic.
   //
   // Examples:
   // S = kSentinel, E = kEmpty
-  //
-  // old_ctrl = SEEEEEEEE...
-  // new_ctrl = ESEEEEEEE...
   //
   // old_ctrl = 0SEEEEEEE...
   // new_ctrl = E0ESE0EEE...
   //
   // old_ctrl = 012S012EEEEEEEEE...
-  // new_ctrl = 2E01EEES2E01EEE...
+  // new_ctrl = E012EEESE012EEE...
   //
   // old_ctrl = 0123456S0123456EEEEEEEEEEE...
-  // new_ctrl = 456E0123EEEEEES456E0123EEE...
+  // new_ctrl = E0123456EEEEEESE0123456EEE...
   void GrowIntoSingleGroupShuffleControlBytes(ctrl_t* new_ctrl,
                                               size_t new_capacity) const;
 
