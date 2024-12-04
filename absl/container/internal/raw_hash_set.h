@@ -2007,25 +2007,7 @@ class HashSetResizeHelper {
   // `GrowSizeIntoSingleGroup*` in case `IsGrowingIntoSingleGroupApplicable`.
   // Falls back to `find_first_non_full` in case of big groups.
   static FindInfo FindFirstNonFullAfterResize(const CommonFields& c,
-                                              size_t old_capacity,
-                                              size_t hash) {
-    if (!IsGrowingIntoSingleGroupApplicable(old_capacity, c.capacity())) {
-      return find_first_non_full(c, hash);
-    }
-    // Find a location for the new element non-deterministically.
-    // Note that any position is correct.
-    // It will be located at `0` or one of the other
-    // empty slots with approximately 50% probability each.
-    size_t offset = probe(c, hash).offset();
-
-    // Note that we intentionally use unsigned int underflow.
-    if (offset - (old_capacity + 1) >= old_capacity) {
-      // Offset fall on kSentinel or into the mostly occupied first half.
-      offset = 0;
-    }
-    ABSL_SWISSTABLE_ASSERT(IsEmpty(c.control()[offset]));
-    return FindInfo{offset, 0};
-  }
+                                              size_t old_capacity, size_t hash);
 
   HeapOrSoo& old_heap_or_soo() { return old_heap_or_soo_; }
   void* old_soo_data() { return old_heap_or_soo_.get_soo_data(); }

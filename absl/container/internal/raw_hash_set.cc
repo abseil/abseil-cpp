@@ -28,6 +28,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/hash/hash.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -96,6 +97,16 @@ bool ShouldRehashForBugDetection(const ctrl_t* ctrl, size_t capacity) {
          RehashProbabilityConstant();
 }
 
+// Find a non-deterministic hash for single group table.
+// Last two bits are used to find a position for a newly inserted element after
+// resize.
+// This function is mixing all bits of hash and control pointer to maximize
+// entropy.
+size_t SingleGroupTableH1(size_t hash, ctrl_t* control) {
+  return static_cast<size_t>(absl::popcount(
+      hash ^ static_cast<size_t>(reinterpret_cast<uintptr_t>(control))));
+}
+
 }  // namespace
 
 GenerationType* EmptyGeneration() {
@@ -135,7 +146,7 @@ size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
   // index 1 occupied, so we need to insert either at index 0 or index 2.
   assert(HashSetResizeHelper::SooSlotIndex() == 1);
   PrepareInsertCommon(common);
-  const size_t offset = H1(hash, common.control()) & 2;
+  const size_t offset = SingleGroupTableH1(hash, common.control()) & 2;
   common.growth_info().OverwriteEmptyAsFull();
   SetCtrlInSingleGroupTable(common, offset, H2(hash), slot_size);
   common.infoz().RecordInsert(hash, /*distance_from_desired=*/0);
@@ -581,6 +592,23 @@ const void* GetHashRefForEmptyHasher(const CommonFields& common) {
   // But we generally assume that for empty hasher we can return any valid
   // pointer.
   return &common;
+}
+
+FindInfo HashSetResizeHelper::FindFirstNonFullAfterResize(const CommonFields& c,
+                                                          size_t old_capacity,
+                                                          size_t hash) {
+  size_t new_capacity = c.capacity();
+  if (!IsGrowingIntoSingleGroupApplicable(old_capacity, new_capacity)) {
+    return find_first_non_full(c, hash);
+  }
+
+  // We put the new element either at the beginning or at the end of the table
+  // with approximately equal probability.
+  size_t offset =
+      SingleGroupTableH1(hash, c.control()) & 1 ? 0 : new_capacity - 1;
+
+  assert(IsEmpty(c.control()[offset]));
+  return FindInfo{offset, 0};
 }
 
 size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
