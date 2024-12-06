@@ -44,9 +44,11 @@
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 
-#ifdef ABSL_USES_STD_STRING_VIEW
-
+#ifdef ABSL_HAVE_STD_STRING_VIEW
 #include <string_view>  // IWYU pragma: export
+#endif
+
+#ifdef ABSL_USES_STD_STRING_VIEW
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -203,6 +205,12 @@ class ABSL_ATTRIBUTE_VIEW string_view {
   // Implicit constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(absl::Nullable<const char*> data, size_type len)
       : ptr_(data), length_(CheckLengthInternal(len)) {}
+
+#ifdef ABSL_HAVE_STD_STRING_VIEW
+  // Implicit constructor from std::string view
+  constexpr string_view(std::string_view str)
+      : ptr_(str.data ()), length_(CheckLengthInternal(str.size())) {}  
+#endif
 
   // NOTE: Harmlessly omitted to work around gdb bug.
   //   constexpr string_view(const string_view&) noexcept = default;
