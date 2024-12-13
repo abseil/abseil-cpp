@@ -269,7 +269,7 @@ CpuType GetCpuType() {
 }
 
 bool SupportsArmCRC32PMULL() {
-#if defined(HWCAP_CRC32) && defined(HWCAP_CRC32PMULL)
+#if defined(HWCAP_CRC32) && defined(HWCAP_PMULL)
   uint64_t hwcaps = getauxval(AT_HWCAP);
   return (hwcaps & HWCAP_CRC32) && (hwcaps & HWCAP_PMULL);
 #else
