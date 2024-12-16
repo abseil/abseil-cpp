@@ -541,11 +541,9 @@ static ABSL_ATTRIBUTE_NOINLINE bool GetSectionHeaderByType(
         (buf_bytes > num_bytes_left) ? num_bytes_left : buf_bytes;
     const off_t offset = sh_offset + static_cast<off_t>(i * sizeof(buf[0]));
     const ssize_t len = file->ReadFromOffset(buf, num_bytes_to_read, offset);
-    if (len < 0) {
-      ABSL_RAW_LOG(
-          WARNING,
-          "Reading %zu bytes from offset %ju returned %zd which is negative.",
-          num_bytes_to_read, static_cast<intmax_t>(offset), len);
+    if (len <= 0) {
+      ABSL_RAW_LOG(WARNING, "Reading %zu bytes from offset %ju returned %zd.",
+                   num_bytes_to_read, static_cast<intmax_t>(offset), len);
       return false;
     }
     if (static_cast<size_t>(len) % sizeof(buf[0]) != 0) {
