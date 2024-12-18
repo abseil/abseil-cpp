@@ -2478,6 +2478,10 @@ TYPED_TEST(SooTest, IterationOrderChangesByInstance) {
 }
 
 TYPED_TEST(SooTest, IterationOrderChangesOnRehash) {
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+  GTEST_SKIP() << "Hash quality is lower in asan mode, causing flakiness.";
+#endif
+
   // We test different sizes with many small numbers, because small table
   // resize has a different codepath.
   // Note: iteration order for size() <= 1 is always the same.
