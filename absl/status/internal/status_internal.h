@@ -75,6 +75,7 @@ class StatusRep {
   absl::StatusCode code() const { return code_; }
   const std::string& message() const { return message_; }
   void update_message(const std::string& additional) {
+	message_.push_back('\n');
 	message_.append(additional);
   }
 
