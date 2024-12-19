@@ -74,6 +74,9 @@ class StatusRep {
 
   absl::StatusCode code() const { return code_; }
   const std::string& message() const { return message_; }
+  void update_message(const std::string& additional) {
+	message_.append(additional);
+  }
 
   // Ref and unref are const to allow access through a const pointer, and are
   // used during copying operations.

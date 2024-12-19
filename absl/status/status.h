@@ -473,6 +473,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   //
   void Update(const Status& new_status);
   void Update(Status&& new_status);
+  void AppendToMessage(const std::string& additional);
 
   // Status::ok()
   //
@@ -652,6 +653,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   static uintptr_t PointerToRep(absl::Nonnull<status_internal::StatusRep*> r);
   static absl::Nonnull<const status_internal::StatusRep*> RepToPointer(
       uintptr_t r);
+  static absl::Nonnull<status_internal::StatusRep*> RepToMutPointer(
+      uintptr_t r);
 
   static std::string ToStringSlow(uintptr_t rep, StatusToStringMode mode);
 
@@ -811,6 +814,11 @@ inline void Status::Update(Status&& new_status) {
   }
 }
 
+inline void Status::AppendToMessage(const std::string& additional)
+{
+	RepToMutPointer(rep_)->update_message(additional);
+}
+
 inline Status::~Status() { Unref(rep_); }
 
 inline bool Status::ok() const {
@@ -906,6 +914,12 @@ inline absl::Nonnull<const status_internal::StatusRep*> Status::RepToPointer(
     uintptr_t rep) {
   assert(!IsInlined(rep));
   return reinterpret_cast<const status_internal::StatusRep*>(rep);
+}
+
+inline absl::Nonnull<status_internal::StatusRep*> Status::RepToMutPointer(
+    uintptr_t rep) {
+  assert(!IsInlined(rep));
+  return reinterpret_cast<status_internal::StatusRep*>(rep);
 }
 
 inline uintptr_t Status::PointerToRep(
