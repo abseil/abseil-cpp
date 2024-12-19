@@ -2823,9 +2823,10 @@ class raw_hash_set {
          // `that` must be left valid. If Hash is std::function<Key>, moving it
          // would create a nullptr functor that cannot be called.
          // Note: we avoid using exchange for better generated code.
-        settings_(PolicyTraits::transfer_uses_memcpy() || !that.is_full_soo()
-                      ? std::move(that.common())
-                      : CommonFields{full_soo_tag_t{}},
+        settings_((that.AssertNotDebugCapacity(),
+                   PolicyTraits::transfer_uses_memcpy() || !that.is_full_soo()
+                       ? std::move(that.common())
+                       : CommonFields{full_soo_tag_t{}}),
                   that.hash_ref(), that.eq_ref(), that.alloc_ref()) {
     if (!PolicyTraits::transfer_uses_memcpy() && that.is_full_soo()) {
       transfer(soo_slot(), that.soo_slot());
@@ -2837,6 +2838,7 @@ class raw_hash_set {
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), that.hash_ref(),
                   that.eq_ref(), a) {
+    that.AssertNotDebugCapacity();
     if (a == that.alloc_ref()) {
       swap_common(that);
       annotate_for_bug_detection_on_move(that);
@@ -2863,8 +2865,7 @@ class raw_hash_set {
       absl::allocator_traits<allocator_type>::is_always_equal::value &&
       std::is_nothrow_move_assignable<hasher>::value &&
       std::is_nothrow_move_assignable<key_equal>::value) {
-    // TODO(sbenza): We should only use the operations from the noexcept clause
-    // to make sure we actually adhere to that contract.
+    that.AssertNotDebugCapacity();
     // NOLINTNEXTLINE: not returning *this for performance.
     return move_assign(
         std::move(that),

@@ -3715,6 +3715,8 @@ TEST(Table, MovedFromCallsFail) {
     EXPECT_DEATH_IF_SUPPORTED(t1.end(), "moved-from");
     // NOLINTNEXTLINE(bugprone-use-after-move)
     EXPECT_DEATH_IF_SUPPORTED(t1.size(), "moved-from");
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    EXPECT_DEATH_IF_SUPPORTED(IntTable{std::move(t1)}, "moved-from");
   }
   {
     ABSL_ATTRIBUTE_UNUSED IntTable t1;
