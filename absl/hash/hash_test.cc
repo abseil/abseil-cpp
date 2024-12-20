@@ -392,7 +392,7 @@ absl::Cord FragmentedCord(absl::string_view sv) {
   return absl::MakeFragmentedCord(parts);
 }
 
-#if ABSL_HAVE_INTRINSIC_INT128
+#ifdef ABSL_HAVE_INTRINSIC_INT128
 TEST(HashValueTest, TestIntrinsicInt128) {
   EXPECT_TRUE((is_hashable<__int128_t>::value));
   EXPECT_TRUE((is_hashable<__uint128_t>::value));
