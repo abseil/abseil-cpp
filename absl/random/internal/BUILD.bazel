@@ -21,7 +21,6 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_RANDOM_RANDEN_COPTS",
     "ABSL_TEST_COPTS",
-    "absl_random_randen_copts_init",
 )
 
 default_package_visibility = [
@@ -320,8 +319,6 @@ cc_library(
         "//absl/numeric:int128",
     ],
 )
-
-absl_random_randen_copts_init()
 
 cc_library(
     name = "randen_hwaes",
