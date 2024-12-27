@@ -78,9 +78,11 @@
 #ifndef ABSL_HASH_HASH_H_
 #define ABSL_HASH_HASH_H_
 
+#include <cstddef>
 #include <tuple>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/internal/hash.h"
 
