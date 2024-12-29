@@ -47,6 +47,10 @@ enum class chars_format {
 struct from_chars_result {
   const char* absl_nonnull ptr;
   std::errc ec;
+
+  bool operator==(const from_chars_result&) = default;
+
+  constexpr explicit operator bool() const noexcept { return ec == std::errc{}; }
 };
 
 // Workalike compatibility version of std::from_chars from C++17.  Currently
