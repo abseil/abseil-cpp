@@ -131,3 +131,12 @@ selects.config_setting_group(
     ],
     visibility = [":__subpackages__"],
 )
+
+selects.config_setting_group(
+    name = "windows_x86_64",
+    match_all = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    visibility = [":__subpackages__"],
+)
