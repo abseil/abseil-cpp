@@ -17,9 +17,12 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
-#include <iostream>
 #include <ostream>
 #include <string>
+
+#ifndef NDEBUG
+#include <iostream>
+#endif
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
