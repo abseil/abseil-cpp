@@ -14,9 +14,11 @@
 
 #include "absl/random/seed_gen_exception.h"
 
-#include <iostream>
-
 #include "absl/base/config.h"
+
+#ifndef ABSL_HAVE_EXCEPTIONS
+#include <iostream>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
