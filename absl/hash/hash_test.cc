@@ -194,7 +194,13 @@ TEST(HashValueTest, PointerAlignment) {
     size_t stuck_bits = (~bits_or | bits_and) & kMask;
     // Test that there are less than 3 stuck bits. Sometimes we see stuck_bits
     // of 0x3.
-    EXPECT_LT(absl::popcount(stuck_bits), 3) << "0x" << std::hex << stuck_bits;
+    size_t stuck_bits_threshold = 3;
+#ifdef __ANDROID__
+    // On Android, we sometimes see stuck_bits of 0x780 when align is 11520.
+    stuck_bits_threshold = 5;
+#endif
+    EXPECT_LT(absl::popcount(stuck_bits), stuck_bits_threshold)
+        << "0x" << std::hex << stuck_bits;
   }
 }
 #endif  // !defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(__APPLE__)
