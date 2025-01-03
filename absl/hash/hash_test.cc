@@ -164,8 +164,6 @@ TEST(HashValueTest, Pointer) {
       std::make_tuple(&i, ptr, nullptr, ptr + 1, n)));
 }
 
-// The test is flaky in ASan and on Apple platforms.
-#if !defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(__APPLE__)
 TEST(HashValueTest, PointerAlignment) {
   // We want to make sure that pointer alignment will not cause too many bits to
   // be stuck.
@@ -192,18 +190,11 @@ TEST(HashValueTest, PointerAlignment) {
     // Limit the scope to the bits we would be using for Swisstable.
     constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
     size_t stuck_bits = (~bits_or | bits_and) & kMask;
-    // Test that there are less than 3 stuck bits. Sometimes we see stuck_bits
+    // Test that there are at most 2 stuck bits. Sometimes we see stuck_bits
     // of 0x3.
-    size_t stuck_bits_threshold = 3;
-#ifdef __ANDROID__
-    // On Android, we sometimes see stuck_bits of 0x780 when align is 11520.
-    stuck_bits_threshold = 5;
-#endif
-    EXPECT_LT(absl::popcount(stuck_bits), stuck_bits_threshold)
-        << "0x" << std::hex << stuck_bits;
+    EXPECT_LE(absl::popcount(stuck_bits), 2) << "0x" << std::hex << stuck_bits;
   }
 }
-#endif  // !defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(__APPLE__)
 
 TEST(HashValueTest, PointerToMember) {
   struct Bass {

@@ -460,6 +460,11 @@ std::enable_if_t<std::is_pointer<T>::value, H> AbslHashValue(H hash_state,
   // Due to alignment, pointers tend to have low bits as zero, and the next few
   // bits follow a pattern since they are also multiples of some base value. The
   // byte swap in WeakMix helps ensure we still have good entropy in low bits.
+#if defined(__APPLE__) || defined(__ANDROID__) || \
+    defined(ABSL_HAVE_ADDRESS_SANITIZER)
+  // In these build modes, pointers may have less entropy so mix pointers twice.
+  return H::combine(std::move(hash_state), v, v);
+#endif
   return H::combine(std::move(hash_state), v);
 }
 
