@@ -1195,4 +1195,22 @@ TEST(HashOf, CantPassExplicitTemplateParameters) {
   EXPECT_FALSE(HashOfExplicitParameter<int>(0));
 }
 
+struct TypeErasedHashStateUser {
+  int a;
+  std::string b;
+
+  template <typename H>
+  friend H AbslHashValue(H state, const TypeErasedHashStateUser& value) {
+    absl::HashState type_erased_state = absl::HashState::Create(&state);
+    absl::HashState::combine(std::move(type_erased_state), value.a, value.b);
+    return state;
+  }
+};
+
+TEST(HashOf, MatchesTypeErasedHashState) {
+  std::string s = "s";
+  EXPECT_EQ(absl::HashOf(1, s), absl::Hash<TypeErasedHashStateUser>{}(
+                                    TypeErasedHashStateUser{1, s}));
+}
+
 }  // namespace
