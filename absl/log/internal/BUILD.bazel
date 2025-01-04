@@ -34,6 +34,13 @@ package(
 
 licenses(["notice"])
 
+package_group(
+    name = "structured_proto_users",
+    packages = [
+        "//absl/log/...",
+    ],
+)
+
 cc_library(
     name = "check_impl",
     hdrs = ["check_impl.h"],
@@ -285,6 +292,38 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "structured_proto",
+    srcs = ["structured_proto.cc"],
+    hdrs = ["structured_proto.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        ":structured_proto_users",
+    ],
+    deps = [
+        ":proto",
+        "//absl/base:config",
+        "//absl/strings",
+        "//absl/types:span",
+        "//absl/types:variant",
+    ],
+)
+
+cc_test(
+    name = "structured_proto_test",
+    srcs = ["structured_proto_test.cc"],
+    deps = [
+        ":structured_proto",
+        "//absl/base:config",
+        "//absl/strings:string_view",
+        "//absl/types:span",
+        "//absl/utility",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
