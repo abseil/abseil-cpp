@@ -211,6 +211,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::raw_logging_internal
 )
 
 absl_cc_library(
