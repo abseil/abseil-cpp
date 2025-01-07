@@ -249,6 +249,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        "//absl/base:config",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
     ],
@@ -621,10 +622,9 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":nonsecure_base",
+        "//absl/meta:type_traits",
         "//absl/random",
         "//absl/random:distributions",
-        "//absl/random:seed_sequences",
-        "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
