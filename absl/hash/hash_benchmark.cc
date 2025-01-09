@@ -171,6 +171,10 @@ MAKE_BENCHMARK(AbslHash, PairInt64Int64, std::pair<int64_t, int64_t>{});
 MAKE_BENCHMARK(AbslHash, TupleInt32BoolInt64,
                std::tuple<int32_t, bool, int64_t>{});
 MAKE_BENCHMARK(AbslHash, String_0, std::string());
+MAKE_BENCHMARK(AbslHash, String_1, std::string(1, 'a'));
+MAKE_BENCHMARK(AbslHash, String_2, std::string(2, 'a'));
+MAKE_BENCHMARK(AbslHash, String_4, std::string(4, 'a'));
+MAKE_BENCHMARK(AbslHash, String_8, std::string(8, 'a'));
 MAKE_BENCHMARK(AbslHash, String_10, std::string(10, 'a'));
 MAKE_BENCHMARK(AbslHash, String_30, std::string(30, 'a'));
 MAKE_BENCHMARK(AbslHash, String_90, std::string(90, 'a'));
