@@ -356,7 +356,7 @@ cc_library(
         "//absl/strings",
         "//absl/time",
     ] + select({
-        "//absl:msvc_compiler": [],
+        "@rules_cc//cc/compiler:msvc-cl": [],
         "//conditions:default": [
         ],
     }),
@@ -404,7 +404,7 @@ cc_library(
         "//absl/time",
         "@googletest//:gtest",
     ] + select({
-        "//absl:msvc_compiler": [],
+        "@rules_cc//cc/compiler:msvc-cl": [],
         "//conditions:default": [
         ],
     }),
