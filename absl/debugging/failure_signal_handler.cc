@@ -21,6 +21,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
 #endif
@@ -330,6 +331,20 @@ static void ImmediateAbortSignalHandler(int) { RaiseToDefaultHandler(SIGABRT); }
 using GetTidType = decltype(absl::base_internal::GetTID());
 ABSL_CONST_INIT static std::atomic<GetTidType> failed_tid(0);
 
+static int GetCpuNumber() {
+#ifdef ABSL_HAVE_SCHED_GETCPU
+  return sched_getcpu();
+#elif defined(ABSL_HAVE_PTHREAD_CPU_NUMBER_NP)
+  size_t cpu_num;
+  if (pthread_cpu_number_np(&cpu_num) == 0) {
+    return static_cast<int>(cpu_num);
+  }
+  return -1;
+#else
+  return -1;
+#endif
+}
+
 #ifndef ABSL_HAVE_SIGACTION
 static void AbslFailureSignalHandler(int signo) {
   void* ucontext = nullptr;
@@ -360,10 +375,7 @@ static void AbslFailureSignalHandler(int signo, siginfo_t*, void* ucontext) {
   // Increase the chance that the CPU we report was the same CPU on which the
   // signal was received by doing this as early as possible, i.e. after
   // verifying that this is not a recursive signal handler invocation.
-  int my_cpu = -1;
-#ifdef ABSL_HAVE_SCHED_GETCPU
-  my_cpu = sched_getcpu();
-#endif
+  int my_cpu = GetCpuNumber();
 
 #ifdef ABSL_HAVE_ALARM
   // Set an alarm to abort the program in case this code hangs or deadlocks.
