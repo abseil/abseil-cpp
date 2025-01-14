@@ -66,6 +66,23 @@
 #endif
 #endif
 
+// ABSL_HAVE_PTHREAD_CPU_NUMBER_NP
+//
+// Checks whether pthread_cpu_number_np is available.
+#ifdef ABSL_HAVE_PTHREAD_CPU_NUMBER_NP
+#error ABSL_HAVE_PTHREAD_CPU_NUMBER_NP cannot be directly set
+#elif defined(__APPLE__) && defined(__has_include) &&              \
+    ((defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&    \
+      __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 110000) ||  \
+     (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) &&   \
+      __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 140200) || \
+     (defined(__ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__) &&    \
+      __ENVIRONMENT_WATCH_OS_VERSION_MIN_REQUIRED__ >= 70100) ||   \
+     (defined(__ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__) &&       \
+      __ENVIRONMENT_TV_OS_VERSION_MIN_REQUIRED__ >= 140200))
+#define ABSL_HAVE_PTHREAD_CPU_NUMBER_NP 1
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
