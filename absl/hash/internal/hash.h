@@ -82,6 +82,10 @@
 #include <string_view>
 #endif
 
+#ifdef __ARM_ACLE
+#include <arm_acle.h>
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
@@ -1300,7 +1304,13 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   ABSL_ATTRIBUTE_ALWAYS_INLINE static uint64_t WeakMix(uint64_t n) {
     // WeakMix doesn't work well on 32-bit platforms so just use Mix.
     if (sizeof(size_t) < 8) return Mix(n, kMul);
+#ifdef __ARM_ACLE
+    // gbswap_64 compiles to `rev` on ARM, but `rbit` is better because it
+    // reverses bits rather than reversing bytes.
+    return __rbitll(n * kMul);
+#else
     return absl::gbswap_64(n * kMul);
+#endif
   }
 
   // An extern to avoid bloat on a direct call to LowLevelHash() with fixed
