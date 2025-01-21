@@ -41,12 +41,6 @@
 // When heterogeneous lookup is disabled, only the explicit `key_type` overloads
 // exist.
 //
-// find() also supports passing the hash explicitly:
-//
-//   iterator find(const key_type& key, size_t hash);
-//   template <class U>
-//   iterator find(const U& key, size_t hash);
-//
 // In addition the pointer to element and iterator stability guarantees are
 // weaker: all iterators and pointers are invalidated after a new element is
 // inserted.
@@ -3437,20 +3431,14 @@ class raw_hash_set {
 #endif  // ABSL_HAVE_PREFETCH
   }
 
-  // The API of find() has two extensions.
-  //
-  // 1. The hash can be passed by the user. It must be equal to the hash of the
-  // key.
-  //
-  // 2. The type of the key argument doesn't have to be key_type. This is so
-  // called heterogeneous key support.
   template <class K = key_type>
+  ABSL_DEPRECATE_AND_INLINE()
   iterator find(const key_arg<K>& key,
-                size_t hash) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    AssertOnFind(key);
-    if (is_soo()) return find_soo(key);
-    return find_non_soo(key, hash);
+                size_t) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return find(key);
   }
+  // The API of find() has one extension: the type of the key argument doesn't
+  // have to be key_type. This is so called heterogeneous key support.
   template <class K = key_type>
   iterator find(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     AssertOnFind(key);
@@ -3460,9 +3448,10 @@ class raw_hash_set {
   }
 
   template <class K = key_type>
+  ABSL_DEPRECATE_AND_INLINE()
   const_iterator find(const key_arg<K>& key,
-                      size_t hash) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->find(key, hash);
+                      size_t) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return find(key);
   }
   template <class K = key_type>
   const_iterator find(const key_arg<K>& key) const
