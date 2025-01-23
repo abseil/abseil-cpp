@@ -1184,6 +1184,12 @@ inline size_t NormalizeCapacity(size_t n) {
   return n ? ~size_t{} >> countl_zero(n) : 1;
 }
 
+template <size_t kSlotSize>
+size_t MaxValidCapacity() {
+  return NormalizeCapacity((std::numeric_limits<size_t>::max)() / 4 /
+                           kSlotSize);
+}
+
 // General notes on capacity/growth methods below:
 // - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
 //   average of two empty slots per group.
@@ -2093,6 +2099,8 @@ class raw_hash_set {
       const allocator_type& alloc = allocator_type())
       : settings_(CommonFields{}, hash, eq, alloc) {
     if (bucket_count) {
+      ABSL_RAW_CHECK(bucket_count <= MaxValidCapacity<sizeof(slot_type)>(),
+                     "Hash table size overflow");
       resize(NormalizeCapacity(bucket_count));
     }
   }
@@ -2286,7 +2294,9 @@ class raw_hash_set {
   bool empty() const { return !size(); }
   size_t size() const { return common().size(); }
   size_t capacity() const { return common().capacity(); }
-  size_t max_size() const { return (std::numeric_limits<size_t>::max)(); }
+  size_t max_size() const {
+    return CapacityToGrowth(MaxValidCapacity<sizeof(slot_type)>());
+  }
 
   ABSL_ATTRIBUTE_REINITIALIZES void clear() {
     // Iterating over this container is O(bucket_count()). When bucket_count()
@@ -2624,6 +2634,8 @@ class raw_hash_set {
     auto m = NormalizeCapacity(n | GrowthToLowerboundCapacity(size()));
     // n == 0 unconditionally rehashes as per the standard.
     if (n == 0 || m > capacity()) {
+      ABSL_RAW_CHECK(m <= MaxValidCapacity<sizeof(slot_type)>(),
+                     "Hash table size overflow");
       resize(m);
 
       // This is after resize, to ensure that we have completed the allocation
@@ -2634,6 +2646,7 @@ class raw_hash_set {
 
   void reserve(size_t n) {
     if (n > size() + growth_left()) {
+      ABSL_RAW_CHECK(n <= max_size(), "Hash table size overflow");
       size_t m = GrowthToLowerboundCapacity(n);
       resize(NormalizeCapacity(m));
 
