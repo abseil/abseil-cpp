@@ -481,13 +481,44 @@ void HashSetResizeHelper::GrowIntoSingleGroupShuffleControlBytes(
 void HashSetResizeHelper::InitControlBytesAfterSoo(ctrl_t* new_ctrl, ctrl_t h2,
                                                    size_t new_capacity) {
   assert(is_single_group(new_capacity));
-  std::memset(new_ctrl, static_cast<int8_t>(ctrl_t::kEmpty),
-              NumControlBytes(new_capacity));
-  assert(HashSetResizeHelper::SooSlotIndex() == 1);
+  static_assert(HashSetResizeHelper::SooSlotIndex() == 1, "");
   // This allows us to avoid branching on had_soo_slot_.
   assert(had_soo_slot_ || h2 == ctrl_t::kEmpty);
-  new_ctrl[1] = new_ctrl[new_capacity + 2] = h2;
-  new_ctrl[new_capacity] = ctrl_t::kSentinel;
+
+  if (Group::kWidth == 16) {
+    // Initialize the second 8 bytes in the original and mirrored control bytes.
+    // The ranges can overlap.
+    absl::little_endian::Store64(new_ctrl + 8, kMsbs8Bytes);
+    absl::little_endian::Store64(new_ctrl + new_capacity + 8, kMsbs8Bytes);
+  }
+  static constexpr uint64_t kAllEmptyExceptSoo =
+      kMsbs8Bytes ^ (static_cast<uint64_t>(static_cast<uint8_t>(ctrl_t::kEmpty))
+                     << (8 * HashSetResizeHelper::SooSlotIndex()));
+  // Initialize the first 8 bytes in the original control bytes.
+  // The first 8 bytes are all empty except the SOO slot.
+  // The range may overlap with the mirrored control bytes. These bytes will be
+  // overwritten later.
+  uint64_t first_ctrl_bytes =
+      kAllEmptyExceptSoo ^ (static_cast<uint64_t>(static_cast<uint8_t>(h2))
+                            << (8 * HashSetResizeHelper::SooSlotIndex()));
+  absl::little_endian::Store64(new_ctrl, first_ctrl_bytes);
+  // Initialize Sentinel byte and the first 7 bytes in the mirrored control
+  // bytes.
+  // We are adding kSentinel as the first byte of the mirrored control bytes.
+  uint64_t mirrored_ctrl_bytes =
+      (first_ctrl_bytes << 8) ^
+      static_cast<uint64_t>(static_cast<uint8_t>(ctrl_t::kSentinel));
+  absl::little_endian::Store64(new_ctrl + new_capacity, mirrored_ctrl_bytes);
+
+  // Example for capacity 3:
+  // new_ctrl after 2 stores  =       ????????EEEEEEEEEEE
+  // new_ctrl after 3rd store  =      E0EEEEEEEEEEEEEEEEE
+  // new_ctrl after 4th store  =      E0ESE0EEEEEEEEEEEEE
+
+  // Example for capacity 15:
+  // new_ctrl after 2 stores  =       ????????EEEEEEEE???????EEEEEEEE
+  // new_ctrl after 3rd store  =      E0EEEEEEEEEEEEEE???????EEEEEEEE
+  // new_ctrl after 4th store  =      E0EEEEEEEEEEEEESE0EEEEEEEEEEEEE
 }
 
 void HashSetResizeHelper::GrowIntoSingleGroupShuffleTransferableSlots(

@@ -2033,7 +2033,7 @@ class HashSetResizeHelper {
   // index 1 so that when resizing from capacity 1 to 3, we can still have
   // random iteration order between the first two inserted elements.
   // I.e. it allows inserting the second element at either index 0 or 2.
-  static size_t SooSlotIndex() { return 1; }
+  static constexpr size_t SooSlotIndex() { return 1; }
 
   // Allocates a backing array for the hashtable.
   // Reads `capacity` and updates all other fields based on the result of
