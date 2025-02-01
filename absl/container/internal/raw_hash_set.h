@@ -1992,6 +1992,88 @@ HashtablezInfoHandle SampleHashtablezInfo(size_t sizeof_slot, size_t sizeof_key,
   return c.infoz();
 }
 
+// PolicyFunctions bundles together some information for a particular
+// raw_hash_set<T, ...> instantiation. This information is passed to
+// type-erased functions that want to do small amounts of type-specific
+// work.
+struct PolicyFunctions {
+  size_t slot_size;
+
+  // Returns the pointer to the hash function stored in the set.
+  const void* (*hash_fn)(const CommonFields& common);
+
+  // Returns the hash of the pointed-to slot.
+  size_t (*hash_slot)(const void* hash_fn, void* slot);
+
+  // Transfers the contents of src_slot to dst_slot.
+  void (*transfer)(void* set, void* dst_slot, void* src_slot);
+
+  // Deallocates the backing store from common.
+  void (*dealloc)(CommonFields& common, const PolicyFunctions& policy);
+
+  // Resizes set to the new capacity.
+  // Arguments are used as in raw_hash_set::resize_impl.
+  void (*resize)(CommonFields& common, size_t new_capacity,
+                 HashtablezInfoHandle forced_infoz);
+};
+
+// Returns the index of the SOO slot when growing from SOO to non-SOO in a
+// single group. See also InitializeSmallControlBytesAfterSoo(). It's important
+// to use index 1 so that when resizing from capacity 1 to 3, we can still have
+// random iteration order between the first two inserted elements.
+// I.e. it allows inserting the second element at either index 0 or 2.
+constexpr size_t SooSlotIndex() { return 1; }
+
+// Maximum capacity for the algorithm for small table after SOO.
+// Note that typical size after SOO is 3, but we allow up to 7.
+// Allowing till 16 would require additional store that can be avoided.
+constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
+
+// If the table was non empty SOO, initializes new control bytes.
+// Must be called only if IsGrowingIntoSingleGroupApplicable returned true.
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeSmallControlBytesAfterSoo(
+    size_t hash, ctrl_t* new_ctrl, size_t new_capacity) {
+  ABSL_SWISSTABLE_ASSERT(is_single_group(new_capacity));
+  ABSL_SWISSTABLE_ASSERT(new_capacity <= MaxSmallAfterSooCapacity());
+  static_assert(SooSlotIndex() == 1, "");
+
+  if (Group::kWidth == 16) {
+    // Initialize the second 8 bytes in mirrored control bytes.
+    // Original bytes have maximum 7 bytes in this function.
+    static_assert(MaxSmallAfterSooCapacity() <= 7, "");
+    absl::little_endian::Store64(new_ctrl + new_capacity + 8, kMsbs8Bytes);
+  }
+  static constexpr uint64_t kAllEmptyExceptSoo =
+      kMsbs8Bytes ^ (static_cast<uint64_t>(static_cast<uint8_t>(ctrl_t::kEmpty))
+                     << (8 * SooSlotIndex()));
+  // Initialize the first 8 bytes in the original control bytes.
+  // The first 8 bytes are all empty except the SOO slot.
+  // The range may overlap with the mirrored control bytes. These bytes will be
+  // overwritten later.
+  const uint64_t first_ctrl_bytes =
+      kAllEmptyExceptSoo ^
+      (static_cast<uint64_t>(static_cast<uint8_t>(H2(hash)))
+       << (8 * SooSlotIndex()));
+  absl::little_endian::Store64(new_ctrl, first_ctrl_bytes);
+  // Initialize Sentinel byte and the first 7 bytes in the mirrored control
+  // bytes.
+  // We are adding kSentinel as the first byte of the mirrored control bytes.
+  const uint64_t mirrored_ctrl_bytes =
+      (first_ctrl_bytes << 8) ^
+      static_cast<uint64_t>(static_cast<uint8_t>(ctrl_t::kSentinel));
+  absl::little_endian::Store64(new_ctrl + new_capacity, mirrored_ctrl_bytes);
+
+  // Example for capacity 3:
+  // new_ctrl after 1st store  =      ???????????EEEEEEEE
+  // new_ctrl after 2nd store  =      E0EEEEEE???EEEEEEEE
+  // new_ctrl after 3rd store  =      E0ESE0EEEEEEEEEEEEE
+
+  // Example for capacity 7:
+  // new_ctrl after 1st store  =      ???????????????EEEEEEEE
+  // new_ctrl after 2nd store  =      E0EEEEEE???????EEEEEEEE
+  // new_ctrl after 3rd store  =      E0EEEEESE0EEEEEEEEEEEEE
+}
+
 // Helper class to perform resize of the hash set.
 //
 // It contains special optimizations for small group resizes.
@@ -2017,7 +2099,6 @@ class HashSetResizeHelper {
                                               size_t old_capacity, size_t hash);
 
   HeapOrSoo& old_heap_or_soo() { return old_heap_or_soo_; }
-  void* old_soo_data() { return old_heap_or_soo_.get_soo_data(); }
   ctrl_t* old_ctrl() const {
     ABSL_SWISSTABLE_ASSERT(!was_soo_);
     return old_heap_or_soo_.control();
@@ -2027,13 +2108,6 @@ class HashSetResizeHelper {
     return old_heap_or_soo_.slot_array().get();
   }
   size_t old_capacity() const { return old_capacity_; }
-
-  // Returns the index of the SOO slot when growing from SOO to non-SOO in a
-  // single group. See also InitControlBytesAfterSoo(). It's important to use
-  // index 1 so that when resizing from capacity 1 to 3, we can still have
-  // random iteration order between the first two inserted elements.
-  // I.e. it allows inserting the second element at either index 0 or 2.
-  static constexpr size_t SooSlotIndex() { return 1; }
 
   // Allocates a backing array for the hashtable.
   // Reads `capacity` and updates all other fields based on the result of
@@ -2071,9 +2145,10 @@ class HashSetResizeHelper {
   template <typename Alloc, size_t SizeOfSlot, bool TransferUsesMemcpy,
             bool SooEnabled, size_t AlignOfSlot>
   ABSL_ATTRIBUTE_NOINLINE bool InitializeSlots(CommonFields& c, Alloc alloc,
-                                               ctrl_t soo_slot_h2,
+                                               size_t soo_slot_hash,
                                                size_t key_size,
-                                               size_t value_size) {
+                                               size_t value_size,
+                                               const PolicyFunctions& policy) {
     ABSL_SWISSTABLE_ASSERT(c.capacity());
     HashtablezInfoHandle infoz =
         ShouldSampleHashtablezInfo<Alloc>()
@@ -2083,6 +2158,7 @@ class HashSetResizeHelper {
             : HashtablezInfoHandle{};
 
     const bool has_infoz = infoz.IsSampled();
+
     RawHashSetLayout layout(c.capacity(), AlignOfSlot, has_infoz);
     char* mem = static_cast<char*>(Allocate<BackingArrayAlignment(AlignOfSlot)>(
         &alloc, layout.alloc_size(SizeOfSlot)));
@@ -2090,33 +2166,64 @@ class HashSetResizeHelper {
     c.set_generation_ptr(
         reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
     c.set_generation(NextGeneration(old_generation));
-    c.set_control(reinterpret_cast<ctrl_t*>(mem + layout.control_offset()));
-    c.set_slots(mem + layout.slot_offset());
-    ResetGrowthLeft(c);
 
-    const bool grow_single_group =
-        IsGrowingIntoSingleGroupApplicable(old_capacity_, layout.capacity());
-    if (SooEnabled && was_soo_ && grow_single_group) {
-      InitControlBytesAfterSoo(c.control(), soo_slot_h2, layout.capacity());
-      if (TransferUsesMemcpy && had_soo_slot_) {
-        TransferSlotAfterSoo(c, SizeOfSlot);
-      }
-      // SooEnabled implies that old_capacity_ != 0.
-    } else if ((SooEnabled || old_capacity_ != 0) && grow_single_group) {
-      if (TransferUsesMemcpy) {
-        GrowSizeIntoSingleGroupTransferable(c, SizeOfSlot);
-        DeallocateOld<AlignOfSlot>(alloc, SizeOfSlot);
+    // We do not set control and slots in CommonFields yet to avoid overriding
+    // SOO data.
+    ctrl_t* new_ctrl = reinterpret_cast<ctrl_t*>(mem + layout.control_offset());
+    void* new_slots = mem + layout.slot_offset();
+
+    bool grow_single_group = true;
+    if (SooEnabled && was_soo_) {
+      if (!had_soo_slot_) {
+        c.set_control(new_ctrl);
+        c.set_slots(new_slots);
+        ResetCtrl(c, SizeOfSlot);
+      } else if (ABSL_PREDICT_TRUE(layout.capacity() <=
+                                   MaxSmallAfterSooCapacity())) {
+        if (TransferUsesMemcpy) {
+          InsertOldSooSlotAndInitializeControlBytesSmall(
+              c, soo_slot_hash, new_ctrl, new_slots, SizeOfSlot,
+              [](void* target_slot, void* source_slot) {
+                std::memcpy(target_slot, source_slot, SizeOfSlot);
+              });
+        } else {
+          InsertOldSooSlotAndInitializeControlBytesSmall(
+              c, soo_slot_hash, new_ctrl, new_slots, SizeOfSlot,
+              [&](void* target_slot, void* source_slot) {
+                policy.transfer(&c, target_slot, source_slot);
+              });
+        }
       } else {
-        GrowIntoSingleGroupShuffleControlBytes(c.control(), layout.capacity());
+        InsertOldSooSlotAndInitializeControlBytesLarge(
+            c, soo_slot_hash, new_ctrl, new_slots, policy);
       }
     } else {
-      ResetCtrl(c, SizeOfSlot);
+      old_heap_or_soo() = c.heap_or_soo();
+      c.set_control(new_ctrl);
+      c.set_slots(new_slots);
+      grow_single_group =
+          IsGrowingIntoSingleGroupApplicable(old_capacity_, layout.capacity());
+      // SooEnabled implies that old_capacity_ != 0.
+      if ((SooEnabled || old_capacity_ != 0) && grow_single_group) {
+        if (TransferUsesMemcpy) {
+          GrowSizeIntoSingleGroupTransferable(c, SizeOfSlot);
+          DeallocateOld<AlignOfSlot>(alloc, SizeOfSlot);
+        } else {
+          GrowIntoSingleGroupShuffleControlBytes(c.control(),
+                                                 layout.capacity());
+        }
+      } else {
+        ResetCtrl(c, SizeOfSlot);
+      }
     }
 
+    ResetGrowthLeft(c);
     c.set_has_infoz(has_infoz);
     if (has_infoz) {
       infoz.RecordStorageChanged(c.size(), layout.capacity());
-      if ((SooEnabled && was_soo_) || grow_single_group || old_capacity_ == 0) {
+      // grow_single_group will be set to true if table was in SOO mode even
+      // if it was not growing into single group.
+      if (grow_single_group || old_capacity_ == 0) {
         infoz.RecordRehash(0);
       }
       c.set_infoz(infoz);
@@ -2174,10 +2281,37 @@ class HashSetResizeHelper {
   // Must be called only if IsGrowingIntoSingleGroupApplicable returned true.
   void GrowSizeIntoSingleGroupTransferable(CommonFields& c, size_t slot_size);
 
-  // If there was an SOO slot and slots are transferable, transfers the SOO slot
-  // into the new heap allocation. Must be called only if
-  // IsGrowingIntoSingleGroupApplicable returned true.
-  void TransferSlotAfterSoo(CommonFields& c, size_t slot_size);
+  // If the table was SOO, initializes new control bytes and transfers slot.
+  // After transferring the slot, sets control and slots in CommonFields.
+  // Requires: `had_soo_slot_`.
+  // Requires: `layout.capacity() <= 7`.
+  template <typename TransferFn>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void
+  InsertOldSooSlotAndInitializeControlBytesSmall(CommonFields& c, size_t hash,
+                                                 ctrl_t* new_ctrl,
+                                                 void* new_slots,
+                                                 size_t slot_size,
+                                                 TransferFn transfer) {
+    ABSL_SWISSTABLE_ASSERT(had_soo_slot_);
+    size_t new_capacity = c.capacity();
+    ABSL_SWISSTABLE_ASSERT(is_single_group(new_capacity));
+    ABSL_SWISSTABLE_ASSERT(new_capacity <= MaxSmallAfterSooCapacity());
+    static_assert(SooSlotIndex() == 1, "");
+    InitializeSmallControlBytesAfterSoo(hash, new_ctrl, new_capacity);
+
+    SanitizerPoisonMemoryRegion(new_slots, slot_size * new_capacity);
+    void* target_slot = SlotAddress(new_slots, SooSlotIndex(), slot_size);
+    SanitizerUnpoisonMemoryRegion(target_slot, slot_size);
+    transfer(target_slot, c.soo_data());
+    c.set_control(new_ctrl);
+    c.set_slots(new_slots);
+  }
+
+  // The same as above, but for large tables.
+  // It is a rare case to resize an SOO table with one element to a large size.
+  void InsertOldSooSlotAndInitializeControlBytesLarge(
+      CommonFields& c, size_t hash, ctrl_t* new_ctrl, void* new_slots,
+      const PolicyFunctions& policy);
 
   // Shuffle control bits deterministically to the next capacity.
   // Returns offset for newly added element with given hash.
@@ -2207,13 +2341,6 @@ class HashSetResizeHelper {
   // new_ctrl = E0123456EEEEEESE0123456EEE...
   void GrowIntoSingleGroupShuffleControlBytes(ctrl_t* new_ctrl,
                                               size_t new_capacity) const;
-
-  // If the table was SOO, initializes new control bytes. `h2` is the control
-  // byte corresponding to the full slot. Must be called only if
-  // IsGrowingIntoSingleGroupApplicable returned true.
-  // Requires: `had_soo_slot_ || h2 == ctrl_t::kEmpty`.
-  void InitControlBytesAfterSoo(ctrl_t* new_ctrl, ctrl_t h2,
-                                size_t new_capacity);
 
   // Shuffle trivially transferable slots in the way consistent with
   // GrowIntoSingleGroupShuffleControlBytes.
@@ -2265,31 +2392,6 @@ inline void PrepareInsertCommon(CommonFields& common) {
 // Like prepare_insert, but for the case of inserting into a full SOO table.
 size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
                              CommonFields& common);
-
-// PolicyFunctions bundles together some information for a particular
-// raw_hash_set<T, ...> instantiation. This information is passed to
-// type-erased functions that want to do small amounts of type-specific
-// work.
-struct PolicyFunctions {
-  size_t slot_size;
-
-  // Returns the pointer to the hash function stored in the set.
-  const void* (*hash_fn)(const CommonFields& common);
-
-  // Returns the hash of the pointed-to slot.
-  size_t (*hash_slot)(const void* hash_fn, void* slot);
-
-  // Transfers the contents of src_slot to dst_slot.
-  void (*transfer)(void* set, void* dst_slot, void* src_slot);
-
-  // Deallocates the backing store from common.
-  void (*dealloc)(CommonFields& common, const PolicyFunctions& policy);
-
-  // Resizes set to the new capacity.
-  // Arguments are used as in raw_hash_set::resize_impl.
-  void (*resize)(CommonFields& common, size_t new_capacity,
-                 HashtablezInfoHandle forced_infoz);
-};
 
 // ClearBackingArray clears the backing array, either modifying it in place,
 // or creating a new one based on the value of "reuse".
@@ -3731,22 +3833,10 @@ class raw_hash_set {
     ABSL_SWISSTABLE_ASSERT(!set->fits_in_soo(new_capacity));
     const bool was_soo = set->is_soo();
     const bool had_soo_slot = was_soo && !set->empty();
-    const ctrl_t soo_slot_h2 =
-        had_soo_slot ? static_cast<ctrl_t>(H2(set->hash_of(set->soo_slot())))
-                     : ctrl_t::kEmpty;
+    const size_t soo_slot_hash =
+        had_soo_slot ? set->hash_of(set->soo_slot()) : 0;
     HashSetResizeHelper resize_helper(common, was_soo, had_soo_slot,
                                       forced_infoz);
-    // Initialize HashSetResizeHelper::old_heap_or_soo_. We can't do this in
-    // HashSetResizeHelper constructor because it can't transfer slots when
-    // transfer_uses_memcpy is false.
-    // TODO(b/289225379): try to handle more of the SOO cases inside
-    // InitializeSlots. See comment on cl/555990034 snapshot #63.
-    if (PolicyTraits::transfer_uses_memcpy() || !had_soo_slot) {
-      resize_helper.old_heap_or_soo() = common.heap_or_soo();
-    } else {
-      set->transfer(set->to_slot(resize_helper.old_soo_data()),
-                    set->soo_slot());
-    }
     common.set_capacity(new_capacity);
     // Note that `InitializeSlots` does different number initialization steps
     // depending on the values of `transfer_uses_memcpy` and capacities.
@@ -3755,17 +3845,14 @@ class raw_hash_set {
         resize_helper.InitializeSlots<CharAlloc, sizeof(slot_type),
                                       PolicyTraits::transfer_uses_memcpy(),
                                       SooEnabled(), alignof(slot_type)>(
-            common, CharAlloc(set->alloc_ref()), soo_slot_h2, sizeof(key_type),
-            sizeof(value_type));
+            common, CharAlloc(set->alloc_ref()), soo_slot_hash,
+            sizeof(key_type), sizeof(value_type), GetPolicyFunctions());
 
-    // In the SooEnabled() case, capacity is never 0 so we don't check.
-    if (!SooEnabled() && resize_helper.old_capacity() == 0) {
+    if (resize_helper.old_capacity() == DefaultCapacity()) {
       // InitializeSlots did all the work including infoz().RecordRehash().
       return;
     }
     ABSL_SWISSTABLE_ASSERT(resize_helper.old_capacity() > 0);
-    // Nothing more to do in this case.
-    if (was_soo && !had_soo_slot) return;
 
     slot_type* new_slots = set->slot_array();
     if (grow_single_group) {
@@ -3773,16 +3860,10 @@ class raw_hash_set {
         // InitializeSlots did all the work.
         return;
       }
-      if (was_soo) {
-        set->transfer(new_slots + resize_helper.SooSlotIndex(),
-                      to_slot(resize_helper.old_soo_data()));
-        return;
-      } else {
-        // We want GrowSizeIntoSingleGroup to be called here in order to make
-        // InitializeSlots not depend on PolicyTraits.
-        resize_helper.GrowSizeIntoSingleGroup<PolicyTraits>(common,
-                                                            set->alloc_ref());
-      }
+      // We want GrowSizeIntoSingleGroup to be called here in order to make
+      // InitializeSlots not depend on PolicyTraits.
+      resize_helper.GrowSizeIntoSingleGroup<PolicyTraits>(common,
+                                                          set->alloc_ref());
     } else {
       // InitializeSlots prepares control bytes to correspond to empty table.
       const auto insert_slot = [&](slot_type* slot) {
@@ -3793,19 +3874,14 @@ class raw_hash_set {
         set->transfer(new_slots + target.offset, slot);
         return target.probe_length;
       };
-      if (was_soo) {
-        insert_slot(to_slot(resize_helper.old_soo_data()));
-        return;
-      } else {
-        auto* old_slots = static_cast<slot_type*>(resize_helper.old_slots());
-        size_t total_probe_length = 0;
-        for (size_t i = 0; i != resize_helper.old_capacity(); ++i) {
-          if (IsFull(resize_helper.old_ctrl()[i])) {
-            total_probe_length += insert_slot(old_slots + i);
-          }
+      auto* old_slots = static_cast<slot_type*>(resize_helper.old_slots());
+      size_t total_probe_length = 0;
+      for (size_t i = 0; i != resize_helper.old_capacity(); ++i) {
+        if (IsFull(resize_helper.old_ctrl()[i])) {
+          total_probe_length += insert_slot(old_slots + i);
         }
-        common.infoz().RecordRehash(total_probe_length);
       }
+      common.infoz().RecordRehash(total_probe_length);
     }
     resize_helper.DeallocateOld<alignof(slot_type)>(CharAlloc(set->alloc_ref()),
                                                     sizeof(slot_type));
