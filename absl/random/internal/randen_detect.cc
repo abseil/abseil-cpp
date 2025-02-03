@@ -120,7 +120,7 @@ static absl::optional<T> ReadSysctlByName(const char* name) {
   size_t val_size = sizeof(T);
   int ret = sysctlbyname(name, &val, &val_size, nullptr, 0);
   if (ret == -1) {
-    return std::nullopt;
+    return absl::nullopt;
   }
   return val;
 }
