@@ -1304,6 +1304,9 @@ struct HeapPtrs {
   MaybeInitializedPtr slot_array;
 };
 
+// Returns the maximum size of the SOO slot.
+constexpr size_t MaxSooSlotSize() { return sizeof(HeapPtrs); }
+
 // Manages the backing array pointers or the SOO slot. When raw_hash_set::is_soo
 // is true, the SOO slot is stored in `soo_data`. Otherwise, we use `heap`.
 union HeapOrSoo {
@@ -1330,7 +1333,7 @@ union HeapOrSoo {
   }
 
   HeapPtrs heap;
-  unsigned char soo_data[sizeof(HeapPtrs)];
+  unsigned char soo_data[MaxSooSlotSize()];
 };
 
 // CommonFields hold the fields in raw_hash_set that do not depend
@@ -2076,6 +2079,36 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeSmallControlBytesAfterSoo(
   // new_ctrl after 3rd store  =      E0EEEEESE0EEEEEEEEEEEEE
 }
 
+// Returns the optimal size for memcpy when transferring SOO slot.
+// If any of transfer_uses_memcpy or soo_enabled is false, returns 0.
+// Otherwise, returns the optimal size for memcpy SOO slot transfer
+// to SooSlotIndex().
+// At the destination we are allowed to copy upto twice more bytes,
+// because there is at least one more slot after SooSlotIndex().
+// The result must not exceed MaxSooSlotSize().
+// Some of the cases are merged to minimize the number of function
+// instantiations.
+constexpr size_t OptimalMemcpySizeForSooSlotTransfer(bool transfer_uses_memcpy,
+                                                     bool soo_enabled,
+                                                     size_t slot_size) {
+  if (!transfer_uses_memcpy || !soo_enabled) {
+    return 0;
+  }
+  if (slot_size == 1) {
+    return 1;
+  }
+  if (slot_size <= 3) {
+    return 4;
+  }
+  // We are merging 4 and 8 into one case because we expect them to be the
+  // hottest cases. Copying 8 bytes is as fast on common architectures.
+  if (slot_size <= 8) {
+    return 8;
+  }
+  static_assert(MaxSooSlotSize() <= 16, "unexpectedly large SOO slot size");
+  return 16;
+}
+
 // Helper class to perform resize of the hash set.
 //
 // It contains special optimizations for small group resizes.
@@ -2144,27 +2177,31 @@ class HashSetResizeHelper {
   //    infoz.RecordRehash is called if old_capacity == 0.
   //
   //  Returns IsGrowingIntoSingleGroupApplicable result to avoid recomputation.
-  template <typename Alloc, size_t SizeOfSlot, bool TransferUsesMemcpy,
-            bool SooEnabled, size_t AlignOfSlot>
+  template <typename Alloc,
+            // The size we are allowed to copy to transfer SOO slot to
+            // SooSlotIndex(). See OptimalMemcpySizeForSooSlotTransfer().
+            size_t SooSlotMemcpySize, bool TransferUsesMemcpy, bool SooEnabled,
+            size_t AlignOfSlot>
   ABSL_ATTRIBUTE_NOINLINE bool InitializeSlots(CommonFields& c, Alloc alloc,
                                                size_t soo_slot_hash,
                                                size_t key_size,
                                                size_t value_size,
                                                const PolicyFunctions& policy) {
     ABSL_SWISSTABLE_ASSERT(c.capacity());
+    const size_t slot_size = policy.slot_size;
     HashtablezInfoHandle infoz = c.infoz();
     const bool should_sample =
         ShouldSampleHashtablezInfoOnResize<Alloc, SooEnabled>(force_infoz_,
                                                               old_capacity_, c);
     if (ABSL_PREDICT_FALSE(should_sample)) {
-      infoz = ForcedTrySample(SizeOfSlot, key_size, value_size,
+      infoz = ForcedTrySample(slot_size, key_size, value_size,
                               SooEnabled ? SooCapacity() : 0);
     }
     const bool has_infoz = infoz.IsSampled();
 
     RawHashSetLayout layout(c.capacity(), AlignOfSlot, has_infoz);
     char* mem = static_cast<char*>(Allocate<BackingArrayAlignment(AlignOfSlot)>(
-        &alloc, layout.alloc_size(SizeOfSlot)));
+        &alloc, layout.alloc_size(slot_size)));
     const GenerationType old_generation = c.generation();
     c.set_generation_ptr(
         reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
@@ -2180,18 +2217,31 @@ class HashSetResizeHelper {
       if (!had_soo_slot_) {
         c.set_control(new_ctrl);
         c.set_slots(new_slots);
-        ResetCtrl(c, SizeOfSlot);
+        ResetCtrl(c, slot_size);
       } else if (ABSL_PREDICT_TRUE(layout.capacity() <=
                                    MaxSmallAfterSooCapacity())) {
         if (TransferUsesMemcpy) {
           InsertOldSooSlotAndInitializeControlBytesSmall(
-              c, soo_slot_hash, new_ctrl, new_slots, SizeOfSlot,
-              [](void* target_slot, void* source_slot) {
-                std::memcpy(target_slot, source_slot, SizeOfSlot);
+              c, soo_slot_hash, new_ctrl, new_slots, slot_size,
+              [&](void* target_slot, void* source_slot) {
+                // Target slot is placed at index 1, but capacity is at
+                // minimum 3. So we are allowed to copy at least twice as much
+                // memory.
+                static_assert(SooSlotIndex() == 1, "");
+                static_assert(SooSlotMemcpySize <= MaxSooSlotSize(), "");
+                ABSL_SWISSTABLE_ASSERT(SooSlotMemcpySize != 0 &&
+                                       SooSlotMemcpySize <= 2 * slot_size);
+                ABSL_SWISSTABLE_ASSERT(SooSlotMemcpySize >= slot_size);
+                void* next_slot = SlotAddress(target_slot, 1, slot_size);
+                SanitizerUnpoisonMemoryRegion(next_slot,
+                                              SooSlotMemcpySize - slot_size);
+                std::memcpy(target_slot, source_slot, SooSlotMemcpySize);
+                SanitizerPoisonMemoryRegion(next_slot,
+                                            SooSlotMemcpySize - slot_size);
               });
         } else {
           InsertOldSooSlotAndInitializeControlBytesSmall(
-              c, soo_slot_hash, new_ctrl, new_slots, SizeOfSlot,
+              c, soo_slot_hash, new_ctrl, new_slots, slot_size,
               [&](void* target_slot, void* source_slot) {
                 policy.transfer(&c, target_slot, source_slot);
               });
@@ -2209,14 +2259,14 @@ class HashSetResizeHelper {
       // SooEnabled implies that old_capacity_ != 0.
       if ((SooEnabled || old_capacity_ != 0) && grow_single_group) {
         if (TransferUsesMemcpy) {
-          GrowSizeIntoSingleGroupTransferable(c, SizeOfSlot);
-          DeallocateOld<AlignOfSlot>(alloc, SizeOfSlot);
+          GrowSizeIntoSingleGroupTransferable(c, slot_size);
+          DeallocateOld<AlignOfSlot>(alloc, slot_size);
         } else {
           GrowIntoSingleGroupShuffleControlBytes(c.control(),
                                                  layout.capacity());
         }
       } else {
-        ResetCtrl(c, SizeOfSlot);
+        ResetCtrl(c, slot_size);
       }
     }
 
@@ -3843,7 +3893,10 @@ class raw_hash_set {
     // depending on the values of `transfer_uses_memcpy` and capacities.
     // Refer to the comment in `InitializeSlots` for more details.
     const bool grow_single_group =
-        resize_helper.InitializeSlots<CharAlloc, sizeof(slot_type),
+        resize_helper.InitializeSlots<CharAlloc,
+                                      OptimalMemcpySizeForSooSlotTransfer(
+                                          PolicyTraits::transfer_uses_memcpy(),
+                                          SooEnabled(), sizeof(slot_type)),
                                       PolicyTraits::transfer_uses_memcpy(),
                                       SooEnabled(), alignof(slot_type)>(
             common, CharAlloc(set->alloc_ref()), soo_slot_hash,
