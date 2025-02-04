@@ -1399,9 +1399,10 @@ class CommonFields : public CommonFieldsGenerationInfo {
     size_ += size_t{1} << HasInfozShift();
   }
   void decrement_size() {
-    ABSL_SWISSTABLE_ASSERT(size() > 0);
+    ABSL_SWISSTABLE_ASSERT(!empty());
     size_ -= size_t{1} << HasInfozShift();
   }
+  bool empty() const { return size() == 0; }
 
   // The total number of available slots.
   size_t capacity() const { return capacity_; }
@@ -1963,7 +1964,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
 }
 
 template <typename CharAlloc>
-constexpr bool ShouldSampleHashtablezInfo() {
+constexpr bool ShouldSampleHashtablezInfoForAlloc() {
   // Folks with custom allocators often make unwarranted assumptions about the
   // behavior of their classes vis-a-vis trivial destructability and what
   // calls they will or won't make.  Avoid sampling for people with custom
@@ -1972,24 +1973,26 @@ constexpr bool ShouldSampleHashtablezInfo() {
   return std::is_same<CharAlloc, std::allocator<char>>::value;
 }
 
-template <bool kSooEnabled>
-HashtablezInfoHandle SampleHashtablezInfo(size_t sizeof_slot, size_t sizeof_key,
-                                          size_t sizeof_value,
-                                          size_t old_capacity, bool was_soo,
-                                          HashtablezInfoHandle forced_infoz,
-                                          CommonFields& c) {
-  if (forced_infoz.IsSampled()) return forced_infoz;
+template <typename CharAlloc, bool kSooEnabled>
+bool ShouldSampleHashtablezInfoOnResize(bool force_sampling,
+                                        size_t old_capacity, CommonFields& c) {
+  if (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) {
+    return false;
+  }
+  // Force sampling is only allowed for SOO tables.
+  ABSL_SWISSTABLE_ASSERT(kSooEnabled || !force_sampling);
+  if (kSooEnabled && force_sampling) {
+    return true;
+  }
   // In SOO, we sample on the first insertion so if this is an empty SOO case
   // (e.g. when reserve is called), then we still need to sample.
-  if (kSooEnabled && was_soo && c.size() == 0) {
-    return Sample(sizeof_slot, sizeof_key, sizeof_value, SooCapacity());
+  if (kSooEnabled && old_capacity == SooCapacity() && c.empty()) {
+    return ShouldSampleNextTable();
   }
-  // For non-SOO cases, we sample whenever the capacity is increasing from zero
-  // to non-zero.
   if (!kSooEnabled && old_capacity == 0) {
-    return Sample(sizeof_slot, sizeof_key, sizeof_value, 0);
+    return ShouldSampleNextTable();
   }
-  return c.infoz();
+  return false;
 }
 
 // PolicyFunctions bundles together some information for a particular
@@ -2013,8 +2016,7 @@ struct PolicyFunctions {
 
   // Resizes set to the new capacity.
   // Arguments are used as in raw_hash_set::resize_impl.
-  void (*resize)(CommonFields& common, size_t new_capacity,
-                 HashtablezInfoHandle forced_infoz);
+  void (*resize)(CommonFields& common, size_t new_capacity, bool force_infoz);
 };
 
 // Returns the index of the SOO slot when growing from SOO to non-SOO in a
@@ -2081,12 +2083,12 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeSmallControlBytesAfterSoo(
 class HashSetResizeHelper {
  public:
   explicit HashSetResizeHelper(CommonFields& c, bool was_soo, bool had_soo_slot,
-                               HashtablezInfoHandle forced_infoz)
+                               bool force_infoz)
       : old_capacity_(c.capacity()),
         had_infoz_(c.has_infoz()),
         was_soo_(was_soo),
         had_soo_slot_(had_soo_slot),
-        forced_infoz_(forced_infoz) {}
+        force_infoz_(force_infoz) {}
 
   // Optimized for small groups version of `find_first_non_full`.
   // Beneficial only right after calling `raw_hash_set::resize`.
@@ -2150,13 +2152,14 @@ class HashSetResizeHelper {
                                                size_t value_size,
                                                const PolicyFunctions& policy) {
     ABSL_SWISSTABLE_ASSERT(c.capacity());
-    HashtablezInfoHandle infoz =
-        ShouldSampleHashtablezInfo<Alloc>()
-            ? SampleHashtablezInfo<SooEnabled>(SizeOfSlot, key_size, value_size,
-                                               old_capacity_, was_soo_,
-                                               forced_infoz_, c)
-            : HashtablezInfoHandle{};
-
+    HashtablezInfoHandle infoz = c.infoz();
+    const bool should_sample =
+        ShouldSampleHashtablezInfoOnResize<Alloc, SooEnabled>(force_infoz_,
+                                                              old_capacity_, c);
+    if (ABSL_PREDICT_FALSE(should_sample)) {
+      infoz = ForcedTrySample(SizeOfSlot, key_size, value_size,
+                              SooEnabled ? SooCapacity() : 0);
+    }
     const bool has_infoz = infoz.IsSampled();
 
     RawHashSetLayout layout(c.capacity(), AlignOfSlot, has_infoz);
@@ -2380,8 +2383,9 @@ class HashSetResizeHelper {
   bool had_infoz_;
   bool was_soo_;
   bool had_soo_slot_;
-  // Either null infoz or a pre-sampled forced infoz for SOO tables.
-  HashtablezInfoHandle forced_infoz_;
+  // True if it is known that table needs to be sampled.
+  // Used for sampling SOO tables.
+  bool force_infoz_;
 };
 
 inline void PrepareInsertCommon(CommonFields& common) {
@@ -2880,8 +2884,7 @@ class raw_hash_set {
       ABSL_SWISSTABLE_ASSERT(size == 1);
       common().set_full_soo();
       emplace_at(soo_iterator(), *that.begin());
-      const HashtablezInfoHandle infoz = try_sample_soo();
-      if (infoz.IsSampled()) resize_with_soo_infoz(infoz);
+      if (should_sample_soo()) resize_with_soo_sample();
       return;
     }
     ABSL_SWISSTABLE_ASSERT(!that.is_soo());
@@ -3742,14 +3745,13 @@ class raw_hash_set {
     }
   }
 
-  // Conditionally samples hashtablez for SOO tables. This should be called on
-  // insertion into an empty SOO table and in copy construction when the size
-  // can fit in SOO capacity.
-  inline HashtablezInfoHandle try_sample_soo() {
+  // Returns true if the table needs to be sampled.
+  // This should be called on insertion into an empty SOO table and in copy
+  // construction when the size can fit in SOO capacity.
+  inline bool should_sample_soo() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
-    if (!ShouldSampleHashtablezInfo<CharAlloc>()) return HashtablezInfoHandle{};
-    return Sample(sizeof(slot_type), sizeof(key_type), sizeof(value_type),
-                  SooCapacity());
+    if (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) return false;
+    return ShouldSampleNextTable();
   }
 
   inline void destroy_slots() {
@@ -3811,32 +3813,31 @@ class raw_hash_set {
   //    common(), old_capacity, hash)
   // can be called right after `resize`.
   void resize(size_t new_capacity) {
-    raw_hash_set::resize_impl(common(), new_capacity, HashtablezInfoHandle{});
+    raw_hash_set::resize_impl(common(), new_capacity, /*force_infoz=*/false);
   }
 
-  // As above, except that we also accept a pre-sampled, forced infoz for
-  // SOO tables, since they need to switch from SOO to heap in order to
-  // store the infoz.
-  void resize_with_soo_infoz(HashtablezInfoHandle forced_infoz) {
-    ABSL_SWISSTABLE_ASSERT(forced_infoz.IsSampled());
+  // As above, except that we also force SOO table to be sampled.
+  // SOO tables need to switch from SOO to heap in order to store the infoz.
+  void resize_with_soo_sample() {
     raw_hash_set::resize_impl(common(), NextCapacity(SooCapacity()),
-                              forced_infoz);
+                              /*force_infoz=*/true);
   }
 
   // Resizes set to the new capacity.
   // It is a static function in order to use its pointer in GetPolicyFunctions.
-  ABSL_ATTRIBUTE_NOINLINE static void resize_impl(
-      CommonFields& common, size_t new_capacity,
-      HashtablezInfoHandle forced_infoz) {
+  ABSL_ATTRIBUTE_NOINLINE static void resize_impl(CommonFields& common,
+                                                  size_t new_capacity,
+                                                  bool force_infoz) {
     raw_hash_set* set = reinterpret_cast<raw_hash_set*>(&common);
     ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
     ABSL_SWISSTABLE_ASSERT(!set->fits_in_soo(new_capacity));
+    ABSL_SWISSTABLE_ASSERT(!force_infoz || SooEnabled());
     const bool was_soo = set->is_soo();
     const bool had_soo_slot = was_soo && !set->empty();
     const size_t soo_slot_hash =
         had_soo_slot ? set->hash_of(set->soo_slot()) : 0;
     HashSetResizeHelper resize_helper(common, was_soo, had_soo_slot,
-                                      forced_infoz);
+                                      force_infoz);
     common.set_capacity(new_capacity);
     // Note that `InitializeSlots` does different number initialization steps
     // depending on the values of `transfer_uses_memcpy` and capacities.
@@ -3995,9 +3996,8 @@ class raw_hash_set {
   template <class K>
   std::pair<iterator, bool> find_or_prepare_insert_soo(const K& key) {
     if (empty()) {
-      const HashtablezInfoHandle infoz = try_sample_soo();
-      if (infoz.IsSampled()) {
-        resize_with_soo_infoz(infoz);
+      if (should_sample_soo()) {
+        resize_with_soo_sample();
       } else {
         common().set_full_soo();
         return {soo_iterator(), true};

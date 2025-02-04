@@ -574,7 +574,7 @@ FindInfo FindInsertPositionWithGrowthOrRehash(CommonFields& common, size_t hash,
     DropDeletesWithoutResize(common, policy);
   } else {
     // Otherwise grow the container.
-    policy.resize(common, NextCapacity(cap), HashtablezInfoHandle{});
+    policy.resize(common, NextCapacity(cap), /*force_infoz=*/false);
   }
   // This function is typically called with tables containing deleted slots.
   // The table will be big and `FindFirstNonFullAfterResize` will always
@@ -630,7 +630,7 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
     // 3. Table with deleted slots that needs to be rehashed or resized.
     if (ABSL_PREDICT_TRUE(common.growth_info().HasNoGrowthLeftAndNoDeleted())) {
       const size_t old_capacity = common.capacity();
-      policy.resize(common, NextCapacity(old_capacity), HashtablezInfoHandle{});
+      policy.resize(common, NextCapacity(old_capacity), /*force_infoz=*/false);
       target = HashSetResizeHelper::FindFirstNonFullAfterResize(
           common, old_capacity, hash);
     } else {
@@ -643,7 +643,7 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
         const size_t cap = common.capacity();
         policy.resize(common,
                       common.growth_left() > 0 ? cap : NextCapacity(cap),
-                      HashtablezInfoHandle{});
+                      /*force_infoz=*/false);
       }
       if (ABSL_PREDICT_TRUE(common.growth_left() > 0)) {
         target = find_first_non_full(common, hash);
