@@ -107,13 +107,16 @@ struct IsAnyInvocable<AnyInvocable<Sig>> : std::true_type {};
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// A type trait that tells us whether or not a target function type should be
+// A metafunction that tells us whether or not a target function type should be
 // stored locally in the small object optimization storage
 template <class T>
-using IsStoredLocally = std::integral_constant<
-    bool, sizeof(T) <= kStorageSize && alignof(T) <= kAlignment &&
-              kAlignment % alignof(T) == 0 &&
-              std::is_nothrow_move_constructible<T>::value>;
+constexpr bool IsStoredLocally() {
+  if constexpr (sizeof(T) <= kStorageSize && alignof(T) <= kAlignment &&
+                kAlignment % alignof(T) == 0) {
+    return std::is_nothrow_move_constructible<T>::value;
+  }
+  return false;
+}
 
 // An implementation of std::remove_cvref_t of C++20.
 template <class T>
@@ -275,7 +278,7 @@ template <class T>
 void LocalManagerNontrivial(FunctionToCall operation,
                             TypeErasedState* const from,
                             TypeErasedState* const to) noexcept {
-  static_assert(IsStoredLocally<T>::value,
+  static_assert(IsStoredLocally<T>(),
                 "Local storage must only be used for supported types.");
   static_assert(!std::is_trivially_copyable<T>::value,
                 "Locally stored types must be trivially copyable.");
@@ -303,7 +306,7 @@ ReturnType LocalInvoker(
     ForwardedParameterType<P>... args) noexcept(SigIsNoexcept) {
   using RawT = RemoveCVRef<QualTRef>;
   static_assert(
-      IsStoredLocally<RawT>::value,
+      IsStoredLocally<RawT>(),
       "Target object must be in local storage in order to be invoked from it.");
 
   auto& f = (ObjectInLocalStorage<RawT>)(state);
@@ -338,7 +341,7 @@ template <class T>
 void RemoteManagerNontrivial(FunctionToCall operation,
                              TypeErasedState* const from,
                              TypeErasedState* const to) noexcept {
-  static_assert(!IsStoredLocally<T>::value,
+  static_assert(!IsStoredLocally<T>(),
                 "Remote storage must only be used for types that do not "
                 "qualify for local storage.");
 
@@ -360,7 +363,7 @@ ReturnType RemoteInvoker(
     TypeErasedState* const state,
     ForwardedParameterType<P>... args) noexcept(SigIsNoexcept) {
   using RawT = RemoveCVRef<QualTRef>;
-  static_assert(!IsStoredLocally<RawT>::value,
+  static_assert(!IsStoredLocally<RawT>(),
                 "Target object must be in remote storage in order to be "
                 "invoked from it.");
 
@@ -576,7 +579,7 @@ class CoreImpl {
   // Use local (inline) storage for applicable target object types.
   template <class QualTRef, class... Args,
             typename = absl::enable_if_t<
-                IsStoredLocally<RemoveCVRef<QualTRef>>::value>>
+                IsStoredLocally<RemoveCVRef<QualTRef>>()>>
   void InitializeStorage(Args&&... args) {
     using RawT = RemoveCVRef<QualTRef>;
     ::new (static_cast<void*>(&state_.storage))
@@ -589,7 +592,7 @@ class CoreImpl {
 
   // Use remote storage for target objects that cannot be stored locally.
   template <class QualTRef, class... Args,
-            absl::enable_if_t<!IsStoredLocally<RemoveCVRef<QualTRef>>::value,
+      absl::enable_if_t<!IsStoredLocally<RemoveCVRef<QualTRef>>(),
                               int> = 0>
   void InitializeStorage(Args&&... args) {
     InitializeRemoteManager<RemoveCVRef<QualTRef>>(std::forward<Args>(args)...);
