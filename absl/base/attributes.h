@@ -553,12 +553,11 @@
 //
 // Prevents the compiler from complaining about variables that appear unused.
 //
-// For code or headers that are assured to only build with C++17 and up, prefer
-// just using the standard '[[maybe_unused]]' directly over this macro.
+// Deprecated: Use the standard C++17 `[[maybe_unused]` instead.
 //
 // Due to differences in positioning requirements between the old, compiler
-// specific __attribute__ syntax and the now standard [[maybe_unused]], this
-// macro does not attempt to take advantage of '[[maybe_unused]]'.
+// specific __attribute__ syntax and the now standard `[[maybe_unused]]`, this
+// macro does not attempt to take advantage of `[[maybe_unused]]`.
 #if ABSL_HAVE_ATTRIBUTE(unused) || (defined(__GNUC__) && !defined(__clang__))
 #undef ABSL_ATTRIBUTE_UNUSED
 #define ABSL_ATTRIBUTE_UNUSED __attribute__((__unused__))
