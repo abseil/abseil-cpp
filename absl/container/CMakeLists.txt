@@ -1028,5 +1028,6 @@ absl_cc_test(
     absl::flat_hash_set
     absl::node_hash_map
     absl::node_hash_set
+    absl::hashtablez_sampler
     GTest::gmock_main
 )
