@@ -2418,7 +2418,7 @@ class HashSetResizeHelper {
   //    GrowIntoSingleGroupShuffleControlBytes.
   // 2. new_slots is fully initialized consistent with
   //    GrowIntoSingleGroupShuffleControlBytes.
-  void PoisonSingleGroupEmptySlots(CommonFields& c, size_t slot_size) const {
+  static void PoisonSingleGroupEmptySlots(CommonFields& c, size_t slot_size) {
     // poison non full items
     for (size_t i = 0; i < c.capacity(); ++i) {
       if (!IsFull(c.control()[i])) {
@@ -3113,8 +3113,7 @@ class raw_hash_set {
       common().set_empty_soo();
     } else {
       destroy_slots();
-      ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/cap < 128,
-                        SooEnabled());
+      clear_backing_array(/*reuse=*/cap < 128);
     }
     common().set_reserved_growth(0);
     common().set_reservation_size(0);
@@ -3398,7 +3397,7 @@ class raw_hash_set {
   iterator erase(const_iterator first,
                  const_iterator last) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     AssertNotDebugCapacity();
-    // We check for empty first because ClearBackingArray requires that
+    // We check for empty first because clear_backing_array requires that
     // capacity() > 0 as a precondition.
     if (empty()) return end();
     if (first == last) return last.inner_;
@@ -3409,11 +3408,10 @@ class raw_hash_set {
     }
     if (first == begin() && last == end()) {
       // TODO(ezb): we access control bytes in destroy_slots so it could make
-      // sense to combine destroy_slots and ClearBackingArray to avoid cache
+      // sense to combine destroy_slots and clear_backing_array to avoid cache
       // misses when the table is large. Note that we also do this in clear().
       destroy_slots();
-      ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/true,
-                        SooEnabled());
+      clear_backing_array(/*reuse=*/true);
       common().set_reserved_growth(common().reservation_size());
       return end();
     }
@@ -3493,8 +3491,7 @@ class raw_hash_set {
     if (n == 0) {
       if (cap == 0 || is_soo()) return;
       if (empty()) {
-        ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/false,
-                          SooEnabled());
+        clear_backing_array(/*reuse=*/false);
         return;
       }
       if (fits_in_soo(size())) {
@@ -3511,8 +3508,7 @@ class raw_hash_set {
         alignas(slot_type) unsigned char slot_space[sizeof(slot_type)];
         slot_type* tmp_slot = to_slot(slot_space);
         transfer(tmp_slot, begin().slot());
-        ClearBackingArray(common(), GetPolicyFunctions(), /*reuse=*/false,
-                          SooEnabled());
+        clear_backing_array(/*reuse=*/false);
         transfer(soo_slot(), tmp_slot);
         common().set_full_soo();
         return;
@@ -3798,13 +3794,18 @@ class raw_hash_set {
   // Returns true if the table needs to be sampled.
   // This should be called on insertion into an empty SOO table and in copy
   // construction when the size can fit in SOO capacity.
-  inline bool should_sample_soo() {
+  bool should_sample_soo() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
     if (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) return false;
     return ShouldSampleNextTable();
   }
 
-  inline void destroy_slots() {
+  void clear_backing_array(bool reuse) {
+    ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
+    ClearBackingArray(common(), GetPolicyFunctions(), reuse, SooEnabled());
+  }
+
+  void destroy_slots() {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
     IterateOverFullSlots(
@@ -3813,8 +3814,8 @@ class raw_hash_set {
             ABSL_ATTRIBUTE_ALWAYS_INLINE { this->destroy(slot); });
   }
 
-  inline void dealloc() {
-    ABSL_SWISSTABLE_ASSERT(capacity() != 0);
+  void dealloc() {
+    ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
     // Unpoison before returning the memory to the allocator.
     SanitizerUnpoisonMemoryRegion(slot_array(), sizeof(slot_type) * capacity());
     infoz().Unregister();
@@ -3823,7 +3824,7 @@ class raw_hash_set {
         common().alloc_size(sizeof(slot_type), alignof(slot_type)));
   }
 
-  inline void destructor_impl() {
+  void destructor_impl() {
     if (SwisstableGenerationsEnabled() &&
         capacity() >= InvalidCapacity::kMovedFrom) {
       return;
