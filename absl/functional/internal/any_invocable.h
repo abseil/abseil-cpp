@@ -443,13 +443,6 @@ class CoreImpl {
 
   CoreImpl() noexcept : manager_(EmptyManager), invoker_(nullptr) {}
 
-  enum class TargetType {
-    kPointer,
-    kCompatibleAnyInvocable,
-    kIncompatibleAnyInvocable,
-    kOther,
-  };
-
   // Note: QualDecayedTRef here includes the cv-ref qualifiers associated with
   // the invocation of the Invocable. The unqualified type is the target object
   // type to be stored.
@@ -457,19 +450,48 @@ class CoreImpl {
   explicit CoreImpl(TypedConversionConstruct<QualDecayedTRef>, F&& f) {
     using DecayedT = RemoveCVRef<QualDecayedTRef>;
 
-    constexpr TargetType kTargetType =
-        (std::is_pointer<DecayedT>::value ||
-         std::is_member_pointer<DecayedT>::value)
-            ? TargetType::kPointer
-        : IsCompatibleAnyInvocable<DecayedT>::value
-            ? TargetType::kCompatibleAnyInvocable
-        : IsAnyInvocable<DecayedT>::value
-            ? TargetType::kIncompatibleAnyInvocable
-            : TargetType::kOther;
-    // NOTE: We only use integers instead of enums as template parameters in
-    // order to work around a bug on C++14 under MSVC 2017.
-    // See b/236131881.
-    Initialize<kTargetType, QualDecayedTRef>(std::forward<F>(f));
+    if constexpr (std::is_pointer<DecayedT>::value ||
+                  std::is_member_pointer<DecayedT>::value) {
+      // This condition handles types that decay into pointers, which includes
+      // function references. Since function references cannot be null, GCC
+      // warns against comparing their decayed form with nullptr. Since this is
+      // template-heavy code, we prefer to disable these warnings locally
+      // instead of adding yet another overload of this function.
+      //
+      // TODO(b/290784225): Avoid warnings using constexpr programming instead.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Waddress"
+#pragma GCC diagnostic ignored "-Wnonnull-compare"
+#endif
+      if (static_cast<DecayedT>(f) == nullptr) {
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+        manager_ = EmptyManager;
+        invoker_ = nullptr;
+      } else {
+        InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+      }
+    } else if constexpr (IsCompatibleAnyInvocable<DecayedT>::value) {
+      // In this case we can "steal the guts" of the other AnyInvocable.
+      f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
+      manager_ = f.manager_;
+      invoker_ = f.invoker_;
+
+      f.manager_ = EmptyManager;
+      f.invoker_ = nullptr;
+    } else if constexpr (IsAnyInvocable<DecayedT>::value) {
+      if (f.HasValue()) {
+        InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+      } else {
+        manager_ = EmptyManager;
+        invoker_ = nullptr;
+      }
+    } else {
+      InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+    }
   }
 
   // Note: QualTRef here includes the cv-ref qualifiers associated with the
@@ -518,62 +540,6 @@ class CoreImpl {
     manager_(FunctionToCall::dispose, &state_, &state_);
     manager_ = EmptyManager;
     invoker_ = nullptr;
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<target_type == TargetType::kPointer, int> = 0>
-  void Initialize(F&& f) {
-// This condition handles types that decay into pointers, which includes
-// function references. Since function references cannot be null, GCC warns
-// against comparing their decayed form with nullptr.
-// Since this is template-heavy code, we prefer to disable these warnings
-// locally instead of adding yet another overload of this function.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Waddress"
-#pragma GCC diagnostic ignored "-Wnonnull-compare"
-#endif
-    if (static_cast<RemoveCVRef<QualDecayedTRef>>(f) == nullptr) {
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-      manager_ = EmptyManager;
-      invoker_ = nullptr;
-      return;
-    }
-    InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<
-                target_type == TargetType::kCompatibleAnyInvocable, int> = 0>
-  void Initialize(F&& f) {
-    // In this case we can "steal the guts" of the other AnyInvocable.
-    f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
-    manager_ = f.manager_;
-    invoker_ = f.invoker_;
-
-    f.manager_ = EmptyManager;
-    f.invoker_ = nullptr;
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<
-                target_type == TargetType::kIncompatibleAnyInvocable, int> = 0>
-  void Initialize(F&& f) {
-    if (f.HasValue()) {
-      InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
-    } else {
-      manager_ = EmptyManager;
-      invoker_ = nullptr;
-    }
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            typename = absl::enable_if_t<target_type == TargetType::kOther>>
-  void Initialize(F&& f) {
-    InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
   }
 
   // Use local (inline) storage for applicable target object types.
