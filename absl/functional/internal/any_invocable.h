@@ -543,28 +543,23 @@ class CoreImpl {
   }
 
   // Use local (inline) storage for applicable target object types.
-  template <class QualTRef, class... Args,
-            typename = absl::enable_if_t<
-                IsStoredLocally<RemoveCVRef<QualTRef>>()>>
+  template <class QualTRef, class... Args>
   void InitializeStorage(Args&&... args) {
-    using RawT = RemoveCVRef<QualTRef>;
-    ::new (static_cast<void*>(&state_.storage))
-        RawT(std::forward<Args>(args)...);
+    if constexpr (IsStoredLocally<RemoveCVRef<QualTRef>>()) {
+      using RawT = RemoveCVRef<QualTRef>;
+      ::new (static_cast<void*>(&state_.storage))
+          RawT(std::forward<Args>(args)...);
 
-    invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
-    // We can simplify our manager if we know the type is trivially copyable.
-    InitializeLocalManager<RawT>();
-  }
-
-  // Use remote storage for target objects that cannot be stored locally.
-  template <class QualTRef, class... Args,
-      absl::enable_if_t<!IsStoredLocally<RemoveCVRef<QualTRef>>(),
-                              int> = 0>
-  void InitializeStorage(Args&&... args) {
-    InitializeRemoteManager<RemoveCVRef<QualTRef>>(std::forward<Args>(args)...);
-    // This is set after everything else in case an exception is thrown in an
-    // earlier step of the initialization.
-    invoker_ = RemoteInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
+      invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
+      // We can simplify our manager if we know the type is trivially copyable.
+      InitializeLocalManager<RawT>();
+    } else {
+      InitializeRemoteManager<RemoveCVRef<QualTRef>>(
+          std::forward<Args>(args)...);
+      // This is set after everything else in case an exception is thrown in an
+      // earlier step of the initialization.
+      invoker_ = RemoteInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
+    }
   }
 
   template <class T,
