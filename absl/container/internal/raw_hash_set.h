@@ -1976,12 +1976,11 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
   return std::is_same<CharAlloc, std::allocator<char>>::value;
 }
 
-template <typename CharAlloc, bool kSooEnabled>
+template <bool kSooEnabled>
 bool ShouldSampleHashtablezInfoOnResize(bool force_sampling,
+                                        bool is_hashtablez_eligible,
                                         size_t old_capacity, CommonFields& c) {
-  if (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) {
-    return false;
-  }
+  if (!is_hashtablez_eligible) return false;
   // Force sampling is only allowed for SOO tables.
   ABSL_SWISSTABLE_ASSERT(kSooEnabled || !force_sampling);
   if (kSooEnabled && force_sampling) {
@@ -1998,12 +1997,32 @@ bool ShouldSampleHashtablezInfoOnResize(bool force_sampling,
   return false;
 }
 
+// Allocates `n` bytes for a backing array.
+template <size_t AlignOfBackingArray, typename CharAlloc>
+ABSL_ATTRIBUTE_NOINLINE void* AllocateBackingArray(void* alloc, size_t n) {
+  return Allocate<AlignOfBackingArray>(static_cast<CharAlloc*>(alloc), n);
+}
+
+template <size_t AlignOfBackingArray, typename CharAlloc>
+ABSL_ATTRIBUTE_NOINLINE void DeallocateBackingArray(
+    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+    size_t slot_align, bool had_infoz) {
+  RawHashSetLayout layout(capacity, slot_align, had_infoz);
+  void* backing_array = ctrl - layout.control_offset();
+  const size_t alloc_size = layout.alloc_size(slot_size);
+  // Unpoison before returning the memory to the allocator.
+  SanitizerUnpoisonMemoryRegion(backing_array, alloc_size);
+  Deallocate<AlignOfBackingArray>(static_cast<CharAlloc*>(alloc), backing_array,
+                                  alloc_size);
+}
+
 // PolicyFunctions bundles together some information for a particular
 // raw_hash_set<T, ...> instantiation. This information is passed to
 // type-erased functions that want to do small amounts of type-specific
 // work.
 struct PolicyFunctions {
-  size_t slot_size;
+  uint32_t slot_size;
+  uint32_t slot_align;
 
   // Returns the pointer to the hash function stored in the set.
   const void* (*hash_fn)(const CommonFields& common);
@@ -2014,8 +2033,12 @@ struct PolicyFunctions {
   // Transfers the contents of src_slot to dst_slot.
   void (*transfer)(void* set, void* dst_slot, void* src_slot);
 
+  // Allocates n bytes for the backing store for common.
+  void* (*alloc)(void* alloc, size_t n);
+
   // Deallocates the backing store from common.
-  void (*dealloc)(CommonFields& common, const PolicyFunctions& policy);
+  void (*dealloc)(void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+                  size_t slot_align, bool had_infoz);
 
   // Resizes set to the new capacity.
   // Arguments are used as in raw_hash_set::resize_impl.
@@ -2116,12 +2139,13 @@ constexpr size_t OptimalMemcpySizeForSooSlotTransfer(bool transfer_uses_memcpy,
 class HashSetResizeHelper {
  public:
   explicit HashSetResizeHelper(CommonFields& c, bool was_soo, bool had_soo_slot,
-                               bool force_infoz)
+                               bool force_infoz, bool is_hashtablez_eligible)
       : old_capacity_(c.capacity()),
         had_infoz_(c.has_infoz()),
         was_soo_(was_soo),
         had_soo_slot_(had_soo_slot),
-        force_infoz_(force_infoz) {}
+        force_infoz_(force_infoz),
+        is_hashtablez_eligible_(is_hashtablez_eligible) {}
 
   // Optimized for small groups version of `find_first_non_full`.
   // Beneficial only right after calling `raw_hash_set::resize`.
@@ -2177,31 +2201,30 @@ class HashSetResizeHelper {
   //    infoz.RecordRehash is called if old_capacity == 0.
   //
   //  Returns IsGrowingIntoSingleGroupApplicable result to avoid recomputation.
-  template <typename Alloc,
-            // The size we are allowed to copy to transfer SOO slot to
-            // SooSlotIndex(). See OptimalMemcpySizeForSooSlotTransfer().
-            size_t SooSlotMemcpySize, bool TransferUsesMemcpy, bool SooEnabled,
-            size_t AlignOfSlot>
-  ABSL_ATTRIBUTE_NOINLINE bool InitializeSlots(CommonFields& c, Alloc alloc,
+  //
+  // SooSlotMemcpySize is the size we are allowed to copy to transfer SOO slot
+  // to SooSlotIndex(). See OptimalMemcpySizeForSooSlotTransfer().
+  template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy, bool SooEnabled>
+  ABSL_ATTRIBUTE_NOINLINE bool InitializeSlots(CommonFields& c, void* alloc,
                                                size_t soo_slot_hash,
                                                size_t key_size,
                                                size_t value_size,
                                                const PolicyFunctions& policy) {
     ABSL_SWISSTABLE_ASSERT(c.capacity());
     const size_t slot_size = policy.slot_size;
+    const size_t slot_align = policy.slot_align;
     HashtablezInfoHandle infoz = c.infoz();
-    const bool should_sample =
-        ShouldSampleHashtablezInfoOnResize<Alloc, SooEnabled>(force_infoz_,
-                                                              old_capacity_, c);
+    const bool should_sample = ShouldSampleHashtablezInfoOnResize<SooEnabled>(
+        force_infoz_, is_hashtablez_eligible_, old_capacity_, c);
     if (ABSL_PREDICT_FALSE(should_sample)) {
       infoz = ForcedTrySample(slot_size, key_size, value_size,
                               SooEnabled ? SooCapacity() : 0);
     }
     const bool has_infoz = infoz.IsSampled();
 
-    RawHashSetLayout layout(c.capacity(), AlignOfSlot, has_infoz);
-    char* mem = static_cast<char*>(Allocate<BackingArrayAlignment(AlignOfSlot)>(
-        &alloc, layout.alloc_size(slot_size)));
+    RawHashSetLayout layout(c.capacity(), slot_align, has_infoz);
+    char* mem =
+        static_cast<char*>(policy.alloc(alloc, layout.alloc_size(slot_size)));
     const GenerationType old_generation = c.generation();
     c.set_generation_ptr(
         reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
@@ -2260,7 +2283,8 @@ class HashSetResizeHelper {
       if ((SooEnabled || old_capacity_ != 0) && grow_single_group) {
         if (TransferUsesMemcpy) {
           GrowSizeIntoSingleGroupTransferable(c, slot_size);
-          DeallocateOld<AlignOfSlot>(alloc, slot_size);
+          (*policy.dealloc)(alloc, old_capacity_, old_ctrl(), slot_size,
+                            slot_align, had_infoz_);
         } else {
           GrowIntoSingleGroupShuffleControlBytes(c.control(),
                                                  layout.capacity());
@@ -2312,12 +2336,9 @@ class HashSetResizeHelper {
 
   // Deallocates old backing array.
   template <size_t AlignOfSlot, class CharAlloc>
-  void DeallocateOld(CharAlloc alloc_ref, size_t slot_size) {
-    SanitizerUnpoisonMemoryRegion(old_slots(), slot_size * old_capacity_);
-    auto layout = RawHashSetLayout(old_capacity_, AlignOfSlot, had_infoz_);
-    Deallocate<BackingArrayAlignment(AlignOfSlot)>(
-        &alloc_ref, old_ctrl() - layout.control_offset(),
-        layout.alloc_size(slot_size));
+  void DeallocateOld(CharAlloc alloc, size_t slot_size) {
+    DeallocateBackingArray<BackingArrayAlignment(AlignOfSlot), CharAlloc>(
+        &alloc, old_capacity_, old_ctrl(), slot_size, AlignOfSlot, had_infoz_);
   }
 
  private:
@@ -2436,6 +2457,7 @@ class HashSetResizeHelper {
   // True if it is known that table needs to be sampled.
   // Used for sampling SOO tables.
   bool force_infoz_;
+  bool is_hashtablez_eligible_;
 };
 
 inline void PrepareInsertCommon(CommonFields& common) {
@@ -2451,28 +2473,10 @@ size_t PrepareInsertAfterSoo(size_t hash, size_t slot_size,
 // or creating a new one based on the value of "reuse".
 // REQUIRES: c.capacity > 0
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
-                       bool reuse, bool soo_enabled);
+                       void* alloc, bool reuse, bool soo_enabled);
 
 // Type-erased version of raw_hash_set::erase_meta_only.
 void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size);
-
-// Function to place in PolicyFunctions::dealloc for raw_hash_sets
-// that are using std::allocator. This allows us to share the same
-// function body for raw_hash_set instantiations that have the
-// same slot alignment.
-template <size_t AlignOfSlot>
-ABSL_ATTRIBUTE_NOINLINE void DeallocateStandard(CommonFields& common,
-                                                const PolicyFunctions& policy) {
-  // Unpoison before returning the memory to the allocator.
-  SanitizerUnpoisonMemoryRegion(common.slot_array(),
-                                policy.slot_size * common.capacity());
-
-  std::allocator<char> alloc;
-  common.infoz().Unregister();
-  Deallocate<BackingArrayAlignment(AlignOfSlot)>(
-      &alloc, common.backing_array_start(),
-      common.alloc_size(policy.slot_size, AlignOfSlot));
-}
 
 // For trivially relocatable types we use memcpy directly. This allows us to
 // share the same function body for raw_hash_set instantiations that have the
@@ -3802,7 +3806,9 @@ class raw_hash_set {
 
   void clear_backing_array(bool reuse) {
     ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
-    ClearBackingArray(common(), GetPolicyFunctions(), reuse, SooEnabled());
+    CharAlloc alloc(alloc_ref());
+    ClearBackingArray(common(), GetPolicyFunctions(), &alloc, reuse,
+                      SooEnabled());
   }
 
   void destroy_slots() {
@@ -3819,9 +3825,11 @@ class raw_hash_set {
     // Unpoison before returning the memory to the allocator.
     SanitizerUnpoisonMemoryRegion(slot_array(), sizeof(slot_type) * capacity());
     infoz().Unregister();
-    Deallocate<BackingArrayAlignment(alignof(slot_type))>(
-        &alloc_ref(), common().backing_array_start(),
-        common().alloc_size(sizeof(slot_type), alignof(slot_type)));
+    CharAlloc alloc(alloc_ref());
+    DeallocateBackingArray<BackingArrayAlignment(alignof(slot_type)),
+                           CharAlloc>(&alloc, capacity(), control(),
+                                      sizeof(slot_type), alignof(slot_type),
+                                      common().has_infoz());
   }
 
   void destructor_impl() {
@@ -3887,21 +3895,22 @@ class raw_hash_set {
     const bool had_soo_slot = was_soo && !set->empty();
     const size_t soo_slot_hash =
         had_soo_slot ? set->hash_of(set->soo_slot()) : 0;
-    HashSetResizeHelper resize_helper(common, was_soo, had_soo_slot,
-                                      force_infoz);
+    HashSetResizeHelper resize_helper(
+        common, was_soo, had_soo_slot, force_infoz,
+        ShouldSampleHashtablezInfoForAlloc<CharAlloc>());
     common.set_capacity(new_capacity);
     // Note that `InitializeSlots` does different number initialization steps
     // depending on the values of `transfer_uses_memcpy` and capacities.
     // Refer to the comment in `InitializeSlots` for more details.
+    CharAlloc alloc(set->alloc_ref());
     const bool grow_single_group =
-        resize_helper.InitializeSlots<CharAlloc,
-                                      OptimalMemcpySizeForSooSlotTransfer(
+        resize_helper.InitializeSlots<OptimalMemcpySizeForSooSlotTransfer(
                                           PolicyTraits::transfer_uses_memcpy(),
                                           SooEnabled(), sizeof(slot_type)),
                                       PolicyTraits::transfer_uses_memcpy(),
-                                      SooEnabled(), alignof(slot_type)>(
-            common, CharAlloc(set->alloc_ref()), soo_slot_hash,
-            sizeof(key_type), sizeof(value_type), GetPolicyFunctions());
+                                      SooEnabled()>(
+            common, &alloc, soo_slot_hash, sizeof(key_type), sizeof(value_type),
+            GetPolicyFunctions());
 
     if (resize_helper.old_capacity() == DefaultCapacity()) {
       // InitializeSlots did all the work including infoz().RecordRehash().
@@ -4288,23 +4297,14 @@ class raw_hash_set {
     auto* h = static_cast<raw_hash_set*>(set);
     h->transfer(static_cast<slot_type*>(dst), static_cast<slot_type*>(src));
   }
-  // Note: dealloc_fn will only be used if we have a non-standard allocator.
-  static void dealloc_fn(CommonFields& common, const PolicyFunctions&) {
-    auto* set = reinterpret_cast<raw_hash_set*>(&common);
-
-    // Unpoison before returning the memory to the allocator.
-    SanitizerUnpoisonMemoryRegion(common.slot_array(),
-                                  sizeof(slot_type) * common.capacity());
-
-    common.infoz().Unregister();
-    Deallocate<BackingArrayAlignment(alignof(slot_type))>(
-        &set->alloc_ref(), common.backing_array_start(),
-        common.alloc_size(sizeof(slot_type), alignof(slot_type)));
-  }
 
   static const PolicyFunctions& GetPolicyFunctions() {
+    static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)());
+    static_assert(alignof(slot_type) <= (std::numeric_limits<uint32_t>::max)());
+    static constexpr size_t kBackingArrayAlignment =
+        BackingArrayAlignment(alignof(slot_type));
     static constexpr PolicyFunctions value = {
-        sizeof(slot_type),
+        sizeof(slot_type), alignof(slot_type),
         // TODO(b/328722020): try to type erase
         // for standard layout and alignof(Hash) <= alignof(CommonFields).
         std::is_empty<hasher>::value ? &GetHashRefForEmptyHasher
@@ -4313,11 +4313,9 @@ class raw_hash_set {
         PolicyTraits::transfer_uses_memcpy()
             ? TransferRelocatable<sizeof(slot_type)>
             : &raw_hash_set::transfer_slot_fn,
-        (std::is_same<SlotAlloc, std::allocator<slot_type>>::value
-             ? &DeallocateStandard<alignof(slot_type)>
-             : &raw_hash_set::dealloc_fn),
-        &raw_hash_set::resize_impl
-    };
+        &AllocateBackingArray<kBackingArrayAlignment, CharAlloc>,
+        &DeallocateBackingArray<kBackingArrayAlignment, CharAlloc>,
+        &raw_hash_set::resize_impl};
     return value;
   }
 
