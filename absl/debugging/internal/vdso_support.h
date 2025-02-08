@@ -48,7 +48,7 @@
 
 #ifdef ABSL_HAVE_VDSO_SUPPORT
 #error ABSL_HAVE_VDSO_SUPPORT cannot be directly set
-#else
+#elif !defined(__GNU__)
 #define ABSL_HAVE_VDSO_SUPPORT 1
 #endif
 
