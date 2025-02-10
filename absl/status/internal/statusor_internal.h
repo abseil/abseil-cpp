@@ -314,7 +314,7 @@ class StatusOrData {
   bool ok() const { return status_.ok(); }
 
  protected:
-  // status_ will always be active after the constructor.
+  // status_ will always be active after the constructor is called.
   // We make it a union to be able to initialize exactly how we need without
   // waste.
   // Eg. in the copy constructor we use the default constructor of Status in
@@ -323,7 +323,7 @@ class StatusOrData {
     Status status_;
   };
 
-  // data_ is active iff status_.ok()==true
+  // data_ is active if status_.ok() == true
   struct Dummy {};
   union {
     // When T is const, we need some non-const object we can cast to void* for
