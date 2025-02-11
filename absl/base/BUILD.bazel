@@ -960,7 +960,10 @@ cc_library(
     hdrs = ["internal/iterator_traits.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [":config"],
+    deps = [
+        ":config",
+        "//absl/meta:type_traits",
+    ],
 )
 
 cc_test(
@@ -971,6 +974,7 @@ cc_test(
     deps = [
         ":config",
         ":iterator_traits_internal",
+        ":iterator_traits_test_helper",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -989,6 +993,14 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
     ],
+)
+
+cc_library(
+    name = "iterator_traits_test_helper",
+    hdrs = ["internal/iterator_traits_test_helper.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [":config"],
 )
 
 cc_test(

@@ -21,6 +21,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/iterator_traits_test_helper.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -67,6 +68,15 @@ TEST(IsAtLeastIteratorTest, IsAtLeastIterator) {
                                   std::istream_iterator<int>>()));
   EXPECT_FALSE((IsAtLeastIterator<std::random_access_iterator_tag,
                                   std::istream_iterator<int>>()));
+
+  EXPECT_TRUE((IsAtLeastIterator<std::input_iterator_tag,
+                                 Cpp20ForwardZipIterator<int*>>()));
+  EXPECT_TRUE((IsAtLeastIterator<std::forward_iterator_tag,
+                                 Cpp20ForwardZipIterator<int*>>()));
+  EXPECT_FALSE((IsAtLeastIterator<std::bidirectional_iterator_tag,
+                                  Cpp20ForwardZipIterator<int*>>()));
+  EXPECT_FALSE((IsAtLeastIterator<std::random_access_iterator_tag,
+                                  Cpp20ForwardZipIterator<int*>>()));
 }
 
 }  // namespace

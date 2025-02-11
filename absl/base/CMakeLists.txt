@@ -845,6 +845,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
+    absl::type_traits
   PUBLIC
 )
 
@@ -858,5 +859,19 @@ absl_cc_test(
   DEPS
     absl::config
     absl::iterator_traits_internal
+    absl::iterator_traits_test_helper_internal
     GTest::gtest_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    iterator_traits_test_helper_internal
+  HDRS
+    "internal/iterator_traits_test_helper.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+  PUBLIC
 )

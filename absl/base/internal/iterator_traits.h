@@ -25,14 +25,40 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
+#include "absl/meta/type_traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 
+template <typename Iterator, typename = void>
+struct IteratorCategory {};
+
+template <typename Iterator>
+struct IteratorCategory<
+    Iterator,
+    absl::void_t<typename std::iterator_traits<Iterator>::iterator_category>> {
+  using type = typename std::iterator_traits<Iterator>::iterator_category;
+};
+
+template <typename Iterator, typename = void>
+struct IteratorConceptImpl : IteratorCategory<Iterator> {};
+
+template <typename Iterator>
+struct IteratorConceptImpl<
+    Iterator,
+    absl::void_t<typename std::iterator_traits<Iterator>::iterator_concept>> {
+  using type = typename std::iterator_traits<Iterator>::iterator_concept;
+};
+
+// The newer `std::iterator_traits<Iterator>::iterator_concept` if available,
+// else `std::iterator_traits<Iterator>::iterator_category`.
+template <typename Iterator>
+using IteratorConcept = typename IteratorConceptImpl<Iterator>::type;
+
 template <typename IteratorTag, typename Iterator>
-using IsAtLeastIterator = std::is_convertible<
-    typename std::iterator_traits<Iterator>::iterator_category, IteratorTag>;
+using IsAtLeastIterator =
+    std::is_convertible<IteratorConcept<Iterator>, IteratorTag>;
 
 template <typename Iterator>
 using IsAtLeastForwardIterator =
