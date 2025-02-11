@@ -210,6 +210,7 @@
 #include "absl/container/internal/hash_policy_traits.h"
 #include "absl/container/internal/hashtable_debug_hooks.h"
 #include "absl/container/internal/hashtablez_sampler.h"
+#include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
@@ -1915,56 +1916,12 @@ inline void* SlotAddress(void* slot_array, size_t slot, size_t slot_size) {
                             (slot * slot_size));
 }
 
-// Iterates over all full slots and calls `cb(const ctrl_t*, SlotType*)`.
-// No insertion to the table allowed during Callback call.
+// Iterates over all full slots and calls `cb(const ctrl_t*, void*)`.
+// No insertion to the table is allowed during `cb` call.
 // Erasure is allowed only for the element passed to the callback.
-template <class SlotType, class Callback>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline void IterateOverFullSlots(
-    const CommonFields& c, SlotType* slot, Callback cb) {
-  const size_t cap = c.capacity();
-  const ctrl_t* ctrl = c.control();
-  if (is_small(cap)) {
-    // Mirrored/cloned control bytes in small table are also located in the
-    // first group (starting from position 0). We are taking group from position
-    // `capacity` in order to avoid duplicates.
-
-    // Small tables capacity fits into portable group, where
-    // GroupPortableImpl::MaskFull is more efficient for the
-    // capacity <= GroupPortableImpl::kWidth.
-    ABSL_SWISSTABLE_ASSERT(cap <= GroupPortableImpl::kWidth &&
-                           "unexpectedly large small capacity");
-    static_assert(Group::kWidth >= GroupPortableImpl::kWidth,
-                  "unexpected group width");
-    // Group starts from kSentinel slot, so indices in the mask will
-    // be increased by 1.
-    const auto mask = GroupPortableImpl(ctrl + cap).MaskFull();
-    --ctrl;
-    --slot;
-    for (uint32_t i : mask) {
-      cb(ctrl + i, slot + i);
-    }
-    return;
-  }
-  size_t remaining = c.size();
-  ABSL_ATTRIBUTE_UNUSED const size_t original_size_for_assert = remaining;
-  while (remaining != 0) {
-    for (uint32_t i : GroupFullEmptyOrDeleted(ctrl).MaskFull()) {
-      ABSL_SWISSTABLE_ASSERT(IsFull(ctrl[i]) &&
-                             "hash table was modified unexpectedly");
-      cb(ctrl + i, slot + i);
-      --remaining;
-    }
-    ctrl += Group::kWidth;
-    slot += Group::kWidth;
-    ABSL_SWISSTABLE_ASSERT(
-        (remaining == 0 || *(ctrl - 1) != ctrl_t::kSentinel) &&
-        "hash table was modified unexpectedly");
-  }
-  // NOTE: erasure of the current element is allowed in callback for
-  // absl::erase_if specialization. So we use `>=`.
-  ABSL_SWISSTABLE_ASSERT(original_size_for_assert >= c.size() &&
-                         "hash table was modified unexpectedly");
-}
+// The table must not be in SOO mode.
+void IterateOverFullSlots(const CommonFields& c, size_t slot_size,
+                          absl::FunctionRef<void(const ctrl_t*, void*)> cb);
 
 template <typename CharAlloc>
 constexpr bool ShouldSampleHashtablezInfoForAlloc() {
@@ -2956,9 +2913,9 @@ class raw_hash_set {
     const size_t shift =
         is_single_group(cap) ? (PerTableSalt(control()) | 1) : 0;
     IterateOverFullSlots(
-        that.common(), that.slot_array(),
-        [&](const ctrl_t* that_ctrl,
-            slot_type* that_slot) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+        that.common(), sizeof(slot_type),
+        [&](const ctrl_t* that_ctrl, void* that_slot_void) {
+          slot_type* that_slot = static_cast<slot_type*>(that_slot_void);
           if (shift == 0) {
             // Big tables case. Position must be searched via probing.
             // The table is guaranteed to be empty, so we can do faster than
@@ -3814,10 +3771,10 @@ class raw_hash_set {
   void destroy_slots() {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
-    IterateOverFullSlots(
-        common(), slot_array(),
-        [&](const ctrl_t*, slot_type* slot)
-            ABSL_ATTRIBUTE_ALWAYS_INLINE { this->destroy(slot); });
+    IterateOverFullSlots(common(), sizeof(slot_type),
+                         [&](const ctrl_t*, void* slot) {
+                           this->destroy(static_cast<slot_type*>(slot));
+                         });
   }
 
   void dealloc() {
@@ -4155,8 +4112,9 @@ class raw_hash_set {
     if (empty()) return;
 
     const size_t hash_of_arg = hash_ref()(key);
-    const auto assert_consistent = [&](const ctrl_t*, slot_type* slot) {
-      const value_type& element = PolicyTraits::element(slot);
+    const auto assert_consistent = [&](const ctrl_t*, void* slot) {
+      const value_type& element =
+          PolicyTraits::element(static_cast<slot_type*>(slot));
       const bool is_key_equal =
           PolicyTraits::apply(EqualElement<K>{key, eq_ref()}, element);
       if (!is_key_equal) return;
@@ -4176,7 +4134,7 @@ class raw_hash_set {
     }
     // We only do validation for small tables so that it's constant time.
     if (capacity() > 16) return;
-    IterateOverFullSlots(common(), slot_array(), assert_consistent);
+    IterateOverFullSlots(common(), sizeof(slot_type), assert_consistent);
   }
 
   // Attempts to find `key` in the table; if it isn't found, returns an iterator
@@ -4348,8 +4306,11 @@ struct HashtableFreeFunctionsAccess {
     }
     ABSL_ATTRIBUTE_UNUSED const size_t original_size_for_assert = c->size();
     size_t num_deleted = 0;
+    using SlotType = typename Set::slot_type;
     IterateOverFullSlots(
-        c->common(), c->slot_array(), [&](const ctrl_t* ctrl, auto* slot) {
+        c->common(), sizeof(SlotType),
+        [&](const ctrl_t* ctrl, void* slot_void) {
+          auto* slot = static_cast<SlotType*>(slot_void);
           if (pred(Set::PolicyTraits::element(slot))) {
             c->destroy(slot);
             EraseMetaOnly(c->common(), static_cast<size_t>(ctrl - c->control()),
@@ -4374,10 +4335,12 @@ struct HashtableFreeFunctionsAccess {
       cb(*c->soo_iterator());
       return;
     }
+    using SlotType = typename Set::slot_type;
     using ElementTypeWithConstness = decltype(*c->begin());
     IterateOverFullSlots(
-        c->common(), c->slot_array(), [&cb](const ctrl_t*, auto* slot) {
-          ElementTypeWithConstness& element = Set::PolicyTraits::element(slot);
+        c->common(), sizeof(SlotType), [&cb](const ctrl_t*, void* slot) {
+          ElementTypeWithConstness& element =
+              Set::PolicyTraits::element(static_cast<SlotType*>(slot));
           cb(element);
         });
   }

@@ -3498,22 +3498,22 @@ TEST(Table, CountedHash) {
 // IterateOverFullSlots doesn't support SOO.
 TEST(Table, IterateOverFullSlotsEmpty) {
   NonSooIntTable t;
-  auto fail_if_any = [](const ctrl_t*, auto* i) {
-    FAIL() << "expected no slots " << **i;
+  using SlotType = typename NonSooIntTable::slot_type;
+  auto fail_if_any = [](const ctrl_t*, void* i) {
+    FAIL() << "expected no slots " << **static_cast<SlotType*>(i);
   };
   container_internal::IterateOverFullSlots(
-      RawHashSetTestOnlyAccess::GetCommon(t),
-      RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+      RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType), fail_if_any);
   for (size_t i = 0; i < 256; ++i) {
     t.reserve(i);
     container_internal::IterateOverFullSlots(
-        RawHashSetTestOnlyAccess::GetCommon(t),
-        RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+        RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType), fail_if_any);
   }
 }
 
 TEST(Table, IterateOverFullSlotsFull) {
   NonSooIntTable t;
+  using SlotType = typename NonSooIntTable::slot_type;
 
   std::vector<int64_t> expected_slots;
   for (int64_t idx = 0; idx < 128; ++idx) {
@@ -3522,9 +3522,9 @@ TEST(Table, IterateOverFullSlotsFull) {
 
     std::vector<int64_t> slots;
     container_internal::IterateOverFullSlots(
-        RawHashSetTestOnlyAccess::GetCommon(t),
-        RawHashSetTestOnlyAccess::GetSlots(t),
-        [&t, &slots](const ctrl_t* ctrl, auto* i) {
+        RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
+        [&t, &slots](const ctrl_t* ctrl, void* slot) {
+          SlotType* i = static_cast<SlotType*>(slot);
           ptrdiff_t ctrl_offset =
               ctrl - RawHashSetTestOnlyAccess::GetCommon(t).control();
           ptrdiff_t slot_offset = i - RawHashSetTestOnlyAccess::GetSlots(t);
@@ -3543,16 +3543,16 @@ TEST(Table, IterateOverFullSlotsDeathOnRemoval) {
     if (reserve_size == -1) reserve_size = size;
     for (int64_t idx = 0; idx < size; ++idx) {
       NonSooIntTable t;
+      using SlotType = typename NonSooIntTable::slot_type;
       t.reserve(static_cast<size_t>(reserve_size));
       for (int val = 0; val <= idx; ++val) {
         t.insert(val);
       }
 
       container_internal::IterateOverFullSlots(
-          RawHashSetTestOnlyAccess::GetCommon(t),
-          RawHashSetTestOnlyAccess::GetSlots(t),
-          [&t](const ctrl_t*, auto* i) {
-            int64_t value = **i;
+          RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
+          [&t](const ctrl_t*, void* slot) {
+            int64_t value = **static_cast<SlotType*>(slot);
             // Erase the other element from 2*k and 2*k+1 pair.
             t.erase(value ^ 1);
           });
@@ -3578,16 +3578,16 @@ TEST(Table, IterateOverFullSlotsDeathOnInsert) {
     int64_t size = reserve_size / size_divisor;
     for (int64_t idx = 1; idx <= size; ++idx) {
       NonSooIntTable t;
+      using SlotType = typename NonSooIntTable::slot_type;
       t.reserve(static_cast<size_t>(reserve_size));
       for (int val = 1; val <= idx; ++val) {
         t.insert(val);
       }
 
       container_internal::IterateOverFullSlots(
-          RawHashSetTestOnlyAccess::GetCommon(t),
-          RawHashSetTestOnlyAccess::GetSlots(t),
-          [&t](const ctrl_t*, auto* i) {
-            int64_t value = **i;
+          RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
+          [&t](const ctrl_t*, void* slot) {
+            int64_t value = **static_cast<SlotType*>(slot);
             t.insert(-value);
           });
     }
