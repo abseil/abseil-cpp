@@ -74,15 +74,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-// Helper macro used to prevent spelling `noexcept` in language versions older
-// than C++17, where it is not part of the type system, in order to avoid
-// compilation failures and internal compiler errors.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex) noexcept(noex)
-#else
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex)
-#endif
-
 // Defined in functional/any_invocable.h
 template <class Sig>
 class AnyInvocable;
@@ -234,14 +225,14 @@ T& ObjectInLocalStorage(TypeErasedState* const state) {
 // NOTE: When specifying `FunctionToCall::`dispose, the same state must be
 // passed as both "from" and "to".
 using ManagerType = void(FunctionToCall /*operation*/,
-                         TypeErasedState* /*from*/, TypeErasedState* /*to*/)
-    ABSL_INTERNAL_NOEXCEPT_SPEC(true);
+                         TypeErasedState* /*from*/,
+                         TypeErasedState* /*to*/) noexcept(true);
 
 // The type for functions issuing the actual invocation of the object
 // A pointer to such a function is contained in each AnyInvocable instance.
 template <bool SigIsNoexcept, class ReturnType, class... P>
-using InvokerType = ReturnType(TypeErasedState*, ForwardedParameterType<P>...)
-    ABSL_INTERNAL_NOEXCEPT_SPEC(SigIsNoexcept);
+using InvokerType = ReturnType(
+    TypeErasedState*, ForwardedParameterType<P>...) noexcept(SigIsNoexcept);
 
 // The manager that is used when AnyInvocable is empty
 inline void EmptyManager(FunctionToCall /*operation*/,
@@ -745,7 +736,7 @@ using CanAssignReferenceWrapper = TrueAlias<
 // before commit c3a24882 (2022-05).
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, noex)            \
   template <class ReturnType, class... P>                                      \
-  class Impl<ReturnType(P...) cv ref ABSL_INTERNAL_NOEXCEPT_SPEC(noex)>        \
+  class Impl<ReturnType(P...) cv ref noexcept(noex)>                           \
       : public CoreImpl<noex, ReturnType, P...> {                              \
    public:                                                                     \
     /*The base class, which contains the datamembers and core operations*/     \
@@ -786,8 +777,7 @@ using CanAssignReferenceWrapper = TrueAlias<
                                                                                \
     /*Raises a fatal error when the AnyInvocable is invoked after a move*/     \
     static ReturnType InvokedAfterMove(                                        \
-      TypeErasedState*,                                                        \
-      ForwardedParameterType<P>...) noexcept(noex) {                           \
+        TypeErasedState*, ForwardedParameterType<P>...) noexcept(noex) {       \
       ABSL_HARDENING_ASSERT(false && "AnyInvocable use-after-move");           \
       std::terminate();                                                        \
     }                                                                          \
@@ -815,18 +805,11 @@ using CanAssignReferenceWrapper = TrueAlias<
     }                                                                          \
   }
 
-// Define the `noexcept(true)` specialization only for C++17 and beyond, when
-// `noexcept` is part of the type system.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 // A convenience macro that defines specializations for the noexcept(true) and
 // noexcept(false) forms, given the other properties.
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL(cv, ref, inv_quals)    \
   ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, false); \
   ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, true)
-#else
-#define ABSL_INTERNAL_ANY_INVOCABLE_IMPL(cv, ref, inv_quals) \
-  ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, false)
-#endif
 
 // Non-ref-qualified partial specializations
 ABSL_INTERNAL_ANY_INVOCABLE_IMPL(, , &);
@@ -846,7 +829,6 @@ ABSL_INTERNAL_ANY_INVOCABLE_IMPL(const, &&, const&&);
 #undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_false
 #undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_true
 #undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT
-#undef ABSL_INTERNAL_NOEXCEPT_SPEC
 
 }  // namespace internal_any_invocable
 ABSL_NAMESPACE_END
