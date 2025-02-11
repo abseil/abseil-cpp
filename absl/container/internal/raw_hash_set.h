@@ -2553,6 +2553,7 @@ class raw_hash_set {
   using const_pointer = typename absl::allocator_traits<
       allocator_type>::template rebind_traits<value_type>::const_pointer;
 
+ private:
   // Alias used for heterogeneous lookup functions.
   // `key_arg<K>` evaluates to `K` when the functors are transparent and to
   // `key_type` otherwise. It permits template argument deduction on `K` for the
@@ -2560,7 +2561,6 @@ class raw_hash_set {
   template <class K>
   using key_arg = typename KeyArgImpl::template type<K, key_type>;
 
- private:
   // TODO(b/289225379): we could add extra SOO space inside raw_hash_set
   // after CommonFields to allow inlining larger slot_types (e.g. std::string),
   // but it's a bit complicated if we want to support incomplete mapped_type in
