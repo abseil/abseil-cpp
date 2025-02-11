@@ -131,6 +131,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::dynamic_annotations
+    absl::iterator_traits_internal
     absl::throw_delegate
     absl::memory
   PUBLIC

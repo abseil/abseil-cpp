@@ -84,6 +84,7 @@ absl_cc_library(
     absl::core_headers
     absl::endian
     absl::int128
+    absl::iterator_traits_internal
     absl::memory
     absl::nullability
     absl::raw_logging_internal

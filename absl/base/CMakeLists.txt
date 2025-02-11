@@ -834,3 +834,29 @@ absl_cc_test(
     absl::tracing_internal
     GTest::gtest_main
 )
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    iterator_traits_internal
+  HDRS
+    "internal/iterator_traits.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    iterator_traits_test
+  SRCS
+    "internal/iterator_traits_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::iterator_traits_internal
+    GTest::gtest_main
+)

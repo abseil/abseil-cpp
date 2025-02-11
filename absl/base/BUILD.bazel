@@ -956,6 +956,27 @@ cc_test(
 )
 
 cc_library(
+    name = "iterator_traits_internal",
+    hdrs = ["internal/iterator_traits.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [":config"],
+)
+
+cc_test(
+    name = "iterator_traits_test",
+    srcs = ["internal/iterator_traits_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":config",
+        ":iterator_traits_internal",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "tracing_internal",
     srcs = ["internal/tracing.cc"],
     hdrs = ["internal/tracing.h"],

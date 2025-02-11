@@ -44,6 +44,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
@@ -85,9 +86,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
   // but this seems to be mostly pedantic.
   template <typename Iterator>
-  using EnableIfForwardIterator = absl::enable_if_t<std::is_convertible<
-      typename std::iterator_traits<Iterator>::iterator_category,
-      std::forward_iterator_tag>::value>;
+  using EnableIfForwardIterator = std::enable_if_t<
+      base_internal::IsAtLeastForwardIterator<Iterator>::value>;
   static constexpr bool NoexceptCopyable() {
     return std::is_nothrow_copy_constructible<StorageElement>::value &&
            absl::allocator_is_nothrow<allocator_type>::value;
