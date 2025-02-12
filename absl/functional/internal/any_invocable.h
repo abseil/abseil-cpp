@@ -65,7 +65,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/invoke.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
@@ -123,7 +122,7 @@ using RemoveCVRef =
 template <class ReturnType, class F, class... P,
           typename = absl::enable_if_t<std::is_void<ReturnType>::value>>
 void InvokeR(F&& f, P&&... args) {
-  absl::base_internal::invoke(std::forward<F>(f), std::forward<P>(args)...);
+  std::invoke(std::forward<F>(f), std::forward<P>(args)...);
 }
 
 template <class ReturnType, class F, class... P,
@@ -134,8 +133,7 @@ ReturnType InvokeR(F&& f, P&&... args) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  return absl::base_internal::invoke(std::forward<F>(f),
-                                     std::forward<P>(args)...);
+  return std::invoke(std::forward<F>(f), std::forward<P>(args)...);
 #if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
 #pragma GCC diagnostic pop
 #endif
@@ -714,7 +712,7 @@ using CanAssignReferenceWrapper = TrueAlias<
               UnwrapStdReferenceWrapper<absl::decay_t<F>> inv_quals, P...>,  \
           std::is_same<                                                      \
               ReturnType,                                                    \
-              absl::base_internal::invoke_result_t<                          \
+              std::invoke_result_t<                                          \
                   UnwrapStdReferenceWrapper<absl::decay_t<F>> inv_quals,     \
                   P...>>>>::value>
 
@@ -730,10 +728,10 @@ using CanAssignReferenceWrapper = TrueAlias<
 // noex is "true" if the function type is noexcept, or false if it is not.
 //
 // The CallIsValid condition is more complicated than simply using
-// absl::base_internal::is_invocable_r because we can't rely on it to give the
-// right result when ReturnType is non-moveable in toolchains that don't treat
-// non-moveable result types correctly. For example this was the case in libc++
-// before commit c3a24882 (2022-05).
+// std::is_invocable_r because we can't rely on it to give the right result
+// when ReturnType is non-moveable in toolchains that don't treat non-moveable
+// result types correctly. For example this was the case in libc++ before commit
+// c3a24882 (2022-05).
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, noex)            \
   template <class ReturnType, class... P>                                      \
   class Impl<ReturnType(P...) cv ref noexcept(noex)>                           \
@@ -745,11 +743,10 @@ using CanAssignReferenceWrapper = TrueAlias<
     /*SFINAE constraint to check if F is invocable with the proper signature*/ \
     template <class F>                                                         \
     using CallIsValid = TrueAlias<absl::enable_if_t<absl::disjunction<         \
-        absl::base_internal::is_invocable_r<ReturnType,                        \
-                                            absl::decay_t<F> inv_quals, P...>, \
-        std::is_same<ReturnType,                                               \
-                     absl::base_internal::invoke_result_t<                     \
-                         absl::decay_t<F> inv_quals, P...>>>::value>>;         \
+        std::is_invocable_r<ReturnType, absl::decay_t<F> inv_quals, P...>,     \
+        std::is_same<                                                          \
+            ReturnType,                                                        \
+            std::invoke_result_t<absl::decay_t<F> inv_quals, P...>>>::value>>; \
                                                                                \
     /*SFINAE constraint to check if F is nothrow-invocable when necessary*/    \
     template <class F>                                                         \

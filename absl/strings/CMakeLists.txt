@@ -702,7 +702,6 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::base_internal
     absl::compressed_tuple
     absl::config
     absl::container_memory

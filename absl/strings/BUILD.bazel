@@ -438,7 +438,6 @@ cc_library(
     ],
     deps = [
         ":strings",
-        "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
