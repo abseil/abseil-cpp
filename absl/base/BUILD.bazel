@@ -231,7 +231,6 @@ cc_library(
         "internal/hide_ptr.h",
         "internal/identity.h",
         "internal/inline_variable.h",
-        "internal/invoke.h",
         "internal/scheduling_mode.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
@@ -477,21 +476,6 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base_internal",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "invoke_test",
-    size = "small",
-    srcs = ["invoke_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":base_internal",
-        "//absl/memory",
-        "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
