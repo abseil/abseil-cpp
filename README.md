@@ -1,7 +1,7 @@
 # Abseil - C++ Common Libraries
 
 The repository contains the Abseil C++ library code. Abseil is an open-source
-collection of C++ code (compliant to C++17) designed to augment the C++
+collection of C++ code (compliant with C++17) designed to augment the C++
 standard library.
 
 ## Table of Contents
