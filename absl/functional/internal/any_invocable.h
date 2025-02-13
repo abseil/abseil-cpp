@@ -113,30 +113,22 @@ template <class T>
 using RemoveCVRef =
     typename std::remove_cv<typename std::remove_reference<T>::type>::type;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// An implementation of the C++ standard INVOKE<R> pseudo-macro, operation is
-// equivalent to std::invoke except that it forces an implicit conversion to the
-// specified return type. If "R" is void, the function is executed and the
-// return value is simply ignored.
-template <class ReturnType, class F, class... P,
-          typename = absl::enable_if_t<std::is_void<ReturnType>::value>>
-void InvokeR(F&& f, P&&... args) {
-  std::invoke(std::forward<F>(f), std::forward<P>(args)...);
-}
-
-template <class ReturnType, class F, class... P,
-          absl::enable_if_t<!std::is_void<ReturnType>::value, int> = 0>
+// An implementation of std::invoke_r of C++23.
+template <class ReturnType, class F, class... P>
 ReturnType InvokeR(F&& f, P&&... args) {
-  // GCC 12 has a false-positive -Wmaybe-uninitialized warning here.
+  if constexpr (std::is_void_v<ReturnType>) {
+    std::invoke(std::forward<F>(f), std::forward<P>(args)...);
+  } else {
+    // GCC 12 has a false-positive -Wmaybe-uninitialized warning here.
 #if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  return std::invoke(std::forward<F>(f), std::forward<P>(args)...);
+    return std::invoke(std::forward<F>(f), std::forward<P>(args)...);
 #if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
 #pragma GCC diagnostic pop
 #endif
+  }
 }
 
 //
