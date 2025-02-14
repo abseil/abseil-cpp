@@ -132,7 +132,6 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::iterator_traits_internal
-    absl::iterator_traits_test_helper_internal
     absl::throw_delegate
     absl::memory
   PUBLIC
@@ -150,6 +149,7 @@ absl_cc_test(
     absl::config
     absl::exception_testing
     absl::hash_testing
+    absl::iterator_traits_test_helper_internal
     absl::memory
     absl::test_allocator
     GTest::gmock_main
