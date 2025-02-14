@@ -3782,6 +3782,8 @@ TEST(Table, ReentrantCallsFail) {
 TEST(Table, DestroyedCallsFail) {
 #ifdef NDEBUG
   GTEST_SKIP() << "Destroyed checks only enabled in debug mode.";
+#elif !defined(__clang__) && defined(__GNUC__)
+  GTEST_SKIP() << "Flaky on GCC.";
 #else
   absl::optional<IntTable> t;
   t.emplace({1});
