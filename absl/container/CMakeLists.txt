@@ -765,6 +765,7 @@ absl_cc_library(
     absl::hash_policy_traits
     absl::hashtable_debug_hooks
     absl::hashtablez_sampler
+    absl::iterator_traits_internal
     absl::memory
     absl::meta
     absl::optional

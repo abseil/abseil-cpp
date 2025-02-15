@@ -196,6 +196,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
@@ -1601,10 +1602,8 @@ size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
   if (bucket_count != 0) {
     return bucket_count;
   }
-  using InputIterCategory =
-      typename std::iterator_traits<InputIter>::iterator_category;
-  if (std::is_base_of<std::random_access_iterator_tag,
-                      InputIterCategory>::value) {
+  if (base_internal::IsAtLeastIterator<std::random_access_iterator_tag,
+                                       InputIter>()) {
     return GrowthToLowerboundCapacity(
         static_cast<size_t>(std::distance(first, last)));
   }
