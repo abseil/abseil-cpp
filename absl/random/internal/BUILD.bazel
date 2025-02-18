@@ -44,16 +44,29 @@ licenses(["notice"])
 selects.config_setting_group(
     name = "gcc_compatible",
     match_any = [
+        # For some reason compiler:clang does not match when targeting
+        # Android/CrOS but since we only support building with Clang on these we
+        # assume the compiler is Clang if the target OS is one of these.
+        "@platforms//os:android",
+        "@platforms//os:chromiumos",
         "@rules_cc//cc/compiler:clang",
         "@rules_cc//cc/compiler:gcc",
     ],
 )
 
 selects.config_setting_group(
+    name = "aarch32",
+    match_any = [
+        "@platforms//cpu:aarch32",
+        "@platforms//cpu:armv7",
+    ],
+)
+
+selects.config_setting_group(
     name = "gcc_compatible-aarch32",
     match_all = [
+        ":aarch32",
         ":gcc_compatible",
-        "@platforms//cpu:aarch32",
     ],
 )
 
@@ -93,15 +106,15 @@ selects.config_setting_group(
 # Some libraries are compiled with options to generate AES-NI
 # instructions, and runtime dispatch is used to determine if the host
 # microarchitecture supports AES-NI or if a portable fallback library
-# should be called.
+# should be called. Most architectures use target attributes to enable
+# the AES intrinsics so no compile flags are needed, but 32-bit ARM and
+# PowerPC have their intrinsics guarded by #ifdef so we need to pass flags.
 ABSL_RANDOM_RANDEN_COPTS = select({
-    ":gcc_compatible-aarch32": ["-mfpu=neon"],
-    ":gcc_compatible-aarch64": ["-march=armv8-a+crypto"],
-    ":gcc_compatible-ppc_crypto": ["-mcrypto"],
-    ":gcc_compatible-x86_64": [
-        "-maes",
-        "-msse4.1",
+    ":gcc_compatible-aarch32": [
+        "-mcpu=cortex-a53",
+        "-mfpu=crypto-neon-fp-armv8",
     ],
+    ":gcc_compatible-ppc_crypto": ["-mcrypto"],
     "//conditions:default": [],
 })
 

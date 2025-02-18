@@ -30,18 +30,19 @@
 // ABSL_RANDEN_HWAES_IMPL indicates whether this file will contain
 // a hardware accelerated implementation of randen, or whether it
 // will contain stubs that exit the process.
-#if ABSL_HAVE_ACCELERATED_AES
-// The following platforms have implemented RandenHwAes.
 #if defined(ABSL_ARCH_X86_64) || defined(ABSL_ARCH_X86_32) || \
     defined(ABSL_ARCH_PPC) || defined(ABSL_ARCH_ARM) ||       \
     defined(ABSL_ARCH_AARCH64)
 #define ABSL_RANDEN_HWAES_IMPL 1
 #endif
-#endif
 
 #if !defined(ABSL_RANDEN_HWAES_IMPL)
 // No accelerated implementation is supported.
 // The RandenHwAes functions are stubs that print an error and exit.
+
+#if ABSL_HAVE_ACCELERATED_AES
+#error "Need to update the definition of ABSL_RANDEN_HWAES_IMPL"
+#endif
 
 #include <cstdio>
 #include <cstdlib>
@@ -95,12 +96,15 @@ using absl::random_internal::RandenTraits;
 
 // TARGET_CRYPTO defines a crypto attribute for each architecture.
 //
-// NOTE: Evaluate whether we should eliminate ABSL_TARGET_CRYPTO.
+// We generally prefer to define these unless the architecture forces us to pass
+// a compile flag to get the intrinsics. This is because architecture compile
+// flags can affect the whole program (see HERMETIC NOTE at the top of
+// randen_hwaes.h).
 #if (defined(__clang__) || defined(__GNUC__))
 #if defined(ABSL_ARCH_X86_64) || defined(ABSL_ARCH_X86_32)
 #define ABSL_TARGET_CRYPTO __attribute__((target("aes")))
-#elif defined(ABSL_ARCH_PPC)
-#define ABSL_TARGET_CRYPTO __attribute__((target("crypto")))
+#elif defined(ABSL_ARCH_AARCH64)
+#define ABSL_TARGET_CRYPTO __attribute__((target("+aes")))
 #else
 #define ABSL_TARGET_CRYPTO
 #endif
@@ -211,7 +215,8 @@ inline ABSL_TARGET_CRYPTO void SwapEndian(void*) {}
 
 #elif defined(ABSL_ARCH_X86_64) || defined(ABSL_ARCH_X86_32)
 // On x86 we rely on the aesni instructions
-#include <immintrin.h>
+#include <emmintrin.h>
+#include <wmmintrin.h>
 
 namespace {
 
