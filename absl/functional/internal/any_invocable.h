@@ -181,25 +181,7 @@ union TypeErasedState {
 template <class T>
 T& ObjectInLocalStorage(TypeErasedState* const state) {
   // We launder here because the storage may be reused with the same type.
-#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606L
   return *std::launder(reinterpret_cast<T*>(&state->storage));
-#elif ABSL_HAVE_BUILTIN(__builtin_launder)
-  return *__builtin_launder(reinterpret_cast<T*>(&state->storage));
-#else
-
-  // When `std::launder` or equivalent are not available, we rely on undefined
-  // behavior, which works as intended on Abseil's officially supported
-  // platforms as of Q2 2022.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif
-  return *reinterpret_cast<T*>(&state->storage);
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#endif
 }
 
 // The type for functions issuing lifetime-related operations: move and dispose
