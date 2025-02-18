@@ -14,6 +14,8 @@
 
 #include "absl/container/internal/raw_hash_set.h"
 
+#include <sys/types.h>
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -751,6 +753,50 @@ struct CustomAllocIntTable
   using Base::Base;
 };
 
+template <typename T>
+struct ChangingSizeAndTrackingTypeAlloc : std::allocator<T> {
+  ChangingSizeAndTrackingTypeAlloc() = default;
+
+  template <typename U>
+  explicit ChangingSizeAndTrackingTypeAlloc(
+      const ChangingSizeAndTrackingTypeAlloc<U>& other) {
+    EXPECT_EQ(other.type_id,
+              ChangingSizeAndTrackingTypeAlloc<U>::ComputeTypeId());
+  }
+
+  template <class U>
+  struct rebind {
+    using other = ChangingSizeAndTrackingTypeAlloc<U>;
+  };
+
+  T* allocate(size_t n) {
+    EXPECT_EQ(type_id, ComputeTypeId());
+    return std::allocator<T>::allocate(n);
+  }
+
+  void deallocate(T* p, std::size_t n) {
+    EXPECT_EQ(type_id, ComputeTypeId());
+    return std::allocator<T>::deallocate(p, n);
+  }
+
+  static size_t ComputeTypeId() { return absl::HashOf(typeid(T).name()); }
+
+  // We add extra data to make the allocator size being changed.
+  // This also make type_id positioned differently, so that assertions in the
+  // allocator can catch bugs more likely.
+  char data_before[sizeof(T) * 3] = {0};
+  size_t type_id = ComputeTypeId();
+  char data_after[sizeof(T) * 5] = {0};
+};
+
+struct ChangingSizeAllocIntTable
+    : raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
+                   std::equal_to<int64_t>,
+                   ChangingSizeAndTrackingTypeAlloc<int64_t>> {
+  using Base = typename ChangingSizeAllocIntTable::raw_hash_set;
+  using Base::Base;
+};
+
 struct MinimumAlignmentUint8Table
     : raw_hash_set<Uint8Policy, hash_default_hash<uint8_t>,
                    std::equal_to<uint8_t>, MinimumAlignmentAlloc<uint8_t>> {
@@ -1017,8 +1063,7 @@ using SmallTableTypes = ::testing::Types<
     ValueTable<SizedValue<24>, /*kTransferable=*/true, /*kSoo=*/true>,
     ValueTable<SizedValue<24>, /*kTransferable=*/false, /*kSoo=*/true>,
     // Special tables.
-    MinimumAlignmentUint8Table,
-    CustomAllocIntTable,
+    MinimumAlignmentUint8Table, CustomAllocIntTable, ChangingSizeAllocIntTable,
     BadTable,
     // alignment 1, size 2.
     ValueTable<AlignedValue<uint8_t, 2>, /*kTransferable=*/true, /*kSoo=*/true>,
@@ -2061,6 +2106,20 @@ TYPED_TEST(SooTest, CopyConstruct) {
     TypeParam u = t;
     EXPECT_EQ(1, u.size());
     EXPECT_THAT(*u.find(0), 0);
+  }
+}
+
+TYPED_TEST(SooTest, CopyConstructWithSampling) {
+  SetSamplingRateTo1Percent();
+  for (int i = 0; i < 10000; ++i) {
+    TypeParam t;
+    t.emplace(0);
+    EXPECT_EQ(1, t.size());
+    {
+      TypeParam u(t);
+      EXPECT_EQ(1, u.size());
+      EXPECT_THAT(*u.find(0), 0);
+    }
   }
 }
 
@@ -3666,7 +3725,7 @@ TEST(Table, RehashToSooUnsampled) {
 }
 
 TEST(Table, ReserveToNonSoo) {
-  for (size_t reserve_capacity : {8u, 100000u}) {
+  for (size_t reserve_capacity : {2u, 8u, 100000u}) {
     SooIntTable t;
     t.insert(0);
 
@@ -3845,6 +3904,27 @@ TEST(Table, MaxSizeOverflow) {
   IntTable t;
   EXPECT_DEATH_IF_SUPPORTED(t.reserve(overflow), "Hash table size overflow");
   EXPECT_DEATH_IF_SUPPORTED(t.rehash(overflow), "Hash table size overflow");
+}
+
+// TODO(b/397453582): Remove support for const hasher and ermove this test.
+TEST(Table, ConstLambdaHash) {
+  int64_t multiplier = 17;
+  // Make sure that code compiles and work OK with non-empty hasher with const
+  // qualifier.
+  const auto hash = [multiplier](SizedValue<64> value) -> size_t {
+    return static_cast<size_t>(static_cast<int64_t>(value) * multiplier);
+  };
+  static_assert(!std::is_empty_v<decltype(hash)>);
+  absl::flat_hash_set<SizedValue<64>, decltype(hash)> t(0, hash);
+  t.insert(1);
+  EXPECT_EQ(t.size(), 1);
+  EXPECT_EQ(t.find(1), t.begin());
+  EXPECT_EQ(t.find(2), t.end());
+  t.insert(2);
+  EXPECT_EQ(t.size(), 2);
+  EXPECT_NE(t.find(1), t.end());
+  EXPECT_NE(t.find(2), t.end());
+  EXPECT_EQ(t.find(3), t.end());
 }
 
 }  // namespace
