@@ -119,15 +119,7 @@ ReturnType InvokeR(F&& f, P&&... args) {
   if constexpr (std::is_void_v<ReturnType>) {
     std::invoke(std::forward<F>(f), std::forward<P>(args)...);
   } else {
-    // GCC 12 has a false-positive -Wmaybe-uninitialized warning here.
-#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
     return std::invoke(std::forward<F>(f), std::forward<P>(args)...);
-#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
-#pragma GCC diagnostic pop
-#endif
   }
 }
 
