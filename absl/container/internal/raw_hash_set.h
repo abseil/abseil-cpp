@@ -3738,6 +3738,11 @@ class raw_hash_set {
 
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const {
+#ifdef NDEBUG
+    if (!SwisstableGenerationsEnabled()) {
+      return;
+    }
+#endif
     if (ABSL_PREDICT_TRUE(capacity() <
                           InvalidCapacity::kAboveMaxValidCapacity)) {
       return;
