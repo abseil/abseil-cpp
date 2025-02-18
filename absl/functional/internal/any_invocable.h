@@ -407,13 +407,12 @@ class CoreImpl {
 
     if constexpr (std::is_pointer<DecayedT>::value ||
                   std::is_member_pointer<DecayedT>::value) {
-      // This condition handles types that decay into pointers, which includes
-      // function references. Since function references cannot be null, GCC
-      // warns against comparing their decayed form with nullptr. Since this is
-      // template-heavy code, we prefer to disable these warnings locally
-      // instead of adding yet another overload of this function.
-      //
-      // TODO(b/290784225): Avoid warnings using constexpr programming instead.
+      // This condition handles types that decay into pointers. This includes
+      // function references, which cannot be null. GCC warns against comparing
+      // their decayed form with nullptr (https://godbolt.org/z/9r9TMTcPK).
+      // We could work around this warning with constexpr programming, using
+      // std::is_function_v<std::remove_reference_t<F>>, but we choose to ignore
+      // it instead of writing more code.
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"
