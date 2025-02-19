@@ -499,8 +499,8 @@ class CoreImpl {
   // Use local (inline) storage for applicable target object types.
   template <class QualTRef, class... Args>
   void InitializeStorage(Args&&... args) {
-    if constexpr (IsStoredLocally<RemoveCVRef<QualTRef>>()) {
-      using RawT = RemoveCVRef<QualTRef>;
+    using RawT = RemoveCVRef<QualTRef>;
+    if constexpr (IsStoredLocally<RawT>()) {
       ::new (static_cast<void*>(&state_.storage))
           RawT(std::forward<Args>(args)...);
 
@@ -508,8 +508,7 @@ class CoreImpl {
       // We can simplify our manager if we know the type is trivially copyable.
       InitializeLocalManager<RawT>();
     } else {
-      InitializeRemoteManager<RemoveCVRef<QualTRef>>(
-          std::forward<Args>(args)...);
+      InitializeRemoteManager<RawT>(std::forward<Args>(args)...);
       // This is set after everything else in case an exception is thrown in an
       // earlier step of the initialization.
       invoker_ = RemoteInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
