@@ -30,7 +30,6 @@
 
 #include "absl/base/config.h"
 #include "absl/base/internal/identity.h"
-#include "absl/base/internal/inline_variable.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
@@ -45,7 +44,7 @@ ABSL_NAMESPACE_BEGIN
 template <class... Types>
 class variant;
 
-ABSL_INTERNAL_INLINE_CONSTEXPR(size_t, variant_npos, static_cast<size_t>(-1));
+inline constexpr size_t variant_npos =  static_cast<size_t>(-1);
 
 template <class T>
 struct variant_size;
@@ -288,7 +287,7 @@ struct ReachableSwitchCase {
 // power of 2 is because the number was picked to correspond to a power of 2
 // amount of "normal" alternatives, plus one for the possibility of the user
 // providing "monostate" in addition to the more natural alternatives.
-ABSL_INTERNAL_INLINE_CONSTEXPR(std::size_t, MaxUnrolledVisitCases, 33);
+inline constexpr std::size_t MaxUnrolledVisitCases = 33;
 
 // Note: The default-definition is for unreachable cases.
 template <bool IsReachable>

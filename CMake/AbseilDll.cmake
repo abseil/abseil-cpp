@@ -22,7 +22,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/hide_ptr.h"
   "base/internal/identity.h"
   "base/internal/iterator_traits.h"
-  "base/internal/inline_variable.h"
   "base/internal/low_level_alloc.cc"
   "base/internal/low_level_alloc.h"
   "base/internal/low_level_scheduling.h"

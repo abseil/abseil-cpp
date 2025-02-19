@@ -40,7 +40,6 @@
 #include <utility>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/inline_variable.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -93,7 +92,7 @@ using std::in_place;
 // `std::in_place_t`.
 struct in_place_t {};
 
-ABSL_INTERNAL_INLINE_CONSTEXPR(in_place_t, in_place, {});
+inline constexpr in_place_t in_place = {};
 
 #endif  // ABSL_USES_STD_OPTIONAL
 

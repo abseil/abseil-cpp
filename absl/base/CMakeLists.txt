@@ -216,7 +216,6 @@ absl_cc_library(
   HDRS
     "internal/hide_ptr.h"
     "internal/identity.h"
-    "internal/inline_variable.h"
     "internal/scheduling_mode.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -421,21 +420,6 @@ absl_cc_test(
     absl::base
     absl::config
     absl::throw_delegate
-    GTest::gtest_main
-)
-
-absl_cc_test(
-  NAME
-    inline_variable_test
-  SRCS
-    "internal/inline_variable_testing.h"
-    "inline_variable_test.cc"
-    "inline_variable_test_a.cc"
-    "inline_variable_test_b.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::base_internal
     GTest::gtest_main
 )
 

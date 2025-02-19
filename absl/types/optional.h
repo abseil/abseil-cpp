@@ -62,7 +62,6 @@ ABSL_NAMESPACE_END
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
-#include "absl/base/internal/inline_variable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/bad_optional_access.h"
 #include "absl/types/internal/optional.h"
@@ -83,8 +82,7 @@ struct nullopt_t {
 //
 // A tag constant of type `absl::nullopt_t` used to indicate an empty
 // `absl::optional` in certain functions, such as construction or assignment.
-ABSL_INTERNAL_INLINE_CONSTEXPR(nullopt_t, nullopt,
-                               nullopt_t(optional_internal::init_t()));
+inline constexpr nullopt_t nullopt = nullopt_t(optional_internal::init_t());
 
 // -----------------------------------------------------------------------------
 // absl::optional

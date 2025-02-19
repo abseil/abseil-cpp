@@ -20,7 +20,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/inline_variable.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
