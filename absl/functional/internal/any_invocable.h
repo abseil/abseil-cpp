@@ -503,10 +503,13 @@ class CoreImpl {
     if constexpr (IsStoredLocally<RawT>()) {
       ::new (static_cast<void*>(&state_.storage))
           RawT(std::forward<Args>(args)...);
-
       invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
       // We can simplify our manager if we know the type is trivially copyable.
-      InitializeLocalManager<RawT>();
+      if constexpr (std::is_trivially_copyable_v<RawT>) {
+        manager_ = LocalManagerTrivial;
+      } else {
+        manager_ = LocalManagerNontrivial<RawT>;
+      }
     } else {
       InitializeRemoteManager<RawT>(std::forward<Args>(args)...);
       // This is set after everything else in case an exception is thrown in an
@@ -515,41 +518,21 @@ class CoreImpl {
     }
   }
 
-  template <class T,
-            typename = absl::enable_if_t<std::is_trivially_copyable<T>::value>>
-  void InitializeLocalManager() {
-    manager_ = LocalManagerTrivial;
-  }
-
-  template <class T,
-            absl::enable_if_t<!std::is_trivially_copyable<T>::value, int> = 0>
-  void InitializeLocalManager() {
-    manager_ = LocalManagerNontrivial<T>;
-  }
-
-  template <class T>
-  using HasTrivialRemoteStorage =
-      std::integral_constant<bool, std::is_trivially_destructible<T>::value &&
-                                       alignof(T) <=
-                                           ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT>;
-
-  template <class T, class... Args,
-            typename = absl::enable_if_t<HasTrivialRemoteStorage<T>::value>>
+  template <class T, class... Args>
   void InitializeRemoteManager(Args&&... args) {
-    // unique_ptr is used for exception-safety in case construction throws.
-    std::unique_ptr<void, TrivialDeleter> uninitialized_target(
-        ::operator new(sizeof(T)), TrivialDeleter(sizeof(T)));
-    ::new (uninitialized_target.get()) T(std::forward<Args>(args)...);
-    state_.remote.target = uninitialized_target.release();
-    state_.remote.size = sizeof(T);
-    manager_ = RemoteManagerTrivial;
-  }
-
-  template <class T, class... Args,
-            absl::enable_if_t<!HasTrivialRemoteStorage<T>::value, int> = 0>
-  void InitializeRemoteManager(Args&&... args) {
-    state_.remote.target = ::new T(std::forward<Args>(args)...);
-    manager_ = RemoteManagerNontrivial<T>;
+    if constexpr (std::is_trivially_destructible_v<T> &&
+                  alignof(T) <= ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT) {
+      // unique_ptr is used for exception-safety in case construction throws.
+      std::unique_ptr<void, TrivialDeleter> uninitialized_target(
+          ::operator new(sizeof(T)), TrivialDeleter(sizeof(T)));
+      ::new (uninitialized_target.get()) T(std::forward<Args>(args)...);
+      state_.remote.target = uninitialized_target.release();
+      state_.remote.size = sizeof(T);
+      manager_ = RemoteManagerTrivial;
+    } else {
+      state_.remote.target = ::new T(std::forward<Args>(args)...);
+      manager_ = RemoteManagerNontrivial<T>;
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
