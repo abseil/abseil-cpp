@@ -1136,11 +1136,9 @@ class GrowthInfo {
     growth_left_info_ -= count;
   }
 
-  // Overwrites specified control element with full slot.
-  void OverwriteControlAsFull(ctrl_t ctrl) {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeft() >=
-                           static_cast<size_t>(IsEmpty(ctrl)));
-    growth_left_info_ -= static_cast<size_t>(IsEmpty(ctrl));
+  // Overwrites specified control element with empty slot.
+  void OverwriteControlAsEmpty(ctrl_t ctrl) {
+    growth_left_info_ += static_cast<size_t>(!IsEmpty(ctrl));
   }
 
   // Overwrites single full slot with a deleted slot.
@@ -1158,7 +1156,14 @@ class GrowthInfo {
   // 2. There is no growth left.
   bool HasNoGrowthLeftAndNoDeleted() const { return growth_left_info_ == 0; }
 
-  // Returns true if table guaranteed to have no k
+  // Returns true if GetGrowthLeft() == 0, but must be called only if
+  // HasNoDeleted() is false. It is slightly more efficient.
+  bool HasNoGrowthLeftAssumingMayHaveDeleted() const {
+    ABSL_SWISSTABLE_ASSERT(!HasNoDeleted());
+    return growth_left_info_ == kDeletedBit;
+  }
+
+  // Returns true if table guaranteed to have no kDeleted slots.
   bool HasNoDeleted() const {
     return static_cast<std::make_signed_t<size_t>>(growth_left_info_) >= 0;
   }

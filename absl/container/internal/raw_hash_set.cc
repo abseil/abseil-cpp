@@ -1018,47 +1018,45 @@ void ReserveAllocatedTable(CommonFields& common, size_t n,
 
 size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
                            const PolicyFunctions& policy) {
+  const bool rehash_for_bug_detection =
+      common.should_rehash_for_bug_detection_on_insert() &&
+      // Required to allow use of ResizeAllocatedTable.
+      common.capacity() > 0;
+  if (rehash_for_bug_detection) {
+    // Move to a different heap allocation in order to detect bugs.
+    const size_t cap = common.capacity();
+    ResizeAllocatedTable(
+        common, common.growth_left() > 0 ? cap : NextCapacity(cap), policy);
+    target = find_first_non_full(common, hash);
+  }
+
+  const GrowthInfo growth_info = common.growth_info();
   // When there are no deleted slots in the table
   // and growth_left is positive, we can insert at the first
   // empty slot in the probe sequence (target).
-  const bool use_target_hint =
-      // Optimization is disabled when generations are enabled.
-      // We have to rehash even sparse tables randomly in such mode.
-      !SwisstableGenerationsEnabled() &&
-      common.growth_info().HasNoDeletedAndGrowthLeft();
-  if (ABSL_PREDICT_FALSE(!use_target_hint)) {
-    // Notes about optimized mode when generations are disabled:
-    // We do not enter this branch if table has no deleted slots
-    // and growth_left is positive.
-    // We enter this branch in the following cases listed in decreasing
-    // frequency:
-    // 1. Table without deleted slots (>95% cases) that needs to be resized.
-    // 2. Table with deleted slots that has space for the inserting element.
-    // 3. Table with deleted slots that needs to be rehashed or resized.
-    if (ABSL_PREDICT_TRUE(common.growth_info().HasNoGrowthLeftAndNoDeleted())) {
+  if (ABSL_PREDICT_FALSE(!growth_info.HasNoDeletedAndGrowthLeft())) {
+    if (ABSL_PREDICT_TRUE(growth_info.HasNoGrowthLeftAndNoDeleted())) {
+      // Table without deleted slots (>95% cases) that needs to be resized.
+      assert(growth_info.HasNoDeleted() && growth_info.GetGrowthLeft() == 0);
       return GrowToNextCapacityAndPrepareInsert(common, hash, policy);
     } else {
-      // Note: the table may have no deleted slots here when generations
-      // are enabled.
-      const bool rehash_for_bug_detection =
-          common.should_rehash_for_bug_detection_on_insert() &&
-          // Required to allow use of ResizeAllocatedTable.
-          common.capacity() > 0;
-      if (rehash_for_bug_detection) {
-        // Move to a different heap allocation in order to detect bugs.
-        const size_t cap = common.capacity();
-        ResizeAllocatedTable(
-            common, common.growth_left() > 0 ? cap : NextCapacity(cap), policy);
-      }
-      if (ABSL_PREDICT_TRUE(common.growth_left() > 0)) {
-        target = find_first_non_full(common, hash);
-      } else {
+      if (ABSL_PREDICT_FALSE(
+              growth_info.HasNoGrowthLeftAssumingMayHaveDeleted())) {
+        // Table with deleted slots that needs to be rehashed or resized.
         return RehashOrGrowToNextCapacityAndPrepareInsert(common, hash, policy);
       }
+      // Table with deleted slots that has space for the inserting element.
+      target = find_first_non_full(common, hash);
+      // We need to overwrite the control byte to full, but we do that in two
+      // steps: overwrite to empty and then to full.
+      // This is done in order to avoid reading the control byte in the most
+      // common case below.
+      common.growth_info().OverwriteControlAsEmpty(
+          common.control()[target.offset]);
     }
   }
   PrepareInsertCommon(common);
-  common.growth_info().OverwriteControlAsFull(common.control()[target.offset]);
+  common.growth_info().OverwriteEmptyAsFull();
   SetCtrl(common, target.offset, H2(hash), policy.slot_size);
   common.infoz().RecordInsert(hash, target.probe_length);
   return target.offset;
