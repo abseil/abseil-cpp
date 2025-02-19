@@ -747,7 +747,8 @@ using TransferableIntTable = ValueTable<int64_t, /*kTransferable=*/true>;
 
 constexpr size_t kNonSooSize = sizeof(HeapOrSoo) + 8;
 static_assert(sizeof(SizedValue<kNonSooSize>) >= kNonSooSize, "too small");
-using NonSooIntTable = ValueTable<SizedValue<kNonSooSize>>;
+using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
+using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
 using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true>;
 
 template <typename T>
@@ -3574,7 +3575,7 @@ TEST(Table, CountedHash) {
 // IterateOverFullSlots doesn't support SOO.
 TEST(Table, IterateOverFullSlotsEmpty) {
   NonSooIntTable t;
-  using SlotType = typename NonSooIntTable::slot_type;
+  using SlotType = NonSooIntTableSlotType;
   auto fail_if_any = [](const ctrl_t*, void* i) {
     FAIL() << "expected no slots " << **static_cast<SlotType*>(i);
   };
@@ -3589,7 +3590,7 @@ TEST(Table, IterateOverFullSlotsEmpty) {
 
 TEST(Table, IterateOverFullSlotsFull) {
   NonSooIntTable t;
-  using SlotType = typename NonSooIntTable::slot_type;
+  using SlotType = NonSooIntTableSlotType;
 
   std::vector<int64_t> expected_slots;
   for (int64_t idx = 0; idx < 128; ++idx) {
@@ -3619,7 +3620,7 @@ TEST(Table, IterateOverFullSlotsDeathOnRemoval) {
     if (reserve_size == -1) reserve_size = size;
     for (int64_t idx = 0; idx < size; ++idx) {
       NonSooIntTable t;
-      using SlotType = typename NonSooIntTable::slot_type;
+      using SlotType = NonSooIntTableSlotType;
       t.reserve(static_cast<size_t>(reserve_size));
       for (int val = 0; val <= idx; ++val) {
         t.insert(val);
@@ -3654,7 +3655,7 @@ TEST(Table, IterateOverFullSlotsDeathOnInsert) {
     int64_t size = reserve_size / size_divisor;
     for (int64_t idx = 1; idx <= size; ++idx) {
       NonSooIntTable t;
-      using SlotType = typename NonSooIntTable::slot_type;
+      using SlotType = NonSooIntTableSlotType;
       t.reserve(static_cast<size_t>(reserve_size));
       for (int val = 1; val <= idx; ++val) {
         t.insert(val);

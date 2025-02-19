@@ -2277,9 +2277,6 @@ class raw_hash_set {
  public:
   using init_type = typename PolicyTraits::init_type;
   using key_type = typename PolicyTraits::key_type;
-  // TODO(sbenza): Hide slot_type as it is an implementation detail. Needs user
-  // code fixes!
-  using slot_type = typename PolicyTraits::slot_type;
   using allocator_type = Alloc;
   using size_type = size_t;
   using difference_type = ptrdiff_t;
@@ -2301,6 +2298,8 @@ class raw_hash_set {
   // transparent case.
   template <class K>
   using key_arg = typename KeyArgImpl::template type<K, key_type>;
+
+  using slot_type = typename PolicyTraits::slot_type;
 
   // TODO(b/289225379): we could add extra SOO space inside raw_hash_set
   // after CommonFields to allow inlining larger slot_types (e.g. std::string),
