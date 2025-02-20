@@ -3890,19 +3890,68 @@ TEST(Table, ReentrantCallsFail) {
 #endif
 }
 
+// TODO(b/328794765): this check is very useful to run with ASAN in opt mode.
 TEST(Table, DestroyedCallsFail) {
 #ifdef NDEBUG
-  GTEST_SKIP() << "Destroyed checks only enabled in debug mode.";
-#elif !defined(__clang__) && defined(__GNUC__)
-  GTEST_SKIP() << "Flaky on GCC.";
+  ASSERT_EQ(SwisstableAssertAccessToDestroyedTable(),
+            SwisstableGenerationsEnabled());
 #else
+  ASSERT_TRUE(SwisstableAssertAccessToDestroyedTable());
+#endif
+  if (!SwisstableAssertAccessToDestroyedTable()) {
+    GTEST_SKIP() << "Validation not enabled.";
+  }
+#if !defined(__clang__) && defined(__GNUC__)
+  GTEST_SKIP() << "Flaky on GCC.";
+#endif
   absl::optional<IntTable> t;
   t.emplace({1});
   IntTable* t_ptr = &*t;
   EXPECT_TRUE(t_ptr->contains(1));
   t.reset();
-  EXPECT_DEATH_IF_SUPPORTED(t_ptr->contains(1), "");
+  std::string expected_death_message =
+#if defined(ABSL_HAVE_MEMORY_SANITIZER)
+      "use-of-uninitialized-value";
+#else
+      "destroyed hash table";
 #endif
+  EXPECT_DEATH_IF_SUPPORTED(t_ptr->contains(1), expected_death_message);
+}
+
+TEST(Table, DestroyedCallsFailDuringDestruction) {
+  if (!SwisstableAssertAccessToDestroyedTable()) {
+    GTEST_SKIP() << "Validation not enabled.";
+  }
+#if !defined(__clang__) && defined(__GNUC__)
+  GTEST_SKIP() << "Flaky on GCC.";
+#endif
+  // When EXPECT_DEATH_IF_SUPPORTED is not executed, the code after it is not
+  // executed as well.
+  // We need to destruct the table correctly in such a case.
+  // Must be defined before the table for correct destruction order.
+  bool do_lookup = false;
+
+  using Table = absl::flat_hash_map<int, std::shared_ptr<int>>;
+  absl::optional<Table> t = Table();
+  Table* t_ptr = &*t;
+  auto destroy = [&](int* ptr) {
+    if (do_lookup) {
+      ASSERT_TRUE(t_ptr->contains(*ptr));
+    }
+    delete ptr;
+  };
+  t->insert({0, std::shared_ptr<int>(new int(0), destroy)});
+  auto destroy_with_lookup = [&] {
+    do_lookup = true;
+    t.reset();
+  };
+  std::string expected_death_message =
+#ifdef NDEBUG
+      "destroyed hash table";
+#else
+      "Reentrant container access";
+#endif
+  EXPECT_DEATH_IF_SUPPORTED(destroy_with_lookup(), expected_death_message);
 }
 
 TEST(Table, MovedFromCallsFail) {

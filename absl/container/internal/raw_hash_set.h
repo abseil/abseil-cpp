@@ -280,6 +280,15 @@ constexpr bool SwisstableGenerationsEnabled() { return false; }
 constexpr size_t NumGenerationBytes() { return 0; }
 #endif
 
+// Returns true if we should assert that the table is not accessed after it has
+// been destroyed or during the destruction of the table.
+constexpr bool SwisstableAssertAccessToDestroyedTable() {
+#ifndef NDEBUG
+  return true;
+#endif
+  return SwisstableGenerationsEnabled();
+}
+
 template <typename AllocType>
 void SwapAlloc(AllocType& lhs, AllocType& rhs,
                std::true_type /* propagate_on_container_swap */) {
@@ -1357,6 +1366,13 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // Not copyable
   CommonFields(const CommonFields&) = delete;
   CommonFields& operator=(const CommonFields&) = delete;
+
+  // Copy with guarantee that it is not SOO.
+  CommonFields(non_soo_tag_t, const CommonFields& that)
+      : capacity_(that.capacity_),
+        size_(that.size_),
+        heap_or_soo_(that.heap_or_soo_) {
+  }
 
   // Movable
   CommonFields(CommonFields&& that) = default;
@@ -2807,9 +2823,9 @@ class raw_hash_set {
 
   ~raw_hash_set() {
     destructor_impl();
-#ifndef NDEBUG
-    common().set_capacity(InvalidCapacity::kDestroyed);
-#endif
+    if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+      common().set_capacity(InvalidCapacity::kDestroyed);
+    }
   }
 
   iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -3540,10 +3556,17 @@ class raw_hash_set {
   void destroy_slots() {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
-    IterateOverFullSlots(common(), sizeof(slot_type),
-                         [&](const ctrl_t*, void* slot) {
-                           this->destroy(static_cast<slot_type*>(slot));
-                         });
+    auto destroy_slot = [&](const ctrl_t*, void* slot) {
+      this->destroy(static_cast<slot_type*>(slot));
+    };
+    if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+      CommonFields common_copy(non_soo_tag_t{}, this->common());
+      common().set_capacity(InvalidCapacity::kDestroyed);
+      IterateOverFullSlots(common_copy, sizeof(slot_type), destroy_slot);
+      common().set_capacity(common_copy.capacity());
+    } else {
+      IterateOverFullSlots(common(), sizeof(slot_type), destroy_slot);
+    }
   }
 
   void dealloc() {
@@ -3781,8 +3804,11 @@ class raw_hash_set {
     assert(capacity() != InvalidCapacity::kReentrance &&
            "Reentrant container access during element construction/destruction "
            "is not allowed.");
-    assert(capacity() != InvalidCapacity::kDestroyed &&
-           "Use of destroyed hash table.");
+    if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+      if (capacity() == InvalidCapacity::kDestroyed) {
+        ABSL_RAW_LOG(FATAL, "Use of destroyed hash table.");
+      }
+    }
     if (SwisstableGenerationsEnabled() &&
         ABSL_PREDICT_FALSE(capacity() >= InvalidCapacity::kMovedFrom)) {
       if (capacity() == InvalidCapacity::kSelfMovedFrom) {
