@@ -259,8 +259,9 @@ size_t FindFirstFullSlot(size_t start, size_t end, const ctrl_t* ctrl) {
   ABSL_UNREACHABLE();
 }
 
-void DropDeletesWithoutResize(CommonFields& common,
-                              const PolicyFunctions& policy) {
+size_t DropDeletesWithoutResizeAndPrepareInsert(CommonFields& common,
+                                                size_t new_hash,
+                                                const PolicyFunctions& policy) {
   void* set = &common;
   void* slot_array = common.slot_array();
   const size_t capacity = common.capacity();
@@ -320,7 +321,7 @@ void DropDeletesWithoutResize(CommonFields& common,
 
     // Element doesn't move.
     if (ABSL_PREDICT_TRUE(probe_index(new_i) == probe_index(i))) {
-      SetCtrl(common, i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, i, H2(hash), slot_size);
       continue;
     }
 
@@ -329,14 +330,14 @@ void DropDeletesWithoutResize(CommonFields& common,
       // Transfer element to the empty spot.
       // SetCtrl poisons/unpoisons the slots so we have to call it at the
       // right time.
-      SetCtrl(common, new_i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, new_i, H2(hash), slot_size);
       (*transfer)(set, new_slot_ptr, slot_ptr, 1);
-      SetCtrl(common, i, ctrl_t::kEmpty, slot_size);
+      SetCtrlInLargeTable(common, i, ctrl_t::kEmpty, slot_size);
       // Initialize or change empty space id.
       tmp_space_id = i;
     } else {
       assert(IsDeleted(ctrl[new_i]));
-      SetCtrl(common, new_i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, new_i, H2(hash), slot_size);
       // Until we are done rehashing, DELETED marks previously FULL slots.
 
       if (tmp_space_id == kUnknownId) {
@@ -357,8 +358,14 @@ void DropDeletesWithoutResize(CommonFields& common,
       slot_ptr = PrevSlot(slot_ptr, slot_size);
     }
   }
+  // Prepare insert for the new element.
+  PrepareInsertCommon(common);
   ResetGrowthLeft(common);
+  FindInfo find_info = find_first_non_full(common, new_hash);
+  SetCtrlInLargeTable(common, find_info.offset, H2(new_hash), policy.slot_size);
+  common.infoz().RecordInsert(new_hash, find_info.probe_length);
   common.infoz().RecordRehash(total_probe_length);
+  return find_info.offset;
 }
 
 static bool WasNeverFull(CommonFields& c, size_t index) {
@@ -416,7 +423,7 @@ void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
   }
 
   c.growth_info().OverwriteFullAsDeleted();
-  SetCtrl(c, index, ctrl_t::kDeleted, slot_size);
+  SetCtrlInLargeTable(c, index, ctrl_t::kDeleted, slot_size);
 }
 
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
@@ -802,7 +809,7 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common, size_t new_hash,
       total_probe_length = policy.find_new_positions_and_transfer_slots(
           common, old_ctrl, old_slots, old_capacity);
       find_info = find_first_non_full(common, new_hash);
-      SetCtrl(common, find_info.offset, new_h2, policy.slot_size);
+      SetCtrlInLargeTable(common, find_info.offset, new_h2, policy.slot_size);
     }
     assert(old_capacity > policy.soo_capacity);
     (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
@@ -825,7 +832,7 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common, size_t new_hash,
 // tombstones via rehash or growth to next capacity.
 ABSL_ATTRIBUTE_NOINLINE
 size_t RehashOrGrowToNextCapacityAndPrepareInsert(
-    CommonFields& common, size_t hash, const PolicyFunctions& policy) {
+    CommonFields& common, size_t new_hash, const PolicyFunctions& policy) {
   const size_t cap = common.capacity();
   ABSL_ASSUME(cap > 0);
   if (cap > Group::kWidth &&
@@ -872,16 +879,10 @@ size_t RehashOrGrowToNextCapacityAndPrepareInsert(
     //  762 | 149836       0.37        13 | 148559       0.74       190
     //  807 | 149736       0.39        14 | 151107       0.39        14
     //  852 | 150204       0.42        15 | 151019       0.42        15
-    DropDeletesWithoutResize(common, policy);
-    FindInfo find_info = find_first_non_full(common, hash);
-    PrepareInsertCommon(common);
-    common.growth_info().OverwriteEmptyAsFull();
-    SetCtrl(common, find_info.offset, H2(hash), policy.slot_size);
-    common.infoz().RecordInsert(hash, find_info.probe_length);
-    return find_info.offset;
+    return DropDeletesWithoutResizeAndPrepareInsert(common, new_hash, policy);
   } else {
     // Otherwise grow the container.
-    return GrowToNextCapacityAndPrepareInsert(common, hash, policy);
+    return GrowToNextCapacityAndPrepareInsert(common, new_hash, policy);
   }
 }
 
