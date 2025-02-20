@@ -274,7 +274,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE 1
 #endif
 
-
 // ABSL_HAVE_THREAD_LOCAL
 //
 // DEPRECATED - `thread_local` is available on all supported platforms.
@@ -813,10 +812,12 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 //
-// Class template argument deduction is a language feature added in C++17.
+// Deprecated: always defined to 1.
+// Class template argument deduction is a language feature added in C++17,
+// which means all versions of C++ supported by Abseil have it.
 #ifdef ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 #error "ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION cannot be directly set."
-#elif defined(__cpp_deduction_guides)
+#else
 #define ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
 #endif
 
