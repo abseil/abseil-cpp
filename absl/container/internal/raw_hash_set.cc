@@ -477,7 +477,7 @@ void ResizeNonSooImpl(CommonFields& common, size_t new_capacity,
 
   common.set_capacity(new_capacity);
   RawHashSetLayout layout(new_capacity, slot_size, slot_align, has_infoz);
-  void* alloc = policy.alloc_fn(common);
+  void* alloc = policy.get_char_alloc(common);
   char* mem = static_cast<char*>(policy.alloc(alloc, layout.alloc_size()));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
@@ -589,7 +589,7 @@ void ResizeFullSooTable(CommonFields& common, size_t new_capacity,
   common.set_capacity(new_capacity);
 
   RawHashSetLayout layout(new_capacity, slot_size, slot_align, has_infoz);
-  void* alloc = policy.alloc_fn(common);
+  void* alloc = policy.get_char_alloc(common);
   char* mem = static_cast<char*>(policy.alloc(alloc, layout.alloc_size()));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
@@ -767,7 +767,7 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common, size_t new_hash,
   const bool has_infoz = infoz.IsSampled();
 
   RawHashSetLayout layout(new_capacity, slot_size, slot_align, has_infoz);
-  void* alloc = policy.alloc_fn(common);
+  void* alloc = policy.get_char_alloc(common);
   char* mem = static_cast<char*>(policy.alloc(alloc, layout.alloc_size()));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
@@ -928,8 +928,8 @@ void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy) {
   const size_t cap = common.capacity();
 
   auto clear_backing_array = [&]() {
-    ClearBackingArray(common, policy, policy.alloc_fn(common), /*reuse=*/false,
-                      policy.soo_capacity > 0);
+    ClearBackingArray(common, policy, policy.get_char_alloc(common),
+                      /*reuse=*/false, policy.soo_capacity > 0);
   };
 
   const size_t slot_size = policy.slot_size;
@@ -956,9 +956,9 @@ void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy) {
       assert(policy.slot_align <= alignof(HeapOrSoo));
       HeapOrSoo tmp_slot;
       size_t begin_offset = FindFirstFullSlot(0, cap, common.control());
-      policy.transfer(
-          &common, &tmp_slot,
-          SlotAddress(common.slot_array(), begin_offset, slot_size), 1);
+      policy.transfer(&common, &tmp_slot,
+                      SlotAddress(common.slot_array(), begin_offset, slot_size),
+                      1);
       clear_backing_array();
       policy.transfer(&common, common.soo_data(), &tmp_slot, 1);
       common.set_full_soo();
