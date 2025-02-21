@@ -686,15 +686,6 @@ class LayoutImpl<
   size_t size_[NumRuntimeSizes > 0 ? NumRuntimeSizes : 1];
 };
 
-// Defining a constexpr static class member variable is redundant and deprecated
-// in C++17, but required in C++14.
-template <class... Elements, size_t... StaticSizeSeq, size_t... RuntimeSizeSeq,
-          size_t... SizeSeq, size_t... OffsetSeq>
-constexpr std::array<size_t, sizeof...(StaticSizeSeq)> LayoutImpl<
-    std::tuple<Elements...>, absl::index_sequence<StaticSizeSeq...>,
-    absl::index_sequence<RuntimeSizeSeq...>, absl::index_sequence<SizeSeq...>,
-    absl::index_sequence<OffsetSeq...>>::kStaticSizes;
-
 template <class StaticSizeSeq, size_t NumRuntimeSizes, class... Ts>
 using LayoutType = LayoutImpl<
     std::tuple<Ts...>, StaticSizeSeq,
