@@ -882,6 +882,30 @@ size_t RehashOrGrowToNextCapacityAndPrepareInsert(
   }
 }
 
+// Slow path for PrepareInsertNonSoo that is called when the table has deleted
+// slots or need to be resized or rehashed.
+size_t PrepareInsertNonSooSlow(CommonFields& common, size_t hash,
+                               const PolicyFunctions& policy) {
+  const GrowthInfo growth_info = common.growth_info();
+  assert(!growth_info.HasNoDeletedAndGrowthLeft());
+  if (ABSL_PREDICT_TRUE(growth_info.HasNoGrowthLeftAndNoDeleted())) {
+    // Table without deleted slots (>95% cases) that needs to be resized.
+    assert(growth_info.HasNoDeleted() && growth_info.GetGrowthLeft() == 0);
+    return GrowToNextCapacityAndPrepareInsert(common, hash, policy);
+  }
+  if (ABSL_PREDICT_FALSE(growth_info.HasNoGrowthLeftAssumingMayHaveDeleted())) {
+    // Table with deleted slots that needs to be rehashed or resized.
+    return RehashOrGrowToNextCapacityAndPrepareInsert(common, hash, policy);
+  }
+  // Table with deleted slots that has space for the inserting element.
+  FindInfo target = find_first_non_full(common, hash);
+  PrepareInsertCommon(common);
+  common.growth_info().OverwriteControlAsFull(common.control()[target.offset]);
+  SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
+  common.infoz().RecordInsert(hash, target.probe_length);
+  return target.offset;
+}
+
 }  // namespace
 
 void* GetRefForEmptyClass(CommonFields& common) {
@@ -1013,8 +1037,8 @@ void ReserveAllocatedTable(CommonFields& common, size_t n,
   common.infoz().RecordReservation(n);
 }
 
-size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
-                           const PolicyFunctions& policy) {
+size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
+                           const PolicyFunctions& policy, FindInfo target) {
   const bool rehash_for_bug_detection =
       common.should_rehash_for_bug_detection_on_insert() &&
       // Required to allow use of ResizeAllocatedTable.
@@ -1032,25 +1056,7 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
   // and growth_left is positive, we can insert at the first
   // empty slot in the probe sequence (target).
   if (ABSL_PREDICT_FALSE(!growth_info.HasNoDeletedAndGrowthLeft())) {
-    if (ABSL_PREDICT_TRUE(growth_info.HasNoGrowthLeftAndNoDeleted())) {
-      // Table without deleted slots (>95% cases) that needs to be resized.
-      assert(growth_info.HasNoDeleted() && growth_info.GetGrowthLeft() == 0);
-      return GrowToNextCapacityAndPrepareInsert(common, hash, policy);
-    } else {
-      if (ABSL_PREDICT_FALSE(
-              growth_info.HasNoGrowthLeftAssumingMayHaveDeleted())) {
-        // Table with deleted slots that needs to be rehashed or resized.
-        return RehashOrGrowToNextCapacityAndPrepareInsert(common, hash, policy);
-      }
-      // Table with deleted slots that has space for the inserting element.
-      target = find_first_non_full(common, hash);
-      // We need to overwrite the control byte to full, but we do that in two
-      // steps: overwrite to empty and then to full.
-      // This is done in order to avoid reading the control byte in the most
-      // common case below.
-      common.growth_info().OverwriteControlAsEmpty(
-          common.control()[target.offset]);
-    }
+    return PrepareInsertNonSooSlow(common, hash, policy);
   }
   PrepareInsertCommon(common);
   common.growth_info().OverwriteEmptyAsFull();

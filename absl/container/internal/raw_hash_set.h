@@ -1145,9 +1145,11 @@ class GrowthInfo {
     growth_left_info_ -= count;
   }
 
-  // Overwrites specified control element with empty slot.
-  void OverwriteControlAsEmpty(ctrl_t ctrl) {
-    growth_left_info_ += static_cast<size_t>(!IsEmpty(ctrl));
+  // Overwrites specified control element with full slot.
+  void OverwriteControlAsFull(ctrl_t ctrl) {
+    ABSL_SWISSTABLE_ASSERT(GetGrowthLeft() >=
+                           static_cast<size_t>(IsEmpty(ctrl)));
+    growth_left_info_ -= static_cast<size_t>(IsEmpty(ctrl));
   }
 
   // Overwrites single full slot with a deleted slot.
@@ -2285,8 +2287,8 @@ void* GetRefForEmptyClass(CommonFields& common);
 // REQUIRES: Table is not SOO.
 // REQUIRES: At least one non-full slot available.
 // REQUIRES: `target` is a valid empty position to insert.
-size_t PrepareInsertNonSoo(CommonFields& common, size_t hash, FindInfo target,
-                           const PolicyFunctions& policy);
+size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
+                           const PolicyFunctions& policy, FindInfo target);
 
 // A SwissTable.
 //
@@ -3781,8 +3783,8 @@ class raw_hash_set {
         size_t target = seq.offset(
             GetInsertionOffset(mask_empty, capacity(), hash, control()));
         return {iterator_at(PrepareInsertNonSoo(common(), hash,
-                                                FindInfo{target, seq.index()},
-                                                GetPolicyFunctions())),
+                                                GetPolicyFunctions(),
+                                                FindInfo{target, seq.index()})),
                 true};
       }
       seq.next();

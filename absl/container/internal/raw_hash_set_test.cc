@@ -193,15 +193,15 @@ TEST(GrowthInfoTest, OverwriteEmptyAsFull) {
   EXPECT_FALSE(gi.HasNoDeleted());
 }
 
-TEST(GrowthInfoTest, OverwriteControlAsEmpty) {
+TEST(GrowthInfoTest, OverwriteControlAsFull) {
   GrowthInfo gi;
   gi.InitGrowthLeftNoDeleted(5);
-  gi.OverwriteControlAsEmpty(ctrl_t::kEmpty);
-  EXPECT_EQ(gi.GetGrowthLeft(), 5);
-  gi.OverwriteControlAsEmpty(ctrl_t::kDeleted);
-  EXPECT_EQ(gi.GetGrowthLeft(), 6);
+  gi.OverwriteControlAsFull(ctrl_t::kEmpty);
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
+  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
+  EXPECT_EQ(gi.GetGrowthLeft(), 4);
   gi.OverwriteFullAsDeleted();
-  gi.OverwriteControlAsEmpty(ctrl_t::kDeleted);
+  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
   // We do not count number of deleted, so the bit sticks till the next rehash.
   EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
   EXPECT_FALSE(gi.HasNoDeleted());
@@ -213,7 +213,10 @@ TEST(GrowthInfoTest, HasNoGrowthLeftAssumingMayHaveDeleted) {
   gi.OverwriteFullAsDeleted();
   EXPECT_EQ(gi.GetGrowthLeft(), 1);
   EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
-  gi.OverwriteControlAsEmpty(ctrl_t::kDeleted);
+  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
+  EXPECT_EQ(gi.GetGrowthLeft(), 1);
+  EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
+  gi.OverwriteFullAsEmpty();
   EXPECT_EQ(gi.GetGrowthLeft(), 2);
   EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
   gi.OverwriteEmptyAsFull();
