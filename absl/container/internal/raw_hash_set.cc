@@ -66,10 +66,6 @@ ABSL_CONST_INIT ABSL_DLL const ctrl_t kSooControl[17] = {
 static_assert(NumControlBytes(SooCapacity()) <= 17,
               "kSooControl capacity too small");
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr size_t Group::kWidth;
-#endif
-
 namespace {
 
 // Returns "random" seed.

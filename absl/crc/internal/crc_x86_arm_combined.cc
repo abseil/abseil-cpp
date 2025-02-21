@@ -345,24 +345,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
   static constexpr size_t kMaxStreams = 3;
 };
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-alignas(16) constexpr uint64_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::k1k2[2];
-alignas(16) constexpr uint64_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::k3k4[2];
-alignas(16) constexpr uint64_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::k5k6[2];
-alignas(16) constexpr uint64_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::k7k0[2];
-alignas(16) constexpr uint64_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::kPoly[2];
-alignas(16) constexpr uint32_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::kMask[4];
-constexpr size_t
-    CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::kGroupsSmall;
-constexpr size_t CRC32AcceleratedX86ARMCombinedMultipleStreamsBase::kMaxStreams;
-#endif  // ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-
 template <size_t num_crc_streams, size_t num_pclmul_streams,
           CutoffStrategy strategy>
 class CRC32AcceleratedX86ARMCombinedMultipleStreams

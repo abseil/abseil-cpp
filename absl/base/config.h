@@ -821,29 +821,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
 #endif
 
-// ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-//
-// Prior to C++17, static constexpr variables defined in classes required a
-// separate definition outside of the class body, for example:
-//
-// class Foo {
-//   static constexpr int kBar = 0;
-// };
-// constexpr int Foo::kBar;
-//
-// In C++17, these variables defined in classes are considered inline variables,
-// and the extra declaration is redundant. Since some compilers warn on the
-// extra declarations, ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL can be used
-// conditionally ignore them:
-//
-// #ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-// constexpr int Foo::kBar;
-// #endif
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-#define ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
-#endif
-
 // `ABSL_INTERNAL_HAS_RTTI` determines whether abseil is being compiled with
 // RTTI support.
 #ifdef ABSL_INTERNAL_HAS_RTTI
