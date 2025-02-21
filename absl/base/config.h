@@ -519,18 +519,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
-// ABSL_HAVE_STD_ANY
-//
-// Checks whether C++17 std::any is available.
-#ifdef ABSL_HAVE_STD_ANY
-#error "ABSL_HAVE_STD_ANY cannot be directly set."
-#elif defined(__cpp_lib_any) && __cpp_lib_any >= 201606L
+// ABSL_HAVE_STD_ANY/ABSL_USES_STD_ANY
 #define ABSL_HAVE_STD_ANY 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_ANY 1
-#endif
+#define ABSL_USES_STD_ANY 1
 
 // ABSL_HAVE_STD_OPTIONAL
 //
@@ -584,21 +575,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&        \
      ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
 #define ABSL_HAVE_STD_ORDERING 1
-#endif
-
-// ABSL_USES_STD_ANY
-//
-// Indicates whether absl::any is an alias for std::any.
-#if !defined(ABSL_OPTION_USE_STD_ANY)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_ANY == 0 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && !defined(ABSL_HAVE_STD_ANY))
-#undef ABSL_USES_STD_ANY
-#elif ABSL_OPTION_USE_STD_ANY == 1 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && defined(ABSL_HAVE_STD_ANY))
-#define ABSL_USES_STD_ANY 1
-#else
-#error options.h is misconfigured.
 #endif
 
 // ABSL_USES_STD_OPTIONAL

@@ -21,86 +21,10 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bad_any_cast
     absl::config
     absl::core_headers
-    absl::fast_type_id
-    absl::type_traits
     absl::utility
   PUBLIC
-)
-
-absl_cc_library(
-  NAME
-    bad_any_cast
-  HDRS
-   "bad_any_cast.h"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::bad_any_cast_impl
-    absl::config
-  PUBLIC
-)
-
-# Internal-only target, do not depend on directly.
-absl_cc_library(
-  NAME
-    bad_any_cast_impl
-  SRCS
-   "bad_any_cast.h"
-   "bad_any_cast.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::config
-    absl::raw_logging_internal
-)
-
-absl_cc_test(
-  NAME
-    any_test
-  SRCS
-    "any_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_testing
-    absl::log
-    absl::test_instance_tracker
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    any_test_noexceptions
-  SRCS
-    "any_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_testing
-    absl::raw_logging_internal
-    absl::test_instance_tracker
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    any_exception_safety_test
-  SRCS
-    "any_exception_safety_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_safety_testing
-    GTest::gmock_main
 )
 
 absl_cc_library(

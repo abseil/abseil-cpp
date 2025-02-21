@@ -53,6 +53,8 @@ using std::exchange;
 using std::forward;
 using std::index_sequence;
 using std::index_sequence_for;
+using std::in_place_type;
+using std::in_place_type_t;
 using std::integer_sequence;
 using std::make_index_sequence;
 using std::make_integer_sequence;
@@ -95,23 +97,6 @@ struct in_place_t {};
 inline constexpr in_place_t in_place = {};
 
 #endif  // ABSL_USES_STD_OPTIONAL
-
-#if defined(ABSL_USES_STD_ANY) || defined(ABSL_USES_STD_VARIANT)
-using std::in_place_type;
-using std::in_place_type_t;
-#else
-
-// in_place_type_t
-//
-// Tag type used for in-place construction when the type to construct needs to
-// be specified, such as with `absl::any`, designed to be a drop-in replacement
-// for C++17's `std::in_place_type_t`.
-template <typename T>
-using in_place_type_t = void (*)(utility_internal::InPlaceTypeTag<T>);
-
-template <typename T>
-void in_place_type(utility_internal::InPlaceTypeTag<T>) {}
-#endif  // ABSL_USES_STD_ANY || ABSL_USES_STD_VARIANT
 
 #ifdef ABSL_USES_STD_VARIANT
 using std::in_place_index;

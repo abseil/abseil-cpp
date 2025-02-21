@@ -37,72 +37,15 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":bad_any_cast",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:fast_type_id",
-        "//absl/meta:type_traits",
         "//absl/utility",
     ],
 )
 
 cc_library(
     name = "bad_any_cast",
-    hdrs = ["bad_any_cast.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":bad_any_cast_impl",
-        "//absl/base:config",
-    ],
-)
-
-cc_library(
-    name = "bad_any_cast_impl",
-    srcs = [
-        "bad_any_cast.cc",
-        "bad_any_cast.h",
-    ],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
-    deps = [
-        "//absl/base:config",
-        "//absl/base:raw_logging_internal",
-    ],
-)
-
-cc_test(
-    name = "any_test",
-    size = "small",
-    srcs = [
-        "any_test.cc",
-    ],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":any",
-        "//absl/base:config",
-        "//absl/base:exception_testing",
-        "//absl/container:test_instance_tracker",
-        "//absl/log",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "any_exception_safety_test",
-    srcs = ["any_exception_safety_test.cc"],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":any",
-        "//absl/base:config",
-        "//absl/base:exception_safety_testing",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
+    deprecation = "bad_any_cast dependency is empty can be removed",
 )
 
 cc_library(
