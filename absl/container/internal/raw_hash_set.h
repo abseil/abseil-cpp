@@ -1388,9 +1388,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
   const void* soo_data() const { return heap_or_soo_.get_soo_data(); }
   void* soo_data() { return heap_or_soo_.get_soo_data(); }
 
-  HeapOrSoo heap_or_soo() const { return heap_or_soo_; }
-  const HeapOrSoo& heap_or_soo_ref() const { return heap_or_soo_; }
-
   ctrl_t* control() const { return heap_or_soo_.control(); }
   void set_control(ctrl_t* c) { heap_or_soo_.control() = c; }
   void* backing_array_start() const {
@@ -2142,7 +2139,9 @@ InitializeThreeElementsControlBytesAfterSoo(size_t hash, ctrl_t* new_ctrl) {
 // The result must not exceed MaxSooSlotSize().
 // Some of the cases are merged to minimize the number of function
 // instantiations.
-constexpr size_t OptimalMemcpySizeForSooSlotTransfer(size_t slot_size) {
+constexpr size_t OptimalMemcpySizeForSooSlotTransfer(
+    size_t slot_size, size_t max_soo_slot_size = MaxSooSlotSize()) {
+  static_assert(MaxSooSlotSize() >= 8, "unexpectedly small SOO slot size");
   if (slot_size == 1) {
     return 1;
   }
@@ -2154,8 +2153,17 @@ constexpr size_t OptimalMemcpySizeForSooSlotTransfer(size_t slot_size) {
   if (slot_size <= 8) {
     return 8;
   }
-  static_assert(MaxSooSlotSize() <= 16, "unexpectedly large SOO slot size");
-  return 16;
+  if (max_soo_slot_size <= 16) {
+    return max_soo_slot_size;
+  }
+  if (slot_size <= 16) {
+    return 16;
+  }
+  if (max_soo_slot_size <= 24) {
+    return max_soo_slot_size;
+  }
+  static_assert(MaxSooSlotSize() <= 24, "unexpectedly large SOO slot size");
+  return 24;
 }
 
 // Resizes a full SOO table to the NextCapacity(SooCapacity()).
