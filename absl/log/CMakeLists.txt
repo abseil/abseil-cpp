@@ -379,6 +379,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::core_headers
 )
 
 absl_cc_library(
