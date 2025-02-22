@@ -53,6 +53,8 @@ using std::exchange;
 using std::forward;
 using std::index_sequence;
 using std::index_sequence_for;
+using std::in_place;
+using std::in_place_t;
 using std::in_place_type;
 using std::in_place_type_t;
 using std::integer_sequence;
@@ -79,24 +81,6 @@ struct InPlaceIndexTag {
 }  // namespace utility_internal
 
 // Tag types
-
-#ifdef ABSL_USES_STD_OPTIONAL
-
-using std::in_place_t;
-using std::in_place;
-
-#else  // ABSL_USES_STD_OPTIONAL
-
-// in_place_t
-//
-// Tag type used to specify in-place construction, such as with
-// `absl::optional`, designed to be a drop-in replacement for C++17's
-// `std::in_place_t`.
-struct in_place_t {};
-
-inline constexpr in_place_t in_place = {};
-
-#endif  // ABSL_USES_STD_OPTIONAL
 
 #ifdef ABSL_USES_STD_VARIANT
 using std::in_place_index;

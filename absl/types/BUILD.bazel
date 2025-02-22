@@ -91,32 +91,18 @@ cc_test(
 
 cc_library(
     name = "optional",
-    srcs = ["internal/optional.h"],
     hdrs = ["optional.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        ":bad_optional_access",
-        "//absl/base:base_internal",
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:nullability",
-        "//absl/memory",
-        "//absl/meta:type_traits",
         "//absl/utility",
     ],
 )
 
 cc_library(
     name = "bad_optional_access",
-    srcs = ["bad_optional_access.cc"],
-    hdrs = ["bad_optional_access.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        "//absl/base:config",
-        "//absl/base:raw_logging_internal",
-    ],
+    deprecation = "bad_optional_access dependency is empty can be removed",
 )
 
 cc_library(
@@ -128,41 +114,6 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/base:raw_logging_internal",
-    ],
-)
-
-cc_test(
-    name = "optional_test",
-    size = "small",
-    srcs = [
-        "optional_test.cc",
-    ],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":optional",
-        "//absl/base:config",
-        "//absl/log",
-        "//absl/meta:type_traits",
-        "//absl/strings",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "optional_exception_safety_test",
-    srcs = [
-        "optional_exception_safety_test.cc",
-    ],
-    copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":optional",
-        "//absl/base:config",
-        "//absl/base:exception_safety_testing",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 

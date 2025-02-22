@@ -92,34 +92,11 @@ absl_cc_library(
     optional
   HDRS
     "optional.h"
-  SRCS
-    "internal/optional.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bad_optional_access
-    absl::base_internal
     absl::config
-    absl::core_headers
-    absl::memory
-    absl::nullability
-    absl::type_traits
     absl::utility
-  PUBLIC
-)
-
-absl_cc_library(
-  NAME
-    bad_optional_access
-  HDRS
-    "bad_optional_access.h"
-  SRCS
-    "bad_optional_access.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::config
-    absl::raw_logging_internal
   PUBLIC
 )
 
@@ -136,36 +113,6 @@ absl_cc_library(
     absl::config
     absl::raw_logging_internal
   PUBLIC
-)
-
-absl_cc_test(
-  NAME
-    optional_test
-  SRCS
-    "optional_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::optional
-    absl::config
-    absl::log
-    absl::strings
-    absl::type_traits
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    optional_exception_safety_test
-  SRCS
-    "optional_exception_safety_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::optional
-    absl::config
-    absl::exception_safety_testing
-    GTest::gmock_main
 )
 
 absl_cc_library(

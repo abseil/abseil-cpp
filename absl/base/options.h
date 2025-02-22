@@ -73,33 +73,6 @@
 // Type Compatibility Options
 // -----------------------------------------------------------------------------
 
-// ABSL_OPTION_USE_STD_OPTIONAL
-//
-// This option controls whether absl::optional is implemented as an alias to
-// std::optional, or as an independent implementation.
-//
-// A value of 0 means to use Abseil's implementation.  This requires only C++11
-// support, and is expected to work on every toolchain we support.
-//
-// A value of 1 means to use an alias to std::optional.  This requires that all
-// code using Abseil is built in C++17 mode or later.
-//
-// A value of 2 means to detect the C++ version being used to compile Abseil,
-// and use an alias only if a working std::optional is available.  This option
-// is useful when you are building your program from source.  It should not be
-// used otherwise -- for example, if you are distributing Abseil in a binary
-// package manager -- since in mode 2, absl::optional will name a different
-// type, with a different mangled name and binary layout, depending on the
-// compiler flags passed by the end user.  For more info, see
-// https://abseil.io/about/design/dropin-types.
-
-// User code should not inspect this macro.  To check in the preprocessor if
-// absl::optional is a typedef of std::optional, use the feature macro
-// ABSL_USES_STD_OPTIONAL.
-
-#define ABSL_OPTION_USE_STD_OPTIONAL 2
-
-
 // ABSL_OPTION_USE_STD_STRING_VIEW
 //
 // This option controls whether absl::string_view is implemented as an alias to
