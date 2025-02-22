@@ -54,6 +54,9 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/hash_policy_testing.h"
+// TODO(b/382423690): Separate tests that depend only on
+// hashtable_control_bytes.
+#include "absl/container/internal/hashtable_control_bytes.h"
 #include "absl/container/internal/hashtable_debug.h"
 #include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/container/internal/test_allocator.h"

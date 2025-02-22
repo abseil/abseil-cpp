@@ -82,6 +82,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/container_memory.h"
   "container/internal/hash_function_defaults.h"
   "container/internal/hash_policy_traits.h"
+  "container/internal/hashtable_control_bytes.h"
   "container/internal/hashtable_debug.h"
   "container/internal/hashtable_debug_hooks.h"
   "container/internal/hashtablez_sampler.cc"

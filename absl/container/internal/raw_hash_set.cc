@@ -27,6 +27,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/container/internal/container_memory.h"
+#include "absl/container/internal/hashtable_control_bytes.h"
 #include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"

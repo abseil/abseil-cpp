@@ -679,6 +679,19 @@ cc_library(
 )
 
 cc_library(
+    name = "hashtable_control_bytes",
+    hdrs = ["internal/hashtable_control_bytes.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:endian",
+        "//absl/numeric:bits",
+    ],
+)
+
+cc_library(
     name = "raw_hash_set",
     srcs = ["internal/raw_hash_set.cc"],
     hdrs = ["internal/raw_hash_set.h"],
@@ -691,6 +704,7 @@ cc_library(
         ":container_memory",
         ":hash_function_defaults",
         ":hash_policy_traits",
+        ":hashtable_control_bytes",
         ":hashtable_debug_hooks",
         ":hashtablez_sampler",
         "//absl/base:config",
@@ -725,6 +739,7 @@ cc_test(
         ":flat_hash_set",
         ":hash_function_defaults",
         ":hash_policy_testing",
+        ":hashtable_control_bytes",
         ":hashtable_debug",
         ":hashtablez_sampler",
         ":node_hash_set",
