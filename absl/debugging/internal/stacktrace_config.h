@@ -51,7 +51,15 @@
 
 #elif defined(__linux__) && !defined(__ANDROID__)
 
-#if defined(NO_FRAME_POINTER) && \
+#ifdef ABSL_USE_LIBUNWIND
+#error "ABSL_USE_LIBUNWIND cannot be directly set."
+#elif defined(__clang__) && defined(__has_include) && __has_include(<libunwind.h>)
+#define ABSL_USE_LIBUNWIND 1
+#else
+#define ABSL_USE_LIBUNWIND 0
+#endif
+
+#if (defined(NO_FRAME_POINTER) || ABSL_USE_LIBUNWIND) && \
     (defined(__i386__) || defined(__x86_64__) || defined(__aarch64__))
 // Note: The libunwind-based implementation is not available to open-source
 // users.
