@@ -276,12 +276,10 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_THREAD_LOCAL
 //
-// DEPRECATED - `thread_local` is available on all supported platforms.
-// Checks whether C++11's `thread_local` storage duration specifier is
-// supported.
+// Checks whether the `thread_local` storage duration specifier is supported.
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
-#else
+#elif !defined(__XTENSA__)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 
