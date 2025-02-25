@@ -362,7 +362,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
   };
 
 #if defined(ABSL_IS_BIG_ENDIAN)
-  constexpr uint64_t kGolden[kNumGoldenOutputs];
+  constexpr uint64_t kGolden[kNumGoldenOutputs] = {};
   GTEST_SKIP() << "We only maintain golden data for little endian systems.";
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
