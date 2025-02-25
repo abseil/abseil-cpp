@@ -126,7 +126,11 @@ Popcount(T x) noexcept {
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
   static_assert(sizeof(x) <= sizeof(uint64_t), "T is too large");
-  return sizeof(x) <= sizeof(uint32_t) ? Popcount32(x) : Popcount64(x);
+  if constexpr (sizeof(x) <= sizeof(uint32_t)) {
+    return Popcount32(x);
+  } else {
+    return Popcount64(x);
+  }
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline int

@@ -464,7 +464,7 @@ static ExpDigits SplitToSix(const double value) {
   // Since we'd like to know if the fractional part of d is close to a half,
   // we multiply it by 65536 and see if the fractional part is close to 32768.
   // (The number doesn't have to be a power of two,but powers of two are faster)
-  uint64_t d64k = d * 65536;
+  uint64_t d64k = static_cast<uint64_t>(d * 65536);
   uint32_t dddddd;  // A 6-digit decimal integer.
   if ((d64k % 65536) == 32767 || (d64k % 65536) == 32768) {
     // OK, it's fairly likely that precision was lost above, which is
@@ -478,7 +478,8 @@ static ExpDigits SplitToSix(const double value) {
     // value we're representing, of course, is M.mmm... * 2^exp2.
     int exp2;
     double m = std::frexp(value, &exp2);
-    uint64_t mantissa = m * (32768.0 * 65536.0 * 65536.0 * 65536.0);
+    uint64_t mantissa =
+        static_cast<uint64_t>(m * (32768.0 * 65536.0 * 65536.0 * 65536.0));
     // std::frexp returns an m value in the range [0.5, 1.0), however we
     // can't multiply it by 2^64 and convert to an integer because some FPUs
     // throw an exception when converting an number higher than 2^63 into an
