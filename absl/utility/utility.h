@@ -22,10 +22,6 @@
 //   * exchange<T>                   == std::exchange<T>
 //   * make_from_tuple<T>            == std::make_from_tuple<T>
 //
-// This header file also provides the tag types `in_place_t`, `in_place_type_t`,
-// and `in_place_index_t`, as well as the constant `in_place`, and
-// `constexpr` `std::move()` and `std::forward()` implementations in C++11.
-//
 // References:
 //
 //  https://en.cppreference.com/w/cpp/utility/apply
@@ -51,53 +47,18 @@ ABSL_NAMESPACE_BEGIN
 // the ones from std directly.
 using std::exchange;
 using std::forward;
-using std::index_sequence;
-using std::index_sequence_for;
 using std::in_place;
+using std::in_place_index;
+using std::in_place_index_t;
 using std::in_place_t;
 using std::in_place_type;
 using std::in_place_type_t;
+using std::index_sequence;
+using std::index_sequence_for;
 using std::integer_sequence;
 using std::make_index_sequence;
 using std::make_integer_sequence;
 using std::move;
-
-namespace utility_internal {
-
-template <typename T>
-struct InPlaceTypeTag {
-  explicit InPlaceTypeTag() = delete;
-  InPlaceTypeTag(const InPlaceTypeTag&) = delete;
-  InPlaceTypeTag& operator=(const InPlaceTypeTag&) = delete;
-};
-
-template <size_t I>
-struct InPlaceIndexTag {
-  explicit InPlaceIndexTag() = delete;
-  InPlaceIndexTag(const InPlaceIndexTag&) = delete;
-  InPlaceIndexTag& operator=(const InPlaceIndexTag&) = delete;
-};
-
-}  // namespace utility_internal
-
-// Tag types
-
-#ifdef ABSL_USES_STD_VARIANT
-using std::in_place_index;
-using std::in_place_index_t;
-#else
-
-// in_place_index_t
-//
-// Tag type used for in-place construction when the type to construct needs to
-// be specified, such as with `absl::any`, designed to be a drop-in replacement
-// for C++17's `std::in_place_index_t`.
-template <size_t I>
-using in_place_index_t = void (*)(utility_internal::InPlaceIndexTag<I>);
-
-template <size_t I>
-void in_place_index(utility_internal::InPlaceIndexTag<I>) {}
-#endif  // ABSL_USES_STD_VARIANT
 
 namespace utility_internal {
 // Helper method for expanding tuple into a called method.
@@ -108,7 +69,6 @@ auto apply_helper(Functor&& functor, Tuple&& t, index_sequence<Indexes...>)
   return std::invoke(absl::forward<Functor>(functor),
                      std::get<Indexes>(absl::forward<Tuple>(t))...);
 }
-
 }  // namespace utility_internal
 
 // apply
