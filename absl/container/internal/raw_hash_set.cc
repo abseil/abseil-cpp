@@ -69,16 +69,6 @@ static_assert(NumControlBytes(SooCapacity()) <= 17,
 
 namespace {
 
-[[noreturn]] ABSL_ATTRIBUTE_NOINLINE void HashTableSizeOverflow() {
-  ABSL_RAW_LOG(FATAL, "Hash table size overflow");
-}
-
-void ValidateMaxSize(size_t size, size_t slot_size) {
-  if (IsAboveMaxValidSize(size, slot_size)) {
-    HashTableSizeOverflow();
-  }
-}
-
 // Returns "random" seed.
 inline size_t RandomSeed() {
 #ifdef ABSL_HAVE_THREAD_LOCAL
@@ -525,6 +515,9 @@ void ResizeEmptyNonAllocatedTableImpl(CommonFields& common, size_t new_capacity,
   assert(common.capacity() <= policy.soo_capacity);
   assert(common.empty());
   const size_t slot_size = policy.slot_size;
+  if (ABSL_PREDICT_FALSE(new_capacity > MaxValidCapacity(slot_size))) {
+    HashTableSizeOverflow();
+  }
   HashtablezInfoHandle infoz;
   const bool should_sample =
       policy.is_hashtablez_eligible && (force_infoz || ShouldSampleNextTable());
@@ -930,25 +923,10 @@ void ResizeAllocatedTable(CommonFields& common, size_t new_capacity,
       common, new_capacity, common.infoz(), policy);
 }
 
-void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
-                                               size_t new_size,
-                                               const PolicyFunctions& policy) {
-  ValidateMaxSize(new_size, policy.slot_size);
-  ResizeEmptyNonAllocatedTableImpl(
-      common, NormalizeCapacity(GrowthToLowerboundCapacity(new_size)),
-      /*force_infoz=*/false, policy);
-  // This is after resize, to ensure that we have completed the allocation
-  // and have potentially sampled the hashtable.
-  common.infoz().RecordReservation(new_size);
-  common.reset_reserved_growth(new_size);
-  common.set_reservation_size(new_size);
-}
-
-void ReserveEmptyNonAllocatedTableToFitBucketCount(
-    CommonFields& common, size_t bucket_count, const PolicyFunctions& policy) {
-  ValidateMaxSize(bucket_count, policy.slot_size);
-  ResizeEmptyNonAllocatedTableImpl(common, NormalizeCapacity(bucket_count),
-                                   /*force_infoz=*/false, policy);
+void ResizeEmptyNonAllocatedTable(CommonFields& common, size_t new_capacity,
+                                  const PolicyFunctions& policy) {
+  ResizeEmptyNonAllocatedTableImpl(common, new_capacity, /*force_infoz=*/false,
+                                   policy);
 }
 
 void GrowEmptySooTableToNextCapacityForceSampling(
@@ -1015,11 +993,12 @@ void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy) {
       NormalizeCapacity(n | GrowthToLowerboundCapacity(common.size()));
   // n == 0 unconditionally rehashes as per the standard.
   if (n == 0 || new_capacity > cap) {
-    ValidateMaxSize(n, policy.slot_size);
+    if (ABSL_PREDICT_FALSE(new_capacity > MaxValidCapacity(slot_size))) {
+      HashTableSizeOverflow();
+    }
     if (cap == policy.soo_capacity) {
       if (common.empty()) {
-        ResizeEmptyNonAllocatedTableImpl(common, new_capacity,
-                                         /*force_infoz=*/false, policy);
+        ResizeEmptyNonAllocatedTable(common, new_capacity, policy);
       } else {
         ResizeFullSooTable(common, new_capacity,
                            ResizeFullSooTableSamplingMode::kNoSampling, policy);
@@ -1035,9 +1014,6 @@ void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy) {
 
 void ReserveAllocatedTable(CommonFields& common, size_t n,
                            const PolicyFunctions& policy) {
-  common.reset_reserved_growth(n);
-  common.set_reservation_size(n);
-
   const size_t cap = common.capacity();
   assert(!common.empty() || cap > policy.soo_capacity);
   assert(cap > 0);
@@ -1047,8 +1023,10 @@ void ReserveAllocatedTable(CommonFields& common, size_t n,
   if (n <= max_size_before_growth) {
     return;
   }
-  ValidateMaxSize(n, policy.slot_size);
   const size_t new_capacity = NormalizeCapacity(GrowthToLowerboundCapacity(n));
+  if (ABSL_PREDICT_FALSE(new_capacity > MaxValidCapacity(policy.slot_size))) {
+    HashTableSizeOverflow();
+  }
   if (cap == policy.soo_capacity) {
     assert(!common.empty());
     ResizeFullSooTable(common, new_capacity,
@@ -1086,6 +1064,10 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
   SetCtrl(common, target.offset, H2(hash), policy.slot_size);
   common.infoz().RecordInsert(hash, target.probe_length);
   return target.offset;
+}
+
+void HashTableSizeOverflow() {
+  ABSL_RAW_LOG(FATAL, "Hash table size overflow");
 }
 
 }  // namespace container_internal

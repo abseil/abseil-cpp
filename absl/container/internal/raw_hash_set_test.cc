@@ -4039,60 +4039,12 @@ TEST(Table, MovedFromCallsFail) {
   }
 }
 
-TEST(Table, MaxValidSize) {
-  IntTable t;
-  EXPECT_EQ(MaxValidSize(sizeof(IntTable::value_type)), t.max_size());
-  if constexpr (sizeof(size_t) == 8) {
-    for (size_t i = 0; i < 16; ++i) {
-      size_t slot_size = size_t{1} << i;
-      size_t max_size = MaxValidSize(slot_size);
-      ASSERT_LT(max_size, uint64_t{1} << 60);
-      ASSERT_TRUE(IsAboveMaxValidSize(max_size + 1, slot_size));
-      ASSERT_TRUE(IsAboveMaxValidSize(uint64_t{1} << 63, slot_size));
-      ASSERT_TRUE(IsAboveMaxValidSize(~size_t{}, slot_size));
-      ASSERT_TRUE(IsAboveMaxValidSize(~size_t{} / 8 * 7, slot_size));
-      // Given that key size have to be at least 6 bytes to reach so many
-      // different values, total memory usage of the table will be at least
-      // 2^42*7 bytes (28 TB).
-      // So that value should be enough for all practical purposes.
-      ASSERT_GE(max_size, uint64_t{1} << 42);
-      // We leave some headroom for the table metadata.
-      ASSERT_LT(NormalizeCapacity(GrowthToLowerboundCapacity(max_size)),
-                uint64_t{1} << 44);
-    }
-  }
-  EXPECT_LT(MaxValidSize</*kSizeOfSizeT=*/4>(1), 1 << 30);
-  EXPECT_LT(MaxValidSize</*kSizeOfSizeT=*/4>(2), 1 << 29);
-  EXPECT_TRUE(IsAboveMaxValidSize</*kSizeOfSizeT=*/4>(1 << 30, 1));
-  EXPECT_TRUE(IsAboveMaxValidSize</*kSizeOfSizeT=*/4>(1 << 29, 2));
-  EXPECT_TRUE(IsAboveMaxValidSize</*kSizeOfSizeT=*/4>(~uint32_t{}, 1));
-  EXPECT_TRUE(IsAboveMaxValidSize</*kSizeOfSizeT=*/4>(~uint32_t{} / 8 * 7, 1));
-  for (size_t i = 0; i < 16; ++i) {
-    size_t slot_size = size_t{1} << i;
-    size_t max_size = MaxValidSize</*kSizeOfSizeT=*/4>(slot_size);
-    ASSERT_LT(max_size, 1 << 30);
-    ASSERT_TRUE(
-        IsAboveMaxValidSize</*kSizeOfSizeT=*/4>(max_size + 1, slot_size));
-    size_t max_capacity =
-        NormalizeCapacity(GrowthToLowerboundCapacity(max_size));
-    ASSERT_LT(max_capacity, (size_t{1} << 31) / slot_size);
-    ASSERT_GT(max_capacity, (1 << 29) / slot_size);
-  }
-}
-
 TEST(Table, MaxSizeOverflow) {
   size_t overflow = (std::numeric_limits<size_t>::max)();
   EXPECT_DEATH_IF_SUPPORTED(IntTable t(overflow), "Hash table size overflow");
   IntTable t;
   EXPECT_DEATH_IF_SUPPORTED(t.reserve(overflow), "Hash table size overflow");
   EXPECT_DEATH_IF_SUPPORTED(t.rehash(overflow), "Hash table size overflow");
-  size_t slightly_overflow = MaxValidSize(sizeof(IntTable::value_type)) + 1;
-  EXPECT_DEATH_IF_SUPPORTED(IntTable t2(slightly_overflow),
-                            "Hash table size overflow");
-  EXPECT_DEATH_IF_SUPPORTED(t.reserve(slightly_overflow),
-                            "Hash table size overflow");
-  EXPECT_DEATH_IF_SUPPORTED(t.rehash(slightly_overflow),
-                            "Hash table size overflow");
 }
 
 // TODO(b/397453582): Remove support for const hasher and ermove this test.

@@ -1097,6 +1097,14 @@ constexpr size_t NormalizeCapacity(size_t n) {
   return n ? ~size_t{} >> countl_zero(n) : 1;
 }
 
+constexpr size_t MaxValidCapacity(size_t slot_size) {
+  return NormalizeCapacity((std::numeric_limits<size_t>::max)() / 4 /
+                           slot_size);
+}
+
+// Use a non-inlined function to avoid code bloat.
+[[noreturn]] void HashTableSizeOverflow();
+
 // General notes on capacity/growth methods below:
 // - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
 //   average of two empty slots per group.
@@ -1529,7 +1537,7 @@ ABSL_ATTRIBUTE_NOINLINE void DeallocateBackingArray(
 struct PolicyFunctions {
   uint32_t key_size;
   uint32_t value_size;
-  uint16_t slot_size;
+  uint32_t slot_size;
   uint16_t slot_align;
   uint8_t soo_capacity;
   bool is_hashtablez_eligible;
@@ -1576,20 +1584,14 @@ constexpr size_t SooSlotIndex() { return 1; }
 // Allowing till 16 would require additional store that can be avoided.
 constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
 
-// Resizes empty non-allocated table to the capacity to fit new_size elements.
+// Resizes empty non-allocated table to the new capacity.
 // Requires:
 //   1. `c.capacity() == policy.soo_capacity`.
 //   2. `c.empty()`.
-//   3. `new_size > policy.soo_capacity`.
+//   3. `new_capacity > policy.soo_capacity`.
 // The table will be attempted to be sampled.
-void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
-                                               size_t new_size,
-                                               const PolicyFunctions& policy);
-
-// The same as ReserveEmptyNonAllocatedTableToFitNewSize, but resizes to the
-// next valid capacity after `bucket_count`.
-void ReserveEmptyNonAllocatedTableToFitBucketCount(
-    CommonFields& common, size_t bucket_count, const PolicyFunctions& policy);
+void ResizeEmptyNonAllocatedTable(CommonFields& common, size_t new_capacity,
+                                  const PolicyFunctions& policy);
 
 // Resizes empty non-allocated SOO table to NextCapacity(SooCapacity()) and
 // forces the table to be sampled.
@@ -1655,33 +1657,6 @@ InitializeThreeElementsControlBytesAfterSoo(size_t hash, ctrl_t* new_ctrl) {
   // Example for group size 8:
   // new_ctrl after 1st memset =      ???EEEEEEEE
   // new_ctrl after 2nd store  =      EHESEHEEEEE
-}
-
-// Template parameter is only used to enable testing.
-template <size_t kSizeOfSizeT = sizeof(size_t)>
-constexpr size_t MaxValidSize(size_t slot_size) {
-  if constexpr (kSizeOfSizeT == 4) {
-    return (size_t{1} << (kSizeOfSizeT * 8 - 2)) / slot_size - 1;
-  } else {
-    static_assert(kSizeOfSizeT == 8);
-    constexpr size_t kSizeBits = 43;
-    static_assert(
-        kSizeBits + sizeof(PolicyFunctions::slot_size) * 8 < 64,
-        "we expect that slot size is small enough that allocation size "
-        "will not overflow");
-    return CapacityToGrowth(static_cast<size_t>(uint64_t{1} << kSizeBits) - 1);
-  }
-}
-
-// Template parameter is only used to enable testing.
-template <size_t kSizeOfSizeT = sizeof(size_t)>
-constexpr size_t IsAboveMaxValidSize(size_t size, size_t slot_size) {
-  if constexpr (kSizeOfSizeT == 4) {
-    return uint64_t{size} * slot_size >
-           MaxValidSize<kSizeOfSizeT>(/*slot_size=*/1);
-  } else {
-    return size > MaxValidSize(slot_size);
-  }
 }
 
 // Returns the optimal size for memcpy when transferring SOO slot.
@@ -2150,8 +2125,8 @@ class raw_hash_set {
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
                   alloc) {
     if (bucket_count > DefaultCapacity()) {
-      ReserveEmptyNonAllocatedTableToFitBucketCount(common(), bucket_count,
-                                                    GetPolicyFunctions());
+      ResizeEmptyNonAllocatedTable(common(), NormalizeCapacity(bucket_count),
+                                   GetPolicyFunctions());
     }
   }
 
@@ -2427,7 +2402,9 @@ class raw_hash_set {
     ABSL_ASSUME(cap >= kDefaultCapacity);
     return cap;
   }
-  size_t max_size() const { return MaxValidSize(sizeof(slot_type)); }
+  size_t max_size() const {
+    return CapacityToGrowth(MaxValidCapacity(sizeof(slot_type)));
+  }
 
   ABSL_ATTRIBUTE_REINITIALIZES void clear() {
     if (SwisstableGenerationsEnabled() &&
@@ -2836,10 +2813,16 @@ class raw_hash_set {
       ReserveAllocatedTable(common(), n, GetPolicyFunctions());
     } else {
       if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
-        ReserveEmptyNonAllocatedTableToFitNewSize(common(), n,
-                                                  GetPolicyFunctions());
+        ResizeEmptyNonAllocatedTable(
+            common(), NormalizeCapacity(GrowthToLowerboundCapacity(n)),
+            GetPolicyFunctions());
+        // This is after resize, to ensure that we have completed the allocation
+        // and have potentially sampled the hashtable.
+        infoz().RecordReservation(n);
       }
     }
+    common().reset_reserved_growth(n);
+    common().set_reservation_size(n);
   }
 
   // Extension API: support for heterogeneous keys.
@@ -3575,15 +3558,10 @@ class raw_hash_set {
   }
 
   static const PolicyFunctions& GetPolicyFunctions() {
-    static_assert(sizeof(slot_type) <= (std::numeric_limits<uint16_t>::max)(),
-                  "Slot size is too large. Use std::unique_ptr for value type "
-                  "or use absl::node_hash_{map,set}.");
-    static_assert(alignof(slot_type) <=
-                  size_t{(std::numeric_limits<uint16_t>::max)()});
-    static_assert(sizeof(key_type) <=
-                  size_t{(std::numeric_limits<uint32_t>::max)()});
-    static_assert(sizeof(value_type) <=
-                  size_t{(std::numeric_limits<uint32_t>::max)()});
+    static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)());
+    static_assert(alignof(slot_type) <= (std::numeric_limits<uint16_t>::max)());
+    static_assert(sizeof(key_type) <= (std::numeric_limits<uint32_t>::max)());
+    static_assert(sizeof(value_type) <= (std::numeric_limits<uint32_t>::max)());
     static constexpr size_t kBackingArrayAlignment =
         BackingArrayAlignment(alignof(slot_type));
     static constexpr PolicyFunctions value = {
