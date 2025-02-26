@@ -62,8 +62,8 @@ ABSL_NAMESPACE_BEGIN
 // encountered, this function returns `false`, leaving `out` in an unspecified
 // state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
-                                     absl::Nonnull<int_type*> out);
+[[nodiscard]] bool SimpleAtoi(absl::string_view str,
+                              absl::Nonnull<int_type*> out);
 
 // SimpleAtof()
 //
@@ -74,8 +74,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
 // allowed formats for `str`, except SimpleAtof() is locale-independent and will
 // always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str,
-                                     absl::Nonnull<float*> out);
+[[nodiscard]] bool SimpleAtof(absl::string_view str, absl::Nonnull<float*> out);
 
 // SimpleAtod()
 //
@@ -86,8 +85,8 @@ ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str,
 // allowed formats for `str`, except SimpleAtod is locale-independent and will
 // always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str,
-                                     absl::Nonnull<double*> out);
+[[nodiscard]] bool SimpleAtod(absl::string_view str,
+                              absl::Nonnull<double*> out);
 
 // SimpleAtob()
 //
@@ -97,8 +96,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str,
 // are interpreted as boolean `false`: "false", "f", "no", "n", "0". If any
 // errors are encountered, this function returns `false`, leaving `out` in an
 // unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str,
-                                     absl::Nonnull<bool*> out);
+[[nodiscard]] bool SimpleAtob(absl::string_view str, absl::Nonnull<bool*> out);
 
 // SimpleHexAtoi()
 //
@@ -111,14 +109,14 @@ ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str,
 // by this function. If any errors are encountered, this function returns
 // `false`, leaving `out` in an unspecified state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleHexAtoi(absl::string_view str,
-                                        absl::Nonnull<int_type*> out);
+[[nodiscard]] bool SimpleHexAtoi(absl::string_view str,
+                                 absl::Nonnull<int_type*> out);
 
 // Overloads of SimpleHexAtoi() for 128 bit integers.
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::int128*> out);
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::uint128*> out);
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::int128*> out);
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::uint128*> out);
 
 ABSL_NAMESPACE_END
 }  // namespace absl
@@ -229,9 +227,8 @@ absl::Nonnull<char*> FastIntToBuffer(int_type i, absl::Nonnull<char*> buffer)
 // Implementation of SimpleAtoi, generalized to support arbitrary base (used
 // with base different from 10 elsewhere in Abseil implementation).
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s,
-                                           absl::Nonnull<int_type*> out,
-                                           int base) {
+[[nodiscard]] bool safe_strtoi_base(absl::string_view s,
+                                    absl::Nonnull<int_type*> out, int base) {
   static_assert(sizeof(*out) == 1 || sizeof(*out) == 2 || sizeof(*out) == 4 ||
                     sizeof(*out) == 8,
                 "SimpleAtoi works only with 8, 16, 32, or 64-bit integers.");
@@ -313,34 +310,34 @@ inline size_t FastHexToBufferZeroPad16(uint64_t val, absl::Nonnull<char*> out) {
 }  // namespace numbers_internal
 
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
-                                     absl::Nonnull<int_type*> out) {
+[[nodiscard]] bool SimpleAtoi(absl::string_view str,
+                              absl::Nonnull<int_type*> out) {
   return numbers_internal::safe_strtoi_base(str, out, 10);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleAtoi(absl::string_view str,
-                                            absl::Nonnull<absl::int128*> out) {
+[[nodiscard]] inline bool SimpleAtoi(absl::string_view str,
+                                     absl::Nonnull<absl::int128*> out) {
   return numbers_internal::safe_strto128_base(str, out, 10);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleAtoi(absl::string_view str,
-                                            absl::Nonnull<absl::uint128*> out) {
+[[nodiscard]] inline bool SimpleAtoi(absl::string_view str,
+                                     absl::Nonnull<absl::uint128*> out) {
   return numbers_internal::safe_strtou128_base(str, out, 10);
 }
 
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleHexAtoi(absl::string_view str,
-                                        absl::Nonnull<int_type*> out) {
+[[nodiscard]] bool SimpleHexAtoi(absl::string_view str,
+                                 absl::Nonnull<int_type*> out) {
   return numbers_internal::safe_strtoi_base(str, out, 16);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::int128*> out) {
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::int128*> out) {
   return numbers_internal::safe_strto128_base(str, out, 16);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::uint128*> out) {
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::uint128*> out) {
   return numbers_internal::safe_strtou128_base(str, out, 16);
 }
 

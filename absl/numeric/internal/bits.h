@@ -71,7 +71,7 @@ constexpr bool IsPowerOf2(unsigned int x) noexcept {
 }
 
 template <class T>
-ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
+[[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
     T x, int s) noexcept {
   static_assert(std::is_unsigned<T>::value, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
@@ -82,7 +82,7 @@ ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
 }
 
 template <class T>
-ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateLeft(
+[[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateLeft(
     T x, int s) noexcept {
   static_assert(std::is_unsigned<T>::value, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
