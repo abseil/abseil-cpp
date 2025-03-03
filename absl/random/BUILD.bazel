@@ -42,9 +42,9 @@ cc_library(
     deps = [
         ":distributions",
         ":seed_sequences",
+        "//absl/base:config",
         "//absl/random/internal:nonsecure_base",
         "//absl/random/internal:pcg_engine",
-        "//absl/random/internal:pool_urbg",
         "//absl/random/internal:randen_engine",
     ],
 )

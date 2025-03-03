@@ -24,10 +24,10 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::config
     absl::random_distributions
     absl::random_internal_nonsecure_base
     absl::random_internal_pcg_engine
-    absl::random_internal_pool_urbg
     absl::random_internal_randen_engine
     absl::random_seed_sequences
 )
