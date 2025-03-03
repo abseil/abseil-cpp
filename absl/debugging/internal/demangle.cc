@@ -2819,7 +2819,8 @@ static bool ParseLocalNameSuffix(State *state) {
     // On late parse failure, roll back not only the input but also the output,
     // whose trailing NUL was overwritten.
     state->parse_state = copy;
-    if (state->parse_state.append) {
+    if (state->parse_state.append &&
+        state->parse_state.out_cur_idx < state->out_end_idx) {
       state->out[state->parse_state.out_cur_idx] = '\0';
     }
     return false;
@@ -2832,7 +2833,8 @@ static bool ParseLocalNameSuffix(State *state) {
     return true;
   }
   state->parse_state = copy;
-  if (state->parse_state.append) {
+  if (state->parse_state.append &&
+      state->parse_state.out_cur_idx < state->out_end_idx) {
     state->out[state->parse_state.out_cur_idx] = '\0';
   }
 
