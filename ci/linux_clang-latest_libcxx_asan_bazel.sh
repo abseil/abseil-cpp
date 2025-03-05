@@ -59,6 +59,9 @@ if [[ ${KOKORO_GFILE_DIR:-} ]] && [[ -d "${KOKORO_GFILE_DIR}/distdir" ]]; then
   BAZEL_EXTRA_ARGS="--distdir=/distdir ${BAZEL_EXTRA_ARGS:-}"
 fi
 
+# https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html#available-checks
+readonly UBSAN_CHECKS="float-divide-by-zero,nullability,undefined"
+
 for std in ${STD}; do
   for compilation_mode in ${COMPILATION_MODE}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
@@ -79,9 +82,8 @@ for std in ${STD}; do
           --copt="${exceptions_mode}" \
           --copt="-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1" \
           --copt="-fsanitize=address" \
-          --copt="-fsanitize=float-divide-by-zero" \
-          --copt="-fsanitize=nullability" \
-          --copt="-fsanitize=undefined" \
+          --copt="-fsanitize=${UBSAN_CHECKS}" \
+          --copt="-fno-sanitize-recover=${UBSAN_CHECKS}" \
           --copt="-fno-sanitize-blacklist" \
           --copt=-Werror \
           --enable_bzlmod=true \
