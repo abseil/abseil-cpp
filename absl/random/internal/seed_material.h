@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/random/internal/fast_uniform_bits.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
@@ -94,7 +94,7 @@ void MixIntoSeedMaterial(absl::Span<const uint32_t> sequence,
 //
 // Salt is obtained only once and stored in static variable.
 //
-// May return empty value if optaining the salt was not possible.
+// May return empty value if obtaining the salt was not possible.
 absl::optional<uint32_t> GetSaltMaterial();
 
 }  // namespace random_internal
