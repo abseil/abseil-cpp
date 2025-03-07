@@ -616,9 +616,11 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":nonsecure_base",
+        "//absl/container:flat_hash_set",
         "//absl/meta:type_traits",
         "//absl/random",
         "//absl/random:distributions",
+        "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -648,6 +650,8 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":entropy_pool",
+        "//absl/container:flat_hash_set",
+        "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

@@ -18,22 +18,60 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <thread>  // NOLINT
+#include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/synchronization/mutex.h"
 
 namespace {
 
 using ::absl::random_internal::GetEntropyFromRandenPool;
 
+TEST(EntropyPoolTest, DistinctSequencesPerThread) {
+  using result_type = uint32_t;
+  constexpr int kNumThreads = 12;
+  constexpr size_t kValuesPerThread = 32;
+
+  // Acquire entropy from multiple threads.
+  std::vector<std::vector<result_type>> data;
+  {
+    absl::Mutex mu;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < kNumThreads; i++) {
+      threads.emplace_back([&]() {
+        std::vector<result_type> v(kValuesPerThread);
+        GetEntropyFromRandenPool(v.data(), sizeof(result_type) * v.size());
+        absl::MutexLock l(&mu);
+        data.push_back(std::move(v));
+      });
+    }
+    for (auto& t : threads) t.join();
+  }
+
+  EXPECT_EQ(data.size(), kNumThreads);
+
+  // There should be essentially no duplicates in the sequences.
+  size_t expected_size = 0;
+  absl::flat_hash_set<result_type> seen;
+  for (const auto& v : data) {
+    expected_size += v.size();
+    for (result_type x : v) seen.insert(x);
+  }
+  EXPECT_GE(seen.size(), expected_size - 1);
+}
+
 // This validates that sequences are independent.
-TEST(EntropyPoolTest, VerifySequences) {
+TEST(EntropyPoolTest, ValidateDistribution) {
   using result_type = uint32_t;
   constexpr int kNumOutputs = 16;
-  result_type a[kNumOutputs];
-  result_type b[kNumOutputs];
+  std::vector<result_type> a(kNumOutputs);
+  std::vector<result_type> b(kNumOutputs);
 
-  GetEntropyFromRandenPool(&a, sizeof(a[0]) * kNumOutputs);
-  GetEntropyFromRandenPool(&b, sizeof(b[0]) * kNumOutputs);
+  GetEntropyFromRandenPool(a.data(), sizeof(a[0]) * a.size());
+  GetEntropyFromRandenPool(b.data(), sizeof(b[0]) * b.size());
 
   // Compare the two sequences, counting the number of bits that are different,
   // then verify using a normal-approximation of the binomial distribution.
@@ -41,7 +79,7 @@ TEST(EntropyPoolTest, VerifySequences) {
   size_t total_set = 0;
   size_t equal_count = 0;
   size_t zero_count = 0;
-  for (size_t i = 0; i < kNumOutputs; ++i) {
+  for (size_t i = 0; i < a.size(); ++i) {
     std::bitset<sizeof(result_type) * 8> changed_set(a[i] ^ b[i]);
     changed_bits += changed_set.count();
 
@@ -78,5 +116,4 @@ TEST(EntropyPoolTest, VerifySequences) {
   // Zeros values must be rare; 32 / 2^32 is certainly less than 1.
   EXPECT_LE(zero_count, 1);
 }
-
 }  // namespace

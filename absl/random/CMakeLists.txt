@@ -1031,9 +1031,11 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::flat_hash_map
+    absl::random_distributions
     absl::random_internal_nonsecure_base
     absl::random_random
-    absl::random_distributions
+    absl::synchronization
     absl::type_traits
     GTest::gtest_main
 )
@@ -1066,7 +1068,9 @@ absl_cc_test(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::flat_hash_map
     absl::random_internal_entropy_pool
+    absl::synchronization
     GTest::gtest_main
 )
 
