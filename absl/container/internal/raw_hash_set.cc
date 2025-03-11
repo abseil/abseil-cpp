@@ -1092,6 +1092,19 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
   return target.offset;
 }
 
+template void GrowFullSooTableToNextCapacity<0, false>(CommonFields&, size_t,
+                                                       const PolicyFunctions&);
+template void GrowFullSooTableToNextCapacity<1, true>(CommonFields&, size_t,
+                                                      const PolicyFunctions&);
+template void GrowFullSooTableToNextCapacity<4, true>(CommonFields&, size_t,
+                                                      const PolicyFunctions&);
+template void GrowFullSooTableToNextCapacity<8, true>(CommonFields&, size_t,
+                                                      const PolicyFunctions&);
+#if UINTPTR_MAX == UINT64_MAX
+template void GrowFullSooTableToNextCapacity<16, true>(CommonFields&, size_t,
+                                                       const PolicyFunctions&);
+#endif
+
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

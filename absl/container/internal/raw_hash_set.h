@@ -3874,6 +3874,21 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 };
 
 }  // namespace hashtable_debug_internal
+
+// Extern template instantiations reduce binary size and linker input size.
+extern template void GrowFullSooTableToNextCapacity<0, false>(
+    CommonFields&, size_t, const PolicyFunctions&);
+extern template void GrowFullSooTableToNextCapacity<1, true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+extern template void GrowFullSooTableToNextCapacity<4, true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+extern template void GrowFullSooTableToNextCapacity<8, true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+#if UINTPTR_MAX == UINT64_MAX
+extern template void GrowFullSooTableToNextCapacity<16, true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+#endif
+
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
