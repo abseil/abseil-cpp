@@ -1736,13 +1736,13 @@ constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
 //   3. `new_size > policy.soo_capacity`.
 // The table will be attempted to be sampled.
 void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
-                                               size_t new_size,
-                                               const PolicyFunctions& policy);
+                                               const PolicyFunctions& policy,
+                                               size_t new_size);
 
 // The same as ReserveEmptyNonAllocatedTableToFitNewSize, but resizes to the
 // next valid capacity after `bucket_count`.
 void ReserveEmptyNonAllocatedTableToFitBucketCount(
-    CommonFields& common, size_t bucket_count, const PolicyFunctions& policy);
+    CommonFields& common, const PolicyFunctions& policy, size_t bucket_count);
 
 // Resizes empty non-allocated SOO table to NextCapacity(SooCapacity()) and
 // forces the table to be sampled.
@@ -1754,7 +1754,7 @@ void GrowEmptySooTableToNextCapacityForceSampling(
     CommonFields& common, const PolicyFunctions& policy);
 
 // Type erased version of raw_hash_set::rehash.
-void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy);
+void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n);
 
 // Type erased version of raw_hash_set::reserve for tables that have an
 // allocated backing array.
@@ -1762,8 +1762,8 @@ void Rehash(CommonFields& common, size_t n, const PolicyFunctions& policy);
 // Requires:
 //   1. `c.capacity() > policy.soo_capacity` OR `!c.empty()`.
 // Reserving already allocated tables is considered to be a rare case.
-void ReserveAllocatedTable(CommonFields& common, size_t n,
-                           const PolicyFunctions& policy);
+void ReserveAllocatedTable(CommonFields& common, const PolicyFunctions& policy,
+                           size_t n);
 
 // Returns the optimal size for memcpy when transferring SOO slot.
 // Otherwise, returns the optimal size for memcpy SOO slot transfer
@@ -1804,8 +1804,9 @@ constexpr size_t OptimalMemcpySizeForSooSlotTransfer(
 // All possible template combinations are defined in cc file to improve
 // compilation time.
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
-void GrowFullSooTableToNextCapacity(CommonFields& common, size_t soo_slot_hash,
-                                    const PolicyFunctions& policy);
+void GrowFullSooTableToNextCapacity(CommonFields& common,
+                                    const PolicyFunctions& policy,
+                                    size_t soo_slot_hash);
 
 // As `ResizeFullSooTableToNextCapacity`, except that we also force the SOO
 // table to be sampled. SOO tables need to switch from SOO to heap in order to
@@ -1817,8 +1818,8 @@ void GrowFullSooTableToNextCapacityForceSampling(CommonFields& common,
 // Tables with SOO enabled must have capacity > policy.soo_capacity.
 // No sampling will be performed since table is already allocated.
 void ResizeAllocatedTableWithSeedChange(CommonFields& common,
-                                        size_t new_capacity,
-                                        const PolicyFunctions& policy);
+                                        const PolicyFunctions& policy,
+                                        size_t new_capacity);
 
 inline void PrepareInsertCommon(CommonFields& common) {
   common.increment_size();
@@ -1870,8 +1871,8 @@ void* GetRefForEmptyClass(CommonFields& common);
 // REQUIRES: Table is not SOO.
 // REQUIRES: At least one non-full slot available.
 // REQUIRES: `target` is a valid empty position to insert.
-size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
-                           const PolicyFunctions& policy, FindInfo target);
+size_t PrepareInsertNonSoo(CommonFields& common, const PolicyFunctions& policy,
+                           size_t hash, FindInfo target);
 
 // A SwissTable.
 //
@@ -2182,8 +2183,8 @@ class raw_hash_set {
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
                   alloc) {
     if (bucket_count > DefaultCapacity()) {
-      ReserveEmptyNonAllocatedTableToFitBucketCount(common(), bucket_count,
-                                                    GetPolicyFunctions());
+      ReserveEmptyNonAllocatedTableToFitBucketCount(
+          common(), GetPolicyFunctions(), bucket_count);
     }
   }
 
@@ -2857,7 +2858,7 @@ class raw_hash_set {
               typename AllocTraits::propagate_on_container_swap{});
   }
 
-  void rehash(size_t n) { Rehash(common(), n, GetPolicyFunctions()); }
+  void rehash(size_t n) { Rehash(common(), GetPolicyFunctions(), n); }
 
   void reserve(size_t n) {
     const size_t cap = capacity();
@@ -2865,11 +2866,11 @@ class raw_hash_set {
                           // !SooEnabled() implies empty(), so we can skip the
                           // check for optimization.
                           (SooEnabled() && !empty()))) {
-      ReserveAllocatedTable(common(), n, GetPolicyFunctions());
+      ReserveAllocatedTable(common(), GetPolicyFunctions(), n);
     } else {
       if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
-        ReserveEmptyNonAllocatedTableToFitNewSize(common(), n,
-                                                  GetPolicyFunctions());
+        ReserveEmptyNonAllocatedTableToFitNewSize(common(),
+                                                  GetPolicyFunctions(), n);
       }
     }
   }
@@ -3206,7 +3207,7 @@ class raw_hash_set {
                                                sizeof(slot_type))
                                          : 0,
                                      PolicyTraits::transfer_uses_memcpy()>(
-          common(), hash_of(soo_slot()), GetPolicyFunctions());
+          common(), GetPolicyFunctions(), hash_of(soo_slot()));
     }
   }
 
@@ -3263,8 +3264,8 @@ class raw_hash_set {
     }
     common().increment_generation();
     if (!empty() && common().should_rehash_for_bug_detection_on_move()) {
-      ResizeAllocatedTableWithSeedChange(common(), capacity(),
-                                         GetPolicyFunctions());
+      ResizeAllocatedTableWithSeedChange(common(), GetPolicyFunctions(),
+                                         capacity());
     }
   }
 
@@ -3358,8 +3359,8 @@ class raw_hash_set {
       if (ABSL_PREDICT_TRUE(mask_empty)) {
         size_t target = seq.offset(
             GetInsertionOffset(mask_empty, capacity(), hash, common().seed()));
-        return {iterator_at(PrepareInsertNonSoo(common(), hash,
-                                                GetPolicyFunctions(),
+        return {iterator_at(PrepareInsertNonSoo(common(), GetPolicyFunctions(),
+                                                hash,
                                                 FindInfo{target, seq.index()})),
                 true};
       }
@@ -3780,16 +3781,16 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 // Extern template instantiations reduce binary size and linker input size.
 // Function definition is in raw_hash_set.cc.
 extern template void GrowFullSooTableToNextCapacity<0, false>(
-    CommonFields&, size_t, const PolicyFunctions&);
+    CommonFields&, const PolicyFunctions&, size_t);
 extern template void GrowFullSooTableToNextCapacity<1, true>(
-    CommonFields&, size_t, const PolicyFunctions&);
+    CommonFields&, const PolicyFunctions&, size_t);
 extern template void GrowFullSooTableToNextCapacity<4, true>(
-    CommonFields&, size_t, const PolicyFunctions&);
+    CommonFields&, const PolicyFunctions&, size_t);
 extern template void GrowFullSooTableToNextCapacity<8, true>(
-    CommonFields&, size_t, const PolicyFunctions&);
+    CommonFields&, const PolicyFunctions&, size_t);
 #if UINTPTR_MAX == UINT64_MAX
 extern template void GrowFullSooTableToNextCapacity<16, true>(
-    CommonFields&, size_t, const PolicyFunctions&);
+    CommonFields&, const PolicyFunctions&, size_t);
 #endif
 
 }  // namespace container_internal
