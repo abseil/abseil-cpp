@@ -2495,15 +2495,15 @@ class raw_hash_set {
   //   flat_hash_map<std::string, int> m;
   //   m.insert(std::make_pair("abc", 42));
   template <class T,
-            std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
-                                 IsNotBitField<T>::value &&
-                                 !IsLifetimeBoundAssignmentFrom<T>::value,
-                             int> = 0>
+            int = std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+                                       IsNotBitField<T>::value &&
+                                       !IsLifetimeBoundAssignmentFrom<T>::value,
+                                   int>()>
   std::pair<iterator, bool> insert(T&& value) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return emplace(std::forward<T>(value));
   }
 
-  template <class T,
+  template <class T, int&...,
             std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
                                  IsNotBitField<T>::value &&
                                  IsLifetimeBoundAssignmentFrom<T>::value,
@@ -2511,7 +2511,7 @@ class raw_hash_set {
   std::pair<iterator, bool> insert(
       T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return emplace(std::forward<T>(value));
+    return this->template insert<T, 0>(std::forward<T>(value));
   }
 
   // This overload kicks in when the argument is a bitfield or an lvalue of
@@ -2525,22 +2525,22 @@ class raw_hash_set {
   //   const char* p = "hello";
   //   s.insert(p);
   //
-  template <class T, std::enable_if_t<
+  template <class T, int = std::enable_if_t<
                          IsDecomposableAndInsertable<const T&>::value &&
                              !IsLifetimeBoundAssignmentFrom<const T&>::value,
-                         int> = 0>
+                         int>()>
   std::pair<iterator, bool> insert(const T& value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return emplace(value);
   }
-  template <class T,
+  template <class T, int&...,
             std::enable_if_t<IsDecomposableAndInsertable<const T&>::value &&
                                  IsLifetimeBoundAssignmentFrom<const T&>::value,
                              int> = 0>
   std::pair<iterator, bool> insert(
       const T& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return emplace(value);
+    return this->template insert<T, 0>(value);
   }
 
   // This overload kicks in when the argument is an rvalue of init_type. Its
@@ -2567,21 +2567,22 @@ class raw_hash_set {
 #endif
 
   template <class T,
-            std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
-                                 IsNotBitField<T>::value &&
-                                 !IsLifetimeBoundAssignmentFrom<T>::value,
-                             int> = 0>
+            int = std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
+                                       IsNotBitField<T>::value &&
+                                       !IsLifetimeBoundAssignmentFrom<T>::value,
+                                   int>()>
   iterator insert(const_iterator, T&& value) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(std::forward<T>(value)).first;
   }
-  template <class T,
+  template <class T, int&...,
             std::enable_if_t<IsDecomposableAndInsertable<T>::value &&
                                  IsNotBitField<T>::value &&
                                  IsLifetimeBoundAssignmentFrom<T>::value,
                              int> = 0>
-  iterator insert(const_iterator, T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(
-                                      this)) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return insert(std::forward<T>(value)).first;
+  iterator insert(const_iterator hint,
+                  T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return this->template insert<T, 0>(hint, std::forward<T>(value));
   }
 
   template <class T, std::enable_if_t<
