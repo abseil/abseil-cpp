@@ -234,6 +234,11 @@ FindInfo find_first_non_full_outofline(const CommonFields& common,
 
 namespace {
 
+void ResetGrowthLeft(CommonFields& common) {
+  common.growth_info().InitGrowthLeftNoDeleted(
+      CapacityToGrowth(common.capacity()) - common.size());
+}
+
 // Finds guaranteed to exists empty slot from the given position.
 // NOTE: this function is almost never triggered inside of the
 // DropDeletesWithoutResize, so we keep it simple.
@@ -407,6 +412,51 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeSingleElementControlBytes(
   std::memset(new_ctrl + 1, static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
   // Overwrite the first 3 bytes with HSH. Other bytes will not be changed.
   absl::little_endian::Store64(new_ctrl, first_ctrl_bytes);
+}
+
+// Initializes control bytes after SOO to the next capacity.
+// The table must be non-empty SOO.
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline void
+InitializeThreeElementsControlBytesAfterSoo(size_t hash, ctrl_t* new_ctrl) {
+  static constexpr size_t kNewCapacity = NextCapacity(SooCapacity());
+  static_assert(kNewCapacity == 3);
+  static_assert(is_single_group(kNewCapacity));
+  static_assert(SooSlotIndex() == 1);
+
+  static constexpr uint64_t kEmptyXorSentinel =
+      static_cast<uint8_t>(ctrl_t::kEmpty) ^
+      static_cast<uint8_t>(ctrl_t::kSentinel);
+  static constexpr uint64_t kEmpty64 = static_cast<uint8_t>(ctrl_t::kEmpty);
+  static constexpr size_t kMirroredSooSlotIndex =
+      SooSlotIndex() + kNewCapacity + 1;
+  // The first 8 bytes, where present slot positions are replaced with 0.
+  static constexpr uint64_t kFirstCtrlBytesWithZeroes =
+      k8EmptyBytes ^ (kEmpty64 << (8 * SooSlotIndex())) ^
+      (kEmptyXorSentinel << (8 * kNewCapacity)) ^
+      (kEmpty64 << (8 * kMirroredSooSlotIndex));
+
+  const uint64_t h2 = static_cast<uint64_t>(H2(hash));
+  // Fill the original 0th and mirrored 2nd bytes with the hash.
+  // Result will look like:
+  // EHESEHEE
+  // Where H = h2, E = kEmpty, S = kSentinel.
+  const uint64_t first_ctrl_bytes =
+      ((h2 << (8 * SooSlotIndex())) | kFirstCtrlBytesWithZeroes) |
+      (h2 << (8 * kMirroredSooSlotIndex));
+
+  // Fill last bytes with kEmpty.
+  std::memset(new_ctrl + kNewCapacity, static_cast<int8_t>(ctrl_t::kEmpty),
+              Group::kWidth);
+  // Overwrite the first 8 bytes with first_ctrl_bytes.
+  absl::little_endian::Store64(new_ctrl, first_ctrl_bytes);
+
+  // Example for group size 16:
+  // new_ctrl after 1st memset =      ???EEEEEEEEEEEEEEEE
+  // new_ctrl after 2nd store  =      EHESEHEEEEEEEEEEEEE
+
+  // Example for group size 8:
+  // new_ctrl after 1st memset =      ???EEEEEEEE
+  // new_ctrl after 2nd store  =      EHESEHEEEEE
 }
 
 }  // namespace
@@ -960,6 +1010,63 @@ void GrowEmptySooTableToNextCapacityForceSampling(
                                    /*force_infoz=*/true, policy);
 }
 
+// Resizes a full SOO table to the NextCapacity(SooCapacity()).
+template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
+void GrowFullSooTableToNextCapacity(CommonFields& common, size_t soo_slot_hash,
+                                    const PolicyFunctions& policy) {
+  assert(common.capacity() == policy.soo_capacity);
+  assert(common.size() == policy.soo_capacity);
+  static constexpr size_t kNewCapacity = NextCapacity(SooCapacity());
+  assert(kNewCapacity > policy.soo_capacity);
+  assert(policy.soo_capacity == SooCapacity());
+  const size_t slot_size = policy.slot_size;
+  const size_t slot_align = policy.slot_align;
+  common.set_capacity(kNewCapacity);
+
+  // Since the table is not empty, it will not be sampled.
+  // The decision to sample was already made during the first insertion.
+  RawHashSetLayout layout(kNewCapacity, slot_size, slot_align,
+                          /*has_infoz=*/false);
+  void* alloc = policy.get_char_alloc(common);
+  char* mem = static_cast<char*>(policy.alloc(alloc, layout.alloc_size()));
+  const GenerationType old_generation = common.generation();
+  common.set_generation_ptr(
+      reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
+  common.set_generation(NextGeneration(old_generation));
+
+  // We do not set control and slots in CommonFields yet to avoid overriding
+  // SOO data.
+  ctrl_t* new_ctrl = reinterpret_cast<ctrl_t*>(mem + layout.control_offset());
+  void* new_slots = mem + layout.slot_offset();
+
+  InitializeThreeElementsControlBytesAfterSoo(soo_slot_hash, new_ctrl);
+
+  SanitizerPoisonMemoryRegion(new_slots, slot_size * kNewCapacity);
+  void* target_slot = SlotAddress(new_slots, SooSlotIndex(), slot_size);
+  SanitizerUnpoisonMemoryRegion(target_slot, slot_size);
+  if constexpr (TransferUsesMemcpy) {
+    // Target slot is placed at index 1, but capacity is at
+    // minimum 3. So we are allowed to copy at least twice as much
+    // memory.
+    static_assert(SooSlotIndex() == 1);
+    static_assert(SooSlotMemcpySize > 0);
+    static_assert(SooSlotMemcpySize <= MaxSooSlotSize());
+    assert(SooSlotMemcpySize <= 2 * slot_size);
+    assert(SooSlotMemcpySize >= slot_size);
+    void* next_slot = SlotAddress(target_slot, 1, slot_size);
+    SanitizerUnpoisonMemoryRegion(next_slot, SooSlotMemcpySize - slot_size);
+    std::memcpy(target_slot, common.soo_data(), SooSlotMemcpySize);
+    SanitizerPoisonMemoryRegion(next_slot, SooSlotMemcpySize - slot_size);
+  } else {
+    static_assert(SooSlotMemcpySize == 0);
+    policy.transfer(&common, target_slot, common.soo_data(), 1);
+  }
+  common.set_control</*kGenerateSeed=*/true>(new_ctrl);
+  common.set_slots(new_slots);
+
+  ResetGrowthLeft(common);
+}
+
 void GrowFullSooTableToNextCapacityForceSampling(
     CommonFields& common, const PolicyFunctions& policy) {
   assert(common.capacity() == policy.soo_capacity);
@@ -1092,17 +1199,57 @@ size_t PrepareInsertNonSoo(CommonFields& common, size_t hash,
   return target.offset;
 }
 
+namespace {
+// Returns true if the following is true
+// 1. OptimalMemcpySizeForSooSlotTransfer(left) >
+//    OptimalMemcpySizeForSooSlotTransfer(left - 1)
+// 2. OptimalMemcpySizeForSooSlotTransfer(left) are equal for all i in [left,
+// right].
+// This function is used to verify that we have all the possible template
+// instantiations for GrowFullSooTableToNextCapacity.
+// With this verification the problem may be detected at compile time instead of
+// link time.
+constexpr bool VerifyOptimalMemcpySizeForSooSlotTransferRange(size_t left,
+                                                              size_t right) {
+  size_t optimal_size_for_range = OptimalMemcpySizeForSooSlotTransfer(left);
+  if (optimal_size_for_range <= OptimalMemcpySizeForSooSlotTransfer(left - 1)) {
+    return false;
+  }
+  for (size_t i = left + 1; i <= right; ++i) {
+    if (OptimalMemcpySizeForSooSlotTransfer(i) != optimal_size_for_range) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
+// We need to instantiate ALL possible template combinations because we define
+// the function in the cc file.
 template void GrowFullSooTableToNextCapacity<0, false>(CommonFields&, size_t,
                                                        const PolicyFunctions&);
-template void GrowFullSooTableToNextCapacity<1, true>(CommonFields&, size_t,
-                                                      const PolicyFunctions&);
-template void GrowFullSooTableToNextCapacity<4, true>(CommonFields&, size_t,
-                                                      const PolicyFunctions&);
-template void GrowFullSooTableToNextCapacity<8, true>(CommonFields&, size_t,
-                                                      const PolicyFunctions&);
-#if UINTPTR_MAX == UINT64_MAX
-template void GrowFullSooTableToNextCapacity<16, true>(CommonFields&, size_t,
-                                                       const PolicyFunctions&);
+template void
+GrowFullSooTableToNextCapacity<OptimalMemcpySizeForSooSlotTransfer(1), true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+
+static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(2, 3));
+template void
+GrowFullSooTableToNextCapacity<OptimalMemcpySizeForSooSlotTransfer(3), true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+
+static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(4, 8));
+template void
+GrowFullSooTableToNextCapacity<OptimalMemcpySizeForSooSlotTransfer(8), true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+
+#if UINTPTR_MAX == UINT32_MAX
+static_assert(MaxSooSlotSize() == 8);
+#else
+static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(9, 16));
+template void
+GrowFullSooTableToNextCapacity<OptimalMemcpySizeForSooSlotTransfer(16), true>(
+    CommonFields&, size_t, const PolicyFunctions&);
+static_assert(MaxSooSlotSize() == 16);
 #endif
 
 }  // namespace container_internal
