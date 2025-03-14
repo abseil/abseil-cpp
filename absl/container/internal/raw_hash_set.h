@@ -520,8 +520,8 @@ class HashtableSize {
   static constexpr size_t kSizeShift = 64 - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
-  static constexpr size_t kSeedMask =
-      (size_t{1} << PerTableSeed::kBitCount) - 1;
+  static constexpr uint64_t kSeedMask =
+      (uint64_t{1} << PerTableSeed::kBitCount) - 1;
   // The next bit after the seed.
   static constexpr uint64_t kHasInfozMask = kSeedMask + 1;
   uint64_t data_;
