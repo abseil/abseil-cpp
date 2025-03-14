@@ -3110,10 +3110,11 @@ class raw_hash_set {
   iterator find_non_soo(const key_arg<K>& key, size_t hash) {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     auto seq = probe(common(), hash);
+    const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
     while (true) {
       Group g{ctrl + seq.offset()};
-      for (uint32_t i : g.Match(H2(hash))) {
+      for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
                 EqualElement<K>{key, eq_ref()},
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
@@ -3345,12 +3346,13 @@ class raw_hash_set {
   std::pair<iterator, bool> find_or_prepare_insert_non_soo(const K& key) {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     prefetch_heap_block();
-    auto hash = hash_ref()(key);
+    const size_t hash = hash_ref()(key);
     auto seq = probe(common(), hash);
+    const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
     while (true) {
       Group g{ctrl + seq.offset()};
-      for (uint32_t i : g.Match(H2(hash))) {
+      for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
                 EqualElement<K>{key, eq_ref()},
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
@@ -3740,12 +3742,13 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
                              const typename Set::key_type& key) {
     if (set.is_soo()) return 0;
     size_t num_probes = 0;
-    size_t hash = set.hash_ref()(key);
+    const size_t hash = set.hash_ref()(key);
     auto seq = probe(set.common(), hash);
+    const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = set.control();
     while (true) {
       container_internal::Group g{ctrl + seq.offset()};
-      for (uint32_t i : g.Match(container_internal::H2(hash))) {
+      for (uint32_t i : g.Match(h2)) {
         if (Traits::apply(
                 typename Set::template EqualElement<typename Set::key_type>{
                     key, set.eq_ref()},

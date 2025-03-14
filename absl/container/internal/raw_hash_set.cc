@@ -320,13 +320,14 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(CommonFields& common,
     // If they do, we don't need to move the object as it falls already in the
     // best probe we can.
     const size_t probe_offset = probe(common, hash).offset();
+    const h2_t h2 = H2(hash);
     const auto probe_index = [probe_offset, capacity](size_t pos) {
       return ((pos - probe_offset) & capacity) / Group::kWidth;
     };
 
     // Element doesn't move.
     if (ABSL_PREDICT_TRUE(probe_index(new_i) == probe_index(i))) {
-      SetCtrlInLargeTable(common, i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, i, h2, slot_size);
       continue;
     }
 
@@ -335,14 +336,14 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(CommonFields& common,
       // Transfer element to the empty spot.
       // SetCtrl poisons/unpoisons the slots so we have to call it at the
       // right time.
-      SetCtrlInLargeTable(common, new_i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, new_i, h2, slot_size);
       (*transfer)(set, new_slot_ptr, slot_ptr, 1);
       SetCtrlInLargeTable(common, i, ctrl_t::kEmpty, slot_size);
       // Initialize or change empty space id.
       tmp_space_id = i;
     } else {
       assert(IsDeleted(ctrl[new_i]));
-      SetCtrlInLargeTable(common, new_i, H2(hash), slot_size);
+      SetCtrlInLargeTable(common, new_i, h2, slot_size);
       // Until we are done rehashing, DELETED marks previously FULL slots.
 
       if (tmp_space_id == kUnknownId) {
