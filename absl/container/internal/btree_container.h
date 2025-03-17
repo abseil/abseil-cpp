@@ -490,28 +490,28 @@ class btree_map_container : public btree_set_container<Tree> {
 
   // TODO(b/402804213): Remove these macros whenever we have a better mechanism
   // available to handle lifetime analysis.
-#define ABSL_INTERNAL_X(Func, Callee, KQual, MQual, KValue, MValue, ...)       \
-  template <                                                                   \
-      typename K = key_type, class M,                                          \
-      ABSL_INTERNAL_IF_NOR(                                                    \
-          KValue, MValue,                                                      \
-          int = (EnableIf<LifetimeBoundKV<K, KValue, M, MValue,                \
-                                          IfRRef<int KQual>::AddPtr<K>,        \
-                                          IfRRef<int MQual>::AddPtr<M>>>()),   \
-          ABSL_INTERNAL_SINGLE_ARG(                                            \
-              int &...,                                                        \
-              decltype(EnableIf<LifetimeBoundKV<K, KValue, M, MValue>>()) =    \
-                  0))>                                                         \
-  decltype(auto) Func(__VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF(         \
-                          KValue, ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),  \
-                      M MQual obj ABSL_INTERNAL_IF(                            \
-                          MValue, ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)))  \
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
-    return ABSL_INTERNAL_IF_OR(KValue, MValue, (this->template Func<K, M, 0>), \
-                               Callee)(                                        \
-        __VA_ARGS__ std::forward<decltype(k)>(k),                              \
-        std::forward<decltype(obj)>(obj));                                     \
-  }                                                                            \
+#define ABSL_INTERNAL_X(Func, Callee, KQual, MQual, KValue, MValue, ...)     \
+  template <                                                                 \
+      typename K = key_type, class M,                                        \
+      ABSL_INTERNAL_IF_##KValue##_NOR_##MValue(                              \
+          int = (EnableIf<LifetimeBoundKV<K, KValue, M, MValue,              \
+                                          IfRRef<int KQual>::AddPtr<K>,      \
+                                          IfRRef<int MQual>::AddPtr<M>>>()), \
+          ABSL_INTERNAL_SINGLE_ARG(                                          \
+              int &...,                                                      \
+              decltype(EnableIf<LifetimeBoundKV<K, KValue, M, MValue>>()) =  \
+                  0))>                                                       \
+  decltype(auto) Func(                                                       \
+      __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(              \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),                        \
+      M MQual obj ABSL_INTERNAL_IF_##MValue(                                 \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)))                        \
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {                                        \
+    return ABSL_INTERNAL_IF_##KValue##_OR_##MValue(                          \
+        (this->template Func<K, M, 0>), Callee)(                             \
+        __VA_ARGS__ std::forward<decltype(k)>(k),                            \
+        std::forward<decltype(obj)>(obj));                                   \
+  }                                                                          \
   friend struct std::enable_if<false> /* just to force a semicolon */
   // Insertion routines.
   // Note: the nullptr template arguments and extra `const M&` overloads allow
@@ -591,21 +591,23 @@ class btree_map_container : public btree_set_container<Tree> {
 #undef ABSL_INTERNAL_X
 
 #define ABSL_INTERNAL_X(Func, Callee, KQual, KValue, ...)                      \
-  template <class K = key_type,                                                \
-            ABSL_INTERNAL_IF(KValue, class... Args,                            \
-                             int = EnableIf<LifetimeBoundK<                    \
-                                 K, KValue, IfRRef<int KQual>::AddPtr<K>>>()), \
-            ABSL_INTERNAL_IF(                                                  \
-                KValue,                                                        \
-                decltype(EnableIf<LifetimeBoundK<                              \
-                             K, KValue, IfRRef<int KQual>::AddPtr<K>>>()) = 0, \
-                class... Args),                                                \
-            std::enable_if_t<!std::is_convertible<K, const_iterator>::value,   \
-                             int> = 0>                                         \
-  decltype(auto) Func(__VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF(         \
-                          KValue, ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),  \
-                      Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {          \
-    return ABSL_INTERNAL_IF(KValue, (this->template Func<K, 0>), Callee)(      \
+  template <                                                                   \
+      class K = key_type,                                                      \
+      ABSL_INTERNAL_IF_##KValue(                                               \
+          class... Args,                                                       \
+          int = (EnableIf<                                                     \
+                 LifetimeBoundK<K, KValue, IfRRef<int KQual>::AddPtr<K>>>())), \
+      ABSL_INTERNAL_IF_##KValue(                                               \
+          decltype(EnableIf<LifetimeBoundK<                                    \
+                       K, KValue, IfRRef<int KQual>::AddPtr<K>>>()) = 0,       \
+          class... Args),                                                      \
+      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> =  \
+          0>                                                                   \
+  decltype(auto) Func(                                                         \
+      __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(                \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),                          \
+      Args &&...args) ABSL_ATTRIBUTE_LIFETIME_BOUND {                          \
+    return ABSL_INTERNAL_IF_##KValue((this->template Func<K, 0>), Callee)(     \
         __VA_ARGS__ std::forward<decltype(k)>(k),                              \
         std::forward<decltype(args)>(args)...);                                \
   }                                                                            \

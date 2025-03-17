@@ -104,8 +104,7 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
 #define ABSL_INTERNAL_X(Func, Callee, KQual, VQual, KValue, VValue, Tail, ...) \
   template <                                                                   \
       typename K = key_type, class V = mapped_type,                            \
-      ABSL_INTERNAL_IF_NOR(                                                    \
-          KValue, VValue,                                                      \
+      ABSL_INTERNAL_IF_##KValue##_NOR_##VValue(                                \
           int = (EnableIf<LifetimeBoundKV<K, KValue, V, VValue,                \
                                           IfRRef<int KQual>::AddPtr<K>,        \
                                           IfRRef<int VQual>::AddPtr<V>>>()),   \
@@ -113,14 +112,14 @@ class raw_hash_map : public raw_hash_set<Policy, Hash, Eq, Alloc> {
               int &...,                                                        \
               decltype(EnableIf<LifetimeBoundKV<K, KValue, V, VValue>>()) =    \
                   0))>                                                         \
-  decltype(auto) Func(__VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF(         \
-                          KValue, ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),  \
-                      V VQual v ABSL_INTERNAL_IF(                              \
-                          VValue, ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)))  \
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {                                          \
-    return ABSL_INTERNAL_IF_OR(KValue, VValue, (this->template Func<K, V, 0>), \
-                               Callee)(std::forward<decltype(k)>(k),           \
-                                       std::forward<decltype(v)>(v)) Tail;     \
+  decltype(auto) Func(                                                         \
+      __VA_ARGS__ key_arg<K> KQual k ABSL_INTERNAL_IF_##KValue(                \
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)),                          \
+      V VQual v ABSL_INTERNAL_IF_##VValue(ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY( \
+          this))) ABSL_ATTRIBUTE_LIFETIME_BOUND {                              \
+    return ABSL_INTERNAL_IF_##KValue##_OR_##VValue(                            \
+        (this->template Func<K, V, 0>), Callee)(                               \
+        std::forward<decltype(k)>(k), std::forward<decltype(v)>(v)) Tail;      \
   }                                                                            \
   static_assert(true, "This is to force a semicolon.")
 

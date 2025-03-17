@@ -26,29 +26,21 @@
 
 #define ABSL_INTERNAL_IF_true(if_satisfied, ...) if_satisfied
 #define ABSL_INTERNAL_IF_false(if_satisfied, ...) __VA_ARGS__
-#define ABSL_INTERNAL_IF(cond1, if_satisfied, ...) \
-  ABSL_INTERNAL_IF_##cond1(if_satisfied, __VA_ARGS__)
 
 #define ABSL_INTERNAL_IF_true_AND_true ABSL_INTERNAL_IF_true
 #define ABSL_INTERNAL_IF_false_AND_false ABSL_INTERNAL_IF_false
 #define ABSL_INTERNAL_IF_true_AND_false ABSL_INTERNAL_IF_false_AND_false
 #define ABSL_INTERNAL_IF_false_AND_true ABSL_INTERNAL_IF_false_AND_false
-#define ABSL_INTERNAL_IF_AND(cond1, cond2, if_satisfied, ...) \
-  ABSL_INTERNAL_IF_##cond1##_AND_##cond2(if_satisfied, __VA_ARGS__)
 
 #define ABSL_INTERNAL_IF_true_OR_true ABSL_INTERNAL_IF_true
 #define ABSL_INTERNAL_IF_false_OR_false ABSL_INTERNAL_IF_false
 #define ABSL_INTERNAL_IF_true_OR_false ABSL_INTERNAL_IF_true_OR_true
 #define ABSL_INTERNAL_IF_false_OR_true ABSL_INTERNAL_IF_true_OR_true
-#define ABSL_INTERNAL_IF_OR(cond1, cond2, if_satisfied, ...) \
-  ABSL_INTERNAL_IF_##cond1##_OR_##cond2(if_satisfied, __VA_ARGS__)
 
 #define ABSL_INTERNAL_IF_true_NOR_true ABSL_INTERNAL_IF_false_AND_false
 #define ABSL_INTERNAL_IF_false_NOR_false ABSL_INTERNAL_IF_true_AND_true
 #define ABSL_INTERNAL_IF_true_NOR_false ABSL_INTERNAL_IF_false_AND_true
 #define ABSL_INTERNAL_IF_false_NOR_true ABSL_INTERNAL_IF_true_AND_false
-#define ABSL_INTERNAL_IF_NOR(cond1, cond2, if_satisfied, ...) \
-  ABSL_INTERNAL_IF_##cond1##_NOR_##cond2(if_satisfied, __VA_ARGS__)
 
 #define ABSL_INTERNAL_COMMA ,
 
