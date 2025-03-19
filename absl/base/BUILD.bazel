@@ -699,8 +699,9 @@ cc_test(
     ],
 )
 
-cc_test(
+cc_binary(
     name = "thread_identity_benchmark",
+    testonly = True,
     srcs = ["internal/thread_identity_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -710,7 +711,6 @@ cc_test(
         ":base",
         "//absl/synchronization",
         "@google_benchmark//:benchmark_main",
-        "@googletest//:gtest",
     ],
 )
 
