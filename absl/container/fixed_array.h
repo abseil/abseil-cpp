@@ -527,7 +527,7 @@ void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateConstruct(
                                      data() + n);
   ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), data(),
                                      RedzoneBegin());
-#endif                   // ABSL_HAVE_ADDRESS_SANITIZER
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
   static_cast<void>(n);  // Mark used when not in asan mode
 }
 
@@ -540,7 +540,7 @@ void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateDestruct(
                                      RedzoneEnd());
   ABSL_ANNOTATE_CONTIGUOUS_CONTAINER(RedzoneBegin(), data(), RedzoneBegin(),
                                      data());
-#endif                   // ABSL_HAVE_ADDRESS_SANITIZER
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
   static_cast<void>(n);  // Mark used when not in asan mode
 }
 ABSL_NAMESPACE_END
