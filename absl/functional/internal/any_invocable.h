@@ -174,7 +174,7 @@ union TypeErasedState {
   } remote;
 
   // Local-storage for the type-erased object when small and trivial enough
-  alignas(kAlignment) char storage[kStorageSize];
+  alignas(kAlignment) unsigned char storage[kStorageSize];
 };
 
 // A typed accessor for the object in `TypeErasedState` storage
@@ -363,9 +363,7 @@ class TrivialDeleter {
  public:
   explicit TrivialDeleter(std::size_t size) : size_(size) {}
 
-  void operator()(void* target) const {
-    ::operator delete(target, size_);
-  }
+  void operator()(void* target) const { ::operator delete(target, size_); }
 
  private:
   std::size_t size_;
