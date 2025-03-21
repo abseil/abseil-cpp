@@ -363,7 +363,9 @@ class TrivialDeleter {
  public:
   explicit TrivialDeleter(std::size_t size) : size_(size) {}
 
-  void operator()(void* target) const { ::operator delete(target, size_); }
+  void operator()(void* target) const {
+    ::operator delete(target, size_);
+  }
 
  private:
   std::size_t size_;
