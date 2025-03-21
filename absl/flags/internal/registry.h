@@ -87,7 +87,7 @@ class RetiredFlag {
   }
 
  private:
-  alignas(kRetiredFlagObjAlignment) unsigned char buf_[kRetiredFlagObjSize];
+  alignas(kRetiredFlagObjAlignment) char buf_[kRetiredFlagObjSize];
 };
 
 }  // namespace flags_internal
