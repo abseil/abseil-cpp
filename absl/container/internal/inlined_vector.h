@@ -611,8 +611,8 @@ void Storage<T, N, A>::InitFrom(const Storage& other) {
 
 template <typename T, size_t N, typename A>
 template <typename ValueAdapter>
-auto Storage<T, N, A>::Assign(ValueAdapter values,
-                              SizeType<A> new_size) -> void {
+auto Storage<T, N, A>::Initialize(ValueAdapter values,
+                                  SizeType<A> new_size) -> void {
   // Only callable from constructors!
   ABSL_HARDENING_ASSERT(!GetIsAllocated());
   ABSL_HARDENING_ASSERT(GetSize() == 0);
@@ -643,8 +643,8 @@ auto Storage<T, N, A>::Assign(ValueAdapter values,
 
 template <typename T, size_t N, typename A>
 template <typename ValueAdapter>
-auto Storage<T, N, A>::Assign(ValueAdapter values, SizeType<A> new_size)
-    -> void {
+auto Storage<T, N, A>::Assign(ValueAdapter values,
+                              SizeType<A> new_size) -> void {
   StorageView<A> storage_view = MakeStorageView();
 
   AllocationTransaction<A> allocation_tx(GetAllocator());
