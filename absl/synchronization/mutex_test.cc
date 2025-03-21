@@ -29,6 +29,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/sysinfo.h"
@@ -39,7 +40,6 @@
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "gtest/gtest.h"
 
 #ifdef ABSL_HAVE_PTHREAD_GETSCHEDPARAM
 #include <pthread.h>
