@@ -288,40 +288,11 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
     V128 fullCRC = V128_Xor(low, high);
     fullCRC = V128_Xor(fullCRC, partialCRC2);
 
-    // Reduce the 128-bit polynomial fullCRC into a 32-bit scalar value.
-
-    // Multiply fullCRC by x^32 (as required for CRC32C) and reduce it to 96
-    // bits. Call that result t0. Store 'x^32 * t0' back into fullCRC.
-    //
-    // More concretely, multiply the high 64 terms by '(x^95 mod G) * x^32 * x'
-    // and the low 64 terms by x^64, then add the two products together.
-    //
-    // Note that CRC32C is a least-significant-bit-first CRC. Therefore, the
-    // mapping between bits and polynomial coefficients is reflected, and each
-    // carryless multiplication implicitly introduces an extra factor of x.
-    fullCRC = V128_Xor(V128_PMul10(fullCRC, reductionMultiplicands),
-                       V128_ShiftRight<8>(fullCRC));
-
-    // Calculate floor(t0 / G), i.e. the value by which G needs to be multiplied
-    // to cancel out the x^32 and higher terms of t0. To do this, first do:
-    //
-    //    t1 := floor(t0 / x^32) * floor(x^95 / G) * x
-    //
-    // Then, floor(t1 / x^64) contains the desired value floor(t0 / G).
-    reductionMultiplicands =
-        V128_Load(reinterpret_cast<const V128*>(kBarrettReduction));
-    V128 t1 = V128_PMulLow(fullCRC, reductionMultiplicands);
-
-    // Cancel out the x^32 and higher terms of t0 by subtracting the needed
-    // multiple of G. But since fullCRC contains x^32 * t0, it is more
-    // convenient to use the same multiple of G * x^32. Also, the x^32 term of G
-    // makes no difference in the result if mod x^32 is applied (as
-    // V128_Extract32 does). Thus, the calculation is as follows:
-    //
-    //    fullCRC := fullCRC - (floor(t0 / G) * ((G - x^32) * x^31) * x)
-    //    crc := (fullCRC / x^32) mod x^32
-    fullCRC = V128_Xor(fullCRC, V128_PMul10(t1, reductionMultiplicands));
-    return static_cast<uint64_t>(V128_Extract32<2>(fullCRC));
+    // Reduce fullCRC into scalar value.
+    uint32_t crc = 0;
+    crc = CRC32_u64(crc, V128_Extract64<0>(fullCRC));
+    crc = CRC32_u64(crc, V128_Extract64<1>(fullCRC));
+    return crc;
   }
 
   // Update crc with 64 bytes of data from p.
@@ -352,11 +323,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreamsBase
       0x00000000f20c0dfe,
       // (x^95 mod G) * x^32
       0x00000000493c7d27};
-  alignas(16) static constexpr uint64_t kBarrettReduction[2] = {
-      // floor(x^95 / G)
-      0x4869ec38dea713f1,
-      // (G - x^32) * x^31
-      0x0000000105ec76f0};
 
   // Medium runs of bytes are broken into groups of kGroupsSmall blocks of same
   // size. Each group is CRCed in parallel then combined at the end of the
