@@ -66,6 +66,7 @@ ABSL_LLVM_FLAGS = [
     "-Wstring-conversion",
     "-Wtautological-overlap-compare",
     "-Wtautological-unsigned-zero-compare",
+    "-Wthread-safety",
     "-Wundef",
     "-Wuninitialized",
     "-Wunreachable-code",
