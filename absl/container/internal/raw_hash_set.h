@@ -451,7 +451,9 @@ class PerTableSeed {
   // The number of bits in the seed.
   // It is big enough to ensure non-determinism of iteration order.
   // We store the seed inside a uint64_t together with size and other metadata.
-  static constexpr size_t kBitCount = 19;
+  // Using 16 bits allows us to save one `and` instruction in H1 (we use movzwl
+  // instead of movq+and).
+  static constexpr size_t kBitCount = 16;
 
   // Returns the seed for the table. Only the lowest kBitCount are non zero.
   size_t seed() const { return seed_; }
