@@ -391,6 +391,28 @@ static bool WasNeverFull(CommonFields& c, size_t index) {
              Group::kWidth;
 }
 
+// Updates the control bytes to indicate a completely empty table such that all
+// control bytes are kEmpty except for the kSentinel byte.
+void ResetCtrl(CommonFields& common, size_t slot_size) {
+  const size_t capacity = common.capacity();
+  ctrl_t* ctrl = common.control();
+  static constexpr size_t kTwoGroupCapacity = 2 * Group::kWidth - 1;
+  if (ABSL_PREDICT_TRUE(capacity <= kTwoGroupCapacity)) {
+    std::memset(ctrl, static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
+    std::memset(ctrl + capacity, static_cast<int8_t>(ctrl_t::kEmpty),
+                Group::kWidth);
+    if (capacity == kTwoGroupCapacity) {
+      std::memset(ctrl + Group::kWidth, static_cast<int8_t>(ctrl_t::kEmpty),
+                  Group::kWidth);
+    }
+  } else {
+    std::memset(ctrl, static_cast<int8_t>(ctrl_t::kEmpty),
+                capacity + 1 + NumClonedBytes());
+  }
+  ctrl[capacity] = ctrl_t::kSentinel;
+  SanitizerPoisonMemoryRegion(common.slot_array(), slot_size * capacity);
+}
+
 // Initializes control bytes for single element table.
 // Capacity of the table must be 1.
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeSingleElementControlBytes(
