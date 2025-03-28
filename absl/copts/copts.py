@@ -57,6 +57,7 @@ ABSL_LLVM_FLAGS = [
     "-Winvalid-constexpr",
     "-Wliteral-conversion",
     "-Wmissing-declarations",
+    "-Wnullability-completeness",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wself-assign",
