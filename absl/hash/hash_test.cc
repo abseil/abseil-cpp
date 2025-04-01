@@ -38,6 +38,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/hash/internal/hash_test.h"
@@ -400,7 +401,7 @@ TEST(HashValueTest, TestIntrinsicInt128) {
   EXPECT_TRUE((is_hashable<__int128_t>::value));
   EXPECT_TRUE((is_hashable<__uint128_t>::value));
 
-  absl::flat_hash_set<size_t> hashes;
+  absl::flat_hash_map<size_t, int> hash_to_index;
   std::vector<__uint128_t> values;
   for (int i = 0; i < 128; ++i) {
     // Some arbitrary pattern to check if changing each bit changes the hash.
@@ -411,13 +412,14 @@ TEST(HashValueTest, TestIntrinsicInt128) {
     const __int128_t as_signed = static_cast<__int128_t>(value);
 
     values.push_back(value);
-    hashes.insert(absl::Hash<__uint128_t>{}(value));
+    auto [it, inserted] =
+        hash_to_index.insert({absl::Hash<__uint128_t>{}(value), i});
+    ASSERT_TRUE(inserted) << "Duplicate hash: " << i << " vs " << it->second;
 
     // Verify that the fast-path for MixingHashState does not break the hash.
     EXPECT_EQ(absl::HashOf(value), absl::Hash<__uint128_t>{}(value));
     EXPECT_EQ(absl::HashOf(as_signed), absl::Hash<__int128_t>{}(as_signed));
   }
-  EXPECT_THAT(hashes, SizeIs(128));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
