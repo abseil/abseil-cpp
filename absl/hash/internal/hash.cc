@@ -29,10 +29,9 @@ namespace hash_internal {
 uint64_t MixingHashState::CombineLargeContiguousImpl32(
     uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = Mix(
-        state ^ hash_internal::CityHash32(reinterpret_cast<const char*>(first),
-                                          PiecewiseChunkSize()),
-        kMul);
+    state = Mix(state,
+                hash_internal::CityHash32(reinterpret_cast<const char*>(first),
+                                          PiecewiseChunkSize()));
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }
@@ -44,7 +43,7 @@ uint64_t MixingHashState::CombineLargeContiguousImpl32(
 uint64_t MixingHashState::CombineLargeContiguousImpl64(
     uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = Mix(state ^ Hash64(first, PiecewiseChunkSize()), kMul);
+    state = Mix(state, Hash64(first, PiecewiseChunkSize()));
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }
