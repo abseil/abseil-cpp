@@ -76,49 +76,49 @@ inline bool IsSurrogate(char32_t c, absl::string_view src,
 //
 //    Unescapes C escape sequences and is the reverse of CEscape().
 //
-//    If 'source' is valid, stores the unescaped string and its size in
-//    'dest' and 'dest_len' respectively, and returns true. Otherwise
-//    returns false and optionally stores the error description in
-//    'error'. Set 'error' to nullptr to disable error reporting.
+//    If `src` is valid, stores the unescaped string `dst`, and returns
+//    true. Otherwise returns false and optionally stores the error
+//    description in `error`. Set `error` to nullptr to disable error
+//    reporting.
 //
-//    'dest' should point to a buffer that is at least as big as 'source'.
-//    'source' and 'dest' may be the same.
-//
-//     NOTE: any changes to this function must also be reflected in the older
-//     UnescapeCEscapeSequences().
+//    `src` and `dst` may use the same underlying buffer.
 // ----------------------------------------------------------------------
-bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
-                       absl::Nonnull<char*> dest,
-                       absl::Nonnull<ptrdiff_t*> dest_len,
+
+bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
+                       absl::Nonnull<std::string*> dst,
                        absl::Nullable<std::string*> error) {
-  char* d = dest;
-  const char* p = source.data();
-  const char* end = p + source.size();
-  const char* last_byte = end - 1;
+  strings_internal::STLStringResizeUninitialized(dst, src.size());
 
-  // Small optimization for case where source = dest and there's no escaping
-  while (p == d && p < end && *p != '\\') p++, d++;
+  absl::string_view::size_type p = 0;  // Current src position.
+  std::string::size_type d = 0;        // Current dst position.
 
-  while (p < end) {
-    if (*p != '\\') {
-      *d++ = *p++;
+  // When unescaping in-place, skip any prefix that does not have escaping.
+  if (src.data() == dst->data()) {
+    while (p < src.size() && src[p] != '\\') p++, d++;
+  }
+
+  while (p < src.size()) {
+    if (src[p] != '\\') {
+      (*dst)[d++] = src[p++];
     } else {
-      if (++p > last_byte) {  // skip past the '\\'
-        if (error) *error = "String cannot end with \\";
+      if (++p >= src.size()) {  // skip past the '\\'
+        if (error != nullptr) {
+          *error = "String cannot end with \\";
+        }
         return false;
       }
-      switch (*p) {
-        case 'a':  *d++ = '\a';  break;
-        case 'b':  *d++ = '\b';  break;
-        case 'f':  *d++ = '\f';  break;
-        case 'n':  *d++ = '\n';  break;
-        case 'r':  *d++ = '\r';  break;
-        case 't':  *d++ = '\t';  break;
-        case 'v':  *d++ = '\v';  break;
-        case '\\': *d++ = '\\';  break;
-        case '?':  *d++ = '\?';  break;    // \?  Who knew?
-        case '\'': *d++ = '\'';  break;
-        case '"':  *d++ = '\"';  break;
+      switch (src[p]) {
+        case 'a':  (*dst)[d++] = '\a';  break;
+        case 'b':  (*dst)[d++] = '\b';  break;
+        case 'f':  (*dst)[d++] = '\f';  break;
+        case 'n':  (*dst)[d++] = '\n';  break;
+        case 'r':  (*dst)[d++] = '\r';  break;
+        case 't':  (*dst)[d++] = '\t';  break;
+        case 'v':  (*dst)[d++] = '\v';  break;
+        case '\\': (*dst)[d++] = '\\';  break;
+        case '?':  (*dst)[d++] = '\?';  break;
+        case '\'': (*dst)[d++] = '\'';  break;
+        case '"':  (*dst)[d++] = '\"';  break;
         case '0':
         case '1':
         case '2':
@@ -128,188 +128,170 @@ bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
         case '6':
         case '7': {
           // octal digit: 1 to 3 digits
-          const char* octal_start = p;
-          unsigned int ch = static_cast<unsigned int>(*p - '0');  // digit 1
-          if (p < last_byte && is_octal_digit(p[1]))
-            ch = ch * 8 + static_cast<unsigned int>(*++p - '0');  // digit 2
-          if (p < last_byte && is_octal_digit(p[1]))
-            ch = ch * 8 + static_cast<unsigned int>(*++p - '0');  // digit 3
+          auto octal_start = p;
+          unsigned int ch = static_cast<unsigned int>(src[p] - '0');  // digit 1
+          if (p + 1 < src.size() && is_octal_digit(src[p + 1]))
+            ch = ch * 8 + static_cast<unsigned int>(src[++p] - '0');  // digit 2
+          if (p + 1 < src.size() && is_octal_digit(src[p + 1]))
+            ch = ch * 8 + static_cast<unsigned int>(src[++p] - '0');  // digit 3
           if (ch > 0xff) {
-            if (error) {
-              *error = "Value of \\" +
-                       std::string(octal_start,
-                                   static_cast<size_t>(p + 1 - octal_start)) +
-                       " exceeds 0xff";
+            if (error != nullptr) {
+              *error =
+                  "Value of \\" +
+                  std::string(src.substr(octal_start, p + 1 - octal_start)) +
+                  " exceeds 0xff";
             }
             return false;
           }
           if ((ch == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            const size_t octal_size = static_cast<size_t>(p + 1 - octal_start);
-            *d++ = '\\';
-            memmove(d, octal_start, octal_size);
-            d += octal_size;
+            (*dst)[d++] = '\\';
+            while (octal_start <= p) {
+              (*dst)[d++] = src[octal_start++];
+            }
             break;
           }
-          *d++ = static_cast<char>(ch);
+          (*dst)[d++] = static_cast<char>(ch);
           break;
         }
         case 'x':
         case 'X': {
-          if (p >= last_byte) {
-            if (error) *error = "String cannot end with \\x";
+          if (p + 1 >= src.size()) {
+            if (error != nullptr) {
+              *error = "String cannot end with \\x";
+            }
             return false;
-          } else if (!absl::ascii_isxdigit(static_cast<unsigned char>(p[1]))) {
-            if (error) *error = "\\x cannot be followed by a non-hex digit";
+          } else if (!absl::ascii_isxdigit(
+              static_cast<unsigned char>(src[p + 1]))) {
+            if (error != nullptr) {
+              *error = "\\x cannot be followed by a non-hex digit";
+            }
             return false;
           }
           unsigned int ch = 0;
-          const char* hex_start = p;
-          while (p < last_byte &&
-                 absl::ascii_isxdigit(static_cast<unsigned char>(p[1])))
+          auto hex_start = p;
+          while (p + 1 < src.size() &&
+                 absl::ascii_isxdigit(static_cast<unsigned char>(src[p + 1]))) {
             // Arbitrarily many hex digits
-            ch = (ch << 4) + hex_digit_to_int(*++p);
+            ch = (ch << 4) + hex_digit_to_int(src[++p]);
+          }
           if (ch > 0xFF) {
-            if (error) {
+            if (error != nullptr) {
               *error = "Value of \\" +
-                       std::string(hex_start,
-                                   static_cast<size_t>(p + 1 - hex_start)) +
+                       std::string(src.substr(hex_start, p + 1 - hex_start)) +
                        " exceeds 0xff";
             }
             return false;
           }
           if ((ch == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            const size_t hex_size = static_cast<size_t>(p + 1 - hex_start);
-            *d++ = '\\';
-            memmove(d, hex_start, hex_size);
-            d += hex_size;
+            (*dst)[d++] = '\\';
+            while (hex_start <= p) {
+              (*dst)[d++] = src[hex_start++];
+            }
             break;
           }
-          *d++ = static_cast<char>(ch);
+          (*dst)[d++] = static_cast<char>(ch);
           break;
         }
         case 'u': {
           // \uhhhh => convert 4 hex digits to UTF-8
           char32_t rune = 0;
-          const char* hex_start = p;
-          if (p + 4 >= end) {
-            if (error) {
-              *error = "\\u must be followed by 4 hex digits: \\" +
-                       std::string(hex_start,
-                                   static_cast<size_t>(p + 1 - hex_start));
+          auto hex_start = p;
+          if (p + 4 >= src.size()) {
+            if (error != nullptr) {
+              *error = "\\u must be followed by 4 hex digits";
             }
             return false;
           }
           for (int i = 0; i < 4; ++i) {
             // Look one char ahead.
-            if (absl::ascii_isxdigit(static_cast<unsigned char>(p[1]))) {
-              rune = (rune << 4) + hex_digit_to_int(*++p);  // Advance p.
+            if (absl::ascii_isxdigit(static_cast<unsigned char>(src[p + 1]))) {
+              rune = (rune << 4) + hex_digit_to_int(src[++p]);
             } else {
-              if (error) {
+              if (error != nullptr) {
                 *error = "\\u must be followed by 4 hex digits: \\" +
-                         std::string(hex_start,
-                                     static_cast<size_t>(p + 1 - hex_start));
+                         std::string(src.substr(hex_start, p + 1 - hex_start));
               }
               return false;
             }
           }
           if ((rune == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            *d++ = '\\';
-            memmove(d, hex_start, 5);  // u0000
-            d += 5;
+            (*dst)[d++] = '\\';
+            while (hex_start <= p) {
+              (*dst)[d++] = src[hex_start++];
+            }
             break;
           }
-          if (IsSurrogate(rune, absl::string_view(hex_start, 5), error)) {
+          if (IsSurrogate(rune, src.substr(hex_start, 5), error)) {
             return false;
           }
-          d += strings_internal::EncodeUTF8Char(d, rune);
+          d += strings_internal::EncodeUTF8Char(dst->data() + d, rune);
           break;
         }
         case 'U': {
           // \Uhhhhhhhh => convert 8 hex digits to UTF-8
           char32_t rune = 0;
-          const char* hex_start = p;
-          if (p + 8 >= end) {
-            if (error) {
-              *error = "\\U must be followed by 8 hex digits: \\" +
-                       std::string(hex_start,
-                                   static_cast<size_t>(p + 1 - hex_start));
+          auto hex_start = p;
+          if (p + 8 >= src.size()) {
+            if (error != nullptr) {
+              *error = "\\U must be followed by 8 hex digits";
             }
             return false;
           }
           for (int i = 0; i < 8; ++i) {
             // Look one char ahead.
-            if (absl::ascii_isxdigit(static_cast<unsigned char>(p[1]))) {
+            if (absl::ascii_isxdigit(static_cast<unsigned char>(src[p + 1]))) {
               // Don't change rune until we're sure this
               // is within the Unicode limit, but do advance p.
-              uint32_t newrune = (rune << 4) + hex_digit_to_int(*++p);
+              uint32_t newrune = (rune << 4) + hex_digit_to_int(src[++p]);
               if (newrune > 0x10FFFF) {
-                if (error) {
-                  *error = "Value of \\" +
-                           std::string(hex_start,
-                                       static_cast<size_t>(p + 1 - hex_start)) +
-                           " exceeds Unicode limit (0x10FFFF)";
+                if (error != nullptr) {
+                  *error =
+                      "Value of \\" +
+                      std::string(src.substr(hex_start, p + 1 - hex_start)) +
+                      " exceeds Unicode limit (0x10FFFF)";
                 }
                 return false;
               } else {
                 rune = newrune;
               }
             } else {
-              if (error) {
+              if (error != nullptr) {
                 *error = "\\U must be followed by 8 hex digits: \\" +
-                         std::string(hex_start,
-                                     static_cast<size_t>(p + 1 - hex_start));
+                         std::string(src.substr(hex_start, p + 1 - hex_start));
               }
               return false;
             }
           }
           if ((rune == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            *d++ = '\\';
-            memmove(d, hex_start, 9);  // U00000000
-            d += 9;
+            (*dst)[d++] = '\\';
+            // U00000000
+            while (hex_start <= p) {
+              (*dst)[d++] = src[hex_start++];
+            }
             break;
           }
-          if (IsSurrogate(rune, absl::string_view(hex_start, 9), error)) {
+          if (IsSurrogate(rune, src.substr(hex_start, 9), error)) {
             return false;
           }
-          d += strings_internal::EncodeUTF8Char(d, rune);
+          d += strings_internal::EncodeUTF8Char(dst->data() + d, rune);
           break;
         }
         default: {
-          if (error) *error = std::string("Unknown escape sequence: \\") + *p;
+          if (error != nullptr) {
+            *error = std::string("Unknown escape sequence: \\") + src[p];
+          }
           return false;
         }
       }
-      p++;                                 // read past letter we escaped
+      p++;  // Read past letter we escaped.
     }
   }
-  *dest_len = d - dest;
-  return true;
-}
 
-// ----------------------------------------------------------------------
-// CUnescapeInternal()
-//
-//    Same as above but uses a std::string for output. 'source' and 'dest'
-//    may be the same.
-// ----------------------------------------------------------------------
-bool CUnescapeInternal(absl::string_view source, bool leave_nulls_escaped,
-                       absl::Nonnull<std::string*> dest,
-                       absl::Nullable<std::string*> error) {
-  strings_internal::STLStringResizeUninitialized(dest, source.size());
-
-  ptrdiff_t dest_size;
-  if (!CUnescapeInternal(source,
-                         leave_nulls_escaped,
-                         &(*dest)[0],
-                         &dest_size,
-                         error)) {
-    return false;
-  }
-  dest->erase(static_cast<size_t>(dest_size));
+  dst->erase(d);
   return true;
 }
 
