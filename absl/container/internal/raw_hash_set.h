@@ -1323,7 +1323,7 @@ inline void AssertIsValidForComparison(const ctrl_t* ctrl,
           FATAL, "Invalid iterator comparison. The element was likely erased.");
     }
   } else {
-    ABSL_HARDENING_ASSERT(
+    ABSL_HARDENING_ASSERT_SLOW(
         ctrl_is_valid_for_comparison &&
         "Invalid iterator comparison. The element might have been erased or "
         "the table might have rehashed. Consider running with --config=asan to "
