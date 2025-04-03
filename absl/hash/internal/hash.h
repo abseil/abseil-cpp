@@ -1366,8 +1366,9 @@ inline uint64_t MixingHashState::CombineContiguousImpl(
     return CombineSmallContiguousImpl(state, first, len);
   }
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return Mix(state, hash_internal::CityHash32(
-                          reinterpret_cast<const char*>(first), len));
+    return Mix(state ^ hash_internal::CityHash32(
+                           reinterpret_cast<const char*>(first), len),
+               kMul);
   }
   return CombineLargeContiguousImpl32(state, first, len);
 }
@@ -1388,7 +1389,7 @@ inline uint64_t MixingHashState::CombineContiguousImpl(
     return CombineContiguousImpl17to32(state, first, len);
   }
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return Mix(state, Hash64(first, len));
+    return Mix(state ^ Hash64(first, len), kMul);
   }
   return CombineLargeContiguousImpl64(state, first, len);
 }
