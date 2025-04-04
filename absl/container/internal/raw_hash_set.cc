@@ -148,31 +148,38 @@ bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
   return ShouldRehashForBugDetection(seed, capacity);
 }
 
-bool ShouldInsertBackwardsForDebug(size_t capacity, size_t h1) {
-  // To avoid problems with weak hashes and single bit tests, we use % 13.
-  // TODO(kfm,sbenza): revisit after we do unconditional mixing
-  return !is_small(capacity) && (h1 ^ RandomSeed()) % 13 > 6;
-}
-
 namespace {
 
 FindInfo find_first_non_full_from_h1(const ctrl_t* ctrl, size_t h1,
                                      size_t capacity) {
   auto seq = probe(h1, capacity);
-  if (IsEmptyOrDeleted(ctrl[seq.offset()]) &&
-      !ShouldInsertBackwards(capacity, h1)) {
+  if (IsEmptyOrDeleted(ctrl[seq.offset()])) {
     return {seq.offset(), /*probe_length=*/0};
   }
   while (true) {
     GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
     auto mask = g.MaskEmptyOrDeleted();
     if (mask) {
-      return {seq.offset(GetInsertionOffset(mask, capacity, h1)), seq.index()};
+      return {seq.offset(mask.LowestBitSet()), seq.index()};
     }
     seq.next();
     // TODO(b/382423690): define ABSL_SWISSTABLE_ASSERT in cc file.
     assert(seq.index() <= capacity && "full table!");
   }
+}
+
+// Whether a table is "small". A small table fits entirely into a probing
+// group, i.e., has a capacity < `Group::kWidth`.
+//
+// In small mode we are able to use the whole capacity. The extra control
+// bytes give us at least one "empty" control byte to stop the iteration.
+// This is important to make 1 a valid capacity.
+//
+// In small mode only the first `capacity` control bytes after the sentinel
+// are valid. The rest contain dummy ctrl_t::kEmpty values that do not
+// represent a real slot.
+constexpr bool is_small(size_t capacity) {
+  return capacity < Group::kWidth - 1;
 }
 
 }  // namespace
@@ -292,7 +299,7 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(CommonFields& common,
   void* slot_array = common.slot_array();
   const size_t capacity = common.capacity();
   assert(IsValidCapacity(capacity));
-  assert(!is_small(capacity));
+  assert(!is_single_group(capacity));
   // Algorithm:
   // - mark all DELETED slots as EMPTY
   // - mark all FULL slots as DELETED

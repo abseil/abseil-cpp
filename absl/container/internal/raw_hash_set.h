@@ -539,36 +539,6 @@ inline size_t H1(size_t hash, PerTableSeed seed) {
 // These are used as an occupied control byte.
 inline h2_t H2(size_t hash) { return hash & 0x7F; }
 
-// Mixes a randomly generated per-process seed with `hash` and `ctrl` to
-// randomize insertion order within groups.
-bool ShouldInsertBackwardsForDebug(size_t capacity, size_t h1);
-
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool ShouldInsertBackwards(
-    ABSL_ATTRIBUTE_UNUSED size_t capacity, ABSL_ATTRIBUTE_UNUSED size_t h1) {
-#if defined(NDEBUG)
-  return false;
-#else
-  return ShouldInsertBackwardsForDebug(capacity, h1);
-#endif
-}
-
-// Returns insert position for the given mask.
-// We want to add entropy even when ASLR is not enabled.
-// In debug build we will randomly insert in either the front or back of
-// the group.
-// TODO(kfm,sbenza): revisit after we do unconditional mixing
-template <class Mask>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto GetInsertionOffset(
-    Mask mask, ABSL_ATTRIBUTE_UNUSED size_t capacity,
-    ABSL_ATTRIBUTE_UNUSED size_t h1) {
-#if defined(NDEBUG)
-  return mask.LowestBitSet();
-#else
-  return ShouldInsertBackwardsForDebug(capacity, h1) ? mask.HighestBitSet()
-                                                     : mask.LowestBitSet();
-#endif
-}
-
 // When there is an insertion with no reserved growth, we rehash with
 // probability `min(1, RehashProbabilityConstant() / capacity())`. Using a
 // constant divided by capacity ensures that inserting N elements is still O(N)
@@ -1427,22 +1397,6 @@ struct FindInfo {
   size_t offset;
   size_t probe_length;
 };
-
-// Whether a table is "small". A small table fits entirely into a probing
-// group, i.e., has a capacity < `Group::kWidth`.
-//
-// In small mode we are able to use the whole capacity. The extra control
-// bytes give us at least one "empty" control byte to stop the iteration.
-// This is important to make 1 a valid capacity.
-//
-// In small mode only the first `capacity` control bytes after the sentinel
-// are valid. The rest contain dummy ctrl_t::kEmpty values that do not
-// represent a real slot. This is important to take into account on
-// `find_first_non_full()`, where we never try
-// `ShouldInsertBackwards()` for small tables.
-constexpr bool is_small(size_t capacity) {
-  return capacity < Group::kWidth - 1;
-}
 
 // Whether a table fits entirely into a probing group.
 // Arbitrary order of elements in such tables is correct.
@@ -3392,10 +3346,7 @@ class raw_hash_set {
       }
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
-        // TODO(b/382423690): Try to remove GetInsertionOffset since we have
-        // random seed.
-        size_t target = seq.offset(GetInsertionOffset(
-            mask_empty, capacity(), H1(hash, common().seed())));
+        size_t target = seq.offset(mask_empty.LowestBitSet());
         return {iterator_at(PrepareInsertNonSoo(common(), GetPolicyFunctions(),
                                                 hash,
                                                 FindInfo{target, seq.index()})),
