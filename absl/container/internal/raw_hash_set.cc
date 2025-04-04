@@ -29,6 +29,7 @@
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hashtable_control_bytes.h"
 #include "absl/container/internal/hashtablez_sampler.h"
+#include "absl/container/internal/raw_hash_set_resize_impl.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
 #include "absl/numeric/bits.h"
@@ -147,11 +148,38 @@ bool CommonFieldsGenerationInfoEnabled::should_rehash_for_bug_detection_on_move(
   return ShouldRehashForBugDetection(seed, capacity);
 }
 
-bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
-                                   PerTableSeed seed) {
+bool ShouldInsertBackwardsForDebug(size_t capacity, size_t h1) {
   // To avoid problems with weak hashes and single bit tests, we use % 13.
   // TODO(kfm,sbenza): revisit after we do unconditional mixing
-  return !is_small(capacity) && (H1(hash, seed) ^ RandomSeed()) % 13 > 6;
+  return !is_small(capacity) && (h1 ^ RandomSeed()) % 13 > 6;
+}
+
+namespace {
+
+FindInfo find_first_non_full_from_h1(const ctrl_t* ctrl, size_t h1,
+                                     size_t capacity) {
+  auto seq = probe(h1, capacity);
+  if (IsEmptyOrDeleted(ctrl[seq.offset()]) &&
+      !ShouldInsertBackwards(capacity, h1)) {
+    return {seq.offset(), /*probe_length=*/0};
+  }
+  while (true) {
+    GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
+    auto mask = g.MaskEmptyOrDeleted();
+    if (mask) {
+      return {seq.offset(GetInsertionOffset(mask, capacity, h1)), seq.index()};
+    }
+    seq.next();
+    // TODO(b/382423690): define ABSL_SWISSTABLE_ASSERT in cc file.
+    assert(seq.index() <= capacity && "full table!");
+  }
+}
+
+}  // namespace
+
+FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
+  return find_first_non_full_from_h1(common.control(), H1(hash, common.seed()),
+                                     common.capacity());
 }
 
 void IterateOverFullSlots(const CommonFields& c, size_t slot_size,
@@ -223,13 +251,6 @@ void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
   // Copy the cloned ctrl bytes.
   std::memcpy(ctrl + capacity + 1, ctrl, NumClonedBytes());
   ctrl[capacity] = ctrl_t::kSentinel;
-}
-// Extern template instantiation for inline function.
-template FindInfo find_first_non_full(const CommonFields&, size_t);
-
-FindInfo find_first_non_full_outofline(const CommonFields& common,
-                                       size_t hash) {
-  return find_first_non_full(common, hash);
 }
 
 namespace {
@@ -537,6 +558,37 @@ enum class ResizeNonSooMode {
   kGuaranteedAllocated,
 };
 
+// Iterates over full slots in old table, finds new positions for them and
+// transfers the slots.
+// This function is used for reserving or rehashing non-empty tables.
+// This use case is rare so the function is type erased.
+// Returns the total probe length.
+size_t FindNewPositionsAndTransferSlots(CommonFields& common,
+                                        const PolicyFunctions& policy,
+                                        ctrl_t* old_ctrl, void* old_slots,
+                                        size_t old_capacity) {
+  void* new_slots = common.slot_array();
+  const void* hash_fn = policy.hash_fn(common);
+  const size_t slot_size = policy.slot_size;
+
+  const auto insert_slot = [&](void* slot) {
+    size_t hash = policy.hash_slot(hash_fn, slot);
+    auto target = find_first_non_full(common, hash);
+    SetCtrl(common, target.offset, H2(hash), slot_size);
+    policy.transfer_n(&common, SlotAddress(new_slots, target.offset, slot_size),
+                      slot, 1);
+    return target.probe_length;
+  };
+  size_t total_probe_length = 0;
+  for (size_t i = 0; i < old_capacity; ++i) {
+    if (IsFull(old_ctrl[i])) {
+      total_probe_length += insert_slot(old_slots);
+    }
+    old_slots = NextSlot(old_slots, slot_size);
+  }
+  return total_probe_length;
+}
+
 template <ResizeNonSooMode kMode>
 void ResizeNonSooImpl(CommonFields& common, const PolicyFunctions& policy,
                       size_t new_capacity, HashtablezInfoHandle infoz) {
@@ -570,8 +622,8 @@ void ResizeNonSooImpl(CommonFields& common, const PolicyFunctions& policy,
          old_capacity == policy.soo_capacity);
   assert(kMode != ResizeNonSooMode::kGuaranteedAllocated || old_capacity > 0);
   if constexpr (kMode == ResizeNonSooMode::kGuaranteedAllocated) {
-    total_probe_length = policy.find_new_positions_and_transfer_slots(
-        common, old_ctrl, old_slots, old_capacity);
+    total_probe_length = FindNewPositionsAndTransferSlots(
+        common, policy, old_ctrl, old_slots, old_capacity);
     (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
                       has_infoz);
   }
@@ -811,6 +863,325 @@ void GrowIntoSingleGroupShuffleControlBytes(ctrl_t* __restrict old_ctrl,
   // new_ctrl after 2nd store =  E0123456EEEEEEESE0123456EEEEEEE
 }
 
+// Size of the buffer we allocate on stack for storing probed elements in
+// GrowToNextCapacity algorithm.
+constexpr size_t kProbedElementsBufferSize = 512;
+
+// Decodes information about probed elements from contiguous memory.
+// Finds new position for each element and transfers it to the new slots.
+// Returns the total probe length.
+template <typename ProbedItem>
+ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
+    CommonFields& c, const PolicyFunctions& policy, const ProbedItem* start,
+    const ProbedItem* end, void* old_slots) {
+  const size_t new_capacity = c.capacity();
+
+  void* new_slots = c.slot_array();
+  ctrl_t* new_ctrl = c.control();
+  size_t total_probe_length = 0;
+
+  const size_t slot_size = policy.slot_size;
+  auto transfer_n = policy.transfer_n;
+
+  for (; start < end; ++start) {
+    const FindInfo target = find_first_non_full_from_h1(
+        new_ctrl, static_cast<size_t>(start->h1), new_capacity);
+    total_probe_length += target.probe_length;
+    const size_t old_index = static_cast<size_t>(start->source_offset);
+    const size_t new_i = target.offset;
+    assert(old_index < new_capacity / 2);
+    assert(new_i < new_capacity);
+    assert(IsEmpty(new_ctrl[new_i]));
+    void* src_slot = SlotAddress(old_slots, old_index, slot_size);
+    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
+    SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
+    transfer_n(&c, dst_slot, src_slot, 1);
+    SetCtrlInLargeTable(c, new_i, static_cast<h2_t>(start->h2), slot_size);
+  }
+  return total_probe_length;
+}
+
+// Sentinel value for the start of marked elements.
+// Signals that there are no marked elements.
+constexpr size_t kNoMarkedElementsSentinel = ~size_t{};
+
+// Process probed elements that did not fit into available buffers.
+// We marked them in control bytes as kSentinel.
+// Hash recomputation and full probing is done here.
+// This use case should be extremely rare.
+ABSL_ATTRIBUTE_NOINLINE size_t
+ProcessProbedMarkedElements(CommonFields& c, const PolicyFunctions& policy,
+                            ctrl_t* old_ctrl, void* old_slots, size_t start) {
+  size_t old_capacity = PreviousCapacity(c.capacity());
+  const size_t slot_size = policy.slot_size;
+  void* new_slots = c.slot_array();
+  size_t total_probe_length = 0;
+  const void* hash_fn = policy.hash_fn(c);
+  auto hash_slot = policy.hash_slot;
+  auto transfer_n = policy.transfer_n;
+  for (size_t old_index = start; old_index < old_capacity; ++old_index) {
+    if (old_ctrl[old_index] != ctrl_t::kSentinel) {
+      continue;
+    }
+    void* src_slot = SlotAddress(old_slots, old_index, slot_size);
+    const size_t hash = hash_slot(hash_fn, src_slot);
+    const FindInfo target = find_first_non_full(c, hash);
+    total_probe_length += target.probe_length;
+    const size_t new_i = target.offset;
+    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
+    SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
+    transfer_n(&c, dst_slot, src_slot, 1);
+    SetCtrlInLargeTable(c, new_i, H2(hash), slot_size);
+  }
+  return total_probe_length;
+}
+
+// The largest old capacity for which it is guaranteed that all probed elements
+// fit in ProbedItemEncoder's local buffer.
+// For such tables, `encode_probed_element` is trivial.
+constexpr size_t kMaxLocalBufferOldCapacity =
+    kProbedElementsBufferSize / sizeof(ProbedItem4Bytes) - 1;
+static_assert(IsValidCapacity(kMaxLocalBufferOldCapacity));
+constexpr size_t kMaxLocalBufferNewCapacity =
+    NextCapacity(kMaxLocalBufferOldCapacity);
+static_assert(kMaxLocalBufferNewCapacity <= ProbedItem4Bytes::kMaxNewCapacity);
+static_assert(NextCapacity(kMaxLocalBufferNewCapacity) <=
+              ProbedItem4Bytes::kMaxNewCapacity);
+
+// Initializes mirrored control bytes after
+// transfer_unprobed_elements_to_next_capacity.
+void InitializeMirroredControlBytes(ctrl_t* new_ctrl, size_t new_capacity) {
+  std::memcpy(new_ctrl + new_capacity,
+              // We own GrowthInfo just before control bytes. So it is ok
+              // to read one byte from it.
+              new_ctrl - 1, Group::kWidth);
+  new_ctrl[new_capacity] = ctrl_t::kSentinel;
+}
+
+// Encodes probed elements into available memory.
+// At first, a local (on stack) buffer is used. The size of the buffer is
+// kProbedElementsBufferSize bytes.
+// When the local buffer is full, we switch to `control_` buffer. We are allowed
+// to overwrite `control_` buffer till the `source_offset` byte. In case we have
+// no space in `control_` buffer, we fallback to a naive algorithm for all the
+// rest of the probed elements. We mark elements as kSentinel in control bytes
+// and later process them fully. See ProcessMarkedElements for details. It
+// should be extremely rare.
+template <typename ProbedItemType,
+          // If true, we only use the local buffer and never switch to the
+          // control buffer.
+          bool kGuaranteedFitToBuffer = false>
+class ProbedItemEncoder {
+ public:
+  using ProbedItem = ProbedItemType;
+  explicit ProbedItemEncoder(ctrl_t* control) : control_(control) {}
+
+  // Encode item into the best available location.
+  void EncodeItem(ProbedItem item) {
+    if (ABSL_PREDICT_FALSE(!kGuaranteedFitToBuffer && pos_ >= end_)) {
+      return ProcessEncodeWithOverflow(item);
+    }
+    assert(pos_ < end_);
+    *pos_ = item;
+    ++pos_;
+  }
+
+  // Decodes information about probed elements from all available sources.
+  // Finds new position for each element and transfers it to the new slots.
+  // Returns the total probe length.
+  size_t DecodeAndInsertToTable(CommonFields& common,
+                                const PolicyFunctions& policy,
+                                void* old_slots) const {
+    if (pos_ == buffer_) {
+      return 0;
+    }
+    if constexpr (kGuaranteedFitToBuffer) {
+      return DecodeAndInsertImpl(common, policy, buffer_, pos_, old_slots);
+    }
+    size_t total_probe_length = DecodeAndInsertImpl(
+        common, policy, buffer_,
+        local_buffer_full_ ? buffer_ + kBufferSize : pos_, old_slots);
+    if (!local_buffer_full_) {
+      return total_probe_length;
+    }
+    total_probe_length +=
+        DecodeAndInsertToTableOverflow(common, policy, old_slots);
+    return total_probe_length;
+  }
+
+ private:
+  static ProbedItem* AlignToNextItem(void* ptr) {
+    return reinterpret_cast<ProbedItem*>(AlignUpTo(
+        reinterpret_cast<uintptr_t>(ptr), alignof(ProbedItem)));
+  }
+
+  ProbedItem* OverflowBufferStart() const {
+    // We reuse GrowthInfo memory as well.
+    return AlignToNextItem(control_ - ControlOffset(/*has_infoz=*/false));
+  }
+
+  // Encodes item when previously allocated buffer is full.
+  // At first that happens when local buffer is full.
+  // We switch from the local buffer to the control buffer.
+  // Every time this function is called, the available buffer is extended till
+  // `item.source_offset` byte in the control buffer.
+  // After the buffer is extended, this function wouldn't be called till the
+  // buffer is exhausted.
+  //
+  // If there's no space in the control buffer, we fallback to naive algorithm
+  // and mark probed elements as kSentinel in the control buffer. In this case,
+  // we will call this function for every subsequent probed element.
+  ABSL_ATTRIBUTE_NOINLINE void ProcessEncodeWithOverflow(ProbedItem item) {
+    if (!local_buffer_full_) {
+      local_buffer_full_ = true;
+      pos_ = OverflowBufferStart();
+    }
+    const size_t source_offset = static_cast<size_t>(item.source_offset);
+    // We are in fallback mode so we can't reuse control buffer anymore.
+    // Probed elements are marked as kSentinel in the control buffer.
+    if (ABSL_PREDICT_FALSE(marked_elements_starting_position_ !=
+                           kNoMarkedElementsSentinel)) {
+      control_[source_offset] = ctrl_t::kSentinel;
+      return;
+    }
+    // Refresh the end pointer to the new available position.
+    // Invariant: if pos < end, then we have at least sizeof(ProbedItem) bytes
+    // to write.
+    end_ = control_ + source_offset + 1 - sizeof(ProbedItem);
+    if (ABSL_PREDICT_TRUE(pos_ < end_)) {
+      *pos_ = item;
+      ++pos_;
+      return;
+    }
+    control_[source_offset] = ctrl_t::kSentinel;
+    marked_elements_starting_position_ = source_offset;
+    // Now we will always fall down to `ProcessEncodeWithOverflow`.
+    assert(pos_ >= end_);
+  }
+
+  // Decodes information about probed elements from control buffer and processes
+  // marked elements.
+  // Finds new position for each element and transfers it to the new slots.
+  // Returns the total probe length.
+  ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertToTableOverflow(
+      CommonFields& common, const PolicyFunctions& policy,
+      void* old_slots) const {
+    assert(local_buffer_full_ &&
+           "must not be called when local buffer is not full");
+    size_t total_probe_length = DecodeAndInsertImpl(
+        common, policy, OverflowBufferStart(), pos_, old_slots);
+    if (ABSL_PREDICT_TRUE(marked_elements_starting_position_ ==
+                          kNoMarkedElementsSentinel)) {
+      return total_probe_length;
+    }
+    total_probe_length +=
+        ProcessProbedMarkedElements(common, policy, control_, old_slots,
+                                    marked_elements_starting_position_);
+    return total_probe_length;
+  }
+
+  static constexpr size_t kBufferSize =
+      kProbedElementsBufferSize / sizeof(ProbedItem);
+  ProbedItem buffer_[kBufferSize];
+  // If local_buffer_full_ is false, then pos_/end_ are in the local buffer,
+  // otherwise, they're in the overflow buffer.
+  ProbedItem* pos_ = buffer_;
+  const void* end_ = buffer_ + kBufferSize;
+  ctrl_t* const control_;
+  size_t marked_elements_starting_position_ = kNoMarkedElementsSentinel;
+  bool local_buffer_full_ = false;
+};
+
+// Grows to next capacity with specified encoder type.
+// Encoder is used to store probed elements that are processed later.
+// Different encoder is used depending on the capacity of the table.
+// Returns total probe length.
+template <typename Encoder>
+size_t GrowToNextCapacity(CommonFields& common, const PolicyFunctions& policy,
+                          ctrl_t* old_ctrl, void* old_slots) {
+  using ProbedItem = typename Encoder::ProbedItem;
+  assert(common.capacity() <= ProbedItem::kMaxNewCapacity);
+  Encoder encoder(old_ctrl);
+  policy.transfer_unprobed_elements_to_next_capacity(
+      common, old_ctrl, old_slots, &encoder,
+      [](void* probed_storage, h2_t h2, size_t source_offset, size_t h1) {
+        auto encoder_ptr = static_cast<Encoder*>(probed_storage);
+        encoder_ptr->EncodeItem(ProbedItem(h2, source_offset, h1));
+      });
+  InitializeMirroredControlBytes(common.control(), common.capacity());
+  return encoder.DecodeAndInsertToTable(common, policy, old_slots);
+}
+
+// Grows to next capacity for relatively small tables so that even if all
+// elements are probed, we don't need to overflow the local buffer.
+// Returns total probe length.
+size_t GrowToNextCapacityThatFitsInLocalBuffer(CommonFields& common,
+                                               const PolicyFunctions& policy,
+                                               ctrl_t* old_ctrl,
+                                               void* old_slots) {
+  assert(common.capacity() <= kMaxLocalBufferNewCapacity);
+  return GrowToNextCapacity<
+      ProbedItemEncoder<ProbedItem4Bytes, /*kGuaranteedFitToBuffer=*/true>>(
+      common, policy, old_ctrl, old_slots);
+}
+
+// Grows to next capacity with different encodings. Returns total probe length.
+// These functions are useful to simplify profile analysis.
+size_t GrowToNextCapacity4BytesEncoder(CommonFields& common,
+                                       const PolicyFunctions& policy,
+                                       ctrl_t* old_ctrl, void* old_slots) {
+  return GrowToNextCapacity<ProbedItemEncoder<ProbedItem4Bytes>>(
+      common, policy, old_ctrl, old_slots);
+}
+size_t GrowToNextCapacity8BytesEncoder(CommonFields& common,
+                                       const PolicyFunctions& policy,
+                                       ctrl_t* old_ctrl, void* old_slots) {
+  return GrowToNextCapacity<ProbedItemEncoder<ProbedItem8Bytes>>(
+      common, policy, old_ctrl, old_slots);
+}
+size_t GrowToNextCapacity16BytesEncoder(CommonFields& common,
+                                        const PolicyFunctions& policy,
+                                        ctrl_t* old_ctrl, void* old_slots) {
+  return GrowToNextCapacity<ProbedItemEncoder<ProbedItem16Bytes>>(
+      common, policy, old_ctrl, old_slots);
+}
+
+// Grows to next capacity for tables with relatively large capacity so that we
+// can't guarantee that all probed elements fit in the local buffer. Returns
+// total probe length.
+size_t GrowToNextCapacityOverflowLocalBuffer(CommonFields& common,
+                                             const PolicyFunctions& policy,
+                                             ctrl_t* old_ctrl,
+                                             void* old_slots) {
+  const size_t new_capacity = common.capacity();
+  if (ABSL_PREDICT_TRUE(new_capacity <= ProbedItem4Bytes::kMaxNewCapacity)) {
+    return GrowToNextCapacity4BytesEncoder(common, policy, old_ctrl, old_slots);
+  }
+  if (ABSL_PREDICT_TRUE(new_capacity <= ProbedItem8Bytes::kMaxNewCapacity)) {
+    return GrowToNextCapacity8BytesEncoder(common, policy, old_ctrl, old_slots);
+  }
+  // 16 bytes encoding supports the maximum swisstable capacity.
+  return GrowToNextCapacity16BytesEncoder(common, policy, old_ctrl, old_slots);
+}
+
+// Dispatches to the appropriate `GrowToNextCapacity*` function based on the
+// capacity of the table. Returns total probe length.
+ABSL_ATTRIBUTE_NOINLINE
+size_t GrowToNextCapacityDispatch(CommonFields& common,
+                                  const PolicyFunctions& policy,
+                                  ctrl_t* old_ctrl, void* old_slots) {
+  const size_t new_capacity = common.capacity();
+  if (ABSL_PREDICT_TRUE(new_capacity <= kMaxLocalBufferNewCapacity)) {
+    return GrowToNextCapacityThatFitsInLocalBuffer(common, policy, old_ctrl,
+                                                   old_slots);
+  } else {
+    return GrowToNextCapacityOverflowLocalBuffer(common, policy, old_ctrl,
+                                                 old_slots);
+  }
+}
+
+// Grows to next capacity and prepares insert for the given new_hash.
+// Returns the offset of the new element.
 size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
                                           const PolicyFunctions& policy,
                                           size_t new_hash) {
@@ -882,9 +1253,8 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
       SetCtrlInSingleGroupTable(common, offset, new_h2, policy.slot_size);
       find_info = FindInfo{offset, 0};
     } else {
-      ResetCtrl(common, slot_size);
-      total_probe_length = policy.find_new_positions_and_transfer_slots(
-          common, old_ctrl, old_slots, old_capacity);
+      total_probe_length =
+          GrowToNextCapacityDispatch(common, policy, old_ctrl, old_slots);
       find_info = find_first_non_full(common, new_hash);
       SetCtrlInLargeTable(common, find_info.offset, new_h2, policy.slot_size);
     }
@@ -1190,6 +1560,7 @@ void ReserveAllocatedTable(CommonFields& common, const PolicyFunctions& policy,
                        ResizeFullSooTableSamplingMode::kNoSampling);
   } else {
     assert(cap > policy.soo_capacity);
+    // TODO(b/382423690): consider using GrowToNextCapacity, when applicable.
     ResizeAllocatedTableWithSeedChange(common, policy, new_capacity);
   }
   common.infoz().RecordReservation(n);
@@ -1247,6 +1618,12 @@ constexpr bool VerifyOptimalMemcpySizeForSooSlotTransferRange(size_t left,
   return true;
 }
 }  // namespace
+
+// Extern template instantiation for inline function.
+template size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
+                                              size_t old_capacity,
+                                              ctrl_t* new_ctrl,
+                                              size_t new_capacity);
 
 // We need to instantiate ALL possible template combinations because we define
 // the function in the cc file.

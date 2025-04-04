@@ -94,6 +94,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/raw_hash_map.h"
   "container/internal/raw_hash_set.cc"
   "container/internal/raw_hash_set.h"
+  "container/internal/raw_hash_set_resize_impl.h"
   "container/internal/tracked.h"
   "container/node_hash_map.h"
   "container/node_hash_set.h"

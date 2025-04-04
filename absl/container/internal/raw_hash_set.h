@@ -541,16 +541,14 @@ inline h2_t H2(size_t hash) { return hash & 0x7F; }
 
 // Mixes a randomly generated per-process seed with `hash` and `ctrl` to
 // randomize insertion order within groups.
-bool ShouldInsertBackwardsForDebug(size_t capacity, size_t hash,
-                                   PerTableSeed seed);
+bool ShouldInsertBackwardsForDebug(size_t capacity, size_t h1);
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool ShouldInsertBackwards(
-    ABSL_ATTRIBUTE_UNUSED size_t capacity, ABSL_ATTRIBUTE_UNUSED size_t hash,
-    ABSL_ATTRIBUTE_UNUSED PerTableSeed seed) {
+    ABSL_ATTRIBUTE_UNUSED size_t capacity, ABSL_ATTRIBUTE_UNUSED size_t h1) {
 #if defined(NDEBUG)
   return false;
 #else
-  return ShouldInsertBackwardsForDebug(capacity, hash, seed);
+  return ShouldInsertBackwardsForDebug(capacity, h1);
 #endif
 }
 
@@ -562,14 +560,12 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline bool ShouldInsertBackwards(
 template <class Mask>
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline auto GetInsertionOffset(
     Mask mask, ABSL_ATTRIBUTE_UNUSED size_t capacity,
-    ABSL_ATTRIBUTE_UNUSED size_t hash,
-    ABSL_ATTRIBUTE_UNUSED PerTableSeed seed) {
+    ABSL_ATTRIBUTE_UNUSED size_t h1) {
 #if defined(NDEBUG)
   return mask.LowestBitSet();
 #else
-  return ShouldInsertBackwardsForDebug(capacity, hash, seed)
-             ? mask.HighestBitSet()
-             : mask.LowestBitSet();
+  return ShouldInsertBackwardsForDebug(capacity, h1) ? mask.HighestBitSet()
+                                                     : mask.LowestBitSet();
 #endif
 }
 
@@ -835,6 +831,12 @@ constexpr size_t ControlOffset(bool has_infoz) {
   return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(GrowthInfo);
 }
 
+// Returns the offset of the next item after `offset` that is aligned to `align`
+// bytes. `align` must be a power of two.
+constexpr size_t AlignUpTo(size_t offset, size_t align) {
+  return (offset + align - 1) & (~align + 1);
+}
+
 // Helper class for computing offsets and allocation size of hash set fields.
 class RawHashSetLayout {
  public:
@@ -843,8 +845,7 @@ class RawHashSetLayout {
       : control_offset_(ControlOffset(has_infoz)),
         generation_offset_(control_offset_ + NumControlBytes(capacity)),
         slot_offset_(
-            (generation_offset_ + NumGenerationBytes() + slot_align - 1) &
-            (~slot_align + 1)),
+            AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
         alloc_size_(slot_offset_ + capacity * slot_size) {
     ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
     ABSL_SWISSTABLE_ASSERT(
@@ -1192,6 +1193,12 @@ constexpr size_t NextCapacity(size_t n) {
   return n * 2 + 1;
 }
 
+// Returns the previous valid capacity before `n`.
+constexpr size_t PreviousCapacity(size_t n) {
+  ABSL_SWISSTABLE_ASSERT(IsValidCapacity(n));
+  return n / 2;
+}
+
 // Applies the following mapping to every byte in the control array:
 //   * kDeleted -> kEmpty
 //   * kEmpty -> kEmpty
@@ -1444,9 +1451,12 @@ constexpr bool is_single_group(size_t capacity) {
 }
 
 // Begins a probing operation on `common.control`, using `hash`.
-inline probe_seq<Group::kWidth> probe(PerTableSeed seed, const size_t capacity,
+inline probe_seq<Group::kWidth> probe(size_t h1, size_t capacity) {
+  return probe_seq<Group::kWidth>(h1, capacity);
+}
+inline probe_seq<Group::kWidth> probe(PerTableSeed seed, size_t capacity,
                                       size_t hash) {
-  return probe_seq<Group::kWidth>(H1(hash, seed), capacity);
+  return probe(H1(hash, seed), capacity);
 }
 inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
   return probe(common.seed(), common.capacity(), hash);
@@ -1459,36 +1469,60 @@ inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
 //
 // NOTE: this function must work with tables having both empty and deleted
 // slots in the same group. Such tables appear during `erase()`.
+FindInfo find_first_non_full(const CommonFields& common, size_t hash);
+
+constexpr size_t kProbedElementIndexSentinel = ~size_t{};
+
+// Implementation detail of transfer_unprobed_elements_to_next_capacity_fn.
+// Tries to find the new index for an element whose hash corresponds to
+// `h1` for growth to the next capacity.
+// Returns kProbedElementIndexSentinel if full probing is required.
+//
+// If element is located in the first probing group in the table before growth,
+// returns one of two positions: `old_index` or `old_index + old_capacity + 1`.
+//
+// Otherwise, we will try to insert it into the first probe group of the new
+// table. We only attempt to do so if the first probe group is already
+// initialized.
 template <typename = void>
-inline FindInfo find_first_non_full(const CommonFields& common, size_t hash) {
-  auto seq = probe(common, hash);
-  const ctrl_t* ctrl = common.control();
-  const PerTableSeed seed = common.seed();
-  if (IsEmptyOrDeleted(ctrl[seq.offset()]) &&
-      !ShouldInsertBackwards(common.capacity(), hash, seed)) {
-    return {seq.offset(), /*probe_length=*/0};
+inline size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
+                                            size_t old_capacity,
+                                            ctrl_t* new_ctrl,
+                                            size_t new_capacity) {
+  size_t in_floating_group_index = (old_index - h1) & (Group::kWidth - 1);
+  size_t new_index = (h1 + in_floating_group_index) & new_capacity;
+  ABSL_ASSUME(new_index != kProbedElementIndexSentinel);
+  if (ABSL_PREDICT_TRUE((new_index & old_capacity) == old_index)) {
+    return new_index;
   }
-  while (true) {
-    GroupFullEmptyOrDeleted g{ctrl + seq.offset()};
-    auto mask = g.MaskEmptyOrDeleted();
-    if (mask) {
-      return {
-          seq.offset(GetInsertionOffset(mask, common.capacity(), hash, seed)),
-          seq.index()};
-    }
-    seq.next();
-    ABSL_SWISSTABLE_ASSERT(seq.index() <= common.capacity() && "full table!");
+  ABSL_SWISSTABLE_ASSERT(((old_index - h1) & old_capacity) >= Group::kWidth);
+  // Try to insert element into the first probe group.
+  // new_ctrl is not yet fully initialized so we can't use regular search via
+  // find_first_non_full.
+
+  // We can search in the first probe group only if it is located in already
+  // initialized part of the table.
+  if (ABSL_PREDICT_FALSE((h1 & old_capacity) >= old_index)) {
+    return kProbedElementIndexSentinel;
   }
+  size_t offset = h1 & new_capacity;
+  Group new_g(new_ctrl + offset);
+  if (auto mask = new_g.MaskNonFull(); ABSL_PREDICT_TRUE(mask)) {
+    size_t result = offset + mask.LowestBitSet();
+    ABSL_ASSUME(result != kProbedElementIndexSentinel);
+    return result;
+  }
+  return kProbedElementIndexSentinel;
 }
 
-// Extern template for inline function keep possibility of inlining.
+// Extern template for inline function keeps possibility of inlining.
 // When compiler decided to not inline, no symbols will be added to the
 // corresponding translation unit.
-extern template FindInfo find_first_non_full(const CommonFields&, size_t);
-
-// Non-inlined version of find_first_non_full for use in less
-// performance critical routines.
-FindInfo find_first_non_full_outofline(const CommonFields&, size_t);
+extern template size_t TryFindNewIndexWithoutProbing(size_t h1,
+                                                     size_t old_index,
+                                                     size_t old_capacity,
+                                                     ctrl_t* new_ctrl,
+                                                     size_t new_capacity);
 
 // Sets sanitizer poisoning for slot corresponding to control byte being set.
 inline void DoSanitizeOnSetCtrl(const CommonFields& c, size_t i, ctrl_t h,
@@ -1651,13 +1685,21 @@ struct PolicyFunctions {
   void (*dealloc)(void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
                   size_t slot_align, bool had_infoz);
 
-  // Iterates over full slots in old table, finds new positions
-  // for them and transfers the slots.
-  // Returns the total probe length.
-  size_t (*find_new_positions_and_transfer_slots)(CommonFields& common,
-                                                  ctrl_t* old_ctrl,
-                                                  void* old_slots,
-                                                  size_t old_capacity);
+  // Implementation detail of GrowToNextCapacity.
+  // Iterates over all full slots and transfers unprobed elements.
+  // Initializes the new control bytes except mirrored bytes and kSentinel.
+  // Caller must finish the initialization.
+  // All slots corresponding to the full control bytes are transferred.
+  // Probed elements are reported by `encode_probed_element` callback.
+  // encode_probed_element may overwrite old_ctrl buffer till source_offset.
+  // Different encoding is used depending on the capacity of the table.
+  // See ProbedItem*Bytes classes for details.
+  void (*transfer_unprobed_elements_to_next_capacity)(
+      CommonFields& common, const ctrl_t* old_ctrl, void* old_slots,
+      // TODO(b/382423690): Try to use absl::FunctionRef here.
+      void* probed_storage,
+      void (*encode_probed_element)(void* probed_storage, h2_t h2,
+                                    size_t source_offset, size_t h1));
 };
 
 // Returns the maximum valid size for a table with 1-byte slots.
@@ -2321,7 +2363,7 @@ class raw_hash_set {
             // a full `insert`.
             const size_t hash = PolicyTraits::apply(
                 HashElement{hash_ref()}, PolicyTraits::element(that_slot));
-            FindInfo target = find_first_non_full_outofline(common(), hash);
+            FindInfo target = find_first_non_full(common(), hash);
             infoz().RecordInsert(hash, target.probe_length);
             offset = target.offset;
           } else {
@@ -3350,8 +3392,10 @@ class raw_hash_set {
       }
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
-        size_t target = seq.offset(
-            GetInsertionOffset(mask_empty, capacity(), hash, common().seed()));
+        // TODO(b/382423690): Try to remove GetInsertionOffset since we have
+        // random seed.
+        size_t target = seq.offset(GetInsertionOffset(
+            mask_empty, capacity(), H1(hash, common().seed())));
         return {iterator_at(PrepareInsertNonSoo(common(), GetPolicyFunctions(),
                                                 hash,
                                                 FindInfo{target, seq.index()})),
@@ -3577,29 +3621,60 @@ class raw_hash_set {
     }
   }
 
-  // TODO(b/382423690): Type erase by GetKey + Hash for memcpyable types.
-  static size_t find_new_positions_and_transfer_slots_fn(CommonFields& common,
-                                                         ctrl_t* old_ctrl,
-                                                         void* old_slots,
-                                                         size_t old_capacity) {
+  // TODO(b/382423690): Try to type erase entire function or at least type erase
+  // by GetKey + Hash for memcpyable types.
+  // TODO(b/382423690): Try to type erase for big slots: sizeof(slot_type) > 16.
+  static void transfer_unprobed_elements_to_next_capacity_fn(
+      CommonFields& common, const ctrl_t* old_ctrl, void* old_slots,
+      void* probed_storage,
+      void (*encode_probed_element)(void* probed_storage, h2_t h2,
+                                    size_t source_offset, size_t h1)) {
+    const size_t new_capacity = common.capacity();
+    const size_t old_capacity = PreviousCapacity(new_capacity);
+    ABSL_SWISSTABLE_ASSERT(old_capacity + 1 >= Group::kWidth);
+    ABSL_SWISSTABLE_ASSERT((old_capacity + 1) % Group::kWidth == 0);
+
     auto* set = reinterpret_cast<raw_hash_set*>(&common);
-    slot_type* new_slots = set->slot_array();
     slot_type* old_slots_ptr = to_slot(old_slots);
-    const auto insert_slot = [&](slot_type* slot) {
-      size_t hash = PolicyTraits::apply(HashElement{set->hash_ref()},
-                                        PolicyTraits::element(slot));
-      auto target = find_first_non_full(common, hash);
-      SetCtrl(common, target.offset, H2(hash), sizeof(slot_type));
-      set->transfer(new_slots + target.offset, slot);
-      return target.probe_length;
-    };
-    size_t total_probe_length = 0;
-    for (size_t i = 0; i < old_capacity; ++i) {
-      if (IsFull(old_ctrl[i])) {
-        total_probe_length += insert_slot(old_slots_ptr + i);
+    ctrl_t* new_ctrl = common.control();
+    slot_type* new_slots = set->slot_array();
+
+    const PerTableSeed seed = common.seed();
+
+    for (size_t group_index = 0; group_index < old_capacity;
+         group_index += Group::kWidth) {
+      Group old_g(old_ctrl + group_index);
+      std::memset(new_ctrl + group_index, static_cast<int8_t>(ctrl_t::kEmpty),
+                  Group::kWidth);
+      std::memset(new_ctrl + group_index + old_capacity + 1,
+                  static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
+      // TODO(b/382423690): try to type erase everything outside of the loop.
+      // We will share a lot of code in expense of one function call per group.
+      for (auto in_fixed_group_index : old_g.MaskFull()) {
+        size_t old_index = group_index + in_fixed_group_index;
+        slot_type* old_slot = old_slots_ptr + old_index;
+        // TODO(b/382423690): try to avoid entire hash calculation since we need
+        // only one new bit of h1.
+        size_t hash = set->hash_of(old_slot);
+        size_t h1 = H1(hash, seed);
+        h2_t h2 = H2(hash);
+        size_t new_index = TryFindNewIndexWithoutProbing(
+            h1, old_index, old_capacity, new_ctrl, new_capacity);
+        // Note that encode_probed_element is allowed to use old_ctrl buffer
+        // till and included the old_index.
+        if (ABSL_PREDICT_FALSE(new_index == kProbedElementIndexSentinel)) {
+          encode_probed_element(probed_storage, h2, old_index, h1);
+          continue;
+        }
+        ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= old_index);
+        ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
+        new_ctrl[new_index] = static_cast<ctrl_t>(h2);
+        auto* new_slot = new_slots + new_index;
+        SanitizerUnpoisonMemoryRegion(new_slot, sizeof(slot_type));
+        set->transfer(new_slot, old_slot);
+        SanitizerPoisonMemoryRegion(old_slot, sizeof(slot_type));
       }
     }
-    return total_probe_length;
   }
 
   static const PolicyFunctions& GetPolicyFunctions() {
@@ -3633,7 +3708,7 @@ class raw_hash_set {
                                : &raw_hash_set::get_char_alloc_ref_fn,
         &AllocateBackingArray<kBackingArrayAlignment, CharAlloc>,
         &DeallocateBackingArray<kBackingArrayAlignment, CharAlloc>,
-        &raw_hash_set::find_new_positions_and_transfer_slots_fn};
+        &raw_hash_set::transfer_unprobed_elements_to_next_capacity_fn};
     return value;
   }
 
