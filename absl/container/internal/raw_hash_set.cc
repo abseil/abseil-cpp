@@ -560,17 +560,6 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
 
 namespace {
 
-// Poisons empty slots. It is useful when slots are transferred via memcpy.
-// PRECONDITIONs: common.control() is fully initialized.
-void PoisonEmptySlots(CommonFields& c, size_t slot_size) {
-  for (size_t i = 0; i < c.capacity(); ++i) {
-    if (!IsFull(c.control()[i])) {
-      SanitizerPoisonMemoryRegion(SlotAddress(c.slot_array(), i, slot_size),
-                                  slot_size);
-    }
-  }
-}
-
 enum class ResizeNonSooMode {
   kGuaranteedEmpty,
   kGuaranteedAllocated,
@@ -949,9 +938,8 @@ ProcessProbedMarkedElements(CommonFields& c, const PolicyFunctions& policy,
     total_probe_length += target.probe_length;
     const size_t new_i = target.offset;
     void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
-    transfer_n(&c, dst_slot, src_slot, 1);
     SetCtrlInLargeTable(c, new_i, H2(hash), slot_size);
+    transfer_n(&c, dst_slot, src_slot, 1);
   }
   return total_probe_length;
 }
@@ -1245,6 +1233,7 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
   void* new_slots = mem + layout.slot_offset();
   common.set_control</*kGenerateSeed=*/false>(new_ctrl);
   common.set_slots(new_slots);
+  SanitizerPoisonMemoryRegion(new_slots, new_capacity * slot_size);
 
   h2_t new_h2 = H2(new_hash);
   size_t total_probe_length = 0;
@@ -1254,6 +1243,7 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
     InitializeSingleElementControlBytes(new_h2, new_ctrl);
     common.generate_new_seed();
     find_info = FindInfo{0, 0};
+    SanitizerUnpoisonMemoryRegion(new_slots, slot_size);
   } else {
     if (ABSL_PREDICT_TRUE(is_single_group(new_capacity))) {
       GrowIntoSingleGroupShuffleControlBytes(old_ctrl, old_capacity, new_ctrl,
@@ -1261,9 +1251,9 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
       // Single group tables have all slots full on resize. So we can transfer
       // all slots without checking the control bytes.
       ABSL_SWISSTABLE_ASSERT(common.size() == old_capacity);
-      policy.transfer_n(&common, NextSlot(new_slots, slot_size), old_slots,
-                        old_capacity);
-      PoisonEmptySlots(common, slot_size);
+      auto* target = NextSlot(new_slots, slot_size);
+      SanitizerUnpoisonMemoryRegion(target, old_capacity * slot_size);
+      policy.transfer_n(&common, target, old_slots, old_capacity);
       // We put the new element either at the beginning or at the end of the
       // table with approximately equal probability.
       size_t offset = SingleGroupTableH1(new_hash, common.seed()) & 1

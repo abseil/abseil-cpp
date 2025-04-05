@@ -3176,6 +3176,20 @@ TYPED_TEST(SanitizerTest, PoisoningUnused) {
   }
 }
 
+TYPED_TEST(SanitizerTest, PoisoningUnusedOnGrowth) {
+  TypeParam t;
+  for (int64_t i = 0; i < 100; ++i) {
+    t.insert(i);
+
+    int64_t* slots = RawHashSetTestOnlyAccess::GetSlots(t);
+    int poisoned = 0;
+    for (size_t i = 0; i < t.capacity(); ++i) {
+      poisoned += static_cast<int>(__asan_address_is_poisoned(slots + i));
+    }
+    ASSERT_EQ(poisoned, t.capacity() - t.size());
+  }
+}
+
 // TODO(b/289225379): poison inline space when empty SOO.
 TEST(Sanitizer, PoisoningOnErase) {
   NonSooIntTable t;
