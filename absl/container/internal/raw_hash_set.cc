@@ -1370,6 +1370,48 @@ size_t PrepareInsertNonSooSlow(CommonFields& common,
   return target.offset;
 }
 
+// Resizes empty non-allocated table to the capacity to fit new_size elements.
+// Requires:
+//   1. `c.capacity() == policy.soo_capacity`.
+//   2. `c.empty()`.
+//   3. `new_size > policy.soo_capacity`.
+// The table will be attempted to be sampled.
+void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
+                                               const PolicyFunctions& policy,
+                                               size_t new_size) {
+  ValidateMaxSize(new_size, policy.slot_size);
+  ABSL_ASSUME(new_size > 0);
+  ResizeEmptyNonAllocatedTableImpl(common, policy, SizeToCapacity(new_size),
+                                   /*force_infoz=*/false);
+  // This is after resize, to ensure that we have completed the allocation
+  // and have potentially sampled the hashtable.
+  common.infoz().RecordReservation(new_size);
+}
+
+// Type erased version of raw_hash_set::reserve for tables that have an
+// allocated backing array.
+//
+// Requires:
+//   1. `c.capacity() > policy.soo_capacity` OR `!c.empty()`.
+// Reserving already allocated tables is considered to be a rare case.
+ABSL_ATTRIBUTE_NOINLINE void ReserveAllocatedTable(
+    CommonFields& common, const PolicyFunctions& policy, size_t new_size) {
+  const size_t cap = common.capacity();
+  ValidateMaxSize(new_size, policy.slot_size);
+  ABSL_ASSUME(new_size > 0);
+  const size_t new_capacity = SizeToCapacity(new_size);
+  if (cap == policy.soo_capacity) {
+    ABSL_SWISSTABLE_ASSERT(!common.empty());
+    ResizeFullSooTable(common, policy, new_capacity,
+                       ResizeFullSooTableSamplingMode::kNoSampling);
+  } else {
+    ABSL_SWISSTABLE_ASSERT(cap > policy.soo_capacity);
+    // TODO(b/382423690): consider using GrowToNextCapacity, when applicable.
+    ResizeAllocatedTableWithSeedChange(common, policy, new_capacity);
+  }
+  common.infoz().RecordReservation(new_size);
+}
+
 }  // namespace
 
 void* GetRefForEmptyClass(CommonFields& common) {
@@ -1385,20 +1427,6 @@ void ResizeAllocatedTableWithSeedChange(CommonFields& common,
                                         size_t new_capacity) {
   ResizeNonSooImpl<ResizeNonSooMode::kGuaranteedAllocated>(
       common, policy, new_capacity, common.infoz());
-}
-
-void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
-                                               const PolicyFunctions& policy,
-                                               size_t new_size) {
-  ValidateMaxSize(new_size, policy.slot_size);
-  ResizeEmptyNonAllocatedTableImpl(
-      common, policy, NormalizeCapacity(GrowthToLowerboundCapacity(new_size)),
-      /*force_infoz=*/false);
-  // This is after resize, to ensure that we have completed the allocation
-  // and have potentially sampled the hashtable.
-  common.infoz().RecordReservation(new_size);
-  common.reset_reserved_growth(new_size);
-  common.set_reservation_size(new_size);
 }
 
 void ReserveEmptyNonAllocatedTableToFitBucketCount(
@@ -1526,11 +1554,11 @@ void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n) {
     }
   }
 
+  ValidateMaxSize(n, policy.slot_size);
   // bitor is a faster way of doing `max` here. We will round up to the next
   // power-of-2-minus-1, so bitor is good enough.
-  size_t new_size = n | GrowthToLowerboundCapacity(common.size());
-  ValidateMaxSize(n, policy.slot_size);
-  const size_t new_capacity = NormalizeCapacity(new_size);
+  const size_t new_capacity =
+      NormalizeCapacity(n | SizeToCapacity(common.size()));
   // n == 0 unconditionally rehashes as per the standard.
   if (n == 0 || new_capacity > cap) {
     if (cap == policy.soo_capacity) {
@@ -1550,32 +1578,25 @@ void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n) {
   }
 }
 
-void ReserveAllocatedTable(CommonFields& common, const PolicyFunctions& policy,
-                           size_t n) {
-  common.reset_reserved_growth(n);
-  common.set_reservation_size(n);
-
+void ReserveTableToFitNewSize(CommonFields& common,
+                              const PolicyFunctions& policy, size_t new_size) {
+  common.reset_reserved_growth(new_size);
+  common.set_reservation_size(new_size);
+  ABSL_SWISSTABLE_ASSERT(new_size > policy.soo_capacity);
   const size_t cap = common.capacity();
+  if (ABSL_PREDICT_TRUE(common.empty() && cap <= policy.soo_capacity)) {
+    return ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, new_size);
+  }
+
   ABSL_SWISSTABLE_ASSERT(!common.empty() || cap > policy.soo_capacity);
   ABSL_SWISSTABLE_ASSERT(cap > 0);
   const size_t max_size_before_growth =
       cap <= policy.soo_capacity ? policy.soo_capacity
                                  : common.size() + common.growth_left();
-  if (n <= max_size_before_growth) {
+  if (new_size <= max_size_before_growth) {
     return;
   }
-  ValidateMaxSize(n, policy.slot_size);
-  const size_t new_capacity = NormalizeCapacity(GrowthToLowerboundCapacity(n));
-  if (cap == policy.soo_capacity) {
-    ABSL_SWISSTABLE_ASSERT(!common.empty());
-    ResizeFullSooTable(common, policy, new_capacity,
-                       ResizeFullSooTableSamplingMode::kNoSampling);
-  } else {
-    ABSL_SWISSTABLE_ASSERT(cap > policy.soo_capacity);
-    // TODO(b/382423690): consider using GrowToNextCapacity, when applicable.
-    ResizeAllocatedTableWithSeedChange(common, policy, new_capacity);
-  }
-  common.infoz().RecordReservation(n);
+  ReserveAllocatedTable(common, policy, new_size);
 }
 
 size_t PrepareInsertNonSoo(CommonFields& common, const PolicyFunctions& policy,

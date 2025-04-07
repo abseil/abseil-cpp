@@ -281,9 +281,14 @@ TEST(Util, NormalizeCapacity) {
 TEST(Util, GrowthAndCapacity) {
   // Verify that GrowthToCapacity gives the minimum capacity that has enough
   // growth.
-  for (size_t growth = 0; growth < 10000; ++growth) {
+  EXPECT_EQ(SizeToCapacity(0), 0);
+  EXPECT_EQ(SizeToCapacity(1), 1);
+  EXPECT_EQ(SizeToCapacity(2), 3);
+  EXPECT_EQ(SizeToCapacity(3), 3);
+  for (size_t growth = 1; growth < 10000; ++growth) {
     SCOPED_TRACE(growth);
-    size_t capacity = NormalizeCapacity(GrowthToLowerboundCapacity(growth));
+    size_t capacity = SizeToCapacity(growth);
+    ASSERT_TRUE(IsValidCapacity(capacity));
     // The capacity is large enough for `growth`.
     EXPECT_THAT(CapacityToGrowth(capacity), Ge(growth));
     // For (capacity+1) < kWidth, growth should equal capacity.
@@ -303,8 +308,8 @@ TEST(Util, GrowthAndCapacity) {
     SCOPED_TRACE(capacity);
     size_t growth = CapacityToGrowth(capacity);
     EXPECT_THAT(growth, Lt(capacity));
-    EXPECT_LE(GrowthToLowerboundCapacity(growth), capacity);
-    EXPECT_EQ(NormalizeCapacity(GrowthToLowerboundCapacity(growth)), capacity);
+    EXPECT_EQ(SizeToCapacity(growth), capacity);
+    EXPECT_EQ(NormalizeCapacity(SizeToCapacity(growth)), capacity);
   }
 }
 
@@ -4101,7 +4106,7 @@ TEST(Table, MaxValidSize) {
         ASSERT_FALSE(IsAboveValidSize(size_t{1} << 40, slot_size));
         ASSERT_GE(max_size, uint64_t{1} << 40);
       }
-      ASSERT_LT(NormalizeCapacity(GrowthToLowerboundCapacity(max_size)),
+      ASSERT_LT(SizeToCapacity(max_size),
                 uint64_t{1} << HashtableSize::kSizeBitCount);
       ASSERT_LT(absl::uint128(max_size) * slot_size, uint64_t{1} << 63);
     }
@@ -4114,8 +4119,7 @@ TEST(Table, MaxValidSize) {
     ASSERT_FALSE(IsAboveValidSize</*kSizeOfSizeT=*/4>(max_size, slot_size));
     ASSERT_TRUE(IsAboveValidSize</*kSizeOfSizeT=*/4>(max_size + 1, slot_size));
     ASSERT_LT(max_size, 1 << 30);
-    size_t max_capacity =
-        NormalizeCapacity(GrowthToLowerboundCapacity(max_size));
+    size_t max_capacity = SizeToCapacity(max_size);
     ASSERT_LT(max_capacity, (size_t{1} << 31) / slot_size);
     ASSERT_GT(max_capacity, (1 << 29) / slot_size);
     ASSERT_LT(max_capacity * slot_size, size_t{1} << 31);
@@ -4137,9 +4141,13 @@ TEST(Table, MaxSizeOverflow) {
                             "Hash table size overflow");
   EXPECT_DEATH_IF_SUPPORTED(t.rehash(slightly_overflow),
                             "Hash table size overflow");
+  IntTable non_empty_table;
+  non_empty_table.insert(0);
+  EXPECT_DEATH_IF_SUPPORTED(non_empty_table.reserve(slightly_overflow),
+                            "Hash table size overflow");
 }
 
-// TODO(b/397453582): Remove support for const hasher and ermove this test.
+// TODO(b/397453582): Remove support for const hasher and remove this test.
 TEST(Table, ConstLambdaHash) {
   int64_t multiplier = 17;
   // Make sure that code compiles and work OK with non-empty hasher with const

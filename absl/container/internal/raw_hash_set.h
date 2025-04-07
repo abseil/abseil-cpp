@@ -1204,18 +1204,28 @@ constexpr size_t CapacityToGrowth(size_t capacity) {
   return capacity - capacity / 8;
 }
 
-// Given `growth`, "unapplies" the load factor to find how large the capacity
+// Given `size`, "unapplies" the load factor to find how large the capacity
 // should be to stay within the load factor.
 //
-// This might not be a valid capacity and `NormalizeCapacity()` should be
-// called on this.
-constexpr size_t GrowthToLowerboundCapacity(size_t growth) {
-  // `growth*8/7`
-  if (Group::kWidth == 8 && growth == 7) {
-    // x+(x-1)/7 does not work when x==7.
-    return 8;
+// For size == 0, returns 0.
+// For other values, returns the same as `NormalizeCapacity(size*8/7)`.
+constexpr size_t SizeToCapacity(size_t size) {
+  if (size == 0) {
+    return 0;
   }
-  return growth + static_cast<size_t>((static_cast<int64_t>(growth) - 1) / 7);
+  // The minimum possible capacity is NormalizeCapacity(size).
+  // Shifting right `~size_t{}` by `leading_zeros` yields
+  // NormalizeCapacity(size).
+  int leading_zeros = absl::countl_zero(size);
+  constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
+  size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
+  // Decrease shift if size is too big for the minimum capacity.
+  leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
+  if constexpr (Group::kWidth == 8) {
+    // Formula doesn't work when size==7 for 8-wide groups.
+    leading_zeros -= (size == 7);
+  }
+  return (~size_t{}) >> leading_zeros;
 }
 
 template <class InputIter>
@@ -1226,8 +1236,7 @@ size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
   }
   if (base_internal::IsAtLeastIterator<std::random_access_iterator_tag,
                                        InputIter>()) {
-    return GrowthToLowerboundCapacity(
-        static_cast<size_t>(std::distance(first, last)));
+    return SizeToCapacity(static_cast<size_t>(std::distance(first, last)));
   }
   return 0;
 }
@@ -1715,18 +1724,17 @@ constexpr size_t SooSlotIndex() { return 1; }
 // Allowing till 16 would require additional store that can be avoided.
 constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
 
-// Resizes empty non-allocated table to the capacity to fit new_size elements.
-// Requires:
+// Type erased version of raw_hash_set::reserve.
+// Requires: `new_size > policy.soo_capacity`.
+void ReserveTableToFitNewSize(CommonFields& common,
+                              const PolicyFunctions& policy, size_t new_size);
+
+// Resizes empty non-allocated table to the next valid capacity after
+// `bucket_count`. Requires:
 //   1. `c.capacity() == policy.soo_capacity`.
 //   2. `c.empty()`.
 //   3. `new_size > policy.soo_capacity`.
 // The table will be attempted to be sampled.
-void ReserveEmptyNonAllocatedTableToFitNewSize(CommonFields& common,
-                                               const PolicyFunctions& policy,
-                                               size_t new_size);
-
-// The same as ReserveEmptyNonAllocatedTableToFitNewSize, but resizes to the
-// next valid capacity after `bucket_count`.
 void ReserveEmptyNonAllocatedTableToFitBucketCount(
     CommonFields& common, const PolicyFunctions& policy, size_t bucket_count);
 
@@ -1741,15 +1749,6 @@ void GrowEmptySooTableToNextCapacityForceSampling(
 
 // Type erased version of raw_hash_set::rehash.
 void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n);
-
-// Type erased version of raw_hash_set::reserve for tables that have an
-// allocated backing array.
-//
-// Requires:
-//   1. `c.capacity() > policy.soo_capacity` OR `!c.empty()`.
-// Reserving already allocated tables is considered to be a rare case.
-void ReserveAllocatedTable(CommonFields& common, const PolicyFunctions& policy,
-                           size_t n);
 
 // Returns the optimal size for memcpy when transferring SOO slot.
 // Otherwise, returns the optimal size for memcpy SOO slot transfer
@@ -2274,7 +2273,7 @@ class raw_hash_set {
                                allocator_type(that.char_alloc_ref()))) {}
 
   raw_hash_set(const raw_hash_set& that, const allocator_type& a)
-      : raw_hash_set(GrowthToLowerboundCapacity(that.size()), that.hash_ref(),
+      : raw_hash_set(SizeToCapacity(that.size()), that.hash_ref(),
                      that.eq_ref(), a) {
     that.AssertNotDebugCapacity();
     const size_t size = that.size();
@@ -2848,17 +2847,8 @@ class raw_hash_set {
   void rehash(size_t n) { Rehash(common(), GetPolicyFunctions(), n); }
 
   void reserve(size_t n) {
-    const size_t cap = capacity();
-    if (ABSL_PREDICT_TRUE(cap > DefaultCapacity() ||
-                          // !SooEnabled() implies empty(), so we can skip the
-                          // check for optimization.
-                          (SooEnabled() && !empty()))) {
-      ReserveAllocatedTable(common(), GetPolicyFunctions(), n);
-    } else {
-      if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
-        ReserveEmptyNonAllocatedTableToFitNewSize(common(),
-                                                  GetPolicyFunctions(), n);
-      }
+    if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
+      ReserveTableToFitNewSize(common(), GetPolicyFunctions(), n);
     }
   }
 
