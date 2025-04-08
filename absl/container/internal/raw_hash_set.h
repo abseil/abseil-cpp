@@ -465,16 +465,12 @@ class PerTableSeed {
   const size_t seed_;
 };
 
-// Returns next seed base number that is used for generating per-table seeds.
-// Only the lowest PerTableSeed::kBitCount bits are used for actual hash table
-// seed.
-inline size_t NextSeedBaseNumber() {
-  thread_local size_t seed = reinterpret_cast<uintptr_t>(&seed);
-  if constexpr (sizeof(size_t) == 4) {
-    seed += uint32_t{0xcc9e2d51};
-  } else {
-    seed += uint64_t{0xdcb22ca68cb134ed};
-  }
+// Returns next per-table seed.
+inline uint16_t NextSeed() {
+  static_assert(PerTableSeed::kBitCount == 16);
+  thread_local uint16_t seed =
+      static_cast<uint16_t>(reinterpret_cast<uintptr_t>(&seed));
+  seed += uint16_t{0xad53};
   return seed;
 }
 
@@ -506,8 +502,7 @@ class HashtableSize {
   }
 
   void generate_new_seed() {
-    size_t seed = NextSeedBaseNumber();
-    data_ = (data_ & ~kSeedMask) | (seed & kSeedMask);
+    data_ = data_ ^ uint64_t{NextSeed()};
   }
 
   // Returns true if the table has infoz.
