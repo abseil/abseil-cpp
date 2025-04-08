@@ -258,9 +258,12 @@ void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
 
 namespace {
 
+void ResetGrowthLeft(GrowthInfo& growth_info, size_t capacity, size_t size) {
+  growth_info.InitGrowthLeftNoDeleted(CapacityToGrowth(capacity) - size);
+}
+
 void ResetGrowthLeft(CommonFields& common) {
-  common.growth_info().InitGrowthLeftNoDeleted(
-      CapacityToGrowth(common.capacity()) - common.size());
+  ResetGrowthLeft(common.growth_info(), common.capacity(), common.size());
 }
 
 // Finds guaranteed to exists empty slot from the given position.
@@ -629,8 +632,8 @@ void ResizeNonSooImpl(CommonFields& common, const PolicyFunctions& policy,
       reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
   common.set_generation(NextGeneration(old_generation));
 
-  common.set_control</*kGenerateSeed=*/true>(
-      reinterpret_cast<ctrl_t*>(mem + layout.control_offset()));
+  ctrl_t* new_ctrl = reinterpret_cast<ctrl_t*>(mem + layout.control_offset());
+  common.set_control</*kGenerateSeed=*/true>(new_ctrl);
   common.set_slots(mem + layout.slot_offset());
 
   size_t total_probe_length = 0;
@@ -644,9 +647,13 @@ void ResizeNonSooImpl(CommonFields& common, const PolicyFunctions& policy,
         common, policy, old_ctrl, old_slots, old_capacity);
     (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
                       has_infoz);
+    ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
+                    common.size());
+  } else {
+    GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(
+        CapacityToGrowth(new_capacity));
   }
 
-  ResetGrowthLeft(common);
   if (has_infoz) {
     common.set_has_infoz();
     infoz.RecordStorageChanged(common.size(), new_capacity);
@@ -1284,7 +1291,8 @@ size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
                       has_infoz);
   }
   PrepareInsertCommon(common);
-  ResetGrowthLeft(common);
+  ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
+                  common.size());
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     common.set_has_infoz();
@@ -1504,7 +1512,10 @@ size_t GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
   void* new_slots = mem + layout.slot_offset();
 
   PrepareInsertCommon(common);
+  ABSL_SWISSTABLE_ASSERT(common.size() == 2);
+  GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(kNewCapacity - 2);
   common.generate_new_seed();
+
   // After resize from capacity 1 to 3, we always have exactly the slot with
   // index 1 occupied, so we need to insert either at index 0 or index 2.
   static_assert(SooSlotIndex() == 1);
@@ -1535,9 +1546,6 @@ size_t GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
   // Seed was already generated above.
   common.set_control</*kGenerateSeed=*/false>(new_ctrl);
   common.set_slots(new_slots);
-
-  ABSL_SWISSTABLE_ASSERT(common.size() == 2);
-  common.growth_info().InitGrowthLeftNoDeleted(kNewCapacity - 2);
 
   common.infoz().RecordInsert(new_hash, /*distance_from_desired=*/0);
   SanitizerUnpoisonMemoryRegion(SlotAddress(new_slots, offset, slot_size),
