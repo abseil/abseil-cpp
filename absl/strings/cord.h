@@ -669,6 +669,13 @@ class Cord {
   // `it` must be dereferenceable.
   static absl::string_view ChunkRemaining(const CharIterator& it);
 
+  // Cord::Distance()
+  //
+  // Returns the distance between `first` and `last`, as if
+  // `std::distance(first, last)` was called.
+  static ptrdiff_t Distance(const CharIterator& first,
+                            const CharIterator& last);
+
   // Cord::char_begin()
   //
   // Returns an iterator to the first character of the `Cord`.
@@ -1658,6 +1665,12 @@ inline void Cord::Advance(CharIterator* absl_nonnull it, size_t n_bytes) {
 
 inline absl::string_view Cord::ChunkRemaining(const CharIterator& it) {
   return *it.chunk_iterator_;
+}
+
+inline ptrdiff_t Cord::Distance(const CharIterator& first,
+                                const CharIterator& last) {
+  return static_cast<ptrdiff_t>(first.chunk_iterator_.bytes_remaining_ -
+                                last.chunk_iterator_.bytes_remaining_);
 }
 
 inline Cord::CharIterator Cord::char_begin() const {
