@@ -114,9 +114,9 @@ bool ShouldRehashForBugDetection(PerTableSeed seed, size_t capacity) {
 // Find a non-deterministic hash for single group table.
 // Last two bits are used to find a position for a newly inserted element after
 // resize.
-// This function is mixing all bits of hash and seed to maximize entropy.
+// This function basically using H2 last bits to save on shift operation.
 size_t SingleGroupTableH1(size_t hash, PerTableSeed seed) {
-  return static_cast<size_t>(absl::popcount(hash ^ seed.seed()));
+  return hash ^ seed.seed();
 }
 
 // Returns the address of the slot `i` iterations after `slot` assuming each
