@@ -36,7 +36,6 @@
 
 #include "absl/debugging/stacktrace.h"
 
-#include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
@@ -47,18 +46,6 @@
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/stacktrace_config.h"
-
-#ifdef _WIN32
-#include <malloc.h>
-#else
-#ifdef __has_include
-#if __has_include(<alloca.h>)
-#include <alloca.h>
-#elif !defined(alloca)
-extern "C" void* alloca(size_t) noexcept;
-#endif
-#endif
-#endif
 
 #if defined(ABSL_STACKTRACE_INL_HEADER)
 #include ABSL_STACKTRACE_INL_HEADER
@@ -111,14 +98,6 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
 internal_stacktrace::GetStackFrames(void** result, uintptr_t* frames,
                                     int* sizes, int max_depth, int skip_count) {
-  if (internal_stacktrace::ShouldFixUpStack()) {
-    size_t depth = static_cast<size_t>(Unwind<true, true>(
-        result, frames, sizes, max_depth, skip_count, nullptr, nullptr));
-    internal_stacktrace::FixUpStack(result, frames, sizes,
-                                    static_cast<size_t>(max_depth), depth);
-    return static_cast<int>(depth);
-  }
-
   return Unwind<true, false>(result, frames, sizes, max_depth, skip_count,
                              nullptr, nullptr);
 }
@@ -128,30 +107,12 @@ internal_stacktrace::GetStackFramesWithContext(void** result, uintptr_t* frames,
                                                int* sizes, int max_depth,
                                                int skip_count, const void* uc,
                                                int* min_dropped_frames) {
-  if (internal_stacktrace::ShouldFixUpStack()) {
-    size_t depth = static_cast<size_t>(Unwind<true, true>(
-        result, frames, sizes, max_depth, skip_count, uc, min_dropped_frames));
-    internal_stacktrace::FixUpStack(result, frames, sizes,
-                                    static_cast<size_t>(max_depth), depth);
-    return static_cast<int>(depth);
-  }
-
   return Unwind<true, true>(result, frames, sizes, max_depth, skip_count, uc,
                             min_dropped_frames);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(
     void** result, int max_depth, int skip_count) {
-  if (internal_stacktrace::ShouldFixUpStack()) {
-    const size_t nmax = static_cast<size_t>(max_depth);
-    uintptr_t* frames = static_cast<uintptr_t*>(alloca(nmax * sizeof(*frames)));
-    int* sizes = static_cast<int*>(alloca(nmax * sizeof(*sizes)));
-    size_t depth = static_cast<size_t>(Unwind<true, false>(
-        result, frames, sizes, max_depth, skip_count, nullptr, nullptr));
-    internal_stacktrace::FixUpStack(result, frames, sizes, nmax, depth);
-    return static_cast<int>(depth);
-  }
-
   return Unwind<false, false>(result, nullptr, nullptr, max_depth, skip_count,
                               nullptr, nullptr);
 }
@@ -159,16 +120,6 @@ ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
 GetStackTraceWithContext(void** result, int max_depth, int skip_count,
                          const void* uc, int* min_dropped_frames) {
-  if (internal_stacktrace::ShouldFixUpStack()) {
-    const size_t nmax = static_cast<size_t>(max_depth);
-    uintptr_t* frames = static_cast<uintptr_t*>(alloca(nmax * sizeof(*frames)));
-    int* sizes = static_cast<int*>(alloca(nmax * sizeof(*sizes)));
-    size_t depth = static_cast<size_t>(Unwind<true, true>(
-        result, frames, sizes, max_depth, skip_count, uc, min_dropped_frames));
-    internal_stacktrace::FixUpStack(result, frames, sizes, nmax, depth);
-    return static_cast<int>(depth);
-  }
-
   return Unwind<false, true>(result, nullptr, nullptr, max_depth, skip_count,
                              uc, min_dropped_frames);
 }
@@ -217,24 +168,6 @@ ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int DefaultStackUnwinder(
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return n;
 }
-
-ABSL_ATTRIBUTE_WEAK bool internal_stacktrace::ShouldFixUpStack() {
-  return false;
-}
-
-// Fixes up the stack trace of the current thread, in the first `depth` frames
-// of each buffer. The buffers need to be larger than `depth`, to accommodate
-// any newly inserted elements. `depth` is updated to reflect the new number of
-// elements valid across all the buffers. (It is therefore recommended that all
-// buffer sizes be equal.)
-//
-// The `frames` and `sizes` parameters denote the bounds of the stack frame
-// corresponding to each instruction pointer in the `pcs`.
-// Any elements inside these buffers may be zero or null, in which case that
-// information is assumed to be absent/unavailable.
-ABSL_ATTRIBUTE_WEAK void internal_stacktrace::FixUpStack(void**, uintptr_t*,
-                                                         int*, size_t,
-                                                         size_t&) {}
 
 ABSL_NAMESPACE_END
 }  // namespace absl
