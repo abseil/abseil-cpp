@@ -3555,8 +3555,8 @@ class raw_hash_set {
                                     size_t source_offset, size_t h1)) {
     const size_t new_capacity = common.capacity();
     const size_t old_capacity = PreviousCapacity(new_capacity);
-    ABSL_SWISSTABLE_ASSERT(old_capacity + 1 >= Group::kWidth);
-    ABSL_SWISSTABLE_ASSERT((old_capacity + 1) % Group::kWidth == 0);
+    ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
+    ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
 
     auto* set = reinterpret_cast<raw_hash_set*>(&common);
     slot_type* old_slots_ptr = to_slot(old_slots);
@@ -3567,7 +3567,7 @@ class raw_hash_set {
 
     for (size_t group_index = 0; group_index < old_capacity;
          group_index += Group::kWidth) {
-      Group old_g(old_ctrl + group_index);
+      GroupFullEmptyOrDeleted old_g(old_ctrl + group_index);
       std::memset(new_ctrl + group_index, static_cast<int8_t>(ctrl_t::kEmpty),
                   Group::kWidth);
       std::memset(new_ctrl + group_index + old_capacity + 1,
