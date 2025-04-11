@@ -53,7 +53,9 @@ void InitializeSymbolizer(const char*) {
     }
 
     // SymInitialize can fail sometimes with STATUS_INFO_LENGTH_MISMATCH
-    // (0xC0000004). In this case, we should try calling SymInitialize again.
+    // (0xC0000004), which can happen when a module load occurs during the
+    // SymInitialize call. In this case, we should try calling SymInitialize
+    // again.
     syminitialize_error = GetLastError();
     if (syminitialize_error != 0xC0000004) {
       break; 
