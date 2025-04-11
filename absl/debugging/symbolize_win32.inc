@@ -46,8 +46,8 @@ void InitializeSymbolizer(const char*) {
   // the symbol handler.
   SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
   DWORD syminitialize_error;
-  int syminitialize_remaining_retries = 5;
-  while (syminitialize_remaining_retries > 0) {
+  constexpr int kSymInitializeRetries = 5;
+  for(int i = 0; i < kSymInitializeRetries; i++) {
     if (SymInitialize(process, nullptr, true)) {
       return;
     }
@@ -55,10 +55,9 @@ void InitializeSymbolizer(const char*) {
     // SymInitialize can fail sometimes with STATUS_INFO_LENGTH_MISMATCH
     // (0xC0000004). In this case, we should try calling SymInitialize again.
     syminitialize_error = GetLastError();
-    if (syminitialize_error != 3221225476) {
+    if (syminitialize_error != 0xC0000004) {
       break; 
     }
-    syminitialize_remaining_retries--;
   }
 
   // GetLastError() returns a Win32 DWORD, but we assign to
