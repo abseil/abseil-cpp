@@ -1453,10 +1453,20 @@ inline size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
                                             size_t old_capacity,
                                             ctrl_t* new_ctrl,
                                             size_t new_capacity) {
-  size_t in_floating_group_index = (old_index - h1) & (Group::kWidth - 1);
-  size_t new_index = (h1 + in_floating_group_index) & new_capacity;
-  ABSL_ASSUME(new_index != kProbedElementIndexSentinel);
-  if (ABSL_PREDICT_TRUE((new_index & old_capacity) == old_index)) {
+  size_t index_diff = old_index - h1;
+  // The first probe group starts with h1 & capacity.
+  // All following groups start at (h1 + Group::kWidth * K) & capacity.
+  // We can find an index within the floating group as index_diff modulo
+  // Group::kWidth.
+  // Both old and new capacity are larger than Group::kWidth so we can avoid
+  // computing `& capacity`.
+  size_t in_floating_group_index = index_diff & (Group::kWidth - 1);
+  // By subtracting we will get the difference between the first probe group
+  // and the probe group corresponding to old_index.
+  index_diff -= in_floating_group_index;
+  if (ABSL_PREDICT_TRUE((index_diff & old_capacity) == 0)) {
+    size_t new_index = (h1 + in_floating_group_index) & new_capacity;
+    ABSL_ASSUME(new_index != kProbedElementIndexSentinel);
     return new_index;
   }
   ABSL_SWISSTABLE_ASSERT(((old_index - h1) & old_capacity) >= Group::kWidth);
