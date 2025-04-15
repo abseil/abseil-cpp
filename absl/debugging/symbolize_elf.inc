@@ -125,7 +125,10 @@ namespace {
 // Some platforms use a special .opd section to store function pointers.
 const char kOpdSectionName[] = ".opd";
 
-#if (defined(__powerpc__) && !(_CALL_ELF > 1)) || defined(__ia64)
+// _CALL_ELF is not guaranteed to be defined by the compiler.
+#define HAVE_PPC64_ELFV2_ABI (defined(__powerpc64__) && (defined(_CALL_ELF) && (_CALL_ELF == 2)))
+
+#if HAVE_PPC64_ELFV2_ABI || defined(__ia64)
 // Use opd section for function descriptors on these platforms, the function
 // address is the first word of the descriptor.
 enum { kPlatformUsesOPDSections = 1 };
@@ -1451,7 +1454,7 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       }
       phoff += phentsize;
 
-#if defined(__powerpc__) && !(_CALL_ELF > 1)
+#if HAVE_PPC64_ELFV2_ABI
       // On the PowerPC ELF v1 ABI, function pointers actually point to function
       // descriptors. These descriptors are stored in an .opd section, which is
       // mapped read-only. We thus need to look at all readable segments, not
