@@ -3093,6 +3093,9 @@ class raw_hash_set {
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
     while (true) {
+#ifndef ABSL_HAVE_MEMORY_SANITIZER
+      absl::PrefetchToLocalCache(slot_array() + seq.offset());
+#endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
@@ -3320,6 +3323,9 @@ class raw_hash_set {
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
     while (true) {
+#ifndef ABSL_HAVE_MEMORY_SANITIZER
+      absl::PrefetchToLocalCache(slot_array() + seq.offset());
+#endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
