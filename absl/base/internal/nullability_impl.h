@@ -15,12 +15,8 @@
 #ifndef ABSL_BASE_INTERNAL_NULLABILITY_IMPL_H_
 #define ABSL_BASE_INTERNAL_NULLABILITY_IMPL_H_
 
-#include <memory>
-#include <type_traits>
-
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/meta/type_traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
