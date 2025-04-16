@@ -126,13 +126,13 @@ namespace {
 const char kOpdSectionName[] = ".opd";
 
 // _CALL_ELF is not guaranteed to be defined by the compiler.
-#define HAVE_PPC64_ELFV2_ABI (defined(__powerpc64__) && (defined(_CALL_ELF) && (_CALL_ELF == 2)))
+#define HAVE_PPC64_ELFV1_ABI (defined(__powerpc64__) && (defined(_CALL_ELF) && (_CALL_ELF < 2)))
 
-#if HAVE_PPC64_ELFV2_ABI || defined(__ia64)
+#if HAVE_PPC64_ELFV1_ABI || defined(__ia64)
 // Use opd section for function descriptors on these platforms, the function
 // address is the first word of the descriptor.
 enum { kPlatformUsesOPDSections = 1 };
-#else  // not PPC or IA64
+#else  // not PPC64+ABIv1 or IA64
 enum { kPlatformUsesOPDSections = 0 };
 #endif
 
@@ -1454,8 +1454,8 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       }
       phoff += phentsize;
 
-#if HAVE_PPC64_ELFV2_ABI
-      // On the PowerPC ELF v1 ABI, function pointers actually point to function
+#if HAVE_PPC64_ELFV1_ABI
+      // On the PowerPC 64-bit ELF v1 ABI, function pointers actually point to function
       // descriptors. These descriptors are stored in an .opd section, which is
       // mapped read-only. We thus need to look at all readable segments, not
       // just the executable ones.
