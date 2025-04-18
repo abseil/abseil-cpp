@@ -96,9 +96,15 @@ void RandenPoolEntry::Fill(uint8_t* out, size_t bytes) {
 // Number of pooled urbg entries.
 static constexpr size_t kPoolSize = 8;
 
+// Struct to hold original and aligned pointers.
+struct AlignedPointer final {
+  char* original;            // Original pointer
+  RandenPoolEntry* aligned;  // Aligned pointer
+};
+
 // Shared pool entries.
 static absl::once_flag pool_once;
-ABSL_CACHELINE_ALIGNED static RandenPoolEntry* shared_pools[kPoolSize];
+ABSL_CACHELINE_ALIGNED static AlignedPointer shared_pools[kPoolSize];
 
 // Returns an id in the range [0 ... kPoolSize), which indexes into the
 // pool of random engines.
@@ -150,7 +156,7 @@ size_t GetPoolID() {
 
 // Allocate a RandenPoolEntry with at least 32-byte alignment, which is required
 // by ARM platform code.
-RandenPoolEntry* PoolAlignedAlloc() {
+AlignedPointer PoolAlignedAlloc() {
   constexpr size_t kAlignment =
       ABSL_CACHELINE_SIZE > 32 ? ABSL_CACHELINE_SIZE : 32;
 
@@ -161,7 +167,9 @@ RandenPoolEntry* PoolAlignedAlloc() {
       new char[sizeof(RandenPoolEntry) + kAlignment]);
   auto y = x % kAlignment;
   void* aligned = reinterpret_cast<void*>(y == 0 ? x : (x + kAlignment - y));
-  return new (aligned) RandenPoolEntry();
+
+  // Return original and aligned pointers
+  return {reinterpret_cast<char*>(x), new (aligned) RandenPoolEntry()};
 }
 
 // Allocate and initialize kPoolSize objects of type RandenPoolEntry.
@@ -175,7 +183,7 @@ void InitPoolURBG() {
   }
   for (size_t i = 0; i < kPoolSize; i++) {
     shared_pools[i] = PoolAlignedAlloc();
-    shared_pools[i]->Init(
+    shared_pools[i].aligned->Init(
         absl::MakeSpan(&seed_material[i * kSeedSize], kSeedSize));
   }
 }
@@ -183,7 +191,7 @@ void InitPoolURBG() {
 // Returns the pool entry for the current thread.
 RandenPoolEntry* GetPoolForCurrentThread() {
   absl::call_once(pool_once, InitPoolURBG);
-  return shared_pools[GetPoolID()];
+  return shared_pools[GetPoolID()].aligned;
 }
 
 }  // namespace
