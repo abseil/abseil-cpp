@@ -86,6 +86,9 @@
 // // A non-null function pointer.
 // void (*absl_nonnull func)(int, double);
 //
+// // A non-null array of `Employee`s as a parameter.
+// void func(Employee employees[absl_nonnull]);
+//
 // // A non-null std::unique_ptr to an `Employee`.
 // // As with `const`, it is possible to place the annotation on either side of
 // // a named type not ending in `*`, but placing it before the type it
