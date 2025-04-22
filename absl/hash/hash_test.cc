@@ -1223,4 +1223,20 @@ TEST(HashOf, MatchesTypeErasedHashState) {
                                     TypeErasedHashStateUser{1, s}));
 }
 
+struct AutoReturnTypeUser {
+  int a;
+  std::string b;
+
+  template <typename H>
+  friend auto AbslHashValue(H state, const AutoReturnTypeUser& value) {
+    return H::combine(std::move(state), value.a, value.b);
+  }
+};
+
+TEST(HashOf, AutoReturnTypeUser) {
+  std::string s = "s";
+  EXPECT_EQ(absl::HashOf(1, s),
+            absl::Hash<AutoReturnTypeUser>{}(AutoReturnTypeUser{1, s}));
+}
+
 }  // namespace

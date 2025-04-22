@@ -988,6 +988,8 @@ struct HashSelect {
                                     size_t);
     using State::HashStateBase::combine_contiguous;
     static State combine_raw(State state, uint64_t value);
+    static State combine_weakly_mixed_integer(State hash_state,
+                                              WeaklyMixedInteger value);
   };
 
   struct UniquelyRepresentedProbe {
