@@ -84,10 +84,6 @@
 #include <string_view>
 #endif
 
-#ifdef __ARM_ACLE
-#include <arm_acle.h>
-#endif
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
