@@ -1081,8 +1081,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   };
 
   static constexpr uint64_t kMul =
-  sizeof(size_t) == 4 ? uint64_t{0xcc9e2d51}
-                      : uint64_t{0xdcb22ca68cb134ed};
+   uint64_t{0xdcb22ca68cb134ed};
 
   template <typename T>
   using IntegralFastPath =
