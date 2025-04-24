@@ -1135,10 +1135,9 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
       MixingHashState hash_state, WeaklyMixedInteger value) {
     // Some transformation for the value is needed to make an empty
     // string/container change the mixing hash state.
-    // Seed() is most likely already in a register.
-    // TODO(b/384509507): experiment with using kMul or last 31 bits of kMul.
-    // See https://godbolt.org/z/6cM77s3PW for ideas.
-    return MixingHashState{hash_state.state_ + (Seed() + value.value)};
+    // We use constant smaller than 8 bits to make compiler use
+    // `add` with an immediate operand with 1 byte value.
+    return MixingHashState{hash_state.state_ + (0x57 + value.value)};
   }
 
   template <typename CombinerT>
