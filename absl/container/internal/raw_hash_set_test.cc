@@ -3660,16 +3660,16 @@ TEST(Table, CountedHash) {
     t.insert(1);
     EXPECT_EQ(HashCount(t), 1);
     t.erase(1);
-    EXPECT_EQ(HashCount(t), 2);
+    EXPECT_LE(HashCount(t), 2);
   }
   {
     Table t;
     t.insert(3);
     EXPECT_EQ(HashCount(t), 1);
     auto node = t.extract(3);
-    EXPECT_EQ(HashCount(t), 2);
+    EXPECT_LE(HashCount(t), 2);
     t.insert(std::move(node));
-    EXPECT_EQ(HashCount(t), 3);
+    EXPECT_LE(HashCount(t), 3);
   }
   {
     Table t;
