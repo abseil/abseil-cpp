@@ -2166,7 +2166,7 @@ class raw_hash_set {
       std::is_nothrow_default_constructible<key_equal>::value &&
       std::is_nothrow_default_constructible<allocator_type>::value) {}
 
-  ABSL_ATTRIBUTE_NOINLINE explicit raw_hash_set(
+  explicit raw_hash_set(
       size_t bucket_count, const hasher& hash = hasher(),
       const key_equal& eq = key_equal(),
       const allocator_type& alloc = allocator_type())
