@@ -996,6 +996,21 @@ TYPED_TEST(SooTest, Empty) {
   EXPECT_TRUE(t.empty());
 }
 
+TEST(Table, Prefetch) {
+  IntTable t;
+  t.emplace(1);
+  // Works for both present and absent keys.
+  t.prefetch(1);
+  t.prefetch(2);
+
+  static constexpr int size = 10;
+  for (int i = 0; i < size; ++i) t.insert(i);
+  for (int i = 0; i < size; ++i) {
+    t.prefetch(i);
+    ASSERT_TRUE(t.find(i) != t.end()) << i;
+  }
+}
+
 TYPED_TEST(SooTest, LookupEmpty) {
   TypeParam t;
   auto it = t.find(0);
