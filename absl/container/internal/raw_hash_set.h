@@ -2883,7 +2883,7 @@ class raw_hash_set {
     // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
     prefetch_heap_block();
-    auto seq = probe(common(), hash_ref()(key));
+    auto seq = probe(common(), hash_of(key));
     PrefetchToLocalCache(control() + seq.offset());
     PrefetchToLocalCache(slot_array() + seq.offset());
 #endif  // ABSL_HAVE_PREFETCH
@@ -2902,7 +2902,7 @@ class raw_hash_set {
     AssertOnFind(key);
     if (capacity() <= 1) return find_small(key);
     prefetch_heap_block();
-    return find_large(key, hash_ref()(key));
+    return find_large(key, hash_of(key));
   }
 
   template <class K = key_type>
@@ -3180,6 +3180,10 @@ class raw_hash_set {
                   sizeof(slot_type));
   }
 
+  template <class K>
+  size_t hash_of(const K& key) const {
+    return hash_ref()(key);
+  }
   size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(HashElement{hash_ref()},
                                PolicyTraits::element(slot));
@@ -3312,7 +3316,7 @@ class raw_hash_set {
         PolicyTraits::transfer_uses_memcpy() && SooEnabled();
     size_t index = GrowSooTableToNextCapacityAndPrepareInsert<
         kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type)) : 0,
-        kUseMemcpy>(common(), GetPolicyFunctions(), hash_ref()(key),
+        kUseMemcpy>(common(), GetPolicyFunctions(), hash_of(key),
                     soo_slot_ctrl);
     return {iterator_at(index), true};
   }
@@ -3321,7 +3325,7 @@ class raw_hash_set {
   std::pair<iterator, bool> find_or_prepare_insert_non_soo(const K& key) {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     prefetch_heap_block();
-    const size_t hash = hash_ref()(key);
+    const size_t hash = hash_of(key);
     auto seq = probe(common(), hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
@@ -3406,7 +3410,7 @@ class raw_hash_set {
     }
     if (empty()) return;
 
-    const size_t hash_of_arg = hash_ref()(key);
+    const size_t hash_of_arg = hash_of(key);
     const auto assert_consistent = [&](const ctrl_t*, void* slot) {
       const value_type& element =
           PolicyTraits::element(static_cast<slot_type*>(slot));
@@ -3768,7 +3772,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
                              const typename Set::key_type& key) {
     if (set.is_soo()) return 0;
     size_t num_probes = 0;
-    const size_t hash = set.hash_ref()(key);
+    const size_t hash = set.hash_of(key);
     auto seq = probe(set.common(), hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = set.control();
