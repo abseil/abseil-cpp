@@ -1753,6 +1753,11 @@ void ReserveEmptyNonAllocatedTableToFitBucketCount(
 // Type erased version of raw_hash_set::rehash.
 void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n);
 
+// Type erased version of copy constructor.
+void Copy(CommonFields& common, const PolicyFunctions& policy,
+          const CommonFields& other,
+          absl::FunctionRef<void(void*, const void*)> copy_fn);
+
 // Returns the optimal size for memcpy when transferring SOO slot.
 // Otherwise, returns the optimal size for memcpy SOO slot transfer
 // to SooSlotIndex().
@@ -2278,73 +2283,17 @@ class raw_hash_set {
                                allocator_type(that.char_alloc_ref()))) {}
 
   raw_hash_set(const raw_hash_set& that, const allocator_type& a)
-      : raw_hash_set(SizeToCapacity(that.size()), that.hash_ref(),
-                     that.eq_ref(), a) {
+      : raw_hash_set(0, that.hash_ref(), that.eq_ref(), a) {
     that.AssertNotDebugCapacity();
-    const size_t size = that.size();
-    if (size == 0) {
-      return;
-    }
-    // We don't use `that.is_soo()` here because `that` can have non-SOO
-    // capacity but have a size that fits into SOO capacity.
-    if (fits_in_soo(size)) {
-      ABSL_SWISSTABLE_ASSERT(size == 1);
-      common().set_full_soo();
-      emplace_at(soo_iterator(), *that.begin());
-      if (should_sample_soo()) {
-        GrowFullSooTableToNextCapacityForceSampling(common(),
-                                                    GetPolicyFunctions());
-      }
-      return;
-    }
-    ABSL_SWISSTABLE_ASSERT(!that.is_soo());
-    const size_t cap = capacity();
-    // Note about single group tables:
-    // 1. It is correct to have any order of elements.
-    // 2. Order has to be non deterministic.
-    // 3. We are assigning elements with arbitrary `shift` starting from
-    //    `capacity + shift` position.
-    // 4. `shift` must be coprime with `capacity + 1` in order to be able to use
-    //     modular arithmetic to traverse all positions, instead if cycling
-    //     through a subset of positions. Odd numbers are coprime with any
-    //     `capacity + 1` (2^N).
-    size_t offset = cap;
-    const size_t shift =
-        is_single_group(cap) ? (common().seed().seed() | 1) : 0;
-    IterateOverFullSlots(
-        that.common(), sizeof(slot_type),
-        [&](const ctrl_t* that_ctrl, void* that_slot_void) {
-          slot_type* that_slot = static_cast<slot_type*>(that_slot_void);
-          if (shift == 0) {
-            // Big tables case. Position must be searched via probing.
-            // The table is guaranteed to be empty, so we can do faster than
-            // a full `insert`.
-            const size_t hash = PolicyTraits::apply(
-                HashElement{hash_ref()}, PolicyTraits::element(that_slot));
-            FindInfo target = find_first_non_full(common(), hash);
-            infoz().RecordInsert(hash, target.probe_length);
-            offset = target.offset;
-          } else {
-            // Small tables case. Next position is computed via shift.
-            offset = (offset + shift) & cap;
-          }
-          const h2_t h2 = static_cast<h2_t>(*that_ctrl);
-          ABSL_SWISSTABLE_ASSERT(  // We rely that hash is not changed for small
-                                   // tables.
-              H2(PolicyTraits::apply(HashElement{hash_ref()},
-                                     PolicyTraits::element(that_slot))) == h2 &&
-              "hash function value changed unexpectedly during the copy");
-          SetCtrl(common(), offset, h2, sizeof(slot_type));
-          emplace_at(iterator_at(offset), PolicyTraits::element(that_slot));
-          common().maybe_increment_generation_on_insert();
-        });
-    if (shift != 0) {
-      // On small table copy we do not record individual inserts.
-      // RecordInsert requires hash, but it is unknown for small tables.
-      infoz().RecordStorageChanged(size, cap);
-    }
-    common().increment_size(size);
-    growth_info().OverwriteManyEmptyAsFull(size);
+    if (that.empty()) return;
+    Copy(common(), GetPolicyFunctions(), that.common(),
+         [this](void* dst, const void* src) {
+           // TODO(b/413598253): type erase for trivially copyable types via
+           // PolicyTraits.
+           construct(to_slot(dst),
+                     PolicyTraits::element(
+                         static_cast<slot_type*>(const_cast<void*>(src))));
+         });
   }
 
   ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(

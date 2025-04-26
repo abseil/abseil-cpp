@@ -3027,7 +3027,7 @@ std::vector<const HashtablezInfo*> SampleSooMutation(
   SetSamplingRateTo1Percent();
 
   auto& sampler = GlobalHashtablezSampler();
-  size_t start_size = 0;
+  int64_t start_size = 0;
   // Reserve the table, so that if it sampled, it'll be preexisting.
   absl::flat_hash_set<const HashtablezInfo*> preexisting_info(10);
   start_size += sampler.Iterate([&](const HashtablezInfo& info) {
@@ -3040,7 +3040,7 @@ std::vector<const HashtablezInfo*> SampleSooMutation(
     tables.emplace_back();
     mutate_table(tables.back());
   }
-  size_t end_size = 0;
+  int64_t end_size = 0;
   std::vector<const HashtablezInfo*> infos;
   end_size += sampler.Iterate([&](const HashtablezInfo& info) {
     ++end_size;
@@ -3122,6 +3122,29 @@ TEST(RawHashSamplerTest, SooTableReserveToFullSoo) {
   }
 }
 
+TEST(RawHashSamplerTest, SooTableSampleOnCopy) {
+  if (SooInt32Table().capacity() != SooCapacity()) {
+    CHECK_LT(sizeof(void*), 8) << "missing SOO coverage";
+    GTEST_SKIP() << "not SOO on this platform";
+  }
+
+  SooInt32Table t_orig;
+  t_orig.insert(1);
+
+  std::vector<const HashtablezInfo*> infos =
+      SampleSooMutation([&t_orig](SooInt32Table& t) {
+        t = t_orig;
+      });
+
+  for (const HashtablezInfo* info : infos) {
+    ASSERT_EQ(info->inline_element_size,
+              sizeof(typename SooInt32Table::value_type));
+    ASSERT_EQ(info->soo_capacity, SooCapacity());
+    ASSERT_EQ(info->capacity, NextCapacity(SooCapacity()));
+    ASSERT_EQ(info->size, 1);
+  }
+}
+
 // This tests that rehash(0) on a sampled table with size that fits in SOO
 // doesn't incorrectly result in losing sampling.
 TEST(RawHashSamplerTest, SooTableRehashShrinkWhenSizeFitsInSoo) {
@@ -3156,15 +3179,16 @@ TEST(RawHashSamplerTest, DoNotSampleCustomAllocators) {
   SetSamplingRateTo1Percent();
 
   auto& sampler = GlobalHashtablezSampler();
-  size_t start_size = 0;
+  int64_t start_size = 0;
   start_size += sampler.Iterate([&](const HashtablezInfo&) { ++start_size; });
 
   std::vector<CustomAllocIntTable> tables;
   for (int i = 0; i < 100000; ++i) {
     tables.emplace_back();
     tables.back().insert(1);
+    tables.push_back(tables.back());  // Copies the table.
   }
-  size_t end_size = 0;
+  int64_t end_size = 0;
   end_size += sampler.Iterate([&](const HashtablezInfo&) { ++end_size; });
 
   EXPECT_NEAR((end_size - start_size) / static_cast<double>(tables.size()),
