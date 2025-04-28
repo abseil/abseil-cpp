@@ -32,7 +32,6 @@
 #include "absl/container/internal/raw_hash_set_resize_impl.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
-#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
