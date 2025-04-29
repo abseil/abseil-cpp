@@ -28,12 +28,24 @@
 // defined.
 #include "absl/base/config.h"
 
+// GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
+// <version> instead, even though <version> is not available in C++17 mode prior
+// to GCC9.
+#if defined(__has_include)
+#if __has_include(<version>)
+#define ABSL_INTERNAL_VERSION_HEADER_AVAILABLE 1
+#endif
+#endif
+
 // For feature testing and determining which headers can be included.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L || \
+    ABSL_INTERNAL_VERSION_HEADER_AVAILABLE
 #include <version>
 #else
 #include <ciso646>
 #endif
+
+#undef ABSL_INTERNAL_VERSION_HEADER_AVAILABLE
 
 #include <algorithm>
 #include <array>
