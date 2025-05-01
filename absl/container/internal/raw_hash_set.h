@@ -514,6 +514,8 @@ class HashtableSize {
   // Sets the has_infoz bit.
   void set_has_infoz() { data_ |= kHasInfozMask; }
 
+  void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
+
  private:
   static constexpr size_t kSizeShift = 64 - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
@@ -1037,6 +1039,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // `kGenerateSeed && !empty() && !is_single_group(capacity())` because H1 is
   // being changed. In such cases, we will need to rehash the table.
   void generate_new_seed() { size_.generate_new_seed(); }
+  void set_no_seed_for_testing() { size_.set_no_seed_for_testing(); }
 
   // The total number of available slots.
   size_t capacity() const { return capacity_; }
