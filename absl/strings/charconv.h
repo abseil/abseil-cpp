@@ -48,9 +48,14 @@ struct from_chars_result {
   const char* absl_nonnull ptr;
   std::errc ec;
 
-  bool operator==(const from_chars_result&) = default;
+  constexpr friend bool operator==(const from_chars_result& l,
+                                   const from_chars_result& r) noexcept {
+    return l.ptr == r.ptr && l.ec == r.ec;
+  }
 
-  constexpr explicit operator bool() const noexcept { return ec == std::errc{}; }
+  constexpr explicit operator bool() const noexcept {
+    return ec == std::errc{};
+  }
 };
 
 // Workalike compatibility version of std::from_chars from C++17.  Currently
