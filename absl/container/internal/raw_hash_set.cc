@@ -295,6 +295,11 @@ size_t FindFirstFullSlot(size_t start, size_t end, const ctrl_t* ctrl) {
   ABSL_UNREACHABLE();
 }
 
+void PrepareInsertCommon(CommonFields& common) {
+  common.increment_size();
+  common.maybe_increment_generation_on_insert();
+}
+
 size_t DropDeletesWithoutResizeAndPrepareInsert(CommonFields& common,
                                                 const PolicyFunctions& policy,
                                                 size_t new_hash) {
