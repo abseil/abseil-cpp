@@ -111,7 +111,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+#if !defined(ABSL_USES_STD_STRING_VIEW)
 #include <string_view>
 #endif
 
@@ -366,7 +366,7 @@ class AlphaNum {
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(pc) {}
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+#if !defined(ABSL_USES_STD_STRING_VIEW)
   AlphaNum(std::string_view pc  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(pc.data(), pc.size()) {}
