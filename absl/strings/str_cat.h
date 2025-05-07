@@ -191,26 +191,26 @@ struct Hex {
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 1 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint8_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 2 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint16_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 4 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint32_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 8 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
   explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
@@ -262,7 +262,7 @@ struct Dec {
 
   template <typename Int>
   explicit Dec(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<(sizeof(Int) <= 8)>::type* = nullptr)
+               std::enable_if_t<sizeof(Int) <= 8, bool> = true)
       : value(v >= 0 ? static_cast<uint64_t>(v)
                      : uint64_t{0} - static_cast<uint64_t>(v)),
         width(spec == absl::kNoPad       ? 1
