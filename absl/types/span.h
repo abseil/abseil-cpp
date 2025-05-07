@@ -202,10 +202,11 @@ class ABSL_ATTRIBUTE_VIEW Span {
  public:
   using element_type = T;
   using value_type = absl::remove_cv_t<T>;
-  // TODO(b/316099902) - pointer should be Nullable<T*>, but this makes it hard
-  // to recognize foreach loops as safe.
-  using pointer = T*;
-  using const_pointer = const T*;
+  // TODO(b/316099902) - pointer should be absl_nullable, but this makes it hard
+  // to recognize foreach loops as safe. absl_nullability_unknown is currently
+  // used to suppress -Wnullability-completeness warnings.
+  using pointer = T* absl_nullability_unknown;
+  using const_pointer = const T* absl_nullability_unknown;
   using reference = T&;
   using const_reference = const T&;
   using iterator = pointer;
@@ -220,7 +221,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   static const size_type npos = ~(size_type(0));
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
-  constexpr Span(pointer absl_nullable array ABSL_ATTRIBUTE_LIFETIME_BOUND,
+  constexpr Span(pointer array ABSL_ATTRIBUTE_LIFETIME_BOUND,
                  size_type length) noexcept
       : ptr_(array), len_(length) {}
 
@@ -310,7 +311,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   //
   // Returns a pointer to the span's underlying array of data (which is held
   // outside the span).
-  constexpr pointer absl_nullable data() const noexcept { return ptr_; }
+  constexpr pointer data() const noexcept { return ptr_; }
 
   // Span::size()
   //
@@ -368,31 +369,27 @@ class ABSL_ATTRIBUTE_VIEW Span {
   //
   // Returns an iterator pointing to the first element of this span, or `end()`
   // if the span is empty.
-  constexpr iterator absl_nullable begin() const noexcept { return data(); }
+  constexpr iterator begin() const noexcept { return data(); }
 
   // Span::cbegin()
   //
   // Returns a const iterator pointing to the first element of this span, or
   // `end()` if the span is empty.
-  constexpr const_iterator absl_nullable cbegin() const noexcept {
-    return begin();
-  }
+  constexpr const_iterator cbegin() const noexcept { return begin(); }
 
   // Span::end()
   //
   // Returns an iterator pointing just beyond the last element at the
   // end of this span. This iterator acts as a placeholder; attempting to
   // access it results in undefined behavior.
-  constexpr iterator absl_nullable end() const noexcept {
-    return data() + size();
-  }
+  constexpr iterator end() const noexcept { return data() + size(); }
 
   // Span::cend()
   //
   // Returns a const iterator pointing just beyond the last element at the
   // end of this span. This iterator acts as a placeholder; attempting to
   // access it results in undefined behavior.
-  constexpr const_iterator absl_nullable cend() const noexcept { return end(); }
+  constexpr const_iterator cend() const noexcept { return end(); }
 
   // Span::rbegin()
   //
@@ -507,7 +504,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   }
 
  private:
-  pointer absl_nullable ptr_;
+  pointer ptr_;
   size_type len_;
 };
 
