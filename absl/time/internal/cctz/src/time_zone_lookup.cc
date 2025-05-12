@@ -57,6 +57,8 @@
 #endif  // __has_include
 #endif  // _WIN32
 
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -121,25 +123,25 @@ std::string win32_local_time_zone() {
     return "";
   }
 
-  UChar buffer[128];
+  std::array<UChar, 128> buffer;
   UErrorCode status = U_ZERO_ERROR;
   const auto num_chars_in_buffer = ucal_getTimeZoneIDForWindowsIDFunc(
-      reinterpret_cast<const UChar*>(info.TimeZoneKeyName), -1, nullptr, buffer,
-      ARRAYSIZE(buffer), &status);
+      reinterpret_cast<const UChar*>(info.TimeZoneKeyName), -1, nullptr,
+      buffer.data(), static_cast<int32_t>(buffer.size()), &status);
   if (status != U_ZERO_ERROR || num_chars_in_buffer <= 0 ||
-      num_chars_in_buffer > ARRAYSIZE(buffer)) {
+      num_chars_in_buffer > static_cast<int32_t>(buffer.size())) {
     return "";
   }
 
   const int num_bytes_in_utf8 = ::WideCharToMultiByte(
-      CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer),
+      CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer.data()),
       static_cast<int>(num_chars_in_buffer), nullptr, 0, nullptr, nullptr);
   std::string local_time_str;
   local_time_str.resize(static_cast<size_t>(num_bytes_in_utf8));
-  ::WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer),
-                        static_cast<int>(num_chars_in_buffer),
-                        &local_time_str[0], num_bytes_in_utf8, nullptr,
-                        nullptr);
+  ::WideCharToMultiByte(
+       CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer.data()),
+       static_cast<int>(num_chars_in_buffer), &local_time_str[0],
+       num_bytes_in_utf8, nullptr, nullptr);
   return local_time_str;
 }
 #endif  // USE_WIN32_LOCAL_TIME_ZONE
