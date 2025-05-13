@@ -1223,6 +1223,10 @@ constexpr size_t SizeToCapacity(size_t size) {
   // NormalizeCapacity(size).
   int leading_zeros = absl::countl_zero(size);
   constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
+  // max_size_for_next_capacity = max_load_factor * next_capacity
+  //                            = (7/8) * (~size_t{} >> leading_zeros)
+  //                            = (7/8*~size_t{}) >> leading_zeros
+  //                            = kLast3Bits >> leading_zeros
   size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
   // Decrease shift if size is too big for the minimum capacity.
   leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
