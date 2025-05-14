@@ -526,9 +526,8 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeThreeElementsControlBytes(
 
 }  // namespace
 
-void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
-  ABSL_SWISSTABLE_ASSERT(IsFull(c.control()[index]) &&
-                         "erasing a dangling iterator");
+void EraseMetaOnly(CommonFields& c, const ctrl_t* ctrl, size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(IsFull(*ctrl) && "erasing a dangling iterator");
   c.decrement_size();
   c.infoz().RecordErase();
 
@@ -537,6 +536,8 @@ void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size) {
     c.growth_info().OverwriteFullAsEmpty();
     return;
   }
+
+  size_t index = static_cast<size_t>(ctrl - c.control());
 
   if (WasNeverFull(c, index)) {
     SetCtrl(c, index, ctrl_t::kEmpty, slot_size);

@@ -1847,7 +1847,7 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        void* alloc, bool reuse, bool soo_enabled);
 
 // Type-erased version of raw_hash_set::erase_meta_only.
-void EraseMetaOnly(CommonFields& c, size_t index, size_t slot_size);
+void EraseMetaOnly(CommonFields& c, const ctrl_t* ctrl, size_t slot_size);
 
 // For trivially relocatable types we use memcpy directly. This allows us to
 // share the same function body for raw_hash_set instantiations that have the
@@ -3140,8 +3140,7 @@ class raw_hash_set {
       common().set_empty_soo();
       return;
     }
-    EraseMetaOnly(common(), static_cast<size_t>(it.control() - control()),
-                  sizeof(slot_type));
+    EraseMetaOnly(common(), it.control(), sizeof(slot_type));
   }
 
   template <class K>
@@ -3691,8 +3690,7 @@ struct HashtableFreeFunctionsAccess {
           auto* slot = static_cast<SlotType*>(slot_void);
           if (pred(Set::PolicyTraits::element(slot))) {
             c->destroy(slot);
-            EraseMetaOnly(c->common(), static_cast<size_t>(ctrl - c->control()),
-                          sizeof(*slot));
+            EraseMetaOnly(c->common(), ctrl, sizeof(*slot));
             ++num_deleted;
           }
         });
