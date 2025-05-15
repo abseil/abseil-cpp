@@ -443,6 +443,7 @@ void ResetCtrl(CommonFields& common, size_t slot_size) {
   ctrl_t* ctrl = common.control();
   static constexpr size_t kTwoGroupCapacity = 2 * Group::kWidth - 1;
   if (ABSL_PREDICT_TRUE(capacity <= kTwoGroupCapacity)) {
+    if (IsSmallCapacity(capacity)) return;
     std::memset(ctrl, static_cast<int8_t>(ctrl_t::kEmpty), Group::kWidth);
     std::memset(ctrl + capacity, static_cast<int8_t>(ctrl_t::kEmpty),
                 Group::kWidth);
@@ -591,13 +592,14 @@ size_t FindNewPositionsAndTransferSlots(
 
   const auto insert_slot = [&](void* slot) {
     size_t hash = policy.hash_slot(hash_fn, slot);
-    auto target = find_first_non_full(common, hash);
+    FindInfo target =
+        common.is_small() ? FindInfo{0, 0} : find_first_non_full(common, hash);
     SetCtrl(common, target.offset, H2(hash), slot_size);
     policy.transfer_n(&common, SlotAddress(new_slots, target.offset, slot_size),
                       slot, 1);
     return target.probe_length;
   };
-  if (old_capacity == 1) {
+  if (IsSmallCapacity(old_capacity)) {
     if (common.size() == 1) insert_slot(old_slots);
     return 0;
   }
@@ -1343,8 +1345,6 @@ void SmallEmptyNonSooPrepareInsert(CommonFields& common,
   const bool has_infoz = infoz.IsSampled();
   void* alloc = policy.get_char_alloc(common);
 
-  // TODO(b/413062340): don't allocate control bytes for capacity 1 tables. We
-  // don't use the control bytes in this case.
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc);
   common.set_control</*kGenerateSeed=*/true>(new_ctrl);

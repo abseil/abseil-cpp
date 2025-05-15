@@ -796,7 +796,7 @@ constexpr size_t NumClonedBytes() { return Group::kWidth - 1; }
 
 // Returns the number of control bytes including cloned.
 constexpr size_t NumControlBytes(size_t capacity) {
-  return capacity + 1 + NumClonedBytes();
+  return IsSmallCapacity(capacity) ? 0 : capacity + 1 + NumClonedBytes();
 }
 
 // Computes the offset from the start of the backing allocation of control.

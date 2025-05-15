@@ -1184,7 +1184,7 @@ TYPED_TEST(SmallTableResizeTest, InsertIntoSmallTable) {
     t.insert(i);
     ASSERT_EQ(t.size(), i + 1);
     for (int j = 0; j < i + 1; ++j) {
-      EXPECT_TRUE(t.find(j) != t.end());
+      ASSERT_TRUE(t.find(j) != t.end());
       EXPECT_EQ(*t.find(j), j);
     }
   }
@@ -1207,7 +1207,7 @@ TYPED_TEST(SmallTableResizeTest, ResizeGrowSmallTables) {
           t.reserve(target_size);
         }
         for (size_t i = 0; i < source_size; ++i) {
-          EXPECT_TRUE(t.find(static_cast<int>(i)) != t.end());
+          ASSERT_TRUE(t.find(static_cast<int>(i)) != t.end());
           EXPECT_EQ(*t.find(static_cast<int>(i)), static_cast<int>(i));
         }
       }
@@ -1232,7 +1232,7 @@ TYPED_TEST(SmallTableResizeTest, ResizeReduceSmallTables) {
             << "rehash(0) must resize to the minimum capacity";
       }
       for (size_t i = 0; i < inserted_count; ++i) {
-        EXPECT_TRUE(t.find(static_cast<int>(i)) != t.end());
+        ASSERT_TRUE(t.find(static_cast<int>(i)) != t.end());
         EXPECT_EQ(*t.find(static_cast<int>(i)), static_cast<int>(i));
       }
     }
