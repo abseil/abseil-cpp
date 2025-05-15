@@ -44,7 +44,7 @@ uint64_t MixingHashState::CombineLargeContiguousImpl32(
 uint64_t MixingHashState::CombineLargeContiguousImpl64(
     uint64_t state, const unsigned char* first, size_t len) {
   while (len >= PiecewiseChunkSize()) {
-    state = Mix(state ^ Hash64(first, PiecewiseChunkSize()), kMul);
+    state = Hash64(first, PiecewiseChunkSize(), state);
     len -= PiecewiseChunkSize();
     first += PiecewiseChunkSize();
   }

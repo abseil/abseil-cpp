@@ -1324,12 +1324,13 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   }
 
   ABSL_ATTRIBUTE_ALWAYS_INLINE static uint64_t Hash64(const unsigned char* data,
-                                                      size_t len) {
+                                                      size_t len,
+                                                      uint64_t state) {
 #ifdef ABSL_HAVE_INTRINSIC_INT128
-    return LowLevelHashLenGt32(data, len, Seed());
+    return LowLevelHashLenGt32(data, len, state);
 #else
     return hash_internal::CityHash64WithSeed(
-        reinterpret_cast<const char*>(data), len, Seed());
+        reinterpret_cast<const char*>(data), len, state);
 #endif
   }
 
@@ -1399,7 +1400,7 @@ inline uint64_t MixingHashState::CombineContiguousImpl(
     return CombineContiguousImpl17to32(state, first, len);
   }
   if (ABSL_PREDICT_TRUE(len <= PiecewiseChunkSize())) {
-    return Mix(state ^ Hash64(first, len), kMul);
+    return Hash64(first, len, state);
   }
   return CombineLargeContiguousImpl64(state, first, len);
 }
