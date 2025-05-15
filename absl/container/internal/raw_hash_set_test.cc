@@ -4267,8 +4267,8 @@ struct ConstUint8Hash {
 // 5. Finally we will catch up and go to overflow codepath.
 TEST(Table, GrowExtremelyLargeTable) {
   constexpr size_t kTargetCapacity =
-#if defined(__wasm__) || defined(__asmjs__)
-      NextCapacity(ProbedItem4Bytes::kMaxNewCapacity);  // OOMs on WASM.
+#if defined(__wasm__) || defined(__asmjs__) || defined(__i386__)
+      NextCapacity(ProbedItem4Bytes::kMaxNewCapacity);  // OOMs on WASM, 32-bit.
 #else
       NextCapacity(ProbedItem8Bytes::kMaxNewCapacity);
 #endif
