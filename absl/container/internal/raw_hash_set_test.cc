@@ -423,10 +423,6 @@ TEST(BitMask, LeadingTrailing) {
   EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).TrailingZeros()), 7);
 }
 
-TEST(Group, EmptyGroup) {
-  for (h2_t h = 0; h != 128; ++h) EXPECT_FALSE(Group{EmptyGroup()}.Match(h));
-}
-
 TEST(Group, Match) {
   if (Group::kWidth == 16) {
     ctrl_t group[] = {ctrl_t::kEmpty, CtrlT(1), ctrl_t::kDeleted,  CtrlT(3),

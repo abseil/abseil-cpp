@@ -380,10 +380,7 @@ constexpr bool IsNoThrowSwappable(std::false_type /* is_swappable */) {
   return false;
 }
 
-// See definition comment for why this is size 32.
-// TODO(b/413062340): we can probably reduce this to 16 now that it's only used
-// for default-constructed iterators.
-ABSL_DLL extern const ctrl_t kEmptyGroup[32];
+ABSL_DLL extern ctrl_t kDefaultIterControl;
 
 // We use these sentinel capacity values in debug mode to indicate different
 // classes of bugs.
@@ -397,13 +394,9 @@ enum InvalidCapacity : size_t {
   kSelfMovedFrom,
 };
 
-// Returns a pointer to a control byte group that can be used by
-// default-constructed iterators.
-inline ctrl_t* EmptyGroup() {
-  // Const must be cast away here; no uses of this function will actually write
-  // to it because it is only used for default-constructed iterators.
-  return const_cast<ctrl_t*>(kEmptyGroup + 16);
-}
+// Returns a pointer to a control byte that can be used by default-constructed
+// iterators. We don't expect this pointer to be dereferenced.
+inline ctrl_t* DefaultIterControl() { return &kDefaultIterControl; }
 
 // For use in SOO iterators.
 // TODO(b/289225379): we could potentially get rid of this by adding an is_soo
@@ -1269,7 +1262,7 @@ inline void AssertIsFull(const ctrl_t* ctrl, GenerationType generation,
   if (ABSL_PREDICT_FALSE(ctrl == nullptr)) {
     ABSL_RAW_LOG(FATAL, "%s called on end() iterator.", operation);
   }
-  if (ABSL_PREDICT_FALSE(ctrl == EmptyGroup())) {
+  if (ABSL_PREDICT_FALSE(ctrl == DefaultIterControl())) {
     ABSL_RAW_LOG(FATAL, "%s called on default-constructed iterator.",
                  operation);
   }
@@ -1304,7 +1297,7 @@ inline void AssertIsValidForComparison(const ctrl_t* ctrl,
                                        const GenerationType* generation_ptr) {
   if (!SwisstableDebugEnabled()) return;
   const bool ctrl_is_valid_for_comparison =
-      ctrl == nullptr || ctrl == EmptyGroup() || IsFull(*ctrl);
+      ctrl == nullptr || ctrl == DefaultIterControl() || IsFull(*ctrl);
   if (SwisstableGenerationsEnabled()) {
     if (ABSL_PREDICT_FALSE(generation != *generation_ptr)) {
       ABSL_RAW_LOG(FATAL,
@@ -1370,8 +1363,8 @@ inline void AssertSameContainer(const ctrl_t* ctrl_a, const ctrl_t* ctrl_b,
     }
   };
 
-  const bool a_is_default = ctrl_a == EmptyGroup();
-  const bool b_is_default = ctrl_b == EmptyGroup();
+  const bool a_is_default = ctrl_a == DefaultIterControl();
+  const bool b_is_default = ctrl_b == DefaultIterControl();
   if (a_is_default && b_is_default) return;
   fail_if(a_is_default != b_is_default,
           "Comparing default-constructed hashtable iterator with a "
@@ -2110,9 +2103,9 @@ class raw_hash_set {
     ctrl_t* control() const { return ctrl_; }
     slot_type* slot() const { return slot_; }
 
-    // We use EmptyGroup() for default-constructed iterators so that they can
-    // be distinguished from end iterators, which have nullptr ctrl_.
-    ctrl_t* ctrl_ = EmptyGroup();
+    // We use DefaultIterControl() for default-constructed iterators so that
+    // they can be distinguished from end iterators, which have nullptr ctrl_.
+    ctrl_t* ctrl_ = DefaultIterControl();
     // To avoid uninitialized member warnings, put slot_ in an anonymous union.
     // The member is not initialized on singleton and end iterators.
     union {

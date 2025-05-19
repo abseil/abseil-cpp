@@ -40,20 +40,9 @@ namespace container_internal {
 // Represents a control byte corresponding to a full slot with arbitrary hash.
 constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
 
-// We have space for `growth_info` before a single block of control bytes. A
-// single block of empty control bytes for tables without any slots allocated.
-// This enables removing a branch in the hot path of find(). In order to ensure
-// that the control bytes are aligned to 16, we have 16 bytes before the control
-// bytes even though growth_info only needs 8.
-alignas(16) ABSL_CONST_INIT ABSL_DLL const ctrl_t kEmptyGroup[32] = {
-    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
-    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
-    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
-    ZeroCtrlT(),       ZeroCtrlT(),    ZeroCtrlT(),    ZeroCtrlT(),
-    ctrl_t::kSentinel, ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty, ctrl_t::kEmpty};
+// A single control byte for default-constructed iterators. We leave it
+// uninitialized because reading this memory is a bug.
+ABSL_DLL ctrl_t kDefaultIterControl;
 
 // We need one full byte followed by a sentinel byte for iterator::operator++ to
 // work. We have a full group after kSentinel to be safe (in case operator++ is
@@ -64,8 +53,6 @@ ABSL_CONST_INIT ABSL_DLL const ctrl_t kSooControl[17] = {
     ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
     ctrl_t::kEmpty};
-static_assert(NumControlBytes(SooCapacity()) <= 17,
-              "kSooControl capacity too small");
 
 namespace {
 
