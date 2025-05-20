@@ -845,23 +845,6 @@ class RawHashSetLayout {
 
 struct HashtableFreeFunctionsAccess;
 
-// Suppress erroneous uninitialized memory errors on GCC. For example, GCC
-// thinks that the call to slot_array() in find_or_prepare_insert() is reading
-// uninitialized memory, but slot_array is only called there when the table is
-// non-empty and this memory is initialized when the table is non-empty.
-#if !defined(__clang__) && defined(__GNUC__)
-#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x)                    \
-  _Pragma("GCC diagnostic push")                                   \
-      _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")  \
-          _Pragma("GCC diagnostic ignored \"-Wuninitialized\"") x; \
-  _Pragma("GCC diagnostic pop")
-#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) \
-  ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(return x)
-#else
-#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x) x
-#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) return x
-#endif
-
 // This allows us to work around an uninitialized memory warning when
 // constructing begin() iterators in empty hashtables.
 template <typename T>
@@ -1820,6 +1803,7 @@ void GrowFullSooTableToNextCapacityForceSampling(CommonFields& common,
 size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
                                           const PolicyFunctions& policy,
                                           size_t new_hash);
+
 // When growing from capacity 0 to 1, we only need the hash if the table ends up
 // being sampled so don't compute it unless needed.
 void SmallEmptyNonSooPrepareInsert(CommonFields& common,
@@ -2964,24 +2948,6 @@ class raw_hash_set {
     const raw_hash_set& s;
   };
 
-  struct HashElement {
-    template <class K, class... Args>
-    size_t operator()(const K& key, Args&&...) const {
-      return h(key);
-    }
-    const hasher& h;
-  };
-
-  template <class K1>
-  struct EqualElement {
-    template <class K2, class... Args>
-    bool operator()(const K2& lhs, Args&&...) const {
-      ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(eq(lhs, rhs));
-    }
-    const K1& rhs;
-    const key_equal& eq;
-  };
-
   struct EmplaceDecomposable {
     template <class K, class... Args>
     std::pair<iterator, bool> operator()(const K& key, Args&&... args) const {
@@ -3036,8 +3002,9 @@ class raw_hash_set {
   template <class K = key_type>
   iterator find_small(const key_arg<K>& key) {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    return empty() || !PolicyTraits::apply(EqualElement<K>{key, eq_ref()},
-                                           PolicyTraits::element(single_slot()))
+    return empty() || !PolicyTraits::apply(
+                          EqualElement<K, key_equal>{key, eq_ref()},
+                          PolicyTraits::element(single_slot()))
                ? end()
                : single_iterator();
   }
@@ -3055,7 +3022,7 @@ class raw_hash_set {
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
-                EqualElement<K>{key, eq_ref()},
+                EqualElement<K, key_equal>{key, eq_ref()},
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
           return iterator_at(seq.offset(i));
       }
@@ -3138,10 +3105,10 @@ class raw_hash_set {
 
   template <class K>
   size_t hash_of(const K& key) const {
-    return hash_ref()(key);
+    return HashElement<hasher>{hash_ref()}(key);
   }
   size_t hash_of(slot_type* slot) const {
-    return PolicyTraits::apply(HashElement{hash_ref()},
+    return PolicyTraits::apply(HashElement<hasher>{hash_ref()},
                                PolicyTraits::element(slot));
   }
 
@@ -3260,7 +3227,7 @@ class raw_hash_set {
     if (empty()) {
       if (!SooEnabled()) {
         SmallEmptyNonSooPrepareInsert(common(), GetPolicyFunctions(),
-                                      [&] { return hash_of(key); });
+                                      HashKey<hasher, K>{hash_ref(), key});
         return {single_iterator(), true};
       }
       if (!should_sample_soo()) {
@@ -3268,7 +3235,7 @@ class raw_hash_set {
         return {single_iterator(), true};
       }
       soo_slot_ctrl = ctrl_t::kEmpty;
-    } else if (PolicyTraits::apply(EqualElement<K>{key, eq_ref()},
+    } else if (PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
                                    PolicyTraits::element(single_slot()))) {
       return {single_iterator(), false};
     } else if constexpr (SooEnabled()) {
@@ -3307,7 +3274,7 @@ class raw_hash_set {
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
-                EqualElement<K>{key, eq_ref()},
+                EqualElement<K, key_equal>{key, eq_ref()},
                 PolicyTraits::element(slot_array() + seq.offset(i)))))
           return {iterator_at(seq.offset(i)), false};
       }
@@ -3385,12 +3352,12 @@ class raw_hash_set {
     const auto assert_consistent = [&](const ctrl_t*, void* slot) {
       const value_type& element =
           PolicyTraits::element(static_cast<slot_type*>(slot));
-      const bool is_key_equal =
-          PolicyTraits::apply(EqualElement<K>{key, eq_ref()}, element);
+      const bool is_key_equal = PolicyTraits::apply(
+          EqualElement<K, key_equal>{key, eq_ref()}, element);
       if (!is_key_equal) return;
 
       const size_t hash_of_slot =
-          PolicyTraits::apply(HashElement{hash_ref()}, element);
+          PolicyTraits::apply(HashElement<hasher>{hash_ref()}, element);
       ABSL_ATTRIBUTE_UNUSED const bool is_hash_equal =
           hash_of_arg == hash_of_slot;
       assert((!is_key_equal || is_hash_equal) &&
@@ -3750,7 +3717,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
       container_internal::Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         if (Traits::apply(
-                typename Set::template EqualElement<typename Set::key_type>{
+                EqualElement<typename Set::key_type, typename Set::key_equal>{
                     key, set.eq_ref()},
                 Traits::element(set.slot_array() + seq.offset(i))))
           return num_probes;
