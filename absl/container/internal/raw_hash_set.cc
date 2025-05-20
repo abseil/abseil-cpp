@@ -1250,15 +1250,20 @@ size_t GrowToNextCapacityDispatch(CommonFields& common,
   }
 }
 
+void IncrementSmallSizeNonSoo(CommonFields& common,
+                              const PolicyFunctions& __restrict policy) {
+  ABSL_SWISSTABLE_ASSERT(common.is_small());
+  common.increment_size();
+  SanitizerUnpoisonMemoryRegion(common.slot_array(), policy.slot_size);
+}
+
 void IncrementSmallSize(CommonFields& common,
                         const PolicyFunctions& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   if (policy.soo_enabled) {
     common.set_full_soo();
   } else {
-    common.increment_size();
-    common.growth_info().OverwriteEmptyAsFull();
-    SanitizerUnpoisonMemoryRegion(common.slot_array(), policy.slot_size);
+    IncrementSmallSizeNonSoo(common, policy);
   }
 }
 
@@ -1390,7 +1395,7 @@ std::pair<ctrl_t*, void*> SmallNonSooPrepareInsert(
   ABSL_SWISSTABLE_ASSERT(!policy.soo_enabled);
   if (common.capacity() == 1) {
     if (common.empty()) {
-      IncrementSmallSize(common, policy);
+      IncrementSmallSizeNonSoo(common, policy);
       return {SooControl(), common.slot_array()};
     } else {
       return Grow1To3AndPrepareInsert(common, policy, get_hash);
