@@ -1792,23 +1792,13 @@ size_t GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
                                                   size_t new_hash,
                                                   ctrl_t soo_slot_ctrl);
 
-// As `ResizeFullSooTableToNextCapacity`, except that we also force the SOO
-// table to be sampled. SOO tables need to switch from SOO to heap in order to
-// store the infoz. No-op if sampling is disabled or not possible.
-void GrowFullSooTableToNextCapacityForceSampling(CommonFields& common,
-                                                 const PolicyFunctions& policy);
-
-// Grows to next capacity and prepares insert for the given new_hash.
-// Returns the offset of the new element.
-size_t GrowToNextCapacityAndPrepareInsert(CommonFields& common,
-                                          const PolicyFunctions& policy,
-                                          size_t new_hash);
-
-// When growing from capacity 0 to 1, we only need the hash if the table ends up
-// being sampled so don't compute it unless needed.
-void SmallEmptyNonSooPrepareInsert(CommonFields& common,
-                                   const PolicyFunctions& policy,
-                                   absl::FunctionRef<size_t()> get_hash);
+// PrepareInsert for small tables (is_small()==true).
+// Returns the new control and the new slot.
+// Hash is only computed if the table is sampled or grew to large size
+// (is_small()==false).
+std::pair<ctrl_t*, void*> SmallNonSooPrepareInsert(
+    CommonFields& common, const PolicyFunctions& policy,
+    absl::FunctionRef<size_t()> get_hash);
 
 // Resizes table with allocated slots and change the table seed.
 // Tables with SOO enabled must have capacity > policy.soo_capacity.
@@ -3221,15 +3211,10 @@ class raw_hash_set {
   }
 
   template <class K>
-  std::pair<iterator, bool> find_or_prepare_insert_small(const K& key) {
-    ABSL_SWISSTABLE_ASSERT(is_small());
-    [[maybe_unused]] ctrl_t soo_slot_ctrl;
+  std::pair<iterator, bool> find_or_prepare_insert_soo(const K& key) {
+    ABSL_SWISSTABLE_ASSERT(is_soo());
+    ctrl_t soo_slot_ctrl;
     if (empty()) {
-      if (!SooEnabled()) {
-        SmallEmptyNonSooPrepareInsert(common(), GetPolicyFunctions(),
-                                      HashKey<hasher, K>{hash_ref(), key});
-        return {single_iterator(), true};
-      }
       if (!should_sample_soo()) {
         common().set_full_soo();
         return {single_iterator(), true};
@@ -3238,25 +3223,35 @@ class raw_hash_set {
     } else if (PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
                                    PolicyTraits::element(single_slot()))) {
       return {single_iterator(), false};
-    } else if constexpr (SooEnabled()) {
+    } else {
       soo_slot_ctrl = static_cast<ctrl_t>(H2(hash_of(single_slot())));
     }
     ABSL_SWISSTABLE_ASSERT(capacity() == 1);
     const size_t hash = hash_of(key);
-    size_t index;
-    if constexpr (SooEnabled()) {
-      constexpr bool kUseMemcpy =
-          PolicyTraits::transfer_uses_memcpy() && SooEnabled();
-      index = GrowSooTableToNextCapacityAndPrepareInsert<
-          kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type))
-                     : 0,
-          kUseMemcpy>(common(), GetPolicyFunctions(), hash, soo_slot_ctrl);
-    } else {
-      // TODO(b/413062340): add specialized function for growing from 1 to 3.
-      index = GrowToNextCapacityAndPrepareInsert(common(), GetPolicyFunctions(),
-                                                 hash);
-    }
+    constexpr bool kUseMemcpy =
+        PolicyTraits::transfer_uses_memcpy() && SooEnabled();
+    size_t index = GrowSooTableToNextCapacityAndPrepareInsert<
+        kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type)) : 0,
+        kUseMemcpy>(common(), GetPolicyFunctions(), hash, soo_slot_ctrl);
     return {iterator_at(index), true};
+  }
+
+  template <class K>
+  std::pair<iterator, bool> find_or_prepare_insert_small(const K& key) {
+    ABSL_SWISSTABLE_ASSERT(is_small());
+    if constexpr (SooEnabled()) {
+      return find_or_prepare_insert_soo(key);
+    }
+    if (!empty()) {
+      if (PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
+                              PolicyTraits::element(single_slot()))) {
+        return {single_iterator(), false};
+      }
+    }
+    return {iterator_at_ptr(
+                SmallNonSooPrepareInsert(common(), GetPolicyFunctions(),
+                                         HashKey<hasher, K>{hash_ref(), key})),
+            true};
   }
 
   template <class K>
@@ -3408,6 +3403,10 @@ class raw_hash_set {
   }
   const_iterator iterator_at(size_t i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return const_cast<raw_hash_set*>(this)->iterator_at(i);
+  }
+  iterator iterator_at_ptr(std::pair<ctrl_t*, void*> ptrs)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return {ptrs.first, to_slot(ptrs.second), common().generation_ptr()};
   }
 
   reference unchecked_deref(iterator it) { return it.unchecked_deref(); }
