@@ -601,6 +601,45 @@ size_t FindNewPositionsAndTransferSlots(
   return total_probe_length;
 }
 
+void ReportGrowthToInfozImpl(CommonFields& common, HashtablezInfoHandle infoz,
+                             size_t hash, size_t total_probe_length,
+                             size_t distance_from_desired) {
+  ABSL_SWISSTABLE_ASSERT(infoz.IsSampled());
+  infoz.RecordStorageChanged(common.size() - 1, common.capacity());
+  infoz.RecordRehash(total_probe_length);
+  infoz.RecordInsert(hash, distance_from_desired);
+  common.set_has_infoz();
+  // TODO(b/413062340): we could potentially store infoz in place of the
+  // control pointer for the capacity 1 case.
+  common.set_infoz(infoz);
+}
+
+// Specialization to avoid passing two 0s from hot function.
+ABSL_ATTRIBUTE_NOINLINE void ReportSingleGroupTableGrowthToInfoz(
+    CommonFields& common, HashtablezInfoHandle infoz, size_t hash) {
+  ReportGrowthToInfozImpl(common, infoz, hash, /*total_probe_length=*/0,
+                          /*distance_from_desired=*/0);
+}
+
+ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(CommonFields& common,
+                                                 HashtablezInfoHandle infoz,
+                                                 size_t hash,
+                                                 size_t total_probe_length,
+                                                 size_t distance_from_desired) {
+  ReportGrowthToInfozImpl(common, infoz, hash, total_probe_length,
+                          distance_from_desired);
+}
+
+ABSL_ATTRIBUTE_NOINLINE void ReportResizeToInfoz(CommonFields& common,
+                                                 HashtablezInfoHandle infoz,
+                                                 size_t total_probe_length) {
+  ABSL_SWISSTABLE_ASSERT(infoz.IsSampled());
+  infoz.RecordStorageChanged(common.size(), common.capacity());
+  infoz.RecordRehash(total_probe_length);
+  common.set_has_infoz();
+  common.set_infoz(infoz);
+}
+
 struct BackingArrayPtrs {
   ctrl_t* ctrl;
   void* slots;
@@ -662,11 +701,8 @@ void ResizeNonSooImpl(CommonFields& common,
         CapacityToGrowth(new_capacity));
   }
 
-  if (has_infoz) {
-    common.set_has_infoz();
-    infoz.RecordStorageChanged(common.size(), new_capacity);
-    infoz.RecordRehash(total_probe_length);
-    common.set_infoz(infoz);
+  if (ABSL_PREDICT_FALSE(has_infoz)) {
+    ReportResizeToInfoz(common, infoz, total_probe_length);
   }
 }
 
@@ -1268,14 +1304,11 @@ std::pair<ctrl_t*, void*> Grow1To3AndPrepareInsert(
   policy.dealloc(alloc, kOldCapacity, old_ctrl, slot_size, slot_align,
                  has_infoz);
   PrepareInsertCommon(common);
-  GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(1);
+  ABSL_SWISSTABLE_ASSERT(common.size() == 2);
+  GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(kNewCapacity - 2);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
-    common.set_has_infoz();
-    infoz.RecordStorageChanged(common.size() - 1, kNewCapacity);
-    infoz.RecordRehash(0);
-    infoz.RecordInsert(new_hash, 0);
-    common.set_infoz(infoz);
+    ReportSingleGroupTableGrowthToInfoz(common, infoz, new_hash);
   }
   return {new_ctrl + offset, new_element_target_slot};
 }
@@ -1342,11 +1375,8 @@ size_t GrowToNextCapacityAndPrepareInsert(
                   common.size());
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
-    common.set_has_infoz();
-    infoz.RecordStorageChanged(common.size() - 1, new_capacity);
-    infoz.RecordRehash(total_probe_length);
-    infoz.RecordInsert(new_hash, find_info.probe_length);
-    common.set_infoz(infoz);
+    ReportGrowthToInfoz(common, infoz, new_hash, total_probe_length,
+                        find_info.probe_length);
   }
   return find_info.offset;
 }
@@ -1396,13 +1426,7 @@ std::pair<ctrl_t*, void*> SmallNonSooPrepareInsert(
   GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(0);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
-    // TODO(b/413062340): we could potentially store infoz in place of the
-    // control pointer for the capacity 1 case.
-    common.set_has_infoz();
-    infoz.RecordStorageChanged(/*size=*/0, kNewCapacity);
-    infoz.RecordRehash(/*total_probe_length=*/0);
-    infoz.RecordInsert(get_hash(), /*distance_from_desired=*/0);
-    common.set_infoz(infoz);
+    ReportSingleGroupTableGrowthToInfoz(common, infoz, get_hash());
   }
   return {SooControl(), new_slots};
 }
@@ -1652,7 +1676,9 @@ size_t GrowSooTableToNextCapacityAndPrepareInsert(
   common.set_control</*kGenerateSeed=*/false>(new_ctrl);
   common.set_slots(new_slots);
 
-  common.infoz().RecordInsert(new_hash, /*distance_from_desired=*/0);
+  // Full SOO table couldn't be sampled. If SOO table is sampled, it would
+  // have been resized to the next capacity.
+  ABSL_SWISSTABLE_ASSERT(!common.infoz().IsSampled());
   SanitizerUnpoisonMemoryRegion(SlotAddress(new_slots, offset, slot_size),
                                 slot_size);
   return offset;
