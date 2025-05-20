@@ -2992,11 +2992,7 @@ class raw_hash_set {
   template <class K = key_type>
   iterator find_small(const key_arg<K>& key) {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    return empty() || !PolicyTraits::apply(
-                          EqualElement<K, key_equal>{key, eq_ref()},
-                          PolicyTraits::element(single_slot()))
-               ? end()
-               : single_iterator();
+    return empty() || !equal_to(key, single_slot()) ? end() : single_iterator();
   }
 
   template <class K = key_type>
@@ -3011,9 +3007,7 @@ class raw_hash_set {
 #endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
-                EqualElement<K, key_equal>{key, eq_ref()},
-                PolicyTraits::element(slot_array() + seq.offset(i)))))
+        if (ABSL_PREDICT_TRUE(equal_to(key, slot_array() + seq.offset(i))))
           return iterator_at(seq.offset(i));
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
@@ -3094,17 +3088,25 @@ class raw_hash_set {
   }
 
   template <class K>
-  size_t hash_of(const K& key) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool equal_to(const K& key,
+                                             slot_type* slot) const {
+    return PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
+                               PolicyTraits::element(slot));
+  }
+  template <class K>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
     return HashElement<hasher>{hash_ref()}(key);
   }
-  size_t hash_of(slot_type* slot) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(HashElement<hasher>{hash_ref()},
                                PolicyTraits::element(slot));
   }
 
   // Casting directly from e.g. char* to slot_type* can cause compilation errors
   // on objective-C. This function converts to void* first, avoiding the issue.
-  static slot_type* to_slot(void* buf) { return static_cast<slot_type*>(buf); }
+  static ABSL_ATTRIBUTE_ALWAYS_INLINE slot_type* to_slot(void* buf) {
+    return static_cast<slot_type*>(buf);
+  }
 
   // Requires that lhs does not have a full SOO slot.
   static void move_common(bool rhs_is_full_soo, CharAlloc& rhs_alloc,
@@ -3220,8 +3222,7 @@ class raw_hash_set {
         return {single_iterator(), true};
       }
       soo_slot_ctrl = ctrl_t::kEmpty;
-    } else if (PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
-                                   PolicyTraits::element(single_slot()))) {
+    } else if (equal_to(key, single_slot())) {
       return {single_iterator(), false};
     } else {
       soo_slot_ctrl = static_cast<ctrl_t>(H2(hash_of(single_slot())));
@@ -3243,8 +3244,7 @@ class raw_hash_set {
       return find_or_prepare_insert_soo(key);
     }
     if (!empty()) {
-      if (PolicyTraits::apply(EqualElement<K, key_equal>{key, eq_ref()},
-                              PolicyTraits::element(single_slot()))) {
+      if (equal_to(key, single_slot())) {
         return {single_iterator(), false};
       }
     }
@@ -3268,9 +3268,7 @@ class raw_hash_set {
 #endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (ABSL_PREDICT_TRUE(PolicyTraits::apply(
-                EqualElement<K, key_equal>{key, eq_ref()},
-                PolicyTraits::element(slot_array() + seq.offset(i)))))
+        if (ABSL_PREDICT_TRUE(equal_to(key, slot_array() + seq.offset(i))))
           return {iterator_at(seq.offset(i)), false};
       }
       auto mask_empty = g.MaskEmpty();
@@ -3345,16 +3343,11 @@ class raw_hash_set {
 
     const size_t hash_of_arg = hash_of(key);
     const auto assert_consistent = [&](const ctrl_t*, void* slot) {
-      const value_type& element =
-          PolicyTraits::element(static_cast<slot_type*>(slot));
-      const bool is_key_equal = PolicyTraits::apply(
-          EqualElement<K, key_equal>{key, eq_ref()}, element);
+      const bool is_key_equal = equal_to(key, to_slot(slot));
       if (!is_key_equal) return;
 
-      const size_t hash_of_slot =
-          PolicyTraits::apply(HashElement<hasher>{hash_ref()}, element);
       ABSL_ATTRIBUTE_UNUSED const bool is_hash_equal =
-          hash_of_arg == hash_of_slot;
+          hash_of_arg == hash_of(to_slot(slot));
       assert((!is_key_equal || is_hash_equal) &&
              "eq(k1, k2) must imply that hash(k1) == hash(k2). "
              "hash/eq functors are inconsistent.");
@@ -3715,10 +3708,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
     while (true) {
       container_internal::Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (Traits::apply(
-                EqualElement<typename Set::key_type, typename Set::key_equal>{
-                    key, set.eq_ref()},
-                Traits::element(set.slot_array() + seq.offset(i))))
+        if (set.equal_to(key, set.slot_array() + seq.offset(i)))
           return num_probes;
         ++num_probes;
       }
