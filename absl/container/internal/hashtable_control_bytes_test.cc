@@ -127,125 +127,160 @@ TEST(BitMask, LeadingTrailing) {
   EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).TrailingZeros()), 7);
 }
 
-TEST(Group, Match) {
-  if (Group::kWidth == 16) {
+template <class GroupTypeParam>
+class GroupTest : public testing::Test {};
+using GroupTypes =
+    ::testing::Types<Group, GroupPortableImpl, GroupFullEmptyOrDeleted>;
+TYPED_TEST_SUITE(GroupTest, GroupTypes);
+
+TYPED_TEST(GroupTest, Match) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
     ctrl_t group[] = {ctrl_t::kEmpty, CtrlT(1), ctrl_t::kDeleted,  CtrlT(3),
                       ctrl_t::kEmpty, CtrlT(5), ctrl_t::kSentinel, CtrlT(7),
                       CtrlT(7),       CtrlT(5), CtrlT(3),          CtrlT(1),
                       CtrlT(1),       CtrlT(1), CtrlT(1),          CtrlT(1)};
-    EXPECT_THAT(Group{group}.Match(0), ElementsAre());
-    EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 11, 12, 13, 14, 15));
-    EXPECT_THAT(Group{group}.Match(3), ElementsAre(3, 10));
-    EXPECT_THAT(Group{group}.Match(5), ElementsAre(5, 9));
-    EXPECT_THAT(Group{group}.Match(7), ElementsAre(7, 8));
-  } else if (Group::kWidth == 8) {
+    EXPECT_THAT(GroupType{group}.Match(0), ElementsAre());
+    EXPECT_THAT(GroupType{group}.Match(1), ElementsAre(1, 11, 12, 13, 14, 15));
+    EXPECT_THAT(GroupType{group}.Match(3), ElementsAre(3, 10));
+    EXPECT_THAT(GroupType{group}.Match(5), ElementsAre(5, 9));
+    EXPECT_THAT(GroupType{group}.Match(7), ElementsAre(7, 8));
+  } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), CtrlT(2),
                       ctrl_t::kDeleted,  CtrlT(2), CtrlT(1),
                       ctrl_t::kSentinel, CtrlT(1)};
-    EXPECT_THAT(Group{group}.Match(0), ElementsAre());
-    EXPECT_THAT(Group{group}.Match(1), ElementsAre(1, 5, 7));
-    EXPECT_THAT(Group{group}.Match(2), ElementsAre(2, 4));
+    EXPECT_THAT(GroupType{group}.Match(0), ElementsAre());
+    EXPECT_THAT(GroupType{group}.Match(1), ElementsAre(1, 5, 7));
+    EXPECT_THAT(GroupType{group}.Match(2), ElementsAre(2, 4));
   } else {
-    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
 }
 
-TEST(Group, MaskEmpty) {
-  if (Group::kWidth == 16) {
+TYPED_TEST(GroupTest, MaskEmpty) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
     ctrl_t group[] = {ctrl_t::kEmpty, CtrlT(1), ctrl_t::kDeleted,  CtrlT(3),
                       ctrl_t::kEmpty, CtrlT(5), ctrl_t::kSentinel, CtrlT(7),
                       CtrlT(7),       CtrlT(5), CtrlT(3),          CtrlT(1),
                       CtrlT(1),       CtrlT(1), CtrlT(1),          CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskEmpty().LowestBitSet(), 0);
-    EXPECT_THAT(Group{group}.MaskEmpty().HighestBitSet(), 4);
-  } else if (Group::kWidth == 8) {
+    EXPECT_THAT(GroupType{group}.MaskEmpty().LowestBitSet(), 0);
+    EXPECT_THAT(GroupType{group}.MaskEmpty().HighestBitSet(), 4);
+  } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), CtrlT(2),
                       ctrl_t::kDeleted,  CtrlT(2), CtrlT(1),
                       ctrl_t::kSentinel, CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskEmpty().LowestBitSet(), 0);
-    EXPECT_THAT(Group{group}.MaskEmpty().HighestBitSet(), 0);
+    EXPECT_THAT(GroupType{group}.MaskEmpty().LowestBitSet(), 0);
+    EXPECT_THAT(GroupType{group}.MaskEmpty().HighestBitSet(), 0);
   } else {
-    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
 }
 
-TEST(Group, MaskFull) {
-  if (Group::kWidth == 16) {
+TYPED_TEST(GroupTest, MaskFull) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
     ctrl_t group[] = {
         ctrl_t::kEmpty, CtrlT(1),          ctrl_t::kDeleted,  CtrlT(3),
         ctrl_t::kEmpty, CtrlT(5),          ctrl_t::kSentinel, CtrlT(7),
         CtrlT(7),       CtrlT(5),          ctrl_t::kDeleted,  CtrlT(1),
         CtrlT(1),       ctrl_t::kSentinel, ctrl_t::kEmpty,    CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskFull(),
+    EXPECT_THAT(GroupType{group}.MaskFull(),
                 ElementsAre(1, 3, 5, 7, 8, 9, 11, 12, 15));
-  } else if (Group::kWidth == 8) {
+  } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), ctrl_t::kEmpty,
                       ctrl_t::kDeleted,  CtrlT(2), ctrl_t::kSentinel,
                       ctrl_t::kSentinel, CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskFull(), ElementsAre(1, 4, 7));
+    EXPECT_THAT(GroupType{group}.MaskFull(), ElementsAre(1, 4, 7));
   } else {
-    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
 }
 
-TEST(Group, MaskNonFull) {
-  if (Group::kWidth == 16) {
+TYPED_TEST(GroupTest, MaskNonFull) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
     ctrl_t group[] = {
         ctrl_t::kEmpty, CtrlT(1),          ctrl_t::kDeleted,  CtrlT(3),
         ctrl_t::kEmpty, CtrlT(5),          ctrl_t::kSentinel, CtrlT(7),
         CtrlT(7),       CtrlT(5),          ctrl_t::kDeleted,  CtrlT(1),
         CtrlT(1),       ctrl_t::kSentinel, ctrl_t::kEmpty,    CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskNonFull(),
+    EXPECT_THAT(GroupType{group}.MaskNonFull(),
                 ElementsAre(0, 2, 4, 6, 10, 13, 14));
-  } else if (Group::kWidth == 8) {
+  } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), ctrl_t::kEmpty,
                       ctrl_t::kDeleted,  CtrlT(2), ctrl_t::kSentinel,
                       ctrl_t::kSentinel, CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskNonFull(), ElementsAre(0, 2, 3, 5, 6));
+    EXPECT_THAT(GroupType{group}.MaskNonFull(), ElementsAre(0, 2, 3, 5, 6));
   } else {
-    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
 }
 
-TEST(Group, MaskEmptyOrDeleted) {
-  if (Group::kWidth == 16) {
+TYPED_TEST(GroupTest, MaskEmptyOrDeleted) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
     ctrl_t group[] = {ctrl_t::kEmpty,   CtrlT(1), ctrl_t::kEmpty,    CtrlT(3),
                       ctrl_t::kDeleted, CtrlT(5), ctrl_t::kSentinel, CtrlT(7),
                       CtrlT(7),         CtrlT(5), CtrlT(3),          CtrlT(1),
                       CtrlT(1),         CtrlT(1), CtrlT(1),          CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
-    EXPECT_THAT(Group{group}.MaskEmptyOrDeleted().HighestBitSet(), 4);
-  } else if (Group::kWidth == 8) {
+    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
+    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().HighestBitSet(), 4);
+  } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), CtrlT(2),
                       ctrl_t::kDeleted,  CtrlT(2), CtrlT(1),
                       ctrl_t::kSentinel, CtrlT(1)};
-    EXPECT_THAT(Group{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
-    EXPECT_THAT(Group{group}.MaskEmptyOrDeleted().HighestBitSet(), 3);
+    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
+    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().HighestBitSet(), 3);
   } else {
-    FAIL() << "No test coverage for Group::kWidth==" << Group::kWidth;
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
 }
 
-TEST(Group, CountLeadingEmptyOrDeleted) {
+TYPED_TEST(GroupTest, MaskFullOrSentinel) {
+  using GroupType = TypeParam;
+  if (GroupType::kWidth == 16) {
+    ctrl_t group[] = {
+        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kEmpty,    CtrlT(3),
+        ctrl_t::kDeleted, CtrlT(5),         ctrl_t::kSentinel, ctrl_t::kEmpty,
+        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kDeleted,  ctrl_t::kDeleted,
+        ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kDeleted,  ctrl_t::kDeleted,
+    };
+    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 3);
+    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().HighestBitSet(), 6);
+  } else if (GroupType::kWidth == 8) {
+    ctrl_t group[] = {ctrl_t::kEmpty,   ctrl_t::kDeleted, CtrlT(2),
+                      ctrl_t::kDeleted, CtrlT(2),         ctrl_t::kSentinel,
+                      ctrl_t::kDeleted, ctrl_t::kEmpty};
+    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 2);
+    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().HighestBitSet(), 5);
+  } else {
+    FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
+  }
+}
+
+TYPED_TEST(GroupTest, CountLeadingEmptyOrDeleted) {
+  using GroupType = TypeParam;
   const std::vector<ctrl_t> empty_examples = {ctrl_t::kEmpty, ctrl_t::kDeleted};
   const std::vector<ctrl_t> full_examples = {
       CtrlT(0), CtrlT(1), CtrlT(2),   CtrlT(3),
       CtrlT(5), CtrlT(9), CtrlT(127), ctrl_t::kSentinel};
 
   for (ctrl_t empty : empty_examples) {
-    std::vector<ctrl_t> e(Group::kWidth, empty);
-    EXPECT_EQ(Group::kWidth, Group{e.data()}.CountLeadingEmptyOrDeleted());
+    std::vector<ctrl_t> e(GroupType::kWidth, empty);
+    EXPECT_EQ(GroupType::kWidth,
+              GroupType{e.data()}.CountLeadingEmptyOrDeleted());
     for (ctrl_t full : full_examples) {
-      for (size_t i = 0; i != Group::kWidth; ++i) {
-        std::vector<ctrl_t> f(Group::kWidth, empty);
+      for (size_t i = 0; i != GroupType::kWidth; ++i) {
+        std::vector<ctrl_t> f(GroupType::kWidth, empty);
         f[i] = full;
-        EXPECT_EQ(i, Group{f.data()}.CountLeadingEmptyOrDeleted());
+        EXPECT_EQ(i, GroupType{f.data()}.CountLeadingEmptyOrDeleted());
       }
-      std::vector<ctrl_t> f(Group::kWidth, empty);
-      f[Group::kWidth * 2 / 3] = full;
-      f[Group::kWidth / 2] = full;
-      EXPECT_EQ(Group::kWidth / 2,
-                Group{f.data()}.CountLeadingEmptyOrDeleted());
+      std::vector<ctrl_t> f(GroupType::kWidth, empty);
+      f[GroupType::kWidth * 2 / 3] = full;
+      f[GroupType::kWidth / 2] = full;
+      EXPECT_EQ(GroupType::kWidth / 2,
+                GroupType{f.data()}.CountLeadingEmptyOrDeleted());
     }
   }
 }
