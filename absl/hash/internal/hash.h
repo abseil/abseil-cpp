@@ -38,7 +38,7 @@
 #endif
 
 // For feature testing and determining which headers can be included.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L || \
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 2017003L || \
     ABSL_INTERNAL_VERSION_HEADER_AVAILABLE
 #include <version>
 #else
