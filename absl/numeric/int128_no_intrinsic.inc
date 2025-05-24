@@ -17,6 +17,9 @@
 // representation when ABSL_HAVE_INTRINSIC_INT128 is *not* defined. This file
 // is included by int128.h and relies on ABSL_INTERNAL_WCHAR_T being defined.
 
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
 constexpr uint64_t Int128Low64(int128 v) { return v.lo_; }
 
 constexpr int64_t Int128High64(int128 v) { return v.hi_; }
@@ -347,3 +350,6 @@ constexpr int128 operator>>(int128 lhs, int amount) {
         static_cast<uint64_t>(Int128High64(lhs) >> (amount - 64)));
   }
 }
+
+ABSL_NAMESPACE_END
+}  // namespace absl
