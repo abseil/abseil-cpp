@@ -389,7 +389,7 @@ struct map_slot_policy {
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
     emplace(slot);
-    if (kMutableKeys::value) {
+    if constexpr (kMutableKeys::value) {
       absl::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
                                                    std::forward<Args>(args)...);
     } else {
@@ -402,7 +402,7 @@ struct map_slot_policy {
   template <class Allocator>
   static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
     emplace(slot);
-    if (kMutableKeys::value) {
+    if constexpr (kMutableKeys::value) {
       absl::allocator_traits<Allocator>::construct(
           *alloc, &slot->mutable_value, std::move(other->mutable_value));
     } else {
@@ -422,7 +422,7 @@ struct map_slot_policy {
 
   template <class Allocator>
   static auto destroy(Allocator* alloc, slot_type* slot) {
-    if (kMutableKeys::value) {
+    if constexpr (kMutableKeys::value) {
       absl::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
     } else {
       absl::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
@@ -438,29 +438,29 @@ struct map_slot_policy {
     // but std::pair is not trivially copyable in C++23 in some standard
     // library versions.
     // See https://github.com/llvm/llvm-project/pull/95444 for instance.
-    auto is_relocatable = typename std::conjunction<
+    static constexpr auto kIsRelocatable = typename std::conjunction<
         absl::is_trivially_relocatable<typename value_type::first_type>,
         absl::is_trivially_relocatable<typename value_type::second_type>>::
         type();
 
     emplace(new_slot);
-    if (is_relocatable) {
+    if constexpr (kIsRelocatable) {
       // TODO(b/247130232,b/251814870): remove casts after fixing warnings.
       std::memcpy(static_cast<void*>(std::launder(&new_slot->value)),
                   static_cast<const void*>(&old_slot->value),
                   sizeof(value_type));
-      return is_relocatable;
-    }
-
-    if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(
-          *alloc, &new_slot->mutable_value, std::move(old_slot->mutable_value));
     } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
-                                                   std::move(old_slot->value));
+      if constexpr (kMutableKeys::value) {
+        absl::allocator_traits<Allocator>::construct(
+            *alloc, &new_slot->mutable_value,
+            std::move(old_slot->mutable_value));
+      } else {
+        absl::allocator_traits<Allocator>::construct(
+            *alloc, &new_slot->value, std::move(old_slot->value));
+      }
+      destroy(alloc, old_slot);
     }
-    destroy(alloc, old_slot);
-    return is_relocatable;
+    return kIsRelocatable;
   }
 };
 
