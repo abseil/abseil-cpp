@@ -2066,10 +2066,20 @@ class raw_hash_set {
     // `slot_` until they reach one.
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
-        uint32_t shift =
-            GroupFullEmptyOrDeleted{ctrl_}.CountLeadingEmptyOrDeleted();
-        ctrl_ += shift;
-        slot_ += shift;
+        auto mask = GroupFullEmptyOrDeleted{ctrl_}.MaskFullOrSentinel();
+        // Generally it is possible to compute `shift` branchless.
+        // This branch is useful to:
+        // 1. Avoid checking `IsEmptyOrDeleted` after the shift for the most
+        //    common dense table case.
+        // 2. Avoid the cost of `LowestBitSet` for extremely sparse tables.
+        if (ABSL_PREDICT_TRUE(mask)) {
+          auto shift = mask.LowestBitSet();
+          ctrl_ += shift;
+          slot_ += shift;
+          return;
+        }
+        ctrl_ += Group::kWidth;
+        slot_ += Group::kWidth;
       }
     }
 
