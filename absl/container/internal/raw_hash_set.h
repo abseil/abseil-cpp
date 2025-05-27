@@ -282,10 +282,8 @@ void SwapAlloc(AllocType& lhs, AllocType& rhs,
   swap(lhs, rhs);
 }
 template <typename AllocType>
-void SwapAlloc(AllocType& lhs, AllocType& rhs,
+void SwapAlloc([[maybe_unused]] AllocType& lhs, [[maybe_unused]] AllocType& rhs,
                std::false_type /* propagate_on_container_swap */) {
-  (void)lhs;
-  (void)rhs;
   assert(lhs == rhs &&
          "It's UB to call swap with unequal non-propagating allocators.");
 }
@@ -949,6 +947,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   void* soo_data() { return heap_or_soo_.get_soo_data(); }
 
   ctrl_t* control() const {
+    ABSL_SWISSTABLE_ASSERT(capacity() > 0);
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap_or_soo_.control().get());
   }
 
@@ -2806,12 +2805,12 @@ class raw_hash_set {
   // NOTE: This is a very low level operation and should not be used without
   // specific benchmarks indicating its importance.
   template <class K = key_type>
-  void prefetch(const key_arg<K>& key) const {
+  void prefetch([[maybe_unused]] const key_arg<K>& key) const {
     if (capacity() == DefaultCapacity()) return;
-    (void)key;
     // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
     prefetch_heap_block();
+    if (is_small()) return;
     auto seq = probe(common(), hash_of(key));
     PrefetchToLocalCache(control() + seq.offset());
     PrefetchToLocalCache(slot_array() + seq.offset());

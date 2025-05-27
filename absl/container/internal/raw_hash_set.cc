@@ -669,8 +669,12 @@ void ResizeNonSooImpl(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
 
   const size_t old_capacity = common.capacity();
-  [[maybe_unused]] ctrl_t* old_ctrl = common.control();
-  [[maybe_unused]] void* old_slots = common.slot_array();
+  [[maybe_unused]] ctrl_t* old_ctrl;
+  [[maybe_unused]] void* old_slots;
+  if constexpr (kMode == ResizeNonSooMode::kGuaranteedAllocated) {
+    old_ctrl = common.control();
+    old_slots = common.slot_array();
+  }
 
   const size_t slot_size = policy.slot_size;
   const size_t slot_align = policy.slot_align;
@@ -879,7 +883,7 @@ void GrowIntoSingleGroupShuffleControlBytes(ctrl_t* __restrict old_ctrl,
     return;
   }
 
-  ABSL_SWISSTABLE_ASSERT(Group::kWidth == 16);
+  ABSL_SWISSTABLE_ASSERT(Group::kWidth == 16);  // NOLINT(misc-static-assert)
 
   // Fill the second half of the main control bytes with kEmpty.
   // For small capacity that may write into mirrored control bytes.
