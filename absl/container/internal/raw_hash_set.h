@@ -1795,7 +1795,7 @@ size_t GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
 // Returns the new control and the new slot.
 // Hash is only computed if the table is sampled or grew to large size
 // (is_small()==false).
-std::pair<ctrl_t*, void*> SmallNonSooPrepareInsert(
+std::pair<ctrl_t*, void*> PrepareInsertSmallNonSoo(
     CommonFields& common, const PolicyFunctions& policy,
     absl::FunctionRef<size_t()> get_hash);
 
@@ -1844,11 +1844,11 @@ void* GetRefForEmptyClass(CommonFields& common);
 // When the table has deleted slots (according to GrowthInfo), the target
 // position will be searched one more time using `find_first_non_full`.
 //
-// REQUIRES: Table is not SOO.
+// REQUIRES: `!common.is_small()`.
 // REQUIRES: At least one non-full slot available.
 // REQUIRES: `target` is a valid empty position to insert.
-size_t PrepareInsertNonSoo(CommonFields& common, const PolicyFunctions& policy,
-                           size_t hash, FindInfo target);
+size_t PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
+                          size_t hash, FindInfo target);
 
 // A SwissTable.
 //
@@ -3248,7 +3248,7 @@ class raw_hash_set {
       }
     }
     return {iterator_at_ptr(
-                SmallNonSooPrepareInsert(common(), GetPolicyFunctions(),
+                PrepareInsertSmallNonSoo(common(), GetPolicyFunctions(),
                                          HashKey<hasher, K>{hash_ref(), key})),
             true};
   }
@@ -3273,10 +3273,10 @@ class raw_hash_set {
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
         size_t target = seq.offset(mask_empty.LowestBitSet());
-        return {iterator_at(PrepareInsertNonSoo(common(), GetPolicyFunctions(),
-                                                hash,
-                                                FindInfo{target, seq.index()})),
-                true};
+        return {
+            iterator_at(PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
+                                           FindInfo{target, seq.index()})),
+            true};
       }
       seq.next();
       ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity() && "full table!");
