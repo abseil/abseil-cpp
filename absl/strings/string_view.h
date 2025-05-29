@@ -198,7 +198,9 @@ class ABSL_ATTRIBUTE_VIEW string_view {
   // The length check is skipped since it is unnecessary and causes code bloat.
   constexpr string_view(  // NOLINT(runtime/explicit)
       const char* absl_nonnull str)
-      : ptr_(str), length_(str ? StrlenInternal(str) : 0) {}
+      : ptr_(str), length_(str ? StrlenInternal(str) : 0) {
+    assert(str != nullptr);
+  }
 
   // Constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(const char* absl_nullable data, size_type len)
