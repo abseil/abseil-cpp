@@ -19,8 +19,8 @@
 
 set -euox pipefail
 
-# Use Xcode 16.0
-sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
+# Use Xcode 16.3
+sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
 
 if [[ -z ${ABSEIL_ROOT:-} ]]; then
   ABSEIL_ROOT="$(realpath $(dirname ${0})/..)"
