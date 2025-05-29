@@ -19,6 +19,8 @@ set -euox pipefail
 # Use Xcode 16.3
 sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
 
+brew install cmake
+
 export CMAKE_BUILD_PARALLEL_LEVEL=$(sysctl -n hw.ncpu)
 export CTEST_PARALLEL_LEVEL=$(sysctl -n hw.ncpu)
 
