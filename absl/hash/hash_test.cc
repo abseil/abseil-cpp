@@ -1224,4 +1224,9 @@ TEST(HashOf, AutoReturnTypeUser) {
             absl::Hash<AutoReturnTypeUser>{}(AutoReturnTypeUser{1, s}));
 }
 
+TEST(HashOf, DoubleSignCollision) {
+  // These values differ only in their most significant bit.
+  EXPECT_NE(absl::HashOf(-1.0), absl::HashOf(1.0));
+}
+
 }  // namespace
