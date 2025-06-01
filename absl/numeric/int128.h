@@ -1190,14 +1190,14 @@ constexpr int64_t BitCastToSigned(uint64_t v) {
 
 }  // namespace int128_internal
 
+ABSL_NAMESPACE_END
+}  // namespace absl
+
 #if defined(ABSL_HAVE_INTRINSIC_INT128)
 #include "absl/numeric/int128_have_intrinsic.inc"  // IWYU pragma: export
 #else  // ABSL_HAVE_INTRINSIC_INT128
 #include "absl/numeric/int128_no_intrinsic.inc"  // IWYU pragma: export
 #endif  // ABSL_HAVE_INTRINSIC_INT128
-
-ABSL_NAMESPACE_END
-}  // namespace absl
 
 #undef ABSL_INTERNAL_WCHAR_T
 
