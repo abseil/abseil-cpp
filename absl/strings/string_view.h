@@ -204,7 +204,9 @@ class ABSL_ATTRIBUTE_VIEW string_view {
 
   // Constructor of a `string_view` from a `const char*` and length.
   constexpr string_view(const char* absl_nullable data, size_type len)
-      : ptr_(data), length_(CheckLengthInternal(len)) {}
+      : ptr_(data), length_(CheckLengthInternal(len)) {
+    ABSL_ASSERT(data != nullptr || len == 0);
+  }
 
   constexpr string_view(const string_view&) noexcept = default;
   string_view& operator=(const string_view&) noexcept = default;
