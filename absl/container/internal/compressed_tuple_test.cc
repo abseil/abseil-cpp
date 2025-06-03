@@ -107,6 +107,14 @@ TEST(CompressedTupleTest, PointerToEmpty) {
   }
 }
 
+TEST(CompressedTupleTest, NestedCompressedTuplePreservesEmptiness) {
+  using TupleType = CompressedTuple<Empty<0>, CompressedTuple<Empty<0>>>;
+  TupleType x;
+  EXPECT_EQ(x.get<0>().value(), CallType::kMutableRef);
+  EXPECT_EQ(x.get<1>().get<0>().value(), CallType::kMutableRef);
+  EXPECT_TRUE(std::is_empty_v<TupleType>);
+}
+
 TEST(CompressedTupleTest, OneMoveOnRValueConstructionTemp) {
   InstanceTracker tracker;
   CompressedTuple<CopyableMovableInstance> x1(CopyableMovableInstance(1));
