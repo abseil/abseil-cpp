@@ -521,15 +521,16 @@ class HashtableSize {
   uint64_t data_;
 };
 
-// Extracts the H1 portion of a hash: 57 bits mixed with a per-table seed.
+// Mixes the hash with a per-table seed. Note that we only use the low bits of
+// H1 because we bitwise-and with capacity later.
 inline size_t H1(size_t hash, PerTableSeed seed) {
-  return (hash >> 7) ^ seed.seed();
+  return hash ^ seed.seed();
 }
 
-// Extracts the H2 portion of a hash: the 7 bits not used for H1.
+// Extracts the H2 portion of a hash: the 7 most significant bits.
 //
 // These are used as an occupied control byte.
-inline h2_t H2(size_t hash) { return hash & 0x7F; }
+inline h2_t H2(size_t hash) { return hash >> (sizeof(size_t) * 8 - 7); }
 
 // When there is an insertion with no reserved growth, we rehash with
 // probability `min(1, RehashProbabilityConstant() / capacity())`. Using a
