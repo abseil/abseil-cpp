@@ -806,6 +806,9 @@ constexpr size_t AlignUpTo(size_t offset, size_t align) {
 // Helper class for computing offsets and allocation size of hash set fields.
 class RawHashSetLayout {
  public:
+  // TODO(b/413062340): maybe don't allocate growth info for capacity 1 tables.
+  // Doing so may require additional branches/complexity so it might not be
+  // worth it.
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
                             size_t slot_align, bool has_infoz)
       : control_offset_(ControlOffset(has_infoz)),
@@ -965,12 +968,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
       generate_new_seed();
     }
   }
-  void* backing_array_start() const {
-    // growth_info (and maybe infoz) is stored before control bytes.
-    ABSL_SWISSTABLE_ASSERT(
-        reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
-    return control() - ControlOffset(has_infoz());
-  }
 
   // Note: we can't use slots() because Qt defines "slots" as a macro.
   void* slot_array() const { return heap_or_soo_.slot_array().get(); }
@@ -1031,6 +1028,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   size_t growth_left() const { return growth_info().GetGrowthLeft(); }
 
   GrowthInfo& growth_info() {
+    ABSL_SWISSTABLE_ASSERT(!is_small());
     return GetGrowthInfoFromControl(control());
   }
   GrowthInfo growth_info() const {
@@ -1040,14 +1038,21 @@ class CommonFields : public CommonFieldsGenerationInfo {
   bool has_infoz() const { return size_.has_infoz(); }
   void set_has_infoz() { size_.set_has_infoz(); }
 
+  HashtablezInfoHandle* infoz_ptr() const {
+    // growth_info is stored before control bytes.
+    ABSL_SWISSTABLE_ASSERT(
+        reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
+    ABSL_SWISSTABLE_ASSERT(has_infoz());
+    return reinterpret_cast<HashtablezInfoHandle*>(
+        control() - ControlOffset(/*has_infoz=*/true));
+  }
+
   HashtablezInfoHandle infoz() {
-    return has_infoz()
-               ? *reinterpret_cast<HashtablezInfoHandle*>(backing_array_start())
-               : HashtablezInfoHandle();
+    return has_infoz() ? *infoz_ptr() : HashtablezInfoHandle();
   }
   void set_infoz(HashtablezInfoHandle infoz) {
     ABSL_SWISSTABLE_ASSERT(has_infoz());
-    *reinterpret_cast<HashtablezInfoHandle*>(backing_array_start()) = infoz;
+    *infoz_ptr() = infoz;
   }
 
   bool should_rehash_for_bug_detection_on_insert() const {
@@ -3430,16 +3435,13 @@ class raw_hash_set {
   //
   // See `CapacityToGrowth()`.
   size_t growth_left() const {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
     return common().growth_left();
   }
 
   GrowthInfo& growth_info() {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
     return common().growth_info();
   }
   GrowthInfo growth_info() const {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
     return common().growth_info();
   }
 
@@ -3485,7 +3487,6 @@ class raw_hash_set {
     SooEnabled() ? common().set_empty_soo() : common().decrement_size();
     if (!SooEnabled()) {
       SanitizerPoisonObject(single_slot());
-      growth_info().OverwriteFullAsEmpty();
     }
   }
   iterator single_iterator() {
