@@ -1577,27 +1577,6 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
   return std::is_same_v<CharAlloc, std::allocator<char>>;
 }
 
-template <bool kSooEnabled>
-bool ShouldSampleHashtablezInfoOnResize(bool force_sampling,
-                                        bool is_hashtablez_eligible,
-                                        size_t old_capacity, CommonFields& c) {
-  if (!is_hashtablez_eligible) return false;
-  // Force sampling is only allowed for SOO tables.
-  ABSL_SWISSTABLE_ASSERT(kSooEnabled || !force_sampling);
-  if (kSooEnabled && force_sampling) {
-    return true;
-  }
-  // In SOO, we sample on the first insertion so if this is an empty SOO case
-  // (e.g. when reserve is called), then we still need to sample.
-  if (kSooEnabled && old_capacity == SooCapacity() && c.empty()) {
-    return ShouldSampleNextTable();
-  }
-  if (!kSooEnabled && old_capacity == 0) {
-    return ShouldSampleNextTable();
-  }
-  return false;
-}
-
 // Allocates `n` bytes for a backing array.
 template <size_t AlignOfBackingArray, typename Alloc>
 ABSL_ATTRIBUTE_NOINLINE void* AllocateBackingArray(void* alloc, size_t n) {
