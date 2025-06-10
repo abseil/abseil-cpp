@@ -1052,13 +1052,13 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   using uint128 = absl::uint128;
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
-  static constexpr uint64_t kMul =
-   uint64_t{0xdcb22ca68cb134ed};
-
   template <typename T>
   using IntegralFastPath =
       conjunction<std::is_integral<T>, is_uniquely_represented<T>,
                   FitsIn64Bits<T>>;
+
+  static constexpr uint64_t kMul =
+   uint64_t{0xdcb22ca68cb134ed};
 
  public:
   // Move only
@@ -1093,14 +1093,37 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   }
 
  private:
-  // Invoked only once for a given argument; that plus the fact that this is
-  // move-only ensures that there is only one non-moved-from object.
-  MixingHashState() : state_(Seed()) {}
-
   friend class MixingHashState::HashStateBase;
   template <typename H>
   friend H absl::hash_internal::hash_weakly_mixed_integer(H,
                                                           WeaklyMixedInteger);
+  // Allow the HashState type-erasure implementation to invoke
+  // RunCombinedUnordered() directly.
+  friend class absl::HashState;
+  friend struct CombineRaw;
+
+  // For use in Seed().
+  static const void* const kSeed;
+
+  // Invoked only once for a given argument; that plus the fact that this is
+  // move-only ensures that there is only one non-moved-from object.
+  MixingHashState() : state_(Seed()) {}
+
+  // Workaround for MSVC bug.
+  // We make the type copyable to fix the calling convention, even though we
+  // never actually copy it. Keep it private to not affect the public API of the
+  // type.
+  MixingHashState(const MixingHashState&) = default;
+
+  explicit MixingHashState(uint64_t state) : state_(state) {}
+
+  // Combines a raw value from e.g. integrals/floats/pointers/etc. This allows
+  // us to be consistent with IntegralFastPath when combining raw types, but
+  // optimize Read1To3 and Read4To8 differently for the string case.
+  static MixingHashState combine_raw(MixingHashState hash_state,
+                                     uint64_t value) {
+    return MixingHashState(Mix(hash_state.state_ ^ value, kMul));
+  }
 
   static MixingHashState combine_weakly_mixed_integer(
       MixingHashState hash_state, WeaklyMixedInteger value) {
@@ -1128,27 +1151,6 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
       inner_state = MixingHashState{};
     });
     return MixingHashState::combine(std::move(state), unordered_state);
-  }
-
-  // Allow the HashState type-erasure implementation to invoke
-  // RunCombinedUnordered() directly.
-  friend class absl::HashState;
-  friend struct CombineRaw;
-
-  // Workaround for MSVC bug.
-  // We make the type copyable to fix the calling convention, even though we
-  // never actually copy it. Keep it private to not affect the public API of the
-  // type.
-  MixingHashState(const MixingHashState&) = default;
-
-  explicit MixingHashState(uint64_t state) : state_(state) {}
-
-  // Combines a raw value from e.g. integrals/floats/pointers/etc. This allows
-  // us to be consistent with IntegralFastPath when combining raw types, but
-  // optimize Read1To3 and Read4To8 differently for the string case.
-  static MixingHashState combine_raw(MixingHashState hash_state,
-                                     uint64_t value) {
-    return MixingHashState(Mix(hash_state.state_ ^ value, kMul));
   }
 
   // Implementation of the base case for combine_contiguous where we actually
@@ -1321,7 +1323,6 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
     return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(kSeed));
 #endif
   }
-  static const void* const kSeed;
 
   uint64_t state_;
 };
