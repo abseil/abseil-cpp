@@ -41,6 +41,9 @@
 #include "absl/base/config.h"
 #include "absl/meta/type_traits.h"
 
+#include <utility>
+#include <variant>
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
@@ -65,6 +68,24 @@ struct Overload final : T... {
 //
 template <typename... T>
 Overload(T...) -> Overload<T...>;
+
+// With this template we can simplify the call of std::visit(Overloaded{...}, variant).
+// Example:
+//
+//     std::variant<std::string, int32_t, int64_t> v(int32_t{1});
+//      const size_t result = absl::MatchVariant(v,
+//         [](const std::string& s) { return s.size(); },
+//         [](const auto& s) { return sizeof(s); }
+//     );
+//     assert(result == 4);
+//
+template <typename Variant, typename... T>
+auto MatchVariant(Variant&& v, T&&... callables) {
+    return std::visit(
+        Overload{std::forward<T>(callables)...},
+        std::forward<Variant>(v)
+    );
+}
 
 ABSL_NAMESPACE_END
 }  // namespace absl

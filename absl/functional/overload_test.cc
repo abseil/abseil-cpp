@@ -204,4 +204,14 @@ TEST(OverloadTest, HasConstexprConstructor) {
   EXPECT_EQ("auto 1.5", overloaded(1.5f));
 }
 
+TEST(OverloadTest, MatchVariant) {
+  absl::variant<int, std::string> v = "hello";
+  auto result = absl::MatchVariant(v,
+      [](int i) -> size_t { return i * 2; },
+      [](const std::string& s) -> size_t { return s.size(); }
+  );
+    
+  EXPECT_EQ(result, 5);
+}
+
 }  // namespace
