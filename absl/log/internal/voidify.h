@@ -36,7 +36,8 @@ class Voidify final {
   // This has to be an operator with a precedence lower than << but higher than
   // ?:
   template <typename T>
-  ABSL_ATTRIBUTE_COLD void operator&&(T&& message) const&& {
+  ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void operator&&(
+      T&& message) const&& {
     // The dispatching of the completed `absl::LogEntry` to applicable
     // `absl::LogSink`s happens here.
     message.Flush();
