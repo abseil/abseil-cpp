@@ -353,6 +353,15 @@ struct CombineRaw {
   }
 };
 
+// For use in `raw_hash_set` to pass a seed to the hash function.
+struct HashWithSeed {
+  template <typename Hasher, typename T>
+  size_t hash(const Hasher& hasher, const T& value, size_t seed) const {
+    // NOLINTNEXTLINE(clang-diagnostic-sign-conversion)
+    return hasher.hash_with_seed(value, seed);
+  }
+};
+
 // Convenience function that combines `hash_state` with the byte representation
 // of `value`.
 template <typename H, typename T,
@@ -1244,20 +1253,25 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   }
   using MixingHashState::HashStateBase::combine_contiguous;
 
+  template <typename T>
+  static size_t hash(const T& value) {
+    return hash_with_seed(value, Seed());
+  }
+
   // For performance reasons in non-opt mode, we specialize this for
   // integral types.
   // Otherwise we would be instantiating and calling dozens of functions for
   // something that is just one multiplication and a couple xor's.
   // The result should be the same as running the whole algorithm, but faster.
   template <typename T, absl::enable_if_t<IntegralFastPath<T>::value, int> = 0>
-  static size_t hash(T value) {
+  static size_t hash_with_seed(T value, size_t seed) {
     return static_cast<size_t>(
-        Mix(Seed() ^ static_cast<std::make_unsigned_t<T>>(value), kMul));
+        Mix(seed ^ static_cast<std::make_unsigned_t<T>>(value), kMul));
   }
 
   template <typename T, absl::enable_if_t<!IntegralFastPath<T>::value, int> = 0>
-  static size_t hash(const T& value) {
-    return static_cast<size_t>(combine(MixingHashState{}, value).state_);
+  static size_t hash_with_seed(const T& value, size_t seed) {
+    return static_cast<size_t>(combine(MixingHashState{seed}, value).state_);
   }
 
  private:
@@ -1365,6 +1379,13 @@ template <typename T>
 struct HashImpl {
   size_t operator()(const T& value) const {
     return MixingHashState::hash(value);
+  }
+
+ private:
+  friend struct HashWithSeed;
+
+  size_t hash_with_seed(const T& value, size_t seed) const {
+    return MixingHashState::hash_with_seed(value, seed);
   }
 };
 
