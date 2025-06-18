@@ -409,8 +409,10 @@ H hash_weakly_mixed_integer(H hash_state, WeaklyMixedInteger value) {
 template <typename H, typename B>
 typename std::enable_if<std::is_same<B, bool>::value, H>::type AbslHashValue(
     H hash_state, B value) {
+  // We use ~size_t{} instead of 1 so that all bits are different between
+  // true/false instead of only 1.
   return H::combine(std::move(hash_state),
-                    static_cast<unsigned char>(value ? 1 : 0));
+                    static_cast<size_t>(value ? ~size_t{} : 0));
 }
 
 // AbslHashValue() for hashing enum values
