@@ -963,7 +963,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t Mix(uint64_t lhs, uint64_t rhs) {
   // For 32 bit platforms we are trying to use all 64 lower bits.
   if constexpr (sizeof(size_t) < 8) {
     uint64_t m = lhs * rhs;
-    return m ^ (m >> 32);
+    return m ^ absl::byteswap(m);
   }
   // absl::uint128 is not an alias or a thin wrapper around the intrinsic.
   // We use the intrinsic when available to improve performance.
