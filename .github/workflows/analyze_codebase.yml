@@ -1,0 +1,41 @@
+name: FastestAI Analyze Codebase
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest  
+
+    steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0 
+            
+        - name: Send Diff to Backend
+          env:
+            FASTEST_SECRET_KEY: ${{ secrets.FASTEST_SECRET_KEY }}
+          run: |
+            set -e
+            BASE_COMMIT=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+            HEAD_COMMIT=${{ github.event.pull_request.head.sha }}
+            REPO_NAME="${{ github.repository }}"
+            BRANCH_NAME="${{ github.head_ref }}"
+
+            response_code=$(curl -s -o response.txt -w "%{http_code}" -X POST "https://fastestai.tech/codebase/analyze" \
+              -H "X-Secret-Key: $FASTEST_SECRET_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                  "base_commit": "'$BASE_COMMIT'",
+                  "head_commit": "'$HEAD_COMMIT'",
+                  "repo_name": "'$REPO_NAME'",
+                  "branch_name": "'$BRANCH_NAME'"
+              }')
+            if [ "$response_code" -ne 200 ]; then
+              echo "Request failed with status code $response_code"
+              cat response.txt
+              exit 1
+            fi
+          continue-on-error: false

@@ -1,0 +1,650 @@
+name: FastestAI - Generic C++ GTest Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_names:
+        description: 'JSON array of test names to run (empty for all tests)'
+        required: false
+        default: '[]'
+      analysis_result_id:
+        description: 'Analysis result ID for test report'
+        required: true
+      build_system:
+        description: 'Build system to use'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - 'auto'
+          - 'cmake'
+          - 'make'
+          - 'direct'
+      cpp_standard:
+        description: 'C++ standard version'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - 'auto'
+          - 'c++11'
+          - 'c++14'
+          - 'c++17'
+          - 'c++20'
+      compiler:
+        description: 'Compiler to use'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - 'auto'
+          - 'gcc'
+          - 'clang'
+
+jobs:
+  analyze-project:
+    runs-on: ubuntu-latest
+    outputs:
+      build-system: ${{ steps.detect.outputs.build-system }}
+      cpp-standard: ${{ steps.detect.outputs.cpp-standard }}
+      compiler: ${{ steps.detect.outputs.compiler }}
+      source-files: ${{ steps.detect.outputs.source-files }}
+      test-files: ${{ steps.detect.outputs.test-files }}
+      include-dirs: ${{ steps.detect.outputs.include-dirs }}
+      has-custom-main: ${{ steps.detect.outputs.has-custom-main }}
+      project-structure: ${{ steps.detect.outputs.project-structure }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect project configuration
+        id: detect
+        run: |
+          set -e
+          
+          echo "=== Analyzing C++ project structure ==="
+          
+          # Detect build system
+          BUILD_SYSTEM="${{ github.event.inputs.build_system }}"
+          if [ "$BUILD_SYSTEM" = "auto" ]; then
+            if [ -f "CMakeLists.txt" ]; then
+              BUILD_SYSTEM="cmake"
+            elif [ -f "Makefile" ] || [ -f "makefile" ]; then
+              BUILD_SYSTEM="make"
+            else
+              BUILD_SYSTEM="direct"
+            fi
+          fi
+          echo "build-system=$BUILD_SYSTEM" >> $GITHUB_OUTPUT
+          echo "Detected build system: $BUILD_SYSTEM"
+          
+          # Detect C++ standard
+          CPP_STANDARD="${{ github.event.inputs.cpp_standard }}"
+          if [ "$CPP_STANDARD" = "auto" ]; then
+            # Try to detect from CMakeLists.txt or common patterns
+            if [ -f "CMakeLists.txt" ]; then
+              CPP_STD=$(grep -i "CMAKE_CXX_STANDARD\|set.*CXX_STANDARD\|std=" CMakeLists.txt | head -1 | grep -o "1[0-9]" | head -1 || echo "")
+              if [ -n "$CPP_STD" ]; then
+                CPP_STANDARD="c++$CPP_STD"
+              fi
+            fi
+            # Default fallback
+            [ "$CPP_STANDARD" = "auto" ] && CPP_STANDARD="c++14"
+          fi
+          echo "cpp-standard=$CPP_STANDARD" >> $GITHUB_OUTPUT
+          echo "Detected C++ standard: $CPP_STANDARD"
+          
+          # Detect compiler
+          COMPILER="${{ github.event.inputs.compiler }}"
+          if [ "$COMPILER" = "auto" ]; then
+            # Default to gcc for better compatibility
+            COMPILER="gcc"
+          fi
+          echo "compiler=$COMPILER" >> $GITHUB_OUTPUT
+          echo "Detected compiler: $COMPILER"
+          
+          # Find all C++ files first
+          echo "=== Finding all C++ files ==="
+          find . -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" \
+            ! -path "*/build/*" ! -path "*/Build/*" ! -path "*/BUILD/*" \
+            | sort > /tmp/all_cpp_files.txt
+          
+          echo "All C++ files found:"
+          cat /tmp/all_cpp_files.txt
+          
+          # Find test files with more precise patterns
+          echo "=== Identifying test files ==="
+          grep -E "(test|Test|TEST)" /tmp/all_cpp_files.txt > /tmp/test_candidates.txt || touch /tmp/test_candidates.txt
+          
+          # Also check for files in test directories
+          find . -path "*/test*/*.cpp" -o -path "*/Test*/*.cpp" -o -path "*/tests/*.cpp" \
+            ! -path "*/build/*" ! -path "*/Build/*" ! -path "*/BUILD/*" \
+            >> /tmp/test_candidates.txt || true
+          
+          # Remove duplicates and create final test file list
+          sort /tmp/test_candidates.txt | uniq > /tmp/final_test_files.txt
+          TEST_FILES=$(cat /tmp/final_test_files.txt | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "test-files=$TEST_FILES" >> $GITHUB_OUTPUT
+          echo "Found test files: $TEST_FILES"
+          
+          # Find source files (everything that's not a test file or main file)
+          echo "=== Identifying source files ==="
+          # Start with all files, then exclude test files and main files
+          cp /tmp/all_cpp_files.txt /tmp/source_candidates.txt
+          
+          # Remove test files
+          if [ -s /tmp/final_test_files.txt ]; then
+            while IFS= read -r testfile; do
+              grep -v "^$testfile$" /tmp/source_candidates.txt > /tmp/temp_sources.txt || true
+              mv /tmp/temp_sources.txt /tmp/source_candidates.txt
+            done < /tmp/final_test_files.txt
+          fi
+          
+          # Remove main files
+          grep -v -E "(main\.cpp|main\.cc|main\.cxx)$" /tmp/source_candidates.txt > /tmp/final_source_files.txt || touch /tmp/final_source_files.txt
+          
+          SOURCE_FILES=$(cat /tmp/final_source_files.txt | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "source-files=$SOURCE_FILES" >> $GITHUB_OUTPUT
+          echo "Found source files: $SOURCE_FILES"
+          
+          # Clean up temp files
+          rm -f /tmp/all_cpp_files.txt /tmp/test_candidates.txt /tmp/final_test_files.txt /tmp/source_candidates.txt /tmp/final_source_files.txt /tmp/temp_sources.txt
+          
+          # Find include directories
+          INCLUDE_DIRS=$(find . -type d \
+            -name "include" -o -name "inc" -o -name "header*" -o -name "src" \
+            ! -path "*/build/*" ! -path "*/Build/*" ! -path "*/BUILD/*" \
+            | head -10 | sed 's/^/-I/' | tr '\n' ' ')
+          echo "include-dirs=$INCLUDE_DIRS" >> $GITHUB_OUTPUT
+          echo "Found include directories: $INCLUDE_DIRS"
+          
+          # Check for custom main function in test files
+          HAS_CUSTOM_MAIN="false"
+          if echo "$TEST_FILES" | jq -r '.[]' | xargs grep -l "int main(" 2>/dev/null | head -1 >/dev/null; then
+            HAS_CUSTOM_MAIN="true"
+          fi
+          echo "has-custom-main=$HAS_CUSTOM_MAIN" >> $GITHUB_OUTPUT
+          echo "Has custom main in tests: $HAS_CUSTOM_MAIN"
+          
+          # Determine project structure
+          if [ -d "src" ] && [ -d "test" ]; then
+            PROJECT_STRUCTURE="src-test"
+          elif [ -d "src" ] && [ -d "tests" ]; then
+            PROJECT_STRUCTURE="src-tests"
+          elif find . -maxdepth 1 -name "*.cpp" | head -1 >/dev/null; then
+            PROJECT_STRUCTURE="flat"
+          else
+            PROJECT_STRUCTURE="custom"
+          fi
+          echo "project-structure=$PROJECT_STRUCTURE" >> $GITHUB_OUTPUT
+          echo "Project structure: $PROJECT_STRUCTURE"
+
+  test:
+    needs: analyze-project
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        approach: [cmake, direct]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up build environment
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libgtest-dev \
+            libgmock-dev \
+            pkg-config \
+            jq \
+            gdb \
+            file
+          
+          # Install GTest from source for older systems
+          cd /usr/src/googletest 2>/dev/null || cd /usr/src/gtest
+          sudo mkdir -p build
+          cd build
+          sudo cmake .. -DBUILD_GMOCK=ON -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic"
+          sudo make -j$(nproc)
+          sudo make install || sudo cp lib/*.a /usr/lib/ || sudo cp googlemock/lib*.a googletest/lib*.a /usr/lib/ 2>/dev/null || true
+          
+          # Ensure GTest is available
+          sudo ldconfig
+          pkg-config --exists gtest || echo "GTest pkg-config not found, will use manual linking"
+
+      - name: Setup compiler
+        run: |
+          set -e
+          COMPILER="${{ needs.analyze-project.outputs.compiler }}"
+          
+          if [ "$COMPILER" = "gcc" ]; then
+            sudo apt-get install -y gcc g++
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          elif [ "$COMPILER" = "clang" ]; then
+            sudo apt-get install -y clang
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          fi
+
+      - name: Build with CMake
+        if: matrix.approach == 'cmake' && (needs.analyze-project.outputs.build-system == 'cmake' || needs.analyze-project.outputs.build-system == 'auto')
+        run: |
+          set -e
+          
+          # Create CMakeLists.txt if it doesn't exist
+          if [ ! -f "CMakeLists.txt" ]; then
+            echo "Creating generic CMakeLists.txt..."
+            cat > CMakeLists.txt << 'EOF'
+          cmake_minimum_required(VERSION 3.10)
+          project(FastestAI_Test)
+          
+          # Set C++ standard
+          set(CMAKE_CXX_STANDARD ${{ needs.analyze-project.outputs.cpp-standard == 'c++11' && '11' || needs.analyze-project.outputs.cpp-standard == 'c++14' && '14' || needs.analyze-project.outputs.cpp-standard == 'c++17' && '17' || needs.analyze-project.outputs.cpp-standard == 'c++20' && '20' || '14' }})
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          
+          # Set conservative compiler flags for better compatibility
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=x86-64 -mtune=generic -O1 -g")
+          
+          # Find packages
+          find_package(GTest REQUIRED)
+          find_package(Threads REQUIRED)
+          
+          # Include directories
+          include_directories(${GTEST_INCLUDE_DIRS})
+          
+          # Auto-discover source files
+          file(GLOB_RECURSE SOURCES 
+            "*.cpp" "*.cc" "*.cxx"
+            "src/*.cpp" "src/*.cc" "src/*.cxx"
+          )
+          
+          # Filter out test files and main files
+          list(FILTER SOURCES EXCLUDE REGEX ".*[Tt]est.*")
+          list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+          list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cc$")
+          list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cxx$")
+          
+          # Auto-discover test files
+          file(GLOB_RECURSE TEST_SOURCES 
+            "*test*.cpp" "*test*.cc" "*test*.cxx"
+            "*Test*.cpp" "*Test*.cc" "*Test*.cxx"
+            "test/*.cpp" "tests/*.cpp"
+          )
+          
+          # Create test executable
+          if(TEST_SOURCES)
+            add_executable(test_runner ${SOURCES} ${TEST_SOURCES})
+            target_link_libraries(test_runner ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} Threads::Threads)
+            
+            # Add common include directories
+            target_include_directories(test_runner PRIVATE 
+              ${CMAKE_CURRENT_SOURCE_DIR}
+              ${CMAKE_CURRENT_SOURCE_DIR}/src
+              ${CMAKE_CURRENT_SOURCE_DIR}/include
+              ${CMAKE_CURRENT_SOURCE_DIR}/inc
+            )
+          endif()
+          EOF
+          fi
+          
+          # Build
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Debug
+          make -j$(nproc) VERBOSE=1
+          
+          # Check if executable was created and verify it
+          if [ -f "test_runner" ]; then
+            echo "CMAKE_BUILD_SUCCESS=true" >> $GITHUB_ENV
+            echo "TEST_EXECUTABLE=$(pwd)/test_runner" >> $GITHUB_ENV
+            echo "CMake build successful, executable created at: $(pwd)/test_runner"
+            file test_runner
+            chmod +x test_runner
+          else
+            echo "CMAKE_BUILD_SUCCESS=false" >> $GITHUB_ENV
+            echo "CMake build failed - no executable created"
+            ls -la .
+          fi
+
+      - name: Build with Direct Compilation  
+        if: matrix.approach == 'direct'
+        run: |
+          set -e
+          
+          echo "=== Direct compilation approach ==="
+          
+          # Get file lists
+          SOURCE_FILES='${{ needs.analyze-project.outputs.source-files }}'
+          TEST_FILES='${{ needs.analyze-project.outputs.test-files }}'
+          INCLUDE_DIRS="${{ needs.analyze-project.outputs.include-dirs }}"
+          CPP_STANDARD="${{ needs.analyze-project.outputs.cpp-standard }}"
+          HAS_CUSTOM_MAIN="${{ needs.analyze-project.outputs.has-custom-main }}"
+          
+          echo "Source files: $SOURCE_FILES"
+          echo "Test files: $TEST_FILES"
+          echo "Include dirs: $INCLUDE_DIRS"
+          echo "Has custom main: $HAS_CUSTOM_MAIN"
+          
+          # Validate we have test files
+          if [ "$TEST_FILES" = "[]" ] || [ -z "$TEST_FILES" ]; then
+            echo "❌ No test files found for compilation"
+            echo "DIRECT_BUILD_SUCCESS=false" >> $GITHUB_ENV
+            exit 1
+          fi
+          
+          # Create temporary files to handle file lists
+          echo "$SOURCE_FILES" | jq -r '.[] | select(length > 0)' > /tmp/source_files.txt
+          echo "$TEST_FILES" | jq -r '.[] | select(length > 0)' > /tmp/test_files.txt
+          
+          # Debug: show what files we found
+          echo "=== Source files found ==="
+          cat /tmp/source_files.txt || echo "No source files"
+          echo "=== Test files found ==="
+          cat /tmp/test_files.txt || echo "No test files"
+          
+          # Verify test files exist
+          if [ ! -s /tmp/test_files.txt ]; then
+            echo "❌ No test files found after parsing!"
+            echo "DIRECT_BUILD_SUCCESS=false" >> $GITHUB_ENV
+            exit 1
+          fi
+          
+          # Build file lists, ensuring files exist
+          FILTERED_SOURCES=""
+          while IFS= read -r src; do
+            if [ -f "$src" ] && [[ "$src" != *"main.cpp"* ]] && [[ "$src" != *"main.cc"* ]] && [[ "$src" != *"main.cxx"* ]]; then
+              # Skip if this file is also in test list
+              if ! grep -Fxq "$src" /tmp/test_files.txt; then
+                FILTERED_SOURCES="$FILTERED_SOURCES $src"
+              fi
+            fi
+          done < /tmp/source_files.txt
+          
+          FILTERED_TESTS=""
+          while IFS= read -r test; do
+            if [ -f "$test" ]; then
+              FILTERED_TESTS="$FILTERED_TESTS $test"
+            else
+              echo "⚠️ Test file not found: $test"
+            fi
+          done < /tmp/test_files.txt
+          
+          echo "Final filtered source files: $FILTERED_SOURCES"
+          echo "Final filtered test files: $FILTERED_TESTS"
+          
+          # Validate we still have test files
+          if [ -z "$FILTERED_TESTS" ]; then
+            echo "❌ No valid test files found!"
+            echo "DIRECT_BUILD_SUCCESS=false" >> $GITHUB_ENV
+            exit 1
+          fi
+          
+          # Determine GTest linking
+          GTEST_MAIN_FLAG=""
+          if [ "$HAS_CUSTOM_MAIN" = "true" ]; then
+            echo "Test files contain custom main function"
+          else
+            echo "Using GTest main function"
+            GTEST_MAIN_FLAG="-lgtest_main"
+          fi
+          
+          # Conservative compiler flags
+          COMPILER_FLAGS="-std=$CPP_STANDARD -Wall -g -march=x86-64 -mtune=generic -O1"
+          LINKER_FLAGS="-pthread"
+          
+          # Setup GTest linking
+          if pkg-config --exists gtest; then
+            GTEST_CFLAGS=$(pkg-config --cflags gtest)
+            GTEST_LIBS=$(pkg-config --libs gtest)
+          else
+            GTEST_CFLAGS="-I/usr/include/gtest"
+            GTEST_LIBS="-L/usr/lib -L/usr/local/lib -lgtest"
+          fi
+          
+          # Build command
+          BUILD_CMD="$CXX $COMPILER_FLAGS $INCLUDE_DIRS $GTEST_CFLAGS $FILTERED_SOURCES $FILTERED_TESTS $GTEST_LIBS $GTEST_MAIN_FLAG $LINKER_FLAGS -o test_runner"
+          
+          echo "Build command: $BUILD_CMD"
+          
+          # Execute build with error checking
+          if eval $BUILD_CMD; then
+            if [ -f "test_runner" ]; then
+              echo "DIRECT_BUILD_SUCCESS=true" >> $GITHUB_ENV
+              echo "TEST_EXECUTABLE=$(pwd)/test_runner" >> $GITHUB_ENV
+              chmod +x test_runner
+              echo "Direct build successful, executable created at: $(pwd)/test_runner"
+              file test_runner
+            else
+              echo "❌ Build completed but no executable found"
+              echo "DIRECT_BUILD_SUCCESS=false" >> $GITHUB_ENV
+            fi
+          else
+            echo "❌ Build command failed"
+            echo "DIRECT_BUILD_SUCCESS=false" >> $GITHUB_ENV
+          fi
+          
+          # Cleanup
+          rm -f /tmp/source_files.txt /tmp/test_files.txt
+
+      - name: Verify Executable
+        if: env.CMAKE_BUILD_SUCCESS == 'true' || env.DIRECT_BUILD_SUCCESS == 'true'
+        run: |
+          set -e
+          
+          TEST_EXECUTABLE="${TEST_EXECUTABLE}"
+          
+          if [ -z "$TEST_EXECUTABLE" ] || [ ! -f "$TEST_EXECUTABLE" ]; then
+            echo "❌ Test executable not found: $TEST_EXECUTABLE"
+            echo "Current directory contents:"
+            ls -la .
+            if [ -d "build" ]; then
+              echo "Build directory contents:"
+              ls -la build/
+            fi
+            exit 1
+          fi
+          
+          echo "✅ Test executable found: $TEST_EXECUTABLE"
+          echo "=== Binary Information ==="
+          file "$TEST_EXECUTABLE"
+          echo "=== Library Dependencies ==="
+          ldd "$TEST_EXECUTABLE" || echo "Could not check dependencies"
+          echo "=== Testing Help Command ==="
+          timeout 10s "$TEST_EXECUTABLE" --help 2>&1 || echo "Help command failed or timed out (exit code: $?)"
+
+      - name: Run Tests
+        if: env.CMAKE_BUILD_SUCCESS == 'true' || env.DIRECT_BUILD_SUCCESS == 'true'
+        run: |
+          set -e
+          
+          TEST_EXECUTABLE="${TEST_EXECUTABLE}"
+          
+          if [ ! -f "$TEST_EXECUTABLE" ]; then
+            echo "❌ Test executable not found: $TEST_EXECUTABLE"
+            exit 1
+          fi
+          
+          # Parse test filter
+          TEST_FILTER=$(echo '${{ github.event.inputs.test_names }}' | jq -r 'if . == [] then empty else join(":") end')
+          
+          # Prepare output file name
+          OUTPUT_FILE="${{ matrix.approach }}_results.xml"
+          
+          # List available tests first
+          echo "=== Listing Available Tests ==="
+          if timeout 30s "$TEST_EXECUTABLE" --gtest_list_tests 2>&1; then
+            echo "✅ Test listing successful"
+          else
+            echo "⚠️ Could not list tests (exit code: $?), but continuing..."
+          fi
+          
+          # Run tests
+          echo "=== Running Tests ==="
+          
+          if [ -n "$TEST_FILTER" ]; then
+            echo "Running filtered tests: $TEST_FILTER"
+            TEST_CMD="$TEST_EXECUTABLE --gtest_filter=\"$TEST_FILTER\" --gtest_output=xml:$OUTPUT_FILE"
+          else
+            echo "Running all tests"
+            TEST_CMD="$TEST_EXECUTABLE --gtest_output=xml:$OUTPUT_FILE"
+          fi
+          
+          echo "Test command: $TEST_CMD"
+          
+          # Run with timeout and capture exit code
+          if timeout 300s bash -c "$TEST_CMD"; then
+            echo "✅ Tests completed successfully"
+          else
+            EXIT_CODE=$?
+            echo "⚠️ Tests completed with exit code: $EXIT_CODE"
+            
+            # Check if partial results were generated
+            if [ ! -f "$OUTPUT_FILE" ]; then
+              echo "No results file generated, creating error report..."
+              cat > "$OUTPUT_FILE" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuites tests="0" failures="1" disabled="0" errors="1" timestamp="$(date -u +%Y-%m-%dT%H:%M:%S)" time="0" name="AllTests">
+            <testsuite name="TestExecutionError" tests="0" failures="1" disabled="0" errors="1" time="0">
+              <testcase name="ExecutionFailed" status="run" time="0" classname="TestExecutionError">
+                <error message="Test executable failed to run or crashed" type="RuntimeError">
+                  Exit code: $EXIT_CODE
+                  Command: $TEST_CMD
+                  This may be due to test failures, crashes, or timeout.
+                </error>
+              </testcase>
+            </testsuite>
+          </testsuites>
+          EOF
+            fi
+          fi
+          
+          # Verify and process results file
+          if [ -f "$OUTPUT_FILE" ]; then
+            echo "TEST_RESULTS_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
+            echo "✅ Test results file generated: $OUTPUT_FILE"
+            
+            # Show summary
+            echo "=== Test Summary ==="
+            if grep -q "testsuites" "$OUTPUT_FILE"; then
+              echo "Tests: $(grep -o 'tests="[0-9]*"' "$OUTPUT_FILE" | head -1 | cut -d'"' -f2)"
+              echo "Failures: $(grep -o 'failures="[0-9]*"' "$OUTPUT_FILE" | head -1 | cut -d'"' -f2)"
+              echo "Errors: $(grep -o 'errors="[0-9]*"' "$OUTPUT_FILE" | head -1 | cut -d'"' -f2)"
+            else
+              echo "Could not parse test summary from results file"
+            fi
+            
+            # Show first few lines of results for debugging
+            echo "=== Results File Preview ==="
+            head -10 "$OUTPUT_FILE"
+          else
+            echo "❌ Test results file was not generated!"
+            exit 1
+          fi
+
+      - name: Send Results to FastestAI
+        if: env.TEST_RESULTS_FILE && (env.CMAKE_BUILD_SUCCESS == 'true' || env.DIRECT_BUILD_SUCCESS == 'true')
+        env:
+          FASTEST_SECRET_KEY: ${{ secrets.FASTEST_SECRET_KEY }}
+        run: |
+          set -e
+          
+          RESULTS_FILE="${TEST_RESULTS_FILE}"
+          
+          if [ ! -f "$RESULTS_FILE" ]; then
+            echo "❌ Results file not found: $RESULTS_FILE"
+            exit 1
+          fi
+          
+          # Validate results file
+          if [ ! -s "$RESULTS_FILE" ]; then
+            echo "❌ Results file is empty: $RESULTS_FILE"
+            exit 1
+          fi
+          
+          if ! grep -q "<?xml" "$RESULTS_FILE"; then
+            echo "❌ Results file does not appear to be valid XML"
+            echo "File content preview:"
+            head -10 "$RESULTS_FILE"
+            exit 1
+          fi
+          
+          echo "📤 Sending test results to FastestAI..."
+          echo "Analysis Result ID: ${{ github.event.inputs.analysis_result_id }}"
+          echo "Build Approach: ${{ matrix.approach }}"
+          echo "Results file size: $(wc -c < "$RESULTS_FILE") bytes"
+          
+          # Send to FastestAI (single attempt)
+          response_code=$(curl -s -o response.txt -w "%{http_code}" -X POST \
+            "https://fastestai.tech/codebase/test-results?analysis_result_id=${{ github.event.inputs.analysis_result_id }}&build_approach=${{ matrix.approach }}" \
+            -H "X-Secret-Key: $FASTEST_SECRET_KEY" \
+            -H "Content-Type: application/xml" \
+            -H "User-Agent: FastestAI-GitHub-Runner/1.0" \
+            --connect-timeout 30 \
+            --max-time 120 \
+            --data-binary "@$RESULTS_FILE")
+          
+          echo "Response code: $response_code"
+          
+          if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 201 ]; then
+            echo "✅ Test results sent successfully to FastestAI (approach: ${{ matrix.approach }})"
+            if [ -f "response.txt" ]; then
+              echo "API Response: $(cat response.txt)"
+            fi
+          else
+            echo "❌ Failed to send results. HTTP Status: $response_code"
+            if [ -f "response.txt" ]; then
+              echo "API Response: $(cat response.txt)"
+            fi
+            
+            case $response_code in
+              400)
+                echo "❌ Bad Request: Check if analysis_result_id is valid and request format is correct"
+                ;;
+              401)
+                echo "❌ Unauthorized: Check if FASTEST_SECRET_KEY is set correctly"
+                ;;
+              403)
+                echo "❌ Forbidden: API key may not have permission for this operation"
+                ;;
+              404)
+                echo "❌ Not Found: Analysis result ID may not exist"
+                ;;
+              429)
+                echo "❌ Rate limited: Too many requests"
+                ;;
+              500|502|503|504)
+                echo "❌ Server error: FastestAI service temporarily unavailable"
+                ;;
+              *)
+                echo "❌ Unexpected HTTP status code: $response_code"
+                ;;
+            esac
+            
+            exit 1
+          fi
+
+  report:
+    needs: [analyze-project, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate Summary Report
+        run: |
+          echo "# FastestAI C++ Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Project Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build System**: ${{ needs.analyze-project.outputs.build-system }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **C++ Standard**: ${{ needs.analyze-project.outputs.cpp-standard }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Compiler**: ${{ needs.analyze-project.outputs.compiler }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project Structure**: ${{ needs.analyze-project.outputs.project-structure }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Execution Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Analysis Result ID**: ${{ github.event.inputs.analysis_result_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Filter**: ${{ github.event.inputs.test_names }}" >> $GITHUB_STEP_SUMMARY
