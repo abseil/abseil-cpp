@@ -935,21 +935,6 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
                     hash_internal::WeaklyMixedInteger{size});
 }
 
-// Extremely weak mixture of length that is added to the state before combining
-// the data. It is used only for small strings.
-inline uint64_t PrecombineLengthMix(uint64_t state, size_t len) {
-  // The length is always one byte here. We place it to 4th byte for the
-  // following reasons:
-  // 1. 4th byte is unused for very short strings 0-3 bytes.
-  // 2. 4th byte is duplicated for 4 bytes string.
-  // 3. 4th byte is in the middle and mixed well for 5-8 bytes strings.
-  //
-  // There were experiments with adding just `len` here.
-  // Also seems have slightly better performance overall, that gives collisions
-  // for small strings.
-  return state + (uint64_t{len} << 24);
-}
-
  inline constexpr uint64_t kMul = uint64_t{0xdcb22ca68cb134ed};
 
 // Random data taken from the hexadecimal digits of Pi's fractional component.
@@ -958,6 +943,16 @@ ABSL_CACHELINE_ALIGNED inline constexpr uint64_t kStaticRandomData[] = {
     0x243f'6a88'85a3'08d3, 0x1319'8a2e'0370'7344, 0xa409'3822'299f'31d0,
     0x082e'fa98'ec4e'6c89, 0x4528'21e6'38d0'1377,
 };
+
+// Extremely weak mixture of length that is mixed into the state before
+// combining the data. It is used only for small strings. This also ensures that
+// we have high entropy in all bits of the state.
+inline uint64_t PrecombineLengthMix(uint64_t state, size_t len) {
+  ABSL_ASSUME(len + sizeof(uint64_t) <= sizeof(kStaticRandomData));
+  uint64_t data = absl::base_internal::UnalignedLoad64(
+      reinterpret_cast<const unsigned char*>(&kStaticRandomData[0]) + len);
+  return state ^ data;
+}
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t Mix(uint64_t lhs, uint64_t rhs) {
   // For 32 bit platforms we are trying to use all 64 lower bits.

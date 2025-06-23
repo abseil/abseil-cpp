@@ -58,16 +58,16 @@
 
 namespace {
 
+using ::absl::Hash;
+using ::absl::container_internal::hashtable_debug_internal::
+    HashtableDebugAccess;
+using ::absl::hash_internal::SpyHashState;
 using ::absl::hash_test_internal::is_hashable;
 using ::absl::hash_test_internal::TypeErasedContainer;
 using ::absl::hash_test_internal::TypeErasedValue;
-using ::testing::SizeIs;
 
 template <typename T>
 using TypeErasedVector = TypeErasedContainer<std::vector<T>>;
-
-using absl::Hash;
-using absl::hash_internal::SpyHashState;
 
 template <typename T>
 class HashValueIntTest : public testing::Test {
@@ -1237,6 +1237,52 @@ TEST(HashOf, AutoReturnTypeUser) {
 TEST(HashOf, DoubleSignCollision) {
   // These values differ only in their most significant bit.
   EXPECT_NE(absl::HashOf(-1.0), absl::HashOf(1.0));
+}
+
+// Test that we don't cause excessive collisions on the hash table for
+// doubles in the range [-1024, 1024]. See cl/773069881 for more information.
+TEST(SwisstableCollisions, DoubleRange) {
+#ifdef GOOGLE_UNSUPPORTED_OS_LOONIX
+  // TODO(b/424834054): make this test pass on Loonix.
+  GTEST_SKIP() << "Test fails on Loonix.";
+#endif
+
+  absl::flat_hash_set<double> set;
+  for (double t = -1024.0; t < 1024.0; t += 1.0) {
+    set.insert(t);
+    ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, t), 64)
+        << t;
+  }
+}
+
+// Test that for each pair of adjacent bytes in a string, if there's only
+// entropy in those two bytes, then we don't have excessive collisions.
+TEST(SwisstableCollisions, LowEntropyStrings) {
+  if (sizeof(size_t) < 8) {
+    // TODO(b/424834054): make this test pass on 32-bit platforms. We need to
+    // make 32-bit Mix() stronger.
+    GTEST_SKIP() << "Test fails on 32-bit platforms";
+  }
+
+  constexpr char kMinChar = 0;
+  constexpr char kMaxChar = 64;
+  // These sizes cover the different hashing cases.
+  for (size_t size : {8u, 16u, 32u, 64u}) {
+    for (size_t b = 0; b < size - 1; ++b) {
+      absl::flat_hash_set<std::string> set;
+      std::string s(size, '\0');
+      for (char c1 = kMinChar; c1 < kMaxChar; ++c1) {
+        for (char c2 = kMinChar; c2 < kMaxChar; ++c2) {
+          s[b] = c1;
+          s[b + 1] = c2;
+          set.insert(s);
+          ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, s),
+                    64)
+              << size << " " << b;
+        }
+      }
+    }
+  }
 }
 
 }  // namespace

@@ -3713,7 +3713,7 @@ struct HashtableDebugAccess<Set, absl::void_t<typename Set::raw_hash_set>> {
 
   static size_t GetNumProbes(const Set& set,
                              const typename Set::key_type& key) {
-    if (set.is_soo()) return 0;
+    if (set.is_small()) return 0;
     size_t num_probes = 0;
     const size_t hash = set.hash_of(key);
     auto seq = probe(set.common(), hash);

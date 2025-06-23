@@ -397,21 +397,6 @@ TEST(FlatHashSet, IsDefaultHash) {
             false);
 }
 
-// Test that we don't cause excessive collisions on the hash table for
-// doubles in the range [-1024, 1024]. See cl/773069881 for more information.
-TEST(FlatHashSet, DoubleRange) {
-  using absl::container_internal::hashtable_debug_internal::
-      HashtableDebugAccess;
-  absl::flat_hash_set<double> set;
-  for (double t = -1024.0; t < 1024.0; t += 1.0) {
-    set.insert(t);
-  }
-  for (double t = -1024.0; t < 1024.0; t += 1.0) {
-    ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, t), 64)
-        << t;
-  }
-}
-
 }  // namespace
 }  // namespace container_internal
 ABSL_NAMESPACE_END
