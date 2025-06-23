@@ -46,6 +46,16 @@ template <typename T, typename U>
 struct HasConversionOperatorToStatusOr<T, U, decltype(test<T, U>(0))>
     : std::true_type {};
 
+// Detects whether `T` is equality-comparable.
+template <typename T, typename = void>
+struct IsEqualityComparable : std::false_type {};
+
+template <typename T>
+struct IsEqualityComparable<
+    T, std::enable_if_t<std::is_convertible<
+           decltype(std::declval<T>() == std::declval<T>()),
+           bool>::value>> : std::true_type {};
+
 // Detects whether `T` is constructible or convertible from `StatusOr<U>`.
 template <typename T, typename U>
 using IsConstructibleOrConvertibleFromStatusOr =

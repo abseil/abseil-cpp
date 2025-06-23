@@ -607,7 +607,9 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
 // operator==()
 //
 // This operator checks the equality of two `absl::StatusOr<T>` objects.
-template <typename T>
+template <typename T,
+          std::enable_if_t<internal_statusor::IsEqualityComparable<T>::value,
+                           int> = 0>
 bool operator==(const StatusOr<T>& lhs, const StatusOr<T>& rhs) {
   if (lhs.ok() && rhs.ok()) return *lhs == *rhs;
   return lhs.status() == rhs.status();
@@ -616,7 +618,9 @@ bool operator==(const StatusOr<T>& lhs, const StatusOr<T>& rhs) {
 // operator!=()
 //
 // This operator checks the inequality of two `absl::StatusOr<T>` objects.
-template <typename T>
+template <typename T,
+          std::enable_if_t<internal_statusor::IsEqualityComparable<T>::value,
+                           int> = 0>
 bool operator!=(const StatusOr<T>& lhs, const StatusOr<T>& rhs) {
   return !(lhs == rhs);
 }
