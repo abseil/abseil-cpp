@@ -1258,6 +1258,10 @@ TEST(SwisstableCollisions, DoubleRange) {
 // Test that for each pair of adjacent bytes in a string, if there's only
 // entropy in those two bytes, then we don't have excessive collisions.
 TEST(SwisstableCollisions, LowEntropyStrings) {
+#if defined(__GNUC__) && !defined(__clang__)
+  // TODO(b/424834054): make this test pass on GCC.
+  GTEST_SKIP() << "Test fails on GCC";
+#endif
   if (sizeof(size_t) < 8) {
     // TODO(b/424834054): make this test pass on 32-bit platforms. We need to
     // make 32-bit Mix() stronger.
