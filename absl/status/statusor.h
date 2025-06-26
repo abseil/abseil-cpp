@@ -194,6 +194,11 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
                  private internal_statusor::MoveCtorBase<T>,
                  private internal_statusor::CopyAssignBase<T>,
                  private internal_statusor::MoveAssignBase<T> {
+#ifndef SWIG
+  static_assert(!std::is_rvalue_reference_v<T>,
+                "rvalue references are not yet supported.");
+#endif  // SWIG
+
   template <typename U>
   friend class StatusOr;
 
@@ -397,7 +402,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
             typename std::enable_if<
                 internal_statusor::IsAssignmentValid<T, U, true>::value,
                 int>::type = 0>
-  StatusOr& operator=(U&& v ABSL_ATTRIBUTE_LIFETIME_BOUND) {
+  StatusOr& operator=(U&& v ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)) {
     this->Assign(std::forward<U>(v));
     return *this;
   }
@@ -520,8 +525,10 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // REQUIRES: `this->ok() == true`, otherwise the behavior is undefined.
   //
   // Use `this->ok()` to verify that there is a current value.
-  const T* absl_nonnull operator->() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T* absl_nonnull operator->() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::remove_reference_t<const T>* absl_nonnull operator->() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::remove_reference_t<T>* absl_nonnull operator->()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // StatusOr<T>::value_or()
   //
@@ -536,10 +543,34 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   //
   // Unlike with `value`, calling `std::move()` on the result of `value_or` will
   // still trigger a copy.
-  template <typename U>
-  T value_or(U&& default_value) const&;
-  template <typename U>
-  T value_or(U&& default_value) &&;
+  template <
+      typename U,
+      std::enable_if_t<internal_statusor::IsValueOrValid<T, U&&, false>::value,
+                       int> = 0>
+  T value_or(U&& default_value) const& {
+    return this->ValueOrImpl(std::forward<U>(default_value));
+  }
+  template <
+      typename U,
+      std::enable_if_t<internal_statusor::IsValueOrValid<T, U&&, false>::value,
+                       int> = 0>
+  T value_or(U&& default_value) && {
+    return std::move(*this).ValueOrImpl(std::forward<U>(default_value));
+  }
+  template <
+      typename U,
+      std::enable_if_t<internal_statusor::IsValueOrValid<T, U&&, true>::value,
+                       int> = 0>
+  T value_or(U&& default_value ABSL_ATTRIBUTE_LIFETIME_BOUND) const& {
+    return this->ValueOrImpl(std::forward<U>(default_value));
+  }
+  template <
+      typename U,
+      std::enable_if_t<internal_statusor::IsValueOrValid<T, U&&, true>::value,
+                       int> = 0>
+  T value_or(U&& default_value ABSL_ATTRIBUTE_LIFETIME_BOUND) && {
+    return std::move(*this).ValueOrImpl(std::forward<U>(default_value));
+  }
 
   // StatusOr<T>::IgnoreError()
   //
@@ -760,33 +791,13 @@ T&& StatusOr<T>::operator*() && {
 }
 
 template <typename T>
-const T* absl_nonnull StatusOr<T>::operator->() const {
-  this->EnsureOk();
-  return &this->data_;
+std::remove_reference_t<const T>* absl_nonnull StatusOr<T>::operator->() const {
+  return std::addressof(**this);
 }
 
 template <typename T>
-T* absl_nonnull StatusOr<T>::operator->() {
-  this->EnsureOk();
-  return &this->data_;
-}
-
-template <typename T>
-template <typename U>
-T StatusOr<T>::value_or(U&& default_value) const& {
-  if (ok()) {
-    return this->data_;
-  }
-  return std::forward<U>(default_value);
-}
-
-template <typename T>
-template <typename U>
-T StatusOr<T>::value_or(U&& default_value) && {
-  if (ok()) {
-    return std::move(this->data_);
-  }
-  return std::forward<U>(default_value);
+std::remove_reference_t<T>* absl_nonnull StatusOr<T>::operator->() {
+  return std::addressof(**this);
 }
 
 template <typename T>
