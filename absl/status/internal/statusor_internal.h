@@ -450,6 +450,78 @@ class StatusOrData {
   }
 };
 
+[[noreturn]] void ThrowBadStatusOrAccess(absl::Status status);
+
+template <typename T>
+struct OperatorBase {
+  auto& self() const { return static_cast<const StatusOr<T>&>(*this); }
+  auto& self() { return static_cast<StatusOr<T>&>(*this); }
+
+  const T& operator*() const& ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    self().EnsureOk();
+    return self().data_;
+  }
+  T& operator*() & ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    self().EnsureOk();
+    return self().data_;
+  }
+  const T&& operator*() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    self().EnsureOk();
+    return std::move(self().data_);
+  }
+  T&& operator*() && ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    self().EnsureOk();
+    return std::move(self().data_);
+  }
+
+  const T& value() const& ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    if (!self().ok()) internal_statusor::ThrowBadStatusOrAccess(self().status_);
+    return self().data_;
+  }
+  T& value() & ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    if (!self().ok()) internal_statusor::ThrowBadStatusOrAccess(self().status_);
+    return self().data_;
+  }
+  const T&& value() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    if (!self().ok()) {
+      internal_statusor::ThrowBadStatusOrAccess(std::move(self().status_));
+    }
+    return std::move(self().data_);
+  }
+  T&& value() && ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    if (!self().ok()) {
+      internal_statusor::ThrowBadStatusOrAccess(std::move(self().status_));
+    }
+    return std::move(self().data_);
+  }
+
+  const T* absl_nonnull operator->() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return std::addressof(**this);
+  }
+  T* absl_nonnull operator->() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return std::addressof(**this);
+  }
+};
+
+template <typename T>
+struct OperatorBase<T&> {
+  auto& self() const { return static_cast<const StatusOr<T&>&>(*this); }
+
+  T& operator*() const {
+    self().EnsureOk();
+    return self().data_;
+  }
+
+  T& value() const {
+    if (!self().ok()) internal_statusor::ThrowBadStatusOrAccess(self().status_);
+    return self().data_;
+  }
+
+  T* absl_nonnull operator->() const {
+    return std::addressof(**this);
+  }
+};
+
 // Helper base classes to allow implicitly deleted constructors and assignment
 // operators in `StatusOr`. For example, `CopyCtorBase` will explicitly delete
 // the copy constructor when T is not copy constructible and `StatusOr` will
@@ -529,8 +601,6 @@ struct MoveAssignBase<T, false> {
   MoveAssignBase& operator=(const MoveAssignBase&) = default;
   MoveAssignBase& operator=(MoveAssignBase&&) = delete;
 };
-
-[[noreturn]] void ThrowBadStatusOrAccess(absl::Status status);
 
 // Used to introduce jitter into the output of printing functions for
 // `StatusOr` (i.e. `AbslStringify` and `operator<<`).

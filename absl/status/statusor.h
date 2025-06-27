@@ -189,7 +189,8 @@ class ABSL_MUST_USE_RESULT StatusOr;
 //    return Foo(arg);
 //  }
 template <typename T>
-class StatusOr : private internal_statusor::StatusOrData<T>,
+class StatusOr : private internal_statusor::OperatorBase<T>,
+                 private internal_statusor::StatusOrData<T>,
                  private internal_statusor::CopyCtorBase<T>,
                  private internal_statusor::MoveCtorBase<T>,
                  private internal_statusor::CopyAssignBase<T>,
@@ -201,6 +202,8 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
 
   template <typename U>
   friend class StatusOr;
+
+  friend internal_statusor::OperatorBase<T>;
 
   typedef internal_statusor::StatusOrData<T> Base;
 
@@ -498,10 +501,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   //
   // The `std::move` on statusor instead of on the whole expression enables
   // warnings about possible uses of the statusor object after the move.
-  const T& value() const& ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T& value() & ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  const T&& value() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T&& value() && ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  using StatusOr::OperatorBase::value;
 
   // StatusOr<T>:: operator*()
   //
@@ -513,10 +513,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // `absl::StatusOr<T>`. Alternatively, see the `value()` member function for a
   // similar API that guarantees crashing or throwing an exception if there is
   // no current value.
-  const T& operator*() const& ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T& operator*() & ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  const T&& operator*() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T&& operator*() && ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  using StatusOr::OperatorBase::operator*;
 
   // StatusOr<T>::operator->()
   //
@@ -525,10 +522,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // REQUIRES: `this->ok() == true`, otherwise the behavior is undefined.
   //
   // Use `this->ok()` to verify that there is a current value.
-  std::remove_reference_t<const T>* absl_nonnull operator->() const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  std::remove_reference_t<T>* absl_nonnull operator->()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  using StatusOr::OperatorBase::operator->;
 
   // StatusOr<T>::value_or()
   //
@@ -736,68 +730,6 @@ const Status& StatusOr<T>::status() const& {
 template <typename T>
 Status StatusOr<T>::status() && {
   return ok() ? OkStatus() : std::move(this->status_);
-}
-
-template <typename T>
-const T& StatusOr<T>::value() const& {
-  if (!this->ok()) internal_statusor::ThrowBadStatusOrAccess(this->status_);
-  return this->data_;
-}
-
-template <typename T>
-T& StatusOr<T>::value() & {
-  if (!this->ok()) internal_statusor::ThrowBadStatusOrAccess(this->status_);
-  return this->data_;
-}
-
-template <typename T>
-const T&& StatusOr<T>::value() const&& {
-  if (!this->ok()) {
-    internal_statusor::ThrowBadStatusOrAccess(std::move(this->status_));
-  }
-  return std::move(this->data_);
-}
-
-template <typename T>
-T&& StatusOr<T>::value() && {
-  if (!this->ok()) {
-    internal_statusor::ThrowBadStatusOrAccess(std::move(this->status_));
-  }
-  return std::move(this->data_);
-}
-
-template <typename T>
-const T& StatusOr<T>::operator*() const& {
-  this->EnsureOk();
-  return this->data_;
-}
-
-template <typename T>
-T& StatusOr<T>::operator*() & {
-  this->EnsureOk();
-  return this->data_;
-}
-
-template <typename T>
-const T&& StatusOr<T>::operator*() const&& {
-  this->EnsureOk();
-  return std::move(this->data_);
-}
-
-template <typename T>
-T&& StatusOr<T>::operator*() && {
-  this->EnsureOk();
-  return std::move(this->data_);
-}
-
-template <typename T>
-std::remove_reference_t<const T>* absl_nonnull StatusOr<T>::operator->() const {
-  return std::addressof(**this);
-}
-
-template <typename T>
-std::remove_reference_t<T>* absl_nonnull StatusOr<T>::operator->() {
-  return std::addressof(**this);
 }
 
 template <typename T>

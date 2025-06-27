@@ -2069,6 +2069,25 @@ TEST(StatusOr, ReferenceAssignFromReference) {
   EXPECT_EQ(&*si, &v[2]);
 }
 
+TEST(StatusOr, ReferenceIsNotLifetimeBoundForStarValue) {
+  int i = 0;
+
+  // op*/value should not be LIFETIME_BOUND because the ref is not limited to
+  // the lifetime of the StatusOr.
+  int& r = *absl::StatusOr<int&>(i);
+  EXPECT_EQ(&r, &i);
+  int& r2 = absl::StatusOr<int&>(i).value();
+  EXPECT_EQ(&r2, &i);
+
+  struct S {
+    int i;
+  };
+  S s;
+  // op-> should also not be LIFETIME_BOUND for refs.
+  int& r3 = absl::StatusOr<S&>(s)->i;
+  EXPECT_EQ(&r3, &s.i);
+}
+
 template <typename Expected, typename T>
 void TestReferenceDeref() {
   static_assert(std::is_same_v<Expected, decltype(*std::declval<T>())>);
