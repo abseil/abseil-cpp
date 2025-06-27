@@ -935,7 +935,7 @@ hash_range_or_bytes(H hash_state, const T* data, size_t size) {
                     hash_internal::WeaklyMixedInteger{size});
 }
 
- inline constexpr uint64_t kMul = uint64_t{0xdcb22ca68cb134ed};
+inline constexpr uint64_t kMul = uint64_t{0x79d5f9e0de1e8cf5};
 
 // Random data taken from the hexadecimal digits of Pi's fractional component.
 // https://en.wikipedia.org/wiki/Nothing-up-my-sleeve_number

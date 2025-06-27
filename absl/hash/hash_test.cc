@@ -1285,4 +1285,19 @@ TEST(SwisstableCollisions, LowEntropyStrings) {
   }
 }
 
+// Test that we don't have excessive collisions when keys are consecutive
+// integers rotated by N bits.
+TEST(SwisstableCollisions, LowEntropyInts) {
+  constexpr int kSizeTBits = sizeof(size_t) * 8;
+  for (int bit = 0; bit < kSizeTBits; ++bit) {
+    absl::flat_hash_set<size_t> set;
+    for (size_t i = 0; i < 128 * 1024; ++i) {
+      size_t v = absl::rotl(i, bit);
+      set.insert(v);
+      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 32)
+          << bit << " " << i;
+    }
+  }
+}
+
 }  // namespace
