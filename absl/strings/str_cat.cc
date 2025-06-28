@@ -72,7 +72,6 @@ std::string StrCat(const AlphaNum& a, const AlphaNum& b) {
   char* const begin = &result[0];
   char* out = begin;
   out = Append(out, a);
-  *out++ = ' '; // Insert a space between a and b
   out = Append(out, b);
   assert(out == begin + result.size());
   return result;
