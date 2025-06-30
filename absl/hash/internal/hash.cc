@@ -101,9 +101,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(
     const unsigned char* data, size_t len, uint64_t state) {
   // TODO(b/417141985): expose and use CityHash32WithSeed.
   // Note: we can't use PrecombineLengthMix here because len can be up to 1024.
-  return Mix((state + len) ^ hash_internal::CityHash32(
-                                 reinterpret_cast<const char*>(data), len),
-             kMul);
+  return CombineRawImpl(
+      state + len,
+      hash_internal::CityHash32(reinterpret_cast<const char*>(data), len));
 }
 
 ABSL_ATTRIBUTE_NOINLINE uint64_t

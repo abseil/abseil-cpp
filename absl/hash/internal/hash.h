@@ -1034,6 +1034,11 @@ inline uint32_t Read1To3(const unsigned char* p, size_t len) {
   return mem0 | mem1;
 }
 
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
+                                                            uint64_t value) {
+  return Mix(state ^ value, kMul);
+}
+
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
 // CombineContiguousImpl() repeatedly with the chunk stride size.
@@ -1055,7 +1060,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineSmallContiguousImpl(
     // Empty string must modify the state.
     v = 0x57;
   }
-  return Mix(state ^ v, kMul);
+  return CombineRawImpl(state, v);
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineContiguousImpl9to16(
@@ -1263,7 +1268,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T, absl::enable_if_t<IntegralFastPath<T>::value, int> = 0>
   static size_t hash_with_seed(T value, size_t seed) {
     return static_cast<size_t>(
-        Mix(seed ^ static_cast<std::make_unsigned_t<T>>(value), kMul));
+        CombineRawImpl(seed, static_cast<std::make_unsigned_t<T>>(value)));
   }
 
   template <typename T, absl::enable_if_t<!IntegralFastPath<T>::value, int> = 0>
@@ -1301,7 +1306,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   // optimize Read1To3 and Read4To8 differently for the string case.
   static MixingHashState combine_raw(MixingHashState hash_state,
                                      uint64_t value) {
-    return MixingHashState(Mix(hash_state.state_ ^ value, kMul));
+    return MixingHashState(CombineRawImpl(hash_state.state_, value));
   }
 
   static MixingHashState combine_weakly_mixed_integer(
