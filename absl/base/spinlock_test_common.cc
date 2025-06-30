@@ -221,7 +221,7 @@ TEST(SpinLockWithThreads, StackSpinLock) {
 }
 
 TEST(SpinLockWithThreads, StackCooperativeSpinLock) {
-  SpinLock spinlock(base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL);
+  SpinLock spinlock;
   ThreadedTest(&spinlock);
 }
 
@@ -272,8 +272,7 @@ TEST(SpinLockWithThreads, DoesNotDeadlock) {
     }
   };
 
-  SpinLock stack_cooperative_spinlock(
-      base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL);
+  SpinLock stack_cooperative_spinlock;
   SpinLock stack_noncooperative_spinlock(base_internal::SCHEDULE_KERNEL_ONLY);
   Helper::DeadlockTest(&stack_cooperative_spinlock,
                        base_internal::NumCPUs() * 2);
@@ -289,7 +288,7 @@ TEST(SpinLockTest, IsCooperative) {
   SpinLock default_constructor;
   EXPECT_TRUE(SpinLockTest::IsCooperative(default_constructor));
 
-  SpinLock cooperative(base_internal::SCHEDULE_COOPERATIVE_AND_KERNEL);
+  SpinLock cooperative;
   EXPECT_TRUE(SpinLockTest::IsCooperative(cooperative));
 
   SpinLock kernel_only(base_internal::SCHEDULE_KERNEL_ONLY);
