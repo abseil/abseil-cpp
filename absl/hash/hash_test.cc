@@ -1239,6 +1239,30 @@ TEST(HashOf, DoubleSignCollision) {
   EXPECT_NE(absl::HashOf(-1.0), absl::HashOf(1.0));
 }
 
+// Test for collisions in short strings if PrecombineLengthMix is low quality.
+TEST(PrecombineLengthMix, ShortStringCollision) {
+  std::string s1 = "00";
+  std::string s2 = "000";
+  constexpr char kMinChar = 0;
+  constexpr char kMaxChar = 32;
+  for (s1[0] = kMinChar; s1[0] < kMaxChar; ++s1[0]) {
+    for (s1[1] = kMinChar; s1[1] < kMaxChar; ++s1[1]) {
+      for (s2[0] = kMinChar; s2[0] < kMaxChar; ++s2[0]) {
+        for (s2[1] = kMinChar; s2[1] < kMaxChar; ++s2[1]) {
+          for (s2[2] = kMinChar; s2[2] < kMaxChar; ++s2[2]) {
+            ASSERT_NE(absl::HashOf(s1), absl::HashOf(s2))
+                << "s1[0]: " << static_cast<int>(s1[0])
+                << "; s1[1]: " << static_cast<int>(s1[1])
+                << "; s2[0]: " << static_cast<int>(s2[0])
+                << "; s2[1]: " << static_cast<int>(s2[1])
+                << "; s2[2]: " << static_cast<int>(s2[2]);
+          }
+        }
+      }
+    }
+  }
+}
+
 // Test that we don't cause excessive collisions on the hash table for
 // doubles in the range [-1024, 1024]. See cl/773069881 for more information.
 TEST(SwisstableCollisions, DoubleRange) {
