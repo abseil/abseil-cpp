@@ -964,7 +964,14 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(capacity() > 0);
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap_or_soo_.control().get());
+    // Assume that the control bytes don't alias `this`.
+    ctrl_t* ctrl = heap_or_soo_.control().get();
+    [[maybe_unused]] size_t num_control_bytes = NumControlBytes(capacity());
+    ABSL_ASSUME(reinterpret_cast<uintptr_t>(ctrl + num_control_bytes) <=
+                    reinterpret_cast<uintptr_t>(this) ||
+                reinterpret_cast<uintptr_t>(this + 1) <=
+                    reinterpret_cast<uintptr_t>(ctrl));
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(ctrl);
   }
 
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
