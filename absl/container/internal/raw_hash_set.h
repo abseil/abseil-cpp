@@ -1429,15 +1429,6 @@ inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
   return probe(common.capacity(), hash);
 }
 
-// Probes an array of control bits using a probe sequence derived from `hash`,
-// and returns the offset corresponding to the first deleted or empty slot.
-//
-// Behavior when the entire table is full is undefined.
-//
-// NOTE: this function must work with tables having both empty and deleted
-// slots in the same group. Such tables appear during `erase()`.
-FindInfo find_first_non_full(const CommonFields& common, size_t hash);
-
 constexpr size_t kProbedElementIndexSentinel = ~size_t{};
 
 // Implementation detail of transfer_unprobed_elements_to_next_capacity_fn.
