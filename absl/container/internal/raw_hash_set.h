@@ -1991,19 +1991,19 @@ class raw_hash_set {
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      AssertIsFull(ctrl_, generation(), generation_ptr(), "operator*()");
+      assert_is_full("operator*()");
       return unchecked_deref();
     }
 
     // PRECONDITION: not an end() iterator.
     pointer operator->() const {
-      AssertIsFull(ctrl_, generation(), generation_ptr(), "operator->");
+      assert_is_full("operator->");
       return &operator*();
     }
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      AssertIsFull(ctrl_, generation(), generation_ptr(), "operator++");
+      assert_is_full("operator++");
       ++ctrl_;
       ++slot_;
       skip_empty_or_deleted();
@@ -2053,6 +2053,10 @@ class raw_hash_set {
     // For end() iterators.
     explicit iterator(const GenerationType* generation_ptr)
         : HashSetIteratorGenerationInfo(generation_ptr), ctrl_(nullptr) {}
+
+    void assert_is_full(const char* operation) const {
+      AssertIsFull(ctrl_, generation(), generation_ptr(), operation);
+    }
 
     // Fixes up `ctrl_` to point to a full or sentinel by advancing `ctrl_` and
     // `slot_` until they reach one.
@@ -2685,7 +2689,7 @@ class raw_hash_set {
   void erase(iterator it) {
     ABSL_SWISSTABLE_ASSERT(capacity() > 0);
     AssertNotDebugCapacity();
-    AssertIsFull(it.control(), it.generation(), it.generation_ptr(), "erase()");
+    it.assert_is_full("erase()");
     destroy(it.slot());
     erase_meta_only(it);
   }
@@ -2751,8 +2755,7 @@ class raw_hash_set {
 
   node_type extract(const_iterator position) {
     AssertNotDebugCapacity();
-    AssertIsFull(position.control(), position.inner_.generation(),
-                 position.inner_.generation_ptr(), "extract()");
+    position.inner_.assert_is_full("extract()");
     allocator_type alloc(char_alloc_ref());
     auto node = CommonAccess::Transfer<node_type>(alloc, position.slot());
     erase_meta_only(position);
