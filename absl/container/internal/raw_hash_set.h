@@ -1377,13 +1377,6 @@ inline void AssertSameContainer(const ctrl_t* ctrl_a, const ctrl_t* ctrl_b,
 
   if (SwisstableGenerationsEnabled()) {
     if (ABSL_PREDICT_TRUE(generation_ptr_a == generation_ptr_b)) return;
-    // Users don't need to know whether the tables are SOO so don't mention SOO
-    // in the debug message.
-    const bool a_is_soo = IsSooControl(ctrl_a);
-    const bool b_is_soo = IsSooControl(ctrl_b);
-    fail_if(a_is_soo != b_is_soo || (a_is_soo && b_is_soo),
-            "Comparing iterators from different hashtables.");
-
     const bool a_is_empty = IsEmptyGeneration(generation_ptr_a);
     const bool b_is_empty = IsEmptyGeneration(generation_ptr_b);
     fail_if(a_is_empty != b_is_empty,
