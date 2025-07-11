@@ -165,13 +165,11 @@ TYPED_TEST(GroupTest, MaskEmpty) {
                       CtrlT(7),       CtrlT(5), CtrlT(3),          CtrlT(1),
                       CtrlT(1),       CtrlT(1), CtrlT(1),          CtrlT(1)};
     EXPECT_THAT(GroupType{group}.MaskEmpty().LowestBitSet(), 0);
-    EXPECT_THAT(GroupType{group}.MaskEmpty().HighestBitSet(), 4);
   } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), CtrlT(2),
                       ctrl_t::kDeleted,  CtrlT(2), CtrlT(1),
                       ctrl_t::kSentinel, CtrlT(1)};
     EXPECT_THAT(GroupType{group}.MaskEmpty().LowestBitSet(), 0);
-    EXPECT_THAT(GroupType{group}.MaskEmpty().HighestBitSet(), 0);
   } else {
     FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
@@ -225,13 +223,11 @@ TYPED_TEST(GroupTest, MaskEmptyOrDeleted) {
                       CtrlT(7),         CtrlT(5), CtrlT(3),          CtrlT(1),
                       CtrlT(1),         CtrlT(1), CtrlT(1),          CtrlT(1)};
     EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
-    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().HighestBitSet(), 4);
   } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,    CtrlT(1), CtrlT(2),
                       ctrl_t::kDeleted,  CtrlT(2), CtrlT(1),
                       ctrl_t::kSentinel, CtrlT(1)};
     EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().LowestBitSet(), 0);
-    EXPECT_THAT(GroupType{group}.MaskEmptyOrDeleted().HighestBitSet(), 3);
   } else {
     FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }
@@ -247,13 +243,11 @@ TYPED_TEST(GroupTest, MaskFullOrSentinel) {
         ctrl_t::kEmpty,   ctrl_t::kDeleted, ctrl_t::kDeleted,  ctrl_t::kDeleted,
     };
     EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 3);
-    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().HighestBitSet(), 6);
   } else if (GroupType::kWidth == 8) {
     ctrl_t group[] = {ctrl_t::kEmpty,   ctrl_t::kDeleted, CtrlT(2),
                       ctrl_t::kDeleted, CtrlT(2),         ctrl_t::kSentinel,
                       ctrl_t::kDeleted, ctrl_t::kEmpty};
     EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().LowestBitSet(), 2);
-    EXPECT_THAT(GroupType{group}.MaskFullOrSentinel().HighestBitSet(), 5);
   } else {
     FAIL() << "No test coverage for Group::kWidth==" << GroupType::kWidth;
   }

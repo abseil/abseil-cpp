@@ -91,11 +91,6 @@ class NonIterableBitMask {
     return container_internal::TrailingZeros(mask_) >> Shift;
   }
 
-  // Returns the index of the highest *abstract* bit set in `self`.
-  uint32_t HighestBitSet() const {
-    return static_cast<uint32_t>((bit_width(mask_) - 1) >> Shift);
-  }
-
   // Returns the number of trailing zero *abstract* bits.
   uint32_t TrailingZeros() const {
     return container_internal::TrailingZeros(mask_) >> Shift;
