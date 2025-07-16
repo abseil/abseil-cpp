@@ -1783,8 +1783,9 @@ void ResizeAllocatedTableWithSeedChange(CommonFields& common,
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        void* alloc, bool reuse, bool soo_enabled);
 
-// Type-erased version of raw_hash_set::erase_meta_only.
-void EraseMetaOnly(CommonFields& c, const ctrl_t* ctrl, size_t slot_size);
+// Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
+void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
+void EraseMetaOnlyLarge(CommonFields& c, const ctrl_t* ctrl, size_t slot_size);
 
 // For trivially relocatable types we use memcpy directly. This allows us to
 // share the same function body for raw_hash_set instantiations that have the
@@ -2692,7 +2693,7 @@ class raw_hash_set {
     if (first == last) return last.inner_;
     if (is_small()) {
       destroy(single_slot());
-      erase_meta_only(single_iterator());
+      erase_meta_only_small();
       return end();
     }
     if (first == begin() && last == end()) {
@@ -2727,12 +2728,12 @@ class raw_hash_set {
     if (src.is_small()) {
       if (src.empty()) return;
       if (insert_slot(src.single_slot()))
-        src.erase_meta_only(src.single_iterator());
+        src.erase_meta_only_small();
       return;
     }
     for (auto it = src.begin(), e = src.end(); it != e;) {
       auto next = std::next(it);
-      if (insert_slot(it.slot())) src.erase_meta_only(it);
+      if (insert_slot(it.slot())) src.erase_meta_only_large(it);
       it = next;
     }
   }
@@ -3074,11 +3075,17 @@ class raw_hash_set {
   // This merely updates the pertinent control byte. This can be used in
   // conjunction with Policy::transfer to move the object to another place.
   void erase_meta_only(const_iterator it) {
-    if (is_soo()) {
-      common().set_empty_soo();
+    if (is_small()) {
+      erase_meta_only_small();
       return;
     }
-    EraseMetaOnly(common(), it.control(), sizeof(slot_type));
+    erase_meta_only_large(it);
+  }
+  void erase_meta_only_small() {
+    EraseMetaOnlySmall(common(), SooEnabled(), sizeof(slot_type));
+  }
+  void erase_meta_only_large(const_iterator it) {
+    EraseMetaOnlyLarge(common(), it.control(), sizeof(slot_type));
   }
 
   template <class K>
@@ -3625,7 +3632,7 @@ struct HashtableFreeFunctionsAccess {
         return 0;
       }
       c->destroy(it.slot());
-      c->erase_meta_only(it);
+      c->erase_meta_only_small();
       return 1;
     }
     [[maybe_unused]] const size_t original_size_for_assert = c->size();
@@ -3637,7 +3644,7 @@ struct HashtableFreeFunctionsAccess {
           auto* slot = static_cast<SlotType*>(slot_void);
           if (pred(Set::PolicyTraits::element(slot))) {
             c->destroy(slot);
-            EraseMetaOnly(c->common(), ctrl, sizeof(*slot));
+            EraseMetaOnlyLarge(c->common(), ctrl, sizeof(*slot));
             ++num_deleted;
           }
         });

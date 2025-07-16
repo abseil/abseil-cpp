@@ -521,15 +521,22 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeThreeElementsControlBytes(
 
 }  // namespace
 
-void EraseMetaOnly(CommonFields& c, const ctrl_t* ctrl, size_t slot_size) {
+void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(c.is_small());
+  if (soo_enabled) {
+    c.set_empty_soo();
+    return;
+  }
+  c.decrement_size();
+  c.infoz().RecordErase();
+  SanitizerPoisonMemoryRegion(c.slot_array(), slot_size);
+}
+
+void EraseMetaOnlyLarge(CommonFields& c, const ctrl_t* ctrl, size_t slot_size) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small());
   ABSL_SWISSTABLE_ASSERT(IsFull(*ctrl) && "erasing a dangling iterator");
   c.decrement_size();
   c.infoz().RecordErase();
-
-  if (c.is_small()) {
-    SanitizerPoisonMemoryRegion(c.slot_array(), slot_size);
-    return;
-  }
 
   size_t index = static_cast<size_t>(ctrl - c.control());
 
