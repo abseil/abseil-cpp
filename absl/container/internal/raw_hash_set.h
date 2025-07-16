@@ -368,17 +368,6 @@ struct IsDecomposable<
         std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
 
-// TODO(alkis): Switch to std::is_nothrow_swappable when gcc/clang supports it.
-template <class T>
-constexpr bool IsNoThrowSwappable(std::true_type = {} /* is_swappable */) {
-  using std::swap;
-  return noexcept(swap(std::declval<T&>(), std::declval<T&>()));
-}
-template <class T>
-constexpr bool IsNoThrowSwappable(std::false_type /* is_swappable */) {
-  return false;
-}
-
 ABSL_DLL extern ctrl_t kDefaultIterControl;
 
 // We use these sentinel capacity values in debug mode to indicate different
@@ -2333,7 +2322,7 @@ class raw_hash_set {
   }
 
   raw_hash_set& operator=(raw_hash_set&& that) noexcept(
-      absl::allocator_traits<allocator_type>::is_always_equal::value &&
+      AllocTraits::is_always_equal::value &&
       std::is_nothrow_move_assignable<hasher>::value &&
       std::is_nothrow_move_assignable<key_equal>::value) {
     // TODO(sbenza): We should only use the operations from the noexcept clause
@@ -2770,9 +2759,9 @@ class raw_hash_set {
   }
 
   void swap(raw_hash_set& that) noexcept(
-      IsNoThrowSwappable<hasher>() && IsNoThrowSwappable<key_equal>() &&
-      IsNoThrowSwappable<allocator_type>(
-          typename AllocTraits::propagate_on_container_swap{})) {
+      AllocTraits::is_always_equal::value &&
+      std::is_nothrow_swappable<hasher>::value &&
+      std::is_nothrow_swappable<key_equal>::value) {
     AssertNotDebugCapacity();
     that.AssertNotDebugCapacity();
     using std::swap;
