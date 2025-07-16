@@ -389,7 +389,7 @@ inline ctrl_t* DefaultIterControl() { return &kDefaultIterControl; }
 // For use in SOO iterators.
 // TODO(b/289225379): we could potentially get rid of this by adding an is_soo
 // bit in iterators. This would add branches but reduce cache misses.
-ABSL_DLL extern const ctrl_t kSooControl[17];
+ABSL_DLL extern const ctrl_t kSooControl[2];
 
 // Returns a pointer to a full byte followed by a sentinel byte.
 inline ctrl_t* SooControl() {
@@ -2052,20 +2052,8 @@ class raw_hash_set {
     // `slot_` until they reach one.
     void skip_empty_or_deleted() {
       while (IsEmptyOrDeleted(*ctrl_)) {
-        auto mask = GroupFullEmptyOrDeleted{ctrl_}.MaskFullOrSentinel();
-        // Generally it is possible to compute `shift` branchless.
-        // This branch is useful to:
-        // 1. Avoid checking `IsEmptyOrDeleted` after the shift for the most
-        //    common dense table case.
-        // 2. Avoid the cost of `LowestBitSet` for extremely sparse tables.
-        if (ABSL_PREDICT_TRUE(mask)) {
-          auto shift = mask.LowestBitSet();
-          ctrl_ += shift;
-          slot_ += shift;
-          return;
-        }
-        ctrl_ += Group::kWidth;
-        slot_ += Group::kWidth;
+        ++ctrl_;
+        ++slot_;
       }
     }
 

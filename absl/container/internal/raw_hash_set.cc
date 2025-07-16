@@ -45,15 +45,9 @@ constexpr ctrl_t ZeroCtrlT() { return static_cast<ctrl_t>(0); }
 // uninitialized because reading this memory is a bug.
 ABSL_DLL ctrl_t kDefaultIterControl;
 
-// We need one full byte followed by a sentinel byte for iterator::operator++ to
-// work. We have a full group after kSentinel to be safe (in case operator++ is
-// changed to read a full group).
-ABSL_CONST_INIT ABSL_DLL const ctrl_t kSooControl[17] = {
-    ZeroCtrlT(),    ctrl_t::kSentinel, ZeroCtrlT(),    ctrl_t::kEmpty,
-    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty, ctrl_t::kEmpty,    ctrl_t::kEmpty, ctrl_t::kEmpty,
-    ctrl_t::kEmpty};
+// We need one full byte followed by a sentinel byte for iterator::operator++.
+ABSL_CONST_INIT ABSL_DLL const ctrl_t kSooControl[2] = {ZeroCtrlT(),
+                                                        ctrl_t::kSentinel};
 
 namespace {
 
