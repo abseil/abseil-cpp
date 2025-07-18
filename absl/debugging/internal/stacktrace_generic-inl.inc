@@ -21,38 +21,11 @@
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_GENERIC_INL_H_
 
 #include <execinfo.h>
-
 #include <atomic>
-#include <cstdint>
 #include <cstring>
 
-#include "absl/base/attributes.h"
 #include "absl/debugging/stacktrace.h"
-
-// When the macro __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ is defined, Android
-// NDK supports a mode where all symbols added later than the target API level
-// are weak. In this mode, __builtin_available can be used to check the actual
-// API level available at runtime. There is also a compiler warning,
-// -Wunguarded-availability, that detects unchecked uses of APIs above the level
-// specified by __ANDROID_API__ that are not guarded by __builtin_available.
-// Details: https://developer.android.com/ndk/guides/using-newer-apis
-//
-// We take advantage of this mode to weakly link to backtrace() even when the
-// target API level is below 33, which is the first version of Android that
-// provides backtrace() in its libc.
-//
-// Unfortunately, -Wunguarded-availability does not do any control flow analysis
-// and will trigger if we do anything other than putting all calls to the target
-// function in an if() statement that calls the builtin. We can't return early
-// or even negate the condition.
-#if defined(__ANDROID__) && defined(__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__)
-// In weak symbol mode, check the compiler builtin.
-#define ABSL_INTERNAL_BACKTRACE_AVAILABLE() __builtin_available(android 33, *)
-#else
-// Otherwise, assume that backtrace() is available, because otherwise this file
-// wouldn't be included.
-#define ABSL_INTERNAL_BACKTRACE_AVAILABLE() true
-#endif
+#include "absl/base/attributes.h"
 
 // Sometimes, we can try to get a stack trace from within a stack
 // trace, because we don't block signals inside this code (which would be too
@@ -73,14 +46,12 @@ static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
 // Waiting until static initializers run seems to be late enough.
 // This file is included into stacktrace.cc so this will only run once.
 ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
-  if (ABSL_INTERNAL_BACKTRACE_AVAILABLE()) {
-    void* unused_stack[1];
-    // Force the first backtrace to happen early to get the one-time shared lib
-    // loading (allocation) out of the way. After the first call it is much
-    // safer to use backtrace from a signal handler if we crash somewhere later.
-    backtrace(unused_stack, 1);
-    disable_stacktraces.store(false, std::memory_order_relaxed);
-  }
+  void* unused_stack[1];
+  // Force the first backtrace to happen early to get the one-time shared lib
+  // loading (allocation) out of the way. After the first call it is much safer
+  // to use backtrace from a signal handler if we crash somewhere later.
+  backtrace(unused_stack, 1);
+  disable_stacktraces.store(false, std::memory_order_relaxed);
   return 0;
 }();
 
@@ -91,46 +62,43 @@ static int UnwindImpl(void** result, uintptr_t* frames, int* sizes,
   if (recursive || disable_stacktraces.load(std::memory_order_relaxed)) {
     return 0;
   }
-  if (ABSL_INTERNAL_BACKTRACE_AVAILABLE()) {
-    ++recursive;
+  ++recursive;
 
-    static_cast<void>(ucp);  // Unused.
-    static const int kStackLength = 64;
-    void * stack[kStackLength];
-    int size;
+  static_cast<void>(ucp);  // Unused.
+  static const int kStackLength = 64;
+  void * stack[kStackLength];
+  int size;
 
-    size = backtrace(stack, kStackLength);
-    skip_count++;  // we want to skip the current frame as well
-    int result_count = size - skip_count;
-    if (result_count < 0)
-      result_count = 0;
-    if (result_count > max_depth)
-      result_count = max_depth;
-    for (int i = 0; i < result_count; i++)
-      result[i] = stack[i + skip_count];
+  size = backtrace(stack, kStackLength);
+  skip_count++;  // we want to skip the current frame as well
+  int result_count = size - skip_count;
+  if (result_count < 0)
+    result_count = 0;
+  if (result_count > max_depth)
+    result_count = max_depth;
+  for (int i = 0; i < result_count; i++)
+    result[i] = stack[i + skip_count];
 
-    if (IS_STACK_FRAMES) {
-      // No implementation for finding out the stack frames yet.
-      if (frames != nullptr) {
-        memset(frames, 0, sizeof(*frames) * static_cast<size_t>(result_count));
-      }
-      if (sizes != nullptr) {
-        memset(sizes, 0, sizeof(*sizes) * static_cast<size_t>(result_count));
-      }
+  if (IS_STACK_FRAMES) {
+    // No implementation for finding out the stack frames yet.
+    if (frames != nullptr) {
+      memset(frames, 0, sizeof(*frames) * static_cast<size_t>(result_count));
     }
-    if (min_dropped_frames != nullptr) {
-      if (size - skip_count - max_depth > 0) {
-        *min_dropped_frames = size - skip_count - max_depth;
-      } else {
-        *min_dropped_frames = 0;
-      }
+    if (sizes != nullptr) {
+      memset(sizes, 0, sizeof(*sizes) * static_cast<size_t>(result_count));
     }
-
-    --recursive;
-
-    return result_count;
   }
-  return 0;
+  if (min_dropped_frames != nullptr) {
+    if (size - skip_count - max_depth > 0) {
+      *min_dropped_frames = size - skip_count - max_depth;
+    } else {
+      *min_dropped_frames = 0;
+    }
+  }
+
+  --recursive;
+
+  return result_count;
 }
 
 namespace absl {
