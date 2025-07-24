@@ -233,29 +233,6 @@ struct SymbolCacheLine {
 };
 
 // ---------------------------------------------------------------
-// An async-signal-safe arena for LowLevelAlloc
-static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
-
-static base_internal::LowLevelAlloc::Arena *SigSafeArena() {
-  return g_sig_safe_arena.load(std::memory_order_acquire);
-}
-
-static void InitSigSafeArena() {
-  if (SigSafeArena() == nullptr) {
-    base_internal::LowLevelAlloc::Arena *new_arena =
-        base_internal::LowLevelAlloc::NewArena(
-            base_internal::LowLevelAlloc::kAsyncSignalSafe);
-    base_internal::LowLevelAlloc::Arena *old_value = nullptr;
-    if (!g_sig_safe_arena.compare_exchange_strong(old_value, new_arena,
-                                                  std::memory_order_release,
-                                                  std::memory_order_relaxed)) {
-      // We lost a race to allocate an arena; deallocate.
-      base_internal::LowLevelAlloc::DeleteArena(new_arena);
-    }
-  }
-}
-
-// ---------------------------------------------------------------
 // An AddrMap is a vector of ObjFile, using SigSafeArena() for allocation.
 
 class AddrMap {
@@ -287,7 +264,7 @@ ObjFile *AddrMap::Add() {
     size_t new_allocated = allocated_ * 2 + 50;
     ObjFile *new_obj_ =
         static_cast<ObjFile *>(base_internal::LowLevelAlloc::AllocWithArena(
-            new_allocated * sizeof(*new_obj_), SigSafeArena()));
+            new_allocated * sizeof(*new_obj_), base_internal::SigSafeArena()));
     if (obj_) {
       memcpy(new_obj_, obj_, allocated_ * sizeof(*new_obj_));
       base_internal::LowLevelAlloc::Free(obj_);
@@ -335,8 +312,9 @@ class Symbolizer {
  private:
   char *CopyString(const char *s) {
     size_t len = strlen(s);
-    char *dst = static_cast<char *>(
-        base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));
+    char *dst =
+        static_cast<char *>(base_internal::LowLevelAlloc::AllocWithArena(
+            len + 1, base_internal::SigSafeArena()));
     ABSL_RAW_CHECK(dst != nullptr, "out of memory");
     memcpy(dst, s, len + 1);
     return dst;
@@ -441,14 +419,14 @@ static size_t SymbolizerSize() {
 // Return (and set null) g_cached_symbolized_state if it is not null.
 // Otherwise return a new symbolizer.
 static Symbolizer *AllocateSymbolizer() {
-  InitSigSafeArena();
+  base_internal::InitSigSafeArena();
   Symbolizer *symbolizer =
       g_cached_symbolizer.exchange(nullptr, std::memory_order_acquire);
   if (symbolizer != nullptr) {
     return symbolizer;
   }
   return new (base_internal::LowLevelAlloc::AllocWithArena(
-      SymbolizerSize(), SigSafeArena())) Symbolizer();
+      SymbolizerSize(), base_internal::SigSafeArena())) Symbolizer();
 }
 
 // Set g_cached_symbolize_state to s if it is null, otherwise
@@ -1678,7 +1656,7 @@ bool RegisterFileMappingHint(const void *start, const void *end,
   SAFE_ASSERT(start <= end);
   SAFE_ASSERT(filename != nullptr);
 
-  InitSigSafeArena();
+  base_internal::InitSigSafeArena();
 
   if (!g_file_mapping_mu.TryLock()) {
     return false;
@@ -1690,8 +1668,9 @@ bool RegisterFileMappingHint(const void *start, const void *end,
   } else {
     // TODO(ckennelly): Move this into a string copy routine.
     size_t len = strlen(filename);
-    char *dst = static_cast<char *>(
-        base_internal::LowLevelAlloc::AllocWithArena(len + 1, SigSafeArena()));
+    char *dst =
+        static_cast<char *>(base_internal::LowLevelAlloc::AllocWithArena(
+            len + 1, base_internal::SigSafeArena()));
     ABSL_RAW_CHECK(dst != nullptr, "out of memory");
     memcpy(dst, filename, len + 1);
 

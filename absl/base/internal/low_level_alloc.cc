@@ -19,6 +19,8 @@
 
 #include "absl/base/internal/low_level_alloc.h"
 
+#include <stdint.h>
+
 #include <optional>
 #include <type_traits>
 
@@ -219,6 +221,32 @@ struct LowLevelAlloc::Arena {
   // PRNG state
   uint32_t random ABSL_GUARDED_BY(mu);
 };
+
+// ---------------------------------------------------------------
+// An async-signal-safe arena for LowLevelAlloc
+static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
+
+base_internal::LowLevelAlloc::Arena *SigSafeArena() {
+  return g_sig_safe_arena.load(std::memory_order_acquire);
+}
+
+void InitSigSafeArena() {
+  if (SigSafeArena() == nullptr) {
+    uint32_t flags = 0;
+#ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
+    flags |= base_internal::LowLevelAlloc::kAsyncSignalSafe;
+#endif
+    base_internal::LowLevelAlloc::Arena *new_arena =
+        base_internal::LowLevelAlloc::NewArena(flags);
+    base_internal::LowLevelAlloc::Arena *old_value = nullptr;
+    if (!g_sig_safe_arena.compare_exchange_strong(old_value, new_arena,
+                                                  std::memory_order_release,
+                                                  std::memory_order_relaxed)) {
+      // We lost a race to allocate an arena; deallocate.
+      base_internal::LowLevelAlloc::DeleteArena(new_arena);
+    }
+  }
+}
 
 namespace {
 // Static storage space for the lazily-constructed, default global arena
