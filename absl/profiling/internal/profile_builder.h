@@ -16,6 +16,7 @@
 #ifndef ABSL_PROFILING_INTERNAL_PROFILE_BUILDER_H_
 #define ABSL_PROFILING_INTERNAL_PROFILE_BUILDER_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -116,7 +117,7 @@ class ProfileBuilder {
 
  private:
   absl::flat_hash_map<std::string, StringId> string_table_{{"", StringId(0)}};
-  absl::flat_hash_map<uint64_t, LocationId> location_table_;
+  absl::flat_hash_map<uintptr_t, LocationId> location_table_;
   // mapping_table_ stores the start address of each mapping in mapping_
   // to its index.
   absl::btree_map<uintptr_t, size_t> mapping_table_;
