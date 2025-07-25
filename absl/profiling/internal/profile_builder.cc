@@ -97,8 +97,8 @@ static const char* GetSoName(const dl_phdr_info* const info) {
   }
   ABSL_RAW_CHECK(dt_strtab != nullptr, "Unexpected nullptr");
   ABSL_RAW_CHECK(dt_strsz != nullptr, "Unexpected nullptr");
-  const char* const strtab =
-      reinterpret_cast<char*>(info->dlpi_addr + dt_strtab->d_un.d_val);
+  const char* const strtab = reinterpret_cast<char*>(
+      info->dlpi_addr + static_cast<ElfW(Word)>(dt_strtab->d_un.d_val));
   ABSL_RAW_CHECK(dt_soname->d_un.d_val < dt_strsz->d_un.d_val,
                  "Unexpected order");
   return strtab + dt_soname->d_un.d_val;
