@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <mutex>  // NOLINT(build/c++11)
 #include <random>
 #include <thread>  // NOLINT(build/c++11)
 #include <type_traits>
@@ -293,6 +294,11 @@ TEST(SpinLockTest, IsCooperative) {
 
   SpinLock kernel_only(base_internal::SCHEDULE_KERNEL_ONLY);
   EXPECT_FALSE(SpinLockTest::IsCooperative(kernel_only));
+}
+
+TEST(SpinLockTest, ScopedLock) {
+  SpinLock s;
+  std::scoped_lock l(s);
 }
 
 }  // namespace
