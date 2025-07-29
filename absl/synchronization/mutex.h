@@ -174,7 +174,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
 
   ~Mutex();
 
-  // Mutex::jock()
+  // Mutex::lock()
   //
   // Blocks the calling thread, if necessary, until this `Mutex` is free, and
   // then acquires it exclusively. (This lock is also known as a "write lock.")
@@ -190,7 +190,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
 
   inline void Unlock() ABSL_UNLOCK_FUNCTION() { unlock(); }
 
-  // Mutextry_lockTryLock()
+  // Mutex::try_lock()
   //
   // If the mutex can be acquired without blocking, does so exclusively and
   // returns `true`. Otherwise, returns `false`. Returns `true` with high
