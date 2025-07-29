@@ -318,11 +318,11 @@ class ABSL_SCOPED_LOCKABLE ArenaLock {
       mask_valid_ = pthread_sigmask(SIG_BLOCK, &all, &mask_) == 0;
     }
 #endif
-    arena_->mu.Lock();
+    arena_->mu.lock();
   }
   ~ArenaLock() { ABSL_RAW_CHECK(left_, "haven't left Arena region"); }
   void Leave() ABSL_UNLOCK_FUNCTION() {
-    arena_->mu.Unlock();
+    arena_->mu.unlock();
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
     if (mask_valid_) {
       const int err = pthread_sigmask(SIG_SETMASK, &mask_, nullptr);
@@ -573,7 +573,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
       }
       // we unlock before mmap() both because mmap() may call a callback hook,
       // and because it may be slow.
-      arena->mu.Unlock();
+      arena->mu.unlock();
       // mmap generous 64K chunks to decrease
       // the chances/impact of fragmentation:
       size_t new_pages_size = RoundUp(req_rnd, arena->pagesize * 16);
@@ -612,7 +612,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
 #endif
 #endif  // __linux__
 #endif  // _WIN32
-      arena->mu.Lock();
+      arena->mu.lock();
       s = reinterpret_cast<AllocList *>(new_pages);
       s->header.size = new_pages_size;
       // Pretend the block is allocated; call AddToFreelist() to free it.

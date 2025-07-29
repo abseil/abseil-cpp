@@ -330,7 +330,7 @@ static SynchEvent* EnsureSynchEvent(std::atomic<intptr_t>* addr,
                                     const char* name, intptr_t bits,
                                     intptr_t lockbit) {
   uint32_t h = reinterpret_cast<uintptr_t>(addr) % kNSynchEvent;
-  synch_event_mu.Lock();
+  synch_event_mu.lock();
   // When a Mutex/CondVar is destroyed, we don't remove the associated
   // SynchEvent to keep destructors empty in release builds for performance
   // reasons. If the current call is the first to set bits (kMuEvent/kCVEvent),
@@ -392,16 +392,16 @@ static SynchEvent* EnsureSynchEvent(std::atomic<intptr_t>* addr,
   } else {
     e->refcount++;  // for return value
   }
-  synch_event_mu.Unlock();
+  synch_event_mu.unlock();
   return e;
 }
 
 // Decrement the reference count of *e, or do nothing if e==null.
 static void UnrefSynchEvent(SynchEvent* e) {
   if (e != nullptr) {
-    synch_event_mu.Lock();
+    synch_event_mu.lock();
     bool del = (--(e->refcount) == 0);
-    synch_event_mu.Unlock();
+    synch_event_mu.unlock();
     if (del) {
       base_internal::LowLevelAlloc::Free(e);
     }
@@ -414,7 +414,7 @@ static void UnrefSynchEvent(SynchEvent* e) {
 static SynchEvent* GetSynchEvent(const void* addr) {
   uint32_t h = reinterpret_cast<uintptr_t>(addr) % kNSynchEvent;
   SynchEvent* e;
-  synch_event_mu.Lock();
+  synch_event_mu.lock();
   for (e = synch_event[h];
        e != nullptr && e->masked_addr != base_internal::HidePtr(addr);
        e = e->next) {
@@ -422,7 +422,7 @@ static SynchEvent* GetSynchEvent(const void* addr) {
   if (e != nullptr) {
     e->refcount++;
   }
-  synch_event_mu.Unlock();
+  synch_event_mu.unlock();
   return e;
 }
 
@@ -1223,9 +1223,9 @@ static GraphId GetGraphIdLocked(Mutex* mu)
 }
 
 static GraphId GetGraphId(Mutex* mu) ABSL_LOCKS_EXCLUDED(deadlock_graph_mu) {
-  deadlock_graph_mu.Lock();
+  deadlock_graph_mu.lock();
   GraphId id = GetGraphIdLocked(mu);
-  deadlock_graph_mu.Unlock();
+  deadlock_graph_mu.unlock();
   return id;
 }
 
@@ -1456,7 +1456,7 @@ static GraphId DeadlockCheck(Mutex* mu) {
       }
       if (synch_deadlock_detection.load(std::memory_order_acquire) ==
           OnDeadlockCycle::kAbort) {
-        deadlock_graph_mu.Unlock();  // avoid deadlock in fatal sighandler
+        deadlock_graph_mu.unlock();  // avoid deadlock in fatal sighandler
         ABSL_RAW_LOG(FATAL, "dying due to potential deadlock");
         return mu_id;
       }
@@ -1481,11 +1481,11 @@ static inline GraphId DebugOnlyDeadlockCheck(Mutex* mu) {
 void Mutex::ForgetDeadlockInfo() {
   if (kDebugMode && synch_deadlock_detection.load(std::memory_order_acquire) !=
                         OnDeadlockCycle::kIgnore) {
-    deadlock_graph_mu.Lock();
+    deadlock_graph_mu.lock();
     if (deadlock_graph != nullptr) {
       deadlock_graph->RemoveNode(this);
     }
-    deadlock_graph_mu.Unlock();
+    deadlock_graph_mu.unlock();
   }
 }
 

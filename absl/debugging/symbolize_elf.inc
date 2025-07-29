@@ -167,7 +167,7 @@ struct FileMappingHint {
 // We are using SpinLock and not a Mutex here, because we may be called
 // from inside Mutex::Lock itself, and it prohibits recursive calls.
 // This happens in e.g. base/stacktrace_syscall_unittest.
-// Moreover, we are using only TryLock(), if the decorator list
+// Moreover, we are using only try_lock(), if the decorator list
 // is being modified (is busy), we skip all decorators, and possibly
 // loose some info. Sorry, that's the best we could do.
 ABSL_CONST_INIT absl::base_internal::SpinLock g_decorators_mu(
@@ -1549,7 +1549,7 @@ const char *Symbolizer::GetUncachedSymbol(const void *pc) {
 #endif
   }
 
-  if (g_decorators_mu.TryLock()) {
+  if (g_decorators_mu.try_lock()) {
     if (g_num_decorators > 0) {
       SymbolDecoratorArgs decorator_args = {
           pc,       relocation,       fd,     symbol_buf_, sizeof(symbol_buf_),
@@ -1559,7 +1559,7 @@ const char *Symbolizer::GetUncachedSymbol(const void *pc) {
         g_decorators[i].fn(&decorator_args);
       }
     }
-    g_decorators_mu.Unlock();
+    g_decorators_mu.unlock();
   }
   if (symbol_buf_[0] == '\0') {
     return nullptr;
@@ -1605,17 +1605,17 @@ const char *Symbolizer::GetSymbol(const void *pc) {
 }
 
 bool RemoveAllSymbolDecorators(void) {
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return false;
   }
   g_num_decorators = 0;
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return true;
 }
 
 bool RemoveSymbolDecorator(int ticket) {
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return false;
   }
@@ -1629,14 +1629,14 @@ bool RemoveSymbolDecorator(int ticket) {
       break;
     }
   }
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return true;  // Decorator is known to be removed.
 }
 
 int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
   static int ticket = 0;
 
-  if (!g_decorators_mu.TryLock()) {
+  if (!g_decorators_mu.try_lock()) {
     // Someone else is using decorators. Get out.
     return -2;
   }
@@ -1647,7 +1647,7 @@ int InstallSymbolDecorator(SymbolDecorator decorator, void *arg) {
     g_decorators[g_num_decorators] = {decorator, arg, ticket++};
     ++g_num_decorators;
   }
-  g_decorators_mu.Unlock();
+  g_decorators_mu.unlock();
   return ret;
 }
 
@@ -1658,7 +1658,7 @@ bool RegisterFileMappingHint(const void *start, const void *end,
 
   base_internal::InitSigSafeArena();
 
-  if (!g_file_mapping_mu.TryLock()) {
+  if (!g_file_mapping_mu.try_lock()) {
     return false;
   }
 
@@ -1681,13 +1681,13 @@ bool RegisterFileMappingHint(const void *start, const void *end,
     hint.filename = dst;
   }
 
-  g_file_mapping_mu.Unlock();
+  g_file_mapping_mu.unlock();
   return ret;
 }
 
 bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
                         const char **filename) {
-  if (!g_file_mapping_mu.TryLock()) {
+  if (!g_file_mapping_mu.try_lock()) {
     return false;
   }
   bool found = false;
@@ -1710,7 +1710,7 @@ bool GetFileMappingHint(const void **start, const void **end, uint64_t *offset,
       break;
     }
   }
-  g_file_mapping_mu.Unlock();
+  g_file_mapping_mu.unlock();
   return found;
 }
 
