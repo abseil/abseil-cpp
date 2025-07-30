@@ -602,18 +602,20 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   // Calls `mu->Lock()` and returns when that call returns. That is, `*mu` is
   // guaranteed to be locked when this object is constructed. Requires that
   // `mu` be dereferenceable.
-  explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    this->mu_->Lock();
+  explicit MutexLock(Mutex& mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
+    this->mu_.Lock();
   }
+
+  explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : MutexLock(*mu) {}
 
   // Like above, but calls `mu->LockWhen(cond)` instead. That is, in addition to
   // the above, the condition given by `cond` is also guaranteed to hold when
   // this object is constructed.
   explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    this->mu_->LockWhen(cond);
+      : mu_(*mu) {
+    this->mu_.LockWhen(cond);
   }
 
   MutexLock(const MutexLock&) = delete;  // NOLINT(runtime/mutex)
@@ -621,10 +623,10 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   MutexLock& operator=(const MutexLock&) = delete;
   MutexLock& operator=(MutexLock&&) = delete;
 
-  ~MutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->Unlock(); }
+  ~MutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.Unlock(); }
 
  private:
-  Mutex* absl_nonnull const mu_;
+  Mutex& mu_;
 };
 
 // ReaderMutexLock
@@ -633,26 +635,32 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
 // releases a shared lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
  public:
+  explicit ReaderMutexLock(Mutex& mu) ABSL_SHARED_LOCK_FUNCTION(mu) : mu_(mu) {
+    mu.ReaderLock();
+  }
+
   explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
+      : ReaderMutexLock(*mu) {}
+
+  explicit ReaderMutexLock(Mutex& mu, const Condition& cond)
+      ABSL_SHARED_LOCK_FUNCTION(mu)
       : mu_(mu) {
-    mu->ReaderLock();
+    mu.ReaderLockWhen(cond);
   }
 
   explicit ReaderMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_SHARED_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    mu->ReaderLockWhen(cond);
-  }
+      : ReaderMutexLock(*mu, cond) {}
 
   ReaderMutexLock(const ReaderMutexLock&) = delete;
   ReaderMutexLock(ReaderMutexLock&&) = delete;
   ReaderMutexLock& operator=(const ReaderMutexLock&) = delete;
   ReaderMutexLock& operator=(ReaderMutexLock&&) = delete;
 
-  ~ReaderMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->ReaderUnlock(); }
+  ~ReaderMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.ReaderUnlock(); }
 
  private:
-  Mutex* absl_nonnull const mu_;
+  Mutex& mu_;
 };
 
 // WriterMutexLock
@@ -661,27 +669,34 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
 // releases a write (exclusive) lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE WriterMutexLock {
  public:
+  explicit WriterMutexLock(Mutex& mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : mu_(mu) {
+    mu.WriterLock();
+  }
+
   explicit WriterMutexLock(Mutex* absl_nonnull mu)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : WriterMutexLock(*mu) {}
+
+  explicit WriterMutexLock(Mutex& mu, const Condition& cond)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
-    mu->WriterLock();
+    mu.WriterLockWhen(cond);
   }
 
   explicit WriterMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    mu->WriterLockWhen(cond);
-  }
+      : WriterMutexLock(*mu, cond) {}
 
   WriterMutexLock(const WriterMutexLock&) = delete;
   WriterMutexLock(WriterMutexLock&&) = delete;
   WriterMutexLock& operator=(const WriterMutexLock&) = delete;
   WriterMutexLock& operator=(WriterMutexLock&&) = delete;
 
-  ~WriterMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->WriterUnlock(); }
+  ~WriterMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.WriterUnlock(); }
 
  private:
-  Mutex* absl_nonnull const mu_;
+  Mutex& mu_;
 };
 
 // -----------------------------------------------------------------------------
