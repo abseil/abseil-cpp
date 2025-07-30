@@ -117,7 +117,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
   tm.tm_mday = al.cs.day();
   tm.tm_mon = al.cs.month() - 1;
 
-  // Saturate tm.tm_year is cases of over/underflow.
+  // Saturate tm.tm_year in cases of over/underflow.
   if (al.cs.year() < std::numeric_limits<int>::min() + 1900) {
     tm.tm_year = std::numeric_limits<int>::min();
   } else if (al.cs.year() - 1900 > std::numeric_limits<int>::max()) {
