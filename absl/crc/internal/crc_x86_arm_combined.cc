@@ -605,6 +605,8 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kAmdRome:
     case CpuType::kAmdNaples:
     case CpuType::kAmdMilan:
+    case CpuType::kAmdGenoa:
+    case CpuType::kAmdTurin:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 1, CutoffStrategy::Fold3>();
     // PCLMULQDQ is fast, use combined PCLMULQDQ + CRC implementation.
@@ -612,6 +614,10 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kIntelSkylakeXeon:
     case CpuType::kIntelBroadwell:
     case CpuType::kIntelSkylake:
+    case CpuType::kIntelIcelake:
+    case CpuType::kIntelSapphirerapids:
+    case CpuType::kIntelEmeraldrapids:
+    case CpuType::kIntelGraniterapidsap:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 2, CutoffStrategy::Fold3>();
     // PCLMULQDQ is slow, don't use it.
@@ -623,6 +629,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kArmNeoverseN1:
     case CpuType::kArmNeoverseN2:
     case CpuType::kArmNeoverseV1:
+    case CpuType::kArmNeoverseN3:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           1, 1, CutoffStrategy::Unroll64CRC>();
     case CpuType::kAmpereSiryn:
