@@ -73,8 +73,8 @@ bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
 // need to acquire these locks themselves.
 class MutexRelock {
  public:
-  explicit MutexRelock(absl::Mutex& mu) : mu_(mu) { mu_.Unlock(); }
-  ~MutexRelock() { mu_.Lock(); }
+  explicit MutexRelock(absl::Mutex& mu) : mu_(mu) { mu_.unlock(); }
+  ~MutexRelock() { mu_.lock(); }
 
   MutexRelock(const MutexRelock&) = delete;
   MutexRelock& operator=(const MutexRelock&) = delete;

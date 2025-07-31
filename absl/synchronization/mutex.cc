@@ -2760,7 +2760,7 @@ void CondVar::SignalAll() {
 void ReleasableMutexLock::Release() {
   ABSL_RAW_CHECK(this->mu_ != nullptr,
                  "ReleasableMutexLock::Release may only be called once");
-  this->mu_->Unlock();
+  this->mu_->unlock();
   this->mu_ = nullptr;
 }
 

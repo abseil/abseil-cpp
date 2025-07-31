@@ -599,11 +599,11 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
  public:
   // Constructors
 
-  // Calls `mu->Lock()` and returns when that call returns. That is, `*mu` is
+  // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
   // guaranteed to be locked when this object is constructed. Requires that
   // `mu` be dereferenceable.
   explicit MutexLock(Mutex& mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
-    this->mu_.Lock();
+    this->mu_.lock();
   }
 
   explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
@@ -623,7 +623,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   MutexLock& operator=(const MutexLock&) = delete;
   MutexLock& operator=(MutexLock&&) = delete;
 
-  ~MutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.Unlock(); }
+  ~MutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.unlock(); }
 
  private:
   Mutex& mu_;
@@ -657,7 +657,7 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
   ReaderMutexLock& operator=(const ReaderMutexLock&) = delete;
   ReaderMutexLock& operator=(ReaderMutexLock&&) = delete;
 
-  ~ReaderMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.ReaderUnlock(); }
+  ~ReaderMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_.unlock_shared(); }
 
  private:
   Mutex& mu_;
@@ -1049,7 +1049,7 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     if (this->mu_ != nullptr) {
-      this->mu_->Lock();
+      this->mu_->lock();
     }
   }
 
@@ -1063,7 +1063,7 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
 
   ~MutexLockMaybe() ABSL_UNLOCK_FUNCTION() {
     if (this->mu_ != nullptr) {
-      this->mu_->Unlock();
+      this->mu_->unlock();
     }
   }
 
@@ -1084,7 +1084,7 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
-    this->mu_->Lock();
+    this->mu_->lock();
   }
 
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
@@ -1095,7 +1095,7 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
 
   ~ReleasableMutexLock() ABSL_UNLOCK_FUNCTION() {
     if (this->mu_ != nullptr) {
-      this->mu_->Unlock();
+      this->mu_->unlock();
     }
   }
 

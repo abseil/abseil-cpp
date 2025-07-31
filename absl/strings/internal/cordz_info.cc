@@ -378,14 +378,14 @@ void CordzInfo::Untrack() {
 
 void CordzInfo::Lock(MethodIdentifier method)
     ABSL_EXCLUSIVE_LOCK_FUNCTION(mutex_) {
-  mutex_.Lock();
+  mutex_.lock();
   update_tracker_.LossyAdd(method);
   assert(rep_);
 }
 
 void CordzInfo::Unlock() ABSL_UNLOCK_FUNCTION(mutex_) {
   bool tracked = rep_ != nullptr;
-  mutex_.Unlock();
+  mutex_.unlock();
   if (!tracked) {
     Untrack();
   }
