@@ -41,6 +41,9 @@
 #elif defined(ABSL_HAVE_TLS)
 #define ABSL_PER_THREAD_TLS_KEYWORD __thread
 #define ABSL_PER_THREAD_TLS 1
+#elif defined(__INTEL_LLVM_COMPILER) && defined(__SYCL_DEVICE_ONLY__)
+#define ABSL_PER_THREAD_TLS_KEYWORD __thread
+#define ABSL_PER_THREAD_TLS 1
 #elif defined(_MSC_VER)
 #define ABSL_PER_THREAD_TLS_KEYWORD __declspec(thread)
 #define ABSL_PER_THREAD_TLS 1
