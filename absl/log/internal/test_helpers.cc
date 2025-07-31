@@ -18,6 +18,8 @@
 #include <zircon/syscalls.h>
 #endif
 
+#include <signal.h>
+
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"
