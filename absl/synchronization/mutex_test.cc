@@ -108,7 +108,7 @@ static void CheckSumG0G1(void *v) {
 
 static void TestMu(TestContext *cxt, int c) {
   for (int i = 0; i != cxt->iterations; i++) {
-    absl::MutexLock l(&cxt->mu);
+    absl::MutexLock l(cxt->mu);
     int a = cxt->g0 + 1;
     cxt->g0 = a;
     cxt->g1--;
@@ -129,7 +129,7 @@ static void TestTry(TestContext *cxt, int c) {
 
 static void TestR20ms(TestContext *cxt, int c) {
   for (int i = 0; i != cxt->iterations; i++) {
-    absl::ReaderMutexLock l(&cxt->mu);
+    absl::ReaderMutexLock l(cxt->mu);
     absl::SleepFor(absl::Milliseconds(20));
     cxt->mu.AssertReaderHeld();
   }
@@ -138,7 +138,7 @@ static void TestR20ms(TestContext *cxt, int c) {
 static void TestRW(TestContext *cxt, int c) {
   if ((c & 1) == 0) {
     for (int i = 0; i != cxt->iterations; i++) {
-      absl::WriterMutexLock l(&cxt->mu);
+      absl::WriterMutexLock l(cxt->mu);
       cxt->g0++;
       cxt->g1--;
       cxt->mu.AssertHeld();
@@ -146,7 +146,7 @@ static void TestRW(TestContext *cxt, int c) {
     }
   } else {
     for (int i = 0; i != cxt->iterations; i++) {
-      absl::ReaderMutexLock l(&cxt->mu);
+      absl::ReaderMutexLock l(cxt->mu);
       CHECK_EQ(cxt->g0, -cxt->g1) << "Error in TestRW";
       cxt->mu.AssertReaderHeld();
     }
@@ -168,7 +168,7 @@ static void TestAwait(TestContext *cxt, int c) {
   MyContext mc;
   mc.target = c;
   mc.cxt = cxt;
-  absl::MutexLock l(&cxt->mu);
+  absl::MutexLock l(cxt->mu);
   cxt->mu.AssertHeld();
   while (cxt->g0 < cxt->iterations) {
     cxt->mu.Await(absl::Condition(&mc, &MyContext::MyTurn));
@@ -184,7 +184,7 @@ static void TestAwait(TestContext *cxt, int c) {
 
 static void TestSignalAll(TestContext *cxt, int c) {
   int target = c;
-  absl::MutexLock l(&cxt->mu);
+  absl::MutexLock l(cxt->mu);
   cxt->mu.AssertHeld();
   while (cxt->g0 < cxt->iterations) {
     while (cxt->g0 != target && cxt->g0 != cxt->iterations) {
@@ -202,7 +202,7 @@ static void TestSignalAll(TestContext *cxt, int c) {
 static void TestSignal(TestContext *cxt, int c) {
   CHECK_EQ(cxt->threads, 2) << "TestSignal should use 2 threads";
   int target = c;
-  absl::MutexLock l(&cxt->mu);
+  absl::MutexLock l(cxt->mu);
   cxt->mu.AssertHeld();
   while (cxt->g0 < cxt->iterations) {
     while (cxt->g0 != target && cxt->g0 != cxt->iterations) {
@@ -219,7 +219,7 @@ static void TestSignal(TestContext *cxt, int c) {
 
 static void TestCVTimeout(TestContext *cxt, int c) {
   int target = c;
-  absl::MutexLock l(&cxt->mu);
+  absl::MutexLock l(cxt->mu);
   cxt->mu.AssertHeld();
   while (cxt->g0 < cxt->iterations) {
     while (cxt->g0 != target && cxt->g0 != cxt->iterations) {
@@ -243,7 +243,7 @@ static void TestTime(TestContext *cxt, int c, bool use_cv) {
   absl::Condition false_cond(&kFalse);
   absl::Condition g0ge2(G0GE2, cxt);
   if (c == 0) {
-    absl::MutexLock l(&cxt->mu);
+    absl::MutexLock l(cxt->mu);
 
     absl::Time start = absl::Now();
     if (use_cv) {
@@ -311,7 +311,7 @@ static void TestTime(TestContext *cxt, int c, bool use_cv) {
     CHECK_EQ(cxt->g0, cxt->threads) << "TestTime failed";
 
   } else if (c == 1) {
-    absl::MutexLock l(&cxt->mu);
+    absl::MutexLock l(cxt->mu);
     const absl::Time start = absl::Now();
     if (use_cv) {
       cxt->cv.WaitWithTimeout(&cxt->mu, absl::Milliseconds(500));
@@ -324,7 +324,7 @@ static void TestTime(TestContext *cxt, int c, bool use_cv) {
         << "TestTime failed";
     cxt->g0++;
   } else if (c == 2) {
-    absl::MutexLock l(&cxt->mu);
+    absl::MutexLock l(cxt->mu);
     if (use_cv) {
       while (cxt->g0 < 2) {
         cxt->cv.WaitWithTimeout(&cxt->mu, absl::Seconds(100));
@@ -335,7 +335,7 @@ static void TestTime(TestContext *cxt, int c, bool use_cv) {
     }
     cxt->g0++;
   } else {
-    absl::MutexLock l(&cxt->mu);
+    absl::MutexLock l(cxt->mu);
     if (use_cv) {
       while (cxt->g0 < 2) {
         cxt->cv.Wait(&cxt->mu);
@@ -726,20 +726,20 @@ TEST(Mutex, LockWhenGuard) {
   bool (*cond_lt_10)(int *) = [](int *p) { return *p < 10; };
 
   std::thread t1([&mu, &n, &done, cond_eq_10]() {
-    absl::ReaderMutexLock lock(&mu, absl::Condition(cond_eq_10, &n));
+    absl::ReaderMutexLock lock(mu, absl::Condition(cond_eq_10, &n));
     done = true;
   });
 
   std::thread t2[10];
   for (std::thread &t : t2) {
     t = std::thread([&mu, &n, cond_lt_10]() {
-      absl::WriterMutexLock lock(&mu, absl::Condition(cond_lt_10, &n));
+      absl::WriterMutexLock lock(mu, absl::Condition(cond_lt_10, &n));
       ++n;
     });
   }
 
   {
-    absl::MutexLock lock(&mu);
+    absl::MutexLock lock(mu);
     n = 0;
   }
 
@@ -793,7 +793,7 @@ static bool AllDone(void *v) {
 // L={}
 static void WaitForCond(ReaderDecrementBugStruct *x) {
   absl::Mutex dummy;
-  absl::MutexLock l(&dummy);
+  absl::MutexLock l(dummy);
   x->mu.LockWhen(absl::Condition(&IsCond, x));
   x->done--;
   x->mu.Unlock();
@@ -1576,11 +1576,11 @@ TEST_P(TimeoutTest, Await) {
     std::unique_ptr<absl::synchronization_internal::ThreadPool> pool =
         CreateDefaultPool();
     RunAfterDelay(params.satisfy_condition_delay, pool.get(), [&] {
-      absl::MutexLock l(&mu);
+      absl::MutexLock l(mu);
       value = true;
     });
 
-    absl::MutexLock lock(&mu);
+    absl::MutexLock lock(mu);
     absl::Time start_time = absl::Now();
     absl::Condition cond(&value);
     bool result =
@@ -1610,7 +1610,7 @@ TEST_P(TimeoutTest, LockWhen) {
     std::unique_ptr<absl::synchronization_internal::ThreadPool> pool =
         CreateDefaultPool();
     RunAfterDelay(params.satisfy_condition_delay, pool.get(), [&] {
-      absl::MutexLock l(&mu);
+      absl::MutexLock l(mu);
       value = true;
     });
 
@@ -1645,7 +1645,7 @@ TEST_P(TimeoutTest, ReaderLockWhen) {
     std::unique_ptr<absl::synchronization_internal::ThreadPool> pool =
         CreateDefaultPool();
     RunAfterDelay(params.satisfy_condition_delay, pool.get(), [&] {
-      absl::MutexLock l(&mu);
+      absl::MutexLock l(mu);
       value = true;
     });
 
@@ -1682,12 +1682,12 @@ TEST_P(TimeoutTest, Wait) {
     std::unique_ptr<absl::synchronization_internal::ThreadPool> pool =
         CreateDefaultPool();
     RunAfterDelay(params.satisfy_condition_delay, pool.get(), [&] {
-      absl::MutexLock l(&mu);
+      absl::MutexLock l(mu);
       value = true;
       cv.Signal();
     });
 
-    absl::MutexLock lock(&mu);
+    absl::MutexLock lock(mu);
     absl::Time start_time = absl::Now();
     absl::Duration timeout = params.wait_timeout;
     absl::Time deadline = start_time + timeout;
@@ -1933,7 +1933,7 @@ TEST(Mutex, WriterPriority) {
   std::atomic<bool> saw_wrote{false};
   auto readfunc = [&]() {
     for (size_t i = 0; i < 10; ++i) {
-      absl::ReaderMutexLock lock(&mu);
+      absl::ReaderMutexLock lock(mu);
       if (wrote) {
         saw_wrote = true;
         break;
@@ -1948,7 +1948,7 @@ TEST(Mutex, WriterPriority) {
   // PerThreadSynch::priority, so the writer intentionally runs on a new thread.
   std::thread t3([&]() {
     // The writer should be able squeeze between the two alternating readers.
-    absl::MutexLock lock(&mu);
+    absl::MutexLock lock(mu);
     wrote = true;
   });
   t1.join();

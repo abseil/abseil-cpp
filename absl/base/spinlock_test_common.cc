@@ -132,12 +132,12 @@ static_assert(std::is_trivially_destructible<SpinLock>(), "");
 
 TEST(SpinLock, StackNonCooperativeDisablesScheduling) {
   SpinLock spinlock(base_internal::SCHEDULE_KERNEL_ONLY);
-  SpinLockHolder l(&spinlock);
+  SpinLockHolder l(spinlock);
   EXPECT_FALSE(base_internal::SchedulingGuard::ReschedulingIsAllowed());
 }
 
 TEST(SpinLock, StaticNonCooperativeDisablesScheduling) {
-  SpinLockHolder l(&static_noncooperative_spinlock);
+  SpinLockHolder l(static_noncooperative_spinlock);
   EXPECT_FALSE(base_internal::SchedulingGuard::ReschedulingIsAllowed());
 }
 

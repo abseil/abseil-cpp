@@ -26,7 +26,7 @@ ABSL_NAMESPACE_BEGIN
 
 void Notification::Notify() {
   base_internal::TraceSignal(this, TraceObjectKind());
-  MutexLock l(&this->mutex_);
+  MutexLock l(this->mutex_);
 
 #ifndef NDEBUG
   if (ABSL_PREDICT_FALSE(notified_yet_.load(std::memory_order_relaxed))) {
@@ -43,7 +43,7 @@ void Notification::Notify() {
 Notification::~Notification() {
   // Make sure that the thread running Notify() exits before the object is
   // destructed.
-  MutexLock l(&this->mutex_);
+  MutexLock l(this->mutex_);
 }
 
 void Notification::WaitForNotification() const {

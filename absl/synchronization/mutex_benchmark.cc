@@ -145,7 +145,7 @@ void BM_MutexEnqueue(benchmark::State& state) {
     shared->looping_threads.fetch_add(1);
     for (int i = 0; i < kBatchSize; i++) {
       {
-        absl::MutexLock l(&shared->mu);
+        absl::MutexLock l(shared->mu);
         shared->thread_has_mutex.store(true, std::memory_order_relaxed);
         // Spin until all other threads are either out of the benchmark loop
         // or blocked on the mutex. This ensures that the mutex queue is kept

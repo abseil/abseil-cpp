@@ -239,6 +239,7 @@ class ABSL_SCOPED_LOCKABLE [[nodiscard]] SpinLockHolder {
       : lock_(l) {
     l.lock();
   }
+  ABSL_DEPRECATE_AND_INLINE()
   inline explicit SpinLockHolder(SpinLock* l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : SpinLockHolder(*l) {}
 

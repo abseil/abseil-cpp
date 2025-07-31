@@ -587,7 +587,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
 // Class Foo {
 //  public:
 //   Foo::Bar* Baz() {
-//     MutexLock lock(&mu_);
+//     MutexLock lock(mu_);
 //     ...
 //     return bar;
 //   }
@@ -743,7 +743,7 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
 // Example using a scope guard:
 //
 //   {
-//     MutexLock lock(&mu_, count_is_zero);
+//     MutexLock lock(mu_, count_is_zero);
 //     // ...
 //   }
 //

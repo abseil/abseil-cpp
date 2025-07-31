@@ -327,7 +327,7 @@ CordzInfo::~CordzInfo() {
 }
 
 void CordzInfo::Track() {
-  SpinLockHolder l(&list_->mutex);
+  SpinLockHolder l(list_->mutex);
 
   CordzInfo* const head = list_->head.load(std::memory_order_acquire);
   if (head != nullptr) {
@@ -340,7 +340,7 @@ void CordzInfo::Track() {
 void CordzInfo::Untrack() {
   ODRCheck();
   {
-    SpinLockHolder l(&list_->mutex);
+    SpinLockHolder l(list_->mutex);
 
     CordzInfo* const head = list_->head.load(std::memory_order_acquire);
     CordzInfo* const next = ci_next_.load(std::memory_order_acquire);
@@ -370,7 +370,7 @@ void CordzInfo::Untrack() {
 
   // We are likely part of a snapshot, extend the life of the CordRep
   {
-    absl::MutexLock lock(&mutex_);
+    absl::MutexLock lock(mutex_);
     if (rep_) CordRep::Ref(rep_);
   }
   CordzHandle::Delete(this);
