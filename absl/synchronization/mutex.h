@@ -293,12 +293,12 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // These methods may be used (along with the complementary `Reader*()`
   // methods) to distinguish simple exclusive `Mutex` usage (`Lock()`,
   // etc.) from reader/writer lock usage.
-  void WriterLock() ABSL_EXCLUSIVE_LOCK_FUNCTION() { this->lock(); }
+  void WriterLock() ABSL_EXCLUSIVE_LOCK_FUNCTION() { lock(); }
 
-  void WriterUnlock() ABSL_UNLOCK_FUNCTION() { this->unlock(); }
+  void WriterUnlock() ABSL_UNLOCK_FUNCTION() { unlock(); }
 
   [[nodiscard]] bool WriterTryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
-    return this->try_lock();
+    return try_lock();
   }
 
   // ---------------------------------------------------------------------------
