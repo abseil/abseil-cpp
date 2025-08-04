@@ -101,6 +101,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
     ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
   }
 
+  ABSL_DEPRECATE_AND_INLINE()
   inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() { return lock(); }
 
   // Try to acquire this SpinLock without blocking and return true if the
@@ -116,6 +117,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
     return res;
   }
 
+  ABSL_DEPRECATE_AND_INLINE()
   [[nodiscard]] inline bool TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return try_lock();
   }
@@ -139,6 +141,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
     ABSL_TSAN_MUTEX_POST_UNLOCK(this, 0);
   }
 
+  ABSL_DEPRECATE_AND_INLINE()
   inline void Unlock() ABSL_UNLOCK_FUNCTION() { unlock(); }
 
   // Determine if the lock is held.  When the lock is held by the invoking
