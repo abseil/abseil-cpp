@@ -612,11 +612,15 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   // Like above, but calls `mu->LockWhen(cond)` instead. That is, in addition to
   // the above, the condition given by `cond` is also guaranteed to hold when
   // this object is constructed.
-  explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
+  explicit MutexLock(Mutex& mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(*mu) {
+      : mu_(mu) {
     this->mu_.LockWhen(cond);
   }
+
+  explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : MutexLock(*mu, cond) {}
 
   MutexLock(const MutexLock&) = delete;  // NOLINT(runtime/mutex)
   MutexLock(MutexLock&&) = delete;       // NOLINT(runtime/mutex)
@@ -1081,17 +1085,24 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
 // mutex before destruction. `Release()` may be called at most once.
 class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
  public:
+  explicit ReleasableMutexLock(Mutex& mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : mu_(&mu) {
+    this->mu_->Lock();
+  }
+
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    this->mu_->lock();
+      : ReleasableMutexLock(*mu) {}
+
+  explicit ReleasableMutexLock(Mutex& mu, const Condition& cond)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : mu_(&mu) {
+    this->mu_->LockWhen(cond);
   }
 
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
-      : mu_(mu) {
-    this->mu_->LockWhen(cond);
-  }
+      : ReleasableMutexLock(*mu, cond) {}
 
   ~ReleasableMutexLock() ABSL_UNLOCK_FUNCTION() {
     if (this->mu_ != nullptr) {
