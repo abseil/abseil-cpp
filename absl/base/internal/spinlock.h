@@ -238,7 +238,9 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
 // the duration of a C++ scope.
 class ABSL_SCOPED_LOCKABLE [[nodiscard]] SpinLockHolder {
  public:
-  inline explicit SpinLockHolder(SpinLock& l) ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
+  inline explicit SpinLockHolder(
+      SpinLock& l ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(l)
       : lock_(l) {
     l.lock();
   }
