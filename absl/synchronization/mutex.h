@@ -607,10 +607,13 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
     this->mu_.lock();
   }
 
+  // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
+  // guaranteed to be locked when this object is constructed. Requires that
+  // `mu` be dereferenceable.
   explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : MutexLock(*mu) {}
 
-  // Like above, but calls `mu->LockWhen(cond)` instead. That is, in addition to
+  // Like above, but calls `mu.LockWhen(cond)` instead. That is, in addition to
   // the above, the condition given by `cond` is also guaranteed to hold when
   // this object is constructed.
   explicit MutexLock(Mutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
