@@ -599,9 +599,8 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
  public:
   // Constructors
 
-  // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
-  // guaranteed to be locked when this object is constructed. Requires that
-  // `mu` be dereferenceable.
+  // Calls `mu.lock()` and returns when that call returns. That is, `mu` is
+  // guaranteed to be locked when this object is constructed.
   explicit MutexLock(Mutex& mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
     this->mu_.lock();
   }
