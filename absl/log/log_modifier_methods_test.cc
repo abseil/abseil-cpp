@@ -200,13 +200,16 @@ TEST(TailCallsModifiesTest, WithPerror) {
       Send(AllOf(
           TextMessage(AnyOf(Eq("hello world: Bad file number [9]"),
                             Eq("hello world: Bad file descriptor [9]"),
-                            Eq("hello world: Bad file descriptor [8]"))),
+                            Eq("hello world: Bad file descriptor [8]"),
+                            Eq("hello world: Bad file descriptor [1073741833]"))),
           ENCODED_MESSAGE(HasValues(ElementsAre(
               ValueWithLiteral(Eq("hello world")), ValueWithLiteral(Eq(": ")),
               AnyOf(ValueWithStr(Eq("Bad file number")),
                     ValueWithStr(Eq("Bad file descriptor"))),
               ValueWithLiteral(Eq(" [")),
-              AnyOf(ValueWithStr(Eq("8")), ValueWithStr(Eq("9"))),
+              AnyOf(ValueWithStr(Eq("8")),
+                    ValueWithStr(Eq("9")),
+                    ValueWithStr(Eq("1073741833"))),
               ValueWithLiteral(Eq("]"))))))));
 
   test_sink.StartCapturingLogs();
