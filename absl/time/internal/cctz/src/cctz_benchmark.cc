@@ -402,6 +402,7 @@ const char* const kFormats[] = {
     RFC3339_sec,            // 3
     "%Y-%m-%d%ET%H:%M:%S",  // 4
     "%Y-%m-%d",             // 5
+    "%F%ET%T",              // 6
 };
 const int kNumFormats = sizeof(kFormats) / sizeof(kFormats[0]);
 
