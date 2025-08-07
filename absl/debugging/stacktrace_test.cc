@@ -88,6 +88,15 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
 #if defined(__riscv)
   GTEST_SKIP() << "Skipping test on RISC-V due to pre-existing failure";
 #endif
+#if defined(_WIN32)
+  // TODO(b/434184677): Add support for fixups on Windows if needed
+  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+#endif
+
+  bool can_rely_on_frame_pointers = false;
+  if (!can_rely_on_frame_pointers) {
+    GTEST_SKIP() << "Frame pointers are required, but not guaranteed in OSS";
+  }
 
 #if ABSL_HAVE_ATTRIBUTE_WEAK
   // This test is known not to pass on MSVC (due to weak symbols)
@@ -219,6 +228,11 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
 TEST(StackTrace, FixupNoFixupEquivalence) { FixupNoFixupEquivalenceNoInline(); }
 
 TEST(StackTrace, CustomUnwinderPerformsFixup) {
+#if defined(_WIN32)
+  // TODO(b/434184677): Add support for fixups on Windows if needed
+  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+#endif
+
 #if ABSL_HAVE_ATTRIBUTE_WEAK
   // This test is known not to pass on MSVC (due to weak symbols)
 
