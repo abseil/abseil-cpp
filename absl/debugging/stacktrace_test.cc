@@ -85,6 +85,9 @@ TEST(StackTrace, HugeFrame) {
 
 // This is a separate function to avoid inlining.
 ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
+#if !ABSL_HAVE_ATTRIBUTE_WEAK
+  GTEST_SKIP() << "Need weak symbol support";
+#endif
 #if defined(__riscv)
   GTEST_SKIP() << "Skipping test on RISC-V due to pre-existing failure";
 #endif
@@ -92,13 +95,11 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
   // TODO(b/434184677): Add support for fixups on Windows if needed
   GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
 #endif
-
   bool can_rely_on_frame_pointers = false;
   if (!can_rely_on_frame_pointers) {
     GTEST_SKIP() << "Frame pointers are required, but not guaranteed in OSS";
   }
 
-#if ABSL_HAVE_ATTRIBUTE_WEAK
   // This test is known not to pass on MSVC (due to weak symbols)
 
   const Cleanup restore_state([enable_fixup = g_enable_fixup,
@@ -218,23 +219,18 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
       ContainerEq(absl::MakeSpan(b.frames, static_cast<size_t>(b.depth))));
   EXPECT_GT(g_should_fixup_calls, 0);
   EXPECT_GE(g_should_fixup_calls, g_fixup_calls);
-
-  // ==========================================================================
-#else
-  GTEST_SKIP() << "Need weak symbol support";
-#endif
 }
 
 TEST(StackTrace, FixupNoFixupEquivalence) { FixupNoFixupEquivalenceNoInline(); }
 
 TEST(StackTrace, CustomUnwinderPerformsFixup) {
+#if !ABSL_HAVE_ATTRIBUTE_WEAK
+  GTEST_SKIP() << "Need weak symbol support";
+#endif
 #if defined(_WIN32)
   // TODO(b/434184677): Add support for fixups on Windows if needed
   GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
 #endif
-
-#if ABSL_HAVE_ATTRIBUTE_WEAK
-  // This test is known not to pass on MSVC (due to weak symbols)
 
   constexpr int kSkip = 1;  // Skip our own frame, whose return PCs won't match
   constexpr auto kStackCount = 1;
@@ -280,9 +276,6 @@ TEST(StackTrace, CustomUnwinderPerformsFixup) {
                                   nullptr, nullptr);
   EXPECT_GT(g_should_fixup_calls, 0);
   EXPECT_GT(g_fixup_calls, 0);
-#else
-  GTEST_SKIP() << "Need weak symbol support";
-#endif
 }
 
 #if ABSL_HAVE_BUILTIN(__builtin_frame_address)
