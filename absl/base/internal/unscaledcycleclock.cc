@@ -85,6 +85,9 @@ int64_t UnscaledCycleClock::Now() {
 double UnscaledCycleClock::Frequency() {
 #ifdef __GLIBC__
   return __ppc_get_timebase_freq();
+#elif defined(__linux__) && (defined(__powerpc__) || defined(__ppc__))
+  // Fallback for musl + ppc64le: use constant timebase frequency (512 MHz)
+  return static_cast<double>(512000000);
 #elif defined(_AIX)
   // This is the same constant value as returned by
   // __ppc_get_timebase_freq().
