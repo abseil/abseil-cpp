@@ -58,7 +58,6 @@ absl_cc_test(
     absl::stacktrace
     absl::config
     absl::core_headers
-    absl::errno_saver
     absl::span
     GTest::gmock_main
 )

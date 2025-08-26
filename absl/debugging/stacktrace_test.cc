@@ -27,7 +27,6 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/errno_saver.h"
 #include "absl/base/optimization.h"
 #include "absl/types/span.h"
 
@@ -415,7 +414,6 @@ const void* g_return_address = nullptr;
 bool g_sigusr2_raised = false;
 
 void SigUsr2Handler(int, siginfo_t*, void* uc) {
-  absl::base_internal::ErrnoSaver errno_saver;
   // Many platforms don't support this by default.
   bool support_is_expected = false;
   constexpr int kMaxStackDepth = 64;
