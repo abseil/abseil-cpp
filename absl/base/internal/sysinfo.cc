@@ -135,6 +135,69 @@ int Win32NumCPUs() {
 
 #endif
 
+#if defined(__linux__)
+// Kinda like perror, but without allocating. At least, mostly...
+void PerrorNoAlloc(const char* msg) {
+  // strerror might allocate, theoretically. In practice, it doesn't do so on
+  // glibc unless you provide an invalid errno, and never allocates on musl.
+  char *errmsg = strerror(errno);
+
+  // snprintf isn't technically on the async-signal-safe list, but, in practice,
+  // it doesn't allocate.
+  char buf[1024];
+  int len = snprintf(buf, sizeof(buf), "%s: %s\n", msg, errmsg);
+  if (len > 0) {
+    if ((unsigned)len > sizeof(buf)) len = sizeof(buf);
+    ABSL_ATTRIBUTE_UNUSED auto ret = write(2, buf, static_cast<size_t>(len));
+  }
+}
+
+// Returns the number of possible cpus by parsing a sysfs string.
+int ParseSysFsPossibleCPUs(const char* str, size_t len) {
+  if (len == 0) return 1;
+  // Find the last number in the line and parse that -- that'll be the highest
+  // cpu number.
+  for (int i = static_cast<int>(len - 1); i >= 0; --i) {
+    if (!isdigit(str[i])) return atoi(&str[i+1]) + 1;  // NOLINT
+  }
+  return atoi(str) + 1;  // NOLINT
+}
+
+int GetNumPossibleCpusFromSysfs() {
+  // The "possible" file exists since Linux 2.6.26.
+  //
+  // It contains a value such as "0-127" (meaning you have 128 CPUs, numbered 0
+  // through 127). The format used here also supports strings like: "0,2,4-7" to
+  // describe discontiguous ids, but that cannot actually happen here, since
+  // "possible" CPU numbers are always contiguous from 0 to the maximum.
+  int fd;
+  do {
+    fd = open("/sys/devices/system/cpu/possible", O_RDONLY | O_CLOEXEC);
+  } while (fd < 0 && errno == EINTR);
+
+  if (fd < 0) {
+    PerrorNoAlloc("GetNumPossibleCpusFromSysfs: open() failed");
+    abort();
+  }
+
+  char buf[1024];
+  ssize_t len;
+  do {
+    len = read(fd, buf, sizeof(buf) - 1);
+  } while (len < 0 && errno == EINTR);
+
+  if (len <= 0) {
+    PerrorNoAlloc("GetNumPossibleCpusFromSysfs: read() failed");
+    abort();
+  }
+  close(fd);
+
+  if (buf[len - 1] == '\n') --len;
+  buf[len] = '\0';
+  return ParseSysFsPossibleCPUs(buf, static_cast<size_t>(len));
+}
+#endif
+
 }  // namespace
 
 static int GetNumCPUs() {
@@ -145,6 +208,8 @@ static int GetNumCPUs() {
   return hardware_concurrency ? hardware_concurrency : 1;
 #elif defined(_AIX)
   return sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__linux__)
+  return GetNumPossibleCpusFromSysfs();
 #else
   // Other possibilities:
   //  - Read /sys/devices/system/cpu/online and use cpumask_parse()
