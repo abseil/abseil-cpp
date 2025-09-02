@@ -225,17 +225,12 @@ void MakeCheckOpValueString(std::ostream& os, signed char v);
 void MakeCheckOpValueString(std::ostream& os, unsigned char v);
 void MakeCheckOpValueString(std::ostream& os, const void* absl_nullable p);
 
-void MakeCheckOpUnprintableString(std::ostream& os);
-
 // A wrapper for types that have no operator<<.
 struct UnprintableWrapper {
   template <typename T>
   explicit UnprintableWrapper(const T&) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const UnprintableWrapper&) {
-    MakeCheckOpUnprintableString(os);
-    return os;
-  }
+  friend std::ostream& operator<<(std::ostream& os, UnprintableWrapper);
 };
 
 namespace detect_specialization {
@@ -400,10 +395,16 @@ ABSL_ATTRIBUTE_RETURNS_NONNULL const char* absl_nonnull MakeCheckOpString(
 template <typename T1, typename T2>
 const char* absl_nonnull MakeCheckOpString(T1 v1, T2 v2,
                                            const char* absl_nonnull exprtext) {
-  CheckOpMessageBuilder comb(exprtext);
-  MakeCheckOpValueString(comb.ForVar1(), v1);
-  MakeCheckOpValueString(comb.ForVar2(), v2);
-  return comb.NewString();
+  if constexpr (std::is_same_v<CheckOpStreamType<T1>, UnprintableWrapper> &&
+                std::is_same_v<CheckOpStreamType<T2>, UnprintableWrapper>) {
+    // No sense printing " (UNPRINTABLE vs. UNPRINTABLE)"
+    return exprtext;
+  } else {
+    CheckOpMessageBuilder comb(exprtext);
+    MakeCheckOpValueString(comb.ForVar1(), v1);
+    MakeCheckOpValueString(comb.ForVar2(), v2);
+    return comb.NewString();
+  }
 }
 
 // Add a few commonly used instantiations as extern to reduce size of objects
