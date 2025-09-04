@@ -89,7 +89,7 @@
 #endif
 
 // Memory annotations are also made available to LLVM's Memory Sanitizer
-#if defined(ABSL_HAVE_MEMORY_SANITIZER) && !defined(__native_client__)
+#if defined(ABSL_HAVE_MEMORY_SANITIZER)
 #define ABSL_INTERNAL_MEMORY_ANNOTATIONS_ENABLED 1
 #endif
 
