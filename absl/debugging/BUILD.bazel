@@ -40,6 +40,7 @@ cc_library(
         "internal/stacktrace_config.h",
         "internal/stacktrace_emscripten-inl.inc",
         "internal/stacktrace_generic-inl.inc",
+        "internal/stacktrace_libunwind-inl.inc",
         "internal/stacktrace_powerpc-inl.inc",
         "internal/stacktrace_riscv-inl.inc",
         "internal/stacktrace_unimplemented-inl.inc",
