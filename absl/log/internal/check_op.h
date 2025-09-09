@@ -46,10 +46,10 @@
 // `ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL` wraps string literals that
 // should be stripped when `ABSL_MIN_LOG_LEVEL` exceeds `kFatal`.
 #ifdef ABSL_MIN_LOG_LEVEL
-#define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal)         \
-  (::absl::LogSeverity::kFatal >=                               \
-           static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL) \
-       ? (literal)                                              \
+#define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal)                \
+  (::absl::LogSeverity::kFatal >=                                      \
+           static_cast<::absl::LogSeverityAtLeast>(ABSL_MIN_LOG_LEVEL) \
+       ? (literal)                                                     \
        : "")
 #else
 #define ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL(literal) (literal)
@@ -435,7 +435,7 @@ ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void* absl_nonnull);
 #ifdef ABSL_MIN_LOG_LEVEL
 #define ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT(U1, U2, v1, v2, exprtext) \
   ((::absl::LogSeverity::kFatal >=                                       \
-    static_cast<::absl::LogSeverity>(ABSL_MIN_LOG_LEVEL))                \
+    static_cast<::absl::LogSeverityAtLeast>(ABSL_MIN_LOG_LEVEL))         \
        ? MakeCheckOpString<U1, U2>(v1, v2, exprtext)                     \
        : "")
 #else
