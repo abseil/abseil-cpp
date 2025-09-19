@@ -330,14 +330,8 @@ struct GroupSse2Impl {
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
     auto msbs = _mm_set1_epi8(static_cast<char>(-128));
-    auto x126 = _mm_set1_epi8(126);
-#ifdef ABSL_INTERNAL_HAVE_SSSE3
-    auto res = _mm_or_si128(_mm_shuffle_epi8(x126, ctrl), msbs);
-#else
-    auto zero = _mm_setzero_si128();
-    auto special_mask = _mm_cmpgt_epi8_fixed(zero, ctrl);
-    auto res = _mm_or_si128(msbs, _mm_andnot_si128(special_mask, x126));
-#endif
+    auto twos = _mm_set1_epi8(static_cast<char>(2));
+    auto res = _mm_subs_epi8(_mm_and_si128(msbs, ctrl), twos);
     _mm_storeu_si128(reinterpret_cast<__m128i*>(dst), res);
   }
 
