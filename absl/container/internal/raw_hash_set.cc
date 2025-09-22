@@ -679,7 +679,7 @@ void ResizeNonSooImpl(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
   ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
 
-  const size_t old_capacity = common.capacity();
+  [[maybe_unused]] const size_t old_capacity = common.capacity();
   [[maybe_unused]] ctrl_t* old_ctrl;
   [[maybe_unused]] void* old_slots;
   if constexpr (kMode == ResizeNonSooMode::kGuaranteedAllocated) {
@@ -688,7 +688,7 @@ void ResizeNonSooImpl(CommonFields& common,
   }
 
   const size_t slot_size = policy.slot_size;
-  const size_t slot_align = policy.slot_align;
+  [[maybe_unused]] const size_t slot_align = policy.slot_align;
   const bool has_infoz = infoz.IsSampled();
   void* alloc = policy.get_char_alloc(common);
 

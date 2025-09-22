@@ -40,6 +40,7 @@
 #include "absl/log/internal/nullstream.h"
 #include "absl/log/internal/strip.h"
 #include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/has_ostream_operator.h"
 #include "absl/strings/string_view.h"
 
 // `ABSL_LOG_INTERNAL_STRIP_STRING_LITERAL` wraps string literals that
@@ -357,23 +358,26 @@ std::enable_if_t<HasAbslStringify<T>::value,
                  StringifyToStreamWrapper<T>>
 Detect(...);  // Ellipsis has lowest preference when int passed.
 
-// is_streamable is true for types that have an output stream operator<<.
-template <class T, class = void>
-struct is_streamable : std::false_type {};
-
-template <class T>
-struct is_streamable<T, std::void_t<decltype(std::declval<std::ostream&>()
-                                             << std::declval<T>())>>
-    : std::true_type {};
-
 // This overload triggers when T is neither possible to print nor an enum.
 template <typename T>
 std::enable_if_t<std::negation_v<std::disjunction<
                      std::is_convertible<T, int>, std::is_enum<T>,
                      std::is_pointer<T>, std::is_same<T, std::nullptr_t>,
-                     is_streamable<T>, HasAbslStringify<T>>>,
+                     HasOstreamOperator<T>, HasAbslStringify<T>>>,
                  UnprintableWrapper>
 Detect(...);
+
+// Equivalent to the updated std::underlying_type from C++20, which is no
+// longer undefined behavior for non-enum types.
+template <typename T, typename EnableT = void>
+struct UnderlyingType {};
+
+template <typename T>
+struct UnderlyingType<T, std::enable_if_t<std::is_enum_v<T>>> {
+  using type = std::underlying_type_t<T>;
+};
+template <typename T>
+using UnderlyingTypeT = typename UnderlyingType<T>::type;
 
 // This overload triggers when T is a scoped enum that has not defined an output
 // stream operator (operator<<) or AbslStringify. It causes the enum value to be
@@ -382,17 +386,17 @@ Detect(...);
 // one backed by another integer is converted to (u)int64_t.
 template <typename T>
 std::enable_if_t<
-    std::conjunction_v<
-        std::is_enum<T>, std::negation<std::is_convertible<T, int>>,
-        std::negation<is_streamable<T>>, std::negation<HasAbslStringify<T>>>,
-    std::conditional_t<
-        std::is_same_v<std::underlying_type_t<T>, bool> ||
-            std::is_same_v<std::underlying_type_t<T>, char> ||
-            std::is_same_v<std::underlying_type_t<T>, signed char> ||
-            std::is_same_v<std::underlying_type_t<T>, unsigned char>,
-        std::underlying_type_t<T>,
-        std::conditional_t<std::is_signed_v<std::underlying_type_t<T>>, int64_t,
-                           uint64_t>>>
+    std::conjunction_v<std::is_enum<T>,
+                       std::negation<std::is_convertible<T, int>>,
+                       std::negation<HasOstreamOperator<T>>,
+                       std::negation<HasAbslStringify<T>>>,
+    std::conditional_t<std::is_same_v<UnderlyingTypeT<T>, bool> ||
+                           std::is_same_v<UnderlyingTypeT<T>, char> ||
+                           std::is_same_v<UnderlyingTypeT<T>, signed char> ||
+                           std::is_same_v<UnderlyingTypeT<T>, unsigned char>,
+                       UnderlyingTypeT<T>,
+                       std::conditional_t<std::is_signed_v<UnderlyingTypeT<T>>,
+                                          int64_t, uint64_t>>>
 Detect(...);
 }  // namespace detect_specialization
 
