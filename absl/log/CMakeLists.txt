@@ -47,6 +47,7 @@ absl_cc_library(
     absl::base
     absl::config
     absl::core_headers
+    absl::has_ostream_operator
     absl::leak_check
     absl::log_internal_nullguard
     absl::log_internal_nullstream
