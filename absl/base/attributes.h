@@ -451,7 +451,7 @@
 //
 // TODO(b/176172494): Use ABSL_HAVE_CPP_ATTRIBUTE(nodiscard) when all code is
 // compliant with the stricter [[nodiscard]].
-#if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
+#if (defined(__clang__) || defined(__GNUC__)) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
 #define ABSL_MUST_USE_RESULT __attribute__((warn_unused_result))
 #else
 #define ABSL_MUST_USE_RESULT
