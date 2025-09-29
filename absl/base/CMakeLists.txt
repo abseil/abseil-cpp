@@ -240,7 +240,6 @@ absl_cc_library(
     base_internal
   HDRS
     "internal/hide_ptr.h"
-    "internal/identity.h"
     "internal/scheduling_mode.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
