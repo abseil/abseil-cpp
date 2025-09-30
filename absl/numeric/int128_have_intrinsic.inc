@@ -17,6 +17,9 @@
 // representation when ABSL_HAVE_INTRINSIC_INT128 is defined. This file is
 // included by int128.h and relies on ABSL_INTERNAL_WCHAR_T being defined.
 
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
 namespace int128_internal {
 
 // Casts from unsigned to signed while preserving the underlying binary
@@ -301,3 +304,6 @@ constexpr int128 operator<<(int128 lhs, int amount) {
 constexpr int128 operator>>(int128 lhs, int amount) {
   return static_cast<__int128>(lhs) >> amount;
 }
+
+ABSL_NAMESPACE_END
+}  // namespace absl
