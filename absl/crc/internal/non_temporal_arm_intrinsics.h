@@ -21,7 +21,7 @@
 #include <arm_neon.h>
 
 typedef int64x2_t __m128i; /* 128-bit vector containing integers */
-#define vreinterpretq_m128i_s32(x) vreinterpretq_s64_s32(x)
+#define vreinterpretq_m128i_s64(x) (x)
 #define vreinterpretq_s64_m128i(x) (x)
 
 // Guarantees that every preceding store is globally visible before any
@@ -44,7 +44,7 @@ static inline __attribute__((always_inline)) void _mm_sfence(void) {
 // https://msdn.microsoft.com/zh-cn/library/f4k12ae8(v=vs.90).aspx
 static inline __attribute__((always_inline)) __m128i _mm_loadu_si128(
     const __m128i *p) {
-  return vreinterpretq_m128i_s32(vld1q_s32((const int32_t *)p));
+  return vreinterpretq_m128i_s64(vld1q_s64((const int64_t *)p));
 }
 
 // Stores the data in a to the address p without polluting the caches.  If the
