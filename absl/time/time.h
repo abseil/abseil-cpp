@@ -180,7 +180,7 @@ using EnableIfFloat =
 //
 // Alternatively, conversions can be performed using helpers such as
 // `ToInt64Microseconds()` and `ToDoubleSeconds()`.
-class Duration {
+  class Duration {
  public:
   // Value semantics.
   constexpr Duration() : rep_hi_(0), rep_lo_(0) {}  // zero-length duration
@@ -787,7 +787,7 @@ std::string UnparseFlag(Duration d);
 //   absl::Time t2 = t1 + absl::Minutes(2);
 //   absl::Duration d = t2 - t1;  // == absl::Minutes(2)
 //
-class Time {
+  class Time {
  public:
   // Value semantics.
 
