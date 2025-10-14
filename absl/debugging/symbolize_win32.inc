@@ -15,6 +15,7 @@
 // See "Retrieving Symbol Information by Address":
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms680578(v=vs.85).aspx
 
+#define UMDF_USING_NTSTATUS
 #include <ntstatus.h>
 #include <windows.h>
 #include <winternl.h>
