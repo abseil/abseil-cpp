@@ -455,9 +455,7 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //
   // Sets the number of slots in the `node_hash_map` to the number needed to
   // accommodate at least `count` total elements without exceeding the current
-  // maximum load factor, and may rehash the container if needed. After this
-  // returns, it is guaranteed that `count - size()` elements can be inserted
-  // into the `node_hash_map` without another rehash.
+  // maximum load factor, and may rehash the container if needed.
   using Base::reserve;
 
   // node_hash_map::at()
