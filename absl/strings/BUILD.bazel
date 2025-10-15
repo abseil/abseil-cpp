@@ -627,6 +627,7 @@ cc_library(
         ":cordz_update_scope",
         ":cordz_update_tracker",
         ":internal",
+        ":resize_and_overwrite",
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",

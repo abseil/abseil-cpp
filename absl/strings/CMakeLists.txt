@@ -1026,6 +1026,7 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::span
     absl::strings
+    absl::strings_resize_and_overwrite
     absl::type_traits
     absl::weakly_mixed_integer
   PUBLIC
