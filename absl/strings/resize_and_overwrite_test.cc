@@ -45,7 +45,7 @@ TEST_P(StringResizeAndOverwriteTest, StringResizeAndOverwrite) {
           // Truncate case.
           p[param.final_size - 1] = 'b';
         }
-        p[param.final_size] = 'c';  // Should be overwritten with '\0';
+        p[param.final_size] = '\0';
         return param.final_size;
       });
 
@@ -76,7 +76,7 @@ TEST_P(StringResizeAndOverwriteTest, StringResizeAndOverwriteFallback) {
           // Truncate case.
           p[param.final_size - 1] = 'b';
         }
-        p[param.final_size] = 'c';  // Should be overwritten with '\0';
+        p[param.final_size] = '\0';
         return param.final_size;
       });
 

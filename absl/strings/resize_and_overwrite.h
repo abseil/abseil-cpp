@@ -125,12 +125,10 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   if (ABSL_PREDICT_FALSE(n > str.max_size())) {
     absl::base_internal::ThrowStdLengthError("absl::StringResizeAndOverwrite");
   }
-  // The callback is allowed to write an arbitrary value to buf+n, but it is
-  // undefined behavior to write anything other than T::value_type{} to
-  // str.data()[n]. Therefore the initial resize uses an extra byte.
-  str.resize(n + 1);
+  str.resize(n);
   auto new_size = std::move(op)(str.data(), n);
   ABSL_HARDENING_ASSERT(new_size >= 0 && new_size <= n);
+  ABSL_HARDENING_ASSERT(str.data()[n] == typename T::value_type{});
   str.erase(static_cast<typename T::size_type>(new_size));
 }
 
@@ -138,9 +136,16 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
 
 // Resizes `str` to contain at most `n` characters, using the user-provided
 // operation `op` to modify the possibly indeterminate contents. `op` must
-// return the finalized length of `str`. Note that `op` is allowed write to
-// `data()[n]`, which facilitiates interoperation with functions that write a
-// trailing NUL.
+// return the finalized length of `str`.
+//
+// Invalidates all iterators, pointers, and references into `str`, regardless
+// of whether reallocation occurs.
+//
+// `op(value_type* buf, size_t buf_size)` is allowed to write `value_type{}` to
+// `buf[buf_size]`, which facilitiates interoperation with functions that write
+// a trailing NUL. Please note that this requirement is more strict than
+// `basic_string::resize_and_overwrite()`, which allows writing an abitrary
+// value to `buf[buf_size]`.
 template <typename T, typename Op>
 void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
 #ifdef ABSL_INTERNAL_HAS_RESIZE_AND_OVERWRITE
