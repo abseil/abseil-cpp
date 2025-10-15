@@ -1,0 +1,356 @@
+Messen
+Messen
+chromium/src
+main
+third_party/openscreen/src/cast/streaming/public/session_messenger.h
+
+public
+answer_messages.cc
+answer_messages.h
+capture_recommendations.cc
+capture_recommendations.h
+constants.cc
+constants.h
+encoded_frame.cc
+encoded_frame.h
+environment.cc
+environment.h
+frame_id.cc
+frame_id.h
+offer_messages.cc
+offer_messages.h
+receiver.cc
+receiver.h
+receiver_constraints.cc
+receiver_constraints.h
+receiver_message.cc
+receiver_message.h
+receiver_session.cc
+receiver_session.h
+rpc_messenger.cc
+rpc_messenger.h
+sender.cc
+sender.h
+sender_session.cc
+sender_session.h
+session_messenger.cc
+session_messenger.h
+statistics.cc
+statistics.h
+session_messenger.h
+3 of 14 matches
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CAST_STREAMING_PUBLIC_SESSION_MESSENGER_H_
+#define CAST_STREAMING_PUBLIC_SESSION_MESSENGER_H_
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/types/variant.h"
+#include "cast/common/public/message_port.h"
+#include "cast/streaming/public/answer_messages.h"
+#include "cast/streaming/public/offer_messages.h"
+#include "cast/streaming/public/receiver_message.h"
+#include "cast/streaming/sender_message.h"
+#include "json/value.h"
+#include "platform/api/task_runner.h"
+#include "platform/base/span.h"
+#include "util/flat_map.h"
+#include "util/weak_ptr.h"
+
+namespace openscreen::cast {
+
+// A message port interface designed specifically for use by the Receiver
+// and Sender session classes.
+class SessionMessenger : public MessagePort::Client {
+ public:
+  using ErrorCallback = std::function<void(Error)>;
+
+  SessionMessenger(MessagePort& message_port,
+                   std::string source_id,
+                   ErrorCallback cb);
+  ~SessionMessenger() override;
+
+ protected:
+  // Barebones message sending method shared by both children.
+  [[nodiscard]] Error SendMessage(const std::string& destination_id,
+                                  const std::string& namespace_,
+                                  const Json::Value& message_root);
+
+  // Used to report errors in subclasses.
+  void ReportError(const Error& error);
+
+  const std::string& source_id() override { return source_id_; }
+
+ private:
+  MessagePort& message_port_;
+  const std::string source_id_;
+  ErrorCallback error_callback_;
+};
+
+// Message port interface designed to handle sending messages to and
+// from a receiver. When possible, errors receiving messages are reported
+// to the ReplyCallback passed to SendRequest(), otherwise errors are
+// reported to the ErrorCallback passed in the constructor.
+class SenderSessionMessenger final : public SessionMessenger {
+ public:
+  using ReplyCallback = std::function<void(ErrorOr<ReceiverMessage>)>;
+
+  SenderSessionMessenger(MessagePort& message_port,
+                         std::string source_id,
+                         std::string receiver_id,
+                         ErrorCallback cb,
+                         TaskRunner& task_runner);
+
+  // Set receiver message handler. Note that this should only be
+  // applied for messages that don't have sequence numbers, like RPC
+  // and status messages.
+  void SetHandler(ReceiverMessage::Type type, ReplyCallback cb);
+  void ResetHandler(ReceiverMessage::Type type);
+
+  // Send a message that doesn't require a reply.
+  [[nodiscard]] Error SendOutboundMessage(SenderMessage message);
+
+  // Convenience method for sending a valid RPC message.
+  [[nodiscard]] Error SendRpcMessage(ByteView message);
+
+  // Send a request (with optional reply callback).
+  [[nodiscard]] Error SendRequest(SenderMessage message,
+                                  ReceiverMessage::Type reply_type,
+                                  ReplyCallback cb);
+
+  // MessagePort::Client overrides
+  void OnMessage(const std::string& source_id,
+                 const std::string& message_namespace,
+                 const std::string& message) override;
+  void OnError(const Error& error) override;
+
+ private:
+  TaskRunner& task_runner_;
+
+  // This messenger should only be connected to one receiver, so `receiver_id_`
+  // should not change.
+  const std::string receiver_id_;
+
+  // We keep a list here of replies we are expecting--if the reply is
+  // received for this sequence number, we call its respective callback,
+  // otherwise it is called after an internally specified timeout.
+  FlatMap<int, ReplyCallback> awaiting_replies_;
+
+  // Currently we can only set a handler for RPC messages, so no need for
+  // a flatmap here.
+  ReplyCallback rpc_callback_;
+
+  WeakPtrFactory<SenderSessionMessenger> weak_factory_{this};
+};
+
+// Message port interface designed for messaging to and from a sender.
+class ReceiverSessionMessenger final : public SessionMessenger {
+ public:
+  using RequestCallback =
+      std::function<void(const std::string&, SenderMessage)>;
+  ReceiverSessionMessenger(MessagePort& message_port,
+                           std::string source_id,
+                           ErrorCallback cb);
+
+  // Set sender message handler.
+  void SetHandler(SenderMessage::Type type, RequestCallback cb);
+  void ResetHandler(SenderMessage::Type type);
+
+  // Send a JSON message.
+  [[nodiscard]] Error SendMessage(const std::string& source_id,
+                                  ReceiverMessage message);
+
+  // MessagePort::Client overrides
+  void OnMessage(const std::string& source_id,
+                 const std::string& message_namespace,
+                 const std::string& message) override;
+  void OnError(const Error& error) override;
+
+ private:
+  FlatMap<SenderMessage::Type, RequestCallback> callbacks_;
+};
+
+}  // namespace openscreen::cast
+
+#endif  // CAST_STREAMING_PUBLIC_SESSION_MESSENGER_H_
+History
+Add a filter
+Definitions (1 result)
+third_party/openscreen/src/cast/streaming/public/session_messenger.h (1 result)
+29: class SessionMessenger : public MessagePort::Client {
+Extends (1 result)
+third_party/openscreen/src/cast/common/public/message_port.h (1 result)
+20: class Client {
+Extended by (2 results)
+third_party/openscreen/src/cast/streaming/public/session_messenger.h (2 results)
+59: class SenderSessionMessenger final : public SessionMessenger {
+112: class ReceiverSessionMessenger final : public SessionMessenger {
+Other References (13 results)
+third_party/openscreen/src/cast/streaming/impl/session_messenger_unittest.cc (1 result)
+74: SessionMessenger::ErrorCallback GetErrorCallback() {
+third_party/openscreen/src/cast/streaming/public/session_messenger.cc (8 results)
+52: SessionMessenger::SessionMessenger(MessagePort& message_port,
+62: SessionMessenger::~SessionMessenger() {
+66: Error SessionMessenger::SendMessage(const std::string& destination_id,
+82: void SessionMessenger::ReportError(const Error& error) {
+91: : SessionMessenger(message_port, std::move(source_id), std::move(cb)),
+114: return SessionMessenger::SendMessage(receiver_id_, namespace_,
+220: : SessionMessenger(message_port, std::move(source_id), std::move(cb)) {}
+245: return SessionMessenger::SendMessage(source_id, namespace_,
+third_party/openscreen/src/cast/streaming/public/session_messenger.h (4 results)
+33: SessionMessenger(MessagePort& message_port,
+36: ~SessionMessenger() override;
+59: class SenderSessionMessenger final : public SessionMessenger {
+112: class ReceiverSessionMessenger final : public SessionMessenger {
+We serve cookies on this site to analyze traffic, remember your preferences, and optimize your experience.
+SessionMessenger
+Class declared by openscreen::cast
+
+ A message port interface designed specifically for use by the Receiver
+ and Sender session classes.
