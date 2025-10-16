@@ -86,9 +86,6 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    tags = [
-        "no_test_wasm",  # b/452379654
-    ],
     deps = [
         ":hash",
         ":hash_testing",
