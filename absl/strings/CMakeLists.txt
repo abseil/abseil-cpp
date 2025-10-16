@@ -151,6 +151,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::dynamic_annotations
     absl::throw_delegate
 )
 
@@ -164,6 +165,7 @@ absl_cc_test(
   DEPS
     absl::strings_resize_and_overwrite
     absl::absl_check
+    absl::dynamic_annotations
     GTest::gmock_main
 )
 

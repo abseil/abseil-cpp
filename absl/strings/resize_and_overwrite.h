@@ -52,6 +52,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
@@ -125,7 +126,15 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   if (ABSL_PREDICT_FALSE(n > str.max_size())) {
     absl::base_internal::ThrowStdLengthError("absl::StringResizeAndOverwrite");
   }
+#ifdef ABSL_HAVE_MEMORY_SANITIZER
+  auto old_size = str.size();
+#endif
   str.resize(n);
+#ifdef ABSL_HAVE_MEMORY_SANITIZER
+  if (old_size < n) {
+    ABSL_ANNOTATE_MEMORY_IS_UNINITIALIZED(str.data() + old_size, n - old_size);
+  }
+#endif
   auto new_size = std::move(op)(str.data(), n);
   ABSL_HARDENING_ASSERT(new_size >= 0 && new_size <= n);
   ABSL_HARDENING_ASSERT(str.data()[n] == typename T::value_type{});
@@ -166,6 +175,10 @@ void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
   } else {
     strings_internal::StringResizeAndOverwriteFallback(str, n, op);
   }
+#endif
+#if defined(ABSL_HAVE_MEMORY_SANITIZER)
+  auto shadow = __msan_test_shadow(str.data(), str.size());
+  ABSL_ASSERT(shadow == -1);
 #endif
 }
 
