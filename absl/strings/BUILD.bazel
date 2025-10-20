@@ -102,6 +102,7 @@ cc_library(
     deps = [
         ":charset",
         ":internal",
+        ":resize_and_overwrite",
         ":string_view",
         "//absl/base",
         "//absl/base:config",

@@ -77,6 +77,7 @@ absl_cc_library(
   DEPS
     absl::string_view
     absl::strings_internal
+    absl::strings_resize_and_overwrite
     absl::base
     absl::bits
     absl::charset
