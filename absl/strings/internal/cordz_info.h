@@ -186,11 +186,11 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   // Global cordz info list. CordzInfo stores a pointer to the global list
   // instance to harden against ODR violations.
   struct List {
-    constexpr explicit List(absl::ConstInitType) {}
-
-    absl::Mutex mutex{absl::kConstInit};
+    absl::Mutex mutex;
     CordzInfo* head ABSL_GUARDED_BY(mutex){nullptr};
   };
+
+  static List* GlobalList();
 
   static constexpr size_t kMaxStackDepth = 64;
 
@@ -216,7 +216,7 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
 
   void ODRCheck() const {
 #ifndef NDEBUG
-    ABSL_RAW_CHECK(list_ == &global_list_, "ODR violation in Cord");
+    ABSL_RAW_CHECK(list_ == GlobalList(), "ODR violation in Cord");
 #endif
   }
 
@@ -226,12 +226,11 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   static void MaybeTrackCordImpl(InlineData& cord, const InlineData& src,
                                  MethodIdentifier method);
 
-  ABSL_CONST_INIT static List global_list_;
-  List* const list_ = &global_list_;
+  List* const list_ = GlobalList();
 
   // ci_prev_ and ci_next_ require the global list mutex to be held.
   // Unfortunately we can't use thread annotations such that the thread safety
-  // analysis understands that list_ and global_list_ are one and the same.
+  // analysis understands that list_ and GlobalList() are one and the same.
   std::atomic<CordzInfo*> ci_prev_{nullptr};
   std::atomic<CordzInfo*> ci_next_{nullptr};
 

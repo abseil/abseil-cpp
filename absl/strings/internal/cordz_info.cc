@@ -18,6 +18,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
+#include "absl/base/no_destructor.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/strings/internal/cord_internal.h"
@@ -33,8 +34,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
-
-ABSL_CONST_INIT CordzInfo::List CordzInfo::global_list_{absl::kConstInit};
 
 namespace {
 
@@ -221,6 +220,11 @@ class CordRepAnalyzer {
 
 }  // namespace
 
+CordzInfo::List* CordzInfo::GlobalList() {
+  static absl::NoDestructor<CordzInfo::List> list;
+  return list.get();
+}
+
 CordzInfo* CordzInfo::Head(const CordzSnapshot& snapshot) {
   ABSL_ASSERT(snapshot.is_snapshot());
 
@@ -230,11 +234,12 @@ CordzInfo* CordzInfo::Head(const CordzSnapshot& snapshot) {
   // delete queue being empty or not. After this all next observations are safe
   // as we have established all subsequent untracks will be queued for delete.
   // We do enforce in DEBUG builds that the 'head' value is present in the
-  // delete queue: ODR violations may lead to 'snapshot' and 'global_list_'
+  // delete queue: ODR violations may lead to 'snapshot' and 'global_list'
   // being in different libraries / modules.
-  absl::MutexLock l(global_list_.mutex);
-  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(global_list_.head));
-  return global_list_.head;
+  auto global_list = GlobalList();
+  absl::MutexLock l(global_list->mutex);
+  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(global_list->head));
+  return global_list->head;
 }
 
 CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {

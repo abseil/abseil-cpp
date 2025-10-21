@@ -683,6 +683,7 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:no_destructor",
         "//absl/base:raw_logging_internal",
         "//absl/container:inlined_vector",
         "//absl/debugging:stacktrace",
