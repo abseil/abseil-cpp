@@ -177,8 +177,7 @@ void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
   }
 #endif
 #if defined(ABSL_HAVE_MEMORY_SANITIZER)
-  auto shadow = __msan_test_shadow(str.data(), str.size());
-  ABSL_ASSERT(shadow == -1);
+  __msan_check_mem_is_initialized(str.data(), str.size());
 #endif
 }
 
