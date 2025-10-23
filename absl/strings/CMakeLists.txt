@@ -139,6 +139,7 @@ absl_cc_library(
     absl::core_headers
     absl::endian
     absl::raw_logging_internal
+    absl::strings_resize_and_overwrite
     absl::type_traits
 )
 
