@@ -28,7 +28,6 @@
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/unaligned_access.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/charset.h"
@@ -36,7 +35,6 @@
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/utf8.h"
 #include "absl/strings/numbers.h"
-#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 
@@ -78,31 +76,30 @@ inline bool IsSurrogate(char32_t c, absl::string_view src,
 //
 //    Unescapes C escape sequences and is the reverse of CEscape().
 //
-//    If `src` is valid, stores the unescaped string in `dst` and the length of
-//    unescaped string in `dst_size`, and returns true. Otherwise returns false
-//    and optionally stores the error description in `error`. Set `error` to
-//    nullptr to disable error reporting.
+//    If `src` is valid, stores the unescaped string `dst`, and returns
+//    true. Otherwise returns false and optionally stores the error
+//    description in `error`. Set `error` to nullptr to disable error
+//    reporting.
 //
-//    `src` and `dst` may use the same underlying buffer (but keep in mind
-//    that if this returns an error, it will leave both `src` and `dst` in
-//    an unspecified state because they are using the same underlying buffer.)
-//    `dst` must have at least as much space as `src`.
+//    `src` and `dst` may use the same underlying buffer.
 // ----------------------------------------------------------------------
 
 bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
-                       char* absl_nonnull dst, size_t* absl_nonnull dst_size,
+                       std::string* absl_nonnull dst,
                        std::string* absl_nullable error) {
+  strings_internal::STLStringResizeUninitialized(dst, src.size());
+
   absl::string_view::size_type p = 0;  // Current src position.
-  size_t d = 0;                        // Current dst position.
+  std::string::size_type d = 0;        // Current dst position.
 
   // When unescaping in-place, skip any prefix that does not have escaping.
-  if (src.data() == dst) {
+  if (src.data() == dst->data()) {
     while (p < src.size() && src[p] != '\\') p++, d++;
   }
 
   while (p < src.size()) {
     if (src[p] != '\\') {
-      dst[d++] = src[p++];
+      (*dst)[d++] = src[p++];
     } else {
       if (++p >= src.size()) {  // skip past the '\\'
         if (error != nullptr) {
@@ -111,19 +108,17 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
         return false;
       }
       switch (src[p]) {
-          // clang-format off
-        case 'a':  dst[d++] = '\a';  break;
-        case 'b':  dst[d++] = '\b';  break;
-        case 'f':  dst[d++] = '\f';  break;
-        case 'n':  dst[d++] = '\n';  break;
-        case 'r':  dst[d++] = '\r';  break;
-        case 't':  dst[d++] = '\t';  break;
-        case 'v':  dst[d++] = '\v';  break;
-        case '\\': dst[d++] = '\\';  break;
-        case '?':  dst[d++] = '\?';  break;
-        case '\'': dst[d++] = '\'';  break;
-        case '"':  dst[d++] = '\"';  break;
-        // clang-format on
+        case 'a':  (*dst)[d++] = '\a';  break;
+        case 'b':  (*dst)[d++] = '\b';  break;
+        case 'f':  (*dst)[d++] = '\f';  break;
+        case 'n':  (*dst)[d++] = '\n';  break;
+        case 'r':  (*dst)[d++] = '\r';  break;
+        case 't':  (*dst)[d++] = '\t';  break;
+        case 'v':  (*dst)[d++] = '\v';  break;
+        case '\\': (*dst)[d++] = '\\';  break;
+        case '?':  (*dst)[d++] = '\?';  break;
+        case '\'': (*dst)[d++] = '\'';  break;
+        case '"':  (*dst)[d++] = '\"';  break;
         case '0':
         case '1':
         case '2':
@@ -150,13 +145,13 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
           }
           if ((ch == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            dst[d++] = '\\';
+            (*dst)[d++] = '\\';
             while (octal_start <= p) {
-              dst[d++] = src[octal_start++];
+              (*dst)[d++] = src[octal_start++];
             }
             break;
           }
-          dst[d++] = static_cast<char>(ch);
+          (*dst)[d++] = static_cast<char>(ch);
           break;
         }
         case 'x':
@@ -190,13 +185,13 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
           }
           if ((ch == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            dst[d++] = '\\';
+            (*dst)[d++] = '\\';
             while (hex_start <= p) {
-              dst[d++] = src[hex_start++];
+              (*dst)[d++] = src[hex_start++];
             }
             break;
           }
-          dst[d++] = static_cast<char>(ch);
+          (*dst)[d++] = static_cast<char>(ch);
           break;
         }
         case 'u': {
@@ -223,16 +218,16 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
           }
           if ((rune == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            dst[d++] = '\\';
+            (*dst)[d++] = '\\';
             while (hex_start <= p) {
-              dst[d++] = src[hex_start++];
+              (*dst)[d++] = src[hex_start++];
             }
             break;
           }
           if (IsSurrogate(rune, src.substr(hex_start, 5), error)) {
             return false;
           }
-          d += strings_internal::EncodeUTF8Char(dst + d, rune);
+          d += strings_internal::EncodeUTF8Char(dst->data() + d, rune);
           break;
         }
         case 'U': {
@@ -272,17 +267,17 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
           }
           if ((rune == 0) && leave_nulls_escaped) {
             // Copy the escape sequence for the null character
-            dst[d++] = '\\';
+            (*dst)[d++] = '\\';
             // U00000000
             while (hex_start <= p) {
-              dst[d++] = src[hex_start++];
+              (*dst)[d++] = src[hex_start++];
             }
             break;
           }
           if (IsSurrogate(rune, src.substr(hex_start, 9), error)) {
             return false;
           }
-          d += strings_internal::EncodeUTF8Char(dst + d, rune);
+          d += strings_internal::EncodeUTF8Char(dst->data() + d, rune);
           break;
         }
         default: {
@@ -296,7 +291,7 @@ bool CUnescapeInternal(absl::string_view src, bool leave_nulls_escaped,
     }
   }
 
-  *dst_size = d;
+  dst->erase(d);
   return true;
 }
 
@@ -812,18 +807,23 @@ bool Base64UnescapeInternal(const char* absl_nullable src, size_t slen,
   // 4 characters.  Any leftover chars are added directly for good measure.
   const size_t dest_len = 3 * (slen / 4) + (slen % 4);
 
-  bool ok;
-  StringResizeAndOverwrite(
-      *dest, dest_len, [src, slen, unbase64, &ok](char* buf, size_t buf_size) {
-        size_t len;
-        ok = Base64UnescapeInternal(src, slen, buf, buf_size, unbase64, &len);
-        if (!ok) {
-          len = 0;
-        }
-        assert(len <= buf_size);  // Could be shorter if there was padding.
-        return len;
-      });
-  return ok;
+  strings_internal::STLStringResizeUninitialized(dest, dest_len);
+
+  // We are getting the destination buffer by getting the beginning of the
+  // string and converting it into a char *.
+  size_t len;
+  const bool ok =
+      Base64UnescapeInternal(src, slen, &(*dest)[0], dest_len, unbase64, &len);
+  if (!ok) {
+    dest->clear();
+    return false;
+  }
+
+  // could be shorter if there was padding
+  assert(len <= dest_len);
+  dest->erase(len);
+
+  return true;
 }
 
 /* clang-format off */
@@ -878,11 +878,15 @@ void HexStringToBytesInternal(const char* absl_nullable from, T to,
   }
 }
 
-void BytesToHexStringInternal(const unsigned char* absl_nullable src,
-                              char* dest, size_t num) {
-  for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr, dest += 2) {
+// This is a templated function so that T can be either a char* or a
+// std::string.
+template <typename T>
+void BytesToHexStringInternal(const unsigned char* absl_nullable src, T dest,
+                              size_t num) {
+  auto dest_ptr = &dest[0];
+  for (auto src_ptr = src; src_ptr != (src + num); ++src_ptr, dest_ptr += 2) {
     const char* hex_p = &numbers_internal::kHexTable[*src_ptr * 2];
-    std::copy(hex_p, hex_p + 2, dest);
+    std::copy(hex_p, hex_p + 2, dest_ptr);
   }
 }
 
@@ -895,32 +899,7 @@ void BytesToHexStringInternal(const unsigned char* absl_nullable src,
 // ----------------------------------------------------------------------
 bool CUnescape(absl::string_view source, std::string* absl_nonnull dest,
                std::string* absl_nullable error) {
-  bool success;
-
-  // `CUnescape()` allows for in-place unescaping, which means `source` may
-  // alias `*dest`.  However, absl::StringResizeAndOverwrite() invalidates
-  // invalidates all iterators, pointers, and references into the string,
-  // regardless whether reallocation occurs. Therefore we need to avoid calling
-  // absl::StringResizeAndOverwrite() when `source.data() ==
-  // dest->data()`. Comparing the sizes is sufficient to cover this case.
-  if (dest->size() >= source.size()) {
-    size_t dest_size = 0;
-    success = CUnescapeInternal(source, kUnescapeNulls, dest->data(),
-                                &dest_size, error);
-    ABSL_ASSERT(dest_size <= dest->size());
-    dest->erase(dest_size);
-  } else {
-    StringResizeAndOverwrite(
-        *dest, source.size(),
-        [source, error, &success](char* buf, size_t buf_size) {
-          size_t dest_size = 0;
-          success =
-              CUnescapeInternal(source, kUnescapeNulls, buf, &dest_size, error);
-          ABSL_ASSERT(dest_size <= buf_size);
-          return dest_size;
-        });
-  }
-  return success;
+  return CUnescapeInternal(source, kUnescapeNulls, dest, error);
 }
 
 std::string CEscape(absl::string_view src) {
@@ -987,23 +966,19 @@ bool HexStringToBytes(absl::string_view hex, std::string* absl_nonnull bytes) {
     return false;
   }
 
-  StringResizeAndOverwrite(
-      output, num_bytes, [hex](char* buf, size_t buf_size) {
-        auto hex_p = hex.cbegin();
-        for (size_t i = 0; i < buf_size; ++i) {
-          int h1 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
-          int h2 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
-          if (h1 == -1 || h2 == -1) {
-            return size_t{0};
-          }
-          buf[i] = static_cast<char>((h1 << 4) + h2);
-        }
-        return buf_size;
-      });
-
-  if (output.size() != num_bytes) {
-    return false;
+  absl::strings_internal::STLStringResizeUninitialized(&output, num_bytes);
+  auto hex_p = hex.cbegin();
+  for (std::string::iterator bin_p = output.begin(); bin_p != output.end();
+       ++bin_p) {
+    int h1 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
+    int h2 = absl::kHexValueStrict[static_cast<size_t>(*hex_p++)];
+    if (h1 == -1 || h2 == -1) {
+      output.resize(static_cast<size_t>(bin_p - output.begin()));
+      return false;
+    }
+    *bin_p = static_cast<char>((h1 << 4) + h2);
   }
+
   *bytes = std::move(output);
   return true;
 }
@@ -1011,22 +986,16 @@ bool HexStringToBytes(absl::string_view hex, std::string* absl_nonnull bytes) {
 std::string HexStringToBytes(absl::string_view from) {
   std::string result;
   const auto num = from.size() / 2;
-  StringResizeAndOverwrite(result, num, [from](char* buf, size_t buf_size) {
-    absl::HexStringToBytesInternal<char*>(from.data(), buf, buf_size);
-    return buf_size;
-  });
+  strings_internal::STLStringResizeUninitialized(&result, num);
+  absl::HexStringToBytesInternal<std::string&>(from.data(), result, num);
   return result;
 }
 
 std::string BytesToHexString(absl::string_view from) {
   std::string result;
-  StringResizeAndOverwrite(
-      result, 2 * from.size(), [from](char* buf, size_t buf_size) {
-        absl::BytesToHexStringInternal(
-            reinterpret_cast<const unsigned char*>(from.data()), buf,
-            from.size());
-        return buf_size;
-      });
+  strings_internal::STLStringResizeUninitialized(&result, 2 * from.size());
+  absl::BytesToHexStringInternal<std::string&>(
+      reinterpret_cast<const unsigned char*>(from.data()), result, from.size());
   return result;
 }
 
