@@ -2067,6 +2067,14 @@ template size_t GrowSooTableToNextCapacityAndPrepareInsert<
 static_assert(MaxSooSlotSize() == 16);
 #endif
 
+template void* AllocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+                                    std::allocator<char>>(void* alloc,
+                                                          size_t n);
+template void DeallocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+                                     std::allocator<char>>(
+    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+    size_t slot_align, bool had_infoz);
+
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
