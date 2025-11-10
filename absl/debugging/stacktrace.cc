@@ -80,11 +80,12 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
                                                int skip_count, const void* uc,
                                                int* min_dropped_frames,
                                                bool unwind_with_fixup = true) {
-  static constexpr size_t kMinPageSize = 4096;
+  static constexpr size_t kMaxStackElements = 128;
 
-  // Allow up to ~half a page, leaving some slack space for local variables etc.
-  static constexpr size_t kMaxStackElements =
-      (kMinPageSize / 2) / (sizeof(*frames) + sizeof(*sizes));
+  static constexpr size_t kMinPageSize = 4096;
+  static_assert(
+      kMaxStackElements * (sizeof(*frames) + sizeof(*sizes)) < kMinPageSize / 2,
+      "buffer size should be a fraction of a page to avoid stack overflows");
 
   // Allocate a buffer dynamically, using the signal-safe allocator.
   static constexpr auto allocate = [](size_t num_bytes) -> void* {
