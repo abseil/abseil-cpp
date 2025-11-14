@@ -33,7 +33,6 @@ absl_cc_library(
     absl::config
     absl::container_common
     absl::container_memory
-    absl::cord
     absl::core_headers
     absl::layout
     absl::memory
@@ -503,7 +502,6 @@ absl_cc_library(
   DEPS
     absl::config
     absl::container_common
-    absl::cord
     absl::hash
     absl::strings
     absl::type_traits

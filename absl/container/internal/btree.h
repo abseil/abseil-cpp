@@ -68,7 +68,7 @@
 #include "absl/container/internal/layout.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
-#include "absl/strings/cord.h"
+#include "absl/strings/internal/cord_lookup_support.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 
@@ -124,15 +124,18 @@ struct StringBtreeDefaultLess {
   StringBtreeDefaultLess(std::less<absl::Cord>) {}  // NOLINT
   absl::weak_ordering operator()(const absl::Cord &lhs,
                                  const absl::Cord &rhs) const {
-    return compare_internal::compare_result_as_ordering(lhs.Compare(rhs));
+    return compare_internal::compare_result_as_ordering(
+        cord_internal::CordCompare(lhs, rhs));
   }
   absl::weak_ordering operator()(const absl::Cord &lhs,
                                  absl::string_view rhs) const {
-    return compare_internal::compare_result_as_ordering(lhs.Compare(rhs));
+    return compare_internal::compare_result_as_ordering(
+        cord_internal::CordCompare(lhs, rhs));
   }
   absl::weak_ordering operator()(absl::string_view lhs,
                                  const absl::Cord &rhs) const {
-    return compare_internal::compare_result_as_ordering(-rhs.Compare(lhs));
+    return compare_internal::compare_result_as_ordering(
+        -cord_internal::CordCompare(rhs, lhs));
   }
 };
 
@@ -156,15 +159,18 @@ struct StringBtreeDefaultGreater {
   StringBtreeDefaultGreater(std::greater<absl::Cord>) {}  // NOLINT
   absl::weak_ordering operator()(const absl::Cord &lhs,
                                  const absl::Cord &rhs) const {
-    return compare_internal::compare_result_as_ordering(rhs.Compare(lhs));
+    return compare_internal::compare_result_as_ordering(
+        cord_internal::CordCompare(rhs, lhs));
   }
   absl::weak_ordering operator()(const absl::Cord &lhs,
                                  absl::string_view rhs) const {
-    return compare_internal::compare_result_as_ordering(-lhs.Compare(rhs));
+    return compare_internal::compare_result_as_ordering(
+        -cord_internal::CordCompare(lhs, rhs));
   }
   absl::weak_ordering operator()(absl::string_view lhs,
                                  const absl::Cord &rhs) const {
-    return compare_internal::compare_result_as_ordering(rhs.Compare(lhs));
+    return compare_internal::compare_result_as_ordering(
+        cord_internal::CordCompare(rhs, lhs));
   }
 };
 
