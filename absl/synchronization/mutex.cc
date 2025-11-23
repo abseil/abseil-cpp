@@ -1528,6 +1528,10 @@ static bool TryAcquireWithSpinning(std::atomic<intptr_t>* mu) {
 }
 
 void Mutex::lock() {
+#ifdef __wasi__
+  // No-op: WASI is single-threaded
+  return;
+#endif
   ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
   GraphId id = DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
@@ -1546,6 +1550,10 @@ void Mutex::lock() {
 }
 
 void Mutex::lock_shared() {
+#ifdef __wasi__
+  // No-op: WASI is single-threaded
+  return;
+#endif
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
   GraphId id = DebugOnlyDeadlockCheck(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
@@ -1706,6 +1714,10 @@ ABSL_ATTRIBUTE_NOINLINE bool Mutex::ReaderTryLockSlow() {
 }
 
 void Mutex::unlock() {
+#ifdef __wasi__
+  // No-op: WASI is single-threaded
+  return;
+#endif
   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
   DebugOnlyLockLeave(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
@@ -1776,6 +1788,10 @@ static bool ExactlyOneReader(intptr_t v) {
 }
 
 void Mutex::unlock_shared() {
+#ifdef __wasi__
+  // No-op: WASI is single-threaded
+  return;
+#endif
   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, __tsan_mutex_read_lock);
   DebugOnlyLockLeave(this);
   intptr_t v = mu_.load(std::memory_order_relaxed);
@@ -2493,6 +2509,10 @@ void Mutex::Fer(PerThreadSynch* w) {
 }
 
 void Mutex::AssertHeld() const {
+#ifdef __wasi__
+  // No-op: WASI is single-threaded, always held
+  return;
+#endif
   if ((mu_.load(std::memory_order_relaxed) & kMuWriter) == 0) {
     SynchEvent* e = GetSynchEvent(this);
     ABSL_RAW_LOG(FATAL, "thread should hold write lock on Mutex %p %s",

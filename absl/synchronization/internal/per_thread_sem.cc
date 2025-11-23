@@ -104,3 +104,40 @@ ABSL_ATTRIBUTE_WEAK bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
 }  // extern "C"
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI-specific implementations
+// WASI doesn't support threading, so these are no-op implementations
+#ifdef __wasi__
+
+#include "absl/synchronization/internal/per_thread_sem.h"
+#include "absl/base/attributes.h"
+#include "absl/base/internal/thread_identity.h"
+#include "absl/synchronization/internal/waiter.h"
+
+extern "C" {
+
+// Override the weak symbols with WASI-specific no-op implementations
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemInit)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {
+  // No-op: WASI is single-threaded
+}
+
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {
+  // No-op: WASI is single-threaded
+}
+
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPoke)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {
+  // No-op: WASI is single-threaded
+}
+
+bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
+    absl::synchronization_internal::KernelTimeout /*t*/) {
+  // No-op: WASI is single-threaded, always return true (no timeout)
+  return true;
+}
+
+}  // extern "C"
+
+#endif  // __wasi__
