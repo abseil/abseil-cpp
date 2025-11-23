@@ -150,3 +150,24 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI stubs: WASI is single-threaded, use a static identity
+#if defined(__wasi__)
+
+#include "absl/base/internal/thread_identity.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace synchronization_internal {
+
+static base_internal::ThreadIdentity g_wasi_thread_identity = {};
+
+base_internal::ThreadIdentity* CreateThreadIdentity() {
+  return &g_wasi_thread_identity;
+}
+
+}  // namespace synchronization_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // __wasi__
