@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -135,15 +136,14 @@ std::string Utf16ToUtf8(const wchar_t* ptr, size_t size) {
   }
   const int chars_len = static_cast<int>(size);
   std::string result;
-  std::int32_t len = std::max<std::int32_t>(
-      static_cast<std::int32_t>(std::min<size_t>(
-          result.capacity(), std::numeric_limits<std::int32_t>::max())),
-      1);
+  std::size_t len = std::max<std::size_t>(
+      std::min<size_t>(result.capacity(), std::numeric_limits<int>::max()), 1);
   do {
     result.resize(len);
     // TODO: Switch to std::string::data() when we require C++17 or higher.
-    len = ::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, ptr, chars_len,
-                                &result[0], len, nullptr, nullptr);
+    len = static_cast<std::size_t>(::WideCharToMultiByte(
+        CP_UTF8, WC_ERR_INVALID_CHARS, ptr, chars_len, &result[0],
+        static_cast<int>(len), nullptr, nullptr));
   } while (len > result.size());
   result.resize(len);
   return result;
@@ -163,15 +163,14 @@ std::string GetWindowsLocalTimeZone() {
   }
 
   std::wstring result;
-  std::int32_t len = std::max<std::int32_t>(
-      static_cast<std::int32_t>(std::min<size_t>(
-          result.capacity(), std::numeric_limits<std::int32_t>::max())),
-      1);
+  std::size_t len = std::max<std::size_t>(
+      std::min<size_t>(result.capacity(), std::numeric_limits<int>::max()), 1);
   for (;;) {
     UErrorCode status = U_ZERO_ERROR;
     result.resize(len);
-    len = getTimeZoneIDForWindowsID(info.TimeZoneKeyName, -1, nullptr,
-                                    &result[0], len, &status);
+    len = static_cast<std::size_t>(
+        getTimeZoneIDForWindowsID(info.TimeZoneKeyName, -1, nullptr, &result[0],
+                                  static_cast<int>(len), &status));
     if (U_SUCCESS(status)) {
       return Utf16ToUtf8(result.data(), len);
     }
