@@ -646,10 +646,12 @@ cc_library(
         "cord.cc",
         "cord_analysis.cc",
         "cord_analysis.h",
+        "internal/cord_lookup_support.cc",
     ],
     hdrs = [
         "cord.h",
         "cord_buffer.h",
+        "internal/cord_lookup_support.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
