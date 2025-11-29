@@ -41,13 +41,8 @@ ABSL_GCC_TEST_ADDITIONAL_FLAGS = [
     "-Wno-unused-private-field",
 ]
 
-# https://github.com/llvm/llvm-project/issues/102982
-# A list of LLVM base flags without -Wall. This is because clang-cl
-# translates -Wall to -Weverything on Windows, mimicking MSVCs
-# behavior. On most other platforms, -Wall is just a set of very good
-# default flags.
-ABSL_LLVM_BASE_FLAGS = [
-    "-Wmost",
+ABSL_LLVM_FLAGS = [
+    "-Wall",
     "-Wextra",
     "-Wc++98-compat-extra-semi",
     "-Wcast-qual",
@@ -93,8 +88,6 @@ ABSL_LLVM_BASE_FLAGS = [
     # Don't define min and max macros (Build on Windows using clang)
     "-DNOMINMAX",
 ]
-
-ABSL_LLVM_FLAGS = ["-Wall"] + ABSL_LLVM_BASE_FLAGS
 
 ABSL_LLVM_TEST_ADDITIONAL_FLAGS = [
     "-Wno-deprecated-declarations",
@@ -171,15 +164,9 @@ COPT_VARS = {
     "ABSL_LLVM_TEST_FLAGS": GccStyleFilterAndCombine(
         ABSL_LLVM_FLAGS, ABSL_LLVM_TEST_ADDITIONAL_FLAGS
     ),
-    "ABSL_CLANG_CL_FLAGS": (
-        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + ABSL_LLVM_BASE_FLAGS
-    ),
+    "ABSL_CLANG_CL_FLAGS": MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES,
     "ABSL_CLANG_CL_TEST_FLAGS": (
-        MSVC_BIG_WARNING_FLAGS
-        + MSVC_DEFINES
-        + GccStyleFilterAndCombine(
-            ABSL_LLVM_BASE_FLAGS, ABSL_LLVM_TEST_ADDITIONAL_FLAGS
-        )
+        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + ABSL_LLVM_TEST_ADDITIONAL_FLAGS
     ),
     "ABSL_MSVC_FLAGS": (
         MSVC_BIG_WARNING_FLAGS + MSVC_WARNING_FLAGS + MSVC_DEFINES
