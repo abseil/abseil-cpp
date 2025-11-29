@@ -224,6 +224,7 @@ struct LowLevelAlloc::Arena {
 
 // ---------------------------------------------------------------
 // An async-signal-safe arena for LowLevelAlloc
+#ifndef __wasi__
 static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
 
 base_internal::LowLevelAlloc::Arena *SigSafeArena() {
@@ -247,6 +248,7 @@ void InitSigSafeArena() {
     }
   }
 }
+#endif  // __wasi__
 
 namespace {
 // Static storage space for the lazily-constructed, default global arena
@@ -535,6 +537,7 @@ static void AddToFreelist(void *v, LowLevelAlloc::Arena *arena)
 
 // Frees storage allocated by LowLevelAlloc::Alloc().
 // L < arena->mu
+#ifndef __wasi__
 void LowLevelAlloc::Free(void *v) {
   if (v != nullptr) {
     AllocList *f = reinterpret_cast<AllocList *>(reinterpret_cast<char *>(v) -
@@ -547,6 +550,7 @@ void LowLevelAlloc::Free(void *v) {
     section.Leave();
   }
 }
+#endif  // __wasi__
 
 // allocates and returns a block of size bytes, to be freed with Free()
 // L < arena->mu
@@ -643,6 +647,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
   return result;
 }
 
+#ifndef __wasi__
 void *LowLevelAlloc::Alloc(size_t request) {
   void *result = DoAllocWithArena(request, DefaultArena());
   return result;
@@ -653,9 +658,49 @@ void *LowLevelAlloc::AllocWithArena(size_t request, Arena *arena) {
   void *result = DoAllocWithArena(request, arena);
   return result;
 }
+#endif  // __wasi__
 
 }  // namespace base_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI-specific implementations
+// WASI doesn't support mmap, so we use malloc/free for LowLevelAlloc
+#ifdef __wasi__
+
+#include "absl/base/internal/low_level_alloc.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace base_internal {
+
+void *LowLevelAlloc::Alloc(size_t request) {
+  return malloc(request);
+}
+
+void LowLevelAlloc::Free(void *v) {
+  free(v);
+}
+
+void *LowLevelAlloc::AllocWithArena(size_t request, Arena* /*arena*/) {
+  // Ignore arena parameter and use malloc
+  return malloc(request);
+}
+
+// Signal-safe arena stubs for WASI
+void InitSigSafeArena() {
+  // No-op: WASI doesn't need arena initialization
+}
+
+LowLevelAlloc::Arena *SigSafeArena() {
+  // Return nullptr - arenas are ignored in WASI's AllocWithArena
+  return nullptr;
+}
+
+}  // namespace base_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // __wasi__

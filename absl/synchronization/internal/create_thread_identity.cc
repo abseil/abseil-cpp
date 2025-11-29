@@ -138,15 +138,39 @@ static base_internal::ThreadIdentity* NewThreadIdentity() {
 // Allocates and attaches ThreadIdentity object for the calling thread.  Returns
 // the new identity.
 // REQUIRES: CurrentThreadIdentity(false) == nullptr
+#ifndef __wasi__
 base_internal::ThreadIdentity* CreateThreadIdentity() {
   base_internal::ThreadIdentity* identity = NewThreadIdentity();
   // Associate the value with the current thread, and attach our destructor.
   base_internal::SetCurrentThreadIdentity(identity, ReclaimThreadIdentity);
   return identity;
 }
+#endif  // __wasi__
 
 }  // namespace synchronization_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI-specific implementation
+// WASI is single-threaded, so we use a single static ThreadIdentity
+#ifdef __wasi__
+
+#include "absl/base/internal/thread_identity.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace synchronization_internal {
+
+static base_internal::ThreadIdentity g_wasi_thread_identity = {};
+
+base_internal::ThreadIdentity* CreateThreadIdentity() {
+  return &g_wasi_thread_identity;
+}
+
+}  // namespace synchronization_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // __wasi__

@@ -370,6 +370,7 @@ void GraphCycles::TestOnlyAddNodes(uint32_t n) {
   }
 }
 
+#ifndef __wasi__
 GraphCycles::GraphCycles() {
   InitArenaIfNecessary();
   rep_ = new (base_internal::LowLevelAlloc::AllocWithArena(sizeof(Rep), arena))
@@ -706,9 +707,87 @@ int GraphCycles::GetStackTrace(GraphId id, void*** ptr) {
     return n->nstack;
   }
 }
+#endif  // __wasi__
 
 }  // namespace synchronization_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI-specific minimal GraphCycles implementation
+// WASI is single-threaded, so cycle detection is not necessary
+#ifdef __wasi__
+
+#include "absl/synchronization/internal/graphcycles.h"
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace synchronization_internal {
+
+// Minimal implementation that always succeeds
+GraphCycles::GraphCycles() : rep_(nullptr) {}
+
+GraphCycles::~GraphCycles() {}
+
+GraphId GraphCycles::GetId(void* /*ptr*/) {
+  return GraphId{0};
+}
+
+void GraphCycles::RemoveNode(void* /*ptr*/) {
+  // No-op
+}
+
+void* GraphCycles::Ptr(GraphId /*id*/) {
+  return nullptr;
+}
+
+bool GraphCycles::InsertEdge(GraphId /*source_node*/, GraphId /*dest_node*/) {
+  // Always succeed - no cycles in single-threaded WASI
+  return true;
+}
+
+void GraphCycles::RemoveEdge(GraphId /*source_node*/, GraphId /*dest_node*/) {
+  // No-op
+}
+
+bool GraphCycles::HasNode(GraphId /*node*/) {
+  return false;
+}
+
+bool GraphCycles::HasEdge(GraphId /*source_node*/, GraphId /*dest_node*/) const {
+  return false;
+}
+
+bool GraphCycles::IsReachable(GraphId /*source_node*/, GraphId /*dest_node*/) const {
+  return false;
+}
+
+int GraphCycles::FindPath(GraphId /*source*/, GraphId /*dest*/, int /*max_path_len*/,
+                          GraphId /*path*/[]) const {
+  return 0;
+}
+
+void GraphCycles::UpdateStackTrace(GraphId /*id*/, int /*priority*/,
+                                   int (*/*get_stack_trace*/)(void**, int)) {
+  // No-op
+}
+
+int GraphCycles::GetStackTrace(GraphId /*id*/, void*** ptr) {
+  *ptr = nullptr;
+  return 0;
+}
+
+bool GraphCycles::CheckInvariants() const {
+  return true;
+}
+
+void GraphCycles::TestOnlyAddNodes(uint32_t /*n*/) {
+  // No-op
+}
+
+}  // namespace synchronization_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // __wasi__
