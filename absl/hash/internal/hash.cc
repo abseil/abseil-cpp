@@ -51,7 +51,7 @@ void PrefetchFutureDataToLocalCache(const uint8_t* ptr) {
 
 #ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
 uint64_t Mix4x16Vectors(__m128i a, __m128i b, __m128i c, __m128i d) {
-  // res128 = decrypt(a + c, d) + decrypt(b + d, a)
+  // res128 = encrypt(a + c, d) + decrypt(b - d, a)
   auto res128 = _mm_add_epi64(_mm_aesenc_si128(_mm_add_epi64(a, c), d),
                               _mm_aesdec_si128(_mm_sub_epi64(b, d), a));
   auto x64 = static_cast<uint64_t>(_mm_cvtsi128_si64(res128));
