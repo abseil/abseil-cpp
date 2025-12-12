@@ -104,3 +104,29 @@ ABSL_ATTRIBUTE_WEAK bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
 }  // extern "C"
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI stubs: WASI is single-threaded, so these are no-ops
+#if defined(__wasi__)
+
+#include "absl/base/attributes.h"
+#include "absl/synchronization/internal/per_thread_sem.h"
+
+extern "C" {
+
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemInit)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {}
+
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {}
+
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPoke)(
+    absl::base_internal::ThreadIdentity* /*identity*/) {}
+
+bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
+    absl::synchronization_internal::KernelTimeout /*t*/) {
+  return true;
+}
+
+}  // extern "C"
+
+#endif  // __wasi__

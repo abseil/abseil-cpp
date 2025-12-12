@@ -659,3 +659,48 @@ ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // ABSL_LOW_LEVEL_ALLOC_MISSING
+
+// WASI stubs: WASI doesn't have mmap, so use malloc/free instead
+#if defined(__wasi__)
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+namespace base_internal {
+
+void *LowLevelAlloc::Alloc(size_t request) {
+  return malloc(request);
+}
+
+void LowLevelAlloc::Free(void *v) {
+  free(v);
+}
+
+void *LowLevelAlloc::AllocWithArena(size_t request, Arena* /*arena*/) {
+  // Ignore arena parameter and use malloc
+  return malloc(request);
+}
+
+LowLevelAlloc::Arena *LowLevelAlloc::DefaultArena() {
+  return nullptr;
+}
+
+LowLevelAlloc::Arena *LowLevelAlloc::NewArena(uint32_t /*flags*/) {
+  return nullptr;
+}
+
+bool LowLevelAlloc::DeleteArena(Arena* /*arena*/) {
+  return true;
+}
+
+LowLevelAlloc::Arena *SigSafeArena() {
+  // Return nullptr - arenas are ignored in WASI's AllocWithArena
+  return nullptr;
+}
+
+void InitSigSafeArena() {}
+
+}  // namespace base_internal
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+#endif  // __wasi__
