@@ -36,16 +36,13 @@ licenses(["notice"])
 
 cc_library(
     name = "string_view",
-    srcs = ["string_view.cc"],
     hdrs = ["string_view.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:nullability",
-        "//absl/base:throw_delegate",
     ],
 )
 
@@ -407,23 +404,6 @@ cc_test(
         "//absl/meta:type_traits",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-    ],
-)
-
-cc_binary(
-    name = "string_view_benchmark",
-    testonly = True,
-    srcs = ["string_view_benchmark.cc"],
-    copts = ABSL_TEST_COPTS,
-    tags = ["benchmark"],
-    visibility = ["//visibility:private"],
-    deps = [
-        ":string_view",
-        ":strings",
-        "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
-        "//absl/random",
-        "@google_benchmark//:benchmark_main",
     ],
 )
 

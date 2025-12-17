@@ -345,8 +345,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/str_replace.h"
   "strings/str_split.cc"
   "strings/str_split.h"
-  "strings/string_view.cc"
-  "strings/string_view.h"
   "strings/strip.h"
   "strings/substitute.cc"
   "strings/substitute.h"
@@ -446,6 +444,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "types/variant.h"
   "utility/utility.h"
   "debugging/leak_check.cc"
+  "strings/string_view.h"
 )
 
 if(MSVC)
