@@ -213,6 +213,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/vlog_is_on.h"
   "memory/memory.h"
   "meta/type_traits.h"
+  "meta/internal/requires.h"
   "numeric/bits.h"
   "numeric/int128.cc"
   "numeric/int128.h"

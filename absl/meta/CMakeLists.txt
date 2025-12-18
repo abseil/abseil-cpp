@@ -16,6 +16,29 @@
 
 absl_cc_library(
   NAME
+    requires_internal
+  HDRS
+    "internal/requires.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+)
+
+absl_cc_test(
+  NAME
+    requires_test
+  SRCS
+    "internal/requires_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::requires_internal
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
     type_traits
   HDRS
     "type_traits.h"
