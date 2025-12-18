@@ -16,6 +16,29 @@
 
 absl_cc_library(
   NAME
+    constexpr_testing_internal
+  HDRS
+    "internal/constexpr_testing.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+)
+
+absl_cc_test(
+  NAME
+    constexpr_testing_test
+  SRCS
+    "internal/constexpr_testing_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::constexpr_testing_internal
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
     requires_internal
   HDRS
     "internal/requires.h"
