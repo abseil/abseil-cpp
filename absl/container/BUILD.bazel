@@ -1234,6 +1234,9 @@ cc_library(
     hdrs = ["internal/heterogeneous_lookup_testing.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/container:__pkg__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/container:test_instance_tracker",
