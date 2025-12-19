@@ -308,7 +308,7 @@ cc_library(
 cc_test(
     name = "flat_hash_set_test",
     srcs = ["flat_hash_set_test.cc"],
-    copts = ABSL_TEST_COPTS + ["-DUNORDERED_SET_CXX17"],
+    copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [
@@ -388,7 +388,7 @@ cc_library(
 cc_test(
     name = "node_hash_set_test",
     srcs = ["node_hash_set_test.cc"],
-    copts = ABSL_TEST_COPTS + ["-DUNORDERED_SET_CXX17"],
+    copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [

@@ -349,7 +349,6 @@ absl_cc_test(
     "flat_hash_set_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    "-DUNORDERED_SET_CXX17"
   DEPS
     absl::check
     absl::config
@@ -432,7 +431,6 @@ absl_cc_test(
     "node_hash_set_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
-    "-DUNORDERED_SET_CXX17"
   DEPS
     absl::hash_generator_testing
     absl::hash_policy_testing
