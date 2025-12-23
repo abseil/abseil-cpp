@@ -1551,3 +1551,43 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "generic_printer",
+    srcs = [
+        "internal/generic_printer.cc",
+        "internal/generic_printer_internal.h",
+    ],
+    hdrs = ["internal/generic_printer.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":str_format",
+        ":strings",
+        "//absl/base:config",
+        "//absl/log/internal:container",
+        "//absl/meta:requires",
+    ],
+)
+
+cc_test(
+    name = "generic_printer_test",
+    srcs = ["internal/generic_printer_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":generic_printer",
+        ":strings",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/container:flat_hash_map",
+        "//absl/log",
+        "//absl/status",
+        "//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

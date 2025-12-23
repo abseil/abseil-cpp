@@ -554,6 +554,9 @@ cc_library(
     hdrs = ["container.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/meta:requires",
