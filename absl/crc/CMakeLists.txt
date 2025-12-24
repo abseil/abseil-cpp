@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include(CheckCXXCompilerFlag)
+
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
@@ -39,6 +41,7 @@ absl_cc_library(
     "internal/crc.cc"
     "internal/crc_internal.h"
     "internal/crc_x86_arm_combined.cc"
+    "internal/crc_riscv.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
@@ -51,6 +54,37 @@ absl_cc_library(
     absl::memory
     absl::bits
 )
+
+# Enable the RISC-V clmul-based implementation in `internal/crc_riscv.cc`.
+# That file requires the Zbc (or Zbkc) extension to assemble `clmul/clmulh`.
+# We apply a Zbc/Zbkc-enabled `-march` only to that translation unit.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv64|riscv)")
+  set(_absl_crc_riscv_march "")
+
+  check_cxx_compiler_flag("-march=rv64gc_zbc" ABSL_INTERNAL_HAVE_MARCH_RV64GC_ZBC)
+  if(ABSL_INTERNAL_HAVE_MARCH_RV64GC_ZBC)
+    set(_absl_crc_riscv_march "-march=rv64gc_zbc")
+  else()
+    check_cxx_compiler_flag("-march=rv64gc_zbkc" ABSL_INTERNAL_HAVE_MARCH_RV64GC_ZBKC)
+    if(ABSL_INTERNAL_HAVE_MARCH_RV64GC_ZBKC)
+      set(_absl_crc_riscv_march "-march=rv64gc_zbkc")
+    endif()
+  endif()
+
+  if(_absl_crc_riscv_march)
+    # Target name depends on whether Abseil is being installed.
+    set(_absl_crc_internal_target "absl_crc_internal")
+    if(ABSL_ENABLE_INSTALL)
+      set(_absl_crc_internal_target "crc_internal")
+    endif()
+
+    if(TARGET ${_absl_crc_internal_target})
+      set_property(SOURCE "internal/crc_riscv.cc" APPEND PROPERTY
+        COMPILE_OPTIONS ${_absl_crc_riscv_march}
+      )
+    endif()
+  endif()
+endif()
 
 absl_cc_library(
   NAME

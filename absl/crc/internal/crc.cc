@@ -165,7 +165,9 @@ int CRCImpl::FillZeroesTable(uint32_t poly, Uint32By256* t) {
 CRCImpl* CRCImpl::NewInternal() {
   // Find an accelearated implementation first.
   CRCImpl* result = TryNewCRC32AcceleratedX86ARMCombined();
-
+  if (result == nullptr) {
+    result = TryNewCRC32AcceleratedRISCV();
+  }
   // Fall back to generic implementions if no acceleration is available.
   if (result == nullptr) {
     result = new CRC32();
