@@ -257,6 +257,7 @@ cc_library(
 cc_library(
     name = "base",
     srcs = [
+        "casts.cc",
         "internal/cycleclock.cc",
         "internal/spinlock.cc",
         "internal/sysinfo.cc",
@@ -296,8 +297,6 @@ cc_library(
         ":config",
         ":core_headers",
         ":cycleclock_internal",
-        ":dynamic_annotations",
-        ":log_severity",
         ":nullability",
         ":raw_logging_internal",
         ":spinlock_wait",
@@ -612,7 +611,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
-        ":core_headers",
+        ":config",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

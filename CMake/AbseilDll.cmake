@@ -6,6 +6,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "algorithm/container.h"
   "base/attributes.h"
   "base/call_once.h"
+  "base/casts.cc"
   "base/casts.h"
   "base/config.h"
   "base/const_init.h"
