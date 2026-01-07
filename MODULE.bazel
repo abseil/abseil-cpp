@@ -16,7 +16,7 @@
 
 module(
     name = "abseil-cpp",
-    version = "head",
+    version = "20260107.0",
     compatibility_level = 1,
 )
 
