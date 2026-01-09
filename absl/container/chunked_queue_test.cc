@@ -756,13 +756,13 @@ TEST(ChunkedQueue, Hardening) {
   }
 
   absl::chunked_queue<int> q;
-  EXPECT_DEATH(q.front(), "");
-  EXPECT_DEATH(q.back(), "");
-  EXPECT_DEATH(q.pop_front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(q.front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(q.back(), "");
+  EXPECT_DEATH_IF_SUPPORTED(q.pop_front(), "");
 
   const absl::chunked_queue<int> cq;
-  EXPECT_DEATH(cq.front(), "");
-  EXPECT_DEATH(cq.back(), "");
+  EXPECT_DEATH_IF_SUPPORTED(cq.front(), "");
+  EXPECT_DEATH_IF_SUPPORTED(cq.back(), "");
 }
 
 }  // namespace
