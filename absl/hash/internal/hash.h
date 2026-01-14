@@ -94,13 +94,16 @@
 #include <filesystem>  // NOLINT
 #endif
 
-// 32-bit builds with SSE 4.2 do not have _mm_crc32_u64, so the
-// __x86_64__ condition is necessary.
-#if defined(__SSE4_2__) && defined(__x86_64__)
+#if defined(__SSE4_2__)
 
 #include <x86intrin.h>
 #define ABSL_HASH_INTERNAL_HAS_CRC32
+#if defined(__x86_64__)
 #define ABSL_HASH_INTERNAL_CRC32_U64 _mm_crc32_u64
+#else
+#define ABSL_HASH_INTERNAL_CRC32_U64(crc, v) \
+  _mm_crc32_u32(_mm_crc32_u32((uint32_t)crc, (uint32_t)v), (uint32_t)(v >> 32))
+#endif
 #define ABSL_HASH_INTERNAL_CRC32_U32 _mm_crc32_u32
 #define ABSL_HASH_INTERNAL_CRC32_U8 _mm_crc32_u8
 
@@ -109,7 +112,12 @@
 // MSVC AVX (/arch:AVX) implies SSE 4.2.
 #include <intrin.h>
 #define ABSL_HASH_INTERNAL_HAS_CRC32
+#if defined (_M_X64)
 #define ABSL_HASH_INTERNAL_CRC32_U64 _mm_crc32_u64
+#else
+#define ABSL_HASH_INTERNAL_CRC32_U64(crc, v) \
+  _mm_crc32_u32(_mm_crc32_u32((uint32_t)crc, (uint32_t)v), (uint32_t)(v >> 32))
+#endif
 #define ABSL_HASH_INTERNAL_CRC32_U32 _mm_crc32_u32
 #define ABSL_HASH_INTERNAL_CRC32_U8 _mm_crc32_u8
 
