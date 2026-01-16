@@ -27,6 +27,7 @@
 #include <cstring>
 #include <memory>
 #include <type_traits>
+#include <typeinfo>
 #include <utility>
 
 #ifdef __has_include
