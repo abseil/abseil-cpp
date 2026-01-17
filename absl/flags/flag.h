@@ -196,6 +196,16 @@ ABSL_NAMESPACE_END
 // -----------------------------------------------------------------------------
 
 // ABSL_FLAG_IMPL macro definition conditional on ABSL_FLAGS_STRIP_NAMES
+//
+// This section generates the flag registration code based on ABSL_FLAGS_STRIP_NAMES.
+// Note: The "do_register" parameter (true/false) in FlagRegistrar directly controls
+// whether flags will be registered and available to ParseCommandLine().
+//
+// - If ABSL_FLAGS_STRIP_NAMES=1: do_register=false, flags are NOT registered
+// - If ABSL_FLAGS_STRIP_NAMES=0: do_register=true, flags ARE registered
+//
+// See config.h for detailed documentation about ABSL_FLAGS_STRIP_NAMES and
+// its effect on mobile platforms.
 #define ABSL_FLAG_IMPL_FLAG_PTR(flag) flag
 #define ABSL_FLAG_IMPL_HELP_ARG(name)                      \
   absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>( \
