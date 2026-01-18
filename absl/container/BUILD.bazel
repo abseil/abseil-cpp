@@ -1350,6 +1350,22 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "flat_hash_map_benchmark",
+    testonly = True,
+    srcs = ["flat_hash_map_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":flat_hash_map",
+        "//absl/strings:str_format",
+        "//absl/strings:string_view",
+        "@google_benchmark//:benchmark_main",
+    ],
+)
+
 cc_library(
     name = "chunked_queue",
     srcs = ["internal/chunked_queue.h"],
