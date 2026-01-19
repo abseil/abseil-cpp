@@ -347,16 +347,10 @@ using swap_internal::Swap;
 
 // absl::is_trivially_relocatable<T>
 //
-// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2786r11.html
-//
 // Detects whether a type is known to be "trivially relocatable" -- meaning it
 // can be relocated from one place to another as if by memcpy/memmove.
 // This implies that its object representation doesn't depend on its address,
 // and also none of its special member functions do anything strange.
-//
-// Note that when relocating the caller code should ensure that if the object is
-// polymorphic, the dynamic type is of the most derived type. Padding bytes
-// should not be copied.
 //
 // This trait is conservative. If it's true then the type is definitely
 // trivially relocatable, but if it's false then the type may or may not be. For
@@ -369,59 +363,49 @@ using swap_internal::Swap;
 // if constexpr (absl::is_trivially_relocatable<T>::value) {
 //   memcpy(new_location, old_location, sizeof(T));
 // } else {
-//   new(new_location) T(std::move(*old_location));
+//   ::new(new_location) T(std::move(*old_location));
 //   old_location->~T();
 // }
 //
-// Upstream documentation:
+// Abseil's definition of trivial relocatability matches standards
+// proposal P1144: we require that trivial relocation can be achieved
+// by memcpy/memmove without additional fixup, and we use trivial
+// relocation (memcpy/memmove) not only for vector reallocation (where
+// it replaces a series of move-constructions and destructions)
+// but also for InlineVector::erase and InlineVector::swap (where it
+// replaces a series of one move-construction, several move-assignments,
+// and one destruction).
 //
-// https://clang.llvm.org/docs/LanguageExtensions.html#:~:text=__builtin_is_cpp_trivially_relocatable
+// Mainline Clang provides two builtins, neither of which is suitable
+// for Abseil.
 //
-// Clang on Windows has the builtin, but it falsely claims types with a
-// user-provided destructor are trivial (http://b/275003464). So we opt out
-// there.
+// __is_trivially_relocatable(T) gives a deprecation warning.
+// __is_trivially_relocatable(T) wrongly gives true on Windows
+// for types with non-trivial destructors (b/275003464).
+// __is_trivially_relocatable(T) wrongly gives true in Xcode 15
+// for types with non-trivial move-assignment operators (b/324278148).
 //
-// TODO(b/275003464): remove the opt-out once the bug is fixed.
+// __builtin_is_cpp_trivially_relocatable(T) wrongly gives true
+// on all platforms for types with non-trivial move-assignment operators
+// (b/325479096).
+//__builtin_is_cpp_trivially_relocatable(T) wrongly gives true
+// on non-Apple-ARM64e platforms for polymorphic types.
+// __builtin_is_cpp_trivially_relocatable(T) wrongly gives false
+// on all platforms for types marked [[clang::trivial_abi]] a.k.a.
+// ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI.
 //
-// Starting with Xcode 15, the Apple compiler will falsely say a type
-// with a user-provided move constructor is trivially relocatable
-// (b/324278148). We will opt out without a version check, due to
-// the fluidity of Apple versions.
+// According to https://github.com/abseil/abseil-cpp/issues/1479,
+// NVCC gives true for __has_builtin(__is_trivially_relocatable),
+// but then can't parse __is_trivially_relocatable(T).
 //
-// TODO(b/324278148): If all versions we use have the bug fixed, then
-// remove the condition.
+// Mainline Clang's builtins are never suitable for Abseil's purposes.
+// But if we detect that the library provides P1144's public API,
+// then we can use that public type trait without fear.
 //
-// Clang on all platforms fails to detect that a type with a user-provided
-// move-assignment operator is not trivially relocatable so we also check for
-// is_trivially_move_assignable for Clang.
-//
-// TODO(b/325479096): Remove the Clang is_trivially_move_assignable version once
-// Clang's behavior is fixed.
-//
-// According to https://github.com/abseil/abseil-cpp/issues/1479, this does not
-// work with NVCC either.
-#if ABSL_HAVE_BUILTIN(__builtin_is_cpp_trivially_relocatable)
-// https://github.com/llvm/llvm-project/pull/127636#pullrequestreview-2637005293
-// In the current implementation, __builtin_is_cpp_trivially_relocatable will
-// only return true for types that are trivially relocatable according to the
-// standard. Notably, this means that marking a type [[clang::trivial_abi]] aka
-// ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI will have no effect on this trait.
+#if defined(__cpp_lib_trivially_relocatable) // P1144
 template <class T>
-struct is_trivially_relocatable
-    : std::integral_constant<bool, __builtin_is_cpp_trivially_relocatable(T)> {
+struct is_trivially_relocatable : std::is_trivially_relocatable<T> {
 };
-#elif ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && defined(__clang__) && \
-    !(defined(_WIN32) || defined(_WIN64)) && !defined(__APPLE__) &&          \
-    !defined(__NVCC__)
-// https://github.com/llvm/llvm-project/pull/139061
-//  __is_trivially_relocatable is deprecated.
-// TODO(b/325479096): Remove this case.
-template <class T>
-struct is_trivially_relocatable
-    : std::integral_constant<
-          bool, std::is_trivially_copyable<T>::value ||
-                    (__is_trivially_relocatable(T) &&
-                     std::is_trivially_move_assignable<T>::value)> {};
 #else
 // Otherwise we use a fallback that detects only those types we can feasibly
 // detect. Any type that is trivially copyable is by definition trivially
