@@ -140,9 +140,8 @@ std::string Utf16ToUtf8(const wchar_t* ptr, size_t size) {
       std::min<size_t>(result.capacity(), std::numeric_limits<int>::max()), 1);
   do {
     result.resize(len);
-    // TODO: Switch to std::string::data() when we require C++17 or higher.
     len = static_cast<std::size_t>(::WideCharToMultiByte(
-        CP_UTF8, WC_ERR_INVALID_CHARS, ptr, chars_len, &result[0],
+        CP_UTF8, WC_ERR_INVALID_CHARS, ptr, chars_len, result.data(),
         static_cast<int>(len), nullptr, nullptr));
   } while (len > result.size());
   result.resize(len);
