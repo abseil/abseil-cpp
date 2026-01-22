@@ -131,7 +131,7 @@ ucal_getTimeZoneIDForWindowsID_func LoadIcuGetTimeZoneIDForWindowsID() {
 
 // Convert wchar_t array (UTF-16) to UTF-8 string
 std::string Utf16ToUtf8(const wchar_t* ptr, size_t size) {
-  if (size > std::numeric_limits<int>::max()) {
+  if (size > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return std::string();
   }
   const int chars_len = static_cast<int>(size);
