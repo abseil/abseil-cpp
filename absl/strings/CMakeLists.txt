@@ -1030,10 +1030,12 @@ absl_cc_library(
   HDRS
     "cord.h"
     "cord_buffer.h"
+    "internal/cord_lookup_support.h"
   SRCS
     "cord.cc"
     "cord_analysis.cc"
     "cord_analysis.h"
+    "internal/cord_lookup_support.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
