@@ -15,6 +15,7 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -32,6 +33,22 @@ package(
 )
 
 licenses(["notice"])
+
+selects.config_setting_group(
+    name = "gcc_compatible",
+    match_any = [
+        "@rules_cc//cc/compiler:clang",
+        "@rules_cc//cc/compiler:gcc",
+    ],
+)
+
+selects.config_setting_group(
+    name = "riscv64_gcc_compatible",
+    match_all = [
+        ":gcc_compatible",
+        "@platforms//cpu:riscv64",
+    ],
+)
 
 cc_library(
     name = "cpu_detect",
@@ -55,12 +72,16 @@ cc_library(
         "internal/crc.cc",
         "internal/crc_internal.h",
         "internal/crc_x86_arm_combined.cc",
+        "internal/crc_riscv.cc",
     ],
     hdrs = [
         "internal/crc.h",
         "internal/crc32_x86_arm_combined_simd.h",
     ],
-    copts = ABSL_DEFAULT_COPTS,
+    copts = ABSL_DEFAULT_COPTS + select({
+        ":riscv64_gcc_compatible": ["-march=rv64gc_zbc"],
+        "//conditions:default": [],
+    }),
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
