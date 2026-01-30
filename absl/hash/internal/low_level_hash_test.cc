@@ -368,7 +368,8 @@ TEST(LowLevelHashTest, VerifyGolden) {
         << "We only maintain golden data for little endian 64 bit systems with "
            "128 bit intristics.";
   }
-#elif defined(__SSE4_2__) && defined(__AES__)
+#elif (defined(__SSE4_2__) && defined(__AES__)) || \
+    (defined(ABSL_INTERNAL_HAVE_ARM_NEON) && defined(__ARM_FEATURE_CRYPTO))
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
       0xd6bdb2c9ba5e55f2, 0xffd3e23d4115a8ae, 0x2c3218ef486127de,
       0x554fa7f3a262b886, 0x06304cbf82e312d3, 0x490b3fb5af80622c,
