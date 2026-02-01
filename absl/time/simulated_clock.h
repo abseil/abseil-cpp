@@ -54,7 +54,6 @@ ABSL_NAMESPACE_BEGIN
 // This class is thread-safe.
 class SimulatedClock : public Clock {
  public:
-
   explicit SimulatedClock(absl::Time t);
   SimulatedClock() : SimulatedClock(absl::UnixEpoch()) {}
 
