@@ -39,6 +39,11 @@ fi
 source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
 readonly DOCKER_CONTAINER=${LINUX_GCC_LATEST_CONTAINER}
 
+# Print information about the environment.
+docker run "${DOCKER_CONTAINER}" /usr/bin/fastfetch -c ci
+docker run "${DOCKER_CONTAINER}" /usr/local/bin/gcc -v
+docker run "${DOCKER_CONTAINER}" cat /root/cached_bazel_versions
+
 # USE_BAZEL_CACHE=1 only works on Kokoro.
 # Without access to the credentials this won't work.
 if [[ ${USE_BAZEL_CACHE:-0} -ne 0 ]]; then
@@ -64,6 +69,7 @@ for std in ${STD}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
       echo "--------------------------------------------------------------------"
       time docker run \
+        --env="USE_BAZEL_VERSION=8.5.1" \
         --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp-ro,readonly \
         --tmpfs=/abseil-cpp \
         --workdir=/abseil-cpp \
