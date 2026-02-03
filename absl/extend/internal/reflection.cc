@@ -14,6 +14,8 @@
 
 #include "absl/extend/internal/reflection.h"
 
+#include <stddef.h>
+
 #include <cstdarg>
 
 #include "absl/base/config.h"
@@ -87,9 +89,11 @@ int PrintfHijack(ParsingState& state, absl::Span<absl::string_view> fields,
     std::va_list va;
     va_start(va, fmt);
 
-    static_cast<void>(va_arg(va, const char*));       // Indentation whitespace
-    static_cast<void>(va_arg(va, const char*));       // Field's type name
-    fields[state.index++] = va_arg(va, const char*);  // Field name
+    static_cast<void>(va_arg(va, const char*));  // Indentation whitespace
+    static_cast<void>(va_arg(va, const char*));  // Field's type name
+    fields[static_cast<size_t>(state.index)] =
+        va_arg(va, const char*);  // Field name
+    ++state.index;
 
     va_end(va);
   } else if (fmt == absl::string_view("%s%s")) {
