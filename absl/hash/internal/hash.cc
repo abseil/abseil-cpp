@@ -94,6 +94,15 @@ inline uint64_t ExtractHigh64(Vector128 v) {
   return static_cast<uint64_t>(_mm_extract_epi64(v, 1));
 }
 
+inline uint64_t Mix4x16Vectors(Vector128 a, Vector128 b, Vector128 c,
+                               Vector128 d) {
+  Vector128 res128 =
+      Add128(Encrypt128(Add128(a, c), d), Decrypt128(Sub128(b, d), a));
+  uint64_t x64 = ExtractLow64(res128);
+  uint64_t y64 = ExtractHigh64(res128);
+  return x64 ^ y64;
+}
+
 #else  // ABSL_AES_INTERNAL_HAVE_ARM_SIMD
 
 using Vector128 = uint8x16_t;
@@ -127,6 +136,19 @@ inline Vector128 Decrypt128(Vector128 data, Vector128 key) {
   return vaesimcq_u8(vaesdq_u8(data, Vector128{})) ^ key;
 }
 
+// ArmEncrypt128 and ArmDecrypt128 are ARM specific versions that use ARM
+// instructions directly.
+// We can only use these versions in the second round of encryption/decryption
+// to have good hash quality.
+
+inline Vector128 ArmEncrypt128(Vector128 data, Vector128 key) {
+  return vaesmcq_u8(vaeseq_u8(data, key));
+}
+
+inline Vector128 ArmDecrypt128(Vector128 data, Vector128 key) {
+  return vaesimcq_u8(vaesdq_u8(data, key));
+}
+
 inline uint64_t ExtractLow64(Vector128 v) {
   return vgetq_lane_u64(vreinterpretq_u64_u8(v), 0);
 }
@@ -134,15 +156,15 @@ inline uint64_t ExtractLow64(Vector128 v) {
 inline uint64_t ExtractHigh64(Vector128 v) {
   return vgetq_lane_u64(vreinterpretq_u64_u8(v), 1);
 }
-#endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
 uint64_t Mix4x16Vectors(Vector128 a, Vector128 b, Vector128 c, Vector128 d) {
-  Vector128 res128 =
-      Add128(Encrypt128(Add128(a, c), d), Decrypt128(Sub128(b, d), a));
+  Vector128 res128 = Add128(ArmEncrypt128(a, c), ArmDecrypt128(b, d));
   uint64_t x64 = ExtractLow64(res128);
   uint64_t y64 = ExtractHigh64(res128);
   return x64 ^ y64;
 }
+
+#endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
 
 uint64_t LowLevelHash33To64(uint64_t seed, const uint8_t* ptr, size_t len) {
   assert(len > 32);
