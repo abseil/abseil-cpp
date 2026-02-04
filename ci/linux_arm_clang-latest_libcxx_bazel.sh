@@ -69,7 +69,11 @@ for std in ${STD}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
       echo "--------------------------------------------------------------------"
       time docker run \
-        --env="USE_BAZEL_VERSION=8.5.1" \
+        --env="USE_BAZEL_VERSION=9.0.0" \
+        --env="CC=/opt/llvm/bin/clang" \
+        --env="BAZEL_CXXOPTS=-std=${std}:-nostdinc++" \
+        --env="BAZEL_LINKOPTS=-L/opt/llvm/lib/aarch64-unknown-linux-gnu:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/lib/aarch64-unknown-linux-gnu" \
+        --env="CPLUS_INCLUDE_PATH=/opt/llvm/include/c++/v1:/opt/llvm/include/aarch64-unknown-linux-gnu/c++/v1/" \
         --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp-ro,readonly \
         --tmpfs=/abseil-cpp \
         --workdir=/abseil-cpp \
@@ -83,10 +87,6 @@ for std in ${STD}; do
             cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
           fi
           /usr/local/bin/bazel test ... \
-            --action_env=CC=/opt/llvm/bin/clang \
-            --action_env=BAZEL_CXXOPTS=-std=${std}:-nostdinc++ \
-            --action_env=BAZEL_LINKOPTS=-L/opt/llvm/lib/aarch64-unknown-linux-gnu:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/lib/aarch64-unknown-linux-gnu \
-            --action_env=CPLUS_INCLUDE_PATH=/opt/llvm/include/c++/v1:/opt/llvm/include/aarch64-unknown-linux-gnu/c++/v1/ \
             --compilation_mode=\"${compilation_mode}\" \
             --copt=\"${exceptions_mode}\" \
             --copt=\"-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1\" \

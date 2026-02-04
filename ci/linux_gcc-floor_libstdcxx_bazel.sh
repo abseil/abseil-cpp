@@ -69,7 +69,10 @@ for std in ${STD}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
       echo "--------------------------------------------------------------------"
       time docker run \
-        --env="USE_BAZEL_VERSION=8.5.1" \
+        --env="USE_BAZEL_VERSION=9.0.0" \
+        --env="CC=/opt/gcc-9/bin/gcc" \
+        --env="BAZEL_CXXOPTS=-std=${std}" \
+        --env="BAZEL_LINKOPTS=-L/opt/gcc-9/lib64:-Wl,-rpath=/opt/gcc-9/lib64" \
         --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
         --workdir=/abseil-cpp \
         --cap-add=SYS_PTRACE \
@@ -78,9 +81,6 @@ for std in ${STD}; do
         ${DOCKER_CONTAINER} \
         /bin/bash --login -c "
         /usr/local/bin/bazel test ... \
-          --action_env=\"CC=/opt/gcc-9/bin/gcc\" \
-          --action_env=\"BAZEL_CXXOPTS=-std=${std}\" \
-          --action_env=BAZEL_LINKOPTS=-L/opt/gcc-9/lib64:-Wl,-rpath=/opt/gcc-9/lib64 \
           --compilation_mode=\"${compilation_mode}\" \
           --copt=\"${exceptions_mode}\" \
           --copt=\"-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1\" \

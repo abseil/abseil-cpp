@@ -69,7 +69,9 @@ for std in ${STD}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
       echo "--------------------------------------------------------------------"
       time docker run \
-        --env="USE_BAZEL_VERSION=8.5.1" \
+        --env="USE_BAZEL_VERSION=9.0.0" \
+        --env="CC=/usr/local/bin/gcc" \
+        --env="BAZEL_CXXOPTS=-std=${std}" \
         --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp-ro,readonly \
         --tmpfs=/abseil-cpp \
         --workdir=/abseil-cpp \
@@ -83,8 +85,6 @@ for std in ${STD}; do
             cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
           fi
           /usr/local/bin/bazel test ... \
-            --action_env=CC=/usr/local/bin/gcc \
-            --action_env=BAZEL_CXXOPTS=-std=${std} \
             --compilation_mode=\"${compilation_mode}\" \
             --copt=\"${exceptions_mode}\" \
             --copt=\"-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1\" \
