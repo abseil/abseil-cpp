@@ -100,7 +100,6 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
-        "//absl/utility",
     ],
 )
 

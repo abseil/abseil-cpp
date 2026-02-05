@@ -98,7 +98,6 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
-    absl::utility
   PUBLIC
 )
 
