@@ -26,6 +26,7 @@
 #include <optional>
 
 #include "absl/base/config.h"
+#include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
