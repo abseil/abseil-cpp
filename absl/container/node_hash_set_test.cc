@@ -20,6 +20,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__cplusplus) && __cplusplus >= 202302L
+#include <ranges>
+#endif
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -181,6 +185,14 @@ TEST(NodeHashSet, CForEach) {
     expected.emplace_back(i, i);
   }
 }
+
+#if defined(__cplusplus) && __cplusplus >= 202302L
+TEST(NodeHashSet, FromRange) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::node_hash_set<int> s(std::from_range, v);
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

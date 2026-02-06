@@ -21,6 +21,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__cplusplus) && __cplusplus >= 202302L
+#include <ranges>
+#endif
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -444,6 +448,14 @@ TEST(Iterator, InconsistentHashEqFunctorsValidation) {
 #endif
   EXPECT_DEATH_IF_SUPPORTED(insert_conflicting_elems(), crash_message);
 }
+
+#if defined(__cplusplus) && __cplusplus >= 202302L
+TEST(FlatHashMap, FromRange) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::flat_hash_map<int, int> m(std::from_range, v);
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

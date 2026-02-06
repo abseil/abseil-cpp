@@ -2149,6 +2149,15 @@ class raw_hash_set {
                const allocator_type& alloc)
       : raw_hash_set(first, last, bucket_count, hasher(), key_equal(), alloc) {}
 
+#if defined(__cplusplus) && __cplusplus >= 202302L
+  template <typename R>
+  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count = 0,
+               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
+               const allocator_type& alloc = allocator_type())
+      : raw_hash_set(std::begin(rg), std::end(rg), bucket_count, hash, eq,
+                     alloc) {}
+#endif
+
   template <class InputIter>
   raw_hash_set(InputIter first, InputIter last, const allocator_type& alloc)
       : raw_hash_set(first, last, 0, hasher(), key_equal(), alloc) {}

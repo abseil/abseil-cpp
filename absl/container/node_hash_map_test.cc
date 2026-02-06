@@ -22,6 +22,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__cplusplus) && __cplusplus >= 202302L
+#include <ranges>
+#endif
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -341,6 +345,14 @@ TEST(NodeHashMap, RecursiveTypeCompiles) {
   RecursiveType t;
   t.m[0] = RecursiveType{};
 }
+
+#if defined(__cplusplus) && __cplusplus >= 202302L
+TEST(NodeHashMap, FromRange) {
+  std::vector<std::pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
+  absl::node_hash_map<int, int> m(std::from_range, v);
+  EXPECT_THAT(m, UnorderedElementsAre(Pair(1, 2), Pair(3, 4), Pair(5, 6)));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal
