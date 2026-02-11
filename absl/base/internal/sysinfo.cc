@@ -472,7 +472,7 @@ pid_t GetTID() {
 pid_t GetTID() {
   // `pthread_t` need not be arithmetic per POSIX; platforms where it isn't
   // should be handled above.
-  return static_cast<pid_t>(pthread_self());
+  return reinterpret_cast<pid_t>(pthread_self());
 }
 
 #endif
