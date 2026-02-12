@@ -978,7 +978,7 @@ inline constexpr uint64_t kMul = uint64_t{0x79d5f9e0de1e8cf5};
 
 // Random data taken from the hexadecimal digits of Pi's fractional component.
 // https://en.wikipedia.org/wiki/Nothing-up-my-sleeve_number
-ABSL_CACHELINE_ALIGNED inline constexpr uint64_t kStaticRandomData[] = {
+ABSL_CACHELINE_ALIGNED static inline constexpr uint64_t kStaticRandomData[] = {
     0x243f'6a88'85a3'08d3, 0x1319'8a2e'0370'7344, 0xa409'3822'299f'31d0,
     0x082e'fa98'ec4e'6c89, 0x4528'21e6'38d0'1377,
 };
