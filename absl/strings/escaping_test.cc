@@ -762,4 +762,12 @@ TEST(HexAndBack, HexStringToBytes_and_BytesToHexString) {
   EXPECT_EQ(hex_only_lower, hex_result);
 }
 
+TEST(Base64Escape, AliasingSafety){
+    std::string s = "Abseil";
+    absl::Base64Escape(s, &s);
+    // would corrupt or crash before fix
+    // after fix: s should be "QWJzZWls"
+    EXPECT_EQ(s, "QWJzZWls");
+}
+
 }  // namespace
