@@ -27,6 +27,10 @@ ABSL_NAMESPACE_BEGIN
 
 namespace crc_internal {
 
+class CRCImpl;
+
+CRCImpl* TryNewCRC32AcceleratedRISCV();
+
 // Prefetch constants used in some Extend() implementations
 constexpr int kPrefetchHorizon = ABSL_CACHELINE_SIZE * 4;  // Prefetch this far
 // Shorter prefetch distance for smaller buffers
