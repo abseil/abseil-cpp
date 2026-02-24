@@ -449,7 +449,6 @@ cc_library(
         "//absl/hash",
         "//absl/meta:type_traits",
         "//absl/strings",
-        "//absl/strings:cord",
     ],
 )
 
@@ -1138,7 +1137,6 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",
-        "//absl/strings:cord",
         "//absl/types:compare",
     ],
 )
