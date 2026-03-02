@@ -217,6 +217,7 @@ cc_test(
         "internal/escaping_test_common.h",
     ],
     copts = ABSL_TEST_COPTS,
+    tags = ["no_test_chromiumos_x86_64"],
     visibility = ["//visibility:private"],
     deps = [
         ":cord",

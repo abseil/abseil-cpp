@@ -777,6 +777,9 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkstatic = 1,
     tags = NOTEST_TAGS_MOBILE + [
+        "no_test_chromiumos_arm",
+        "no_test_chromiumos_armv7",
+        "no_test_chromiumos_x86_64",
         "no_test_loonix",
         # TODO(b/237097643): investigate race and remove
         "noarm_gemu",
