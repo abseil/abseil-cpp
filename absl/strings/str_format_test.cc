@@ -1205,6 +1205,32 @@ TEST_F(FormatExtensionTest, AbslStringifyEnumOtherSpecifiers) {
   EXPECT_EQ(absl::StrFormat("My choice is %x", e), "My choice is 20");
 }
 
+// When a type defines both AbslStringify and AbslFormatConvert,
+// AbslStringify should take priority.
+struct PointWithBothStringifyAndFormatConvert {
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink,
+                            const PointWithBothStringifyAndFormatConvert& p) {
+    sink.Append(absl::StrCat("(", p.x, ", ", p.y, ")"));
+  }
+
+  friend absl::FormatConvertResult<absl::FormatConversionCharSet::kString>
+  AbslFormatConvert(const PointWithBothStringifyAndFormatConvert& p,
+                    const absl::FormatConversionSpec&,
+                    absl::FormatSink* sink) {
+    sink->Append(absl::StrCat("WRONG(", p.x, ", ", p.y, ")"));
+    return {true};
+  }
+
+  double x = 10.0;
+  double y = 20.0;
+};
+
+TEST_F(FormatExtensionTest, AbslStringifyTakesPriorityOverFormatConvert) {
+  PointWithBothStringifyAndFormatConvert p;
+  EXPECT_EQ(absl::StrFormat("a %v z", p), "a (10, 20) z");
+}
+
 }  // namespace
 
 // Some codegen thunks that we can use to easily dump the generated assembly for
