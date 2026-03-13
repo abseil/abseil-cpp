@@ -424,6 +424,35 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "stringify_stream",
+    hdrs = ["internal/stringify_stream.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//visibility:private",
+    ],
+    deps = [
+        ":string_view",
+        "//absl/base:config",
+    ],
+)
+
+cc_test(
+    name = "stringify_stream_test",
+    srcs = ["internal/stringify_stream_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":string_view",
+        ":stringify_stream",
+        "//absl/base:config",
+        "//absl/strings:str_format",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_binary(
     name = "charset_benchmark",
     testonly = True,
