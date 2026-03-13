@@ -86,6 +86,8 @@ absl_cc_library(
     absl::memory
     absl::nullability
     absl::raw_logging_internal
+    absl::source_location
+    absl::strings
     absl::throw_delegate
     absl::type_traits
   PUBLIC

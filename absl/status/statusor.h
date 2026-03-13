@@ -54,6 +54,8 @@
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/has_ostream_operator.h"
 #include "absl/strings/str_format.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
@@ -475,6 +477,36 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // function returns `absl::OkStatus()`.
   ABSL_MUST_USE_RESULT const Status& status() const&;
   Status status() &&;
+
+  absl::Span<const absl::SourceLocation> GetSourceLocations() const {
+    return this->status_.GetSourceLocations();
+  }
+  // Appends the `loc` to the current location chain inside the status, iff the
+  // status-or is non-ok and contains a non-empty message.
+  void AddSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) {
+    this->status_.AddSourceLocation(loc);
+  }
+
+  // StatusOr<T>::WithSourceLocation()
+  //
+  // Appends the `loc` to the current location chain inside the status iff the
+  // status-or is non-ok and contains a non-empty message, and returns an rvalue
+  // reference to `*this`.
+  //
+  // Example:
+  //
+  //   StatusOr<int> Finalize(...);
+  //
+  //   StatusOr<int> DoSomething(...) {
+  //     ...
+  //     return Finalize().WithSourceLocation();
+  //   }
+  ABSL_MUST_USE_RESULT StatusOr<T>&& WithSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) && {
+    AddSourceLocation(loc);
+    return std::move(*this);
+  }
 
   // StatusOr<T>::value()
   //
