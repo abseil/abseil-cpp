@@ -397,6 +397,7 @@ absl_cc_test(
     absl::dynamic_annotations
     absl::btree
     absl::flat_hash_map
+    absl::hash
     absl::node_hash_map
     GTest::gmock_main
 )

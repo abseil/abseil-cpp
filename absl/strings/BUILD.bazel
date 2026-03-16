@@ -1114,6 +1114,7 @@ cc_test(
         "//absl/container:btree",
         "//absl/container:flat_hash_map",
         "//absl/container:node_hash_map",
+        "//absl/hash",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
