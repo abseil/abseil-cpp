@@ -457,6 +457,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "types/internal/span.h"
   "types/optional.h"
   "types/optional_ref.h"
+  "types/source_location.cc"
   "types/source_location.h"
   "types/span.h"
   "types/variant.h"
