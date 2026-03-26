@@ -55,6 +55,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::exception_testing
     absl::hash_testing
     absl::raw_logging_internal

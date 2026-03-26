@@ -331,23 +331,6 @@ auto MakeAdaptorFromView(View& view)  // NOLINT(runtime/references)
 template <typename T>
 class AnySpan;
 
-// Returns a subspan of the given span, but truncated to the given length.
-// The start position must be valid; it is not adjusted to fit the span.
-// TODO(b/226581285): Remove this once the old subspan() is gone.
-template <class T>
-[[deprecated(
-    "Avoid relying on this API, as it is a temporary migration aid from the "
-    "nonstandard subspan(). Instead, manually clamp at the call site, such as "
-    "via: span.subspan(i, "
-    "std::min"  // Separated so linter doesn't complain about parentheses
-    "(n, span.size() - i))")]]
-constexpr AnySpan<T> SubspanOrTruncate(
-    AnySpan<T> span, typename AnySpan<T>::size_type pos,
-    typename AnySpan<T>::size_type len = AnySpan<T>::npos) {
-  return AnySpan<T>(span.subspan(pos).getter_,
-                    (std::min)(len, span.size() - pos));
-}
-
 template <typename T>
 class ABSL_ATTRIBUTE_VIEW AnySpan {
  private:
@@ -717,27 +700,28 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   // Returns a subspan of this span. This span may become invalid before the
   // subspan, but both the container and transform must remain valid.
   // pos must be non-negative and <= size().
-  // len must be non-negative and will be pinned to at most x.size() - pos.
-  // If len==npos, the subspan continues till the end of this span.
-  ABSL_DEPRECATE_AND_INLINE()
+  // len must be non-negative and <= size() - pos, or equal to npos.
+  // If len == npos, the subspan continues till the end of this span.
+
   constexpr AnySpan subspan(size_type pos, size_type len) const {
-    return absl::SubspanOrTruncate(*this, pos, len);
+    const size_t this_size = size();
+    if (len == AnySpan<T>::npos) {
+      len = this_size - pos;
+    }
+    ABSL_HARDENING_ASSERT(pos <= this_size && len <= this_size - pos);
+    return AnySpan<T>(getter_.Offset(pos), len);
   }
 
-  // TODO(b/226581285): Merge this function with the sized overload. This
-  // function only exists to prevent infinite recursion while we are migrating
-  // to absl::SubspanOrTruncate().
   constexpr AnySpan subspan(size_type pos) const {
     ABSL_HARDENING_ASSERT(pos <= size());
     return AnySpan(getter_.Offset(pos), size() - pos);
   }
 
-  // Returns a `AnySpan` containing first `len` elements. Parameter `len` must
-  // be non-negative.
-  // TODO(b/226581285): Remove this function and replace it with the
-  // non-truncating behavior once the uses are gone.
-  ABSL_DEPRECATE_AND_INLINE() constexpr AnySpan first(size_type len) const {
-    return absl::SubspanOrTruncate(*this, 0, len);
+  // Returns a `AnySpan` containing first `len` elements. Parameter `len`
+  // must be non-negative and <= size().
+  constexpr AnySpan first(size_type len) const {
+    ABSL_HARDENING_ASSERT(len != AnySpan<T>::npos);
+    return subspan(0, len);
   }
 
   // Returns a `AnySpan` containing last `len` elements. Parameter `len` must be
@@ -746,7 +730,6 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
 
   // Size operations.
   constexpr size_type size() const { return size_; }
-  ABSL_DEPRECATE_AND_INLINE() size_type length() const { return size(); }
   constexpr bool empty() const { return size() == 0; }
 
   // Element access.
@@ -804,9 +787,6 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
 
   // The size of this span.
   size_type size_ = 0;
-
-  friend AnySpan<T> absl::SubspanOrTruncate<T>(AnySpan<T>, size_type,
-                                               size_type);
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push

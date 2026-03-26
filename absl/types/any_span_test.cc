@@ -31,6 +31,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
@@ -47,11 +48,19 @@ static_assert(!absl::type_traits_internal::IsOwner<AnySpan<int>>::value &&
                   absl::type_traits_internal::IsView<AnySpan<int>>::value,
               "AnySpan is a view, not an owner");
 
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
+
 // Tests that the span points to all of the elements of the given container.
 template <typename T, typename Container>
 void ExpectSpanEqualsContainer(AnySpan<T> span, const Container& c) {
   EXPECT_EQ(span.size(), c.size());
-  EXPECT_EQ(span.length(), c.size());
   typename AnySpan<const T>::size_type index = 0;
   for (const T& s : span) {
     SCOPED_TRACE(index);
@@ -355,8 +364,6 @@ TYPED_TEST(AnySpanTest, VectorFirst) {
   auto span = AnySpan<T>(v).first(2);
   EXPECT_THAT(span, ElementsAre(1, 2));
   span = AnySpan<T>(v).first(4);
-  EXPECT_THAT(span, ElementsAre(1, 2, 3, 4));
-  span = AnySpan<T>(v).first(6);
   EXPECT_THAT(span, ElementsAre(1, 2, 3, 4));
 
   std::vector<int> zero_length_vector;
@@ -1025,6 +1032,37 @@ TEST(MutableAnySpanTest, MutateThroughSubSpan) {
     i = 42;
   }
   EXPECT_THAT(v, ElementsAre(1, 42, 42, 4));
+}
+
+TYPED_TEST(AnySpanTest, SubspanToEnd) {
+  int arr[] = {0, 1, 2};
+  AnySpan<int> span(arr);
+  EXPECT_THAT(span.subspan(0, AnySpan<int>::npos), ElementsAre(0, 1, 2));
+  EXPECT_THAT(span.subspan(1, AnySpan<int>::npos), ElementsAre(1, 2));
+  EXPECT_THAT(span.subspan(2, AnySpan<int>::npos), ElementsAre(2));
+  EXPECT_THAT(span.subspan(3, AnySpan<int>::npos), ElementsAre());
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    EXPECT_DEATH(span.subspan(4, AnySpan<int>::npos), "");
+    EXPECT_DEATH(span.subspan(AnySpan<int>::npos, AnySpan<int>::npos), "");
+  }
+#endif
+}
+
+TEST(MutableAnySpanTest, NonTruncatingSubspan) {
+  std::vector<int> v = {1, 2, 3, 4};
+  AnySpan<int> span(v);
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    EXPECT_DEATH(span.subspan(5, 0), "");
+    EXPECT_DEATH(span.subspan(5, 1), "");
+    EXPECT_DEATH(span.subspan(AnySpan<int>::npos, 0), "");
+    EXPECT_DEATH(span.subspan(AnySpan<int>::npos, 1), "");
+      EXPECT_DEATH(span.subspan(0, 5), "");
+      EXPECT_DEATH(span.first(5), "");
+      EXPECT_DEATH(span.first(AnySpan<int>::npos), "");
+  }
+#endif
 }
 
 TEST(MutableAnySpanTest, IteratorToConstIteratorConversion) {

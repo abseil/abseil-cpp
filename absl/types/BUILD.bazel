@@ -150,6 +150,7 @@ cc_test(
         ":any_span",
         ":span",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/base:exception_testing",
         "//absl/base:raw_logging_internal",
         "//absl/hash:hash_testing",
