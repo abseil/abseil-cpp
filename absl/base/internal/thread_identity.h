@@ -35,6 +35,7 @@
 #include "absl/base/optimization.h"
 
 // Forward declare Gloop class for scheduling.
+// TODO: b/495759467 - Remove this forward declaration.
 namespace base {
 namespace scheduling {
 class Schedulable;
@@ -172,6 +173,7 @@ struct ThreadIdentity {
       return reinterpret_cast<SpinLock*>(&association_lock_word);
     }
 
+    // TODO: b/495759467 - Migrate all callers.
     inline base::scheduling::Schedulable* get_bound_schedulable() const {
       return bound_schedulable.load(std::memory_order_relaxed);
     }
