@@ -677,6 +677,7 @@ cc_library(
         "//absl/base:endian",
         "//absl/base:nullability",
         "//absl/base:raw_logging_internal",
+        "//absl/cleanup",
         "//absl/container:inlined_vector",
         "//absl/crc:crc32c",
         "//absl/crc:crc_cord_state",
