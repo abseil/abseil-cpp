@@ -198,8 +198,8 @@ ABSL_NAMESPACE_END
 // See go/cpp-inliner for more information.
 //
 // Note: go/cpp-inliner is Google-internal service for automated refactoring.
-// While open-source users do not have access to this service, the macro is
-// provided for compatibility.
+// Externally, BrontoSource (https://brontosource.dev/docs/api/inlining) supports
+// this attribute (see an example at https://godbolt.org/z/4nMbYn8sb).
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate)
 #define ABSL_REFACTOR_INLINE [[clang::annotate("inline-me")]]
 #else
