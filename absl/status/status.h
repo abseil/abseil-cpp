@@ -690,6 +690,16 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
  private:
   friend Status CancelledError();
 
+#ifndef SWIG
+  // Returns a `Status` object which is not `ok()` but
+  // `code() == absl::StatusCode::kOk`. This is necessary to be compatible with
+  // `Status` objects created with an error code in a custom `ErrorSpace` that
+  // is mapped to the canonical code `absl::StatusCode::kOk`.
+  static Status MakeNonOkStatusWithOkCode(absl::string_view message);
+
+  friend class absl::status_internal::StatusPrivateAccessor;
+#endif  // !SWIG
+
   // Creates a status in the canonical error space with the specified
   // code, and an empty error message.
   explicit Status(absl::StatusCode code);

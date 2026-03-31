@@ -59,6 +59,9 @@ enum class StatusCode : int;
 enum class StatusToStringMode : int;
 
 namespace status_internal {
+#ifndef SWIG
+class StatusPrivateAccessor;
+#endif  // !SWIG
 
 // Container for status payloads.
 struct Payload {

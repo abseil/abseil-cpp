@@ -105,6 +105,13 @@ const std::string* absl_nonnull Status::MovedFromString() {
   return kMovedFrom.get();
 }
 
+absl::Status absl::Status::MakeNonOkStatusWithOkCode(
+    absl::string_view message) {
+  return absl::Status(
+      absl::Status::PointerToRep(new absl::status_internal::StatusRep(
+          absl::StatusCode::kOk, message, nullptr)));
+}
+
 uintptr_t Status::MakeRep(uintptr_t inlined_rep, absl::string_view msg,
                           absl::SourceLocation loc) {
   bool ok = inlined_rep == CodeToInlinedRep(absl::StatusCode::kOk);
