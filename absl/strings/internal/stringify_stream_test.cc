@@ -15,6 +15,7 @@
 #include "absl/strings/internal/stringify_stream.h"
 
 #include <cstddef>
+#include <iomanip>
 #include <ostream>
 #include <sstream>
 
@@ -92,6 +93,16 @@ TEST(StringifyStreamTest, PreferStreamInsertionOverAbslStringify) {
   std::ostringstream os;
   StringifyStream(os) << PreferStreamInsertionOverAbslStringifyTest{};
   EXPECT_EQ(os.str(), "good");
+}
+TEST(StringifyStreamTest, SupportEndl) {
+  std::ostringstream os;
+  StringifyStream(os) << std::endl;
+  EXPECT_EQ(os.str(), "\n");
+}
+TEST(StringifyStreamTest, SupportSetbase) {
+  std::ostringstream os;
+  StringifyStream(os) << std::setbase(16) << 255;
+  EXPECT_EQ(os.str(), "ff");
 }
 
 }  // namespace

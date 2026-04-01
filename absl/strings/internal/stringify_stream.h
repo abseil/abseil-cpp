@@ -82,6 +82,13 @@ class StringifyStream {
     return stream << t;
   }
 
+  // Overload for things like << std::endl which need an explicit type in order
+  // to resolve to the appropriate overload or template instantiation.
+  StringifyStream& operator<<(std::ostream& (*func)(std::ostream&)) {
+    sink_.os << func;
+    return *this;
+  }
+
  private:
   // Abseil "stringify sink" concept (stringify_sink.h)
   struct Sink {
