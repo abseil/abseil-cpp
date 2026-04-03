@@ -18,6 +18,8 @@
 #ifndef ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_
 #define ABSL_BASE_INTERNAL_LOW_LEVEL_SCHEDULING_H_
 
+#include <atomic>
+
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/internal/thread_identity.h"
@@ -103,15 +105,14 @@ class SchedulingGuard {
 //------------------------------------------------------------------------------
 
 inline bool SchedulingGuard::ReschedulingIsAllowed() {
-  ThreadIdentity* identity;
-  identity = CurrentThreadIdentityIfPresent();
+  ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
   if (identity != nullptr) {
-    ThreadIdentity::SchedulerState* state;
-    state = &identity->scheduler_state;
+    ThreadIdentity::SchedulerState* state = &identity->scheduler_state;
     // For a thread to be eligible for re-scheduling it must have a bound
     // schedulable (otherwise it's not cooperative) and not be within a
     // SchedulerGuard region.
-    return state->get_bound_schedulable() != nullptr &&
+    return state->bound_schedulable.load(std::memory_order_relaxed) !=
+               nullptr &&
            state->scheduling_disabled_depth.load(std::memory_order_relaxed) ==
                0;
   } else {

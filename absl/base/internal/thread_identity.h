@@ -34,14 +34,6 @@
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
 
-// Forward declare Gloop class for scheduling.
-// TODO: b/495759467 - Remove this forward declaration.
-namespace base {
-namespace scheduling {
-class Schedulable;
-}  // namespace scheduling
-}  // namespace base
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
@@ -155,7 +147,7 @@ struct ThreadIdentity {
   PerThreadSynch per_thread_synch;
 
   struct SchedulerState {
-    std::atomic<base::scheduling::Schedulable*> bound_schedulable{nullptr};
+    std::atomic<void*> bound_schedulable{nullptr};
     // Storage space for a SpinLock, which is created through a placement new to
     // break a dependency cycle.
     uint32_t association_lock_word;
@@ -171,11 +163,6 @@ struct ThreadIdentity {
 
     inline SpinLock* association_lock() {
       return reinterpret_cast<SpinLock*>(&association_lock_word);
-    }
-
-    // TODO: b/495759467 - Migrate all callers.
-    inline base::scheduling::Schedulable* get_bound_schedulable() const {
-      return bound_schedulable.load(std::memory_order_relaxed);
     }
   } scheduler_state;  // Private: Reserved for use in Gloop
 
