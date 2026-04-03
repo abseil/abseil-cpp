@@ -1758,7 +1758,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 void c_iota(Sequence& sequence,
 // accumulation by value.
 //
 // Note: Due to a language technicality this function has return type
-// absl::decay_t<T>. As a user of this function you can casually read
+// std::decay_t<T>. As a user of this function you can casually read
 // this as "returns T by value" and assume it does the right thing.
 template <typename Sequence, typename T>
 ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
@@ -1785,7 +1785,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
 // to compute the cumulative inner product of container element pairs.
 //
 // Note: Due to a language technicality this function has return type
-// absl::decay_t<T>. As a user of this function you can casually read
+// std::decay_t<T>. As a user of this function you can casually read
 // this as "returns T by value" and assume it does the right thing.
 template <typename Sequence1, typename Sequence2, typename T>
 ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_inner_product(

@@ -37,13 +37,13 @@ struct is_urbg : std::false_type {};
 template <typename URBG>
 struct is_urbg<
     URBG,
-    absl::enable_if_t<std::is_same<
+    std::enable_if_t<std::is_same<
         typename URBG::result_type,
         typename std::decay<decltype((URBG::min)())>::type>::value>,
-    absl::enable_if_t<std::is_same<
+    std::enable_if_t<std::is_same<
         typename URBG::result_type,
         typename std::decay<decltype((URBG::max)())>::type>::value>,
-    absl::enable_if_t<std::is_same<
+    std::enable_if_t<std::is_same<
         typename URBG::result_type,
         typename std::decay<decltype(std::declval<URBG>()())>::type>::value>>
     : std::true_type {};

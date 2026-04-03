@@ -339,7 +339,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::strings
-    absl::type_traits
     GTest::gmock_main
 )
 

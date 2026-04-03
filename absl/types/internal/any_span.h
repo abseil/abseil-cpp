@@ -152,7 +152,7 @@ T& ApplyTransform(TransformPtr transform, U& u) {  // NOLINT(runtime/references)
 // references to support mutable -> const conversion of spans without additional
 // indirection.
 template <typename T>
-using GetterFunctionResult = absl::remove_const_t<T>&;
+using GetterFunctionResult = std::remove_const_t<T>&;
 
 // A type of function pointer that can return an element of a
 // TransformedContainer.  This is used so that we can type-erase with a simple
@@ -262,8 +262,8 @@ struct Getter {
   // Handle mutable -> const conversion.
   template <typename LazyT = T, typename = typename std::enable_if<
                                     std::is_const<LazyT>::value>::type>
-  explicit Getter(const Getter<absl::remove_const_t<T>>& other) {
-    using MutableT = absl::remove_const_t<T>;
+  explicit Getter(const Getter<std::remove_const_t<T>>& other) {
+    using MutableT = std::remove_const_t<T>;
     if (other.fun == &ArrayTag<MutableT>) {
       ABSL_RAW_DCHECK(other.offset == 0u, "offset must be zero");
       fun = &ArrayTag<T>;

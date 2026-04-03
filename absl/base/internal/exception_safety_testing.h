@@ -44,22 +44,22 @@ enum class TypeSpec;
 enum class AllocSpec;
 
 constexpr TypeSpec operator|(TypeSpec a, TypeSpec b) {
-  using T = absl::underlying_type_t<TypeSpec>;
+  using T = std::underlying_type_t<TypeSpec>;
   return static_cast<TypeSpec>(static_cast<T>(a) | static_cast<T>(b));
 }
 
 constexpr TypeSpec operator&(TypeSpec a, TypeSpec b) {
-  using T = absl::underlying_type_t<TypeSpec>;
+  using T = std::underlying_type_t<TypeSpec>;
   return static_cast<TypeSpec>(static_cast<T>(a) & static_cast<T>(b));
 }
 
 constexpr AllocSpec operator|(AllocSpec a, AllocSpec b) {
-  using T = absl::underlying_type_t<AllocSpec>;
+  using T = std::underlying_type_t<AllocSpec>;
   return static_cast<AllocSpec>(static_cast<T>(a) | static_cast<T>(b));
 }
 
 constexpr AllocSpec operator&(AllocSpec a, AllocSpec b) {
-  using T = absl::underlying_type_t<AllocSpec>;
+  using T = std::underlying_type_t<AllocSpec>;
   return static_cast<AllocSpec>(static_cast<T>(a) & static_cast<T>(b));
 }
 
@@ -842,7 +842,7 @@ class DefaultFactory {
 
 template <size_t LazyContractsCount, typename LazyFactory,
           typename LazyOperation>
-using EnableIfTestable = typename absl::enable_if_t<
+using EnableIfTestable = typename std::enable_if_t<
     LazyContractsCount != 0 &&
     !std::is_same<LazyFactory, UninitializedT>::value &&
     !std::is_same<LazyOperation, UninitializedT>::value>;
@@ -994,7 +994,7 @@ class ExceptionSafetyTestBuilder {
    * method tester.WithInitialValue(...).
    */
   template <typename NewFactory>
-  ExceptionSafetyTestBuilder<absl::decay_t<NewFactory>, Operation, Contracts...>
+  ExceptionSafetyTestBuilder<std::decay_t<NewFactory>, Operation, Contracts...>
   WithFactory(const NewFactory& new_factory) const {
     return {new_factory, operation_, contracts_};
   }
@@ -1005,7 +1005,7 @@ class ExceptionSafetyTestBuilder {
    * newly created tester.
    */
   template <typename NewOperation>
-  ExceptionSafetyTestBuilder<Factory, absl::decay_t<NewOperation>, Contracts...>
+  ExceptionSafetyTestBuilder<Factory, std::decay_t<NewOperation>, Contracts...>
   WithOperation(const NewOperation& new_operation) const {
     return {factory_, new_operation, contracts_};
   }
@@ -1025,11 +1025,11 @@ class ExceptionSafetyTestBuilder {
    */
   template <typename... MoreContracts>
   ExceptionSafetyTestBuilder<Factory, Operation, Contracts...,
-                             absl::decay_t<MoreContracts>...>
+                             std::decay_t<MoreContracts>...>
   WithContracts(const MoreContracts&... more_contracts) const {
     return {
         factory_, operation_,
-        std::tuple_cat(contracts_, std::tuple<absl::decay_t<MoreContracts>...>(
+        std::tuple_cat(contracts_, std::tuple<std::decay_t<MoreContracts>...>(
                                        more_contracts...))};
   }
 

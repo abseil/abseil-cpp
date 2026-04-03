@@ -401,7 +401,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/meta:type_traits",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

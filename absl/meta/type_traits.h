@@ -218,7 +218,7 @@ struct IsHashable : std::false_type {};
 template <typename Key>
 struct IsHashable<
     Key,
-    absl::enable_if_t<std::is_convertible<
+    std::enable_if_t<std::is_convertible<
         decltype(std::declval<std::hash<Key>&>()(std::declval<Key const&>())),
         std::size_t>::value>> : std::true_type {};
 
@@ -243,7 +243,7 @@ struct AssertHashEnabledHelper {
     static_assert(
         std::is_copy_constructible<std::hash<Key>>::value,
         "std::hash<Key> must be copy constructible when it is enabled");
-    static_assert(absl::is_copy_assignable<std::hash<Key>>::value,
+    static_assert(std::is_copy_assignable<std::hash<Key>>::value,
                   "std::hash<Key> must be copy assignable when it is enabled");
     // is_destructible is unchecked as it's implied by each of the
     // is_constructible checks.
@@ -306,7 +306,7 @@ struct IsNothrowSwappable
 //
 // Performs the swap idiom from a namespace where valid candidates may only be
 // found in `std` or via ADL.
-template <class T, absl::enable_if_t<IsSwappable<T>::value, int> = 0>
+template <class T, std::enable_if_t<IsSwappable<T>::value, int> = 0>
 void Swap(T& lhs, T& rhs) noexcept(IsNothrowSwappable<T>::value) {
   swap(lhs, rhs);
 }
@@ -475,7 +475,7 @@ template <typename T>
 struct IsOwnerImpl<
     T,
     std::enable_if_t<std::is_class<typename T::absl_internal_is_view>::value>>
-    : absl::negation<typename T::absl_internal_is_view> {};
+    : std::negation<typename T::absl_internal_is_view> {};
 
 // A trait to determine whether a type is an owner.
 // Do *not* depend on the correctness of this trait for correct code behavior.
@@ -555,7 +555,7 @@ struct IsView<std::span<T>> : std::true_type {};
 // Until then, we consider an assignment from an "owner" (such as std::string)
 // to a "view" (such as std::string_view) to be a lifetime-bound assignment.
 template <typename T, typename U>
-using IsLifetimeBoundAssignment = absl::conjunction<
+using IsLifetimeBoundAssignment = std::conjunction<
     std::integral_constant<bool, !std::is_lvalue_reference<U>::value>,
     IsOwner<absl::remove_cvref_t<U>>, IsView<absl::remove_cvref_t<T>>>;
 

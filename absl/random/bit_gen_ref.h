@@ -83,7 +83,7 @@ class BitGenRef {
   BitGenRef& operator=(BitGenRef&&) = default;
 
   template <typename URBGRef, typename URBG = absl::remove_cvref_t<URBGRef>,
-            typename absl::enable_if_t<
+            typename std::enable_if_t<
                 (!std::is_same<URBG, BitGenRef>::value &&
                  !std::is_base_of<BitGenRef, URBG>::value &&
                  !HasConversionOperator<URBG>::value &&
@@ -95,7 +95,7 @@ class BitGenRef {
         generate_impl_fn_(ImplFn<URBG>) {}
 
   template <typename URBGRef, typename URBG = absl::remove_cvref_t<URBGRef>,
-            typename absl::enable_if_t<
+            typename std::enable_if_t<
                 (!std::is_same<URBG, BitGenRef>::value &&
                  !std::is_base_of<BitGenRef, URBG>::value &&
                  !HasConversionOperator<URBG>::value &&

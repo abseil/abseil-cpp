@@ -55,7 +55,7 @@ struct DistributionCaller {
   static typename DistrT::result_type Impl(std::true_type, URBG* urbg,
                                            Args&&... args) {
     using ResultT = typename DistrT::result_type;
-    using ArgTupleT = std::tuple<absl::decay_t<Args>...>;
+    using ArgTupleT = std::tuple<std::decay_t<Args>...>;
     using KeyT = ResultT(DistrT, ArgTupleT);
 
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
