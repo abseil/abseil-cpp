@@ -14,6 +14,8 @@
 
 // Utilities for testing exception-safety
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
 #define ABSL_BASE_INTERNAL_EXCEPTION_SAFETY_TESTING_H_
 
@@ -38,6 +40,7 @@
 #include "absl/strings/substitute.h"
 #include "absl/utility/utility.h"
 
+// TODO(b/500018833): Update the namespace as appropriate.
 namespace testing {
 
 enum class TypeSpec;
