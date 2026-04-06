@@ -345,7 +345,7 @@ IntegralConvertResult FormatConvertImpl(uint128 v,
 
 // This function needs to be a template due to ambiguity regarding type
 // conversions.
-template <typename T, enable_if_t<std::is_same<T, bool>::value, int> = 0>
+template <typename T, std::enable_if_t<std::is_same<T, bool>::value, int> = 0>
 IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
                                         FormatSinkImpl* sink) {
   if (conv.conversion_char() == FormatConversionCharInternal::v) {
