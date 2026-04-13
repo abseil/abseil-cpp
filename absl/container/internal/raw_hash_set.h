@@ -76,15 +76,23 @@
 //
 // The length of this array is computed by `RawHashSetLayout::alloc_size` below.
 //
-// Control bytes (`ctrl_t`) are bytes (collected into groups of a
-// platform-specific size) that define the state of the corresponding slot in
-// the slot array. Group manipulation is tightly optimized to be as efficient
-// as possible: SSE and friends on x86, clever bit operations on other arches.
+// Control bytes (`ctrl_t`) are bytes that define the state of the
+// corresponding slot in the slot array. To optimize probe sequence operations,
+// we use unaligned memory access to load a "window" of multiple control bytes
+// (a platform-specific size, usually 16) starting at the probe index. Window
+// manipulation is tightly optimized to be as efficient as possible: SSE and
+// friends on x86, clever bit operations on other arches.
 //
-//      Group 1         Group 2        Group 3
-// +---------------+---------------+---------------+
-// | | | | | | | | | | | | | | | | | | | | | | | | |
-// +---------------+---------------+---------------+
+// These windows are not aligned to fixed group boundaries. Instead, each probe
+// loads a window starting at an arbitrary index, which may overlap with
+// neighboring probes:
+//
+//   Probe index i     |<-- window (16 bytes) -->|
+//   Probe index i+1     |<-- window (16 bytes) -->|
+//   Probe index i+2       |<-- window (16 bytes) -->|
+//
+// The `clones` array at the end of the control bytes ensures that windows
+// extending past the end of the array still read valid control bytes.
 //
 // Each control byte is either a special value for empty slots, deleted slots
 // (sometimes called *tombstones*), and a special end-of-table marker used by
@@ -115,15 +123,15 @@
 // Since `insert` and `erase` are implemented in terms of `find`, we describe
 // `find` first. To `find` a value `x`, we compute `hash(x)`. From
 // `H1(hash(x))` and the capacity, we construct a `probe_seq` that visits every
-// group of slots in some interesting order.
+// window of slots in some interesting order.
 //
-// We now walk through these indices. At each index, we select the entire group
-// starting with that index and extract potential candidates: occupied slots
-// with a control byte equal to `H2(hash(x))`. If we find an empty slot in the
-// group, we stop and return an error. Each candidate slot `y` is compared with
-// `x`; if `x == y`, we are done and return `&y`; otherwise we continue to the
-// next probe index. Tombstones effectively behave like full slots that never
-// match the value we're looking for.
+// We now walk through these indices. At each index, we load a window of
+// control bytes starting at that index and extract potential candidates:
+// occupied slots with a control byte equal to `H2(hash(x))`. If we find an
+// empty slot in the window, we stop and return an error. Each candidate slot
+// `y` is compared with `x`; if `x == y`, we are done and return `&y`;
+// otherwise we continue to the next probe index. Tombstones effectively behave
+// like full slots that never match the value we're looking for.
 //
 // The `H2` bits ensure when we compare a slot to an object with `==`, we are
 // likely to have actually found the object.  That is, the chance is low that
@@ -307,10 +315,10 @@ void CopyAlloc(AllocType&, AllocType&, std::false_type /* propagate_alloc */) {}
 //
 //   p(i) := Width * (i^2 + i)/2 + hash (mod mask + 1)
 //
-// The use of `Width` ensures that each probe step does not overlap groups;
-// the sequence effectively outputs the addresses of *groups* (although not
-// necessarily aligned to any boundary). The `Group` machinery allows us
-// to check an entire group with minimal branching.
+// The use of `Width` ensures that each probe step does not overlap windows;
+// the sequence effectively outputs the starting addresses of *windows*
+// (not aligned to any fixed boundary). The `Group` machinery allows us
+// to check an entire window with minimal branching via unaligned loads.
 //
 // Wrapping around at `mask + 1` is important, but not for the obvious reason.
 // As described above, the first few entries of the control byte array
