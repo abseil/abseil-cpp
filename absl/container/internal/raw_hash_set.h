@@ -76,12 +76,16 @@
 //
 // The length of this array is computed by `RawHashSetLayout::alloc_size` below.
 //
-// Control bytes (`ctrl_t`) are bytes (collected into groups of a
-// platform-specific size) that define the state of the corresponding slot in
-// the slot array. Group manipulation is tightly optimized to be as efficient
-// as possible: SSE and friends on x86, clever bit operations on other arches.
+// Control bytes (`ctrl_t`) are bytes that define the state of the corresponding
+// slot in the slot array. To optimize probe sequence operations, we use
+// unaligned memory access to load a "window" of multiple control bytes
+// (a platform-specific size, usually 16) starting at the probe index.
+// Window manipulation is tightly optimized to be as efficient as possible:
+// SSE and friends on x86, clever bit operations on other arches.
 //
-//      Group 1         Group 2        Group 3
+//   Probe Index 0               Probe Index 2
+//   +---------------+           +---------------+
+//   |               |           |               |
 // +---------------+---------------+---------------+
 // | | | | | | | | | | | | | | | | | | | | | | | | |
 // +---------------+---------------+---------------+
@@ -117,13 +121,13 @@
 // `H1(hash(x))` and the capacity, we construct a `probe_seq` that visits every
 // group of slots in some interesting order.
 //
-// We now walk through these indices. At each index, we select the entire group
-// starting with that index and extract potential candidates: occupied slots
-// with a control byte equal to `H2(hash(x))`. If we find an empty slot in the
-// group, we stop and return an error. Each candidate slot `y` is compared with
-// `x`; if `x == y`, we are done and return `&y`; otherwise we continue to the
-// next probe index. Tombstones effectively behave like full slots that never
-// match the value we're looking for.
+// We now walk through these indices. At each index, we select a window of
+// control bytes starting at that index and extract potential candidates:
+// occupied slots with a control byte equal to `H2(hash(x))`. If we find an
+// empty slot in the window, we stop and return an error. Each candidate slot
+// `y` is compared with `x`; if `x == y`, we are done and return `&y`; otherwise
+// we continue to the next probe index. Tombstones effectively behave like full
+// slots that never match the value we're looking for.
 //
 // The `H2` bits ensure when we compare a slot to an object with `==`, we are
 // likely to have actually found the object.  That is, the chance is low that
@@ -944,8 +948,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   CommonFields(non_soo_tag_t, const CommonFields& that)
       : capacity_(that.capacity_),
         size_(that.size_),
-        heap_or_soo_(that.heap_or_soo_) {
-  }
+        heap_or_soo_(that.heap_or_soo_) {}
 
   // Movable
   CommonFields(CommonFields&& that) = default;
@@ -2137,10 +2140,9 @@ class raw_hash_set {
       std::is_nothrow_default_constructible<key_equal>::value &&
       std::is_nothrow_default_constructible<allocator_type>::value) {}
 
-  explicit raw_hash_set(
-      size_t bucket_count, const hasher& hash = hasher(),
-      const key_equal& eq = key_equal(),
-      const allocator_type& alloc = allocator_type())
+  explicit raw_hash_set(size_t bucket_count, const hasher& hash = hasher(),
+                        const key_equal& eq = key_equal(),
+                        const allocator_type& alloc = allocator_type())
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
                   alloc) {
     if (bucket_count > DefaultCapacity()) {
@@ -2746,8 +2748,7 @@ class raw_hash_set {
 
     if (src.is_small()) {
       if (src.empty()) return;
-      if (insert_slot(src.single_slot()))
-        src.erase_meta_only_small();
+      if (insert_slot(src.single_slot())) src.erase_meta_only_small();
       return;
     }
     for (auto it = src.begin(), e = src.end(); it != e;) {
@@ -2828,7 +2829,7 @@ class raw_hash_set {
   template <class K = key_type>
   void prefetch([[maybe_unused]] const key_arg<K>& key) const {
     if (capacity() == DefaultCapacity()) return;
-    // Avoid probing if we won't be able to prefetch the addresses received.
+      // Avoid probing if we won't be able to prefetch the addresses received.
 #ifdef ABSL_HAVE_PREFETCH
     prefetch_heap_block();
     if (is_small()) return;
@@ -2840,8 +2841,7 @@ class raw_hash_set {
 
   template <class K = key_type>
   ABSL_DEPRECATE_AND_INLINE()
-  iterator find(const key_arg<K>& key,
-                size_t) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator find(const key_arg<K>& key, size_t) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return find(key);
   }
   // The API of find() has one extension: the type of the key argument doesn't
@@ -2856,8 +2856,8 @@ class raw_hash_set {
 
   template <class K = key_type>
   ABSL_DEPRECATE_AND_INLINE()
-  const_iterator find(const key_arg<K>& key,
-                      size_t) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  const_iterator
+      find(const key_arg<K>& key, size_t) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return find(key);
   }
   template <class K = key_type>
@@ -3269,11 +3269,12 @@ class raw_hash_set {
     ABSL_SWISSTABLE_ASSERT(capacity() == 1);
     constexpr bool kUseMemcpy =
         PolicyTraits::transfer_uses_memcpy() && SooEnabled();
-    size_t index = GrowSooTableToNextCapacityAndPrepareInsert<
-        kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type)) : 0,
-        kUseMemcpy>(common(), GetPolicyFunctions(),
-                    HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key},
-                    force_sampling);
+    size_t index = GrowSooTableToNextCapacityAndPrepareInsert < kUseMemcpy
+                       ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type))
+                       : 0,
+           kUseMemcpy > (common(), GetPolicyFunctions(),
+                         HashKey<hasher, K, kIsDefaultHash>{hash_ref(), key},
+                         force_sampling);
     return {iterator_at(index), true};
   }
 
@@ -3478,16 +3479,10 @@ class raw_hash_set {
   // side-effect.
   //
   // See `CapacityToGrowth()`.
-  size_t growth_left() const {
-    return common().growth_left();
-  }
+  size_t growth_left() const { return common().growth_left(); }
 
-  GrowthInfo& growth_info() {
-    return common().growth_info();
-  }
-  GrowthInfo growth_info() const {
-    return common().growth_info();
-  }
+  GrowthInfo& growth_info() { return common().growth_info(); }
+  GrowthInfo growth_info() const { return common().growth_info(); }
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
@@ -3694,16 +3689,16 @@ struct HashtableFreeFunctionsAccess {
     [[maybe_unused]] const size_t original_size_for_assert = c->size();
     size_t num_deleted = 0;
     using SlotType = typename Set::slot_type;
-    IterateOverFullSlots(
-        c->common(), sizeof(SlotType),
-        [&](const ctrl_t* ctrl, void* slot_void) {
-          auto* slot = static_cast<SlotType*>(slot_void);
-          if (pred(Set::PolicyTraits::element(slot))) {
-            c->destroy(slot);
-            EraseMetaOnlyLarge(c->common(), ctrl, sizeof(*slot));
-            ++num_deleted;
-          }
-        });
+    IterateOverFullSlots(c->common(), sizeof(SlotType),
+                         [&](const ctrl_t* ctrl, void* slot_void) {
+                           auto* slot = static_cast<SlotType*>(slot_void);
+                           if (pred(Set::PolicyTraits::element(slot))) {
+                             c->destroy(slot);
+                             EraseMetaOnlyLarge(c->common(), ctrl,
+                                                sizeof(*slot));
+                             ++num_deleted;
+                           }
+                         });
     // NOTE: IterateOverFullSlots allow removal of the current element, so we
     // verify the size additionally here.
     ABSL_SWISSTABLE_ASSERT(original_size_for_assert - num_deleted ==
