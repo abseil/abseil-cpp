@@ -3044,7 +3044,9 @@ class raw_hash_set {
   // construction when the size can fit in SOO capacity.
   bool should_sample_soo() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
-    if (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) return false;
+    if constexpr (!ShouldSampleHashtablezInfoForAlloc<CharAlloc>()) {
+      return false;
+    }
     if (common().soo_has_tried_sampling()) {
       // Already evaluated sampling on this SOO table; do not re-evaluate
       // sampling each time it transitions from empty to full SOO state.
