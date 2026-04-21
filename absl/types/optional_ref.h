@@ -67,7 +67,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 
@@ -163,11 +162,11 @@ class optional_ref {
   // Accesses the underlying `T` value of an `optional_ref`. If the
   // `optional_ref` is empty, behavior is undefined.
   constexpr T& operator*() const {
-    absl::base_internal::HardeningAssertNonNull(ptr_);
+    ABSL_HARDENING_ASSERT(ptr_ != nullptr);
     return *ptr_;
   }
   constexpr T* operator->() const {
-    absl::base_internal::HardeningAssertNonNull(ptr_);
+    ABSL_HARDENING_ASSERT(ptr_ != nullptr);
     return ptr_;
   }
 

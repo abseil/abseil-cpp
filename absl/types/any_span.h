@@ -213,7 +213,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -293,7 +292,7 @@ class Range {
       "Iter must be a random access iterator.");
 
   Range(Iter begin, Iter end) {
-    absl::base_internal::HardeningAssertLE(begin, end);
+    ABSL_HARDENING_ASSERT(begin <= end);
     begin_ = begin;
     end_ = end;
   }
@@ -301,7 +300,7 @@ class Range {
   std::size_t size() const { return end_ - begin_; }
 
   decltype(std::declval<Iter>()[0]) operator[](std::size_t i) const {
-    absl::base_internal::HardeningAssertLT(i, size());
+    ABSL_HARDENING_ASSERT(i < (end_ - begin_));
     return begin_[i];
   }
 
@@ -709,22 +708,19 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
     if (len == AnySpan<T>::npos) {
       len = this_size - pos;
     }
-    absl::base_internal::HardeningAssertLE(pos, this_size);
-    absl::base_internal::HardeningAssertLE(len,
-                                           static_cast<size_type>(this_size
-                                                                  - pos));
+    ABSL_HARDENING_ASSERT(pos <= this_size && len <= this_size - pos);
     return AnySpan<T>(getter_.Offset(pos), len);
   }
 
   constexpr AnySpan subspan(size_type pos) const {
-    absl::base_internal::HardeningAssertLE(pos, size());
+    ABSL_HARDENING_ASSERT(pos <= size());
     return AnySpan(getter_.Offset(pos), size() - pos);
   }
 
   // Returns a `AnySpan` containing first `len` elements. Parameter `len`
   // must be non-negative and <= size().
   constexpr AnySpan first(size_type len) const {
-    absl::base_internal::HardeningAssert(len != AnySpan<T>::npos);
+    ABSL_HARDENING_ASSERT(len != AnySpan<T>::npos);
     return subspan(0, len);
   }
 
@@ -738,7 +734,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
 
   // Element access.
   constexpr reference operator[](size_type index) const {
-    absl::base_internal::HardeningAssertLT(index, size());
+    ABSL_HARDENING_ASSERT(index < size());
     return getter_.Get(index);
   }
   constexpr reference at(size_type index) const {
@@ -748,11 +744,11 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
     return getter_.Get(index);
   }
   constexpr reference front() const {
-    absl::base_internal::HardeningAssertGT(size(), size_type{0});
+    ABSL_HARDENING_ASSERT(size() > 0);
     return (*this)[0];
   }
   constexpr reference back() const {
-    absl::base_internal::HardeningAssertGT(size(), size_type{0});
+    ABSL_HARDENING_ASSERT(size() > 0);
     return (*this)[size() - 1];
   }
 

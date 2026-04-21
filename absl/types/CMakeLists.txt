@@ -39,7 +39,6 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
-    absl::hardening
     absl::nullability
     absl::raw_logging_internal
     absl::throw_delegate
@@ -79,7 +78,6 @@ absl_cc_library(
     absl::algorithm
     absl::config
     absl::core_headers
-    absl::hardening
     absl::nullability
     absl::throw_delegate
     absl::type_traits
@@ -233,7 +231,6 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
-    absl::hardening
   PUBLIC
 )
 
