@@ -95,7 +95,7 @@
 // // describes is preferred, unless inconsistent with surrounding code.
 // absl_nonnull std::unique_ptr<Employee> employee;
 //
-// // Invalid annotation usage – this attempts to declare a pointer to a
+// // Invalid annotation usage - this attempts to declare a pointer to a
 // // nullable `Employee`, which is meaningless.
 // absl_nullable Employee* e;
 //
@@ -204,7 +204,7 @@
 //     T* absl_nullable GetNullablePtr();           // explicitly nullable
 //     T* absl_nullability_unknown GetUnknownPtr();  // explicitly unknown
 //
-// The macro can be safely used in header files – it will not affect any files
+// The macro can be safely used in header files - it will not affect any files
 // that include it.
 //
 // In files with the macro, plain `T*` syntax means `T* absl_nonnull`, and the
