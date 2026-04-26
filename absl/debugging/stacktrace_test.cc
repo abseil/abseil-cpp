@@ -28,6 +28,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/optimization.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/types/span.h"
 
 static int g_should_fixup_calls = 0;
@@ -56,7 +57,6 @@ namespace {
 
 using ::testing::ContainerEq;
 using ::testing::Contains;
-using ::testing::internal::Cleanup;
 
 struct StackTrace {
   static constexpr int kStackCount = 64;
@@ -116,13 +116,13 @@ ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
 
   // This test is known not to pass on MSVC (due to weak symbols)
 
-  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+  const absl::Cleanup restore_state = [enable_fixup = g_enable_fixup,
                                fixup_calls = g_fixup_calls,
-                               should_fixup_calls = g_should_fixup_calls]() {
+                               should_fixup_calls = g_should_fixup_calls] {
     g_enable_fixup = enable_fixup;
     g_fixup_calls = fixup_calls;
     g_should_fixup_calls = should_fixup_calls;
-  });
+  };
 
   constexpr int kSkip = 1;  // Skip our own frame, whose return PCs won't match
   constexpr auto kStackCount = 1;
@@ -211,13 +211,13 @@ TEST(StackTrace, FixupLowStackUsage) {
     GTEST_SKIP() << kSkipReason;
   }
 
-  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+  const absl::Cleanup restore_state = [enable_fixup = g_enable_fixup,
                                fixup_calls = g_fixup_calls,
-                               should_fixup_calls = g_should_fixup_calls]() {
+                               should_fixup_calls = g_should_fixup_calls] {
     g_enable_fixup = enable_fixup;
     g_fixup_calls = fixup_calls;
     g_should_fixup_calls = should_fixup_calls;
-  });
+  };
 
   g_enable_fixup = true;
 
@@ -265,14 +265,14 @@ TEST(StackTrace, CustomUnwinderPerformsFixup) {
   constexpr auto kStackCount = 1;
 
   absl::SetStackUnwinder(absl::DefaultStackUnwinder);
-  const Cleanup restore_state([enable_fixup = g_enable_fixup,
+  const absl::Cleanup restore_state = [enable_fixup = g_enable_fixup,
                                fixup_calls = g_fixup_calls,
-                               should_fixup_calls = g_should_fixup_calls]() {
+                               should_fixup_calls = g_should_fixup_calls] {
     absl::SetStackUnwinder(nullptr);
     g_enable_fixup = enable_fixup;
     g_fixup_calls = fixup_calls;
     g_should_fixup_calls = should_fixup_calls;
-  });
+  };
 
   StackTrace trace;
 

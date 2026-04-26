@@ -15,6 +15,7 @@
 #ifndef ABSL_CLEANUP_INTERNAL_CLEANUP_H_
 #define ABSL_CLEANUP_INTERNAL_CLEANUP_H_
 
+#include <cstddef>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -27,6 +28,25 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace cleanup_internal {
+
+template <typename Callback>
+class Defer {
+ public:
+  // NOLINTBEGIN(google-explicit-constructor)
+  Defer(Callback callback)  // NOLINT(runtime/explicit)
+    : callback_(std::move(callback)) {}
+  // NOLINTEND(google-explicit-constructor)
+
+  ~Defer() {
+    std::move(callback_)();
+  }
+
+ private:
+  Callback callback_;
+};
+
+template <typename Callback>
+Defer(Callback callback) -> Defer<Callback>;
 
 struct Tag {};
 
@@ -44,23 +64,19 @@ constexpr bool ReturnsVoid() {
 template <typename Callback>
 class Storage {
  public:
-  Storage() = delete;
+  Storage() = default;  // Trivial default initialization is expected
 
-  explicit Storage(Callback callback) {
-    // Placement-new into a character buffer is used for eager destruction when
-    // the cleanup is invoked or cancelled. To ensure this optimizes well, the
-    // behavior is implemented locally instead of using a std::optional.
+  // NOTE: Is invoked on uninitialized instances of `Storage`
+  void EmplaceCallback(Callback callback) {
+    // The callback is stored in a character buffer to decouple its storage
+    // duration from its object lifetime. We need to be able to eagerly destroy
+    // the callback when a method on `absl::Cleanup` is invoked.
     ::new (GetCallbackBuffer()) Callback(std::move(callback));
-    is_callback_engaged_ = true;
   }
 
-  Storage(Storage&& other) {
-    ABSL_HARDENING_ASSERT(other.IsCallbackEngaged());
-
-    ::new (GetCallbackBuffer()) Callback(std::move(other.GetCallback()));
-    is_callback_engaged_ = true;
-
-    other.DestroyCallback();
+  // NOTE: Is invoked on uninitialized instances of `Storage`
+  void EngageCallback() {
+    fields_.is_callback_engaged_ = true;
   }
 
   Storage(const Storage& other) = delete;
@@ -69,16 +85,19 @@ class Storage {
 
   Storage& operator=(const Storage& other) = delete;
 
-  void* GetCallbackBuffer() { return static_cast<void*>(callback_buffer_); }
+  void* GetCallbackBuffer() {
+    return static_cast<void*>(fields_.callback_buffer_);
+  }
 
   Callback& GetCallback() {
     return *reinterpret_cast<Callback*>(GetCallbackBuffer());
   }
 
-  bool IsCallbackEngaged() const { return is_callback_engaged_; }
+  bool IsCallbackEngaged() const { return fields_.is_callback_engaged_; }
+
+  void DisengageCallback() { fields_.is_callback_engaged_ = false; }
 
   void DestroyCallback() {
-    is_callback_engaged_ = false;
     GetCallback().~Callback();
   }
 
@@ -87,8 +106,13 @@ class Storage {
   }
 
  private:
-  bool is_callback_engaged_;
-  alignas(Callback) unsigned char callback_buffer_[sizeof(Callback)];
+  struct Fields {
+    alignas(Callback) std::byte callback_buffer_[sizeof(Callback)];
+    bool is_callback_engaged_;
+  };
+  static_assert(std::is_trivially_default_constructible<Fields>::value);
+
+  Fields fields_;
 };
 
 }  // namespace cleanup_internal
