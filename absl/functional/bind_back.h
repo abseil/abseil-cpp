@@ -69,7 +69,7 @@ template <class F, class... BoundArgs>
 constexpr functional_internal::bind_back_t<F, BoundArgs...> bind_back(
     F&& func, BoundArgs&&... args) {
   return functional_internal::bind_back_t<F, BoundArgs...>(
-      absl::in_place, std::forward<F>(func), std::forward<BoundArgs>(args)...);
+      std::in_place, std::forward<F>(func), std::forward<BoundArgs>(args)...);
 }
 #endif
 

@@ -179,11 +179,11 @@ TEST(BindTest, MemberFunctionFreeInstance) {
 
 int Sink(std::unique_ptr<int> p) { return *p; }
 
-std::unique_ptr<int> Factory(int n) { return absl::make_unique<int>(n); }
+std::unique_ptr<int> Factory(int n) { return std::make_unique<int>(n); }
 
 TEST(BindTest, NonCopyableArg) {
-  EXPECT_EQ(42, absl::bind_back(Sink)(absl::make_unique<int>(42)));
-  EXPECT_EQ(42, absl::bind_back(Sink, absl::make_unique<int>(42))());
+  EXPECT_EQ(42, absl::bind_back(Sink)(std::make_unique<int>(42)));
+  EXPECT_EQ(42, absl::bind_back(Sink, std::make_unique<int>(42))());
 }
 
 TEST(BindTest, NonCopyableResult) {
@@ -206,7 +206,7 @@ int GetMember(FalseCopyable<std::unique_ptr<int>> x) { return *x.m; }
 
 TEST(BindTest, WrappedMoveOnly) {
   FalseCopyable<std::unique_ptr<int>> x;
-  x.m = absl::make_unique<int>(42);
+  x.m = std::make_unique<int>(42);
   auto f = absl::bind_back(&GetMember, std::move(x));
   EXPECT_EQ(42, std::move(f)());
 }

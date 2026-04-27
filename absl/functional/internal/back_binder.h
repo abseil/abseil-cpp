@@ -31,7 +31,7 @@ namespace functional_internal {
 
 // Invoke the method, expanding the tuple of bound arguments.
 template <class R, class Tuple, size_t... Idx, class... Args>
-constexpr R ApplyBack(Tuple&& bound, absl::index_sequence<Idx...>,
+constexpr R ApplyBack(Tuple&& bound, std::index_sequence<Idx...>,
                       Args&&... free) {
   return std::invoke(std::forward<Tuple>(bound).template get<0>(),
                      std::forward<Args>(free)...,
@@ -41,13 +41,13 @@ constexpr R ApplyBack(Tuple&& bound, absl::index_sequence<Idx...>,
 template <class F, class... BoundArgs>
 class BackBinder {
   using BoundArgsT = absl::container_internal::CompressedTuple<F, BoundArgs...>;
-  using Idx = absl::make_index_sequence<sizeof...(BoundArgs)>;
+  using Idx = std::make_index_sequence<sizeof...(BoundArgs)>;
 
   BoundArgsT bound_args_;
 
  public:
   template <class... Ts>
-  constexpr explicit BackBinder(absl::in_place_t, Ts&&... ts)
+  constexpr explicit BackBinder(std::in_place_t, Ts&&... ts)
       : bound_args_(std::forward<Ts>(ts)...) {}
 
   template <class... FreeArgs,
