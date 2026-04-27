@@ -130,7 +130,7 @@
 //
 // // CompleteTransaction() guarantees the returned pointer to an `Account` to
 // // be non-null.
-// Account* absl_nonnull balance CompleteTransaction(double fee) {
+// Account* absl_nonnull CompleteTransaction(double fee) {
 // ...
 // }
 //
