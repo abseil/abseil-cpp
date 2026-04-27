@@ -1092,7 +1092,14 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // See https://clang.llvm.org/docs/AttributeReference.html#warn-unused and
 // https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html#index-warn_005funused-type-attribute
 #if ABSL_HAVE_CPP_ATTRIBUTE(gnu::warn_unused)
+// Only GCC >= 13 allows mixing standard and gnu attributes.
+// In case of gcc < 13, fallback on using __attribute__.
+// https://gcc.gnu.org/PR69585
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 13
+#define ABSL_ATTRIBUTE_WARN_UNUSED __attribute__((warn_unused))
+#else
 #define ABSL_ATTRIBUTE_WARN_UNUSED [[gnu::warn_unused]]
+#endif
 #else
 #define ABSL_ATTRIBUTE_WARN_UNUSED
 #endif
