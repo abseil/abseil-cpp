@@ -49,6 +49,7 @@ absl_cc_library(
   DEPS
     absl::algorithm
     absl::config
+    absl::iterator_traits_internal
     absl::core_headers
     absl::meta
   PUBLIC
@@ -66,6 +67,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::memory
+    absl::meta
     absl::random_random
     absl::span
     GTest::gmock_main
