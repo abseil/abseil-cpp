@@ -739,9 +739,10 @@ class HashtableInlineDataImpl {
 static_assert(
     sizeof(HashtableInlineDataImpl<kCapacityByValue>::HashtableCapacity) ==
     sizeof(size_t));
-static_assert(sizeof(HashtableInlineDataImpl<kCapacityByValue>) ==
-              // NOTE: some platforms have uint64_t alignment equal to 4.
-              sizeof(std::pair<size_t, uint64_t>));
+// NOTE: some platforms have this size to be equal to 12 for two reasons:
+// 1) uint64_t alignment equal to 4.
+// 2) struct with two uint64_t bitfields has size 12, but alignment 8.
+static_assert(sizeof(HashtableInlineDataImpl<kCapacityByValue>) <= 16);
 static_assert(
     sizeof(HashtableInlineDataImpl<kCapacityByLog>::HashtableCapacity) == 1);
 static_assert(sizeof(HashtableInlineDataImpl<kCapacityByLog>) == 8);
