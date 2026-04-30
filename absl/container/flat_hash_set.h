@@ -406,8 +406,13 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_set
   // Sets the number of slots in the `flat_hash_set` to the number needed to
   // accommodate at least `count` total elements without exceeding the current
   // maximum load factor, and may rehash the container if needed. After this
-  // returns, it is guaranteed that `count - size()` elements can be inserted
-  // into the `flat_hash_set` without another rehash.
+  // returns, it is guaranteed that `count - size()` consecutive elements can
+  // be inserted into the `flat_hash_set` without another rehash.
+  //
+  // NOTE: This guarantee only applies to consecutive insertions. Because of
+  // probing requirements, erased slots may still occupy capacity from the
+  // perspective of needing a rehash. Therefore, interleaving insertions and
+  // erasures may trigger a compacting rehash.
   using Base::reserve;
 
   // flat_hash_set::contains()
