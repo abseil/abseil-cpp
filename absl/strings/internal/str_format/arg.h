@@ -129,9 +129,12 @@ extern template bool ConvertIntArg<unsigned long long>(   // NOLINT
 template <typename T>
 auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
                        FormatSinkImpl* sink)
-    -> decltype(AbslFormatConvert(v,
-                                  std::declval<const FormatConversionSpec&>(),
-                                  std::declval<FormatSink*>())) {
+    -> std::enable_if_t<
+           !HasAbslStringify<T>::value,
+           decltype(AbslFormatConvert(
+               v,
+               std::declval<const FormatConversionSpec&>(),
+               std::declval<FormatSink*>()))> {
   using FormatConversionSpecT =
       std::enable_if_t<sizeof(const T& (*)()) != 0, FormatConversionSpec>;
   using FormatSinkT = std::enable_if_t<sizeof(const T& (*)()) != 0, FormatSink>;
@@ -418,11 +421,16 @@ struct FormatArgImplFriend {
 
 template <typename Arg>
 constexpr FormatConversionCharSet ArgumentToConv() {
-  using ConvResult = decltype(str_format_internal::FormatConvertImpl(
-      std::declval<const Arg&>(),
-      std::declval<const FormatConversionSpecImpl&>(),
-      std::declval<FormatSinkImpl*>()));
-  return absl::str_format_internal::ExtractCharSet(ConvResult{});
+  if constexpr (HasAbslStringify<Arg>::value &&
+                HasUserDefinedConvert<Arg>::value) {
+    return FormatConversionCharSetInternal::v;
+  } else {
+    using ConvResult = decltype(str_format_internal::FormatConvertImpl(
+        std::declval<const Arg&>(),
+        std::declval<const FormatConversionSpecImpl&>(),
+        std::declval<FormatSinkImpl*>()));
+    return absl::str_format_internal::ExtractCharSet(ConvResult{});
+  }
 }
 
 // A type-erased handle to a format argument.
