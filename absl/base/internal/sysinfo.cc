@@ -50,6 +50,10 @@
 #include <zircon/process.h>
 #endif
 
+#if defined(__HAIKU__)
+#include <OS.h>
+#endif
+
 #include <string.h>
 
 #include <cassert>
@@ -464,6 +468,10 @@ pid_t GetTID() {
   // pid_t type without loss of precision, but a zx_koid_t (64-bits) cannot.
   return static_cast<pid_t>(zx_thread_self());
 }
+
+#elif defined(__HAIKU__)
+
+pid_t GetTID() { return find_thread(NULL); }
 
 #else
 
