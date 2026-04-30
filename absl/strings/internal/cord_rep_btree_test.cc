@@ -1356,9 +1356,9 @@ TEST(CordRepBtreeTest, AssertValid) {
 TEST(CordRepBtreeTest, CheckAssertValidShallowVsDeep) {
   // Restore exhaustive validation on any exit.
   const bool exhaustive_validation = IsCordBtreeExhaustiveValidationEnabled();
-  auto cleanup = absl::MakeCleanup([exhaustive_validation] {
+  absl::Cleanup cleanup = [exhaustive_validation] {
     SetCordBtreeExhaustiveValidation(exhaustive_validation);
-  });
+  };
 
   // Create a tree of at least 2 levels, and mess with the original flat, which
   // should go undetected in shallow mode as the flat is too far away, but
