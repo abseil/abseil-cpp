@@ -15,6 +15,7 @@
 
 #include "absl/log/internal/structured_proto.h"
 
+#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -113,6 +114,72 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<StructuredProtoTest::ParamType>& info) {
       return info.param.test_name;
     });
+
+TEST(ProtoFieldTest, OverlongVarintCorruptsNextFieldDeterministically) {
+  // This test proves a parsing bug in the original code where an overlong
+  // varint (used here for a tag) causes the decoder to misalign and corrupt
+  // the decoding of the subsequent field.
+  std::vector<char> data;
+  // Field 1: Tag 1, Type Varint.
+  // Encoded with an overlong 11-byte tag (value 8).
+  data.push_back(static_cast<char>(0x88));
+  for (int i = 0; i < 9; ++i) {
+    data.push_back(static_cast<char>(0x80));
+  }
+  data.push_back(static_cast<char>(0x00));
+  // Value for Field 1: 1
+  data.push_back(static_cast<char>(0x01));
+  // Field 2: Tag 2, Type Varint (0x10), Value 2 (0x02)
+  data.push_back(static_cast<char>(0x10));
+  data.push_back(static_cast<char>(0x02));
+
+  absl::Span<const char> span(data);
+  ProtoField first;
+  ASSERT_TRUE(first.DecodeFrom(&span));
+  // Original code: consumes 10 bytes of tag, then 11th byte (0x00) as value.
+  // first.tag() == 1 (Correct)
+  // first.int64_value() == 0 (INCORRECT, should be 1)
+
+  ProtoField second;
+  ASSERT_TRUE(second.DecodeFrom(&span));
+  // Original code: consumes 12th byte (0x01) as tag.
+  // tag = 1 >> 3 = 0. type = 1 & 7 = 1 (k64Bit).
+  // second.tag() == 0 (INCORRECT, should be 2)
+
+  EXPECT_EQ(second.tag(), 2u);
+  EXPECT_EQ(second.int64_value(), 2);
+  EXPECT_EQ(second.type(), WireType::kVarint);
+  EXPECT_TRUE(span.empty());
+}
+
+#if defined(__SANITIZE_UNDEFINED__) || ABSL_HAVE_FEATURE(undefined_behavior_sanitizer)
+TEST(ProtoFieldTest, DetectsUndefinedBehaviorOnMalformedVarint) {
+  // Supplementary validation only: ensures overlong varints don't trigger UBSan.
+  // This test targets the same root cause but focuses on sanitizer signals.
+  std::vector<char> data;
+  data.reserve(13);
+
+  // Encode tag_type=8 (field 1, varint) using an overlong varint.
+  data.push_back(static_cast<char>(0x88));
+  for (int i = 0; i < 10; ++i) {
+    data.push_back(static_cast<char>(0x80));
+  }
+  data.push_back(static_cast<char>(0x00));
+
+  ASSERT_EXIT(
+      {
+        absl::Span<const char> span(data);
+        ProtoField field;
+        if (!field.DecodeFrom(&span)) std::exit(1);
+        std::exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+}
+#else
+TEST(ProtoFieldTest, DetectsUndefinedBehaviorOnMalformedVarint) {
+  GTEST_SKIP() << "Requires UndefinedBehaviorSanitizer.";
+}
+#endif
 
 }  // namespace
 }  // namespace log_internal

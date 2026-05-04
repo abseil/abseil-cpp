@@ -153,10 +153,25 @@ namespace {
 uint64_t DecodeVarint(absl::Span<const char> *buf) {
   uint64_t value = 0;
   size_t s = 0;
-  while (s < buf->size()) {
-    value |= static_cast<uint64_t>(static_cast<unsigned char>((*buf)[s]) & 0x7f)
-             << 7 * s;
-    if (!((*buf)[s++] & 0x80)) break;
+  constexpr size_t kMaxVarintBytes = MaxVarintSize();
+  bool terminated = false;
+  while (s < buf->size() && s < kMaxVarintBytes) {
+    const unsigned char byte = static_cast<unsigned char>((*buf)[s]);
+    value |= static_cast<uint64_t>(byte & 0x7f) << (7 * s);
+    ++s;
+    if ((byte & 0x80) == 0) {
+      terminated = true;
+      break;
+    }
+  }
+  if (!terminated) {
+    // Skip remaining continuation bytes to avoid shift overflow on malformed
+    // varints while keeping the decode cursor aligned.
+    while (s < buf->size()) {
+      const unsigned char byte = static_cast<unsigned char>((*buf)[s]);
+      ++s;
+      if ((byte & 0x80) == 0) break;
+    }
   }
   buf->remove_prefix(s);
   return value;
