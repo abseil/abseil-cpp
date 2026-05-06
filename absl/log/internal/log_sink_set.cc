@@ -196,8 +196,7 @@ class GlobalLogSinkSet final {
         ThreadIsLoggingStatus() = true;
         // Ensure the "thread is logging" status is reverted upon leaving the
         // scope even in case of exceptions.
-        auto status_cleanup =
-            absl::MakeCleanup([] { ThreadIsLoggingStatus() = false; });
+        absl::Cleanup status_cleanup = [] { ThreadIsLoggingStatus() = false; };
         SendToSinks(entry, absl::MakeSpan(sinks_));
       }
     }
@@ -240,8 +239,7 @@ class GlobalLogSinkSet final {
       ThreadIsLoggingStatus() = true;
       // Ensure the "thread is logging" status is reverted upon leaving the
       // scope even in case of exceptions.
-      auto status_cleanup =
-          absl::MakeCleanup([] { ThreadIsLoggingStatus() = false; });
+      absl::Cleanup status_cleanup = [] { ThreadIsLoggingStatus() = false; };
       FlushLogSinksLocked();
     }
   }

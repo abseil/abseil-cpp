@@ -57,8 +57,9 @@ ABSL_ATTRIBUTE_NOINLINE void func(benchmark::State& state, int x, int depth) {
 
 template <bool EnableFixup>
 void BM_GetStackTrace(benchmark::State& state) {
-  const Cleanup restore_state(
-      [prev = g_enable_fixup]() { g_enable_fixup = prev; });
+  const absl::Cleanup restore_state = [prev = g_enable_fixup] {
+    g_enable_fixup = prev;
+  };
   g_enable_fixup = EnableFixup;
   int depth = state.range(0);
   for (auto s : state) {
