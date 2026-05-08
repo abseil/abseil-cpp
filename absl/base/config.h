@@ -372,7 +372,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 //
 // Checks whether the platform has an mmap(2) implementation as defined in
 // POSIX.1-2001.
-#ifdef ABSL_HAVE_MMAP
+#if defined(ABSL_HAVE_MMAP) && !defined(__wasm__)
 #error ABSL_HAVE_MMAP cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
     defined(_AIX) || defined(__ros__) || defined(__asmjs__) ||            \
