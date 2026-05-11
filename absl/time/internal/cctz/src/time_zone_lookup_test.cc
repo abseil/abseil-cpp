@@ -12,17 +12,25 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <functional>
 #include <future>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "absl/base/config.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
+#include "absl/time/internal/cctz/include/cctz/zone_info_source.h"
+#include "absl/time/internal/cctz/src/tzfile.h"
 #if defined(__linux__)
 #include <features.h>
 #endif
@@ -73,6 +81,138 @@ int VersionCmp(time_zone tz, const std::string& target) {
   if (version.empty() && !target.empty()) return 1;  // unknown > known
   return version.compare(target);
 }
+
+void AppendTzifCount(std::vector<char>* out, std::uint32_t value) {
+  out->push_back(static_cast<char>((value >> 24) & 0xff));
+  out->push_back(static_cast<char>((value >> 16) & 0xff));
+  out->push_back(static_cast<char>((value >> 8) & 0xff));
+  out->push_back(static_cast<char>(value & 0xff));
+}
+
+std::vector<char> TzifWithCounts(char version, std::uint32_t ttisutcnt,
+                                 std::uint32_t ttisstdcnt,
+                                 std::uint32_t leapcnt, std::uint32_t timecnt,
+                                 std::uint32_t typecnt,
+                                 std::uint32_t charcnt) {
+  std::vector<char> tzif;
+  tzif.push_back('T');
+  tzif.push_back('Z');
+  tzif.push_back('i');
+  tzif.push_back('f');
+  tzif.push_back(version);  // '\0', '2', '3', ...
+  for (int i = 0; i != 15; ++i) tzif.push_back('\0');  // Reserved.
+  AppendTzifCount(&tzif, ttisutcnt);
+  AppendTzifCount(&tzif, ttisstdcnt);
+  AppendTzifCount(&tzif, leapcnt);
+  AppendTzifCount(&tzif, timecnt);
+  AppendTzifCount(&tzif, typecnt);
+  AppendTzifCount(&tzif, charcnt);
+
+  for (std::uint32_t i = 0; i != timecnt; ++i) AppendTzifCount(&tzif, i);
+  for (std::uint32_t i = 0; i != timecnt; ++i) {
+    tzif.push_back('\0');  // transition type index
+  }
+  for (std::uint32_t i = 0; i != typecnt; ++i) {
+    AppendTzifCount(&tzif, 0);  // UTC offset
+    tzif.push_back(0);          // is_dst
+    tzif.push_back(0);          // abbreviation index
+  }
+  const char kAbbr[] = "UTC";
+  for (std::uint32_t i = 0; i != charcnt; ++i) {
+    tzif.push_back(i < sizeof(kAbbr) ? kAbbr[i] : '\0');
+  }
+  for (std::uint32_t i = 0; i != leapcnt; ++i) {
+    AppendTzifCount(&tzif, 0);  // leap-time (v1)
+    AppendTzifCount(&tzif, 0);  // TAI-UTC
+  }
+  for (std::uint32_t i = 0; i != ttisstdcnt; ++i) tzif.push_back('\0');
+  for (std::uint32_t i = 0; i != ttisutcnt; ++i) tzif.push_back('\0');
+  return tzif;
+}
+
+struct TransportConfig {
+  std::size_t max_bytes_per_read = (std::numeric_limits<std::size_t>::max)();
+  bool return_zero_after_bytes = false;
+  std::size_t zero_after_bytes = 0;
+  bool fail_skip = false;
+  std::size_t fail_skip_after_calls = (std::numeric_limits<std::size_t>::max)();
+  bool short_skip = false;  // Advances less than requested but returns success.
+  std::size_t short_skip_max_bytes = 0;
+};
+
+class TestZoneInfoSource : public ZoneInfoSource {
+ public:
+  TestZoneInfoSource(std::vector<char> data, TransportConfig config)
+      : data_(std::move(data)), config_(config) {}
+
+  std::size_t Read(void* ptr, std::size_t size) override {
+    if (pos_ > data_.size()) return 0;
+    if (config_.return_zero_after_bytes && pos_ >= config_.zero_after_bytes) {
+      return 0;
+    }
+    size = std::min(size, data_.size() - pos_);
+    size = std::min(size, config_.max_bytes_per_read);
+    std::memcpy(ptr, data_.data() + pos_, size);
+    pos_ += size;
+    return size;
+  }
+
+  int Skip(std::size_t offset) override {
+    ++skip_calls_;
+    if (config_.fail_skip && skip_calls_ > config_.fail_skip_after_calls) {
+      return -1;
+    }
+    if (pos_ > data_.size()) return -1;
+    std::size_t to_advance = offset;
+    if (config_.short_skip) {
+      to_advance = std::min(to_advance, config_.short_skip_max_bytes);
+    }
+    pos_ += std::min(to_advance, data_.size() - pos_);
+    return 0;
+  }
+
+ private:
+  std::vector<char> data_;
+  std::size_t pos_ = 0;
+  std::size_t skip_calls_ = 0;
+  TransportConfig config_;
+};
+
+struct TestZone {
+  std::string name;
+  std::vector<char> data;
+  TransportConfig transport;
+};
+
+TestZone* test_zone = nullptr;
+
+std::unique_ptr<ZoneInfoSource> TestZoneInfoSourceFactory(
+    const std::string& name,
+    const std::function<std::unique_ptr<ZoneInfoSource>(const std::string&)>&
+        fallback_factory) {
+  if (test_zone != nullptr && name == test_zone->name) {
+    return std::unique_ptr<ZoneInfoSource>(
+        new TestZoneInfoSource(test_zone->data, test_zone->transport));
+  }
+  return fallback_factory(name);
+}
+
+class ScopedTestZoneInfoSourceFactory {
+ public:
+  explicit ScopedTestZoneInfoSourceFactory(TestZone* zone)
+      : old_factory_(cctz_extension::zone_info_source_factory) {
+    test_zone = zone;
+    cctz_extension::zone_info_source_factory = TestZoneInfoSourceFactory;
+  }
+
+  ~ScopedTestZoneInfoSourceFactory() {
+    cctz_extension::zone_info_source_factory = old_factory_;
+    test_zone = nullptr;
+  }
+
+ private:
+  cctz_extension::ZoneInfoSourceFactory old_factory_;
+};
 
 }  // namespace
 
@@ -180,6 +320,243 @@ TEST(TimeZone, Failures) {
   EXPECT_FALSE(load_time_zone("", &tz));
   EXPECT_EQ(chrono::system_clock::from_time_t(0),
             convert(civil_second(1970, 1, 1, 0, 0, 0), tz));  // UTC
+}
+
+TEST(TimeZone, RejectsTzifWithTooManyTransitionTypes) {
+  TestZone zone;
+  zone.name = "Test/TooManyTransitionTypes";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 0, TZ_MAX_TYPES + 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithTooManyTransitions) {
+  TestZone zone;
+  zone.name = "Test/TooManyTransitions";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, TZ_MAX_TIMES + 1, 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithTooManyAbbreviationChars) {
+  TestZone zone;
+  zone.name = "Test/TooManyAbbreviationChars";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 0, 1, TZ_MAX_CHARS + 1);
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithLeapSeconds) {
+  // cctz explicitly rejects leap-second encoded zoneinfo.
+  TestZone zone;
+  zone.name = "Test/LeapSeconds";
+  zone.data = TzifWithCounts('\0', 0, 0, 1, 0, 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithTooManyLeapSeconds) {
+  TestZone zone;
+  zone.name = "Test/TooManyLeaps";
+  zone.data = TzifWithCounts('\0', 0, 0, TZ_MAX_LEAPS + 1, 0, 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithTtisstdcntGreaterThanTypecnt) {
+  TestZone zone;
+  zone.name = "Test/BadTtisstdcnt";
+  zone.data = TzifWithCounts('\0', 0, 2, 0, 0, 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTzifWithTtisutcntGreaterThanTypecnt) {
+  TestZone zone;
+  zone.name = "Test/BadTtisutcnt";
+  zone.data = TzifWithCounts('\0', 2, 0, 0, 0, 1, sizeof("UTC"));
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTruncatedHeader) {
+  TestZone zone;
+  zone.name = "Test/TruncatedHeader";
+  zone.data.assign(10, '\0');  // shorter than tzhead
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsShortReadDuringHeader) {
+  TestZone zone;
+  zone.name = "Test/ShortReadHeader";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 0, 1, sizeof("UTC"));
+  zone.transport.max_bytes_per_read = 8;  // can't read tzhead in one go
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsShortReadDuringDataBlock) {
+  TestZone zone;
+  zone.name = "Test/ShortReadData";
+  // Ensure the data block is larger than tzhead so we can short-read the data
+  // block without also short-reading the header.
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 100, 1, sizeof("UTC"));
+  zone.transport.max_bytes_per_read = sizeof(tzhead);  // header ok, data block short
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsSkipFailureForVersionedFile) {
+  TestZone zone;
+  zone.name = "Test/SkipFailure";
+  // Versioned file triggers the skip of the 4-byte section.
+  zone.data = TzifWithCounts('2', 0, 0, 0, 0, 1, sizeof("UTC"));
+  zone.transport.fail_skip = true;
+  zone.transport.fail_skip_after_calls = 0;  // fail first Skip()
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsShortSkipForVersionedFile) {
+  TestZone zone;
+  zone.name = "Test/ShortSkip";
+  // Versioned file triggers a Skip() of the v1 data section.
+  zone.data = TzifWithCounts('2', 0, 0, 0, 0, 1, sizeof("UTC"));
+  zone.transport.short_skip = true;
+  zone.transport.short_skip_max_bytes = 0;  // claims success but skips nothing
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTruncatedDataBlock) {
+  TestZone zone;
+  zone.name = "Test/TruncatedDataBlock";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 1, 1, sizeof("UTC"));
+  zone.data.resize(sizeof(tzhead) + 1);  // far too short for the data block
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+TEST(TimeZone, RejectsTypecntZero) {
+  TestZone zone;
+  zone.name = "Test/TypecntZero";
+  zone.data = TzifWithCounts('\0', 0, 0, 0, 0, 0, 0);
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_FALSE(load_time_zone(zone.name, &tz));
+}
+
+std::vector<char> MinimalValidTzifV1() {
+  // A minimal TZif v1 file with one time type and "UTC" abbreviation.
+  // timecnt=0 implies no stored transitions; cctz will synthesize sentinel
+  // transitions after loading.
+  return TzifWithCounts('\0', 0, 0, 0, 0, 1, sizeof("UTC"));
+}
+
+std::vector<char> MinimalValidTzifV2OrV3(char version) {
+  // Versioned TZif includes:
+  // 1) a v1 header+data block (4-byte times)
+  // 2) a second header+data block (8-byte times)
+  // 3) a footer: '\n' + TZ string + '\n'
+  // First section: header.version = '2'/'3', but data block uses 4-byte times.
+  std::vector<char> tzif = TzifWithCounts(version, 0, 0, 0, 0, 1, sizeof("UTC"));
+  // Second section: header.version = '2'/'3', data block uses 8-byte times.
+  // Our minimal fixture uses timecnt=0 and leapcnt=0, so the 4-byte and 8-byte
+  // data blocks are identical in size.
+  std::vector<char> v2 = TzifWithCounts(version, 0, 0, 0, 0, 1, sizeof("UTC"));
+  tzif.insert(tzif.end(), v2.begin(), v2.end());
+  tzif.push_back('\n');
+  tzif.push_back('U');
+  tzif.push_back('T');
+  tzif.push_back('C');
+  tzif.push_back('0');
+  tzif.push_back('\n');
+  return tzif;
+}
+
+TEST(TimeZone, LoadsMinimalValidTzifV1) {
+  TestZone zone;
+  zone.name = "Test/ValidV1";
+  zone.data = MinimalValidTzifV1();
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_TRUE(load_time_zone(zone.name, &tz));
+  EXPECT_EQ(zone.name, tz.name());
+  const auto al =
+      tz.lookup(chrono::system_clock::from_time_t(0));  // 1970-01-01T00:00:00Z
+  EXPECT_EQ(0, al.offset);
+  EXPECT_FALSE(al.is_dst);
+}
+
+TEST(TimeZone, LoadsMinimalValidTzifV2) {
+  TestZone zone;
+  zone.name = "Test/ValidV2";
+  zone.data = MinimalValidTzifV2OrV3('2');
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_TRUE(load_time_zone(zone.name, &tz));
+  EXPECT_EQ(zone.name, tz.name());
+  const auto al = tz.lookup(chrono::system_clock::from_time_t(0));
+  EXPECT_EQ(0, al.offset);
+  EXPECT_FALSE(al.is_dst);
+}
+
+TEST(TimeZone, LoadsMinimalValidTzifV3) {
+  TestZone zone;
+  zone.name = "Test/ValidV3";
+  zone.data = MinimalValidTzifV2OrV3('3');
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_TRUE(load_time_zone(zone.name, &tz));
+  EXPECT_EQ(zone.name, tz.name());
+  const auto al = tz.lookup(chrono::system_clock::from_time_t(0));
+  EXPECT_EQ(0, al.offset);
+  EXPECT_FALSE(al.is_dst);
+}
+
+TEST(TimeZone, LoadsBoundaryCountsWithinLimits) {
+  TestZone zone;
+  zone.name = "Test/BoundaryCounts";
+  zone.data = TzifWithCounts('\0', TZ_MAX_TYPES, TZ_MAX_TYPES, 0, TZ_MAX_TIMES,
+                             TZ_MAX_TYPES, TZ_MAX_CHARS);
+  ScopedTestZoneInfoSourceFactory scoped_factory(&zone);
+
+  time_zone tz;
+  EXPECT_TRUE(load_time_zone(zone.name, &tz));
+  const auto al = tz.lookup(chrono::system_clock::from_time_t(0));
+  EXPECT_EQ(0, al.offset);
+  EXPECT_FALSE(al.is_dst);
 }
 
 TEST(TimeZone, Equality) {

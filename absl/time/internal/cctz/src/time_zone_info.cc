@@ -41,6 +41,7 @@
 #include <cstring>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -144,8 +145,18 @@ struct Header {            // counts of:
   std::size_t ttisutcnt;   // standard/wall indicators (unused)
 
   bool Build(const tzhead& tzh);
-  std::size_t DataLength(std::size_t time_len) const;
+  bool DataLength(std::size_t time_len, std::size_t* len) const;
 };
+
+bool AddFieldLength(std::size_t count, std::size_t item_size,
+                    std::size_t* len) {
+  const std::size_t max = (std::numeric_limits<std::size_t>::max)();
+  if (count != 0 && item_size > max / count) return false;
+  const std::size_t field_len = count * item_size;
+  if (*len > max - field_len) return false;
+  *len += field_len;
+  return true;
+}
 
 // Builds the in-memory header using the raw bytes from the file.
 bool Header::Build(const tzhead& tzh) {
@@ -162,20 +173,31 @@ bool Header::Build(const tzhead& tzh) {
   ttisstdcnt = static_cast<std::size_t>(v);
   if ((v = Decode32(tzh.tzh_ttisutcnt)) < 0) return false;
   ttisutcnt = static_cast<std::size_t>(v);
+  // Enforce tzfile.h implementation limits. These are structural invariants:
+  // TZif stores several indexes as unsigned bytes, and cctz represents
+  // transition type and abbreviation indexes with 8-bit fields.
+  if (timecnt > TZ_MAX_TIMES) return false;
+  if (typecnt > TZ_MAX_TYPES) return false;
+  if (charcnt > TZ_MAX_CHARS) return false;
+  if (leapcnt > TZ_MAX_LEAPS) return false;
+  if (ttisstdcnt > typecnt) return false;
+  if (ttisutcnt > typecnt) return false;
   return true;
 }
 
 // How many bytes of data are associated with this header. The result
 // depends upon whether this is a section with 4-byte or 8-byte times.
-std::size_t Header::DataLength(std::size_t time_len) const {
-  std::size_t len = 0;
-  len += (time_len + 1) * timecnt;  // unix_time + type_index
-  len += (4 + 1 + 1) * typecnt;     // utc_offset + is_dst + abbr_index
-  len += 1 * charcnt;               // abbreviations
-  len += (time_len + 4) * leapcnt;  // leap-time + TAI-UTC
-  len += 1 * ttisstdcnt;            // UTC/local indicators
-  len += 1 * ttisutcnt;             // standard/wall indicators
-  return len;
+bool Header::DataLength(std::size_t time_len, std::size_t* len) const {
+  std::size_t total = 0;
+  // Keep this layout in sync with tzfile.h.
+  if (!AddFieldLength(timecnt, time_len + 1, &total)) return false;
+  if (!AddFieldLength(typecnt, 4 + 1 + 1, &total)) return false;
+  if (!AddFieldLength(charcnt, 1, &total)) return false;
+  if (!AddFieldLength(leapcnt, time_len + 4, &total)) return false;
+  if (!AddFieldLength(ttisstdcnt, 1, &total)) return false;
+  if (!AddFieldLength(ttisutcnt, 1, &total)) return false;
+  *len = total;
+  return true;
 }
 
 // Does the rule for future transitions call for year-round daylight time?
@@ -642,7 +664,10 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
   std::size_t time_len = 4;
   if (tzh.tzh_version[0] != '\0') {
     // Skip the 4-byte data.
-    if (zip->Skip(hdr.DataLength(time_len)) != 0) return false;
+    std::size_t skip_len;
+    if (!hdr.DataLength(time_len, &skip_len) || zip->Skip(skip_len) != 0) {
+      return false;
+    }
     // Read and validate the header for the 8-byte data.
     if (zip->Read(&tzh, sizeof(tzh)) != sizeof(tzh)) return false;
     if (strncmp(tzh.tzh_magic, TZ_MAGIC, sizeof(tzh.tzh_magic)) != 0)
@@ -663,7 +688,8 @@ bool TimeZoneInfo::Load(ZoneInfoSource* zip) {
   if (hdr.ttisutcnt != 0 && hdr.ttisutcnt != hdr.typecnt) return false;
 
   // Read the data into a local buffer.
-  std::size_t len = hdr.DataLength(time_len);
+  std::size_t len;
+  if (!hdr.DataLength(time_len, &len)) return false;
   std::vector<char> tbuf(len);
   if (zip->Read(tbuf.data(), len) != len) return false;
   const char* bp = tbuf.data();
