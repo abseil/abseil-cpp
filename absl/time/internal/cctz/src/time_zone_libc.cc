@@ -81,6 +81,15 @@ auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
   return tzname[is_dst];
 }
+#elif defined(__FREERTOS__)
+long int tm_gmtoff(const std::tm& tm) {
+  (void)tm;
+  return 0;
+}
+const char* tm_zone(const std::tm& tm) {
+  (void)tm;
+  return "UTC";
+}
 #else
 // Adapt to different spellings of the struct std::tm extension fields.
 #if defined(tm_gmtoff)
