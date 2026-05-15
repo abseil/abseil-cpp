@@ -2922,12 +2922,11 @@ TEST(TableDeathTest, InvalidIteratorAssertsSoo) {
   // the control is static constant.
 }
 
-// Invalid iterator use can trigger use-after-free in asan/hwasan,
-// use-of-uninitialized-value in msan, or invalidated iterator assertions.
+// Invalid iterator use can trigger crashes or invalidated iterator assertions.
 testing::Matcher<const std::string&> InvalidIteratorMatcher() {
   return AnyOf(HasSubstr("invalidated iterator"), HasSubstr("Invalid iterator"),
-               HasSubstr("invalid iterator"), HasSubstr("use-after-free"),
-               HasSubstr("use-of-uninitialized-value"));
+               HasSubstr("invalid iterator"),
+               HasSubstr("CrashIfIteratorIsInvalid"));
 }
 
 TYPED_TEST(SooTest, IteratorInvalidAssertsEqualityOperator) {
