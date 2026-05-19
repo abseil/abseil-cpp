@@ -98,14 +98,14 @@ void CheckSourceLocation(
 }
 TEST(AssignOrReturn, Works) {
   auto func = []() -> absl::Status {
-    ASSIGN_OR_RETURN(int value1, ReturnStatusOrValue(1));
+    ABSL_ASSIGN_OR_RETURN(int value1, ReturnStatusOrValue(1));
     EXPECT_EQ(1, value1);
-    ASSIGN_OR_RETURN(const int value2, ReturnStatusOrValue(2));
+    ABSL_ASSIGN_OR_RETURN(const int value2, ReturnStatusOrValue(2));
     EXPECT_EQ(2, value2);
-    ASSIGN_OR_RETURN(const int& value3, ReturnStatusOrValue(3));
+    ABSL_ASSIGN_OR_RETURN(const int& value3, ReturnStatusOrValue(3));
     EXPECT_EQ(3, value3);
-    ASSIGN_OR_RETURN(int value4 [[maybe_unused]],
-                     ReturnStatusOrError("EXPECTED"));
+    ABSL_ASSIGN_OR_RETURN(int value4 [[maybe_unused]],
+                          ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -115,20 +115,20 @@ TEST(AssignOrReturn, Works) {
 TEST(AssignOrReturn, WorksWithReferences) {
   int value = 17;
   auto func = [&]() -> absl::Status {
-    ASSIGN_OR_RETURN(int& value1, ReturnStatusOrRef(value));
+    ABSL_ASSIGN_OR_RETURN(int& value1, ReturnStatusOrRef(value));
     EXPECT_EQ(&value1, &value);
 
-    ASSIGN_OR_RETURN(const int& value2, ReturnStatusOrRef(value));
+    ABSL_ASSIGN_OR_RETURN(const int& value2, ReturnStatusOrRef(value));
     EXPECT_EQ(&value2, &value);
 
-    ASSIGN_OR_RETURN(int value3, ReturnStatusOrRef(value));
+    ABSL_ASSIGN_OR_RETURN(int value3, ReturnStatusOrRef(value));
     EXPECT_EQ(value3, value);
 
     value = 11;
     EXPECT_NE(value3, value);
 
-    ASSIGN_OR_RETURN(int value4 [[maybe_unused]],
-                     ReturnStatusOrError("EXPECTED"));
+    ABSL_ASSIGN_OR_RETURN(int value4 [[maybe_unused]],
+                          ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -140,12 +140,13 @@ TEST(AssignOrReturn, WorksWithCommasInType) {
   GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
 #else
   auto func = []() -> absl::Status {
-    ASSIGN_OR_RETURN((std::tuple<int, int> t1), ReturnStatusOrTupleValue(1, 1));
+    ABSL_ASSIGN_OR_RETURN((std::tuple<int, int> t1),
+                          ReturnStatusOrTupleValue(1, 1));
     EXPECT_EQ((std::tuple{1, 1}), t1);
-    ASSIGN_OR_RETURN((const std::tuple<int, std::tuple<int, int>, int> t2),
-                     ReturnStatusOrTupleValue(1, std::tuple{1, 1}, 1));
+    ABSL_ASSIGN_OR_RETURN((const std::tuple<int, std::tuple<int, int>, int> t2),
+                          ReturnStatusOrTupleValue(1, std::tuple{1, 1}, 1));
     EXPECT_EQ((std::tuple{1, std::tuple{1, 1}, 1}), t2);
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         (std::tuple<int, std::tuple<int, int>, int> t3),
         (ReturnStatusOrTupleError<int, std::tuple<int, int>, int>("EXPECTED")));
     t3 = {};  // fix unused error
@@ -161,14 +162,16 @@ TEST(AssignOrReturn, WorksWithStructureBindings) {
   GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
 #else
   auto func = []() -> absl::Status {
-    ASSIGN_OR_RETURN((const auto& [t1, t2, t3, t4, t5]),
-                     ReturnStatusOrTupleValue(std::tuple{1, 1}, 1, 2, 3, 4));
+    ABSL_ASSIGN_OR_RETURN(
+        (const auto& [t1, t2, t3, t4, t5]),
+        ReturnStatusOrTupleValue(std::tuple{1, 1}, 1, 2, 3, 4));
     EXPECT_EQ((std::tuple{1, 1}), t1);
     EXPECT_EQ(1, t2);
     EXPECT_EQ(2, t3);
     EXPECT_EQ(3, t4);
     EXPECT_EQ(4, t5);
-    ASSIGN_OR_RETURN(int t6 [[maybe_unused]], ReturnStatusOrError("EXPECTED"));
+    ABSL_ASSIGN_OR_RETURN(int t6 [[maybe_unused]],
+                          ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -183,18 +186,19 @@ TEST(AssignOrReturn, WorksWithParenthesesAndDereference) {
   auto func = []() -> absl::Status {
     int integer;
     int* pointer_to_integer = &integer;
-    ASSIGN_OR_RETURN((*pointer_to_integer), ReturnStatusOrValue(1));
+    ABSL_ASSIGN_OR_RETURN((*pointer_to_integer), ReturnStatusOrValue(1));
     EXPECT_EQ(1, integer);
-    ASSIGN_OR_RETURN(*pointer_to_integer, ReturnStatusOrValue(2));
+    ABSL_ASSIGN_OR_RETURN(*pointer_to_integer, ReturnStatusOrValue(2));
     EXPECT_EQ(2, integer);
     // Make the test where the order of dereference matters and treat the
     // parentheses.
     pointer_to_integer--;
     int** pointer_to_pointer_to_integer = &pointer_to_integer;
-    ASSIGN_OR_RETURN((*pointer_to_pointer_to_integer)[1],
-                     ReturnStatusOrValue(3));
+    ABSL_ASSIGN_OR_RETURN((*pointer_to_pointer_to_integer)[1],
+                          ReturnStatusOrValue(3));
     EXPECT_EQ(3, integer);
-    ASSIGN_OR_RETURN(int t1 [[maybe_unused]], ReturnStatusOrError("EXPECTED"));
+    ABSL_ASSIGN_OR_RETURN(int t1 [[maybe_unused]],
+                          ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -209,9 +213,10 @@ TEST(AssignOrReturn, WorksWithAppend) {
   };
   auto func = [&]() -> absl::Status {
     int value [[maybe_unused]];
-    ASSIGN_OR_RETURN(value, ReturnStatusOrValue(1), _ << fail_test_if_called());
-    ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"),
-                     _ << "EXPECTED B");
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrValue(1),
+                          _ << fail_test_if_called());
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"),
+                          _ << "EXPECTED B");
     return ReturnOk();
   };
 
@@ -229,8 +234,9 @@ TEST(AssignOrReturn, WorksWithAdaptorFunc) {
   };
   auto func = [&]() -> absl::Status {
     int value [[maybe_unused]];
-    ASSIGN_OR_RETURN(value, ReturnStatusOrValue(1), fail_test_if_called(_));
-    ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"), adaptor(_));
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrValue(1),
+                          fail_test_if_called(_));
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"), adaptor(_));
     return ReturnOk();
   };
 
@@ -250,14 +256,15 @@ TEST(AssignOrReturn, WorksWithThirdArgumentAndCommas) {
     return builder << "EXPECTED B";
   };
   auto func = [&]() -> absl::Status {
-    ASSIGN_OR_RETURN((const auto& [t1, t2, t3]),
-                     ReturnStatusOrTupleValue(1, 2, 3), fail_test_if_called(_));
+    ABSL_ASSIGN_OR_RETURN((const auto& [t1, t2, t3]),
+                          ReturnStatusOrTupleValue(1, 2, 3),
+                          fail_test_if_called(_));
     EXPECT_EQ(t1, 1);
     EXPECT_EQ(t2, 2);
     EXPECT_EQ(t3, 3);
-    ASSIGN_OR_RETURN((const auto& [t4, t5, t6]),
-                     (ReturnStatusOrTupleError<int, int, int>("EXPECTED A")),
-                     adaptor(_));
+    ABSL_ASSIGN_OR_RETURN(
+        (const auto& [t4, t5, t6]),
+        (ReturnStatusOrTupleError<int, int, int>("EXPECTED A")), adaptor(_));
     // Silence errors about the unused values.
     static_cast<void>(t4);
     static_cast<void>(t5);
@@ -273,7 +280,7 @@ TEST(AssignOrReturn, WorksWithThirdArgumentAndCommas) {
 TEST(AssignOrReturn, WorksWithAppendIncludingLocals) {
   auto func = [&](absl::string_view str) -> absl::Status {
     int value [[maybe_unused]];
-    ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"), _ << str);
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED A"), _ << str);
     return ReturnOk();
   };
 
@@ -284,11 +291,11 @@ TEST(AssignOrReturn, WorksWithAppendIncludingLocals) {
 TEST(AssignOrReturn, WorksForExistingVariable) {
   auto func = []() -> absl::Status {
     int value = 1;
-    ASSIGN_OR_RETURN(value, ReturnStatusOrValue(2));
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrValue(2));
     EXPECT_EQ(2, value);
-    ASSIGN_OR_RETURN(value, ReturnStatusOrValue(3));
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrValue(3));
     EXPECT_EQ(3, value);
-    ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED"));
+    ABSL_ASSIGN_OR_RETURN(value, ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -297,7 +304,7 @@ TEST(AssignOrReturn, WorksForExistingVariable) {
 
 TEST(AssignOrReturn, UniquePtrWorks) {
   auto func = []() -> absl::Status {
-    ASSIGN_OR_RETURN(std::unique_ptr<int> ptr, ReturnStatusOrPtrValue(1));
+    ABSL_ASSIGN_OR_RETURN(std::unique_ptr<int> ptr, ReturnStatusOrPtrValue(1));
     EXPECT_EQ(*ptr, 1);
     return ReturnError("EXPECTED");
   };
@@ -308,10 +315,10 @@ TEST(AssignOrReturn, UniquePtrWorks) {
 TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
   auto func = []() -> absl::Status {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
+    ABSL_ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
     EXPECT_EQ(*ptr, 1);
 
-    ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(2));
+    ABSL_ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(2));
     EXPECT_EQ(*ptr, 2);
     return ReturnError("EXPECTED");
   };
@@ -322,7 +329,7 @@ TEST(AssignOrReturn, UniquePtrWorksForExistingVariable) {
 TEST(AssignOrReturn, ChainSourceLocation) {
   auto func1 = []() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
+    ABSL_ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
     return ptr;
   };
   auto func2 = []() -> absl::StatusOr<std::unique_ptr<int>> {
@@ -332,16 +339,16 @@ TEST(AssignOrReturn, ChainSourceLocation) {
 
   auto func3 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func1());
-    ASSIGN_OR_RETURN(ptr, func2());
+    ABSL_ASSIGN_OR_RETURN(ptr, func1());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2());
     return ptr;
   };
   int func3_line = __builtin_LINE() - 3;
 
   auto func4 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func3());
-    ASSIGN_OR_RETURN(ptr, func2());
+    ABSL_ASSIGN_OR_RETURN(ptr, func3());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2());
     return ptr;
   };
   int func4_line = __builtin_LINE() - 4;
@@ -354,7 +361,7 @@ TEST(AssignOrReturn, ChainSourceLocation) {
 TEST(AssignOrReturn, NotChainSourceLocationWithEmptyMsg) {
   auto func1 = []() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
+    ABSL_ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
     return ptr;
   };
   auto func2 = []() -> absl::StatusOr<std::unique_ptr<int>> {
@@ -363,15 +370,15 @@ TEST(AssignOrReturn, NotChainSourceLocationWithEmptyMsg) {
 
   auto func3 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func1());
-    ASSIGN_OR_RETURN(ptr, func2());
+    ABSL_ASSIGN_OR_RETURN(ptr, func1());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2());
     return ptr;
   };
 
   auto func4 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func3());
-    ASSIGN_OR_RETURN(ptr, func2());
+    ABSL_ASSIGN_OR_RETURN(ptr, func3());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2());
     return ptr;
   };
 
@@ -383,7 +390,7 @@ TEST(AssignOrReturn, NotChainSourceLocationWithEmptyMsg) {
 TEST(AssignOrReturn, ChainSourceLocationWith3ArgStatusMacro) {
   auto func1 = []() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
+    ABSL_ASSIGN_OR_RETURN(ptr, ReturnStatusOrPtrValue(1));
     return ptr;
   };
   auto func2 = []() -> absl::StatusOr<std::unique_ptr<int>> {
@@ -392,16 +399,16 @@ TEST(AssignOrReturn, ChainSourceLocationWith3ArgStatusMacro) {
 
   auto func3 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func1());
-    ASSIGN_OR_RETURN(ptr, func2(), _ << "hmm");
+    ABSL_ASSIGN_OR_RETURN(ptr, func1());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2(), _ << "hmm");
     return ptr;
   };
   int func3_line = __builtin_LINE() - 3;
 
   auto func4 = [=]() -> absl::StatusOr<std::unique_ptr<int>> {
     std::unique_ptr<int> ptr;
-    ASSIGN_OR_RETURN(ptr, func3());
-    ASSIGN_OR_RETURN(ptr, func2());
+    ABSL_ASSIGN_OR_RETURN(ptr, func3());
+    ABSL_ASSIGN_OR_RETURN(ptr, func2());
     return ptr;
   };
   int func4_line = __builtin_LINE() - 4;
@@ -413,9 +420,9 @@ TEST(AssignOrReturn, ChainSourceLocationWith3ArgStatusMacro) {
 
 TEST(ReturnIfError, Works) {
   auto func = []() -> absl::Status {
-    RETURN_IF_ERROR(ReturnOk());
-    RETURN_IF_ERROR(ReturnOk());
-    RETURN_IF_ERROR(ReturnError("EXPECTED"));
+    ABSL_RETURN_IF_ERROR(ReturnOk());
+    ABSL_RETURN_IF_ERROR(ReturnOk());
+    ABSL_RETURN_IF_ERROR(ReturnError("EXPECTED"));
     return ReturnError("ERROR");
   };
 
@@ -423,11 +430,12 @@ TEST(ReturnIfError, Works) {
 }
 
 TEST(ReturnIfError, WorksWithSourceLocation) {
+  using StatusCode = absl::StatusCode;
   {
     auto func = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"));
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(StatusCode::kUnknown, "EXPECTED"));
       return ReturnError("ERROR");
     };
     int error_line = __builtin_LINE() - 3;
@@ -438,22 +446,22 @@ TEST(ReturnIfError, WorksWithSourceLocation) {
   }
   {
     auto func1 = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"));
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(StatusCode::kUnknown, "EXPECTED"));
       return ReturnError("ERROR");
     };
     int error_line = __builtin_LINE() - 3;
     int func_line = error_line;
 
     auto func3 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func1());
+      ABSL_RETURN_IF_ERROR(func1());
       return ReturnError("ERROR_Func3");
     };
     int func3_line = __builtin_LINE() - 3;
 
     auto func4 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func3());
+      ABSL_RETURN_IF_ERROR(func3());
       return ReturnError("ERROR_Func4");
     };
     int func4_line = __builtin_LINE() - 3;
@@ -462,19 +470,19 @@ TEST(ReturnIfError, WorksWithSourceLocation) {
   }
   {
     auto func1 = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, ""));
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(StatusCode::kUnknown, ""));
       return ReturnError("ERROR");
     };
 
     auto func3 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func1());
+      ABSL_RETURN_IF_ERROR(func1());
       return ReturnError("ERROR_Func3");
     };
 
     auto func4 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func3());
+      ABSL_RETURN_IF_ERROR(func3());
       return ReturnError("ERROR_Func4");
     };
     CheckSourceLocation(func4());
@@ -484,9 +492,9 @@ TEST(ReturnIfError, WorksWithSourceLocation) {
 TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
   {
     auto func = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"))
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"))
           << "foo";
       return ReturnError("ERROR");
     };
@@ -498,9 +506,9 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
   }
   {
     auto func1 = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"))
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "EXPECTED"))
           << "foo";
       return ReturnError("ERROR");
     };
@@ -508,13 +516,13 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
     int func_line = error_line;
 
     auto func3 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func1());
+      ABSL_RETURN_IF_ERROR(func1());
       return ReturnError("ERROR_Func3");
     };
     int func3_line = __builtin_LINE() - 3;
 
     auto func4 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func3());
+      ABSL_RETURN_IF_ERROR(func3());
       return ReturnError("ERROR_Func4");
     };
     int func4_line = __builtin_LINE() - 3;
@@ -523,20 +531,20 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
   }
   {
     auto func1 = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, ""));
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, ""));
       return ReturnError("ERROR");
     };
 
     auto func3 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func1()) << "foo";
+      ABSL_RETURN_IF_ERROR(func1()) << "foo";
       return ReturnError("ERROR_Func3");
     };
     int func3_line = __builtin_LINE() - 3;
 
     auto func4 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func3());
+      ABSL_RETURN_IF_ERROR(func3());
       return ReturnError("ERROR_Func4");
     };
     int func4_line = __builtin_LINE() - 3;
@@ -545,19 +553,19 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
   }
   {
     auto func1 = []() -> absl::Status {
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(ReturnOk());
-      RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "")) << "";
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(ReturnOk());
+      ABSL_RETURN_IF_ERROR(absl::Status(absl::StatusCode::kUnknown, "")) << "";
       return ReturnError("ERROR");
     };
 
     auto func3 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func1());
+      ABSL_RETURN_IF_ERROR(func1());
       return ReturnError("ERROR_Func3");
     };
 
     auto func4 = [=]() -> absl::Status {
-      RETURN_IF_ERROR(func3());
+      ABSL_RETURN_IF_ERROR(func3());
       return ReturnError("ERROR_Func4");
     };
     CheckSourceLocation(func4());
@@ -566,19 +574,19 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
 
 TEST(ReturnIfError, WorksWithBuilder) {
   auto func = []() -> absl::Status {
-    RETURN_IF_ERROR(ReturnOkBuilder());
-    RETURN_IF_ERROR(ReturnOkBuilder());
-    RETURN_IF_ERROR(ReturnErrorBuilder("EXPECTED"));
+    ABSL_RETURN_IF_ERROR(ReturnOkBuilder());
+    ABSL_RETURN_IF_ERROR(ReturnOkBuilder());
+    ABSL_RETURN_IF_ERROR(ReturnErrorBuilder("EXPECTED"));
     return ReturnErrorBuilder("ERROR");
   };
 
   EXPECT_THAT(func().message(), Eq("EXPECTED"));
 
-  // Test that RETURN_IF_ERROR can also return the StatusBuilder directly.
+  // Test that ABSL_RETURN_IF_ERROR can also return the StatusBuilder directly.
   auto func2 = []() -> absl::StatusBuilder {
-    RETURN_IF_ERROR(ReturnOkBuilder());
-    RETURN_IF_ERROR(ReturnOkBuilder());
-    RETURN_IF_ERROR(ReturnErrorBuilder("EXPECTED"));
+    ABSL_RETURN_IF_ERROR(ReturnOkBuilder());
+    ABSL_RETURN_IF_ERROR(ReturnOkBuilder());
+    ABSL_RETURN_IF_ERROR(ReturnErrorBuilder("EXPECTED"));
     return ReturnErrorBuilder("ERROR");
   };
   EXPECT_THAT(static_cast<absl::Status>(func2()).message(), Eq("EXPECTED"));
@@ -591,7 +599,7 @@ TEST(ReturnIfError, IfInputIsBuilderDoesNotEagerlyConvertToStatus) {
     // If this call decays the builder to Status first and then makes another
     // builder it will forget about the SetPrepend and the streaming will happen
     // in the wrong order.
-    RETURN_IF_ERROR(builder) << "SECOND ";
+    ABSL_RETURN_IF_ERROR(builder) << "SECOND ";
     return absl::OkStatus();
   };
   EXPECT_THAT(func().message(), Eq("SECOND FIRST"));
@@ -599,8 +607,8 @@ TEST(ReturnIfError, IfInputIsBuilderDoesNotEagerlyConvertToStatus) {
 
 TEST(ReturnIfError, WorksWithLambda) {
   auto func = []() -> absl::Status {
-    RETURN_IF_ERROR([] { return ReturnOk(); }());
-    RETURN_IF_ERROR([] { return ReturnError("EXPECTED"); }());
+    ABSL_RETURN_IF_ERROR([] { return ReturnOk(); }());
+    ABSL_RETURN_IF_ERROR([] { return ReturnError("EXPECTED"); }());
     return ReturnError("ERROR");
   };
 
@@ -613,8 +621,8 @@ TEST(ReturnIfError, WorksWithAppend) {
     return "FAILURE";
   };
   auto func = [&]() -> absl::Status {
-    RETURN_IF_ERROR(ReturnOk()) << fail_test_if_called();
-    RETURN_IF_ERROR(ReturnError("EXPECTED A")) << "EXPECTED B";
+    ABSL_RETURN_IF_ERROR(ReturnOk()) << fail_test_if_called();
+    ABSL_RETURN_IF_ERROR(ReturnError("EXPECTED A")) << "EXPECTED B";
     return absl::OkStatus();
   };
 
@@ -628,9 +636,9 @@ TEST(ReturnIfError, WorksWithVoidReturnAdaptor) {
   auto adaptor = [&](absl::Status status) -> void { code = phase; };
   auto func = [&]() -> void {
     phase = 1;
-    RETURN_IF_ERROR(ReturnOk()).With(adaptor);
+    ABSL_RETURN_IF_ERROR(ReturnOk()).With(adaptor);
     phase = 2;
-    RETURN_IF_ERROR(ReturnError("EXPECTED A")).With(adaptor);
+    ABSL_RETURN_IF_ERROR(ReturnError("EXPECTED A")).With(adaptor);
     phase = 3;
   };
 

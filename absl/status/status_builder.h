@@ -423,20 +423,20 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //     return std::move(builder).Log(absl::LogSeverity::kWarning);
   //   }
   //
-  //   RETURN_IF_ERROR(foo()).With(TeamPolicy);
+  //   ABSL_RETURN_IF_ERROR(foo()).With(TeamPolicy);
   //
   // Because pure policy adaptors return the modified StatusBuilder, they
   // can be chained with further adaptors, e.g.:
   //
-  //   RETURN_IF_ERROR(foo()).With(TeamPolicy).With(OtherTeamPolicy);
+  //   ABSL_RETURN_IF_ERROR(foo()).With(TeamPolicy).With(OtherTeamPolicy);
   //
   // Terminal adaptors are often used for type conversion. This allows
-  // RETURN_IF_ERROR to be used in functions which do not return Status. For
-  // example, a function might want to return some default value on error:
+  // ABSL_RETURN_IF_ERROR to be used in functions which do not return Status.
+  // For example, a function might want to return some default value on error:
   //
   //   int GetSysCounter() {
   //     int value;
-  //     RETURN_IF_ERROR(ReadCounterFile(filename, &value))
+  //     ABSL_RETURN_IF_ERROR(ReadCounterFile(filename, &value))
   //         .LogInfo()
   //         .With([](const absl::Status& unused) { return 0; });
   //     return value;
@@ -448,7 +448,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //   #include "util/task/contrib/status_macros/return.h"
   //
   //   bool DoMyThing() {
-  //     RETURN_IF_ERROR(foo()).LogWarning().With(status_macros::Return(false));
+  //     ABSL_RETURN_IF_ERROR(foo()).LogWarning().With(status_macros::Return(false));
   //     ...
   //   }
   //
@@ -468,8 +468,8 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //
   //   void Read(absl::string_view name, util::Task* task) {
   //     int64 id;
-  //     RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
-  //     RETURN_IF_ERROR(ReadForId(id)).With(TaskReturn(task));
+  //     ABSL_RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
+  //     ABSL_RETURN_IF_ERROR(ReadForId(id)).With(TaskReturn(task));
   //     task->Return();
   //   }
 
@@ -532,7 +532,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //
   // Style guide exception for using Ref qualified methods and for implicit
   // conversions (cl/124566728).  This override allows us to implement
-  // RETURN_IF_ERROR with 2 move operations in the common case.
+  // ABSL_RETURN_IF_ERROR with 2 move operations in the common case.
   operator absl::Status() const&;  // NOLINT: Builder converts implicitly.
   operator absl::Status() &&;      // NOLINT: Builder converts implicitly.
 
@@ -703,19 +703,19 @@ std::ostream& operator<<(std::ostream& os, StatusBuilder&& builder);
 // This is most useful with adaptors such as util::TaskReturn that otherwise
 // would prevent use of operator<<.  For example:
 //
-//   RETURN_IF_ERROR(foo(val))
+//   ABSL_RETURN_IF_ERROR(foo(val))
 //       .With(util::ExtraMessage("when calling foo()"))
 //       .With(util::TaskReturn(task));
 //
 // or
 //
-//   RETURN_IF_ERROR(foo(val))
+//   ABSL_RETURN_IF_ERROR(foo(val))
 //       .With(util::ExtraMessage() << "val: " << val)
 //       .With(util::TaskReturn(task));
 //
-// Note in the above example, the RETURN_IF_ERROR macro ensures the ExtraMessage
-// expression is evaluated only in the error case, so efficiency of constructing
-// the message is not a concern in the success case.
+// Note in the above example, the ABSL_RETURN_IF_ERROR macro ensures the
+// ExtraMessage expression is evaluated only in the error case, so efficiency of
+// constructing the message is not a concern in the success case.
 class ExtraMessage {
  public:
   ExtraMessage() : ExtraMessage(std::string()) {}

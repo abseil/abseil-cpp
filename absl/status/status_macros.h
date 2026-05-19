@@ -38,8 +38,8 @@
 //
 // For example:
 //   absl::Status MultiStepFunction() {
-//     RETURN_IF_ERROR(Function(args...));
-//     RETURN_IF_ERROR(foo.Method(args...));
+//     ABSL_RETURN_IF_ERROR(Function(args...));
+//     ABSL_RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
 //
@@ -49,8 +49,8 @@
 //
 // For example:
 //   absl::Status MultiStepFunction() {
-//     RETURN_IF_ERROR(Function(args...)) << "in MultiStepFunction";
-//     RETURN_IF_ERROR(foo.Method(args...)).Log(absl::LogSeverity::kError)
+//     ABSL_RETURN_IF_ERROR(Function(args...)) << "in MultiStepFunction";
+//     ABSL_RETURN_IF_ERROR(foo.Method(args...)).Log(absl::LogSeverity::kError)
 //         << "while processing query: " << query.DebugString();
 //     return absl::OkStatus();
 //   }
@@ -64,16 +64,16 @@
 //     return std::move(builder.Log(absl::LogSeverity::kWarning).Attach(...));
 //   }
 //
-//   RETURN_IF_ERROR(foo()).With(TeamPolicy);
-//   RETURN_IF_ERROR(bar()).With(TeamPolicy);
+//   ABSL_RETURN_IF_ERROR(foo()).With(TeamPolicy);
+//   ABSL_RETURN_IF_ERROR(bar()).With(TeamPolicy);
 //
 // Changing the return type allows the macro to be used with Task and Rpc
 // interfaces.  See `util::TaskReturn` and `rpc::RpcSetStatus` for details.
 //
 //   void Read(StringPiece name, util::Task* task) {
 //     int64 id;
-//     RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
-//     RETURN_IF_ERROR(ReadForId(id)).With(TaskReturn(task));
+//     ABSL_RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
+//     ABSL_RETURN_IF_ERROR(ReadForId(id)).With(TaskReturn(task));
 //     task->Return();
 //   }
 //
@@ -82,11 +82,11 @@
 // E.g.
 //
 //   []() -> absl::Status {
-//     RETURN_IF_ERROR(Function(args...));
-//     RETURN_IF_ERROR(foo.Method(args...));
+//     ABSL_RETURN_IF_ERROR(Function(args...));
+//     ABSL_RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr) \
+#define ABSL_RETURN_IF_ERROR(expr) \
   ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return, expr)
 
 // Executes an expression `rexpr` that returns an `absl::StatusOr<T>`. On OK,
@@ -98,8 +98,8 @@
 //
 // Interface:
 //
-//   ASSIGN_OR_RETURN(lhs, rexpr)
-//   ASSIGN_OR_RETURN(lhs, rexpr, error_expression);
+//   ABSL_ASSIGN_OR_RETURN(lhs, rexpr)
+//   ABSL_ASSIGN_OR_RETURN(lhs, rexpr, error_expression);
 //
 // WARNING: if lhs is parenthesized, the parentheses are removed. See examples
 // for more details.
@@ -110,47 +110,47 @@
 // Example: Declaring and initializing a new variable (ValueType can be anything
 //          that can be initialized with assignment--including a const
 //          reference, although that's discouraged by go/totw/107):
-//   ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(arg));
+//   ABSL_ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(arg));
 //
 // Example: Assigning to an existing variable:
 //   ValueType value;
-//   ASSIGN_OR_RETURN(value, MaybeGetValue(arg));
+//   ABSL_ASSIGN_OR_RETURN(value, MaybeGetValue(arg));
 //
 // Example: Assigning to an expression with side effects:
 //   MyProto data;
-//   ASSIGN_OR_RETURN(*data.mutable_str(), MaybeGetValue(arg));
+//   ABSL_ASSIGN_OR_RETURN(*data.mutable_str(), MaybeGetValue(arg));
 //   // No field "str" is added on error.
 //
 // Example: Initializing a `std::unique_ptr`.
-//   ASSIGN_OR_RETURN(std::unique_ptr<T> ptr, MaybeGetPtr(arg));
+//   ABSL_ASSIGN_OR_RETURN(std::unique_ptr<T> ptr, MaybeGetPtr(arg));
 //
 // Example: Initializing a map. Because of C++ preprocessor limitations,
-// the type used in ASSIGN_OR_RETURN cannot contain commas, so wrap the
+// the type used in ABSL_ASSIGN_OR_RETURN cannot contain commas, so wrap the
 // lhs in parentheses:
-//   ASSIGN_OR_RETURN((absl::flat_hash_map<Foo, Bar> my_map), GetMap());
+//   ABSL_ASSIGN_OR_RETURN((absl::flat_hash_map<Foo, Bar> my_map), GetMap());
 // Or use `auto` if the type is obvious enough:
-//   ASSIGN_OR_RETURN(auto my_map, GetMap());
+//   ABSL_ASSIGN_OR_RETURN(auto my_map, GetMap());
 //
 // Example: Assigning to structured bindings (go/totw/169). The same situation
 // with comma as in map, so wrap the statement in parentheses.
-//   ASSIGN_OR_RETURN((auto [first, second]), GetPair());
+//   ABSL_ASSIGN_OR_RETURN((auto [first, second]), GetPair());
 //
 // If passed, the `error_expression` is evaluated to produce the return
 // value. The expression may reference any variable visible in scope, as
 // well as a `absl::StatusBuilder` object populated with the error and
 // named by a single underscore `_`. The expression typically uses the
 // builder to modify the status and is returned directly in manner similar
-// to RETURN_IF_ERROR. The expression may, however, evaluate to any type
+// to ABSL_RETURN_IF_ERROR. The expression may, however, evaluate to any type
 // returnable by the function, including (void). For example:
 //
 // Example: Adjusting the error message.
-//   ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(query),
+//   ABSL_ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(query),
 //                    _ << "while processing query " << query.DebugString());
 //
 // Example: Logging the error on failure.
-//   ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(query), _.LogError());
+//   ABSL_ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(query), _.LogError());
 //
-#define ASSIGN_OR_RETURN(...) \
+#define ABSL_ASSIGN_OR_RETURN(...) \
   ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return, __VA_ARGS__)
 
 // =================================================================
@@ -241,26 +241,26 @@ ABSL_NAMESPACE_END
       (void)_; /* error_expression is allowed to not use this variable */      \
       return_keyword(error_expression))
 
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(               \
-    statusor, lhs, rexpr, error_expression)                               \
-  auto statusor = (rexpr);                                                \
-  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                               \
-    error_expression;                                                     \
-  }                                                                       \
-  {                                                                       \
-    static_assert(                                                        \
-        !IsEnclosedByParentheses(#lhs) ||                                 \
-            !HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),     \
-        "Identified potential conditional operator, consider not "        \
-        "using ASSIGN_OR_RETURN");                                        \
-  }                                                                       \
-  {                                                                       \
-    static_assert(                                                        \
-        absl::status_macro_internal::IsAllowedStatusOrMacroType<          \
-            typename std::remove_const<decltype(statusor)>::type>(),      \
-        "ASSIGN_OR_RETURN should only be used with absl::StatusOr<>");    \
-  }                                                                       \
-  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) = \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                 \
+    statusor, lhs, rexpr, error_expression)                                 \
+  auto statusor = (rexpr);                                                  \
+  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                                 \
+    error_expression;                                                       \
+  }                                                                         \
+  {                                                                         \
+    static_assert(                                                          \
+        !IsEnclosedByParentheses(#lhs) ||                                   \
+            !HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),       \
+        "Identified potential conditional operator, consider not "          \
+        "using ABSL_ASSIGN_OR_RETURN");                                     \
+  }                                                                         \
+  {                                                                         \
+    static_assert(                                                          \
+        absl::status_macro_internal::IsAllowedStatusOrMacroType<            \
+            typename std::remove_const<decltype(statusor)>::type>(),        \
+        "ABSL_ASSIGN_OR_RETURN should only be used with absl::StatusOr<>"); \
+  }                                                                         \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) =   \
       (*std::move(statusor))
 
 // Internal helpers for macro expansion.
@@ -331,7 +331,7 @@ ABSL_NAMESPACE_END
 // because it thinks you might want the else to bind to the first if.  This
 // leads to problems with code like:
 //
-//   if (do_expr) RETURN_IF_ERROR(expr) << "Some message";
+//   if (do_expr) ABSL_RETURN_IF_ERROR(expr) << "Some message";
 //
 // The "switch (0) case 0:" idiom is used to suppress this.
 // TODO(b/491833032): Remove this once all users and redefinitions are updated.
@@ -389,10 +389,10 @@ class StatusAdaptorForMacros {
   StatusBuilder builder_;
 };
 
-// Special adaptor for use by RETURN_IF_ERROR for absl::Status arguments.
+// Special adaptor for use by ABSL_RETURN_IF_ERROR for absl::Status arguments.
 // This one avoids constructing a StatusBuilder on the fast path.
 //
-// REQUIRES: Only used by RETURN_IF_ERROR implementation.
+// REQUIRES: Only used by ABSL_RETURN_IF_ERROR implementation.
 class ReturnIfErrorAdaptor {
  public:
   explicit ReturnIfErrorAdaptor(
@@ -412,7 +412,7 @@ class ReturnIfErrorAdaptor {
     // safe because status_ will never own memory at destruction time. The two
     // cases to consider are:
     //  (1) OK: OkStatus() representation needs no cleanup
-    //  (2) Not-OK: we take the else branch in RETURN_IF_ERROR and move
+    //  (2) Not-OK: we take the else branch in ABSL_RETURN_IF_ERROR and move
     //      status_ into StatusBuilder which leaves status_ with a MovedFromRep
     //      that needs no cleanup.
     // If the absl::Status implementation changes, leaks should be caught by
@@ -456,6 +456,32 @@ inline StatusAdaptorForMacros MacroAdaptor(StatusBuilder&& s,
 }
 
 }  // namespace status_macro_internal
+
+// By defining ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS, this library also provides
+// unqualified versions of its macros.
+//
+// Unqualified macro names are likely to collide with those in other projects,
+// and so are not recommended.  Furthermore, this is true for any transitive
+// dependencies of Abseil: it is impossible to be confident that downstream
+// libraries will neither define these macros themselves nor depend on a
+// different library that also defines them.
+//
+// To enable unqualified names despite the caveats, define
+// `ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS` preferably at the command line, e.g.
+// `-DABSL_DEFINE_UNQUALIFIED_STATUS_MACROS`, or `local_defines =
+// ["ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS"]` if using Bazel.
+//
+// These are turned on by default inside Google's internal codebase where their
+// use is historically ubiquitous.  Other OSS Google projects should use the
+// qualified versions.
+//
+// TODO(b/491833032): Strip in OSS
+#define ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS 1
+#ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS
+#define ASSIGN_OR_RETURN(...) ABSL_ASSIGN_OR_RETURN(__VA_ARGS__)
+#define RETURN_IF_ERROR(...) ABSL_RETURN_IF_ERROR(__VA_ARGS__)
+#endif  // ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 
