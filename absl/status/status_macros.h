@@ -314,12 +314,8 @@ ABSL_NAMESPACE_END
   __VA_ARGS__
 
 // Internal helper for concatenating macro values.
-// TODO(b/491833032): Remove this once all users and redefinitions are updated.
-#define STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
 
-// TODO(b/491833032): Remove this once all users and redefinitions are updated.
-#define STATUS_MACROS_IMPL_CONCAT_(x, y) STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(x, y) \
   ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
 
@@ -343,14 +339,6 @@ ABSL_NAMESPACE_END
   switch (0)                                           \
   case 0:                                              \
   default:  // NOLINT
-
-// TODO(b/491833032): Remove these once all users and redefinitions are updated.
-#define STATUS_MACROS_RETURN_IF_ERROR_IMPL_ \
-  ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_
-#define STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_ \
-  ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_
-#define STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED \
-  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
