@@ -475,8 +475,6 @@ inline StatusAdaptorForMacros MacroAdaptor(StatusBuilder&& s,
 // use is historically ubiquitous.  Other OSS Google projects should use the
 // qualified versions.
 //
-// TODO(b/491833032): Strip in OSS
-#define ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS 1
 #ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_MACROS
 #define ASSIGN_OR_RETURN(...) ABSL_ASSIGN_OR_RETURN(__VA_ARGS__)
 #define RETURN_IF_ERROR(...) ABSL_RETURN_IF_ERROR(__VA_ARGS__)
