@@ -989,10 +989,20 @@ constexpr size_t NumControlBytes(size_t capacity) {
   return IsSmallCapacity(capacity) ? 0 : capacity + 1 + NumClonedBytes();
 }
 
+// Returns whether table with the given capacity has a GrowthInfo.
+constexpr bool HasGrowthInfoForCapacity(size_t capacity) {
+  return !IsSmallCapacity(capacity);
+}
+
 // Computes the offset from the start of the backing allocation of control.
 // infoz and growth_info are stored at the beginning of the backing array.
-constexpr size_t ControlOffset(bool has_infoz) {
-  return (has_infoz ? sizeof(HashtablezInfoHandle) : 0) + sizeof(GrowthInfo);
+constexpr size_t ControlOffset(bool has_infoz, bool has_growth_info) {
+  if (ABSL_PREDICT_FALSE(has_infoz)) {
+    // We always allocate GrowthInfo for sampled tables to allow branchless
+    // access to infoz pointer.
+    return sizeof(HashtablezInfoHandle) + sizeof(GrowthInfo);
+  }
+  return has_growth_info ? sizeof(GrowthInfo) : 0;
 }
 
 // Returns the offset of the next item after `offset` that is aligned to `align`
@@ -1004,12 +1014,10 @@ constexpr size_t AlignUpTo(size_t offset, size_t align) {
 // Helper class for computing offsets and allocation size of hash set fields.
 class RawHashSetLayout {
  public:
-  // TODO(b/413062340): maybe don't allocate growth info for capacity 1 tables.
-  // Doing so may require additional branches/complexity so it might not be
-  // worth it.
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
                             size_t slot_align, bool has_infoz)
-      : control_offset_(ControlOffset(has_infoz)),
+      : control_offset_(
+            ControlOffset(has_infoz, HasGrowthInfoForCapacity(capacity))),
         generation_offset_(control_offset_ + NumControlBytes(capacity)),
         slot_offset_(
             AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
@@ -1240,7 +1248,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
   size_t growth_left() const { return growth_info().GetGrowthLeft(); }
 
   GrowthInfo& growth_info() {
-    ABSL_SWISSTABLE_ASSERT(!is_small());
+    ABSL_SWISSTABLE_ASSERT(HasGrowthInfoForCapacity(capacity()));
     return GetGrowthInfoFromControl(control());
   }
   GrowthInfo growth_info() const {
@@ -1259,7 +1267,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
         reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
     ABSL_SWISSTABLE_ASSERT(has_infoz());
     return reinterpret_cast<HashtablezInfoHandle*>(
-        control() - ControlOffset(/*has_infoz=*/true));
+        control() - ControlOffset(/*has_infoz=*/true,
+                                  HasGrowthInfoForCapacity(capacity())));
   }
 
   HashtablezInfoHandle infoz() {

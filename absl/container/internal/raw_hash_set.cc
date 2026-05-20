@@ -822,11 +822,15 @@ void ResizeNonSooImpl(CommonFields& common,
         common, policy, old_ctrl, old_slots, old_capacity);
     (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
                       has_infoz);
-    ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
-                    common.size());
+    if (HasGrowthInfoForCapacity(new_capacity)) {
+      ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
+                      common.size());
+    }
   } else {
-    GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(
-        CapacityToGrowth(new_capacity));
+    if (HasGrowthInfoForCapacity(new_capacity)) {
+      GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(
+          CapacityToGrowth(new_capacity));
+    }
   }
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
@@ -1215,7 +1219,8 @@ class ProbedItemEncoder {
 
   ProbedItem* OverflowBufferStart() const {
     // We reuse GrowthInfo memory as well.
-    return AlignToNextItem(control_ - ControlOffset(/*has_infoz=*/false));
+    return AlignToNextItem(control_ - ControlOffset(/*has_infoz=*/false,
+                                                    /*has_growth_info=*/true));
   }
 
   // Encodes item when previously allocated buffer is full.
