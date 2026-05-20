@@ -330,11 +330,6 @@ ABSL_NAMESPACE_END
 //   if (do_expr) ABSL_RETURN_IF_ERROR(expr) << "Some message";
 //
 // The "switch (0) case 0:" idiom is used to suppress this.
-// TODO(b/491833032): Remove this once all users and redefinitions are updated.
-#define STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
-  switch (0)                             \
-  case 0:                                \
-  default:  // NOLINT
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
   switch (0)                                           \
   case 0:                                              \
