@@ -164,8 +164,7 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //   // After the move, set4 is in a valid but unspecified state. The only
   //   // operations guaranteed to be safe on a moved-from set are destruction,
   //   // assignment, and clear(). Any other operation (e.g. size(), empty(),
-  //   // iteration) results in undefined behavior. Sanitizer builds will
-  //   // actively catch such misuse.
+  //   // iteration) results in undefined behavior.
   //
   // * Move assignment operator
   //

@@ -174,8 +174,7 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //   // After the move, map4 is in a valid but unspecified state. The only
   //   // operations guaranteed to be safe on a moved-from map are destruction,
   //   // assignment, and clear(). Any other operation (e.g. size(), empty(),
-  //   // iteration) results in undefined behavior. Sanitizer builds will
-  //   // actively catch such misuse.
+  //   // iteration) results in undefined behavior.
   //
   // * Move assignment operator
   //
