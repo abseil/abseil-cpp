@@ -728,11 +728,11 @@ static_assert(
     sizeof(HashtableInlineDataImpl<kCapacityByLog>::HashtableCapacity) == 1);
 static_assert(sizeof(HashtableInlineDataImpl<kCapacityByLog>) == 8);
 
-#ifndef ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_LOG
-using HashtableInlineData = HashtableInlineDataImpl<kCapacityByValue>;
-#else
+#ifndef ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
 using HashtableInlineData = HashtableInlineDataImpl<kCapacityByLog>;
-#endif  // ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_LOG
+#else
+using HashtableInlineData = HashtableInlineDataImpl<kCapacityByValue>;
+#endif  // ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
 using PerTableSeed = HashtableInlineData::PerTableSeed;
 using HashtableCapacity = HashtableInlineData::HashtableCapacity;
 
