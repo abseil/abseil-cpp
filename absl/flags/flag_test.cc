@@ -294,6 +294,10 @@ ABSL_FLAG(uint64_t, test_flag_08, 9876543, "test flag 08");
 ABSL_FLAG(double, test_flag_09, -9.876e-50, "test flag 09");
 ABSL_FLAG(float, test_flag_10, 1.234e12f, "test flag 10");
 ABSL_FLAG(std::string, test_flag_11, "", "test flag 11");
+
+constexpr absl::string_view kStringViewDefault = "asdf";
+ABSL_FLAG(std::string, test_flag_sv_default, kStringViewDefault, "test flag with string_view default");
+
 ABSL_FLAG(absl::Duration, test_flag_12, absl::Minutes(10), "test flag 12");
 ABSL_FLAG(absl::int128, test_flag_13, absl::MakeInt128(-1, 0), "test flag 13");
 ABSL_FLAG(absl::uint128, test_flag_14, absl::MakeUint128(0, 0xFFFAAABBBCCCDDD),
@@ -435,6 +439,10 @@ TEST_F(FlagTest, TestFlagDefinition) {
 }
 
 // --------------------------------------------------------------------
+
+TEST_F(FlagTest, TestStringViewDefault) {
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_flag_sv_default), "asdf");
+}
 
 TEST_F(FlagTest, TestDefault) {
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_01).DefaultValue(),
