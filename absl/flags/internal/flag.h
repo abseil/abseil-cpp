@@ -272,14 +272,20 @@ struct FlagDefaultArg {
 // TODO(rogeeff): Fix handling types with explicit constructors.
 struct EmptyBraces {};
 
-template <typename T>
-constexpr T InitDefaultValue(T t) {
-  return t;
+template <typename T, typename U = T>
+constexpr T InitDefaultValue(U t) {
+  return T(t);
 }
 
 template <typename T>
 constexpr T InitDefaultValue(EmptyBraces) {
   return T{};
+}
+
+
+// Allow std::string_view to be used as default value for std::string flags
+inline std::string InitDefaultValue(absl::string_view sv) {
+  return std::string(sv);
 }
 
 template <typename ValueT, typename GenT,
