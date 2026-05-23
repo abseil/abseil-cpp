@@ -1165,6 +1165,33 @@ TYPED_TEST(SooTest, InsertWithinCapacity) {
   EXPECT_THAT(addr(0), original_addr_0);
 }
 
+TYPED_TEST(SooTest, ClearDifferentSizes) {
+  for (size_t size = 0; size < 32; ++size) {
+    for (bool reserve : {false, true}) {
+      for (bool clear_via_erase : {false, true}) {
+        SCOPED_TRACE(absl::StrCat("size: ", size, ", reserve: ", reserve,
+                                  ", clear_via_erase: ", clear_via_erase));
+        TypeParam t;
+        if (reserve) {
+          t.reserve(size);
+        }
+        for (size_t i = 0; i < size; ++i) {
+          ASSERT_TRUE(t.insert(static_cast<int>(i)).second) << i;
+        }
+        if (clear_via_erase) {
+          t.erase(t.begin(), t.end());
+        } else {
+          t.clear();
+        }
+        ASSERT_EQ(t.size(), 0);
+        for (size_t i = 0; i < size; ++i) {
+          ASSERT_TRUE(t.insert(static_cast<int>(i)).second) << i;
+        }
+      }
+    }
+  }
+}
+
 template <class TableType>
 class SmallTableResizeTest : public testing::Test {};
 

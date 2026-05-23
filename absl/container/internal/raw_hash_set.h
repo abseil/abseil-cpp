@@ -1938,9 +1938,9 @@ void ResizeAllocatedTableWithSeedChange(CommonFields& common,
 
 // ClearBackingArray clears the backing array, either modifying it in place,
 // or creating a new one based on the value of "reuse".
-// REQUIRES: c.capacity > 0
+// REQUIRES: c.capacity > MaxSmallCapacity().
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
-                       void* alloc, bool reuse, bool soo_enabled);
+                       void* alloc, bool reuse);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
@@ -2917,8 +2917,8 @@ class raw_hash_set {
   iterator erase(const_iterator first,
                  const_iterator last) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     AssertNotDebugCapacity();
-    // We check for empty first because clear_backing_array requires that
-    // capacity() > 0 as a precondition.
+    // We check for empty and for is_small because clear_backing_array requires
+    // that capacity() > MaxSmallCapacity() as a precondition.
     if (empty()) return end();
     if (first == last) return last.inner_;
     if (is_small()) {
@@ -3273,9 +3273,8 @@ class raw_hash_set {
   }
 
   void clear_backing_array(bool reuse) {
-    ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
-    ClearBackingArray(common(), GetPolicyFunctions(), &char_alloc_ref(), reuse,
-                      SooEnabled());
+    ABSL_SWISSTABLE_ASSERT(capacity() > MaxSmallCapacity());
+    ClearBackingArray(common(), GetPolicyFunctions(), &char_alloc_ref(), reuse);
   }
 
   void destroy_slots() {

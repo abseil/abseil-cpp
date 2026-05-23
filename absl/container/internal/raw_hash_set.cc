@@ -616,6 +616,24 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeThreeElementsControlBytes(
   // new_ctrl after 2nd store  =      EHNSEHNEEEE
 }
 
+// ClearBackingArrayNoReuse clears the backing array and sets the common
+// fields to the default values for empty non-allocated tables.
+// REQUIRES: c.capacity > policy.soo_capacity.
+void ClearBackingArrayNoReuse(CommonFields& c,
+                              const PolicyFunctions& __restrict policy,
+                              void* alloc) {
+  ABSL_SWISSTABLE_ASSERT(c.capacity() > policy.soo_capacity());
+  // We need to record infoz before calling dealloc, which will unregister
+  // infoz.
+  c.infoz().RecordClearedReservation();
+  c.infoz().RecordStorageChanged(0, policy.soo_capacity());
+  c.infoz().Unregister();
+  (*policy.dealloc)(alloc, c.capacity(), c.control(), policy.slot_size,
+                    policy.slot_align, c.has_infoz());
+  c = policy.soo_enabled ? CommonFields{soo_tag_t{}}
+                         : CommonFields{non_soo_tag_t{}};
+}
+
 }  // namespace
 
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
@@ -649,22 +667,15 @@ void EraseMetaOnlyLarge(CommonFields& c, const ctrl_t* ctrl, size_t slot_size) {
 
 void ClearBackingArray(CommonFields& c,
                        const PolicyFunctions& __restrict policy, void* alloc,
-                       bool reuse, bool soo_enabled) {
+                       bool reuse) {
+  ABSL_SWISSTABLE_ASSERT(c.capacity() > MaxSmallCapacity());
   if (reuse) {
     c.set_size_to_zero();
-    ABSL_SWISSTABLE_ASSERT(!soo_enabled || c.capacity() > SooCapacity());
     ResetCtrl(c, policy.slot_size);
     ResetGrowthLeft(c);
     c.infoz().RecordStorageChanged(0, c.capacity());
   } else {
-    // We need to record infoz before calling dealloc, which will unregister
-    // infoz.
-    c.infoz().RecordClearedReservation();
-    c.infoz().RecordStorageChanged(0, soo_enabled ? SooCapacity() : 0);
-    c.infoz().Unregister();
-    (*policy.dealloc)(alloc, c.capacity(), c.control(), policy.slot_size,
-                      policy.slot_align, c.has_infoz());
-    c = soo_enabled ? CommonFields{soo_tag_t{}} : CommonFields{non_soo_tag_t{}};
+    ClearBackingArrayNoReuse(c, policy, alloc);
   }
 }
 
@@ -1835,8 +1846,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   const size_t cap = common.capacity();
 
   auto clear_backing_array = [&]() {
-    ClearBackingArray(common, policy, policy.get_char_alloc(common),
-                      /*reuse=*/false, policy.soo_enabled);
+    ClearBackingArrayNoReuse(common, policy, policy.get_char_alloc(common));
   };
 
   const size_t slot_size = policy.slot_size;
