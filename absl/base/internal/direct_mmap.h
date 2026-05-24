@@ -104,7 +104,7 @@ inline void* DirectMmap(void* start, size_t length, int prot, int flags, int fd,
       syscall(SYS_mmap2, start, length, prot, flags, fd,
               static_cast<unsigned long>(offset / pagesize)));  // NOLINT
 #endif
-#elif defined(__s390x__)
+#elif defined(__s390x__) && defined(__GLIBC__)
   // On s390x, mmap() arguments are passed in memory.
   unsigned long buf[6] = {reinterpret_cast<unsigned long>(start),  // NOLINT
                           static_cast<unsigned long>(length),      // NOLINT
