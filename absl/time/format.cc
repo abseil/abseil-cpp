@@ -101,7 +101,7 @@ bool ParseTime(absl::string_view format, absl::string_view input,
                absl::TimeZone tz, absl::Time* time, std::string* err) {
   auto strip_leading_space = [](absl::string_view* sv) {
     while (!sv->empty()) {
-      if (!std::isspace(sv->front())) return;
+      if (!std::isspace(static_cast<unsigned char>(sv->front()))) return;
       sv->remove_prefix(1);
     }
   };
