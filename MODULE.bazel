@@ -16,7 +16,7 @@
 
 module(
     name = "abseil-cpp",
-    version = "head",
+    version = "20260526.0",
 )
 
 cc_configure = use_extension("@rules_cc//cc:extensions.bzl",
