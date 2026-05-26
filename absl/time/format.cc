@@ -17,7 +17,7 @@
 #include <cctype>
 #include <cstdint>
 #include <utility>
-
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
@@ -99,13 +99,6 @@ bool ParseTime(absl::string_view format, absl::string_view input,
 // the fields with respect to the given TimeZone.
 bool ParseTime(absl::string_view format, absl::string_view input,
                absl::TimeZone tz, absl::Time* time, std::string* err) {
-  auto strip_leading_space = [](absl::string_view* sv) {
-    while (!sv->empty()) {
-      if (!std::isspace(sv->front())) return;
-      sv->remove_prefix(1);
-    }
-  };
-
   // Portable toolchains means we don't get nice constexpr here.
   struct Literal {
     const char* name;
@@ -116,12 +109,12 @@ bool ParseTime(absl::string_view format, absl::string_view input,
       {kInfiniteFutureStr, strlen(kInfiniteFutureStr), InfiniteFuture()},
       {kInfinitePastStr, strlen(kInfinitePastStr), InfinitePast()},
   };
-  strip_leading_space(&input);
+  input = StripLeadingAsciiWhitespace(input);
   for (const auto& lit : literals) {
     if (absl::StartsWith(input, absl::string_view(lit.name, lit.size))) {
       absl::string_view tail = input;
       tail.remove_prefix(lit.size);
-      strip_leading_space(&tail);
+      tail = StripLeadingAsciiWhitespace(tail);
       if (tail.empty()) {
         *time = lit.value;
         return true;
