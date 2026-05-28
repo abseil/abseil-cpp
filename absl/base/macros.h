@@ -135,7 +135,7 @@ ABSL_NAMESPACE_END
 // aborts the program in release mode (when NDEBUG is defined). The
 // implementation should abort the program as quickly as possible and ideally it
 // should not be possible to ignore the abort request.
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__CUDA_ARCH__) || defined(__CUDA__)
 #define ABSL_INTERNAL_HARDENING_ABORT()   \
   do {                                    \
     ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(); \
