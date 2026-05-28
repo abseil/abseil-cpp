@@ -62,6 +62,9 @@ CpuType GetCpuType();
 // tuning.
 bool SupportsArmCRC32PMULL();
 
+// Returns whether the host CPU supports the RISC-V CRC32 extensions.
+bool SupportsRiscvCrc32();
+
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
 }  // namespace absl
