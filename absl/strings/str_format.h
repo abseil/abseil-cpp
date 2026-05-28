@@ -68,6 +68,13 @@
 //
 // In addition, the `str_format` library provides extension points for
 // augmenting formatting to new types.  See "StrFormat Extensions" below.
+//
+// Compiler Support Note:
+// Compile-time format string checking (e.g. detecting `absl::StrFormat("%s",
+// 1)` as an error at compile time) is supported on GCC and Clang only. MSVC
+// does not support the compiler extension required for this feature. When
+// compiling with MSVC, format string errors will only be caught at runtime,
+// not at compile time.
 
 #ifndef ABSL_STRINGS_STR_FORMAT_H_
 #define ABSL_STRINGS_STR_FORMAT_H_
