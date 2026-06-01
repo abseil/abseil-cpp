@@ -113,7 +113,6 @@ cc_library(
     ],
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
     ],
 )
 
