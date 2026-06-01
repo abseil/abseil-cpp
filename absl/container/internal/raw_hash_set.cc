@@ -1669,6 +1669,7 @@ size_t RehashOrGrowToNextCapacityAndPrepareInsert(
 
 // Slow path for PrepareInsertLarge that is called when the table has deleted
 // slots or need to be resized or rehashed.
+ABSL_ATTRIBUTE_NOINLINE
 size_t PrepareInsertLargeSlow(CommonFields& common,
                               const PolicyFunctions& __restrict policy,
                               size_t hash) {
