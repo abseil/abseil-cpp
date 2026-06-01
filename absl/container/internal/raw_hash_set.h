@@ -364,6 +364,10 @@ inline bool IsEmptyGeneration(const GenerationType* generation) {
 constexpr size_t SooCapacity() { return 1; }
 // Maximum capacity of a table where we don't need to hash any keys.
 constexpr size_t MaxSmallCapacity() { return 1; }
+// Maximum capacity of a table where we can use blocked elements.
+constexpr size_t MaxCapacityWithBlockedElements() {
+  return Group::kWidth / 2 - 1;
+}
 // Sentinel type to indicate SOO CommonFields construction.
 struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
@@ -383,6 +387,12 @@ constexpr bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 // Whether a table is small enough that we don't need to hash any keys.
 constexpr bool IsSmallCapacity(size_t capacity) {
   return capacity <= MaxSmallCapacity();
+}
+
+// Whether `cap` is a valid capacity for a table that can store blocked
+// elements.
+constexpr bool IsCapacityValidForBlockedElements(size_t cap) {
+  return !IsSmallCapacity(cap) && cap <= MaxCapacityWithBlockedElements();
 }
 
 // Converts `n` into the next valid capacity, per `IsValidCapacity`.
@@ -1015,13 +1025,15 @@ constexpr size_t AlignUpTo(size_t offset, size_t align) {
 class RawHashSetLayout {
  public:
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
-                            size_t slot_align, bool has_infoz)
+                            size_t slot_align, bool has_infoz,
+                            size_t blocked_element_count)
       : control_offset_(
             ControlOffset(has_infoz, HasGrowthInfoForCapacity(capacity))),
         generation_offset_(control_offset_ + NumControlBytes(capacity)),
         slot_offset_(
             AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
-        alloc_size_(slot_offset_ + capacity * slot_size) {
+        alloc_size_(slot_offset_ +
+                    (capacity - blocked_element_count) * slot_size) {
     ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
     ABSL_SWISSTABLE_ASSERT(
         slot_size <=
@@ -1297,9 +1309,26 @@ class CommonFields : public CommonFieldsGenerationInfo {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
   }
 
+  // Returns the number of blocked elements in the table.
+  // Blocked elements are located at the end of the table and do not have
+  // corresponding slots.
+  // Control bytes are set to kSentinel for blocked elements.
+  size_t blocked_element_count() const {
+    size_t cap = capacity();
+    if (!IsCapacityValidForBlockedElements(cap)) {
+      return 0;
+    }
+    ABSL_SWISSTABLE_ASSERT(cap == CapacityToGrowth(cap));
+    // Formula is valid because MaxCapacityWithBlockedElements is less than
+    // group width. On erase for single group tables, we always increment the
+    // growth left.
+    return cap - size() - growth_left();
+  }
+
   // The size of the backing array allocation.
   size_t alloc_size(size_t slot_size, size_t slot_align) const {
-    return RawHashSetLayout(capacity(), slot_size, slot_align, has_infoz())
+    return RawHashSetLayout(capacity(), slot_size, slot_align, has_infoz(),
+                            blocked_element_count())
         .alloc_size();
   }
 
@@ -1728,8 +1757,9 @@ void* AllocateBackingArray(void* alloc, size_t n) {
 template <size_t AlignOfBackingArray, typename Alloc>
 ABSL_ATTRIBUTE_NOINLINE void DeallocateBackingArray(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-    size_t slot_align, bool had_infoz) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align, had_infoz);
+    size_t slot_align, bool had_infoz, size_t blocked_element_count) {
+  RawHashSetLayout layout(capacity, slot_size, slot_align, had_infoz,
+                          blocked_element_count);
   void* backing_array = ctrl - layout.control_offset();
   // Unpoison before returning the memory to the allocator.
   SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
@@ -1767,7 +1797,8 @@ struct PolicyFunctions {
 
   // Deallocates the backing store from common.
   void (*dealloc)(void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-                  size_t slot_align, bool had_infoz);
+                  size_t slot_align, bool had_infoz,
+                  size_t blocked_element_count);
 
   // Implementation detail of GrowToNextCapacity.
   // Iterates over all full slots and transfers unprobed elements.
@@ -3301,7 +3332,8 @@ class raw_hash_set {
     DeallocateBackingArray<BackingArrayAlignment(alignof(slot_type)),
                            CharAlloc>(&char_alloc_ref(), capacity(), control(),
                                       sizeof(slot_type), alignof(slot_type),
-                                      common().has_infoz());
+                                      common().has_infoz(),
+                                      common().blocked_element_count());
   }
 
   void destructor_impl() {
@@ -4042,7 +4074,7 @@ extern template void* AllocateBackingArray<
 extern template void DeallocateBackingArray<
     BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-    size_t slot_align, bool had_infoz);
+    size_t slot_align, bool had_infoz, size_t blocked_element_count);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END
