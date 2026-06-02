@@ -709,6 +709,62 @@ void ClearBackingArray(CommonFields& c,
   }
 }
 
+void DestroySlots(CommonFields& c, size_t slot_size,
+                  DestroySlotFn destroy_slot) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small());
+  ABSL_SWISSTABLE_ASSERT(destroy_slot != nullptr);
+  auto destroy_slot_wrapper = [&](const ctrl_t*, void* slot) {
+    destroy_slot(&c, slot);
+  };
+  if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+    CommonFields common_copy(non_soo_tag_t{}, c);
+    c.set_capacity(HashtableCapacity::CreateDestroyed());
+    IterateOverFullSlotsImpl(common_copy, slot_size, destroy_slot_wrapper);
+    c.set_capacity(common_copy.capacity());
+  } else {
+    IterateOverFullSlotsImpl(c, slot_size, destroy_slot_wrapper);
+  }
+}
+
+void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
+                         DeallocBackingArrayFn dealloc, void* alloc) {
+  const size_t cap = c.capacity();
+  c.infoz().Unregister();
+  dealloc(alloc, cap, c.control(), slot_size, slot_align, c.has_infoz(),
+          c.blocked_element_count());
+}
+
+void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
+                 DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+                 void* alloc) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
+  if (c.is_small()) {
+    ABSL_SWISSTABLE_ASSERT(destroy_slot != nullptr);
+    destroy_slot(&c, c.soo_data());
+    return;
+  }
+  if (destroy_slot != nullptr) {
+    DestroySlots(c, slot_size, destroy_slot);
+  }
+  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+}
+
+void DestructNonSoo(CommonFields& c, size_t slot_size, size_t slot_align,
+                    DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+                    void* alloc) {
+  ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
+  if (destroy_slot != nullptr) {
+    if (c.is_small()) {
+      if (!c.empty()) {
+        destroy_slot(&c, c.slot_array());
+      }
+    } else {
+      DestroySlots(c, slot_size, destroy_slot);
+    }
+  }
+  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+}
+
 namespace {
 
 // Iterates over full slots in old table, finds new positions for them and
