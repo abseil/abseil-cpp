@@ -13,6 +13,7 @@
 // limitations under the License.
 //
 // An open-addressing
+// [https://en.wikipedia.org/wiki/Open_addressing]
 // hashtable with quadratic probing.
 //
 // This is a low level hashtable on top of which different interfaces can be
