@@ -32,8 +32,6 @@ ABSL_NAMESPACE_BEGIN
 
 namespace base_internal {
 
-void SetAbslHardeningEnabled(bool enabled);
-
 // `HardeningAssert` performs runtime checks when Abseil Hardening is enabled,
 // even if `NDEBUG` is defined.
 //
