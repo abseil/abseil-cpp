@@ -835,12 +835,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // For this reason, this symbol is considered INTERNAL and code outside of
 // Abseil must not use it.
 #if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 constexpr
-#else
-#define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-#endif
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
     ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
 #define ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 constexpr
 #else

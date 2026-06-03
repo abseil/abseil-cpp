@@ -99,21 +99,20 @@ using ContainerPointerType =
 // These are meant for internal use only.
 
 template <typename C>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 ContainerIter<C> c_begin(C& c) {
+constexpr ContainerIter<C> c_begin(C& c) {
   return begin(c);
 }
 
 template <typename C>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 ContainerIter<C> c_end(C& c) {
+constexpr ContainerIter<C> c_end(C& c) {
   return end(c);
 }
 
 // Helper to check that the `OutputRange` has enough space.
 // Only performs the check if the iterators are ForwardIterators or better.
 template <typename InputSequence, typename Size, typename OutputRange>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 void AssertCopyNSize(InputSequence& input,
-                                                        Size n,
-                                                        OutputRange& output) {
+constexpr void AssertCopyNSize(InputSequence& input, Size n,
+                               OutputRange& output) {
   using InputIter = ContainerIter<InputSequence>;
   using OutputIter = ContainerIter<OutputRange>;
 
@@ -130,8 +129,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 void AssertCopyNSize(InputSequence& input,
 }
 
 template <typename InputSequence, typename OutputRange>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17 void AssertCopySize(InputSequence& input,
-                                                       OutputRange& output) {
+constexpr void AssertCopySize(InputSequence& input, OutputRange& output) {
   using InputIter = ContainerIter<InputSequence>;
   using OutputIter = ContainerIter<OutputRange>;
   if constexpr (base_internal::IsAtLeastForwardIterator<InputIter>::value &&
@@ -207,9 +205,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_linear_search(
 // Container-based version of the <iterator> `std::distance()` function to
 // return the number of elements within a container.
 template <typename C>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerDifferenceType<const C>
-    c_distance(const C& c) {
+constexpr container_algorithm_internal::ContainerDifferenceType<const C>
+c_distance(const C& c) {
   return std::distance(container_algorithm_internal::c_begin(c),
                        container_algorithm_internal::c_end(c));
 }
@@ -1739,9 +1736,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 // to return an iterator pointing to the element with the smallest value, using
 // `operator<` to make the comparisons.
 template <typename Sequence>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIter<Sequence>
-    c_min_element(Sequence& sequence) {
+constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
+    Sequence& sequence) {
   return std::min_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence));
 }
@@ -1749,9 +1745,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // Overload of c_min_element() for performing a `comp` comparison other than
 // `operator<`.
 template <typename Sequence, typename LessThan>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIter<Sequence>
-    c_min_element(Sequence& sequence, LessThan&& comp) {
+constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
+    Sequence& sequence, LessThan&& comp) {
   return std::min_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
                           std::forward<LessThan>(comp));
@@ -1763,9 +1758,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // to return an iterator pointing to the element with the largest value, using
 // `operator<` to make the comparisons.
 template <typename Sequence>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIter<Sequence>
-    c_max_element(Sequence& sequence) {
+constexpr container_algorithm_internal::ContainerIter<Sequence> c_max_element(
+    Sequence& sequence) {
   return std::max_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence));
 }
@@ -1773,9 +1767,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // Overload of c_max_element() for performing a `comp` comparison other than
 // `operator<`.
 template <typename Sequence, typename LessThan>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIter<Sequence>
-    c_max_element(Sequence& sequence, LessThan&& comp) {
+constexpr container_algorithm_internal::ContainerIter<Sequence> c_max_element(
+    Sequence& sequence, LessThan&& comp) {
   return std::max_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
                           std::forward<LessThan>(comp));
@@ -1788,9 +1781,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // smallest and largest values, respectively, using `operator<` to make the
 // comparisons.
 template <typename C>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIterPairType<C, C>
-    c_minmax_element(C& c) {
+constexpr container_algorithm_internal::ContainerIterPairType<C, C>
+c_minmax_element(C& c) {
   return std::minmax_element(container_algorithm_internal::c_begin(c),
                              container_algorithm_internal::c_end(c));
 }
@@ -1798,9 +1790,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
 // Overload of c_minmax_element() for performing `comp` comparisons other than
 // `operator<`.
 template <typename C, typename LessThan>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX17
-    container_algorithm_internal::ContainerIterPairType<C, C>
-    c_minmax_element(C& c, LessThan&& comp) {
+constexpr container_algorithm_internal::ContainerIterPairType<C, C>
+c_minmax_element(C& c, LessThan&& comp) {
   return std::minmax_element(container_algorithm_internal::c_begin(c),
                              container_algorithm_internal::c_end(c),
                              std::forward<LessThan>(comp));
