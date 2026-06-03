@@ -367,7 +367,7 @@ constexpr size_t SooCapacity() { return 1; }
 constexpr size_t MaxSmallCapacity() { return 1; }
 // Maximum capacity of a table where we can use blocked elements.
 constexpr size_t MaxCapacityWithBlockedElements() {
-  return Group::kWidth / 2 - 1;
+  return Group::kWidth - 1;
 }
 // Sentinel type to indicate SOO CommonFields construction.
 struct soo_tag_t {};
@@ -388,6 +388,12 @@ constexpr bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 // Whether a table is small enough that we don't need to hash any keys.
 constexpr bool IsSmallCapacity(size_t capacity) {
   return capacity <= MaxSmallCapacity();
+}
+
+// Whether a table fits entirely into a probing group.
+// Arbitrary order of elements in such tables is correct.
+constexpr bool is_single_group(size_t capacity) {
+  return capacity <= Group::kWidth;
 }
 
 // Whether `cap` is a valid capacity for a table that can store blocked
@@ -1319,11 +1325,11 @@ class CommonFields : public CommonFieldsGenerationInfo {
     if (!IsCapacityValidForBlockedElements(cap)) {
       return 0;
     }
-    ABSL_SWISSTABLE_ASSERT(cap == CapacityToGrowth(cap));
+    ABSL_SWISSTABLE_ASSERT(is_single_group(cap));
     // Formula is valid because MaxCapacityWithBlockedElements is less than
     // group width. On erase for single group tables, we always increment the
     // growth left.
-    return cap - size() - growth_left();
+    return CapacityToGrowth(cap) - size() - growth_left();
   }
 
   // The size of the backing array allocation.
@@ -1595,12 +1601,6 @@ struct FindInfo {
   size_t offset;
   size_t probe_length;
 };
-
-// Whether a table fits entirely into a probing group.
-// Arbitrary order of elements in such tables is correct.
-constexpr bool is_single_group(size_t capacity) {
-  return capacity <= Group::kWidth;
-}
 
 // The state for a probe sequence.
 //

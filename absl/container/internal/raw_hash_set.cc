@@ -1778,8 +1778,8 @@ size_t BlockedElementCount(size_t capacity, size_t reserved_size) {
   if (!IsCapacityValidForBlockedElements(capacity)) {
     return 0;
   }
-  ABSL_SWISSTABLE_ASSERT(capacity == CapacityToGrowth(capacity));
-  return capacity - reserved_size;
+  ABSL_SWISSTABLE_ASSERT(is_single_group(capacity));
+  return CapacityToGrowth(capacity) - reserved_size;
 }
 
 // Resizes empty non-allocated table to the capacity to fit new_size elements.

@@ -1193,46 +1193,51 @@ TYPED_TEST(SooTest, ClearDifferentSizes) {
 }
 
 TYPED_TEST(SooTest, ReserveTwice) {
-  for (size_t reserve_size = 0; reserve_size < 32; ++reserve_size) {
-    for (size_t reserve_size2 = reserve_size; reserve_size2 < 32;
+  for (int reserve_size = 0; reserve_size < 32; ++reserve_size) {
+    for (int reserve_size2 = reserve_size; reserve_size2 < 32;
          ++reserve_size2) {
       SCOPED_TRACE(absl::StrCat("reserve_size: ", reserve_size,
                                 ", reserve_size2: ", reserve_size2));
       TypeParam t;
-      t.reserve(reserve_size);
+      t.reserve(static_cast<size_t>(reserve_size));
       {  // Insert first batch of elements.
         size_t cap = t.capacity();
-        for (size_t i = 0; i < reserve_size; ++i) {
-          ASSERT_TRUE(t.insert(static_cast<int>(i)).second) << i;
+        for (int i = 1; i <= reserve_size; ++i) {
+          ASSERT_TRUE(t.insert(i).second) << i;
         }
         ASSERT_EQ(t.capacity(), cap);
       }
-      t.reserve(reserve_size2);
+      t.reserve(static_cast<size_t>(reserve_size2));
       {  // Insert second batch of elements.
         size_t cap = t.capacity();
-        for (size_t i = reserve_size; i < reserve_size2; ++i) {
-          ASSERT_TRUE(t.insert(static_cast<int>(i)).second) << i;
+        for (int i = reserve_size + 1; i <= reserve_size2; ++i) {
+          ASSERT_TRUE(t.insert(i).second) << i;
         }
         ASSERT_EQ(t.capacity(), cap);
       }
-      for (size_t i = 0; i < reserve_size2; ++i) {
-        ASSERT_TRUE(t.contains(static_cast<int>(i))) << i;
+      for (int i = 1; i <= reserve_size2; ++i) {
+        ASSERT_TRUE(t.contains(i)) << i;
+        // Testing missing value to verify that we correctly have empty slots.
+        ASSERT_FALSE(t.contains(-i)) << i;
       }
     }
   }
 }
 
 TYPED_TEST(SooTest, GrowAfterReserve) {
-  for (size_t reserve_size = 1; reserve_size <= 150; ++reserve_size) {
-    size_t size = reserve_size + 1;
+  for (int reserve_size = 1; reserve_size <= 150; ++reserve_size) {
     TypeParam s;
-    s.reserve(reserve_size);
-    for (size_t i = 0; i < size; ++i) {
-      ASSERT_TRUE(s.insert(static_cast<int>(i)).second) << i;
+    s.reserve(static_cast<size_t>(reserve_size));
+    int size = reserve_size + 1;
+    for (int i = 1; i <= size; ++i) {
+      ASSERT_TRUE(s.insert(i).second) << i;
+      // Testing missing value to verify that we correctly have empty slots.
+      ASSERT_FALSE(s.contains(-i)) << i;
     }
     EXPECT_EQ(s.size(), size);
-    for (size_t i = 0; i < size; ++i) {
-      ASSERT_TRUE(s.contains(static_cast<int>(i))) << i;
+    for (int i = 1; i <= size; ++i) {
+      ASSERT_TRUE(s.contains(i)) << i;
+      ASSERT_FALSE(s.contains(-i)) << i;
     }
   }
 }
