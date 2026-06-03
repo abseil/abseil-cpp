@@ -174,6 +174,25 @@ template <typename Iter>
 struct IsIterator<
     Iter, std::void_t<typename std::iterator_traits<Iter>::iterator_category>>
     : std::true_type {};
+
+template <typename C, typename OutputIterator>
+using ResultOfRangeToIteratorTransfer =
+    std::enable_if_t<container_algorithm_internal::IsIterator<
+                         absl::remove_cvref_t<OutputIterator>>::value &&
+                         !container_algorithm_internal::IsMultidimensionalArray<
+                             std::remove_reference_t<C>>::value,
+                     std::decay_t<OutputIterator>>;
+
+template <typename C, typename OutputRange>
+using ResultOfRangeToRangeTransfer =
+    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
+                         std::add_lvalue_reference_t<OutputRange>>::value &&
+                         !container_algorithm_internal::IsMultidimensionalArray<
+                             std::remove_reference_t<OutputRange>>::value &&
+                         !container_algorithm_internal::IsMultidimensionalArray<
+                             std::remove_reference_t<C>>::value,
+                     void>;
+
 }  // namespace container_algorithm_internal
 
 // PUBLIC API
@@ -577,12 +596,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 // Container-based version of the <algorithm> `std::copy()` function to copy a
 // container's elements into an iterator.
 template <typename InputSequence, typename OutputIterator>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
-    std::enable_if_t<container_algorithm_internal::IsIterator<
-                         absl::remove_cvref_t<OutputIterator>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             InputSequence>::value,
-                     std::decay_t<OutputIterator>>
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 container_algorithm_internal::
+    ResultOfRangeToIteratorTransfer<InputSequence, OutputIterator>
     c_copy(const InputSequence& input, OutputIterator&& output) {
   return std::copy(container_algorithm_internal::c_begin(input),
                    container_algorithm_internal::c_end(input),
@@ -601,13 +616,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 // are copied, and `output` is not truncated.
 template <typename InputSequence, typename OutputRange>
 ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
-    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
-                         std::add_lvalue_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             InputSequence>::value,
-                     void>
+    container_algorithm_internal::ResultOfRangeToRangeTransfer<InputSequence,
+                                                               OutputRange>
     c_copy(const InputSequence& input, OutputRange&& output) {
   container_algorithm_internal::AssertCopySize(input, output);
   absl::c_copy(input, container_algorithm_internal::c_begin(
@@ -619,12 +629,9 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 // Container-based version of the <algorithm> `std::copy_n()` function to copy a
 // container's first N elements into an iterator.
 template <typename C, typename Size, typename OutputIterator>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::enable_if_t<
-    container_algorithm_internal::IsIterator<
-        absl::remove_cvref_t<OutputIterator>>::value &&
-        !container_algorithm_internal::IsMultidimensionalArray<C>::value,
-    std::decay_t<OutputIterator>>
-c_copy_n(const C& input, Size n, OutputIterator&& output) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 container_algorithm_internal::
+    ResultOfRangeToIteratorTransfer<C, OutputIterator>
+    c_copy_n(const C& input, Size n, OutputIterator&& output) {
   return std::copy_n(container_algorithm_internal::c_begin(input), n,
                      std::forward<OutputIterator>(output));
 }
@@ -641,14 +648,9 @@ c_copy_n(const C& input, Size n, OutputIterator&& output) {
 // If `std::size(output) > n`, only `n` elements are copied, and `output` is not
 // truncated.
 template <typename C, typename Size, typename OutputRange>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::enable_if_t<
-    container_algorithm_internal::HasBeginEnd<
-        std::add_lvalue_reference_t<OutputRange>>::value &&
-        !container_algorithm_internal::IsMultidimensionalArray<
-            std::remove_reference_t<OutputRange>>::value &&
-        !container_algorithm_internal::IsMultidimensionalArray<C>::value,
-    void>
-c_copy_n(const C& input, Size n, OutputRange&& output) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
+    container_algorithm_internal::ResultOfRangeToRangeTransfer<C, OutputRange>
+    c_copy_n(const C& input, Size n, OutputRange&& output) {
   container_algorithm_internal::AssertCopyNSize(input, n, output);
   absl::c_copy_n(
       input, n,
@@ -683,12 +685,8 @@ c_copy_backward(const C& src, BidirectionalIterator dest) {
 // Container-based version of the <algorithm> `std::move()` function to move
 // a container's elements into an iterator.
 template <typename C, typename OutputIterator>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
-    std::enable_if_t<container_algorithm_internal::IsIterator<
-                         absl::remove_cvref_t<OutputIterator>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<C>>::value,
-                     std::decay_t<OutputIterator>>
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 container_algorithm_internal::
+    ResultOfRangeToIteratorTransfer<C, OutputIterator>
     c_move(C&& src, OutputIterator&& dest) {
   return std::move(container_algorithm_internal::c_begin(src),
                    container_algorithm_internal::c_end(src),
@@ -702,13 +700,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
 // this function does not resize `dest`.
 template <typename C, typename OutputRange>
 ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20
-    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
-                         std::add_lvalue_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<C>>::value,
-                     void>
+    container_algorithm_internal::ResultOfRangeToRangeTransfer<C, OutputRange>
     c_move(C&& src, OutputRange&& dest) {
   container_algorithm_internal::AssertCopySize(src, dest);
   absl::c_move(std::forward<C>(src), container_algorithm_internal::c_begin(
