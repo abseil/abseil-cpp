@@ -42,6 +42,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <iterator>
 #include <numeric>
 #include <type_traits>
@@ -57,8 +58,16 @@
 #include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 
+#ifdef __cpp_lib_span
+#include <span>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+template <typename T>
+class Span;
+
 namespace container_algorithm_internal {
 
 // NOTE: it is important to defer to ADL lookup for building with C++ modules,
@@ -192,6 +201,35 @@ using ResultOfRangeToRangeTransfer =
                          !container_algorithm_internal::IsMultidimensionalArray<
                              std::remove_reference_t<C>>::value,
                      void>;
+
+// Similar to std::is_pointer, but for testing if a type is a span.
+//
+// Note that subclasses of spans do not automatically qualify as spans, as they
+// may deviate from the ownership assumption of a span.
+template <typename T>
+struct IsSpan
+    : std::conditional_t<std::is_same_v<T, std::remove_cv_t<T>>,
+                         std::false_type, IsSpan<std::remove_cv_t<T>>> {};
+
+template <typename T>
+struct IsSpan<absl::Span<T>> : std::true_type {};
+
+#ifdef __cpp_lib_span
+template <typename T, size_t Extent>
+struct IsSpan<std::span<T, Extent>> : std::true_type {};
+#endif
+
+// Indicates whether the given type is safe to pass as a sink to a function such
+// as absl::c_fill(). Similar idea as std::ranges::borrowed_range.
+//
+// We are deliberately conservative here and only support lvalues and spans for
+// now, in order to avoid divergence from C++17 or potentially unforeseen
+// consequences. If needed in the future, we can probably extend this to all
+// types that satisfy std::ranges::borrowed_range.
+template <typename C>
+using IsPermissibleDestinationRange =
+    std::conditional_t<std::is_lvalue_reference<C>::value, std::true_type,
+                       IsSpan<C>>;
 
 }  // namespace container_algorithm_internal
 
@@ -805,7 +843,9 @@ constexpr OutputIterator c_replace_copy_if(const C& c, OutputIterator result,
 // Container-based version of the <algorithm> `std::fill()` function to fill a
 // container with some value.
 template <typename C, typename T>
-constexpr void c_fill(C& c, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_fill(C&& c, const T& value) {
   std::fill(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c), value);
 }
@@ -815,7 +855,9 @@ constexpr void c_fill(C& c, const T& value) {
 // Container-based version of the <algorithm> `std::fill_n()` function to fill
 // the first N elements in a container with some value.
 template <typename C, typename Size, typename T>
-constexpr void c_fill_n(C& c, Size n, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+c_fill_n(C&& c, Size n, const T& value) {
   std::fill_n(container_algorithm_internal::c_begin(c), n, value);
 }
 

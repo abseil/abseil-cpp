@@ -42,6 +42,10 @@
 #include "absl/random/random.h"
 #include "absl/types/span.h"
 
+#ifdef __cpp_lib_span
+#include <span>  // NOLINT(build/c++20)
+#endif
+
 namespace {
 
 using ::testing::Each;
@@ -75,6 +79,31 @@ bool Predicate(int value) { return value < 3; }
 bool BinPredicate(int v1, int v2) { return v1 < v2; }
 bool Equals(int v1, int v2) { return v1 == v2; }
 bool IsOdd(int x) { return x % 2 != 0; }
+
+TEST(Span, IsSpan) {
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<absl::Span<int>>::value);
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<const absl::Span<int>>::value);
+  static_assert(absl::container_algorithm_internal::IsSpan<
+                volatile absl::Span<int>>::value);
+  static_assert(absl::container_algorithm_internal::IsSpan<
+                const volatile absl::Span<int>>::value);
+
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<absl::Span<int>&>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<absl::Span<int>&&>::value);
+
+#ifdef __cpp_lib_span
+  static_assert(
+      absl::container_algorithm_internal::IsSpan<std::span<int>>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<std::span<int>&>::value);
+  static_assert(
+      !absl::container_algorithm_internal::IsSpan<std::span<int>&&>::value);
+#endif
+}
 
 TEST_F(NonMutatingTest, Distance) {
   EXPECT_EQ(container_.size(),
@@ -1184,9 +1213,21 @@ TEST(MutatingTest, Fill) {
   EXPECT_THAT(actual, ElementsAre(1, 1, 1, 1, 1));
 }
 
+TEST(MutatingTest, FillWithRvalue) {
+  std::vector<int> actual(5);
+  absl::c_fill(absl::MakeSpan(actual), 1);
+  EXPECT_THAT(actual, ElementsAre(1, 1, 1, 1, 1));
+}
+
 TEST(MutatingTest, FillN) {
   std::vector<int> actual(5, 0);
   absl::c_fill_n(actual, 2, 1);
+  EXPECT_THAT(actual, ElementsAre(1, 1, 0, 0, 0));
+}
+
+TEST(MutatingTest, FillNWithRvalue) {
+  std::vector<int> actual(5, 0);
+  absl::c_fill_n(absl::MakeSpan(actual), 2, 1);
   EXPECT_THAT(actual, ElementsAre(1, 1, 0, 0, 0));
 }
 
@@ -2605,5 +2646,30 @@ TEST(CanMoveTest, AmbiguousTypeFailsToCompile) {
   // the compiler should fail to resolve the c_move overload.
   static_assert(!CanMove<Vec, AmbiguousType>::value,
                 "Ambiguous types should not compile!");
+}
+
+template <typename C, typename T, typename = void>
+struct CanFill : std::false_type {};
+
+template <typename C, typename T>
+struct CanFill<C, T,
+               std::void_t<decltype(absl::c_fill(std::declval<C (*)()>()(),
+                                                 std::declval<T (*)()>()()))>>
+    : std::true_type {};
+
+TEST(CanFillTest, NonSpans) {
+  using T = int;
+
+  struct AbslSpanSubclass : absl::Span<T> {};
+  static_assert(!CanFill<std::vector<T>, T>::value,
+                "non-spans must not be allowed");
+  static_assert(!CanFill<AbslSpanSubclass, T>::value,
+                "subclasses must not be allowed");
+
+#ifdef __cpp_lib_span
+  struct StdSpanSubclass : std::span<T> {};
+  static_assert(!CanFill<StdSpanSubclass, T>::value,
+                "std::span must not be allowed");
+#endif
 }
 }  // namespace
