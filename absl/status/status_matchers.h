@@ -28,12 +28,9 @@
 //   Convenience macros for `EXPECT_THAT(s, IsOk())`, where `s` is either
 //   a `Status` or a `StatusOr<T>`.
 //
-//   There are no EXPECT_NOT_OK/ASSERT_NOT_OK macros since they would not
-//   provide much value (when they fail, they would just print the OK status
-//   which conveys no more information than `EXPECT_FALSE(s.ok())`. You can
-//   of course use `EXPECT_THAT(s, Not(IsOk()))` if you prefer _THAT style.
+//   There are no EXPECT_NOT_OK/ASSERT_NOT_OK macros.
+//   Prefer to check for the specific expected error:
 //
-//   If you want to check for particular errors, better alternatives are:
 //   EXPECT_THAT(s, StatusIs(expected_error));
 //   EXPECT_THAT(s, StatusIs(_, _, HasSubstr("expected error")));
 //
@@ -79,6 +76,9 @@
 //   Status s = ...;
 //   EXPECT_THAT(s, IsOk());
 //   ```
+//
+//   There is no NotOk() matcher. Prefer to check for the specific expected
+//   error.
 
 #ifndef ABSL_STATUS_STATUS_MATCHERS_H_
 #define ABSL_STATUS_STATUS_MATCHERS_H_
