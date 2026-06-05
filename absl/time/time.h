@@ -134,11 +134,10 @@ ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration FromInt64(int64_t v,
                                                            std::ratio<3600>);
 template <typename T>
-using EnableIfIntegral = typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, int>::type;
+using EnableIfIntegral =
+    std::enable_if_t<std::is_integral<T>::value || std::is_enum<T>::value, int>;
 template <typename T>
-using EnableIfFloat =
-    typename std::enable_if<std::is_floating_point<T>::value, int>::type;
+using EnableIfFloat = std::enable_if_t<std::is_floating_point<T>::value, int>;
 }  // namespace time_internal
 
 // Duration

@@ -195,13 +195,11 @@ class ABSL_ATTRIBUTE_VIEW Span {
 
   // Used to SFINAE-enable a function when the slice elements are const.
   template <typename U>
-  using EnableIfValueIsConst =
-      typename std::enable_if<std::is_const<T>::value, U>::type;
+  using EnableIfValueIsConst = std::enable_if_t<std::is_const<T>::value, U>;
 
   // Used to SFINAE-enable a function when the slice elements are mutable.
   template <typename U>
-  using EnableIfValueIsMutable =
-      typename std::enable_if<!std::is_const<T>::value, U>::type;
+  using EnableIfValueIsMutable = std::enable_if_t<!std::is_const<T>::value, U>;
 
  public:
   using element_type = T;

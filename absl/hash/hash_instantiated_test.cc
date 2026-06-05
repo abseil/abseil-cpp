@@ -59,9 +59,9 @@ class UnorderedSequence {
   template <typename TT>
   UnorderedSequence(std::initializer_list<TT> l)
       : values_(l.begin(), l.end()) {}
-  template <typename ForwardIterator,
-            typename std::enable_if<!std::is_integral<ForwardIterator>::value,
-                                    bool>::type = true>
+  template <
+      typename ForwardIterator,
+      std::enable_if_t<!std::is_integral<ForwardIterator>::value, bool> = true>
   UnorderedSequence(ForwardIterator begin, ForwardIterator end)
       : values_(begin, end) {}
   // one-argument constructor of value type T, to appease older toolchains that

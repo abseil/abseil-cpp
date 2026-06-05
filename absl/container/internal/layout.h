@@ -264,8 +264,7 @@ template <class T, class... Ts>
 using Contains = std::disjunction<std::is_same<T, Ts>...>;
 
 template <class From, class To>
-using CopyConst =
-    typename std::conditional<std::is_const<From>::value, const To, To>::type;
+using CopyConst = std::conditional_t<std::is_const<From>::value, const To, To>;
 
 // Note: We're not qualifying this with absl:: because it doesn't compile under
 // MSVC.
@@ -494,7 +493,7 @@ class LayoutImpl<std::tuple<Elements...>, std::index_sequence<StaticSizeSeq...>,
   // Requires: `p` is aligned to `Alignment()`.
   template <size_t N, class Char>
   CopyConst<Char, ElementType<N>>* Pointer(Char* p) const {
-    using C = typename std::remove_const<Char>::type;
+    using C = std::remove_const_t<Char>;
     static_assert(
         std::is_same<C, char>() || std::is_same<C, unsigned char>() ||
             std::is_same<C, signed char>(),

@@ -334,13 +334,12 @@ struct TestParams {
   using ResultType = Int;
   using AnyInvocableFunTypeNotNoexcept = Int(Int, const int&, int);
   using UnqualifiedFunType =
-      typename std::conditional<kIsNoexcept, Int(Int, const int&, int) noexcept,
-                                Int(Int, const int&, int)>::type;
+      std::conditional_t<kIsNoexcept, Int(Int, const int&, int) noexcept,
+                         Int(Int, const int&, int)>;
   using FunType = GiveQualifiersToFun<Qualifiers, UnqualifiedFunType>;
   using MemFunPtrType =
-      typename std::conditional<kIsNoexcept,
-                                Int (Int::*)(const int&, int) noexcept,
-                                Int (Int::*)(const int&, int)>::type;
+      std::conditional_t<kIsNoexcept, Int (Int::*)(const int&, int) noexcept,
+                         Int (Int::*)(const int&, int)>;
   using AnyInvType = AnyInvocable<FunType>;
   using AddType = add<kMovability, kDestructibility, Qualifiers,
                       kCallExceptionSpec, kSize, kAlignment>;
@@ -353,9 +352,8 @@ struct TestParams {
 
   // These typedefs are used when testing void return type covariance.
   using UnqualifiedVoidFunType =
-      typename std::conditional<kIsNoexcept,
-                                void(Int, const int&, int) noexcept,
-                                void(Int, const int&, int)>::type;
+      std::conditional_t<kIsNoexcept, void(Int, const int&, int) noexcept,
+                         void(Int, const int&, int)>;
   using VoidFunType = GiveQualifiersToFun<Qualifiers, UnqualifiedVoidFunType>;
   using VoidAnyInvType = AnyInvocable<VoidFunType>;
   using VoidThisParamType = QualifiersForThis<Qualifiers, VoidAnyInvType>;

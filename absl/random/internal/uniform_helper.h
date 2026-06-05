@@ -75,11 +75,10 @@ namespace random_internal {
 // absl::Uniform() will be discarded, and the call will be ill-formed.
 // Return-type for absl::Uniform() when the return-type is inferred.
 template <typename A, typename B>
-using uniform_inferred_return_t =
-    std::enable_if_t<std::disjunction<is_widening_convertible<A, B>,
-                                        is_widening_convertible<B, A>>::value,
-                      typename std::conditional<
-                          is_widening_convertible<A, B>::value, B, A>::type>;
+using uniform_inferred_return_t = std::enable_if_t<
+    std::disjunction<is_widening_convertible<A, B>,
+                     is_widening_convertible<B, A>>::value,
+    std::conditional_t<is_widening_convertible<A, B>::value, B, A>>;
 
 // The functions
 //    uniform_lower_bound(tag, a, b)
@@ -210,9 +209,9 @@ std::enable_if_t<IsIntegral<IntType>::value, bool> is_uniform_range_valid(
 // or absl::uniform_real_distribution depending on the NumType parameter.
 template <typename NumType>
 using UniformDistribution =
-    typename std::conditional<IsIntegral<NumType>::value,
-                              absl::uniform_int_distribution<NumType>,
-                              absl::uniform_real_distribution<NumType>>::type;
+    std::conditional_t<IsIntegral<NumType>::value,
+                       absl::uniform_int_distribution<NumType>,
+                       absl::uniform_real_distribution<NumType>>;
 
 // UniformDistributionWrapper is used as the underlying distribution type
 // by the absl::Uniform template function. It selects the proper Abseil

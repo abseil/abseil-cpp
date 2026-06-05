@@ -232,7 +232,7 @@ template <typename T>
 using remove_cvref = std::remove_cvref<T>;
 
 template <typename T>
-using remove_cvref_t = typename std::remove_cvref<T>::type;
+using remove_cvref_t = std::remove_cvref_t<T>;
 #else
 // remove_cvref()
 //
@@ -240,8 +240,7 @@ using remove_cvref_t = typename std::remove_cvref<T>::type;
 // C++20.
 template <typename T>
 struct remove_cvref {
-  using type =
-      typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+  using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
 
 template <typename T>
@@ -363,7 +362,7 @@ using IsSwappableImpl = decltype(swap(std::declval<T&>(), std::declval<T&>()));
 template <class T,
           class IsNoexcept = std::integral_constant<
               bool, noexcept(swap(std::declval<T&>(), std::declval<T&>()))>>
-using IsNothrowSwappableImpl = typename std::enable_if<IsNoexcept::value>::type;
+using IsNothrowSwappableImpl = std::enable_if_t<IsNoexcept::value>;
 
 // IsSwappable
 //

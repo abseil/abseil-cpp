@@ -502,8 +502,8 @@ std::vector<std::string> AllFlagCombinations() {
 
 TYPED_TEST_P(TypedFormatConvertTest, AllIntsWithFlags) {
   typedef TypeParam T;
-  typedef typename std::make_unsigned<T>::type UnsignedT;
-  using remove_volatile_t = typename std::remove_volatile<T>::type;
+  typedef std::make_unsigned_t<T> UnsignedT;
+  using remove_volatile_t = std::remove_volatile_t<T>;
   const T kMin = std::numeric_limits<remove_volatile_t>::min();
   const T kMax = std::numeric_limits<remove_volatile_t>::max();
   const T kVals[] = {
@@ -616,8 +616,8 @@ std::optional<std::string> StrPrintChar(wchar_t c) {
 }
 
 template <typename T>
-typename std::remove_volatile<T>::type GetMaxForConversion() {
-  return static_cast<typename std::remove_volatile<T>::type>(
+std::remove_volatile_t<T> GetMaxForConversion() {
+  return static_cast<std::remove_volatile_t<T>>(
       std::numeric_limits<int>::max());
 }
 
@@ -635,7 +635,7 @@ TYPED_TEST_P(TypedFormatConvertTest, Char) {
   // vsnprintf("%c", ...) (wrapped in StrPrint) to make sure we get the same
   // value.
   typedef TypeParam T;
-  using remove_volatile_t = typename std::remove_volatile<T>::type;
+  using remove_volatile_t = std::remove_volatile_t<T>;
   std::vector<remove_volatile_t> vals = {
       remove_volatile_t(1),  remove_volatile_t(2),  remove_volatile_t(10),   //
       remove_volatile_t(-1), remove_volatile_t(-2), remove_volatile_t(-10),  //

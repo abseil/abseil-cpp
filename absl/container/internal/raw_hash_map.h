@@ -215,20 +215,20 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   // All `try_emplace()` overloads make the same guarantees regarding rvalue
   // arguments as `std::unordered_map::try_emplace()`, namely that these
   // functions will not move from rvalue arguments if insertions do not happen.
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K*>>(),
-            class... Args,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, int = EnableIf<LifetimeBoundK<K, false, K*>>(),
+      class... Args,
+      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> = 0>
   std::pair<iterator, bool> try_emplace(key_arg<K>&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(std::forward<key_arg<K>>(k),
                             std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true, K*>> = 0,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, class... Args,
+      EnableIf<LifetimeBoundK<K, true, K*>> = 0,
+      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> = 0>
   std::pair<iterator, bool> try_emplace(
       key_arg<K>&& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -236,18 +236,17 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
                                             std::forward<Args>(args)...);
   }
 
-  template <class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>(),
-            class... Args,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, int = EnableIf<LifetimeBoundK<K, false>>(),
+      class... Args,
+      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> = 0>
   std::pair<iterator, bool> try_emplace(const key_arg<K>& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return try_emplace_impl(k, std::forward<Args>(args)...);
   }
-  template <class K = key_type, class... Args,
-            EnableIf<LifetimeBoundK<K, true>> = 0,
-            typename std::enable_if<
-                !std::is_convertible<K, const_iterator>::value, int>::type = 0>
+  template <
+      class K = key_type, class... Args, EnableIf<LifetimeBoundK<K, true>> = 0,
+      std::enable_if_t<!std::is_convertible<K, const_iterator>::value, int> = 0>
   std::pair<iterator, bool> try_emplace(
       const key_arg<K>& k ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
       Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {

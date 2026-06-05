@@ -368,15 +368,15 @@ CountTrailingZeroes(T x) noexcept {
 // want to force it to wraparound so that bit_ceil of an invalid value are not
 // core constant expressions.
 template <class T>
-ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
+ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline std::
+    enable_if_t<std::is_unsigned<T>::value, T>
     BitCeilPromotionHelper(T x, T promotion) {
   return (T{1} << (x + promotion)) >> promotion;
 }
 
 template <class T>
-ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline
-    typename std::enable_if<std::is_unsigned<T>::value, T>::type
+ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline std::
+    enable_if_t<std::is_unsigned<T>::value, T>
     BitCeilNonPowerOf2(T x) {
   // If T is narrower than unsigned, it undergoes promotion to unsigned when we
   // shift.  We calculate the number of bits added by the wider type.

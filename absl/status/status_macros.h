@@ -257,7 +257,7 @@ ABSL_NAMESPACE_END
   {                                                                         \
     static_assert(                                                          \
         absl::status_macro_internal::IsAllowedStatusOrMacroType<            \
-            typename std::remove_const<decltype(statusor)>::type>(),        \
+            std::remove_const_t<decltype(statusor)>>(),                     \
         "ABSL_ASSIGN_OR_RETURN should only be used with absl::StatusOr<>"); \
   }                                                                         \
   ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) =   \

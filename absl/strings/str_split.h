@@ -389,9 +389,9 @@ struct SkipWhitespace {
 
 template <typename T>
 using EnableSplitIfString =
-    typename std::enable_if<std::is_same<T, std::string>::value ||
-                                std::is_same<T, const std::string>::value,
-                            int>::type;
+    std::enable_if_t<std::is_same<T, std::string>::value ||
+                         std::is_same<T, const std::string>::value,
+                     int>;
 
 //------------------------------------------------------------------------------
 //                                  StrSplit()

@@ -154,8 +154,8 @@ auto FormatConvertImpl(const T& v, FormatConversionSpecImpl conv,
     AbslStringify(fs, v);
     return {true};
   } else {
-    return {ConvertIntArg(
-        static_cast<typename std::underlying_type<T>::type>(v), conv, sink)};
+    return {
+        ConvertIntArg(static_cast<std::underlying_type_t<T>>(v), conv, sink)};
   }
 }
 
@@ -247,8 +247,9 @@ StringPtrConvertResult FormatConvertImpl(std::nullptr_t,
                                          FormatConversionSpecImpl conv,
                                          FormatSinkImpl* sink);
 
-template <class AbslCord, typename std::enable_if<std::is_same<
-                              AbslCord, absl::Cord>::value>::type* = nullptr>
+template <
+    class AbslCord,
+    std::enable_if_t<std::is_same<AbslCord, absl::Cord>::value>* = nullptr>
 StringConvertResult FormatConvertImpl(const AbslCord& value,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink) {
@@ -353,10 +354,9 @@ IntegralConvertResult FormatConvertImpl(T v, FormatConversionSpecImpl conv,
 // We provide this function to help the checker, but it is never defined.
 // FormatArgImpl will use the underlying Convert functions instead.
 template <typename T>
-typename std::enable_if<std::is_enum<T>::value &&
-                            !HasUserDefinedConvert<T>::value &&
-                            !HasAbslStringify<T>::value,
-                        IntegralConvertResult>::type
+std::enable_if_t<std::is_enum<T>::value && !HasUserDefinedConvert<T>::value &&
+                     !HasAbslStringify<T>::value,
+                 IntegralConvertResult>
 FormatConvertImpl(T v, FormatConversionSpecImpl conv, FormatSinkImpl* sink);
 
 template <typename T>
@@ -471,22 +471,22 @@ class FormatArgImpl {
     static constexpr bool kHasUserDefined =
         str_format_internal::HasUserDefinedConvert<T>::value ||
         HasAbslStringify<T>::value;
-    using type = typename std::conditional<
+    using type = std::conditional_t<
         !kHasUserDefined && std::is_convertible<T, const char*>::value,
         const char*,
-        typename std::conditional<
+        std::conditional_t<
             !kHasUserDefined && std::is_convertible<T, const wchar_t*>::value,
             const wchar_t*,
-            typename std::conditional<
-                !kHasUserDefined && std::is_convertible<T, VoidPtr>::value,
-                VoidPtr, const T&>::type>::type>::type;
+            std::conditional_t<!kHasUserDefined &&
+                                   std::is_convertible<T, VoidPtr>::value,
+                               VoidPtr, const T&>>>;
   };
   template <typename T>
   struct DecayType<
-      T, typename std::enable_if<
-             !str_format_internal::HasUserDefinedConvert<T>::value &&
-             !HasAbslStringify<T>::value && std::is_enum<T>::value>::type> {
-    using type = decltype(+typename std::underlying_type<T>::type());
+      T,
+      std::enable_if_t<!str_format_internal::HasUserDefinedConvert<T>::value &&
+                       !HasAbslStringify<T>::value && std::is_enum<T>::value>> {
+    using type = decltype(+std::underlying_type_t<T>());
   };
 
  public:
@@ -551,8 +551,8 @@ class FormatArgImpl {
 
   template <typename T>
   static int ToIntVal(const T& val) {
-    using CommonType = typename std::conditional<std::is_signed<T>::value,
-                                                 int64_t, uint64_t>::type;
+    using CommonType =
+        std::conditional_t<std::is_signed<T>::value, int64_t, uint64_t>;
     if (static_cast<CommonType>(val) >
         static_cast<CommonType>((std::numeric_limits<int>::max)())) {
       return (std::numeric_limits<int>::max)();
@@ -574,8 +574,8 @@ class FormatArgImpl {
   template <typename T>
   static bool ToInt(Data arg, int* out, std::false_type,
                     std::true_type /* is_enum */) {
-    *out = ToIntVal(static_cast<typename std::underlying_type<T>::type>(
-        Manager<T>::Value(arg)));
+    *out = ToIntVal(
+        static_cast<std::underlying_type_t<T>>(Manager<T>::Value(arg)));
     return true;
   }
 

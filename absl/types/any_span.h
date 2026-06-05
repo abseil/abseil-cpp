@@ -385,7 +385,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
 
  public:
   using element_type = T;
-  using value_type = typename std::remove_const<T>::type;
+  using value_type = std::remove_const_t<T>;
   using size_type = std::size_t;
   using difference_type = std::ptrdiff_t;
   using absl_internal_is_view = std::true_type;
@@ -393,10 +393,10 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   static const size_type npos = static_cast<size_type>(-1);  // NOLINT
 
   using reference = T&;
-  using const_reference = typename std::add_const<T>::type&;
+  using const_reference = std::add_const_t<T>&;
 
   using pointer = T*;
-  using const_pointer = typename std::add_const<T>::type*;
+  using const_pointer = std::add_const_t<T>*;
 
   // Note that iterator will be const if T is const.
   class iterator;
@@ -660,7 +660,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   // TODO(b/179783710): add ABSL_ATTRIBUTE_LIFETIME_BOUND.
   template <typename LazyT = T, typename = EnableIfConst<LazyT>>
   constexpr AnySpan(  // NOLINT(google-explicit-constructor)
-      const AnySpan<typename std::remove_const<T>::type>& other)
+      const AnySpan<std::remove_const_t<T>>& other)
       : getter_(other.getter_), size_(other.size()) {}
 
   // Creates a span that wraps around another span of different type.
@@ -915,7 +915,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan<T>::IteratorBase {
 
  public:
   using iterator_category = std::random_access_iterator_tag;
-  using value_type = typename std::remove_const<Value>::type;
+  using value_type = std::remove_const_t<Value>;
   using difference_type = std::ptrdiff_t;
   using reference = Value&;
   using pointer = Value*;
@@ -1035,9 +1035,9 @@ class ABSL_ATTRIBUTE_VIEW AnySpan<T>::iterator
 // but also provides conversion from MutableIterator.
 template <typename T>
 class AnySpan<T>::const_iterator
-    : public IteratorBase<const_iterator, typename std::add_const<T>::type> {
+    : public IteratorBase<const_iterator, std::add_const_t<T>> {
  private:
-  using Base = IteratorBase<const_iterator, typename std::add_const<T>::type>;
+  using Base = IteratorBase<const_iterator, std::add_const_t<T>>;
 
  public:
   using typename Base::difference_type;

@@ -408,8 +408,7 @@ class AlphaNum {
       : piece_(pc.data(), pc.size()) {}
 #endif  // !ABSL_USES_STD_STRING_VIEW
 
-  template <typename T, typename = typename std::enable_if<
-                            HasAbslStringify<T>::value>::type>
+  template <typename T, typename = std::enable_if_t<HasAbslStringify<T>::value>>
   AlphaNum(  // NOLINT(runtime/explicit)
       const T& v ABSL_ATTRIBUTE_LIFETIME_BOUND,
       strings_internal::StringifySink&& sink ABSL_ATTRIBUTE_LIFETIME_BOUND = {})
@@ -434,31 +433,29 @@ class AlphaNum {
   // Match unscoped enums.  Use integral promotion so that a `char`-backed
   // enum becomes a wider integral type AlphaNum will accept.
   template <typename T,
-            typename = typename std::enable_if<
-                std::is_enum<T>{} && std::is_convertible<T, int>{} &&
-                !HasAbslStringify<T>::value>::type>
+            typename = std::enable_if_t<std::is_enum<T>{} &&
+                                        std::is_convertible<T, int>{} &&
+                                        !HasAbslStringify<T>::value>>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
       : AlphaNum(+e) {}
 
   // This overload matches scoped enums.  We must explicitly cast to the
   // underlying type, but use integral promotion for the same reason as above.
-  template <typename T,
-            typename std::enable_if<std::is_enum<T>{} &&
-                                        !std::is_convertible<T, int>{} &&
-                                        !HasAbslStringify<T>::value,
-                                    char*>::type = nullptr>
+  template <typename T, std::enable_if_t<std::is_enum<T>{} &&
+                                             !std::is_convertible<T, int>{} &&
+                                             !HasAbslStringify<T>::value,
+                                         char*> = nullptr>
   AlphaNum(T e)  // NOLINT(runtime/explicit)
-      : AlphaNum(+static_cast<typename std::underlying_type<T>::type>(e)) {}
+      : AlphaNum(+static_cast<std::underlying_type_t<T>>(e)) {}
 
   // vector<bool>::reference and const_reference require special help to
   // convert to `AlphaNum` because it requires two user defined conversions.
-  template <
-      typename T,
-      typename std::enable_if<
-          std::is_class<T>::value &&
-          (std::is_same<T, std::vector<bool>::reference>::value ||
-           std::is_same<T, std::vector<bool>::const_reference>::value)>::type* =
-          nullptr>
+  template <typename T,
+            std::enable_if_t<
+                std::is_class<T>::value &&
+                (std::is_same<T, std::vector<bool>::reference>::value ||
+                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
+                nullptr>
   AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
 
  private:

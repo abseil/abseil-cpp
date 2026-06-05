@@ -91,10 +91,10 @@ class OnlyLiteralZero {
   // has type `int`. Literal `0` arguments will be implicitly converted to
   // `std::nullptr_t` and accepted by the above constructor, while other `int`
   // arguments will fail to be converted and cause compilation failure.
-  template <typename T, typename = typename std::enable_if<
-                            std::is_same<T, std::nullptr_t>::value ||
-                            (std::is_integral<T>::value &&
-                             !std::is_same<T, int>::value)>::type>
+  template <typename T,
+            typename = std::enable_if_t<
+                std::is_same<T, std::nullptr_t>::value ||
+                (std::is_integral<T>::value && !std::is_same<T, int>::value)>>
   OnlyLiteralZero(T) {  // NOLINT
     static_assert(sizeof(T) < 0, "Only literal `0` is allowed.");
   }

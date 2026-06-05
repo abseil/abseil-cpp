@@ -302,7 +302,7 @@ struct MakeTypeSet<T, Ts...> : MakeTypeSet<Ts...>::template Insert<T>::type {};
 
 template <typename... T>
 using VariantForTypes = typename MakeTypeSet<
-    const typename std::decay<T>::type*...>::template apply<std::variant>;
+    const std::decay_t<T>*...>::template apply<std::variant>;
 
 template <typename Container>
 struct ContainerAsVector {

@@ -981,8 +981,8 @@ class AlignedValue {
 
 class StringPolicy {
   template <class F, class K, class V,
-            class = typename std::enable_if<
-                std::is_convertible<const K&, absl::string_view>::value>::type>
+            class = std::enable_if_t<
+                std::is_convertible<const K&, absl::string_view>::value>>
   decltype(std::declval<F>()(
       std::declval<const absl::string_view&>(), std::piecewise_construct,
       std::declval<std::tuple<K>>(),

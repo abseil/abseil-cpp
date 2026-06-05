@@ -124,8 +124,7 @@ inline char DivideBy10WithCarry(uint64_t* v, char carry) {
   return static_cast<char>(next_carry % divisor);
 }
 
-using MaxFloatType =
-    typename std::conditional<IsDoubleDouble(), double, long double>::type;
+using MaxFloatType = std::conditional_t<IsDoubleDouble(), double, long double>;
 
 // Generates the decimal representation for an integer of the form `v * 2^exp`,
 // where `v` and `exp` are both positive integers.

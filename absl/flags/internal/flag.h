@@ -282,9 +282,9 @@ constexpr T InitDefaultValue(EmptyBraces) {
   return T{};
 }
 
-template <typename ValueT, typename GenT,
-          typename std::enable_if<std::is_integral<ValueT>::value, int>::type =
-              ((void)GenT{}, 0)>
+template <
+    typename ValueT, typename GenT,
+    std::enable_if_t<std::is_integral<ValueT>::value, int> = ((void)GenT{}, 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }
@@ -616,9 +616,9 @@ class FlagImpl final : public CommandLineFlag {
     std::memcpy(value, static_cast<const void*>(&v), sizeof(T));
   }
   template <typename T,
-            typename std::enable_if<flags_internal::StorageKind<T>() ==
-                                        FlagValueStorageKind::kValueAndInitBit,
-                                    int>::type = 0>
+            std::enable_if_t<flags_internal::StorageKind<T>() ==
+                                 FlagValueStorageKind::kValueAndInitBit,
+                             int> = 0>
   void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
     *value = absl::bit_cast<FlagValueAndInitBit<T>>(ReadOneWord()).value;
   }

@@ -84,8 +84,7 @@ class AnySpanTest : public ::testing::Test {
   // Const T if this test instantiation is supposed to cover const AnySpans.
   // T if this test instantiation is supposed to cover mutable AnySpans.
   template <typename T>
-  using MaybeConst =
-      typename std::conditional<IsConstTest::value, const T, T>::type;
+  using MaybeConst = std::conditional_t<IsConstTest::value, const T, T>;
 
   // Initalizes a AnySpan around the given container and tests for
   // equality in a variety of ways.
@@ -498,9 +497,8 @@ TYPED_TEST(AnySpanTest, InvokableTransforms) {
 
   // For const span tests, we need a pointer to constant member function. We
   // choose the correct type of member function here.
-  using MemFunPtr =
-      typename std::conditional<TestFixture::IsConstTest::value,
-                                T& (S::*)() const, T& (S::*)()>::type;
+  using MemFunPtr = std::conditional_t<TestFixture::IsConstTest::value,
+                                       T& (S::*)() const, T& (S::*)()>;
 
   std::vector<S> v = {{"1", "2"}, {"3", "4"}};
   S a[] = {{"1", "2"}, {"3", "4"}};

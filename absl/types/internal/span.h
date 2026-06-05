@@ -82,8 +82,7 @@ template <typename C>
 using ElementT = typename ElementType<C>::type;
 
 template <typename T>
-using EnableIfMutable =
-    typename std::enable_if<!std::is_const<T>::value, int>::type;
+using EnableIfMutable = std::enable_if_t<!std::is_const<T>::value, int>;
 
 template <template <typename> class SpanT, typename T>
 constexpr bool EqualImpl(SpanT<T> a, SpanT<T> b) {
@@ -101,7 +100,7 @@ constexpr bool LessThanImpl(SpanT<T> a, SpanT<T> b) {
 
 template <typename From, typename To>
 using EnableIfConvertibleTo =
-    typename std::enable_if<std::is_convertible<From, To>::value>::type;
+    std::enable_if_t<std::is_convertible<From, To>::value>;
 
 // IsView is true for types where the return type of .data() is the same for
 // mutable and const instances. This isn't foolproof, but it's only used to

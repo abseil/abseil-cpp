@@ -55,9 +55,9 @@ class ExponentialDistributionTypedTest : public ::testing::Test {};
 // https://bugs.llvm.org/show_bug.cgi?id=49132. Don't bother running these tests
 // with double doubles until compiler support is better.
 using RealTypes =
-    std::conditional<absl::numeric_internal::IsDoubleDouble(),
-                     ::testing::Types<float, double>,
-                     ::testing::Types<float, double, long double>>::type;
+    std::conditional_t<absl::numeric_internal::IsDoubleDouble(),
+                       ::testing::Types<float, double>,
+                       ::testing::Types<float, double, long double>>;
 TYPED_TEST_SUITE(ExponentialDistributionTypedTest, RealTypes);
 
 TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {

@@ -107,7 +107,7 @@ void BM_Sequential_Span(benchmark::State& state) {
 // dereferences it.
 template <typename Container>
 void BM_Sequential_DerefSpan(benchmark::State& state) {
-  using T = typename std::remove_pointer<typename Container::value_type>::type;
+  using T = std::remove_pointer_t<typename Container::value_type>;
   auto values = MakeContainer<std::vector<T>>();
   const auto container = MakePointerContainer<Container>(&values);
   absl::Span<T* const> array_span(container);
@@ -137,7 +137,7 @@ void BM_Sequential_AnySpan(benchmark::State& state) {
 // Same as BM_Sequential_AnySpan, but dereferences the elements.
 template <typename Container>
 void BM_Sequential_AnySpanDeref(benchmark::State& state) {
-  using T = typename std::remove_pointer<typename Container::value_type>::type;
+  using T = std::remove_pointer_t<typename Container::value_type>;
   auto values = MakeContainer<std::vector<T>>();
   auto container = MakePointerContainer<Container>(&values);
   AnySpan<T> span(container, any_span_transform::Deref());
@@ -207,7 +207,7 @@ void BM_Random_AnySpan(benchmark::State& state) {
 // Same as BM_Random_AnySpan, but dereferences elements.
 template <typename Container>
 void BM_Random_AnySpanDeref(benchmark::State& state) {
-  using T = typename std::remove_pointer<typename Container::value_type>::type;
+  using T = std::remove_pointer_t<typename Container::value_type>;
   auto values = MakeContainer<std::vector<T>>();
   auto container = MakePointerContainer<Container>(&values);
   AnySpan<T> span(container, any_span_transform::Deref());

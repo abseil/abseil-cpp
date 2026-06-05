@@ -156,9 +156,8 @@ constexpr bool ShouldAnyUseBase() {
 
 template <typename T, typename V>
 using TupleElementMoveConstructible =
-    typename std::conditional<std::is_reference<T>::value,
-                              std::is_convertible<V, T>,
-                              std::is_constructible<T, V&&>>::type;
+    std::conditional_t<std::is_reference<T>::value, std::is_convertible<V, T>,
+                       std::is_constructible<T, V&&>>;
 
 template <bool SizeMatches, class T, class... Vs>
 struct TupleMoveConstructible : std::false_type {};

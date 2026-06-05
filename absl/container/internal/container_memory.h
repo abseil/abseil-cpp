@@ -144,12 +144,10 @@ auto TupleRefImpl(T&& t, std::index_sequence<Is...>)
 template <class T>
 auto TupleRef(T&& t) -> decltype(TupleRefImpl(
     std::forward<T>(t),
-    std::make_index_sequence<
-        std::tuple_size<typename std::decay<T>::type>::value>())) {
+    std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>())) {
   return TupleRefImpl(
       std::forward<T>(t),
-      std::make_index_sequence<
-          std::tuple_size<typename std::decay<T>::type>::value>());
+      std::make_index_sequence<std::tuple_size<std::decay_t<T>>::value>());
 }
 
 template <class F, class K, class V>
@@ -169,8 +167,7 @@ template <class Alloc, class T, class Tuple>
 void ConstructFromTuple(Alloc* alloc, T* ptr, Tuple&& t) {
   memory_internal::ConstructFromTupleImpl(
       alloc, ptr, std::forward<Tuple>(t),
-      std::make_index_sequence<
-          std::tuple_size<typename std::decay<Tuple>::type>::value>());
+      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>());
 }
 
 // Constructs T using the args specified in the tuple and calls F with the
@@ -180,8 +177,7 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
                                                                F&& f) {
   return memory_internal::WithConstructedImpl<T>(
       std::forward<Tuple>(t),
-      std::make_index_sequence<
-          std::tuple_size<typename std::decay<Tuple>::type>::value>(),
+      std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>(),
       std::forward<F>(f));
 }
 

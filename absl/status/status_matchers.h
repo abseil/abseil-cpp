@@ -104,10 +104,9 @@ ABSL_NAMESPACE_BEGIN
 // Returns a gMock matcher that matches a StatusOr<> whose status is
 // OK and whose value matches the inner matcher.
 template <typename InnerMatcherT>
-status_internal::IsOkAndHoldsMatcher<typename std::decay<InnerMatcherT>::type>
-IsOkAndHolds(InnerMatcherT&& inner_matcher) {
-  return status_internal::IsOkAndHoldsMatcher<
-      typename std::decay<InnerMatcherT>::type>(
+status_internal::IsOkAndHoldsMatcher<std::decay_t<InnerMatcherT>> IsOkAndHolds(
+    InnerMatcherT&& inner_matcher) {
+  return status_internal::IsOkAndHoldsMatcher<std::decay_t<InnerMatcherT>>(
       std::forward<InnerMatcherT>(inner_matcher));
 }
 

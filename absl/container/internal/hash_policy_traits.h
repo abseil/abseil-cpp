@@ -76,8 +76,8 @@ template <class Policy, class = void>
   using init_type = typename Policy::init_type;
 
   using reference = decltype(Policy::element(std::declval<slot_type*>()));
-  using pointer = typename std::remove_reference<reference>::type*;
-  using value_type = typename std::remove_reference<reference>::type;
+  using pointer = std::remove_reference_t<reference>*;
+  using value_type = std::remove_reference_t<reference>;
 
   // Policies can set this variable to tell raw_hash_set that all iterators
   // should be constant, even `iterator`. This is useful for set-like

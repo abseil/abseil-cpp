@@ -111,8 +111,7 @@ constexpr bool IsStoredLocally() {
 
 // An implementation of std::remove_cvref_t of C++20.
 template <class T>
-using RemoveCVRef =
-    typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+using RemoveCVRef = std::remove_cv_t<std::remove_reference_t<T>>;
 
 // An implementation of std::invoke_r of C++23.
 template <class ReturnType, class F, class... P>
@@ -719,8 +718,7 @@ using CanAssignReferenceWrapper = TrueAlias<
     /*knows how to properly type-erase the invocation.*/                       \
     template <class F>                                                         \
     explicit Impl(ConversionConstruct, F&& f)                                  \
-        : Core(TypedConversionConstruct<                                       \
-                   typename std::decay<F>::type inv_quals>(),                  \
+        : Core(TypedConversionConstruct<std::decay_t<F> inv_quals>(),          \
                std::forward<F>(f)) {}                                          \
                                                                                \
     /*Forward along the in-place construction parameters.*/                    \

@@ -234,8 +234,7 @@ struct SplitterIsConvertibleTo
 #ifdef _GLIBCXX_DEBUG
           !IsStrictlyBaseOfAndConvertibleToSTLContainer<C>::value &&
 #endif  // _GLIBCXX_DEBUG
-              !IsInitializerList<
-                  typename std::remove_reference<C>::type>::value &&
+              !IsInitializerList<std::remove_reference_t<C>>::value &&
               HasValueType<C>::value && HasConstIterator<C>::value,
           HasMappedType<C>::value> {
 };

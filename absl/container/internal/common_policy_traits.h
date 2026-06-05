@@ -43,7 +43,7 @@ struct common_policy_traits {
   // The actual object stored in the container.
   using slot_type = typename Policy::slot_type;
   using reference = decltype(Policy::element(std::declval<slot_type*>()));
-  using value_type = typename std::remove_reference<reference>::type;
+  using value_type = std::remove_reference_t<reference>;
 
   // PRECONDITION: `slot` is UNINITIALIZED
   // POSTCONDITION: `slot` is INITIALIZED

@@ -2287,7 +2287,7 @@ class raw_hash_set {
   // See https://godbolt.org/g/Y4xsUh.
   template <class T>
   using RequiresNotInit =
-      typename std::enable_if<!std::is_same<T, init_type>::value, int>::type;
+      std::enable_if_t<!std::is_same<T, init_type>::value, int>;
 
   template <class... Ts>
   using IsDecomposable = IsDecomposable<void, PolicyTraits, Hash, Eq, Ts...>;
@@ -3280,8 +3280,7 @@ class raw_hash_set {
   }
 
   template <typename H>
-  friend typename std::enable_if<H::template is_hashable<value_type>::value,
-                                 H>::type
+  friend std::enable_if_t<H::template is_hashable<value_type>::value, H>
   AbslHashValue(H h, const raw_hash_set& s) {
     return H::combine(H::combine_unordered(std::move(h), s.begin(), s.end()),
                       hash_internal::WeaklyMixedInteger{s.size()});

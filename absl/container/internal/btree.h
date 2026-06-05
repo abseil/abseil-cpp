@@ -1112,7 +1112,7 @@ class btree_iterator : private btree_iterator_generation_info {
   using is_map_container = typename params_type::is_map_container;
 
   using node_type = Node;
-  using normal_node = typename std::remove_const<Node>::type;
+  using normal_node = std::remove_const_t<Node>;
   using const_node = const Node;
   using normal_pointer = typename params_type::pointer;
   using normal_reference = typename params_type::reference;
