@@ -605,9 +605,12 @@ using UnwrapStdReferenceWrapper =
 
 // An alias that always yields std::true_type (used with constraints) where
 // substitution failures happen when forming the template arguments.
+//
+// NOTE: We avoid std::void_t here to avoid a bug in GCC < 11:
+// https://godbolt.org/z/sxbfGMdcb
 template <class... T>
 using TrueAlias =
-    std::integral_constant<bool, sizeof(absl::void_t<T...>*) != 0>;
+    std::integral_constant<bool, sizeof(std::common_type<T...>*) != 0>;
 
 /*SFINAE constraints for the conversion-constructor.*/
 template <class Sig, class F,
