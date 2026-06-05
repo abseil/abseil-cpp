@@ -59,9 +59,13 @@
 //   struct BackingArray {
 //     // Sampling handler. This field isn't present when the sampling is
 //     // disabled or this allocation hasn't been selected for sampling.
-//     HashtablezInfoHandle infoz_;
-//     // The number of elements we can insert before growing the capacity.
-//     size_t growth_left;
+//     HashtablezInfoHandle infoz_;  // optional
+//     // Additional number that can be added to growth_left_lower_bound.
+//     // Only stored for tables with large capacities.
+//     uint8_t growth_left_overflow[7];  // optional
+//     // The minimum number of elements we can insert before growing the
+//     // capacity.
+//     uint8_t growth_left_lower_bound;
 //     // Control bytes for the "real" slots.
 //     ctrl_t ctrl[capacity];
 //     // Always `ctrl_t::kSentinel`. This is used by iterators to find when to
@@ -921,78 +925,149 @@ using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 // which will recompute this value as a side-effect.
 //
 // See also `CapacityToGrowth()`.
-class GrowthInfo {
+//
+// GrowthInfo is stored as 1 or 8 bytes at the beginning of the backing array.
+// For capacity <= kMaxGrowthLeftLowerBound we store single byte, otherwise we
+// store 8 bytes. Byte before the first control byte for all tables is always
+// used to store GrowthInfoLowerBound. That helps to avoid any branching in the
+// hottest code accessing GrowthInfo. GrowthInfoLowerBound has 7 bits to store
+// the growth left and 1 bit to store whether the table has any deleted slots.
+// For capacity > kMaxGrowthLeftLowerBound we use another 7 bytes to store the
+// full GrowthInfo. GrowthInfo for capacity > kMaxGrowthLeftLowerBound is stored
+// as uint64_t in little endian encoding. Most significant 8 bits (last byte in
+// little endian encoding) contains GrowthInfoLowerBound.
+class GrowthInfoAccessor;
+
+// One byte encoding of lower bound GrowthInfo.
+// It encodes number of growth left from 0 to kMaxGrowthLeftLowerBound and
+// whether the table has any deleted slots.
+class GrowthInfoLowerBound {
  public:
-  // Leaves data member uninitialized.
-  GrowthInfo() = default;
+  static constexpr uint8_t kGrowthLeftMask = 0x7Fu;
+  static constexpr uint8_t kDeletedBit = 0x80u;
+  static constexpr uint64_t kMaxGrowthLeftLowerBound = 127;
+  static_assert(kMaxGrowthLeftLowerBound == kGrowthLeftMask);
 
-  // Initializes the GrowthInfo assuming we can grow `growth_left` elements
-  // and there are no kDeleted slots in the table.
-  void InitGrowthLeftNoDeleted(size_t growth_left) {
-    growth_left_info_ = growth_left;
-  }
-
-  // Overwrites single full slot with an empty slot.
-  void OverwriteFullAsEmpty() { ++growth_left_info_; }
-
-  // Overwrites single empty slot with a full slot.
-  void OverwriteEmptyAsFull() {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeft() > 0);
-    --growth_left_info_;
-  }
-
-  // Overwrites several empty slots with full slots.
-  void OverwriteManyEmptyAsFull(size_t count) {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeft() >= count);
-    growth_left_info_ -= count;
-  }
-
-  // Overwrites specified control element with full slot.
-  void OverwriteControlAsFull(ctrl_t ctrl) {
-    ABSL_SWISSTABLE_ASSERT(GetGrowthLeft() >=
-                           static_cast<size_t>(IsEmpty(ctrl)));
-    growth_left_info_ -= static_cast<size_t>(IsEmpty(ctrl));
-  }
-
-  // Overwrites single full slot with a deleted slot.
-  void OverwriteFullAsDeleted() { growth_left_info_ |= kDeletedBit; }
+  explicit constexpr GrowthInfoLowerBound(uint8_t growth_left)
+      : growth_left_(growth_left) {}
 
   // Returns true if table satisfies two properties:
   // 1. Guaranteed to have no kDeleted slots.
   // 2. There is a place for at least one element to grow.
-  bool HasNoDeletedAndGrowthLeft() const {
-    return static_cast<std::make_signed_t<size_t>>(growth_left_info_) > 0;
+  constexpr bool HasNoDeletedAndGrowthLeft() const {
+    return static_cast<int8_t>(growth_left_) > 0;
+  }
+
+  // Returns true if table satisfies two properties:
+  // 1. May have kDeleted slots (kDeletedBit == 1).
+  // 2. There is a place for at least one element to grow.
+  constexpr bool HasDeletedAndGrowthLeft() const {
+    return growth_left_ > kDeletedBit;
   }
 
   // Returns true if the table satisfies two properties:
   // 1. Guaranteed to have no kDeleted slots.
   // 2. There is no growth left.
-  bool HasNoGrowthLeftAndNoDeleted() const { return growth_left_info_ == 0; }
+  constexpr bool HasNoGrowthLeftAndNoDeleted() const {
+    return growth_left_ == 0;
+  }
 
-  // Returns true if GetGrowthLeft() == 0, but must be called only if
-  // HasNoDeleted() is false. It is slightly more efficient.
-  bool HasNoGrowthLeftAssumingMayHaveDeleted() const {
-    ABSL_SWISSTABLE_ASSERT(!HasNoDeleted());
-    return growth_left_info_ == kDeletedBit;
+  // Returns true if GetGrowthLeft() == 0 and HasNoDeleted() is false.
+  // It is slightly more efficient.
+  constexpr bool HasNoGrowthLeftAndHaveDeleted() const {
+    return growth_left_ == kDeletedBit;
   }
 
   // Returns true if table guaranteed to have no kDeleted slots.
-  bool HasNoDeleted() const {
-    return static_cast<std::make_signed_t<size_t>>(growth_left_info_) >= 0;
+  constexpr bool HasNoDeleted() const {
+    return (growth_left_ & kDeletedBit) == 0;
   }
 
-  // Returns the number of elements left to grow.
-  size_t GetGrowthLeft() const { return growth_left_info_ & kGrowthLeftMask; }
+  // Returns the minimum number of elements left to grow.
+  // Use GrowthInfoView::GetGrowthLeftTotal() to get the total number of
+  // elements left to grow. For tables with capacity <=
+  // kMaxGrowthLeftLowerBound, this is the same as GetGrowthLeftTotal().
+  constexpr uint8_t GetGrowthLeft() const {
+    return growth_left_ & kGrowthLeftMask;
+  }
 
  private:
-  static constexpr size_t kGrowthLeftMask = ((~size_t{}) >> 1);
-  static constexpr size_t kDeletedBit = ~kGrowthLeftMask;
-  // Topmost bit signal whenever there are deleted slots.
-  size_t growth_left_info_;
+  uint8_t growth_left_;
 };
 
-static_assert(sizeof(GrowthInfo) == sizeof(size_t), "");
-static_assert(alignof(GrowthInfo) == alignof(size_t), "");
+// GrowthInfo is stored in the backing array, and this class provides a simple
+// interface to access and modify it.
+class GrowthInfoAccessor {
+ public:
+  // GrowthInfoLowerBound is stored in the most significant 8 bits of the
+  // full growth info.
+  static constexpr uint64_t kLowerBoundShift = 64 - 8;
+
+  explicit GrowthInfoAccessor(void* control)
+      : growth_info_lower_bound_(reinterpret_cast<uint8_t*>(control) - 1) {}
+
+  // Initializes the GrowthInfo assuming we can grow `growth_left` elements
+  // and there are no kDeleted slots in the table.
+  void InitGrowthLeftNoDeleted(size_t growth_left, size_t capacity);
+
+  // Returns a GrowthInfoLowerBound object containing the information
+  // about minimum growth left.
+  // It guarantees that GetGrowthLeft() will be > 0 if GetGrowthLeftTotal() > 0.
+  // It may optionally borrow some growth left from the full_growth_info.
+  GrowthInfoLowerBound RebalanceGrowthLeftLowerBound(size_t capacity);
+
+  // Overwrites single full slot with an empty slot.
+  void OverwriteFullAsEmpty();
+
+  // Overwrites single empty slot with a full slot.
+  // Must be called when GetGrowthLeftLowerBound() > 0.
+  void OverwriteEmptyAsFull() {
+    ABSL_SWISSTABLE_ASSERT(GetGrowthLeftLowerBound() > 0);
+    --(*growth_info_lower_bound_);
+  }
+
+  // Overwrites specified control element with full slot.
+  // Must be called when GetGrowthLeftLowerBound() >= IsEmpty(ctrl).
+  void OverwriteControlAsFull(ctrl_t ctrl) {
+    ABSL_SWISSTABLE_ASSERT(GetGrowthLeftLowerBound() >=
+                           static_cast<size_t>(IsEmpty(ctrl)));
+    *growth_info_lower_bound_ -= static_cast<size_t>(IsEmpty(ctrl));
+  }
+
+  // Overwrites single full slot with a deleted slot.
+  void OverwriteFullAsDeleted() {
+    *growth_info_lower_bound_ |= GrowthInfoLowerBound::kDeletedBit;
+  }
+
+  // Returns a GrowthInfoLowerBound object containing the information
+  // about minimum growth left.
+  GrowthInfoLowerBound GetGrowthInfoLowerBound() const {
+    return GrowthInfoLowerBound(*growth_info_lower_bound_);
+  }
+
+  // Returns the minimum number of elements left to grow.
+  size_t GetGrowthLeftLowerBound() const {
+    return GetGrowthInfoLowerBound().GetGrowthLeft();
+  }
+
+  // The number of slots we can still fill without needing to rehash.
+  // Hot code paths should try to work with
+  // growth_info().GetGrowthLeftLowerBound() instead.
+  size_t GetGrowthLeftTotalSlow(size_t capacity) const;
+
+ private:
+  void* full_growth_info_ptr() const { return growth_info_lower_bound_ - 7; }
+
+  GrowthInfoLowerBound RebalanceGrowthLeftLowerBoundLargeCapacity();
+
+  // Pointer to the GrowthInfoLowerBound data.
+  // For large capacities, 7 bytes before this pointer is used to store
+  // the full growth info.
+  // NOTE: using a pointer here can result in the compiler being forced to
+  // assume aliasing can happen. So in hot code paths, we try to work with
+  // GrowthInfoLowerBound directly
+  uint8_t* growth_info_lower_bound_;
+};
 
 // Returns the number of "cloned control bytes".
 //
@@ -1006,20 +1081,26 @@ constexpr size_t NumControlBytes(size_t capacity) {
   return IsSmallCapacity(capacity) ? 0 : capacity + 1 + NumClonedBytes();
 }
 
-// Returns whether table with the given capacity has a GrowthInfo.
-constexpr bool HasGrowthInfoForCapacity(size_t capacity) {
-  return !IsSmallCapacity(capacity);
+// Returns the size in bytes table with given capacity use to store GrowthInfo.
+// Returns 0 for small tables that doesn't store GrowthInfo.
+constexpr size_t GrowthInfoSizeForCapacity(size_t capacity) {
+  if (IsSmallCapacity(capacity)) {
+    return 0;
+  }
+  return capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound
+             ? sizeof(uint8_t)
+             : sizeof(uint64_t);
 }
 
 // Computes the offset from the start of the backing allocation of control.
 // infoz and growth_info are stored at the beginning of the backing array.
-constexpr size_t ControlOffset(bool has_infoz, bool has_growth_info) {
+constexpr size_t ControlOffset(bool has_infoz, size_t capacity) {
   if (ABSL_PREDICT_FALSE(has_infoz)) {
-    // We always allocate GrowthInfo for sampled tables to allow branchless
-    // access to infoz pointer.
-    return sizeof(HashtablezInfoHandle) + sizeof(GrowthInfo);
+    // We always allocate 8 bytes of growth info for sampled tables to allow
+    // branchless access to infoz pointer.
+    return sizeof(HashtablezInfoHandle) + sizeof(uint64_t);
   }
-  return has_growth_info ? sizeof(GrowthInfo) : 0;
+  return GrowthInfoSizeForCapacity(capacity);
 }
 
 // Returns the offset of the next item after `offset` that is aligned to `align`
@@ -1034,8 +1115,7 @@ class RawHashSetLayout {
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
                             size_t slot_align, bool has_infoz,
                             size_t blocked_element_count)
-      : control_offset_(
-            ControlOffset(has_infoz, HasGrowthInfoForCapacity(capacity))),
+      : control_offset_(ControlOffset(has_infoz, capacity)),
         generation_offset_(control_offset_ + NumControlBytes(capacity)),
         slot_offset_(
             AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
@@ -1129,11 +1209,8 @@ union HeapOrSoo {
 
 // Returns a reference to the GrowthInfo object stored immediately before
 // `control`.
-inline GrowthInfo& GetGrowthInfoFromControl(ctrl_t* control) {
-  auto* gl_ptr = reinterpret_cast<GrowthInfo*>(control) - 1;
-  ABSL_SWISSTABLE_ASSERT(
-      reinterpret_cast<uintptr_t>(gl_ptr) % alignof(GrowthInfo) == 0);
-  return *gl_ptr;
+inline GrowthInfoAccessor GetGrowthInfoFromControl(ctrl_t* control) {
+  return GrowthInfoAccessor(control);
 }
 
 // CommonFields hold the fields in raw_hash_set that do not depend
@@ -1260,18 +1337,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
   bool is_small() const { return inline_data_.is_small(); }
 
-  // The number of slots we can still fill without needing to rehash.
-  // This is stored in the heap allocation before the control bytes.
-  // TODO(b/289225379): experiment with moving growth_info back inline to
-  // increase room for SOO.
-  size_t growth_left() const { return growth_info().GetGrowthLeft(); }
-
-  GrowthInfo& growth_info() {
-    ABSL_SWISSTABLE_ASSERT(HasGrowthInfoForCapacity(capacity()));
+  GrowthInfoAccessor growth_info() const {
+    ABSL_SWISSTABLE_ASSERT(GrowthInfoSizeForCapacity(capacity()) > 0);
     return GetGrowthInfoFromControl(control());
-  }
-  GrowthInfo growth_info() const {
-    return const_cast<CommonFields*>(this)->growth_info();
   }
 
   bool has_infoz() const { return inline_data_.has_infoz(); }
@@ -1286,8 +1354,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
         reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
     ABSL_SWISSTABLE_ASSERT(has_infoz());
     return reinterpret_cast<HashtablezInfoHandle*>(
-        control() - ControlOffset(/*has_infoz=*/true,
-                                  HasGrowthInfoForCapacity(capacity())));
+        control() - ControlOffset(/*has_infoz=*/true, capacity()));
   }
 
   HashtablezInfoHandle infoz() {
@@ -1302,9 +1369,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
     if constexpr (!SwisstableGenerationsEnabled()) {
       return false;
     }
-    // As an optimization, we avoid calling ShouldRehashForBugDetection if we
-    // will end up rehashing anyways.
-    if (growth_left() == 0) return false;
     return CommonFieldsGenerationInfo::
         should_rehash_for_bug_detection_on_insert(capacity());
   }
@@ -1329,7 +1393,11 @@ class CommonFields : public CommonFieldsGenerationInfo {
     // Formula is valid because MaxCapacityWithBlockedElements is less than
     // group width. On erase for single group tables, we always increment the
     // growth left.
-    return CapacityToGrowth(cap) - size() - growth_left();
+    ABSL_SWISSTABLE_ASSERT(cap <=
+                           GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    return CapacityToGrowth(cap) - size() -
+           // We can use lower bound here because capacity is small.
+           growth_info().GetGrowthLeftLowerBound();
   }
 
   // The size of the backing array allocation.
@@ -1725,9 +1793,12 @@ extern template size_t TryFindNewIndexWithoutProbing(size_t h1,
                                                      ctrl_t* new_ctrl,
                                                      size_t new_capacity);
 
-// growth_info (which is a size_t) is stored with the backing array.
+// The HashtablezInfoHandle is stored before the control bytes.
+// NOTE: The growth_info is also stored before the backing array, but it doesn't
+// have alignment requirements. For small tables it is 1 byte, for larger tables
+// it is 8 bytes, but we use unaligned load.
 constexpr size_t BackingArrayAlignment(size_t align_of_slot) {
-  return (std::max)(align_of_slot, alignof(GrowthInfo));
+  return (std::max)(align_of_slot, alignof(HashtablezInfoHandle));
 }
 
 // Iterates over all full slots and calls `cb(const ctrl_t*, void*)`.
@@ -3737,26 +3808,7 @@ class raw_hash_set {
  private:
   friend struct RawHashSetTestOnlyAccess;
 
-  // The number of slots we can still fill without needing to rehash.
-  //
-  // This is stored separately due to tombstones: we do not include tombstones
-  // in the growth capacity, because we'd like to rehash when the table is
-  // otherwise filled with tombstones: otherwise, probe sequences might get
-  // unacceptably long without triggering a rehash. Callers can also force a
-  // rehash via the standard `rehash(0)`, which will recompute this value as a
-  // side-effect.
-  //
-  // See `CapacityToGrowth()`.
-  size_t growth_left() const {
-    return common().growth_left();
-  }
-
-  GrowthInfo& growth_info() {
-    return common().growth_info();
-  }
-  GrowthInfo growth_info() const {
-    return common().growth_info();
-  }
+  GrowthInfoAccessor growth_info() const { return common().growth_info(); }
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the

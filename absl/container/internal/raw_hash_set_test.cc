@@ -105,129 +105,420 @@ using ::testing::UnorderedElementsAreArray;
 // Convenience function to static cast to ctrl_t.
 ctrl_t CtrlT(int i) { return static_cast<ctrl_t>(i); }
 
-// Enables sampling with 1 percent sampling rate and
-// resets the rate counter for the current thread.
-void SetSamplingRateTo1Percent() {
-  SetHashtablezEnabled(true);
-  SetHashtablezSampleParameter(100);  // Sample ~1% of tables.
-  // Reset rate counter for the current thread.
-  TestOnlyRefreshSamplingStateForCurrentThread();
+TEST(RawHashSetLayout, SmallCapacity) {
+  {
+    SCOPED_TRACE("capacity=1 no alignment after generation");
+    constexpr size_t kSlotSize = 1;
+    RawHashSetLayout layout(1, kSlotSize, /*slot_align=*/1,
+                            /*has_infoz=*/false, /*blocked_element_count=*/0);
+    EXPECT_EQ(layout.control_offset(), 0);
+    EXPECT_EQ(layout.slot_offset(), NumGenerationBytes());
+    EXPECT_EQ(layout.alloc_size(), NumGenerationBytes() + kSlotSize);
+  }
+  {
+    SCOPED_TRACE("capacity=1 with alignment after generation");
+    constexpr size_t kSlotSize = 8;
+    constexpr size_t kAlignment = 4;
+    RawHashSetLayout layout(1, kSlotSize, kAlignment,
+                            /*has_infoz=*/false, /*blocked_element_count=*/0);
+    EXPECT_EQ(layout.control_offset(), 0);
+    EXPECT_EQ(layout.slot_offset(), NumGenerationBytes() == 0 ? 0 : kAlignment);
+    EXPECT_EQ(layout.alloc_size(), layout.slot_offset() + kSlotSize);
+  }
 }
 
-// Disables sampling and resets the rate counter for the current thread.
-void DisableSampling() {
-  SetHashtablezEnabled(false);
-  SetHashtablezSampleParameter(1 << 16);
-  // Reset rate counter for the current thread.
-  TestOnlyRefreshSamplingStateForCurrentThread();
+void VerifyMiddleSizeTableLayout(size_t capacity, size_t slot_size,
+                                 size_t slot_align, bool has_infoz,
+                                 size_t blocked_element_count,
+                                 size_t padding = 0) {
+  SCOPED_TRACE(testing::Message()
+               << "capacity: " << capacity << " slot_size: " << slot_size
+               << " slot_align: " << slot_align << " has_infoz: " << has_infoz
+               << " blocked_element_count: " << blocked_element_count
+               << " padding: " << padding);
+  ASSERT_GT(capacity, 1);
+  ASSERT_LE(capacity, GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+  RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
+                          blocked_element_count);
+  EXPECT_EQ(layout.control_offset(), 1);  // 1 byte for growth_info
+  size_t expected_slot_offset =
+      capacity + NumClonedBytes() + 1 + /*growth*/ 1 + NumGenerationBytes();
+  EXPECT_LT(padding, slot_align);
+  EXPECT_EQ((expected_slot_offset + padding) % slot_align, 0);
+  expected_slot_offset += padding;
+  EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
+  size_t allocated_values = capacity - blocked_element_count;
+  EXPECT_EQ(layout.alloc_size(),
+            expected_slot_offset + allocated_values * slot_size);
 }
 
-TEST(GrowthInfoTest, GetGrowthLeft) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  EXPECT_EQ(gi.GetGrowthLeft(), 5);
-  gi.OverwriteFullAsDeleted();
-  EXPECT_EQ(gi.GetGrowthLeft(), 5);
+TEST(RawHashSetLayout, MiddleSize) {
+  VerifyMiddleSizeTableLayout(/*capacity=*/3, /*slot_size=*/4,
+                              /*slot_align=*/4, /*has_infoz=*/false,
+                              /*blocked_element_count=*/1,
+                              /*padding=*/NumGenerationBytes() == 0 ? 0 : 3);
+  VerifyMiddleSizeTableLayout(/*capacity=*/7, /*slot_size=*/4,
+                              /*slot_align=*/4, /*has_infoz=*/false,
+                              /*blocked_element_count=*/1,
+                              /*padding=*/NumGenerationBytes() == 0 ? 0 : 3);
+  VerifyMiddleSizeTableLayout(/*capacity=*/127, /*slot_size=*/8,
+                              /*slot_align=*/8, /*has_infoz=*/false,
+                              /*blocked_element_count=*/3,
+                              /*padding=*/NumGenerationBytes() == 0 ? 0 : 7);
 }
 
-TEST(GrowthInfoTest, HasNoDeleted) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  EXPECT_TRUE(gi.HasNoDeleted());
-  gi.OverwriteFullAsDeleted();
-  EXPECT_FALSE(gi.HasNoDeleted());
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+TEST(RawHashSetLayout, SmallWithInfoZ) {
+  {
+    SCOPED_TRACE("capacity=1 no alignment after generation");
+    RawHashSetLayout layout(1, /*slot_size=*/1, /*slot_align=*/1,
+                            /*has_infoz=*/true, /*blocked_element_count=*/0);
+    EXPECT_EQ(layout.control_offset(),
+              // growth_info is always 8 bytes for sampled tables.
+              8 + sizeof(HashtablezInfoHandle));
+    EXPECT_EQ(layout.slot_offset(),
+              layout.control_offset() + NumGenerationBytes());
+    EXPECT_EQ(layout.alloc_size(), layout.slot_offset() + 1);
+  }
+  {
+    constexpr size_t kSlotSize = 8;
+    constexpr size_t kAlignment = 8;
+    constexpr size_t kCapacity = 3;
+    RawHashSetLayout layout(kCapacity, /*slot_size=*/kSlotSize,
+                            /*slot_align=*/kAlignment,
+                            /*has_infoz=*/true, /*blocked_element_count=*/0);
+    EXPECT_EQ(layout.control_offset(),
+              // growth_info is always 8 bytes for sampled tables.
+              8 + sizeof(HashtablezInfoHandle));
+    size_t expected_slot_offset =
+        layout.control_offset() + kCapacity + NumClonedBytes() + 1 +
+        /*padding+generation*/ (sizeof(HashtablezInfoHandle) == 4 ? 1 : 5);
+    EXPECT_EQ(expected_slot_offset % kAlignment, 0);
+    EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
+    EXPECT_EQ(layout.alloc_size(),
+              expected_slot_offset + kCapacity * kSlotSize);
+  }
+}
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+
+void VerifyLargeTableLayout(size_t capacity, size_t slot_size,
+                            size_t slot_align, bool has_infoz,
+                            size_t blocked_element_count) {
+  SCOPED_TRACE(testing::Message()
+               << "capacity: " << capacity << " slot_size: " << slot_size
+               << " slot_align: " << slot_align << " has_infoz: " << has_infoz
+               << " blocked_element_count: " << blocked_element_count);
+  ASSERT_GT(capacity, GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+  RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
+                          blocked_element_count);
+  EXPECT_EQ(layout.control_offset(),
+            has_infoz ? 8 + sizeof(HashtablezInfoHandle) : 8);
+  size_t expected_slot_offset = layout.control_offset() + capacity +
+                                NumClonedBytes() + 1 + /*padding+generation*/ 1;
+  EXPECT_EQ(expected_slot_offset % slot_align, 0);
+  EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
+  EXPECT_EQ(
+      layout.alloc_size(),
+      expected_slot_offset + (capacity - blocked_element_count) * slot_size);
+}
+
+TEST(RawHashSetLayout, Large) {
+  VerifyLargeTableLayout(/*capacity=*/255, /*slot_size=*/8, /*slot_align=*/8,
+                         /*has_infoz=*/false, /*blocked_element_count=*/5);
+#if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+  VerifyLargeTableLayout(/*capacity=*/1023, /*slot_size=*/8, /*slot_align=*/8,
+                         /*has_infoz=*/true, /*blocked_element_count=*/2);
+#endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
+}
+
+class GrowthInfoAllocator {
+ public:
+  explicit GrowthInfoAllocator(size_t capacity) {
+    if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
+      SanitizerPoisonMemoryRegion(control_.data(), 7);
+    }
+    SanitizerPoisonMemoryRegion(control_.data() + 8, 1);
+  }
+
+  GrowthInfoAccessor* operator->() { return &growth_info_; }
+
+ private:
+  // We allocate on heap since ASAN fails to detect access to poisoned memory
+  // on stack.
+  std::vector<ctrl_t> control_ =
+      std::vector<ctrl_t>(9, /*garbage*/ ctrl_t::kSentinel);
+  GrowthInfoAccessor growth_info_ = GrowthInfoAccessor(control_.data() + 8);
+};
+
+TEST(GrowthInfoViewTest, GetGrowthLeft) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 5);
+  EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity), 5);
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 5);
+  EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity), 5);
+}
+
+TEST(GrowthInfoViewTest, HasNoDeleted) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  EXPECT_TRUE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_FALSE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
   // After reinitialization we have no deleted slots.
-  gi.InitGrowthLeftNoDeleted(5);
-  EXPECT_TRUE(gi.HasNoDeleted());
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  EXPECT_TRUE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
 }
 
-TEST(GrowthInfoTest, HasNoDeletedAndGrowthLeft) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  EXPECT_TRUE(gi.HasNoDeletedAndGrowthLeft());
-  gi.OverwriteFullAsDeleted();
-  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
-  gi.InitGrowthLeftNoDeleted(0);
-  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
-  gi.OverwriteFullAsDeleted();
-  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
+TEST(GrowthInfoViewTest, HasNoDeletedAndGrowthLeft) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  EXPECT_TRUE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/0, kCapacity);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
   // After reinitialization we have no deleted slots.
-  gi.InitGrowthLeftNoDeleted(5);
-  EXPECT_TRUE(gi.HasNoDeletedAndGrowthLeft());
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  EXPECT_TRUE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
 }
 
-TEST(GrowthInfoTest, HasNoGrowthLeftAndNoDeleted) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(1);
-  EXPECT_FALSE(gi.HasNoGrowthLeftAndNoDeleted());
-  gi.OverwriteEmptyAsFull();
-  EXPECT_TRUE(gi.HasNoGrowthLeftAndNoDeleted());
-  gi.OverwriteFullAsDeleted();
-  EXPECT_FALSE(gi.HasNoGrowthLeftAndNoDeleted());
-  gi.OverwriteFullAsEmpty();
-  EXPECT_FALSE(gi.HasNoGrowthLeftAndNoDeleted());
-  gi.InitGrowthLeftNoDeleted(0);
-  EXPECT_TRUE(gi.HasNoGrowthLeftAndNoDeleted());
-  gi.OverwriteFullAsEmpty();
-  EXPECT_FALSE(gi.HasNoGrowthLeftAndNoDeleted());
+TEST(GrowthInfoViewTest, HasNoGrowthLeftAndNoDeleted) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/1, kCapacity);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_TRUE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
+  growth_info->OverwriteFullAsEmpty();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/0, kCapacity);
+  EXPECT_TRUE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
+  growth_info->OverwriteFullAsEmpty();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndNoDeleted());
 }
 
-TEST(GrowthInfoTest, OverwriteFullAsEmpty) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  gi.OverwriteFullAsEmpty();
-  EXPECT_EQ(gi.GetGrowthLeft(), 6);
-  gi.OverwriteFullAsDeleted();
-  EXPECT_EQ(gi.GetGrowthLeft(), 6);
-  gi.OverwriteFullAsEmpty();
-  EXPECT_EQ(gi.GetGrowthLeft(), 7);
-  EXPECT_FALSE(gi.HasNoDeleted());
+TEST(GrowthInfoViewTest, OverwriteFullAsEmpty) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  growth_info->OverwriteFullAsEmpty();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 6);
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 6);
+  growth_info->OverwriteFullAsEmpty();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 7);
+  EXPECT_FALSE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
 }
 
-TEST(GrowthInfoTest, OverwriteEmptyAsFull) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  gi.OverwriteEmptyAsFull();
-  EXPECT_EQ(gi.GetGrowthLeft(), 4);
-  gi.OverwriteFullAsDeleted();
-  EXPECT_EQ(gi.GetGrowthLeft(), 4);
-  gi.OverwriteEmptyAsFull();
-  EXPECT_EQ(gi.GetGrowthLeft(), 3);
-  EXPECT_FALSE(gi.HasNoDeleted());
+TEST(GrowthInfoViewTest, OverwriteEmptyAsFull) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 4);
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 4);
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 3);
+  EXPECT_FALSE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
 }
 
-TEST(GrowthInfoTest, OverwriteControlAsFull) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(5);
-  gi.OverwriteControlAsFull(ctrl_t::kEmpty);
-  EXPECT_EQ(gi.GetGrowthLeft(), 4);
-  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
-  EXPECT_EQ(gi.GetGrowthLeft(), 4);
-  gi.OverwriteFullAsDeleted();
-  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
+TEST(GrowthInfoViewTest, OverwriteControlAsFull) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/5, kCapacity);
+  growth_info->OverwriteControlAsFull(ctrl_t::kEmpty);
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 4);
+  growth_info->OverwriteControlAsFull(ctrl_t::kDeleted);
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 4);
+  growth_info->OverwriteFullAsDeleted();
+  growth_info->OverwriteControlAsFull(ctrl_t::kDeleted);
   // We do not count number of deleted, so the bit sticks till the next rehash.
-  EXPECT_FALSE(gi.HasNoDeletedAndGrowthLeft());
-  EXPECT_FALSE(gi.HasNoDeleted());
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft());
+  EXPECT_FALSE(growth_info->GetGrowthInfoLowerBound().HasNoDeleted());
 }
 
-TEST(GrowthInfoTest, HasNoGrowthLeftAssumingMayHaveDeleted) {
-  GrowthInfo gi;
-  gi.InitGrowthLeftNoDeleted(1);
-  gi.OverwriteFullAsDeleted();
-  EXPECT_EQ(gi.GetGrowthLeft(), 1);
-  EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
-  gi.OverwriteControlAsFull(ctrl_t::kDeleted);
-  EXPECT_EQ(gi.GetGrowthLeft(), 1);
-  EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
-  gi.OverwriteFullAsEmpty();
-  EXPECT_EQ(gi.GetGrowthLeft(), 2);
-  EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
-  gi.OverwriteEmptyAsFull();
-  EXPECT_EQ(gi.GetGrowthLeft(), 1);
-  EXPECT_FALSE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
-  gi.OverwriteEmptyAsFull();
-  EXPECT_EQ(gi.GetGrowthLeft(), 0);
-  EXPECT_TRUE(gi.HasNoGrowthLeftAssumingMayHaveDeleted());
+TEST(GrowthInfoViewTest, HasNoGrowthLeftAndHaveDeleted) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/1, kCapacity);
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 1);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+  growth_info->OverwriteControlAsFull(ctrl_t::kDeleted);
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 1);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+  growth_info->OverwriteFullAsEmpty();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 2);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 1);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 0);
+  EXPECT_TRUE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+}
+
+TEST(GrowthInfoViewTest, HasNoGrowthLeftAndHaveDeletedReturnFalseIfNoDeleted) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/0, kCapacity);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasNoGrowthLeftAndHaveDeleted());
+}
+
+TEST(GrowthInfoViewTest, HasDeletedAndGrowthLeft) {
+  constexpr size_t kCapacity = 7;
+  GrowthInfoAllocator growth_info(kCapacity);
+  growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/1, kCapacity);
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasDeletedAndGrowthLeft());
+  growth_info->OverwriteFullAsDeleted();
+  EXPECT_TRUE(growth_info->GetGrowthInfoLowerBound().HasDeletedAndGrowthLeft());
+  growth_info->OverwriteEmptyAsFull();
+  EXPECT_FALSE(
+      growth_info->GetGrowthInfoLowerBound().HasDeletedAndGrowthLeft());
+}
+
+TEST(GrowthInfoViewTest, BigCapacityGrowthOverflow) {
+  constexpr size_t kCapacity = 256;
+  for (bool has_deleted : {true, false}) {
+    SCOPED_TRACE(testing::Message() << "has_deleted: " << has_deleted);
+    GrowthInfoAllocator growth_info(kCapacity);
+    growth_info->InitGrowthLeftNoDeleted(
+        /*growth_left=*/GrowthInfoLowerBound::kMaxGrowthLeftLowerBound - 1,
+        kCapacity);
+    if (has_deleted) {
+      growth_info->OverwriteFullAsDeleted();
+    }
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(),
+              GrowthInfoLowerBound::kMaxGrowthLeftLowerBound - 1);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity),
+              GrowthInfoLowerBound::kMaxGrowthLeftLowerBound - 1);
+    EXPECT_EQ(growth_info->GetGrowthInfoLowerBound().HasNoDeleted(),
+              !has_deleted);
+    growth_info->OverwriteFullAsEmpty();
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(),
+              GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity),
+              GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    EXPECT_EQ(growth_info->GetGrowthInfoLowerBound().HasNoDeleted(),
+              !has_deleted);
+    for (size_t i = 1; i <= 10; ++i) {
+      growth_info->OverwriteFullAsEmpty();
+      // LowerBound stayed the same, but total increased.
+      ASSERT_EQ(growth_info->GetGrowthLeftLowerBound(),
+                GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+      ASSERT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity),
+                GrowthInfoLowerBound::kMaxGrowthLeftLowerBound + i);
+      ASSERT_EQ(growth_info->GetGrowthInfoLowerBound().HasNoDeleted(),
+                !has_deleted);
+    }
+  }
+}
+
+TEST(GrowthInfoViewTest, RebalanceOnInsert) {
+  constexpr size_t kCapacity = 512;
+  constexpr size_t kOrigGrowthLeft = 260;
+  for (bool has_deleted : {false, true}) {
+    SCOPED_TRACE(testing::Message() << "has_deleted: " << has_deleted);
+    GrowthInfoAllocator growth_info(kCapacity);
+    growth_info->InitGrowthLeftNoDeleted(/*growth_left=*/kOrigGrowthLeft,
+                                         kCapacity);
+    if (has_deleted) {
+      growth_info->OverwriteFullAsDeleted();
+    }
+
+    auto has_no_growth = [has_deleted](const GrowthInfoLowerBound& info) {
+      return has_deleted ? info.HasNoGrowthLeftAndHaveDeleted()
+                         : info.HasNoGrowthLeftAndNoDeleted();
+    };
+
+    auto check_no_rebalance_if_growth_left_with_deleted =
+        [&](GrowthInfoAllocator& info) {
+          if (!has_deleted) return;
+          const size_t growth_left = info->GetGrowthLeftLowerBound();
+          if (growth_left > 0) {
+            auto lower_bound = info->RebalanceGrowthLeftLowerBound(kCapacity);
+            EXPECT_EQ(lower_bound.GetGrowthLeft(), growth_left);
+          }
+        };
+
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(),
+              GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity), kOrigGrowthLeft);
+    EXPECT_EQ(growth_info->GetGrowthInfoLowerBound().HasNoDeleted(),
+              !has_deleted);
+    for (size_t i = 0; i < GrowthInfoLowerBound::kMaxGrowthLeftLowerBound;
+         ++i) {
+      growth_info->OverwriteEmptyAsFull();
+      check_no_rebalance_if_growth_left_with_deleted(growth_info);
+    }
+    EXPECT_TRUE(has_no_growth(growth_info->GetGrowthInfoLowerBound()));
+    {
+      auto lower_bound = growth_info->RebalanceGrowthLeftLowerBound(kCapacity);
+      EXPECT_EQ(lower_bound.GetGrowthLeft(), 127);
+      EXPECT_EQ(lower_bound.HasNoDeleted(), !has_deleted);
+    }
+
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 127);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity),
+              kOrigGrowthLeft - 127);
+    for (size_t i = 0; i < 127; ++i) {
+      growth_info->OverwriteEmptyAsFull();
+      check_no_rebalance_if_growth_left_with_deleted(growth_info);
+    }
+    EXPECT_TRUE(has_no_growth(growth_info->GetGrowthInfoLowerBound()));
+    constexpr size_t kSmallGrowthLeft = kOrigGrowthLeft - 127 * 2;
+    {
+      auto lower_bound = growth_info->RebalanceGrowthLeftLowerBound(kCapacity);
+      EXPECT_EQ(lower_bound.GetGrowthLeft(), kSmallGrowthLeft);
+      EXPECT_EQ(lower_bound.HasNoDeleted(), !has_deleted);
+    }
+    EXPECT_FALSE(has_no_growth(growth_info->GetGrowthInfoLowerBound()));
+
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), kSmallGrowthLeft);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity), kSmallGrowthLeft);
+    for (size_t i = 0; i < kSmallGrowthLeft; ++i) {
+      growth_info->OverwriteEmptyAsFull();
+      check_no_rebalance_if_growth_left_with_deleted(growth_info);
+    }
+    EXPECT_TRUE(has_no_growth(growth_info->GetGrowthInfoLowerBound()));
+    {
+      auto lower_bound = growth_info->RebalanceGrowthLeftLowerBound(kCapacity);
+      EXPECT_EQ(lower_bound.GetGrowthLeft(), 0);
+      EXPECT_EQ(lower_bound.HasNoDeleted(), !has_deleted);
+    }
+    EXPECT_TRUE(has_no_growth(growth_info->GetGrowthInfoLowerBound()));
+    EXPECT_EQ(growth_info->GetGrowthLeftLowerBound(), 0);
+    EXPECT_EQ(growth_info->GetGrowthLeftTotalSlow(kCapacity), 0);
+  }
 }
 
 TEST(Util, OptimalMemcpySizeForSooSlotTransfer) {
@@ -1378,6 +1669,8 @@ TYPED_TEST(SooTest, ClearAfterReserve) {
 template <class TableType>
 class SmallTableResizeTest : public testing::Test {};
 
+// TODO: b/517078510 - Speed up compilation by reducing the number of
+// types.
 using SmallTableTypes = ::testing::Types<
     IntTable, TransferableIntTable, SooIntTable,
     // int8
@@ -1450,6 +1743,23 @@ TYPED_TEST(SmallTableResizeTest, ResizeGrowSmallTables) {
       }
     }
   }
+}
+
+// Enables sampling with 1 percent sampling rate and
+// resets the rate counter for the current thread.
+void SetSamplingRateTo1Percent() {
+  SetHashtablezEnabled(true);
+  SetHashtablezSampleParameter(100);  // Sample ~1% of tables.
+  // Reset rate counter for the current thread.
+  TestOnlyRefreshSamplingStateForCurrentThread();
+}
+
+// Disables sampling and resets the rate counter for the current thread.
+void DisableSampling() {
+  SetHashtablezEnabled(false);
+  SetHashtablezSampleParameter(1 << 16);
+  // Reset rate counter for the current thread.
+  TestOnlyRefreshSamplingStateForCurrentThread();
 }
 
 TYPED_TEST(SmallTableResizeTest, ResizeReduceSmallTables) {
@@ -2332,16 +2642,22 @@ TEST(Table, GrowthInfoDeletedBit) {
   for (int64_t i = 0; i < init_count; ++i) {
     t.insert(i);
   }
-  EXPECT_TRUE(
-      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  EXPECT_TRUE(RawHashSetTestOnlyAccess::GetCommon(t)
+                  .growth_info()
+                  .GetGrowthInfoLowerBound()
+                  .HasNoDeleted());
   t.erase(0);
   EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 1);
-  EXPECT_FALSE(
-      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  EXPECT_FALSE(RawHashSetTestOnlyAccess::GetCommon(t)
+                   .growth_info()
+                   .GetGrowthInfoLowerBound()
+                   .HasNoDeleted());
   t.rehash(0);
   EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 0);
-  EXPECT_TRUE(
-      RawHashSetTestOnlyAccess::GetCommon(t).growth_info().HasNoDeleted());
+  EXPECT_TRUE(RawHashSetTestOnlyAccess::GetCommon(t)
+                  .growth_info()
+                  .GetGrowthInfoLowerBound()
+                  .HasNoDeleted());
 }
 
 TYPED_TEST(SooTest, Clear) {
@@ -2494,6 +2810,25 @@ TYPED_TEST(SooTest, CopyDifferentSizes) {
     }
     // Testing find miss to verify that table is not full.
     ASSERT_TRUE(c.find(-1) == c.end());
+  }
+}
+
+TYPED_TEST(SooTest, CopyDifferentSizesWithReserve) {
+  for (size_t size = 0; size < 153; ++size) {
+    SCOPED_TRACE(absl::StrCat("size: ", size));
+    TypeParam t;
+    t.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+      ASSERT_TRUE(t.insert(static_cast<int>(i)).second) << i;
+    }
+    auto t2 = t;
+    ASSERT_EQ(t2.size(), size);
+    for (size_t i = 0; i < size; ++i) {
+      ASSERT_TRUE(t2.contains(static_cast<int>(i))) << i;
+    }
+    ASSERT_TRUE(t2.insert(static_cast<int>(size)).second);
+    ASSERT_EQ(t2.size(), size + 1);
+    ASSERT_TRUE(t2.contains(static_cast<int>(size)));
   }
 }
 
@@ -4698,8 +5033,7 @@ TEST(Table, GrowExtremelyLargeTable) {
     ASSERT_EQ(t.capacity(), cap);
     // Update growth info to force resize on the next insert. This way we avoid
     // having to insert many elements.
-    common.growth_info().OverwriteManyEmptyAsFull(CapacityToGrowth(cap) -
-                                                  t.size());
+    common.growth_info().InitGrowthLeftNoDeleted(/*growth_left=*/0, cap);
     t.insert(inserted_till++);
     ASSERT_EQ(t.capacity(), NextCapacity(cap));
     for (uint8_t i = 0; i < inserted_till; ++i) {
