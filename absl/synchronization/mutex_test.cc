@@ -925,11 +925,11 @@ TEST(Mutex, FunctionPointerCondition) {
   EXPECT_FALSE(absl::Condition(TemplateEquals43, &const_x).Eval());
 
   // Parameter non-const, argument const is not well-formed.
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(Equals42),
-                                      decltype(&const_x)>::value));
+  EXPECT_FALSE((std::is_constructible_v<absl::Condition, decltype(Equals42),
+                                        decltype(&const_x)>));
   // Validate use of is_constructible by contrasting to a well-formed case.
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(ConstEquals42),
-                                     decltype(&const_x)>::value));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(ConstEquals42),
+                                       decltype(&const_x)>));
 }
 
 // Example base and derived class for use in predicates and test below. Not a
@@ -973,15 +973,15 @@ TEST(Mutex, FunctionPointerConditionWithDerivedToBaseConversion) {
 
   // Parameter derived, argument base is not well-formed.
   bool (*derived_pred)(const Derived *) = [](const Derived *) { return true; };
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                      Base *>::value));
-  EXPECT_FALSE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                      const Base *>::value));
+  EXPECT_FALSE((
+      std::is_constructible_v<absl::Condition, decltype(derived_pred), Base*>));
+  EXPECT_FALSE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                        const Base*>));
   // Validate use of is_constructible by contrasting to well-formed cases.
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                     Derived *>::value));
-  EXPECT_TRUE((std::is_constructible<absl::Condition, decltype(derived_pred),
-                                     const Derived *>::value));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                       Derived*>));
+  EXPECT_TRUE((std::is_constructible_v<absl::Condition, decltype(derived_pred),
+                                       const Derived*>));
 }
 
 struct Constable {

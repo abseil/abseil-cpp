@@ -525,8 +525,8 @@ TEST(ChunkedQueue, IteratorDefaultConstructor) {
 TEST(ChunkedQueue, IteratorConversion) {
   using ConstIter = absl::chunked_queue<int64_t>::const_iterator;
   using Iter = absl::chunked_queue<int64_t>::iterator;
-  EXPECT_FALSE((std::is_convertible<ConstIter, Iter>::value));
-  EXPECT_TRUE((std::is_convertible<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_convertible_v<ConstIter, Iter>));
+  EXPECT_TRUE((std::is_convertible_v<Iter, ConstIter>));
   absl::chunked_queue<int64_t> q;
   ConstIter it1 = q.begin();
   ConstIter it2 = q.cbegin();
@@ -534,7 +534,7 @@ TEST(ChunkedQueue, IteratorConversion) {
   it1 = q.end();
   it2 = q.cend();
   it3 = q.end();
-  EXPECT_FALSE((std::is_assignable<Iter, ConstIter>::value));
+  EXPECT_FALSE((std::is_assignable_v<Iter, ConstIter>));
 }
 
 struct TestEntry {

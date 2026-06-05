@@ -80,10 +80,10 @@ void* Allocate(Alloc* alloc, size_t n) {
 template <class Allocator, class ValueType>
 constexpr auto IsDestructionTrivial() {
   constexpr bool result =
-      std::is_trivially_destructible<ValueType>::value &&
-      std::is_same<typename std::allocator_traits<
-                       Allocator>::template rebind_alloc<char>,
-                   std::allocator<char>>::value;
+      std::is_trivially_destructible_v<ValueType> &&
+      std::is_same_v<typename std::allocator_traits<
+                         Allocator>::template rebind_alloc<char>,
+                     std::allocator<char>>;
   return std::integral_constant<bool, result>();
 }
 

@@ -500,8 +500,8 @@ class FormatRawSink {
  public:
   // Implicitly convert from any type that provides the hook function as
   // described above.
-  template <typename T, typename = std::enable_if_t<std::is_constructible<
-                            str_format_internal::FormatRawSinkImpl, T*>::value>>
+  template <typename T, typename = std::enable_if_t<std::is_constructible_v<
+                            str_format_internal::FormatRawSinkImpl, T*>>>
   FormatRawSink(T* absl_nonnull raw)  // NOLINT
       : sink_(raw) {}
 

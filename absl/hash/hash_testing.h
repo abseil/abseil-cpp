@@ -282,7 +282,7 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
 
 template <typename... T>
 struct TypeSet {
-  template <typename U, bool = std::disjunction<std::is_same<T, U>...>::value>
+  template <typename U, bool = std::disjunction_v<std::is_same<T, U>...>>
   struct Insert {
     using type = TypeSet<U, T...>;
   };

@@ -164,7 +164,7 @@ class ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_OWNER AnyInvocable
     : private internal_any_invocable::Impl<Sig> {
  private:
   static_assert(
-      std::is_function<Sig>::value,
+      std::is_function_v<Sig>,
       "The template argument of AnyInvocable must be a function type.");
 
   using Impl = internal_any_invocable::Impl<Sig>;
@@ -210,7 +210,7 @@ class ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_OWNER AnyInvocable
                 internal_any_invocable::CanEmplace<Sig, T, Args...>::value>>
   explicit AnyInvocable(std::in_place_type_t<T>, Args&&... args)
       : Impl(std::in_place_type<std::decay_t<T>>, std::forward<Args>(args)...) {
-    static_assert(std::is_same<T, std::decay_t<T>>::value,
+    static_assert(std::is_same_v<T, std::decay_t<T>>,
                   "The explicit template argument of in_place_type is required "
                   "to be an unqualified object type.");
   }
@@ -223,7 +223,7 @@ class ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_OWNER AnyInvocable
                         Args&&... args)
       : Impl(std::in_place_type<std::decay_t<T>>, ilist,
              std::forward<Args>(args)...) {
-    static_assert(std::is_same<T, std::decay_t<T>>::value,
+    static_assert(std::is_same_v<T, std::decay_t<T>>,
                   "The explicit template argument of in_place_type is required "
                   "to be an unqualified object type.");
   }

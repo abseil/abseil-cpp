@@ -777,9 +777,9 @@ TYPED_TEST(AnySpanTest, TriviallyCopyable) {
   using T = typename TestFixture::template MaybeConst<std::string>;
   // Note: we could use is_trivially_copyable, but it is not implemented in
   // Crosstool v18 which is the current version at the time of writing.
-  EXPECT_TRUE(std::is_trivially_copy_constructible<AnySpan<T>>::value);
-  EXPECT_TRUE(std::is_trivially_copy_assignable<AnySpan<T>>::value);
-  EXPECT_TRUE(std::is_trivially_destructible<AnySpan<T>>::value);
+  EXPECT_TRUE(std::is_trivially_copy_constructible_v<AnySpan<T>>);
+  EXPECT_TRUE(std::is_trivially_copy_assignable_v<AnySpan<T>>);
+  EXPECT_TRUE(std::is_trivially_destructible_v<AnySpan<T>>);
 }
 
 TYPED_TEST(AnySpanTest, IsConstructible) {
@@ -788,16 +788,16 @@ TYPED_TEST(AnySpanTest, IsConstructible) {
   using VectorT =
       typename TestFixture::template MaybeConst<std::vector<std::string>>;
   using VectorU = typename TestFixture::template MaybeConst<std::vector<int>>;
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, T>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, T*>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U(&)[5]>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, U*, std::size_t>::value));
-  EXPECT_FALSE((std::is_constructible<AnySpan<T>, VectorU&>::value));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, T>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, T*>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U(&)[5]>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, U*, std::size_t>));
+  EXPECT_FALSE((std::is_constructible_v<AnySpan<T>, VectorU&>));
 
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, VectorT&>::value));
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, T(&)[5]>::value));
-  EXPECT_TRUE((std::is_constructible<AnySpan<T>, T*, std::size_t>::value));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, VectorT&>));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, T(&)[5]>));
+  EXPECT_TRUE((std::is_constructible_v<AnySpan<T>, T*, std::size_t>));
 }
 
 //

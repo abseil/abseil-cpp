@@ -130,7 +130,7 @@ TYPED_TEST_P(ModifiersTest, EmplaceHint) {
 }
 
 template <class V>
-using IfNotVoid = std::enable_if_t<!std::is_void<V>::value, V>;
+using IfNotVoid = std::enable_if_t<!std::is_void_v<V>, V>;
 
 // In openmap we chose not to return the iterator from erase because that's
 // more expensive. As such we adapt erase to return an iterator here.

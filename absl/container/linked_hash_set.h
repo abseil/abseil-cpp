@@ -450,8 +450,8 @@ class linked_hash_set {
     return node_type(std::move(extracted_node_list));
   }
 
-  template <class K = key_type, typename std::enable_if_t<
-                                    !std::is_same<K, iterator>::value, int> = 0>
+  template <class K = key_type,
+            typename std::enable_if_t<!std::is_same_v<K, iterator>, int> = 0>
   node_type extract(const key_arg<K>& key) {
     auto node = set_.extract(key);
     if (node.empty()) return node_type();

@@ -68,13 +68,13 @@ using std::rotr;
 
 // Rotating functions
 template <class T>
-[[nodiscard]] constexpr std::enable_if_t<std::is_unsigned<T>::value, T> rotl(
+[[nodiscard]] constexpr std::enable_if_t<std::is_unsigned_v<T>, T> rotl(
     T x, int s) noexcept {
   return numeric_internal::RotateLeft(x, s);
 }
 
 template <class T>
-[[nodiscard]] constexpr std::enable_if_t<std::is_unsigned<T>::value, T> rotr(
+[[nodiscard]] constexpr std::enable_if_t<std::is_unsigned_v<T>, T> rotr(
     T x, int s) noexcept {
   return numeric_internal::RotateRight(x, s);
 }
@@ -101,38 +101,34 @@ using std::popcount;
 // not be marked as constexpr due to constraints of the compiler/available
 // intrinsics.
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    int>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
 countl_zero(T x) noexcept {
   return numeric_internal::CountLeadingZeroes(x);
 }
 
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    int>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
 countl_one(T x) noexcept {
   // Avoid integer promotion to a wider type
   return countl_zero(static_cast<T>(~x));
 }
 
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CTZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    int>
+ABSL_INTERNAL_CONSTEXPR_CTZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
 countr_zero(T x) noexcept {
   return numeric_internal::CountTrailingZeroes(x);
 }
 
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CTZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    int>
+ABSL_INTERNAL_CONSTEXPR_CTZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
 countr_one(T x) noexcept {
   // Avoid integer promotion to a wider type
   return countr_zero(static_cast<T>(~x));
 }
 
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_POPCOUNT inline std::enable_if_t<
-    std::is_unsigned<T>::value, int>
+ABSL_INTERNAL_CONSTEXPR_POPCOUNT inline std::enable_if_t<std::is_unsigned_v<T>,
+                                                         int>
 popcount(T x) noexcept {
   return numeric_internal::Popcount(x);
 }
@@ -150,16 +146,15 @@ using std::has_single_bit;
 
 // Returns: true if x is an integral power of two; false otherwise.
 template <class T>
-constexpr inline std::enable_if_t<std::is_unsigned<T>::value, bool>
-has_single_bit(T x) noexcept {
+constexpr inline std::enable_if_t<std::is_unsigned_v<T>, bool> has_single_bit(
+    T x) noexcept {
   return x != 0 && (x & (x - 1)) == 0;
 }
 
 // Returns: If x == 0, 0; otherwise one plus the base-2 logarithm of x, with any
 // fractional part discarded.
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    int>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
 bit_width(T x) noexcept {
   return std::numeric_limits<T>::digits - countl_zero(x);
 }
@@ -167,8 +162,7 @@ bit_width(T x) noexcept {
 // Returns: If x == 0, 0; otherwise the maximal value y such that
 // has_single_bit(y) is true and y <= x.
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    T>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, T>
 bit_floor(T x) noexcept {
   return x == 0 ? 0 : T{1} << (bit_width(x) - 1);
 }
@@ -177,8 +171,7 @@ bit_floor(T x) noexcept {
 //
 // Preconditions: N is representable as a value of type T.
 template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned<T>::value,
-                                                    T>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, T>
 bit_ceil(T x) {
   // If T is narrower than unsigned, T{1} << bit_width will be promoted.  We
   // want to force it to wraparound so that bit_ceil of an invalid value are not

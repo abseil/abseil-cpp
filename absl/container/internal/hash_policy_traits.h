@@ -38,7 +38,7 @@ template <class Policy, class = void>
  private:
   struct ReturnKey {
     template <class Key,
-              std::enable_if_t<std::is_lvalue_reference<Key>::value, int> = 0>
+              std::enable_if_t<std::is_lvalue_reference_v<Key>, int> = 0>
     static key_type& Impl(Key&& k, int) {
       return *std::launder(
           const_cast<key_type*>(std::addressof(std::forward<Key>(k))));

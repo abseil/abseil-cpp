@@ -982,7 +982,7 @@ class AlignedValue {
 class StringPolicy {
   template <class F, class K, class V,
             class = std::enable_if_t<
-                std::is_convertible<const K&, absl::string_view>::value>>
+                std::is_convertible_v<const K&, absl::string_view>>>
   decltype(std::declval<F>()(
       std::declval<const absl::string_view&>(), std::piecewise_construct,
       std::declval<std::tuple<K>>(),
@@ -1215,8 +1215,8 @@ using NonMemcpyableSooIntCustomAllocTable =
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 
 TEST(Table, EmptyFunctorOptimization) {
-  static_assert(std::is_empty<std::equal_to<absl::string_view>>::value, "");
-  static_assert(std::is_empty<std::allocator<int>>::value, "");
+  static_assert(std::is_empty_v<std::equal_to<absl::string_view>>, "");
+  static_assert(std::is_empty_v<std::allocator<int>>, "");
 
   struct MockTableByValue {
     size_t capacity;
@@ -3028,22 +3028,21 @@ TYPED_TEST(SooTest, ReplacingDeletedSlotDoesNotRehash) {
 
 TEST(Table, NoThrowMoveConstruct) {
   ASSERT_TRUE(
-      std::is_nothrow_copy_constructible<absl::Hash<absl::string_view>>::value);
-  ASSERT_TRUE(std::is_nothrow_copy_constructible<
-              std::equal_to<absl::string_view>>::value);
-  ASSERT_TRUE(std::is_nothrow_copy_constructible<std::allocator<int>>::value);
-  EXPECT_TRUE(std::is_nothrow_move_constructible<StringTable>::value);
+      std::is_nothrow_copy_constructible_v<absl::Hash<absl::string_view>>);
+  ASSERT_TRUE(
+      std::is_nothrow_copy_constructible_v<std::equal_to<absl::string_view>>);
+  ASSERT_TRUE(std::is_nothrow_copy_constructible_v<std::allocator<int>>);
+  EXPECT_TRUE(std::is_nothrow_move_constructible_v<StringTable>);
 }
 
 TEST(Table, NoThrowMoveAssign) {
+  ASSERT_TRUE(std::is_nothrow_move_assignable_v<absl::Hash<absl::string_view>>);
   ASSERT_TRUE(
-      std::is_nothrow_move_assignable<absl::Hash<absl::string_view>>::value);
-  ASSERT_TRUE(
-      std::is_nothrow_move_assignable<std::equal_to<absl::string_view>>::value);
-  ASSERT_TRUE(std::is_nothrow_move_assignable<std::allocator<int>>::value);
+      std::is_nothrow_move_assignable_v<std::equal_to<absl::string_view>>);
+  ASSERT_TRUE(std::is_nothrow_move_assignable_v<std::allocator<int>>);
   ASSERT_TRUE(
       std::allocator_traits<std::allocator<int>>::is_always_equal::value);
-  EXPECT_TRUE(std::is_nothrow_move_assignable<StringTable>::value);
+  EXPECT_TRUE(std::is_nothrow_move_assignable_v<StringTable>);
 }
 
 TEST(Table, NoThrowSwappable) {
@@ -3231,8 +3230,8 @@ TEST(Nodes, EmptyNodeType) {
   EXPECT_FALSE(n);
   EXPECT_TRUE(n.empty());
 
-  EXPECT_TRUE((std::is_same<node_type::allocator_type,
-                            StringTable::allocator_type>::value));
+  EXPECT_TRUE(
+      (std::is_same_v<node_type::allocator_type, StringTable::allocator_type>));
 }
 
 TEST(Nodes, ExtractInsert) {
@@ -3565,7 +3564,7 @@ using RawHashSamplerTestTypes = ::testing::Types<
 TYPED_TEST_SUITE(RawHashSamplerTest, RawHashSamplerTestTypes);
 
 TYPED_TEST(RawHashSamplerTest, Sample) {
-  constexpr bool soo_enabled = std::is_same<SooInt32Table, TypeParam>::value;
+  constexpr bool soo_enabled = std::is_same_v<SooInt32Table, TypeParam>;
   // Enable the feature even if the prod default is off.
   SetSamplingRateTo1Percent();
 
@@ -4239,9 +4238,8 @@ TYPED_TEST(SooTest, ForEach) {
       SCOPED_TRACE("const iteration");
       std::vector<int64_t> actual;
       auto f = [&](auto& x) {
-        static_assert(
-            std::is_const<std::remove_reference_t<decltype(x)>>::value,
-            "no mutable values should be passed to const ForEach");
+        static_assert(std::is_const_v<std::remove_reference_t<decltype(x)>>,
+                      "no mutable values should be passed to const ForEach");
         actual.push_back(static_cast<int64_t>(x));
       };
       const auto& ct = t;

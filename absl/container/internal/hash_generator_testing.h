@@ -69,7 +69,7 @@ template <class T, class E = void>
 struct Generator;
 
 template <class T>
-struct Generator<T, std::enable_if_t<std::is_integral<T>::value>> {
+struct Generator<T, std::enable_if_t<std::is_integral_v<T>>> {
   T operator()() const { return dist(gen); }
   mutable absl::InsecureBitGen gen;
   mutable std::uniform_int_distribution<T> dist;

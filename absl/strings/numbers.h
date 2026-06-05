@@ -128,7 +128,7 @@ namespace numbers_internal {
 
 template <typename int_type>
 constexpr bool is_signed() {
-  if constexpr (std::is_arithmetic<int_type>::value) {
+  if constexpr (std::is_arithmetic_v<int_type>) {
     // Use std::numeric_limits<T>::is_signed where it's defined to work.
     return std::numeric_limits<int_type>::is_signed;
   }
@@ -248,7 +248,7 @@ template <typename int_type>
   static_assert(sizeof(*out) == 1 || sizeof(*out) == 2 || sizeof(*out) == 4 ||
                     sizeof(*out) == 8,
                 "SimpleAtoi works only with 8, 16, 32, or 64-bit integers.");
-  static_assert(!std::is_floating_point<int_type>::value,
+  static_assert(!std::is_floating_point_v<int_type>,
                 "Use SimpleAtof or SimpleAtod instead.");
   bool parsed;
   // These conditions are constexpr bools to suppress MSVC warning C4127.

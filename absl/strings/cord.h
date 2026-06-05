@@ -176,8 +176,7 @@ enum class CordMemoryAccounting {
 class Cord {
  private:
   template <typename T>
-  using EnableIfString =
-      std::enable_if_t<std::is_same<T, std::string>::value, int>;
+  using EnableIfString = std::enable_if_t<std::is_same_v<T, std::string>, int>;
 
  public:
   // Cord::Cord() Constructors.

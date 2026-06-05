@@ -30,7 +30,7 @@ using absl::random_internal::make_ostream_state_saver;
 using absl::random_internal::stream_precision_helper;
 
 template <typename T>
-typename std::enable_if_t<std::is_integral<T>::value, T>  //
+typename std::enable_if_t<std::is_integral_v<T>, T>  //
 StreamRoundTrip(T t) {
   std::stringstream ss;
   {
@@ -54,7 +54,7 @@ StreamRoundTrip(T t) {
 }
 
 template <typename T>
-typename std::enable_if_t<std::is_floating_point<T>::value, T>  //
+typename std::enable_if_t<std::is_floating_point_v<T>, T>  //
 StreamRoundTrip(T t) {
   std::stringstream ss;
   {

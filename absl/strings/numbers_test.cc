@@ -808,7 +808,7 @@ void VerifySimpleHexAtoiGood(in_val_type in_value, int_type exp_value) {
   std::string s;
   absl::strings_internal::OStringStream strm(&s);
   if (in_value >= 0) {
-    if constexpr (std::is_arithmetic<in_val_type>::value) {
+    if constexpr (std::is_arithmetic_v<in_val_type>) {
       absl::StrAppend(&s, absl::Hex(in_value));
     } else {
       // absl::Hex doesn't work with absl::(u)int128.
@@ -833,7 +833,7 @@ void VerifySimpleHexAtoiBad(in_val_type in_value) {
   std::string s;
   absl::strings_internal::OStringStream strm(&s);
   if (in_value >= 0) {
-    if constexpr (std::is_arithmetic<in_val_type>::value) {
+    if constexpr (std::is_arithmetic_v<in_val_type>) {
       absl::StrAppend(&s, absl::Hex(in_value));
     } else {
       // absl::Hex doesn't work with absl::(u)int128.

@@ -114,7 +114,7 @@ TYPED_TEST(ExponentialDistributionTypedTest, SerializeTest) {
       if (sample > sample_max) sample_max = sample;
       if (sample < sample_min) sample_min = sample;
     }
-    if (!std::is_same<TypeParam, long double>::value) {
+    if (!std::is_same_v<TypeParam, long double>) {
       LOG(INFO) << "Range {" << lambda << "}: " << sample_min << ", "
                 << sample_max << ", lambda=" << lambda;
     }

@@ -178,10 +178,10 @@ using std::bit_cast;
 
 template <typename Dest, typename Source,
           std::enable_if_t<sizeof(Dest) == sizeof(Source) &&
-                               std::is_trivially_copyable<Source>::value &&
-                               std::is_trivially_copyable<Dest>::value
+                               std::is_trivially_copyable_v<Source> &&
+                               std::is_trivially_copyable_v<Dest>
 #if !ABSL_HAVE_BUILTIN(__builtin_bit_cast)
-                               && std::is_default_constructible<Dest>::value
+                               && std::is_default_constructible_v<Dest>
 #endif  // !ABSL_HAVE_BUILTIN(__builtin_bit_cast)
                            ,
                            int> = 0>
@@ -253,19 +253,19 @@ inline void ValidateDownCast(From* f ABSL_ATTRIBUTE_UNUSED) {
 template <typename To, typename From>  // use like this: down_cast<T*>(foo);
 [[nodiscard]]
 inline To down_cast(From* f) {  // so we only accept pointers
-  static_assert(std::is_pointer<To>::value, "target type not a pointer");
+  static_assert(std::is_pointer_v<To>, "target type not a pointer");
   // dynamic_cast allows casting to the same type or a more cv-qualified
   // version of the same type without them being polymorphic.
-  if constexpr (!std::is_same<std::remove_cv_t<std::remove_pointer_t<To>>,
-                              std::remove_cv_t<From>>::value) {
-    static_assert(std::is_polymorphic<From>::value,
+  if constexpr (!std::is_same_v<std::remove_cv_t<std::remove_pointer_t<To>>,
+                                std::remove_cv_t<From>>) {
+    static_assert(std::is_polymorphic_v<From>,
                   "source type must be polymorphic");
-    static_assert(std::is_polymorphic<std::remove_pointer_t<To>>::value,
+    static_assert(std::is_polymorphic_v<std::remove_pointer_t<To>>,
                   "target type must be polymorphic");
   }
   static_assert(
-      std::is_convertible<std::remove_cv_t<std::remove_pointer_t<To>>*,
-                          std::remove_cv_t<From>*>::value,
+      std::is_convertible_v<std::remove_cv_t<std::remove_pointer_t<To>>*,
+                            std::remove_cv_t<From>*>,
       "target type not derived from source type");
 
   absl::base_internal::ValidateDownCast<To>(f);
@@ -284,20 +284,19 @@ inline To down_cast(From* f) {  // so we only accept pointers
 template <typename To, typename From>
 [[nodiscard]]
 inline To down_cast(From& f) {
-  static_assert(std::is_lvalue_reference<To>::value,
-                "target type not a reference");
+  static_assert(std::is_lvalue_reference_v<To>, "target type not a reference");
   // dynamic_cast allows casting to the same type or a more cv-qualified
   // version of the same type without them being polymorphic.
-  if constexpr (!std::is_same<std::remove_cv_t<std::remove_reference_t<To>>,
-                              std::remove_cv_t<From>>::value) {
-    static_assert(std::is_polymorphic<From>::value,
+  if constexpr (!std::is_same_v<std::remove_cv_t<std::remove_reference_t<To>>,
+                                std::remove_cv_t<From>>) {
+    static_assert(std::is_polymorphic_v<From>,
                   "source type must be polymorphic");
-    static_assert(std::is_polymorphic<std::remove_reference_t<To>>::value,
+    static_assert(std::is_polymorphic_v<std::remove_reference_t<To>>,
                   "target type must be polymorphic");
   }
   static_assert(
-      std::is_convertible<std::remove_cv_t<std::remove_reference_t<To>>*,
-                          std::remove_cv_t<From>*>::value,
+      std::is_convertible_v<std::remove_cv_t<std::remove_reference_t<To>>*,
+                            std::remove_cv_t<From>*>,
       "target type not derived from source type");
 
   absl::base_internal::ValidateDownCast<std::remove_reference_t<To>*>(

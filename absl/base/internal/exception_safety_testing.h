@@ -845,10 +845,10 @@ class DefaultFactory {
 
 template <size_t LazyContractsCount, typename LazyFactory,
           typename LazyOperation>
-using EnableIfTestable = typename std::enable_if_t<
-    LazyContractsCount != 0 &&
-    !std::is_same<LazyFactory, UninitializedT>::value &&
-    !std::is_same<LazyOperation, UninitializedT>::value>;
+using EnableIfTestable =
+    typename std::enable_if_t<LazyContractsCount != 0 &&
+                              !std::is_same_v<LazyFactory, UninitializedT> &&
+                              !std::is_same_v<LazyOperation, UninitializedT>>;
 
 template <typename Factory = UninitializedT,
           typename Operation = UninitializedT, typename... Contracts>

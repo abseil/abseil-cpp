@@ -175,14 +175,13 @@ class MockingBitGen {
                                               std::declval<ArgTupleT>()));
 
     using WrappedFnType = std::conditional_t<
-        std::is_same<SelfT, ::testing::NiceMock<MockingBitGen>>::value,
+        std::is_same_v<SelfT, ::testing::NiceMock<MockingBitGen>>,
         ::testing::NiceMock<MockFnType>,
         std::conditional_t<
-            std::is_same<SelfT, ::testing::NaggyMock<MockingBitGen>>::value,
+            std::is_same_v<SelfT, ::testing::NaggyMock<MockingBitGen>>,
             ::testing::NaggyMock<MockFnType>,
             std::conditional_t<
-                std::is_same<SelfT,
-                             ::testing::StrictMock<MockingBitGen>>::value,
+                std::is_same_v<SelfT, ::testing::StrictMock<MockingBitGen>>,
                 ::testing::StrictMock<MockFnType>, MockFnType>>>;
 
     using ImplT =

@@ -67,8 +67,7 @@ using ElemT = typename Elem<D, I>::type;
 
 template <typename T>
 constexpr bool ShouldUseBase() {
-  return std::is_class<T>::value && std::is_empty<T>::value &&
-         !std::is_final<T>::value;
+  return std::is_class_v<T> && std::is_empty_v<T> && !std::is_final_v<T>;
 }
 
 // Tag type used to disambiguate Storage types for different CompresseedTuples.
@@ -156,7 +155,7 @@ constexpr bool ShouldAnyUseBase() {
 
 template <typename T, typename V>
 using TupleElementMoveConstructible =
-    std::conditional_t<std::is_reference<T>::value, std::is_convertible<V, T>,
+    std::conditional_t<std::is_reference_v<T>, std::is_convertible<V, T>,
                        std::is_constructible<T, V&&>>;
 
 template <bool SizeMatches, class T, class... Vs>
@@ -165,8 +164,8 @@ struct TupleMoveConstructible : std::false_type {};
 template <class... Ts, class... Vs>
 struct TupleMoveConstructible<true, CompressedTuple<Ts...>, Vs...>
     : std::integral_constant<
-          bool, std::conjunction<
-                    TupleElementMoveConstructible<Ts, Vs&&>...>::value> {};
+          bool,
+          std::conjunction_v<TupleElementMoveConstructible<Ts, Vs&&>...>> {};
 
 template <typename T>
 struct compressed_tuple_size;
@@ -227,12 +226,12 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
 
   template <typename First, typename... Vs,
             std::enable_if_t<
-                std::conjunction<
+                std::conjunction_v<
                     // Ensure we are not hiding default copy/move constructors.
                     std::negation<std::is_same<void(CompressedTuple),
                                                void(std::decay_t<First>)>>,
                     internal_compressed_tuple::TupleItemsMoveConstructible<
-                        CompressedTuple<Ts...>, First, Vs...>>::value,
+                        CompressedTuple<Ts...>, First, Vs...>>,
                 bool> = true>
   explicit constexpr CompressedTuple(First&& first, Vs&&... base)
       : CompressedTuple::CompressedTupleImpl(std::in_place,

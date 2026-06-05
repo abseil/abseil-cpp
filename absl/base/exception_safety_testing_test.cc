@@ -936,8 +936,8 @@ TEST(ConstructorTrackerTest, ConstructedTwice) {
 
 TEST(ThrowingValueTraitsTest, RelationalOperators) {
   ThrowingValue<> a, b;
-  EXPECT_TRUE((std::is_convertible<decltype(a == b), bool>::value));
-  EXPECT_TRUE((std::is_convertible<decltype(a != b), bool>::value));
+  EXPECT_TRUE((std::is_convertible_v<decltype(a == b), bool>));
+  EXPECT_TRUE((std::is_convertible_v<decltype(a != b), bool>));
   EXPECT_TRUE((std::is_convertible<decltype(a < b), bool>::value));
   EXPECT_TRUE((std::is_convertible<decltype(a <= b), bool>::value));
   EXPECT_TRUE((std::is_convertible<decltype(a > b), bool>::value));
@@ -945,10 +945,10 @@ TEST(ThrowingValueTraitsTest, RelationalOperators) {
 }
 
 TEST(ThrowingAllocatorTraitsTest, Assignablility) {
-  EXPECT_TRUE(std::is_move_assignable<ThrowingAllocator<int>>::value);
-  EXPECT_TRUE(std::is_copy_assignable<ThrowingAllocator<int>>::value);
-  EXPECT_TRUE(std::is_nothrow_move_assignable<ThrowingAllocator<int>>::value);
-  EXPECT_TRUE(std::is_nothrow_copy_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_move_assignable_v<ThrowingAllocator<int>>);
+  EXPECT_TRUE(std::is_copy_assignable_v<ThrowingAllocator<int>>);
+  EXPECT_TRUE(std::is_nothrow_move_assignable_v<ThrowingAllocator<int>>);
+  EXPECT_TRUE(std::is_nothrow_copy_assignable_v<ThrowingAllocator<int>>);
 }
 
 }  // namespace

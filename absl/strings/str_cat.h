@@ -196,28 +196,24 @@ struct Hex {
   char fill;
 
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint8_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint16_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint32_t>(v)) {}
   template <typename Int>
-  explicit Hex(
-      Int v, PadSpec spec = absl::kNoPad,
-      std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer<Int>::value, bool> =
-          true)
+  explicit Hex(Int v, PadSpec spec = absl::kNoPad,
+               std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer_v<Int>,
+                                bool> = true)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
   explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
@@ -450,12 +446,12 @@ class AlphaNum {
 
   // vector<bool>::reference and const_reference require special help to
   // convert to `AlphaNum` because it requires two user defined conversions.
-  template <typename T,
-            std::enable_if_t<
-                std::is_class<T>::value &&
-                (std::is_same<T, std::vector<bool>::reference>::value ||
-                 std::is_same<T, std::vector<bool>::const_reference>::value)>* =
-                nullptr>
+  template <
+      typename T,
+      std::enable_if_t<
+          std::is_class_v<T> &&
+          (std::is_same_v<T, std::vector<bool>::reference> ||
+           std::is_same_v<T, std::vector<bool>::const_reference>)>* = nullptr>
   AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
 
  private:

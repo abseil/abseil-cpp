@@ -622,11 +622,10 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
     return this->data_;
   }
 
-  template <
-      typename U, typename... Args,
-      std::enable_if_t<
-          std::is_constructible<T, std::initializer_list<U>&, Args&&...>::value,
-          int> = 0>
+  template <typename U, typename... Args,
+            std::enable_if_t<std::is_constructible_v<
+                                 T, std::initializer_list<U>&, Args&&...>,
+                             int> = 0>
   T& emplace(std::initializer_list<U> ilist,
              Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ok()) {

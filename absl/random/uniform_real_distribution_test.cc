@@ -180,7 +180,7 @@ TYPED_TEST(UniformRealDistributionTest, ParamSerializeTest) {
       }
     }
 
-    if (!std::is_same<real_type, long double>::value) {
+    if (!std::is_same_v<real_type, long double>) {
       // static_cast<double>(long double) can overflow.
       LOG(INFO) << "Range: " << static_cast<double>(sample_min) << ", "
                 << static_cast<double>(sample_max);

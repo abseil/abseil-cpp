@@ -70,8 +70,8 @@ ABSL_NAMESPACE_BEGIN
 // obtained from array-new expressions (even though that would compile!).
 template <typename T>
 std::unique_ptr<T> WrapUnique(T* ptr) {
-  static_assert(!std::is_array<T>::value, "array types are unsupported");
-  static_assert(std::is_object<T>::value, "non-object types are unsupported");
+  static_assert(!std::is_array_v<T>, "array types are unsupported");
+  static_assert(std::is_object_v<T>, "non-object types are unsupported");
   return std::unique_ptr<T>(ptr);
 }
 

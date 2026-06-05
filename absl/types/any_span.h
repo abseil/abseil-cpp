@@ -288,8 +288,8 @@ template <typename Iter>
 class Range {
  public:
   static_assert(
-      std::is_same<typename std::iterator_traits<Iter>::iterator_category,
-                   std::random_access_iterator_tag>::value,
+      std::is_same_v<typename std::iterator_traits<Iter>::iterator_category,
+                     std::random_access_iterator_tag>,
       "Iter must be a random access iterator.");
 
   Range(Iter begin, Iter end) {
@@ -339,10 +339,10 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   class IteratorBase;
 
   template <typename U>
-  using EnableIfMutable = std::enable_if_t<!std::is_const<T>::value, U>;
+  using EnableIfMutable = std::enable_if_t<!std::is_const_v<T>, U>;
 
   template <typename U>
-  using EnableIfConst = std::enable_if_t<std::is_const<T>::value, U>;
+  using EnableIfConst = std::enable_if_t<std::is_const_v<T>, U>;
 
   static std::true_type CreatesATemporaryImpl(std::decay_t<T>&&);
   static std::false_type CreatesATemporaryImpl(const T&);
@@ -373,8 +373,8 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
 
   template <typename Element>
   using EnableIfDifferentElementType =
-      std::enable_if_t<!std::is_same<T, Element>::value &&
-                       !std::is_same<T, const Element>::value>;
+      std::enable_if_t<!std::is_same_v<T, Element> &&
+                       !std::is_same_v<T, const Element>>;
 
   template <typename Transform>
   using EnableIfTransformIsByCopy =

@@ -282,9 +282,8 @@ constexpr T InitDefaultValue(EmptyBraces) {
   return T{};
 }
 
-template <
-    typename ValueT, typename GenT,
-    std::enable_if_t<std::is_integral<ValueT>::value, int> = ((void)GenT{}, 0)>
+template <typename ValueT, typename GenT,
+          std::enable_if_t<std::is_integral_v<ValueT>, int> = ((void)GenT{}, 0)>
 constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }
@@ -300,19 +299,19 @@ constexpr FlagDefaultArg DefaultArg(char) {
 
 template <typename T>
 using FlagUseValueAndInitBitStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     std::is_default_constructible<T>::value &&
+    std::integral_constant<bool, std::is_trivially_copyable_v<T> &&
+                                     std::is_default_constructible_v<T> &&
                                      (sizeof(T) < 8)>;
 
 template <typename T>
 using FlagUseOneWordStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     (sizeof(T) <= 8)>;
+    std::integral_constant<bool,
+                           std::is_trivially_copyable_v<T> && (sizeof(T) <= 8)>;
 
 template <class T>
 using FlagUseSequenceLockStorage =
-    std::integral_constant<bool, std::is_trivially_copyable<T>::value &&
-                                     (sizeof(T) > 8)>;
+    std::integral_constant<bool,
+                           std::is_trivially_copyable_v<T> && (sizeof(T) > 8)>;
 
 enum class FlagValueStorageKind : uint8_t {
   kValueAndInitBit = 0,

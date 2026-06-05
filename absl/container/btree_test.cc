@@ -1097,9 +1097,9 @@ class BtreeNodePeer {
 
   template <typename Btree>
   constexpr static bool FieldTypeEqualsSlotType() {
-    return std::is_same<
+    return std::is_same_v<
         typename btree_node<typename Btree::params_type>::field_type,
-        typename btree_node<typename Btree::params_type>::slot_type>::value;
+        typename btree_node<typename Btree::params_type>::slot_type>;
   }
 };
 
@@ -1237,16 +1237,16 @@ template <typename Compare, typename Key>
 void AssertKeyCompareStringAdapted() {
   using Adapted = typename key_compare_adapter<Compare, Key>::type;
   static_assert(
-      std::is_same<Adapted, StringBtreeDefaultLess>::value ||
-          std::is_same<Adapted, StringBtreeDefaultGreater>::value,
+      std::is_same_v<Adapted, StringBtreeDefaultLess> ||
+          std::is_same_v<Adapted, StringBtreeDefaultGreater>,
       "key_compare_adapter should have string-adapted this comparator.");
 }
 template <typename Compare, typename Key>
 void AssertKeyCompareNotStringAdapted() {
   using Adapted = typename key_compare_adapter<Compare, Key>::type;
   static_assert(
-      !std::is_same<Adapted, StringBtreeDefaultLess>::value &&
-          !std::is_same<Adapted, StringBtreeDefaultGreater>::value,
+      !std::is_same_v<Adapted, StringBtreeDefaultLess> &&
+          !std::is_same_v<Adapted, StringBtreeDefaultGreater>,
       "key_compare_adapter shouldn't have string-adapted this comparator.");
 }
 
@@ -2804,16 +2804,12 @@ TYPED_TEST(BtreeMultiKeyTest, Count) {
 
 TEST(Btree, SetIteratorsAreConst) {
   using Set = absl::btree_set<int>;
-  EXPECT_TRUE(
-      (std::is_same<typename Set::iterator::reference, const int &>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename Set::iterator::pointer, const int *>::value));
+  EXPECT_TRUE((std::is_same_v<typename Set::iterator::reference, const int&>));
+  EXPECT_TRUE((std::is_same_v<typename Set::iterator::pointer, const int*>));
 
   using MSet = absl::btree_multiset<int>;
-  EXPECT_TRUE(
-      (std::is_same<typename MSet::iterator::reference, const int &>::value));
-  EXPECT_TRUE(
-      (std::is_same<typename MSet::iterator::pointer, const int *>::value));
+  EXPECT_TRUE((std::is_same_v<typename MSet::iterator::reference, const int&>));
+  EXPECT_TRUE((std::is_same_v<typename MSet::iterator::pointer, const int*>));
 }
 
 TEST(Btree, AllocConstructor) {

@@ -120,7 +120,7 @@ std::string LengthModFor<unsigned long long>() {  // NOLINT
 // An integral type of the same rank and signedness as `wchar_t`, that isn't
 // `wchar_t`.
 using IntegralTypeForWCharT =
-    std::conditional_t<std::is_signed<wchar_t>::value,
+    std::conditional_t<std::is_signed_v<wchar_t>,
                        // Some STLs are broken and return `wchar_t` from
                        // `std::make_[un]signed_t<wchar_t>` when the signedness
                        // matches. Work around by round-tripping through the
@@ -131,8 +131,8 @@ using IntegralTypeForWCharT =
 // Given an integral type `T`, returns a type of the same rank and signedness
 // that is guaranteed to not be `wchar_t`.
 template <typename T>
-using MatchingIntegralType = std::conditional_t<std::is_same<T, wchar_t>::value,
-                                                IntegralTypeForWCharT, T>;
+using MatchingIntegralType =
+    std::conditional_t<std::is_same_v<T, wchar_t>, IntegralTypeForWCharT, T>;
 
 std::string EscCharImpl(int v) {
   char buf[64];
@@ -542,7 +542,7 @@ TYPED_TEST_P(TypedFormatConvertTest, AllIntsWithFlags) {
 
             const bool is_signed_conv = (conv_char == 'd' || conv_char == 'i');
             const bool is_unsigned_to_signed =
-                !std::is_signed<T>::value && is_signed_conv;
+                !std::is_signed_v<T> && is_signed_conv;
             // Don't consider sign-related flags '+' and ' ' when doing
             // unsigned to signed conversions.
             if (is_unsigned_to_signed &&
@@ -649,8 +649,7 @@ TYPED_TEST_P(TypedFormatConvertTest, Char) {
   // Special case: Formatting a wchar_t should behave like vsnprintf("%lc").
   // Technically vsnprintf can accept a wint_t in this case, but since we must
   // pass a wchar_t to FormatPack, the largest type we can use here is wchar_t.
-  using ArgType =
-      std::conditional_t<std::is_same<T, wchar_t>::value, wchar_t, int>;
+  using ArgType = std::conditional_t<std::is_same_v<T, wchar_t>, wchar_t, int>;
   static const T kMin =
       static_cast<remove_volatile_t>(std::numeric_limits<ArgType>::min());
   static const T kMax = GetMaxForConversion<T>();

@@ -105,7 +105,7 @@ class discrete_distribution {
     std::vector<double> p_;                     // normalized probabilities
     std::vector<std::pair<double, size_t>> q_;  // (acceptance, alternate) pairs
 
-    static_assert(std::is_integral<result_type>::value,
+    static_assert(std::is_integral_v<result_type>,
                   "Class-template absl::discrete_distribution<> must be "
                   "parameterized using an integral type.");
   };

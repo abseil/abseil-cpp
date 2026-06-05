@@ -2271,7 +2271,7 @@ class raw_hash_set {
   using SlotAllocTraits = typename std::allocator_traits<
       allocator_type>::template rebind_traits<slot_type>;
 
-  static_assert(std::is_lvalue_reference<reference>::value,
+  static_assert(std::is_lvalue_reference_v<reference>,
                 "Policy::element() must return a reference");
 
   // An enabler for insert(T&&): T must be convertible to init_type or be the
@@ -2286,8 +2286,7 @@ class raw_hash_set {
   // RequiresNotInit is a workaround for gcc prior to 7.1.
   // See https://godbolt.org/g/Y4xsUh.
   template <class T>
-  using RequiresNotInit =
-      std::enable_if_t<!std::is_same<T, init_type>::value, int>;
+  using RequiresNotInit = std::enable_if_t<!std::is_same_v<T, init_type>, int>;
 
   template <class... Ts>
   using IsDecomposable = IsDecomposable<void, PolicyTraits, Hash, Eq, Ts...>;
@@ -2304,9 +2303,9 @@ class raw_hash_set {
       type_traits_internal::IsLifetimeBoundAssignment<init_type, U>>;
 
  public:
-  static_assert(std::is_same<pointer, value_type*>::value,
+  static_assert(std::is_same_v<pointer, value_type*>,
                 "Allocators with custom pointer types are not supported");
-  static_assert(std::is_same<const_pointer, const value_type*>::value,
+  static_assert(std::is_same_v<const_pointer, const value_type*>,
                 "Allocators with custom pointer types are not supported");
 
   class iterator : private HashSetIteratorGenerationInfo {
@@ -2480,9 +2479,9 @@ class raw_hash_set {
   // Note: can't use `= default` due to non-default noexcept (causes
   // problems for some compilers). NOLINTNEXTLINE
   raw_hash_set() noexcept(
-      std::is_nothrow_default_constructible<hasher>::value &&
-      std::is_nothrow_default_constructible<key_equal>::value &&
-      std::is_nothrow_default_constructible<allocator_type>::value) {}
+      std::is_nothrow_default_constructible_v<hasher> &&
+      std::is_nothrow_default_constructible_v<key_equal> &&
+      std::is_nothrow_default_constructible_v<allocator_type>) {}
 
   explicit raw_hash_set(
       size_t bucket_count, const hasher& hash = hasher(),
@@ -2633,9 +2632,9 @@ class raw_hash_set {
   }
 
   ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(
-      std::is_nothrow_copy_constructible<hasher>::value &&
-      std::is_nothrow_copy_constructible<key_equal>::value &&
-      std::is_nothrow_copy_constructible<allocator_type>::value)
+      std::is_nothrow_copy_constructible_v<hasher> &&
+      std::is_nothrow_copy_constructible_v<key_equal> &&
+      std::is_nothrow_copy_constructible_v<allocator_type>)
       :  // Hash, equality and allocator are copied instead of moved because
          // `that` must be left valid. If Hash is std::function<Key>, moving it
          // would create a nullptr functor that cannot be called.
@@ -2681,8 +2680,8 @@ class raw_hash_set {
 
   raw_hash_set& operator=(raw_hash_set&& that) noexcept(
       AllocTraits::is_always_equal::value &&
-      std::is_nothrow_move_assignable<hasher>::value &&
-      std::is_nothrow_move_assignable<key_equal>::value) {
+      std::is_nothrow_move_assignable_v<hasher> &&
+      std::is_nothrow_move_assignable_v<key_equal>) {
     // TODO(sbenza): We should only use the operations from the noexcept clause
     // to make sure we actually adhere to that contract.
     // NOLINTNEXTLINE: not returning *this for performance.
@@ -3124,7 +3123,7 @@ class raw_hash_set {
   }
 
   template <class K = key_type,
-            std::enable_if_t<!std::is_same<K, iterator>::value, int> = 0>
+            std::enable_if_t<!std::is_same_v<K, iterator>, int> = 0>
   node_type extract(const key_arg<K>& key) {
     auto it = find(key);
     return it == end() ? node_type() : extract(const_iterator{it});
@@ -3132,8 +3131,8 @@ class raw_hash_set {
 
   void swap(raw_hash_set& that) noexcept(
       AllocTraits::is_always_equal::value &&
-      std::is_nothrow_swappable<hasher>::value &&
-      std::is_nothrow_swappable<key_equal>::value) {
+      std::is_nothrow_swappable_v<hasher> &&
+      std::is_nothrow_swappable_v<key_equal>) {
     AssertNotDebugCapacity();
     that.AssertNotDebugCapacity();
     using std::swap;
@@ -3268,8 +3267,8 @@ class raw_hash_set {
       // mapped_types could be unequal in a map or even in a set, key_equal
       // could ignore some fields that aren't ignored by operator==.
       static constexpr bool kKeyEqIsValueEq =
-          std::is_same<key_type, value_type>::value &&
-          std::is_same<key_equal, hash_default_eq<key_type>>::value;
+          std::is_same_v<key_type, value_type> &&
+          std::is_same_v<key_equal, hash_default_eq<key_type>>;
       if (!kKeyEqIsValueEq && !(*it == elem)) return false;
     }
     return true;
@@ -3730,13 +3729,13 @@ class raw_hash_set {
     return;
 #endif
     // If the hash/eq functors are known to be consistent, then skip validation.
-    if (std::is_same<hasher, absl::container_internal::StringHash>::value &&
-        std::is_same<key_equal, absl::container_internal::StringEq>::value) {
+    if (std::is_same_v<hasher, absl::container_internal::StringHash> &&
+        std::is_same_v<key_equal, absl::container_internal::StringEq>) {
       return;
     }
-    if (std::is_scalar<key_type>::value &&
-        std::is_same<hasher, absl::Hash<key_type>>::value &&
-        std::is_same<key_equal, std::equal_to<key_type>>::value) {
+    if (std::is_scalar_v<key_type> &&
+        std::is_same_v<hasher, absl::Hash<key_type>> &&
+        std::is_same_v<key_equal, std::equal_to<key_type>>) {
       return;
     }
     if (empty()) return;

@@ -326,9 +326,10 @@ enum MyUnsignedIntEnum : unsigned int {
 
 template <typename T>
 class UnsignedEnumLogFormatTest : public testing::Test {};
-using UnsignedEnumTypes = std::conditional_t<
-    std::is_signed<std::underlying_type_t<MyUnsignedEnum>>::value,
-    Types<MyUnsignedIntEnum>, Types<MyUnsignedEnum, MyUnsignedIntEnum>>;
+using UnsignedEnumTypes =
+    std::conditional_t<std::is_signed_v<std::underlying_type_t<MyUnsignedEnum>>,
+                       Types<MyUnsignedIntEnum>,
+                       Types<MyUnsignedEnum, MyUnsignedIntEnum>>;
 TYPED_TEST_SUITE(UnsignedEnumLogFormatTest, UnsignedEnumTypes);
 
 TYPED_TEST(UnsignedEnumLogFormatTest, Positive) {
@@ -387,10 +388,10 @@ enum MySignedIntEnum : signed int {
 
 template <typename T>
 class SignedEnumLogFormatTest : public testing::Test {};
-using SignedEnumTypes = std::conditional_t<
-    std::is_signed<std::underlying_type_t<MyUnsignedEnum>>::value,
-    Types<MyUnsignedEnum, MySignedEnum, MySignedIntEnum>,
-    Types<MySignedEnum, MySignedIntEnum>>;
+using SignedEnumTypes =
+    std::conditional_t<std::is_signed_v<std::underlying_type_t<MyUnsignedEnum>>,
+                       Types<MyUnsignedEnum, MySignedEnum, MySignedIntEnum>,
+                       Types<MySignedEnum, MySignedIntEnum>>;
 TYPED_TEST_SUITE(SignedEnumLogFormatTest, SignedEnumTypes);
 
 TYPED_TEST(SignedEnumLogFormatTest, Positive) {

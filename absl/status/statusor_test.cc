@@ -582,11 +582,11 @@ struct ExplicitConstructibleFromA {
 
 TEST(StatusOr, ExplicitConvertingConstructor) {
   EXPECT_FALSE(
-      (std::is_convertible<const absl::StatusOr<A>&,
-                           absl::StatusOr<ExplicitConstructibleFromA>>::value));
+      (std::is_convertible_v<const absl::StatusOr<A>&,
+                             absl::StatusOr<ExplicitConstructibleFromA>>));
   EXPECT_FALSE(
-      (std::is_convertible<absl::StatusOr<A>&&,
-                           absl::StatusOr<ExplicitConstructibleFromA>>::value));
+      (std::is_convertible_v<absl::StatusOr<A>&&,
+                             absl::StatusOr<ExplicitConstructibleFromA>>));
   EXPECT_THAT(
       absl::StatusOr<ExplicitConstructibleFromA>(absl::StatusOr<A>(A{11})),
       IsOkAndHolds(AllOf(Field(&ExplicitConstructibleFromA::x, 11),
@@ -618,9 +618,9 @@ TEST(StatusOr, ImplicitBooleanConstructionWithImplicitCasts) {
       absl::implicit_cast<absl::StatusOr<ImplicitConstructibleFromBool>>(
           absl::StatusOr<bool>(false)),
       IsOkAndHolds(Field(&ImplicitConstructibleFromBool::x, false)));
-  EXPECT_FALSE((std::is_convertible<
-                absl::StatusOr<ConvertibleToBool>,
-                absl::StatusOr<ImplicitConstructibleFromBool>>::value));
+  EXPECT_FALSE(
+      (std::is_convertible_v<absl::StatusOr<ConvertibleToBool>,
+                             absl::StatusOr<ImplicitConstructibleFromBool>>));
 }
 
 TEST(StatusOr, BooleanConstructionWithImplicitCasts) {
@@ -782,18 +782,18 @@ struct NonMovable {
 };
 
 TEST(StatusOr, CopyAndMoveAbility) {
-  EXPECT_TRUE(std::is_copy_constructible<Copyable>::value);
-  EXPECT_TRUE(std::is_copy_assignable<Copyable>::value);
-  EXPECT_TRUE(std::is_move_constructible<Copyable>::value);
-  EXPECT_TRUE(std::is_move_assignable<Copyable>::value);
-  EXPECT_FALSE(std::is_copy_constructible<MoveOnly>::value);
-  EXPECT_FALSE(std::is_copy_assignable<MoveOnly>::value);
-  EXPECT_TRUE(std::is_move_constructible<MoveOnly>::value);
-  EXPECT_TRUE(std::is_move_assignable<MoveOnly>::value);
-  EXPECT_FALSE(std::is_copy_constructible<NonMovable>::value);
-  EXPECT_FALSE(std::is_copy_assignable<NonMovable>::value);
-  EXPECT_FALSE(std::is_move_constructible<NonMovable>::value);
-  EXPECT_FALSE(std::is_move_assignable<NonMovable>::value);
+  EXPECT_TRUE(std::is_copy_constructible_v<Copyable>);
+  EXPECT_TRUE(std::is_copy_assignable_v<Copyable>);
+  EXPECT_TRUE(std::is_move_constructible_v<Copyable>);
+  EXPECT_TRUE(std::is_move_assignable_v<Copyable>);
+  EXPECT_FALSE(std::is_copy_constructible_v<MoveOnly>);
+  EXPECT_FALSE(std::is_copy_assignable_v<MoveOnly>);
+  EXPECT_TRUE(std::is_move_constructible_v<MoveOnly>);
+  EXPECT_TRUE(std::is_move_assignable_v<MoveOnly>);
+  EXPECT_FALSE(std::is_copy_constructible_v<NonMovable>);
+  EXPECT_FALSE(std::is_copy_assignable_v<NonMovable>);
+  EXPECT_FALSE(std::is_move_constructible_v<NonMovable>);
+  EXPECT_FALSE(std::is_move_assignable_v<NonMovable>);
 }
 
 TEST(StatusOr, StatusOrAnyCopyAndMoveConstructorTests) {
@@ -877,8 +877,8 @@ TEST(StatusOr, StatusOrCopyAndMoveTestsAssignment) {
 }
 
 TEST(StatusOr, AbslAnyAssignment) {
-  EXPECT_FALSE((std::is_assignable<absl::StatusOr<std::any>,
-                                   absl::StatusOr<int>>::value));
+  EXPECT_FALSE(
+      (std::is_assignable_v<absl::StatusOr<std::any>, absl::StatusOr<int>>));
   absl::StatusOr<std::any> status_or;
   status_or = absl::InvalidArgumentError("foo");
   EXPECT_THAT(status_or, Not(IsOk()));
@@ -912,10 +912,10 @@ TEST(StatusOr, Pointer) {
   struct B : public A {};
   struct C : private A {};
 
-  EXPECT_TRUE((std::is_constructible<absl::StatusOr<A*>, B*>::value));
-  EXPECT_TRUE((std::is_convertible<B*, absl::StatusOr<A*>>::value));
-  EXPECT_FALSE((std::is_constructible<absl::StatusOr<A*>, C*>::value));
-  EXPECT_FALSE((std::is_convertible<C*, absl::StatusOr<A*>>::value));
+  EXPECT_TRUE((std::is_constructible_v<absl::StatusOr<A*>, B*>));
+  EXPECT_TRUE((std::is_convertible_v<B*, absl::StatusOr<A*>>));
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<A*>, C*>));
+  EXPECT_FALSE((std::is_convertible_v<C*, absl::StatusOr<A*>>));
 }
 
 TEST(StatusOr, TestAssignmentStatusNotOkConverting) {
@@ -1087,21 +1087,19 @@ TEST(StatusOr, PerfectForwardingAssignment) {
   EXPECT_THAT(status_or, IsOkAndHolds(CopyDetectorHas(kValue2, true, false)));
 
   // U != T
-  EXPECT_TRUE(
-      (std::is_assignable<absl::StatusOr<MockValue>&,
-                          const FromConstructibleAssignableLvalue&>::value));
-  EXPECT_TRUE((std::is_assignable<absl::StatusOr<MockValue>&,
-                                  FromConstructibleAssignableLvalue&&>::value));
+  EXPECT_TRUE((std::is_assignable_v<absl::StatusOr<MockValue>&,
+                                    const FromConstructibleAssignableLvalue&>));
+  EXPECT_TRUE((std::is_assignable_v<absl::StatusOr<MockValue>&,
+                                    FromConstructibleAssignableLvalue&&>));
   EXPECT_FALSE(
-      (std::is_assignable<absl::StatusOr<MockValue>&,
-                          const FromConstructibleAssignableRvalue&>::value));
-  EXPECT_TRUE((std::is_assignable<absl::StatusOr<MockValue>&,
-                                  FromConstructibleAssignableRvalue&&>::value));
-  EXPECT_TRUE(
-      (std::is_assignable<absl::StatusOr<MockValue>&,
-                          const FromImplicitConstructibleOnly&>::value));
-  EXPECT_FALSE((std::is_assignable<absl::StatusOr<MockValue>&,
-                                   const FromAssignableOnly&>::value));
+      (std::is_assignable_v<absl::StatusOr<MockValue>&,
+                            const FromConstructibleAssignableRvalue&>));
+  EXPECT_TRUE((std::is_assignable_v<absl::StatusOr<MockValue>&,
+                                    FromConstructibleAssignableRvalue&&>));
+  EXPECT_TRUE((std::is_assignable_v<absl::StatusOr<MockValue>&,
+                                    const FromImplicitConstructibleOnly&>));
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<MockValue>&,
+                                     const FromAssignableOnly&>));
 
   absl::StatusOr<MockValue> from_lvalue(FromConstructibleAssignableLvalue{});
   EXPECT_FALSE(from_lvalue->from_rvalue);
@@ -1349,7 +1347,7 @@ TEST(StatusOr, TestPointerValueConst) {
 
 TEST(StatusOr, StatusOrVectorOfUniquePointerCanReserveAndResize) {
   using EvilType = std::vector<std::unique_ptr<int>>;
-  static_assert(std::is_copy_constructible<EvilType>::value, "");
+  static_assert(std::is_copy_constructible_v<EvilType>, "");
   std::vector<::absl::StatusOr<EvilType>> v(5);
   v.reserve(v.capacity() + 10);
   v.resize(v.capacity() + 10);
@@ -1364,13 +1362,13 @@ TEST(StatusOr, ConstPayload) {
   absl::StatusOr<const int> b(a);
 
   // Copy-assignment
-  EXPECT_FALSE(std::is_copy_assignable<absl::StatusOr<const int>>::value);
+  EXPECT_FALSE(std::is_copy_assignable_v<absl::StatusOr<const int>>);
 
   // Move-construction
   absl::StatusOr<const int> c(std::move(a));
 
   // Move-assignment
-  EXPECT_FALSE(std::is_move_assignable<absl::StatusOr<const int>>::value);
+  EXPECT_FALSE(std::is_move_assignable_v<absl::StatusOr<const int>>);
 }
 
 TEST(StatusOr, MapToStatusOrUniquePtr) {

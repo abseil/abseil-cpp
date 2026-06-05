@@ -104,7 +104,7 @@ template <class T>
 constexpr bool IsStoredLocally() {
   if constexpr (sizeof(T) <= kStorageSize && alignof(T) <= kAlignment &&
                 kAlignment % alignof(T) == 0) {
-    return std::is_nothrow_move_constructible<T>::value;
+    return std::is_nothrow_move_constructible_v<T>;
   }
   return false;
 }
@@ -146,8 +146,7 @@ T&& ForwardImpl(std::false_type);
 template <class T>
 struct ForwardedParameter {
   using type = decltype((
-      ForwardImpl<T>)(std::integral_constant<bool,
-                                             std::is_scalar<T>::value>()));
+      ForwardImpl<T>)(std::integral_constant<bool, std::is_scalar_v<T>>()));
 };
 
 template <class T>
@@ -243,7 +242,7 @@ void LocalManagerNontrivial(FunctionToCall operation,
                             TypeErasedState* const to) noexcept {
   static_assert(IsStoredLocally<T>(),
                 "Local storage must only be used for supported types.");
-  static_assert(!std::is_trivially_copyable<T>::value,
+  static_assert(!std::is_trivially_copyable_v<T>,
                 "Locally stored types must be trivially copyable.");
 
   T& from_object = (ObjectInLocalStorage<T>)(from);
@@ -416,8 +415,8 @@ class CoreImpl {
   explicit CoreImpl(TypedConversionConstruct<QualDecayedTRef>, F&& f) {
     using DecayedT = RemoveCVRef<QualDecayedTRef>;
 
-    if constexpr (std::is_pointer<DecayedT>::value ||
-                  std::is_member_pointer<DecayedT>::value) {
+    if constexpr (std::is_pointer_v<DecayedT> ||
+                  std::is_member_pointer_v<DecayedT>) {
       // This condition handles types that decay into pointers. This includes
       // function references, which cannot be null. GCC warns against comparing
       // their decayed form with nullptr (https://godbolt.org/z/9r9TMTcPK).
@@ -614,13 +613,13 @@ using TrueAlias =
 /*SFINAE constraints for the conversion-constructor.*/
 template <class Sig, class F,
           class = std::enable_if_t<
-              !std::is_same<RemoveCVRef<F>, AnyInvocable<Sig>>::value>>
-using CanConvert = TrueAlias<
-    std::enable_if_t<!IsInPlaceType<RemoveCVRef<F>>::value>,
-    std::enable_if_t<Impl<Sig>::template CallIsValid<F>::value>,
-    std::enable_if_t<
-        Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<F>::value>,
-    std::enable_if_t<std::is_constructible<std::decay_t<F>, F>::value>>;
+              !std::is_same_v<RemoveCVRef<F>, AnyInvocable<Sig>>>>
+using CanConvert =
+    TrueAlias<std::enable_if_t<!IsInPlaceType<RemoveCVRef<F>>::value>,
+              std::enable_if_t<Impl<Sig>::template CallIsValid<F>::value>,
+              std::enable_if_t<
+                  Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<F>::value>,
+              std::enable_if_t<std::is_constructible_v<std::decay_t<F>, F>>>;
 
 /*SFINAE constraints for the std::in_place constructors.*/
 template <class Sig, class F, class... Args>
@@ -628,17 +627,17 @@ using CanEmplace = TrueAlias<
     std::enable_if_t<Impl<Sig>::template CallIsValid<F>::value>,
     std::enable_if_t<
         Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<F>::value>,
-    std::enable_if_t<std::is_constructible<std::decay_t<F>, Args...>::value>>;
+    std::enable_if_t<std::is_constructible_v<std::decay_t<F>, Args...>>>;
 
 /*SFINAE constraints for the conversion-assign operator.*/
 template <class Sig, class F,
           class = std::enable_if_t<
-              !std::is_same<RemoveCVRef<F>, AnyInvocable<Sig>>::value>>
-using CanAssign = TrueAlias<
-    std::enable_if_t<Impl<Sig>::template CallIsValid<F>::value>,
-    std::enable_if_t<
-        Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<F>::value>,
-    std::enable_if_t<std::is_constructible<std::decay_t<F>, F>::value>>;
+              !std::is_same_v<RemoveCVRef<F>, AnyInvocable<Sig>>>>
+using CanAssign =
+    TrueAlias<std::enable_if_t<Impl<Sig>::template CallIsValid<F>::value>,
+              std::enable_if_t<
+                  Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<F>::value>,
+              std::enable_if_t<std::is_constructible_v<std::decay_t<F>, F>>>;
 
 /*SFINAE constraints for the reference-wrapper conversion-assign operator.*/
 template <class Sig, class F>
@@ -658,19 +657,19 @@ using CanAssignReferenceWrapper = TrueAlias<
 // to give the right result when ReturnType is non-moveable in toolchains that
 // don't treat non-moveable result types correctly. For example this was the
 // case in libc++ before commit c3a24882 (2022-05).
-#define ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_true(inv_quals)      \
-  std::enable_if_t<std::disjunction<                                       \
-      std::is_nothrow_invocable_r<                                           \
+#define ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_true(inv_quals)     \
+  std::enable_if_t<std::disjunction_v<                                      \
+      std::is_nothrow_invocable_r<                                          \
           ReturnType, UnwrapStdReferenceWrapper<std::decay_t<F>> inv_quals, \
-          P...>,                                                             \
-      std::conjunction<                                                      \
-          std::is_nothrow_invocable<                                         \
+          P...>,                                                            \
+      std::conjunction<                                                     \
+          std::is_nothrow_invocable<                                        \
               UnwrapStdReferenceWrapper<std::decay_t<F>> inv_quals, P...>,  \
-          std::is_same<                                                      \
-              ReturnType,                                                    \
-              std::invoke_result_t<                                          \
+          std::is_same<                                                     \
+              ReturnType,                                                   \
+              std::invoke_result_t<                                         \
                   UnwrapStdReferenceWrapper<std::decay_t<F>> inv_quals,     \
-                  P...>>>>::value>
+                  P...>>>>>
 
 #define ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_false(inv_quals)
 //
@@ -737,8 +736,8 @@ using CanAssignReferenceWrapper = TrueAlias<
     InvokerType<noex, ReturnType, P...>* ExtractInvoker() cv {                 \
       using QualifiedTestType = int cv ref;                                    \
       auto* invoker = this->invoker_;                                          \
-      if (!std::is_const<QualifiedTestType>::value &&                          \
-          std::is_rvalue_reference<QualifiedTestType>::value) {                \
+      if (!std::is_const_v<QualifiedTestType> &&                               \
+          std::is_rvalue_reference_v<QualifiedTestType>) {                     \
         ABSL_ASSERT([this]() {                                                 \
           /* We checked that this isn't const above, so const_cast is safe */  \
           const_cast<Impl*>(this)->invoker_ = InvokedAfterMove;                \

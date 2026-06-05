@@ -115,7 +115,7 @@ TYPED_TEST(GaussianDistributionInterfaceTest, SerializeTest) {
           EXPECT_GE(sample, before.min()) << before;
           EXPECT_LE(sample, before.max()) << before;
         }
-        if (!std::is_same<TypeParam, long double>::value) {
+        if (!std::is_same_v<TypeParam, long double>) {
           LOG(INFO) << "Range{" << mean << ", " << stddev << "}: " << sample_min
                     << ", " << sample_max;
         }

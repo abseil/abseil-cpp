@@ -193,8 +193,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // allocator doesn't do anything fancy, and there is nothing on the heap
     // then we know it is legal for us to simply memcpy the other vector's
     // inlined bytes to form our copy of its elements.
-    if (std::is_trivially_copy_constructible<value_type>::value &&
-        std::is_same<A, std::allocator<value_type>>::value &&
+    if (std::is_trivially_copy_constructible_v<value_type> &&
+        std::is_same_v<A, std::allocator<value_type>> &&
         !other.storage_.GetIsAllocated()) {
       storage_.MemcpyFrom(other.storage_);
       return;
@@ -219,7 +219,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
   // or `value_type`'s move constructor is specified as `noexcept`.
   InlinedVector(InlinedVector&& other) noexcept(
       absl::allocator_is_nothrow<allocator_type>::value ||
-      std::is_nothrow_move_constructible<value_type>::value)
+      std::is_nothrow_move_constructible_v<value_type>)
       : storage_(other.storage_.GetAllocator()) {
     // Fast path: if the value type can be trivially relocated (i.e. moved from
     // and destroyed), and we know the allocator doesn't do anything fancy, then
@@ -227,7 +227,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // and remove its own reference to them. It's as if we had individually
     // move-constructed each value and then destroyed the original.
     if (absl::is_trivially_relocatable<value_type>::value &&
-        std::is_same<A, std::allocator<value_type>>::value) {
+        std::is_same_v<A, std::allocator<value_type>>) {
       storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
       return;
@@ -273,7 +273,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // and remove its own reference to them. It's as if we had individually
     // move-constructed each value and then destroyed the original.
     if (absl::is_trivially_relocatable<value_type>::value &&
-        std::is_same<A, std::allocator<value_type>>::value) {
+        std::is_same_v<A, std::allocator<value_type>>) {
       storage_.MemcpyFrom(other.storage_);
       other.storage_.SetInlinedSize(0);
       return;
@@ -858,8 +858,8 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // Assumption check: we shouldn't be told to use memcpy to implement move
     // assignment unless we have trivially destructible elements and an
     // allocator that does nothing fancy.
-    static_assert(std::is_trivially_destructible<value_type>::value, "");
-    static_assert(std::is_same<A, std::allocator<value_type>>::value, "");
+    static_assert(std::is_trivially_destructible_v<value_type>, "");
+    static_assert(std::is_same_v<A, std::allocator<value_type>>, "");
 
     // Throw away our existing heap allocation, if any. There is no need to
     // destroy the existing elements one by one because we know they are

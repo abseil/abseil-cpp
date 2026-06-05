@@ -186,13 +186,12 @@ class Arg {
 
   // vector<bool>::reference and const_reference require special help to convert
   // to `Arg` because it requires two user defined conversions.
-  template <
-      typename T,
-      std::enable_if_t<
-          std::is_class<T>::value &&
-              (std::is_same<T, std::vector<bool>::reference>::value ||
-               std::is_same<T, std::vector<bool>::const_reference>::value),
-          bool> = true>
+  template <typename T,
+            std::enable_if_t<
+                std::is_class_v<T> &&
+                    (std::is_same_v<T, std::vector<bool>::reference> ||
+                     std::is_same_v<T, std::vector<bool>::const_reference>),
+                bool> = true>
   Arg(T value)  // NOLINT(google-explicit-constructor)
       : Arg(static_cast<bool>(value)) {}
 
