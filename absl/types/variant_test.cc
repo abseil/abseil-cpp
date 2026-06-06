@@ -122,7 +122,7 @@ TEST(VariantTest, DoesNotMoveFromLvalues) {
 }
 
 TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
-  variant<Convertible1, Convertible2> v(
+  std::variant<Convertible1, Convertible2> v(
       ConvertVariantTo<std::variant<Convertible1, Convertible2>>(
           (std::variant<Convertible2, Convertible1>(Convertible1()))));
   ASSERT_TRUE(std::holds_alternative<Convertible1>(v));
@@ -133,8 +133,8 @@ TEST(VariantTest, TestRvalueConversionViaConvertVariantTo) {
 }
 
 TEST(VariantTest, TestLvalueConversionViaConvertVariantTo) {
-  variant<Convertible2, Convertible1> source((Convertible1()));
-  variant<Convertible1, Convertible2> v(
+  std::variant<Convertible2, Convertible1> source((Convertible1()));
+  std::variant<Convertible1, Convertible2> v(
       ConvertVariantTo<std::variant<Convertible1, Convertible2>>(source));
   ASSERT_TRUE(std::holds_alternative<Convertible1>(v));
 
