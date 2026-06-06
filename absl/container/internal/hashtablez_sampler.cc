@@ -167,7 +167,8 @@ HashtablezInfo* SampleSlow(SamplingState& next_sample,
       g_hashtablez_sample_parameter.load(std::memory_order_relaxed));
 
   next_sample.next_sample = next_stride;
-  const int64_t old_stride = exchange(next_sample.sample_stride, next_stride);
+  const int64_t old_stride =
+      std::exchange(next_sample.sample_stride, next_stride);
   // Small values of interval are equivalent to just sampling next time.
   ABSL_ASSERT(next_stride >= 1);
 
