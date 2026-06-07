@@ -231,7 +231,7 @@
 #endif
 
 #ifdef __BMI2__
-#include <bmi2intrin.h>
+#include <x86gprintrin.h>
 #endif  // __BMI2__
 
 namespace absl {
