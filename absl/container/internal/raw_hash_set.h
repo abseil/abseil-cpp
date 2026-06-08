@@ -280,9 +280,7 @@ constexpr bool SwisstableGenerationsEnabled() { return false; }
 constexpr size_t NumGenerationBytes() { return 0; }
 #endif
 
-// Returns true if we should assert that the table is not accessed after it has
-// been destroyed or during the destruction of the table.
-constexpr bool SwisstableAssertAccessToDestroyedTable() {
+constexpr bool SwisstableGenerationsOrDebugEnabled() {
 #ifndef NDEBUG
   return true;
 #endif
@@ -1434,6 +1432,14 @@ class CommonFields : public CommonFieldsGenerationInfo {
     set_capacity(cap);
   }
 
+  // Asserts that the capacity is not a sentinel invalid value.
+  void AssertNotDebugCapacity() const {
+    if (!SwisstableGenerationsOrDebugEnabled()) {
+      return;
+    }
+    AssertNotDebugCapacityImpl();
+  }
+
  private:
   // We store the has_infoz bit in the lowest bit of size_.
   static constexpr size_t HasInfozShift() { return 1; }
@@ -1447,6 +1453,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
     ABSL_SWISSTABLE_ASSERT(capacity() == SooCapacity());
     ABSL_SWISSTABLE_ASSERT(!has_infoz());
   }
+
+  void AssertNotDebugCapacityImpl() const;
 
   // TODO(b/289225379): we could put size_ into HeapOrSoo and make capacity_
   // encode the size in SOO case. We would be making size()/capacity() more
@@ -2056,6 +2064,11 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
 void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
                          DeallocBackingArrayFn dealloc, void* alloc);
+
+// Type erased version of raw_hash_set::clear.
+template <bool kSooEnabled>
+void Clear(CommonFields& c, const PolicyFunctions& policy,
+           DestroySlotFn destroy_slot, void* alloc);
 
 // NOTE: Destruct* functions couldn't use PolicyFunctions in order to support
 // incomplete types.
@@ -2692,7 +2705,7 @@ class raw_hash_set {
 
   ~raw_hash_set() {
     destructor_impl();
-    if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+    if constexpr (SwisstableGenerationsOrDebugEnabled()) {
       common().set_capacity(HashtableCapacity::CreateDestroyed());
     }
   }
@@ -2743,34 +2756,9 @@ class raw_hash_set {
   }
   size_t max_size() const { return MaxValidSize(); }
 
-  // TODO(b/515666499): Type erase clear().
   ABSL_ATTRIBUTE_REINITIALIZES void clear() {
-    if (SwisstableGenerationsEnabled() &&
-        maybe_invalid_capacity().IsMovedFrom()) {
-      common().set_capacity(DefaultCapacity());
-    }
-    AssertNotDebugCapacity();
-    // Iterating over this container is O(bucket_count()). When bucket_count()
-    // is much greater than size(), iteration becomes prohibitively expensive.
-    // For clear() it is more important to reuse the allocated array when the
-    // container is small because allocation takes comparatively long time
-    // compared to destruction of the elements of the container. So we pick the
-    // largest bucket_count() threshold for which iteration is still fast and
-    // past that we simply deallocate the array.
-    const size_t cap = capacity();
-    if (cap == 0) {
-      // Already guaranteed to be empty; so nothing to do.
-    } else if (is_small()) {
-      if (!empty()) {
-        destroy(single_slot());
-        decrement_small_size();
-      }
-    } else {
-      destroy_slots();
-      clear_backing_array(/*reuse=*/cap < 128);
-    }
-    common().set_reserved_growth(0);
-    common().set_reservation_size(0);
+    Clear<SooEnabled()>(common(), GetPolicyFunctions(), get_destroy_slot_fn(),
+                        &char_alloc_ref());
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -3692,34 +3680,7 @@ class raw_hash_set {
   }
 
   // Asserts that the capacity is not a sentinel invalid value.
-  void AssertNotDebugCapacity() const {
-#ifdef NDEBUG
-    if (!SwisstableGenerationsEnabled()) {
-      return;
-    }
-#endif
-    const HashtableCapacity cap = maybe_invalid_capacity();
-    if (ABSL_PREDICT_TRUE(cap.IsValid())) {
-      return;
-    }
-    assert(!cap.IsReentrance() &&
-           "Reentrant container access during element construction/destruction "
-           "is not allowed.");
-    if constexpr (SwisstableAssertAccessToDestroyedTable()) {
-      if (cap.IsDestroyed()) {
-        ABSL_RAW_LOG(FATAL, "Use of destroyed hash table.");
-      }
-    }
-    if (SwisstableGenerationsEnabled() &&
-        ABSL_PREDICT_FALSE(cap.IsMovedFrom())) {
-      if (cap.IsSelfMovedFrom()) {
-        // If this log triggers, then a hash table was move-assigned to itself
-        // and then used again later without being reinitialized.
-        ABSL_RAW_LOG(FATAL, "Use of self-move-assigned hash table.");
-      }
-      ABSL_RAW_LOG(FATAL, "Use of moved-from hash table.");
-    }
-  }
+  void AssertNotDebugCapacity() const { common().AssertNotDebugCapacity(); }
 
   // Asserts that hash and equal functors provided by the user are consistent,
   // meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
@@ -4161,6 +4122,12 @@ extern template void DeallocateBackingArray<
     BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
     size_t slot_align, bool had_infoz, size_t blocked_element_count);
+
+extern template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
+                                 DestroySlotFn destroy_slot, void* alloc);
+extern template void Clear<false>(CommonFields& c,
+                                  const PolicyFunctions& policy,
+                                  DestroySlotFn destroy_slot, void* alloc);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

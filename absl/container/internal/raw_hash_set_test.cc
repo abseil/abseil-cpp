@@ -849,7 +849,8 @@ TEST(Batch, DropDeletes) {
   }
 }
 
-template <class T, bool kTransferable = false, bool kSoo = false>
+template <class T, bool kTransferable = false, bool kSoo = false,
+          bool kDestroyTrivial = false>
 struct ValuePolicy {
   using slot_type = T;
   using key_type = T;
@@ -866,8 +867,13 @@ struct ValuePolicy {
   }
 
   template <class Allocator>
-  static void destroy(Allocator* alloc, slot_type* slot) {
+  static auto destroy(Allocator* alloc, slot_type* slot) {
     std::allocator_traits<Allocator>::destroy(*alloc, slot);
+    if constexpr (kDestroyTrivial) {
+      return std::true_type{};
+    } else {
+      return std::false_type{};
+    }
   }
 
   template <class Allocator>
@@ -1061,10 +1067,10 @@ struct StringTable
 };
 
 template <typename T, bool kTransferable = false, bool kSoo = false,
-          class Alloc = std::allocator<T>>
-struct ValueTable : InstantiateRawHashSet<ValuePolicy<T, kTransferable, kSoo>,
-                                          hash_default_hash<T>,
-                                          std::equal_to<T>, Alloc>::type {
+          bool kDestroyTrivial = false, class Alloc = std::allocator<T>>
+struct ValueTable : InstantiateRawHashSet<
+                        ValuePolicy<T, kTransferable, kSoo, kDestroyTrivial>,
+                        hash_default_hash<T>, std::equal_to<T>, Alloc>::type {
   using Base = typename ValueTable::raw_hash_set;
   using Base::Base;
 };
@@ -1202,16 +1208,24 @@ constexpr size_t kNonSooSize = sizeof(HeapOrSoo) + 8;
 using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
 static_assert(sizeof(NonSooIntTableSlotType) >= kNonSooSize, "too small");
 using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
+using NonSooIntTableTrivialDestroy =
+    ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false, /*kSoo=*/false,
+               /*kDestroyTrivial=*/true>;
 using SooInt32Table =
     ValueTable<int32_t, /*kTransferable=*/true, /*kSoo=*/true>;
 using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true>;
+using SooIntTableTrivialDestroy =
+    ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
+               /*kDestroyTrivial=*/true>;
 using NonMemcpyableSooIntTable =
     ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true>;
 using MemcpyableSooIntCustomAllocTable =
     ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
+               /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 using NonMemcpyableSooIntCustomAllocTable =
     ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true,
+               /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 
 TEST(Table, EmptyFunctorOptimization) {
@@ -1303,7 +1317,8 @@ template <class TableType>
 class SooTest : public testing::Test {};
 
 using SooTableTypes =
-    ::testing::Types<SooIntTable, NonSooIntTable, NonMemcpyableSooIntTable,
+    ::testing::Types<SooIntTable, SooIntTableTrivialDestroy, NonSooIntTable,
+                     NonSooIntTableTrivialDestroy, NonMemcpyableSooIntTable,
                      MemcpyableSooIntCustomAllocTable,
                      NonMemcpyableSooIntCustomAllocTable>;
 TYPED_TEST_SUITE(SooTest, SooTableTypes);
@@ -4769,13 +4784,7 @@ TEST(Table, ReentrantCallsFail) {
 }
 
 TEST(Table, DestroyedCallsFail) {
-#ifdef NDEBUG
-  ASSERT_EQ(SwisstableAssertAccessToDestroyedTable(),
-            SwisstableGenerationsEnabled());
-#else
-  ASSERT_TRUE(SwisstableAssertAccessToDestroyedTable());
-#endif
-  if (!SwisstableAssertAccessToDestroyedTable()) {
+  if (!SwisstableGenerationsOrDebugEnabled()) {
     GTEST_SKIP() << "Validation not enabled.";
   }
 #if !defined(__clang__) && defined(__GNUC__)
@@ -4798,7 +4807,7 @@ TEST(Table, DestroyedCallsFail) {
 }
 
 TEST(Table, DestroyedCallsFailDuringDestruction) {
-  if (!SwisstableAssertAccessToDestroyedTable()) {
+  if (!SwisstableGenerationsOrDebugEnabled()) {
     GTEST_SKIP() << "Validation not enabled.";
   }
 #if !defined(__clang__) && defined(__GNUC__)

@@ -334,6 +334,27 @@ uint64_t GetGrowthLeftTotalBigCapacity(void* full_growth_info) {
 
 }  // namespace
 
+void CommonFields::AssertNotDebugCapacityImpl() const {
+  const HashtableCapacity cap = maybe_invalid_capacity();
+  if (ABSL_PREDICT_TRUE(cap.IsValid())) {
+    return;
+  }
+  assert(!cap.IsReentrance() &&
+         "Reentrant container access during element construction/destruction "
+         "is not allowed.");
+  if (cap.IsDestroyed()) {
+    ABSL_RAW_LOG(FATAL, "Use of destroyed hash table.");
+  }
+  if (SwisstableGenerationsEnabled() && ABSL_PREDICT_FALSE(cap.IsMovedFrom())) {
+    if (cap.IsSelfMovedFrom()) {
+      // If this log triggers, then a hash table was move-assigned to itself
+      // and then used again later without being reinitialized.
+      ABSL_RAW_LOG(FATAL, "Use of self-move-assigned hash table.");
+    }
+    ABSL_RAW_LOG(FATAL, "Use of moved-from hash table.");
+  }
+}
+
 void GrowthInfoAccessor::InitGrowthLeftNoDeleted(size_t growth_left,
                                                  size_t capacity) {
   if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
@@ -785,6 +806,20 @@ void ClearBackingArrayNoReuse(CommonFields& c,
                          : CommonFields{non_soo_tag_t{}};
 }
 
+template <bool kSooEnabled>
+void* SingleSlotAddress(CommonFields& c) {
+  return kSooEnabled ? c.soo_data() : c.slot_array();
+}
+
+template <bool kSooEnabled>
+void DecrementSmallSize(CommonFields& c) {
+  if constexpr (kSooEnabled) {
+    c.set_empty_soo();
+  } else {
+    c.decrement_size();
+  }
+}
+
 }  // namespace
 
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
@@ -840,7 +875,7 @@ void DestroySlots(CommonFields& c, size_t slot_size,
   auto destroy_slot_wrapper = [&](const ctrl_t*, void* slot) {
     destroy_slot(&c, slot);
   };
-  if constexpr (SwisstableAssertAccessToDestroyedTable()) {
+  if constexpr (SwisstableGenerationsOrDebugEnabled()) {
     CommonFields common_copy(non_soo_tag_t{}, c);
     c.set_capacity(HashtableCapacity::CreateDestroyed());
     IterateOverFullSlotsImpl(common_copy, slot_size, destroy_slot_wrapper);
@@ -856,6 +891,42 @@ void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
   c.infoz().Unregister();
   dealloc(alloc, cap, c.control(), slot_size, slot_align, c.has_infoz(),
           c.blocked_element_count());
+}
+
+template <bool kSooEnabled>
+void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
+           DestroySlotFn destroy_slot, void* alloc) {
+  if (SwisstableGenerationsEnabled() &&
+      c.maybe_invalid_capacity().IsMovedFrom()) {
+    c.set_capacity(policy.soo_capacity());
+  }
+  c.AssertNotDebugCapacity();
+  const size_t cap = c.capacity();
+  if constexpr (kSooEnabled) {
+    ABSL_ASSUME(cap > 0);
+  }
+  if (c.is_small()) {
+    if (!c.empty()) {
+      if (destroy_slot != nullptr) {
+        destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
+      }
+      DecrementSmallSize<kSooEnabled>(c);
+    }
+  } else {
+    if (destroy_slot != nullptr) {
+      DestroySlots(c, policy.slot_size, destroy_slot);
+    }
+    // Iterating over this container is O(bucket_count()). When bucket_count()
+    // is much greater than size(), iteration becomes prohibitively expensive.
+    // For clear() it is more important to reuse the allocated array when the
+    // container is small because allocation takes comparatively long time
+    // compared to destruction of the elements of the container. So we pick the
+    // largest bucket_count() threshold for which iteration is still fast and
+    // past that we simply deallocate the array.
+    ClearBackingArray(c, policy, alloc, /*reuse=*/cap < 128);
+  }
+  c.set_reserved_growth(0);
+  c.set_reservation_size(0);
 }
 
 void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
@@ -1073,12 +1144,12 @@ enum class ResizeFullSooTableSamplingMode {
 };
 
 void AssertSoo([[maybe_unused]] CommonFields& common,
-               [[maybe_unused]] const PolicyFunctions& policy) {
+               [[maybe_unused]] const PolicyFunctions& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(policy.soo_enabled);
   ABSL_SWISSTABLE_ASSERT(common.capacity() == policy.soo_capacity());
 }
 void AssertFullSoo([[maybe_unused]] CommonFields& common,
-                   [[maybe_unused]] const PolicyFunctions& policy) {
+                   [[maybe_unused]] const PolicyFunctions& __restrict policy) {
   AssertSoo(common, policy);
   ABSL_SWISSTABLE_ASSERT(common.size() == policy.soo_capacity());
 }
@@ -2286,7 +2357,7 @@ size_t PrepareInsertLarge(CommonFields& common,
 }
 
 size_t PrepareInsertLargeGenerationsEnabled(
-    CommonFields& common, const PolicyFunctions& policy, size_t hash,
+    CommonFields& common, const PolicyFunctions& __restrict policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
     absl::FunctionRef<size_t(size_t)> recompute_hash) {
   // NOLINTNEXTLINE(misc-static-assert)
@@ -2376,6 +2447,11 @@ template void DeallocateBackingArray<BackingArrayAlignment(alignof(size_t)),
                                      std::allocator<char>>(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
     size_t slot_align, bool had_infoz, size_t blocked_element_count);
+
+template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
+                          DestroySlotFn destroy_slot, void* alloc);
+template void Clear<false>(CommonFields& c, const PolicyFunctions& policy,
+                           DestroySlotFn destroy_slot, void* alloc);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END
