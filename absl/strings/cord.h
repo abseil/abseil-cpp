@@ -1230,6 +1230,35 @@ inline const char* absl_nullable Cord::InlineRep::data() const {
   return is_tree() ? nullptr : data_.as_chars();
 }
 
+inline char* absl_nonnull Cord::InlineRep::set_data(size_t n) {
+  assert(n <= kMaxInline);
+  ResetToEmpty();
+  set_inline_size(n);
+  return data_.as_chars();
+}
+
+inline void Cord::InlineRep::set_data(const char* absl_nullable data,
+                                      size_t n) {
+  static_assert(kMaxInline == 15, "set_data is hard-coded for a length of 15");
+  assert(data != nullptr || n == 0);
+  data_.set_inline_data(data, n);
+}
+
+inline void Cord::InlineRep::reduce_size(size_t n) {
+  size_t tag = inline_size();
+  assert(tag <= kMaxInline);
+  assert(tag >= n);
+  tag -= n;
+  memset(data_.as_chars() + tag, 0, n);
+  set_inline_size(tag);
+}
+
+inline void Cord::InlineRep::remove_prefix(size_t n) {
+  cord_internal::SmallMemmove(data_.as_chars(), data_.as_chars() + n,
+                              inline_size() - n);
+  reduce_size(n);
+}
+
 inline const char* absl_nonnull Cord::InlineRep::as_chars() const {
   assert(!data_.is_tree());
   return data_.as_chars();
