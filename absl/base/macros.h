@@ -28,6 +28,7 @@
 #ifndef ABSL_BASE_MACROS_H_
 #define ABSL_BASE_MACROS_H_
 
+#include <atomic>
 #include <cassert>
 #include <cstddef>
 
@@ -157,12 +158,12 @@ ABSL_NAMESPACE_END
 // See `ABSL_OPTION_HARDENED` in `absl/base/options.h` for more information on
 // hardened mode.
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
-#define ABSL_HARDENING_ASSERT(expr)    \
-  do {                                 \
-    if (!ABSL_PREDICT_TRUE((expr))) {  \
-      ABSL_INTERNAL_HARDENING_ABORT(); \
-    }                                  \
-  } while (false)
+ #define ABSL_HARDENING_ASSERT(expr)    \
+   do {                                 \
+     if (!ABSL_PREDICT_TRUE((expr))) {  \
+       ABSL_INTERNAL_HARDENING_ABORT(); \
+     }                                  \
+   } while (false)
 #else
 #define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
 #endif
