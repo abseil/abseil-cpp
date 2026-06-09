@@ -224,13 +224,30 @@ ABSL_NAMESPACE_END
 // `OldType` with `NewType`. Once all replacements have been completed, the old
 // function or type can be deleted.
 //
+// Internal note: Clang also allows `ABSL_REFACTOR_INLINE` to be used on
+// using-declarations, but attributes on using-declarations are invalid in C++.
+// (NOTE: This note refers to `using a::b ABSL_REFACTOR_INLINE;` and not
+// `using b ABSL_REFACTOR_INLINE = a::b;`, which is OK.) Therefore:
+//
+// 1. In OSS: Do not use this on using-declarations. Such usage is invalid and
+//    unsupported usage, and may break at any time.
+// 2. In Google: Avoid such usage except as a last resort. Instead, prefer other
+//    inlining approaches (such as type aliases or forwarding functions,
+//    illustrated above) whenever possible. This is because Clang (currently)
+//    does not honor the [[deprecated]] attribute on using-declarations, and
+//    therefore cannot surface the deprecation to users in the middle of a
+//    migration.
+//
 // See go/cpp-inliner for more information.
 //
 // Note: go/cpp-inliner is Google-internal service for automated refactoring.
 // While open-source users do not have access to this service, the macro is
 // provided for compatibility.
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate)
-#define ABSL_REFACTOR_INLINE [[clang::annotate("inline-me")]]
+#define ABSL_REFACTOR_INLINE                                                \
+  _Pragma("clang diagnostic push") /* Avoid errors on using-declarations */ \
+      _Pragma("clang diagnostic ignored \"-Wcxx-attribute-extension\"")     \
+          [[clang::annotate("inline-me")]] _Pragma("clang diagnostic pop")
 #else
 #define ABSL_REFACTOR_INLINE
 #endif
