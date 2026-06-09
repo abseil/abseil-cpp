@@ -283,8 +283,11 @@ RealType Beta(URBG&& urbg,  // NOLINT(runtime/references)
 //
 // `absl::Exponential` produces a floating point number representing the
 // distance (time) between two consecutive events in a point process of events
-// occurring continuously and independently at a constant average rate. `T` must
-// be a floating point type, but may be inferred from the type of `lambda`.
+// occurring continuously and independently at a constant average rate `lambda`.
+// `T` must be a floating point type, but may be inferred from the type of
+// `lambda`.
+//
+// The mean of the distribution is 1/`lambda`.
 //
 // See https://en.wikipedia.org/wiki/Exponential_distribution.
 //
