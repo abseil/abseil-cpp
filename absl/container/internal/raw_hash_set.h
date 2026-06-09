@@ -230,9 +230,9 @@
 #include <ranges>  // NOLINT(build/c++20)
 #endif
 
-#ifdef __BMI2__
-#include <bmi2intrin.h>
-#endif  // __BMI2__
+#if defined(__i386__) || defined(__x86_64__)
+#include <immintrin.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
