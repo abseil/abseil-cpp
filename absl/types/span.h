@@ -719,16 +719,8 @@ constexpr bool operator>=(Span<T> a, const U& b) {
 //     return absl::MakeSpan(&array[0], num_elements_);
 //   }
 //
-// NOTE: Do not use `&v[0]` or `&v[v.size()]` to construct spans from an empty
-// or potentially empty std::vector (or other dynamic container), as
-// dereferencing at those boundaries is undefined behavior. Use `.data()`
-// instead:
-//
-//   absl::MakeSpan(my_vector.data(), my_vector.size());
-//
-// Or simply pass the container directly:
-//
-//   absl::MakeSpan(my_vector);
+// NOTE: To avoid undefined behavior if the container is empty, use `.data()`
+// or pass the container directly instead of using `&v[0]` or `&v[v.size()]`.
 //
 template <int&... ExplicitArgumentBarrier, typename T>
 constexpr Span<T> MakeSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
