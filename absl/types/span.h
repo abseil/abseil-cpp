@@ -719,6 +719,9 @@ constexpr bool operator>=(Span<T> a, const U& b) {
 //     return absl::MakeSpan(&array[0], num_elements_);
 //   }
 //
+// NOTE: To avoid undefined behavior if the container is empty, use `.data()`
+// or pass the container directly instead of using `&v[0]` or `&v[v.size()]`.
+//
 template <int&... ExplicitArgumentBarrier, typename T>
 constexpr Span<T> MakeSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
                            size_t size) noexcept {
