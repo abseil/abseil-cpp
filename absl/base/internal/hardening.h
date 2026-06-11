@@ -23,6 +23,8 @@
 #ifndef ABSL_BASE_INTERNAL_HARDENING_H_
 #define ABSL_BASE_INTERNAL_HARDENING_H_
 
+#include <cstddef>
+
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/options.h"
@@ -66,8 +68,8 @@ constexpr void HardeningAssertSlow(bool cond) {
 #endif
 }
 
-template <typename T>
-constexpr void HardeningAssertGT(T val1, T val2) {
+template <typename T1, typename T2>
+constexpr void HardeningAssertGT(T1 val1, T2 val2) {
   ABSL_ASSERT(val1 > val2);
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
   if (!ABSL_PREDICT_TRUE(val1 > val2)) {
@@ -76,8 +78,8 @@ constexpr void HardeningAssertGT(T val1, T val2) {
 #endif
 }
 
-template <typename T>
-constexpr void HardeningAssertGE(T val1, T val2) {
+template <typename T1, typename T2>
+constexpr void HardeningAssertGE(T1 val1, T2 val2) {
   ABSL_ASSERT(val1 >= val2);
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
   if (!ABSL_PREDICT_TRUE(val1 >= val2)) {
@@ -86,8 +88,8 @@ constexpr void HardeningAssertGE(T val1, T val2) {
 #endif
 }
 
-template <typename T>
-constexpr void HardeningAssertLT(T val1, T val2) {
+template <typename T1, typename T2>
+constexpr void HardeningAssertLT(T1 val1, T2 val2) {
   ABSL_ASSERT(val1 < val2);
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
   if (!ABSL_PREDICT_TRUE(val1 < val2)) {
@@ -96,8 +98,8 @@ constexpr void HardeningAssertLT(T val1, T val2) {
 #endif
 }
 
-template <typename T>
-constexpr void HardeningAssertLE(T val1, T val2) {
+template <typename T1, typename T2>
+constexpr void HardeningAssertLE(T1 val1, T2 val2) {
   ABSL_ASSERT(val1 <= val2);
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
   if (!ABSL_PREDICT_TRUE(val1 <= val2)) {
