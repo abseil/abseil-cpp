@@ -151,6 +151,7 @@ using conjunction ABSL_DEPRECATE_AND_INLINE() = std::conjunction<T...>;
 template <class T>
 using decay_t ABSL_DEPRECATE_AND_INLINE() = std::decay_t<T>;
 
+// Avoid inlining since the inliner cannot handle default arguments well.
 template <bool C, class T = void>
 using enable_if_t [[deprecated("Use std::enable_if_t instead.")]] =
     std::enable_if_t<C, T>;

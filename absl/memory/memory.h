@@ -94,7 +94,7 @@ std::unique_ptr<T> WrapUnique(T* ptr) {
 // the C++14's `std::make_unique`. Now that C++11 support has been sunsetted,
 // `absl::make_unique` simply uses the STL-provided implementation. New code
 // should use `std::make_unique`.
-using std::make_unique;
+using std::make_unique ABSL_REFACTOR_INLINE;
 
 #if defined(__cpp_lib_smart_ptr_for_overwrite) && \
     __cpp_lib_smart_ptr_for_overwrite >= 202002L

@@ -56,12 +56,13 @@ constexpr decltype(std::make_optional<T>(
   return std::make_optional<T>(il, std::forward<Args>(args)...);
 }
 
-using std::nullopt;
+using std::nullopt ABSL_REFACTOR_INLINE;
 
 using nullopt_t ABSL_REFACTOR_INLINE
     = std::nullopt_t;
 
-using std::optional;
+using std::optional ABSL_REFACTOR_INLINE;
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 
