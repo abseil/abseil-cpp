@@ -41,6 +41,7 @@ using ::absl::log_internal::LogSeverity;
 using ::absl::log_internal::Prefix;
 using ::absl::log_internal::SourceBasename;
 using ::absl::log_internal::SourceFilename;
+using ::absl::log_internal::SourceFunctionName;
 using ::absl::log_internal::SourceLine;
 using ::absl::log_internal::Stacktrace;
 using ::absl::log_internal::TextMessage;
@@ -69,15 +70,18 @@ TEST(TailCallsModifiesTest, AtLocationFileLine) {
           // The metadata should change:
           SourceFilename(Eq("/my/very/very/very_long_source_file.cc")),
           SourceBasename(Eq("very_long_source_file.cc")), SourceLine(Eq(777)),
+          SourceFunctionName(Eq("AtLocationFileLine")),
           // The logged line should change too, even though the prefix must
           // grow to fit the new metadata.
           TextMessageWithPrefix(Truly([](absl::string_view msg) {
-            return absl::EndsWith(msg,
-                                  " very_long_source_file.cc:777] hello world");
+            return absl::EndsWith(
+                msg,
+                " very_long_source_file.cc:777 AtLocationFileLine] hello world");
           })))));
 
   test_sink.StartCapturingLogs();
-  LOG(INFO).AtLocation("/my/very/very/very_long_source_file.cc", 777)
+  LOG(INFO).AtLocation("/my/very/very/very_long_source_file.cc",
+                       777, "AtLocationFileLine")
       << "hello world";
 }
 
@@ -85,7 +89,7 @@ TEST(TailCallsModifiesTest, AtLocationFileLineLifetime) {
   // The macro takes care to not use this temporary after its lifetime.
   // The only salient expectation is "no sanitizer diagnostics".
   LOG(INFO).AtLocation(std::string("/my/very/very/very_long_source_file.cc"),
-                       777)
+                       777, "AtLocationFileLineLifetime")
       << "hello world";
 }
 
@@ -186,21 +190,23 @@ TEST(TailCallsModifiesTest, WithMetadataFrom) {
 
   EXPECT_CALL(
       test_sink,
-      Send(AllOf(SourceFilename(Eq("fake/file")), SourceBasename(Eq("file")),
-                 SourceLine(Eq(123)), Prefix(IsFalse()),
-                 LogSeverity(Eq(absl::LogSeverity::kWarning)),
-                 Timestamp(Eq(absl::UnixEpoch())),
-                 ThreadID(Eq(absl::LogEntry::tid_t{456})),
-                 TextMessage(Eq("forwarded: hello world")), Verbosity(Eq(7)),
-                 ENCODED_MESSAGE(MatchesEvent(
-                     Eq("fake/file"), Eq(123), Eq(absl::UnixEpoch()),
-                     Eq(logging::proto::WARNING), Eq(456),
-                     ElementsAre(ValueWithLiteral(Eq("forwarded: ")),
-                                 ValueWithStr(Eq("hello world"))))))));
+      Send(AllOf(
+           SourceFilename(Eq("fake/file")), SourceBasename(Eq("file")),
+           SourceLine(Eq(123)),
+           SourceFunctionName(Eq("WithMetadataFrom")), Prefix(IsFalse()),
+           LogSeverity(Eq(absl::LogSeverity::kWarning)),
+           Timestamp(Eq(absl::UnixEpoch())),
+           ThreadID(Eq(absl::LogEntry::tid_t{456})),
+           TextMessage(Eq("forwarded: hello world")), Verbosity(Eq(7)),
+                       ENCODED_MESSAGE(MatchesEvent(
+                           Eq("fake/file"), Eq(123), Eq(absl::UnixEpoch()),
+                           Eq(logging::proto::WARNING), Eq(456),
+                           ElementsAre(ValueWithLiteral(Eq("forwarded: ")),
+                               ValueWithStr(Eq("hello world"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(WARNING)
-          .AtLocation("fake/file", 123)
+          .AtLocation("fake/file", 123, "WithMetadataFrom")
           .NoPrefix()
           .WithTimestamp(absl::UnixEpoch())
           .WithThreadID(456)

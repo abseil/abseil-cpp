@@ -69,29 +69,39 @@ class LogMessage {
   // Used for `LOG`.  Taking `const char *` instead of `string_view` keeps
   // callsites a little bit smaller at the cost of doing `strlen` at runtime.
   LogMessage(const char* absl_nonnull file, int line,
+             const char* absl_nonnull function,
              absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
   // Used for FFI integrations that don't have a NUL-terminated string.
   LogMessage(absl::string_view file, int line,
+             absl::string_view function,
              absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
   // These constructors are slightly smaller/faster to call; the severity is
   // curried into the function pointer.
   LogMessage(const char* absl_nonnull file, int line,
+             const char* absl_nonnull function,
              InfoTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
   LogMessage(const char* absl_nonnull file, int line,
+             const char* absl_nonnull function,
              WarningTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
   LogMessage(const char* absl_nonnull file, int line,
+             const char* absl_nonnull function,
              ErrorTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
   ~LogMessage() ABSL_ATTRIBUTE_COLD;
 
-  // Overrides the location inferred from the callsite.  The string pointed to
-  // by `file` must be valid until the end of the statement.
-  LogMessage& AtLocation(absl::string_view file, int line);
+  // Overrides the location inferred from the callsite.  The strings pointed to
+  // by `file` and `function` must be valid until the end of the statement.
+  LogMessage& AtLocation(absl::string_view file, int line,
+                         absl::string_view function);
+  LogMessage& AtLocation(absl::string_view file, int line) {
+    return AtLocation(file, line, {});
+  }
   // `loc` doesn't default to `absl::SourceLocation::current()` here since the
   // callsite is already the default location for `LOG` statements.
   LogMessage& AtLocation(absl::SourceLocation loc) {
-    return AtLocation(loc.file_name(), static_cast<int>(loc.line()));
+    return AtLocation(loc.file_name(), static_cast<int>(loc.line()),
+                      loc.function_name());
   }
   // Omits the prefix from this line.  The prefix includes metadata about the
   // logged data such as source code location and timestamp.
@@ -422,8 +432,10 @@ extern template void LogMessage::CopyToEncodedBuffer<
 // message.
 class LogMessageFatal final : public LogMessage {
  public:
-  LogMessageFatal(const char* absl_nonnull file, int line) ABSL_ATTRIBUTE_COLD;
   LogMessageFatal(const char* absl_nonnull file, int line,
+                  const char* absl_nonnull function) ABSL_ATTRIBUTE_COLD;
+  LogMessageFatal(const char* absl_nonnull file, int line,
+                  const char* absl_nonnull function,
                   const char* absl_nonnull failure_msg) ABSL_ATTRIBUTE_COLD;
   [[noreturn]] ~LogMessageFatal();
 };
@@ -433,8 +445,8 @@ class LogMessageFatal final : public LogMessage {
 // for DLOG(FATAL) variants.
 class LogMessageDebugFatal final : public LogMessage {
  public:
-  LogMessageDebugFatal(const char* absl_nonnull file,
-                       int line) ABSL_ATTRIBUTE_COLD;
+  LogMessageDebugFatal(const char* absl_nonnull file, int line,
+                       const char* absl_nonnull function) ABSL_ATTRIBUTE_COLD;
   ~LogMessageDebugFatal();
 };
 
@@ -443,17 +455,19 @@ class LogMessageQuietlyDebugFatal final : public LogMessage {
   // DLOG(QFATAL) calls this instead of LogMessageQuietlyFatal to make sure the
   // destructor is not [[noreturn]] even if this is always FATAL as this is only
   // invoked when DLOG() is enabled.
-  LogMessageQuietlyDebugFatal(const char* absl_nonnull file,
-                              int line) ABSL_ATTRIBUTE_COLD;
+  LogMessageQuietlyDebugFatal(const char* absl_nonnull file, int line,
+                              const char* absl_nonnull function)
+      ABSL_ATTRIBUTE_COLD;
   ~LogMessageQuietlyDebugFatal();
 };
 
 // Used for LOG(QFATAL) to make sure it's properly understood as [[noreturn]].
 class LogMessageQuietlyFatal final : public LogMessage {
  public:
-  LogMessageQuietlyFatal(const char* absl_nonnull file,
-                         int line) ABSL_ATTRIBUTE_COLD;
   LogMessageQuietlyFatal(const char* absl_nonnull file, int line,
+                         const char* absl_nonnull function) ABSL_ATTRIBUTE_COLD;
+  LogMessageQuietlyFatal(const char* absl_nonnull file, int line,
+                         const char* absl_nonnull function,
                          const char* absl_nonnull failure_msg)
       ABSL_ATTRIBUTE_COLD;
   [[noreturn]] ~LogMessageQuietlyFatal();

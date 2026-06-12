@@ -55,35 +55,35 @@
 
 #define ABSL_LOG_INTERNAL_LOG_INFO  \
   ::absl::log_internal::LogMessage( \
-      __FILE__, __LINE__, ::absl::log_internal::LogMessage::InfoTag{})
+      __FILE__, __LINE__, __func__, ::absl::log_internal::LogMessage::InfoTag{})
 #define ABSL_LOG_INTERNAL_LOG_WARNING \
   ::absl::log_internal::LogMessage(   \
-      __FILE__, __LINE__, ::absl::log_internal::LogMessage::WarningTag{})
+      __FILE__, __LINE__, __func__, ::absl::log_internal::LogMessage::WarningTag{})
 #define ABSL_LOG_INTERNAL_LOG_ERROR \
   ::absl::log_internal::LogMessage( \
-      __FILE__, __LINE__, ::absl::log_internal::LogMessage::ErrorTag{})
+      __FILE__, __LINE__, __func__, ::absl::log_internal::LogMessage::ErrorTag{})
 #define ABSL_LOG_INTERNAL_LOG_FATAL \
-  ::absl::log_internal::LogMessageFatal(__FILE__, __LINE__)
+  ::absl::log_internal::LogMessageFatal(__FILE__, __LINE__, __func__)
 #define ABSL_LOG_INTERNAL_LOG_QFATAL \
-  ::absl::log_internal::LogMessageQuietlyFatal(__FILE__, __LINE__)
+  ::absl::log_internal::LogMessageQuietlyFatal(__FILE__, __LINE__, __func__)
 #define ABSL_LOG_INTERNAL_LOG_DFATAL \
-  ::absl::log_internal::LogMessage(__FILE__, __LINE__, ::absl::kLogDebugFatal)
+  ::absl::log_internal::LogMessage(__FILE__, __LINE__, __func__, ::absl::kLogDebugFatal)
 #define ABSL_LOG_INTERNAL_LOG_LEVEL(severity)          \
-  ::absl::log_internal::LogMessage(__FILE__, __LINE__, \
+  ::absl::log_internal::LogMessage(__FILE__, __LINE__, __func__, \
                                    absl_log_internal_severity)
 
 // Fatal `DLOG`s expand a little differently to avoid being `[[noreturn]]`.
 #define ABSL_LOG_INTERNAL_DLOG_FATAL \
-  ::absl::log_internal::LogMessageDebugFatal(__FILE__, __LINE__)
+  ::absl::log_internal::LogMessageDebugFatal(__FILE__, __LINE__, __func__)
 #define ABSL_LOG_INTERNAL_DLOG_QFATAL \
-  ::absl::log_internal::LogMessageQuietlyDebugFatal(__FILE__, __LINE__)
+  ::absl::log_internal::LogMessageQuietlyDebugFatal(__FILE__, __LINE__, __func__)
 
 // These special cases dispatch to special-case constructors that allow us to
 // avoid an extra function call and shrink non-LTO binaries by a percent or so.
 #define ABSL_LOG_INTERNAL_CHECK(failure_message) \
-  ::absl::log_internal::LogMessageFatal(__FILE__, __LINE__, failure_message)
+  ::absl::log_internal::LogMessageFatal(__FILE__, __LINE__, __func__, failure_message)
 #define ABSL_LOG_INTERNAL_QCHECK(failure_message)                  \
-  ::absl::log_internal::LogMessageQuietlyFatal(__FILE__, __LINE__, \
+  ::absl::log_internal::LogMessageQuietlyFatal(__FILE__, __LINE__, __func__, \
                                                failure_message)
 #endif  // !defined(STRIP_LOG) || !STRIP_LOG
 

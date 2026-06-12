@@ -106,12 +106,13 @@ TEST(ScopedMockLogTest, LogMockCatchAndMatchSendExpectations) {
                  SourceLine(Eq(777)), ThreadID(Eq(absl::LogEntry::tid_t{1234})),
                  TextMessageWithPrefix(Truly([](absl::string_view msg) {
                    return absl::EndsWith(
-                       msg, " very_long_source_file.cc:777] Info message");
+                       msg,
+                       " very_long_source_file.cc:777 TestBody] Info message");
                  })))));
 
   log.StartCapturingLogs();
   LOG(INFO)
-          .AtLocation("/my/very/very/very_long_source_file.cc", 777)
+          .AtLocation("/my/very/very/very_long_source_file.cc", 777, "TestBody")
           .WithThreadID(1234)
       << "Info message";
 }
@@ -130,35 +131,35 @@ TEST(ScopedMockLogTest, ScopedMockLogCanBeNice) {
   // Any number of these are OK.
   LOG(INFO) << "Info message.";
   // Any number of these are OK.
-  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100) << "Danger ";
+  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100, "ScopedMockLogCanBeNice") << "Danger ";
 
   LOG(WARNING) << "Danger.";
 
   // Any number of these are OK.
   LOG(INFO) << "Info message.";
   // Any number of these are OK.
-  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100) << "Danger ";
+  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100, "ScopedMockLogCanBeNice") << "Danger ";
 
   LOG(INFO) << "Working...";
 
   // Any number of these are OK.
   LOG(INFO) << "Info message.";
   // Any number of these are OK.
-  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100) << "Danger ";
+  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100, "ScopedMockLogCanBeNice") << "Danger ";
 
   LOG(INFO) << "Working...";
 
   // Any number of these are OK.
   LOG(INFO) << "Info message.";
   // Any number of these are OK.
-  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100) << "Danger ";
+  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100, "ScopedMockLogCanBeNice") << "Danger ";
 
   LOG(ERROR) << "Bad!!";
 
   // Any number of these are OK.
   LOG(INFO) << "Info message.";
   // Any number of these are OK.
-  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100) << "Danger ";
+  LOG(WARNING).AtLocation("SomeOtherFile.cc", 100, "ScopedMockLogCanBeNice") << "Danger ";
 }
 
 // Tests that ScopedMockLog generates a test failure if a message is logged

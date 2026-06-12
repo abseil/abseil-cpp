@@ -54,6 +54,8 @@ namespace log_internal {
 // within the code block that's expected to die.
 ::testing::Matcher<const absl::LogEntry&> SourceLine(
     const ::testing::Matcher<int>& source_line);
+::testing::Matcher<const absl::LogEntry&> SourceFunctionName(
+    const ::testing::Matcher<absl::string_view>& source_function_name);
 ::testing::Matcher<const absl::LogEntry&> Prefix(
     const ::testing::Matcher<bool>& prefix);
 ::testing::Matcher<const absl::LogEntry&> LogSeverity(

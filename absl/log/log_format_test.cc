@@ -47,6 +47,7 @@ namespace {
 using ::absl::log_internal::AsString;
 using ::absl::log_internal::MatchesOstream;
 using ::absl::log_internal::RawEncodedMessage;
+using ::absl::log_internal::SourceFunctionName;
 using ::absl::log_internal::TextMessage;
 using ::absl::log_internal::TextPrefix;
 using ::testing::_;
@@ -80,12 +81,14 @@ TEST(LogFormatTest, NoMessage) {
   const int log_line = __LINE__ + 1;
   auto do_log = [] { LOG(INFO); };
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(ComparisonStream())),
-                         TextPrefix(AsString(EndsWith(absl::StrCat(
-                             " log_format_test.cc:", log_line, "] ")))),
-                         TextMessage(IsEmpty()),
-                         ENCODED_MESSAGE(HasValues(IsEmpty())))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(ComparisonStream())),
+                 SourceFunctionName(Eq("operator()")),
+                 TextPrefix(AsString(EndsWith(absl::StrCat(
+                     " log_format_test.cc:", log_line, " operator()] ")))),
+                 TextMessage(IsEmpty()),
+                 ENCODED_MESSAGE(HasValues(IsEmpty())))));
 
   test_sink.StartCapturingLogs();
   do_log();

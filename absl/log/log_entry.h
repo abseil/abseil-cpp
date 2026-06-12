@@ -64,15 +64,17 @@ class LogEntry final {
   LogEntry(const LogEntry&) = delete;
   LogEntry& operator=(const LogEntry&) = delete;
 
-  // Source file and line where the log message occurred.  Taken from `__FILE__`
-  // and `__LINE__` unless overridden by `LOG(...).AtLocation(...)`.
+  // Source file, line and function name where the log message occurred.
+  // Taken from `__FILE__`, `__LINE__` and `__func__` unless overridden
+  // by `LOG(...).AtLocation(...)`.
   //
-  // Take special care not to use the values returned by `source_filename()` and
-  // `source_basename()` after the lifetime of the entry.  This is always
-  // incorrect, but it will often work in practice because they usually point
-  // into a statically allocated character array obtained from `__FILE__`.
-  // Statements like `LOG(INFO).AtLocation(std::string(...), ...)` will expose
-  // the bug.  If you need the data later, you must copy them.
+  // Take special care not to use the values returned by `source_filename()`,
+  // `source_basename()` and `source_function_name()` after the lifetime of
+  // the entry.  This is always incorrect, but it will often work in practice
+  // because they usually point into a statically allocated character array
+  // obtained from `__FILE__`. Statements like
+  // `LOG(INFO).AtLocation(std::string(...), ...)` will expose the bug.  If
+  // you need the data later, you must copy them.
   absl::string_view source_filename() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return full_filename_;
   }
@@ -80,6 +82,9 @@ class LogEntry final {
     return base_filename_;
   }
   int source_line() const { return line_; }
+  absl::string_view source_function_name() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return function_name_;
+  }
 
   // LogEntry::prefix()
   //
@@ -202,6 +207,7 @@ class LogEntry final {
   absl::string_view full_filename_;
   absl::string_view base_filename_;
   int line_;
+  absl::string_view function_name_;
   bool prefix_;
   absl::LogSeverity severity_;
   int verbose_level_;  // >=0 for `VLOG`, etc.; otherwise `kNoVerbosityLevel`.

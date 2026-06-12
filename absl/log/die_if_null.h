@@ -48,18 +48,21 @@
 // Use `CHECK(ptr)` or `CHECK(ptr != nullptr)` if the returned pointer is
 // unused.
 #define ABSL_DIE_IF_NULL(val) \
-  ::absl::log_internal::DieIfNull(__FILE__, __LINE__, #val, (val))
+  ::absl::log_internal::DieIfNull(__FILE__, __LINE__, __func__, #val, (val))
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 
-// Crashes the process after logging `exprtext` annotated at the `file` and
-// `line` location. Called when `ABSL_DIE_IF_NULL` fails. Calling this function
-// generates less code than its implementation would if inlined, for a slight
-// code size reduction each time `ABSL_DIE_IF_NULL` is called.
+// Crashes the process after logging `exprtext` annotated at the `file`,
+// `line` and `function` location. Called when `ABSL_DIE_IF_NULL` fails.
+// Calling this function generates less code than its implementation would
+// if inlined, for a slight code size reduction each time `ABSL_DIE_IF_NULL`
+// is called.
 [[noreturn]] ABSL_ATTRIBUTE_NOINLINE void DieBecauseNull(
-    const char* absl_nonnull file, int line, const char* absl_nonnull exprtext);
+    const char* absl_nonnull file, int line,
+    const char* absl_nonnull function,
+    const char* absl_nonnull exprtext);
 
 // Helper for `ABSL_DIE_IF_NULL`.
 
@@ -70,10 +73,11 @@ template <typename T>
 [[nodiscard]] typename absl::base_internal::AddNonnullIfCompatible<
     std::remove_reference_t<T>>::type&
 DieIfNull(const char* absl_nonnull file, int line,
+          const char* absl_nonnull function,
           const char* absl_nonnull exprtext, T& t) {
   if (ABSL_PREDICT_FALSE(t == nullptr)) {
     // Call a non-inline helper function for a small code size improvement.
-    DieBecauseNull(file, line, exprtext);
+    DieBecauseNull(file, line, function, exprtext);
   }
   return t;
 }
@@ -82,10 +86,11 @@ template <typename T>
 [[nodiscard]] typename absl::base_internal::AddNonnullIfCompatible<
     std::remove_reference_t<T>>::type&&
 DieIfNull(const char* absl_nonnull file, int line,
+          const char* absl_nonnull function,
           const char* absl_nonnull exprtext, T&& t) {
   if (ABSL_PREDICT_FALSE(t == nullptr)) {
     // Call a non-inline helper function for a small code size improvement.
-    DieBecauseNull(file, line, exprtext);
+    DieBecauseNull(file, line, function, exprtext);
   }
   return std::forward<T>(t);
 }

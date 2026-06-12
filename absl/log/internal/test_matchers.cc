@@ -117,6 +117,12 @@ Matcher<const absl::LogEntry&> SourceLine(
   return Property("source_line", &absl::LogEntry::source_line, source_line);
 }
 
+Matcher<const absl::LogEntry&> SourceFunctionName(
+    const Matcher<absl::string_view>& source_function_name) {
+  return Property("source_function_name",
+                  &absl::LogEntry::source_function_name, source_function_name);
+}
+
 Matcher<const absl::LogEntry&> Prefix(
     const Matcher<bool>& prefix) {
   return Property("prefix", &absl::LogEntry::prefix, prefix);

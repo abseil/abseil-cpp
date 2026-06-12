@@ -43,6 +43,7 @@ using ::absl::log_internal::InMatchWindow;
 using ::absl::log_internal::LogSeverity;
 using ::absl::log_internal::Prefix;
 using ::absl::log_internal::SourceFilename;
+using ::absl::log_internal::SourceFunctionName;
 using ::absl::log_internal::SourceLine;
 using ::absl::log_internal::Stacktrace;
 using ::absl::log_internal::TextMessage;
@@ -71,20 +72,23 @@ TEST(LogStreamerTest, LogInfoStreamer) {
 
   EXPECT_CALL(
       test_sink,
-      Send(
-          AllOf(SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
-                Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kInfo)),
-                Timestamp(InMatchWindow()),
-                ThreadID(Eq(absl::base_internal::GetTID())),
-                TextMessage(Eq("WriteToStream: foo")),
-                ENCODED_MESSAGE(MatchesEvent(
-                    Eq("path/file.cc"), Eq(1234), InMatchWindow(),
-                    Eq(logging::proto::INFO), Eq(absl::base_internal::GetTID()),
-                    ElementsAre(ValueWithStr(Eq("WriteToStream: foo"))))),
-                Stacktrace(IsEmpty()))));
+      Send(AllOf(
+           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+           SourceFunctionName(Eq("LogInfoStreamer")),
+           Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kInfo)),
+           Timestamp(InMatchWindow()),
+           ThreadID(Eq(absl::base_internal::GetTID())),
+           TextMessage(Eq("WriteToStream: foo")),
+           ENCODED_MESSAGE(MatchesEvent(
+              Eq("path/file.cc"), Eq(1234), InMatchWindow(),
+              Eq(logging::proto::INFO), Eq(absl::base_internal::GetTID()),
+              ElementsAre(ValueWithStr(Eq("WriteToStream: foo"))))),
+              Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  WriteToStream("foo", &absl::LogInfoStreamer("path/file.cc", 1234).stream());
+  WriteToStream("foo",
+                &absl::LogInfoStreamer(
+                    "path/file.cc", 1234, "LogInfoStreamer").stream());
 }
 
 TEST(LogStreamerTest, LogWarningStreamer) {
@@ -95,6 +99,7 @@ TEST(LogStreamerTest, LogWarningStreamer) {
       test_sink,
       Send(AllOf(
           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+          SourceFunctionName(Eq("LogWarningStreamer")),
           Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kWarning)),
           Timestamp(InMatchWindow()),
           ThreadID(Eq(absl::base_internal::GetTID())),
@@ -107,7 +112,8 @@ TEST(LogStreamerTest, LogWarningStreamer) {
 
   test_sink.StartCapturingLogs();
   WriteToStream("foo",
-                &absl::LogWarningStreamer("path/file.cc", 1234).stream());
+                &absl::LogWarningStreamer(
+                    "path/file.cc", 1234, "LogWarningStreamer").stream());
 }
 
 TEST(LogStreamerTest, LogErrorStreamer) {
@@ -118,6 +124,7 @@ TEST(LogStreamerTest, LogErrorStreamer) {
       test_sink,
       Send(AllOf(
           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+          SourceFunctionName(Eq("LogErrorStreamer")),
           Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kError)),
           Timestamp(InMatchWindow()),
           ThreadID(Eq(absl::base_internal::GetTID())),
@@ -129,7 +136,9 @@ TEST(LogStreamerTest, LogErrorStreamer) {
           Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  WriteToStream("foo", &absl::LogErrorStreamer("path/file.cc", 1234).stream());
+  WriteToStream("foo",
+                &absl::LogErrorStreamer(
+                    "path/file.cc", 1234, "LogErrorStreamer").stream());
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -147,6 +156,7 @@ TEST(LogStreamerDeathTest, LogFatalStreamer) {
             test_sink,
             Send(AllOf(
                 SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+                SourceFunctionName(Eq("LogFatalStreamer")),
                 Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kFatal)),
                 Timestamp(InMatchWindow()),
                 ThreadID(Eq(absl::base_internal::GetTID())),
@@ -160,7 +170,8 @@ TEST(LogStreamerDeathTest, LogFatalStreamer) {
 
         test_sink.StartCapturingLogs();
         WriteToStream("foo",
-                      &absl::LogFatalStreamer("path/file.cc", 1234).stream());
+                      &absl::LogFatalStreamer(
+                          "path/file.cc", 1234, "LogFatalStreamer").stream());
       },
       DiedOfFatal, DeathTestValidateExpectations());
 }
@@ -175,6 +186,7 @@ TEST(LogStreamerTest, LogDebugFatalStreamer) {
       test_sink,
       Send(AllOf(
           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+          SourceFunctionName(Eq("LogDebugFatalStreamer")),
           Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kError)),
           Timestamp(InMatchWindow()),
           ThreadID(Eq(absl::base_internal::GetTID())),
@@ -187,7 +199,8 @@ TEST(LogStreamerTest, LogDebugFatalStreamer) {
 
   test_sink.StartCapturingLogs();
   WriteToStream("foo",
-                &absl::LogDebugFatalStreamer("path/file.cc", 1234).stream());
+                &absl::LogDebugFatalStreamer(
+                    "path/file.cc", 1234, "LogDebugFatalStreamer").stream());
 }
 #elif GTEST_HAS_DEATH_TEST
 TEST(LogStreamerDeathTest, LogDebugFatalStreamer) {
@@ -204,6 +217,7 @@ TEST(LogStreamerDeathTest, LogDebugFatalStreamer) {
             test_sink,
             Send(AllOf(
                 SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+                SourceFunctionName(Eq("LogDebugFatalStreamer")),
                 Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kFatal)),
                 Timestamp(InMatchWindow()),
                 ThreadID(Eq(absl::base_internal::GetTID())),
@@ -216,8 +230,9 @@ TEST(LogStreamerDeathTest, LogDebugFatalStreamer) {
             .WillOnce(DeathTestExpectedLogging());
 
         test_sink.StartCapturingLogs();
-        WriteToStream(
-            "foo", &absl::LogDebugFatalStreamer("path/file.cc", 1234).stream());
+        WriteToStream("foo",
+                      &absl::LogDebugFatalStreamer(
+                          "path/file.cc", 1234, "LogDebugFatalStreamer").stream());
       },
       DiedOfFatal, DeathTestValidateExpectations());
 }
@@ -231,6 +246,7 @@ TEST(LogStreamerTest, LogStreamer) {
       test_sink,
       Send(AllOf(
           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+          SourceFunctionName(Eq("LogStreamer")),
           Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kError)),
           Timestamp(InMatchWindow()),
           ThreadID(Eq(absl::base_internal::GetTID())),
@@ -242,9 +258,9 @@ TEST(LogStreamerTest, LogStreamer) {
           Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  WriteToStream(
-      "foo", &absl::LogStreamer(absl::LogSeverity::kError, "path/file.cc", 1234)
-                  .stream());
+  WriteToStream("foo", &absl::LogStreamer(absl::LogSeverity::kError,
+                            "path/file.cc", 1234, "LogStreamer")
+                        .stream());
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -262,6 +278,7 @@ TEST(LogStreamerDeathTest, LogStreamer) {
             test_sink,
             Send(AllOf(
                 SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+                SourceFunctionName(Eq("LogStreamer")),
                 Prefix(IsTrue()), LogSeverity(Eq(absl::LogSeverity::kFatal)),
                 Timestamp(InMatchWindow()),
                 ThreadID(Eq(absl::base_internal::GetTID())),
@@ -275,8 +292,9 @@ TEST(LogStreamerDeathTest, LogStreamer) {
 
         test_sink.StartCapturingLogs();
         WriteToStream("foo", &absl::LogStreamer(absl::LogSeverity::kFatal,
-                                                "path/file.cc", 1234)
-                                  .stream());
+                                                "path/file.cc", 1234,
+                                                "LogStreamer")
+                                                    .stream());
       },
       DiedOfFatal, DeathTestValidateExpectations());
 }
@@ -288,22 +306,26 @@ TEST(LogStreamerTest, PassedByReference) {
 
   EXPECT_CALL(
       test_sink,
-      Send(AllOf(SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
-                 TextMessage(Eq("WriteToStreamRef: foo")),
-                 ENCODED_MESSAGE(MatchesEvent(
-                     Eq("path/file.cc"), Eq(1234), _, _, _,
-                     ElementsAre(ValueWithStr(Eq("WriteToStreamRef: foo"))))),
-                 Stacktrace(IsEmpty()))));
+      Send(AllOf(
+           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+           SourceFunctionName(Eq("PassedByReference")),
+           TextMessage(Eq("WriteToStreamRef: foo")),
+           ENCODED_MESSAGE(MatchesEvent(
+               Eq("path/file.cc"), Eq(1234), _, _, _,
+               ElementsAre(ValueWithStr(Eq("WriteToStreamRef: foo"))))),
+               Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  WriteToStreamRef("foo", absl::LogInfoStreamer("path/file.cc", 1234).stream());
+  WriteToStreamRef("foo",
+                   absl::LogInfoStreamer("path/file.cc", 1234, "PassedByReference")
+                       .stream());
 }
 
 TEST(LogStreamerTest, StoredAsLocal) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
   EXPECT_CALL(test_sink, Send).Times(0);
 
-  auto streamer = absl::LogInfoStreamer("path/file.cc", 1234);
+  auto streamer = absl::LogInfoStreamer("path/file.cc", 1234, "StoredAsLocal");
   WriteToStream("foo", &streamer.stream());
   streamer.stream() << " ";
   WriteToStreamRef("bar", streamer.stream());
@@ -313,13 +335,15 @@ TEST(LogStreamerTest, StoredAsLocal) {
   // test would fail.
   EXPECT_CALL(
       test_sink,
-      Send(AllOf(SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
-                 TextMessage(Eq("WriteToStream: foo WriteToStreamRef: bar")),
-                 ENCODED_MESSAGE(MatchesEvent(
-                     Eq("path/file.cc"), Eq(1234), _, _, _,
-                     ElementsAre(ValueWithStr(
-                         Eq("WriteToStream: foo WriteToStreamRef: bar"))))),
-                 Stacktrace(IsEmpty()))));
+      Send(AllOf(
+           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+           SourceFunctionName(Eq("StoredAsLocal")),
+           TextMessage(Eq("WriteToStream: foo WriteToStreamRef: bar")),
+           ENCODED_MESSAGE(MatchesEvent(
+               Eq("path/file.cc"), Eq(1234), _, _, _,
+               ElementsAre(ValueWithStr(
+                 Eq("WriteToStream: foo WriteToStreamRef: bar"))))),
+               Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
 }
@@ -329,7 +353,7 @@ TEST(LogStreamerDeathTest, StoredAsLocal) {
   EXPECT_EXIT(
       {
         // This is fatal when it goes out of scope, but not until then:
-        auto streamer = absl::LogFatalStreamer("path/file.cc", 1234);
+        auto streamer = absl::LogFatalStreamer("path/file.cc", 1234, "StoredAsLocal");
         std::cerr << "I'm still alive" << std::endl;
         WriteToStream("foo", &streamer.stream());
       },
@@ -341,15 +365,19 @@ TEST(LogStreamerTest, LogsEmptyLine) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
   EXPECT_CALL(test_sink, Send).Times(0);
 
-  EXPECT_CALL(test_sink, Send(AllOf(SourceFilename(Eq("path/file.cc")),
-                                    SourceLine(Eq(1234)), TextMessage(Eq("")),
-                                    ENCODED_MESSAGE(MatchesEvent(
-                                        Eq("path/file.cc"), Eq(1234), _, _, _,
-                                        ElementsAre(ValueWithStr(Eq(""))))),
-                                    Stacktrace(IsEmpty()))));
+  EXPECT_CALL(test_sink,
+              Send(AllOf(
+                   SourceFilename(Eq("path/file.cc")),
+                   SourceLine(Eq(1234)),
+                   SourceFunctionName(Eq("LogsEmptyLine")),
+                   TextMessage(Eq("")),
+                   ENCODED_MESSAGE(MatchesEvent(
+                       Eq("path/file.cc"), Eq(1234), _, _, _,
+                       ElementsAre(ValueWithStr(Eq(""))))),
+                       Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  absl::LogInfoStreamer("path/file.cc", 1234);
+  absl::LogInfoStreamer("path/file.cc", 1234, "LogsEmptyLine");
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -363,15 +391,18 @@ TEST(LogStreamerDeathTest, LogsEmptyLine) {
 
         EXPECT_CALL(
             test_sink,
-            Send(AllOf(SourceFilename(Eq("path/file.cc")), TextMessage(Eq("")),
-                       ENCODED_MESSAGE(
-                           MatchesEvent(Eq("path/file.cc"), _, _, _, _,
-                                        ElementsAre(ValueWithStr(Eq(""))))))))
+            Send(AllOf(
+                 SourceFilename(Eq("path/file.cc")),
+                 SourceFunctionName(Eq("LogsEmptyLine")),
+                 TextMessage(Eq("")),
+                 ENCODED_MESSAGE(MatchesEvent(
+                     Eq("path/file.cc"), _, _, _, _,
+                     ElementsAre(ValueWithStr(Eq(""))))))))
             .WillOnce(DeathTestExpectedLogging());
 
         test_sink.StartCapturingLogs();
         // This is fatal even though it's never used:
-        auto streamer = absl::LogFatalStreamer("path/file.cc", 1234);
+        auto streamer = absl::LogFatalStreamer("path/file.cc", 1234, "LogsEmptyLine");
       },
       DiedOfFatal, DeathTestValidateExpectations());
 }
@@ -383,17 +414,18 @@ TEST(LogStreamerTest, MoveConstruction) {
 
   EXPECT_CALL(
       test_sink,
-      Send(
-          AllOf(SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
-                LogSeverity(Eq(absl::LogSeverity::kInfo)),
-                TextMessage(Eq("hello 0x10 world 0x10")),
-                ENCODED_MESSAGE(MatchesEvent(
-                    Eq("path/file.cc"), Eq(1234), _, Eq(logging::proto::INFO),
-                    _, ElementsAre(ValueWithStr(Eq("hello 0x10 world 0x10"))))),
-                Stacktrace(IsEmpty()))));
+      Send(AllOf(
+           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+           SourceFunctionName(Eq("MoveConstruction")),
+           LogSeverity(Eq(absl::LogSeverity::kInfo)),
+           TextMessage(Eq("hello 0x10 world 0x10")),
+           ENCODED_MESSAGE(MatchesEvent(
+               Eq("path/file.cc"), Eq(1234), _, Eq(logging::proto::INFO),
+               _, ElementsAre(ValueWithStr(Eq("hello 0x10 world 0x10"))))),
+               Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  auto streamer1 = absl::LogInfoStreamer("path/file.cc", 1234);
+  auto streamer1 = absl::LogInfoStreamer("path/file.cc", 1234, "MoveConstruction");
   streamer1.stream() << "hello " << std::hex << 16;
   absl::LogStreamer streamer2(std::move(streamer1));
   streamer2.stream() << " world " << 16;
@@ -408,6 +440,7 @@ TEST(LogStreamerTest, MoveAssignment) {
       test_sink,
       Send(AllOf(
           SourceFilename(Eq("path/file2.cc")), SourceLine(Eq(5678)),
+          SourceFunctionName(Eq("MoveAssignment")),
           LogSeverity(Eq(absl::LogSeverity::kWarning)),
           TextMessage(Eq("something else")),
           ENCODED_MESSAGE(MatchesEvent(
@@ -416,19 +449,20 @@ TEST(LogStreamerTest, MoveAssignment) {
           Stacktrace(IsEmpty()))));
   EXPECT_CALL(
       test_sink,
-      Send(
-          AllOf(SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
-                LogSeverity(Eq(absl::LogSeverity::kInfo)),
-                TextMessage(Eq("hello 0x10 world 0x10")),
-                ENCODED_MESSAGE(MatchesEvent(
-                    Eq("path/file.cc"), Eq(1234), _, Eq(logging::proto::INFO),
-                    _, ElementsAre(ValueWithStr(Eq("hello 0x10 world 0x10"))))),
-                Stacktrace(IsEmpty()))));
+      Send(AllOf(
+           SourceFilename(Eq("path/file.cc")), SourceLine(Eq(1234)),
+           SourceFunctionName(Eq("MoveAssignment")),
+           LogSeverity(Eq(absl::LogSeverity::kInfo)),
+           TextMessage(Eq("hello 0x10 world 0x10")),
+           ENCODED_MESSAGE(MatchesEvent(
+               Eq("path/file.cc"), Eq(1234), _, Eq(logging::proto::INFO),
+               _, ElementsAre(ValueWithStr(Eq("hello 0x10 world 0x10"))))),
+               Stacktrace(IsEmpty()))));
 
   test_sink.StartCapturingLogs();
-  auto streamer1 = absl::LogInfoStreamer("path/file.cc", 1234);
+  auto streamer1 = absl::LogInfoStreamer("path/file.cc", 1234, "MoveAssignment");
   streamer1.stream() << "hello " << std::hex << 16;
-  auto streamer2 = absl::LogWarningStreamer("path/file2.cc", 5678);
+  auto streamer2 = absl::LogWarningStreamer("path/file2.cc", 5678, "MoveAssignment");
   streamer2.stream() << "something else";
   streamer2 = std::move(streamer1);
   streamer2.stream() << " world " << 16;
@@ -444,7 +478,7 @@ TEST(LogStreamerTest, CorrectDefaultFlags) {
       .Times(2);
 
   test_sink.StartCapturingLogs();
-  absl::LogInfoStreamer("path/file.cc", 1234).stream()
+  absl::LogInfoStreamer("path/file.cc", 1234, "CorrectDefaultFlags").stream()
       << false << std::hex << 0xdeadbeef;
   LOG(INFO) << false << std::hex << 0xdeadbeef;
 }

@@ -146,6 +146,7 @@ size_t FormatBoundedFields(absl::LogSeverity severity, absl::Time timestamp,
   return bytes_formatted;
 }
 
+// Writes `:<line>` to `buf`.
 size_t FormatLineNumber(int line, absl::Span<char>& buf) {
   constexpr size_t kLineFieldMaxLen =
       sizeof(":] ") + (1 + std::numeric_limits<int>::digits10 + 1) - sizeof("");
@@ -158,11 +159,34 @@ size_t FormatLineNumber(int line, absl::Span<char>& buf) {
   char* p = buf.data();
   *p++ = ':';
   p = absl::numbers_internal::FastIntToBuffer(line, p);
-  *p++ = ']';
-  *p++ = ' ';
   const size_t bytes_formatted = static_cast<size_t>(p - buf.data());
   buf.remove_prefix(bytes_formatted);
   return bytes_formatted;
+}
+
+// Writes ` <function>` to `buf` when `function` is non-empty (no-op otherwise).
+// The function name itself may be truncated (via `AppendTruncated`) when the
+// buffer cannot hold it.
+size_t FormatFunctionName(absl::string_view function, absl::Span<char>& buf) {
+  if (ABSL_PREDICT_FALSE(buf.empty()) || function.empty()) {
+    return 0;
+  }
+  buf.data()[0] = ' ';
+  buf.remove_prefix(1);
+  return 1 + log_internal::AppendTruncated(function, buf);
+}
+
+// Writes the trailing `] ` to `buf`. Returns 2 on success, or 0 (and drops
+// any remaining buffer capacity) if there isn't room.
+size_t FormatClosingBracket(absl::Span<char>& buf) {
+  if (ABSL_PREDICT_FALSE(buf.size() < 2)) {
+    buf.remove_suffix(buf.size());
+    return 0;
+  }
+  buf.data()[0] = ']';
+  buf.data()[1] = ' ';
+  buf.remove_prefix(2);
+  return 2;
 }
 
 }  // namespace
@@ -171,30 +195,37 @@ std::string FormatLogMessage(absl::LogSeverity severity,
                              absl::CivilSecond civil_second,
                              absl::Duration subsecond, log_internal::Tid tid,
                              absl::string_view basename, int line,
-                             PrefixFormat format, absl::string_view message) {
+                             absl::string_view function, PrefixFormat format,
+                             absl::string_view message) {
   return absl::StrFormat(
-      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d] %s%s",
+      "%c%02d%02d %02d:%02d:%02d.%06d %7d %s:%d%s%s] %s%s",
       absl::LogSeverityName(severity)[0], civil_second.month(),
       civil_second.day(), civil_second.hour(), civil_second.minute(),
       civil_second.second(), absl::ToInt64Microseconds(subsecond), tid,
-      basename, line, format == PrefixFormat::kRaw ? "RAW: " : "", message);
+      basename, line, function.empty() ? "" : " ", function,
+      format == PrefixFormat::kRaw ? "RAW: " : "", message);
 }
 
 // This method is fairly hot, and the library always passes a huge `buf`, so we
 // save some bounds-checking cycles by not trying to do precise truncation.
 // Truncating at a field boundary is probably a better UX anyway.
 //
-// The prefix is written in three parts, each of which does a single
+// The prefix is written in several parts, each of which does a single
 // bounds-check and truncation:
 // 1. severity, timestamp, and thread ID
 // 2. filename
-// 3. line number and bracket
+// 3. line number
+// 4. (optional) function name
+// 5. closing bracket
 size_t FormatLogPrefix(absl::LogSeverity severity, absl::Time timestamp,
                        log_internal::Tid tid, absl::string_view basename,
-                       int line, PrefixFormat format, absl::Span<char>& buf) {
+                       int line, absl::string_view function,
+                       PrefixFormat format, absl::Span<char>& buf) {
   auto prefix_size = FormatBoundedFields(severity, timestamp, tid, buf);
   prefix_size += log_internal::AppendTruncated(basename, buf);
   prefix_size += FormatLineNumber(line, buf);
+  prefix_size += FormatFunctionName(function, buf);
+  prefix_size += FormatClosingBracket(buf);
   if (format == PrefixFormat::kRaw)
     prefix_size += log_internal::AppendTruncated("RAW: ", buf);
   return prefix_size;

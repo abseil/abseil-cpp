@@ -24,8 +24,9 @@ ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 
 void DieBecauseNull(const char* absl_nonnull file, int line,
+                    const char* absl_nonnull function,
                     const char* absl_nonnull exprtext) {
-  LOG(FATAL).AtLocation(file, line)
+  LOG(FATAL).AtLocation(file, line, function)
       << absl::StrCat("Check failed: '", exprtext, "' Must be non-null");
 }
 

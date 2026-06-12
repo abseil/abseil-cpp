@@ -48,7 +48,8 @@ std::string FormatLogMessage(absl::LogSeverity severity,
                              absl::CivilSecond civil_second,
                              absl::Duration subsecond, log_internal::Tid tid,
                              absl::string_view basename, int line,
-                             PrefixFormat format, absl::string_view message);
+                             absl::string_view function, PrefixFormat format,
+                             absl::string_view message);
 
 // Formats various entry metadata into a text string meant for use as a
 // prefix on a log message string.  Writes into `buf`, advances `buf` to point
@@ -59,7 +60,7 @@ std::string FormatLogMessage(absl::LogSeverity severity,
 // function may also do `buf->remove_suffix(buf->size())` in cases where no more
 // bytes (i.e. no message data) should be written into the buffer.  For example,
 // if the prefix ought to be:
-//   I0926 09:00:00.000000 1234567 foo.cc:123]
+//   I0926 09:00:00.000000 1234567 foo.cc:123 test]
 // `buf` is too small, the function might fill the whole buffer:
 //   I0926 09:00:00.000000 1234
 // (note the apparrently incorrect thread ID), or it might write less:
@@ -69,7 +70,8 @@ std::string FormatLogMessage(absl::LogSeverity severity,
 // see a thread ID.
 size_t FormatLogPrefix(absl::LogSeverity severity, absl::Time timestamp,
                        log_internal::Tid tid, absl::string_view basename,
-                       int line, PrefixFormat format, absl::Span<char>& buf);
+                       int line, absl::string_view function,
+                       PrefixFormat format, absl::Span<char>& buf);
 
 }  // namespace log_internal
 ABSL_NAMESPACE_END

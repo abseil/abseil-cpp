@@ -57,13 +57,15 @@ namespace log_internal {
 
 class LogEntryTestPeer {
  public:
-  LogEntryTestPeer(absl::string_view base_filename, int line, bool prefix,
+  LogEntryTestPeer(absl::string_view base_filename, int line,
+                   absl::string_view function_name, bool prefix,
                    absl::LogSeverity severity, absl::string_view timestamp,
                    absl::LogEntry::tid_t tid, PrefixFormat format,
                    absl::string_view text_message)
       : format_{format}, buf_(15000, '\0') {
     entry_.base_filename_ = base_filename;
     entry_.line_ = line;
+    entry_.function_name_ = function_name;
     entry_.prefix_ = prefix;
     entry_.severity_ = severity;
     std::string time_err;
@@ -89,7 +91,8 @@ class LogEntryTestPeer {
         entry_.prefix_
             ? log_internal::FormatLogPrefix(
                   entry_.log_severity(), entry_.timestamp(), entry_.tid(),
-                  entry_.source_basename(), entry_.source_line(), format_, view)
+                  entry_.source_basename(), entry_.source_line(),
+                  entry_.source_function_name(), format_, view)
             : 0;
 
     EXPECT_THAT(entry_.prefix_len_,
@@ -108,15 +111,16 @@ class LogEntryTestPeer {
   std::string FormatLogMessage() const {
     return log_internal::FormatLogMessage(
         entry_.log_severity(), ci_.cs, ci_.subsecond, entry_.tid(),
-        entry_.source_basename(), entry_.source_line(), format_,
-        entry_.text_message());
+        entry_.source_basename(), entry_.source_line(),
+        entry_.source_function_name(), format_, entry_.text_message());
   }
   std::string FormatPrefixIntoSizedBuffer(size_t sz) {
     std::string str(sz, '\0');
     absl::Span<char> buf(&str[0], str.size());
     const size_t prefix_size = log_internal::FormatLogPrefix(
         entry_.log_severity(), entry_.timestamp(), entry_.tid(),
-        entry_.source_basename(), entry_.source_line(), format_, buf);
+        entry_.source_basename(), entry_.source_line(),
+        entry_.source_function_name(), format_, buf);
     EXPECT_THAT(prefix_size, Eq(static_cast<size_t>(buf.data() - str.data())));
     str.resize(prefix_size);
     return str;
@@ -138,42 +142,49 @@ namespace {
 constexpr bool kUsePrefix = true, kNoPrefix = false;
 
 TEST(LogEntryTest, Baseline) {
-  LogEntryTestPeer entry("foo.cc", 1234, kUsePrefix, absl::LogSeverity::kInfo,
-                         "2020-01-02T03:04:05.6789", 451,
-                         absl::log_internal::PrefixFormat::kNotRaw,
+  LogEntryTestPeer entry("foo.cc", 1234, "MyFunc", kUsePrefix,
+                         absl::LogSeverity::kInfo, "2020-01-02T03:04:05.6789",
+                         451, absl::log_internal::PrefixFormat::kNotRaw,
                          "hello world");
-  EXPECT_THAT(entry.FormatLogMessage(),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] hello world"));
+  EXPECT_THAT(
+      entry.FormatLogMessage(),
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] hello world"));
   EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] "));
-  for (size_t sz = strlen("I0102 03:04:05.678900     451 foo.cc:1234] ") + 20;
+              Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] "));
+  for (size_t sz =
+           strlen("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] ") + 20;
        sz != std::numeric_limits<size_t>::max(); sz--)
-    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234] ",
+    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] ",
                 StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
-  EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] hello world\n"));
+  EXPECT_THAT(
+      entry.entry().text_message_with_prefix_and_newline(),
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] hello world\n"));
   EXPECT_THAT(
       entry.entry().text_message_with_prefix_and_newline_c_str(),
-      StrEq("I0102 03:04:05.678900     451 foo.cc:1234] hello world\n"));
-  EXPECT_THAT(entry.entry().text_message_with_prefix(),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] hello world"));
+      StrEq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] hello world\n"));
+  EXPECT_THAT(
+      entry.entry().text_message_with_prefix(),
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] hello world"));
   EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+  EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
 }
 
 TEST(LogEntryTest, NoPrefix) {
-  LogEntryTestPeer entry("foo.cc", 1234, kNoPrefix, absl::LogSeverity::kInfo,
-                         "2020-01-02T03:04:05.6789", 451,
-                         absl::log_internal::PrefixFormat::kNotRaw,
+  LogEntryTestPeer entry("foo.cc", 1234, "MyFunc", kNoPrefix,
+                         absl::LogSeverity::kInfo, "2020-01-02T03:04:05.6789",
+                         451, absl::log_internal::PrefixFormat::kNotRaw,
                          "hello world");
-  EXPECT_THAT(entry.FormatLogMessage(),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] hello world"));
+  EXPECT_THAT(
+      entry.FormatLogMessage(),
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] hello world"));
   // These methods are not responsible for honoring `prefix()`.
   EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] "));
-  for (size_t sz = strlen("I0102 03:04:05.678900     451 foo.cc:1234] ") + 20;
+              Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] "));
+  for (size_t sz =
+           strlen("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] ") + 20;
        sz != std::numeric_limits<size_t>::max(); sz--)
-    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234] ",
+    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] ",
                 StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
   EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
@@ -182,11 +193,14 @@ TEST(LogEntryTest, NoPrefix) {
               StrEq("hello world\n"));
   EXPECT_THAT(entry.entry().text_message_with_prefix(), Eq("hello world"));
   EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+  EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
 }
 
+// Empty function name: the prefix must NOT contain a function segment (so the
+// formatted prefix should look just like it did before this feature was added).
 TEST(LogEntryTest, EmptyFields) {
-  LogEntryTestPeer entry("", 0, kUsePrefix, absl::LogSeverity::kInfo,
-                         "2020-01-02T03:04:05", 0,
+  LogEntryTestPeer entry("", 0, /*function_name=*/"", kUsePrefix,
+                         absl::LogSeverity::kInfo, "2020-01-02T03:04:05", 0,
                          absl::log_internal::PrefixFormat::kNotRaw, "");
   const std::string format_message = entry.FormatLogMessage();
   EXPECT_THAT(format_message, Eq("I0102 03:04:05.000000       0 :0] "));
@@ -203,6 +217,7 @@ TEST(LogEntryTest, EmptyFields) {
   EXPECT_THAT(entry.entry().text_message_with_prefix(),
               Eq("I0102 03:04:05.000000       0 :0] "));
   EXPECT_THAT(entry.entry().text_message(), Eq(""));
+  EXPECT_THAT(entry.entry().source_function_name(), Eq(""));
 }
 
 TEST(LogEntryTest, NegativeFields) {
@@ -210,52 +225,58 @@ TEST(LogEntryTest, NegativeFields) {
   // converted to a constexpr if and the static_cast below removed.
   if (std::is_signed_v<absl::LogEntry::tid_t>) {
     LogEntryTestPeer entry(
-        "foo.cc", -1234, kUsePrefix, absl::LogSeverity::kInfo,
+        "foo.cc", -1234, "MyFunc", kUsePrefix, absl::LogSeverity::kInfo,
         "2020-01-02T03:04:05.6789", static_cast<absl::LogEntry::tid_t>(-451),
         absl::log_internal::PrefixFormat::kNotRaw, "hello world");
-    EXPECT_THAT(entry.FormatLogMessage(),
-                Eq("I0102 03:04:05.678900    -451 foo.cc:-1234] hello world"));
+    EXPECT_THAT(
+        entry.FormatLogMessage(),
+        Eq("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] hello world"));
     EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
-                Eq("I0102 03:04:05.678900    -451 foo.cc:-1234] "));
+                Eq("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] "));
     for (size_t sz =
-             strlen("I0102 03:04:05.678900    -451 foo.cc:-1234] ") + 20;
+             strlen("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] ") + 20;
          sz != std::numeric_limits<size_t>::max(); sz--)
-      EXPECT_THAT("I0102 03:04:05.678900    -451 foo.cc:-1234] ",
+      EXPECT_THAT("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] ",
                   StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
+    EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
+                Eq("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] hello "
+                   "world\n"));
+    EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline_c_str(),
+                StrEq("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] "
+                      "hello world\n"));
     EXPECT_THAT(
-        entry.entry().text_message_with_prefix_and_newline(),
-        Eq("I0102 03:04:05.678900    -451 foo.cc:-1234] hello world\n"));
-    EXPECT_THAT(
-        entry.entry().text_message_with_prefix_and_newline_c_str(),
-        StrEq("I0102 03:04:05.678900    -451 foo.cc:-1234] hello world\n"));
-    EXPECT_THAT(entry.entry().text_message_with_prefix(),
-                Eq("I0102 03:04:05.678900    -451 foo.cc:-1234] hello world"));
+        entry.entry().text_message_with_prefix(),
+        Eq("I0102 03:04:05.678900    -451 foo.cc:-1234 MyFunc] hello world"));
     EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+    EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
   } else {
-    LogEntryTestPeer entry("foo.cc", -1234, kUsePrefix,
+    LogEntryTestPeer entry("foo.cc", -1234, "MyFunc", kUsePrefix,
                            absl::LogSeverity::kInfo, "2020-01-02T03:04:05.6789",
                            451, absl::log_internal::PrefixFormat::kNotRaw,
                            "hello world");
-    EXPECT_THAT(entry.FormatLogMessage(),
-                Eq("I0102 03:04:05.678900     451 foo.cc:-1234] hello world"));
+    EXPECT_THAT(
+        entry.FormatLogMessage(),
+        Eq("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] hello world"));
     EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
-                Eq("I0102 03:04:05.678900     451 foo.cc:-1234] "));
+                Eq("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] "));
     for (size_t sz =
-             strlen("I0102 03:04:05.678900     451 foo.cc:-1234] ") + 20;
+             strlen("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] ") + 20;
          sz != std::numeric_limits<size_t>::max(); sz--)
-      EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:-1234] ",
+      EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] ",
                   StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
+    EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
+                Eq("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] hello "
+                   "world\n"));
+    EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline_c_str(),
+                StrEq("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] "
+                      "hello world\n"));
     EXPECT_THAT(
-        entry.entry().text_message_with_prefix_and_newline(),
-        Eq("I0102 03:04:05.678900     451 foo.cc:-1234] hello world\n"));
-    EXPECT_THAT(
-        entry.entry().text_message_with_prefix_and_newline_c_str(),
-        StrEq("I0102 03:04:05.678900     451 foo.cc:-1234] hello world\n"));
-    EXPECT_THAT(entry.entry().text_message_with_prefix(),
-                Eq("I0102 03:04:05.678900     451 foo.cc:-1234] hello world"));
+        entry.entry().text_message_with_prefix(),
+        Eq("I0102 03:04:05.678900     451 foo.cc:-1234 MyFunc] hello world"));
     EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+    EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
   }
 }
 
@@ -263,7 +284,7 @@ TEST(LogEntryTest, LongFields) {
   LogEntryTestPeer entry(
       "I am the very model of a modern Major-General / "
       "I've information vegetable, animal, and mineral.",
-      2147483647, kUsePrefix, absl::LogSeverity::kInfo,
+      2147483647, "MyFunc", kUsePrefix, absl::LogSeverity::kInfo,
       "2020-01-02T03:04:05.678967896789", 2147483647,
       absl::log_internal::PrefixFormat::kNotRaw,
       "I know the kings of England, and I quote the fights historical / "
@@ -271,48 +292,49 @@ TEST(LogEntryTest, LongFields) {
   EXPECT_THAT(entry.FormatLogMessage(),
               Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:2147483647] I know the kings of England, and I "
+                 "and mineral.:2147483647 MyFunc] I know the kings of England, and I "
                  "quote the fights historical / From Marathon to Waterloo, in "
                  "order categorical."));
   EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
               Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:2147483647] "));
+                 "and mineral.:2147483647 MyFunc] "));
   for (size_t sz =
            strlen("I0102 03:04:05.678967 2147483647 I am the very model of a "
                   "modern Major-General / I've information vegetable, animal, "
-                  "and mineral.:2147483647] ") +
+                  "and mineral.:2147483647 MyFunc] ") +
            20;
        sz != std::numeric_limits<size_t>::max(); sz--)
     EXPECT_THAT(
         "I0102 03:04:05.678967 2147483647 I am the very model of a "
         "modern Major-General / I've information vegetable, animal, "
-        "and mineral.:2147483647] ",
+        "and mineral.:2147483647 MyFunc] ",
         StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
   EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
               Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:2147483647] I know the kings of England, and I "
+                 "and mineral.:2147483647 MyFunc] I know the kings of England, and I "
                  "quote the fights historical / From Marathon to Waterloo, in "
                  "order categorical.\n"));
   EXPECT_THAT(
       entry.entry().text_message_with_prefix_and_newline_c_str(),
       StrEq("I0102 03:04:05.678967 2147483647 I am the very model of a "
             "modern Major-General / I've information vegetable, animal, "
-            "and mineral.:2147483647] I know the kings of England, and I "
+            "and mineral.:2147483647 MyFunc] I know the kings of England, and I "
             "quote the fights historical / From Marathon to Waterloo, in "
             "order categorical.\n"));
   EXPECT_THAT(entry.entry().text_message_with_prefix(),
               Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:2147483647] I know the kings of England, and I "
+                 "and mineral.:2147483647 MyFunc] I know the kings of England, and I "
                  "quote the fights historical / From Marathon to Waterloo, in "
                  "order categorical."));
   EXPECT_THAT(
       entry.entry().text_message(),
       Eq("I know the kings of England, and I quote the fights historical / "
          "From Marathon to Waterloo, in order categorical."));
+  EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
 }
 
 TEST(LogEntryTest, LongNegativeFields) {
@@ -322,7 +344,7 @@ TEST(LogEntryTest, LongNegativeFields) {
     LogEntryTestPeer entry(
         "I am the very model of a modern Major-General / "
         "I've information vegetable, animal, and mineral.",
-        -2147483647, kUsePrefix, absl::LogSeverity::kInfo,
+        -2147483647, "MyFunc", kUsePrefix, absl::LogSeverity::kInfo,
         "2020-01-02T03:04:05.678967896789",
         static_cast<absl::LogEntry::tid_t>(-2147483647),
         absl::log_internal::PrefixFormat::kNotRaw,
@@ -332,56 +354,57 @@ TEST(LogEntryTest, LongNegativeFields) {
         entry.FormatLogMessage(),
         Eq("I0102 03:04:05.678967 -2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical."));
     EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
                 Eq("I0102 03:04:05.678967 -2147483647 I am the very model of a "
                    "modern Major-General / I've information vegetable, animal, "
-                   "and mineral.:-2147483647] "));
+                   "and mineral.:-2147483647 MyFunc] "));
     for (size_t sz =
              strlen(
                  "I0102 03:04:05.678967 -2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:-2147483647] ") +
+                 "and mineral.:-2147483647 MyFunc] ") +
              20;
          sz != std::numeric_limits<size_t>::max(); sz--)
       EXPECT_THAT(
           "I0102 03:04:05.678967 -2147483647 I am the very model of a "
           "modern Major-General / I've information vegetable, animal, "
-          "and mineral.:-2147483647] ",
+          "and mineral.:-2147483647 MyFunc] ",
           StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
     EXPECT_THAT(
         entry.entry().text_message_with_prefix_and_newline(),
         Eq("I0102 03:04:05.678967 -2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical.\n"));
     EXPECT_THAT(
         entry.entry().text_message_with_prefix_and_newline_c_str(),
         StrEq("I0102 03:04:05.678967 -2147483647 I am the very model of a "
               "modern Major-General / I've information vegetable, animal, "
-              "and mineral.:-2147483647] I know the kings of England, and I "
+              "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
               "quote the fights historical / From Marathon to Waterloo, in "
               "order categorical.\n"));
     EXPECT_THAT(
         entry.entry().text_message_with_prefix(),
         Eq("I0102 03:04:05.678967 -2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical."));
     EXPECT_THAT(
         entry.entry().text_message(),
         Eq("I know the kings of England, and I quote the fights historical / "
            "From Marathon to Waterloo, in order categorical."));
+    EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
   } else {
     LogEntryTestPeer entry(
         "I am the very model of a modern Major-General / "
         "I've information vegetable, animal, and mineral.",
-        -2147483647, kUsePrefix, absl::LogSeverity::kInfo,
+        -2147483647, "MyFunc", kUsePrefix, absl::LogSeverity::kInfo,
         "2020-01-02T03:04:05.678967896789", 2147483647,
         absl::log_internal::PrefixFormat::kNotRaw,
         "I know the kings of England, and I quote the fights historical / "
@@ -390,79 +413,84 @@ TEST(LogEntryTest, LongNegativeFields) {
         entry.FormatLogMessage(),
         Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical."));
     EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
                 Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
                    "modern Major-General / I've information vegetable, animal, "
-                   "and mineral.:-2147483647] "));
+                   "and mineral.:-2147483647 MyFunc] "));
     for (size_t sz =
              strlen(
                  "I0102 03:04:05.678967 2147483647 I am the very model of a "
                  "modern Major-General / I've information vegetable, animal, "
-                 "and mineral.:-2147483647] ") +
+                 "and mineral.:-2147483647 MyFunc] ") +
              20;
          sz != std::numeric_limits<size_t>::max(); sz--)
       EXPECT_THAT(
           "I0102 03:04:05.678967 2147483647 I am the very model of a "
           "modern Major-General / I've information vegetable, animal, "
-          "and mineral.:-2147483647] ",
+          "and mineral.:-2147483647 MyFunc] ",
           StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
     EXPECT_THAT(
         entry.entry().text_message_with_prefix_and_newline(),
         Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical.\n"));
     EXPECT_THAT(
         entry.entry().text_message_with_prefix_and_newline_c_str(),
         StrEq("I0102 03:04:05.678967 2147483647 I am the very model of a "
               "modern Major-General / I've information vegetable, animal, "
-              "and mineral.:-2147483647] I know the kings of England, and I "
+              "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
               "quote the fights historical / From Marathon to Waterloo, in "
               "order categorical.\n"));
     EXPECT_THAT(
         entry.entry().text_message_with_prefix(),
         Eq("I0102 03:04:05.678967 2147483647 I am the very model of a "
            "modern Major-General / I've information vegetable, animal, "
-           "and mineral.:-2147483647] I know the kings of England, and I "
+           "and mineral.:-2147483647 MyFunc] I know the kings of England, and I "
            "quote the fights historical / From Marathon to Waterloo, in "
            "order categorical."));
     EXPECT_THAT(
         entry.entry().text_message(),
         Eq("I know the kings of England, and I quote the fights historical / "
            "From Marathon to Waterloo, in order categorical."));
+    EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
   }
 }
 
 TEST(LogEntryTest, Raw) {
-  LogEntryTestPeer entry("foo.cc", 1234, kUsePrefix, absl::LogSeverity::kInfo,
-                         "2020-01-02T03:04:05.6789", 451,
-                         absl::log_internal::PrefixFormat::kRaw, "hello world");
+  LogEntryTestPeer entry("foo.cc", 1234, "MyFunc", kUsePrefix,
+                         absl::LogSeverity::kInfo, "2020-01-02T03:04:05.6789",
+                         451, absl::log_internal::PrefixFormat::kRaw,
+                         "hello world");
   EXPECT_THAT(
       entry.FormatLogMessage(),
-      Eq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: hello world"));
-  EXPECT_THAT(entry.FormatPrefixIntoSizedBuffer(1000),
-              Eq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: "));
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: hello world"));
+  EXPECT_THAT(
+      entry.FormatPrefixIntoSizedBuffer(1000),
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: "));
   for (size_t sz =
-           strlen("I0102 03:04:05.678900     451 foo.cc:1234] RAW: ") + 20;
+           strlen("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: ") +
+           20;
        sz != std::numeric_limits<size_t>::max(); sz--)
-    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234] RAW: ",
+    EXPECT_THAT("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: ",
                 StartsWith(entry.FormatPrefixIntoSizedBuffer(sz)));
 
-  EXPECT_THAT(
-      entry.entry().text_message_with_prefix_and_newline(),
-      Eq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: hello world\n"));
-  EXPECT_THAT(
-      entry.entry().text_message_with_prefix_and_newline_c_str(),
-      StrEq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: hello world\n"));
+  EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline(),
+              Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: hello "
+                 "world\n"));
+  EXPECT_THAT(entry.entry().text_message_with_prefix_and_newline_c_str(),
+              StrEq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: "
+                    "hello world\n"));
   EXPECT_THAT(
       entry.entry().text_message_with_prefix(),
-      Eq("I0102 03:04:05.678900     451 foo.cc:1234] RAW: hello world"));
+      Eq("I0102 03:04:05.678900     451 foo.cc:1234 MyFunc] RAW: hello world"));
   EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
+  EXPECT_THAT(entry.entry().source_function_name(), Eq("MyFunc"));
 }
 
 }  // namespace
