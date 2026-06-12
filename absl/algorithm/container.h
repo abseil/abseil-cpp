@@ -192,16 +192,6 @@ using ResultOfRangeToIteratorTransfer =
                              std::remove_reference_t<C>>::value,
                      std::decay_t<OutputIterator>>;
 
-template <typename C, typename OutputRange>
-using ResultOfRangeToRangeTransfer =
-    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
-                         std::add_lvalue_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<C>>::value,
-                     void>;
-
 // Similar to std::is_pointer, but for testing if a type is a span.
 //
 // Note that subclasses of spans do not automatically qualify as spans, as they
@@ -230,6 +220,18 @@ template <typename C>
 using IsPermissibleDestinationRange =
     std::conditional_t<std::is_lvalue_reference<C>::value, std::true_type,
                        IsSpan<C>>;
+
+template <typename C, typename OutputRange>
+using ResultOfRangeToRangeTransfer =
+    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
+                         std::add_lvalue_reference_t<OutputRange>>::value &&
+                         !container_algorithm_internal::IsMultidimensionalArray<
+                             std::remove_reference_t<OutputRange>>::value &&
+                         !container_algorithm_internal::IsMultidimensionalArray<
+                             std::remove_reference_t<C>>::value &&
+                         container_algorithm_internal::
+                             IsPermissibleDestinationRange<OutputRange>::value,
+                     void>;
 
 }  // namespace container_algorithm_internal
 
@@ -632,8 +634,7 @@ constexpr container_algorithm_internal::ResultOfRangeToRangeTransfer<
     InputSequence, OutputRange>
 c_copy(const InputSequence& input, OutputRange&& output) {
   container_algorithm_internal::AssertCopySize(input, output);
-  absl::c_copy(input, container_algorithm_internal::c_begin(
-                          std::forward<OutputRange>(output)));
+  absl::c_copy(input, container_algorithm_internal::c_begin(output));
 }
 
 // c_copy_n()
@@ -664,9 +665,7 @@ constexpr container_algorithm_internal::ResultOfRangeToRangeTransfer<
     C, OutputRange>
 c_copy_n(const C& input, Size n, OutputRange&& output) {
   container_algorithm_internal::AssertCopyNSize(input, n, output);
-  absl::c_copy_n(
-      input, n,
-      container_algorithm_internal::c_begin(std::forward<OutputRange>(output)));
+  absl::c_copy_n(input, n, container_algorithm_internal::c_begin(output));
 }
 
 // c_copy_if()
@@ -715,8 +714,8 @@ constexpr container_algorithm_internal::ResultOfRangeToRangeTransfer<
     C, OutputRange>
 c_move(C&& src, OutputRange&& dest) {
   container_algorithm_internal::AssertCopySize(src, dest);
-  absl::c_move(std::forward<C>(src), container_algorithm_internal::c_begin(
-                                         std::forward<OutputRange>(dest)));
+  absl::c_move(std::forward<C>(src),
+               container_algorithm_internal::c_begin(dest));
 }
 
 // c_move_backward()

@@ -762,10 +762,24 @@ TEST(MutatingTest, CopyToContainer) {
   EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
 }
 
+TEST(MutatingTest, CopyToSpanRvalue) {
+  const std::vector<int> input = {1, 2, 3};
+  std::vector<int> actual = {0, 0, 0, 4, 5};
+  absl::c_copy(input, absl::MakeSpan(actual));
+  EXPECT_THAT(actual, ElementsAre(1, 2, 3, 4, 5));
+}
+
 TEST(MutatingTest, CopyNToContainer) {
   const std::vector<int> input = {1, 2, 3, 4, 5};
   std::vector<int> actual = {0, 0, 0, 0, 0};
   absl::c_copy_n(input, 2, actual);
+  EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
+}
+
+TEST(MutatingTest, CopyNToSpanRvalue) {
+  const std::vector<int> input = {1, 2, 3, 4, 5};
+  std::vector<int> actual = {0, 0, 0, 0, 0};
+  absl::c_copy_n(input, 2, absl::MakeSpan(actual));
   EXPECT_THAT(actual, ElementsAre(1, 2, 0, 0, 0));
 }
 
@@ -994,6 +1008,28 @@ TEST(MutatingTest, MoveToContainer) {
 
   std::vector<std::unique_ptr<int>> actual(5);
   absl::c_move(input, actual);
+
+  EXPECT_EQ(input[0], nullptr);
+  EXPECT_EQ(input[1], nullptr);
+  EXPECT_EQ(input[2], nullptr);
+
+  ASSERT_NE(actual[0], nullptr);
+  EXPECT_EQ(*actual[0], 1);
+  ASSERT_NE(actual[1], nullptr);
+  EXPECT_EQ(*actual[1], 2);
+  ASSERT_NE(actual[2], nullptr);
+  EXPECT_EQ(*actual[2], 3);
+  EXPECT_EQ(actual[3], nullptr);
+}
+
+TEST(MutatingTest, MoveToSpanRvalue) {
+  std::vector<std::unique_ptr<int>> input;
+  input.push_back(std::make_unique<int>(1));
+  input.push_back(std::make_unique<int>(2));
+  input.push_back(std::make_unique<int>(3));
+
+  std::vector<std::unique_ptr<int>> actual(5);
+  absl::c_move(input, absl::MakeSpan(actual));
 
   EXPECT_EQ(input[0], nullptr);
   EXPECT_EQ(input[1], nullptr);
@@ -2624,10 +2660,23 @@ TEST(CanCopyTest, AmbiguousTypeFailsToCompile) {
   using Vec = std::vector<int>;
   // Because AmbiguousType is both an iterator and a container,
   // the compiler should fail to resolve the c_copy overload.
-  static_assert(!CanCopy<Vec, AmbiguousType>::value,
+  static_assert(!CanCopy<Vec, AmbiguousType&>::value,
                 "Ambiguous types should not compile!");
-  static_assert(!CanCopyN<Vec, AmbiguousType>::value,
+  static_assert(!CanCopyN<Vec, AmbiguousType&>::value,
                 "Ambiguous types should not compile!");
+}
+
+TEST(CanCopyTest, CopyToRValue) {
+  using Vec = std::vector<int>;
+  using Span = absl::Span<int>;
+  static_assert(CanCopy<Vec, Span>::value,
+                "Should be able to copy to rvalue Span");
+  static_assert(!CanCopy<Vec, Vec>::value,
+                "Should not be able to copy to rvalue vector");
+  static_assert(CanCopyN<Vec, Span>::value,
+                "Should be able to copy_n to rvalue Span");
+  static_assert(!CanCopyN<Vec, Vec>::value,
+                "Should not be able to copy_n to rvalue vector");
 }
 
 TEST(CanMoveTest, MoveToMultiDimArray) {
@@ -2644,8 +2693,17 @@ TEST(CanMoveTest, AmbiguousTypeFailsToCompile) {
   using Vec = std::vector<int>;
   // Because AmbiguousType is both an iterator and a container,
   // the compiler should fail to resolve the c_move overload.
-  static_assert(!CanMove<Vec, AmbiguousType>::value,
+  static_assert(!CanMove<Vec, AmbiguousType&>::value,
                 "Ambiguous types should not compile!");
+}
+
+TEST(CanMoveTest, MoveToRValue) {
+  using Vec = std::vector<std::unique_ptr<int>>;
+  using Span = absl::Span<std::unique_ptr<int>>;
+  static_assert(CanMove<Vec, Span>::value,
+                "Should be able to move to rvalue Span");
+  static_assert(!CanMove<Vec, Vec>::value,
+                "Should not be able to move to rvalue vector");
 }
 
 template <typename C, typename T, typename = void>
