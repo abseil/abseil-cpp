@@ -386,7 +386,8 @@ size_t GrowthInfoAccessor::GetGrowthLeftTotalSlow(size_t capacity) const {
   if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
     return GetGrowthLeftLowerBound();
   } else {
-    return GetGrowthLeftTotalBigCapacity(full_growth_info_ptr());
+    return static_cast<size_t>(
+        GetGrowthLeftTotalBigCapacity(full_growth_info_ptr()));
   }
 }
 
