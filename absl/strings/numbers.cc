@@ -21,6 +21,7 @@
 #include <array>
 #include <cassert>
 #include <cfloat>  // for DBL_DIG and FLT_DIG
+#include <clocale>  // for localeconv
 #include <cmath>   // for HUGE_VAL
 #include <cstdint>
 #include <cstdio>
@@ -447,6 +448,18 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     // Should never overflow; see above.
     ABSL_ASSERT(snprintf_result > 0 &&
                 snprintf_result < numbers_internal::kFastToBufferSize);
+  }
+
+  // snprintf() writes the radix character chosen by the global C locale's
+  // LC_NUMERIC category, so a process that has called setlocale() can end up
+  // with a separator other than '.' here. The rest of Abseil's float
+  // formatting (RoundTripFloatToBuffer, SixDigitsToBuffer) is locale-
+  // independent and SimpleAtod() only accepts '.', so rewrite the radix back
+  // to '.' to keep absl::HighPrecision(double) locale-independent and
+  // round-trippable through SimpleAtod().
+  const char radix = *localeconv()->decimal_point;
+  if (radix != '.') {
+    if (char* p = strchr(buffer, radix)) *p = '.';
   }
   return buffer;
 }
