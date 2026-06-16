@@ -126,14 +126,14 @@ constexpr void AssertCopyNSize(InputSequence& input, Size n,
   using OutputIter = ContainerIter<OutputRange>;
 
   if constexpr (base_internal::IsAtLeastForwardIterator<InputIter>::value) {
-    base_internal::HardeningAssert(
-        n <= std::distance(container_algorithm_internal::c_begin(input),
-                           container_algorithm_internal::c_end(input)));
+    base_internal::HardeningAssertLE(
+        n, std::distance(container_algorithm_internal::c_begin(input),
+                         container_algorithm_internal::c_end(input)));
   }
   if constexpr (base_internal::IsAtLeastForwardIterator<OutputIter>::value) {
-    base_internal::HardeningAssert(
-        n <= std::distance(container_algorithm_internal::c_begin(output),
-                           container_algorithm_internal::c_end(output)));
+    base_internal::HardeningAssertLE(
+        n, std::distance(container_algorithm_internal::c_begin(output),
+                         container_algorithm_internal::c_end(output)));
   }
 }
 
@@ -143,9 +143,9 @@ constexpr void AssertCopySize(InputSequence& input, OutputRange& output) {
   using OutputIter = ContainerIter<OutputRange>;
   if constexpr (base_internal::IsAtLeastForwardIterator<InputIter>::value &&
                 base_internal::IsAtLeastForwardIterator<OutputIter>::value) {
-    base_internal::HardeningAssert(
+    base_internal::HardeningAssertLE(
         std::distance(container_algorithm_internal::c_begin(input),
-                      container_algorithm_internal::c_end(input)) <=
+                      container_algorithm_internal::c_end(input)),
         std::distance(container_algorithm_internal::c_begin(output),
                       container_algorithm_internal::c_end(output)));
   }
@@ -756,12 +756,33 @@ constexpr container_algorithm_internal::ContainerIter<C2> c_swap_ranges(
 // result in an iterator pointing to the last transformed element in the output
 // range.
 template <typename InputSequence, typename OutputIterator, typename UnaryOp>
-constexpr OutputIterator c_transform(const InputSequence& input,
-                                     OutputIterator output,
-                                     UnaryOp&& unary_op) {
+constexpr container_algorithm_internal::ResultOfRangeToIteratorTransfer<
+    InputSequence, OutputIterator>
+c_transform(const InputSequence& input, OutputIterator&& output,
+            UnaryOp&& unary_op) {
   return std::transform(container_algorithm_internal::c_begin(input),
-                        container_algorithm_internal::c_end(input), output,
+                        container_algorithm_internal::c_end(input),
+                        std::forward<OutputIterator>(output),
                         std::forward<UnaryOp>(unary_op));
+}
+
+// Performs a transformation using a unary predicate. Stores the result in
+// `output`. `absl::c_transform(input, output, unary_op)` is equivalent to
+// `std::transform(std::begin(input), std::end(input), std::begin(output),
+// unary_op)`.
+//
+// The `output` container must be large enough to hold all elements of `input`;
+// this function does not resize `output`.
+template <typename InputSequence, typename OutputRange, typename UnaryOp>
+constexpr container_algorithm_internal::ResultOfRangeToRangeTransfer<
+    InputSequence, OutputRange>
+c_transform(const InputSequence& input, OutputRange&& output,
+            UnaryOp&& unary_op) {
+  container_algorithm_internal::AssertCopySize(input, output);
+  absl::c_transform(
+      input,
+      container_algorithm_internal::c_begin(std::forward<OutputRange>(output)),
+      std::forward<UnaryOp>(unary_op));
 }
 
 // Overload of c_transform() for performing a transformation using a binary
@@ -769,20 +790,75 @@ constexpr OutputIterator c_transform(const InputSequence& input,
 // where N = min(size(c1), size(c2)).
 template <typename InputSequence1, typename InputSequence2,
           typename OutputIterator, typename BinaryOp>
-constexpr OutputIterator c_transform(const InputSequence1& input1,
-                                     const InputSequence2& input2,
-                                     OutputIterator output,
-                                     BinaryOp&& binary_op) {
+constexpr container_algorithm_internal::ResultOfRangeToIteratorTransfer<
+    InputSequence1, OutputIterator>
+c_transform(const InputSequence1& input1, const InputSequence2& input2,
+            OutputIterator&& output, BinaryOp&& binary_op) {
   auto first1 = container_algorithm_internal::c_begin(input1);
   auto last1 = container_algorithm_internal::c_end(input1);
   auto first2 = container_algorithm_internal::c_begin(input2);
   auto last2 = container_algorithm_internal::c_end(input2);
-  for (; first1 != last1 && first2 != last2;
-       ++first1, (void)++first2, ++output) {
-    *output = binary_op(*first1, *first2);
+  std::decay_t<OutputIterator> out = std::forward<OutputIterator>(output);
+  for (; first1 != last1 && first2 != last2; ++first1, (void)++first2, ++out) {
+    *out = binary_op(*first1, *first2);
   }
+  return out;
+}
 
-  return output;
+// Performs a transformation using a binary predicate. Stores the result in
+// `output`. Applies `binary_op` to the first N elements of `input1` and
+// `input2`, where N = min(size(input1), size(input2)).
+//
+// The `output` container must be large enough to hold all N elements;
+// this function does not resize `output`.
+template <typename InputSequence1, typename InputSequence2,
+          typename OutputRange, typename BinaryOp>
+constexpr std::common_type_t<
+    container_algorithm_internal::ResultOfRangeToRangeTransfer<InputSequence1,
+                                                               OutputRange>,
+    container_algorithm_internal::ResultOfRangeToRangeTransfer<InputSequence2,
+                                                               OutputRange>>
+c_transform(const InputSequence1& input1, const InputSequence2& input2,
+            OutputRange&& output, BinaryOp&& binary_op) {
+  using InputIter1 =
+      container_algorithm_internal::ContainerIter<InputSequence1>;
+  using InputIter2 =
+      container_algorithm_internal::ContainerIter<InputSequence2>;
+  using OutputIter = container_algorithm_internal::ContainerIter<OutputRange>;
+  if constexpr (base_internal::IsAtLeastForwardIterator<OutputIter>::value) {
+    constexpr bool input1_has_size =
+        base_internal::IsAtLeastForwardIterator<InputIter1>::value;
+    constexpr bool input2_has_size =
+        base_internal::IsAtLeastForwardIterator<InputIter2>::value;
+    auto output_size =
+        std::distance(container_algorithm_internal::c_begin(output),
+                      container_algorithm_internal::c_end(output));
+
+    if constexpr (input1_has_size && input2_has_size) {
+      base_internal::HardeningAssertLE(
+          (std::min)(std::distance(
+                         container_algorithm_internal::c_begin(input1),
+                         container_algorithm_internal::c_end(input1)),
+                     std::distance(
+                         container_algorithm_internal::c_begin(input2),
+                         container_algorithm_internal::c_end(input2))),
+          output_size);
+    } else if constexpr (input1_has_size) {
+      base_internal::HardeningAssertLE(
+          std::distance(container_algorithm_internal::c_begin(input1),
+                        container_algorithm_internal::c_end(input1)),
+          output_size);
+    } else if constexpr (input2_has_size) {
+      base_internal::HardeningAssertLE(
+          std::distance(container_algorithm_internal::c_begin(input2),
+                        container_algorithm_internal::c_end(input2)),
+          output_size);
+    }
+  }
+  absl::c_transform(
+      input1, input2,
+      container_algorithm_internal::c_begin(std::forward<OutputRange>(output)),
+      std::forward<BinaryOp>(binary_op));
 }
 
 // c_replace()
