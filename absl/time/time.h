@@ -1064,11 +1064,6 @@ bool AbslParseFlag(absl::string_view text, Time* t, std::string* error);
 // the format specified by `absl::ParseTime()`.
 std::string AbslUnparseFlag(Time t);
 
-ABSL_DEPRECATED("Use AbslParseFlag() instead.")
-bool ParseFlag(const std::string& text, Time* t, std::string* error);
-ABSL_DEPRECATED("Use AbslUnparseFlag() instead.")
-std::string UnparseFlag(Time t);
-
 // TimeZone
 //
 // The `absl::TimeZone` is an opaque, small, value-type class representing a
