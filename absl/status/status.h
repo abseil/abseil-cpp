@@ -644,7 +644,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
       absl::SourceLocation loc = absl::SourceLocation::current()) {
     if (ok()) return;
     rep_ = AddSourceLocationImpl(rep_, loc);
-    ABSL_ATTRIBUTE_UNUSED bool okay = ok();
+    [[maybe_unused]] bool okay = ok();
     // This hint tells the optimizer that the status is still not ok after the
     // AddSourceLocation() call. This is useful when passing a known !ok status
     // to StatusOr. StatusOr checks for ok() on its constructor and this assume
@@ -1091,7 +1091,7 @@ Status MakeError(string_view message, SourceLocation loc) {
   Status out = MakeErrorImpl<static_cast<int>(error_code)>(message, loc);
   // -Wassume warning complains about potential side effects of `ok()`, so use a
   // local to avoid that.
-  ABSL_ATTRIBUTE_UNUSED bool ok = out.ok();
+  [[maybe_unused]] bool ok = out.ok();
   ABSL_ASSUME(!ok);
   return out;
 }
