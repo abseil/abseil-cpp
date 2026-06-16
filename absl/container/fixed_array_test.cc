@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits_test_helper.h"
 #include "absl/base/options.h"
 #include "absl/container/internal/test_allocator.h"
@@ -196,6 +197,7 @@ TEST(FixedArrayTest, AtThrows) {
 
 TEST(FixedArrayTest, Hardened) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::FixedArray<int> a = {1, 2, 3};
   EXPECT_EQ(a[2], 3);
   EXPECT_DEATH_IF_SUPPORTED(a[3], "");

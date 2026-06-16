@@ -149,6 +149,7 @@ absl_cc_test(
     absl::fixed_array
     absl::config
     absl::exception_testing
+    absl::hardening
     absl::hash_testing
     absl::iterator_traits_test_helper_internal
     absl::memory
@@ -235,6 +236,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::exception_testing
+    absl::hardening
     absl::hash_testing
     absl::inlined_vector
     absl::memory
@@ -1234,6 +1236,7 @@ absl_cc_test(
     absl::chunked_queue
     absl::config
     absl::core_headers
+    absl::hardening
     absl::strings
     absl::test_allocator
     GTest::gmock_main

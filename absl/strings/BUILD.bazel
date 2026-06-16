@@ -1005,6 +1005,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:hardening",
         "//absl/base:no_destructor",
         "//absl/container:fixed_array",
         "//absl/functional:function_ref",
