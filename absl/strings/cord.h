@@ -100,6 +100,10 @@
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
 
+namespace strings {
+class CordReader;
+}  // namespace strings
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 class Cord;
@@ -858,6 +862,7 @@ class Cord {
   // public API call causing the cord to be created.
   explicit Cord(absl::string_view src, MethodIdentifier method);
 
+  friend class ::strings::CordReader;
   friend class CordTestPeer;
   friend bool operator==(const Cord& lhs, const Cord& rhs);
   friend bool operator==(const Cord& lhs, absl::string_view rhs);
