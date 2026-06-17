@@ -40,6 +40,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/random/random.h"
@@ -1725,6 +1726,8 @@ TEST(SimpleDtoa, HighPrecisionIsLocaleIndependent) {
   // back exactly, and SimpleAtod() only accepts '.', so the radix must stay '.'
   // regardless of the active locale.
   std::string old_locale = setlocale(LC_NUMERIC, nullptr);
+  auto restore_locale = absl::MakeCleanup(
+      [&] { setlocale(LC_NUMERIC, old_locale.c_str()); });
   const char* comma_locales[] = {"de_DE.UTF-8", "de_DE", "fr_FR.UTF-8",
                                  "fr_FR", "nl_NL.UTF-8"};
   bool changed = false;
@@ -1745,7 +1748,6 @@ TEST(SimpleDtoa, HighPrecisionIsLocaleIndependent) {
   EXPECT_TRUE(
       absl::SimpleAtod(absl::StrCat(absl::HighPrecision(0.1)), &parsed));
   EXPECT_EQ(parsed, 0.1);
-  setlocale(LC_NUMERIC, old_locale.c_str());
 }
 
 // Run the given runnable functor for "cases" test cases, chosen over the

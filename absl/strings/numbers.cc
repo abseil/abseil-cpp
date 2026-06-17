@@ -457,9 +457,21 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
   // independent and SimpleAtod() only accepts '.', so rewrite the radix back
   // to '.' to keep absl::HighPrecision(double) locale-independent and
   // round-trippable through SimpleAtod().
-  const char radix = *localeconv()->decimal_point;
-  if (radix != '.') {
-    if (char* p = strchr(buffer, radix)) *p = '.';
+  // TODO: Once all supported compilers ship std::to_chars with floating-point
+  // support, use it here for inherent locale independence.
+  const char* radix = localeconv()->decimal_point;
+  // Skip an empty decimal_point (some minimal environments leave it ""), which
+  // would otherwise match the NUL terminator and corrupt the buffer.
+  if (radix[0] != '\0' && std::strcmp(radix, ".") != 0) {
+    if (char* p = std::strstr(buffer, radix)) {
+      const size_t radix_len = std::strlen(radix);
+      *p = '.';
+      // A multibyte radix (rare, but possible in some locales) leaves trailing
+      // bytes behind; collapse them so the output is a single '.'.
+      if (radix_len > 1) {
+        std::memmove(p + 1, p + radix_len, std::strlen(p + radix_len) + 1);
+      }
+    }
   }
   return buffer;
 }
