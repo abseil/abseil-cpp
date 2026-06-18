@@ -246,8 +246,6 @@ class CordTestPeer {
 ABSL_NAMESPACE_END
 }  // namespace absl
 
-
-
 // The CordTest fixture runs all tests with and without expected CRCs being set
 // on the subject Cords.
 class CordTest : public testing::TestWithParam<bool /*useCrc*/> {
