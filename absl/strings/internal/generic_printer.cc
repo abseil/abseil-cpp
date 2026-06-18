@@ -22,6 +22,7 @@
 #include "absl/base/config.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 
 namespace absl {
@@ -50,18 +51,27 @@ std::string TryShorten(T v, F strtox) {
 // ensure that values are precise, but rather that they are wide enough to
 // represent distinct values. go/c++17std/numeric.limits.members.html
 std::ostream& PrintPreciseFP(std::ostream& os, float v) {
+  // TryShorten formats with absl::StrFormat, which is locale-independent and
+  // always emits a '.' radix. The round-trip check has to read it back the same
+  // way: std::strtof honours LC_NUMERIC, so under a comma-radix locale it stops
+  // at the '.' and the shortened form is wrongly rejected. SimpleAtof is
+  // locale-independent.
   return os << TryShorten(v, [](const char* buf) {
-           char* unused;
-           return std::strtof(buf, &unused);
+           float out = 0;
+           (void)absl::SimpleAtof(buf, &out);
+           return out;
          }) << "f";
 }
 std::ostream& PrintPreciseFP(std::ostream& os, double v) {
   return os << TryShorten(v, [](const char* buf) {
-           char* unused;
-           return std::strtod(buf, &unused);
+           double out = 0;
+           (void)absl::SimpleAtod(buf, &out);
+           return out;
          });
 }
 std::ostream& PrintPreciseFP(std::ostream& os, long double v) {
+  // No locale-independent long double parser is available, so this path keeps
+  // std::strtold and remains locale-sensitive.
   return os << TryShorten(v, [](const char* buf) {
            char* unused;
            return std::strtold(buf, &unused);
