@@ -1124,11 +1124,6 @@ class Cord {
   void CopyToArrayImpl(char* absl_nonnull dst) const;
 };
 
-ABSL_NAMESPACE_END
-}  // namespace absl
-
-namespace absl {
-ABSL_NAMESPACE_BEGIN
 
 // allow a Cord to be logged
 extern std::ostream& operator<<(std::ostream& out, const Cord& cord);
