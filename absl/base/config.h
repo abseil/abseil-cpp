@@ -231,11 +231,11 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 
 // ABSL_HAVE_TLS is defined to 1 when __thread should be supported.
-// We assume __thread is supported on Linux when compiled with Clang or
+// We assume __thread is supported on Linux or Hurd when compiled with Clang or
 // compiled against libstdc++ with _GLIBCXX_HAVE_TLS defined.
 #ifdef ABSL_HAVE_TLS
 #error ABSL_HAVE_TLS cannot be directly set
-#elif (defined(__linux__)) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
+#elif (defined(__linux__) || defined(__GNU__)) && (defined(__clang__) || defined(_GLIBCXX_HAVE_TLS))
 #define ABSL_HAVE_TLS 1
 #elif defined(__INTEL_LLVM_COMPILER)
 #define ABSL_HAVE_TLS 1
@@ -364,6 +364,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 //   WebAssembly (Emscripten)          __EMSCRIPTEN__
 //   Fuchsia                           __Fuchsia__
 //   WebAssembly (WASI)                _WASI_EMULATED_MMAN (implies __wasi__)
+//   GNU/Hurd                          __GNU__
 //
 // Note that since Android defines both __ANDROID__ and __linux__, one
 // may probe for either Linux or Android by simply testing for __linux__.
@@ -379,7 +380,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     defined(__EMSCRIPTEN__) || defined(__Fuchsia__) || defined(__sun) ||  \
     defined(__myriad2__) || defined(__HAIKU__) || defined(__OpenBSD__) || \
     defined(__NetBSD__) || defined(__QNX__) || defined(__VXWORKS__) ||    \
-    defined(__hexagon__) || defined(__XTENSA__) ||                        \
+    defined(__hexagon__) || defined(__XTENSA__) || defined(__GNU__) ||    \
     defined(_WASI_EMULATED_MMAN)
 #define ABSL_HAVE_MMAP 1
 #endif
@@ -427,7 +428,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // platforms.
 #ifdef ABSL_HAVE_SEMAPHORE_H
 #error ABSL_HAVE_SEMAPHORE_H cannot be directly set
-#elif defined(__linux__) || defined(__ros__) || defined(__VXWORKS__)
+#elif defined(__linux__) || defined(__ros__) || defined(__VXWORKS__) || defined(__GNU__)
 #define ABSL_HAVE_SEMAPHORE_H 1
 #endif
 
