@@ -25,6 +25,10 @@
 #include "absl/log/initialize.h"
 #include "absl/log/internal/globals.h"
 
+#if defined(ABSL_HAVE_ALARM)
+#include <signal.h>
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
