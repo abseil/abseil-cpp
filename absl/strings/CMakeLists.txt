@@ -1314,6 +1314,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::base
+    absl::cleanup
     absl::config
     absl::flat_hash_map
     absl::generic_printer_internal
