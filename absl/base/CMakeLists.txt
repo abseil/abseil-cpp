@@ -637,6 +637,19 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    cpu_detect_test
+  SRCS
+    "internal/cpu_detect_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base_cpu_detect
+    absl::config
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
     low_level_alloc_test
   SRCS
     "internal/low_level_alloc_test.cc"

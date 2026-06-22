@@ -63,6 +63,9 @@ CpuType GetCpuType();
 // tuning.
 bool SupportsArmCRC32PMULL();
 
+// Returns whether the host CPU supports BMI2 instructions.
+bool SupportsBmi2();
+
 // Returns whether the host CPU supports simultaneous multithreading (SMT) and
 // if it is enabled.
 bool IsSMTEnabled();

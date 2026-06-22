@@ -768,6 +768,20 @@ cc_test(
 )
 
 cc_test(
+    name = "cpu_detect_test",
+    size = "small",
+    srcs = ["internal/cpu_detect_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":config",
+        ":cpu_detect",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "low_level_alloc_test",
     size = "medium",
     srcs = ["internal/low_level_alloc_test.cc"],

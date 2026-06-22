@@ -253,6 +253,16 @@ CpuType GetCpuType() {
 
 bool SupportsArmCRC32PMULL() { return false; }
 
+bool SupportsBmi2() {
+  int cpu_info[4];
+  __cpuid(cpu_info, 0);
+  if (cpu_info[0] < 7) {
+    return false;
+  }
+  __cpuidex(cpu_info, 7, 0);
+  return (cpu_info[1] & (1 << 8)) != 0;
+}
+
 #elif defined(__aarch64__) && defined(__linux__)
 
 #ifndef HWCAP_CPUID
@@ -322,6 +332,8 @@ bool SupportsArmCRC32PMULL() {
 #endif
 }
 
+bool SupportsBmi2() { return false; }
+
 #elif defined(__aarch64__) && defined(__APPLE__)
 
 CpuType GetCpuType() { return CpuType::kUnknown; }
@@ -365,11 +377,15 @@ bool SupportsArmCRC32PMULL() {
   return true;
 }
 
+bool SupportsBmi2() { return false; }
+
 #else
 
 CpuType GetCpuType() { return CpuType::kUnknown; }
 
 bool SupportsArmCRC32PMULL() { return false; }
+
+bool SupportsBmi2() { return false; }
 
 #endif
 
