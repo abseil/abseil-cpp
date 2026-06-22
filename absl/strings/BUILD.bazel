@@ -1259,6 +1259,7 @@ cc_test(
         ":pow10_helper",
         ":strings",
         "//absl/base:config",
+        "//absl/cleanup",
         "//absl/log",
         "//absl/numeric:int128",
         "//absl/random",

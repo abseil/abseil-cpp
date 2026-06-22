@@ -22,6 +22,7 @@
 #include <cfloat>
 #include <cinttypes>
 #include <climits>
+#include <clocale>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -39,6 +40,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/random/random.h"
@@ -1716,6 +1718,37 @@ class SimpleDtoaTest : public testing::Test {
 
   fenv_t fp_env_;
 };
+
+TEST(SimpleDtoa, HighPrecisionIsLocaleIndependent) {
+  // absl::HighPrecision(double) routes through RoundTripDoubleToBuffer(), which
+  // used to leak the global C locale's radix character (e.g. ',' under de_DE)
+  // into its output.  HighPrecision() promises a value that SimpleAtod() reads
+  // back exactly, and SimpleAtod() only accepts '.', so the radix must stay '.'
+  // regardless of the active locale.
+  std::string old_locale = setlocale(LC_NUMERIC, nullptr);
+  auto restore_locale =
+      absl::MakeCleanup([&] { setlocale(LC_NUMERIC, old_locale.c_str()); });
+  const char* comma_locales[] = {"de_DE.UTF-8", "de_DE", "fr_FR.UTF-8", "fr_FR",
+                                 "nl_NL.UTF-8"};
+  bool changed = false;
+  for (const char* loc : comma_locales) {
+    if (setlocale(LC_NUMERIC, loc) != nullptr) {
+      changed = true;
+      break;
+    }
+  }
+  if (!changed) {
+    GTEST_SKIP() << "No comma-radix locale available on this system.";
+  }
+  EXPECT_EQ(absl::StrCat(absl::HighPrecision(0.5)), "0.5");
+  EXPECT_EQ(absl::StrCat(absl::HighPrecision(-1.25)), "-1.25");
+  EXPECT_EQ(absl::StrCat(absl::HighPrecision(3.14159265358979)),
+            "3.14159265358979");
+  double parsed = 0;
+  EXPECT_TRUE(
+      absl::SimpleAtod(absl::StrCat(absl::HighPrecision(0.1)), &parsed));
+  EXPECT_EQ(parsed, 0.1);
+}
 
 // Run the given runnable functor for "cases" test cases, chosen over the
 // available range of float.  pi and e and 1/e are seeded, and then all

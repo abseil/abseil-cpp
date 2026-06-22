@@ -21,6 +21,7 @@
 #include <array>
 #include <cassert>
 #include <cfloat>  // for DBL_DIG and FLT_DIG
+#include <clocale>  // for localeconv
 #include <cmath>   // for HUGE_VAL
 #include <cstdint>
 #include <cstdio>
@@ -447,6 +448,30 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     // Should never overflow; see above.
     ABSL_ASSERT(snprintf_result > 0 &&
                 snprintf_result < numbers_internal::kFastToBufferSize);
+  }
+
+  // snprintf() writes the radix character chosen by the global C locale's
+  // LC_NUMERIC category, so a process that has called setlocale() can end up
+  // with a separator other than '.' here. The rest of Abseil's float formatting
+  // (RoundTripFloatToBuffer, SixDigitsToBuffer) is locale- independent and
+  // SimpleAtod() only accepts '.', so rewrite the radix back to '.' to keep
+  // absl::HighPrecision(double) locale-independent and round-trippable through
+  // SimpleAtod().
+  // TODO: b/526633099 - Once all supported compilers ship std::to_chars with
+  // floating-point support, use it here for inherent locale independence.
+  const char* radix = localeconv()->decimal_point;
+  // Skip an empty decimal_point (some minimal environments leave it ""), which
+  // would otherwise match the beginning of the buffer and corrupt it.
+  if (radix[0] != '\0' && std::strcmp(radix, ".") != 0) {
+    if (char* p = std::strstr(buffer, radix)) {
+      const size_t radix_len = std::strlen(radix);
+      *p = '.';
+      // A multibyte radix (rare, but possible in some locales) leaves trailing
+      // bytes behind; collapse them so the output is a single '.'.
+      if (radix_len > 1) {
+        std::memmove(p + 1, p + radix_len, std::strlen(p + radix_len) + 1);
+      }
+    }
   }
   return buffer;
 }
