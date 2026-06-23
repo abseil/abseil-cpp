@@ -71,11 +71,9 @@ using ::absl::cord_internal::CordRepFlat;
 using ::absl::cord_internal::CordRepSubstring;
 using ::absl::cord_internal::CordzUpdateTracker;
 using ::absl::cord_internal::InlineData;
+using ::absl::cord_internal::kMaxBytesToCopy;
 using ::absl::cord_internal::kMaxFlatLength;
 using ::absl::cord_internal::kMinFlatLength;
-
-using ::absl::cord_internal::kInlinedVectorSize;
-using ::absl::cord_internal::kMaxBytesToCopy;
 
 static void DumpNode(CordRep* absl_nonnull nonnull_rep, bool include_data,
                      std::ostream* absl_nonnull os, int indent = 0);
