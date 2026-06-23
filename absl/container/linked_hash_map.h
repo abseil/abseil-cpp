@@ -219,14 +219,15 @@ class linked_hash_map {
                         alloc) {}
 
   linked_hash_map(const linked_hash_map& other)
-      : linked_hash_map(other.bucket_count(), other.hash_function(),
-                        other.key_eq(), other.get_allocator()) {
+      : linked_hash_map(0, other.hash_function(), other.key_eq(),
+                        other.get_allocator()) {
+    reserve(other.size());
     CopyFrom(other);
   }
 
   linked_hash_map(const linked_hash_map& other, const allocator_type& alloc)
-      : linked_hash_map(other.bucket_count(), other.hash_function(),
-                        other.key_eq(), alloc) {
+      : linked_hash_map(0, other.hash_function(), other.key_eq(), alloc) {
+    reserve(other.size());
     CopyFrom(other);
   }
 
@@ -250,8 +251,9 @@ class linked_hash_map {
   linked_hash_map& operator=(const linked_hash_map& other) {
     if (this != &other) {
       // Make a new set, with other's hash/eq/alloc.
-      set_ = SetType(other.bucket_count(), other.set_.hash_function(),
-                     other.set_.key_eq(), other.get_allocator());
+      set_ = SetType(0, other.set_.hash_function(), other.set_.key_eq(),
+                     other.get_allocator());
+      set_.reserve(other.size());
       // Copy the list, with other's allocator.
       list_ = ListType(other.get_allocator());
       CopyFrom(other);
@@ -272,6 +274,7 @@ class linked_hash_map {
 
   linked_hash_map& operator=(std::initializer_list<value_type> values) {
     clear();
+    reserve(values.size());
     insert(values.begin(), values.end());
     return *this;
   }
