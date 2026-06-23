@@ -12,6 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// To prevent compiler memory exhaustion (OOM / Killed signal terminates
+// cc1plus) during parallel builds with GCC, the test suite instantiations have
+// been split into two separate compilation units: any_invocable_test_inst1.cc
+// and any_invocable_test_inst2.cc. The test definitions remain here in this
+// header.
+
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
+#ifndef ABSL_FUNCTIONAL_ANY_INVOCABLE_TEST_H_
+#define ABSL_FUNCTIONAL_ANY_INVOCABLE_TEST_H_
+
 #include "absl/functional/any_invocable.h"
 
 #include <cstddef>
@@ -33,7 +44,7 @@ static_assert(absl::internal_any_invocable::kStorageSize >= sizeof(void*),
               "These tests assume that the small object storage is at least "
               "the size of a pointer.");
 
-namespace {
+namespace absl_any_invocable_test {
 
 // A dummy type we use when passing qualifiers to metafunctions
 struct _ {};
@@ -283,11 +294,15 @@ struct add<Movable::nothrow, Destructibility, Qual, CallExceptionSpec, Size,
 };
 
 // Actual non-member functions rather than function objects
-Int add_function(Int&& a, int b, int c) noexcept { return a.value + b + c; }
+inline Int add_function(Int&& a, int b, int c) noexcept {
+  return a.value + b + c;
+}
 
-Int mult_function(Int&& a, int b, int c) noexcept { return a.value * b * c; }
+inline Int mult_function(Int&& a, int b, int c) noexcept {
+  return a.value * b * c;
+}
 
-Int square_function(Int const&& a) noexcept { return a.value * a.value; }
+inline Int square_function(Int const&& a) noexcept { return a.value * a.value; }
 
 template <class Sig>
 using AnyInvocable = absl::AnyInvocable<Sig>;
@@ -1525,24 +1540,6 @@ REGISTER_TYPED_TEST_SUITE_P(
     MoveConstructionFromNonEmpty, ComparisonWithNullptrEmpty,
     ComparisonWithNullptrNonempty, ResultType);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(
-    NonRvalueCallMayThrow, AnyInvTestBasic,
-    TestParameterListNonRvalueQualifiersCallMayThrow);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallMayThrow, AnyInvTestBasic,
-                               TestParameterListRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteMovable, AnyInvTestBasic,
-                               TestParameterListRemoteMovable);
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteNonMovable, AnyInvTestBasic,
-                               TestParameterListRemoteNonMovable);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(Local, AnyInvTestBasic, TestParameterListLocal);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(NonRvalueCallNothrow, AnyInvTestBasic,
-                               TestParameterListNonRvalueQualifiersNothrowCall);
-INSTANTIATE_TYPED_TEST_SUITE_P(CallNothrowRvalue, AnyInvTestBasic,
-                               TestParameterListRvalueQualifiersNothrowCall);
-
 // Tests for functions that take two operands.
 REGISTER_TYPED_TEST_SUITE_P(
     AnyInvTestCombinatoric, MoveAssignEmptyEmptyLhsRhs,
@@ -1562,25 +1559,6 @@ REGISTER_TYPED_TEST_SUITE_P(
     SwapEmptyLhsNonemptyRhs, SwapNonemptyLhsEmptyRhs,
     SwapNonemptyLhsNonemptyRhs);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(
-    NonRvalueCallMayThrow, AnyInvTestCombinatoric,
-    TestParameterListNonRvalueQualifiersCallMayThrow);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallMayThrow, AnyInvTestCombinatoric,
-                               TestParameterListRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteMovable, AnyInvTestCombinatoric,
-                               TestParameterListRemoteMovable);
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteNonMovable, AnyInvTestCombinatoric,
-                               TestParameterListRemoteNonMovable);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(Local, AnyInvTestCombinatoric,
-                               TestParameterListLocal);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(NonRvalueCallNothrow, AnyInvTestCombinatoric,
-                               TestParameterListNonRvalueQualifiersNothrowCall);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallNothrow, AnyInvTestCombinatoric,
-                               TestParameterListRvalueQualifiersNothrowCall);
-
 REGISTER_TYPED_TEST_SUITE_P(AnyInvTestMovable,
                             ConversionConstructionUserDefinedType,
                             ConversionConstructionVoidCovariance,
@@ -1588,70 +1566,19 @@ REGISTER_TYPED_TEST_SUITE_P(AnyInvTestMovable,
                             ConversionAssignUserDefinedTypeNonemptyLhs,
                             ConversionAssignVoidCovariance);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(
-    NonRvalueCallMayThrow, AnyInvTestMovable,
-    TestParameterListNonRvalueQualifiersCallMayThrow);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallMayThrow, AnyInvTestMovable,
-                               TestParameterListRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteMovable, AnyInvTestMovable,
-                               TestParameterListRemoteMovable);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(Local, AnyInvTestMovable,
-                               TestParameterListLocal);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(NonRvalueCallNothrow, AnyInvTestMovable,
-                               TestParameterListNonRvalueQualifiersNothrowCall);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallNothrow, AnyInvTestMovable,
-                               TestParameterListRvalueQualifiersNothrowCall);
-
 REGISTER_TYPED_TEST_SUITE_P(AnyInvTestNoexceptFalse,
                             ConversionConstructionConstraints,
                             ConversionAssignConstraints);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(
-    NonRvalueCallMayThrow, AnyInvTestNoexceptFalse,
-    TestParameterListNonRvalueQualifiersCallMayThrow);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallMayThrow, AnyInvTestNoexceptFalse,
-                               TestParameterListRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteMovable, AnyInvTestNoexceptFalse,
-                               TestParameterListRemoteMovable);
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteNonMovable, AnyInvTestNoexceptFalse,
-                               TestParameterListRemoteNonMovable);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(Local, AnyInvTestNoexceptFalse,
-                               TestParameterListLocal);
-
 REGISTER_TYPED_TEST_SUITE_P(AnyInvTestNoexceptTrue,
                             ConversionConstructionConstraints,
                             ConversionAssignConstraints);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(NonRvalueCallNothrow, AnyInvTestNoexceptTrue,
-                               TestParameterListNonRvalueQualifiersNothrowCall);
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallNothrow, AnyInvTestNoexceptTrue,
-                               TestParameterListRvalueQualifiersNothrowCall);
 
 REGISTER_TYPED_TEST_SUITE_P(AnyInvTestNonRvalue,
                             ConversionConstructionReferenceWrapper,
                             NonMoveableResultType,
                             ConversionAssignReferenceWrapperEmptyLhs,
                             ConversionAssignReferenceWrapperNonemptyLhs);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(
-    NonRvalueCallMayThrow, AnyInvTestNonRvalue,
-    TestParameterListNonRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteMovable, AnyInvTestNonRvalue,
-                               TestParameterListRemoteMovable);
-INSTANTIATE_TYPED_TEST_SUITE_P(RemoteNonMovable, AnyInvTestNonRvalue,
-                               TestParameterListRemoteNonMovable);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(Local, AnyInvTestNonRvalue,
-                               TestParameterListLocal);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(NonRvalueCallNothrow, AnyInvTestNonRvalue,
-                               TestParameterListNonRvalueQualifiersNothrowCall);
 
 REGISTER_TYPED_TEST_SUITE_P(AnyInvTestRvalue,
                             ConversionConstructionReferenceWrapper,
@@ -1660,16 +1587,12 @@ REGISTER_TYPED_TEST_SUITE_P(AnyInvTestRvalue,
                             NonConstCrashesOnSecondCall,
                             QualifierIndependentObjectLifetime);
 
-INSTANTIATE_TYPED_TEST_SUITE_P(RvalueCallMayThrow, AnyInvTestRvalue,
-                               TestParameterListRvalueQualifiersCallMayThrow);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(CallNothrowRvalue, AnyInvTestRvalue,
-                               TestParameterListRvalueQualifiersNothrowCall);
-
 // Minimal SFINAE testing for platforms where we can't run the tests, but we can
 // build binaries for.
 static_assert(std::is_convertible_v<void (*)(), absl::AnyInvocable<void() &&>>,
               "");
 static_assert(!std::is_convertible_v<void*, absl::AnyInvocable<void() &&>>, "");
 
-}  // namespace
+}  // namespace absl_any_invocable_test
+
+#endif  // ABSL_FUNCTIONAL_ANY_INVOCABLE_TEST_H_

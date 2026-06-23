@@ -36,8 +36,9 @@ absl_cc_test(
   NAME
     any_invocable_test
   SRCS
-    "any_invocable_test.cc"
-    "internal/any_invocable.h"
+    "any_invocable_test.h"
+    "any_invocable_test_inst1.cc"
+    "any_invocable_test_inst2.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
