@@ -1617,12 +1617,12 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":generic_printer",
+        ":str_format",
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/cleanup",
         "//absl/container:flat_hash_map",
-        "//absl/log",
         "//absl/status",
         "//absl/status:statusor",
         "@googletest//:gtest",

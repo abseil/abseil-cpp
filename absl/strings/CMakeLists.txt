@@ -1319,9 +1319,9 @@ absl_cc_test(
     absl::config
     absl::flat_hash_map
     absl::generic_printer_internal
-    absl::log
     absl::status
     absl::statusor
+    absl::str_format
     absl::strings
     GTest::gmock_main
 )
