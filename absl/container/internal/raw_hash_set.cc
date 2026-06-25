@@ -76,15 +76,16 @@ void ValidateMaxCapacity(size_t capacity, size_t key_size, size_t slot_size) {
 
 // Returns "random" seed.
 inline size_t RandomSeed() {
+  constexpr size_t kIncrement = 0xad53;
 #ifdef ABSL_HAVE_THREAD_LOCAL
   static thread_local size_t counter = 0;
-  size_t value = ++counter;
+  counter += kIncrement;
+  size_t value = counter;
 #else   // ABSL_HAVE_THREAD_LOCAL
   static std::atomic<size_t> counter(0);
-  size_t value = counter.fetch_add(1, std::memory_order_relaxed);
+  size_t value = counter.fetch_add(kIncrement, std::memory_order_relaxed);
 #endif  // ABSL_HAVE_THREAD_LOCAL
-  return (value * size_t{0xad53}) ^
-         static_cast<size_t>(reinterpret_cast<uintptr_t>(&counter));
+  return value ^ static_cast<size_t>(reinterpret_cast<uintptr_t>(&counter));
 }
 
 bool ShouldRehashForBugDetection(size_t capacity) {
