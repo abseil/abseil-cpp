@@ -83,7 +83,8 @@ inline size_t RandomSeed() {
   static std::atomic<size_t> counter(0);
   size_t value = counter.fetch_add(1, std::memory_order_relaxed);
 #endif  // ABSL_HAVE_THREAD_LOCAL
-  return value ^ static_cast<size_t>(reinterpret_cast<uintptr_t>(&counter));
+  return (value * size_t{0xad53}) ^
+         static_cast<size_t>(reinterpret_cast<uintptr_t>(&counter));
 }
 
 bool ShouldRehashForBugDetection(size_t capacity) {
@@ -138,10 +139,7 @@ inline void* PrevSlot(void* slot, size_t slot_size) {
 // which is caused by non-constexpr initialization.
 uint16_t NextHashTableSeed() {
   static_assert(PerTableSeed::kBitCount <= 16);
-  thread_local uint16_t seed =
-      static_cast<uint16_t>(reinterpret_cast<uintptr_t>(&seed));
-  seed += uint16_t{0xad53};
-  return seed;
+  return static_cast<uint16_t>(RandomSeed());
 }
 
 GenerationType* EmptyGeneration() {
