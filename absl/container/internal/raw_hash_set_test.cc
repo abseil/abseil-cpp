@@ -1569,6 +1569,65 @@ TEST(Table, ReservedTableRehashWithoutGrowthWorksWell) {
   }
 }
 
+// This test verifies that we don't rehash in place when we insert an element
+// above the growth left threshold. Otherwise we may end up with zero empty
+// slots. That would cause hard to debug infinite loop in `find`.
+// This test do the following:
+// 1. Reserve a table with `kReserveSize` elements.
+// 2. Insert `Group::kWidth` elements to fill the first group (due to bad hash
+//    function all elements are inserted into the same group).
+// 3. Erase one element to create tombstone.
+// 4. Insert the same element back. But GrowthInfo still assumes that we may
+//    have a tombstone in the table.
+// 5. Insert one more element, which should cause a rehash and growth.
+TEST(Table,
+     ReservedTableResizeNotRehashInplaceIfInsertingElementAboveGrowthLeft) {
+  if (SwisstableGenerationsEnabled()) {
+    GTEST_SKIP() << "Generations enabled, so rehash happens earlier.\n"
+                 << "Note that reservation doesn't prevent rehashing since we "
+                    "are erasing one element.";
+  }
+  constexpr int64_t kCoef = 17;
+  constexpr size_t kCapacity = 31;
+  constexpr size_t kReserveSize =
+      CapacityToGrowth(kCapacity) - kMaxBlockedElementsForLargeTables;
+
+  BadTwoValuesHashTable t(0,
+                          // Negative number goes to the end of the table.
+                          BadTwoValuesHash(kReserveSize + 2));
+  // Remove seed to make table layout deterministic.
+  RawHashSetTestOnlyAccess::GetCommon(t).set_no_seed_for_testing();
+
+  t.reserve(kReserveSize);
+  for (int64_t i = 0; i < static_cast<int64_t>(Group::kWidth); ++i) {
+    ASSERT_TRUE(t.insert(i * kCoef).second);
+  }
+  EXPECT_EQ(t.erase(kCoef), 1);
+  EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 1);
+  EXPECT_TRUE(t.insert(kCoef).second);
+  EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 0);
+  // We want to test codepath deciding whether to rehash in place or not.
+  // For this we need to potentially have tombstone.
+  EXPECT_FALSE(RawHashSetTestOnlyAccess::GetCommon(t)
+                   .growth_info()
+                   .GetGrowthInfoLowerBound()
+                   .HasNoDeleted());
+  for (int64_t i = static_cast<int64_t>(Group::kWidth);
+       i < static_cast<int64_t>(kReserveSize); ++i) {
+    ASSERT_TRUE(t.insert(i * kCoef).second);
+  }
+  EXPECT_EQ(t.size(), kReserveSize);
+  EXPECT_EQ(t.capacity(), kCapacity);
+  EXPECT_TRUE(t.insert(-57).second);
+  EXPECT_EQ(t.size(), kReserveSize + 1);
+  EXPECT_EQ(RawHashSetTestOnlyAccess::CountTombstones(t), 0);
+  EXPECT_EQ(t.capacity(), NextCapacity(kCapacity));
+  for (int64_t i = 0; i < static_cast<int64_t>(kReserveSize); ++i) {
+    ASSERT_TRUE(t.contains(i * kCoef));
+  }
+  EXPECT_TRUE(t.contains(-57));
+}
+
 TYPED_TEST(SooTest, EraseInSmallTables) {
   for (int64_t size = 0; size < 64; ++size) {
     TypeParam t;

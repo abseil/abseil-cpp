@@ -367,10 +367,6 @@ inline bool IsEmptyGeneration(const GenerationType* generation) {
 constexpr size_t SooCapacity() { return 1; }
 // Maximum capacity of a table where we don't need to hash any keys.
 constexpr size_t MaxSmallCapacity() { return 1; }
-// Maximum capacity of a table where we can use blocked elements.
-constexpr size_t MaxCapacityWithBlockedElements() {
-  return Group::kWidth - 1;
-}
 // Sentinel type to indicate SOO CommonFields construction.
 struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
@@ -401,7 +397,7 @@ constexpr bool is_single_group(size_t capacity) {
 // Whether `cap` is a valid capacity for a table that can store blocked
 // elements.
 constexpr bool IsCapacityValidForBlockedElements(size_t cap) {
-  return !IsSmallCapacity(cap) && cap <= MaxCapacityWithBlockedElements();
+  return !IsSmallCapacity(cap);
 }
 
 // Converts `n` into the next valid capacity, per `IsValidCapacity`.
@@ -778,6 +774,12 @@ using HashtableInlineData = HashtableInlineDataImpl<kCapacityByValue>;
 #endif  // ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
 using PerTableSeed = HashtableInlineData::PerTableSeed;
 using HashtableCapacity = HashtableInlineData::HashtableCapacity;
+
+// For large tables, we limit the number of blocked elements to maintain O(1)
+// average case lookup complexity.
+constexpr size_t kMaxBlockedElementsForLargeTables = 5;
+static_assert(kMaxBlockedElementsForLargeTables <=
+              HashtableInlineData::kMaxBlockedElementCount);
 
 // H1 is just the low bits of the hash.
 inline size_t H1(size_t hash) { return hash; }
