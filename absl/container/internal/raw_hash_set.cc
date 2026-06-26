@@ -498,45 +498,45 @@ inline void DoSanitizeOnSetCtrl(const CommonFields& c, size_t i, ctrl_t h,
 //
 // Unlike setting it directly, this function will perform bounds checks and
 // mirror the value to the cloned tail if necessary.
+inline void SetCtrlNoSanitizeImpl(const CommonFields& c, size_t i, ctrl_t h) {
+  ABSL_SWISSTABLE_ASSERT(i < c.capacity());
+  ctrl_t* ctrl = c.control();
+  const size_t cap = c.capacity();
+  ctrl[i] = h;
+  ctrl[((i - NumClonedBytes()) & cap) + (NumClonedBytes() & cap)] = h;
+}
+
 inline void SetCtrl(const CommonFields& c, size_t i, ctrl_t h,
                     size_t slot_size) {
   ABSL_SWISSTABLE_ASSERT(!c.is_small());
   DoSanitizeOnSetCtrl(c, i, h, slot_size);
-  ctrl_t* ctrl = c.control();
-  ctrl[i] = h;
-  ctrl[((i - NumClonedBytes()) & c.capacity()) +
-       (NumClonedBytes() & c.capacity())] = h;
+  SetCtrlNoSanitizeImpl(c, i, h);
 }
 // Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
 inline void SetCtrl(const CommonFields& c, size_t i, h2_t h, size_t slot_size) {
   SetCtrl(c, i, static_cast<ctrl_t>(h), slot_size);
 }
 
-inline void SetCtrlInSingleGroupTableNoSanitizeImpl(const CommonFields& c,
-                                                    size_t i, ctrl_t h) {
-  ABSL_SWISSTABLE_ASSERT(!c.is_small());
-  ABSL_SWISSTABLE_ASSERT(is_single_group(c.capacity()));
-  ctrl_t* ctrl = c.control();
-  ctrl[i] = h;
-  ctrl[i + c.capacity() + 1] = h;
-}
-
-// Sets `ctrl[i]` to `ctrl_t::kSentinel` in single group table.
+// Sets `ctrl[i]` to `ctrl_t::kSentinel`.
 //
 // Unlike setting it directly, this function will perform bounds checks and
 // mirror the value to the cloned tail if necessary.
-inline void BlockCtrlInSingleGroupTable(const CommonFields& c, size_t i) {
-  SetCtrlInSingleGroupTableNoSanitizeImpl(c, i, ctrl_t::kSentinel);
+inline void BlockCtrl(const CommonFields& c, size_t i) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small());
+  SetCtrlNoSanitizeImpl(c, i, ctrl_t::kSentinel);
 }
 
 // Like SetCtrl, but in a single group table, we can save some operations when
 // setting the cloned control byte.
 inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, ctrl_t h,
                                       size_t slot_size) {
+  const size_t cap = c.capacity();
   ABSL_SWISSTABLE_ASSERT(!c.is_small());
-  ABSL_SWISSTABLE_ASSERT(is_single_group(c.capacity()));
+  ABSL_SWISSTABLE_ASSERT(is_single_group(cap));
   DoSanitizeOnSetCtrl(c, i, h, slot_size);
-  SetCtrlInSingleGroupTableNoSanitizeImpl(c, i, h);
+  ctrl_t* ctrl = c.control();
+  ctrl[i] = h;
+  ctrl[i + cap + 1] = h;
 }
 // Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
 inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, h2_t h,
@@ -558,6 +558,14 @@ inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, ctrl_t h,
 inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, h2_t h,
                                 size_t slot_size) {
   SetCtrlInLargeTable(c, i, static_cast<ctrl_t>(h), slot_size);
+}
+
+void BlockControlBytes(CommonFields& common, size_t blocked_element_count) {
+  const size_t capacity = common.capacity();
+  while (blocked_element_count > 0) {
+    BlockCtrl(common, capacity - blocked_element_count);
+    --blocked_element_count;
+  }
 }
 
 size_t DropDeletesWithoutResizeAndPrepareInsert(
@@ -585,7 +593,9 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(
   //       mark target as FULL
   //       repeat procedure for current slot with moved from element (target)
   ctrl_t* ctrl = common.control();
+  const size_t blocked_element_count = common.blocked_element_count();
   ConvertDeletedToEmptyAndFullToDeleted(ctrl, capacity);
+  BlockControlBytes(common, blocked_element_count);
   const void* hash_fn = policy.hash_fn(common);
   auto hasher = policy.hash_slot;
   auto transfer_n = policy.transfer_n;
@@ -662,8 +672,8 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(
   }
   // Prepare insert for the new element.
   PrepareInsertCommon(common);
-  ABSL_SWISSTABLE_ASSERT(common.blocked_element_count() == 0);
-  ResetGrowthLeft(common.growth_info(), capacity, common.size());
+  ResetGrowthLeft(common.growth_info(), capacity,
+                  common.size() + blocked_element_count);
   FindInfo find_info = find_first_non_full(common, new_hash);
   SetCtrlInLargeTable(common, find_info.offset, H2(new_hash), slot_size);
   common.infoz().RecordInsertMiss(new_hash, find_info.probe_length);
@@ -715,10 +725,7 @@ void ResetCtrl(CommonFields& common, size_t slot_size,
   ctrl[capacity] = ctrl_t::kSentinel;
   SanitizerPoisonMemoryRegion(common.slot_array(),
                               slot_size * (capacity - blocked_element_count));
-  while (blocked_element_count > 0) {
-    BlockCtrlInSingleGroupTable(common, capacity - blocked_element_count);
-    --blocked_element_count;
-  }
+  BlockControlBytes(common, blocked_element_count);
 }
 
 // Initializes control bytes for growing from capacity 1 to 3.
@@ -1874,11 +1881,13 @@ ABSL_ATTRIBUTE_NOINLINE
 size_t RehashOrGrowToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
+  ABSL_SWISSTABLE_ASSERT(
+      !common.growth_info().GetGrowthInfoLowerBound().HasNoDeleted());
   const size_t cap = common.capacity();
   ABSL_ASSUME(cap > 0);
-  if (cap > Group::kWidth &&
-      // Do these calculations in 64-bit to avoid overflow.
-      common.size() * uint64_t{32} <= cap * uint64_t{25}) {
+  // Do these calculations in 64-bit to avoid overflow.
+  if (common.size() * uint64_t{32} <=
+      (cap - kMaxBlockedElementsForLargeTables) * uint64_t{25}) {
     // Squash DELETED without growing if there is enough capacity.
     //
     // Rehash in place if the current size is <= 25/32 of capacity.
@@ -1983,15 +1992,17 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
 
 // Returns the number of elements to block for the given capacity and reserved
 // size.
-size_t BlockedElementCount(size_t capacity, size_t reserved_size) {
+size_t BlockedElementCountForReservedTable(size_t capacity,
+                                           size_t reserved_size) {
   if (!IsCapacityValidForBlockedElements(capacity)) {
     return 0;
   }
-  ABSL_SWISSTABLE_ASSERT(is_single_group(capacity));
-  const size_t result = CapacityToGrowth(capacity) - reserved_size;
-  ABSL_SWISSTABLE_ASSERT(result <=
-                         HashtableInlineData::kMaxBlockedElementCount);
-  return result;
+  const size_t blocked_elements = CapacityToGrowth(capacity) - reserved_size;
+  if (is_single_group(capacity)) {
+    // Single group tables never probes, so we can block all the slots.
+    return blocked_elements;
+  }
+  return (std::min)(blocked_elements, kMaxBlockedElementsForLargeTables);
 }
 
 // Resizes empty non-allocated table to the capacity to fit new_size elements.
@@ -2006,9 +2017,10 @@ void ReserveEmptyNonAllocatedTableToFitNewSize(
   ValidateMaxSize(new_size, policy.key_size, policy.slot_size);
   ABSL_ASSUME(new_size > 0);
   const size_t new_capacity = SizeToCapacity(new_size);
-  ResizeEmptyNonAllocatedTableImpl(common, policy, new_capacity,
-                                   BlockedElementCount(new_capacity, new_size),
-                                   /*force_infoz=*/false);
+  ResizeEmptyNonAllocatedTableImpl(
+      common, policy, new_capacity,
+      BlockedElementCountForReservedTable(new_capacity, new_size),
+      /*force_infoz=*/false);
   // This is after resize, to ensure that we have completed the allocation
   // and have potentially sampled the hashtable.
   common.infoz().RecordReservation(new_size);
