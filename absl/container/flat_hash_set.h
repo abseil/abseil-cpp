@@ -71,6 +71,9 @@ struct FlatHashSetPolicy;
 // * Contains a `capacity()` member function indicating the number of element
 //   slots (open, deleted, and empty) within the hash set.
 // * Returns `void` from the `erase(iterator)` overload.
+// * Range constructors (including initializer list) accept reservation size as
+//   an optional argument instead of bucket count. Reservation size is the
+//   number of elements that fits in the set before rehash.
 //
 // By default, `flat_hash_set` uses the `absl::Hash` hashing framework. All
 // fundamental and Abseil types that support the `absl::Hash` framework have a

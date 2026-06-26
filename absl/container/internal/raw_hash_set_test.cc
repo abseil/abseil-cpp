@@ -3379,6 +3379,30 @@ TYPED_TEST(SooTest, RehashZeroForSmallTable) {
   EXPECT_TRUE(t.contains(1));
 }
 
+TYPED_TEST(SooTest, RangeConstructorReservation) {
+  constexpr int kMaxSize = 25;
+  std::vector<int> v;
+  for (int size = 1; size <= kMaxSize; ++size) {
+    v.push_back(size);
+    TypeParam t(v.begin(), v.end());
+    EXPECT_THAT(t, UnorderedElementsAreArray(v));
+    size_t capacity = t.capacity();
+    t.insert(size + 1);
+    auto expected_array = v;
+    expected_array.push_back(size + 1);
+    EXPECT_THAT(t, UnorderedElementsAreArray(expected_array));
+    // Single group tables are making exact reservation.
+    if (static_cast<size_t>(size) <= CapacityToGrowth(Group::kWidth - 1)) {
+      EXPECT_GT(t.capacity(), capacity);
+    }
+  }
+  v.clear();
+  v.push_back(0);
+  TypeParam t(v.begin(), v.end(), /*reservation_size=*/10);
+  EXPECT_GT(t.capacity(), 7);
+  EXPECT_THAT(t, UnorderedElementsAreArray(v));
+}
+
 template <typename T>
 T MakeSimpleTable(size_t size, bool do_reserve) {
   T t;

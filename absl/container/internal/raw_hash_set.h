@@ -1500,17 +1500,26 @@ class raw_hash_set;
 //   ctrl[i] != ctrl_t::kSentinel for all i < capacity
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity);
 
+// A wrapper around size_t that is used to indicate that the size is a
+// reservation size. This is used to differentiate between the reservation size
+// and bucket count. Reservation size is the number of elements that fits in the
+// set before rehash.
+struct ReservationSize {
+  size_t size;
+};
+
 template <class InputIter>
-size_t SelectBucketCountForIterRange(InputIter first, InputIter last,
-                                     size_t bucket_count) {
-  if (bucket_count != 0) {
-    return bucket_count;
+ReservationSize SelectReservationSizeForIterRange(InputIter first,
+                                                  InputIter last,
+                                                  size_t reservation_size) {
+  if (reservation_size != 0) {
+    return ReservationSize{reservation_size};
   }
   if (base_internal::IsAtLeastIterator<std::random_access_iterator_tag,
                                        InputIter>()) {
-    return SizeToCapacity(static_cast<size_t>(std::distance(first, last)));
+    return ReservationSize{static_cast<size_t>(std::distance(first, last))};
   }
-  return 0;
+  return ReservationSize{0};
 }
 
 constexpr bool SwisstableDebugEnabled() {
@@ -2519,6 +2528,7 @@ class raw_hash_set {
       std::is_nothrow_default_constructible_v<allocator_type>) {}
 
   explicit raw_hash_set(
+      // TODO(b/519468416): treat bucket_count as reservation size.
       size_t bucket_count, const hasher& hash = hasher(),
       const key_equal& eq = key_equal(),
       const allocator_type& alloc = allocator_type())
@@ -2542,44 +2552,46 @@ class raw_hash_set {
       : raw_hash_set(0, hasher(), key_equal(), alloc) {}
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t bucket_count = 0,
+  raw_hash_set(InputIter first, InputIter last, size_t reservation_size = 0,
                const hasher& hash = hasher(), const key_equal& eq = key_equal(),
                const allocator_type& alloc = allocator_type())
-      : raw_hash_set(SelectBucketCountForIterRange(first, last, bucket_count),
-                     hash, eq, alloc) {
+      : raw_hash_set(
+            SelectReservationSizeForIterRange(first, last, reservation_size),
+            hash, eq, alloc) {
     insert(first, last);
   }
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t bucket_count,
+  raw_hash_set(InputIter first, InputIter last, size_t reservation_size,
                const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(first, last, bucket_count, hash, key_equal(), alloc) {}
+      : raw_hash_set(first, last, reservation_size, hash, key_equal(), alloc) {}
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t bucket_count,
+  raw_hash_set(InputIter first, InputIter last, size_t reservation_size,
                const allocator_type& alloc)
-      : raw_hash_set(first, last, bucket_count, hasher(), key_equal(), alloc) {}
+      : raw_hash_set(first, last, reservation_size, hasher(), key_equal(),
+                     alloc) {}
 
 #if defined(__cpp_lib_containers_ranges) && \
     __cpp_lib_containers_ranges >= 202202L
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count = 0,
+  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size = 0,
                const hasher& hash = hasher(), const key_equal& eq = key_equal(),
                const allocator_type& alloc = allocator_type())
-      : raw_hash_set(std::begin(rg), std::end(rg), bucket_count, hash, eq,
+      : raw_hash_set(std::begin(rg), std::end(rg), reservation_size, hash, eq,
                      alloc) {}
 
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size,
                const allocator_type& alloc)
-      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count,
+      : raw_hash_set(std::from_range, std::forward<R>(rg), reservation_size,
                      hasher(), key_equal(), alloc) {}
 
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type bucket_count,
+  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size,
                const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(std::from_range, std::forward<R>(rg), bucket_count, hash,
-                     key_equal(), alloc) {}
+      : raw_hash_set(std::from_range, std::forward<R>(rg), reservation_size,
+                     hash, key_equal(), alloc) {}
 #endif
 
   template <class InputIter>
@@ -2609,35 +2621,38 @@ class raw_hash_set {
   // RequiresNotInit<T> is a workaround for gcc prior to 7.1.
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t bucket_count = 0,
+  raw_hash_set(std::initializer_list<T> init, size_t reservation_size = 0,
                const hasher& hash = hasher(), const key_equal& eq = key_equal(),
                const allocator_type& alloc = allocator_type())
-      : raw_hash_set(init.begin(), init.end(), bucket_count, hash, eq, alloc) {}
+      : raw_hash_set(init.begin(), init.end(), reservation_size, hash, eq,
+                     alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init, size_t bucket_count = 0,
-               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
+  raw_hash_set(std::initializer_list<init_type> init,
+               size_t reservation_size = 0, const hasher& hash = hasher(),
+               const key_equal& eq = key_equal(),
                const allocator_type& alloc = allocator_type())
-      : raw_hash_set(init.begin(), init.end(), bucket_count, hash, eq, alloc) {}
+      : raw_hash_set(init.begin(), init.end(), reservation_size, hash, eq,
+                     alloc) {}
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t bucket_count,
+  raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
                const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(init, bucket_count, hash, key_equal(), alloc) {}
+      : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init, size_t bucket_count,
+  raw_hash_set(std::initializer_list<init_type> init, size_t reservation_size,
                const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(init, bucket_count, hash, key_equal(), alloc) {}
+      : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t bucket_count,
+  raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
                const allocator_type& alloc)
-      : raw_hash_set(init, bucket_count, hasher(), key_equal(), alloc) {}
+      : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init, size_t bucket_count,
+  raw_hash_set(std::initializer_list<init_type> init, size_t reservation_size,
                const allocator_type& alloc)
-      : raw_hash_set(init, bucket_count, hasher(), key_equal(), alloc) {}
+      : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
@@ -3343,6 +3358,19 @@ class raw_hash_set {
     // Constructed slot. Either moved into place or destroyed.
     slot_type&& slot;
   };
+
+  explicit raw_hash_set(ReservationSize reservation_size,
+                        const hasher& hash = hasher(),
+                        const key_equal& eq = key_equal(),
+                        const allocator_type& alloc = allocator_type())
+      : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
+                  alloc) {
+    if (reservation_size.size > DefaultCapacity()) {
+      ReserveTableToFitNewSize(
+          common(), GetPolicyFunctions(),
+          (std::min)(reservation_size.size, MaxValidSize()));
+    }
+  }
 
   template <typename... Args>
   void construct(slot_type* slot, Args&&... args) {
