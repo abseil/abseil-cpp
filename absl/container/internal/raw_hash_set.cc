@@ -856,7 +856,7 @@ void ClearBackingArray(CommonFields& c,
                        bool reuse) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > MaxSmallCapacity());
   if (reuse) {
-    size_t blocked_element_count = c.blocked_element_count();
+    const size_t blocked_element_count = c.blocked_element_count();
     c.set_size_to_zero();
     ABSL_SWISSTABLE_ASSERT(c.capacity() > policy.soo_capacity());
     ResetCtrl(c, policy.slot_size, blocked_element_count);
@@ -1093,6 +1093,7 @@ void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
   void* alloc = policy.get_char_alloc(common);
 
   common.set_capacity(new_capacity);
+  common.init_blocked_element_count(blocked_element_count);
   const auto [new_ctrl, new_slots] = AllocBackingArray(
       common, policy, new_capacity, has_infoz, alloc, blocked_element_count);
   common.set_control(new_ctrl);
@@ -1755,6 +1756,7 @@ size_t GrowToNextCapacityAndPrepareInsert(
   size_t old_blocked_element_count = common.blocked_element_count();
 
   common.set_capacity(new_capacity);
+  common.set_blocked_element_count_to_zero();
   const size_t slot_size = policy.slot_size;
   const size_t slot_align = policy.slot_align;
   void* alloc = policy.get_char_alloc(common);
@@ -1986,7 +1988,10 @@ size_t BlockedElementCount(size_t capacity, size_t reserved_size) {
     return 0;
   }
   ABSL_SWISSTABLE_ASSERT(is_single_group(capacity));
-  return CapacityToGrowth(capacity) - reserved_size;
+  const size_t result = CapacityToGrowth(capacity) - reserved_size;
+  ABSL_SWISSTABLE_ASSERT(result <=
+                         HashtableInlineData::kMaxBlockedElementCount);
+  return result;
 }
 
 // Resizes empty non-allocated table to the capacity to fit new_size elements.
@@ -2073,6 +2078,7 @@ void ResizeAllocatedTableWithSeedChange(
   void* alloc = policy.get_char_alloc(common);
 
   common.set_capacity(new_capacity);
+  common.set_blocked_element_count_to_zero();
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
                         /*blocked_element_count=*/0);

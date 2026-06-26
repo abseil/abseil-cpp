@@ -628,7 +628,9 @@ class PerTableSeedImpl {
 
 // Capacity, size and also has additionally
 // 1) one bit that stores whether we have infoz.
-// 2) PerTableSeed::kBitCount bits for the seed. (For SOO tables, the lowest
+// 2) kBlockedElementsBitCount bits that stores number of blocked elements in
+//    the table.
+// 3) PerTableSeed::kBitCount bits for the seed. (For SOO tables, the lowest
 //    bit of the seed is repurposed to track if sampling has been tried).
 template <HashtableCapacityStorageMode StorageMode>
 class HashtableInlineDataImpl {
@@ -637,10 +639,13 @@ class HashtableInlineDataImpl {
   using PerTableSeed = PerTableSeedImpl<
       std::conditional_t<StorageMode == kCapacityByValue, uint16_t, uint8_t>>;
   using HashtableCapacity = HashtableCapacityImpl<StorageMode>;
+  static constexpr size_t kBlockedElementBitCount = 3;
+  static constexpr size_t kMaxBlockedElementCount =
+      (uint64_t{1} << kBlockedElementBitCount) - 1;
   static constexpr size_t kSizeBitCount =
-      StorageMode == kCapacityByValue
-          ? 64 - PerTableSeed::kBitCount - 1
-          : 64 - PerTableSeed::kBitCount - sizeof(HashtableCapacity) * 8 - 1;
+      64 -
+      (kBlockedElementBitCount + PerTableSeed::kBitCount + /*has_infoz*/ 1 +
+       (StorageMode == kCapacityByValue ? 0 : sizeof(HashtableCapacity) * 8));
 
   explicit HashtableInlineDataImpl(uninitialized_tag_t) {}
   explicit HashtableInlineDataImpl(HashtableCapacity capacity,
@@ -706,17 +711,33 @@ class HashtableInlineDataImpl {
   // Sets the has_infoz bit.
   void set_has_infoz() { data_ |= kHasInfozMask; }
 
+  // Returns the number of blocked elements in the table.
+  size_t blocked_element_count() const {
+    return (data_ & kBlockedElementMask) >> kBlockedElementsShift;
+  }
+  // Initializes the number of blocked elements in the table.
+  // Requires:
+  //   1. `blocked_element_count() == 0`.
+  //   2. `count <= kMaxBlockedElementCount`.
+  void init_blocked_element_count(uint64_t count) {
+    ABSL_SWISSTABLE_ASSERT(blocked_element_count() == 0);
+    ABSL_SWISSTABLE_ASSERT(count <= kMaxBlockedElementCount);
+    data_ |= count << kBlockedElementsShift;
+  }
+  void set_blocked_element_count_to_zero() { data_ &= ~kBlockedElementMask; }
+
   void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
 
  private:
   // Bit layout of `data_` from MSB to LSB:
-  // (47 bits)      : size
+  // (44 bits)      : size
+  // (3 bits)       : blocked_element_count
   // (1 bit)        : has_infoz
   // (16 or 8 bits) : seed
   // We don't split these components of `data_` into separate bit field elements
   // because we get worse generated code that way.
   static constexpr size_t kDataBitCount =
-      PerTableSeed::kBitCount + 1 + kSizeBitCount;
+      PerTableSeed::kBitCount + 1 + kSizeBitCount + kBlockedElementBitCount;
   static constexpr size_t kSizeShift = kDataBitCount - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
@@ -724,6 +745,9 @@ class HashtableInlineDataImpl {
       (uint64_t{1} << PerTableSeed::kBitCount) - 1;
   // The next bit after the seed.
   static constexpr uint64_t kHasInfozMask = kSeedMask + 1;
+  static constexpr uint64_t kBlockedElementsShift = PerTableSeed::kBitCount + 1;
+  static constexpr uint64_t kBlockedElementMask = kMaxBlockedElementCount
+                                                  << kBlockedElementsShift;
   // For SOO tables, the seed is unused, and bit 0 is repurposed to track
   // whether the table has already queried should_sample_soo().
   static constexpr uint64_t kSooHasTriedSamplingMask = 1;
@@ -1383,19 +1407,17 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // corresponding slots.
   // Control bytes are set to kSentinel for blocked elements.
   size_t blocked_element_count() const {
-    size_t cap = capacity();
-    if (!IsCapacityValidForBlockedElements(cap)) {
-      return 0;
-    }
-    ABSL_SWISSTABLE_ASSERT(is_single_group(cap));
-    // Formula is valid because MaxCapacityWithBlockedElements is less than
-    // group width. On erase for single group tables, we always increment the
-    // growth left.
-    ABSL_SWISSTABLE_ASSERT(cap <=
-                           GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
-    return CapacityToGrowth(cap) - size() -
-           // We can use lower bound here because capacity is small.
-           growth_info().GetGrowthLeftLowerBound();
+    return inline_data_.blocked_element_count();
+  }
+  // Initializes the number of blocked elements in the table.
+  // Requires:
+  //   1. `blocked_element_count() == 0`.
+  //   2. `count <= kMaxBlockedElementCount`.
+  void init_blocked_element_count(size_t count) {
+    inline_data_.init_blocked_element_count(count);
+  }
+  void set_blocked_element_count_to_zero() {
+    inline_data_.set_blocked_element_count_to_zero();
   }
 
   // The size of the backing array allocation.

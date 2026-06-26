@@ -762,6 +762,42 @@ TYPED_TEST(HashtableDataTest, HashtableInlineDataSize) {
   EXPECT_TRUE(data.has_infoz());
 }
 
+TYPED_TEST(HashtableDataTest, BlockedElementCount) {
+  constexpr HashtableCapacityStorageMode kMode = TypeParam::value;
+  using InlineData = HashtableInlineDataImpl<kMode>;
+  using Capacity = HashtableCapacityImpl<kMode>;
+
+  {
+    InlineData data(Capacity(0), no_seed_empty_tag_t{});
+    EXPECT_EQ(data.blocked_element_count(), 0);
+  }
+
+  for (size_t i = 0; i <= InlineData::kMaxBlockedElementCount; ++i) {
+    InlineData data(Capacity(0), no_seed_empty_tag_t{});
+    data.init_blocked_element_count(i);
+    EXPECT_EQ(data.blocked_element_count(), i);
+    data.set_blocked_element_count_to_zero();
+    EXPECT_EQ(data.blocked_element_count(), 0);
+  }
+}
+
+TYPED_TEST(HashtableDataTest, MaxStorableSize) {
+  constexpr HashtableCapacityStorageMode kMode = TypeParam::value;
+  using InlineData = HashtableInlineDataImpl<kMode>;
+  using Capacity = HashtableCapacityImpl<kMode>;
+
+  InlineData data(Capacity(0), no_seed_empty_tag_t{});
+  constexpr uint64_t kMaxSize =
+      sizeof(size_t) == 4 ? ~uint32_t{}
+                          : (uint64_t{1} << InlineData::kSizeBitCount) - 1;
+  data.init_blocked_element_count(3);
+  data.increment_size(kMaxSize);
+  EXPECT_EQ(data.size(), kMaxSize);
+  // We didn't overwrite other fields.
+  EXPECT_FALSE(data.has_infoz());
+  EXPECT_EQ(data.blocked_element_count(), 3);
+}
+
 TYPED_TEST(HashtableDataTest, HashtableInlineDataMetadata) {
   constexpr HashtableCapacityStorageMode kMode = TypeParam::value;
   using InlineData = HashtableInlineDataImpl<kMode>;
