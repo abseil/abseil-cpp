@@ -1383,7 +1383,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
 constexpr size_t kNoMarkedElementsSentinel = ~size_t{};
 
 // Process probed elements that did not fit into available buffers.
-// We marked them in control bytes as kSentinel.
+// We marked them in control bytes as kMarkedForSlowTransfer.
 // Hash recomputation and full probing is done here.
 // This use case should be extremely rare.
 ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
@@ -1398,7 +1398,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
   auto transfer_n = policy.transfer_n;
   const size_t seed = c.seed().seed();
   for (size_t old_index = start; old_index < old_capacity; ++old_index) {
-    if (old_ctrl[old_index] != ctrl_t::kSentinel) {
+    if (old_ctrl[old_index] != ctrl_t::kMarkedForSlowTransfer) {
       continue;
     }
     void* src_slot = SlotAddress(old_slots, old_index, slot_size);
@@ -1511,8 +1511,9 @@ class ProbedItemEncoder {
   // buffer is exhausted.
   //
   // If there's no space in the control buffer, we fallback to naive algorithm
-  // and mark probed elements as kSentinel in the control buffer. In this case,
-  // we will call this function for every subsequent probed element.
+  // and mark probed elements as kMarkedForSlowTransfer in the control buffer.
+  // In this case, we will call this function for every subsequent probed
+  // element.
   ABSL_ATTRIBUTE_NOINLINE void ProcessEncodeWithOverflow(ProbedItem item) {
     if (!local_buffer_full_) {
       local_buffer_full_ = true;
@@ -1520,10 +1521,11 @@ class ProbedItemEncoder {
     }
     const size_t source_offset = static_cast<size_t>(item.source_offset);
     // We are in fallback mode so we can't reuse control buffer anymore.
-    // Probed elements are marked as kSentinel in the control buffer.
+    // Probed elements are marked as kMarkedForSlowTransfer in the control
+    // buffer.
     if (ABSL_PREDICT_FALSE(marked_elements_starting_position_ !=
                            kNoMarkedElementsSentinel)) {
-      control_[source_offset] = ctrl_t::kSentinel;
+      control_[source_offset] = ctrl_t::kMarkedForSlowTransfer;
       return;
     }
     // Refresh the end pointer to the new available position.
@@ -1535,7 +1537,7 @@ class ProbedItemEncoder {
       ++pos_;
       return;
     }
-    control_[source_offset] = ctrl_t::kSentinel;
+    control_[source_offset] = ctrl_t::kMarkedForSlowTransfer;
     marked_elements_starting_position_ = source_offset;
     // Now we will always fall down to `ProcessEncodeWithOverflow`.
     ABSL_SWISSTABLE_ASSERT(pos_ >= end_);

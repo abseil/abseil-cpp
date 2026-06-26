@@ -5074,6 +5074,19 @@ TEST(Table, GrowExtremelyLargeTable) {
   for (size_t cap = t.capacity(); cap < kTargetCapacity;
        cap = NextCapacity(cap)) {
     ASSERT_EQ(t.capacity(), cap);
+    // Block upto 100 elements to test that kMarkedForSlowTransfer elements do
+    // not conflict with blocked elements.
+    for (size_t i = cap - 1,
+                growth_left = common.growth_info().GetGrowthLeftTotalSlow(cap),
+                blocked = 0;
+         i > cap / 2; --i) {
+      if (common.control()[i] == ctrl_t::kEmpty && growth_left > 1) {
+        growth_left--;
+        blocked++;
+        common.control()[i] = ctrl_t::kSentinel;
+        if (blocked > 100) break;
+      }
+    }
     // Update growth info to force resize on the next insert. This way we avoid
     // having to insert many elements.
     common.growth_info().InitGrowthLeftNoDeleted(/*growth_left=*/0, cap);
