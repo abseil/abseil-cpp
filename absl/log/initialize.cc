@@ -14,6 +14,7 @@
 
 #include "absl/log/initialize.h"
 
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/log/internal/globals.h"
 #include "absl/time/time.h"
@@ -22,6 +23,9 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace {
+
+absl::once_flag init_log_once;
+
 void InitializeLogImpl(absl::TimeZone time_zone) {
   // This comes first since it is used by RAW_LOG.
   absl::log_internal::SetTimeZone(time_zone);
@@ -32,7 +36,13 @@ void InitializeLogImpl(absl::TimeZone time_zone) {
 }
 }  // namespace
 
-void InitializeLog() { InitializeLogImpl(absl::LocalTimeZone()); }
+void InitializeLog() {
+  // Repeated calls are intentionally safe: only the first call has effect, and
+  // subsequent calls are no-ops. This lets independent libraries that each
+  // want to bring up the logging library coexist without coordination.
+  absl::call_once(init_log_once,
+                  []() { InitializeLogImpl(absl::LocalTimeZone()); });
+}
 
 ABSL_NAMESPACE_END
 }  // namespace absl
