@@ -479,6 +479,21 @@ struct map_slot_policy {
   _Pragma("GCC diagnostic pop")
 #define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) \
   ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(return x)
+#elif defined(ABSL_HAVE_MEMORY_SANITIZER)
+// Unlike GCC's -Wmaybe-uninitialized (a compile-time diagnostic),
+// MemorySanitizer is a runtime tool and reports these intentional reads of
+// possibly-uninitialized values (e.g. slot_array for empty tables). Mark the
+// storage initialized so MSan does not flag them, preserving value/reference
+// category for the various accessors. SanitizerUnpoisonMemoryRegion is a no-op
+// unless a sanitizer is enabled.
+template <typename T>
+inline T&& SwisstableIgnoreUninitialized(T&& value) {
+  SanitizerUnpoisonMemoryRegion(&value, sizeof(value));
+  return static_cast<T&&>(value);
+}
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x) x
+#define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) \
+  return SwisstableIgnoreUninitialized(x)
 #else
 #define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED(x) x
 #define ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(x) return x
