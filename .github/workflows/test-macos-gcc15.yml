@@ -1,0 +1,20 @@
+name: macOS GCC15 repro
+on:
+  push:
+    branches:
+      - fix-2027-darwin-xopen-source
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GCC 15
+        run: brew install gcc@15
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_CXX_COMPILER=g++-15 -DCMAKE_C_COMPILER=gcc-15 \
+            -DABSL_BUILD_TESTING=OFF
+      - name: Build time_zone target
+        run: cmake --build build --target time_zone
