@@ -317,11 +317,21 @@ inline bool ConvertStringArg(const wchar_t *v,
   strings_internal::ShiftState s;
   size_t chars_written = 0;
   for (size_t i = 0; i < len; ++i) {
+    // A high surrogate must be immediately followed by a low surrogate. If it
+    // isn't, the UTF-16 input is malformed and WideToUtf8() would otherwise
+    // leave a partial sequence in the buffer. The single wchar_t path already
+    // rejects an unpaired surrogate, so reject it here too.
+    if (s.saw_high_surrogate) {
+      const uint32_t cu = static_cast<uint32_t>(v[i]);
+      if (cu < 0xDC00 || cu > 0xDFFF) return false;
+    }
     const size_t chars =
         strings_internal::WideToUtf8(v[i], &mb[chars_written], s);
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
   }
+  // A trailing high surrogate has no low surrogate to complete it.
+  if (s.saw_high_surrogate) return false;
   return ConvertStringArg(string_view(mb.data(), chars_written), conv, sink);
 }
 
