@@ -143,7 +143,7 @@
     (!defined(_WIN32) ||                                          \
      (defined(__clang__) && __clang_major__ >= 9 &&               \
       !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL))) && \
-    !defined(__MINGW32__)
+    !defined(__MINGW32__) && !defined(__CYGWIN__)
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))
 #define ABSL_HAVE_ATTRIBUTE_WEAK 1
