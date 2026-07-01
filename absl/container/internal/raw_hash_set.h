@@ -1502,26 +1502,17 @@ class raw_hash_set;
 //   ctrl[i] != ctrl_t::kSentinel for all i < capacity
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity);
 
-// A wrapper around size_t that is used to indicate that the size is a
-// reservation size. This is used to differentiate between the reservation size
-// and bucket count. Reservation size is the number of elements that fits in the
-// set before rehash.
-struct ReservationSize {
-  size_t size;
-};
-
 template <class InputIter>
-ReservationSize SelectReservationSizeForIterRange(InputIter first,
-                                                  InputIter last,
-                                                  size_t reservation_size) {
+size_t SelectReservationSizeForIterRange(InputIter first, InputIter last,
+                                         size_t reservation_size) {
   if (reservation_size != 0) {
-    return ReservationSize{reservation_size};
+    return reservation_size;
   }
   if (base_internal::IsAtLeastIterator<std::random_access_iterator_tag,
                                        InputIter>()) {
-    return ReservationSize{static_cast<size_t>(std::distance(first, last))};
+    return static_cast<size_t>(std::distance(first, last));
   }
-  return ReservationSize{0};
+  return 0;
 }
 
 constexpr bool SwisstableDebugEnabled() {
@@ -2000,16 +1991,6 @@ constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
 //   2. `new_size <= kMaxValidSize`.
 void ReserveTableToFitNewSize(CommonFields& common,
                               const PolicyFunctions& policy, size_t new_size);
-
-// Resizes empty non-allocated table to the next valid capacity after
-// `bucket_count`. Requires:
-//   1. `c.capacity() == policy.soo_capacity`.
-//   2. `c.empty()`.
-//   3. `new_size > policy.soo_capacity`.
-//   4. `bucket_count <= MaxValidCapacity()`.
-// The table will be attempted to be sampled.
-void ReserveEmptyNonAllocatedTableToFitBucketCount(
-    CommonFields& common, const PolicyFunctions& policy, size_t bucket_count);
 
 // Type erased version of raw_hash_set::rehash.
 // Requires: `n <= MaxValidCapacity()`.
@@ -2529,26 +2510,23 @@ class raw_hash_set {
       std::is_nothrow_default_constructible_v<key_equal> &&
       std::is_nothrow_default_constructible_v<allocator_type>) {}
 
-  explicit raw_hash_set(
-      // TODO(b/519468416): treat bucket_count as reservation size.
-      size_t bucket_count, const hasher& hash = hasher(),
-      const key_equal& eq = key_equal(),
-      const allocator_type& alloc = allocator_type())
+  explicit raw_hash_set(size_t reservation_size, const hasher& hash = hasher(),
+                        const key_equal& eq = key_equal(),
+                        const allocator_type& alloc = allocator_type())
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
                   alloc) {
-    if (bucket_count > DefaultCapacity()) {
-      ReserveEmptyNonAllocatedTableToFitBucketCount(
-          common(), GetPolicyFunctions(),
-          (std::min)(bucket_count, MaxValidCapacity()));
+    if (reservation_size > DefaultCapacity()) {
+      ReserveTableToFitNewSize(common(), GetPolicyFunctions(),
+                               reservation_size);
     }
   }
 
-  raw_hash_set(size_t bucket_count, const hasher& hash,
+  raw_hash_set(size_t reservation_size, const hasher& hash,
                const allocator_type& alloc)
-      : raw_hash_set(bucket_count, hash, key_equal(), alloc) {}
+      : raw_hash_set(reservation_size, hash, key_equal(), alloc) {}
 
-  raw_hash_set(size_t bucket_count, const allocator_type& alloc)
-      : raw_hash_set(bucket_count, hasher(), key_equal(), alloc) {}
+  raw_hash_set(size_t reservation_size, const allocator_type& alloc)
+      : raw_hash_set(reservation_size, hasher(), key_equal(), alloc) {}
 
   explicit raw_hash_set(const allocator_type& alloc)
       : raw_hash_set(0, hasher(), key_equal(), alloc) {}
@@ -3176,8 +3154,7 @@ class raw_hash_set {
 
   void reserve(size_t n) {
     if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
-      ReserveTableToFitNewSize(common(), GetPolicyFunctions(),
-                               (std::min)(n, MaxValidSize()));
+      ReserveTableToFitNewSize(common(), GetPolicyFunctions(), n);
     }
   }
 
@@ -3360,19 +3337,6 @@ class raw_hash_set {
     // Constructed slot. Either moved into place or destroyed.
     slot_type&& slot;
   };
-
-  explicit raw_hash_set(ReservationSize reservation_size,
-                        const hasher& hash = hasher(),
-                        const key_equal& eq = key_equal(),
-                        const allocator_type& alloc = allocator_type())
-      : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
-                  alloc) {
-    if (reservation_size.size > DefaultCapacity()) {
-      ReserveTableToFitNewSize(
-          common(), GetPolicyFunctions(),
-          (std::min)(reservation_size.size, MaxValidSize()));
-    }
-  }
 
   template <typename... Args>
   void construct(slot_type* slot, Args&&... args) {

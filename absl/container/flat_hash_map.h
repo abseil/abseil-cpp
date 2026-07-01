@@ -71,9 +71,9 @@ struct FlatHashMapPolicy;
 // * Contains a `capacity()` member function indicating the number of element
 //   slots (open, deleted, and empty) within the hash map.
 // * Returns `void` from the `erase(iterator)` overload.
-// * Range constructors (including initializer list) accept reservation size as
-//   an optional argument instead of bucket count. Reservation size is the
-//   number of elements that fits in the map before rehash.
+// * Constructors accept reservation size as an optional argument instead of
+//   bucket count. Reservation size is the number of elements that fits in the
+//   map before rehash.
 //
 // TODO(b/519468416): copy redacted version of notable differences to
 // node_hash_* files.

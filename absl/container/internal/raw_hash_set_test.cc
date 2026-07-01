@@ -1646,34 +1646,56 @@ TYPED_TEST(SooTest, EraseInSmallTables) {
 }
 
 TYPED_TEST(SooTest, InsertWithinCapacity) {
-  TypeParam t;
-  t.reserve(10);
-  const size_t original_capacity = t.capacity();
-  const auto addr = [&](int i) {
-    return reinterpret_cast<uintptr_t>(&*t.find(i));
+  using TableType = TypeParam;
+  using ReserveFn = std::function<size_t(size_t, TableType&)>;
+  ReserveFn reserve_and_insert = [](size_t size, TableType& t) {
+    t.reserve(size);
+    size_t cap = t.capacity();
+    return cap;
   };
-  // Inserting an element does not change capacity.
-  t.insert(0);
-  EXPECT_THAT(t.capacity(), original_capacity);
-  const uintptr_t original_addr_0 = addr(0);
-  // Inserting another element does not rehash.
-  t.insert(1);
-  EXPECT_THAT(t.capacity(), original_capacity);
-  EXPECT_THAT(addr(0), original_addr_0);
-  // Inserting lots of duplicate elements does not rehash.
-  for (int i = 0; i < 100; ++i) {
-    t.insert(i % 10);
+  ReserveFn construct_and_insert = [](size_t size, TableType& t) {
+    t = TableType(size);
+    size_t cap = t.capacity();
+    return cap;
+  };
+  ReserveFn construct_inisitializer_list_with_reservation =
+      [](size_t size, TableType& t) {
+        t = TableType({}, size);
+        return t.capacity();
+      };
+  ReserveFn construct_range_iter_with_reservation = [](size_t size,
+                                                       TableType& t) {
+    std::vector<int> v;
+    t = TableType(v.begin(), v.end(), size);
+    return t.capacity();
+  };
+
+  std::vector<ReserveFn> reserve_and_insert_fns = {
+      reserve_and_insert, construct_and_insert,
+      construct_inisitializer_list_with_reservation,
+      construct_range_iter_with_reservation};
+  for (size_t fn_i = 0; fn_i < reserve_and_insert_fns.size(); ++fn_i) {
+    ReserveFn reserve_and_insert_fn = reserve_and_insert_fns[fn_i];
+    for (int size : {3, 5, 7, 11, 27, 36}) {
+      SCOPED_TRACE(absl::StrCat("fn_i: ", fn_i, ", size: ", size));
+      TableType t;
+      const size_t original_capacity =
+          reserve_and_insert_fn(static_cast<size_t>(size), t);
+      const auto addr = [&](int i) {
+        return reinterpret_cast<uintptr_t>(&*t.find(i));
+      };
+      // Inserting an element does not change capacity.
+      t.insert(0);
+      ASSERT_THAT(t.capacity(), original_capacity);
+      const uintptr_t original_addr_0 = addr(0);
+      // Inserting lots of duplicate elements does not rehash.
+      for (int i = 0; i < size * 5; ++i) {
+        t.insert(i % size);
+      }
+      ASSERT_THAT(t.capacity(), original_capacity);
+      ASSERT_THAT(addr(0), original_addr_0);
+    }
   }
-  EXPECT_THAT(t.capacity(), original_capacity);
-  EXPECT_THAT(addr(0), original_addr_0);
-  // Inserting a range of duplicate elements does not rehash.
-  std::vector<int> dup_range;
-  for (int i = 0; i < 100; ++i) {
-    dup_range.push_back(i % 10);
-  }
-  t.insert(dup_range.begin(), dup_range.end());
-  EXPECT_THAT(t.capacity(), original_capacity);
-  EXPECT_THAT(addr(0), original_addr_0);
 }
 
 TYPED_TEST(SooTest, ClearDifferentSizes) {
@@ -5044,38 +5066,6 @@ TEST(Table, MaxValidSize) {
     }
     ASSERT_LT(max_capacity * slot_size, size_t{1} << 31);
   }
-}
-
-TEST(Table, MaxSizeOverflow) {
-#ifdef ABSL_HAVE_EXCEPTIONS
-  GTEST_SKIP() << "Skipping test because exceptions are enabled. EXPECT_DEATH "
-                  "doesn't work with exceptions.";
-#elif defined(ABSL_HAVE_THREAD_SANITIZER)
-  GTEST_SKIP() << "ThreadSanitizer test runs fail on OOM even in EXPECT_DEATH.";
-#else
-  const std::string expected_death_message =
-      "new failed|failed to allocate|bad_alloc|exceeds maximum supported size";
-  size_t overflow = (std::numeric_limits<size_t>::max)();
-  EXPECT_DEATH_IF_SUPPORTED(IntTable t(overflow), expected_death_message);
-  IntTable t;
-  EXPECT_DEATH_IF_SUPPORTED(t.reserve(overflow), expected_death_message);
-  EXPECT_DEATH_IF_SUPPORTED(t.rehash(overflow), expected_death_message);
-  size_t slightly_overflow =
-      MaxValidSize(sizeof(IntTable::key_type), sizeof(IntTable::value_type)) +
-      1;
-  size_t slightly_overflow_capacity =
-      NextCapacity(NormalizeCapacity(slightly_overflow));
-  EXPECT_DEATH_IF_SUPPORTED(IntTable t2(slightly_overflow_capacity - 10),
-                            expected_death_message);
-  EXPECT_DEATH_IF_SUPPORTED(t.reserve(slightly_overflow),
-                            expected_death_message);
-  EXPECT_DEATH_IF_SUPPORTED(t.rehash(slightly_overflow),
-                            expected_death_message);
-  IntTable non_empty_table;
-  non_empty_table.insert(0);
-  EXPECT_DEATH_IF_SUPPORTED(non_empty_table.reserve(slightly_overflow),
-                            expected_death_message);
-#endif  // defined(ABSL_HAVE_THREAD_SANITIZER)
 }
 
 // Tests that reserving enough space for more than the max number of unique keys

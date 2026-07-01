@@ -2117,16 +2117,6 @@ void ResizeAllocatedTableWithSeedChange(
   }
 }
 
-void ReserveEmptyNonAllocatedTableToFitBucketCount(
-    CommonFields& common, const PolicyFunctions& __restrict policy,
-    size_t bucket_count) {
-  size_t new_capacity = NormalizeCapacity(bucket_count);
-  ValidateMaxCapacity(new_capacity, policy.key_size, policy.slot_size);
-  ResizeEmptyNonAllocatedTableImpl(common, policy, new_capacity,
-                                   /*blocked_element_count=*/0,
-                                   /*force_infoz=*/false);
-}
-
 // Resizes a full SOO table to the NextCapacity(SooCapacity()).
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
 size_t GrowSooTableToNextCapacityAndPrepareInsert(
@@ -2322,6 +2312,8 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
 void ReserveTableToFitNewSize(CommonFields& common,
                               const PolicyFunctions& __restrict policy,
                               size_t new_size) {
+  new_size =
+      std::min(new_size, MaxValidSize(policy.key_size, policy.slot_size));
   common.reset_reserved_growth(new_size);
   common.set_reservation_size(new_size);
   ABSL_SWISSTABLE_ASSERT(new_size > policy.soo_capacity());
