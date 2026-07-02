@@ -25,7 +25,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -40,6 +40,7 @@ cc_library(
     hdrs = ["internal/compressed_tuple.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],  # Should be private, but cleanup is required.
     deps = [
         "//absl/utility",
     ],
@@ -65,6 +66,7 @@ cc_library(
     hdrs = ["fixed_array.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":compressed_tuple",
         "//absl/algorithm",
@@ -147,6 +149,7 @@ cc_library(
     hdrs = ["inlined_vector.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":inlined_vector_internal",
         "//absl/algorithm",
@@ -259,6 +262,7 @@ cc_library(
     hdrs = ["flat_hash_map.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":container_memory",
         ":hash_container_defaults",
@@ -297,6 +301,7 @@ cc_library(
     hdrs = ["flat_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":container_memory",
         ":hash_container_defaults",
@@ -339,6 +344,7 @@ cc_library(
     hdrs = ["node_hash_map.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":container_memory",
         ":hash_container_defaults",
@@ -376,6 +382,7 @@ cc_library(
     hdrs = ["node_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":container_memory",
         ":hash_container_defaults",
@@ -414,6 +421,10 @@ cc_library(
     hdrs = ["internal/container_memory.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+        "//absl:friends",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/hash",
@@ -464,6 +475,7 @@ cc_library(
     hdrs = ["hash_container_defaults.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":hash_function_defaults",
         "//absl/base:config",
@@ -514,6 +526,9 @@ cc_library(
     hdrs = ["internal/hash_policy_testing.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:friends",
+    ],
     deps = [
         "//absl/hash",
         "//absl/strings",
@@ -594,6 +609,9 @@ cc_library(
     hdrs = ["internal/hashtable_debug_hooks.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/container:__pkg__",
+    ],
     deps = [
         "//absl/base:config",
     ],
@@ -608,6 +626,9 @@ cc_library(
     hdrs = ["internal/hashtablez_sampler.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
     deps = [
         "//absl/base",
         "//absl/base:config",
@@ -650,6 +671,10 @@ cc_library(
     hdrs = ["internal/node_slot_policy.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+        "//absl:friends",
+    ],
     deps = ["//absl/base:config"],
 )
 
@@ -672,6 +697,10 @@ cc_library(
     hdrs = ["internal/raw_hash_map.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+        "//absl:friends",
+    ],
     deps = [
         ":common_policy_traits",
         ":container_memory",
@@ -688,6 +717,10 @@ cc_library(
     hdrs = ["internal/common.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:friends",
+        "//absl/container:__pkg__",
+    ],
     deps = [
         "//absl/meta:type_traits",
         "//absl/types:optional",
@@ -699,6 +732,9 @@ cc_library(
     hdrs = ["internal/hashtable_control_bytes.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/container:__pkg__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -747,6 +783,7 @@ cc_library(
     hdrs = ["internal/raw_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],  # Should be private, but requires cleanup
     deps = [
         ":common",
         ":common_policy_traits",
@@ -884,6 +921,7 @@ cc_library(
     hdrs = ["internal/layout.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],  # Should be private, requires cleanup
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -1262,6 +1300,7 @@ cc_library(
     hdrs = ["linked_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":common",
         "//absl/base:config",
@@ -1314,6 +1353,7 @@ cc_library(
     hdrs = ["linked_hash_map.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":common",
         "//absl/base:config",
@@ -1367,6 +1407,7 @@ cc_library(
     name = "chunked_queue",
     srcs = ["internal/chunked_queue.h"],
     hdrs = ["chunked_queue.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":layout",
         "//absl/base:config",
