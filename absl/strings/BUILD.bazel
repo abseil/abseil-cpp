@@ -24,7 +24,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -39,6 +39,7 @@ cc_library(
     hdrs = ["string_view.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -97,6 +98,7 @@ cc_library(
         # New code should directly depend on :string_view.
         "string_view.h",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         ":append_and_overwrite",
         ":charset",
@@ -135,6 +137,11 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:friends",
+        "//absl/log:__subpackages__",
+        "//absl/status:__pkg__",
+    ],
     deps = [
         ":resize_and_overwrite",
         "//absl/base:config",
@@ -150,6 +157,7 @@ cc_library(
     hdrs = ["resize_and_overwrite.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -270,6 +278,7 @@ cc_library(
     hdrs = ["has_ostream_operator.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
     ],
@@ -482,6 +491,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":string_view",
         "//absl/base:config",
@@ -666,6 +676,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":append_and_overwrite",
         ":cord_internal",
@@ -923,6 +934,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":cord",
         ":cord_internal",
@@ -951,6 +963,9 @@ cc_library(
     hdrs = ["cordz_test_helpers.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/strings:__pkg__",
+    ],
     deps = [
         ":cord",
         ":cord_internal",
@@ -1365,6 +1380,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":str_format_internal",
         ":string_view",
