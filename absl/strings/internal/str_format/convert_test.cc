@@ -357,6 +357,28 @@ TEST_F(FormatConvertTest, StringPrecision) {
   EXPECT_EQ("ABC", FormatPack(wformat2, {FormatArgImpl(wp)}));
 }
 
+TEST_F(FormatConvertTest, WideStringUnpairedHighSurrogate) {
+  UntypedFormatSpecImpl format("%ls");
+
+  // A wide string ending with an unpaired UTF-16 high surrogate would otherwise
+  // emit only the first two bytes of a 4-byte sequence. Reject it, matching the
+  // single-character "%lc" path.
+  std::wstring bad = L"AB";
+  bad.push_back(static_cast<wchar_t>(0xD800));
+  EXPECT_EQ("", FormatPack(format, {FormatArgImpl(bad)}));
+
+  // Valid input is unaffected. U+1F600 encodes to the same 4-byte UTF-8 whether
+  // it arrives as a surrogate pair (16-bit wchar_t) or a single code unit.
+  std::wstring good;
+  if (sizeof(wchar_t) * CHAR_BIT <= 16) {
+    good.push_back(static_cast<wchar_t>(0xD83D));
+    good.push_back(static_cast<wchar_t>(0xDE00));
+  } else {
+    good.push_back(static_cast<wchar_t>(0x1F600));
+  }
+  EXPECT_EQ("\xF0\x9F\x98\x80", FormatPack(format, {FormatArgImpl(good)}));
+}
+
 // Pointer formatting is implementation defined. This checks that the argument
 // can be matched to `ptr`.
 MATCHER_P(MatchesPointerString, ptr, "") {

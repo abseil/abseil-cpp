@@ -322,6 +322,10 @@ inline bool ConvertStringArg(const wchar_t *v,
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
   }
+  // A trailing high surrogate with no following low surrogate leaves only the
+  // first two bytes of a 4-byte sequence written; reject it instead of emitting
+  // invalid UTF-8, matching the single-character path in ConvertWCharTImpl.
+  if (s.saw_high_surrogate) { return false; }
   return ConvertStringArg(string_view(mb.data(), chars_written), conv, sink);
 }
 
