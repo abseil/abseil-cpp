@@ -25,7 +25,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -102,6 +102,7 @@ cc_library(
     hdrs = ["log_severity.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
         ":core_headers",
@@ -113,6 +114,7 @@ cc_library(
     hdrs = ["no_destructor.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
         ":nullability",
@@ -124,6 +126,7 @@ cc_library(
     hdrs = ["nullability.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [":config"],
 )
 
@@ -192,6 +195,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -222,6 +226,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
         ":core_headers",
@@ -240,6 +245,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
     ],
@@ -331,6 +337,7 @@ cc_library(
         "@rules_cc//cc/compiler:emscripten": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":atomic_hook",
         ":base_internal",
@@ -425,6 +432,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
         ":raw_logging_internal",
@@ -491,6 +499,7 @@ cc_library(
     hdrs = ["internal/exception_safety_testing.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//absl:__subpackages__"],
     deps = [
         ":config",
         ":pretty_function",
@@ -523,6 +532,9 @@ cc_library(
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:friends",
+    ],
     deps = [
         ":base",
         ":base_internal",
@@ -924,6 +936,7 @@ cc_library(
     hdrs = ["fast_type_id.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
     ],
@@ -950,6 +963,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":config",
         ":core_headers",
@@ -1085,6 +1099,10 @@ cc_library(
     hdrs = ["internal/iterator_traits_test_helper.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+        "//cloud/blockstore/metallica/util:__pkg__",
+    ],
     deps = [":config"],
 )
 
