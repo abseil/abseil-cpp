@@ -25,7 +25,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -53,6 +53,7 @@ cc_library(
     hdrs = ["stacktrace.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":debugging_internal",
         "//absl/base:config",
@@ -103,6 +104,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
+    visibility = ["//visibility:public"],
     deps = [
         ":debugging_internal",
         ":demangle_internal",
@@ -175,6 +177,7 @@ cc_library(
     hdrs = ["failure_signal_handler.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":examine_stack",
         ":stacktrace",
@@ -326,6 +329,9 @@ cc_library(
     hdrs = ["internal/demangle_rust.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:friends",
+    ],
     deps = [
         ":decode_rust_punycode",
         "//absl/base:config",
@@ -375,6 +381,7 @@ cc_library(
     hdrs = ["leak_check.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -421,7 +428,6 @@ cc_library(
     hdrs = ["internal/stack_consumption.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
