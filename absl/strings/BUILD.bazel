@@ -233,7 +233,9 @@ cc_test(
     tags = ["no_test_chromiumos_x86_64"],
     visibility = ["//visibility:private"],
     deps = [
+        ":charset",
         ":cord",
+        ":str_format",
         ":strings",
         "//absl/base:core_headers",
         "//absl/container:fixed_array",

@@ -20,7 +20,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -59,6 +61,12 @@ inline unsigned int hex_digit_to_int(char c) {
     x += 9;
   }
   return x & 0xf;
+}
+
+inline char int_to_hex_digit(int i) {
+  assert(i >= 0 && i <= 15);
+  return ((i < 10) ? (static_cast<char>(i) + '0')
+                   : (static_cast<char>(i - 10) + 'A'));
 }
 
 inline bool IsSurrogate(char32_t c, absl::string_view src,
@@ -1177,6 +1185,128 @@ std::string BytesToHexString(absl::string_view from) {
         return buf_size;
       });
   return result;
+}
+
+static std::string UrlEscapeInternal(absl::string_view input,
+                                     const bool escape_space_to_plus) {
+  // Unreserved characters from RFC 3986.
+  // See https://www.rfc-editor.org/info/rfc3986/#section-2.3.
+  static constexpr absl::CharSet kRfc3986Unreserved =
+      absl::CharSet::AsciiAlphanumerics() | absl::CharSet("-._~");
+
+  std::string output;
+  absl::string_view::iterator in = input.begin();
+
+  // Fast path for when we don't need to do any escaping.
+  while (in < input.end() && kRfc3986Unreserved.contains(*in)) {
+    ++in;
+  }
+
+  std::size_t initial_portion =
+      static_cast<std::size_t>(std::distance(input.begin(), in));
+
+  if (initial_portion == input.size()) {
+    return std::string(input);
+  }
+
+  // We need a buffer with enough space to store at most the initial portion
+  // plus 3 bytes for each remaining character since escapes use 3 characters.
+  StringResizeAndOverwrite(
+      output, initial_portion + 3 * (input.size() - initial_portion),
+      [&](char* buf, size_t) {
+        char* out = buf;
+
+        // Copy the initial portion that did not need escaping.
+        out = std::copy(input.begin(), in, out);
+
+        // Handle the rest of the string.
+        while (in < input.end()) {
+          char c = *in++;
+          if (kRfc3986Unreserved.contains(c)) {
+            *out++ = c;
+          } else if (escape_space_to_plus && c == ' ') {
+            *out++ = '+';
+          } else {
+            *out++ = '%';
+            *out++ = static_cast<char>(
+                int_to_hex_digit((static_cast<unsigned char>(c) >> 4) & 0xf));
+            *out++ = static_cast<char>(
+                int_to_hex_digit(static_cast<unsigned char>(c) & 0xf));
+          }
+        }
+        return static_cast<size_t>(std::distance(buf, out));
+      });
+
+  return output;
+}
+
+static std::optional<std::string> UrlUnescapeInternal(
+    absl::string_view input, const bool unescape_plus_to_space) {
+  std::string output;
+
+  // Fast path for when we don't need to do any unescaping.
+  // This case includes empty input, which allows us to return 0 from the
+  // lambda below to signal the error case.
+  size_t in =
+      unescape_plus_to_space ? input.find_first_of("%+") : input.find('%');
+  if (in == input.npos) {
+    return std::string(input);
+  }
+
+  StringResizeAndOverwrite(output, input.size(), [&](char* buf, size_t) {
+    char* out = buf;
+
+    // Copy the initial portion that did not need unescaping.
+    out = std::copy_n(input.data(), in, out);
+
+    // Handle the rest of the string.
+    while (in < input.size()) {
+      char c = input[in++];
+      if (unescape_plus_to_space && c == '+') {
+        *out++ = ' ';
+      } else if (c == '%') {
+        if (in + 1 >= input.size() ||
+            !absl::ascii_isxdigit(static_cast<unsigned char>(input[in])) ||
+            !absl::ascii_isxdigit(static_cast<unsigned char>(input[in + 1]))) {
+          return size_t{0};  // Error.
+        }
+        int x = static_cast<int>(hex_digit_to_int(input[in++])) << 4;
+        x += static_cast<int>(hex_digit_to_int(input[in++]));
+        *out++ = static_cast<char>(x);
+      } else {
+        *out++ = c;
+      }
+    }
+    return static_cast<size_t>(std::distance(buf, out));
+  });
+
+  if (output.empty()) {
+    // Empty output is only valid if the input was empty, and that case is
+    // handled above.
+    return std::nullopt;
+  }
+
+  return output;
+}
+
+std::string UrlEscape(absl::string_view input) {
+  constexpr bool kEscapeSpaceToPlus = false;
+  return UrlEscapeInternal(input, kEscapeSpaceToPlus);
+}
+
+std::optional<std::string> UrlUnescape(absl::string_view input) {
+  constexpr bool kUnescapePlusToSpace = false;
+  return UrlUnescapeInternal(input, kUnescapePlusToSpace);
+}
+
+std::string UrlEscapePlus(absl::string_view input) {
+  constexpr bool kEscapeSpaceToPlus = true;
+  return UrlEscapeInternal(input, kEscapeSpaceToPlus);
+}
+
+std::optional<std::string> UrlUnescapePlus(absl::string_view input) {
+  constexpr bool kUnescapePlusToSpace = true;
+  return UrlUnescapeInternal(input, kUnescapePlusToSpace);
 }
 
 ABSL_NAMESPACE_END

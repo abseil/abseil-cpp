@@ -246,7 +246,9 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::charset
     absl::strings
+    absl::str_format
     absl::core_headers
     absl::fixed_array
     GTest::gmock_main
