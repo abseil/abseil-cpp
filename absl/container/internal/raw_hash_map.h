@@ -354,9 +354,9 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
     if (res.second) {
       this->emplace_at(res.first, std::forward<K>(k), std::forward<V>(v));
     } else {
-      Policy::value(&*res.first) = std::forward<V>(v);
+      Policy::value(&Policy::element(res.first)) = std::forward<V>(v);
     }
-    return res;
+    return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 
   template <class K = key_type, class... Args>
@@ -368,7 +368,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
                        std::forward_as_tuple(std::forward<K>(k)),
                        std::forward_as_tuple(std::forward<Args>(args)...));
     }
-    return res;
+    return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
 };
 
