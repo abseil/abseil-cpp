@@ -138,7 +138,9 @@ TEST(RawHashSetLayout, SmallCapacity) {
     constexpr size_t kAlignment = 4;
     RawHashSetLayout layout(1, kSlotSize, kAlignment,
                             /*has_infoz=*/false, /*blocked_element_count=*/0);
-    EXPECT_EQ(layout.control_offset(), 0);
+    EXPECT_EQ(layout.control_offset(), NumGenerationBytes() == 0
+                                           ? 0
+                                           : kAlignment - NumGenerationBytes());
     EXPECT_EQ(layout.slot_offset(), NumGenerationBytes() == 0 ? 0 : kAlignment);
     EXPECT_EQ(layout.alloc_size(), layout.slot_offset() + kSlotSize);
   }
@@ -157,7 +159,7 @@ void VerifyMiddleSizeTableLayout(size_t capacity, size_t slot_size,
   ASSERT_LE(capacity, GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
   RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
                           blocked_element_count);
-  EXPECT_EQ(layout.control_offset(), 1);  // 1 byte for growth_info
+  EXPECT_EQ(layout.control_offset(), 1 + padding);  // 1 byte for growth_info
   size_t expected_slot_offset =
       capacity + NumClonedBytes() + 1 + /*growth*/ 1 + NumGenerationBytes();
   EXPECT_LT(padding, slot_align);
@@ -204,12 +206,14 @@ TEST(RawHashSetLayout, SmallWithInfoZ) {
     RawHashSetLayout layout(kCapacity, /*slot_size=*/kSlotSize,
                             /*slot_align=*/kAlignment,
                             /*has_infoz=*/true, /*blocked_element_count=*/0);
+    size_t padding = NumGenerationBytes() == 0 ? 1 : 0;
+    padding += sizeof(HashtablezInfoHandle) == 4 ? 0 : 4;
     EXPECT_EQ(layout.control_offset(),
               // growth_info is always 8 bytes for sampled tables.
-              8 + sizeof(HashtablezInfoHandle));
+              8 + sizeof(HashtablezInfoHandle) + padding);
     size_t expected_slot_offset =
         layout.control_offset() + kCapacity + NumClonedBytes() + 1 +
-        /*padding+generation*/ (sizeof(HashtablezInfoHandle) == 4 ? 1 : 5);
+        NumGenerationBytes();
     EXPECT_EQ(expected_slot_offset % kAlignment, 0);
     EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
     EXPECT_EQ(layout.alloc_size(),
@@ -228,10 +232,11 @@ void VerifyLargeTableLayout(size_t capacity, size_t slot_size,
   ASSERT_GT(capacity, GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
   RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
                           blocked_element_count);
+  size_t padding = NumGenerationBytes() == 0 ? 1 : 0;
   EXPECT_EQ(layout.control_offset(),
-            has_infoz ? 8 + sizeof(HashtablezInfoHandle) : 8);
+            padding + (has_infoz ? 8 + sizeof(HashtablezInfoHandle) : 8));
   size_t expected_slot_offset = layout.control_offset() + capacity +
-                                NumClonedBytes() + 1 + /*padding+generation*/ 1;
+                                NumClonedBytes() + 1 + NumGenerationBytes();
   EXPECT_EQ(expected_slot_offset % slot_align, 0);
   EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
   EXPECT_EQ(
@@ -1259,7 +1264,7 @@ struct BadTable : raw_hash_set<IntPolicy, BadFastHash, std::equal_to<int64_t>,
 
 constexpr size_t kNonSooSize = sizeof(HeapOrSoo) + 8;
 using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
-static_assert(sizeof(NonSooIntTableSlotType) >= kNonSooSize, "too small");
+static_assert(sizeof(NonSooIntTableSlotType) > MaxSooSlotSize(), "too small");
 using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
 using NonSooIntTableTrivialDestroy =
     ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false, /*kSoo=*/false,

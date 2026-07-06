@@ -447,6 +447,23 @@ void IterateOverFullSlots(const CommonFields& c, size_t slot_size,
   IterateOverFullSlotsImpl(c, slot_size, cb);
 }
 
+HashtablezInfoHandle CommonFields::infoz_ptr() const {
+  // growth_info is stored before control bytes.
+  ABSL_SWISSTABLE_ASSERT(has_infoz());
+  HashtablezInfoHandle res;
+  void* src = reinterpret_cast<char*>(control()) -
+              MetadataBeforeControlSize(/*has_infoz=*/true, capacity());
+  std::memcpy(&res, src, sizeof(HashtablezInfoHandle));
+  return res;
+}
+
+void CommonFields::set_infoz(HashtablezInfoHandle infoz) {
+  ABSL_SWISSTABLE_ASSERT(has_infoz());
+  void* dst = reinterpret_cast<char*>(control()) -
+              MetadataBeforeControlSize(/*has_infoz=*/true, capacity());
+  std::memcpy(dst, &infoz, sizeof(HashtablezInfoHandle));
+}
+
 namespace {
 
 void ResetGrowthLeft(GrowthInfoAccessor growth_info, size_t capacity,
@@ -1507,7 +1524,7 @@ class ProbedItemEncoder {
                            "kGuaranteedFitToBuffer is true.");
     // We reuse GrowthInfo memory as well.
     return AlignToNextItem(
-        control_ - ControlOffset(/*has_infoz=*/false,
+        control_ - MetadataBeforeControlSize(/*has_infoz=*/false,
                                  NextCapacity(kMaxLocalBufferOldCapacity)));
   }
 

@@ -1131,9 +1131,9 @@ constexpr size_t GrowthInfoSizeForCapacity(size_t capacity) {
              : sizeof(uint64_t);
 }
 
-// Computes the offset from the start of the backing allocation of control.
+// Computes the size of the metadata before the control bytes.
 // infoz and growth_info are stored at the beginning of the backing array.
-constexpr size_t ControlOffset(bool has_infoz, size_t capacity) {
+constexpr size_t MetadataBeforeControlSize(bool has_infoz, size_t capacity) {
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     // We always allocate 8 bytes of growth info for sampled tables to allow
     // branchless access to infoz pointer.
@@ -1154,7 +1154,7 @@ class RawHashSetLayout {
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
                             size_t slot_align, bool has_infoz,
                             size_t blocked_element_count)
-      : control_offset_(ControlOffset(has_infoz, capacity)),
+      : control_offset_(MetadataBeforeControlSize(has_infoz, capacity)),
         generation_offset_(control_offset_ + NumControlBytes(capacity)),
         slot_offset_(
             AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
@@ -1164,6 +1164,10 @@ class RawHashSetLayout {
     ABSL_SWISSTABLE_ASSERT(
         slot_size <=
         ((std::numeric_limits<size_t>::max)() - slot_offset_) / capacity);
+    slot_array_padding_ =
+        slot_offset_ - generation_offset_ - NumGenerationBytes();
+    control_offset_ += slot_array_padding_;
+    generation_offset_ += slot_array_padding_;
   }
 
   // Returns precomputed offset from the start of the backing allocation of
@@ -1187,6 +1191,7 @@ class RawHashSetLayout {
   size_t generation_offset_;
   size_t slot_offset_;
   size_t alloc_size_;
+  size_t slot_array_padding_;
 };
 
 struct HashtableFreeFunctionsAccess;
@@ -1384,22 +1389,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
     inline_data_.set_has_infoz();
   }
 
-  HashtablezInfoHandle* infoz_ptr() const {
-    // growth_info is stored before control bytes.
-    ABSL_SWISSTABLE_ASSERT(
-        reinterpret_cast<uintptr_t>(control()) % alignof(size_t) == 0);
-    ABSL_SWISSTABLE_ASSERT(has_infoz());
-    return reinterpret_cast<HashtablezInfoHandle*>(
-        control() - ControlOffset(/*has_infoz=*/true, capacity()));
-  }
+  HashtablezInfoHandle infoz_ptr() const;
 
   HashtablezInfoHandle infoz() {
-    return has_infoz() ? *infoz_ptr() : HashtablezInfoHandle();
+    return has_infoz() ? infoz_ptr() : HashtablezInfoHandle();
   }
-  void set_infoz(HashtablezInfoHandle infoz) {
-    ABSL_SWISSTABLE_ASSERT(has_infoz());
-    *infoz_ptr() = infoz;
-  }
+  void set_infoz(HashtablezInfoHandle infoz);
 
   bool should_rehash_for_bug_detection_on_insert() const {
     if constexpr (!SwisstableGenerationsEnabled()) {
@@ -2419,7 +2414,7 @@ class raw_hash_set {
           slot_(slot) {
       // This assumption helps the compiler know that any non-end iterator is
       // not equal to any end iterator.
-      ABSL_ASSUME(slot != nullptr);
+      ABSL_ASSUME(slot != nullptr);  // NOLINT
     }
     // For end() iterators.
     explicit iterator(const GenerationType* generation_ptr)
