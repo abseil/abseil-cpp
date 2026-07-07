@@ -74,7 +74,7 @@ struct FlatHashMapPolicy;
 // * Constructors accept reservation size as an optional argument instead of
 //   bucket count. Reservation size is the number of elements that fits in the
 //   map before rehash.
-// * insert/emplace and other modification functions return special operator
+// * insert/emplace and other modification functions return special iterator
 //   that doesn't support iteration. std::next(it) for such iterators would
 //   always point to the end().
 //
