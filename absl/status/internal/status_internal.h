@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -84,6 +85,15 @@ class StatusRep {
       : ref_(int32_t{1}),
         code_(code_arg),
         message_(message_arg),
+        payloads_(std::move(payloads_arg)) {}
+
+  template <typename String,
+            typename = std::enable_if_t<std::is_same_v<String, std::string>>>
+  StatusRep(absl::StatusCode code_arg, String&& message_arg,
+            std::unique_ptr<status_internal::Payloads> payloads_arg)
+      : ref_(int32_t{1}),
+        code_(code_arg),
+        message_(std::forward<String>(message_arg)),
         payloads_(std::move(payloads_arg)) {}
 
   absl::StatusCode code() const { return code_; }
