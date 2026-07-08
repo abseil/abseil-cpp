@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -313,7 +314,14 @@ inline bool ConvertStringArg(const wchar_t *v,
                              size_t len,
                              const FormatConversionSpecImpl conv,
                              FormatSinkImpl *sink) {
-  FixedArray<char> mb(len * 4);
+  // Each wide character may result in up to 4 bytes (UTF-8 code units).
+  constexpr size_t kMaxUtf8CodeUnitsPerWideChar = 4;
+  if (len > (std::numeric_limits<decltype(len)>::max)() /
+                kMaxUtf8CodeUnitsPerWideChar) {
+    // Size too large; we can't handle this.
+    return false;
+  }
+  FixedArray<char> mb(len * kMaxUtf8CodeUnitsPerWideChar);
   strings_internal::ShiftState s;
   size_t chars_written = 0;
   for (size_t i = 0; i < len; ++i) {
