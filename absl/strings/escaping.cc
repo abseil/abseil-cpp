@@ -1177,6 +1177,8 @@ std::string HexStringToBytes(absl::string_view from) {
 
 std::string BytesToHexString(absl::string_view from) {
   std::string result;
+  ABSL_INTERNAL_CHECK(from.size() <= std::numeric_limits<size_t>::max() / 2,
+                      "BytesToHexString() overflow");
   StringResizeAndOverwrite(
       result, 2 * from.size(), [from](char* buf, size_t buf_size) {
         absl::BytesToHexStringInternal(
@@ -1211,6 +1213,10 @@ static std::string UrlEscapeInternal(absl::string_view input,
 
   // We need a buffer with enough space to store at most the initial portion
   // plus 3 bytes for each remaining character since escapes use 3 characters.
+  ABSL_INTERNAL_CHECK(
+      (input.size() - initial_portion) <=
+          (std::numeric_limits<size_t>::max() - initial_portion) / 3,
+      "UrlEscape() overflow");
   StringResizeAndOverwrite(
       output, initial_portion + 3 * (input.size() - initial_portion),
       [&](char* buf, size_t) {
