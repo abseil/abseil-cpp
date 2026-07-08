@@ -352,7 +352,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/pow10_helper.cc"
   "strings/internal/pow10_helper.h"
   "strings/internal/resize_uninitialized.h"
-  "strings/internal/stl_type_traits.h"
   "strings/internal/str_format/arg.cc"
   "strings/internal/str_format/arg.h"
   "strings/internal/str_format/bind.cc"
