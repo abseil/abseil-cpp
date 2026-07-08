@@ -128,7 +128,7 @@ TEST(RawHashSetLayout, SmallCapacity) {
     constexpr size_t kSlotSize = 1;
     RawHashSetLayout layout(1, kSlotSize, /*slot_align=*/1,
                             /*has_infoz=*/false, /*blocked_element_count=*/0);
-    EXPECT_EQ(layout.control_offset(), 0);
+    EXPECT_EQ(layout.control_offset(), NumGenerationBytes());
     EXPECT_EQ(layout.slot_offset(), NumGenerationBytes());
     EXPECT_EQ(layout.alloc_size(), NumGenerationBytes() + kSlotSize);
   }
@@ -138,9 +138,8 @@ TEST(RawHashSetLayout, SmallCapacity) {
     constexpr size_t kAlignment = 4;
     RawHashSetLayout layout(1, kSlotSize, kAlignment,
                             /*has_infoz=*/false, /*blocked_element_count=*/0);
-    EXPECT_EQ(layout.control_offset(), NumGenerationBytes() == 0
-                                           ? 0
-                                           : kAlignment - NumGenerationBytes());
+    EXPECT_EQ(layout.control_offset(),
+              NumGenerationBytes() == 0 ? 0 : kAlignment);
     EXPECT_EQ(layout.slot_offset(), NumGenerationBytes() == 0 ? 0 : kAlignment);
     EXPECT_EQ(layout.alloc_size(), layout.slot_offset() + kSlotSize);
   }
@@ -159,12 +158,12 @@ void VerifyMiddleSizeTableLayout(size_t capacity, size_t slot_size,
   ASSERT_LE(capacity, GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
   RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
                           blocked_element_count);
-  EXPECT_EQ(layout.control_offset(), 1 + padding);  // 1 byte for growth_info
+  EXPECT_EQ(layout.control_offset(),
+            /*growth*/ 1 + padding + NumGenerationBytes());
   size_t expected_slot_offset =
-      capacity + NumClonedBytes() + 1 + /*growth*/ 1 + NumGenerationBytes();
+      layout.control_offset() + NumControlBytes(capacity);
   EXPECT_LT(padding, slot_align);
-  EXPECT_EQ((expected_slot_offset + padding) % slot_align, 0);
-  expected_slot_offset += padding;
+  EXPECT_EQ(expected_slot_offset % slot_align, 0);
   EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
   size_t allocated_values = capacity - blocked_element_count;
   EXPECT_EQ(layout.alloc_size(),
@@ -194,9 +193,8 @@ TEST(RawHashSetLayout, SmallWithInfoZ) {
                             /*has_infoz=*/true, /*blocked_element_count=*/0);
     EXPECT_EQ(layout.control_offset(),
               // growth_info is always 8 bytes for sampled tables.
-              8 + sizeof(HashtablezInfoHandle));
-    EXPECT_EQ(layout.slot_offset(),
-              layout.control_offset() + NumGenerationBytes());
+              8 + sizeof(HashtablezInfoHandle) + NumGenerationBytes());
+    EXPECT_EQ(layout.slot_offset(), layout.control_offset());
     EXPECT_EQ(layout.alloc_size(), layout.slot_offset() + 1);
   }
   {
@@ -210,10 +208,10 @@ TEST(RawHashSetLayout, SmallWithInfoZ) {
     padding += sizeof(HashtablezInfoHandle) == 4 ? 0 : 4;
     EXPECT_EQ(layout.control_offset(),
               // growth_info is always 8 bytes for sampled tables.
-              8 + sizeof(HashtablezInfoHandle) + padding);
+              /*growth*/ 8 + sizeof(HashtablezInfoHandle) + padding +
+                  NumGenerationBytes());
     size_t expected_slot_offset =
-        layout.control_offset() + kCapacity + NumClonedBytes() + 1 +
-        NumGenerationBytes();
+        layout.control_offset() + NumControlBytes(kCapacity);
     EXPECT_EQ(expected_slot_offset % kAlignment, 0);
     EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
     EXPECT_EQ(layout.alloc_size(),
@@ -234,9 +232,10 @@ void VerifyLargeTableLayout(size_t capacity, size_t slot_size,
                           blocked_element_count);
   size_t padding = NumGenerationBytes() == 0 ? 1 : 0;
   EXPECT_EQ(layout.control_offset(),
-            padding + (has_infoz ? 8 + sizeof(HashtablezInfoHandle) : 8));
-  size_t expected_slot_offset = layout.control_offset() + capacity +
-                                NumClonedBytes() + 1 + NumGenerationBytes();
+            padding + (has_infoz ? 8 + sizeof(HashtablezInfoHandle) : 8) +
+                NumGenerationBytes());
+  size_t expected_slot_offset =
+      layout.control_offset() + NumControlBytes(capacity);
   EXPECT_EQ(expected_slot_offset % slot_align, 0);
   EXPECT_EQ(layout.slot_offset(), expected_slot_offset);
   EXPECT_EQ(
@@ -259,17 +258,24 @@ class GrowthInfoAllocator {
     if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
       SanitizerPoisonMemoryRegion(control_.data(), 7);
     }
-    SanitizerPoisonMemoryRegion(control_.data() + 8, 1);
+    SanitizerPoisonMemoryRegion(control_.data() + kControlStart, 1);
+    if constexpr (NumGenerationBytes() > 0) {
+      SanitizerPoisonMemoryRegion(
+          control_.data() + kControlStart + NumGenerationBytes(),
+          NumGenerationBytes());
+    }
   }
 
   GrowthInfoAccessor* operator->() { return &growth_info_; }
 
  private:
+  static constexpr size_t kControlStart = 8 + NumGenerationBytes();
   // We allocate on heap since ASAN fails to detect access to poisoned memory
   // on stack.
-  std::vector<ctrl_t> control_ =
-      std::vector<ctrl_t>(9, /*garbage*/ ctrl_t::kSentinel);
-  GrowthInfoAccessor growth_info_ = GrowthInfoAccessor(control_.data() + 8);
+  std::vector<ctrl_t> control_ = std::vector<ctrl_t>(
+      9 + NumGenerationBytes(), /*garbage*/ ctrl_t::kSentinel);
+  GrowthInfoAccessor growth_info_ =
+      GrowthInfoAccessor(control_.data() + kControlStart);
 };
 
 TEST(GrowthInfoViewTest, GetGrowthLeft) {
@@ -547,33 +553,11 @@ TEST(Util, OptimalMemcpySizeForSooSlotTransfer) {
   EXPECT_EQ(1, OptimalMemcpySizeForSooSlotTransfer(1));
   ASSERT_EQ(4, OptimalMemcpySizeForSooSlotTransfer(2));
   ASSERT_EQ(4, OptimalMemcpySizeForSooSlotTransfer(3));
-  for (size_t slot_size = 4; slot_size <= 8; ++slot_size) {
-    ASSERT_EQ(8, OptimalMemcpySizeForSooSlotTransfer(slot_size));
-  }
-  // If maximum amount of memory is 16, then we can copy up to 16 bytes.
-  for (size_t slot_size = 9; slot_size <= 16; ++slot_size) {
-    ASSERT_EQ(16,
-              OptimalMemcpySizeForSooSlotTransfer(slot_size,
-                                                  /*max_soo_slot_size=*/16));
-    ASSERT_EQ(16,
-              OptimalMemcpySizeForSooSlotTransfer(slot_size,
-                                                  /*max_soo_slot_size=*/24));
-  }
-  // But we shouldn't try to copy more than maximum amount of memory.
-  for (size_t slot_size = 9; slot_size <= 12; ++slot_size) {
-    ASSERT_EQ(12, OptimalMemcpySizeForSooSlotTransfer(
-                      slot_size, /*max_soo_slot_size=*/12));
-  }
-  for (size_t slot_size = 17; slot_size <= 24; ++slot_size) {
-    ASSERT_EQ(24,
-              OptimalMemcpySizeForSooSlotTransfer(slot_size,
-                                                  /*max_soo_slot_size=*/24));
-  }
-  // We shouldn't copy more than maximum.
-  for (size_t slot_size = 17; slot_size <= 20; ++slot_size) {
-    ASSERT_EQ(20,
-              OptimalMemcpySizeForSooSlotTransfer(slot_size,
-                                                  /*max_soo_slot_size=*/20));
+  ASSERT_EQ(4, OptimalMemcpySizeForSooSlotTransfer(4, /*max_soo_slot_size=*/4));
+  if constexpr (MaxSooSlotSize() > 4) {
+    for (size_t slot_size = 4; slot_size <= 8; ++slot_size) {
+      ASSERT_EQ(8, OptimalMemcpySizeForSooSlotTransfer(slot_size));
+    }
   }
 }
 
@@ -651,8 +635,8 @@ TEST(Util, GrowthAndCapacity) {
 }
 
 TEST(Util, probe_seq) {
-  HashtableCapacity capacity(127);
-  probe_seq<16> seq(capacity, /*hash=*/0);
+  size_t capacity = 127;
+  probe_seq<16> seq(ProbeCapacity{capacity}, /*hash=*/0);
   auto gen = [&]() {
     size_t res = seq.offset();
     seq.next();
@@ -661,7 +645,7 @@ TEST(Util, probe_seq) {
   std::vector<size_t> offsets(8);
   std::generate_n(offsets.begin(), 8, gen);
   EXPECT_THAT(offsets, ElementsAre(0, 16, 48, 96, 32, 112, 80, 64));
-  seq = probe_seq<16>(capacity, /*hash=*/128);
+  seq = probe_seq<16>(ProbeCapacity{capacity}, /*hash=*/128);
   std::generate_n(offsets.begin(), 8, gen);
   EXPECT_THAT(offsets, ElementsAre(0, 16, 48, 96, 32, 112, 80, 64));
 }
@@ -995,6 +979,8 @@ class SizedValue {
   bool operator==(const SizedValue& rhs) const { return **this == *rhs; }
 
  private:
+  static_assert(N % sizeof(int64_t) == 0);
+  static_assert(N >= sizeof(int64_t));
   int64_t vals_[N / sizeof(int64_t)];
 };
 template <int N, bool kSoo>
@@ -1262,7 +1248,7 @@ struct BadTable : raw_hash_set<IntPolicy, BadFastHash, std::equal_to<int64_t>,
   using Base::Base;
 };
 
-constexpr size_t kNonSooSize = sizeof(HeapOrSoo) + 8;
+constexpr size_t kNonSooSize = 2 * sizeof(HeapOrSoo);
 using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
 static_assert(sizeof(NonSooIntTableSlotType) > MaxSooSlotSize(), "too small");
 using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
@@ -1294,12 +1280,10 @@ TEST(Table, EmptyFunctorOptimization) {
     size_t capacity;
     uint64_t size;
     void* ctrl;
-    void* slots;
   };
   struct MockTableByLog {
     uint64_t size;
     void* ctrl;
-    void* slots;
   };
   using MockTable =
       std::conditional_t<HashtableInlineData::kStorageMode == kCapacityByValue,
@@ -4745,16 +4729,10 @@ TEST(Table, IterateOverFullSlotsDeathOnInsert) {
                             "hash table was modified unexpectedly");
 }
 
-template <typename T>
-class SooTable : public testing::Test {};
-using FreezableSooTableTypes =
-    ::testing::Types<FreezableSizedValueSooTable<8>,
-                     FreezableSizedValueSooTable<16>>;
-TYPED_TEST_SUITE(SooTable, FreezableSooTableTypes);
-
-TYPED_TEST(SooTable, Basic) {
+TEST(SooTable, Basic) {
   bool frozen = true;
-  TypeParam t{FreezableAlloc<typename TypeParam::value_type>(&frozen)};
+  FreezableSizedValueSooTable<8> t{
+      FreezableAlloc<FreezableSizedValueSooTable<8>::value_type>(&frozen)};
   if (t.capacity() != SooCapacity()) {
     CHECK_LT(sizeof(void*), 8) << "missing SOO coverage";
     GTEST_SKIP() << "not SOO on this platform";

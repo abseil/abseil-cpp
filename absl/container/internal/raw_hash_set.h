@@ -230,10 +230,6 @@
 #include <ranges>  // NOLINT(build/c++20)
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
-#include <immintrin.h>
-#endif
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -561,19 +557,6 @@ class HashtableCapacityImpl {
     // detect small tables faster for critical path.
     static_assert(MaxSmallCapacity() == 1);
     return capacity_data_ <= 1;
-  }
-
-  constexpr size_t mask(size_t value) const {
-#ifdef __BMI2__
-    if constexpr (StorageMode == kCapacityByLog) {
-      if constexpr (sizeof(size_t) == 8) {
-        return _bzhi_u64(value, capacity_data_);
-      } else {
-        return _bzhi_u32(value, capacity_data_);
-      }
-    }
-#endif  // __BMI2__
-    return value & capacity();
   }
 
  private:
@@ -1043,7 +1026,8 @@ class GrowthInfoAccessor {
   static constexpr uint64_t kLowerBoundShift = 64 - 8;
 
   explicit GrowthInfoAccessor(void* control)
-      : growth_info_lower_bound_(reinterpret_cast<uint8_t*>(control) - 1) {}
+      : growth_info_lower_bound_(reinterpret_cast<uint8_t*>(control) - 1 -
+                                 NumGenerationBytes()) {}
 
   // Initializes the GrowthInfo assuming we can grow `growth_left` elements
   // and there are no kDeleted slots in the table.
@@ -1131,15 +1115,16 @@ constexpr size_t GrowthInfoSizeForCapacity(size_t capacity) {
              : sizeof(uint64_t);
 }
 
-// Computes the size of the metadata before the control bytes.
-// infoz and growth_info are stored at the beginning of the backing array.
+// Computes the size of the metadata before the control bytes. infoz,
+// growth_info and generation are stored at the beginning of the backing array.
 constexpr size_t MetadataBeforeControlSize(bool has_infoz, size_t capacity) {
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     // We always allocate 8 bytes of growth info for sampled tables to allow
     // branchless access to infoz pointer.
-    return sizeof(HashtablezInfoHandle) + sizeof(uint64_t);
+    return sizeof(HashtablezInfoHandle) + sizeof(uint64_t) +
+           NumGenerationBytes();
   }
-  return GrowthInfoSizeForCapacity(capacity);
+  return GrowthInfoSizeForCapacity(capacity) + NumGenerationBytes();
 }
 
 // Returns the offset of the next item after `offset` that is aligned to `align`
@@ -1155,19 +1140,20 @@ class RawHashSetLayout {
                             size_t slot_align, bool has_infoz,
                             size_t blocked_element_count)
       : control_offset_(MetadataBeforeControlSize(has_infoz, capacity)),
-        generation_offset_(control_offset_ + NumControlBytes(capacity)),
-        slot_offset_(
-            AlignUpTo(generation_offset_ + NumGenerationBytes(), slot_align)),
-        alloc_size_(slot_offset_ +
-                    (capacity - blocked_element_count) * slot_size) {
+        generation_offset_(control_offset_ - NumGenerationBytes()),
+        slot_offset_(control_offset_ + NumControlBytes(capacity)) {
     ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
+    size_t aligned_slot_offset = AlignUpTo(slot_offset_, slot_align);
+    size_t slot_array_padding = aligned_slot_offset - slot_offset_;
+    slot_offset_ = aligned_slot_offset;
     ABSL_SWISSTABLE_ASSERT(
         slot_size <=
         ((std::numeric_limits<size_t>::max)() - slot_offset_) / capacity);
-    slot_array_padding_ =
-        slot_offset_ - generation_offset_ - NumGenerationBytes();
-    control_offset_ += slot_array_padding_;
-    generation_offset_ += slot_array_padding_;
+    control_offset_ += slot_array_padding;
+    generation_offset_ += slot_array_padding;
+    ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(capacity) ||
+                           control_offset_ == slot_offset_);
+    alloc_size_ = slot_offset_ + (capacity - blocked_element_count) * slot_size;
   }
 
   // Returns precomputed offset from the start of the backing allocation of
@@ -1191,7 +1177,6 @@ class RawHashSetLayout {
   size_t generation_offset_;
   size_t slot_offset_;
   size_t alloc_size_;
-  size_t slot_array_padding_;
 };
 
 struct HashtableFreeFunctionsAccess;
@@ -1215,11 +1200,6 @@ struct HeapPtrs {
   // Note that growth_info is stored immediately before this pointer.
   // May be uninitialized for small tables.
   MaybeInitializedPtr<ctrl_t> control;
-
-  // The beginning of the slots, located at `SlotOffset()` bytes after
-  // `control`. May be uninitialized for empty tables.
-  // Note: we can't use `slots` because Qt defines "slots" as a macro.
-  MaybeInitializedPtr<void> slot_array;
 };
 
 // Returns the maximum size of the SOO slot.
@@ -1233,12 +1213,6 @@ union HeapOrSoo {
   }
   MaybeInitializedPtr<ctrl_t> control() const {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.control);
-  }
-  MaybeInitializedPtr<void>& slot_array() {
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.slot_array);
-  }
-  MaybeInitializedPtr<void> slot_array() const {
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap.slot_array);
   }
   void* get_soo_data() {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(soo_data);
@@ -1310,8 +1284,16 @@ class CommonFields : public CommonFieldsGenerationInfo {
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
 
   // Note: we can't use slots() because Qt defines "slots" as a macro.
-  void* slot_array() const { return heap_or_soo_.slot_array().get(); }
-  void set_slots(void* s) { heap_or_soo_.slot_array().set(s); }
+  void* slot_array() const { return slot_array(capacity()); }
+  // Returns pointer to the slots of a table with explicit capacity that must be
+  // equal to the actual capacity of the table.
+  // Useful for capacity known at compile time and capacity in register with
+  // ABSL_ASSUME conditions.
+  void* slot_array(size_t capacity) const {
+    ABSL_SWISSTABLE_ASSERT(capacity == this->capacity());
+    ctrl_t* ctrl = control();
+    return ctrl + NumControlBytes(capacity);
+  }
 
   // The number of filled slots.
   size_t size() const { return inline_data_.size(); }
@@ -1487,12 +1469,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   void AssertNotDebugCapacityImpl() const;
 
-  // TODO(b/289225379): we could put size_ into HeapOrSoo and make capacity_
-  // encode the size in SOO case. We would be making size()/capacity() more
-  // expensive in order to have more SOO space.
   HashtableInlineData inline_data_;
 
-  // Either the control/slots pointers or the SOO slot.
+  // Either the heap pointer or the SOO slot.
   HeapOrSoo heap_or_soo_;
 };
 
@@ -1716,6 +1695,10 @@ struct FindInfo {
   size_t probe_length;
 };
 
+struct ProbeCapacity {
+  size_t capacity;
+};
+
 // The state for a probe sequence.
 //
 // Currently, the sequence is a triangular progression of the form
@@ -1743,37 +1726,36 @@ class probe_seq {
   // Creates a new probe sequence using `hash` as the initial value of the
   // sequence and `capacity` as the mask to apply to each value in the
   // progression.
-  probe_seq(HashtableCapacity capacity, size_t hash)
-      : capacity_(capacity), offset_(capacity.mask(hash)) {}
+  probe_seq(ProbeCapacity capacity, size_t hash)
+      : capacity_(capacity.capacity), offset_(hash & capacity_) {}
 
   // The offset within the table, i.e., the value `p(i)` above.
   size_t offset() const { return offset_; }
-  size_t offset(size_t i) const { return capacity_.mask(offset_ + i); }
+  size_t offset(size_t i) const { return (offset_ + i) & capacity_; }
 
   void next() {
     index_ += Width;
     offset_ += index_;
-    offset_ = capacity_.mask(offset_);
+    offset_ &= capacity_;
   }
   // 0-based probe index, a multiple of `Width`.
   size_t index() const { return index_; }
 
  private:
-  HashtableCapacity capacity_;
+  size_t capacity_;
   size_t offset_;
   size_t index_ = 0;
 };
 
 // Begins a probing operation on `common.control`, using `hash`.
-inline probe_seq<Group::kWidth> probe_h1(HashtableCapacity capacity,
-                                         size_t h1) {
+inline probe_seq<Group::kWidth> probe_h1(ProbeCapacity capacity, size_t h1) {
   return probe_seq<Group::kWidth>(capacity, h1);
 }
-inline probe_seq<Group::kWidth> probe(HashtableCapacity capacity, size_t hash) {
+inline probe_seq<Group::kWidth> probe(ProbeCapacity capacity, size_t hash) {
   return probe_h1(capacity, H1(hash));
 }
 inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
-  return probe(common.capacity_impl(), hash);
+  return probe(ProbeCapacity{common.capacity()}, hash);
 }
 
 constexpr size_t kProbedElementIndexSentinel = ~size_t{};
@@ -2025,29 +2007,20 @@ void Copy(CommonFields& common, const PolicyFunctions& policy,
 // instantiations.
 constexpr size_t OptimalMemcpySizeForSooSlotTransfer(
     size_t slot_size, size_t max_soo_slot_size = MaxSooSlotSize()) {
-  static_assert(MaxSooSlotSize() >= 8, "unexpectedly small SOO slot size");
+  static_assert(MaxSooSlotSize() >= 4, "unexpectedly small SOO slot size");
+  static_assert(MaxSooSlotSize() <= 8, "unexpectedly large SOO slot size");
   if (slot_size == 1) {
     return 1;
   }
   if (slot_size <= 3) {
     return 4;
   }
+  if (slot_size == max_soo_slot_size) {
+    return max_soo_slot_size;
+  }
   // We are merging 4 and 8 into one case because we expect them to be the
   // hottest cases. Copying 8 bytes is as fast on common architectures.
-  if (slot_size <= 8) {
-    return 8;
-  }
-  if (max_soo_slot_size <= 16) {
-    return max_soo_slot_size;
-  }
-  if (slot_size <= 16) {
-    return 16;
-  }
-  if (max_soo_slot_size <= 24) {
-    return max_soo_slot_size;
-  }
-  static_assert(MaxSooSlotSize() <= 24, "unexpectedly large SOO slot size");
-  return 24;
+  return 8;
 }
 
 // Resizes SOO table to the NextCapacity(SooCapacity()) and prepares insert for
@@ -2414,7 +2387,7 @@ class raw_hash_set {
           slot_(slot) {
       // This assumption helps the compiler know that any non-end iterator is
       // not equal to any end iterator.
-      ABSL_ASSUME(slot != nullptr);  // NOLINT
+      ABSL_ASSUME(slot != nullptr);
     }
     // For end() iterators.
     explicit iterator(const GenerationType* generation_ptr)
@@ -3203,7 +3176,7 @@ class raw_hash_set {
     AssertOnFind(key);
     if (is_small()) return find_small(key);
     prefetch_heap_block();
-    return find_large(key, hash_of(key));
+    return find_large(key);
   }
 
   template <class K = key_type>
@@ -3361,29 +3334,34 @@ class raw_hash_set {
   // TODO(b/289225379): consider having a helper class that has the impls for
   // SOO functionality.
   template <class K = key_type>
-  iterator find_small(const key_arg<K>& key) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const key_arg<K>& key) {
     ABSL_SWISSTABLE_ASSERT(is_small());
     return empty() || !equal_to(key, single_slot()) ? end() : single_iterator();
   }
 
   template <class K = key_type>
-  iterator find_large(const key_arg<K>& key, size_t hash) {
+  iterator find_large(const key_arg<K>& key) {
     ABSL_SWISSTABLE_ASSERT(!is_small());
-    auto seq = probe(common(), hash);
+    const size_t cap = common().capacity();
+    ABSL_ASSUME(cap > 1);
+    const size_t hash = hash_of(key);
+    auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
-    const ctrl_t* ctrl = control();
+    ctrl_t* ctrl = control();
+    slot_type* slot_array = to_slot(common().slot_array(cap));
     while (true) {
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
-      absl::PrefetchToLocalCache(slot_array() + seq.offset());
+      absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (ABSL_PREDICT_TRUE(equal_to(key, slot_array() + seq.offset(i))))
-          return iterator_at(seq.offset(i));
+        const size_t offset = seq.offset(i);
+        if (ABSL_PREDICT_TRUE(equal_to(key, slot_array + offset)))
+          return iterator_at_ptr(ctrl + offset, slot_array + offset);
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
       seq.next();
-      ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity() && "full table!");
+      ABSL_SWISSTABLE_ASSERT(seq.index() <= cap && "full table!");
     }
   }
 
@@ -3649,17 +3627,20 @@ class raw_hash_set {
   std::pair<slot_type*, bool> find_or_prepare_insert_large(const K& key) {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     prefetch_heap_block();
+    const size_t cap = capacity();
+    ABSL_ASSUME(cap > 1);
     const size_t hash = hash_of(key);
-    auto seq = probe(common(), hash);
+    auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
+    slot_type* slot_array = to_slot(common().slot_array(cap));
     while (true) {
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
-      absl::PrefetchToLocalCache(slot_array() + seq.offset());
+      absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
       Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        slot_type* slot = slot_array() + seq.offset(i);
+        slot_type* slot = slot_array + seq.offset(i);
         if (ABSL_PREDICT_TRUE(equal_to(key, slot))) {
           return {slot, false};
         }
@@ -3781,9 +3762,9 @@ class raw_hash_set {
   const_iterator iterator_at(size_t i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return const_cast<raw_hash_set*>(this)->iterator_at(i);
   }
-  iterator iterator_at_ptr(std::pair<ctrl_t*, void*> ptrs)
+  iterator iterator_at_ptr(ctrl_t* ctrl, void* slot)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return {ptrs.first, to_slot(ptrs.second), common().generation_ptr()};
+    return {ctrl, to_slot(slot), common().generation_ptr()};
   }
 
   reference unchecked_deref(iterator it) { return it.unchecked_deref(); }
@@ -3830,7 +3811,9 @@ class raw_hash_set {
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    return SooEnabled() ? soo_slot() : slot_array();
+    return SooEnabled()
+               ? soo_slot()
+               : to_slot(common().slot_array(/*capacity=*/1));
   }
   const slot_type* single_slot() const {
     return const_cast<raw_hash_set*>(this)->single_slot();
@@ -4132,11 +4115,8 @@ extern template void* GrowSooTableToNextCapacityAndPrepareInsert<1, true>(
 extern template void* GrowSooTableToNextCapacityAndPrepareInsert<4, true>(
     CommonFields&, const PolicyFunctions&, absl::FunctionRef<size_t(size_t)>,
     bool);
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
-    CommonFields&, const PolicyFunctions&, absl::FunctionRef<size_t(size_t)>,
-    bool);
 #if UINTPTR_MAX == UINT64_MAX
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<16, true>(
+extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
     CommonFields&, const PolicyFunctions&, absl::FunctionRef<size_t(size_t)>,
     bool);
 #endif
