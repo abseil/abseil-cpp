@@ -767,4 +767,57 @@ TEST(ChunkedQueue, Hardening) {
   EXPECT_DEATH_IF_SUPPORTED(cq.back(), "");
 }
 
+#ifdef ABSL_HAVE_EXCEPTIONS
+struct ThrowingCtor {
+  int* ctor_count;
+  int* dtor_count;
+  int value;
+
+  explicit ThrowingCtor(int v, bool should_throw, int* c_count, int* d_count)
+      : ctor_count(c_count), dtor_count(d_count), value(v) {
+    if (should_throw) {
+      throw 0;
+    }
+    ++*ctor_count;
+  }
+  ThrowingCtor(const ThrowingCtor& other)
+      : ctor_count(other.ctor_count),
+        dtor_count(other.dtor_count),
+        value(other.value) {
+    ++*ctor_count;
+  }
+  ThrowingCtor(ThrowingCtor&& other) noexcept
+      : ctor_count(other.ctor_count),
+        dtor_count(other.dtor_count),
+        value(other.value) {
+    ++*ctor_count;
+  }
+  ~ThrowingCtor() { ++*dtor_count; }
+};
+
+TEST(ChunkedQueue, StrongExceptionSafetyEmplaceBack) {
+  int ctor_count = 0;
+  int dtor_count = 0;
+  absl::chunked_queue<ThrowingCtor> q;
+  q.emplace_back(10, false, &ctor_count, &dtor_count);
+  q.emplace_back(20, false, &ctor_count, &dtor_count);
+  ASSERT_EQ(q.size(), 2);
+  ASSERT_EQ(ctor_count, 2);
+  ASSERT_EQ(dtor_count, 0);
+
+  try {
+    q.emplace_back(30, true, &ctor_count, &dtor_count);
+  } catch (...) {
+  }
+
+  EXPECT_EQ(q.size(), 2);
+  EXPECT_EQ(ctor_count, 2);
+  EXPECT_EQ(dtor_count, 0);
+
+  q.clear();
+  EXPECT_EQ(q.size(), 0);
+  EXPECT_EQ(dtor_count, 2);
+}
+#endif
+
 }  // namespace

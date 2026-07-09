@@ -417,6 +417,8 @@ class chunked_queue {
     T* storage = AllocateBack();
     AllocatorTraits::construct(alloc_and_size_.allocator(), storage,
                                std::forward<A>(args)...);
+    ++alloc_and_size_.size;
+    ++tail_.ptr;
     return *storage;
   }
 
@@ -671,8 +673,7 @@ inline T* chunked_queue<T, BLo, BHi, Allocator>::AllocateBack() {
   if (tail_.ptr == tail_.limit) {
     AddTailBlock();
   }
-  ++alloc_and_size_.size;
-  return tail_.ptr++;
+  return tail_.ptr;
 }
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
