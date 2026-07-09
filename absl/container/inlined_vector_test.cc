@@ -207,6 +207,42 @@ TEST(IntVec, AtThrows) {
                                  "failed bounds check");
 }
 
+TEST(IntVec, LengthThrows) {
+  IntVec v = {1, 2, 3};
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.insert(v.begin(), v.max_size() + 1, 0),
+                                 std::length_error, "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(
+      v.insert(v.begin(), static_cast<size_t>(-1), 0), std::length_error,
+      "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.resize(v.max_size() + 1), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.reserve(v.max_size() + 1), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(static_cast<void>(IntVec(v.max_size() + 1, 0)),
+                                 std::length_error, "failed length check");
+}
+
+template <typename T>
+struct SmallMaxAllocator : std::allocator<T> {
+  template <typename U>
+  struct rebind {
+    using other = SmallMaxAllocator<U>;
+  };
+  size_t max_size() const noexcept { return 2; }
+};
+
+TEST(IntVec, EmplaceLengthThrows) {
+  absl::InlinedVector<int, 1, SmallMaxAllocator<int>> v = {1, 2};
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.push_back(3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.emplace_back(3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.insert(v.begin(), 3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.emplace(v.begin(), 3), std::length_error,
+                                 "failed length check");
+}
+
 TEST(IntVec, ReverseIterator) {
   for (size_t len = 0; len < 20; len++) {
     IntVec v;
@@ -262,7 +298,6 @@ TEST(IntVec, Hardened) {
   absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH_IF_SUPPORTED(v[10], "");
   EXPECT_DEATH_IF_SUPPORTED(v[static_cast<size_t>(-1)], "");
-  EXPECT_DEATH_IF_SUPPORTED(v.resize(v.max_size() + 1), "");
 #endif
 }
 
