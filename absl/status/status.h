@@ -708,6 +708,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
 
   friend class absl::status_internal::StatusPrivateAccessor;
   friend class absl::status_internal::StatusPrivateAccessorForStatusBuilder;
+  template <typename T>
+  friend class absl::StatusOr;
 #endif  // !SWIG
 
   // Creates a status in the canonical error space with the specified

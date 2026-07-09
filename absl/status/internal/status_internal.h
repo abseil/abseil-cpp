@@ -63,6 +63,10 @@ ABSL_NAMESPACE_BEGIN
 enum class StatusCode : int;
 enum class StatusToStringMode : int;
 
+// Forward declaration of StatusOr for Status friendship.
+template <typename T>
+class StatusOr;
+
 namespace status_internal {
 #ifndef SWIG
 class StatusPrivateAccessor;

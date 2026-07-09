@@ -614,11 +614,14 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   T& emplace(Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ok()) {
       this->Clear();
-      this->MakeValue(std::forward<Args>(args)...);
-    } else {
-      this->MakeValue(std::forward<Args>(args)...);
-      this->status_ = absl::OkStatus();
+      // Temporarily transition to a non-ok status (using the zero-allocation
+      // inlined representation) so that if MakeValue() throws an exception,
+      // ok() returns false during stack unwinding and ~StatusOrData() does not
+      // attempt to destroy uninitialized memory.
+      this->status_ = absl::Status(absl::StatusCode::kInternal);
     }
+    this->MakeValue(std::forward<Args>(args)...);
+    this->status_ = absl::OkStatus();
     return this->data_;
   }
 
@@ -630,11 +633,14 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
              Args&&... args) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ok()) {
       this->Clear();
-      this->MakeValue(ilist, std::forward<Args>(args)...);
-    } else {
-      this->MakeValue(ilist, std::forward<Args>(args)...);
-      this->status_ = absl::OkStatus();
+      // Temporarily transition to a non-ok status (using the zero-allocation
+      // inlined representation) so that if MakeValue() throws an exception,
+      // ok() returns false during stack unwinding and ~StatusOrData() does not
+      // attempt to destroy uninitialized memory.
+      this->status_ = absl::Status(absl::StatusCode::kInternal);
     }
+    this->MakeValue(ilist, std::forward<Args>(args)...);
+    this->status_ = absl::OkStatus();
     return this->data_;
   }
 
