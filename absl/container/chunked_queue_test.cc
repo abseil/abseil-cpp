@@ -20,8 +20,10 @@
 #include <deque>
 #include <forward_list>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -31,6 +33,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/strings/str_cat.h"
 
@@ -433,6 +436,51 @@ TEST(ChunkedQueue, ResizeValue) {
   q.resize(2, 30);
   EXPECT_THAT(q, ElementsAre(10, 10));
   EXPECT_EQ(2, q.size());
+}
+
+template <class T>
+struct LimitedAllocator {
+  using value_type = T;
+  int* alloc_count;
+  int max_allocs;
+
+  explicit LimitedAllocator(int* count, int max)
+      : alloc_count(count), max_allocs(max) {}
+  template <class U>
+  LimitedAllocator(const LimitedAllocator<U>& other)
+      : alloc_count(other.alloc_count), max_allocs(other.max_allocs) {}
+
+  T* allocate(size_t n) {
+    if (*alloc_count >= max_allocs) {
+      absl::ThrowStdBadAlloc();
+    }
+    ++*alloc_count;
+    return std::allocator<T>().allocate(n);
+  }
+
+  void deallocate(T* p, size_t n) {
+    std::allocator<T>().deallocate(p, n);
+  }
+
+  template <class U>
+  bool operator==(const LimitedAllocator<U>& other) const {
+    return alloc_count == other.alloc_count;
+  }
+  template <class U>
+  bool operator!=(const LimitedAllocator<U>& other) const {
+    return !(*this == other);
+  }
+};
+
+TEST(ChunkedQueue, ResizeOverflowSafe) {
+  int alloc_count = 0;
+  absl::chunked_queue<int64_t, 0, 0, LimitedAllocator<int64_t>> q(
+      LimitedAllocator<int64_t>(&alloc_count, 5));
+#ifdef ABSL_HAVE_EXCEPTIONS
+  EXPECT_THROW(q.resize(std::numeric_limits<size_t>::max()), std::bad_alloc);
+#else
+  EXPECT_DEATH_IF_SUPPORTED(q.resize(std::numeric_limits<size_t>::max()), "");
+#endif
 }
 
 TEST(ChunkedQueue, MaxSize) {

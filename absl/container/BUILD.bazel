@@ -1426,6 +1426,7 @@ cc_test(
         ":test_allocator",
         "//absl/base:core_headers",
         "//absl/base:hardening",
+        "//absl/base:throw_delegate",
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

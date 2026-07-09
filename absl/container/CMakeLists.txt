@@ -1239,5 +1239,6 @@ absl_cc_test(
     absl::hardening
     absl::strings
     absl::test_allocator
+    absl::throw_delegate
     GTest::gmock_main
 )
