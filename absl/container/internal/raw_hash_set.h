@@ -377,7 +377,7 @@ inline bool IsEmptyGeneration(const GenerationType* generation) {
 //   tables, we would need to randomize the iteration order somehow.
 constexpr size_t SooCapacity() { return 1; }
 // Maximum capacity of a table where we don't need to hash any keys.
-constexpr size_t MaxSmallCapacity() { return 1; }
+inline constexpr size_t kMaxSmallCapacity = 1;
 // Sentinel type to indicate SOO CommonFields construction.
 struct soo_tag_t {};
 // Sentinel type to indicate SOO CommonFields construction with full size.
@@ -396,7 +396,7 @@ constexpr bool IsValidCapacity(size_t n) { return ((n + 1) & n) == 0 && n > 0; }
 
 // Whether a table is small enough that we don't need to hash any keys.
 constexpr bool IsSmallCapacity(size_t capacity) {
-  return capacity <= MaxSmallCapacity();
+  return capacity <= kMaxSmallCapacity;
 }
 
 // Whether a table fits entirely into a probing group.
@@ -555,7 +555,7 @@ class HashtableCapacityImpl {
     // Comparing capacity_data_ directly leads to a better generated code.
     // One byte comparison is used before computing the capacity in order to
     // detect small tables faster for critical path.
-    static_assert(MaxSmallCapacity() == 1);
+    static_assert(kMaxSmallCapacity == 1);
     return capacity_data_ <= 1;
   }
 
@@ -1284,11 +1284,11 @@ class CommonFields : public CommonFieldsGenerationInfo {
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
 
   // Note: we can't use slots() because Qt defines "slots" as a macro.
-  void* slot_array() const { return slot_array(capacity()); }
   // Returns pointer to the slots of a table with explicit capacity that must be
   // equal to the actual capacity of the table.
-  // Useful for capacity known at compile time and capacity in register with
-  // ABSL_ASSUME conditions.
+  // Capacity is often known at compile time or already in register with some
+  // ABSL_ASSUME conditions. We require passing it explicitly to eliminate
+  // branches inside of NumControlBytes in majority of cases.
   void* slot_array(size_t capacity) const {
     ABSL_SWISSTABLE_ASSERT(capacity == this->capacity());
     ctrl_t* ctrl = control();
@@ -2704,7 +2704,8 @@ class raw_hash_set {
   iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(empty())) return end();
     if (is_small()) return single_iterator();
-    iterator it = {control(), slot_array(), common().generation_ptr()};
+    iterator it = {control(), slot_array(capacity()),
+                   common().generation_ptr()};
     it.skip_empty_or_deleted();
     ABSL_SWISSTABLE_ASSERT(IsFull(*it.control()));
     return it;
@@ -3159,7 +3160,7 @@ class raw_hash_set {
     if (is_small()) return;
     auto seq = probe(common(), hash_of(key));
     PrefetchToLocalCache(control() + seq.offset());
-    PrefetchToLocalCache(slot_array() + seq.offset());
+    PrefetchToLocalCache(slot_array(capacity()) + seq.offset());
 #endif  // ABSL_HAVE_PREFETCH
   }
 
@@ -3343,7 +3344,7 @@ class raw_hash_set {
   iterator find_large(const key_arg<K>& key) {
     ABSL_SWISSTABLE_ASSERT(!is_small());
     const size_t cap = common().capacity();
-    ABSL_ASSUME(cap > 1);
+    ABSL_ASSUME(cap > kMaxSmallCapacity);
     const size_t hash = hash_of(key);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
@@ -3388,7 +3389,7 @@ class raw_hash_set {
   }
 
   void clear_backing_array(bool reuse) {
-    ABSL_SWISSTABLE_ASSERT(capacity() > MaxSmallCapacity());
+    ABSL_SWISSTABLE_ASSERT(capacity() > kMaxSmallCapacity);
     ClearBackingArray(common(), GetPolicyFunctions(), &char_alloc_ref(), reuse);
   }
 
@@ -3443,7 +3444,7 @@ class raw_hash_set {
     EraseMetaOnlyLarge(common(),
                        // `it` can be non-iterable iterator, so we can't use
                        // it.control().
-                       static_cast<size_t>(it.slot() - slot_array()),
+                       static_cast<size_t>(it.slot() - slot_array(capacity())),
                        sizeof(slot_type));
   }
 
@@ -3628,7 +3629,7 @@ class raw_hash_set {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     prefetch_heap_block();
     const size_t cap = capacity();
-    ABSL_ASSUME(cap > 1);
+    ABSL_ASSUME(cap > kMaxSmallCapacity);
     const size_t hash = hash_of(key);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
@@ -3796,9 +3797,9 @@ class raw_hash_set {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     return common().control();
   }
-  slot_type* slot_array() const {
+  slot_type* slot_array(size_t capacity) const {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
-    return static_cast<slot_type*>(common().slot_array());
+    return static_cast<slot_type*>(common().slot_array(capacity));
   }
   slot_type* soo_slot() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
@@ -3884,6 +3885,7 @@ class raw_hash_set {
       void (*encode_probed_element)(void* probed_storage, h2_t h2,
                                     size_t source_offset, size_t h1)) {
     const size_t new_capacity = common.capacity();
+    ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
     const size_t old_capacity = PreviousCapacity(new_capacity);
     ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
     ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
@@ -3891,7 +3893,7 @@ class raw_hash_set {
     auto* set = reinterpret_cast<raw_hash_set*>(&common);
     slot_type* old_slots_ptr = to_slot(old_slots);
     ctrl_t* new_ctrl = common.control();
-    slot_type* new_slots = set->slot_array();
+    slot_type* new_slots = set->slot_array(new_capacity);
 
     for (size_t group_index = 0; group_index < old_capacity;
          group_index += Group::kWidth) {
@@ -4074,7 +4076,7 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
     while (true) {
       container_internal::Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
-        if (set.equal_to(key, set.slot_array() + seq.offset(i)))
+        if (set.equal_to(key, set.slot_array(set.capacity()) + seq.offset(i)))
           return num_probes;
         ++num_probes;
       }

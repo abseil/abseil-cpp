@@ -82,8 +82,8 @@ struct RawHashSetTestOnlyAccess {
     return std::forward<C>(c).common();
   }
   template <typename C>
-  static auto GetSlots(const C& c) -> decltype(c.slot_array()) {
-    return c.slot_array();
+  static auto GetSlots(const C& c) -> decltype(c.slot_array(c.capacity())) {
+    return c.slot_array(c.capacity());
   }
   template <typename C>
   static size_t CountTombstones(const C& c) {
