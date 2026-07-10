@@ -1212,7 +1212,8 @@ ObjFile *Symbolizer::FindObjFile(const void *const addr, size_t len) {
       ObjFile *obj = addr_map_.At(lo);
       SAFE_ASSERT(obj->end_addr > addr);
       if (addr >= obj->start_addr &&
-          reinterpret_cast<const char *>(addr) + len <= obj->end_addr)
+          len <= static_cast<size_t>(static_cast<const char*>(obj->end_addr) -
+                                     static_cast<const char*>(addr)))
         return obj;
     }
 
