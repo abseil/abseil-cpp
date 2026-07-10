@@ -150,7 +150,7 @@ license. See [LICENSE](LICENSE) for more information.
 
 For more information about Abseil:
 
-* Consult our [Abseil Introduction](https://abseil.io/about/intro)
+* Consult our [Abseil Introduction](https://abseil.io/about/intro) 
 * Read [Why Adopt Abseil](https://abseil.io/about/philosophy) to understand our
   design philosophy.
 * Peruse our
