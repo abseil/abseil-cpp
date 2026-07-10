@@ -408,7 +408,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
       typename U = T,
       std::enable_if_t<internal_statusor::IsAssignmentValid<T, U, true>::value,
                        int> = 0>
-  StatusOr& operator=(U&& v ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)) {
+  StatusOr& operator=(U&& v ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS) {
     this->Assign(std::forward<U>(v));
     return *this;
   }

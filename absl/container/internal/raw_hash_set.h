@@ -2772,7 +2772,7 @@ class raw_hash_set {
                                  IsLifetimeBoundAssignmentFrom<T>::value,
                              int> = 0>
   std::pair<iterator, bool> insert(
-      T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template insert<T, 0>(std::forward<T>(value));
   }
@@ -2801,7 +2801,7 @@ class raw_hash_set {
                                  IsLifetimeBoundAssignmentFrom<const T&>::value,
                              int> = 0>
   std::pair<iterator, bool> insert(
-      const T& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      const T& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template insert<T, 0>(value);
   }
@@ -2821,7 +2821,7 @@ class raw_hash_set {
   }
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
   std::pair<iterator, bool> insert(
-      init_type&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      init_type&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND
     requires(IsLifetimeBoundAssignmentFrom<init_type>::value)
   {
@@ -2843,7 +2843,7 @@ class raw_hash_set {
                                  IsLifetimeBoundAssignmentFrom<T>::value,
                              int> = 0>
   iterator insert(const_iterator hint,
-                  T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+                  T&& value ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return this->template insert<T, 0>(hint, std::forward<T>(value));
   }
