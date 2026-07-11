@@ -459,10 +459,10 @@ void CEscapeAndAppendInternal(absl::string_view src,
   // We keep 3 slop bytes so that we can call `little_endian::Store32`
   // invariably regardless of the length of the escaped character.
   constexpr size_t kSlopBytes = 3;
-  size_t cur_dest_len = dest->size();
-  size_t append_buf_len = cur_dest_len + escaped_len + kSlopBytes;
-  ABSL_INTERNAL_CHECK(append_buf_len > cur_dest_len,
-                      "std::string size overflow");
+  ABSL_INTERNAL_CHECK(
+      escaped_len <= std::numeric_limits<size_t>::max() - kSlopBytes,
+      "CEscape length overflow");
+  size_t append_buf_len = escaped_len + kSlopBytes;
   strings_internal::StringAppendAndOverwrite(
       *dest, append_buf_len, [src, escaped_len](char* append_ptr, size_t) {
         for (char c : src) {
