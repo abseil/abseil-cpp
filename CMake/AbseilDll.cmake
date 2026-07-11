@@ -470,12 +470,14 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/string_view.h"
 )
 
-if(MSVC)
+if(WIN32)
   list(APPEND ABSL_INTERNAL_DLL_FILES
     "time/internal/cctz/src/time_zone_name_win.cc"
     "time/internal/cctz/src/time_zone_name_win.h"
   )
-else()
+endif()
+
+if(NOT MSVC)
   list(APPEND ABSL_INTERNAL_DLL_FILES
     "flags/commandlineflag.cc"
     "flags/commandlineflag.h"
