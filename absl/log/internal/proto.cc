@@ -163,12 +163,17 @@ void EncodeMessageLength(absl::Span<char> msg, const absl::Span<char> *buf) {
 
 namespace {
 uint64_t DecodeVarint(absl::Span<const char> *buf) {
+  // A base-128 varint for a 64-bit value occupies at most 10 bytes.  Stop after
+  // that many so the shift below can never reach the width of `value`, which
+  // would be undefined behavior on a malformed or over-long input.  The 64-bit
+  // and 32-bit decoders below cap their loops for the same reason.
+  constexpr size_t kMaxVarintBytes = 10;
   uint64_t value = 0;
   size_t s = 0;
   while (s < buf->size()) {
     value |= static_cast<uint64_t>(static_cast<unsigned char>((*buf)[s]) & 0x7f)
              << 7 * s;
-    if (!((*buf)[s++] & 0x80)) break;
+    if (!((*buf)[s++] & 0x80) || s == kMaxVarintBytes) break;
   }
   buf->remove_prefix(s);
   return value;
