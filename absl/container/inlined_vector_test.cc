@@ -2313,4 +2313,53 @@ TEST(IntVec, EraseIfMatchesAll) {
   EXPECT_THAT(v, IsEmpty());
 }
 
+#ifdef ABSL_HAVE_EXCEPTIONS
+struct ThrowOnMove {
+  static constexpr uint32_t kAlive = 0xA11FE123;
+  static constexpr uint32_t kDestroyed = 0xDEADBEEF;
+
+  explicit ThrowOnMove(int* count) : alive_count(count), sentinel(kAlive) {
+    if (alive_count) ++(*alive_count);
+  }
+  ThrowOnMove(const ThrowOnMove&) = delete;
+  ThrowOnMove& operator=(const ThrowOnMove&) = delete;
+  ThrowOnMove(ThrowOnMove&& other)
+      : alive_count(other.alive_count), sentinel(kAlive) {
+    if (other.should_throw) throw std::runtime_error("ThrowOnMove");
+    if (alive_count) ++(*alive_count);
+  }
+  ~ThrowOnMove() {
+    EXPECT_EQ(sentinel, kAlive)
+        << "Double destroy detected: destructor called twice on memory slot!";
+    sentinel = kDestroyed;
+    if (alive_count) {
+      EXPECT_GT(*alive_count, 0)
+          << "More destructors called than constructors!";
+      --(*alive_count);
+    }
+  }
+
+  int* alive_count = nullptr;
+  uint32_t sentinel = kDestroyed;
+  bool should_throw = false;
+};
+
+TEST(InlinedVectorTest, SwapExceptionSafety) {
+  int alive_count = 0;
+  try {
+    absl::InlinedVector<ThrowOnMove, 2> a;
+    a.emplace_back(&alive_count);
+    absl::InlinedVector<ThrowOnMove, 2> b;
+    b.emplace_back(&alive_count);
+    b[0].should_throw = true;
+    a.swap(b);
+    FAIL() << "Expected swap to throw std::runtime_error";
+  } catch (const std::runtime_error&) {
+    // Expected exception from throwing move-constructor inside swap.
+  }
+  EXPECT_EQ(alive_count, 0)
+      << "Mismatch between constructor and destructor calls!";
+}
+#endif
+
 }  // anonymous namespace
