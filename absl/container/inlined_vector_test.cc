@@ -2360,6 +2360,27 @@ TEST(InlinedVectorTest, SwapExceptionSafety) {
   EXPECT_EQ(alive_count, 0)
       << "Mismatch between constructor and destructor calls!";
 }
+
+// Ensures that an exception thrown during move construction doesn't leave the
+// inlined vector in a bad state. Needs ASAN for reliable detection.
+TEST(InlinedVectorTest, TruncatesBeforeThrowingMoveConstruction) {
+  using Vec = absl::InlinedVector<ThrowOnMove, 1>;
+  int count = 0;
+  {
+    Vec dest;
+    dest.reserve(dest.capacity() + 1);  // force heap allocation
+    dest.emplace_back(&count);
+
+    Vec src;
+    src.emplace_back(&count).should_throw = true;
+
+    try {
+      dest = std::move(src);
+    } catch (const std::runtime_error&) {
+    }
+  }
+  EXPECT_EQ(count, 0);
+}
 #endif
 
 }  // anonymous namespace

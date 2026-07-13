@@ -948,6 +948,12 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
         storage_.GetAllocator(), data(), size());
     storage_.DeallocateIfAllocated();
 
+    if constexpr (!std::is_nothrow_move_constructible_v<value_type>) {
+      // Reset the size to zero before moving to avoid leaking freed memory if
+      // an exception is thrown.
+      storage_.SetInlinedSize(0);
+    }
+
     IteratorValueAdapter<A, MoveIterator<A>> other_values(
         MoveIterator<A>(other.storage_.GetInlinedData()));
     inlined_vector_internal::ConstructElements<A>(
