@@ -702,12 +702,28 @@ template <typename Path, typename H,
           typename = std::enable_if_t<
               std::is_same_v<Path, std::filesystem::path>>>
 H AbslHashValue(H hash_state, const Path& path) {
-  // This is implemented by deferring to the standard library to compute the
-  // hash.  The standard library requires that for two paths, `p1 == p2`, then
-  // `hash_value(p1) == hash_value(p2)`. `AbslHashValue` has the same
-  // requirement. Since `operator==` does platform specific matching, deferring
-  // to the standard library is the simplest approach.
-  return H::combine(std::move(hash_state), std::filesystem::hash_value(path));
+  // Avoid deferring to std::filesystem::hash_value, as that makes it easy to
+  // generate offline collisions, bypassing per-table and per-process hash
+  // seeding. Instead, we hash it ourselves.
+  size_t count = 0;
+
+  for (const Path& component : path) {
+    std::basic_string_view<typename Path::value_type> part = component.native();
+
+    // If this is a directory separator, pretend it is the preferred directory
+    // separator (rather than the alternate separator) to ensure that equal
+    // paths produce equal hashes.
+    // Analogous to LLVM commit aa427b1aae445ed46d9f60c5e2eaac61bdf76be3.
+    if (!part.empty() &&
+        (*part.begin() == '/' || *part.begin() == Path::preferred_separator)) {
+      part = std::basic_string_view<typename Path::value_type>(
+          &Path::preferred_separator, 1);
+    }
+
+    hash_state = H::combine(std::move(hash_state), part);
+    ++count;
+  }
+  return H::combine(std::move(hash_state), count);
 }
 
 #endif  // ABSL_INTERNAL_STD_FILESYSTEM_PATH_HASH_AVAILABLE
