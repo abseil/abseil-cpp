@@ -446,6 +446,18 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "proto_test",
+    srcs = ["proto_test.cc"],
+    deps = [
+        ":proto",
+        "//absl/base:config",
+        "//absl/types:span",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "fnmatch",
     srcs = ["fnmatch.cc"],

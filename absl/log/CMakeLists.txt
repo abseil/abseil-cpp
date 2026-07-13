@@ -182,6 +182,22 @@ absl_cc_library(
     absl::span
 )
 
+absl_cc_test(
+  NAME
+    log_internal_proto_test
+  SRCS
+    "internal/proto_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::log_internal_proto
+    absl::span
+    GTest::gmock_main
+)
+
 absl_cc_library(
   NAME
     log_internal_message
