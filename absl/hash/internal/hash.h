@@ -645,22 +645,27 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 //
 //  - `absl::Cord`
 //  - `std::string` (and std::basic_string<T, std::char_traits<T>, A> for
-//      any allocator A and any T in {char, wchar_t, char16_t, char32_t})
+//      any allocator A and any T in {char, wchar_t, char8_t, char16_t,
+//      char32_t})
 //  - `absl::string_view`, `std::string_view`, `std::wstring_view`,
-//    `std::u16string_view`, and `std::u32_string_view`.
+//    `std::u8string_view`, `std::u16string_view`, and `std::u32_string_view`.
 //
 // For simplicity, we currently support only strings built on `char`, `wchar_t`,
-// `char16_t`, or `char32_t`. This support may be broadened, if necessary, but
-// with some caution - this overload would misbehave in cases where the traits'
-// `eq()` member isn't equivalent to `==` on the underlying character type.
+// `char8_t`, `char16_t`, or `char32_t`. This support may be broadened, if
+// necessary, but with some caution - this overload would misbehave in cases
+// where the traits' `eq()` member isn't equivalent to `==` on the underlying
+// character type.
 template <typename H>
 H AbslHashValue(H hash_state, absl::string_view str) {
   return H::combine_contiguous(std::move(hash_state), str.data(), str.size());
 }
 
-// Support std::wstring, std::u16string and std::u32string.
+// Support std::wstring, std::u8string, std::u16string and std::u32string.
 template <typename Char, typename Alloc, typename H,
           typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+#ifdef __cpp_char8_t
+                                      std::is_same_v<Char, char8_t> ||
+#endif
                                       std::is_same_v<Char, char16_t> ||
                                       std::is_same_v<Char, char32_t>>>
 H AbslHashValue(
@@ -669,9 +674,13 @@ H AbslHashValue(
   return H::combine_contiguous(std::move(hash_state), str.data(), str.size());
 }
 
-// Support std::wstring_view, std::u16string_view and std::u32string_view.
+// Support std::wstring_view, std::u8string_view, std::u16string_view and
+// std::u32string_view.
 template <typename Char, typename H,
           typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+#ifdef __cpp_char8_t
+                                      std::is_same_v<Char, char8_t> ||
+#endif
                                       std::is_same_v<Char, char16_t> ||
                                       std::is_same_v<Char, char32_t>>>
 H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {

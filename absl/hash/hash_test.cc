@@ -484,6 +484,17 @@ TEST(HashValueTest, WString) {
       std::wstring(L"Iñtërnâtiônàlizætiøn"))));
 }
 
+#ifdef __cpp_char8_t
+TEST(HashValueTest, U8String) {
+  EXPECT_TRUE((is_hashable<std::u8string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u8string(), std::u8string(u8"ABC"), std::u8string(u8"ABC"),
+      std::u8string(u8"Some other different string"),
+      std::u8string(u8"Iñtërnâtiônàlizætiøn"))));
+}
+#endif
+
 TEST(HashValueTest, U16String) {
   EXPECT_TRUE((is_hashable<std::u16string>::value));
 
@@ -510,6 +521,18 @@ TEST(HashValueTest, WStringView) {
       std::wstring_view(L"Some other different string_view"),
       std::wstring_view(L"Iñtërnâtiônàlizætiøn"))));
 }
+
+#ifdef __cpp_char8_t
+TEST(HashValueTest, U8StringView) {
+  EXPECT_TRUE((is_hashable<std::u8string_view>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(std::u8string_view(), std::u8string_view(u8"ABC"),
+                      std::u8string_view(u8"ABC"),
+                      std::u8string_view(u8"Some other different string_view"),
+                      std::u8string_view(u8"Iñtërnâtiônàlizætiøn"))));
+}
+#endif
 
 TEST(HashValueTest, U16StringView) {
   EXPECT_TRUE((is_hashable<std::u16string_view>::value));
