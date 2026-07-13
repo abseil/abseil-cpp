@@ -800,7 +800,7 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
         std::min(num_remaining_symbols, buf_entries);
     const size_t bytes_in_chunk = entries_in_chunk * sizeof(buf[0]);
     const ssize_t len = file->ReadFromOffset(buf, bytes_in_chunk, offset);
-    SAFE_ASSERT(len >= 0);
+    SAFE_ASSERT(len > 0);
     SAFE_ASSERT(static_cast<size_t>(len) % sizeof(buf[0]) == 0);
     const size_t num_symbols_in_buf = static_cast<size_t>(len) / sizeof(buf[0]);
     SAFE_ASSERT(num_symbols_in_buf <= entries_in_chunk);
