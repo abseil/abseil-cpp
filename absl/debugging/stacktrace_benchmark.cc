@@ -44,8 +44,8 @@ ABSL_ATTRIBUTE_NOINLINE void func(benchmark::State& state, int x, int depth) {
     // Touch a significant amount of memory so that the stack is likely to be
     // not cached in the L1 cache.
     state.PauseTiming();
-    int* arr = new int[kCacheSize];
-    for (int i = 0; i < kCacheSize; ++i) benchmark::DoNotOptimize(arr[i] = 100);
+    volatile int* arr = new int[kCacheSize];
+    for (int i = 0; i < kCacheSize; ++i) a[i] = 100;
     delete[] arr;
     state.ResumeTiming();
     benchmark::DoNotOptimize(absl::GetStackTrace(pcs, depth, 0));
