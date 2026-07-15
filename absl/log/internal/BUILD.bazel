@@ -44,6 +44,7 @@ package_group(
     ],
     packages = [
         "//absl/log",
+        "@do_not_use_for_gloop_visibility_only//gloop/base/...",
     ],
 )
 
@@ -110,6 +111,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = ["//absl/base:config"],
 )
@@ -158,6 +160,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         "//absl/base:config",
@@ -191,6 +194,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/log:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":append_truncated",
@@ -468,6 +472,7 @@ cc_library(
         "//absl:friends",
         "//absl/log:__subpackages__",
         "//absl/status:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/status:__subpackages__",
     ],
     deps = [
         ":fnmatch",
@@ -563,6 +568,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/base:config",

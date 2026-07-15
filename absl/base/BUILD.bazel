@@ -72,6 +72,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/sysinfo/topology:__subpackages__",
     ],
     deps = [
         ":config",
@@ -89,6 +90,8 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/coding:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":config",
@@ -178,6 +181,8 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/base:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/thread/fiber:__pkg__",
     ],
     deps = [
         ":base_internal",
@@ -293,6 +298,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":config",
@@ -475,6 +481,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":config",
@@ -534,6 +541,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
     ],
     deps = [
         ":base",
@@ -895,6 +903,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":config",
@@ -1057,6 +1066,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":config",
@@ -1087,6 +1097,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/perftools/tracing:__subpackages__",
     ],
     deps = [
         "//absl/base:config",

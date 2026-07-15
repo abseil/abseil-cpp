@@ -161,6 +161,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/log/internal:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
     ],
     deps = [
         ":stacktrace",
@@ -224,7 +225,10 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//absl:friends"],
+    visibility = [
+        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",

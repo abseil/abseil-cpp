@@ -66,6 +66,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/thread:__subpackages__",
     ],
     deps = [
         "//absl/base",
@@ -346,6 +348,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":synchronization",

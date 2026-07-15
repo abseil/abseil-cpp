@@ -234,6 +234,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = ["//absl/types:compare"],
 )
@@ -424,6 +425,8 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/strings:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         "//absl/base:config",
@@ -459,6 +462,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":common",
@@ -528,6 +532,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/hash",
@@ -674,6 +679,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = ["//absl/base:config"],
 )
@@ -700,6 +706,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":common_policy_traits",
@@ -720,6 +727,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         "//absl/meta:type_traits",
@@ -988,6 +996,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1006,6 +1015,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1023,6 +1033,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1040,6 +1051,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1091,6 +1103,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1108,6 +1121,7 @@ cc_library(
     visibility = [
         "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",

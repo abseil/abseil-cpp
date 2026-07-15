@@ -43,6 +43,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/base:config",
@@ -69,6 +70,7 @@ cc_library(
     visibility = [
         "//absl:__subpackages__",
         "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/base:config",
