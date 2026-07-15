@@ -136,11 +136,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl:friends",
-        "//absl/log:__subpackages__",
-        "//absl/status:__pkg__",
-    ],
+    visibility = ["//visibility:public"],  # Logically private. Do not depend on this.
     deps = [
         ":resize_and_overwrite",
         "//absl/base:config",

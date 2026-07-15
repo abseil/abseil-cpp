@@ -252,6 +252,7 @@ cc_library(
     hdrs = ["status_matchers.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         ":status",
         ":statusor",
