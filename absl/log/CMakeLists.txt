@@ -807,6 +807,7 @@ absl_cc_test(
     absl::vlog_is_on
     absl::log_severity
     absl::flags
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -870,6 +871,7 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_internal_test_matchers
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -930,6 +932,7 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_internal_test_matchers
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -979,6 +982,7 @@ absl_cc_test(
     absl::flags_reflection
     absl::scoped_mock_log
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -999,6 +1003,7 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1020,6 +1025,7 @@ absl_cc_test(
     absl::source_location
     absl::str_format
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1037,6 +1043,7 @@ absl_cc_test(
     absl::log
     absl::log_severity
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1060,6 +1067,7 @@ absl_cc_test(
     absl::log_severity
     absl::scoped_mock_log
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1084,6 +1092,7 @@ absl_cc_test(
     absl::scoped_mock_log
     absl::source_location
     absl::strings
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1106,6 +1115,7 @@ absl_cc_test(
     absl::source_location
     absl::strings
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1130,6 +1140,7 @@ absl_cc_test(
     absl::scoped_mock_log
     absl::strings
     absl::synchronization
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
@@ -1171,6 +1182,7 @@ absl_cc_test(
     absl::strerror
     absl::strings
     absl::str_format
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1190,6 +1202,7 @@ absl_cc_test(
     absl::log_internal_test_matchers
     absl::log_structured
     absl::scoped_mock_log
+    Threads::Threads
     GTest::gmock_main
 )
 
