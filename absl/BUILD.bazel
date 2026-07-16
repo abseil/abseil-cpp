@@ -60,9 +60,3 @@ selects.config_setting_group(
     ],
     visibility = [":__subpackages__"],
 )
-
-# Expose internals to privileged external repositories.
-package_group(
-    name = "friends",
-    packages = [],
-)

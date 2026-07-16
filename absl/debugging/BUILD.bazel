@@ -159,7 +159,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/log/internal:__pkg__",
         "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
     ],
@@ -226,7 +225,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
     ],
     deps = [
@@ -245,7 +243,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
         "//absl/debugging:__pkg__",
     ],
@@ -333,9 +330,6 @@ cc_library(
     hdrs = ["internal/demangle_rust.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl:friends",
-    ],
     deps = [
         ":decode_rust_punycode",
         "//absl/base:config",
