@@ -27,6 +27,7 @@ load(
 package(
     default_visibility = [
         ":internal_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     features = [
         "header_modules",
@@ -43,7 +44,6 @@ package_group(
     ],
     packages = [
         "//absl/log",
-        "@do_not_use_for_gloop_visibility_only//gloop/base/...",
     ],
 )
 
@@ -122,6 +122,7 @@ cc_library(
     visibility = [
         ":internal_users",
         "//absl/status:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         "//absl/flags:flag",
@@ -308,6 +309,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":log_message",
@@ -381,6 +383,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":globals",
@@ -402,6 +405,7 @@ cc_library(
     visibility = [
         ":internal_users",
         ":structured_proto_users",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     deps = [
         ":test_helpers",

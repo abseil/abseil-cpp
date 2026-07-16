@@ -152,6 +152,13 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/concurrent/percpu:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/concurrent/rcu:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/strings:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/thread/fiber:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/hash:__subpackages__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/process:__subpackages__",
     ],
     deps = [
         ":atomic_hook",
