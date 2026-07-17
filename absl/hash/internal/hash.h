@@ -787,41 +787,50 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
 }
 
 // AbslHashValue special cases for hashing std::vector<bool>
-
-#if defined(ABSL_IS_BIG_ENDIAN) && \
-    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
-
-// std::hash in libstdc++ does not work correctly with vector<bool> on Big
-// Endian platforms therefore we need to implement a custom AbslHashValue for
-// it. More details on the bug:
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+//
+// To achieve high performance without depending on private standard library
+// internals, we pack bits 64 at a time into uint64_t words using a fixed
+// 64-step inner loop that allows compilers to unroll bit shifts cleanly.
+//
+// This is slower than std::hash<std::vector<bool>> which can access private
+// storage directly, but more than fast enough for the very rare case of hashing
+// std::vector<bool>. In the event that higher performance is needed, a custom
+// key type is likely faster than building std::vector<bool> and hashing it,
+// otherwise users can just use std::hash as the hasher.
 template <typename H, typename T, typename Allocator>
 std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
   typename H::AbslInternalPiecewiseCombiner combiner;
-  for (const auto& i : vector) {
-    unsigned char c = static_cast<unsigned char>(i);
-    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
+  const size_t size = vector.size();
+  size_t i = 0;
+  // Pack full 64-bit words. Fixed inner loop count enables compiler unrolling.
+  while (i + 64 <= size) {
+    uint64_t word = 0;
+    for (size_t j = 0; j < 64; ++j) {
+      word |= static_cast<uint64_t>(vector[i + j]) << j;
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        sizeof(word));
+    i += 64;
   }
+  // Pack remaining bits (< 64) into the final word.
+  if (i < size) {
+    uint64_t word = 0;
+    const size_t rem = size - i;
+    for (size_t j = 0; j < rem; ++j) {
+      word |= static_cast<uint64_t>(vector[i + j]) << j;
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        (rem + 7) / 8);
+  }
+  // Mix in vector.size() to distinguish vectors with trailing false/zero bits
+  // (e.g. {true} vs {true, false}) that would otherwise produce identical bit
+  // buffers.
   return H::combine(combiner.finalize(std::move(hash_state)),
-                    WeaklyMixedInteger{vector.size()});
+                    WeaklyMixedInteger{size});
 }
-#else
-// When not working around the libstdc++ bug above, we still have to contend
-// with the fact that std::hash<vector<bool>> is often poor quality, hashing
-// directly on the internal words and on no other state.  On these platforms,
-// vector<bool>{1, 1} and vector<bool>{1, 1, 0} hash to the same value.
-//
-// Mixing in the size (as we do in our other vector<> implementations) on top
-// of the library-provided hash implementation avoids this QOI issue.
-template <typename H, typename T, typename Allocator>
-std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
-AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
-  return H::combine(std::move(hash_state),
-                    std::hash<std::vector<T, Allocator>>{}(vector),
-                    WeaklyMixedInteger{vector.size()});
-}
-#endif
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Ordered Associative Containers
@@ -959,28 +968,44 @@ std::enable_if_t<std::conjunction_v<is_hashable<T>...>, H> AbslHashValue(
 // AbslHashValue for Other Types
 // -----------------------------------------------------------------------------
 
-// AbslHashValue for hashing std::bitset is not defined on Little Endian
-// platforms, for the same reason as for vector<bool> (see std::vector above):
-// It does not expose the raw bytes, and a fallback to std::hash<> is most
-// likely faster.
-
-#if defined(ABSL_IS_BIG_ENDIAN) && \
-    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
 // AbslHashValue for hashing std::bitset
 //
-// std::hash in libstdc++ does not work correctly with std::bitset on Big Endian
-// platforms therefore we need to implement a custom AbslHashValue for it. More
-// details on the bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+// To achieve high performance without depending on private standard library
+// internals, we pack bits 64 at a time into uint64_t words using a fixed
+// 64-step inner loop that allows compilers to unroll bit shifts cleanly.
+//
+// This is slower than std::hash<std::bitset> which can access private storage
+// directly, but more than fast enough for the very rare case of hashing
+// std::bitset. In the event that higher-performance is needed, users can just
+// use std::hash as the hasher.
 template <typename H, size_t N>
 H AbslHashValue(H hash_state, const std::bitset<N>& set) {
   typename H::AbslInternalPiecewiseCombiner combiner;
-  for (size_t i = 0; i < N; i++) {
-    unsigned char c = static_cast<unsigned char>(set[i]);
-    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
+  size_t i = 0;
+  // Pack full 64-bit words. Fixed inner loop count enables compiler unrolling.
+  while (i + 64 <= N) {
+    uint64_t word = 0;
+    for (size_t j = 0; j < 64; ++j) {
+      word |= static_cast<uint64_t>(set[i + j]) << j;
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        sizeof(word));
+    i += 64;
+  }
+  // Pack remaining bits (< 64) into the final word.
+  if (i < N) {
+    uint64_t word = 0;
+    const size_t rem = N - i;
+    for (size_t j = 0; j < rem; ++j) {
+      word |= static_cast<uint64_t>(set[i + j]) << j;
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        (rem + 7) / 8);
   }
   return H::combine(combiner.finalize(std::move(hash_state)), N);
 }
-#endif
 
 // -----------------------------------------------------------------------------
 
