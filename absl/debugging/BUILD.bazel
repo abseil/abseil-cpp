@@ -330,6 +330,9 @@ cc_library(
     hdrs = ["internal/demangle_rust.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/util/symbolize:__pkg__",
+    ],
     deps = [
         ":decode_rust_punycode",
         "//absl/base:config",
