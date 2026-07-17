@@ -852,6 +852,23 @@ TEST(CivilTime, ParseEdgeCases) {
   EXPECT_EQ(absl::CivilMonth(-1, 1), m);
 }
 
+TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
+  // When a field normalizes past the end of the year (e.g. a ":60" leap
+  // second on the last second of December), the carry must be reflected in
+  // the parsed year, so parsing agrees with direct field construction.
+  absl::CivilSecond ss;
+  EXPECT_TRUE(absl::ParseCivilTime("2020-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2020, 12, 31, 23, 59, 60), ss);
+  EXPECT_EQ(absl::CivilSecond(2021, 1, 1, 0, 0, 0), ss);
+
+  EXPECT_TRUE(absl::ParseLenientCivilTime("2020-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2021, 1, 1, 0, 0, 0), ss);
+
+  // The carry also works for negative years crossing zero.
+  EXPECT_TRUE(absl::ParseCivilTime("-1-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(0, 1, 1, 0, 0, 0), ss);
+}
+
 TEST(CivilTime, AbslStringify) {
   EXPECT_EQ("2015-01-02T03:04:05",
             absl::StrFormat("%v", absl::CivilSecond(2015, 1, 2, 3, 4, 5)));
