@@ -150,7 +150,13 @@ class StatusRep {
   // As an internal implementation detail, we guarantee that if status.message()
   // is non-empty, then the resulting string_view is null terminated.
   // This is required to implement 'StatusMessageAsCStr(...)'
+  //
+  // NOTE: if most statuses are constructed with messages that are either empty
+  // or so long they don't fit in the std::string's local storage (small string
+  // optimization), replacing std::string with an entirely heap-allocated
+  // string might save memory at scale.
   std::string message_;
+
   absl::InlinedVector<absl::SourceLocation, 1> source_locations_;
   std::unique_ptr<status_internal::Payloads> payloads_;
 };
