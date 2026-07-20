@@ -19,7 +19,6 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -31,11 +30,6 @@
 namespace {
 
 using ::testing::StaticAssertTypeEq;
-
-template <typename T>
-using IsViewAndNotOwner =
-    std::conjunction<absl::type_traits_internal::IsView<T>,
-                     std::negation<absl::type_traits_internal::IsOwner<T>>>;
 
 template <typename T>
 using IsOwnerAndNotView =
@@ -55,23 +49,6 @@ static_assert(!IsOwnerAndNotView<std::string_view>::value,
               "string_view is a view, not an owner");
 static_assert(!IsOwnerAndNotView<std::wstring_view>::value,
               "wstring_view is a view, not an owner");
-
-static_assert(!IsOwnerAndNotView<std::variant<>>::value,
-              "empty variant is not an owner");
-static_assert(!IsViewAndNotOwner<std::variant<>>::value,
-              "empty variant is not a view");
-
-static_assert(IsOwnerAndNotView<std::variant<std::string, std::vector<char>,
-                                             std::vector<int>>>::value,
-              "aggregate of owners is an owner");
-static_assert(
-    IsViewAndNotOwner<std::variant<std::wstring_view, std::string_view>>::value,
-    "aggregate of views is an view");
-
-static_assert(!IsOwnerAndNotView<std::variant<const char*, std::string>>::value,
-              "variant of mixed-ownership types is not considered an owner");
-static_assert(!IsViewAndNotOwner<std::variant<const char*, std::string>>::value,
-              "variant of mixed-ownership types is not considered a view");
 
 template <class T, class U>
 struct simple_pair {

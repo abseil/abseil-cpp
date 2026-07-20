@@ -41,7 +41,6 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -584,14 +583,6 @@ struct IsOwner<std::basic_string<T, Traits, Alloc>> : std::true_type {};
 template <typename T, typename Alloc>
 struct IsOwner<std::vector<T, Alloc>> : std::true_type {};
 
-template <typename... T>
-struct IsOwner<std::variant<T...>>
-    : std::bool_constant<(sizeof...(T) > 0) &&
-                         // Uses a C++17 fold expression where '...' unpacks the
-                         // parameter pack T, and 'true &&' provides the base
-                         // case for the logical AND operation across all types.
-                         (true && ... && IsOwner<T>::value)> {};
-
 // Detects if a class's definition has declared itself to be a view by declaring
 //   using absl_internal_is_view = std::true_type;
 // as a member.
@@ -628,14 +619,6 @@ struct IsView<std::pair<T1, T2>>
 
 template <typename Char, typename Traits>
 struct IsView<std::basic_string_view<Char, Traits>> : std::true_type {};
-
-template <typename... T>
-struct IsView<std::variant<T...>>
-    : std::bool_constant<(sizeof...(T) > 0) &&
-                         // Uses a C++17 fold expression where '...' unpacks the
-                         // parameter pack T, and 'true &&' provides the base
-                         // case for the logical AND operation across all types.
-                         (true && ... && IsView<T>::value)> {};
 
 #ifdef __cpp_lib_span
 template <typename T>
