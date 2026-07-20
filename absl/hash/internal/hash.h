@@ -809,7 +809,9 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
     for (size_t j = 0; j < 64; ++j) {
       word |= static_cast<uint64_t>(vector[i + j]) << j;
     }
-    word = absl::little_endian::FromHost64(word);
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         sizeof(word));
@@ -822,7 +824,9 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
     for (size_t j = 0; j < rem; ++j) {
       word |= static_cast<uint64_t>(vector[i + j]) << j;
     }
-    word = absl::little_endian::FromHost64(word);
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         (rem + 7) / 8);
@@ -990,7 +994,9 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
     for (size_t j = 0; j < 64; ++j) {
       word |= static_cast<uint64_t>(set[i + j]) << j;
     }
-    word = absl::little_endian::FromHost64(word);
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         sizeof(word));
@@ -1003,7 +1009,9 @@ H AbslHashValue(H hash_state, const std::bitset<N>& set) {
     for (size_t j = 0; j < rem; ++j) {
       word |= static_cast<uint64_t>(set[i + j]) << j;
     }
-    word = absl::little_endian::FromHost64(word);
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
     hash_state = combiner.add_buffer(
         std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
         (rem + 7) / 8);
