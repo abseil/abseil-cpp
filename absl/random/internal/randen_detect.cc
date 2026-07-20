@@ -29,10 +29,9 @@
 #include <sys/types.h>
 #endif
 
-#include <cstdint>
-#include <cstring>
 #include <optional>  // IWYU pragma: keep
 
+#include "absl/base/config.h"
 #include "absl/random/internal/platform.h"
 
 #if !defined(__UCLIBC__) && defined(__GLIBC__) && \
