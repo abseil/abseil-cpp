@@ -32,7 +32,10 @@ void InitializeLogImpl(absl::TimeZone time_zone) {
 }
 }  // namespace
 
-void InitializeLog() { InitializeLogImpl(absl::LocalTimeZone()); }
+void InitializeLog() {
+  if (absl::log_internal::IsInitialized()) return;
+  InitializeLogImpl(absl::LocalTimeZone());
+}
 
 ABSL_NAMESPACE_END
 }  // namespace absl
