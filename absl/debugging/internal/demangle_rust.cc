@@ -720,6 +720,11 @@ class RustSymbolParser {
     if (!ParseDecimalNumber(num_bytes)) return false;
     (void)Eat('_');  // optional separator, needed if a digit follows
     if (is_punycoded) {
+      // A length exceeding the remaining input would make punycode_end point
+      // past the end of the buffer, forming an out-of-bounds pointer.
+      if (static_cast<size_t>(num_bytes) > std::strlen(&encoding_[pos_])) {
+        return false;
+      }
       DecodeRustPunycodeOptions options;
       options.punycode_begin = &encoding_[pos_];
       options.punycode_end = &encoding_[pos_] + num_bytes;
