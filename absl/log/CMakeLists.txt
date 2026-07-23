@@ -401,6 +401,21 @@ absl_cc_library(
     absl::span
 )
 
+absl_cc_test(
+  NAME
+    log_internal_append_truncated_test
+  SRCS
+    "internal/append_truncated_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::log_internal_append_truncated
+    absl::span
+    GTest::gmock_main
+)
+
 # Public targets
 absl_cc_library(
   NAME
