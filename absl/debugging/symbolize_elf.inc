@@ -773,6 +773,15 @@ static ABSL_ATTRIBUTE_NOINLINE FindSymbolResult FindSymbol(
     return SYMBOL_NOT_FOUND;
   }
 
+  // sh_entsize comes straight from the object file.  A crafted symbol table
+  // can set it to zero (making the division below undefined) or to a value
+  // other than the entry size we read below, which would desynchronize the
+  // fixed-size reads from the per-entry stride.  Reject it, mirroring the
+  // e_shentsize check we apply to section headers.
+  if (symtab->sh_entsize != sizeof(ElfW(Sym))) {
+    return SYMBOL_NOT_FOUND;
+  }
+
   // Read multiple symbols at once to save read() calls.
   ElfW(Sym) *buf = reinterpret_cast<ElfW(Sym) *>(tmp_buf);
   const size_t buf_entries = tmp_buf_size / sizeof(buf[0]);
