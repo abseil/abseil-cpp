@@ -397,7 +397,7 @@ struct is_uniquely_represented<unsigned __int128> : std::true_type {};
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 template <typename T>
-struct FitsIn64Bits : std::integral_constant<bool, sizeof(T) <= 8> {};
+struct FitsIn64Bits : std::bool_constant<sizeof(T) <= 8> {};
 
 struct CombineRaw {
   template <typename H>
@@ -1428,8 +1428,8 @@ struct HashSelect {
 };
 
 template <typename T>
-struct is_hashable
-    : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
+struct is_hashable : std::bool_constant<HashSelect::template Apply<T>::value> {
+};
 
 class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>

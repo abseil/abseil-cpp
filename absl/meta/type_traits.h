@@ -361,9 +361,8 @@ template <class T>
 using IsSwappableImpl = decltype(swap(std::declval<T&>(), std::declval<T&>()));
 
 // NOTE: This dance with the default template parameter is for MSVC.
-template <class T,
-          class IsNoexcept = std::integral_constant<
-              bool, noexcept(swap(std::declval<T&>(), std::declval<T&>()))>>
+template <class T, class IsNoexcept = std::bool_constant<noexcept(
+                       swap(std::declval<T&>(), std::declval<T&>()))>>
 using IsNothrowSwappableImpl = std::enable_if_t<IsNoexcept::value>;
 
 // IsSwappable
@@ -473,8 +472,7 @@ using swap_internal::Swap;
 // ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI will have no effect on this trait.
 template <class T>
 struct is_trivially_relocatable
-    : std::integral_constant<bool, __builtin_is_cpp_trivially_relocatable(T)> {
-};
+    : std::bool_constant<__builtin_is_cpp_trivially_relocatable(T)> {};
 #elif ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && defined(__clang__) && \
     !(defined(_WIN32) || defined(_WIN64)) && !defined(__APPLE__) &&          \
     !defined(__NVCC__)
@@ -570,12 +568,11 @@ struct IsOwner : IsOwnerImpl<T> {};
 // expands the set of types we can handle to include std::pair.
 template <typename T1, typename T2>
 struct IsOwner<std::pair<T1, T2>>
-    : std::integral_constant<
-          bool, std::conditional_t<std::is_reference_v<T1>, std::false_type,
-                                   IsOwner<std::remove_cv_t<T1>>>::value &&
-                    std::conditional_t<std::is_reference_v<T2>, std::false_type,
-                                       IsOwner<std::remove_cv_t<T2>>>::value> {
-};
+    : std::bool_constant<
+          std::conditional_t<std::is_reference_v<T1>, std::false_type,
+                             IsOwner<std::remove_cv_t<T1>>>::value &&
+          std::conditional_t<std::is_reference_v<T2>, std::false_type,
+                             IsOwner<std::remove_cv_t<T2>>>::value> {};
 
 template <typename T, typename Traits, typename Alloc>
 struct IsOwner<std::basic_string<T, Traits, Alloc>> : std::true_type {};
@@ -607,15 +604,15 @@ struct IsViewImpl<
 // If it ever becomes possible to detect [[gsl::Pointer]], we should leverage
 // it: https://wg21.link/p1179
 template <typename T>
-struct IsView : std::integral_constant<bool, std::is_pointer_v<T> ||
-                                                 IsViewImpl<T>::value> {};
+struct IsView
+    : std::bool_constant<std::is_pointer_v<T> || IsViewImpl<T>::value> {};
 
 // This allows incomplete types to be used for associative containers, and also
 // expands the set of types we can handle to include std::pair.
 template <typename T1, typename T2>
 struct IsView<std::pair<T1, T2>>
-    : std::integral_constant<bool, IsView<std::remove_cv_t<T1>>::value &&
-                                       IsView<std::remove_cv_t<T2>>::value> {};
+    : std::bool_constant<IsView<std::remove_cv_t<T1>>::value &&
+                         IsView<std::remove_cv_t<T2>>::value> {};
 
 template <typename Char, typename Traits>
 struct IsView<std::basic_string_view<Char, Traits>> : std::true_type {};
@@ -633,9 +630,10 @@ struct IsView<std::span<T>> : std::true_type {};
 // Until then, we consider an assignment from an "owner" (such as std::string)
 // to a "view" (such as std::string_view) to be a lifetime-bound assignment.
 template <typename T, typename U>
-using IsLifetimeBoundAssignment = std::conjunction<
-    std::integral_constant<bool, !std::is_lvalue_reference_v<U>>,
-    IsOwner<absl::remove_cvref_t<U>>, IsView<absl::remove_cvref_t<T>>>;
+using IsLifetimeBoundAssignment =
+    std::conjunction<std::bool_constant<!std::is_lvalue_reference_v<U>>,
+                     IsOwner<absl::remove_cvref_t<U>>,
+                     IsView<absl::remove_cvref_t<T>>>;
 
 }  // namespace type_traits_internal
 
