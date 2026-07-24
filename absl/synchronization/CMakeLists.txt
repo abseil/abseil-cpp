@@ -130,6 +130,7 @@ absl_cc_test(
   DEPS
     absl::synchronization
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -144,6 +145,7 @@ absl_cc_test(
     absl::synchronization
     absl::time
     absl::tracing_internal
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -195,6 +197,7 @@ absl_cc_test(
     absl::memory
     absl::random_random
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -226,6 +229,7 @@ absl_cc_test(
     absl::synchronization
     absl::time
     absl::tracing_internal
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -259,6 +263,7 @@ absl_cc_test(
     absl::synchronization
     absl::strings
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -276,6 +281,7 @@ absl_cc_test(
     absl::synchronization
     absl::thread_pool
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -290,4 +296,5 @@ absl_cc_test(
     absl::synchronization
     absl::core_headers
     absl::check
+    Threads::Threads
 )

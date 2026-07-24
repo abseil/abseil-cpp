@@ -158,6 +158,7 @@ absl_cc_test(
     absl::random_distributions
     absl::random_mocking_bit_gen
     absl::random_random
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
@@ -175,6 +176,7 @@ absl_cc_test(
     absl::random_bit_gen_ref
     absl::random_mocking_bit_gen
     absl::random_random
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
@@ -1059,6 +1061,7 @@ absl_cc_test(
     absl::random_random
     absl::synchronization
     absl::type_traits
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -1093,6 +1096,7 @@ absl_cc_test(
     absl::flat_hash_map
     absl::random_internal_entropy_pool
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 

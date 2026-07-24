@@ -163,6 +163,7 @@ absl_cc_test(
     absl::config
     absl::bind_front
     absl::synchronization
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -201,6 +202,7 @@ absl_cc_test(
     absl::random_random
     absl::raw_logging_internal
     absl::synchronization
+    Threads::Threads
     GTest::gmock_main
 )
 
