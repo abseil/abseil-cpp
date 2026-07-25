@@ -217,6 +217,20 @@ cc_test(
     ],
 )
 
+cc_binary(
+    name = "match_benchmark",
+    testonly = True,
+    srcs = ["match_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    tags = ["benchmark"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":strings",
+        "//absl/base:raw_logging_internal",
+        "@google_benchmark//:benchmark_main",
+    ],
+)
+
 cc_test(
     name = "escaping_test",
     size = "small",
