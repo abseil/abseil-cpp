@@ -118,6 +118,11 @@ TEST(DemangleRust, UnicodeIdentifiers) {
                     "ice_cap::Eyjafjallajökull");
   EXPECT_DEMANGLING("_RNvC7ice_caps_u19Eyjafjallajkull_jtb",
                     "ice_cap::Eyjafjallajökull");
+
+  // A punycode byte count larger than the remaining input is rejected instead
+  // of running the decoder past the end of the buffer.
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u2000000000Eyjafjallajkull_jtb");
+  EXPECT_DEMANGLING_FAILS("_RNvC7ice_caps_u99Eyj_a");
 }
 
 TEST(DemangleRust, FunctionInModule) {
