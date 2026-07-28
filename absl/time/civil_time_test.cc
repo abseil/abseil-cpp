@@ -22,6 +22,8 @@
 #include "gtest/gtest.h"
 #include "absl/base/macros.h"
 #include "absl/hash/hash_testing.h"
+#include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
 namespace {
@@ -870,19 +872,34 @@ TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
 }
 
 TEST(CivilTime, AbslStringify) {
+  static_assert(absl::HasAbslStringify<absl::CivilSecond>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilMinute>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilHour>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilDay>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilMonth>::value);
+  static_assert(absl::HasAbslStringify<absl::CivilYear>::value);
+
+  EXPECT_EQ("2015-01-02T03:04:05",
+            absl::StrCat(absl::CivilSecond(2015, 1, 2, 3, 4, 5)));
   EXPECT_EQ("2015-01-02T03:04:05",
             absl::StrFormat("%v", absl::CivilSecond(2015, 1, 2, 3, 4, 5)));
 
   EXPECT_EQ("2015-01-02T03:04",
+            absl::StrCat(absl::CivilMinute(2015, 1, 2, 3, 4)));
+  EXPECT_EQ("2015-01-02T03:04",
             absl::StrFormat("%v", absl::CivilMinute(2015, 1, 2, 3, 4)));
 
+  EXPECT_EQ("2015-01-02T03", absl::StrCat(absl::CivilHour(2015, 1, 2, 3)));
   EXPECT_EQ("2015-01-02T03",
             absl::StrFormat("%v", absl::CivilHour(2015, 1, 2, 3)));
 
+  EXPECT_EQ("2015-01-02", absl::StrCat(absl::CivilDay(2015, 1, 2)));
   EXPECT_EQ("2015-01-02", absl::StrFormat("%v", absl::CivilDay(2015, 1, 2)));
 
+  EXPECT_EQ("2015-01", absl::StrCat(absl::CivilMonth(2015, 1)));
   EXPECT_EQ("2015-01", absl::StrFormat("%v", absl::CivilMonth(2015, 1)));
 
+  EXPECT_EQ("2015", absl::StrCat(absl::CivilYear(2015)));
   EXPECT_EQ("2015", absl::StrFormat("%v", absl::CivilYear(2015)));
 }
 
