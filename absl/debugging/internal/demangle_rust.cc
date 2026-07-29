@@ -725,14 +725,25 @@ class RustSymbolParser {
       if (static_cast<size_t>(num_bytes) > std::strlen(&encoding_[pos_])) {
         return false;
       }
-      DecodeRustPunycodeOptions options;
-      options.punycode_begin = &encoding_[pos_];
-      options.punycode_end = &encoding_[pos_] + num_bytes;
-      options.out_begin = out_;
-      options.out_end = out_end_;
-      out_ = DecodeRustPunycode(options);
-      if (out_ == nullptr) return false;
-      pos_ += static_cast<size_t>(num_bytes);
+      if (silence_depth_ == 0) {
+        DecodeRustPunycodeOptions options;
+        options.punycode_begin = &encoding_[pos_];
+        options.punycode_end = &encoding_[pos_] + num_bytes;
+        options.out_begin = out_;
+        options.out_end = out_end_;
+        out_ = DecodeRustPunycode(options);
+        if (out_ == nullptr) return false;
+        pos_ += static_cast<size_t>(num_bytes);
+      } else {
+        // Output is silenced, so like EmitChar and Emit we produce nothing and
+        // use no output space.  Still consume the identifier's encoded bytes,
+        // stopping at a premature NUL exactly as the raw-bytes branch below
+        // does, so a suppressed punycoded identifier (e.g. a punycoded
+        // fn-signature abi) cannot leak into the demangling.
+        for (int i = 0; i < num_bytes; ++i) {
+          if (Take() == '\0') return false;
+        }
+      }
     }
 
     // Emit the beginnings of braced forms like {shim:vtable#0}.
