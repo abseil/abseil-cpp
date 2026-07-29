@@ -71,7 +71,11 @@ TEST(AppendTruncatedTest, SurrogatePairAtTruncationBoundary) {
 
 TEST(AppendTruncatedTest, PlainCharactersAreUnaffected) {
   EXPECT_EQ(Append(L"hello", 32), "hello");
-  EXPECT_EQ(Append(L"é中", 32), "\xC3\xA9\xE4\xB8\xAD");
+  // Spell the wide literals with universal character names so the encoding
+  // does not depend on the source file code page. MSVC decodes narrow source
+  // bytes with the system code page unless /utf-8 is passed, which would make
+  // a literal "\u00e9\u4e2d" here map to the wrong wchar_t values.
+  EXPECT_EQ(Append(L"\u00E9\u4E2D", 32), "\xC3\xA9\xE4\xB8\xAD");
 }
 
 }  // namespace
