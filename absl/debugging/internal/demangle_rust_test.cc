@@ -524,6 +524,15 @@ TEST(DemangleRust, ExternOther) {
       "<fn... as c::t>::f");
 }
 
+TEST(DemangleRust, ExternPunycodedAbiIsSuppressed) {
+  // The abi is part of the silenced function signature, so a punycoded abi must
+  // be suppressed like any other identifier; its decoded form must not leak
+  // into the output.
+  EXPECT_DEMANGLING(
+      // <extern "Eyjafjallajökull" fn() as c::t>::f
+      "_RNvYFKu19Eyjafjallajkull_jtbEuNtC1c1t1f", "<fn... as c::t>::f");
+}
+
 TEST(DemangleRust, Unsafe) {
   EXPECT_DEMANGLING("_RNvYFUEuNtC1c1t1f",  // <unsafe fn() as c::t>::f
                     "<fn... as c::t>::f");
