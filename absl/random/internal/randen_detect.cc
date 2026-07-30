@@ -90,6 +90,8 @@ static uint32_t GetAuxval(uint32_t hwcap_type) {
 #if defined(ABSL_INTERNAL_USE_ANDROID_GETAUXVAL)
 #include <dlfcn.h>
 
+#include <cstring>
+
 static uint32_t GetAuxval(uint32_t hwcap_type) {
   // NOLINTNEXTLINE(runtime/int)
   typedef unsigned long (*getauxval_func_t)(unsigned long);
