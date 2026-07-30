@@ -431,19 +431,22 @@ constexpr size_t PreviousCapacity(size_t n) {
 // General notes on capacity/growth methods below:
 // - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
 //   average of two empty slots per group.
-// - For (capacity+1) >= Group::kWidth, growth is 7/8*capacity.
 // - For (capacity+1) < Group::kWidth, growth == capacity. In this case, we
 //   never need to probe (the whole table fits in one group) so we don't need a
 //   load factor less than 1.
+// - For tables with capacity <= kMaxCapacityForLoadFactorOne, we leave one
+//   empty slot.
+// - For capacity > kMaxCapacityForLoadFactorOne, growth is 7/8*capacity.
+constexpr inline size_t kMaxCapacityForLoadFactorOne = Group::kWidth * 2 - 1;
 
 // Given `capacity`, applies the load factor; i.e., it returns the maximum
 // number of values we should put into the table before a resizing rehash.
 constexpr size_t CapacityToGrowth(size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
   // `capacity*7/8`
-  if (Group::kWidth == 8 && capacity == 7) {
-    // x-x/8 does not work when x==7.
-    return 6;
+  if (capacity <= kMaxCapacityForLoadFactorOne) {
+    // For small capacities we leave at most one empty slot.
+    return capacity - (capacity >= Group::kWidth - 1);
   }
   return capacity - capacity / 8;
 }
@@ -460,7 +463,13 @@ constexpr size_t SizeToCapacity(size_t size) {
   // The minimum possible capacity is NormalizeCapacity(size).
   // Shifting right `~size_t{}` by `leading_zeros` yields
   // NormalizeCapacity(size).
-  int leading_zeros = absl::countl_zero(size);
+  int leading_zeros = absl::countl_zero(
+      size +
+      // Tables larger than half a group require at least one empty slot.
+      (size >= Group::kWidth / 2));
+  if (size < kMaxCapacityForLoadFactorOne) {
+    return (~size_t{}) >> leading_zeros;
+  }
   constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
   // max_size_for_next_capacity = max_load_factor * next_capacity
   //                            = (7/8) * (~size_t{} >> leading_zeros)
@@ -469,10 +478,6 @@ constexpr size_t SizeToCapacity(size_t size) {
   size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
   // Decrease shift if size is too big for the minimum capacity.
   leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
-  if constexpr (Group::kWidth == 8) {
-    // Formula doesn't work when size==7 for 8-wide groups.
-    leading_zeros -= (size == 7);
-  }
   return (~size_t{}) >> leading_zeros;
 }
 

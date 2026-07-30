@@ -585,8 +585,14 @@ TEST(Util, SizeToCapacitySmallValues) {
   if (Group::kWidth == 16) {
     EXPECT_EQ(SizeToCapacity(7), 7);
     EXPECT_EQ(SizeToCapacity(14), 15);
+    EXPECT_EQ(SizeToCapacity(28), 31);
+    EXPECT_EQ(SizeToCapacity(29), 31);
+    EXPECT_EQ(SizeToCapacity(30), 31);
+    EXPECT_EQ(SizeToCapacity(31), 63);
   } else {
     EXPECT_EQ(SizeToCapacity(7), 15);
+    EXPECT_EQ(SizeToCapacity(14), 15);
+    EXPECT_EQ(SizeToCapacity(15), 31);
   }
 }
 
@@ -595,12 +601,21 @@ TEST(Util, CapacityToGrowthSmallValues) {
   EXPECT_EQ(CapacityToGrowth(3), 3);
   if (Group::kWidth == 16) {
     EXPECT_EQ(CapacityToGrowth(7), 7);
+    EXPECT_EQ(CapacityToGrowth(31), 30);
   } else {
     EXPECT_EQ(CapacityToGrowth(7), 6);
+    EXPECT_EQ(CapacityToGrowth(31), 28);
   }
   EXPECT_EQ(CapacityToGrowth(15), 14);
-  EXPECT_EQ(CapacityToGrowth(31), 28);
   EXPECT_EQ(CapacityToGrowth(63), 56);
+}
+
+TEST(Table, ReserveGroupWidthCapacity) {
+  absl::flat_hash_set<int> set;
+  set.reserve(Group::kWidth * 2 - 2);
+  EXPECT_EQ(set.capacity(), Group::kWidth * 2 - 1);
+  set.reserve(Group::kWidth * 2 - 1);
+  EXPECT_EQ(set.capacity(), Group::kWidth * 4 - 1);
 }
 
 TEST(Util, GrowthAndCapacity) {
