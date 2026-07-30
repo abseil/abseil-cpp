@@ -14,13 +14,14 @@
 
 #include "absl/time/civil_time.h"
 
+#include <cstddef>
 #include <iomanip>
+#include <iterator>
 #include <limits>
 #include <sstream>
 #include <type_traits>
 
 #include "gtest/gtest.h"
-#include "absl/base/macros.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_cat.h"
@@ -1205,7 +1206,7 @@ TEST(CivilTime, LeapYears) {
       {2009, 365, {3, 1}},  {2100, 365, {3, 1}},
   };
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(kLeapYearTable); ++i) {
+  for (size_t i = 0; i < std::size(kLeapYearTable); ++i) {
     const int y = kLeapYearTable[i].year;
     const int m = kLeapYearTable[i].leap_day.month;
     const int d = kLeapYearTable[i].leap_day.day;
