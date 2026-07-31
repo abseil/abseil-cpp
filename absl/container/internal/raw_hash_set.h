@@ -437,7 +437,7 @@ constexpr size_t PreviousCapacity(size_t n) {
 // - For tables with capacity <= kMaxCapacityForLoadFactorOne, we leave one
 //   empty slot.
 // - For capacity > kMaxCapacityForLoadFactorOne, growth is 7/8*capacity.
-constexpr inline size_t kMaxCapacityForLoadFactorOne = Group::kWidth * 2 - 1;
+constexpr inline size_t kMaxCapacityForLoadFactorOne = Group::kWidth * 4 - 1;
 
 // Given `capacity`, applies the load factor; i.e., it returns the maximum
 // number of values we should put into the table before a resizing rehash.
