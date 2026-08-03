@@ -28,7 +28,6 @@
 
 namespace {
 
-// SKIP_ABSL_INLINE_NAMESPACE_CHECK
 namespace cctz = absl::time_internal::cctz;
 
 void BM_Difference_Days(benchmark::State& state) {

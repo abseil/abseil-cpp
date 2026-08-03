@@ -40,19 +40,12 @@ char* Format02d(char* p, int v) {
   return p;
 }
 
-// Returns the value of the decimal digit ch, or -1 if ch is not a digit.
-// Note that std::strchr() also matches kDigits' terminating '\0', which
-// would otherwise be taken for a tenth digit.
-int ParseDigit(char ch) {
-  const char* const dp = std::strchr(kDigits, ch);
-  return (dp == nullptr || *dp == '\0') ? -1 : static_cast<int>(dp - kDigits);
-}
-
 int Parse02d(const char* p) {
-  const int hi = ParseDigit(p[0]);
-  if (hi >= 0) {
-    const int lo = ParseDigit(p[1]);
-    if (lo >= 0) return (hi * 10) + lo;
+  if (const char* ap = std::strchr(kDigits, *p)) {
+    int v = static_cast<int>(ap - kDigits);
+    if (const char* bp = std::strchr(kDigits, *++p)) {
+      return (v * 10) + static_cast<int>(bp - kDigits);
+    }
   }
   return -1;
 }
