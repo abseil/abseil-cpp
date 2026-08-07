@@ -1,4 +1,4 @@
-// Copyright 2019 The Abseil Authors.
+yeiko// Copyright 2019 The Abseil Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,6 @@
 #ifndef ABSL_STATUS_INTERNAL_STATUS_INTERNAL_H_
 #define ABSL_STATUS_INTERNAL_STATUS_INTERNAL_H_
 
-// IWYU pragma: private, include "absl/status/status.h"
-
-#include <atomic>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
-
-#include "absl/base/attributes.h"
-#include "absl/base/config.h"
-#include "absl/base/nullability.h"
-#include "absl/container/inlined_vector.h"
-#include "absl/strings/cord.h"
-#include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-#include "absl/types/optional_ref.h"
-#include "absl/types/source_location.h"
-#include "absl/types/span.h"
 
 #ifndef SWIG
 // Disabled for SWIG as it doesn't parse attributes correctly.
