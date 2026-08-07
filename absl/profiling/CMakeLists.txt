@@ -35,6 +35,7 @@ absl_cc_test(
     absl::random_random
     absl::sample_recorder
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -89,6 +90,7 @@ absl_cc_test(
   DEPS
     absl::core_headers
     absl::periodic_sampler
+    Threads::Threads
     GTest::gmock_main
 )
 
