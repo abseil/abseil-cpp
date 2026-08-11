@@ -74,6 +74,31 @@ TEST(RawLoggingDeathTest, LogFatal) {
                             kExpectedDeathOutput);
 }
 
+// A message whose formatted length exactly equals the remaining buffer size is
+// still truncated: vsnprintf() only writes size-1 characters plus the NUL, so
+// truncation must be detected when the would-be length is >= the size, not only
+// when it is strictly greater.  With the off-by-one, such a message loses its
+// final character and is emitted without the "(message truncated)" marker (and
+// without the trailing newline).  A custom zero-length prefix hook makes the
+// whole raw-log buffer available so the boundary is hit deterministically.
+TEST(RawLoggingDeathTest, TruncationMarkerAtExactBufferBoundary) {
+  if (!absl::raw_log_internal::RawLoggingFullySupported()) {
+    GTEST_SKIP() << "Raw logging output is not supported on this platform.";
+  }
+  EXPECT_DEATH_IF_SUPPORTED(
+      [] {
+        absl::raw_log_internal::RegisterLogFilterAndPrefixHook(
+            [](absl::LogSeverity, const char*, int, char**, int*) {
+              return true;  // Enable logging, write no prefix.
+            });
+        // kLogBufSize in raw_logging.cc is 3000; a message of exactly that many
+        // characters fills the buffer and must be reported as truncated.
+        const std::string msg(3000, 'x');
+        ABSL_RAW_LOG(FATAL, "%s", msg.c_str());
+      }(),
+      "message truncated");
+}
+
 TEST(InternalLog, CompilationTest) {
   ABSL_INTERNAL_LOG(INFO, "Internal Log");
   std::string log_msg = "Internal Log";
