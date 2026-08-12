@@ -74,13 +74,6 @@ TEST(RawLoggingDeathTest, LogFatal) {
                             kExpectedDeathOutput);
 }
 
-// A message whose formatted length exactly equals the remaining buffer size is
-// still truncated: vsnprintf() only writes size-1 characters plus the NUL, so
-// truncation must be detected when the would-be length is >= the size, not only
-// when it is strictly greater.  With the off-by-one, such a message loses its
-// final character and is emitted without the "(message truncated)" marker (and
-// without the trailing newline).  A custom zero-length prefix hook makes the
-// whole raw-log buffer available so the boundary is hit deterministically.
 TEST(RawLoggingDeathTest, TruncationMarkerAtExactBufferBoundary) {
   if (!absl::raw_log_internal::RawLoggingFullySupported()) {
     GTEST_SKIP() << "Raw logging output is not supported on this platform.";
