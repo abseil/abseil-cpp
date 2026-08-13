@@ -58,9 +58,6 @@ cc_library(
         "//absl/numeric:bits",
         "//absl/numeric:int128",
         "//absl/strings",
-        "//absl/types:optional",
-        "//absl/types:variant",
-        "//absl/utility",
     ],
 )
 

@@ -88,7 +88,6 @@
 #include "absl/functional/function_ref.h"
 #include "absl/hash/internal/hash.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
-#include "absl/meta/type_traits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

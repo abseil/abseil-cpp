@@ -32,12 +32,10 @@ absl_cc_library(
     absl::endian
     absl::fixed_array
     absl::function_ref
-    absl::meta
     absl::int128
+    absl::meta
+    absl::prefetch
     absl::strings
-    absl::optional
-    absl::variant
-    absl::utility
     absl::weakly_mixed_integer
   PUBLIC
 )
