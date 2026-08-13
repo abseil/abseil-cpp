@@ -4109,6 +4109,22 @@ TEST(RawHashSamplerTest, NonSooTableRepeatedInsertEraseCountSizeRight) {
   }
 }
 
+TEST(RawHashSamplerTest, NonSooTableRepeatedInsertClearCountSizeRight) {
+  ASSERT_EQ(NonSooIntTable().capacity(), 0);
+  std::vector<const HashtablezInfo*> infos =
+      SampleNonSooMutation([](NonSooIntTable& t) {
+        for (int i = 0; i < 10; ++i) {
+          t.insert(1);
+          t.clear();
+        }
+      });
+  for (const HashtablezInfo* info : infos) {
+    EXPECT_EQ(info->soo_capacity, 0);
+    ASSERT_EQ(info->capacity, 1);
+    ASSERT_EQ(info->size, 0);
+  }
+}
+
 // Verifies that copy-constructing or copy-assigning an SOO table does not
 // incorrectly trigger new sampling evaluations.
 TEST(RawHashSamplerTest, SooTableCopyDoesNotOversample) {
@@ -4213,6 +4229,22 @@ TEST(RawHashSamplerTest, SooTableSampleOnCopy) {
               sizeof(typename SooInt32Table::value_type));
     ASSERT_EQ(info->soo_capacity, SooCapacity());
     ASSERT_EQ(info->capacity, NextCapacity(SooCapacity()));
+    ASSERT_EQ(info->size, 1);
+  }
+}
+
+TEST(RawHashSamplerTest, NonSooTableSampleOnCopy) {
+  NonSooIntTable t_orig;
+  t_orig.insert(1);
+
+  std::vector<const HashtablezInfo*> infos =
+      SampleNonSooMutation([&t_orig](NonSooIntTable& t) { t = t_orig; });
+
+  for (const HashtablezInfo* info : infos) {
+    ASSERT_EQ(info->inline_element_size,
+              sizeof(typename NonSooIntTable::value_type));
+    ASSERT_EQ(info->soo_capacity, 0);
+    ASSERT_EQ(info->capacity, 1);
     ASSERT_EQ(info->size, 1);
   }
 }

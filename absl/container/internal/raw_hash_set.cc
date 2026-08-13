@@ -943,6 +943,7 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
       DecrementSmallSize<kSooEnabled>(c);
+      c.infoz().RecordStorageChanged(0, cap);
     }
   } else {
     if (destroy_slot != nullptr) {
@@ -2289,7 +2290,10 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
   const size_t slot_size = policy.slot_size;
   const bool soo_enabled = policy.soo_enabled;
   if (size == 1) {
-    if (!soo_enabled) ReserveTableToFitNewSize(common, policy, 1);
+    if (!soo_enabled) {
+      ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, 1);
+      common.infoz().RecordStorageChanged(1, 1);
+    }
     IncrementSmallSize(common, policy);
     const size_t other_capacity = other.capacity();
     const void* other_slot =
