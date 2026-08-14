@@ -1545,13 +1545,12 @@ TEST(Table, ReservedTableRehashWithoutGrowthWorksWell) {
   for (size_t capacity = 31; capacity < 256;
        capacity = NextCapacity(capacity)) {
     SCOPED_TRACE(absl::StrCat("capacity: ", capacity));
-    // Number of elements we keep empty in order to force a rehash without
+    // Number of elements we reserve in order to force a rehash without
     // growth. RehashOrGrowToNextCapacityAndPrepareInsert grow if number of full
-    // slots is greater than 25/32 of capacity, so we leave 7/32 + 5 empty to
-    // have extra margin.
-    size_t empty_till_full = (capacity + 1) / 32 * 7 + 5;
+    // slots is greater than 25/32 of capacity. We reserve slightly less than
+    // 25/32 of capacity to have extra space for tombstones.
     int64_t reserve_size =
-        static_cast<int64_t>(CapacityToGrowth(capacity) - empty_till_full);
+        static_cast<int64_t>((capacity - 5) * 25 / 32 - 2);
 
     BadTwoValuesHashTable t(
         0,
@@ -1560,9 +1559,8 @@ TEST(Table, ReservedTableRehashWithoutGrowthWorksWell) {
         // will be placed at the beginning of the table.
         BadTwoValuesHash(static_cast<size_t>(reserve_size)));
     // Remove seed to make table layout deterministic.
-    RawHashSetTestOnlyAccess::GetCommon(t).set_no_seed_for_testing();
-
     t.reserve(static_cast<size_t>(reserve_size));
+    RawHashSetTestOnlyAccess::GetCommon(t).set_no_seed_for_testing();
     for (int64_t i = 1; i <= reserve_size; ++i) {
       ASSERT_TRUE(t.insert(i * kCoef).second);
     }
@@ -1632,10 +1630,9 @@ TEST(Table,
   BadTwoValuesHashTable t(0,
                           // Negative number goes to the end of the table.
                           BadTwoValuesHash(kReserveSize + 2));
+  t.reserve(kReserveSize);
   // Remove seed to make table layout deterministic.
   RawHashSetTestOnlyAccess::GetCommon(t).set_no_seed_for_testing();
-
-  t.reserve(kReserveSize);
   for (int64_t i = 0; i < static_cast<int64_t>(Group::kWidth); ++i) {
     ASSERT_TRUE(t.insert(i * kCoef).second);
   }

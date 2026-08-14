@@ -141,9 +141,8 @@ inline void* PrevSlot(void* slot, size_t slot_size) {
 
 // Must be defined out-of-line to avoid MSVC error C2482 on some platforms,
 // which is caused by non-constexpr initialization.
-uint16_t NextHashTableSeed() {
-  static_assert(PerTableSeed::kBitCount <= 16);
-  return static_cast<uint16_t>(RandomSeed());
+uint8_t NextHashTableSeed() {
+  return static_cast<uint8_t>(RandomSeed());
 }
 
 GenerationType* EmptyGeneration() {
