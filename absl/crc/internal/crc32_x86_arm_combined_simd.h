@@ -16,9 +16,7 @@
 #define ABSL_CRC_INTERNAL_CRC32_X86_ARM_COMBINED_SIMD_H_
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 #include "absl/base/config.h"
 
@@ -72,9 +70,7 @@ using V128 = __m128i;
 using V256 = __m256i;
 #else
 // Placeholder for V256 when AVX is not available.
-struct alignas(32) V256 {
-  std::array<uint64_t, 4> val;
-};
+using V256 = std::array<uint64_t, 4>;
 #endif
 
 // Starting with the initial value in |crc|, accumulates a CRC32 value for
@@ -137,33 +133,16 @@ int64_t V128_Low64(const V128 l);
 // Add packed 64-bit integers in |l| and |r|.
 V128 V128_Add64(const V128 l, const V128 r);
 
-// Performs a store fence on architectures that require it.
-void StoreFence();
-
 #if defined(__AVX__)
 inline V256 V256_LoadU(const V256* src);
 inline V256 V256_Broadcast128(const V128* src);
-inline void V256_StoreU(V256* dst, V256 data);
-inline void V256_StoreNonTemporal(V256* dst, V256 data);
 #else
 template <typename T = V256>
 T V256_LoadU(const T* src);
 
 template <typename T = V256>
 T V256_Broadcast128(const V128* src);
-
-template <typename T = V256>
-void V256_StoreU(T* dst, T data);
-
-template <typename T = V256>
-void V256_StoreNonTemporal(T* dst, T data);
 #endif
-
-inline void V256_LoadPairU(const void* src, V256* v0, V256* v1);
-inline void V256_StorePairU(void* dst, V256 v0, V256 v1);
-inline void V256_StorePairNonTemporal(void* dst, V256 v0, V256 v1);
-inline void V256_CopyPairU(void* dst, const void* src);
-inline void V256_CopyPairNonTemporal(void* dst, const void* src);
 
 #endif
 
@@ -233,8 +212,6 @@ inline int64_t V128_Low64(const V128 l) { return _mm_cvtsi128_si64(l); }
 inline V128 V128_Add64(const V128 l, const V128 r) {
   return _mm_add_epi64(l, r);
 }
-
-inline void StoreFence() { _mm_sfence(); }
 
 #elif defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
 
@@ -322,10 +299,11 @@ inline V128 V128_Xor3(const V128 a, const V128 b, const V128 c) {
   return V128_Xor(V128_Xor(a, b), c);
 }
 
-inline V128 V128_From64WithZeroFill(const uint64_t r) {
+inline V128 V128_From64WithZeroFill(const uint64_t r){
   constexpr uint64x2_t kZero = {0, 0};
   return vsetq_lane_u64(r, kZero, 0);
 }
+
 
 template <int imm>
 inline int V128_Extract32(const V128 l) {
@@ -343,8 +321,6 @@ inline int64_t V128_Low64(const V128 l) {
 
 inline V128 V128_Add64(const V128 l, const V128 r) { return vaddq_u64(l, r); }
 
-inline void StoreFence() {}
-
 #endif
 
 #if defined(__AVX__) && defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
@@ -354,21 +330,12 @@ inline V256 V256_Broadcast128(const V128* src) {
   return _mm256_castps_si256(
       _mm256_broadcast_ps(reinterpret_cast<const __m128*>(src)));
 }
-
-inline void V256_StoreU(V256* dst, V256 data) {
-  _mm256_storeu_si256(dst, data);
-}
-
-inline void V256_StoreNonTemporal(V256* dst, V256 data) {
-  _mm256_stream_si256(dst, data);
-}
 #elif defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) || \
     defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
 template <typename T>
 inline T V256_LoadU(const T* src) {
-  T res;
-  std::memcpy(&res, src, sizeof(T));
-  return res;
+  (void)src;
+  return T{};
 }
 
 template <typename T>
@@ -376,53 +343,7 @@ inline T V256_Broadcast128(const V128* src) {
   (void)src;
   return T{};
 }
-
-template <typename T>
-inline void V256_StoreU(T* dst, T data) {
-  std::memcpy(dst, &data, sizeof(T));
-}
-
-template <typename T>
-inline void V256_StoreNonTemporal(T* dst, T data) {
-  std::memcpy(dst, &data, sizeof(T));
-}
 #endif
-
-#if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD) || \
-    defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
-
-inline void V256_LoadPairU(const void* src, V256* v0, V256* v1) {
-  const char* src_ptr = reinterpret_cast<const char*>(src);
-  *v0 = V256_LoadU(reinterpret_cast<const V256*>(src_ptr));
-  *v1 = V256_LoadU(reinterpret_cast<const V256*>(src_ptr + sizeof(V256)));
-}
-
-inline void V256_StorePairU(void* dst, V256 v0, V256 v1) {
-  V256* dst_ptr = reinterpret_cast<V256*>(dst);
-  V256_StoreU(dst_ptr, v0);
-  V256_StoreU(dst_ptr + 1, v1);
-}
-
-inline void V256_StorePairNonTemporal(void* dst, V256 v0, V256 v1) {
-  V256* dst_ptr = reinterpret_cast<V256*>(dst);
-  V256_StoreNonTemporal(dst_ptr, v0);
-  V256_StoreNonTemporal(dst_ptr + 1, v1);
-}
-
-inline void V256_CopyPairU(void* dst, const void* src) {
-  V256 v0, v1;
-  V256_LoadPairU(src, &v0, &v1);
-  V256_StorePairU(dst, v0, v1);
-}
-
-inline void V256_CopyPairNonTemporal(void* dst, const void* src) {
-  V256 v0, v1;
-  V256_LoadPairU(src, &v0, &v1);
-  V256_StorePairNonTemporal(dst, v0, v1);
-}
-
-#endif  // defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD) ||
-        // defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
