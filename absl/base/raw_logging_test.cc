@@ -20,6 +20,13 @@
 
 #include <tuple>
 
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+
+#include <string>
+#endif
+
 #include "gtest/gtest.h"
 #include "absl/strings/str_cat.h"
 
@@ -74,23 +81,49 @@ TEST(RawLoggingDeathTest, LogFatal) {
                             kExpectedDeathOutput);
 }
 
-TEST(RawLoggingDeathTest, TruncationMarkerAtExactBufferBoundary) {
+// Raw logging writes to STDERR_FILENO via write()/syscall on POSIX platforms,
+// so the truncation path can be exercised directly by capturing stderr, without
+// relying on death tests.
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+TEST(RawLoggingTest, TruncationMarkerAtExactBufferBoundary) {
   if (!absl::raw_log_internal::RawLoggingFullySupported()) {
     GTEST_SKIP() << "Raw logging output is not supported on this platform.";
   }
-  EXPECT_DEATH_IF_SUPPORTED(
-      [] {
-        absl::raw_log_internal::RegisterLogFilterAndPrefixHook(
-            [](absl::LogSeverity, const char*, int, char**, int*) {
-              return true;  // Enable logging, write no prefix.
-            });
-        // kLogBufSize in raw_logging.cc is 3000; a message of exactly that many
-        // characters fills the buffer and must be reported as truncated.
-        const std::string msg(3000, 'x');
-        ABSL_RAW_LOG(FATAL, "%s", msg.c_str());
-      }(),
-      "message truncated");
+  // kLogBufSize in raw_logging.cc; a message of exactly this length fills the
+  // buffer, so vsnprintf() reports a would-be length equal to the buffer size.
+  constexpr int kLogBufSize = 3000;
+
+  // Install a prefix hook that writes nothing so the whole raw-log buffer is
+  // available to the message and the exact boundary is hit deterministically.
+  absl::raw_log_internal::RegisterLogFilterAndPrefixHook(
+      [](absl::LogSeverity, const char*, int, char**, int*) { return true; });
+
+  int fds[2];
+  ASSERT_EQ(pipe(fds), 0);
+  int saved_stderr = dup(STDERR_FILENO);
+  ASSERT_NE(saved_stderr, -1);
+  ASSERT_NE(dup2(fds[1], STDERR_FILENO), -1);
+
+  // A would-be length equal to the buffer size must be reported as truncated:
+  // otherwise the message loses its final byte and is emitted with neither the
+  // "(message truncated)" marker nor a trailing newline.
+  const std::string msg(kLogBufSize, 'x');
+  ABSL_RAW_LOG(ERROR, "%s", msg.c_str());
+
+  ASSERT_NE(dup2(saved_stderr, STDERR_FILENO), -1);
+  close(saved_stderr);
+  close(fds[1]);
+  char buf[kLogBufSize + 64];
+  ssize_t n = read(fds[0], buf, sizeof(buf));
+  close(fds[0]);
+  ASSERT_GT(n, 0);
+  const std::string output(buf, static_cast<size_t>(n));
+
+  EXPECT_NE(output.find("(message truncated)"), std::string::npos);
+  EXPECT_EQ(output.back(), '\n');
 }
+#endif
 
 TEST(InternalLog, CompilationTest) {
   ABSL_INTERNAL_LOG(INFO, "Internal Log");
