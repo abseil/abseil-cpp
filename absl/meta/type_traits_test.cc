@@ -184,7 +184,7 @@ struct GetTypeT {
 
 struct GetTypeExtT {
   template <typename T>
-  absl::result_of_t<const GetTypeT&(T)> operator()(T&& arg) const {
+  std::invoke_result_t<const GetTypeT&, T> operator()(T&& arg) const {
     return GetType(std::forward<T>(arg));
   }
 

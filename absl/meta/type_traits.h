@@ -272,22 +272,16 @@ using type_identity_t = typename type_identity<T>::type;
 
 namespace type_traits_internal {
 
-#if (defined(__cpp_lib_is_invocable) && __cpp_lib_is_invocable >= 201703L) || \
-    (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
-// std::result_of is deprecated (C++17) or removed (C++20)
 template <typename>
 struct result_of;
 template <typename F, typename... Args>
 struct result_of<F(Args...)> : std::invoke_result<F, Args...> {};
-#else
-template <typename F>
-using result_of = std::result_of<F>;
-#endif
 
 }  // namespace type_traits_internal
 
 template <typename F>
-using result_of_t = typename type_traits_internal::result_of<F>::type;
+using result_of_t [[deprecated("Use std::invoke_result_t instead.")]] =
+    typename type_traits_internal::result_of<F>::type;
 
 namespace type_traits_internal {
 

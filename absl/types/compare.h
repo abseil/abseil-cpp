@@ -418,7 +418,8 @@ constexpr absl::weak_ordering compare_result_as_ordering(
 template <
     typename Compare, typename K, typename LK,
     std::enable_if_t<
-        !std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        !std::is_same_v<bool,
+                        std::invoke_result_t<Compare, const K&, const LK&>>,
         int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {
@@ -427,7 +428,8 @@ constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
 template <
     typename Compare, typename K, typename LK,
     std::enable_if_t<
-        std::is_same_v<bool, absl::result_of_t<Compare(const K&, const LK&)>>,
+        std::is_same_v<bool,
+                       std::invoke_result_t<Compare, const K&, const LK&>>,
         int> = 0>
 constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
                                                       const K& x, const LK& y) {
