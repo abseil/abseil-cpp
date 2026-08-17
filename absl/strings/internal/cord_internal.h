@@ -516,7 +516,7 @@ class InlineData {
   // value. Creates an inlined SSO value if `rep` is null, otherwise
   // creates a tree instance value.
   constexpr InlineData(absl::string_view sv, CordRep* rep) noexcept
-      : rep_(rep ? Rep(rep) : Rep(sv)) {
+      : rep_(rep != nullptr ? Rep(rep) : Rep(sv)) {
     poison();
   }
 
