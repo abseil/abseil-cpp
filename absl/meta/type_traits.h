@@ -484,10 +484,9 @@ struct is_trivially_relocatable
 // TODO(b/325479096): Remove this case.
 template <class T>
 struct is_trivially_relocatable
-    : std::integral_constant<bool,
-                             std::is_trivially_copyable_v<T> ||
-                                 (__is_trivially_relocatable(T) &&
-                                  std::is_trivially_move_assignable_v<T>)> {};
+    : std::bool_constant<std::is_trivially_copyable_v<T> ||
+                         (__is_trivially_relocatable(T) &&
+                          std::is_trivially_move_assignable_v<T>)> {};
 #else
 // Otherwise we use a fallback that detects only those types we can feasibly
 // detect. Any type that is trivially copyable is by definition trivially

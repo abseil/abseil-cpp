@@ -317,11 +317,10 @@ std::string TypeName() {
 // Can `T` be a template argument of `Layout`?
 template <class T>
 using IsLegalElementType =
-    std::integral_constant<bool,
-                           !std::is_reference_v<T> && !std::is_volatile_v<T> &&
-                               !std::is_reference_v<typename Type<T>::type> &&
-                               !std::is_volatile_v<typename Type<T>::type> &&
-                               adl_barrier::IsPow2(AlignOf<T>::value)>;
+    std::bool_constant<!std::is_reference_v<T> && !std::is_volatile_v<T> &&
+                       !std::is_reference_v<typename Type<T>::type> &&
+                       !std::is_volatile_v<typename Type<T>::type> &&
+                       adl_barrier::IsPow2(AlignOf<T>::value)>;
 
 template <class Elements, class StaticSizeSeq, class RuntimeSizeSeq,
           class SizeSeq, class OffsetSeq>
