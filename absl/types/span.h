@@ -220,7 +220,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   using absl_internal_is_view = std::true_type;
 
   // NOLINTNEXTLINE
-  static const size_type npos = ~(size_type(0));
+  static constexpr size_type npos = static_cast<size_type>(-1);
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
   constexpr Span(pointer array ABSL_ATTRIBUTE_LIFETIME_BOUND,
@@ -509,9 +509,6 @@ class ABSL_ATTRIBUTE_VIEW Span {
   pointer ptr_;
   size_type len_;
 };
-
-template <typename T>
-const typename Span<T>::size_type Span<T>::npos;
 
 // Span relationals
 
