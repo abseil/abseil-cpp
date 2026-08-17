@@ -347,68 +347,12 @@ inline void AssertHashEnabled() {
   Helper::Sink(Helper::DoIt<Ts>()...);
 }
 
-}  // namespace type_traits_internal
-
-// An internal namespace that is required to implement the C++17 swap traits.
-// It is not further nested in type_traits_internal to avoid long symbol names.
-namespace swap_internal {
-
-// Necessary for the traits.
-using std::swap;
-
-// This declaration prevents global `swap` and `absl::swap` overloads from being
-// considered unless ADL picks them up.
-void swap();
+template <class T>
+using IsSwappable ABSL_DEPRECATE_AND_INLINE() = std::is_swappable<T>;
 
 template <class T>
-using IsSwappableImpl = decltype(swap(std::declval<T&>(), std::declval<T&>()));
-
-// NOTE: This dance with the default template parameter is for MSVC.
-template <class T, class IsNoexcept = std::bool_constant<noexcept(
-                       swap(std::declval<T&>(), std::declval<T&>()))>>
-using IsNothrowSwappableImpl = std::enable_if_t<IsNoexcept::value>;
-
-// IsSwappable
-//
-// Determines whether the standard swap idiom is a valid expression for
-// arguments of type `T`.
-template <class T>
-struct IsSwappable
-    : absl::type_traits_internal::is_detected<IsSwappableImpl, T> {};
-
-// IsNothrowSwappable
-//
-// Determines whether the standard swap idiom is a valid expression for
-// arguments of type `T` and is noexcept.
-template <class T>
-struct IsNothrowSwappable
-    : absl::type_traits_internal::is_detected<IsNothrowSwappableImpl, T> {};
-
-// Swap()
-//
-// Performs the swap idiom from a namespace where valid candidates may only be
-// found in `std` or via ADL.
-template <class T, std::enable_if_t<IsSwappable<T>::value, int> = 0>
-void Swap(T& lhs, T& rhs) noexcept(IsNothrowSwappable<T>::value) {
-  swap(lhs, rhs);
-}
-
-// StdSwapIsUnconstrained
-//
-// Some standard library implementations are broken in that they do not
-// constrain `std::swap`. This will effectively tell us if we are dealing with
-// one of those implementations.
-using StdSwapIsUnconstrained = IsSwappable<void()>;
-
-}  // namespace swap_internal
-
-namespace type_traits_internal {
-
-// Make the swap-related traits/function accessible from this namespace.
-using swap_internal::IsNothrowSwappable;
-using swap_internal::IsSwappable;
-using swap_internal::StdSwapIsUnconstrained;
-using swap_internal::Swap;
+using IsNothrowSwappable ABSL_DEPRECATE_AND_INLINE() =
+    std::is_nothrow_swappable<T>;
 
 }  // namespace type_traits_internal
 

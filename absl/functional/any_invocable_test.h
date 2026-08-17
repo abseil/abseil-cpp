@@ -1011,7 +1011,7 @@ TYPED_TEST_P(AnyInvTestCombinatoric, SwapEmptyLhsEmptyRhs) {
     EXPECT_FALSE(static_cast<bool>(other));
 
     EXPECT_TRUE(
-        absl::type_traits_internal::IsNothrowSwappable<AnyInvType>::value);
+        std::is_nothrow_swappable_v<AnyInvType>);
   }
 
   // Member swap
@@ -1046,7 +1046,7 @@ TYPED_TEST_P(AnyInvTestCombinatoric, SwapEmptyLhsNonemptyRhs) {
     EXPECT_EQ(29, TypeParam::ToThisParam(fun)(7, 8, 9).value);
 
     EXPECT_TRUE(
-        absl::type_traits_internal::IsNothrowSwappable<AnyInvType>::value);
+        std::is_nothrow_swappable_v<AnyInvType>);
   }
 
   // Member swap
@@ -1083,7 +1083,7 @@ TYPED_TEST_P(AnyInvTestCombinatoric, SwapNonemptyLhsEmptyRhs) {
     EXPECT_EQ(29, TypeParam::ToThisParam(other)(7, 8, 9).value);
 
     EXPECT_TRUE(
-        absl::type_traits_internal::IsNothrowSwappable<AnyInvType>::value);
+        std::is_nothrow_swappable_v<AnyInvType>);
   }
 
   // Member swap
@@ -1121,7 +1121,7 @@ TYPED_TEST_P(AnyInvTestCombinatoric, SwapNonemptyLhsNonemptyRhs) {
     EXPECT_EQ(29, TypeParam::ToThisParam(other)(7, 8, 9).value);
 
     EXPECT_TRUE(
-        absl::type_traits_internal::IsNothrowSwappable<AnyInvType>::value);
+        std::is_nothrow_swappable_v<AnyInvType>);
   }
 
   // Member swap
