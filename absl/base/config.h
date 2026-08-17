@@ -512,12 +512,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
        __cpp_lib_source_location >= 201907L) || \
     (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&   \
      ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
-#ifdef __has_include
 #if __has_include(<source_location>)
-#define ABSL_HAVE_STD_SOURCE_LOCATION 1
-#endif
-#else
-// No __has_include support, so just assume C++ language version is correct.
 #define ABSL_HAVE_STD_SOURCE_LOCATION 1
 #endif
 #endif

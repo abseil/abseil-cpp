@@ -85,9 +85,6 @@ ABSL_NAMESPACE_END
 
 // If std::ranges is available, mark Span as satisfying the `view` and
 // `borrowed_range` concepts, just like std::span.
-#if !defined(__has_include)
-#define __has_include(header) 0
-#endif
 #if __has_include(<version>)
 #include <version>  // NOLINT(misc-include-cleaner)
 #endif
