@@ -39,8 +39,7 @@
 //    * bounds-checked access to `absl::Span` is accomplished with `at()`
 //      however `std::span` now supports the same as of the draft C++26 standard
 //    * `absl::Span` has compiler-provided move and copy constructors and
-//      assignment. This is due to them being specified as `constexpr`, but that
-//      implies const in C++11.
+//      assignment.
 //    * `absl::Span` has no `bytes()`, `size_bytes()`, `as_bytes()`, or
 //      `as_writable_bytes()` methods
 //    * `absl::Span` has no static extent template parameter, nor constructors

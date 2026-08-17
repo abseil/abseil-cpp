@@ -17,7 +17,7 @@
 // type_traits.h
 // -----------------------------------------------------------------------------
 //
-// This file contains C++11-compatible versions of standard <type_traits> API
+// This file contains C++17-compatible versions of standard <type_traits> API
 // functions for determining the characteristics of types. Such traits can
 // support type inference, classification, and transformation, as well as
 // make it easier to write templates based on generic type behavior.
@@ -237,7 +237,7 @@ using remove_cvref_t = std::remove_cvref_t<T>;
 #else
 // remove_cvref()
 //
-// C++11 compatible implementation of std::remove_cvref which was added in
+// C++17 compatible implementation of std::remove_cvref which was added in
 // C++20.
 template <typename T>
 struct remove_cvref {
