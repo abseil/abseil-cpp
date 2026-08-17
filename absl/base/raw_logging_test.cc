@@ -90,14 +90,8 @@ TEST(RawLoggingTest, TruncationMarkerAtExactBufferBoundary) {
   if (!absl::raw_log_internal::RawLoggingFullySupported()) {
     GTEST_SKIP() << "Raw logging output is not supported on this platform.";
   }
-  // kLogBufSize in raw_logging.cc; a message of exactly this length fills the
-  // buffer, so vsnprintf() reports a would-be length equal to the buffer size.
+  // kLogBufSize in raw_logging.cc.
   constexpr int kLogBufSize = 3000;
-
-  // Install a prefix hook that writes nothing so the whole raw-log buffer is
-  // available to the message and the exact boundary is hit deterministically.
-  absl::raw_log_internal::RegisterLogFilterAndPrefixHook(
-      [](absl::LogSeverity, const char*, int, char**, int*) { return true; });
 
   int fds[2];
   ASSERT_EQ(pipe(fds), 0);
@@ -105,10 +99,20 @@ TEST(RawLoggingTest, TruncationMarkerAtExactBufferBoundary) {
   ASSERT_NE(saved_stderr, -1);
   ASSERT_NE(dup2(fds[1], STDERR_FILENO), -1);
 
-  // A would-be length equal to the buffer size must be reported as truncated:
-  // otherwise the message loses its final byte and is emitted with neither the
-  // "(message truncated)" marker nor a trailing newline.
-  const std::string msg(kLogBufSize, 'x');
+  // RawLogVA() first writes the default "[file : line] RAW: " prefix, so size
+  // the message to the space left after it.  vsnprintf() then reports a would-be
+  // length equal to that space, the exact boundary the fix addresses: it must be
+  // treated as truncated, otherwise the message loses its final byte and is
+  // emitted with neither the "(message truncated)" marker nor a trailing
+  // newline.  Reconstruct the prefix from the same basename and source line the
+  // ABSL_RAW_LOG below reports; kLogCallLine must match its line.
+  constexpr int kLogCallLine = __LINE__ + 7;
+  const char* basename =
+      absl::raw_log_internal::Basename(__FILE__, sizeof(__FILE__) - 1);
+  const std::string prefix =
+      absl::StrCat("[", basename, " : ", kLogCallLine, "] RAW: ");
+  ASSERT_LT(prefix.size(), static_cast<size_t>(kLogBufSize));
+  const std::string msg(static_cast<size_t>(kLogBufSize) - prefix.size(), 'x');
   ABSL_RAW_LOG(ERROR, "%s", msg.c_str());
 
   ASSERT_NE(dup2(saved_stderr, STDERR_FILENO), -1);
