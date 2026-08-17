@@ -39,12 +39,6 @@ constexpr auto GetDataImpl(C& c, char) noexcept  // NOLINT(runtime/references)
   return c.data();
 }
 
-// Before C++17, std::string::data returns a const char* in all cases.
-inline char* GetDataImpl(std::string& s,  // NOLINT(runtime/references)
-                         int) noexcept {
-  return &s[0];
-}
-
 template <typename C>
 constexpr auto GetData(C& c) noexcept  // NOLINT(runtime/references)
     -> decltype(GetDataImpl(c, 0)) {
