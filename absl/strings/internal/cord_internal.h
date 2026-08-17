@@ -466,7 +466,7 @@ using cordz_info_t = int64_t;
 // Assert that the `cordz_info` pointer value perfectly overlaps the last half
 // of `data` and can hold a pointer value.
 static_assert(sizeof(cordz_info_t) * 2 == kMaxInline + 1, "");
-static_assert(sizeof(cordz_info_t) >= sizeof(intptr_t), "");
+static_assert(sizeof(cordz_info_t) >= sizeof(intptr_t));
 
 // LittleEndianByte() creates a little endian representation of 'value', i.e.:
 // a little endian value where the first byte in the host's representation
@@ -833,7 +833,7 @@ class InlineData {
   Rep rep_;
 };
 
-static_assert(sizeof(InlineData) == kMaxInline + 1, "");
+static_assert(sizeof(InlineData) == kMaxInline + 1);
 
 #ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
 

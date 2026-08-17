@@ -918,7 +918,7 @@ class Cord {
   class InlineRep {
    public:
     static constexpr unsigned char kMaxInline = cord_internal::kMaxInline;
-    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
+    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*));
 
     constexpr InlineRep() : data_() {}
     explicit InlineRep(InlineData::DefaultInitType init) : data_(init) {}
