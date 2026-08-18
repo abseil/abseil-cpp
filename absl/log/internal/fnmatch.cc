@@ -24,6 +24,11 @@ ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 bool FNMatch(absl::string_view pattern, absl::string_view str) {
   bool in_wildcard_match = false;
+  if ((pattern.find_first_of('*') == pattern.npos) &&
+      (pattern.find_first_of('?') ==
+       pattern.npos)) {  // no special operators, return immediate match
+    return pattern == str;
+  }
   while (true) {
     if (pattern.empty()) {
       // `pattern` is exhausted; succeed if all of `str` was consumed matching
