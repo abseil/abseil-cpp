@@ -35,8 +35,11 @@
 #include "absl/strings/string_view.h"
 
 // We can only add poisoning if we can detect consteval executions.
-#if defined(ABSL_HAVE_CONSTANT_EVALUATED) && \
-    (defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
+//
+// TODO(b/548049702): attempt to turn this back on. It's disabled because asan
+// interacts poorly with trivial ABIs (http://b/546331925).
+#if 0 && defined(ABSL_HAVE_CONSTANT_EVALUATED) && \
+    (defined(ABSL_HAVE_ADDRESS_SANITIZER) ||      \
      defined(ABSL_HAVE_MEMORY_SANITIZER))
 #define ABSL_INTERNAL_CORD_HAVE_SANITIZER 1
 #endif
