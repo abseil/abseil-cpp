@@ -482,7 +482,7 @@ static constexpr cordz_info_t LittleEndianByte(unsigned char value) {
 #endif
 }
 
-class InlineData {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineData {
  public:
   // DefaultInitType forces the use of the default initialization constructor.
   enum DefaultInitType { kDefaultInit };
