@@ -277,9 +277,9 @@ TEST(TypeTraitsTest, IsNothrowSwappable) {
 }
 
 TEST(TriviallyRelocatable, PrimitiveTypes) {
-  static_assert(absl::is_trivially_relocatable<int>::value, "");
-  static_assert(absl::is_trivially_relocatable<char>::value, "");
-  static_assert(absl::is_trivially_relocatable<void*>::value, "");
+  static_assert(absl::is_trivially_relocatable<int>::value);
+  static_assert(absl::is_trivially_relocatable<char>::value);
+  static_assert(absl::is_trivially_relocatable<void*>::value);
 }
 
 // User-defined types can be trivially relocatable as long as they don't have a
@@ -290,7 +290,7 @@ TEST(TriviallyRelocatable, UserDefinedTriviallyRelocatable) {
     int y;
   };
 
-  static_assert(absl::is_trivially_relocatable<S>::value, "");
+  static_assert(absl::is_trivially_relocatable<S>::value);
 }
 
 // A user-provided move constructor disqualifies a type from being trivially
@@ -300,7 +300,7 @@ TEST(TriviallyRelocatable, UserProvidedMoveConstructor) {
     S(S&&) {}  // NOLINT(modernize-use-equals-default)
   };
 
-  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+  static_assert(!absl::is_trivially_relocatable<S>::value);
 }
 
 // A user-provided copy constructor disqualifies a type from being trivially
@@ -310,7 +310,7 @@ TEST(TriviallyRelocatable, UserProvidedCopyConstructor) {
     S(const S&) {}  // NOLINT(modernize-use-equals-default)
   };
 
-  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+  static_assert(!absl::is_trivially_relocatable<S>::value);
 }
 
 // A user-provided copy assignment operator disqualifies a type from
@@ -323,7 +323,7 @@ TEST(TriviallyRelocatable, UserProvidedCopyAssignment) {
     }
   };
 
-  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+  static_assert(!absl::is_trivially_relocatable<S>::value);
 }
 
 // A user-provided move assignment operator disqualifies a type from
@@ -334,7 +334,7 @@ TEST(TriviallyRelocatable, UserProvidedMoveAssignment) {
     S& operator=(S&&) { return *this; }  // NOLINT(modernize-use-equals-default)
   };
 
-  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+  static_assert(!absl::is_trivially_relocatable<S>::value);
 }
 
 // A user-provided destructor disqualifies a type from being trivially
@@ -344,7 +344,7 @@ TEST(TriviallyRelocatable, UserProvidedDestructor) {
     ~S() {}  // NOLINT(modernize-use-equals-default)
   };
 
-  static_assert(!absl::is_trivially_relocatable<S>::value, "");
+  static_assert(!absl::is_trivially_relocatable<S>::value);
 }
 
 TEST(Ownership, References) {

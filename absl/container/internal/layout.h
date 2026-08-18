@@ -738,8 +738,7 @@ class LayoutWithStaticSizes
   // Requires: all arguments are convertible to `size_t`.
   template <class... Sizes>
   static constexpr PartialType<sizeof...(Sizes)> Partial(Sizes&&... sizes) {
-    static_assert(sizeof...(Sizes) + StaticSizeSeq::size() <= sizeof...(Ts),
-                  "");
+    static_assert(sizeof...(Sizes) + StaticSizeSeq::size() <= sizeof...(Ts));
     return PartialType<sizeof...(Sizes)>(
         static_cast<size_t>(std::forward<Sizes>(sizes))...);
   }

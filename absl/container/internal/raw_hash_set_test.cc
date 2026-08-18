@@ -1352,8 +1352,8 @@ using NonMemcpyableSooIntCustomAllocTable =
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 
 TEST(Table, EmptyFunctorOptimization) {
-  static_assert(std::is_empty_v<std::equal_to<absl::string_view>>, "");
-  static_assert(std::is_empty_v<std::allocator<int>>, "");
+  static_assert(std::is_empty_v<std::equal_to<absl::string_view>>);
+  static_assert(std::is_empty_v<std::allocator<int>>);
 
   struct MockTableByValue {
     size_t capacity;

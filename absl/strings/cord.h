@@ -1284,7 +1284,7 @@ inline size_t Cord::InlineRep::size() const {
 
 inline cord_internal::CordRepFlat* absl_nonnull
 Cord::InlineRep::MakeFlatWithExtraCapacity(size_t extra) {
-  static_assert(cord_internal::kMinFlatLength >= sizeof(data_), "");
+  static_assert(cord_internal::kMinFlatLength >= sizeof(data_));
   size_t len = data_.inline_size();
   auto* result = CordRepFlat::New(len + extra);
   result->length = len;

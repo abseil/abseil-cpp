@@ -278,19 +278,19 @@ TEST(DoThreeWayComparison, SanityTest) {
 }
 
 TEST(Compare, StaticAsserts) {
-  static_assert(partial_ordering::less < 0, "");
-  static_assert(partial_ordering::equivalent == 0, "");
-  static_assert(partial_ordering::greater > 0, "");
-  static_assert(partial_ordering::unordered != 0, "");
+  static_assert(partial_ordering::less < 0);
+  static_assert(partial_ordering::equivalent == 0);
+  static_assert(partial_ordering::greater > 0);
+  static_assert(partial_ordering::unordered != 0);
 
-  static_assert(weak_ordering::less < 0, "");
-  static_assert(weak_ordering::equivalent == 0, "");
-  static_assert(weak_ordering::greater > 0, "");
+  static_assert(weak_ordering::less < 0);
+  static_assert(weak_ordering::equivalent == 0);
+  static_assert(weak_ordering::greater > 0);
 
-  static_assert(strong_ordering::less < 0, "");
-  static_assert(strong_ordering::equal == 0, "");
-  static_assert(strong_ordering::equivalent == 0, "");
-  static_assert(strong_ordering::greater > 0, "");
+  static_assert(strong_ordering::less < 0);
+  static_assert(strong_ordering::equal == 0);
+  static_assert(strong_ordering::equivalent == 0);
+  static_assert(strong_ordering::greater > 0);
 }
 
 }  // namespace
