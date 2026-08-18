@@ -241,41 +241,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_TLS 1
 #endif
 
-// ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
-//
-// Checks whether `std::is_trivially_destructible<T>` is supported.
-#ifdef ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
-#error ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE cannot be directly set
-#define ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE 1
-#endif
-
-// ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
-//
-// Checks whether `std::is_trivially_default_constructible<T>` and
-// `std::is_trivially_copy_constructible<T>` are supported.
-#ifdef ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
-#error ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE cannot be directly set
-#else
-#define ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE 1
-#endif
-
-// ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
-//
-// Checks whether `std::is_trivially_copy_assignable<T>` is supported.
-#ifdef ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
-#error ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE cannot be directly set
-#else
-#define ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE 1
-#endif
-
-// ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE
-//
-// Checks whether `std::is_trivially_copyable<T>` is supported.
-#ifdef ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE
-#error ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE cannot be directly set
-#define ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE 1
-#endif
-
 // ABSL_HAVE_THREAD_LOCAL
 //
 // Checks whether the `thread_local` storage duration specifier is supported.
@@ -702,17 +667,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(_WIN32)
 // GCC or Clang using the LeakSanitizer integrated into AddressSanitizer.
 #define ABSL_HAVE_LEAK_SANITIZER 1
-#endif
-
-// ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
-//
-// Deprecated: always defined to 1.
-// Class template argument deduction is a language feature added in C++17,
-// which means all versions of C++ supported by Abseil have it.
-#ifdef ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
-#error "ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION cannot be directly set."
-#else
-#define ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
 #endif
 
 // `ABSL_INTERNAL_HAS_RTTI` determines whether abseil is being compiled with
