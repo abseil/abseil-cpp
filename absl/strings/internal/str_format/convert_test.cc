@@ -320,10 +320,12 @@ TEST_F(FormatConvertTest, BasicString) {
   TestStringConvert(string_view("hello"));
   TestStringConvert(std::string_view("hello"));
 
+#if GTEST_HAS_STD_WSTRING
   TestStringConvert(L"hello");
   TestStringConvert(static_cast<const wchar_t*>(L"hello"));
   TestStringConvert(std::wstring(L"hello"));
   TestStringConvert(std::wstring_view(L"hello"));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, NullString) {
@@ -331,9 +333,11 @@ TEST_F(FormatConvertTest, NullString) {
   UntypedFormatSpecImpl format("%s");
   EXPECT_EQ("", FormatPack(format, {FormatArgImpl(p)}));
 
+#if GTEST_HAS_STD_WSTRING
   const wchar_t* wp = nullptr;
   UntypedFormatSpecImpl wformat("%ls");
   EXPECT_EQ("", FormatPack(wformat, {FormatArgImpl(wp)}));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, StringPrecision) {
@@ -348,6 +352,7 @@ TEST_F(FormatConvertTest, StringPrecision) {
   UntypedFormatSpecImpl format2("%.10s");
   EXPECT_EQ("ABC", FormatPack(format2, {FormatArgImpl(p)}));
 
+#if GTEST_HAS_STD_WSTRING
   // We cap at the precision.
   wchar_t wc = L'a';
   const wchar_t* wp = &wc;
@@ -358,6 +363,7 @@ TEST_F(FormatConvertTest, StringPrecision) {
   wp = L"ABC";
   UntypedFormatSpecImpl wformat2("%.10ls");
   EXPECT_EQ("ABC", FormatPack(wformat2, {FormatArgImpl(wp)}));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 TEST_F(FormatConvertTest, WideStringUnpairedSurrogate) {
@@ -428,6 +434,7 @@ TEST_F(FormatConvertTest, Pointer) {
   volatile char* vcp = &vc;
   volatile char* vcnil = nullptr;
 
+#if GTEST_HAS_STD_WSTRING
   wchar_t wc = L'h';
   wchar_t *mwcp = &wc;
   const wchar_t *wcp = L"hi";
@@ -435,13 +442,16 @@ TEST_F(FormatConvertTest, Pointer) {
   volatile wchar_t vwc;
   volatile wchar_t *vwcp = &vwc;
   volatile wchar_t *vwcnil = nullptr;
+#endif  // GTEST_HAS_STD_WSTRING
 
   const FormatArgImpl args_array[] = {
       FormatArgImpl(xp),   FormatArgImpl(inil),   FormatArgImpl(fp),
       FormatArgImpl(fnil), FormatArgImpl(mcp),     FormatArgImpl(cp),
       FormatArgImpl(cnil),  FormatArgImpl(vcp),    FormatArgImpl(vcnil),
+#if GTEST_HAS_STD_WSTRING
       FormatArgImpl(mwcp),  FormatArgImpl(wcp),   FormatArgImpl(wcnil),
       FormatArgImpl(vwcp), FormatArgImpl(vwcnil),
+#endif  // GTEST_HAS_STD_WSTRING
   };
   auto args = absl::MakeConstSpan(args_array);
 
@@ -498,6 +508,7 @@ TEST_F(FormatConvertTest, Pointer) {
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%9$p"), args),
               MatchesPointerString(nullptr));
 
+#if GTEST_HAS_STD_WSTRING
   // nonconst wchar_t*
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%10$p"), args),
               MatchesPointerString(mwcp));
@@ -514,6 +525,7 @@ TEST_F(FormatConvertTest, Pointer) {
   // null volatile wchar_t*
   EXPECT_THAT(FormatPack(UntypedFormatSpecImpl("%14$p"), args),
               MatchesPointerString(nullptr));
+#endif  // GTEST_HAS_STD_WSTRING
 }
 
 struct Cardinal {
@@ -752,6 +764,7 @@ TEST_F(FormatConvertTest, VectorBool) {
                             FormatArgImpl(cv[0]), FormatArgImpl(cv[1])})));
 }
 
+#if GTEST_HAS_STD_WSTRING
 TEST_F(FormatConvertTest, UnicodeWideString) {
   // StrFormat() should be able to convert wide strings containing Unicode
   // characters (to UTF-8).
@@ -768,6 +781,7 @@ TEST_F(FormatConvertTest, UnicodeWideString) {
   EXPECT_EQ(output,
             FormatPack(UntypedFormatSpecImpl("%ls"), absl::MakeSpan(args)));
 }
+#endif  // GTEST_HAS_STD_WSTRING
 
 TEST_F(FormatConvertTest, Int128) {
   absl::int128 positive = static_cast<absl::int128>(0x1234567890abcdef) * 1979;
