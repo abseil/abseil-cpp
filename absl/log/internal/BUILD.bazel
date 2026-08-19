@@ -235,6 +235,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "append_truncated_test",
+    srcs = ["append_truncated_test.cc"],
+    deps = [
+        ":append_truncated",
+        "//absl/types:span",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "log_sink_set",
     srcs = ["log_sink_set.cc"],
