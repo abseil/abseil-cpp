@@ -26,10 +26,6 @@
 #include <string_view>
 #include <type_traits>
 
-#ifdef __ANDROID__
-#include <android/api-level.h>
-#endif
-
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -42,6 +38,10 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif
 
 namespace {
 using ::absl::log_internal::AsString;
