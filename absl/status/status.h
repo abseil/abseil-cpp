@@ -1276,7 +1276,6 @@ template <int error_code>
 Status MakeErrorStringViewImpl(string_view message, SourceLocation loc);
 // Make the instantiations extern to reduce bloat on callers.
 #ifndef SWIG
-extern template Status MakeErrorStringViewImpl<0>(string_view, SourceLocation);
 extern template Status MakeErrorStringViewImpl<1>(string_view, SourceLocation);
 extern template Status MakeErrorStringViewImpl<2>(string_view, SourceLocation);
 extern template Status MakeErrorStringViewImpl<3>(string_view, SourceLocation);
@@ -1297,6 +1296,7 @@ extern template Status MakeErrorStringViewImpl<16>(string_view, SourceLocation);
 
 template <StatusCode error_code>
 Status MakeErrorFromStringView(string_view message, SourceLocation loc) {
+  static_assert(error_code != StatusCode::kOk, "expecting non-OK code");
   Status out =
       MakeErrorStringViewImpl<static_cast<int>(error_code)>(message, loc);
   // -Wassume warning complains about potential side effects of `ok()`, so use a
@@ -1312,8 +1312,6 @@ Status MakeErrorFromStringView(string_view message, SourceLocation loc) {
 template <int error_code>
 Status MakeErrorStringRvalueImpl(std::string&& message, SourceLocation loc);
 // Make the instantiations extern to reduce bloat on callers.
-extern template Status MakeErrorStringRvalueImpl<0>(std::string&&,
-                                                    SourceLocation);
 extern template Status MakeErrorStringRvalueImpl<1>(std::string&&,
                                                     SourceLocation);
 extern template Status MakeErrorStringRvalueImpl<2>(std::string&&,
@@ -1349,6 +1347,7 @@ extern template Status MakeErrorStringRvalueImpl<16>(std::string&&,
 
 template <StatusCode error_code, typename String>
 Status MakeErrorFromStringRvalue(String&& message, SourceLocation loc) {
+  static_assert(error_code != StatusCode::kOk, "expecting non-OK code");
   static_assert(std::is_same_v<String&&, std::string&&>,
                 "`message` should be std::string&&");
   Status out = MakeErrorStringRvalueImpl<static_cast<int>(error_code)>(

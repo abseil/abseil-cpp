@@ -179,7 +179,6 @@ Status MakeErrorStringViewImpl(string_view message, SourceLocation loc) {
 // If we add more error code, we need to add their values on this list.
 // Using ints here instead of static_cast<int>(StatusCode::kFoo) makes it easier
 // to see that the list is complete.
-template Status MakeErrorStringViewImpl<0>(string_view, SourceLocation);
 template Status MakeErrorStringViewImpl<1>(string_view, SourceLocation);
 template Status MakeErrorStringViewImpl<2>(string_view, SourceLocation);
 template Status MakeErrorStringViewImpl<3>(string_view, SourceLocation);
@@ -209,7 +208,6 @@ Status MakeErrorStringRvalueImpl(std::string&& message, SourceLocation loc) {
 // If we add more error code, we need to add their values on this list.
 // Using ints here instead of static_cast<int>(StatusCode::kFoo) makes it easier
 // to see that the list is complete.
-template Status MakeErrorStringRvalueImpl<0>(std::string&&, SourceLocation);
 template Status MakeErrorStringRvalueImpl<1>(std::string&&, SourceLocation);
 template Status MakeErrorStringRvalueImpl<2>(std::string&&, SourceLocation);
 template Status MakeErrorStringRvalueImpl<3>(std::string&&, SourceLocation);
