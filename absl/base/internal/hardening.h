@@ -132,20 +132,6 @@ constexpr void HardeningAssertNonNull(T ptr) {
 #endif
 }
 
-class ScopedSetAbslHardeningForTesting {
- private:
-  bool prev_state_;
-
- public:
-  explicit ScopedSetAbslHardeningForTesting([[maybe_unused]] bool enabled) {
-    prev_state_ = false;
-    SetAbslHardeningEnabled(enabled);
-  }
-  ~ScopedSetAbslHardeningForTesting() {
-    absl::base_internal::SetAbslHardeningEnabled(prev_state_);
-  }
-};
-
 }  // namespace base_internal
 
 ABSL_NAMESPACE_END
