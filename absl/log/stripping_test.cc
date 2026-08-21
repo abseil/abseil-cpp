@@ -170,7 +170,7 @@ class StrippingTest : public ::testing::Test {
   // Opens this program's executable file.  Returns `nullptr` and writes to
   // `stderr` on failure.
   std::unique_ptr<FILE, std::function<void(FILE*)>> OpenTestExecutable() {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__)
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
         fopen("/proc/self/exe", "rb"), [](FILE* fp) { fclose(fp); });
     if (!fp) {
