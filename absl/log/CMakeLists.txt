@@ -537,6 +537,7 @@ absl_cc_library(
   LINKOPTS
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
+    absl::base
     absl::config
     absl::log_globals
     absl::log_internal_globals
@@ -999,6 +1000,21 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_severity
     absl::scoped_mock_log
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
+    log_initialize_test
+  SRCS
+    "initialize_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::log_initialize
+    absl::log_internal_globals
     GTest::gmock_main
 )
 

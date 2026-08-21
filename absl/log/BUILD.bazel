@@ -141,6 +141,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":globals",
+        "//absl/base",
         "//absl/base:config",
         "//absl/log/internal:globals",
         "//absl/time",
@@ -438,6 +439,20 @@ cc_test(
         "//absl/base:log_severity",
         "//absl/log/internal:globals",
         "//absl/log/internal:test_helpers",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "initialize_test",
+    size = "small",
+    srcs = ["initialize_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":initialize",
+        "//absl/log/internal:globals",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
