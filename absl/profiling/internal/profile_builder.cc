@@ -15,11 +15,6 @@
 
 #include "absl/profiling/internal/profile_builder.h"
 
-#ifdef __linux__
-#include <elf.h>
-#include <link.h>
-#endif  // __linux__
-
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -34,6 +29,11 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
+
+#ifdef __linux__
+#include <elf.h>
+#include <link.h>
+#endif  // __linux__
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
