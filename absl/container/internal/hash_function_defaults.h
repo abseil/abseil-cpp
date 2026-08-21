@@ -56,7 +56,7 @@
 #include "absl/container/internal/common.h"
 #include "absl/hash/hash.h"
 #include "absl/meta/type_traits.h"
-#include "absl/strings/cord.h"
+#include "absl/strings/internal/cord_lookup_support.h"
 #include "absl/strings/string_view.h"
 
 namespace absl {
@@ -77,7 +77,7 @@ struct StringHash {
     return absl::Hash<absl::string_view>{}(v);
   }
   size_t operator()(const absl::Cord& v) const {
-    return absl::Hash<absl::Cord>{}(v);
+    return cord_internal::HashOfCord(v);
   }
 
  private:
@@ -88,8 +88,7 @@ struct StringHash {
         absl::Hash<absl::string_view>{}, v, seed);
   }
   size_t hash_with_seed(const absl::Cord& v, size_t seed) const {
-    return absl::hash_internal::HashWithSeed().hash(absl::Hash<absl::Cord>{}, v,
-                                                    seed);
+    return cord_internal::HashOfCordWithSeed(v, seed);
   }
 };
 
@@ -99,13 +98,13 @@ struct StringEq {
     return lhs == rhs;
   }
   bool operator()(const absl::Cord& lhs, const absl::Cord& rhs) const {
-    return lhs == rhs;
+    return cord_internal::CordEquals(lhs, rhs);
   }
   bool operator()(const absl::Cord& lhs, absl::string_view rhs) const {
-    return lhs == rhs;
+    return cord_internal::CordEquals(lhs, rhs);
   }
   bool operator()(absl::string_view lhs, const absl::Cord& rhs) const {
-    return lhs == rhs;
+    return cord_internal::CordEquals(rhs, lhs);
   }
 };
 
