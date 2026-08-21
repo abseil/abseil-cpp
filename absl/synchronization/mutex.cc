@@ -14,19 +14,6 @@
 
 #include "absl/synchronization/mutex.h"
 
-
-#ifdef _WIN32
-#include <windows.h>
-#ifdef ERROR
-#undef ERROR
-#endif
-#else
-#include <fcntl.h>
-#include <pthread.h>
-#include <sched.h>
-#include <sys/time.h>
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +55,18 @@
 #include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+#else
+#include <fcntl.h>
+#include <pthread.h>
+#include <sched.h>
+#include <sys/time.h>
+#endif
 
 using absl::base_internal::CurrentThreadIdentityIfPresent;
 using absl::base_internal::CycleClock;
