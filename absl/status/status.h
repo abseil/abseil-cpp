@@ -771,6 +771,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Status final {
   // An out-of-line AddSourceLocation that mutates rep directly.
   static uintptr_t AddSourceLocationImpl(uintptr_t rep,
                                          absl::SourceLocation loc);
+  static uintptr_t WithContextImpl(uintptr_t rep, absl::string_view context);
 
   static void Ref(uintptr_t rep);
   static void Unref(uintptr_t rep);

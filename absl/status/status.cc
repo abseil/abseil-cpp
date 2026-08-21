@@ -147,6 +147,17 @@ uintptr_t Status::AddSourceLocationImpl(uintptr_t rep,
   return PointerToRep(rep_ptr);
 }
 
+uintptr_t Status::WithContextImpl(uintptr_t rep, absl::string_view context) {
+  if (context.empty()) return rep;
+  status_internal::StatusRep* rep_ptr = PrepareToModify(rep);
+  if (rep_ptr->message_.empty()) {
+    rep_ptr->message_ = std::string(context);
+  } else {
+    absl::StrAppend(&rep_ptr->message_, "; ", context);
+  }
+  return PointerToRep(rep_ptr);
+}
+
 status_internal::StatusRep* absl_nonnull Status::PrepareToModify(
     uintptr_t rep) {
   if (IsInlined(rep)) {

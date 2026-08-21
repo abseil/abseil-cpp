@@ -147,6 +147,8 @@ class StatusRep {
   StatusRep* absl_nonnull CloneAndUnref() const;
 
  private:
+  friend class absl::Status;
+
   mutable std::atomic<int32_t> ref_;
   absl::StatusCode code_;
 
