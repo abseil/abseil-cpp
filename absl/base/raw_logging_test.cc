@@ -20,6 +20,13 @@
 
 #include <tuple>
 
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+
+#include <string>
+#endif
+
 #include "gtest/gtest.h"
 #include "absl/strings/str_cat.h"
 
@@ -73,6 +80,54 @@ TEST(RawLoggingDeathTest, LogFatal) {
   EXPECT_DEATH_IF_SUPPORTED(ABSL_RAW_LOG(FATAL, "my dog has fleas"),
                             kExpectedDeathOutput);
 }
+
+// Raw logging writes to STDERR_FILENO via write()/syscall on POSIX platforms,
+// so the truncation path can be exercised directly by capturing stderr, without
+// relying on death tests.
+#if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
+    !defined(__EMSCRIPTEN__)
+TEST(RawLoggingTest, TruncationMarkerAtExactBufferBoundary) {
+  if (!absl::raw_log_internal::RawLoggingFullySupported()) {
+    GTEST_SKIP() << "Raw logging output is not supported on this platform.";
+  }
+  // kLogBufSize in raw_logging.cc.
+  constexpr int kLogBufSize = 3000;
+
+  int fds[2];
+  ASSERT_EQ(pipe(fds), 0);
+  int saved_stderr = dup(STDERR_FILENO);
+  ASSERT_NE(saved_stderr, -1);
+  ASSERT_NE(dup2(fds[1], STDERR_FILENO), -1);
+
+  // RawLogVA() first writes the default "[file : line] RAW: " prefix, so size
+  // the message to the space left after it.  vsnprintf() then reports a would-be
+  // length equal to that space, the exact boundary the fix addresses: it must be
+  // treated as truncated, otherwise the message loses its final byte and is
+  // emitted with neither the "(message truncated)" marker nor a trailing
+  // newline.  Reconstruct the prefix from the same basename and source line the
+  // ABSL_RAW_LOG below reports; kLogCallLine must match its line.
+  constexpr int kLogCallLine = __LINE__ + 7;
+  const char* basename =
+      absl::raw_log_internal::Basename(__FILE__, sizeof(__FILE__) - 1);
+  const std::string prefix =
+      absl::StrCat("[", basename, " : ", kLogCallLine, "] RAW: ");
+  ASSERT_LT(prefix.size(), static_cast<size_t>(kLogBufSize));
+  const std::string msg(static_cast<size_t>(kLogBufSize) - prefix.size(), 'x');
+  ABSL_RAW_LOG(ERROR, "%s", msg.c_str());
+
+  ASSERT_NE(dup2(saved_stderr, STDERR_FILENO), -1);
+  close(saved_stderr);
+  close(fds[1]);
+  char buf[kLogBufSize + 64];
+  ssize_t n = read(fds[0], buf, sizeof(buf));
+  close(fds[0]);
+  ASSERT_GT(n, 0);
+  const std::string output(buf, static_cast<size_t>(n));
+
+  EXPECT_NE(output.find("(message truncated)"), std::string::npos);
+  EXPECT_EQ(output.back(), '\n');
+}
+#endif
 
 TEST(InternalLog, CompilationTest) {
   ABSL_INTERNAL_LOG(INFO, "Internal Log");
