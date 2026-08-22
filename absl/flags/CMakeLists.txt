@@ -355,6 +355,7 @@ absl_cc_test(
     absl::raw_logging_internal
     absl::strings
     absl::time
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -443,6 +444,7 @@ absl_cc_test(
     absl::base
     absl::flags_internal
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
