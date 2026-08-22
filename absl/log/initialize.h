@@ -38,6 +38,7 @@ ABSL_NAMESPACE_BEGIN
 //
 // There is no corresponding function to shut down the logging library.
 void InitializeLog();
+bool LogIsInitialized();
 
 ABSL_NAMESPACE_END
 }  // namespace absl
