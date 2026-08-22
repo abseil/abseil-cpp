@@ -55,6 +55,8 @@ TEST(FNMatchTest, Works) {
   EXPECT_THAT(FNMatch("***", "**p"), IsTrue());
   EXPECT_THAT(FNMatch("**", "*"), IsTrue());
   EXPECT_THAT(FNMatch("*?", "*"), IsTrue());
+  EXPECT_THAT(FNMatch("f\\*o", "f*o"), IsTrue());
+  EXPECT_THAT(FNMatch("f\\*o", "fuo"), IsFalse());
 }
 
 }  // namespace

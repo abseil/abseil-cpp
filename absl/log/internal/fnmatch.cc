@@ -43,10 +43,21 @@ bool FNMatch(absl::string_view pattern, absl::string_view str) {
         pattern.remove_prefix(1);
         str.remove_prefix(1);
         break;
+      case '\\':
+        pattern.remove_prefix(1);
+        if (pattern.empty()) {
+          return !str.empty() && str.front() == '\\' && str.size() == 1;
+        }
+        if (pattern.front() != str.front()) {
+          return false;
+        }
+        str.remove_prefix(1);
+        pattern.remove_prefix(1);
+        break;
       default:
         if (in_wildcard_match) {
           absl::string_view fixed_portion = pattern;
-          const size_t end = fixed_portion.find_first_of("*?");
+          const size_t end = fixed_portion.find_first_of("*?\\");
           if (end != fixed_portion.npos) {
             fixed_portion = fixed_portion.substr(0, end);
           }
