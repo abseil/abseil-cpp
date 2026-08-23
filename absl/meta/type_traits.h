@@ -55,8 +55,12 @@
 #endif
 
 // Defines the default alignment. `__STDCPP_DEFAULT_NEW_ALIGNMENT__` is
-// predefined by every C++17 implementation.
+// predefined by C++17 implementations, except by GCC under -fno-aligned-new.
+#ifdef __STDCPP_DEFAULT_NEW_ALIGNMENT__
 #define ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT __STDCPP_DEFAULT_NEW_ALIGNMENT__
+#else
+#define ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT alignof(std::max_align_t)
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
