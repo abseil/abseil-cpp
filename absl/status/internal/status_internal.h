@@ -29,6 +29,7 @@
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/functional/function_ref.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
