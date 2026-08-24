@@ -20,19 +20,19 @@
 #ifndef ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_
 #define ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_
 
-#ifndef _WIN32
-#include <pthread.h>
-// Defines __GOOGLE_GRTE_VERSION__ (via glibc-specific features.h) when
-// supported.
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cstdint>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
+
+#ifndef _WIN32
+#include <pthread.h>
+// Defines __GOOGLE_GRTE_VERSION__ (via glibc-specific features.h) when
+// supported.
+#include <unistd.h>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
