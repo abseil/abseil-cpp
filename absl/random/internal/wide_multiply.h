@@ -15,6 +15,7 @@
 #ifndef ABSL_RANDOM_INTERNAL_WIDE_MULTIPLY_H_
 #define ABSL_RANDOM_INTERNAL_WIDE_MULTIPLY_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
