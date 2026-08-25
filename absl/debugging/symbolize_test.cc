@@ -15,9 +15,12 @@
 #include "absl/debugging/symbolize.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

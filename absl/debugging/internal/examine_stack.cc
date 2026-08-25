@@ -17,6 +17,7 @@
 #include "absl/debugging/internal/examine_stack.h"
 
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <iterator>
 
