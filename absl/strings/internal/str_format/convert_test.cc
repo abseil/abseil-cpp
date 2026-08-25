@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <cwctype>
@@ -37,6 +38,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/log/absl_check.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/ascii.h"
