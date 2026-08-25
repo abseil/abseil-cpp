@@ -21,8 +21,10 @@
 #define ABSL_BASE_INTERNAL_THREAD_IDENTITY_H_
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
