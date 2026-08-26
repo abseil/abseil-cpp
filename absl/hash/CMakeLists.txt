@@ -34,8 +34,8 @@ absl_cc_library(
     absl::function_ref
     absl::meta
     absl::int128
-    absl::strings
     absl::optional
+    absl::string_view
     absl::variant
     absl::utility
     absl::weakly_mixed_integer
@@ -172,6 +172,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::hash
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
