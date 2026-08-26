@@ -26,7 +26,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
-    absl::strings
+    absl::string_view
   PUBLIC
 )
 
@@ -47,7 +47,7 @@ absl_cc_library(
     absl::core_headers
     absl::no_destructor
     absl::flags_path_util
-    absl::strings
+    absl::string_view
     absl::synchronization
   PUBLIC
 )
@@ -70,6 +70,7 @@ absl_cc_library(
     absl::flags_program_name
     absl::core_headers
     absl::no_destructor
+    absl::string_view
     absl::strings
     absl::synchronization
 )
@@ -91,6 +92,7 @@ absl_cc_library(
     absl::log_severity
     absl::int128
     absl::optional
+    absl::string_view
     absl::strings
     absl::str_format
 )
@@ -130,7 +132,7 @@ absl_cc_library(
     absl::flags_commandlineflag_internal
     absl::nullability
     absl::optional
-    absl::strings
+    absl::string_view
 )
 
 # Internal-only target, do not depend on directly.
@@ -149,7 +151,7 @@ absl_cc_library(
     absl::config
     absl::flags_commandlineflag
     absl::flags_commandlineflag_internal
-    absl::strings
+    absl::string_view
 )
 
 absl_cc_library(
@@ -170,6 +172,7 @@ absl_cc_library(
     absl::flags_commandlineflag
     absl::flags_private_handle_accessor
     absl::flags_config
+    absl::string_view
     absl::strings
     absl::synchronization
     absl::flat_hash_map
@@ -247,6 +250,7 @@ absl_cc_library(
     absl::flags_private_handle_accessor
     absl::flags_program_name
     absl::flags_reflection
+    absl::string_view
     absl::strings
     absl::synchronization
 )
@@ -268,7 +272,7 @@ absl_cc_library(
     absl::flags_usage_internal
     absl::no_destructor
     absl::raw_logging_internal
-    absl::strings
+    absl::string_view
     absl::synchronization
 )
 
@@ -298,6 +302,7 @@ absl_cc_library(
     absl::flags_reflection
     absl::flags_usage
     absl::no_destructor
+    absl::string_view
     absl::strings
     absl::synchronization
 )
@@ -319,6 +324,7 @@ absl_cc_test(
     absl::flags_private_handle_accessor
     absl::flags_reflection
     absl::memory
+    absl::string_view
     absl::strings
     GTest::gtest_main
 )
@@ -353,6 +359,7 @@ absl_cc_test(
     absl::flags_reflection
     absl::int128
     absl::raw_logging_internal
+    absl::string_view
     absl::strings
     absl::time
     GTest::gtest_main
@@ -386,6 +393,7 @@ absl_cc_test(
     absl::log
     absl::scoped_set_env
     absl::span
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -411,6 +419,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::flags_program_name
+    absl::string_view
     absl::strings
     GTest::gtest_main
 )
@@ -457,6 +466,7 @@ absl_cc_test(
     absl::flags_config
     absl::flags_path_util
     absl::flags_program_name
+    absl::string_view
     absl::strings
     GTest::gtest_main
 )
@@ -476,6 +486,7 @@ absl_cc_test(
     absl::flags_parse
     absl::flags_reflection
     absl::flags_usage
+    absl::string_view
     absl::strings
     GTest::gmock
 )
