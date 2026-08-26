@@ -461,6 +461,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":marshalling",
+        "//absl/numeric:int128",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -553,6 +554,7 @@ cc_test(
         ":reflection",
         "//absl/memory",
         "//absl/strings",
+        "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
