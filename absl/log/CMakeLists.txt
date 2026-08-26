@@ -52,6 +52,7 @@ absl_cc_library(
     absl::log_internal_nullstream
     absl::log_internal_strip
     absl::nullability
+    absl::string_view
     absl::strings
 )
 
@@ -120,6 +121,7 @@ absl_cc_library(
     absl::log_internal_config
     absl::log_internal_globals
     absl::log_severity
+    absl::string_view
     absl::strings
     absl::str_format
     absl::time
@@ -142,6 +144,7 @@ absl_cc_library(
     absl::core_headers
     absl::log_severity
     absl::raw_logging_internal
+    absl::string_view
     absl::strings
     absl::time
 )
@@ -178,8 +181,8 @@ absl_cc_library(
     absl::base
     absl::config
     absl::core_headers
-    absl::strings
     absl::span
+    absl::string_view
 )
 
 absl_cc_library(
@@ -248,9 +251,9 @@ absl_cc_library(
     absl::log_sink
     absl::no_destructor
     absl::raw_logging_internal
+    absl::string_view
     absl::synchronization
     absl::span
-    absl::strings
 )
 
 absl_cc_library(
@@ -283,7 +286,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::log_severity
-    absl::strings
+    absl::string_view
 )
 
 absl_cc_library(
@@ -319,6 +322,7 @@ absl_cc_library(
     absl::core_headers
     absl::log_entry
     absl::log_severity
+    absl::string_view
     absl::strings
     absl::time
   TESTONLY
@@ -362,7 +366,7 @@ absl_cc_library(
     absl::log_entry
     absl::log_internal_test_helpers
     absl::log_severity
-    absl::strings
+    absl::string_view
     absl::time
     GTest::gtest
     GTest::gmock
@@ -396,7 +400,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
-    absl::strings
+    absl::string_view
     absl::strings_internal
     absl::span
 )
@@ -578,6 +582,7 @@ absl_cc_library(
     absl::log_internal_proto
     absl::log_severity
     absl::span
+    absl::string_view
     absl::strings
     absl::time
   PUBLIC
@@ -634,7 +639,7 @@ absl_cc_library(
     absl::log_severity
     absl::optional
     absl::source_location
-    absl::strings
+    absl::string_view
     absl::strings_internal
     absl::utility
   PUBLIC
@@ -658,7 +663,7 @@ absl_cc_library(
     absl::log_sink
     absl::log_sink_registry
     absl::raw_logging_internal
-    absl::strings
+    absl::string_view
     GTest::gmock
     GTest::gtest
   PUBLIC
@@ -680,6 +685,7 @@ absl_cc_library(
     absl::core_headers
     absl::log_internal_message
     absl::log_internal_structured_proto
+    absl::string_view
     absl::strings
 )
 
@@ -698,7 +704,6 @@ absl_cc_library(
     absl::log_internal_proto
     absl::config
     absl::span
-    absl::strings
     absl::variant
   PUBLIC
 )
@@ -771,10 +776,10 @@ absl_cc_library(
   HDRS
     "absl_vlog_is_on.h"
   DEPS
+    absl::string_view
     absl::vlog_config_internal
     absl::config
     absl::core_headers
-    absl::strings
 )
 
 absl_cc_library(
@@ -823,7 +828,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
-    absl::strings
+    absl::string_view
 )
 
 # Test targets
@@ -952,6 +957,7 @@ absl_cc_test(
     absl::log_internal_test_helpers
     absl::log_severity
     absl::span
+    absl::string_view
     absl::strings
     absl::time
     GTest::gmock_main
@@ -1019,6 +1025,7 @@ absl_cc_test(
     absl::scoped_mock_log
     absl::source_location
     absl::str_format
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -1059,7 +1066,7 @@ absl_cc_test(
     absl::log_sink_registry
     absl::log_severity
     absl::scoped_mock_log
-    absl::strings
+    absl::string_view
     GTest::gmock_main
 )
 
@@ -1083,7 +1090,7 @@ absl_cc_test(
     absl::log_severity
     absl::scoped_mock_log
     absl::source_location
-    absl::strings
+    absl::string_view
     GTest::gmock_main
 )
 
@@ -1104,6 +1111,7 @@ absl_cc_test(
     absl::log_sink
     absl::scoped_mock_log
     absl::source_location
+    absl::string_view
     absl::strings
     absl::time
     GTest::gmock_main
@@ -1128,6 +1136,7 @@ absl_cc_test(
     absl::log_severity
     absl::memory
     absl::scoped_mock_log
+    absl::string_view
     absl::strings
     absl::synchronization
     GTest::gmock
