@@ -332,7 +332,7 @@ cc_test(
         "//absl/hash",
         "//absl/log:check",
         "//absl/memory",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -446,7 +446,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:no_destructor",
         "//absl/meta:type_traits",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -465,8 +465,8 @@ cc_library(
         "//absl/base:config",
         "//absl/hash",
         "//absl/meta:type_traits",
-        "//absl/strings",
         "//absl/strings:cord",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -495,9 +495,9 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/hash",
         "//absl/random",
-        "//absl/strings",
         "//absl/strings:cord",
         "//absl/strings:cord_test_helpers",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -517,7 +517,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/random",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -532,7 +532,7 @@ cc_library(
     ],
     deps = [
         "//absl/hash",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -854,6 +854,7 @@ cc_test(
         "//absl/numeric:int128",
         "//absl/random",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -900,6 +901,7 @@ cc_binary(
         "//absl/random:distributions",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -1196,8 +1198,8 @@ cc_library(
         "//absl/hash:weakly_mixed_integer",
         "//absl/memory",
         "//absl/meta:type_traits",
-        "//absl/strings",
         "//absl/strings:cord",
+        "//absl/strings:string_view",
         "//absl/types:compare",
     ],
 )
@@ -1212,7 +1214,6 @@ cc_library(
     deps = [
         ":btree",
         ":flat_hash_set",
-        "//absl/strings",
         "//absl/strings:cord",
         "//absl/time",
     ],
@@ -1247,6 +1248,7 @@ cc_test(
         "//absl/random",
         "//absl/strings",
         "//absl/strings:cord",
+        "//absl/strings:string_view",
         "//absl/types:compare",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
