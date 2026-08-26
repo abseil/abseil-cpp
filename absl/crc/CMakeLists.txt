@@ -60,7 +60,7 @@ absl_cc_library(
     absl::endian
     absl::prefetch
     absl::str_format
-    absl::strings
+    absl::string_view
 )
 
 absl_cc_test(
@@ -72,6 +72,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::crc32c
+    absl::string_view
     absl::strings
     absl::str_format
     GTest::gtest_main
@@ -115,6 +116,7 @@ absl_cc_test(
     absl::memory
     absl::random_random
     absl::random_distributions
+    absl::string_view
     absl::strings
     GTest::gtest_main
 )
