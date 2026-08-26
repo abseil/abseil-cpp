@@ -610,6 +610,7 @@ absl_cc_library(
     absl::random_internal_fast_uniform_bits
     absl::raw_logging_internal
     absl::span
+    absl::string_view
     absl::strings
 )
 
@@ -911,6 +912,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::raw_logging_internal
+    absl::string_view
     absl::strings
     absl::str_format
     absl::span
