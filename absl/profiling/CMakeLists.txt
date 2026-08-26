@@ -108,6 +108,7 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::flat_hash_map
     absl::btree
+    absl::string_view
     absl::strings
     absl::str_format
     absl::span
