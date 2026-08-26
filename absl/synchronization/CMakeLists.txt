@@ -113,6 +113,7 @@ absl_cc_library(
     absl::nullability
     absl::raw_logging_internal
     absl::stacktrace
+    absl::string_view
     absl::symbolize
     absl::time
     absl::tracing_internal
@@ -258,7 +259,6 @@ absl_cc_test(
   DEPS
     absl::per_thread_sem_test_common
     absl::synchronization
-    absl::strings
     absl::time
     GTest::gmock_main
 )
