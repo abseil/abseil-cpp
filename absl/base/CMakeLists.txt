@@ -481,6 +481,7 @@ absl_cc_test(
   DEPS
     absl::errno_saver
     absl::strerror
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )
@@ -531,6 +532,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -575,6 +577,7 @@ absl_cc_test(
   DEPS
     absl::config
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -589,6 +592,7 @@ absl_cc_test(
     absl::base
     absl::core_headers
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -630,6 +634,7 @@ absl_cc_test(
   DEPS
     absl::base
     absl::synchronization
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -754,6 +759,7 @@ absl_cc_test(
   DEPS
     absl::strerror
     absl::strings
+    Threads::Threads
     GTest::gmock
     GTest::gtest_main
 )

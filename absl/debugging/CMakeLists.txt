@@ -60,6 +60,7 @@ absl_cc_test(
     absl::core_headers
     absl::errno_saver
     absl::span
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -117,6 +118,7 @@ absl_cc_test(
     absl::strings
     absl::str_format
     absl::symbolize
+    Threads::Threads
     GTest::gmock
 )
 
