@@ -26,10 +26,7 @@ bool FNMatch(absl::string_view pattern, absl::string_view str) {
   // Two-pointer glob matcher: '?' matches exactly one character and '*' matches
   // any run of characters (including the empty run). We remember the position
   // just after the most recent '*' so that, on a later mismatch, that '*' can
-  // consume one more character of `str` and the match be retried. The previous
-  // implementation bound each literal run to its first occurrence in `str` and
-  // never backtracked, so a run that recurs later (e.g. "*test" against
-  // "testtest") was reported as a non-match even though it matches.
+  // consume one more character of `str` and the match be retried.
   size_t p = 0;  // Current position in `pattern`.
   size_t s = 0;  // Current position in `str`.
   // `pattern` position just after the most recent '*', and the `str` position
@@ -38,17 +35,22 @@ bool FNMatch(absl::string_view pattern, absl::string_view str) {
   size_t star_s = 0;
   while (s < str.size()) {
     if (p < pattern.size() && pattern[p] == '*') {
+      // Found '*'. Record checkpoint after '*' and advance pattern index only.
       star_p = ++p;
       star_s = s;
     } else if (p < pattern.size() &&
                (pattern[p] == '?' || pattern[p] == str[s])) {
+      // Literal character match or single-character wildcard '?'. Advance both
+      // pattern and string pointers.
       ++p;
       ++s;
     } else if (star_p != absl::string_view::npos) {
-      // Backtrack: let the most recent '*' match one more character.
+      // Mismatch, but a preceding '*' exists. Backtrack: reset pattern to after
+      // the '*', and let that '*' consume one more character.
       p = star_p;
       s = ++star_s;
     } else {
+      // Mismatch and no preceding '*' exists to absorb it.
       return false;
     }
   }
