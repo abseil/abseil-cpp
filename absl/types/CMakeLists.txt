@@ -61,6 +61,7 @@ absl_cc_test(
     absl::hash_testing
     absl::raw_logging_internal
     absl::span
+    absl::string_view
     absl::strings
     absl::type_traits
     GTest::gmock_main
