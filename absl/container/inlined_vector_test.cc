@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <forward_list>
 #include <iterator>
 #include <list>

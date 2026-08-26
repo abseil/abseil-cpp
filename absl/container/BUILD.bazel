@@ -322,6 +322,7 @@ cc_test(
         ":flat_hash_set",
         ":hash_container_defaults",
         ":hash_generator_testing",
+        ":hash_policy_testing",
         ":test_allocator",
         ":unordered_set_constructor_test",
         ":unordered_set_lookup_test",
@@ -491,6 +492,7 @@ cc_test(
         ":flat_hash_map",
         ":flat_hash_set",
         ":hash_function_defaults",
+        "//absl/base:core_headers",
         "//absl/hash",
         "//absl/random",
         "//absl/strings",
@@ -868,10 +870,12 @@ cc_binary(
     deps = [
         ":container_memory",
         ":hash_function_defaults",
+        ":hashtable_control_bytes",
         ":raw_hash_set",
         "//absl/base:raw_logging_internal",
         "//absl/random",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -1120,6 +1124,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [
+        ":hash_policy_testing",
         ":unordered_set_constructor_test",
         ":unordered_set_lookup_test",
         ":unordered_set_members_test",
@@ -1136,6 +1141,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [
+        ":hash_policy_testing",
         ":unordered_map_constructor_test",
         ":unordered_map_lookup_test",
         ":unordered_map_members_test",
@@ -1240,6 +1246,7 @@ cc_test(
         "//absl/memory",
         "//absl/random",
         "//absl/strings",
+        "//absl/strings:cord",
         "//absl/types:compare",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
