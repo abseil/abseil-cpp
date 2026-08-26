@@ -370,6 +370,7 @@ absl_cc_library(
     absl::pretty_function
     absl::memory
     absl::meta
+    absl::string_view
     absl::strings
     absl::utility
     GTest::gtest
