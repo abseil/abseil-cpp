@@ -47,6 +47,7 @@ absl_cc_library(
     absl::stacktrace
     absl::str_format
     absl::strerror
+    absl::string_view
     absl::strings
     absl::symbolize
   PUBLIC
@@ -63,6 +64,7 @@ absl_cc_test(
     absl::status
     absl::source_location
     absl::str_format
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -87,6 +89,7 @@ absl_cc_library(
     absl::status
     absl::source_location
     absl::str_format
+    absl::string_view
     absl::strings
     absl::type_traits
     absl::utility
@@ -106,6 +109,7 @@ absl_cc_test(
     absl::status_matchers
     absl::statusor
     absl::source_location
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -128,6 +132,7 @@ absl_cc_library(
     absl::source_location
     absl::span
     absl::status
+    absl::string_view
     absl::strings
     absl::time
   PUBLIC
@@ -143,6 +148,7 @@ absl_cc_test(
   DEPS
     absl::core_headers
     absl::flags
+    absl::string_view
     GTest::gmock_main
     absl::log
     absl::log_entry
@@ -230,6 +236,7 @@ absl_cc_test(
     absl::status
     absl::statusor
     absl::status_matchers
+    absl::string_view
     GTest::gmock_main
 )
 
@@ -246,5 +253,6 @@ absl_cc_test(
     absl::status
     absl::statusor
     absl::status_matchers
+    absl::string_view
     GTest::gmock_main
 )
