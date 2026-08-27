@@ -61,8 +61,8 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::status
     absl::source_location
+    absl::status
     absl::str_format
     absl::string_view
     absl::strings
@@ -86,8 +86,8 @@ absl_cc_library(
     absl::has_ostream_operator
     absl::nullability
     absl::raw_logging_internal
-    absl::status
     absl::source_location
+    absl::status
     absl::str_format
     absl::string_view
     absl::strings
@@ -105,10 +105,10 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::source_location
     absl::status
     absl::status_matchers
     absl::statusor
-    absl::source_location
     absl::string_view
     absl::strings
     GTest::gmock_main
@@ -148,8 +148,6 @@ absl_cc_test(
   DEPS
     absl::core_headers
     absl::flags
-    absl::string_view
-    GTest::gmock_main
     absl::log
     absl::log_entry
     absl::log_flags
@@ -160,11 +158,13 @@ absl_cc_test(
     absl::source_location
     absl::span
     absl::status
-    absl::statusor
     absl::status_builder
     absl::status_matchers
+    absl::statusor
+    absl::string_view
     absl::strings
     absl::time
+    GTest::gmock_main
 )
 
 absl_cc_library(
@@ -234,8 +234,8 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::status
-    absl::statusor
     absl::status_matchers
+    absl::statusor
     absl::string_view
     GTest::gmock_main
 )
@@ -251,8 +251,8 @@ absl_cc_test(
     "ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS"
   DEPS
     absl::status
-    absl::statusor
     absl::status_matchers
+    absl::statusor
     absl::string_view
     GTest::gmock_main
 )
