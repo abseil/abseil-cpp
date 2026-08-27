@@ -90,6 +90,7 @@ absl_cc_library(
     absl::dynamic_annotations
     absl::malloc_internal
     absl::raw_logging_internal
+    absl::string_view
     absl::strings
   PUBLIC
 )
@@ -114,8 +115,8 @@ absl_cc_test(
     absl::malloc_internal
     absl::memory
     absl::stack_consumption
-    absl::strings
     absl::str_format
+    absl::string_view
     absl::symbolize
     GTest::gmock
 )
