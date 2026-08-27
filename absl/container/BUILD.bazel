@@ -169,6 +169,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     textual_hdrs = ["internal/test_allocator.h"],
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_test(
