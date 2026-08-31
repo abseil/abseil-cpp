@@ -725,7 +725,6 @@ cc_library(
         "//absl/types:compare",
         "//absl/types:optional",
         "//absl/types:span",
-        "@do_not_use_for_gloop_visibility_only//gloop/base:fprint",
     ],
 )
 
