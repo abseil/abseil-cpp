@@ -41,6 +41,8 @@ else()
   option(ABSL_ENABLE_INSTALL "Enable install rule" ON)
 endif()
 
+# Just for Test
+
 set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 set(CMAKE_BUILD_RPATH_USE_ORIGIN ON)
