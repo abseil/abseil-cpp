@@ -877,6 +877,7 @@ cc_binary(
         ":hashtable_control_bytes",
         ":raw_hash_set",
         "//absl/base:raw_logging_internal",
+        "//absl/hash",
         "//absl/random",
         "//absl/strings:str_format",
         "//absl/strings:string_view",
