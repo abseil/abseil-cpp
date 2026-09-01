@@ -200,8 +200,6 @@ def write_podspec_rule(f, rule, depth):
       srcs)
   # Writes dependencies of this rule.
   for dep in sorted(rule.deps):
-    if not dep.startswith("//absl/"):
-      continue
     name = get_spec_name(dep.replace(":", "/"))
     f.write("{indent}{var}.dependency '{dep}'\n".format(
         indent=indent, var=spec_var, dep=name))
