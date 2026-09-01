@@ -344,6 +344,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -545,6 +546,7 @@ absl_cc_test(
   DEPS
     absl::check
     absl::config
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
@@ -1343,6 +1345,7 @@ absl_cc_test(
     absl::status
     absl::statusor
     absl::str_format
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )

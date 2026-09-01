@@ -886,6 +886,7 @@ cc_test(
         "//absl/flags:flag_internal",
         "//absl/flags:marshalling",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

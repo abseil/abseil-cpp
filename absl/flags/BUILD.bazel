@@ -564,6 +564,7 @@ cc_test(
         ":reflection",
         "//absl/memory",
         "//absl/strings",
+        "//absl/strings:string_view",
         "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

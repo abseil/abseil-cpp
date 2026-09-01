@@ -428,6 +428,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":string_view",
         ":strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -1373,6 +1374,7 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     deps = [
+        ":string_view",
         ":strings",
         "//absl/base:config",
         "//absl/log:check",
@@ -1685,6 +1687,7 @@ cc_test(
     deps = [
         ":generic_printer",
         ":str_format",
+        ":string_view",
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",

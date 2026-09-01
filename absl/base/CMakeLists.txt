@@ -722,6 +722,7 @@ absl_cc_test(
     absl::flags_internal
     absl::flags_marshalling
     absl::log_severity
+    absl::string_view
     absl::strings
     GTest::gmock
     GTest::gtest_main

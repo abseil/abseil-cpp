@@ -437,6 +437,7 @@ absl_cc_test(
     absl::flags_reflection
     absl::flags_usage
     absl::memory
+    absl::string_view
     absl::strings
     GTest::gmock_main
 )
