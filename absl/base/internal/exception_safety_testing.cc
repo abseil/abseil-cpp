@@ -16,6 +16,8 @@
 
 #ifdef ABSL_HAVE_EXCEPTIONS
 
+#include <string>
+
 #include "gtest/gtest.h"
 #include "absl/meta/type_traits.h"
 
