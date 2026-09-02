@@ -36,7 +36,7 @@
 // LowLevelAlloc.
 #ifdef ABSL_LOW_LEVEL_ALLOC_MISSING
 #error ABSL_LOW_LEVEL_ALLOC_MISSING cannot be directly set
-#elif !defined(ABSL_HAVE_MMAP) && !defined(_WIN32)
+#elif !defined(ABSL_HAVE_MMAP) && !defined(_WIN32) && !defined(__CYGWIN__)
 #define ABSL_LOW_LEVEL_ALLOC_MISSING 1
 #endif
 
@@ -47,7 +47,7 @@
 #ifdef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
 #error ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING cannot be directly set
 #elif defined(_WIN32) || defined(__asmjs__) || defined(__wasm__) || \
-    defined(__hexagon__)
+    defined(__hexagon__) || defined(__CYGWIN__)
 #define ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING 1
 #endif
 
