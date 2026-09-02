@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #include "absl/base/internal/exception_safety_testing.h"
 
 #ifdef ABSL_HAVE_EXCEPTIONS
+
+#include <string>
 
 #include "gtest/gtest.h"
 #include "absl/meta/type_traits.h"

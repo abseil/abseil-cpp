@@ -14,6 +14,8 @@
 
 #include "absl/types/compare.h"
 
+#include <algorithm>
+
 #include "gtest/gtest.h"
 #include "absl/base/casts.h"
 
