@@ -34,6 +34,7 @@
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -1350,6 +1351,112 @@ TEST(SwisstableCollisions, LowEntropyInts) {
           << bit << " " << i;
     }
   }
+}
+
+struct NameView {
+  absl::string_view name;
+  absl::string_view lang;
+
+  friend bool operator==(const NameView& lhs, const NameView& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const NameView& name) {
+    return H::combine(std::move(h), name.name, name.lang);
+  }
+};
+
+struct Name {
+  std::string name;
+  std::string lang;
+
+  friend bool operator==(const Name& lhs, const Name& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+  friend bool operator==(const NameView& lhs, const Name& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+  friend bool operator==(const Name& lhs, const NameView& rhs) {
+    return lhs.name == rhs.name && lhs.lang == rhs.lang;
+  }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const Name& name) {
+    return H::combine(std::move(h), name.name, name.lang);
+  }
+
+  using absl_container_hash = absl::TransparentHash<NameView, Name>;
+};
+
+template <typename NameHash>
+class TransparentHashTest : public testing::Test {};
+
+using NameHashTypes =
+    testing::Types<absl::TransparentHash<Name, NameView>,
+                   absl::TransparentHash<Name, Name, NameView>,
+                   absl::TransparentHash<Name, NameView, Name>,
+                   absl::TransparentHash<Name, NameView, Name, NameView>,
+                   absl::TransparentHash<Name, NameView, Name, NameView, Name,
+                                         NameView, Name>>;
+TYPED_TEST_SUITE(TransparentHashTest, NameHashTypes);
+
+TYPED_TEST(TransparentHashTest, BasicUsage) {
+  using NameHash = TypeParam;
+  static_assert(std::is_same_v<typename NameHash::is_transparent, void>);
+
+  EXPECT_FALSE((std::is_convertible_v<NameHash, absl::Hash<Name>>));
+  EXPECT_FALSE((std::is_convertible_v<NameHash, absl::Hash<NameView>>));
+
+  EXPECT_EQ(NameHash{}(Name{"foo", "en"}), NameHash{}(NameView{"foo", "en"}));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(Name{"foo", "en"}, NameView{"foo", "en"},
+                      Name{"bar", "en"}, NameView{"bar", "en"},
+                      Name{"foo", "de"}, NameView{"foo", "de"},
+                      Name{"bar", "de"}, NameView{"bar", "de"})));
+
+  absl::flat_hash_set<Name, NameHash, std::equal_to<>> set;
+  set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(set.contains(NameView{"foo", "en"}));
+  EXPECT_TRUE(set.contains(Name{"foo", "en"}));
+
+  std::unordered_set<Name, NameHash, std::equal_to<>> std_set;
+  std_set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(std_set.find(Name{"foo", "en"}) != std_set.end());
+}
+
+TEST(HashTest, TransparentHashDefaultLookUp) {
+  absl::flat_hash_set<Name> set;
+  set.insert(Name{"foo", "en"});
+  EXPECT_TRUE(set.contains(NameView{"foo", "en"}));
+  EXPECT_TRUE(set.contains(Name{"foo", "en"}));
+}
+
+struct Unhashable {};
+
+template <typename Hasher>
+class TransparentPoisonedHashTest : public testing::Test {};
+
+using TransparentPoisonedHashTypes =
+    testing::Types<absl::TransparentHash<Unhashable>,
+                   absl::TransparentHash<Unhashable, Unhashable>,
+                   absl::TransparentHash<int, Unhashable>,
+                   absl::TransparentHash<int, Unhashable, int>,
+                   absl::TransparentHash<int, Unhashable, int, Unhashable>>;
+TYPED_TEST_SUITE(TransparentPoisonedHashTest, TransparentPoisonedHashTypes);
+
+TYPED_TEST(TransparentPoisonedHashTest, PoisonHash) {
+  using Hasher = TypeParam;
+  EXPECT_FALSE(std::is_default_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_copy_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_move_constructible_v<Hasher>);
+  EXPECT_FALSE(std::is_copy_assignable_v<Hasher>);
+  EXPECT_FALSE(std::is_move_assignable_v<Hasher>);
+#if !defined(__GNUC__) || defined(__clang__)
+  // TODO(b/144368551): As of GCC 8.4 this does not compile.
+  EXPECT_FALSE(IsAggregateInitializable<Hasher>::value);
+#endif
 }
 
 }  // namespace

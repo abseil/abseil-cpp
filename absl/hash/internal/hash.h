@@ -1569,6 +1569,7 @@ struct PoisonedHash : private AggregateBarrier {
   PoisonedHash() = delete;
   PoisonedHash(const PoisonedHash&) = delete;
   PoisonedHash& operator=(const PoisonedHash&) = delete;
+  void operator()() const = delete;
 };
 
 template <typename T>
@@ -1578,7 +1579,7 @@ struct HashImpl {
   }
 
  private:
-  friend struct HashWithSeed;
+  friend HashWithSeed;
 
   size_t hash_with_seed(const T& value, size_t seed) const {
     return MixingHashState::hash_with_seed(value, seed);
@@ -1588,6 +1589,57 @@ struct HashImpl {
 template <typename T>
 struct Hash
     : std::conditional_t<is_hashable<T>::value, HashImpl<T>, PoisonedHash> {};
+
+template <typename T, typename... Ts>
+inline constexpr bool pack_contains_v = (std::is_same_v<T, Ts> || ...);
+
+template <size_t>
+struct EmptyDuplicatedHash {
+  void operator()() const = delete;
+};
+
+template <typename... Ts>
+class TransparentHashImpl;
+
+template <typename T>
+class TransparentHashImpl<T> : private Hash<T> {
+ public:
+  using Hash<T>::operator();
+};
+
+template <typename T, typename... Ts>
+using TransparentHashImplSingle =
+    std::conditional_t<pack_contains_v<T, Ts...>,
+                       EmptyDuplicatedHash<sizeof...(Ts)>, Hash<T>>;
+
+template <typename T, typename... Ts>
+class TransparentHashImpl<T, Ts...>
+    : private TransparentHashImpl<Ts...>,
+      private TransparentHashImplSingle<T, Ts...> {
+ public:
+  using TransparentHashImpl<Ts...>::operator();
+  using TransparentHashImplSingle<T, Ts...>::operator();
+};
+
+template <typename... Ts>
+using TransparentHashBase =
+    std::conditional_t<(... && is_hashable<Ts>::value),
+                       TransparentHashImpl<Ts...>, PoisonedHash>;
+
+template <typename... Ts>
+class TransparentHash : private TransparentHashBase<Ts...> {
+ public:
+  using is_transparent = void;
+  using TransparentHashBase<Ts...>::operator();
+
+ private:
+  friend HashWithSeed;
+
+  template <typename T>
+  size_t hash_with_seed(const T& value, size_t seed) const {
+    return MixingHashState::hash_with_seed(value, seed);
+  }
+};
 
 template <typename H>
 template <typename T, typename... Ts>

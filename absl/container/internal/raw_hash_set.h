@@ -322,6 +322,11 @@ struct IsDecomposable<
         std::declval<Ts>()...))>,
     Policy, Hash, Eq, Ts...> : std::true_type {};
 
+template <typename T, template <typename...> class Template>
+struct is_instance_of : std::false_type {};
+template <template <typename...> class Template, typename... Args>
+struct is_instance_of<Template<Args...>, Template> : std::true_type {};
+
 ABSL_DLL extern char kDefaultIterSlot;
 
 // Returns a pointer to a control byte that can be used by default-constructed
@@ -2301,9 +2306,13 @@ class raw_hash_set {
 
   using slot_type = typename PolicyTraits::slot_type;
 
-  constexpr static bool kIsDefaultHash =
+  constexpr static bool kIsAbslHash =
       std::is_same_v<hasher, absl::Hash<key_type>> ||
-      std::is_same_v<hasher, absl::container_internal::StringHash>;
+      std::is_same_v<hasher, absl::container_internal::StringHash> ||
+      // TODO(b/384509507): resolve `no header providing
+      // "absl::hash_internal::TransparentHash" is directly included`.
+      // Maybe we should make "internal/hash.h" be a separate library.
+      is_instance_of<hasher, absl::hash_internal::TransparentHash>::value;
   // For non-default hashers it is required to have low bits entropy because
   // (a) in such cases, the seed is xor'ed with the hash value rather than being
   // used as a seed for the hash function, (b) the seed has low bits that are
@@ -2312,7 +2321,7 @@ class raw_hash_set {
   // performance optimization for default hashers. For non-default hashers, we
   // shift it back.
   constexpr static size_t kSeedShift =
-      kIsDefaultHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
+      kIsAbslHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
 
   constexpr static bool SooEnabled() {
     return PolicyTraits::soo_enabled() &&
@@ -3538,12 +3547,12 @@ class raw_hash_set {
   }
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(const K& key) const {
-    return HashElement<hasher, kIsDefaultHash, kSeedShift>{
+    return HashElement<hasher, kIsAbslHash, kSeedShift>{
         hash_ref(), common().seed().seed()}(key);
   }
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(
-        HashElement<hasher, kIsDefaultHash, kSeedShift>{hash_ref(),
+        HashElement<hasher, kIsAbslHash, kSeedShift>{hash_ref(),
                                                         common().seed().seed()},
         PolicyTraits::element(slot));
   }
@@ -3685,7 +3694,7 @@ class raw_hash_set {
                        : 0,
             kUseMemcpy>(
             common(), GetPolicyFunctions(),
-            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key},
+            HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key},
             force_sampling));
     return {slot, true};
   }
@@ -3705,7 +3714,7 @@ class raw_hash_set {
     return {
         to_slot(PrepareInsertSmallNonSoo(
             common(), GetPolicyFunctions(),
-            HashKey<hasher, K, kIsDefaultHash, kSeedShift>{hash_ref(), key})),
+            HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key})),
         true};
   }
 
@@ -3738,7 +3747,7 @@ class raw_hash_set {
                          ? PrepareInsertLargeGenerationsEnabled(
                                common(), GetPolicyFunctions(), hash, mask_empty,
                                FindInfo{target_group_offset, seq.index()},
-                               HashKey<hasher, K, kIsDefaultHash, kSeedShift>{
+                               HashKey<hasher, K, kIsAbslHash, kSeedShift>{
                                    hash_ref(), key})
                          : PrepareInsertLarge(
                                common(), GetPolicyFunctions(), hash, mask_empty,
@@ -4041,7 +4050,7 @@ class raw_hash_set {
         // for standard layout and alignof(Hash) <= alignof(CommonFields).
         std::is_empty_v<hasher> ? &GetRefForEmptyClass
                                 : &raw_hash_set::get_hash_ref_fn,
-        PolicyTraits::template get_hash_slot_fn<hasher, kIsDefaultHash,
+        PolicyTraits::template get_hash_slot_fn<hasher, kIsAbslHash,
                                                 kSeedShift>(),
         PolicyTraits::transfer_uses_memcpy()
             ? TransferNRelocatable<sizeof(slot_type)>
@@ -4147,7 +4156,7 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
   using Traits = typename Set::PolicyTraits;
   using Slot = typename Traits::slot_type;
 
-  constexpr static bool kIsDefaultHash = Set::kIsDefaultHash;
+  constexpr static bool kIsAbslHash = Set::kIsAbslHash;
 
   static size_t GetNumProbes(const Set& set,
                              const typename Set::key_type& key) {

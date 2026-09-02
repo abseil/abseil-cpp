@@ -75,7 +75,7 @@ struct IntPolicy {
     return std::forward<F>(f)(x, x);
   }
 
-  template <class Hash, bool kIsDefault, size_t kSeedShift>
+  template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -142,7 +142,7 @@ class StringPolicy {
                       PairArgs(std::forward<Args>(args)...));
   }
 
-  template <class Hash, bool kIsDefault, size_t kSeedShift>
+  template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -172,13 +172,14 @@ struct IntTable
 
 struct MyInt {
   int64_t value;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const MyInt& x) {
+    return H::combine(std::move(h), x.value);
+  }
 };
 
-struct TransparentIntHash {
-  using is_transparent = void;
-  size_t operator()(int64_t x) const { return absl::Hash<int64_t>{}(x); }
-  size_t operator()(MyInt x) const { return absl::Hash<int64_t>{}(x.value); }
-};
+using TransparentIntHash = absl::TransparentHash<int64_t, MyInt>;
 
 struct TransparentIntEq {
   using is_transparent = void;
