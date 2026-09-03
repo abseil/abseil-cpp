@@ -80,7 +80,18 @@ class log_uniform_int_distribution {
         // which can eliminate some values depending on where the bounds fall.
         const double inv_log_base = 1.0 / std::log(static_cast<double>(base_));
         const double log_range = std::log(static_cast<double>(range()) + 0.5);
-        log_range_ = static_cast<int>(std::ceil(inv_log_base * log_range));
+        const double result = std::ceil(inv_log_base * log_range);
+        // A base_ of 0 or 1, or a negative base_, violates the base_ > 1
+        // precondition and leaves inv_log_base non-finite, so `result` can be
+        // inf or NaN. Casting such a value to int is undefined behavior; guard
+        // it so an out-of-contract base yields a defined (if meaningless)
+        // log_range_ instead. For a valid base_ (> 1), result is a small
+        // non-negative integer and this guard is a no-op.
+        log_range_ =
+            (result >= 0 &&
+             result < static_cast<double>((std::numeric_limits<int>::max)()))
+                ? static_cast<int>(result)
+                : 0;
       }
     }
 
