@@ -1433,6 +1433,49 @@ TEST(HashTest, TransparentHashDefaultLookUp) {
   EXPECT_TRUE(set.contains(Name{"foo", "en"}));
 }
 
+struct MyString {
+  std::string s;
+
+  MyString() = default;
+  explicit MyString(absl::string_view s) : s(s) {}
+  explicit MyString(const char* s) : s(s) {}
+
+  template <typename H>
+  friend H AbslHashValue(H h, const MyString& s) {
+    return H::combine(std::move(h), s.s);
+  }
+
+  friend bool operator==(const MyString& lhs, const MyString& rhs) {
+    return lhs.s == rhs.s;
+  }
+  friend bool operator==(const MyString& lhs, absl::string_view rhs) {
+    return lhs.s == rhs;
+  }
+  friend bool operator==(absl::string_view lhs, const MyString& rhs) {
+    return lhs == rhs.s;
+  }
+};
+
+TEST(HashTest, TransparentHashDefaultLookUpAllowsImplicitCasting) {
+  EXPECT_EQ(
+      absl::Hash<absl::string_view>()("a"),
+      absl::TransparentHash<absl::string_view>()("a")
+  );
+  absl::flat_hash_set<std::string, absl::TransparentHash<absl::string_view>>
+      set;
+  set.insert("a");
+  EXPECT_TRUE(set.contains("a"));
+}
+
+TEST(HashTest, TransparentHashDefaultLookUpAllowsImplicitCastingMultiArg) {
+  using TestHash =
+      absl::TransparentHash<absl::string_view, MyString>;
+  EXPECT_EQ(absl::Hash<absl::string_view>()("a"), TestHash()("a"));
+  absl::flat_hash_set<MyString, TestHash, std::equal_to<>> set;
+  set.emplace("a");
+  EXPECT_TRUE(set.contains("a"));
+}
+
 struct Unhashable {};
 
 template <typename Hasher>

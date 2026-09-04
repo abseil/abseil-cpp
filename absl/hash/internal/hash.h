@@ -1570,6 +1570,7 @@ struct PoisonedHash : private AggregateBarrier {
   PoisonedHash(const PoisonedHash&) = delete;
   PoisonedHash& operator=(const PoisonedHash&) = delete;
   void operator()() const = delete;
+  size_t hash_with_seed() const = delete;
 };
 
 template <typename T>
@@ -1578,7 +1579,7 @@ struct HashImpl {
     return MixingHashState::hash(value);
   }
 
- private:
+ protected:
   friend HashWithSeed;
 
   size_t hash_with_seed(const T& value, size_t seed) const {
@@ -1596,6 +1597,7 @@ inline constexpr bool pack_contains_v = (std::is_same_v<T, Ts> || ...);
 template <size_t>
 struct EmptyDuplicatedHash {
   void operator()() const = delete;
+  size_t hash_with_seed() const = delete;
 };
 
 template <typename... Ts>
@@ -1605,6 +1607,7 @@ template <typename T>
 class TransparentHashImpl<T> : private Hash<T> {
  public:
   using Hash<T>::operator();
+  using Hash<T>::hash_with_seed;
 };
 
 template <typename T, typename... Ts>
@@ -1619,6 +1622,8 @@ class TransparentHashImpl<T, Ts...>
  public:
   using TransparentHashImpl<Ts...>::operator();
   using TransparentHashImplSingle<T, Ts...>::operator();
+  using TransparentHashImpl<Ts...>::hash_with_seed;
+  using TransparentHashImplSingle<T, Ts...>::hash_with_seed;
 };
 
 template <typename... Ts>
@@ -1635,10 +1640,7 @@ class TransparentHash : private TransparentHashBase<Ts...> {
  private:
   friend HashWithSeed;
 
-  template <typename T>
-  size_t hash_with_seed(const T& value, size_t seed) const {
-    return MixingHashState::hash_with_seed(value, seed);
-  }
+  using TransparentHashBase<Ts...>::hash_with_seed;
 };
 
 template <typename H>
