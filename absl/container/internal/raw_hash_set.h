@@ -1930,6 +1930,9 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
   return std::is_same_v<CharAlloc, std::allocator<char>>;
 }
 
+constexpr size_t kStandardBackingArrayAlignment =
+    BackingArrayAlignment(alignof(size_t));
+
 // Allocates `n` bytes for a backing array.
 template <size_t AlignOfBackingArray, typename Alloc>
 void* AllocateBackingArray(void* alloc, size_t n) {
@@ -1950,7 +1953,11 @@ void DeallocateBackingArray(void* alloc, size_t capacity, ctrl_t* ctrl,
 }
 
 using DeallocBackingArrayFn =
-    decltype(&DeallocateBackingArray<8, std::allocator<char>>);
+    decltype(&DeallocateBackingArray<kStandardBackingArrayAlignment,
+                                     std::allocator<char>>);
+inline constexpr DeallocBackingArrayFn kStandardDeallocBackingArrayFn =
+    &DeallocateBackingArray<kStandardBackingArrayAlignment,
+                            std::allocator<char>>;
 
 // PolicyFunctions bundles together some information for a particular
 // raw_hash_set<T, ...> instantiation. This information is passed to
@@ -2001,6 +2008,39 @@ struct PolicyFunctions {
 
   uint8_t soo_capacity() const {
     return static_cast<uint8_t>(soo_enabled ? SooCapacity() : 0);
+  }
+};
+
+using DestroySlotFn = void (*)(void* set, void* slot);
+
+// DtorPolicy bundles information for a particular
+// raw_hash_set<T, ...> instantiation that is needed to destroy the set.
+// This is a subset of the fields in PolicyFunctions to avoid bloat of linker
+// input size. Destructor is being instantiated way more often than other
+// functions, so we do not want to include non-destructor related fields.
+struct DtorPolicy {
+  uint32_t slot_size;
+  uint16_t slot_align;
+  DestroySlotFn destroy_slot;
+  // TODO(b/515666499): Remove this field and pass as separate parameter only in
+  // case of custom allocators or big alignment.
+  DeallocBackingArrayFn dealloc;
+
+  template <uint32_t kSlotSize, uint16_t kSlotAlign>
+  static const DtorPolicy& GetTrivialDestructStdAllocRef() {
+    return R<kSlotSize, kSlotAlign>();
+  }
+
+ private:
+  // Code below is aimed to optimize linker input size. Destructors are being
+  // instantiated way more often than other functions, so we make a small effort
+  // to minimize the name length of static variables.
+  template <uint32_t kSlotSize, uint16_t kSlotAlign>
+  static const DtorPolicy& R() {
+    static constexpr DtorPolicy p = {kSlotSize, kSlotAlign,
+                                     /*destroy_slot=*/nullptr,
+                                     kStandardDeallocBackingArrayFn};
+    return p;
   }
 };
 
@@ -2137,8 +2177,6 @@ void ResizeAllocatedTableWithSeedChange(CommonFields& common,
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        void* alloc, bool reuse);
 
-using DestroySlotFn = void (*)(void* set, void* slot);
-
 // Destroys all full slots in the backing array.
 // REQUIRES: !is_small(c.capacity()).
 // REQUIRES: destroy_slot != nullptr.
@@ -2147,31 +2185,22 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 
 // Deallocates the backing array and unregister infoz if necessary.
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
-void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
-                         DeallocBackingArrayFn dealloc, void* alloc);
+void DeallocBackingArray(CommonFields& c, const DtorPolicy& policy,
+                         void* alloc);
 
 // Type erased version of raw_hash_set::clear.
 template <bool kSooEnabled>
 void Clear(CommonFields& c, const PolicyFunctions& policy,
            DestroySlotFn destroy_slot, void* alloc);
 
-// NOTE: Destruct* functions couldn't use PolicyFunctions in order to support
-// incomplete types.
-// TODO(b/515666499): try to use PolicyFunctions since it makes code simpler and
-// binary size smaller.
-
 // Destructs all elements and deallocates the backing array for SOO tables.
 // REQUIRES: !c.is_small || !c.empty()
-// REQUIRES: !c.is_small || destroy_slot != nullptr
-void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                 DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
-                 void* alloc);
+// REQUIRES: !c.is_small || policy.destroy_slot != nullptr
+void DestructSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
 
 // Destructs all elements and deallocates the backing array for non-SOO tables.
 // REQUIRES: c.capacity > 0.
-void DestructNonSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                    DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
-                    void* alloc);
+void DestructNonSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
@@ -3492,8 +3521,7 @@ class raw_hash_set {
 
   void dealloc() {
     ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
-    DeallocBackingArray(common(), sizeof(slot_type), alignof(slot_type),
-                        get_dealloc_backing_array_fn(), &char_alloc_ref());
+    DeallocBackingArray(common(), GetDtorPolicy(), &char_alloc_ref());
   }
 
   void destructor_impl() {
@@ -3506,14 +3534,10 @@ class raw_hash_set {
           (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
         return;
       }
-      DestructSoo(common(), sizeof(slot_type), alignof(slot_type),
-                  get_destroy_slot_fn(), get_dealloc_backing_array_fn(),
-                  &char_alloc_ref());
+      DestructSoo(common(), GetDtorPolicy(), &char_alloc_ref());
     } else {
       if (capacity() == 0) return;
-      DestructNonSoo(common(), sizeof(slot_type), alignof(slot_type),
-                     get_destroy_slot_fn(), get_dealloc_backing_array_fn(),
-                     &char_alloc_ref());
+      DestructNonSoo(common(), GetDtorPolicy(), &char_alloc_ref());
     }
   }
 
@@ -3553,7 +3577,7 @@ class raw_hash_set {
   ABSL_ATTRIBUTE_ALWAYS_INLINE size_t hash_of(slot_type* slot) const {
     return PolicyTraits::apply(
         HashElement<hasher, kIsAbslHash, kSeedShift>{hash_ref(),
-                                                        common().seed().seed()},
+                                                     common().seed().seed()},
         PolicyTraits::element(slot));
   }
 
@@ -3711,11 +3735,10 @@ class raw_hash_set {
         return {single_slot(), false};
       }
     }
-    return {
-        to_slot(PrepareInsertSmallNonSoo(
-            common(), GetPolicyFunctions(),
-            HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key})),
-        true};
+    return {to_slot(PrepareInsertSmallNonSoo(
+                common(), GetPolicyFunctions(),
+                HashKey<hasher, K, kIsAbslHash, kSeedShift>{hash_ref(), key})),
+            true};
   }
 
   template <class K>
@@ -4028,6 +4051,33 @@ class raw_hash_set {
                                    CharAlloc>;
   }
 
+  static const DtorPolicy& GetDtorPolicy() {
+    static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)(),
+                  "Slot size is too large. Use std::unique_ptr for value type "
+                  "or use absl::node_hash_{map,set}.");
+    static_assert(alignof(slot_type) <=
+                  size_t{(std::numeric_limits<uint16_t>::max)()});
+    if constexpr (PolicyTraits::template destroy_is_trivial<Alloc>() &&
+                  std::is_same_v<CharAlloc, std::allocator<char>> &&
+                  BackingArrayAlignment(alignof(slot_type)) ==
+                      kStandardBackingArrayAlignment) {
+      return DtorPolicy::GetTrivialDestructStdAllocRef<
+          static_cast<uint32_t>(sizeof(slot_type)),
+          static_cast<uint16_t>(alignof(slot_type))>();
+    } else {
+      // TODO(b/515666499): move this code to DtorPolicy once we remove dealloc
+      // from there.
+      // Destructors are being instantiated way more often than other
+      // functions, so we make a small effort to minimize the name length of
+      // static variables.
+      static constexpr DtorPolicy p =
+          DtorPolicy{static_cast<uint32_t>(sizeof(slot_type)),
+                     static_cast<uint16_t>(alignof(slot_type)),
+                     get_destroy_slot_fn(), get_dealloc_backing_array_fn()};
+      return p;
+    }
+  }
+
   static const PolicyFunctions& GetPolicyFunctions() {
     static_assert(sizeof(slot_type) <= (std::numeric_limits<uint32_t>::max)(),
                   "Slot size is too large. Use std::unique_ptr for value type "
@@ -4064,8 +4114,8 @@ class raw_hash_set {
   }
 
   // Bundle together CommonFields plus other objects which might be empty.
-  // CompressedTuple will ensure that sizeof is not affected by any of the empty
-  // fields that occur after CommonFields.
+  // CompressedTuple will ensure that sizeof is not affected by any of the
+  // empty fields that occur after CommonFields.
   absl::container_internal::CompressedTuple<CommonFields, hasher, key_equal,
                                             CharAlloc>
       settings_{CommonFields::CreateDefault<SooEnabled()>(), hasher{},
@@ -4216,11 +4266,11 @@ extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
     bool);
 #endif
 
-extern template void* AllocateBackingArray<
-    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(void* alloc,
-                                                                  size_t n);
-extern template void DeallocateBackingArray<
-    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
+extern template void* AllocateBackingArray<kStandardBackingArrayAlignment,
+                                           std::allocator<char>>(void* alloc,
+                                                                 size_t n);
+extern template void
+DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
     size_t slot_align, bool had_infoz, size_t blocked_element_count);
 

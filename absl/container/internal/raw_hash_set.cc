@@ -854,12 +854,12 @@ void DestroySlots(CommonFields& c, size_t slot_size,
   }
 }
 
-void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
-                         DeallocBackingArrayFn dealloc, void* alloc) {
+void DeallocBackingArray(CommonFields& c, const DtorPolicy& __restrict policy,
+                         void* alloc) {
   const size_t cap = c.capacity();
   c.infoz().Unregister();
-  dealloc(alloc, cap, c.control(), slot_size, slot_align, c.has_infoz(),
-          c.blocked_element_count());
+  policy.dealloc(alloc, cap, c.control(), policy.slot_size, policy.slot_align,
+                 c.has_infoz(), c.blocked_element_count());
 }
 
 template <bool kSooEnabled>
@@ -899,36 +899,34 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
   c.set_reservation_size(0);
 }
 
-void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                 DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
                  void* alloc) {
   ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
   if (c.is_small()) {
-    ABSL_SWISSTABLE_ASSERT(destroy_slot != nullptr);
-    destroy_slot(&c, c.soo_data());
+    ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
+    policy.destroy_slot(&c, c.soo_data());
     return;
   }
-  if (destroy_slot != nullptr) {
-    DestroySlots(c, slot_size, destroy_slot);
+  if (policy.destroy_slot != nullptr) {
+    DestroySlots(c, policy.slot_size, policy.destroy_slot);
   }
-  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+  DeallocBackingArray(c, policy, alloc);
 }
 
-void DestructNonSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                    DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
                     void* alloc) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
-  if (destroy_slot != nullptr) {
+  if (policy.destroy_slot != nullptr) {
     if (c.is_small()) {
       if (!c.empty()) {
         static_assert(kMaxSmallCapacity == 1);
-        destroy_slot(&c, c.slot_array(/*capacity=*/1));
+        policy.destroy_slot(&c, c.slot_array(/*capacity=*/1));
       }
     } else {
-      DestroySlots(c, slot_size, destroy_slot);
+      DestroySlots(c, policy.slot_size, policy.destroy_slot);
     }
   }
-  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+  DeallocBackingArray(c, policy, alloc);
 }
 
 namespace {
@@ -2401,11 +2399,11 @@ template void* GrowSooTableToNextCapacityAndPrepareInsert<
 static_assert(MaxSooSlotSize() == 8);
 #endif
 
-template void* AllocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+template void* AllocateBackingArray<kStandardBackingArrayAlignment,
                                     std::allocator<char>>(void* alloc,
                                                           size_t n);
-template void DeallocateBackingArray<BackingArrayAlignment(alignof(size_t)),
-                                     std::allocator<char>>(
+template void
+DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
     size_t slot_align, bool had_infoz, size_t blocked_element_count);
 
