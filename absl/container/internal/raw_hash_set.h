@@ -1940,16 +1940,8 @@ void* AllocateBackingArray(void* alloc, size_t n) {
 }
 
 template <size_t AlignOfBackingArray, typename Alloc>
-void DeallocateBackingArray(void* alloc, size_t capacity, ctrl_t* ctrl,
-                            size_t slot_size, size_t slot_align, bool had_infoz,
-                            size_t blocked_element_count) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align, had_infoz,
-                          blocked_element_count);
-  void* backing_array = ctrl - layout.control_offset();
-  // Unpoison before returning the memory to the allocator.
-  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
-  Deallocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), backing_array,
-                                  layout.alloc_size());
+void DeallocateBackingArray(void* alloc, void* backing_array, size_t n) {
+  Deallocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), backing_array, n);
 }
 
 using DeallocBackingArrayFn =
@@ -4281,8 +4273,7 @@ extern template void* AllocateBackingArray<kStandardBackingArrayAlignment,
                                                                  size_t n);
 extern template void
 DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
-    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-    size_t slot_align, bool had_infoz, size_t blocked_element_count);
+    void* alloc, void* backing_array, size_t n);
 
 extern template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
                                  DestroySlotFn destroy_slot, void* alloc);
