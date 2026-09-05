@@ -52,11 +52,23 @@ config_setting(
     visibility = [":__subpackages__"],
 )
 
+config_setting(
+    name = "windows-clang",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang",
+    },
+    visibility = [":__subpackages__"],
+)
+
 selects.config_setting_group(
     name = "mingw_compiler",
     match_any = [
         ":mingw_unspecified_compiler",
         ":mingw-gcc_compiler",
+        ":windows-clang",
     ],
     visibility = [":__subpackages__"],
 )
