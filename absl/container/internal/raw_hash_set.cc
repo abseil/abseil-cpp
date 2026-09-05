@@ -913,7 +913,13 @@ void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
   DeallocBackingArray(c, policy, alloc);
 }
 
-void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
+void DestructSooEmptyAlloc(CommonFields& c,
+                           const DtorPolicy& __restrict policy) {
+  DestructSoo(c, policy, /*alloc=*/&c);
+}
+
+void DestructNonSoo(CommonFields& c,
+                    const DtorPolicy& __restrict policy,
                     void* alloc) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
   if (policy.destroy_slot != nullptr) {
@@ -927,6 +933,11 @@ void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
     }
   }
   DeallocBackingArray(c, policy, alloc);
+}
+
+void DestructNonSooEmptyAlloc(CommonFields& c,
+                              const DtorPolicy& __restrict policy) {
+  DestructNonSoo(c, policy, /*alloc=*/&c);
 }
 
 namespace {

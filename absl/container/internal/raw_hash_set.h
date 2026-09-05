@@ -2197,10 +2197,12 @@ void Clear(CommonFields& c, const PolicyFunctions& policy,
 // REQUIRES: !c.is_small || !c.empty()
 // REQUIRES: !c.is_small || policy.destroy_slot != nullptr
 void DestructSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
+void DestructSooEmptyAlloc(CommonFields& c, const DtorPolicy& policy);
 
 // Destructs all elements and deallocates the backing array for non-SOO tables.
 // REQUIRES: c.capacity > 0.
 void DestructNonSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
+void DestructNonSooEmptyAlloc(CommonFields& c, const DtorPolicy& policy);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
@@ -3534,10 +3536,18 @@ class raw_hash_set {
           (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
         return;
       }
-      DestructSoo(common(), GetDtorPolicy(), &char_alloc_ref());
+      if constexpr (std::is_empty_v<Alloc>) {
+        DestructSooEmptyAlloc(common(), GetDtorPolicy());
+      } else {
+        DestructSoo(common(), GetDtorPolicy(), &char_alloc_ref());
+      }
     } else {
       if (capacity() == 0) return;
-      DestructNonSoo(common(), GetDtorPolicy(), &char_alloc_ref());
+      if constexpr (std::is_empty_v<Alloc>) {
+        DestructNonSooEmptyAlloc(common(), GetDtorPolicy());
+      } else {
+        DestructNonSoo(common(), GetDtorPolicy(), &char_alloc_ref());
+      }
     }
   }
 
