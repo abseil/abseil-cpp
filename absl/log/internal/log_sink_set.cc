@@ -90,8 +90,7 @@ class StderrLogSink final : public LogSink {
   ~StderrLogSink() override = default;
 
   void Send(const absl::LogEntry& entry) override {
-    if (entry.log_severity() < absl::StderrThreshold() &&
-        absl::log_internal::IsInitialized()) {
+    if (entry.log_severity() < absl::StderrThreshold()) {
       return;
     }
 
