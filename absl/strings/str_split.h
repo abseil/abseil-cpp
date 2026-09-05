@@ -467,8 +467,10 @@ using EnableSplitIfString =
 //   std::set<std::string> a = absl::StrSplit("b,a,c,a,b", ',');
 //   // a[0] == "a", a[1] == "b", a[2] == "c"
 //
-//   // `StrSplit()` can be used within a range-based for loop, in which case
-//   // each element will be of type `absl::string_view`.
+//   // `StrSplit()` can be used within a range-based for-loop, in which case
+//   // each element will be of type `absl::string_view`. The elements will
+//   // returned in the order in which they appear in the original string
+//   // without any other transformation, e.g. no de-duplication is performed.
 //   std::vector<std::string> v;
 //   for (const auto sv : absl::StrSplit("a,b,c", ',')) {
 //     if (sv != "b") v.emplace_back(sv);
