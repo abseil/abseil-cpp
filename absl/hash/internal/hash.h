@@ -19,11 +19,6 @@
 #ifndef ABSL_HASH_INTERNAL_HASH_H_
 #define ABSL_HASH_INTERNAL_HASH_H_
 
-#ifdef __APPLE__
-#include <Availability.h>
-#include <TargetConditionals.h>
-#endif
-
 // We include config.h here to make sure that ABSL_INTERNAL_CPLUSPLUS_LANG is
 // defined.
 #include "absl/base/config.h"
@@ -31,10 +26,8 @@
 // GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
 // <version> instead, even though <version> is not available in C++17 mode prior
 // to GCC9.
-#if defined(__has_include)
 #if __has_include(<version>)
 #define ABSL_INTERNAL_VERSION_HEADER_AVAILABLE 1
-#endif
 #endif
 
 // For feature testing and determining which headers can be included.
@@ -91,6 +84,11 @@
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
+
+#ifdef __APPLE__
+#include <Availability.h>
+#include <TargetConditionals.h>
+#endif
 
 #if defined(__cpp_lib_filesystem) && __cpp_lib_filesystem >= 201703L && \
     !defined(__XTENSA__)
@@ -397,7 +395,7 @@ struct is_uniquely_represented<unsigned __int128> : std::true_type {};
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 template <typename T>
-struct FitsIn64Bits : std::integral_constant<bool, sizeof(T) <= 8> {};
+struct FitsIn64Bits : std::bool_constant<sizeof(T) <= 8> {};
 
 struct CombineRaw {
   template <typename H>
@@ -575,9 +573,7 @@ H AbslHashValue(H hash_state, T C::*ptr) {
 #else
   // On other platforms, we assume that pointers-to-members do not have
   // padding.
-#ifdef __cpp_lib_has_unique_object_representations
     static_assert(std::has_unique_object_representations_v<T C::*>);
-#endif  // __cpp_lib_has_unique_object_representations
     return n;
 #endif
   };
@@ -645,22 +641,27 @@ H AbslHashValue(H hash_state, const std::shared_ptr<T>& ptr) {
 //
 //  - `absl::Cord`
 //  - `std::string` (and std::basic_string<T, std::char_traits<T>, A> for
-//      any allocator A and any T in {char, wchar_t, char16_t, char32_t})
+//      any allocator A and any T in {char, wchar_t, char8_t, char16_t,
+//      char32_t})
 //  - `absl::string_view`, `std::string_view`, `std::wstring_view`,
-//    `std::u16string_view`, and `std::u32_string_view`.
+//    `std::u8string_view`, `std::u16string_view`, and `std::u32_string_view`.
 //
 // For simplicity, we currently support only strings built on `char`, `wchar_t`,
-// `char16_t`, or `char32_t`. This support may be broadened, if necessary, but
-// with some caution - this overload would misbehave in cases where the traits'
-// `eq()` member isn't equivalent to `==` on the underlying character type.
+// `char8_t`, `char16_t`, or `char32_t`. This support may be broadened, if
+// necessary, but with some caution - this overload would misbehave in cases
+// where the traits' `eq()` member isn't equivalent to `==` on the underlying
+// character type.
 template <typename H>
 H AbslHashValue(H hash_state, absl::string_view str) {
   return H::combine_contiguous(std::move(hash_state), str.data(), str.size());
 }
 
-// Support std::wstring, std::u16string and std::u32string.
+// Support std::wstring, std::u8string, std::u16string and std::u32string.
 template <typename Char, typename Alloc, typename H,
           typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+#ifdef __cpp_char8_t
+                                      std::is_same_v<Char, char8_t> ||
+#endif
                                       std::is_same_v<Char, char16_t> ||
                                       std::is_same_v<Char, char32_t>>>
 H AbslHashValue(
@@ -669,9 +670,13 @@ H AbslHashValue(
   return H::combine_contiguous(std::move(hash_state), str.data(), str.size());
 }
 
-// Support std::wstring_view, std::u16string_view and std::u32string_view.
+// Support std::wstring_view, std::u8string_view, std::u16string_view and
+// std::u32string_view.
 template <typename Char, typename H,
           typename = std::enable_if_t<std::is_same_v<Char, wchar_t> ||
+#ifdef __cpp_char8_t
+                                      std::is_same_v<Char, char8_t> ||
+#endif
                                       std::is_same_v<Char, char16_t> ||
                                       std::is_same_v<Char, char32_t>>>
 H AbslHashValue(H hash_state, std::basic_string_view<Char> str) {
@@ -693,12 +698,28 @@ template <typename Path, typename H,
           typename = std::enable_if_t<
               std::is_same_v<Path, std::filesystem::path>>>
 H AbslHashValue(H hash_state, const Path& path) {
-  // This is implemented by deferring to the standard library to compute the
-  // hash.  The standard library requires that for two paths, `p1 == p2`, then
-  // `hash_value(p1) == hash_value(p2)`. `AbslHashValue` has the same
-  // requirement. Since `operator==` does platform specific matching, deferring
-  // to the standard library is the simplest approach.
-  return H::combine(std::move(hash_state), std::filesystem::hash_value(path));
+  // Avoid deferring to std::filesystem::hash_value, as that makes it easy to
+  // generate offline collisions, bypassing per-table and per-process hash
+  // seeding. Instead, we hash it ourselves.
+  size_t count = 0;
+
+  for (const Path& component : path) {
+    std::basic_string_view<typename Path::value_type> part = component.native();
+
+    // If this is a directory separator, pretend it is the preferred directory
+    // separator (rather than the alternate separator) to ensure that equal
+    // paths produce equal hashes.
+    // Analogous to LLVM commit aa427b1aae445ed46d9f60c5e2eaac61bdf76be3.
+    if (!part.empty() &&
+        (*part.begin() == '/' || *part.begin() == Path::preferred_separator)) {
+      part = std::basic_string_view<typename Path::value_type>(
+          &Path::preferred_separator, 1);
+    }
+
+    hash_state = H::combine(std::move(hash_state), part);
+    ++count;
+  }
+  return H::combine(std::move(hash_state), count);
 }
 
 #endif  // ABSL_INTERNAL_STD_FILESYSTEM_PATH_HASH_AVAILABLE
@@ -762,41 +783,56 @@ AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
 }
 
 // AbslHashValue special cases for hashing std::vector<bool>
-
-#if defined(ABSL_IS_BIG_ENDIAN) && \
-    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
-
-// std::hash in libstdc++ does not work correctly with vector<bool> on Big
-// Endian platforms therefore we need to implement a custom AbslHashValue for
-// it. More details on the bug:
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+//
+// To achieve high performance without depending on private standard library
+// internals, we pack bits 64 at a time into uint64_t words using a fixed
+// 64-step inner loop that allows compilers to unroll bit shifts cleanly.
+//
+// This is slower than std::hash<std::vector<bool>> which can access private
+// storage directly, but more than fast enough for the very rare case of hashing
+// std::vector<bool>. In the event that higher performance is needed, a custom
+// key type is likely faster than building std::vector<bool> and hashing it,
+// otherwise users can just use std::hash as the hasher.
 template <typename H, typename T, typename Allocator>
 std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
 AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
   typename H::AbslInternalPiecewiseCombiner combiner;
-  for (const auto& i : vector) {
-    unsigned char c = static_cast<unsigned char>(i);
-    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
+  const size_t size = vector.size();
+  size_t i = 0;
+  // Pack full 64-bit words. Fixed inner loop count enables compiler unrolling.
+  while (i + 64 <= size) {
+    uint64_t word = 0;
+    for (size_t j = 0; j < 64; ++j) {
+      word |= static_cast<uint64_t>(vector[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        sizeof(word));
+    i += 64;
   }
+  // Pack remaining bits (< 64) into the final word.
+  if (i < size) {
+    uint64_t word = 0;
+    const size_t rem = size - i;
+    for (size_t j = 0; j < rem; ++j) {
+      word |= static_cast<uint64_t>(vector[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        (rem + 7) / 8);
+  }
+  // Mix in vector.size() to distinguish vectors with trailing false/zero bits
+  // (e.g. {true} vs {true, false}) that would otherwise produce identical bit
+  // buffers.
   return H::combine(combiner.finalize(std::move(hash_state)),
-                    WeaklyMixedInteger{vector.size()});
+                    WeaklyMixedInteger{size});
 }
-#else
-// When not working around the libstdc++ bug above, we still have to contend
-// with the fact that std::hash<vector<bool>> is often poor quality, hashing
-// directly on the internal words and on no other state.  On these platforms,
-// vector<bool>{1, 1} and vector<bool>{1, 1, 0} hash to the same value.
-//
-// Mixing in the size (as we do in our other vector<> implementations) on top
-// of the library-provided hash implementation avoids this QOI issue.
-template <typename H, typename T, typename Allocator>
-std::enable_if_t<is_hashable<T>::value && std::is_same_v<T, bool>, H>
-AbslHashValue(H hash_state, const std::vector<T, Allocator>& vector) {
-  return H::combine(std::move(hash_state),
-                    std::hash<std::vector<T, Allocator>>{}(vector),
-                    WeaklyMixedInteger{vector.size()});
-}
-#endif
 
 // -----------------------------------------------------------------------------
 // AbslHashValue for Ordered Associative Containers
@@ -934,28 +970,50 @@ std::enable_if_t<std::conjunction_v<is_hashable<T>...>, H> AbslHashValue(
 // AbslHashValue for Other Types
 // -----------------------------------------------------------------------------
 
-// AbslHashValue for hashing std::bitset is not defined on Little Endian
-// platforms, for the same reason as for vector<bool> (see std::vector above):
-// It does not expose the raw bytes, and a fallback to std::hash<> is most
-// likely faster.
-
-#if defined(ABSL_IS_BIG_ENDIAN) && \
-    (defined(__GLIBCXX__) || defined(__GLIBCPP__))
 // AbslHashValue for hashing std::bitset
 //
-// std::hash in libstdc++ does not work correctly with std::bitset on Big Endian
-// platforms therefore we need to implement a custom AbslHashValue for it. More
-// details on the bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102531
+// To achieve high performance without depending on private standard library
+// internals, we pack bits 64 at a time into uint64_t words using a fixed
+// 64-step inner loop that allows compilers to unroll bit shifts cleanly.
+//
+// This is slower than std::hash<std::bitset> which can access private storage
+// directly, but more than fast enough for the very rare case of hashing
+// std::bitset. In the event that higher-performance is needed, users can just
+// use std::hash as the hasher.
 template <typename H, size_t N>
 H AbslHashValue(H hash_state, const std::bitset<N>& set) {
   typename H::AbslInternalPiecewiseCombiner combiner;
-  for (size_t i = 0; i < N; i++) {
-    unsigned char c = static_cast<unsigned char>(set[i]);
-    hash_state = combiner.add_buffer(std::move(hash_state), &c, sizeof(c));
+  size_t i = 0;
+  // Pack full 64-bit words. Fixed inner loop count enables compiler unrolling.
+  while (i + 64 <= N) {
+    uint64_t word = 0;
+    for (size_t j = 0; j < 64; ++j) {
+      word |= static_cast<uint64_t>(set[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        sizeof(word));
+    i += 64;
+  }
+  // Pack remaining bits (< 64) into the final word.
+  if (i < N) {
+    uint64_t word = 0;
+    const size_t rem = N - i;
+    for (size_t j = 0; j < rem; ++j) {
+      word |= static_cast<uint64_t>(set[i + j]) << j;
+    }
+    if constexpr (absl::endian::native == absl::endian::big) {
+      word = absl::byteswap(word);
+    }
+    hash_state = combiner.add_buffer(
+        std::move(hash_state), reinterpret_cast<const unsigned char*>(&word),
+        (rem + 7) / 8);
   }
   return H::combine(combiner.finalize(std::move(hash_state)), N);
 }
-#endif
 
 // -----------------------------------------------------------------------------
 
@@ -1366,8 +1424,8 @@ struct HashSelect {
 };
 
 template <typename T>
-struct is_hashable
-    : std::integral_constant<bool, HashSelect::template Apply<T>::value> {};
+struct is_hashable : std::bool_constant<HashSelect::template Apply<T>::value> {
+};
 
 class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>
@@ -1511,6 +1569,8 @@ struct PoisonedHash : private AggregateBarrier {
   PoisonedHash() = delete;
   PoisonedHash(const PoisonedHash&) = delete;
   PoisonedHash& operator=(const PoisonedHash&) = delete;
+  void operator()() const = delete;
+  size_t hash_with_seed() const = delete;
 };
 
 template <typename T>
@@ -1519,8 +1579,8 @@ struct HashImpl {
     return MixingHashState::hash(value);
   }
 
- private:
-  friend struct HashWithSeed;
+ protected:
+  friend HashWithSeed;
 
   size_t hash_with_seed(const T& value, size_t seed) const {
     return MixingHashState::hash_with_seed(value, seed);
@@ -1530,6 +1590,58 @@ struct HashImpl {
 template <typename T>
 struct Hash
     : std::conditional_t<is_hashable<T>::value, HashImpl<T>, PoisonedHash> {};
+
+template <typename T, typename... Ts>
+inline constexpr bool pack_contains_v = (std::is_same_v<T, Ts> || ...);
+
+template <size_t>
+struct EmptyDuplicatedHash {
+  void operator()() const = delete;
+  size_t hash_with_seed() const = delete;
+};
+
+template <typename... Ts>
+class TransparentHashImpl;
+
+template <typename T>
+class TransparentHashImpl<T> : private Hash<T> {
+ public:
+  using Hash<T>::operator();
+  using Hash<T>::hash_with_seed;
+};
+
+template <typename T, typename... Ts>
+using TransparentHashImplSingle =
+    std::conditional_t<pack_contains_v<T, Ts...>,
+                       EmptyDuplicatedHash<sizeof...(Ts)>, Hash<T>>;
+
+template <typename T, typename... Ts>
+class TransparentHashImpl<T, Ts...>
+    : private TransparentHashImpl<Ts...>,
+      private TransparentHashImplSingle<T, Ts...> {
+ public:
+  using TransparentHashImpl<Ts...>::operator();
+  using TransparentHashImplSingle<T, Ts...>::operator();
+  using TransparentHashImpl<Ts...>::hash_with_seed;
+  using TransparentHashImplSingle<T, Ts...>::hash_with_seed;
+};
+
+template <typename... Ts>
+using TransparentHashBase =
+    std::conditional_t<(... && is_hashable<Ts>::value),
+                       TransparentHashImpl<Ts...>, PoisonedHash>;
+
+template <typename... Ts>
+class TransparentHash : private TransparentHashBase<Ts...> {
+ public:
+  using is_transparent = void;
+  using TransparentHashBase<Ts...>::operator();
+
+ private:
+  friend HashWithSeed;
+
+  using TransparentHashBase<Ts...>::hash_with_seed;
+};
 
 template <typename H>
 template <typename T, typename... Ts>

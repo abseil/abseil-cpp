@@ -24,6 +24,7 @@
 #ifndef ABSL_STRINGS_STRING_VIEW_H_
 #define ABSL_STRINGS_STRING_VIEW_H_
 
+#include <algorithm>
 #include <string_view>
 
 #include "absl/base/attributes.h"

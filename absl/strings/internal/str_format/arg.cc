@@ -82,7 +82,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsOct(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
     do {
       *--p = static_cast<char>('0' + (static_cast<size_t>(v) & 7));
@@ -96,7 +96,7 @@ class IntDigits {
   // Supports all integral types.
   template <typename T>
   void PrintAsDec(T v) {
-    static_assert(std::is_integral_v<T>, "");
+    static_assert(std::is_integral_v<T>);
     start_ = storage_;
     size_ = static_cast<size_t>(numbers_internal::FastIntToBuffer(v, storage_) -
                                 storage_);
@@ -136,7 +136,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsHexLower(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
 
     do {
@@ -158,7 +158,7 @@ class IntDigits {
   // Supports unsigned integral types and uint128.
   template <typename T>
   void PrintAsHexUpper(T v) {
-    static_assert(!IsSigned<T>::value, "");
+    static_assert(!IsSigned<T>::value);
     char *p = storage_ + sizeof(storage_);
 
     // kHexTable is only lowercase, so do it manually for uppercase.
@@ -310,6 +310,8 @@ inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
                                conv.has_left_flag());
 }
 
+inline bool IsLowSurrogate(uint32_t c) { return c >= 0xDC00 && c <= 0xDFFF; }
+
 inline bool ConvertStringArg(const wchar_t *v,
                              size_t len,
                              const FormatConversionSpecImpl conv,
@@ -325,11 +327,21 @@ inline bool ConvertStringArg(const wchar_t *v,
   strings_internal::ShiftState s;
   size_t chars_written = 0;
   for (size_t i = 0; i < len; ++i) {
+    // A high surrogate must be immediately followed by a low surrogate. If it
+    // isn't, the UTF-16 input is malformed and WideToUtf8() would otherwise
+    // leave a partial sequence in the buffer. The single wchar_t path already
+    // rejects an unpaired surrogate, so reject it here too.
+    if (s.saw_high_surrogate) {
+      const uint32_t cu = static_cast<uint32_t>(v[i]);
+      if (!IsLowSurrogate(cu)) return false;
+    }
     const size_t chars =
         strings_internal::WideToUtf8(v[i], &mb[chars_written], s);
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
   }
+  // A trailing high surrogate has no low surrogate to complete it.
+  if (s.saw_high_surrogate) return false;
   return ConvertStringArg(string_view(mb.data(), chars_written), conv, sink);
 }
 

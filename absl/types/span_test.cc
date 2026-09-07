@@ -14,6 +14,7 @@
 
 #include "absl/types/span.h"
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <numeric>
@@ -27,7 +28,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/exception_testing.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/options.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/inlined_vector.h"
@@ -251,7 +251,6 @@ TEST(IntSpan, ElementAccess) {
   EXPECT_EQ(s.back(), s[9]);
 
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH_IF_SUPPORTED(s[-1], "");
   EXPECT_DEATH_IF_SUPPORTED(s[10], "");
 #endif
@@ -293,7 +292,6 @@ TEST(IntSpan, RemovePrefixAndSuffix) {
   EXPECT_EQ(v, MakeRamp(20, 1));
 
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   absl::Span<int> prefix_death(v);
   EXPECT_DEATH_IF_SUPPORTED(prefix_death.remove_prefix(21), "");
   absl::Span<int> suffix_death(v);
@@ -799,9 +797,9 @@ TEST(IntSpan, NoexceptTest) {
 template <int i>
 struct ConstexprTester {};
 
-#define ABSL_TEST_CONSTEXPR(expr)                                          \
-  do {                                                                     \
-    ABSL_ATTRIBUTE_UNUSED ConstexprTester<(static_cast<void>(expr), 1)> t; \
+#define ABSL_TEST_CONSTEXPR(expr)                                     \
+  do {                                                                \
+    [[maybe_unused]] ConstexprTester<(static_cast<void>(expr), 1)> t; \
   } while (0)
 
 struct ContainerWithConstexprMethods {

@@ -390,7 +390,7 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   using difference_type = std::ptrdiff_t;
   using absl_internal_is_view = std::true_type;
 
-  static const size_type npos = static_cast<size_type>(-1);  // NOLINT
+  static constexpr size_type npos = static_cast<size_type>(-1);  // NOLINT
 
   using reference = T&;
   using const_reference = std::add_const_t<T>&;
@@ -702,29 +702,22 @@ class ABSL_ATTRIBUTE_VIEW AnySpan {
   // subspan, but both the container and transform must remain valid.
   // pos must be non-negative and <= size().
   // len must be non-negative and <= size() - pos, or equal to npos.
-  // If len == npos, the subspan continues till the end of this span.
-
-  constexpr AnySpan subspan(size_type pos, size_type len) const {
+  // If len==npos, the subspan continues till the end of this span.
+  constexpr AnySpan subspan(size_type pos, size_type len = npos) const {
     const size_t this_size = size();
     if (len == AnySpan<T>::npos) {
       len = this_size - pos;
     }
     absl::base_internal::HardeningAssertLE(pos, this_size);
-    absl::base_internal::HardeningAssertLE(len,
-                                           static_cast<size_type>(this_size
-                                                                  - pos));
+    absl::base_internal::HardeningAssertLE(
+        len, static_cast<size_type>(this_size - pos));
     return AnySpan<T>(getter_.Offset(pos), len);
   }
 
-  constexpr AnySpan subspan(size_type pos) const {
-    absl::base_internal::HardeningAssertLE(pos, size());
-    return AnySpan(getter_.Offset(pos), size() - pos);
-  }
-
-  // Returns a `AnySpan` containing first `len` elements. Parameter `len`
-  // must be non-negative and <= size().
+  // Returns a `AnySpan` containing first `len` elements. Parameter `len` must
+  // be non-negative and <= size().
   constexpr AnySpan first(size_type len) const {
-    absl::base_internal::HardeningAssert(len != AnySpan<T>::npos);
+    absl::base_internal::HardeningAssert(len != npos);
     return subspan(0, len);
   }
 
@@ -899,9 +892,6 @@ AnySpan<const T> MakeConstAnySpan(const T* absl_nullable ptr,
 //
 // Implementation details follow.
 //
-
-template <typename T>
-const typename AnySpan<T>::size_type AnySpan<T>::npos;
 
 // Iterator base class. Uses CRTP (Iter should be the child class). Constness of
 // the iterator is determined by the constness of Value.

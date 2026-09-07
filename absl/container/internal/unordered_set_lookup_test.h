@@ -15,6 +15,9 @@
 #ifndef ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 #define ABSL_CONTAINER_INTERNAL_UNORDERED_SET_LOOKUP_TEST_H_
 
+#include <type_traits>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/container/internal/hash_generator_testing.h"
@@ -52,11 +55,9 @@ TYPED_TEST_P(LookupTest, Find) {
   for (const auto& v : values) {
     typename TypeParam::iterator it = m.find(v);
     static_assert(
-        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>,
-        "");
+        std::is_same_v<const typename TypeParam::value_type&, decltype(*it)>);
     static_assert(std::is_same<const typename TypeParam::value_type*,
-                               decltype(it.operator->())>::value,
-                  "");
+                               decltype(it.operator->())>::value);
     EXPECT_TRUE(m.end() != it) << ::testing::PrintToString(v);
     EXPECT_EQ(v, *it) << ::testing::PrintToString(v);
   }

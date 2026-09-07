@@ -3,15 +3,9 @@
 
 // Generate stack tracer for aarch64
 
-#if defined(__linux__)
-#include <signal.h>
-#include <sys/mman.h>
-#include <ucontext.h>
-#include <unistd.h>
-#endif
-
 #include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -21,6 +15,13 @@
 #include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
+
+#if defined(__linux__)
+#include <signal.h>
+#include <sys/mman.h>
+#include <ucontext.h>
+#include <unistd.h>
+#endif
 
 static const size_t kUnknownFrameSize = 0;
 // Stack end to use when we don't know the actual stack end
@@ -172,14 +173,18 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       }
     }
   }
-  // New frame pointer is valid if it is inside either known stack or readable.
-  // This assumes that everything within either known stack is readable. Outside
-  // either known stack but readable is unexpected, and possibly corrupt, but
-  // for now assume it is valid. If it isn't actually valid, the next frame will
-  // be corrupt and we will detect that next iteration.
-  if (new_inside_signal_stack ||
-      (new_fp_comparable >= stack_info->stack_low &&
-       new_fp_comparable < stack_info->stack_high) ||
+  // Verify that the candidate frame pointer lies inside a positively discovered
+  // and narrowed thread stack boundary. When stack boundaries are unknown (e.g.
+  // in open-source builds or outside Linux threads), stack_low defaults to
+  // getpagesize() and stack_high defaults to kUnknownStackEnd. Requiring both
+  // stack_high < kUnknownStackEnd and getpagesize() < stack_low ensures we only
+  // short-circuit AddressIsReadable() when thread stack bounds are known.
+  const bool new_inside_known_thread_stack =
+      stack_info->stack_high < kUnknownStackEnd &&
+      static_cast<size_t>(getpagesize()) < stack_info->stack_low &&
+      new_fp_comparable >= stack_info->stack_low &&
+      new_fp_comparable < stack_info->stack_high;
+  if (new_inside_signal_stack || new_inside_known_thread_stack ||
       absl::debugging_internal::AddressIsReadable(new_frame_pointer)) {
     return new_frame_pointer;
   }

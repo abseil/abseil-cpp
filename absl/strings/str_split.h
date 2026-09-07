@@ -40,11 +40,13 @@
 #include <map>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/internal/str_split_internal.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
@@ -465,8 +467,10 @@ using EnableSplitIfString =
 //   std::set<std::string> a = absl::StrSplit("b,a,c,a,b", ',');
 //   // a[0] == "a", a[1] == "b", a[2] == "c"
 //
-//   // `StrSplit()` can be used within a range-based for loop, in which case
-//   // each element will be of type `absl::string_view`.
+//   // `StrSplit()` can be used within a range-based for-loop, in which case
+//   // each element will be of type `absl::string_view`. The elements will
+//   // returned in the order in which they appear in the original string
+//   // without any other transformation, e.g. no de-duplication is performed.
 //   std::vector<std::string> v;
 //   for (const auto sv : absl::StrSplit("a,b,c", ',')) {
 //     if (sv != "b") v.emplace_back(sv);

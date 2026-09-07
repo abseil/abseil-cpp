@@ -21,6 +21,7 @@
 // order.
 //
 // This class is thread-compatible.
+// This class is NOT exception-safe.
 //
 // Iterators point into the list and should be stable in the face of
 // mutations, except for an iterator pointing to an element that was just
@@ -450,7 +451,7 @@ class linked_hash_set {
 
   node_type extract(const_iterator position) {
     set_.erase(position);
-    ListType extracted_node_list;
+    ListType extracted_node_list(get_allocator());
     extracted_node_list.splice(extracted_node_list.end(), list_, position);
     return node_type(std::move(extracted_node_list));
   }
@@ -460,7 +461,7 @@ class linked_hash_set {
   node_type extract(const key_arg<K>& key) {
     auto node = set_.extract(key);
     if (node.empty()) return node_type();
-    ListType extracted_node_list;
+    ListType extracted_node_list(get_allocator());
     extracted_node_list.splice(extracted_node_list.end(), list_, node.value());
     return node_type(std::move(extracted_node_list));
   }
@@ -499,7 +500,7 @@ class linked_hash_set {
   template <typename... Args>
   std::pair<iterator, bool> EmplaceInternal(const_iterator hint,
                                             Args&&... args) {
-    ListType node_donor;
+    ListType node_donor(get_allocator());
     auto list_iter =
         node_donor.emplace(node_donor.end(), std::forward<Args>(args)...);
     auto ins = set_.insert(list_iter);

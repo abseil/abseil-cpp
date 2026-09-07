@@ -141,9 +141,8 @@ inline void* PrevSlot(void* slot, size_t slot_size) {
 
 // Must be defined out-of-line to avoid MSVC error C2482 on some platforms,
 // which is caused by non-constexpr initialization.
-uint16_t NextHashTableSeed() {
-  static_assert(PerTableSeed::kBitCount <= 16);
-  return static_cast<uint16_t>(RandomSeed());
+uint8_t NextHashTableSeed() {
+  return static_cast<uint8_t>(RandomSeed());
 }
 
 GenerationType* EmptyGeneration() {
@@ -237,9 +236,9 @@ constexpr bool is_half_group(size_t capacity) {
 template <class Fn>
 void IterateOverFullSlotsImpl(const CommonFields& c, size_t slot_size, Fn cb) {
   const size_t cap = c.capacity();
-  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(cap));
+  ABSL_ASSUME(cap > kMaxSmallCapacity);
   const ctrl_t* ctrl = c.control();
-  void* slot = c.slot_array();
+  void* slot = c.slot_array(cap);
   if (is_half_group(cap)) {
     // Mirrored/cloned control bytes in half-group table are also located in the
     // first group (starting from position 0). We are taking group from position
@@ -263,7 +262,7 @@ void IterateOverFullSlotsImpl(const CommonFields& c, size_t slot_size, Fn cb) {
     return;
   }
   size_t remaining = c.size();
-  ABSL_ATTRIBUTE_UNUSED const size_t original_size_for_assert = remaining;
+  [[maybe_unused]] const size_t original_size_for_assert = remaining;
   while (remaining != 0) {
     for (uint32_t i : GroupFullEmptyOrDeleted(ctrl).MaskFull()) {
       ABSL_SWISSTABLE_ASSERT(IsFull(ctrl[i]) &&
@@ -281,58 +280,6 @@ void IterateOverFullSlotsImpl(const CommonFields& c, size_t slot_size, Fn cb) {
   // absl::erase_if specialization. So we use `>=`.
   ABSL_SWISSTABLE_ASSERT(original_size_for_assert >= c.size() &&
                          "hash table was modified unexpectedly");
-}
-
-// NOTE: we don't use structure with bit fields for GrowthInfo because for
-// correctness we rely on the lower bound being the most significant byte.
-
-// Returns the increment that needs to be added to the packed full growth info
-// in order to increase lower bound by lower_bound_increment and increase
-// overflow growth left by overflow_increment.
-constexpr uint64_t GetPackedIncrement(uint64_t lower_bound_increment,
-                                      uint64_t overflow_increment) {
-  return (lower_bound_increment << GrowthInfoAccessor::kLowerBoundShift) +
-         overflow_increment;
-}
-
-// Returns the increment that needs to be added to the packed full growth info
-// in order to increase lower bound by overflow_to_lower_bound_size and
-// decrease overflow growth left by overflow_to_lower_bound_size.
-constexpr uint64_t GetRebalanceIncrement(
-    uint64_t overflow_to_lower_bound_size) {
-  return GetPackedIncrement(overflow_to_lower_bound_size,
-                            0u - overflow_to_lower_bound_size);
-}
-
-// Returns the number of elements left to grow in the full growth info.
-constexpr uint64_t GetOverflowGrowthLeftFromPacked(
-    uint64_t packed_full_growth_info) {
-  constexpr uint64_t kFullGrowthMask =
-      (uint64_t{1} << GrowthInfoAccessor::kLowerBoundShift) - 1;
-  return packed_full_growth_info & kFullGrowthMask;
-}
-
-// Returns the GrowthInfoLowerBound object containing the information
-// about minimum growth left.
-constexpr GrowthInfoLowerBound GetGrowthInfoLowerBoundFromPacked(
-    uint64_t packed_full_growth_info) {
-  return GrowthInfoLowerBound(packed_full_growth_info >>
-                              GrowthInfoAccessor::kLowerBoundShift);
-}
-
-// Returns the number of elements left to grow in the lower bound.
-constexpr uint64_t GetGrowthLeftLowerBoundFromPacked(
-    uint64_t packed_full_growth_info) {
-  return GetGrowthInfoLowerBoundFromPacked(packed_full_growth_info)
-      .GetGrowthLeft();
-}
-
-// Returns the total number of elements left to grow in the full growth info.
-// Assumes that the table has capacity > kMaxGrowthLeftLowerBound.
-uint64_t GetGrowthLeftTotalBigCapacity(void* full_growth_info) {
-  uint64_t packed_full_growth_left = little_endian::Load64(full_growth_info);
-  return GetOverflowGrowthLeftFromPacked(packed_full_growth_left) +
-         GetGrowthLeftLowerBoundFromPacked(packed_full_growth_left);
 }
 
 }  // namespace
@@ -358,80 +305,6 @@ void CommonFields::AssertNotDebugCapacityImpl() const {
   }
 }
 
-void GrowthInfoAccessor::InitGrowthLeftNoDeleted(size_t growth_left,
-                                                 size_t capacity) {
-  if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
-    *growth_info_lower_bound_ = static_cast<uint8_t>(growth_left);
-  } else {
-    uint64_t lower_bound =
-        (std::min)(uint64_t{growth_left},
-                   GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
-    little_endian::Store64(
-        full_growth_info_ptr(),
-        GetPackedIncrement(lower_bound, growth_left - lower_bound));
-  }
-}
-
-GrowthInfoLowerBound GrowthInfoAccessor::RebalanceGrowthLeftLowerBound(
-    size_t capacity) {
-  auto growth_left_lower_bound = GetGrowthInfoLowerBound();
-  if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound ||
-      // For tables with deleted slots, we often call rebalance even if
-      // we have growth left in the lower bound.
-      growth_left_lower_bound.HasDeletedAndGrowthLeft()) {
-    return growth_left_lower_bound;
-  } else {
-    return RebalanceGrowthLeftLowerBoundLargeCapacity();
-  }
-}
-
-size_t GrowthInfoAccessor::GetGrowthLeftTotalSlow(size_t capacity) const {
-  if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
-    return GetGrowthLeftLowerBound();
-  } else {
-    return static_cast<size_t>(
-        GetGrowthLeftTotalBigCapacity(full_growth_info_ptr()));
-  }
-}
-
-ABSL_ATTRIBUTE_NOINLINE GrowthInfoLowerBound
-GrowthInfoAccessor::RebalanceGrowthLeftLowerBoundLargeCapacity() {
-  void* full_growth_info = full_growth_info_ptr();
-  uint64_t packed_full_growth_info = little_endian::Load64(full_growth_info);
-  uint64_t overflow_growth_left =
-      GetOverflowGrowthLeftFromPacked(packed_full_growth_info);
-  uint64_t lower_bound_growth_left =
-      GetGrowthLeftLowerBoundFromPacked(packed_full_growth_info);
-  uint64_t overflow_to_lower_bound_size =
-      (std::min)(overflow_growth_left,
-                 GrowthInfoLowerBound::kMaxGrowthLeftLowerBound -
-                     lower_bound_growth_left);
-  packed_full_growth_info +=
-      GetRebalanceIncrement(overflow_to_lower_bound_size);
-  little_endian::Store64(full_growth_info, packed_full_growth_info);
-  auto result = GetGrowthInfoLowerBoundFromPacked(packed_full_growth_info);
-  ABSL_SWISSTABLE_ASSERT(result.HasNoDeleted() ==
-                         GetGrowthInfoLowerBound().HasNoDeleted());
-  ABSL_SWISSTABLE_ASSERT(
-      (result.GetGrowthLeft() > 0 ||
-       GetGrowthLeftTotalBigCapacity(full_growth_info_ptr()) == 0) &&
-      "rebalance may return 0 only if we have absolutely no growth left");
-  return result;
-}
-
-void GrowthInfoAccessor::OverwriteFullAsEmpty() {
-  if (GetGrowthLeftLowerBound() <
-      GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
-    ++(*growth_info_lower_bound_);
-  } else {
-    constexpr uint64_t kIncrement = GetPackedIncrement(
-        /*lower_bound_increment=*/0, /*overflow_increment=*/1);
-    void* const full_growth_info = full_growth_info_ptr();
-    little_endian::Store64(
-        full_growth_info, little_endian::Load64(full_growth_info) + kIncrement);
-  }
-}
-
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(ctrl[capacity] == ctrl_t::kSentinel);
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
@@ -446,6 +319,71 @@ void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
 void IterateOverFullSlots(const CommonFields& c, size_t slot_size,
                           absl::FunctionRef<void(const ctrl_t*, void*)> cb) {
   IterateOverFullSlotsImpl(c, slot_size, cb);
+}
+
+void CommonFields::InitGrowthLeftNoDeleted(size_t growth_left,
+                                           size_t capacity) {
+  if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
+    inline_data_.set_growth_info_lower_bound(
+        GrowthInfoLowerBound(static_cast<uint8_t>(growth_left)));
+  } else {
+    uint64_t lower_bound =
+        (std::min)(uint64_t{growth_left},
+                   GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    inline_data_.set_growth_info_lower_bound(
+        GrowthInfoLowerBound(static_cast<uint8_t>(lower_bound)));
+    SetGrowthInfoOverflow(growth_left - lower_bound);
+  }
+}
+
+size_t CommonFields::GetGrowthLeftTotalSlow(size_t capacity) const {
+  size_t result = inline_data_.growth_info_lower_bound().GetGrowthLeft();
+  if (capacity > GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
+    result += GetOverflowGrowthLeft();
+  }
+  return result;
+}
+
+void CommonFields::OverwriteFullAsEmpty() {
+  if (inline_data_.growth_info_lower_bound().GetGrowthLeft() <
+      GrowthInfoLowerBound::kMaxGrowthLeftLowerBound) {
+    inline_data_.overwrite_full_as_empty_in_lower_bound();
+  } else {
+    SetGrowthInfoOverflow(GetOverflowGrowthLeft() + 1);
+  }
+}
+
+GrowthInfoLowerBound CommonFields::RebalanceGrowthLeftLowerBound(
+    size_t capacity) {
+  auto growth_left_lower_bound = GetGrowthInfoLowerBound();
+  if (capacity <= GrowthInfoLowerBound::kMaxGrowthLeftLowerBound ||
+      // For tables with deleted slots, we often call rebalance even if
+      // we have growth left in the lower bound.
+      growth_left_lower_bound.HasDeletedAndGrowthLeft()) {
+    return growth_left_lower_bound;
+  } else {
+    return RebalanceGrowthLeftLowerBoundLargeCapacity();
+  }
+}
+
+ABSL_ATTRIBUTE_NOINLINE GrowthInfoLowerBound
+CommonFields::RebalanceGrowthLeftLowerBoundLargeCapacity() {
+  uint64_t overflow_growth_left = GetOverflowGrowthLeft();
+  uint64_t lower_bound_growth_left = GetGrowthLeftLowerBound();
+  uint64_t overflow_to_lower_bound_size =
+      (std::min)(overflow_growth_left,
+                 GrowthInfoLowerBound::kMaxGrowthLeftLowerBound -
+                     lower_bound_growth_left);
+  SetGrowthInfoOverflow(overflow_growth_left - overflow_to_lower_bound_size);
+  inline_data_.increment_growth_info_lower_bound(overflow_to_lower_bound_size);
+  auto result = GetGrowthInfoLowerBound();
+  ABSL_SWISSTABLE_ASSERT(result.HasNoDeleted() ==
+                         GetGrowthInfoLowerBound().HasNoDeleted());
+  ABSL_SWISSTABLE_ASSERT(
+      (result.GetGrowthLeft() > 0 ||
+       (GetGrowthLeftLowerBound() + GetOverflowGrowthLeft() == 0)) &&
+      "rebalance may return 0 only if we have absolutely no growth left");
+  return result;
 }
 
 HashtablezInfoHandle CommonFields::infoz_ptr() const {
@@ -466,11 +404,43 @@ void CommonFields::set_infoz(HashtablezInfoHandle infoz) {
 }
 
 namespace {
+void DeallocBackingArrayImpl(void* alloc, size_t capacity, ctrl_t* ctrl,
+                             size_t slot_size, size_t slot_align,
+                             bool has_infoz, size_t blocked_element_count,
+                             DeallocBackingArrayFn dealloc) {
+  RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
+                          blocked_element_count);
+  void* backing_array = ctrl - layout.control_offset();
+  // Unpoison before returning the memory to the allocator.
+  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
+  dealloc(alloc, backing_array, layout.alloc_size());
+}
 
-void ResetGrowthLeft(GrowthInfoAccessor growth_info, size_t capacity,
-                     size_t occupied_elements) {
-  growth_info.InitGrowthLeftNoDeleted(
-      CapacityToGrowth(capacity) - occupied_elements, capacity);
+void DeallocBackingArrayImpl(CommonFields& c,
+                             const PolicyFunctions& __restrict policy,
+                             void* alloc) {
+  DeallocBackingArrayImpl(alloc, c.capacity(), c.control(), policy.slot_size,
+                          policy.slot_align, c.has_infoz(),
+                          c.blocked_element_count(), policy.dealloc);
+}
+}  // namespace
+
+void DeallocBackingArray(CommonFields& c, const DtorPolicy& __restrict policy,
+                         void* alloc) {
+  size_t cap = c.capacity();  // capacity is already in register, so storing it
+                              // in a local variable before Unregister().
+  c.infoz().Unregister();
+  DeallocBackingArrayImpl(alloc, cap, c.control(), policy.slot_size,
+                          policy.slot_align, c.has_infoz(),
+                          c.blocked_element_count(), policy.dealloc);
+}
+
+namespace {
+
+void ResetGrowthLeft(size_t capacity, size_t occupied_elements,
+                     CommonFields& common) {
+  common.InitGrowthLeftNoDeleted(CapacityToGrowth(capacity) - occupied_elements,
+                                 capacity);
 }
 
 // Finds guaranteed to exists empty slot from the given position.
@@ -506,8 +476,10 @@ void PrepareInsertCommon(CommonFields& common) {
 // Sets sanitizer poisoning for slot corresponding to control byte being set.
 inline void DoSanitizeOnSetCtrl(const CommonFields& c, size_t i, ctrl_t h,
                                 size_t slot_size) {
-  ABSL_SWISSTABLE_ASSERT(i < c.capacity());
-  auto* slot_i = static_cast<const char*>(c.slot_array()) + i * slot_size;
+  const size_t cap = c.capacity();
+  ABSL_ASSUME(cap > kMaxSmallCapacity);
+  ABSL_SWISSTABLE_ASSERT(i < cap);
+  auto* slot_i = static_cast<const char*>(c.slot_array(cap)) + i * slot_size;
   if (IsFull(h)) {
     SanitizerUnpoisonMemoryRegion(slot_i, slot_size);
   } else {
@@ -593,10 +565,13 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
   void* set = &common;
-  void* slot_array = common.slot_array();
   const size_t capacity = common.capacity();
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
   ABSL_SWISSTABLE_ASSERT(!is_single_group(capacity));
+  ABSL_ASSUME(capacity > kMaxSmallCapacity);
+
+  ctrl_t* ctrl = common.control();
+  void* slot_array = common.slot_array(capacity);
   // Algorithm:
   // - mark all DELETED slots as EMPTY
   // - mark all FULL slots as DELETED
@@ -613,7 +588,6 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
   //       swap current element with target element
   //       mark target as FULL
   //       repeat procedure for current slot with moved from element (target)
-  ctrl_t* ctrl = common.control();
   const size_t blocked_element_count = common.blocked_element_count();
   ConvertDeletedToEmptyAndFullToDeleted(ctrl, capacity);
   BlockControlBytes(common, blocked_element_count);
@@ -693,8 +667,7 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
   }
   // Prepare insert for the new element.
   PrepareInsertCommon(common);
-  ResetGrowthLeft(common.growth_info(), capacity,
-                  common.size() + blocked_element_count);
+  ResetGrowthLeft(capacity, common.size() + blocked_element_count, common);
   FindInfo find_info = find_first_non_full(common, new_hash);
   SetCtrlInLargeTable(common, find_info.offset, H2(new_hash), slot_size);
   common.infoz().RecordInsertMiss(new_hash, find_info.probe_length);
@@ -744,7 +717,7 @@ void ResetCtrl(CommonFields& common, size_t slot_size,
                 capacity + 1 + NumClonedBytes());
   }
   ctrl[capacity] = ctrl_t::kSentinel;
-  SanitizerPoisonMemoryRegion(common.slot_array(),
+  SanitizerPoisonMemoryRegion(common.slot_array(capacity),
                               slot_size * (capacity - blocked_element_count));
   BlockControlBytes(common, blocked_element_count);
 }
@@ -827,16 +800,14 @@ void ClearBackingArrayNoReuse(CommonFields& c,
   c.infoz().RecordClearedReservation();
   c.infoz().RecordStorageChanged(0, policy.soo_capacity());
   c.infoz().Unregister();
-  (*policy.dealloc)(alloc, c.capacity(), c.control(), policy.slot_size,
-                    policy.slot_align, c.has_infoz(),
-                    c.blocked_element_count());
+  DeallocBackingArrayImpl(c, policy, alloc);
   c = policy.soo_enabled ? CommonFields{soo_tag_t{}}
                          : CommonFields{non_soo_tag_t{}};
 }
 
 template <bool kSooEnabled>
 void* SingleSlotAddress(CommonFields& c) {
-  return kSooEnabled ? c.soo_data() : c.slot_array();
+  return kSooEnabled ? c.soo_data() : c.slot_array(/*capacity=*/1);
 }
 
 template <bool kSooEnabled>
@@ -858,7 +829,8 @@ void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
   }
   c.decrement_size();
   c.infoz().RecordErase();
-  SanitizerPoisonMemoryRegion(c.slot_array(), slot_size);
+  SanitizerPoisonMemoryRegion(SingleSlotAddress</*kSooEnabled=*/false>(c),
+                              slot_size);
 }
 
 void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size) {
@@ -870,24 +842,24 @@ void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size) {
 
   if (WasNeverFull(c, index)) {
     SetCtrl(c, index, ctrl_t::kEmpty, slot_size);
-    c.growth_info().OverwriteFullAsEmpty();
+    c.OverwriteFullAsEmpty();
     return;
   }
 
-  c.growth_info().OverwriteFullAsDeleted();
+  c.OverwriteFullAsDeleted();
   SetCtrlInLargeTable(c, index, ctrl_t::kDeleted, slot_size);
 }
 
 void ClearBackingArray(CommonFields& c,
                        const PolicyFunctions& __restrict policy, void* alloc,
                        bool reuse) {
-  ABSL_SWISSTABLE_ASSERT(c.capacity() > MaxSmallCapacity());
+  ABSL_SWISSTABLE_ASSERT(c.capacity() > kMaxSmallCapacity);
   if (reuse) {
     const size_t blocked_element_count = c.blocked_element_count();
     c.set_size_to_zero();
     ABSL_SWISSTABLE_ASSERT(c.capacity() > policy.soo_capacity());
     ResetCtrl(c, policy.slot_size, blocked_element_count);
-    ResetGrowthLeft(c.growth_info(), c.capacity(), blocked_element_count);
+    ResetGrowthLeft(c.capacity(), blocked_element_count, c);
     ABSL_SWISSTABLE_ASSERT(c.blocked_element_count() == blocked_element_count);
     c.infoz().RecordStorageChanged(0, c.capacity());
   } else {
@@ -912,14 +884,6 @@ void DestroySlots(CommonFields& c, size_t slot_size,
   }
 }
 
-void DeallocBackingArray(CommonFields& c, size_t slot_size, size_t slot_align,
-                         DeallocBackingArrayFn dealloc, void* alloc) {
-  const size_t cap = c.capacity();
-  c.infoz().Unregister();
-  dealloc(alloc, cap, c.control(), slot_size, slot_align, c.has_infoz(),
-          c.blocked_element_count());
-}
-
 template <bool kSooEnabled>
 void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
            DestroySlotFn destroy_slot, void* alloc) {
@@ -938,6 +902,7 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
       DecrementSmallSize<kSooEnabled>(c);
+      c.infoz().RecordStorageChanged(0, cap);
     }
   } else {
     if (destroy_slot != nullptr) {
@@ -956,35 +921,44 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
   c.set_reservation_size(0);
 }
 
-void DestructSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                 DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
                  void* alloc) {
   ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
   if (c.is_small()) {
-    ABSL_SWISSTABLE_ASSERT(destroy_slot != nullptr);
-    destroy_slot(&c, c.soo_data());
+    ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
+    policy.destroy_slot(&c, c.soo_data());
     return;
   }
-  if (destroy_slot != nullptr) {
-    DestroySlots(c, slot_size, destroy_slot);
+  if (policy.destroy_slot != nullptr) {
+    DestroySlots(c, policy.slot_size, policy.destroy_slot);
   }
-  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+  DeallocBackingArray(c, policy, alloc);
 }
 
-void DestructNonSoo(CommonFields& c, size_t slot_size, size_t slot_align,
-                    DestroySlotFn destroy_slot, DeallocBackingArrayFn dealloc,
+void DestructSooEmptyAlloc(CommonFields& c,
+                           const DtorPolicy& __restrict policy) {
+  DestructSoo(c, policy, /*alloc=*/&c);
+}
+
+void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
                     void* alloc) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
-  if (destroy_slot != nullptr) {
+  if (policy.destroy_slot != nullptr) {
     if (c.is_small()) {
       if (!c.empty()) {
-        destroy_slot(&c, c.slot_array());
+        static_assert(kMaxSmallCapacity == 1);
+        policy.destroy_slot(&c, c.slot_array(/*capacity=*/1));
       }
     } else {
-      DestroySlots(c, slot_size, destroy_slot);
+      DestroySlots(c, policy.slot_size, policy.destroy_slot);
     }
   }
-  DeallocBackingArray(c, slot_size, slot_align, dealloc, alloc);
+  DeallocBackingArray(c, policy, alloc);
+}
+
+void DestructNonSooEmptyAlloc(CommonFields& c,
+                              const DtorPolicy& __restrict policy) {
+  DestructNonSoo(c, policy, /*alloc=*/&c);
 }
 
 namespace {
@@ -997,7 +971,7 @@ namespace {
 size_t FindNewPositionsAndTransferSlots(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     ctrl_t* old_ctrl, void* old_slots, size_t old_capacity) {
-  void* new_slots = common.slot_array();
+  void* new_slots = common.slot_array(common.capacity());
   const void* hash_fn = policy.hash_fn(common);
   const size_t slot_size = policy.slot_size;
   const size_t seed = common.seed().seed();
@@ -1037,8 +1011,6 @@ void ReportGrowthToInfozImpl(CommonFields& common, HashtablezInfoHandle infoz,
   infoz.RecordRehash(total_probe_length);
   infoz.RecordInsertMiss(hash, distance_from_desired);
   common.set_has_infoz();
-  // TODO(b/413062340): we could potentially store infoz in place of the
-  // control pointer for the capacity 1 case.
   common.set_infoz(infoz);
 }
 
@@ -1127,10 +1099,7 @@ void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
   common.generate_new_seed(has_infoz);
 
   ResetCtrl(common, slot_size, blocked_element_count);
-  if (GrowthInfoSizeForCapacity(new_capacity) > 0) {
-    ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
-                    blocked_element_count);
-  }
+  ResetGrowthLeft(new_capacity, blocked_element_count, common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportResizeToInfoz(common, infoz, 0);
@@ -1212,7 +1181,7 @@ void ResizeFullSooTable(CommonFields& common,
 
   InsertOldSooSlotAndInitializeControlBytes(common, policy, new_ctrl, new_slots,
                                             has_infoz);
-  ResetGrowthLeft(common.growth_info(), new_capacity, kTableSize);
+  ResetGrowthLeft(new_capacity, kTableSize, common);
   if (has_infoz) {
     common.set_has_infoz();
     common.set_infoz(infoz);
@@ -1378,7 +1347,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
     const ProbedItem* start, const ProbedItem* end, void* old_slots) {
   const HashtableCapacity new_capacity = c.capacity_impl();
 
-  void* new_slots = c.slot_array();
+  void* new_slots = c.slot_array(new_capacity.capacity());
   ctrl_t* new_ctrl = c.control();
   size_t total_probe_length = 0;
 
@@ -1416,7 +1385,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     void* old_slots, size_t start) {
   size_t old_capacity = PreviousCapacity(c.capacity());
   const size_t slot_size = policy.slot_size;
-  void* new_slots = c.slot_array();
+  void* new_slots = c.slot_array(c.capacity());
   size_t total_probe_length = 0;
   const void* hash_fn = policy.hash_fn(c);
   auto hash_slot = policy.hash_slot;
@@ -1453,10 +1422,7 @@ static_assert(NextCapacity(kMaxLocalBufferNewCapacity) <=
 // Initializes mirrored control bytes after
 // transfer_unprobed_elements_to_next_capacity.
 void InitializeMirroredControlBytes(ctrl_t* new_ctrl, size_t new_capacity) {
-  std::memcpy(new_ctrl + new_capacity,
-              // We own GrowthInfo just before control bytes. So it is ok
-              // to read one byte from it.
-              new_ctrl - 1, Group::kWidth);
+  std::memcpy(new_ctrl + new_capacity + 1, new_ctrl, Group::kWidth - 1);
   new_ctrl[new_capacity] = ctrl_t::kSentinel;
 }
 
@@ -1692,7 +1658,8 @@ void IncrementSmallSizeNonSoo(CommonFields& common,
                               const PolicyFunctions& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   common.increment_size();
-  SanitizerUnpoisonMemoryRegion(common.slot_array(), policy.slot_size);
+  SanitizerUnpoisonMemoryRegion(
+      SingleSlotAddress</*kSooEnabled=*/false>(common), policy.slot_size);
 }
 
 void IncrementSmallSize(CommonFields& common,
@@ -1750,15 +1717,14 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   void* new_element_target_slot = SlotAddress(new_slots, offset, slot_size);
   SanitizerUnpoisonMemoryRegion(new_element_target_slot, slot_size);
 
-  policy.dealloc(alloc, kOldCapacity,
-                 // old_slots == old_ctrl in case of capacity == 1.
-                 static_cast<ctrl_t*>(old_slots),
-                 slot_size, slot_align, has_infoz,
-                 /*blocked_element_count=*/0);
+  DeallocBackingArrayImpl(alloc, kOldCapacity,
+                          // old_slots == old_ctrl in case of capacity == 1.
+                          static_cast<ctrl_t*>(old_slots), slot_size,
+                          slot_align, has_infoz,
+                          /*blocked_element_count=*/0, policy.dealloc);
   PrepareInsertCommon(common);
   ABSL_SWISSTABLE_ASSERT(common.size() == 2);
-  GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(kNewCapacity - 2,
-                                                             kNewCapacity);
+  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportSingleGroupTableGrowthToInfoz(common, infoz, new_hash);
@@ -1772,14 +1738,14 @@ void* GrowToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
   const size_t old_capacity = common.capacity();
-  ABSL_SWISSTABLE_ASSERT(
-      common.growth_info().GetGrowthLeftTotalSlow(old_capacity) == 0);
+  ABSL_SWISSTABLE_ASSERT(common.GetGrowthLeftTotalSlow(old_capacity) == 0);
   ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
   ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(old_capacity));
+  ABSL_ASSUME(old_capacity > kMaxSmallCapacity);
 
   const size_t new_capacity = NextCapacity(old_capacity);
   ctrl_t* old_ctrl = common.control();
-  void* old_slots = common.slot_array();
+  void* old_slots = common.slot_array(old_capacity);
   size_t old_blocked_element_count = common.blocked_element_count();
 
   HashtablezInfoHandle infoz = common.infoz();
@@ -1827,11 +1793,10 @@ void* GrowToNextCapacityAndPrepareInsert(
     SetCtrlInLargeTable(common, find_info.offset, new_h2, policy.slot_size);
   }
   ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
-  (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
-                    has_infoz, old_blocked_element_count);
+  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size, slot_align,
+                          has_infoz, old_blocked_element_count, policy.dealloc);
   PrepareInsertCommon(common);
-  ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
-                  common.size());
+  ResetGrowthLeft(new_capacity, common.size(), common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportGrowthToInfoz(common, infoz, new_hash, total_probe_length,
@@ -1854,7 +1819,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
         common.infoz().RecordInsertMiss(get_hash(common.seed().seed()),
                                         /*distance_from_desired=*/0);
       }
-      return common.slot_array();
+      return common.slot_array(/*capacity=*/1);
     } else {
       return Grow1To3AndPrepareInsert(common, policy, get_hash);
     }
@@ -1899,8 +1864,7 @@ ABSL_ATTRIBUTE_NOINLINE
 void* RehashOrGrowToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
-  ABSL_SWISSTABLE_ASSERT(
-      !common.growth_info().GetGrowthInfoLowerBound().HasNoDeleted());
+  ABSL_SWISSTABLE_ASSERT(!common.GetGrowthInfoLowerBound().HasNoDeleted());
   const size_t cap = common.capacity();
   ABSL_ASSUME(cap > 0);
   // Do these calculations in 64-bit to avoid overflow.
@@ -1960,10 +1924,10 @@ ABSL_ATTRIBUTE_NOINLINE
 void* PrepareInsertLargeSlow(CommonFields& common,
                              const PolicyFunctions& __restrict policy,
                              size_t hash) {
-  GrowthInfoAccessor growth_info = common.growth_info();
   const size_t cap = common.capacity();
+  ABSL_ASSUME(cap > kMaxSmallCapacity);
   GrowthInfoLowerBound growth_info_lower_bound =
-      growth_info.RebalanceGrowthLeftLowerBound(cap);
+      common.RebalanceGrowthLeftLowerBound(cap);
   if (ABSL_PREDICT_TRUE(
           growth_info_lower_bound.HasNoGrowthLeftAndNoDeleted())) {
     // Table without deleted slots (>95% cases) that needs to be resized.
@@ -1980,10 +1944,10 @@ void* PrepareInsertLargeSlow(CommonFields& common,
   //    rebalanced.
   FindInfo target = find_first_non_full(common, hash);
   PrepareInsertCommon(common);
-  growth_info.OverwriteControlAsFull(common.control()[target.offset]);
+  common.OverwriteControlAsFull(common.control()[target.offset]);
   SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
   common.infoz().RecordInsertMiss(hash, target.probe_length);
-  return SlotAddress(common.slot_array(), target.offset, policy.slot_size);
+  return SlotAddress(common.slot_array(cap), target.offset, policy.slot_size);
 }
 
 // Resizes empty non-allocated SOO table to NextCapacity(SooCapacity()),
@@ -1996,16 +1960,18 @@ ABSL_ATTRIBUTE_NOINLINE void*
 GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     absl::FunctionRef<size_t(size_t)> get_hash) {
-  ResizeEmptyNonAllocatedTableImpl(common, policy, NextCapacity(SooCapacity()),
+  const size_t kNewCapacity = NextCapacity(SooCapacity());
+  ResizeEmptyNonAllocatedTableImpl(common, policy, kNewCapacity,
                                    /*blocked_element_count=*/0,
                                    /*force_infoz=*/true);
   PrepareInsertCommon(common);
-  common.growth_info().OverwriteEmptyAsFull();
+  common.OverwriteEmptyAsFull();
   const size_t new_hash = get_hash(common.seed().seed());
   SetCtrlInSingleGroupTable(common, SooSlotIndex(), H2(new_hash),
                             policy.slot_size);
   common.infoz().RecordInsertMiss(new_hash, /*distance_from_desired=*/0);
-  return SlotAddress(common.slot_array(), SooSlotIndex(), policy.slot_size);
+  return SlotAddress(common.slot_array(kNewCapacity), SooSlotIndex(),
+                     policy.slot_size);
 }
 
 // Returns the number of elements to block for the given capacity and reserved
@@ -2098,7 +2064,7 @@ void ResizeAllocatedTableWithSeedChange(
 
   const size_t old_capacity = common.capacity();
   ctrl_t* const old_ctrl = common.control();
-  void* const old_slots = common.slot_array();
+  void* const old_slots = common.slot_array(old_capacity);
   const size_t old_blocked_element_count = common.blocked_element_count();
 
   const size_t slot_size = policy.slot_size;
@@ -2120,12 +2086,9 @@ void ResizeAllocatedTableWithSeedChange(
   ABSL_SWISSTABLE_ASSERT(old_capacity > 0);
   total_probe_length = FindNewPositionsAndTransferSlots(
       common, policy, old_ctrl, old_slots, old_capacity);
-  (*policy.dealloc)(alloc, old_capacity, old_ctrl, slot_size, slot_align,
-                    has_infoz, old_blocked_element_count);
-  if (GrowthInfoSizeForCapacity(new_capacity) > 0) {
-    ResetGrowthLeft(GetGrowthInfoFromControl(new_ctrl), new_capacity,
-                    common.size());
-  }
+  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size, slot_align,
+                          has_infoz, old_blocked_element_count, policy.dealloc);
+  ResetGrowthLeft(new_capacity, common.size(), common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportResizeToInfoz(common, infoz, total_probe_length);
@@ -2160,8 +2123,7 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
 
   PrepareInsertCommon(common);
   ABSL_SWISSTABLE_ASSERT(common.size() == 2);
-  GetGrowthInfoFromControl(new_ctrl).InitGrowthLeftNoDeleted(kNewCapacity - 2,
-                                                             kNewCapacity);
+  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
   common.generate_new_seed(/*has_infoz=*/false);
   const h2_t soo_slot_h2 = H2(policy.hash_slot(
       policy.hash_fn(common), common.soo_data(), common.seed().seed()));
@@ -2236,7 +2198,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
       size_t begin_offset = FindFirstFullSlot(0, cap, common.control());
       policy.transfer_n(
           &common, &tmp_slot,
-          SlotAddress(common.slot_array(), begin_offset, slot_size), 1);
+          SlotAddress(common.slot_array(cap), begin_offset, slot_size), 1);
       clear_backing_array();
       policy.transfer_n(&common, common.soo_data(), &tmp_slot, 1);
       common.set_full_soo();
@@ -2278,17 +2240,22 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
   const size_t slot_size = policy.slot_size;
   const bool soo_enabled = policy.soo_enabled;
   if (size == 1) {
-    if (!soo_enabled) ReserveTableToFitNewSize(common, policy, 1);
+    if (!soo_enabled) {
+      ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, 1);
+      common.infoz().RecordStorageChanged(1, 1);
+    }
     IncrementSmallSize(common, policy);
     const size_t other_capacity = other.capacity();
     const void* other_slot =
         other_capacity <= soo_capacity ? other.soo_data()
-        : other.is_small()
-            ? other.slot_array()
-            : SlotAddress(other.slot_array(),
+        : IsSmallCapacity(other_capacity)
+            ? other.slot_array(other_capacity)
+            : SlotAddress(other.slot_array(other_capacity),
                           FindFirstFullSlot(0, other_capacity, other.control()),
                           slot_size);
-    copy_fn(soo_enabled ? common.soo_data() : common.slot_array(), other_slot);
+    copy_fn(soo_enabled ? common.soo_data()
+                        : SingleSlotAddress</*kSooEnabled=*/false>(common),
+            other_slot);
 
     if (soo_enabled && policy.is_hashtablez_eligible &&
         ShouldSampleNextTable()) {
@@ -2303,10 +2270,12 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
   ABSL_SWISSTABLE_ASSERT(other.capacity() > soo_capacity);
   const size_t cap = common.capacity();
   ABSL_SWISSTABLE_ASSERT(cap > soo_capacity);
+  ABSL_ASSUME(cap > kMaxSmallCapacity);
   size_t offset = cap;
   const void* hash_fn = policy.hash_fn(common);
   auto hasher = policy.hash_slot;
   const size_t seed = common.seed().seed();
+  void* target_slot_array = common.slot_array(cap);
   IterateOverFullSlotsImpl(
       other, slot_size, [&](const ctrl_t*, void* that_slot) {
         // The table is guaranteed to be empty, so we can do faster than
@@ -2316,11 +2285,11 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
         infoz.RecordInsertMiss(hash, target.probe_length);
         offset = target.offset;
         SetCtrl(common, offset, H2(hash), slot_size);
-        copy_fn(SlotAddress(common.slot_array(), offset, slot_size), that_slot);
+        copy_fn(SlotAddress(target_slot_array, offset, slot_size), that_slot);
         common.maybe_increment_generation_on_insert();
       });
   common.increment_size(size);
-  ResetGrowthLeft(common.growth_info(), cap, size + blocked_element_count);
+  ResetGrowthLeft(cap, size + blocked_element_count, common);
 }
 
 void ReserveTableToFitNewSize(CommonFields& common,
@@ -2339,9 +2308,8 @@ void ReserveTableToFitNewSize(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(!common.empty() || cap > policy.soo_capacity());
   ABSL_SWISSTABLE_ASSERT(cap > 0);
   const size_t max_size_before_growth =
-      IsSmallCapacity(cap)
-          ? cap
-          : common.size() + common.growth_info().GetGrowthLeftTotalSlow(cap);
+      IsSmallCapacity(cap) ? cap
+                           : common.size() + common.GetGrowthLeftTotalSlow(cap);
   if (new_size <= max_size_before_growth) {
     return;
   }
@@ -2355,21 +2323,22 @@ void* PrepareInsertLargeImpl(CommonFields& common,
                              Group::NonIterableBitMaskType mask_empty,
                              FindInfo target_group) {
   ABSL_SWISSTABLE_ASSERT(!common.is_small());
-  GrowthInfoAccessor growth_info = common.growth_info();
   // When there are no deleted slots in the table
   // and growth_left is positive, we can insert at the first
   // empty slot in the probe sequence (target).
   if (ABSL_PREDICT_FALSE(
-          !growth_info.GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft())) {
+          !common.GetGrowthInfoLowerBound().HasNoDeletedAndGrowthLeft())) {
     return PrepareInsertLargeSlow(common, policy, hash);
   }
   PrepareInsertCommon(common);
-  growth_info.OverwriteEmptyAsFull();
+  common.OverwriteEmptyAsFull();
+  const size_t cap = common.capacity();
+  ABSL_ASSUME(cap > kMaxSmallCapacity);
   target_group.offset += mask_empty.LowestBitSet();
-  target_group.offset &= common.capacity();
+  target_group.offset &= cap;
   SetCtrl(common, target_group.offset, H2(hash), policy.slot_size);
   common.infoz().RecordInsertMiss(hash, target_group.probe_length);
-  return SlotAddress(common.slot_array(), target_group.offset,
+  return SlotAddress(common.slot_array(cap), target_group.offset,
                      policy.slot_size);
 }
 }  // namespace
@@ -2390,7 +2359,7 @@ void* PrepareInsertLargeGenerationsEnabled(
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
   const size_t cap = common.capacity();
-  const size_t growth_left = common.growth_info().GetGrowthLeftTotalSlow(cap);
+  const size_t growth_left = common.GetGrowthLeftTotalSlow(cap);
   // As an optimization, we avoid calling ShouldRehashForBugDetection if we
   // will end up rehashing anyways.
   if (growth_left > 0 && common.should_rehash_for_bug_detection_on_insert()) {
@@ -2462,13 +2431,13 @@ template void* GrowSooTableToNextCapacityAndPrepareInsert<
 static_assert(MaxSooSlotSize() == 8);
 #endif
 
-template void* AllocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+template void* AllocateBackingArray<kStandardBackingArrayAlignment,
                                     std::allocator<char>>(void* alloc,
                                                           size_t n);
-template void DeallocateBackingArray<BackingArrayAlignment(alignof(size_t)),
-                                     std::allocator<char>>(
-    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
-    size_t slot_align, bool had_infoz, size_t blocked_element_count);
+template void DeallocateBackingArray<kStandardBackingArrayAlignment,
+                                     std::allocator<char>>(void* alloc,
+                                                           void* backing_array,
+                                                           size_t n);
 
 template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
                           DestroySlotFn destroy_slot, void* alloc);

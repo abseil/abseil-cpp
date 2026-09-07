@@ -14,13 +14,19 @@
 
 #include "absl/container/internal/hash_function_defaults.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <memory>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/port.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash.h"
@@ -134,6 +140,28 @@ TEST(BasicStringViewTest, WStringViewEqWorks) {
   EXPECT_FALSE(eq(L"a", std::wstring(L"b")));
 }
 
+#ifdef __cpp_char8_t
+TEST(BasicStringViewTest, U8StringEqWorks) {
+  hash_default_eq<std::u8string> eq;
+  EXPECT_TRUE(eq(u8"a", u8"a"));
+  EXPECT_TRUE(eq(u8"a", std::u8string_view(u8"a")));
+  EXPECT_TRUE(eq(u8"a", std::u8string(u8"a")));
+  EXPECT_FALSE(eq(u8"a", u8"b"));
+  EXPECT_FALSE(eq(u8"a", std::u8string_view(u8"b")));
+  EXPECT_FALSE(eq(u8"a", std::u8string(u8"b")));
+}
+
+TEST(BasicStringViewTest, U8StringViewEqWorks) {
+  hash_default_eq<std::u8string_view> eq;
+  EXPECT_TRUE(eq(u8"a", u8"a"));
+  EXPECT_TRUE(eq(u8"a", std::u8string_view(u8"a")));
+  EXPECT_TRUE(eq(u8"a", std::u8string(u8"a")));
+  EXPECT_FALSE(eq(u8"a", u8"b"));
+  EXPECT_FALSE(eq(u8"a", std::u8string_view(u8"b")));
+  EXPECT_FALSE(eq(u8"a", std::u8string(u8"b")));
+}
+#endif
+
 TEST(BasicStringViewTest, U16StringEqWorks) {
   hash_default_eq<std::u16string> eq;
   EXPECT_TRUE(eq(u"a", u"a"));
@@ -191,6 +219,26 @@ TEST(BasicStringViewTest, WStringViewHashWorks) {
   EXPECT_NE(h, hash(std::wstring_view(L"b")));
   EXPECT_NE(h, hash(std::wstring(L"b")));
 }
+
+#ifdef __cpp_char8_t
+TEST(BasicStringViewTest, U8StringHashWorks) {
+  hash_default_hash<std::u8string> hash;
+  auto h = hash(u8"a");
+  EXPECT_EQ(h, hash(std::u8string_view(u8"a")));
+  EXPECT_EQ(h, hash(std::u8string(u8"a")));
+  EXPECT_NE(h, hash(std::u8string_view(u8"b")));
+  EXPECT_NE(h, hash(std::u8string(u8"b")));
+}
+
+TEST(BasicStringViewTest, U8StringViewHashWorks) {
+  hash_default_hash<std::u8string_view> hash;
+  auto h = hash(u8"a");
+  EXPECT_EQ(h, hash(std::u8string_view(u8"a")));
+  EXPECT_EQ(h, hash(std::u8string(u8"a")));
+  EXPECT_NE(h, hash(std::u8string_view(u8"b")));
+  EXPECT_NE(h, hash(std::u8string(u8"b")));
+}
+#endif
 
 TEST(BasicStringViewTest, U16StringHashWorks) {
   hash_default_hash<std::u16string> hash;

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <iostream>
@@ -25,6 +26,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -44,6 +46,7 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -766,15 +769,12 @@ struct NonTransparentCompare {
   }
 };
 
-template <typename T>
-bool CanEraseWithEmptyBrace(T t, decltype(t.erase({})) *) {
-  return true;
-}
+template <class T, class = void>
+struct CanEraseWithEmptyBrace : std::false_type {};
 
-template <typename T>
-bool CanEraseWithEmptyBrace(T, ...) {
-  return false;
-}
+template <class T>
+struct CanEraseWithEmptyBrace<
+    T, std::void_t<decltype(std::declval<T>().erase({}))*>> : std::true_type {};
 
 template <typename T>
 void TestHeterogeneous(T table) {
@@ -819,7 +819,7 @@ void TestHeterogeneous(T table) {
   EXPECT_EQ(table.size() - 1, copy.size());
   copy.erase({"5"});
   EXPECT_EQ(table.size() - 2, copy.size());
-  EXPECT_FALSE(CanEraseWithEmptyBrace(table, nullptr));
+  EXPECT_FALSE(CanEraseWithEmptyBrace<T>::value);
 
   // Also run it with const T&.
   if (std::is_class<T>()) TestHeterogeneous<const T &>(table);
@@ -1110,7 +1110,7 @@ class BtreeMapTest : public ::testing::Test {
   struct Key {};
   struct Cmp {
     template <typename T>
-    bool operator()(T, T) const {
+    [[maybe_unused]] bool operator()(T, T) const {
       return false;
     }
   };
@@ -3533,7 +3533,7 @@ TEST(Btree, FieldTypeEqualsSlotType) {
   // This breaks if we try to do layout_type::Pointer<slot_type> because
   // slot_type is the same as field_type.
   using set_type = absl::btree_set<uint8_t>;
-  static_assert(BtreeNodePeer::FieldTypeEqualsSlotType<set_type>(), "");
+  static_assert(BtreeNodePeer::FieldTypeEqualsSlotType<set_type>());
   TestBasicFunctionality(set_type());
 }
 

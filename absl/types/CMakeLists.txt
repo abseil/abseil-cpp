@@ -58,10 +58,10 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::exception_testing
-    absl::hardening
     absl::hash_testing
     absl::raw_logging_internal
     absl::span
+    absl::string_view
     absl::strings
     absl::type_traits
     GTest::gmock_main
@@ -96,16 +96,15 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::span
     absl::base
     absl::config
     absl::core_headers
     absl::exception_testing
     absl::fixed_array
-    absl::hardening
     absl::hash
-    absl::inlined_vector
     absl::hash_testing
+    absl::inlined_vector
+    absl::span
     absl::strings
     absl::type_traits
     GTest::gmock_main
@@ -119,14 +118,14 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::span
     absl::base
     absl::config
     absl::core_headers
     absl::exception_testing
     absl::fixed_array
-    absl::inlined_vector
     absl::hash_testing
+    absl::inlined_vector
+    absl::span
     absl::strings
     GTest::gmock_main
 )

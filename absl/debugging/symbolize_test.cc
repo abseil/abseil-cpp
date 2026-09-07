@@ -13,24 +13,10 @@
 // limitations under the License.
 
 #include "absl/debugging/symbolize.h"
-#include <cstddef>
-
-#include "absl/debugging/internal/symbolize.h"
-#include "absl/strings/str_format.h"
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-
-#ifndef _WIN32
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
 
 #include <cerrno>
+#include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -47,10 +33,22 @@
 #include "absl/base/optimization.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/debugging/internal/stack_consumption.h"
+#include "absl/debugging/internal/symbolize.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 #define MAP_ANONYMOUS MAP_ANON
@@ -250,8 +248,8 @@ static const char *SymbolizeStackConsumption(void *pc, int *stack_consumed) {
 }
 
 static int GetStackConsumptionUpperLimit() {
-  // Symbolize stack consumption should be within 2kB.
-  int stack_consumption_upper_limit = 2048;
+  // Symbolize stack consumption should be within 4kB.
+  int stack_consumption_upper_limit = 4096;
 #if defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
     defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
   // Account for sanitizer instrumentation requiring additional stack space.

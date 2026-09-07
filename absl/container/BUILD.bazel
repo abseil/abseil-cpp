@@ -91,7 +91,6 @@ cc_test(
         ":test_allocator",
         "//absl/base:config",
         "//absl/base:exception_testing",
-        "//absl/base:hardening",
         "//absl/base:iterator_traits_test_helper",
         "//absl/hash:hash_testing",
         "//absl/memory",
@@ -170,6 +169,9 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     textual_hdrs = ["internal/test_allocator.h"],
     visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+    ],
 )
 
 cc_test(
@@ -184,7 +186,6 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:exception_testing",
-        "//absl/base:hardening",
         "//absl/base:iterator_traits_test_helper",
         "//absl/hash:hash_testing",
         "//absl/log:check",
@@ -233,7 +234,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = ["//absl/types:compare"],
 )
@@ -324,6 +325,7 @@ cc_test(
         ":flat_hash_set",
         ":hash_container_defaults",
         ":hash_generator_testing",
+        ":hash_policy_testing",
         ":test_allocator",
         ":unordered_set_constructor_test",
         ":unordered_set_lookup_test",
@@ -333,7 +335,7 @@ cc_test(
         "//absl/hash",
         "//absl/log:check",
         "//absl/memory",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -423,7 +425,8 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/strings:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         "//absl/base:config",
@@ -446,7 +449,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:no_destructor",
         "//absl/meta:type_traits",
-        "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -458,15 +461,15 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":common",
         "//absl/base:config",
         "//absl/hash",
         "//absl/meta:type_traits",
-        "//absl/strings",
         "//absl/strings:cord",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -492,11 +495,12 @@ cc_test(
         ":flat_hash_map",
         ":flat_hash_set",
         ":hash_function_defaults",
+        "//absl/base:core_headers",
         "//absl/hash",
         "//absl/random",
-        "//absl/strings",
         "//absl/strings:cord",
         "//absl/strings:cord_test_helpers",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -516,7 +520,7 @@ cc_library(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/random",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -527,11 +531,11 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         "//absl/hash",
-        "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -673,7 +677,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = ["//absl/base:config"],
 )
@@ -699,7 +703,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":common_policy_traits",
@@ -718,8 +722,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         "//absl/meta:type_traits",
@@ -853,6 +857,7 @@ cc_test(
         "//absl/numeric:int128",
         "//absl/random",
         "//absl/strings",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -869,10 +874,13 @@ cc_binary(
     deps = [
         ":container_memory",
         ":hash_function_defaults",
+        ":hashtable_control_bytes",
         ":raw_hash_set",
         "//absl/base:raw_logging_internal",
+        "//absl/hash",
         "//absl/random",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -897,6 +905,7 @@ cc_binary(
         "//absl/random:distributions",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -986,8 +995,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1004,8 +1013,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1021,8 +1030,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1038,8 +1047,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1057,7 +1066,6 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1073,7 +1081,6 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1089,8 +1096,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1106,8 +1113,8 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__pkg__",
     ],
     deps = [
         ":hash_generator_testing",
@@ -1123,6 +1130,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [
+        ":hash_policy_testing",
         ":unordered_set_constructor_test",
         ":unordered_set_lookup_test",
         ":unordered_set_members_test",
@@ -1139,6 +1147,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["no_test_loonix"],
     deps = [
+        ":hash_policy_testing",
         ":unordered_map_constructor_test",
         ":unordered_map_lookup_test",
         ":unordered_map_members_test",
@@ -1193,8 +1202,8 @@ cc_library(
         "//absl/hash:weakly_mixed_integer",
         "//absl/memory",
         "//absl/meta:type_traits",
-        "//absl/strings",
         "//absl/strings:cord",
+        "//absl/strings:string_view",
         "//absl/types:compare",
     ],
 )
@@ -1209,7 +1218,6 @@ cc_library(
     deps = [
         ":btree",
         ":flat_hash_set",
-        "//absl/strings",
         "//absl/strings:cord",
         "//absl/time",
     ],
@@ -1243,6 +1251,8 @@ cc_test(
         "//absl/memory",
         "//absl/random",
         "//absl/strings",
+        "//absl/strings:cord",
+        "//absl/strings:string_view",
         "//absl/types:compare",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -1285,12 +1295,11 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
+        ":test_instance_tracker",
         "//absl/base:config",
-        "//absl/container:test_instance_tracker",
         "@googletest//:gtest",
     ],
 )
@@ -1303,9 +1312,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":common",
+        ":flat_hash_set",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/container:flat_hash_set",
     ],
 )
 
@@ -1315,16 +1324,17 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":hash_generator_testing",
+        ":hash_policy_testing",
         ":heterogeneous_lookup_testing",
         ":linked_hash_set",
+        ":test_allocator",
+        ":test_instance_tracker",
+        ":unordered_set_constructor_test",
+        ":unordered_set_lookup_test",
+        ":unordered_set_members_test",
+        ":unordered_set_modifiers_test",
         "//absl/base:config",
-        "//absl/container:hash_generator_testing",
-        "//absl/container:hash_policy_testing",
-        "//absl/container:test_instance_tracker",
-        "//absl/container:unordered_set_constructor_test",
-        "//absl/container:unordered_set_lookup_test",
-        "//absl/container:unordered_set_members_test",
-        "//absl/container:unordered_set_modifiers_test",
         "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -1356,10 +1366,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":common",
+        ":flat_hash_set",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:throw_delegate",
-        "//absl/container:flat_hash_set",
     ],
 )
 
@@ -1369,17 +1379,18 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
+        ":hash_generator_testing",
+        ":hash_policy_testing",
         ":heterogeneous_lookup_testing",
         ":linked_hash_map",
+        ":test_allocator",
+        ":test_instance_tracker",
+        ":unordered_map_constructor_test",
+        ":unordered_map_lookup_test",
+        ":unordered_map_members_test",
+        ":unordered_map_modifiers_test",
         "//absl/base:config",
         "//absl/base:exception_testing",
-        "//absl/container:hash_generator_testing",
-        "//absl/container:hash_policy_testing",
-        "//absl/container:test_instance_tracker",
-        "//absl/container:unordered_map_constructor_test",
-        "//absl/container:unordered_map_lookup_test",
-        "//absl/container:unordered_map_members_test",
-        "//absl/container:unordered_map_modifiers_test",
         "//absl/strings:string_view",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -1425,7 +1436,7 @@ cc_test(
         ":chunked_queue",
         ":test_allocator",
         "//absl/base:core_headers",
-        "//absl/base:hardening",
+        "//absl/base:throw_delegate",
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

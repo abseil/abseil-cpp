@@ -115,6 +115,7 @@ cc_library(
         "//absl/base:malloc_internal",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -144,6 +145,7 @@ cc_test(
         "//absl/memory",
         "//absl/strings",
         "//absl/strings:str_format",
+        "//absl/strings:string_view",
         "@googletest//:gtest",
     ],
 )
@@ -159,8 +161,8 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/log/internal:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
     ],
     deps = [
         ":stacktrace",
@@ -202,6 +204,7 @@ cc_test(
         ":failure_signal_handler",
         ":stacktrace",
         ":symbolize",
+        "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/log:check",
         "//absl/strings",
@@ -224,7 +227,9 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//absl:friends"],
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
+    ],
     deps = [
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -241,9 +246,9 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
         "//absl/container:__pkg__",
         "//absl/debugging:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
     ],
     deps = [
         ":demangle_rust",
@@ -330,7 +335,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//absl:friends",
+        "@do_not_use_for_gloop_visibility_only//gloop/util/symbolize:__pkg__",
     ],
     deps = [
         ":decode_rust_punycode",

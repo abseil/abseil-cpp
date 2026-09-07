@@ -16,7 +16,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <map>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <type_traits>
 #include <typeindex>
@@ -313,10 +316,10 @@ TEST(ApplyTest, TypeErasedApplyToSlotFn) {
   size_t x = 7;
   size_t seed = 100;
   auto fn = [](size_t v) { return v * 2; };
-  EXPECT_EQ(
-      (TypeErasedApplyToSlotFn<decltype(fn), size_t, /*kIsDefault=*/false>(
-          &fn, &x, seed)),
-      (HashElement<decltype(fn), /*kIsDefault=*/false>(fn, seed)(x)));
+  EXPECT_EQ((TypeErasedApplyToSlotFn<decltype(fn), size_t, /*kIsAbsl=*/false,
+                                     /*kSeedShift=*/0>(&fn, &x, seed)),
+            (HashElement<decltype(fn), /*kIsAbsl=*/false, /*kSeedShift=*/0>(
+                fn, seed)(x)));
 }
 
 TEST(ApplyTest, TypeErasedDerefAndApplyToSlotFn) {
@@ -324,10 +327,12 @@ TEST(ApplyTest, TypeErasedDerefAndApplyToSlotFn) {
   size_t seed = 100;
   auto fn = [](size_t v) { return v * 2; };
   size_t* x_ptr = &x;
-  EXPECT_EQ((TypeErasedDerefAndApplyToSlotFn<decltype(fn), size_t,
-                                             /*kIsDefault=*/false>(&fn, &x_ptr,
-                                                                   seed)),
-            (HashElement<decltype(fn), /*kIsDefault=*/false>(fn, seed)(x)));
+  EXPECT_EQ(
+      (TypeErasedDerefAndApplyToSlotFn<decltype(fn), size_t,
+                                       /*kIsAbsl=*/false,
+                                       /*kSeedShift=*/0>(&fn, &x_ptr, seed)),
+      (HashElement<decltype(fn), /*kIsAbsl=*/false, /*kSeedShift=*/0>(
+          fn, seed)(x)));
 }
 
 TEST(HashElement, DefaultHash) {
@@ -339,7 +344,8 @@ TEST(HashElement, DefaultHash) {
       return v * 2 + seed * 3;
     }
   } hash;
-  EXPECT_EQ((HashElement<HashWithSeed, /*kIsDefault=*/true>(hash, seed)(x)),
+  EXPECT_EQ((HashElement<HashWithSeed, /*kIsAbsl=*/true,
+                         /*kSeedShift=*/0>(hash, seed)(x)),
             hash.hash_with_seed(x, seed));
 }
 
@@ -348,9 +354,19 @@ TEST(HashElement, NonDefaultHash) {
   size_t seed = 100;
   auto fn = [](size_t v) { return v * 2; };
   EXPECT_EQ(
-      (HashElement<decltype(fn), /*kIsDefault=*/false>(
+      (HashElement<decltype(fn), /*kIsAbsl=*/false, /*kSeedShift=*/0>(
           fn, seed)(x)),
       fn(x) ^ seed);
+}
+
+TEST(HashElement, NonDefaultHashWithSeedShift) {
+  size_t x = 7;
+  size_t seed = 100;
+  auto fn = [](size_t v) { return v * 2; };
+  EXPECT_EQ(
+      (HashElement<decltype(fn), /*kIsAbsl=*/false, /*kSeedShift=*/1>(
+          fn, seed)(x)),
+      fn(x) ^ (seed >> 1));
 }
 
 }  // namespace

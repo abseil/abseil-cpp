@@ -29,6 +29,7 @@
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/functional/function_ref.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -63,12 +64,17 @@ ABSL_NAMESPACE_BEGIN
 enum class StatusCode : int;
 enum class StatusToStringMode : int;
 
+// Forward declaration of StatusOr for Status friendship.
+template <typename T>
+class StatusOr;
+
 namespace status_internal {
 #ifndef SWIG
 class StatusPrivateAccessor;
 class StatusPrivateAccessorForStatusBuilder;
 #endif  // !SWIG
 
+#ifndef SWIG
 // Container for status payloads.
 struct Payload {
   std::string type_url;
@@ -76,6 +82,9 @@ struct Payload {
 };
 
 using Payloads = absl::InlinedVector<Payload, 1>;
+
+template <typename T>
+using EnableIfString = std::enable_if_t<std::is_same_v<T, std::string>>;
 
 // Reference-counted representation of Status data.
 class StatusRep {
@@ -87,8 +96,7 @@ class StatusRep {
         message_(message_arg),
         payloads_(std::move(payloads_arg)) {}
 
-  template <typename String,
-            typename = std::enable_if_t<std::is_same_v<String, std::string>>>
+  template <typename String, typename = EnableIfString<String>>
   StatusRep(absl::StatusCode code_arg, String&& message_arg,
             std::unique_ptr<status_internal::Payloads> payloads_arg)
       : ref_(int32_t{1}),
@@ -140,13 +148,21 @@ class StatusRep {
   StatusRep* absl_nonnull CloneAndUnref() const;
 
  private:
+  friend class absl::Status;
+
   mutable std::atomic<int32_t> ref_;
   absl::StatusCode code_;
 
   // As an internal implementation detail, we guarantee that if status.message()
   // is non-empty, then the resulting string_view is null terminated.
   // This is required to implement 'StatusMessageAsCStr(...)'
+  //
+  // NOTE: if most statuses are constructed with messages that are either empty
+  // or so long they don't fit in the std::string's local storage (small string
+  // optimization), replacing std::string with an entirely heap-allocated
+  // string might save memory at scale.
   std::string message_;
+
   absl::InlinedVector<absl::SourceLocation, 1> source_locations_;
   std::unique_ptr<status_internal::Payloads> payloads_;
 };
@@ -162,6 +178,7 @@ const char* absl_nonnull MakeCheckFailString(
     const absl::Status* absl_nonnull status, const char* absl_nonnull prefix);
 
 }  // namespace status_internal
+#endif  // SWIG
 
 ABSL_NAMESPACE_END
 }  // namespace absl

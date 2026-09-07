@@ -177,7 +177,7 @@ enum class CordMemoryAccounting {
 // Additionally, the API provides iterator utilities to iterate through Cord
 // data via chunks or character bytes.
 //
-class Cord {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI Cord {
  private:
   template <typename T>
   using EnableIfString = std::enable_if_t<std::is_same_v<T, std::string>, int>;
@@ -915,13 +915,12 @@ class Cord {
   // to the representation.
   //
   // InlineRep holds either a tree pointer, or an array of kMaxInline bytes.
-  class InlineRep {
+  class ABSL_ATTRIBUTE_TRIVIAL_ABI InlineRep {
    public:
     static constexpr unsigned char kMaxInline = cord_internal::kMaxInline;
-    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*), "");
+    static_assert(kMaxInline >= sizeof(absl::cord_internal::CordRep*));
 
-    constexpr InlineRep() : data_() {}
-    explicit InlineRep(InlineData::DefaultInitType init) : data_(init) {}
+    InlineRep() = default;
     InlineRep(const InlineRep& src);
     InlineRep(InlineRep&& src);
     InlineRep& operator=(const InlineRep& src);
@@ -1124,7 +1123,6 @@ class Cord {
   void CopyToArrayImpl(char* absl_nonnull dst) const;
 };
 
-
 // allow a Cord to be logged
 extern std::ostream& operator<<(std::ostream& out, const Cord& cord);
 
@@ -1182,8 +1180,7 @@ constexpr Cord::InlineRep::InlineRep(absl::string_view sv,
                                      CordRep* absl_nullable rep)
     : data_(sv, rep) {}
 
-inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src)
-    : data_(InlineData::kDefaultInit) {
+inline Cord::InlineRep::InlineRep(const Cord::InlineRep& src) {
   if (CordRep* tree = src.tree()) {
     EmplaceTree(CordRep::Ref(tree), src.data_,
                 CordzUpdateTracker::kConstructorCord);
@@ -1285,7 +1282,7 @@ inline size_t Cord::InlineRep::size() const {
 
 inline cord_internal::CordRepFlat* absl_nonnull
 Cord::InlineRep::MakeFlatWithExtraCapacity(size_t extra) {
-  static_assert(cord_internal::kMinFlatLength >= sizeof(data_), "");
+  static_assert(cord_internal::kMinFlatLength >= sizeof(data_));
   size_t len = data_.inline_size();
   auto* result = CordRepFlat::New(len + extra);
   result->length = len;
@@ -1365,7 +1362,7 @@ inline void Cord::InlineRep::MaybeRemoveEmptyCrcNode() {
   ResetToEmpty();
 }
 
-constexpr inline Cord::Cord() noexcept {}
+constexpr inline Cord::Cord() noexcept : contents_() {}
 
 inline Cord::Cord(absl::string_view src)
     : Cord(src, CordzUpdateTracker::kConstructorString) {}
@@ -1621,11 +1618,13 @@ inline bool Cord::ChunkIterator::operator!=(const ChunkIterator& other) const {
 
 inline Cord::ChunkIterator::reference Cord::ChunkIterator::operator*() const {
   absl::base_internal::HardeningAssertGT(bytes_remaining_, size_t{0});
+  ABSL_ASSERT(bytes_remaining_ >= current_chunk_.size());
   return current_chunk_;
 }
 
 inline Cord::ChunkIterator::pointer Cord::ChunkIterator::operator->() const {
   absl::base_internal::HardeningAssertGT(bytes_remaining_, size_t{0});
+  ABSL_ASSERT(bytes_remaining_ >= current_chunk_.size());
   return &current_chunk_;
 }
 

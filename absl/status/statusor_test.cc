@@ -23,6 +23,7 @@
 #include <memory>
 #include <ostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -38,7 +39,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "absl/utility/utility.h"
 
 namespace {
 
@@ -87,26 +87,26 @@ testing::Matcher<const CopyDetector&> CopyDetectorHas(int a, bool b, bool c) {
 
 class Base1 {
  public:
-  virtual ~Base1() {}
+  virtual ~Base1() = default;
   int pad;
 };
 
 class Base2 {
  public:
-  virtual ~Base2() {}
+  virtual ~Base2() = default;
   int yetotherpad;
 };
 
 class Derived : public Base1, public Base2 {
  public:
-  virtual ~Derived() {}
+  ~Derived() override = default;
   int evenmorepad;
 };
 
 class CopyNoAssign {
  public:
   explicit CopyNoAssign(int value) : foo(value) {}
-  CopyNoAssign(const CopyNoAssign& other) : foo(other.foo) {}
+  CopyNoAssign(const CopyNoAssign& other) = default;
   int foo;
 
  private:
@@ -119,8 +119,8 @@ absl::StatusOr<std::unique_ptr<int>> ReturnUniquePtr() {
 }
 
 TEST(StatusOr, ElementType) {
-  static_assert(std::is_same<absl::StatusOr<int>::value_type, int>(), "");
-  static_assert(std::is_same<absl::StatusOr<char>::value_type, char>(), "");
+  static_assert(std::is_same<absl::StatusOr<int>::value_type, int>());
+  static_assert(std::is_same<absl::StatusOr<char>::value_type, char>());
 }
 
 TEST(StatusOr, TestMoveOnlyInitialization) {
@@ -405,6 +405,53 @@ TEST(StatusOr, EmplaceInitializerList) {
               IsOkAndHolds(AllOf(Field(&InPlaceHelper::x, ElementsAre(1, 2, 3)),
                                  Field(&InPlaceHelper::y, Pointee(4)))));
 }
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+class ThrowOnEmplace {
+ public:
+  explicit ThrowOnEmplace(int* counter, int val) : destructor_calls_(counter) {
+    if (val < 0) {
+      throw std::runtime_error("expected");
+    }
+    // While destructor_calls tracks the logic, ptr_ ensures that a double
+    // destruction actually results in a reliable crash. Performing a real heap
+    // allocation and deallocation (new/delete) guarantees that AddressSanitizer
+    // (ASAN) or the heap allocator will instantly catch the double-free if the
+    // bug regresses, rather than relying solely on the integer check.
+    ptr_ = new int(val);
+  }
+
+  ThrowOnEmplace(const ThrowOnEmplace&) = delete;
+  ThrowOnEmplace& operator=(const ThrowOnEmplace&) = delete;
+
+  ~ThrowOnEmplace() {
+    if (destructor_calls_) {
+      ++(*destructor_calls_);
+    }
+    delete ptr_;
+  }
+
+ private:
+  int* destructor_calls_ = nullptr;
+  int* ptr_ = nullptr;
+};
+
+TEST(StatusOr, EmplaceThrowsExceptionSafety) {
+  int destructor_calls = 0;
+  {
+    absl::StatusOr<ThrowOnEmplace> status_or(std::in_place, &destructor_calls,
+                                             1);
+    EXPECT_TRUE(status_or.ok());
+    EXPECT_THROW(status_or.emplace(&destructor_calls, -1), std::runtime_error);
+    EXPECT_FALSE(status_or.ok());
+    EXPECT_EQ(status_or.status().code(), absl::StatusCode::kInternal);
+  }
+  // Verifies that the initial object is properly destroyed by Clear() (count is
+  // 1), and that the exception thrown during replacement does not cause a
+  // second destruction (double-free) during stack unwinding.
+  EXPECT_EQ(destructor_calls, 1);
+}
+#endif  // ABSL_HAVE_EXCEPTIONS
 
 TEST(StatusOr, TestCopyCtorStatusOk) {
   const int kI = 4;
@@ -762,19 +809,19 @@ TEST(StatusOr, NestedStatusOrCopyAndMoveAssignment) {
 }
 
 struct Copyable {
-  Copyable() {}
-  Copyable(const Copyable&) {}
-  Copyable& operator=(const Copyable&) { return *this; }
+  Copyable() = default;
+  Copyable(const Copyable&) = default;
+  Copyable& operator=(const Copyable&) = default;
 };
 
 struct MoveOnly {
-  MoveOnly() {}
+  MoveOnly() = default;
   MoveOnly(MoveOnly&&) {}
   MoveOnly& operator=(MoveOnly&&) { return *this; }
 };
 
 struct NonMovable {
-  NonMovable() {}
+  NonMovable() = default;
   NonMovable(const NonMovable&) = delete;
   NonMovable(NonMovable&&) = delete;
   NonMovable& operator=(const NonMovable&) = delete;
@@ -1347,7 +1394,7 @@ TEST(StatusOr, TestPointerValueConst) {
 
 TEST(StatusOr, StatusOrVectorOfUniquePointerCanReserveAndResize) {
   using EvilType = std::vector<std::unique_ptr<int>>;
-  static_assert(std::is_copy_constructible_v<EvilType>, "");
+  static_assert(std::is_copy_constructible_v<EvilType>);
   std::vector<::absl::StatusOr<EvilType>> v(5);
   v.reserve(v.capacity() + 10);
   v.resize(v.capacity() + 10);
