@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/config.h"
 #include "absl/container/internal/common_policy_traits.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/meta/type_traits.h"

@@ -47,8 +47,6 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/hash/internal/hash_test.h"
 #include "absl/hash/internal/spy_hash_state.h"
-#include "absl/memory/memory.h"
-#include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/cord_test_helpers.h"

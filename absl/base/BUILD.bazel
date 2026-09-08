@@ -187,6 +187,7 @@ cc_library(
     ],
     deps = [
         ":base_internal",
+        ":config",
         ":core_headers",
         ":errno_saver",
     ],
@@ -367,6 +368,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":atomic_hook",
+        ":config",
         ":core_headers",
     ],
 )
@@ -396,6 +398,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -656,6 +659,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
@@ -778,6 +782,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":base",
+        ":config",
         "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -809,6 +814,7 @@ cc_test(
         "no_test_wasm",
     ],
     deps = [
+        ":config",
         ":malloc_internal",
         "//absl/container:node_hash_map",
     ],
@@ -824,6 +830,7 @@ cc_test(
     ],
     deps = [
         ":base",
+        ":config",
         ":core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
