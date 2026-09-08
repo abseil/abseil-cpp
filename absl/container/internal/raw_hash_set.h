@@ -691,7 +691,7 @@ class GrowthInfoLowerBound {
  public:
   static constexpr uint8_t kGrowthLeftMask = 0x7Fu;
   static constexpr uint8_t kDeletedBit = 0x80u;
-  static constexpr uint64_t kMaxGrowthLeftLowerBound = 127;
+  static constexpr size_t kMaxGrowthLeftLowerBound = 127;
   static_assert(kMaxGrowthLeftLowerBound == kGrowthLeftMask);
 
   explicit constexpr GrowthInfoLowerBound(uint8_t growth_left)
@@ -1533,7 +1533,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
   size_t GetOverflowGrowthLeft() const {
     ABSL_SWISSTABLE_ASSERT(capacity() >
                            GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
-    return base_internal::UnalignedLoad64(GrowthInfoOverflowAddress());
+    return static_cast<size_t>(
+        base_internal::UnalignedLoad64(GrowthInfoOverflowAddress()));
   }
 
   void SetGrowthInfoOverflow(size_t overflow) {

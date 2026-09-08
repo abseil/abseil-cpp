@@ -327,9 +327,9 @@ void CommonFields::InitGrowthLeftNoDeleted(size_t growth_left,
     inline_data_.set_growth_info_lower_bound(
         GrowthInfoLowerBound(static_cast<uint8_t>(growth_left)));
   } else {
-    uint64_t lower_bound =
-        (std::min)(uint64_t{growth_left},
-                   GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
+    size_t lower_bound = (std::min)(
+        growth_left,
+        GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
     inline_data_.set_growth_info_lower_bound(
         GrowthInfoLowerBound(static_cast<uint8_t>(lower_bound)));
     SetGrowthInfoOverflow(growth_left - lower_bound);
@@ -368,9 +368,9 @@ GrowthInfoLowerBound CommonFields::RebalanceGrowthLeftLowerBound(
 
 ABSL_ATTRIBUTE_NOINLINE GrowthInfoLowerBound
 CommonFields::RebalanceGrowthLeftLowerBoundLargeCapacity() {
-  uint64_t overflow_growth_left = GetOverflowGrowthLeft();
-  uint64_t lower_bound_growth_left = GetGrowthLeftLowerBound();
-  uint64_t overflow_to_lower_bound_size =
+  size_t overflow_growth_left = GetOverflowGrowthLeft();
+  size_t lower_bound_growth_left = GetGrowthLeftLowerBound();
+  size_t overflow_to_lower_bound_size =
       (std::min)(overflow_growth_left,
                  GrowthInfoLowerBound::kMaxGrowthLeftLowerBound -
                      lower_bound_growth_left);
