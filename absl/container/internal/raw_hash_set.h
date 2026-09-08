@@ -2015,13 +2015,15 @@ struct DtorPolicy {
   uint32_t slot_size;
   uint16_t slot_align;
   DestroySlotFn destroy_slot;
-  // TODO(b/515666499): Remove this field and pass as separate parameter only in
-  // case of custom allocators or big alignment.
-  DeallocBackingArrayFn dealloc;
 
   template <uint32_t kSlotSize, uint16_t kSlotAlign>
-  static const DtorPolicy& GetTrivialDestructStdAllocRef() {
+  static const DtorPolicy& GetTrivialDestructRef() {
     return R<kSlotSize, kSlotAlign>();
+  }
+
+  template <typename SetType>
+  static const DtorPolicy& GetRef() {
+    return R<SetType>();
   }
 
  private:
@@ -2031,8 +2033,16 @@ struct DtorPolicy {
   template <uint32_t kSlotSize, uint16_t kSlotAlign>
   static const DtorPolicy& R() {
     static constexpr DtorPolicy p = {kSlotSize, kSlotAlign,
-                                     /*destroy_slot=*/nullptr,
-                                     kStandardDeallocBackingArrayFn};
+                                     /*destroy_slot=*/nullptr};
+    return p;
+  }
+  template <typename SetType>
+  static const DtorPolicy& R() {
+    static constexpr DtorPolicy p = {
+        sizeof(typename SetType::slot_type),
+        alignof(typename SetType::slot_type),
+        SetType::get_destroy_slot_fn(),
+    };
     return p;
   }
 };
@@ -2178,24 +2188,31 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 
 // Deallocates the backing array and unregister infoz if necessary.
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
-void DeallocBackingArray(CommonFields& c, const DtorPolicy& policy,
-                         void* alloc);
+void UnregisterAndDeallocBackingArray(CommonFields& c, const DtorPolicy& policy,
+                                      DeallocBackingArrayFn dealloc,
+                                      void* alloc);
 
 // Type erased version of raw_hash_set::clear.
 template <bool kSooEnabled>
 void Clear(CommonFields& c, const PolicyFunctions& policy,
            DestroySlotFn destroy_slot, void* alloc);
 
-// Destructs all elements and deallocates the backing array for SOO tables.
+// Destructs all elements and deallocates the backing array tables.
+// For kSooEnabled = true:
 // REQUIRES: !c.is_small || !c.empty()
 // REQUIRES: !c.is_small || policy.destroy_slot != nullptr
-void DestructSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
-void DestructSooEmptyAlloc(CommonFields& c, const DtorPolicy& policy);
-
-// Destructs all elements and deallocates the backing array for non-SOO tables.
+// For kSooEnabled = false:
 // REQUIRES: c.capacity > 0.
-void DestructNonSoo(CommonFields& c, const DtorPolicy& policy, void* alloc);
-void DestructNonSooEmptyAlloc(CommonFields& c, const DtorPolicy& policy);
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy,
+              DeallocBackingArrayFn dealloc, void* alloc);
+// REQUIRES: std::is_empty_v<Alloc>
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy,
+              DeallocBackingArrayFn dealloc);
+// REQUIRES: std::is_empty_v<Alloc> && dealloc == kStandardDeallocBackingArrayFn
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& policy);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
@@ -3389,6 +3406,7 @@ class raw_hash_set {
       HashtableDebugAccess;
 
   friend struct absl::container_internal::HashtableFreeFunctionsAccess;
+  friend DtorPolicy;
 
   struct FindElement {
     template <class K, class... Args>
@@ -3514,33 +3532,33 @@ class raw_hash_set {
     DestroySlots(common(), sizeof(slot_type), get_destroy_slot_fn());
   }
 
-  void dealloc() {
-    ABSL_SWISSTABLE_ASSERT(capacity() > DefaultCapacity());
-    DeallocBackingArray(common(), GetDtorPolicy(), &char_alloc_ref());
-  }
-
   void destructor_impl() {
     if (SwisstableGenerationsEnabled() &&
         maybe_invalid_capacity().IsMovedFrom()) {
       return;
     }
+    constexpr bool kIsStandardBackingArrayAlignment =
+        std::is_same_v<CharAlloc, std::allocator<char>> &&
+        BackingArrayAlignment(alignof(slot_type)) ==
+            kStandardBackingArrayAlignment;
     if constexpr (SooEnabled()) {
       if (is_small() &&
           (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
         return;
       }
-      if constexpr (std::is_empty_v<Alloc>) {
-        DestructSooEmptyAlloc(common(), GetDtorPolicy());
-      } else {
-        DestructSoo(common(), GetDtorPolicy(), &char_alloc_ref());
-      }
     } else {
       if (capacity() == 0) return;
-      if constexpr (std::is_empty_v<Alloc>) {
-        DestructNonSooEmptyAlloc(common(), GetDtorPolicy());
+    }
+    if constexpr (std::is_empty_v<Alloc>) {
+      if constexpr (kIsStandardBackingArrayAlignment) {
+        Destruct<SooEnabled()>(common(), GetDtorPolicy());
       } else {
-        DestructNonSoo(common(), GetDtorPolicy(), &char_alloc_ref());
+        Destruct<SooEnabled()>(common(), GetDtorPolicy(),
+                               get_dealloc_backing_array_fn());
       }
+    } else {
+      Destruct<SooEnabled()>(common(), GetDtorPolicy(),
+                             get_dealloc_backing_array_fn(), &char_alloc_ref());
     }
   }
 
@@ -3669,7 +3687,11 @@ class raw_hash_set {
       insert(std::move(PolicyTraits::element(it.slot())));
       that.destroy(it.slot());
     }
-    if (!that.is_soo()) that.dealloc();
+    if (!that.is_soo()) {
+      UnregisterAndDeallocBackingArray(that.common(), that.GetDtorPolicy(),
+                                       that.get_dealloc_backing_array_fn(),
+                                       &that.char_alloc_ref());
+    }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
     annotate_for_bug_detection_on_move(that);
     return *this;
@@ -4060,24 +4082,12 @@ class raw_hash_set {
                   "or use absl::node_hash_{map,set}.");
     static_assert(alignof(slot_type) <=
                   size_t{(std::numeric_limits<uint16_t>::max)()});
-    if constexpr (PolicyTraits::template destroy_is_trivial<Alloc>() &&
-                  std::is_same_v<CharAlloc, std::allocator<char>> &&
-                  BackingArrayAlignment(alignof(slot_type)) ==
-                      kStandardBackingArrayAlignment) {
-      return DtorPolicy::GetTrivialDestructStdAllocRef<
+    if constexpr (PolicyTraits::template destroy_is_trivial<Alloc>()) {
+      return DtorPolicy::GetTrivialDestructRef<
           static_cast<uint32_t>(sizeof(slot_type)),
           static_cast<uint16_t>(alignof(slot_type))>();
     } else {
-      // TODO(b/515666499): move this code to DtorPolicy once we remove dealloc
-      // from there.
-      // Destructors are being instantiated way more often than other
-      // functions, so we make a small effort to minimize the name length of
-      // static variables.
-      static constexpr DtorPolicy p =
-          DtorPolicy{static_cast<uint32_t>(sizeof(slot_type)),
-                     static_cast<uint16_t>(alignof(slot_type)),
-                     get_destroy_slot_fn(), get_dealloc_backing_array_fn()};
-      return p;
+      return DtorPolicy::GetRef<raw_hash_set>();
     }
   }
 
@@ -4276,11 +4286,29 @@ extern template void
 DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
     void* alloc, void* backing_array, size_t n);
 
-extern template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
-                                 DestroySlotFn destroy_slot, void* alloc);
-extern template void Clear<false>(CommonFields& c,
-                                  const PolicyFunctions& policy,
-                                  DestroySlotFn destroy_slot, void* alloc);
+extern template void Clear</*kSooEnabled=*/true>(CommonFields& c,
+                                                 const PolicyFunctions& policy,
+                                                 DestroySlotFn destroy_slot,
+                                                 void* alloc);
+extern template void Clear</*kSooEnabled=*/false>(CommonFields& c,
+                                                  const PolicyFunctions& policy,
+                                                  DestroySlotFn destroy_slot,
+                                                  void* alloc);
+
+extern template void Destruct</*kSooEnabled=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
+                                                    const DtorPolicy& policy);
+extern template void Destruct</*kSooEnabled=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
+                                                     const DtorPolicy& policy);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

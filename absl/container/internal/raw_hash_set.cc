@@ -22,6 +22,7 @@
 #include <cstring>
 #include <memory>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -423,16 +424,19 @@ void DeallocBackingArrayImpl(CommonFields& c,
                           policy.slot_align, c.has_infoz(),
                           c.blocked_element_count(), policy.dealloc);
 }
+
 }  // namespace
 
-void DeallocBackingArray(CommonFields& c, const DtorPolicy& __restrict policy,
-                         void* alloc) {
+void UnregisterAndDeallocBackingArray(CommonFields& c,
+                                      const DtorPolicy& __restrict policy,
+                                      DeallocBackingArrayFn dealloc,
+                                      void* alloc) {
   size_t cap = c.capacity();  // capacity is already in register, so storing it
                               // in a local variable before Unregister().
   c.infoz().Unregister();
   DeallocBackingArrayImpl(alloc, cap, c.control(), policy.slot_size,
                           policy.slot_align, c.has_infoz(),
-                          c.blocked_element_count(), policy.dealloc);
+                          c.blocked_element_count(), dealloc);
 }
 
 namespace {
@@ -819,6 +823,36 @@ void DecrementSmallSize(CommonFields& c) {
   }
 }
 
+void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
+                 DeallocBackingArrayFn dealloc, void* alloc) {
+  ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
+  if (c.is_small()) {
+    ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
+    policy.destroy_slot(&c, c.soo_data());
+    return;
+  }
+  if (policy.destroy_slot != nullptr) {
+    DestroySlots(c, policy.slot_size, policy.destroy_slot);
+  }
+  UnregisterAndDeallocBackingArray(c, policy, dealloc, alloc);
+}
+
+void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
+                    DeallocBackingArrayFn dealloc, void* alloc) {
+  ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
+  if (policy.destroy_slot != nullptr) {
+    if (c.is_small()) {
+      if (!c.empty()) {
+        static_assert(kMaxSmallCapacity == 1);
+        policy.destroy_slot(&c, c.slot_array(/*capacity=*/1));
+      }
+    } else {
+      DestroySlots(c, policy.slot_size, policy.destroy_slot);
+    }
+  }
+  UnregisterAndDeallocBackingArray(c, policy, dealloc, alloc);
+}
+
 }  // namespace
 
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size) {
@@ -921,44 +955,23 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
   c.set_reservation_size(0);
 }
 
-void DestructSoo(CommonFields& c, const DtorPolicy& __restrict policy,
-                 void* alloc) {
-  ABSL_SWISSTABLE_ASSERT(!c.is_small() || !c.empty());
-  if (c.is_small()) {
-    ABSL_SWISSTABLE_ASSERT(policy.destroy_slot != nullptr);
-    policy.destroy_slot(&c, c.soo_data());
-    return;
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& __restrict policy,
+              DeallocBackingArrayFn dealloc, void* alloc) {
+  if constexpr (kSooEnabled) {
+    DestructSoo(c, policy, dealloc, alloc);
+  } else {
+    DestructNonSoo(c, policy, dealloc, alloc);
   }
-  if (policy.destroy_slot != nullptr) {
-    DestroySlots(c, policy.slot_size, policy.destroy_slot);
-  }
-  DeallocBackingArray(c, policy, alloc);
 }
-
-void DestructSooEmptyAlloc(CommonFields& c,
-                           const DtorPolicy& __restrict policy) {
-  DestructSoo(c, policy, /*alloc=*/&c);
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& __restrict policy,
+              DeallocBackingArrayFn dealloc) {
+  Destruct<kSooEnabled>(c, policy, dealloc, /*alloc=*/&c);
 }
-
-void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
-                    void* alloc) {
-  ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
-  if (policy.destroy_slot != nullptr) {
-    if (c.is_small()) {
-      if (!c.empty()) {
-        static_assert(kMaxSmallCapacity == 1);
-        policy.destroy_slot(&c, c.slot_array(/*capacity=*/1));
-      }
-    } else {
-      DestroySlots(c, policy.slot_size, policy.destroy_slot);
-    }
-  }
-  DeallocBackingArray(c, policy, alloc);
-}
-
-void DestructNonSooEmptyAlloc(CommonFields& c,
-                              const DtorPolicy& __restrict policy) {
-  DestructNonSoo(c, policy, /*alloc=*/&c);
+template <bool kSooEnabled>
+void Destruct(CommonFields& c, const DtorPolicy& __restrict policy) {
+  Destruct<kSooEnabled>(c, policy, kStandardDeallocBackingArrayFn);
 }
 
 namespace {
@@ -2439,10 +2452,33 @@ template void DeallocateBackingArray<kStandardBackingArrayAlignment,
                                                            void* backing_array,
                                                            size_t n);
 
-template void Clear<true>(CommonFields& c, const PolicyFunctions& policy,
-                          DestroySlotFn destroy_slot, void* alloc);
-template void Clear<false>(CommonFields& c, const PolicyFunctions& policy,
-                           DestroySlotFn destroy_slot, void* alloc);
+template void Clear</*kSooEnabled=*/true>(CommonFields& c,
+                                          const PolicyFunctions& policy,
+                                          DestroySlotFn destroy_slot,
+                                          void* alloc);
+template void Clear</*kSooEnabled=*/false>(CommonFields& c,
+                                           const PolicyFunctions& policy,
+                                           DestroySlotFn destroy_slot,
+                                           void* alloc);
+
+template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
+                                             const DtorPolicy& policy,
+                                             DeallocBackingArrayFn dealloc,
+                                             void* alloc);
+template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
+                                             const DtorPolicy& policy,
+                                             DeallocBackingArrayFn dealloc);
+template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
+                                             const DtorPolicy& policy);
+template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
+                                              const DtorPolicy& policy,
+                                              DeallocBackingArrayFn dealloc,
+                                              void* alloc);
+template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
+                                              const DtorPolicy& policy,
+                                              DeallocBackingArrayFn dealloc);
+template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
+                                              const DtorPolicy& policy);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END
