@@ -14,6 +14,8 @@
 
 #include "absl/base/attributes.h"
 
+#include <type_traits>
+
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
 
@@ -38,6 +40,18 @@ TEST(Attributes, RequireExplicitInit) {
   } good8 ABSL_ATTRIBUTE_UNUSED = {{1, 2}};
   constexpr Agg good9 ABSL_ATTRIBUTE_UNUSED = {1, 2};
   constexpr Agg good10 ABSL_ATTRIBUTE_UNUSED{1, 2};
+}
+
+TEST(Attributes, MSVCBug) {
+  struct ImplicitlyConstructible {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    ImplicitlyConstructible(const char*) {}
+  };
+  struct Agg {
+    ImplicitlyConstructible f1 ABSL_REQUIRE_EXPLICIT_INIT;
+  };
+  static_assert(std::is_convertible_v<const char*, ImplicitlyConstructible>);
+  Agg good1 [[maybe_unused]] = {ImplicitlyConstructible("hello")};
 }
 
 }  // namespace

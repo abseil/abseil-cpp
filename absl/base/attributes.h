@@ -738,7 +738,10 @@
 // See the upstream documentation for more details:
 // https://clang.llvm.org/docs/AttributeReference.html#require-explicit-initialization
 #ifdef __cplusplus
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::require_explicit_initialization)
+#if defined(_MSC_VER) && !defined(__clang__)
+// Workaround for MSVC: https://github.com/abseil/abseil-cpp/issues/2157
+#define ABSL_REQUIRE_EXPLICIT_INIT
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_explicit_initialization)
 // clang-format off
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   [[clang::require_explicit_initialization]] = \
