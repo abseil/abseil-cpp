@@ -163,6 +163,12 @@ class FileHasSubstrMatcher final : public ::testing::MatcherInterface<FILE*> {
 class StrippingTest : public ::testing::Test {
  protected:
   void SetUp() override {
+#if defined(__OpenBSD__)
+    // OpenBSD has neither /proc/self/exe nor a sysctl that returns the path
+    // of the running executable, so there is nothing to search.
+    GTEST_SKIP() << "StrippingTests skipped: cannot open the running "
+                    "executable on OpenBSD";
+#endif
 #ifndef NDEBUG
     // Non-optimized builds don't necessarily eliminate dead code at all, so we
     // don't attempt to validate stripping against such builds.
