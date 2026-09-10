@@ -57,6 +57,11 @@
 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <limits.h>
 #elif defined(_WIN32)
 #include <Windows.h>
 #include <tchar.h>
@@ -239,6 +244,27 @@ class StrippingTest : public ::testing::Test {
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
         _tfopen(path.c_str(), _T("rb")), [](FILE* fp) { fclose(fp); });
     if (!fp) absl::FPrintF(stderr, "Failed to open executable\n");
+    return fp;
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+    // These have no /proc/self/exe; the kernel answers through sysctl.
+#if defined(__NetBSD__)
+    int mib[] = {CTL_KERN, KERN_PROC_ARGS, -1, KERN_PROC_PATHNAME};
+#else
+    int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+#endif
+    char path[PATH_MAX];
+    size_t size = sizeof(path);
+    if (sysctl(mib, 4, path, &size, nullptr, 0) != 0) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "KERN_PROC_PATHNAME failed: %s\n", err);
+      return nullptr;
+    }
+    std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
+        fopen(path, "rb"), [](FILE* fp) { fclose(fp); });
+    if (!fp) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "Failed to open %s: %s\n", path, err);
+    }
     return fp;
 #else
     absl::FPrintF(stderr,
