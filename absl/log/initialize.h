@@ -34,7 +34,12 @@ ABSL_NAMESPACE_BEGIN
 // After initialization is finished, log messages are directed to all registered
 // `LogSink`s.
 //
-// It is an error to call this function twice.
+// Calling this function more than once is safe: only the first call has effect
+// and subsequent calls are no-ops. This is intended to support situations
+// where multiple independent libraries each want to bring up the logging
+// library and have no way to coordinate among themselves. Concurrent calls
+// from multiple threads are likewise safe; later callers block until the
+// first call has completed.
 //
 // There is no corresponding function to shut down the logging library.
 void InitializeLog();
