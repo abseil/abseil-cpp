@@ -130,6 +130,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS + select({
         "@rules_cc//cc/compiler:msvc-cl": ["/DEBUG"],
         "@rules_cc//cc/compiler:clang-cl": ["/DEBUG"],
+        "@platforms//os:openbsd": ["-Wl,--no-execute-only"],
         "//conditions:default": [],
     }),
     deps = [
