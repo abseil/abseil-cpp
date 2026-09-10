@@ -14,6 +14,10 @@
 
 #include "absl/container/internal/raw_hash_set.h"
 
+#if !defined(_WIN32)
+#include <sys/resource.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -5253,6 +5257,18 @@ static_assert(alignof(UnalignedInt32) == 1);
 // 4. Then a few times we will extend control buffer end.
 // 5. Finally we will catch up and go to overflow codepath.
 TEST(Table, GrowExtremelyLargeTable) {
+#if !defined(_WIN32)
+  // The table reserves close to 8 GB of address space on the way up. Where
+  // the data segment is capped below that, OpenBSD's default login class
+  // allows 4 GB, the allocation throws instead of the test proving anything.
+  struct rlimit data_limit;
+  if (getrlimit(RLIMIT_DATA, &data_limit) == 0 &&
+      data_limit.rlim_cur != RLIM_INFINITY &&
+      data_limit.rlim_cur < (rlim_t{8} << 30)) {
+    GTEST_SKIP() << "RLIMIT_DATA is " << data_limit.rlim_cur
+                 << " bytes; this test needs about 8 GB of address space";
+  }
+#endif
   // ProbedItem8Bytes causes OOMs on some platforms so we use ProbedItem4Bytes.
   constexpr size_t kTargetCapacity =
 #if defined(__wasm__) || defined(__asmjs__) || defined(__i386__) || \
