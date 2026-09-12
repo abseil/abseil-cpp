@@ -1007,6 +1007,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
           3, 1, PclmulStreamType::PCLMUL>();
     case CpuType::kAmdMilan:
     case CpuType::kAmdGenoa:
+    case CpuType::kAmdSiena:
     case CpuType::kAmdTurin:
 #if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) &&                   \
     (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
@@ -1042,6 +1043,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
           1, 1, PclmulStreamType::NEON_PCLMUL>();
     case CpuType::kArmNeoverseN2:
     case CpuType::kArmNeoverseN3:
+    case CpuType::kArmNeoverseN4:
     case CpuType::kNvidiaGrace:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           1, 1, PclmulStreamType::NEON_PCLMUL_EOR3>();

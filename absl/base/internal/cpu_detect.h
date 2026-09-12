@@ -30,6 +30,7 @@ enum class CpuType {
   kAmdNaples,
   kAmdMilan,
   kAmdGenoa,
+  kAmdSiena,
   kAmdTurin,
   kAmdRyzenV3000,
   kIntelCascadelakeXeon,
@@ -49,6 +50,7 @@ enum class CpuType {
   kArmNeoverseN2,
   kArmNeoverseV2,
   kArmNeoverseN3,
+  kArmNeoverseN4,
   kNvidiaGrace,
 };
 
