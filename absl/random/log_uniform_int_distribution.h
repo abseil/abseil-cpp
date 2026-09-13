@@ -16,13 +16,13 @@
 #define ABSL_RANDOM_LOG_UNIFORM_INT_DISTRIBUTION_H_
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <istream>
 #include <limits>
 #include <ostream>
 
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/random/internal/iostream_state_saver.h"
 #include "absl/random/internal/traits.h"
 #include "absl/random/uniform_int_distribution.h"
@@ -60,15 +60,18 @@ class log_uniform_int_distribution {
           range_(static_cast<unsigned_type>(max_) -
                  static_cast<unsigned_type>(min_)),
           log_range_(0) {
-      assert(max_ >= min_);
-      assert(base_ > 1);
+      ABSL_HARDENING_ASSERT(max_ >= min_);
+      ABSL_HARDENING_ASSERT(base_ > 1);
 
       if (base_ == 2) {
         // Determine where the first set bit is on range(), giving a log2(range)
         // value which can be used to construct bounds.
         log_range_ = (std::min)(random_internal::BitWidth(range()),
                                 std::numeric_limits<unsigned_type>::digits);
-      } else {
+      } else if (base_ > 2) {
+        // An out-of-contract base_ (<= 1) skips this branch entirely so that
+        // no floating-point undefined behavior is reached.
+        //
         // NOTE: Computing the logN(x) introduces error from 2 sources:
         // 1. Conversion of int to double loses precision for values >=
         // 2^53, which may cause some log() computations to operate on
@@ -80,18 +83,7 @@ class log_uniform_int_distribution {
         // which can eliminate some values depending on where the bounds fall.
         const double inv_log_base = 1.0 / std::log(static_cast<double>(base_));
         const double log_range = std::log(static_cast<double>(range()) + 0.5);
-        const double result = std::ceil(inv_log_base * log_range);
-        // A base_ of 0 or 1, or a negative base_, violates the base_ > 1
-        // precondition and leaves inv_log_base non-finite, so `result` can be
-        // inf or NaN. Casting such a value to int is undefined behavior; guard
-        // it so an out-of-contract base yields a defined (if meaningless)
-        // log_range_ instead. For a valid base_ (> 1), result is a small
-        // non-negative integer and this guard is a no-op.
-        log_range_ =
-            (result >= 0 &&
-             result < static_cast<double>((std::numeric_limits<int>::max)()))
-                ? static_cast<int>(result)
-                : 0;
+        log_range_ = static_cast<int>(std::ceil(inv_log_base * log_range));
       }
     }
 
@@ -251,9 +243,16 @@ std::basic_istream<CharT, Traits>& operator>>(
   auto saver = random_internal::make_istream_state_saver(is);
   is >> min >> max >> base;
   if (!is.fail()) {
-    x.param(param_type(static_cast<result_type>(min),
-                       static_cast<result_type>(max),
-                       static_cast<result_type>(base)));
+    const result_type min_val = static_cast<result_type>(min);
+    const result_type max_val = static_cast<result_type>(max);
+    const result_type base_val = static_cast<result_type>(base);
+    if (max_val < min_val || base_val <= 1) {
+      // The input violates the param_type preconditions; signal failure by
+      // setting the failbit instead of constructing an invalid param_type.
+      is.setstate(is.rdstate() | std::ios_base::failbit);
+    } else {
+      x.param(param_type(min_val, max_val, base_val));
+    }
   }
   return is;
 }

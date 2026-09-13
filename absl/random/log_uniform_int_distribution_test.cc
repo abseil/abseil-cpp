@@ -116,31 +116,24 @@ TYPED_TEST(LogUniformIntDistributionTypeTest, SerializeTest) {
   }
 }
 
-// A base of 1 (or, for signed types, a negative base) violates the base > 1
-// precondition. In debug builds the constructor asserts; in opt builds it must
-// still yield a defined object rather than invoking undefined behavior while
-// computing log_range_, which casts 1/log(base) * log(range) to int -- a cast
-// of a non-finite double (inf/NaN) to int is UB. The bad base can also reach
-// the object through operator>> reading an untrusted stream.
-TYPED_TEST(LogUniformIntDistributionTypeTest, InvalidBaseIsDefinedInOptMode) {
-#if defined(NDEBUG)
-  absl::InsecureBitGen gen;
+// operator>> must reject input that violates the param_type preconditions
+// (max >= min and base > 1) by setting failbit and leaving the distribution
+// unchanged, rather than constructing an out-of-contract param_type.
+TYPED_TEST(LogUniformIntDistributionTypeTest, DeserializeRejectsInvalidParams) {
+  for (const char* input : {
+           "0 100 1",  // base == 1
+           "0 100 0",  // base == 0
+           "100 0 2",  // max < min
+       }) {
+    absl::log_uniform_int_distribution<TypeParam> dist(3, 6, 17);
+    const auto before = dist.param();
 
-  // Direct construction with an out-of-contract base must not invoke UB.
-  absl::log_uniform_int_distribution<TypeParam> dist(0, 100, 1);
-  auto sample = dist(gen);
-  EXPECT_GE(sample, dist.min());
-  EXPECT_LE(sample, dist.max());
+    std::istringstream is(input);
+    is >> dist;
 
-  // The same bad base arriving through deserialization must also stay defined.
-  absl::log_uniform_int_distribution<TypeParam> after(3, 6, 17);
-  std::istringstream is("0 100 1");
-  is >> after;
-  EXPECT_EQ(after.base(), static_cast<TypeParam>(1));
-  sample = after(gen);
-  EXPECT_GE(sample, after.min());
-  EXPECT_LE(sample, after.max());
-#endif  // NDEBUG
+    EXPECT_TRUE(is.fail()) << input;
+    EXPECT_EQ(dist.param(), before) << input;
+  }
 }
 
 using log_uniform_i32 = absl::log_uniform_int_distribution<int32_t>;
