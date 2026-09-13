@@ -381,6 +381,15 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_SCHED_YIELD 1
 #endif
 
+// ABSL_HAVE_ELF_AUX_INFO
+//
+// Checks whether the platform implements elf_aux_info(3).
+#ifdef ABSL_HAVE_ELF_AUX_INFO
+#error ABSL_HAVE_ELF_AUX_INFO cannot be directly set
+#elif (defined(__FreeBSD__) || defined(__OpenBSD__)) && __has_include(<sys/auxv.h>)
+#define ABSL_HAVE_ELF_AUX_INFO 1
+#endif
+
 // ABSL_HAVE_SEMAPHORE_H
 //
 // Checks whether the platform supports the <semaphore.h> header and sem_init(3)
