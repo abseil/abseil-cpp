@@ -67,6 +67,18 @@
 #include <tchar.h>
 #endif
 
+// OpenBSD gained getexecpath(3) in 8.0 (OpenBSD >= 202610); older releases
+// have no way for a process to find its own executable, so the tests skip
+// there.
+#if defined(__OpenBSD__)
+#include <sys/param.h>
+#if OpenBSD >= 202610
+#include <limits.h>
+#include <unistd.h>
+#define ABSL_LOG_INTERNAL_HAVE_GETEXECPATH 1
+#endif
+#endif
+
 // Set a flag that controls whether we actually execute fatal statements, but
 // prevent the compiler from optimizing it out.
 static volatile bool kReallyDie = false;
@@ -163,11 +175,11 @@ class FileHasSubstrMatcher final : public ::testing::MatcherInterface<FILE*> {
 class StrippingTest : public ::testing::Test {
  protected:
   void SetUp() override {
-#if defined(__OpenBSD__)
-    // OpenBSD has neither /proc/self/exe nor a sysctl that returns the path
-    // of the running executable, so there is nothing to search.
+#if defined(__OpenBSD__) && !defined(ABSL_LOG_INTERNAL_HAVE_GETEXECPATH)
+    // Before 8.0, OpenBSD had no /proc/self/exe and no call that returns the
+    // path of the running executable, so there is nothing to search.
     GTEST_SKIP() << "StrippingTests skipped: cannot open the running "
-                    "executable on OpenBSD";
+                    "executable on OpenBSD before 8.0";
 #endif
 #ifndef NDEBUG
     // Non-optimized builds don't necessarily eliminate dead code at all, so we
@@ -263,6 +275,21 @@ class StrippingTest : public ::testing::Test {
     if (sysctl(mib, 4, path, &size, nullptr, 0) != 0) {
       const std::string err = absl::base_internal::StrError(errno);
       absl::FPrintF(stderr, "KERN_PROC_PATHNAME failed: %s\n", err);
+      return nullptr;
+    }
+    std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
+        fopen(path, "rb"), [](FILE* fp) { fclose(fp); });
+    if (!fp) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "Failed to open %s: %s\n", path, err);
+    }
+    return fp;
+#elif defined(ABSL_LOG_INTERNAL_HAVE_GETEXECPATH)
+    // OpenBSD 8.0 and later: getexecpath(3) returns the canonical path.
+    char path[PATH_MAX];
+    if (getexecpath(path, sizeof(path)) != 0) {
+      const std::string err = absl::base_internal::StrError(errno);
+      absl::FPrintF(stderr, "getexecpath failed: %s\n", err);
       return nullptr;
     }
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
