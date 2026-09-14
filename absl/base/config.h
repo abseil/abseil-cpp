@@ -345,7 +345,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     defined(__myriad2__) || defined(__HAIKU__) || defined(__OpenBSD__) || \
     defined(__NetBSD__) || defined(__QNX__) || defined(__VXWORKS__) ||    \
     defined(__hexagon__) || defined(__XTENSA__) ||                        \
-    defined(_WASI_EMULATED_MMAN)
+    defined(_WASI_EMULATED_MMAN) || defined(__DragonFly__)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -357,7 +357,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #error ABSL_HAVE_PTHREAD_GETSCHEDPARAM cannot be directly set
 #elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
     defined(_AIX) || defined(__ros__) || defined(__OpenBSD__) ||          \
-    defined(__NetBSD__) || defined(__VXWORKS__)
+    defined(__NetBSD__) || defined(__VXWORKS__) || defined(__DragonFly__)
 #define ABSL_HAVE_PTHREAD_GETSCHEDPARAM 1
 #endif
 
