@@ -20,8 +20,11 @@
 
 #include "absl/base/config.h"
 
-#if defined(__aarch64__) && defined(__linux__)
+#if defined(__aarch64__) && \
+    (defined(__linux__) || defined(ABSL_HAVE_ELF_AUX_INFO))
+#if defined(__linux__)
 #include <asm/hwcap.h>
+#endif
 #include <sys/auxv.h>
 #endif
 
@@ -265,7 +268,8 @@ bool SupportsBmi2() {
   return (cpu_info[1] & (1 << 8)) != 0;
 }
 
-#elif defined(__aarch64__) && defined(__linux__)
+#elif defined(__aarch64__) && \
+    (defined(__linux__) || defined(ABSL_HAVE_ELF_AUX_INFO))
 
 #ifndef HWCAP_CPUID
 #define HWCAP_CPUID (1 << 11)
@@ -276,12 +280,18 @@ bool SupportsBmi2() {
 
 CpuType GetCpuType() {
   // MIDR_EL1 is not visible to EL0, however the access will be emulated by
-  // linux if AT_HWCAP has HWCAP_CPUID set.
+  // Linux, FreeBSD and OpenBSD if AT_HWCAP has HWCAP_CPUID set.
   //
   // This method will be unreliable on heterogeneous computing systems (ex:
   // big.LITTLE) since the value of MIDR_EL1 will change based on the calling
   // thread.
+#if defined(ABSL_HAVE_ELF_AUX_INFO)
+  uint64_t hwcaps;
+  if (elf_aux_info(AT_HWCAP, &hwcaps, sizeof(hwcaps)) != 0)
+    return CpuType::kUnknown;
+#else
   uint64_t hwcaps = getauxval(AT_HWCAP);
+#endif
   if (hwcaps & HWCAP_CPUID) {
     uint64_t midr = 0;
     ABSL_INTERNAL_AARCH64_ID_REG_READ(MIDR_EL1, midr);
@@ -328,7 +338,13 @@ CpuType GetCpuType() {
 }
 
 bool SupportsArmCRC32PMULL() {
-#if defined(HWCAP_CRC32) && defined(HWCAP_PMULL)
+#if defined(ABSL_HAVE_ELF_AUX_INFO)
+  uint64_t hwcaps;
+  bool ret = false;
+  if (elf_aux_info(AT_HWCAP, &hwcaps, sizeof(hwcaps)) == 0)
+    ret = (hwcaps & HWCAP_CRC32) && (hwcaps & HWCAP_PMULL);
+  return ret;
+#elif defined(HWCAP_CRC32) && defined(HWCAP_PMULL)
   uint64_t hwcaps = getauxval(AT_HWCAP);
   return (hwcaps & HWCAP_CRC32) && (hwcaps & HWCAP_PMULL);
 #else
