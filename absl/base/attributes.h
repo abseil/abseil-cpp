@@ -202,13 +202,10 @@
 //
 // Deprecated: Prefer the `[[noreturn]]` attribute standardized by C++11 over
 // this macro.
-#if ABSL_HAVE_ATTRIBUTE(noreturn) || (defined(__GNUC__) && !defined(__clang__))
-#define ABSL_ATTRIBUTE_NORETURN __attribute__((noreturn))
-#elif defined(_MSC_VER)
-#define ABSL_ATTRIBUTE_NORETURN __declspec(noreturn)
-#else
-#define ABSL_ATTRIBUTE_NORETURN
+#ifdef ABSL_ATTRIBUTE_NORETURN
+#error "ABSL_ATTRIBUTE_NORETURN should not be defined."
 #endif
+#define ABSL_ATTRIBUTE_NORETURN [[noreturn]]
 
 // ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 //
