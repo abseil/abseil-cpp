@@ -734,7 +734,7 @@
 //
 // See the upstream documentation for more details:
 // https://clang.llvm.org/docs/AttributeReference.html#require-explicit-initialization
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SWIG)
 #if defined(_MSC_VER) && !defined(__clang__)
 // Workaround for MSVC: https://github.com/abseil/abseil-cpp/issues/2157
 #define ABSL_REQUIRE_EXPLICIT_INIT
@@ -754,23 +754,20 @@
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   __attribute__((require_explicit_initialization))
 #else
-#define ABSL_REQUIRE_EXPLICIT_INIT \
-  /* No portable fallback for C is available */
+// No portable fallback for C is available
+#define ABSL_REQUIRE_EXPLICIT_INIT
 #endif
 // clang-format on
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SWIG)
 struct AbslInternal_YouForgotToExplicitlyInitializeAField {
   // A portable version of [[clang::require_explicit_initialization]] that
   // never builds, as a last resort for all toolchains.
   // The error messages are poor, so we don't rely on this unless we have to.
   template <class T>
-#if !defined(SWIG)
-  constexpr
-#endif
-  operator T() const /* NOLINT */ {
-    const void *volatile deliberately_volatile_ptr = nullptr;
+  constexpr operator T() const /* NOLINT */ {
+    const void* volatile deliberately_volatile_ptr = nullptr;
     // Infinite loop to prevent constexpr compilation
     for (;;) {
       // This assignment ensures the 'this' pointer is not optimized away, so
