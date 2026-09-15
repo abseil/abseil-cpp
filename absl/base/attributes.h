@@ -372,9 +372,9 @@
 // link.
 //
 #define ABSL_ATTRIBUTE_SECTION_START(name) \
-  (reinterpret_cast<void *>(__start_##name))
+  (reinterpret_cast<void*>(__start_##name))
 #define ABSL_ATTRIBUTE_SECTION_STOP(name) \
-  (reinterpret_cast<void *>(__stop_##name))
+  (reinterpret_cast<void*>(__stop_##name))
 
 #else  // !ABSL_HAVE_ATTRIBUTE_SECTION
 
@@ -386,8 +386,8 @@
 #define ABSL_INIT_ATTRIBUTE_SECTION_VARS(name)
 #define ABSL_DEFINE_ATTRIBUTE_SECTION_VARS(name)
 #define ABSL_DECLARE_ATTRIBUTE_SECTION_VARS(name)
-#define ABSL_ATTRIBUTE_SECTION_START(name) (reinterpret_cast<void *>(0))
-#define ABSL_ATTRIBUTE_SECTION_STOP(name) (reinterpret_cast<void *>(0))
+#define ABSL_ATTRIBUTE_SECTION_START(name) (reinterpret_cast<void*>(0))
+#define ABSL_ATTRIBUTE_SECTION_STOP(name) (reinterpret_cast<void*>(0))
 
 #endif  // ABSL_ATTRIBUTE_SECTION
 
@@ -697,8 +697,8 @@
 #if defined(__GNUC__) || defined(__clang__)
 // Clang also supports these GCC pragmas.
 #define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING \
-  _Pragma("GCC diagnostic push")             \
-  _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+  _Pragma("GCC diagnostic push")                             \
+      _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING \
   _Pragma("GCC diagnostic pop")
 #elif defined(_MSC_VER)
@@ -739,17 +739,14 @@
 // Workaround for MSVC: https://github.com/abseil/abseil-cpp/issues/2157
 #define ABSL_REQUIRE_EXPLICIT_INIT
 #elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_explicit_initialization)
-// clang-format off
-#define ABSL_REQUIRE_EXPLICIT_INIT \
+#define ABSL_REQUIRE_EXPLICIT_INIT             \
   [[clang::require_explicit_initialization]] = \
-    AbslInternal_YouForgotToExplicitlyInitializeAField::v
+      AbslInternal_YouForgotToExplicitlyInitializeAField::v
 #else
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   = AbslInternal_YouForgotToExplicitlyInitializeAField::v
 #endif
-// clang-format on
 #else
-// clang-format off
 #if ABSL_HAVE_ATTRIBUTE(require_explicit_initialization)
 #define ABSL_REQUIRE_EXPLICIT_INIT \
   __attribute__((require_explicit_initialization))
@@ -757,7 +754,6 @@
 // No portable fallback for C is available
 #define ABSL_REQUIRE_EXPLICIT_INIT
 #endif
-// clang-format on
 #endif
 
 #if defined(__cplusplus) && !defined(SWIG)
@@ -1044,7 +1040,8 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // overriding the compiler flag.
 //
 // See https://clang.llvm.org/docs/AttributeReference.html#uninitialized
-// and https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
+// and
+// https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED [[clang::uninitialized]]
 #elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::uninitialized)
