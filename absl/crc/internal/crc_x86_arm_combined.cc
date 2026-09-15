@@ -1051,6 +1051,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 2, PclmulStreamType::NEON_PCLMUL_EOR3>();
     case CpuType::kArmNeoverseV2:
+    case CpuType::kArmNeoverseV3:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           1, 2, PclmulStreamType::NEON_PCLMUL_EOR3>();
 #if defined(__aarch64__)
