@@ -37,8 +37,6 @@
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
 
-#ifndef SWIG
-// Disabled for SWIG as it doesn't parse attributes correctly.
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 // Returned Status objects may not be ignored. Codesearch doesn't handle ifdefs
@@ -56,7 +54,6 @@ class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI
 
 ABSL_NAMESPACE_END
 }  // namespace absl
-#endif  // !SWIG
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
