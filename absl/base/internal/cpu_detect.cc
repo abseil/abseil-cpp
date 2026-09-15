@@ -304,6 +304,8 @@ CpuType GetCpuType() {
             }
             return CpuType::kArmNeoverseV2;
           }
+          case 0xd84:
+            return CpuType::kArmNeoverseV3;
           case 0xd8e:
             return CpuType::kArmNeoverseN3;
           case 0xd94:
