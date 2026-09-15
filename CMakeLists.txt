@@ -61,10 +61,12 @@ list(APPEND CMAKE_MODULE_PATH
 option(ABSL_MSVC_STATIC_RUNTIME
   "Link static runtime libraries"
   OFF)
-if(ABSL_MSVC_STATIC_RUNTIME)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-else()
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  if(ABSL_MSVC_STATIC_RUNTIME)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  else()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  endif()
 endif()
 
 include(CMakePackageConfigHelpers)
