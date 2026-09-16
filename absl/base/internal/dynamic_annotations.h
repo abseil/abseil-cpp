@@ -42,6 +42,8 @@
 //   If neither Dynamic Annotations nor Clang thread-safety warnings are
 //   enabled, then all annotation-macros expand to empty.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_INTERNAL_DYNAMIC_ANNOTATIONS_H_
 #define ABSL_BASE_INTERNAL_DYNAMIC_ANNOTATIONS_H_
 
@@ -56,7 +58,7 @@
 #define DYNAMIC_ANNOTATIONS_ENABLED 0
 #endif
 
-#if defined(__clang__) && !defined(SWIG)
+#if defined(__clang__)
 #define ABSL_INTERNAL_IGNORE_READS_ATTRIBUTE_ENABLED 1
 #endif
 
