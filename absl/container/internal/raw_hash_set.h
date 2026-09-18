@@ -3709,6 +3709,10 @@ class raw_hash_set {
     // Aliasing can't happen here because allocs would compare equal above.
     assert(this != &that);
     destructor_impl();
+    // destructor_impl() leaves common() pointing at the freed backing array
+    // (or at the stale small-table state), so reset it to the default state
+    // before re-inserting elements.
+    common() = CommonFields::CreateDefault<SooEnabled()>();
     // We can't take over that's memory so we need to move each element.
     // While moving elements, this should have that's hash/eq so copy hash/eq
     // before moving elements.
