@@ -1,0 +1,29 @@
+name: Build and test
+
+# https://docs.github.com/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# 当 pull request 关联的分支或 main 分支上有新的 commit 时，取消当前正在运行的工作流，以避
+# 免不必要的构建，从而节约 GitHub Actions 服务器资源。
+#
+# https://docs.github.com/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
+# https://docs.github.com/billing/concepts/product-billing/github-actions
+concurrency:
+  group: ${{ github.workflow }} - ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: 克隆代码
+        uses: actions/checkout@v7
+
+      - name: 通过 Bazel 执行构建和测试
+        run: bazel test //...
