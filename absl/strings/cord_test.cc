@@ -917,6 +917,20 @@ TEST_P(CordTest, PrependLargeBuffer) {
   EXPECT_THAT(cord.Chunks(), ElementsAre(s2, s1));
 }
 
+TEST(CordTest, AppendLargeStringToEmptyCrcCord) {
+  absl::Cord cord;
+  cord.SetExpectedChecksum(1);
+  cord.Append(std::string(512, 'x'));
+  EXPECT_EQ(cord, std::string(512, 'x'));
+}
+
+TEST(CordTest, PrependLargeStringToEmptyCrcCord) {
+  absl::Cord cord;
+  cord.SetExpectedChecksum(1);
+  cord.Prepend(std::string(512, 'x'));
+  EXPECT_EQ(cord, std::string(512, 'x'));
+}
+
 class CordAppendBufferTest : public testing::TestWithParam<bool> {
  public:
   size_t is_default() const { return GetParam(); }
