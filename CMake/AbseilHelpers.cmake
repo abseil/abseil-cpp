@@ -207,7 +207,13 @@ function(absl_cc_library)
         set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
       endif()
     endforeach()
-    string(REPLACE ";" " " PC_LINKOPTS "${ABSL_CC_LIB_LINKOPTS}")
+    # Remove ABSL_DEFAULT_LINKOPTS from ABSL_CC_LIB_LINKOPTS to prevent
+    # duplication and exportation of linker-only flags.
+    set(_ABSL_CC_LIB_LINKOPTS "${ABSL_CC_LIB_LINKOPTS}")
+    foreach(_opt IN LISTS ABSL_DEFAULT_LINKOPTS)
+      list(REMOVE_ITEM _ABSL_CC_LIB_LINKOPTS "${_opt}")
+    endforeach()
+    string(REPLACE ";" " " PC_LINKOPTS "${_ABSL_CC_LIB_LINKOPTS}")
     FILE(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/lib/pkgconfig/absl_${_NAME}.pc" CONTENT "\
 prefix=${CMAKE_INSTALL_PREFIX}\n\
 exec_prefix=\${prefix}\n\
@@ -238,10 +244,9 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
       )
       target_link_libraries(${_NAME}
         PUBLIC ${_dll_deps}
-        PRIVATE
-          ${ABSL_CC_LIB_LINKOPTS}
-          ${ABSL_DEFAULT_LINKOPTS}
+        PRIVATE ${_ABSL_CC_LIB_LINKOPTS}
       )
+      target_link_options(${_NAME} PRIVATE ${ABSL_DEFAULT_LINKOPTS})
 
       if (ABSL_CC_LIB_TESTONLY)
         set(_gtest_link_define "GTEST_LINKED_AS_SHARED_LIBRARY=1")
@@ -266,11 +271,10 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
           INSTALL_RPATH "$ORIGIN")
       endif()
       target_link_libraries(${_NAME}
-      PUBLIC ${ABSL_CC_LIB_DEPS}
-      PRIVATE
-        ${ABSL_CC_LIB_LINKOPTS}
-        ${ABSL_DEFAULT_LINKOPTS}
+        PUBLIC ${ABSL_CC_LIB_DEPS}
+        PRIVATE ${_ABSL_CC_LIB_LINKOPTS}
       )
+      target_link_options(${_NAME} PRIVATE ${ABSL_DEFAULT_LINKOPTS})
     else()
       message(FATAL_ERROR "Invalid build type: ${_build_type}")
     endif()
@@ -337,8 +341,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     target_link_libraries(${_NAME}
       INTERFACE
         ${ABSL_CC_LIB_DEPS}
-        ${ABSL_CC_LIB_LINKOPTS}
-        ${ABSL_DEFAULT_LINKOPTS}
+        ${_ABSL_CC_LIB_LINKOPTS}
     )
     target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
 
