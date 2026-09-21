@@ -416,8 +416,7 @@
 //
 // Tells the compiler to warn about unused results.
 //
-// For code or headers that are assured to only build with C++17 and up, prefer
-// just using the standard `[[nodiscard]]` directly over this macro.
+// Deprecated: Use the standard C++17 `[[nodiscard]]` instead.
 //
 // When annotating a function, it must appear as the first part of the
 // declaration or definition. The compiler will warn if the return value from
@@ -439,20 +438,10 @@
 //
 //   Sprocket* SprocketPointer();
 //   SprocketPointer();  // Does *not* trigger a warning.
-//
-// ABSL_MUST_USE_RESULT allows using cast-to-void to suppress the unused result
-// warning. For that, warn_unused_result is used only for clang but not for gcc.
-// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
-//
-// Note: past advice was to place the macro after the argument list.
-//
-// TODO(b/176172494): Use ABSL_HAVE_CPP_ATTRIBUTE(nodiscard) when all code is
-// compliant with the stricter [[nodiscard]].
-#if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(warn_unused_result)
-#define ABSL_MUST_USE_RESULT __attribute__((warn_unused_result))
-#else
-#define ABSL_MUST_USE_RESULT
+#ifdef ABSL_MUST_USE_RESULT
+#error "ABSL_MUST_USE_RESULT should not be defined."
 #endif
+#define ABSL_MUST_USE_RESULT [[nodiscard]]
 
 // ABSL_ATTRIBUTE_HOT, ABSL_ATTRIBUTE_COLD
 //
