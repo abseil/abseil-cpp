@@ -1026,6 +1026,14 @@ ABSL_ATTRIBUTE_NOINLINE void ReportSingleGroupTableGrowthToInfoz(
                           /*distance_from_desired=*/0);
 }
 
+// Outlines cold infoz recording so callers do not inline infoz extraction
+// or spill registers across SetCtrl. `common` is first and `hash` is third to
+// match argument order in callers.
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void RecordInsertMissCold(
+    CommonFields& common, size_t probe_length, size_t hash) {
+  common.infoz().RecordInsertMiss(hash, probe_length);
+}
+
 ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(CommonFields& common,
                                                  HashtablezInfoHandle infoz,
                                                  size_t hash,
@@ -1819,11 +1827,14 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
   if (common.capacity() == 1) {
     if (common.empty()) {
       IncrementSmallSizeNonSoo(common, policy);
+      // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
+      void* res = common.slot_array(/*capacity=*/1);
+      // Call NOINLINE function to move infoz instructions out of line.
       if (common.has_infoz()) {
-        common.infoz().RecordInsertMiss(get_hash(common.seed().seed()),
-                                        /*distance_from_desired=*/0);
+        RecordInsertMissCold(common, /*probe_length=*/0,
+                             get_hash(common.seed().seed()));
       }
-      return common.slot_array(/*capacity=*/1);
+      return res;
     } else {
       return Grow1To3AndPrepareInsert(common, policy, get_hash);
     }
@@ -1949,9 +1960,14 @@ void* PrepareInsertLargeSlow(CommonFields& common,
   FindInfo target = find_first_non_full(common, hash);
   PrepareInsertCommon(common);
   common.OverwriteControlAsFull(common.control()[target.offset]);
+  // Compute before `SetCtrl*` to avoid reloading `control_`.
+  void* res =
+      SlotAddress(common.slot_array(cap), target.offset, policy.slot_size);
   SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
-  common.infoz().RecordInsertMiss(hash, target.probe_length);
-  return SlotAddress(common.slot_array(cap), target.offset, policy.slot_size);
+  if (common.has_infoz()) {
+    RecordInsertMissCold(common, target.probe_length, hash);
+  }
+  return res;
 }
 
 // Resizes empty non-allocated SOO table to NextCapacity(SooCapacity()),
@@ -1971,11 +1987,15 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
   PrepareInsertCommon(common);
   common.OverwriteEmptyAsFull();
   const size_t new_hash = get_hash(common.seed().seed());
+  // Compute before `SetCtrl*` to avoid reloading `control_`.
+  void* res = SlotAddress(common.slot_array(kNewCapacity), SooSlotIndex(),
+                          policy.slot_size);
   SetCtrlInSingleGroupTable(common, SooSlotIndex(), H2(new_hash),
                             policy.slot_size);
-  common.infoz().RecordInsertMiss(new_hash, /*distance_from_desired=*/0);
-  return SlotAddress(common.slot_array(kNewCapacity), SooSlotIndex(),
-                     policy.slot_size);
+  if (common.has_infoz()) {
+    RecordInsertMissCold(common, /*probe_length=*/0, new_hash);
+  }
+  return res;
 }
 
 // Returns the number of elements to block for the given capacity and reserved
@@ -2340,10 +2360,15 @@ void* PrepareInsertLargeImpl(CommonFields& common,
   ABSL_ASSUME(cap > kMaxSmallCapacity);
   target_group.offset += mask_empty.LowestBitSet();
   target_group.offset &= cap;
+  // Compute before `SetCtrl` to avoid reloading `control_`.
+  void* res = SlotAddress(common.slot_array(cap), target_group.offset,
+                          policy.slot_size);
   SetCtrl(common, target_group.offset, H2(hash), policy.slot_size);
-  common.infoz().RecordInsertMiss(hash, target_group.probe_length);
-  return SlotAddress(common.slot_array(cap), target_group.offset,
-                     policy.slot_size);
+  // Call NOINLINE function to move infoz instructions out of line.
+  if (common.has_infoz()) {
+    RecordInsertMissCold(common, target_group.probe_length, hash);
+  }
+  return res;
 }
 }  // namespace
 
