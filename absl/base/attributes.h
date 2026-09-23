@@ -563,12 +563,10 @@
 // Due to differences in positioning requirements between the old, compiler
 // specific __attribute__ syntax and the now standard `[[maybe_unused]]`, this
 // macro does not attempt to take advantage of `[[maybe_unused]]`.
-#if ABSL_HAVE_ATTRIBUTE(unused) || (defined(__GNUC__) && !defined(__clang__))
-#undef ABSL_ATTRIBUTE_UNUSED
-#define ABSL_ATTRIBUTE_UNUSED __attribute__((__unused__))
-#else
-#define ABSL_ATTRIBUTE_UNUSED
+#ifdef ABSL_ATTRIBUTE_UNUSED
+#error "ABSL_ATTRIBUTE_UNUSED should not be defined."
 #endif
+#define ABSL_ATTRIBUTE_UNUSED [[maybe_unused]]
 
 // ABSL_ATTRIBUTE_INITIAL_EXEC
 //
