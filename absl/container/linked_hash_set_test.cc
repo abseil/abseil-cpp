@@ -851,6 +851,101 @@ TEST(LinkedHashSet, ExtractAndEmplaceUseSameStatefulAllocator) {
       << "extract(key) failed to use the same allocator";
 }
 
+// Move-assigning with an unequal, non-propagating allocator must move each
+// element into a node allocated with the destination's allocator and rebuild
+// the index over those nodes. Previously the index kept pointing at the
+// source's nodes, which the source then freed, so the first lookup read freed
+// memory (heap-use-after-free).
+TEST(LinkedHashSet, MoveAssignWithUnequalNonPropagatingAllocator) {
+  using Alloc = absl::container_internal::CountingAllocator<int>;
+  int64_t bytes_used_a = 0;
+  int64_t bytes_used_b = 0;
+  Alloc alloc_a(&bytes_used_a);
+  Alloc alloc_b(&bytes_used_b);
+  ASSERT_NE(alloc_a, alloc_b);
+  using Set = linked_hash_set<int, linked_hash_set<int>::hasher,
+                              std::equal_to<>, Alloc>;
+
+  Set a(alloc_a);
+  a.insert(11);
+  a.insert(22);
+  a.insert(33);
+
+  // Move-assign into an empty set.
+  Set b(alloc_b);
+  b = std::move(a);
+  EXPECT_EQ(b.size(), 3);
+  EXPECT_TRUE(b.contains(11));
+  EXPECT_TRUE(b.contains(22));
+  EXPECT_TRUE(b.contains(33));
+  EXPECT_FALSE(b.contains(44));
+  auto found = b.find(22);
+  ASSERT_NE(found, b.end());
+  EXPECT_EQ(*found, 22);
+  EXPECT_THAT(b, ElementsAre(11, 22, 33));
+  EXPECT_EQ(b.erase(22), 1);
+  EXPECT_THAT(b, ElementsAre(11, 33));
+  EXPECT_TRUE(a.empty());
+  EXPECT_EQ(a.size(), 0);
+
+  // Move-assign into a non-empty set: the old elements must be gone.
+  Set c(alloc_b);
+  c.insert(1);
+  c.insert(2);
+  a.insert(44);
+  a.insert(55);
+  c = std::move(a);
+  EXPECT_EQ(c.size(), 2);
+  EXPECT_THAT(c, ElementsAre(44, 55));
+  EXPECT_FALSE(c.contains(1));
+  EXPECT_FALSE(c.contains(2));
+  EXPECT_TRUE(a.empty());
+  EXPECT_EQ(a.size(), 0);
+}
+
+// Move-assigning with equal allocators must keep taking over the source's
+// nodes (and its index) without allocating.
+TEST(LinkedHashSet, MoveAssignWithEqualAllocatorTakesOverNodes) {
+  using Alloc = absl::container_internal::CountingAllocator<int>;
+  int64_t bytes_used = 0;
+  Alloc alloc(&bytes_used);
+  using Set = linked_hash_set<int, linked_hash_set<int>::hasher,
+                              std::equal_to<>, Alloc>;
+
+  Set a(alloc);
+  a.insert(11);
+  a.insert(22);
+  Set b(alloc);
+  const int64_t bytes_used_before = bytes_used;
+  b = std::move(a);
+  EXPECT_EQ(bytes_used, bytes_used_before);
+  EXPECT_THAT(b, ElementsAre(11, 22));
+  EXPECT_TRUE(a.empty());
+}
+
+// Move-assigning with an allocator that propagates on move assignment must
+// propagate the allocator, even when the allocators are unequal.
+TEST(LinkedHashSet, MoveAssignWithPropagatingAllocatorPropagates) {
+  using Alloc =
+      absl::container_internal::MoveAssignPropagatingCountingAlloc<int>;
+  int64_t bytes_used_a = 0;
+  int64_t bytes_used_b = 0;
+  Alloc alloc_a(&bytes_used_a);
+  Alloc alloc_b(&bytes_used_b);
+  ASSERT_NE(alloc_a, alloc_b);
+  using Set = linked_hash_set<int, linked_hash_set<int>::hasher,
+                              std::equal_to<>, Alloc>;
+
+  Set a(alloc_a);
+  a.insert(11);
+  a.insert(22);
+  Set b(alloc_b);
+  b = std::move(a);
+  EXPECT_EQ(b.get_allocator(), alloc_a);
+  EXPECT_THAT(b, ElementsAre(11, 22));
+  EXPECT_TRUE(a.empty());
+}
+
 TEST(LinkedHashSet, Merge) {
   linked_hash_set<int> m = {1, 7, 3, 6, 10};
   linked_hash_set<int> src = {1, 2, 9, 10, 4, 16};
