@@ -339,7 +339,8 @@ class FlagSaverImpl {
 
 }  // namespace flags_internal
 
-FlagSaver::FlagSaver() : impl_(new flags_internal::FlagSaverImpl) {
+FlagSaver::FlagSaver()
+    : impl_(std::make_unique<flags_internal::FlagSaverImpl>()) {
   impl_->SaveFromRegistry();
 }
 
@@ -347,7 +348,6 @@ FlagSaver::~FlagSaver() {
   if (!impl_) return;
 
   std::move(*impl_).RestoreToRegistry();
-  delete impl_;
 }
 
 // --------------------------------------------------------------------

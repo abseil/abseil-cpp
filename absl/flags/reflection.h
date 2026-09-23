@@ -23,6 +23,7 @@
 #ifndef ABSL_FLAGS_REFLECTION_H_
 #define ABSL_FLAGS_REFLECTION_H_
 
+#include <memory>
 #include <string>
 
 #include "absl/base/config.h"
@@ -77,10 +78,10 @@ class FlagSaver {
   ~FlagSaver();
 
   FlagSaver(const FlagSaver&) = delete;
-  void operator=(const FlagSaver&) = delete;
+  FlagSaver& operator=(const FlagSaver&) = delete;
 
  private:
-  flags_internal::FlagSaverImpl* impl_;
+  std::unique_ptr<flags_internal::FlagSaverImpl> impl_;
 };
 
 //-----------------------------------------------------------------------------
