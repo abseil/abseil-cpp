@@ -28,6 +28,7 @@
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/commandlineflag.h"
@@ -352,7 +353,7 @@ FlagSaver::~FlagSaver() {
 
 // --------------------------------------------------------------------
 
-CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
+CommandLineFlag* absl_nullable FindCommandLineFlag(absl::string_view name) {
   if (name.empty()) return nullptr;
   flags_internal::FlagRegistry& registry =
       flags_internal::FlagRegistry::GlobalRegistry();
@@ -361,7 +362,8 @@ CommandLineFlag* FindCommandLineFlag(absl::string_view name) {
 
 // --------------------------------------------------------------------
 
-absl::flat_hash_map<absl::string_view, absl::CommandLineFlag*> GetAllFlags() {
+absl::flat_hash_map<absl::string_view, absl::CommandLineFlag* absl_nonnull>
+GetAllFlags() {
   absl::flat_hash_map<absl::string_view, absl::CommandLineFlag*> res;
   flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
     if (!flag.IsRetired()) res.insert({flag.Name(), &flag});
