@@ -1547,6 +1547,7 @@ TEST(Table, ReservedTableRehashWithoutGrowthWorksWell) {
   if (SwisstableGenerationsEnabled()) {
     GTEST_SKIP() << "Generations enabled, so rehash happening earlier.";
   }
+  DisableSampling();
   constexpr int64_t kCoef = 17;
   int retries = 0;
   for (size_t capacity = 31; capacity < 256;
@@ -1629,6 +1630,7 @@ TEST(Table,
                  << "Note that reservation doesn't prevent rehashing since we "
                     "are erasing one element.";
   }
+  DisableSampling();
   constexpr int64_t kCoef = 17;
   constexpr size_t kCapacity = 31;
   constexpr size_t kReserveSize =
@@ -5264,6 +5266,7 @@ TEST(Table, GrowExtremelyLargeTable) {
       NextCapacity(ProbedItem8Bytes::kMaxNewCapacity);
 #endif
 
+  DisableSampling();
   absl::flat_hash_set<UnalignedInt32, ZeroHash> t(21);
   CommonFields& common = RawHashSetTestOnlyAccess::GetCommon(t);
   // Set 0 seed so that H1 is always 0.
