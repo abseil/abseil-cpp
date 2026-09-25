@@ -2255,13 +2255,13 @@ void* GetRefForEmptyClass(CommonFields& common);
 //            at least one empty slot.
 void* PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
                          size_t hash, Group::NonIterableBitMaskType mask_empty,
-                         FindInfo target_group);
+                         size_t target_group_offset);
 
 // Same as above, but with generations enabled, we may end up changing the seed,
 // which means we need to be able to recompute the hash.
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
-    Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
+    Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
     absl::FunctionRef<size_t(size_t)> recompute_hash);
 
 template <typename Policy, typename Hash, typename Eq, typename Alloc>
@@ -3798,12 +3798,12 @@ class raw_hash_set {
         void* slot = SwisstableGenerationsEnabled()
                          ? PrepareInsertLargeGenerationsEnabled(
                                common(), GetPolicyFunctions(), hash, mask_empty,
-                               FindInfo{target_group_offset, seq.index()},
+                               target_group_offset,
                                HashKey<hasher, K, kIsAbslHash, kSeedShift>{
                                    hash_ref(), key})
                          : PrepareInsertLarge(
                                common(), GetPolicyFunctions(), hash, mask_empty,
-                               FindInfo{target_group_offset, seq.index()});
+                               target_group_offset);
         return {to_slot(slot), true};
       }
       seq.next();

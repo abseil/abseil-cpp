@@ -1008,9 +1008,9 @@ size_t FindNewPositionsAndTransferSlots(
   return total_probe_length;
 }
 
-void ReportGrowthToInfozImpl(CommonFields& common, HashtablezInfoHandle infoz,
-                             size_t hash, size_t total_probe_length,
-                             size_t distance_from_desired) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportGrowthToInfozImpl(
+    CommonFields& common, HashtablezInfoHandle infoz, size_t hash,
+    size_t total_probe_length, size_t distance_from_desired) {
   ABSL_SWISSTABLE_ASSERT(infoz.IsSampled());
   infoz.RecordStorageChanged(common.size() - 1, common.capacity());
   infoz.RecordRehash(total_probe_length);
@@ -1020,8 +1020,9 @@ void ReportGrowthToInfozImpl(CommonFields& common, HashtablezInfoHandle infoz,
 }
 
 // Specialization to avoid passing two 0s from hot function.
-ABSL_ATTRIBUTE_NOINLINE void ReportSingleGroupTableGrowthToInfoz(
-    CommonFields& common, HashtablezInfoHandle infoz, size_t hash) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ReportSingleGroupTableGrowthToInfoz(CommonFields& common,
+                                    HashtablezInfoHandle infoz, size_t hash) {
   ReportGrowthToInfozImpl(common, infoz, hash, /*total_probe_length=*/0,
                           /*distance_from_desired=*/0);
 }
@@ -1029,23 +1030,46 @@ ABSL_ATTRIBUTE_NOINLINE void ReportSingleGroupTableGrowthToInfoz(
 // Outlines cold infoz recording so callers do not inline infoz extraction
 // or spill registers across SetCtrl. `common` is first and `hash` is third to
 // match argument order in callers.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void RecordInsertMissCold(
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportInsertMissToInfoz(
     CommonFields& common, size_t probe_length, size_t hash) {
   common.infoz().RecordInsertMiss(hash, probe_length);
 }
 
-ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(CommonFields& common,
-                                                 HashtablezInfoHandle infoz,
-                                                 size_t hash,
-                                                 size_t total_probe_length,
-                                                 size_t distance_from_desired) {
+// Outlines cold infoz recording with computation of hash so callers can
+// avoid calling the hash function and seed extraction in the hot path.
+// `common` is first and `get_hash` is third to match argument order in callers.
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ReportInsertMissToInfozAndComputeHash(
+    CommonFields& common, size_t probe_length,
+    absl::FunctionRef<size_t(size_t)> get_hash) {
+  common.infoz().RecordInsertMiss(get_hash(common.seed().seed()), probe_length);
+}
+
+// Outlines cold infoz recording with computation of probe_length so callers can
+// skip tracking of probe_length. `common` is first and `hash` is third to match
+// argument order in callers.
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ReportInsertMissToInfozAndComputeProbeLength(CommonFields& common,
+                                             size_t target, size_t hash) {
+  const size_t cap = common.capacity();
+  auto seq = probe(ProbeCapacity{cap}, hash);
+  while (((target - seq.offset()) & cap) >= Group::kWidth) {
+    seq.next();
+    ABSL_SWISSTABLE_ASSERT(seq.index() < common.capacity());
+  }
+  common.infoz().RecordInsertMiss(hash, seq.index());
+}
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportGrowthToInfoz(
+    CommonFields& common, HashtablezInfoHandle infoz, size_t hash,
+    size_t total_probe_length, size_t distance_from_desired) {
   ReportGrowthToInfozImpl(common, infoz, hash, total_probe_length,
                           distance_from_desired);
 }
 
-ABSL_ATTRIBUTE_NOINLINE void ReportResizeToInfoz(CommonFields& common,
-                                                 HashtablezInfoHandle infoz,
-                                                 size_t total_probe_length) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportResizeToInfoz(
+    CommonFields& common, HashtablezInfoHandle infoz,
+    size_t total_probe_length) {
   ABSL_SWISSTABLE_ASSERT(infoz.IsSampled());
   infoz.RecordStorageChanged(common.size(), common.capacity());
   infoz.RecordRehash(total_probe_length);
@@ -1831,8 +1855,8 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
       void* res = common.slot_array(/*capacity=*/1);
       // Call NOINLINE function to move infoz instructions out of line.
       if (common.has_infoz()) {
-        RecordInsertMissCold(common, /*probe_length=*/0,
-                             get_hash(common.seed().seed()));
+        ReportInsertMissToInfozAndComputeHash(common, /*probe_length=*/0,
+                                              get_hash);
       }
       return res;
     } else {
@@ -1965,7 +1989,7 @@ void* PrepareInsertLargeSlow(CommonFields& common,
       SlotAddress(common.slot_array(cap), target.offset, policy.slot_size);
   SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
   if (common.has_infoz()) {
-    RecordInsertMissCold(common, target.probe_length, hash);
+    ReportInsertMissToInfoz(common, target.probe_length, hash);
   }
   return res;
 }
@@ -1993,7 +2017,7 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
   SetCtrlInSingleGroupTable(common, SooSlotIndex(), H2(new_hash),
                             policy.slot_size);
   if (common.has_infoz()) {
-    RecordInsertMissCold(common, /*probe_length=*/0, new_hash);
+    ReportInsertMissToInfoz(common, /*probe_length=*/0, new_hash);
   }
   return res;
 }
@@ -2345,7 +2369,7 @@ void* PrepareInsertLargeImpl(CommonFields& common,
                              const PolicyFunctions& __restrict policy,
                              size_t hash,
                              Group::NonIterableBitMaskType mask_empty,
-                             FindInfo target_group) {
+                             size_t target_group_offset) {
   ABSL_SWISSTABLE_ASSERT(!common.is_small());
   // When there are no deleted slots in the table
   // and growth_left is positive, we can insert at the first
@@ -2358,15 +2382,17 @@ void* PrepareInsertLargeImpl(CommonFields& common,
   common.OverwriteEmptyAsFull();
   const size_t cap = common.capacity();
   ABSL_ASSUME(cap > kMaxSmallCapacity);
-  target_group.offset += mask_empty.LowestBitSet();
-  target_group.offset &= cap;
+  target_group_offset += mask_empty.LowestBitSet();
+  target_group_offset &= cap;
   // Compute before `SetCtrl` to avoid reloading `control_`.
-  void* res = SlotAddress(common.slot_array(cap), target_group.offset,
+  void* res = SlotAddress(common.slot_array(cap), target_group_offset,
                           policy.slot_size);
-  SetCtrl(common, target_group.offset, H2(hash), policy.slot_size);
+  const bool hash_infoz = common.has_infoz();
+  SetCtrl(common, target_group_offset, H2(hash), policy.slot_size);
   // Call NOINLINE function to move infoz instructions out of line.
-  if (common.has_infoz()) {
-    RecordInsertMissCold(common, target_group.probe_length, hash);
+  if (hash_infoz) {
+    ReportInsertMissToInfozAndComputeProbeLength(common, target_group_offset,
+                                                 hash);
   }
   return res;
 }
@@ -2375,15 +2401,16 @@ void* PrepareInsertLargeImpl(CommonFields& common,
 void* PrepareInsertLarge(CommonFields& common,
                          const PolicyFunctions& __restrict policy, size_t hash,
                          Group::NonIterableBitMaskType mask_empty,
-                         FindInfo target_group) {
+                         size_t target_group_offset) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(!SwisstableGenerationsEnabled());
-  return PrepareInsertLargeImpl(common, policy, hash, mask_empty, target_group);
+  return PrepareInsertLargeImpl(common, policy, hash, mask_empty,
+                                target_group_offset);
 }
 
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& __restrict policy, size_t hash,
-    Group::NonIterableBitMaskType mask_empty, FindInfo target_group,
+    Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
     absl::FunctionRef<size_t(size_t)> recompute_hash) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
@@ -2395,10 +2422,13 @@ void* PrepareInsertLargeGenerationsEnabled(
     // Move to a different heap allocation in order to detect bugs.
     ResizeAllocatedTableWithSeedChange(common, policy, cap);
     hash = recompute_hash(common.seed().seed());
+    FindInfo target_group;
     std::tie(target_group, mask_empty) =
         find_first_non_full_group(common, hash);
+    target_group_offset = target_group.offset;
   }
-  return PrepareInsertLargeImpl(common, policy, hash, mask_empty, target_group);
+  return PrepareInsertLargeImpl(common, policy, hash, mask_empty,
+                                target_group_offset);
 }
 
 namespace {
