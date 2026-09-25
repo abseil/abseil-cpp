@@ -36,6 +36,10 @@ std::unique_ptr<FlagStateInterface> PrivateHandleAccessor::SaveState(
   return flag.SaveState();
 }
 
+void PrivateHandleAccessor::RestoreToInitialState(CommandLineFlag& flag) {
+  flag.RestoreToInitialState();
+}
+
 bool PrivateHandleAccessor::IsSpecifiedOnCommandLine(
     const CommandLineFlag& flag) {
   return flag.IsSpecifiedOnCommandLine();
