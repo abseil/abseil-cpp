@@ -36,7 +36,6 @@
 #ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
 
 #include <algorithm>
-#include <array>
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
@@ -92,11 +91,13 @@ class Vec {
   }
 
   bool empty() const { return size_ == 0; }
-  uint32_t size() const { return size_; }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint32_t size() const { return size_; }
   T* begin() { return ptr_; }
   T* end() { return ptr_ + size_; }
-  const T& operator[](uint32_t i) const { return ptr_[i]; }
-  T& operator[](uint32_t i) { return ptr_[i]; }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE const T& operator[](uint32_t i) const {
+    return ptr_[i];
+  }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE T& operator[](uint32_t i) { return ptr_[i]; }
   const T& back() const { return ptr_[size_ - 1]; }
   void pop_back() { size_--; }
 
@@ -172,7 +173,9 @@ class NodeSet {
   NodeSet() { Init(); }
 
   void clear() { Init(); }
-  bool contains(int32_t v) const { return table_[FindIndex(v)] == v; }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool contains(int32_t v) const {
+    return table_[FindIndex(v)] == v;
+  }
 
   bool insert(int32_t v) {
     uint32_t i = FindIndex(v);
@@ -202,7 +205,7 @@ class NodeSet {
   //    HASH_FOR_EACH(elem, node->out) { ... }
 #define HASH_FOR_EACH(elem, eset) \
   for (int32_t elem, _cursor = 0; (eset).Next(&_cursor, &elem);)
-  bool Next(int32_t* cursor, int32_t* elem) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Next(int32_t* cursor, int32_t* elem) {
     while (static_cast<uint32_t>(*cursor) < table_.size()) {
       int32_t v = table_[static_cast<uint32_t>(*cursor)];
       (*cursor)++;
@@ -219,10 +222,12 @@ class NodeSet {
   Vec<int32_t> table_;
   uint32_t occupied_;  // Count of non-empty slots (includes deleted slots)
 
-  static uint32_t Hash(int32_t a) { return static_cast<uint32_t>(a) * 41; }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static uint32_t Hash(int32_t a) {
+    return static_cast<uint32_t>(a) * 41;
+  }
 
   // Return index for storing v.  May return an empty index or deleted index
-  uint32_t FindIndex(int32_t v) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint32_t FindIndex(int32_t v) const {
     // Search starting at hash index.
     const uint32_t mask = table_.size() - 1;
     uint32_t i = Hash(v) & mask;
@@ -271,16 +276,19 @@ class NodeSet {
 // number is incremented when the GraphId is freed which automatically
 // invalidates all copies of the GraphId.
 
-inline GraphId MakeId(int32_t index, uint32_t version) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline GraphId MakeId(int32_t index,
+                                                   uint32_t version) {
   GraphId g;
   g.handle =
       (static_cast<uint64_t>(version) << 32) | static_cast<uint32_t>(index);
   return g;
 }
 
-inline int32_t NodeIndex(GraphId id) { return static_cast<int32_t>(id.handle); }
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int32_t NodeIndex(GraphId id) {
+  return static_cast<int32_t>(id.handle);
+}
 
-inline uint32_t NodeVersion(GraphId id) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint32_t NodeVersion(GraphId id) {
   return static_cast<uint32_t>(id.handle >> 32);
 }
 
@@ -289,7 +297,6 @@ struct Node {
   int32_t prev_slot;     // Slot with the next lower rank, or -1 if none
   int32_t next_slot;     // Slot with the next higher rank, or -1 if none
   uint32_t version;      // Current version number
-  int32_t next_hash;     // Next entry in hash table
   bool visited;          // Temporary marker used by depth-first-search
   uintptr_t masked_ptr;  // User-supplied pointer
   NodeSet in;            // List of immediate predecessor nodes in graph
@@ -299,56 +306,119 @@ struct Node {
   void* stack[40];       // stack[0,nstack-1] holds stack trace for node.
 };
 
-// Hash table for pointer to node index lookups.
+// Hash table for pointer to GraphId lookups.
 class PointerMap {
  public:
-  explicit PointerMap(const Vec<Node*>* nodes) : nodes_(nodes) {
-    table_.fill(-1);
-  }
+  PointerMap() { Init(kInitialCapacity); }
+  ~PointerMap() { base_internal::LowLevelAlloc::Free(table_); }
 
-  int32_t Find(void* ptr) {
-    auto masked = base_internal::HidePtr(ptr);
-    for (int32_t i = table_[Hash(ptr)]; i != -1;) {
-      Node* n = (*nodes_)[static_cast<uint32_t>(i)];
-      if (n->masked_ptr == masked) return i;
-      i = n->next_hash;
+  ABSL_ATTRIBUTE_ALWAYS_INLINE GraphId Find(void* ptr) const {
+    const uintptr_t masked = base_internal::HidePtr(ptr);
+    const uint32_t mask = capacity_ - 1;
+    uint32_t i = Hash(masked) & mask;
+    while (true) {
+      const Entry& e = table_[i];
+      if (e.id.handle == kEmptyHandle) return InvalidGraphId();
+      if (e.id.handle != kDelHandle && e.masked_ptr == masked) return e.id;
+      i = (i + 1) & mask;
     }
-    return -1;
   }
 
-  void Add(void* ptr, int32_t i) {
-    int32_t* head = &table_[Hash(ptr)];
-    (*nodes_)[static_cast<uint32_t>(i)]->next_hash = *head;
-    *head = i;
+  void Add(void* ptr, GraphId id) {
+    if (occupied_ >= capacity_ - capacity_ / 4) {
+      Rehash(live_ >= capacity_ / 2 ? capacity_ * 2 : capacity_);
+    }
+    const uintptr_t masked = base_internal::HidePtr(ptr);
+    const uint32_t mask = capacity_ - 1;
+    uint32_t i = Hash(masked) & mask;
+    while (table_[i].id.handle != kEmptyHandle &&
+           table_[i].id.handle != kDelHandle) {
+      i = (i + 1) & mask;
+    }
+    if (table_[i].id.handle == kEmptyHandle) {
+      occupied_++;
+    }
+    live_++;
+    table_[i].masked_ptr = masked;
+    table_[i].id = id;
   }
 
   int32_t Remove(void* ptr) {
-    // Advance through linked list while keeping track of the
-    // predecessor slot that points to the current entry.
-    auto masked = base_internal::HidePtr(ptr);
-    for (int32_t* slot = &table_[Hash(ptr)]; *slot != -1;) {
-      int32_t index = *slot;
-      Node* n = (*nodes_)[static_cast<uint32_t>(index)];
-      if (n->masked_ptr == masked) {
-        *slot = n->next_hash;  // Remove n from linked list
-        n->next_hash = -1;
+    const uintptr_t masked = base_internal::HidePtr(ptr);
+    const uint32_t mask = capacity_ - 1;
+    uint32_t i = Hash(masked) & mask;
+    while (true) {
+      Entry& e = table_[i];
+      if (e.id.handle == kEmptyHandle) return -1;
+      if (e.id.handle != kDelHandle && e.masked_ptr == masked) {
+        const int32_t index = NodeIndex(e.id);
+        live_--;
+        if (table_[(i + 1) & mask].id.handle == kEmptyHandle) {
+          e.id.handle = kEmptyHandle;
+          occupied_--;
+        } else {
+          e.id.handle = kDelHandle;
+        }
         return index;
       }
-      slot = &n->next_hash;
+      i = (i + 1) & mask;
     }
-    return -1;
   }
 
  private:
-  // Number of buckets in hash table for pointer lookups.
-  static constexpr uint32_t kHashTableSize = 262139;  // should be prime
+  static constexpr uint32_t kInitialCapacity = 1024;
+  static constexpr uint64_t kEmptyHandle = 0;
+  static constexpr uint64_t kDelHandle = 1;
 
-  const Vec<Node*>* nodes_;
-  std::array<int32_t, kHashTableSize> table_;
+  struct Entry {
+    uintptr_t masked_ptr;
+    GraphId id;
+  };
 
-  static uint32_t Hash(void* ptr) {
-    return reinterpret_cast<uintptr_t>(ptr) % kHashTableSize;
+  Entry* table_;
+  uint32_t capacity_;
+  uint32_t occupied_;
+  uint32_t live_;
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static uint32_t Hash(uintptr_t masked) {
+    return static_cast<uint32_t>((masked * uint64_t{0x9e3779b97f4a7c15ULL}) >>
+                                 32);
   }
+
+  void Init(uint32_t capacity) {
+    capacity_ = capacity;
+    occupied_ = 0;
+    live_ = 0;
+    const size_t bytes = static_cast<size_t>(capacity) * sizeof(Entry);
+    table_ = static_cast<Entry*>(
+        base_internal::LowLevelAlloc::AllocWithArena(bytes, arena));
+    for (uint32_t i = 0; i < capacity; ++i) {
+      table_[i].id.handle = kEmptyHandle;
+    }
+  }
+
+  void Rehash(uint32_t new_capacity) {
+    Entry* old_table = table_;
+    const uint32_t old_capacity = capacity_;
+    Init(new_capacity);
+    const uint32_t mask = new_capacity - 1;
+    for (uint32_t j = 0; j < old_capacity; ++j) {
+      const Entry& old_e = old_table[j];
+      if (old_e.id.handle != kEmptyHandle && old_e.id.handle != kDelHandle) {
+        uint32_t i = Hash(old_e.masked_ptr) & mask;
+        while (table_[i].id.handle != kEmptyHandle) {
+          i = (i + 1) & mask;
+        }
+        table_[i] = old_e;
+        occupied_++;
+        live_++;
+      }
+    }
+    base_internal::LowLevelAlloc::Free(old_table);
+  }
+
+  PointerMap(const PointerMap&) = delete;
+  PointerMap& operator=(const PointerMap&) = delete;
 };
 
 }  // namespace
@@ -400,11 +470,10 @@ struct GraphCycles::Rep {
   Vec<int64_t> sorted_ranks;
   Vec<int32_t> old_prev_slots;
   Vec<int32_t> old_next_slots;
-
-  Rep() : ptrmap_(&nodes_) {}
 };
 
-static Node* FindNode(GraphCycles::Rep* rep, GraphId id) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE static Node* FindNode(GraphCycles::Rep* rep,
+                                                   GraphId id) {
   Node* n = rep->nodes_[static_cast<uint32_t>(NodeIndex(id))];
   return (n->version == NodeVersion(id)) ? n : nullptr;
 }
@@ -560,7 +629,8 @@ bool GraphCycles::CheckInvariants() const {
   for (uint32_t x = 0; x < r->nodes_.size(); x++) {
     Node* nx = r->nodes_[x];
     void* ptr = base_internal::UnhidePtr<void>(nx->masked_ptr);
-    if (ptr != nullptr && static_cast<uint32_t>(r->ptrmap_.Find(ptr)) != x) {
+    if (ptr != nullptr &&
+        r->ptrmap_.Find(ptr) != MakeId(static_cast<int32_t>(x), nx->version)) {
       ABSL_RAW_LOG(FATAL, "Did not find live node in hash table %" PRIu32 " %p",
                    x, ptr);
     }
@@ -609,9 +679,9 @@ bool GraphCycles::CheckInvariants() const {
 }
 
 GraphId GraphCycles::GetId(void* ptr) {
-  int32_t i = rep_->ptrmap_.Find(ptr);
-  if (i != -1) {
-    return MakeId(i, rep_->nodes_[static_cast<uint32_t>(i)]->version);
+  GraphId id = rep_->ptrmap_.Find(ptr);
+  if (id != InvalidGraphId()) {
+    return id;
   } else if (rep_->free_nodes_.empty()) {
     const int32_t slot = static_cast<int32_t>(rep_->nodes_.size());
     Node* n =
@@ -624,8 +694,9 @@ GraphId GraphCycles::GetId(void* ptr) {
     n->priority = 0;
     rep_->nodes_.push_back(n);
     LinkBetween(rep_, slot, rep_->highest_slot, /*next_slot=*/-1);
-    rep_->ptrmap_.Add(ptr, slot);
-    return MakeId(slot, n->version);
+    GraphId new_id = MakeId(slot, n->version);
+    rep_->ptrmap_.Add(ptr, new_id);
+    return new_id;
   } else {
     // The slot keeps its rank (see "Rank allocation").
     int32_t slot = rep_->free_nodes_.back();
@@ -634,8 +705,9 @@ GraphId GraphCycles::GetId(void* ptr) {
     n->masked_ptr = base_internal::HidePtr(ptr);
     n->nstack = 0;
     n->priority = 0;
-    rep_->ptrmap_.Add(ptr, slot);
-    return MakeId(slot, n->version);
+    GraphId new_id = MakeId(slot, n->version);
+    rep_->ptrmap_.Add(ptr, new_id);
+    return new_id;
   }
 }
 
@@ -656,6 +728,7 @@ void GraphCycles::RemoveNode(void* ptr) {
   x->masked_ptr = base_internal::HidePtr<void>(nullptr);
   if (x->version == std::numeric_limits<uint32_t>::max()) {
     // Cannot use x any more
+    x->version = 0;
   } else {
     x->version++;  // Invalidates all copies of node.
     rep_->free_nodes_.push_back(i);
@@ -890,7 +963,7 @@ static void Reorder(GraphCycles::Rep* r) {
 static void Sort(const Vec<Node*>& nodes, Vec<int32_t>* delta) {
   struct ByRank {
     const Vec<Node*>* nodes;
-    bool operator()(int32_t a, int32_t b) const {
+    ABSL_ATTRIBUTE_ALWAYS_INLINE bool operator()(int32_t a, int32_t b) const {
       return (*nodes)[static_cast<uint32_t>(a)]->rank <
              (*nodes)[static_cast<uint32_t>(b)]->rank;
     }
