@@ -34,5 +34,9 @@ void InitializeLogImpl(absl::TimeZone time_zone) {
 
 void InitializeLog() { InitializeLogImpl(absl::LocalTimeZone()); }
 
+bool LogIsInitialized() {
+  return absl::log_internal::IsInitialized();
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl
