@@ -254,12 +254,40 @@ class linked_hash_set {
     return *this;
   }
 
-  linked_hash_set& operator=(linked_hash_set&& other) noexcept {
+  linked_hash_set& operator=(linked_hash_set&& other) noexcept(
+      std::allocator_traits<Alloc>::is_always_equal::value &&
+      std::is_nothrow_move_assignable<hasher>::value &&
+      std::is_nothrow_move_assignable<key_equal>::value) {
     if (this != &other) {
-      set_ = std::move(other.set_);
-      list_ = std::move(other.list_);
-      other.set_.clear();
-      other.list_.clear();
+      using AllocTraits = std::allocator_traits<Alloc>;
+      if constexpr (AllocTraits::propagate_on_container_move_assignment::
+                        value) {
+        set_ = std::move(other.set_);
+        list_ = std::move(other.list_);
+        other.set_.clear();
+        other.list_.clear();
+      } else if (get_allocator() == other.get_allocator()) {
+        // The allocators are equal, so the list can take over other's nodes.
+        // std::list's move assignment can not be used here: with an allocator
+        // that does not propagate on move assignment it element-assigns, which
+        // is ill-formed for value types that are not assignable, such as
+        // linked_hash_map's std::pair<const K, V>.
+        clear();
+        set_ = std::move(other.set_);
+        list_.splice(list_.end(), other.list_);
+        other.set_.clear();
+      } else {
+        // The list can not take over other's nodes, so move each element into
+        // a new node allocated with this set's allocator and rebuild the index
+        // over them, adopting other's hash and equality state. This is the
+        // same pattern as raw_hash_set::move_assign.
+        clear();
+        set_ = SetType(0, other.set_.hash_function(), other.set_.key_eq(),
+                       get_allocator());
+        CopyFrom(std::move(other));
+        other.set_.clear();
+        other.list_.clear();
+      }
     }
     return *this;
   }
