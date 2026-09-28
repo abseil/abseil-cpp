@@ -59,11 +59,17 @@ const char kStrippedFlagHelp[] = "\001\002\003\004 (unknown) \004\003\002\001";
 namespace {
 
 // Currently we only validate flag values for user-defined flag types.
-bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
-#define DONT_VALIDATE(T, _) \
+bool ShouldValidateFlagValue(FlagOpFn op) {
+#define DONT_VALIDATE_OP(T, _) \
+  if (op == &FlagOps<T>) return false;
+  ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(DONT_VALIDATE_OP)
+#undef DONT_VALIDATE_OP
+
+  FlagFastTypeId flag_type_id = flags_internal::FastTypeId(op);
+#define DONT_VALIDATE_ID(T, _) \
   if (flag_type_id == absl::FastTypeId<T>()) return false;
-  ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(DONT_VALIDATE)
-#undef DONT_VALIDATE
+  ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(DONT_VALIDATE_ID)
+#undef DONT_VALIDATE_ID
 
   return true;
 }
@@ -104,6 +110,11 @@ void AddToFreelist(void* p) {
   s_freelist->push_back(p);
 }
 
+struct DynamicDefault {
+  void* value;
+  FlagDefaultSrc initial_default;
+};
+
 }  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -129,15 +140,7 @@ class FlagState : public flags_internal::FlagStateInterface {
         on_command_line_(on_command_line),
         counter_(counter) {}
 
-  FlagState(FlagImpl& flag_impl, FlagDefaultSrc default_value)
-      : flag_impl_(flag_impl),
-        value_(default_value),
-        modified_(false),
-        on_command_line_(false),
-        counter_(-1) {}
-
   ~FlagState() override {
-    if (counter_ < 0) return;
     if (flag_impl_.ValueStorageKind() != FlagValueStorageKind::kHeapAllocated &&
         flag_impl_.ValueStorageKind() != FlagValueStorageKind::kSequenceLocked)
       return;
@@ -161,11 +164,9 @@ class FlagState : public flags_internal::FlagStateInterface {
   union SavedValue {
     explicit SavedValue(void* v) : heap_allocated(v) {}
     explicit SavedValue(int64_t v) : one_word(v) {}
-    explicit SavedValue(FlagDefaultSrc v) : default_value(v) {}
 
     void* heap_allocated;
     int64_t one_word;
-    FlagDefaultSrc default_value;
   } value_;
   bool modified_;
   bool on_command_line_;
@@ -296,7 +297,9 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   switch (DefaultKind()) {
     case FlagDefaultKind::kDynamicValue:
-      res = flags_internal::Clone(op_, default_value_.dynamic_value);
+      res = flags_internal::Clone(
+          op_, static_cast<const DynamicDefault*>(default_value_.dynamic_value)
+                   ->value);
       break;
     case FlagDefaultKind::kGenFunc:
       res = flags_internal::Alloc(op_);
@@ -374,6 +377,7 @@ int64_t FlagImpl::ModificationCount() const {
 }
 
 bool FlagImpl::IsSpecifiedOnCommandLine() const {
+  if (ABSL_PREDICT_TRUE(seq_lock_.IsUnmodified())) return false;
   absl::MutexLock l(DataGuard());
   return on_command_line_;
 }
@@ -464,14 +468,14 @@ bool FlagImpl::CanSkipInitOnSave() const {
     case FlagValueStorageKind::kHeapAllocated:
       // Built-in types have side-effect-free defaults; user-defined types may
       // have custom construction or validation side effects.
-      return !ShouldValidateFlagValue(flags_internal::FastTypeId(op_));
+      return !ShouldValidateFlagValue(op_);
   }
   return false;
 }
 
 std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   if (ABSL_PREDICT_TRUE(CanSkipInitOnSave())) {
-    return std::make_unique<FlagState>(*this, default_value_);
+    return nullptr;
   }
 
   absl::MutexLock l(DataGuard());
@@ -506,11 +510,42 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
   return nullptr;
 }
 
-bool FlagImpl::RestoreState(const FlagState& flag_state) {
-  if (ABSL_PREDICT_TRUE(flag_state.counter_ < 0 && seq_lock_.IsUnmodified())) {
-    return false;
+void FlagImpl::RestoreToInitialState() {
+  if (ABSL_PREDICT_TRUE(seq_lock_.IsUnmodified())) {
+    return;
   }
+  {
+    absl::MutexLock l(DataGuard());
+    if (ModificationCount() == 0) {
+      return;
+    }
+    const FlagDefaultSrc initial_default =
+        DefaultKind() == FlagDefaultKind::kDynamicValue
+            ? static_cast<const DynamicDefault*>(default_value_.dynamic_value)
+                  ->initial_default
+            : default_value_;
+    switch (ValueStorageKind()) {
+      case FlagValueStorageKind::kValueAndInitBit:
+      case FlagValueStorageKind::kOneWordAtomic:
+        StoreValue(&initial_default, kProgrammaticChange);
+        break;
+      case FlagValueStorageKind::kSequenceLocked:
+      case FlagValueStorageKind::kHeapAllocated: {
+        std::unique_ptr<void, DynValueDeleter> init_value(
+            flags_internal::Alloc(op_), DynValueDeleter{op_});
+        (*initial_default.gen_func)(init_value.get());
+        StoreValue(init_value.get(), kProgrammaticChange);
+        break;
+      }
+    }
+    modified_ = false;
+    on_command_line_ = false;
+  }
+  ABSL_INTERNAL_LOG(INFO, absl::StrCat("Restore saved value of ", Name(),
+                                       " to: ", CurrentValue()));
+}
 
+bool FlagImpl::RestoreState(const FlagState& flag_state) {
   absl::MutexLock l(DataGuard());
   if (flag_state.counter_ == ModificationCount()) {
     return false;
@@ -519,22 +554,11 @@ bool FlagImpl::RestoreState(const FlagState& flag_state) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic:
-      StoreValue(
-          flag_state.counter_ < 0
-              ? static_cast<const void*>(&flag_state.value_.default_value)
-              : static_cast<const void*>(&flag_state.value_.one_word),
-          kProgrammaticChange);
+      StoreValue(&flag_state.value_.one_word, kProgrammaticChange);
       break;
     case FlagValueStorageKind::kSequenceLocked:
     case FlagValueStorageKind::kHeapAllocated:
-      if (flag_state.counter_ < 0) {
-        std::unique_ptr<void, DynValueDeleter> init_value(
-            flags_internal::Alloc(op_), DynValueDeleter{op_});
-        (*flag_state.value_.default_value.gen_func)(init_value.get());
-        StoreValue(init_value.get(), kProgrammaticChange);
-      } else {
-        StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
-      }
+      StoreValue(flag_state.value_.heap_allocated, kProgrammaticChange);
       break;
   }
 
@@ -652,7 +676,7 @@ void FlagImpl::ReadSequenceLockedData(void* dst) const {
 void FlagImpl::Write(const void* src) {
   absl::MutexLock l(DataGuard());
 
-  if (ShouldValidateFlagValue(flags_internal::FastTypeId(op_))) {
+  if (ShouldValidateFlagValue(op_)) {
     std::unique_ptr<void, DynValueDeleter> obj{flags_internal::Clone(op_, src),
                                                DynValueDeleter{op_}};
     std::string ignored_error;
@@ -713,17 +737,22 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
       if (!tentative_value) return false;
 
       if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-        void* old_value = default_value_.dynamic_value;
-        default_value_.dynamic_value = tentative_value.release();
+        auto* dyn = static_cast<DynamicDefault*>(default_value_.dynamic_value);
+        void* old_value = dyn->value;
+        dyn->value = tentative_value.release();
         tentative_value.reset(old_value);
       } else {
-        default_value_.dynamic_value = tentative_value.release();
+        default_value_.dynamic_value =
+            new DynamicDefault{tentative_value.release(), default_value_};
         def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case.
-        StoreValue(default_value_.dynamic_value, source);
+        StoreValue(
+            static_cast<const DynamicDefault*>(default_value_.dynamic_value)
+                ->value,
+            source);
         modified_ = false;
       }
       break;
@@ -734,11 +763,12 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
 }
 
 void FlagImpl::CheckDefaultValueParsingRoundtrip() const {
-  std::string v = DefaultValue();
+  if (!ShouldValidateFlagValue(op_)) return;
 
   absl::MutexLock lock(DataGuard());
 
   auto dst = MakeInitValue();
+  std::string v = flags_internal::Unparse(op_, dst.get());
   std::string error;
   if (!flags_internal::Parse(op_, v, dst.get(), &error)) {
     ABSL_INTERNAL_LOG(

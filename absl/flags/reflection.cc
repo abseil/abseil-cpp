@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -319,24 +320,52 @@ class FlagSaverImpl {
   // It's an error to call this more than once.
   void SaveFromRegistry() {
     assert(backup_registry_.empty());  // call only once!
+    saved_finalized_ = FlagRegistry::GlobalRegistry().finalized_flags_.load(
+        std::memory_order_acquire);
     flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
       if (auto flag_state =
               flags_internal::PrivateHandleAccessor::SaveState(flag)) {
-        backup_registry_.emplace_back(std::move(flag_state));
+        backup_registry_.emplace_back(&flag, std::move(flag_state));
       }
     });
+    if (!saved_finalized_) {
+      std::sort(backup_registry_.begin(), backup_registry_.end(),
+                [](const auto& a, const auto& b) {
+                  return std::less<CommandLineFlag*>()(a.first, b.first);
+                });
+    }
   }
 
   // Restores the saved flag states into the flag registry.
   void RestoreToRegistry() && {
-    for (const auto& flag_state : backup_registry_) {
-      std::move(*flag_state).Restore();
-    }
+    size_t index = 0;
+    flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
+      if (saved_finalized_) {
+        if (index < backup_registry_.size() &&
+            backup_registry_[index].first == &flag) {
+          std::move(*backup_registry_[index++].second).Restore();
+          return;
+        }
+      } else {
+        auto it = std::partition_point(
+            backup_registry_.begin(), backup_registry_.end(),
+            [&](const auto& entry) {
+              return std::less<CommandLineFlag*>()(entry.first, &flag);
+            });
+        if (it != backup_registry_.end() && it->first == &flag) {
+          std::move(*it->second).Restore();
+          return;
+        }
+      }
+      flags_internal::PrivateHandleAccessor::RestoreToInitialState(flag);
+    });
   }
 
  private:
-  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
+  std::vector<std::pair<CommandLineFlag*,
+                        std::unique_ptr<flags_internal::FlagStateInterface>>>
       backup_registry_;
+  bool saved_finalized_ = false;
 };
 
 }  // namespace flags_internal
