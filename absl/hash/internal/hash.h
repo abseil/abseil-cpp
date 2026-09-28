@@ -1332,6 +1332,26 @@ inline uint64_t CombineContiguousImpl(
 #define ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_ 0
 #endif
 
+template <typename T, typename... Args>
+using InvokeResultOrVoid =
+    typename std::conditional_t<std::is_invocable_v<T, Args...>,
+                                std::invoke_result<T, Args...>,
+                                std::enable_if<true>>::type;
+
+template <typename State, typename T, typename = void>
+struct AbslHashValueResultOrVoid {
+  using type = void;
+};
+
+template <typename State, typename T>
+struct AbslHashValueResultOrVoid<
+    State, T,
+    std::void_t<decltype(AbslHashValue(std::declval<State>(),
+                                       std::declval<T&>()))>> {
+  using type =
+      decltype(AbslHashValue(std::declval<State>(), std::declval<T&>()));
+};
+
 // Type trait to select the appropriate hash implementation to use.
 // HashSelect::type<T> will give the proper hash implementation, to be invoked
 // as:
@@ -1341,13 +1361,6 @@ inline uint64_t CombineContiguousImpl(
 // `false`.
 struct HashSelect {
  private:
-  struct WeaklyMixedIntegerProbe {
-    template <typename H>
-    static H Invoke(H state, WeaklyMixedInteger value) {
-      return hash_internal::hash_weakly_mixed_integer(std::move(state), value);
-    }
-  };
-
   struct State : HashStateBase<State> {
     static State combine_contiguous(State hash_state, const unsigned char*,
                                     size_t);
@@ -1357,19 +1370,23 @@ struct HashSelect {
                                               WeaklyMixedInteger value);
   };
 
+  struct WeaklyMixedIntegerProbe {
+    template <typename H>
+    static H Invoke(H state, WeaklyMixedInteger value) {
+      return hash_internal::hash_weakly_mixed_integer(std::move(state), value);
+    }
+  };
+
   struct UniquelyRepresentedProbe {
     template <typename H, typename T>
-    static auto Invoke(H state, const T& value)
-        -> std::enable_if_t<is_uniquely_represented<T>::value, H> {
+    static H Invoke(H state, const T& value) {
       return hash_internal::hash_bytes(std::move(state), value);
     }
   };
 
   struct HashValueProbe {
     template <typename H, typename T>
-    static auto Invoke(H state, const T& value) -> std::enable_if_t<
-        std::is_same_v<H, decltype(AbslHashValue(std::move(state), value))>,
-        H> {
+    static H Invoke(H state, const T& value) {
       return AbslHashValue(std::move(state), value);
     }
   };
@@ -1377,11 +1394,7 @@ struct HashSelect {
   struct LegacyHashProbe {
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
     template <typename H, typename T>
-    static auto Invoke(H state, const T& value) -> std::enable_if_t<
-        std::is_convertible_v<
-            decltype(ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>()(value)),
-            size_t>,
-        H> {
+    static H Invoke(H state, const T& value) {
       return hash_internal::hash_bytes(
           std::move(state),
           ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>{}(value));
@@ -1391,41 +1404,39 @@ struct HashSelect {
 
   struct StdHashProbe {
     template <typename H, typename T>
-    static auto Invoke(H state, const T& value)
-        -> std::enable_if_t<type_traits_internal::IsHashable<T>::value, H> {
+    static H Invoke(H state, const T& value) {
       return hash_internal::hash_bytes(std::move(state), std::hash<T>{}(value));
     }
   };
 
-  template <typename Hash, typename T>
-  struct Probe : Hash {
-   private:
-    template <typename H, typename = decltype(H::Invoke(
-                              std::declval<State>(), std::declval<const T&>()))>
-    static std::true_type Test(int);
-    template <typename U>
-    static std::false_type Test(char);
-
-   public:
-    static constexpr bool value = decltype(Test<Hash>(0))::value;
-  };
-
  public:
-  // Probe each implementation in order.
-  // disjunction provides short circuiting wrt instantiation.
   template <typename T>
-  using Apply = std::disjunction<         //
-      Probe<WeaklyMixedIntegerProbe, T>,   //
-      Probe<UniquelyRepresentedProbe, T>,  //
-      Probe<HashValueProbe, T>,            //
-      Probe<LegacyHashProbe, T>,           //
-      Probe<StdHashProbe, T>,              //
-      std::false_type>;
+  static auto Apply() {
+    if constexpr (std::is_same_v<T, WeaklyMixedInteger>) {
+      return WeaklyMixedIntegerProbe();
+    } else if constexpr (is_uniquely_represented<T>::value) {
+      return UniquelyRepresentedProbe();
+    } else if constexpr (std::is_same_v<State,
+                                        typename AbslHashValueResultOrVoid<
+                                            State, const T&>::type>) {
+      return HashValueProbe();
+#if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
+    } else if constexpr (std::is_convertible_v<
+                             InvokeResultOrVoid<
+                                 ABSL_INTERNAL_LEGACY_HASH_NAMESPACE::hash<T>,
+                                 const T&>,
+                             size_t>) {
+      return LegacyHashProbe();
+#endif
+    } else if constexpr (type_traits_internal::IsHashable<T>::value) {
+      return StdHashProbe();
+    }
+  }
 };
 
 template <typename T>
-struct is_hashable : std::bool_constant<HashSelect::template Apply<T>::value> {
-};
+struct is_hashable
+    : std::is_class<decltype(HashSelect::Apply<absl::remove_cvref_t<T>>())> {};
 
 class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>
@@ -1646,7 +1657,7 @@ class TransparentHash : private TransparentHashBase<Ts...> {
 template <typename H>
 template <typename T, typename... Ts>
 H HashStateBase<H>::combine(H state, const T& value, const Ts&... values) {
-  return H::combine(hash_internal::HashSelect::template Apply<T>::Invoke(
+  return H::combine(decltype(hash_internal::HashSelect::Apply<T>())::Invoke(
                         std::move(state), value),
                     values...);
 }
