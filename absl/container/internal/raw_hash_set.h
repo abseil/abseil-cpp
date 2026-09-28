@@ -266,6 +266,20 @@ constexpr GenerationType NextGeneration(GenerationType generation) {
   return ++generation == SentinelEmptyGeneration() ? ++generation : generation;
 }
 
+#ifdef NDEBUG
+inline constexpr bool kIsDebug = false;
+#else
+inline constexpr bool kIsDebug = true;
+#endif
+
+constexpr bool SwisstableDebugEnabled() {
+#if defined(ABSL_SWISSTABLE_ENABLE_GENERATIONS) || ABSL_OPTION_HARDENED == 1
+  return true;
+#else
+  return kIsDebug;
+#endif
+}
+
 #ifdef ABSL_SWISSTABLE_ENABLE_GENERATIONS
 constexpr bool SwisstableGenerationsEnabled() { return true; }
 constexpr size_t NumGenerationBytes() { return sizeof(GenerationType); }
@@ -275,10 +289,11 @@ constexpr size_t NumGenerationBytes() { return 0; }
 #endif
 
 constexpr bool SwisstableGenerationsOrDebugEnabled() {
-#ifndef NDEBUG
-  return true;
-#endif
-  return SwisstableGenerationsEnabled();
+  if constexpr (kIsDebug) {
+    return true;
+  } else {
+    return SwisstableGenerationsEnabled();
+  }
 }
 
 template <typename AllocType>
@@ -1453,22 +1468,21 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // calls during element constructor/destructor.
   template <typename F>
   void RunWithReentrancyGuard(F f) {
-#ifdef NDEBUG
-    f();
-    return;
-#endif
-    const HashtableCapacity cap = maybe_invalid_capacity();
-    set_capacity(HashtableCapacity::CreateReentrance());
-    f();
-    set_capacity(cap);
+    if constexpr (!kIsDebug) {
+      f();
+    } else {
+      const HashtableCapacity cap = maybe_invalid_capacity();
+      set_capacity(HashtableCapacity::CreateReentrance());
+      f();
+      set_capacity(cap);
+    }
   }
 
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const {
-    if (!SwisstableGenerationsOrDebugEnabled()) {
-      return;
+    if constexpr (SwisstableGenerationsOrDebugEnabled()) {
+      AssertNotDebugCapacityImpl();
     }
-    AssertNotDebugCapacityImpl();
   }
 
  private:
@@ -1538,15 +1552,6 @@ size_t SelectReservationSizeForIterRange(InputIter first, InputIter last,
     return static_cast<size_t>(std::distance(first, last));
   }
   return 0;
-}
-
-constexpr bool SwisstableDebugEnabled() {
-#if defined(ABSL_SWISSTABLE_ENABLE_GENERATIONS) || \
-    ABSL_OPTION_HARDENED == 1 || !defined(NDEBUG)
-  return true;
-#else
-  return false;
-#endif
 }
 
 // Dereferences `ptr`. The function is named in order to provide a helpful error
@@ -3784,40 +3789,40 @@ class raw_hash_set {
   // meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
   template <class K>
   void AssertHashEqConsistent(const K& key) {
-#ifdef NDEBUG
-    return;
-#endif
-    // If the hash/eq functors are known to be consistent, then skip validation.
-    if (std::is_same_v<hasher, absl::container_internal::StringHash> &&
-        std::is_same_v<key_equal, absl::container_internal::StringEq>) {
-      return;
-    }
-    if (std::is_scalar_v<key_type> &&
-        std::is_same_v<hasher, absl::Hash<key_type>> &&
-        std::is_same_v<key_equal, std::equal_to<key_type>>) {
-      return;
-    }
-    if (empty()) return;
+    if constexpr (kIsDebug) {
+      // If the hash/eq functors are known to be consistent, then skip
+      // validation.
+      if (std::is_same_v<hasher, absl::container_internal::StringHash> &&
+          std::is_same_v<key_equal, absl::container_internal::StringEq>) {
+        return;
+      }
+      if (std::is_scalar_v<key_type> &&
+          std::is_same_v<hasher, absl::Hash<key_type>> &&
+          std::is_same_v<key_equal, std::equal_to<key_type>>) {
+        return;
+      }
+      if (empty()) return;
 
-    const size_t hash_of_arg = hash_of(key);
-    const auto assert_consistent = [&](const ctrl_t*, void* slot) {
-      const bool is_key_equal = equal_to(key, to_slot(slot));
-      if (!is_key_equal) return;
+      const size_t hash_of_arg = hash_of(key);
+      const auto assert_consistent = [&](const ctrl_t*, void* slot) {
+        const bool is_key_equal = equal_to(key, to_slot(slot));
+        if (!is_key_equal) return;
 
-      [[maybe_unused]] const bool is_hash_equal =
-          hash_of_arg == hash_of(to_slot(slot));
-      assert((!is_key_equal || is_hash_equal) &&
-             "eq(k1, k2) must imply that hash(k1) == hash(k2). "
-             "hash/eq functors are inconsistent.");
-    };
+        [[maybe_unused]] const bool is_hash_equal =
+            hash_of_arg == hash_of(to_slot(slot));
+        assert((!is_key_equal || is_hash_equal) &&
+               "eq(k1, k2) must imply that hash(k1) == hash(k2). "
+               "hash/eq functors are inconsistent.");
+      };
 
-    if (is_small()) {
-      assert_consistent(/*unused*/ nullptr, single_slot());
-      return;
+      if (is_small()) {
+        assert_consistent(/*unused*/ nullptr, single_slot());
+        return;
+      }
+      // We only do validation for small tables so that it's constant time.
+      if (capacity() > 16) return;
+      IterateOverFullSlots(common(), sizeof(slot_type), assert_consistent);
     }
-    // We only do validation for small tables so that it's constant time.
-    if (capacity() > 16) return;
-    IterateOverFullSlots(common(), sizeof(slot_type), assert_consistent);
   }
 
   // Attempts to find `key` in the table; if it isn't found, returns an iterator
