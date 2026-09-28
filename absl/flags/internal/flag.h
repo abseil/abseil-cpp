@@ -641,6 +641,8 @@ class FlagImpl final : public CommandLineFlag {
  private:
   template <typename T>
   friend class Flag;
+  template <typename, bool>
+  friend class FlagRegistrar;
   friend class FlagState;
 
   // Ensures that `data_guard_` is initialized and returns it.
@@ -718,6 +720,7 @@ class FlagImpl final : public CommandLineFlag {
   // saving and restoring a state.
   std::unique_ptr<FlagStateInterface> SaveState() override
       ABSL_LOCKS_EXCLUDED(DataGuard());
+  void RestoreToInitialState() override ABSL_LOCKS_EXCLUDED(DataGuard());
 
   // Restores the flag state to the supplied state object. If there is
   // nothing to restore returns false. Otherwise returns true.
@@ -939,8 +942,10 @@ class FlagRegistrar {
  public:
   constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename)
       : flag_(flag) {
-    if (do_register)
-      flags_internal::RegisterCommandLineFlag(flag_.impl_, filename);
+    if (do_register) {
+      flags_internal::RegisterCommandLineFlag(
+          flag_.impl_, flag_.impl_.filename_ == filename ? nullptr : filename);
+    }
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
