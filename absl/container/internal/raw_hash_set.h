@@ -484,47 +484,28 @@ constexpr size_t SizeToCapacity(size_t size) {
   return (~size_t{}) >> leading_zeros;
 }
 
-// The mode we store capacity in the table.
-enum HashtableCapacityStorageMode {
-  // Capacity stored as size_t as a full number.
-  kCapacityByValue,
-  // Capacity stored as uint8_t as log2, i.e. capacity = 2^capacity_ - 1.
-  kCapacityByLog,
-};
-
 // The number of slots in the backing array. This is always 2^N-1 for an
 // integer N.
 // NOTE: this class exists to simplify experiments with different ways to store
 // capacity within size.
-// NOTE: we tried experimenting with compressing the capacity and storing it
-// together with size_: (a) using 6 bits to store the corresponding power (N in
-// 2^N-1), and (b) storing 2^N as the most significant bit of size_ and storing
-// size in the low bits. Both of these experiments were regressions, presumably
-// because we need capacity to do find operations.
-template <HashtableCapacityStorageMode StorageMode>
-class HashtableCapacityImpl {
-  using IntType =
-      std::conditional_t<StorageMode == kCapacityByValue, size_t, uint8_t>;
-
+class HashtableCapacity {
  public:
-  static constexpr HashtableCapacityImpl CreateDestroyed() {
-    return HashtableCapacityImpl(kDestroyed);
+  static constexpr HashtableCapacity CreateDestroyed() {
+    return HashtableCapacity(kDestroyed);
   }
-  static constexpr HashtableCapacityImpl CreateReentrance() {
-    return HashtableCapacityImpl(kReentrance);
+  static constexpr HashtableCapacity CreateReentrance() {
+    return HashtableCapacity(kReentrance);
   }
-  static constexpr HashtableCapacityImpl CreateMovedFrom() {
-    return HashtableCapacityImpl(kMovedFrom);
+  static constexpr HashtableCapacity CreateMovedFrom() {
+    return HashtableCapacity(kMovedFrom);
   }
-  static constexpr HashtableCapacityImpl CreateSelfMovedFrom() {
-    return HashtableCapacityImpl(kSelfMovedFrom);
+  static constexpr HashtableCapacity CreateSelfMovedFrom() {
+    return HashtableCapacity(kSelfMovedFrom);
   }
 
-  explicit HashtableCapacityImpl(uninitialized_tag_t) {}
-  explicit constexpr HashtableCapacityImpl(size_t capacity)
-      : capacity_data_(static_cast<IntType>(
-            StorageMode == kCapacityByValue ? capacity
-                                            : TrailingZeros(capacity + 1))) {
+  explicit HashtableCapacity(uninitialized_tag_t) {}
+  explicit constexpr HashtableCapacity(size_t capacity)
+      : capacity_data_(static_cast<uint8_t>(TrailingZeros(capacity + 1))) {
     ABSL_SWISSTABLE_ASSERT(capacity == 0 || IsValidCapacity(capacity));
   }
 
@@ -532,12 +513,12 @@ class HashtableCapacityImpl {
   // This is needed to use bitfield for capacity.
   // At least on Windows combination uint8_t and uint64_t bitfield in one struct
   // is not optimized by compiler.
-  static HashtableCapacityImpl FromRawData(uint64_t capacity) {
-    auto cap = HashtableCapacityImpl(uninitialized_tag_t{});
-    cap.capacity_data_ = static_cast<IntType>(capacity);
+  static HashtableCapacity FromRawData(uint64_t capacity) {
+    auto cap = HashtableCapacity(uninitialized_tag_t{});
+    cap.capacity_data_ = static_cast<uint8_t>(capacity);
     return cap;
   }
-  IntType ToRawData() const { return capacity_data_; }
+  uint8_t ToRawData() const { return capacity_data_; }
 
   constexpr bool IsValid() const {
     return capacity_data_ <= kAboveMaxValidCapacity;
@@ -553,13 +534,11 @@ class HashtableCapacityImpl {
 
   constexpr size_t capacity() const {
     ABSL_SWISSTABLE_ASSERT(IsValid());
-    return StorageMode == kCapacityByValue ? capacity_data_
-                                           : (size_t{1} << capacity_data_) - 1;
+    return (size_t{1} << capacity_data_) - 1;
   }
 
   constexpr bool is_small() const {
-    // Small tables have capacity 0 or 1. This expression is valid for both
-    // capacity storage modes.
+    // Small tables have capacity 0 or 1.
     // Comparing capacity_data_ directly leads to a better generated code.
     // One byte comparison is used before computing the capacity in order to
     // detect small tables faster for critical path.
@@ -570,10 +549,8 @@ class HashtableCapacityImpl {
  private:
   // We use these sentinel capacity values in debug mode to indicate different
   // classes of bugs.
-  enum InvalidCapacity : IntType {
-    kAboveMaxValidCapacity = StorageMode == kCapacityByValue
-                                 ? (std::numeric_limits<IntType>::max)() - 100
-                                 : 64 - 10,
+  enum InvalidCapacity : uint8_t {
+    kAboveMaxValidCapacity = 64 - 10,
     kReentrance,
     kDestroyed,
 
@@ -582,17 +559,14 @@ class HashtableCapacityImpl {
     kSelfMovedFrom,
   };
 
-  explicit constexpr HashtableCapacityImpl(InvalidCapacity capacity)
+  explicit constexpr HashtableCapacity(InvalidCapacity capacity)
       : capacity_data_(capacity) {
     ABSL_SWISSTABLE_ASSERT(capacity_data_ > kAboveMaxValidCapacity);
   }
 
-  // Capacity is stored as a value or as a log2 depending on `StorageMode`.
-  IntType capacity_data_;
+  // Capacity stored as uint8_t as log2, i.e. capacity = 2^capacity_data_ - 1.
+  uint8_t capacity_data_;
 };
-
-template <HashtableCapacityStorageMode StorageMode>
-class HashtableInlineDataImpl;
 
 // Returns next per-table seed.
 uint8_t NextHashTableSeed();
@@ -606,8 +580,7 @@ class PerTableSeed {
   size_t seed() const { return seed_; }
 
  private:
-  template <HashtableCapacityStorageMode StorageModeOfData>
-  friend class HashtableInlineDataImpl;
+  friend class HashtableInlineData;
 
   explicit PerTableSeed(uint64_t seed)
       : seed_(static_cast<uint16_t>(seed)) {}
@@ -750,8 +723,7 @@ class GrowthInfoLowerBound {
 //    the table.
 // 3) kSeedBitCount bits for the seed. (For SOO tables, the lowest bit of the
 //    seed is repurposed to track if sampling has been tried).
-template <HashtableCapacityStorageMode StorageMode>
-class HashtableInlineDataImpl {
+class HashtableInlineData {
   // The number of bits in the seed. It is big enough to ensure
   // non-determinism of iteration order. We store the seed inside a uint64_t
   // together with size and other metadata. When absl::Hash is inlined, it can
@@ -759,27 +731,21 @@ class HashtableInlineDataImpl {
   static constexpr size_t kSeedBitCount = 5;
 
  public:
-  static constexpr HashtableCapacityStorageMode kStorageMode = StorageMode;
-  using HashtableCapacity = HashtableCapacityImpl<StorageMode>;
   static constexpr size_t kGrowthInfoLowerBoundBitCount = 8;
   static constexpr size_t kBlockedElementBitCount = 3;
   static constexpr size_t kMaxBlockedElementCount =
       (uint64_t{1} << kBlockedElementBitCount) - 1;
-  static constexpr size_t kCapacityBitCount =
-      StorageMode == kCapacityByValue ? sizeof(HashtableCapacity) * 8 : 6;
-  static constexpr size_t kCapacityBitStoredInDataCount =
-      StorageMode == kCapacityByValue ? 0 : kCapacityBitCount;
+  static constexpr size_t kCapacityBitCount = 6;
   static constexpr size_t kSizeBitCount =
       64 -
       (kBlockedElementBitCount + kSeedBitCount + kGrowthInfoLowerBoundBitCount +
-       /*has_infoz*/ 1 + kCapacityBitStoredInDataCount);
+       /*has_infoz*/ 1 + kCapacityBitCount);
 
-  explicit HashtableInlineDataImpl(uninitialized_tag_t) {}
-  explicit HashtableInlineDataImpl(HashtableCapacity capacity,
-                                   no_seed_empty_tag_t)
+  explicit HashtableInlineData(uninitialized_tag_t) {}
+  explicit HashtableInlineData(HashtableCapacity capacity, no_seed_empty_tag_t)
       : capacity_internal_(capacity.ToRawData()), data_(0) {}
-  HashtableInlineDataImpl(HashtableCapacity capacity, full_soo_tag_t,
-                          bool has_tried_sampling)
+  HashtableInlineData(HashtableCapacity capacity, full_soo_tag_t,
+                      bool has_tried_sampling)
       : capacity_internal_(capacity.ToRawData()),
         data_(kSizeOneNoMetadata |
               (has_tried_sampling ? kSooHasTriedSamplingMask : 0)) {}
@@ -908,16 +874,16 @@ class HashtableInlineDataImpl {
 
  private:
   // Bit layout of `data_` and `capacity_internal_` from MSB to LSB:
-  // (47/41 bits)   : size
+  // (41 bits)      : size
   // (8 bits)       : growth_info_lower_bound
   // (3 bits)       : blocked_element_count
   // (1 bit)        : has_infoz
   // (5 bits)       : seed
-  // (6 bits)       : capacity (only for kCapacityByLog)
+  // (6 bits)       : capacity
   // We don't split these components of `data_` into separate bit field elements
   // because we get worse generated code that way.
 
-  static constexpr size_t kDataBitCount = 64 - kCapacityBitStoredInDataCount;
+  static constexpr size_t kDataBitCount = 64 - kCapacityBitCount;
   static constexpr size_t kSizeShift = kDataBitCount - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
@@ -942,10 +908,10 @@ class HashtableInlineDataImpl {
   static constexpr uint8_t kSampledSeed = (1 << kSeedBitCount) - 1;
 
   static constexpr uint64_t ToPublicSeed(uint64_t seed) {
-    // In kCapacityByLog mode, we shift public seed to the left to keep bits of
-    // the seed in the original place. It allows us to use single instruction to
-    // access the seed (e.g., `andl $0x7c0, %r8d`).
-    return seed << kCapacityBitStoredInDataCount;
+    // We shift public seed to the left to keep bits of the seed in the original
+    // place. It allows us to use single instruction to access the seed (e.g.,
+    // `andl $0x7c0, %r8d`).
+    return seed << kCapacityBitCount;
   }
 
   void set_seed(uint8_t seed) {
@@ -956,23 +922,8 @@ class HashtableInlineDataImpl {
   uint64_t data_ : kDataBitCount;
 };
 
-static_assert(
-    sizeof(HashtableInlineDataImpl<kCapacityByValue>::HashtableCapacity) ==
-    sizeof(size_t));
-// NOTE: some platforms have this size to be equal to 12 for two reasons:
-// 1) alignof(uint64_t) == 4.
-// 2) sizeof(size_t) == sizeof(HashtableCapacityImpl<kCapacityByValue>) == 4.
-static_assert(sizeof(HashtableInlineDataImpl<kCapacityByValue>) <= 16);
-static_assert(
-    sizeof(HashtableInlineDataImpl<kCapacityByLog>::HashtableCapacity) == 1);
-static_assert(sizeof(HashtableInlineDataImpl<kCapacityByLog>) == 8);
-
-#ifndef ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
-using HashtableInlineData = HashtableInlineDataImpl<kCapacityByLog>;
-#else
-using HashtableInlineData = HashtableInlineDataImpl<kCapacityByValue>;
-#endif  // ABSL_SWISSTABLE_INTERNAL_ENABLE_CAPACITY_BY_VALUE
-using HashtableCapacity = HashtableInlineData::HashtableCapacity;
+static_assert(sizeof(HashtableCapacity) == 1);
+static_assert(sizeof(HashtableInlineData) == 8);
 
 // For large tables, we limit the number of blocked elements to maintain O(1)
 // average case lookup complexity.
@@ -2361,11 +2312,10 @@ class raw_hash_set {
   // (a) in such cases, the seed is xor'ed with the hash value rather than being
   // used as a seed for the hash function, (b) the seed has low bits that are
   // all 0s, and (c) we require random iteration order for small tables.
-  // In ToPublicSeed we shift the seed by kCapacityBitStoredInDataCount as
-  // performance optimization for default hashers. For non-default hashers, we
-  // shift it back.
+  // In ToPublicSeed we shift the seed by kCapacityBitCount as an optimization
+  // for default hashers. For non-default hashers, we shift it back.
   constexpr static size_t kSeedShift =
-      kIsAbslHash ? 0 : HashtableInlineData::kCapacityBitStoredInDataCount;
+      kIsAbslHash ? 0 : HashtableInlineData::kCapacityBitCount;
 
   constexpr static bool SooEnabled() {
     return PolicyTraits::soo_enabled() &&
