@@ -2308,6 +2308,11 @@ class raw_hash_set {
 
   constexpr static bool kIsAbslHash =
       std::is_same_v<hasher, absl::Hash<key_type>> ||
+      (!HasAbslContainerHash<key_type>::value &&
+       std::is_same_v<hasher, typename absl::container_internal::HashEq<
+                                  key_type>::Hash>) ||
+      // Note: this is useful (in addition to the above case) for cases of
+      // `absl_container_hash = DefaultHashContainerHash<absl::string_view>`.
       std::is_same_v<hasher, absl::container_internal::StringHash> ||
       // TODO(b/384509507): resolve `no header providing
       // "absl::hash_internal::TransparentHash" is directly included`.
