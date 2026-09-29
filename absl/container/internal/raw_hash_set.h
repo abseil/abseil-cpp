@@ -1778,17 +1778,19 @@ class probe_seq {
   size_t offset(size_t i) const { return (offset_ + i) & capacity_; }
 
   void next() {
-    index_ += Width;
-    offset_ += index_;
+    offset_ += next_index_;
     offset_ &= capacity_;
+    next_index_ += Width;
   }
   // 0-based probe index, a multiple of `Width`.
-  size_t index() const { return index_; }
+  size_t index() const { return next_index_ - Width; }
 
  private:
   size_t capacity_;
   size_t offset_;
-  size_t index_ = 0;
+  // We keep track of the next index rather than the current index to get better
+  // generated code. See e.g. https://godbolt.org/z/6jvWd135G.
+  size_t next_index_ = Width;
 };
 
 // Begins a probing operation on `common.control`, using `hash`.
