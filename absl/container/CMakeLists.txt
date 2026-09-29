@@ -504,6 +504,7 @@ absl_cc_test(
     absl::config
     absl::container_memory
     absl::no_destructor
+    absl::overload
     absl::string_view
     absl::test_instance_tracker
     absl::type_traits
