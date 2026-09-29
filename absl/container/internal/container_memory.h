@@ -159,15 +159,6 @@ DecomposePairImpl(F&& f, std::pair<std::tuple<K>, V> p) {
                             std::move(p.second));
 }
 
-template <class F, class K, class V>
-decltype(std::declval<F>()(std::declval<const K&>(), std::declval<K>(),
-                           std::declval<V>()))
-DecomposeImpl(F&& f, K&& first, V&& second) {
-  const auto& key = first;
-  return std::forward<F>(f)(key, std::forward<K>(first),
-                            std::forward<V>(second));
-}
-
 }  // namespace memory_internal
 
 // Constructs T into uninitialized storage pointed by `ptr` using the args
@@ -204,18 +195,17 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
 inline std::pair<std::tuple<>, std::tuple<>> PairArgs() { return {}; }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(F&& f, S&& s) {
-  return {std::forward_as_tuple(std::forward<F>(f)),
+  return {std::piecewise_construct, std::forward_as_tuple(std::forward<F>(f)),
           std::forward_as_tuple(std::forward<S>(s))};
 }
 template <class F, class S>
 std::pair<std::tuple<const F&>, std::tuple<const S&>> PairArgs(
     const std::pair<F, S>& p) {
-  return container_internal::PairArgs(p.first, p.second);
+  return PairArgs(p.first, p.second);
 }
 template <class F, class S>
 std::pair<std::tuple<F&&>, std::tuple<S&&>> PairArgs(std::pair<F, S>&& p) {
-  return container_internal::PairArgs(std::forward<F>(p.first),
-                                      std::forward<S>(p.second));
+  return PairArgs(std::forward<F>(p.first), std::forward<S>(p.second));
 }
 template <class F, class S>
 auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
@@ -225,71 +215,13 @@ auto PairArgs(std::piecewise_construct_t, F&& f, S&& s)
                         memory_internal::TupleRef(std::forward<S>(s)));
 }
 
-// Evaluates to the member inside the first tuple PairArgs() returns.
-template <class F, class S>
-F&& PairFirst(F&& f, S&&) {
-  return std::forward<F>(f);
-}
-template <class F, class S>
-const F& PairFirst(const std::pair<F, S>& p) {
-  return container_internal::PairFirst(p.first, p.second);
-}
-template <class F, class S>
-F&& PairFirst(std::pair<F, S>&& p) {
-  return container_internal::PairFirst(std::forward<F>(p.first),
-                                       std::forward<S>(p.second));
-}
-
-// Evaluates to the member inside the second tuple PairArgs() returns.
-template <class F, class S>
-S&& PairSecond(F&&, S&& s) {
-  return std::forward<S>(s);
-}
-template <class F, class S>
-const S& PairSecond(const std::pair<F, S>& p) {
-  return container_internal::PairSecond(p.first, p.second);
-}
-template <class F, class S>
-S&& PairSecond(std::pair<F, S>&& p) {
-  return container_internal::PairSecond(std::forward<F>(p.first),
-                                        std::forward<S>(p.second));
-}
-
 // A helper function for implementing apply() in map policies.
 template <class F, class... Args>
 auto DecomposePair(F&& f, Args&&... args)
-    -> decltype(memory_internal::DecomposeImpl(
-        std::forward<F>(f),
-        container_internal::PairFirst(std::forward<Args>(args)...),
-        container_internal::PairSecond(std::forward<Args>(args)...))) {
-  return memory_internal::DecomposeImpl(
-      std::forward<F>(f),
-      // We have to suppress use-after-move warnings because the same arguments
-      // are spelled as forwarded twice, despite only actually being moved from
-      // once at run time.
-      // NOLINTNEXTLINE(bugprone-use-after-move)
-      container_internal::PairFirst(std::forward<Args>(args)...),
-      // NOLINTNEXTLINE(bugprone-use-after-move)
-      container_internal::PairSecond(std::forward<Args>(args)...));
-}
-
-// Overload of DecomposePair() for piecewise construction. We have split the
-// overload set here to avoid the instantiation of templates like std::tuple
-// when it is unnecessary to do so, to speed up compile times. We accept
-// `PiecewiseConstruct` as a template parameter so that the compiler doesn't
-// waste time checking implicit conversions to it from random types.
-template <class F, class PiecewiseConstruct, class Tuple1, class Tuple2>
-auto DecomposePair(F&& f, const PiecewiseConstruct& pc, Tuple1&& t1,
-                   Tuple2&& t2)
-    -> decltype(std::forward<F>(f)(
-        std::get<std::enable_if_t<
-            std::is_same_v<std::piecewise_construct_t, PiecewiseConstruct> &&
-                std::tuple_size_v<std::decay_t<Tuple1>> == 1,
-            int>(0)>(t1),
-        pc, std::forward<Tuple1>(t1), std::forward<Tuple2>(t2))) {
-  const auto& key = std::get<0>(t1);
-  return std::forward<F>(f)(key, std::piecewise_construct,
-                            std::forward<Tuple1>(t1), std::forward<Tuple2>(t2));
+    -> decltype(memory_internal::DecomposePairImpl(
+        std::forward<F>(f), PairArgs(std::forward<Args>(args)...))) {
+  return memory_internal::DecomposePairImpl(
+      std::forward<F>(f), PairArgs(std::forward<Args>(args)...));
 }
 
 // A helper function for implementing apply() in set policies.
