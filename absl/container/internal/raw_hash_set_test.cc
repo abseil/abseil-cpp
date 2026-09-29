@@ -4043,6 +4043,23 @@ TEST(RawHashSamplerTest, SooTableInsertToEmpty) {
   }
 }
 
+TEST(RawHashSamplerTest, NonSooTableInsertToEmpty) {
+  std::vector<const HashtablezInfo*> infos =
+      SampleNonSooMutation([](NonSooIntTable& t) { t.insert(1); });
+
+  for (const HashtablezInfo* info : infos) {
+    ASSERT_EQ(info->inline_element_size,
+              sizeof(typename NonSooIntTable::value_type));
+    ASSERT_EQ(info->soo_capacity, 0);
+    ASSERT_EQ(info->capacity, 1);
+    ASSERT_EQ(info->size, 1);
+    ASSERT_EQ(info->max_reserve, 0);
+    ASSERT_EQ(info->num_erases, 0);
+    ASSERT_EQ(info->max_probe_length, 0);
+    ASSERT_EQ(info->total_probe_length, 0);
+  }
+}
+
 // Verifies that repeated insertions and erasures on an SOO table do not cause
 // the sampling decision to be evaluated multiple times, preventing
 // oversampling.
