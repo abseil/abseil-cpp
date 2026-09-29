@@ -2478,12 +2478,6 @@ constexpr bool VerifyOptimalMemcpySizeForSooSlotTransferRange(size_t left,
 }
 }  // namespace
 
-// Extern template instantiation for inline function.
-template size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
-                                              size_t old_capacity,
-                                              ctrl_t* new_ctrl,
-                                              size_t new_capacity);
-
 // We need to instantiate ALL possible template combinations because we define
 // the function in the cc file.
 template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
@@ -2547,6 +2541,28 @@ template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
                                               DeallocBackingArrayFn dealloc);
 template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
                                               const DtorPolicy& policy);
+
+// Extern template instantiation for inline functions.
+template size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
+                                              size_t old_capacity,
+                                              ctrl_t* new_ctrl,
+                                              size_t new_capacity);
+template void AssertIsFull(const ctrl_t* const& ctrl, const void* slot,
+                           GenerationType generation,
+                           const GenerationType* generation_ptr,
+                           const char* operation);
+template void AssertIsValidForComparison(const ctrl_t* const& ctrl,
+                                         const void* slot,
+                                         GenerationType generation,
+                                         const GenerationType* generation_ptr);
+template bool AreItersFromSameContainer(const ctrl_t* const& ctrl_a,
+                                        const ctrl_t* const& ctrl_b,
+                                        const void* slot_a, const void* slot_b);
+template void AssertSameContainer(const ctrl_t* const& ctrl_a,
+                                  const ctrl_t* const& ctrl_b,
+                                  const void* slot_a, const void* slot_b,
+                                  const GenerationType* generation_ptr_a,
+                                  const GenerationType* generation_ptr_b);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END
