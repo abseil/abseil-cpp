@@ -984,6 +984,38 @@ void Destruct(CommonFields& c, const DtorPolicy& __restrict policy) {
   Destruct<kSooEnabled>(c, policy, kStandardDeallocBackingArrayFn);
 }
 
+void AssertHashEqConsistentImpl(CommonFields& common,
+                            const PolicyFunctions& __restrict policy,
+                            size_t hash,
+                            absl::FunctionRef<bool(void* slot)> equal) {
+  if (common.empty()) return;
+
+  const void* hash_fn = policy.hash_fn(common);
+  const size_t seed = common.seed().seed();
+
+  const auto assert_consistent = [&](const ctrl_t*, void* slot) {
+    const bool is_key_equal = equal(slot);
+    if (!is_key_equal) return;
+
+    [[maybe_unused]] const bool is_hash_equal =
+        hash == policy.hash_slot(hash_fn, slot, seed);
+    assert((!is_key_equal || is_hash_equal) &&
+           "eq(k1, k2) must imply that hash(k1) == hash(k2). "
+           "hash/eq functors are inconsistent.");
+  };
+
+  if (common.is_small()) {
+    assert_consistent(
+        /*unused*/ nullptr,
+        policy.soo_enabled ? SingleSlotAddress</*kSooEnabled=*/true>(common)
+                           : SingleSlotAddress</*kSooEnabled=*/false>(common));
+    return;
+  }
+  // We only do validation for small tables so that it's constant time.
+  if (common.capacity() > 16) return;
+  IterateOverFullSlots(common, policy.slot_size, assert_consistent);
+}
+
 namespace {
 
 // Iterates over full slots in old table, finds new positions for them and

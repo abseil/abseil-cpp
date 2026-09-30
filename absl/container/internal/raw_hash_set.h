@@ -2177,6 +2177,12 @@ void Destruct(CommonFields& c, const DtorPolicy& policy,
 template <bool kSooEnabled>
 void Destruct(CommonFields& c, const DtorPolicy& policy);
 
+// Asserts that hash and equal functors provided by the user are consistent,
+// meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
+void AssertHashEqConsistentImpl(CommonFields& common,
+                                const PolicyFunctions& policy, size_t hash,
+                                absl::FunctionRef<bool(void* slot)> equal);
+
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
 void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size);
@@ -3813,27 +3819,9 @@ class raw_hash_set {
         std::is_same_v<hasher, absl::Hash<key_type>> &&
         std::is_same_v<key_equal, std::equal_to<key_type>>;
     if constexpr (kIsDebug && !kIsStringAbslHashEq && !kIsScalarAbslHashEq) {
-      if (empty()) return;
-
-      const size_t hash_of_arg = hash_of(key);
-      const auto assert_consistent = [&](const ctrl_t*, void* slot) {
-        const bool is_key_equal = equal_to(key, to_slot(slot));
-        if (!is_key_equal) return;
-
-        [[maybe_unused]] const bool is_hash_equal =
-            hash_of_arg == hash_of(to_slot(slot));
-        assert((!is_key_equal || is_hash_equal) &&
-               "eq(k1, k2) must imply that hash(k1) == hash(k2). "
-               "hash/eq functors are inconsistent.");
-      };
-
-      if (is_small()) {
-        assert_consistent(/*unused*/ nullptr, single_slot());
-        return;
-      }
-      // We only do validation for small tables so that it's constant time.
-      if (capacity() > 16) return;
-      IterateOverFullSlots(common(), sizeof(slot_type), assert_consistent);
+      AssertHashEqConsistentImpl(
+          common(), GetPolicyFunctions(), hash_of(key),
+          [&](void* slot) { return equal_to(key, to_slot(slot)); });
     }
   }
 
