@@ -1224,6 +1224,24 @@ union HeapOrSoo {
   unsigned char soo_data[MaxSooSlotSize()];
 };
 
+class CommonFields;
+
+// RAII object that guards against reentrant calls to hash table methods in
+// debug mode.
+class ReentranceGuard {
+ public:
+#ifdef NDEBUG
+  explicit ReentranceGuard(CommonFields&) {}
+#else   // NDEBUG
+  explicit ReentranceGuard(CommonFields& common);
+  ~ReentranceGuard();
+
+ private:
+  CommonFields& common_;
+  HashtableCapacity capacity_;
+#endif  // NDEBUG
+};
+
 // CommonFields hold the fields in raw_hash_set that do not depend
 // on template parameters. This allows us to conveniently pass all
 // of this state to helper functions as a single argument.
@@ -1465,20 +1483,6 @@ class CommonFields : public CommonFieldsGenerationInfo {
         std::count(control(), control() + capacity(), ctrl_t::kDeleted));
   }
 
-  // Helper to enable sanitizer mode validation to protect against reentrant
-  // calls during element constructor/destructor.
-  template <typename F>
-  void RunWithReentrancyGuard(F f) {
-    if constexpr (!kIsDebug) {
-      f();
-    } else {
-      const HashtableCapacity cap = maybe_invalid_capacity();
-      set_capacity(HashtableCapacity::CreateReentrance());
-      f();
-      set_capacity(cap);
-    }
-  }
-
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const {
     if constexpr (SwisstableGenerationsOrDebugEnabled()) {
@@ -1517,10 +1521,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // We can't assert that SOO is enabled because we don't have SooEnabled(), but
   // we assert what we can.
   void AssertInSooMode() const {
-    ABSL_SWISSTABLE_ASSERT(capacity() == SooCapacity());
-    ABSL_SWISSTABLE_ASSERT(!has_infoz());
+    if constexpr (kIsDebug) {
+      AssertInSooModeImpl();
+    }
   }
 
+  void AssertInSooModeImpl() const;
   void AssertNotDebugCapacityImpl() const;
 
   HashtableInlineData inline_data_;
@@ -3418,22 +3424,19 @@ class raw_hash_set {
 
   template <typename... Args>
   void construct(slot_type* slot, Args&&... args) {
-    common().RunWithReentrancyGuard([&] {
-      allocator_type alloc(char_alloc_ref());
-      PolicyTraits::construct(&alloc, slot, std::forward<Args>(args)...);
-    });
+    ReentranceGuard guard(common());
+    allocator_type alloc(char_alloc_ref());
+    PolicyTraits::construct(&alloc, slot, std::forward<Args>(args)...);
   }
   void destroy(slot_type* slot) {
-    common().RunWithReentrancyGuard([&] {
-      allocator_type alloc(char_alloc_ref());
-      PolicyTraits::destroy(&alloc, slot);
-    });
+    ReentranceGuard guard(common());
+    allocator_type alloc(char_alloc_ref());
+    PolicyTraits::destroy(&alloc, slot);
   }
   void transfer(slot_type* to, slot_type* from) {
-    common().RunWithReentrancyGuard([&] {
-      allocator_type alloc(char_alloc_ref());
-      PolicyTraits::transfer(&alloc, to, from);
-    });
+    ReentranceGuard guard(common());
+    allocator_type alloc(char_alloc_ref());
+    PolicyTraits::transfer(&alloc, to, from);
   }
 
   // TODO(b/289225379): consider having a helper class that has the impls for
@@ -3586,12 +3589,10 @@ class raw_hash_set {
       lhs = std::move(rhs);
     } else {
       lhs.move_non_heap_or_soo_fields(rhs);
-      rhs.RunWithReentrancyGuard([&] {
-        lhs.RunWithReentrancyGuard([&] {
-          PolicyTraits::transfer(&rhs_alloc, to_slot(lhs.soo_data()),
-                                 to_slot(rhs.soo_data()));
-        });
-      });
+      ReentranceGuard lhs_guard(lhs);
+      ReentranceGuard rhs_guard(rhs);
+      PolicyTraits::transfer(&rhs_alloc, to_slot(lhs.soo_data()),
+                             to_slot(rhs.soo_data()));
     }
   }
 
