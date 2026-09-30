@@ -3802,18 +3802,16 @@ class raw_hash_set {
   // meaning that `eq(k1, k2)` implies `hash(k1)==hash(k2)`.
   template <class K>
   void AssertHashEqConsistent(const K& key) {
-    if constexpr (kIsDebug) {
-      // If the hash/eq functors are known to be consistent, then skip
-      // validation.
-      if (std::is_same_v<hasher, absl::container_internal::StringHash> &&
-          std::is_same_v<key_equal, absl::container_internal::StringEq>) {
-        return;
-      }
-      if (std::is_scalar_v<key_type> &&
-          std::is_same_v<hasher, absl::Hash<key_type>> &&
-          std::is_same_v<key_equal, std::equal_to<key_type>>) {
-        return;
-      }
+    // If the hash/eq functors are known to be consistent, then skip
+    // validation.
+    constexpr bool kIsStringAbslHashEq =
+        std::is_same_v<hasher, absl::container_internal::StringHash> &&
+        std::is_same_v<key_equal, absl::container_internal::StringEq>;
+    constexpr bool kIsScalarAbslHashEq =
+        std::is_scalar_v<key_type> &&
+        std::is_same_v<hasher, absl::Hash<key_type>> &&
+        std::is_same_v<key_equal, std::equal_to<key_type>>;
+    if constexpr (kIsDebug && !kIsStringAbslHashEq && !kIsScalarAbslHashEq) {
       if (empty()) return;
 
       const size_t hash_of_arg = hash_of(key);
