@@ -277,20 +277,6 @@ void IterateOverFullSlotsImpl(const CommonFields& c, size_t slot_size, Fn cb) {
 
 }  // namespace
 
-#ifndef NDEBUG
-ReentranceGuard::ReentranceGuard(CommonFields& common)
-    : common_(common), capacity_(common.maybe_invalid_capacity()) {
-  common_.set_capacity(HashtableCapacity::CreateReentrance());
-}
-
-ReentranceGuard::~ReentranceGuard() { common_.set_capacity(capacity_); }
-#endif  // NDEBUG
-
-void CommonFields::AssertInSooModeImpl() const {
-  ABSL_SWISSTABLE_ASSERT(capacity() == SooCapacity());
-  ABSL_SWISSTABLE_ASSERT(!has_infoz());
-}
-
 void CommonFields::AssertNotDebugCapacityImpl() const {
   const HashtableCapacity cap = maybe_invalid_capacity();
   if (ABSL_PREDICT_TRUE(cap.IsValid())) {
