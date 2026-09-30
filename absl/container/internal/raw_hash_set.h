@@ -3468,10 +3468,11 @@ class raw_hash_set {
     ctrl_t* ctrl = control();
     slot_type* slot_array = to_slot(common().slot_array(cap));
     while (true) {
+      // Loading the group before slot prefetch decreases critical path latency.
+      Group g{ctrl + seq.offset()};
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
       absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
-      Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         const size_t offset = seq.offset(i);
         if (ABSL_PREDICT_TRUE(equal_to(key, slot_array + offset)))
@@ -3764,10 +3765,11 @@ class raw_hash_set {
     const ctrl_t* ctrl = control();
     slot_type* slot_array = to_slot(common().slot_array(cap));
     while (true) {
+      // Loading the group before slot prefetch decreases critical path latency.
+      Group g{ctrl + seq.offset()};
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
       absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
-      Group g{ctrl + seq.offset()};
       for (uint32_t i : g.Match(h2)) {
         slot_type* slot = slot_array + seq.offset(i);
         if (ABSL_PREDICT_TRUE(equal_to(key, slot))) {
