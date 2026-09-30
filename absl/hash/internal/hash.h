@@ -1376,9 +1376,16 @@ struct HashSelect {
     }
   };
 
+  template <typename T>
   struct HashValueProbe {
-    template <typename H, typename T>
-    static H Invoke(H state, const T& value) {
+    // Use a defaulted template parameter `U = T` to make `ConstParamT<U>`
+    // dependent on `Invoke`, deferring evaluation of `sizeof` and triviality
+    // traits until `Invoke` is called. Otherwise, evaluating `is_hashable<T>`
+    // (which instantiates `HashValueProbe<T>` via `HashSelect::Apply<T>()`)
+    // while `T` is an incomplete type with a declared `AbslHashValue` overload
+    // would eagerly instantiate `ConstParamT<T>` and fail to compile.
+    template <typename H, typename U = T>
+    static H Invoke(H state, type_traits_internal::ConstParamT<U> value) {
       return AbslHashValue(std::move(state), value);
     }
   };
@@ -1411,7 +1418,7 @@ struct HashSelect {
     } else if constexpr (std::is_same_v<State,
                                         typename AbslHashValueResultOrVoid<
                                             State, const T&>::type>) {
-      return HashValueProbe();
+      return HashValueProbe<T>();
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
     } else if constexpr (std::is_convertible_v<
                              InvokeResultOrVoid<

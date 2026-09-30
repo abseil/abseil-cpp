@@ -554,11 +554,14 @@ struct HashElement {
   size_t seed;
 };
 
+// Pass small trivial keys by value so they are passed in registers rather than
+// by reference.
+template <class K>
+using KeyParamT = type_traits_internal::ConstParamT<K>;
+
 // No arguments function hash function for a specific key.
 template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
 struct HashKey {
-  HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
-
   size_t operator()(size_t seed) const {
     return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
   }
@@ -568,7 +571,7 @@ struct HashKey {
     return (*static_cast<const HashKey*>(data))(seed);
   }
   const Hash& hash;
-  const Key& key;
+  KeyParamT<Key> key;
 };
 
 // Variadic arguments equality function that ignore the rest of the arguments.
@@ -579,7 +582,7 @@ struct EqualElement {
   bool operator()(const K2& lhs, Args&&...) const {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(eq(lhs, rhs));
   }
-  const K1& rhs;
+  KeyParamT<K1> rhs;
   const KeyEqual& eq;
 };
 

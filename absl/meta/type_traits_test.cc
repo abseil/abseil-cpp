@@ -473,4 +473,43 @@ TEST(IsConstantEvaluated, is_constant_evaluated) {
 #endif  // ABSL_HAVE_CONSTANT_EVALUATED
 }
 
+TEST(ShouldPreferPassByValue, Basic) {
+  using absl::type_traits_internal::ShouldPreferPassByValue;
+  static_assert(ShouldPreferPassByValue<int>::value);
+  static_assert(ShouldPreferPassByValue<void*>::value);
+  static_assert(ShouldPreferPassByValue<std::string_view>::value);
+  static_assert(ShouldPreferPassByValue<std::tuple<int, int>>::value);
+  static_assert(ShouldPreferPassByValue<const std::tuple<int, int>>::value);
+  static_assert(!ShouldPreferPassByValue<void>::value);
+  static_assert(!ShouldPreferPassByValue<char[]>::value);
+  static_assert(!ShouldPreferPassByValue<const char[]>::value);
+  static_assert(!ShouldPreferPassByValue<const char (&)[]>::value);
+  static_assert(!ShouldPreferPassByValue<char[4]>::value);
+  static_assert(!ShouldPreferPassByValue<int&>::value);
+  static_assert(!ShouldPreferPassByValue<const int&>::value);
+  static_assert(!ShouldPreferPassByValue<void()>::value);
+  static_assert(!ShouldPreferPassByValue<std::string>::value);
+}
+
+TEST(ConstParamT, Basic) {
+  using absl::type_traits_internal::ConstParamT;
+  static_assert(std::is_same_v<ConstParamT<int>, const int>);
+  static_assert(std::is_same_v<ConstParamT<void*>, void* const>);
+  static_assert(
+      std::is_same_v<ConstParamT<std::string_view>, const std::string_view>);
+  static_assert(std::is_same_v<ConstParamT<std::tuple<int, int>>,
+                               const std::tuple<int, int>>);
+  static_assert(std::is_same_v<ConstParamT<const std::tuple<int, int>>,
+                               const std::tuple<int, int>>);
+  static_assert(std::is_same_v<ConstParamT<char[]>, const char (&)[]>);
+  static_assert(std::is_same_v<ConstParamT<const char[]>, const char (&)[]>);
+  static_assert(
+      std::is_same_v<ConstParamT<const char (&)[]>, const char (&)[]>);
+  static_assert(std::is_same_v<ConstParamT<char[4]>, const char (&)[4]>);
+  static_assert(std::is_same_v<ConstParamT<int&>, int&>);
+  static_assert(std::is_same_v<ConstParamT<const int&>, const int&>);
+  static_assert(std::is_same_v<ConstParamT<void()>, void (&)()>);
+  static_assert(std::is_same_v<ConstParamT<std::string>, const std::string&>);
+}
+
 }  // namespace
