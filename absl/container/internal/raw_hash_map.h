@@ -365,23 +365,9 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto res = this->find_or_prepare_insert(k);
     if (res.second) {
-      // Try to avoid using std::tuple since that slows compilation.
-      // (example: https://godbolt.org/z/nefW93T6K)
-      if constexpr (sizeof...(Args) == 0 &&
-                    // Emplace operations are expected not to move, so we only
-                    // move if it's unobservable and likely to be cheap.
-                    std::is_trivially_move_constructible_v<
-                        mapped_type>) /* Common case: operator[] */ {
-        this->emplace_at(res.first, std::forward<K>(k), mapped_type());
-      } else if constexpr (sizeof...(Args) == 1) {
-        this->emplace_at(res.first, std::forward<K>(k),
-                         std::forward<Args>(args)...);
-      } else {
-        // This is expensive to compile, so only use it as a last resort.
-        this->emplace_at(res.first, std::piecewise_construct,
-                         std::forward_as_tuple(std::forward<K>(k)),
-                         std::forward_as_tuple(std::forward<Args>(args)...));
-      }
+      this->emplace_at(res.first, std::piecewise_construct,
+                       std::forward_as_tuple(std::forward<K>(k)),
+                       std::forward_as_tuple(std::forward<Args>(args)...));
     }
     return {this->non_iterable_iterator_at_slot(res.first), res.second};
   }
