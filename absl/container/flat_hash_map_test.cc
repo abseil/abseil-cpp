@@ -49,7 +49,7 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
 
-// Check that absl::flat_hash_map works in a global constructor.
+// Checks that absl::flat_hash_map works in a global constructor.
 struct BeforeMain {
   BeforeMain() {
     absl::flat_hash_map<int, int> x;
