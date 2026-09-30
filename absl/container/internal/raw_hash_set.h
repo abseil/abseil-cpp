@@ -771,6 +771,10 @@ class HashtableInlineData {
   bool is_small() const { return capacity().is_small(); }
 
   void set_capacity(HashtableCapacity c) { capacity_internal_ = c.ToRawData(); }
+  // Allow for preventing the compiler from optimizing away the store.
+  void set_capacity(HashtableCapacity c) volatile {
+    capacity_internal_ = c.ToRawData();
+  }
   void set_capacity(size_t c) { set_capacity(HashtableCapacity(c)); }
 
   // Returns actual size of the table.
@@ -1369,6 +1373,10 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return inline_data_.capacity();
   }
   void set_capacity(HashtableCapacity c) { inline_data_.set_capacity(c); }
+  // Allow for preventing the compiler from optimizing away the store.
+  void set_capacity(HashtableCapacity c) volatile {
+    inline_data_.set_capacity(c);
+  }
   void set_capacity(size_t c) {
     set_capacity(HashtableCapacity(c));
   }
@@ -2806,7 +2814,9 @@ class raw_hash_set {
   ~raw_hash_set() {
     destructor_impl();
     if constexpr (SwisstableGenerationsOrDebugEnabled()) {
-      common().set_capacity(HashtableCapacity::CreateDestroyed());
+      // Prevent the compiler from optimizing away the store.
+      const_cast<volatile CommonFields&>(common()).set_capacity(
+          HashtableCapacity::CreateDestroyed());
     }
   }
 
