@@ -1546,6 +1546,98 @@ class CommonFields : public CommonFieldsGenerationInfo {
 template <class Policy, class... Params>
 class raw_hash_set;
 
+template <class Policy, class... Params>
+class raw_hash_set_impl;
+
+template <bool>
+struct RawHashSetCopyCtorBase {
+  RawHashSetCopyCtorBase() = default;
+  RawHashSetCopyCtorBase(const RawHashSetCopyCtorBase&) = default;
+  RawHashSetCopyCtorBase(RawHashSetCopyCtorBase&&) = default;
+  RawHashSetCopyCtorBase& operator=(const RawHashSetCopyCtorBase&) = default;
+  RawHashSetCopyCtorBase& operator=(RawHashSetCopyCtorBase&&) = default;
+};
+
+template <>
+struct RawHashSetCopyCtorBase<false> {
+  RawHashSetCopyCtorBase() = default;
+  RawHashSetCopyCtorBase(const RawHashSetCopyCtorBase&) = delete;
+  RawHashSetCopyCtorBase(RawHashSetCopyCtorBase&&) = default;
+  RawHashSetCopyCtorBase& operator=(const RawHashSetCopyCtorBase&) = default;
+  RawHashSetCopyCtorBase& operator=(RawHashSetCopyCtorBase&&) = default;
+};
+
+template <bool>
+struct RawHashSetCopyAssignBase {
+  RawHashSetCopyAssignBase() = default;
+  RawHashSetCopyAssignBase(const RawHashSetCopyAssignBase&) = default;
+  RawHashSetCopyAssignBase(RawHashSetCopyAssignBase&&) = default;
+  RawHashSetCopyAssignBase& operator=(const RawHashSetCopyAssignBase&) =
+      default;
+  RawHashSetCopyAssignBase& operator=(RawHashSetCopyAssignBase&&) = default;
+};
+
+template <>
+struct RawHashSetCopyAssignBase<false> {
+  RawHashSetCopyAssignBase() = default;
+  RawHashSetCopyAssignBase(const RawHashSetCopyAssignBase&) = default;
+  RawHashSetCopyAssignBase(RawHashSetCopyAssignBase&&) = default;
+  RawHashSetCopyAssignBase& operator=(const RawHashSetCopyAssignBase&) =
+      delete;
+  RawHashSetCopyAssignBase& operator=(RawHashSetCopyAssignBase&&) = default;
+};
+
+template <class T, class = void>
+struct IsComplete : std::false_type {};
+
+template <class T>
+struct IsComplete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
+
+template <class T>
+struct IsStdPair : std::false_type {};
+
+template <class T1, class T2>
+struct IsStdPair<std::pair<T1, T2>> : std::true_type {};
+
+template <class T, bool = IsStdPair<T>::value, class = void>
+struct IsCopyConstructibleIfCompleteImpl : std::true_type {};
+
+template <class T>
+struct IsCopyConstructibleIfCompleteImpl<T, false,
+                                         std::void_t<decltype(sizeof(T))>>
+    : std::bool_constant<std::is_copy_constructible_v<T>> {};
+
+template <class T1, class T2, bool = IsComplete<T1>::value && IsComplete<T2>::value>
+struct PairIsCopyConstructibleIfComplete : std::true_type {};
+
+template <class T1, class T2>
+struct PairIsCopyConstructibleIfComplete<T1, T2, true>
+    : std::bool_constant<std::is_copy_constructible_v<std::pair<T1, T2>>> {};
+
+template <class T1, class T2>
+struct IsCopyConstructibleIfCompleteImpl<std::pair<T1, T2>, true, void>
+    : PairIsCopyConstructibleIfComplete<T1, T2> {};
+
+template <class T>
+using IsCopyConstructibleIfComplete = IsCopyConstructibleIfCompleteImpl<T>;
+
+template <class Set>
+struct RawHashSetCopyTraits {
+  static constexpr bool kCanCopyConstruct =
+      IsCopyConstructibleIfComplete<typename Set::value_type>::value &&
+      std::is_copy_constructible_v<typename Set::hasher> &&
+      std::is_copy_constructible_v<typename Set::key_equal> &&
+      std::is_copy_constructible_v<typename Set::allocator_type>;
+  static constexpr bool kCanCopyAssign =
+      kCanCopyConstruct &&
+      std::is_copy_assignable_v<typename Set::hasher> &&
+      std::is_copy_assignable_v<typename Set::key_equal> &&
+      (!std::allocator_traits<
+           typename Set::allocator_type>::propagate_on_container_copy_assignment::
+           value ||
+       std::is_copy_assignable_v<typename Set::allocator_type>);
+};
+
 // Applies the following mapping to every byte in the control array:
 //   * kDeleted -> kEmpty
 //   * kEmpty -> kEmpty
@@ -2276,7 +2368,7 @@ struct InstantiateRawHashSet {
 // This is the third element in `Params...` if it exists, or
 // Policy::DefaultAlloc otherwise.
 template <class Policy, class... Params>
-class raw_hash_set {
+class raw_hash_set_impl {
   using PolicyTraits = hash_policy_traits<Policy>;
   using Hash = GetFromListOr<typename Policy::DefaultHash, 0, Params...>;
   using Eq = GetFromListOr<typename Policy::DefaultEq, 1, Params...>;
@@ -2287,7 +2379,7 @@ class raw_hash_set {
   static_assert(
       std::is_same_v<
           typename InstantiateRawHashSet<Policy, Hash, Eq, Alloc>::type,
-          raw_hash_set>,
+          raw_hash_set<Policy, Params...>>,
       "Redundant template parameters were passed. Use InstantiateRawHashSet<> "
       "instead");
 
@@ -2437,17 +2529,17 @@ class raw_hash_set {
                 "Allocators with custom pointer types are not supported");
 
   class iterator : private HashSetIteratorGenerationInfo {
-    friend class raw_hash_set;
+    friend class raw_hash_set_impl;
     friend struct HashtableFreeFunctionsAccess;
 
    public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = typename raw_hash_set::value_type;
+    using value_type = typename raw_hash_set_impl::value_type;
     using reference =
         std::conditional_t<PolicyTraits::constant_iterators::value,
                             const value_type&, value_type&>;
     using pointer = std::remove_reference_t<reference>*;
-    using difference_type = typename raw_hash_set::difference_type;
+    using difference_type = typename raw_hash_set_impl::difference_type;
 
     // We use DefaultIterSlot() for default-constructed iterators so that
     // they can be distinguished from end iterators, which have nullptr slot_.
@@ -2545,17 +2637,17 @@ class raw_hash_set {
   };
 
   class const_iterator {
-    friend class raw_hash_set;
+    friend class raw_hash_set_impl;
     template <class Container, typename Enabler>
     friend struct absl::container_internal::hashtable_debug_internal::
         HashtableDebugAccess;
 
    public:
     using iterator_category = typename iterator::iterator_category;
-    using value_type = typename raw_hash_set::value_type;
-    using reference = typename raw_hash_set::const_reference;
-    using pointer = typename raw_hash_set::const_pointer;
-    using difference_type = typename raw_hash_set::difference_type;
+    using value_type = typename raw_hash_set_impl::value_type;
+    using reference = typename raw_hash_set_impl::const_reference;
+    using pointer = typename raw_hash_set_impl::const_pointer;
+    using difference_type = typename raw_hash_set_impl::difference_type;
 
     const_iterator() = default;
     // Implicit construction from iterator.
@@ -2596,78 +2688,84 @@ class raw_hash_set {
 
   // Note: can't use `= default` due to non-default noexcept (causes
   // problems for some compilers). NOLINTNEXTLINE
-  raw_hash_set() noexcept(
+  raw_hash_set_impl() noexcept(
       std::is_nothrow_default_constructible_v<hasher> &&
       std::is_nothrow_default_constructible_v<key_equal> &&
       std::is_nothrow_default_constructible_v<allocator_type>) {}
 
-  explicit raw_hash_set(size_t reservation_size, const hasher& hash = hasher(),
-                        const key_equal& eq = key_equal(),
-                        const allocator_type& alloc = allocator_type())
-      : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq,
-                  alloc) {
+  explicit raw_hash_set_impl(size_t reservation_size,
+                             const hasher& hash = hasher(),
+                             const key_equal& eq = key_equal(),
+                             const allocator_type& alloc = allocator_type())
+      : settings_(CommonFields::CreateDefault<SooEnabled()>(), hash, eq, alloc) {
     if (reservation_size > DefaultCapacity()) {
       ReserveTableToFitNewSize(common(), GetPolicyFunctions(),
                                reservation_size);
     }
   }
 
-  raw_hash_set(size_t reservation_size, const hasher& hash,
-               const allocator_type& alloc)
-      : raw_hash_set(reservation_size, hash, key_equal(), alloc) {}
+  raw_hash_set_impl(size_t reservation_size, const hasher& hash,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(reservation_size, hash, key_equal(), alloc) {}
 
-  raw_hash_set(size_t reservation_size, const allocator_type& alloc)
-      : raw_hash_set(reservation_size, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(size_t reservation_size, const allocator_type& alloc)
+      : raw_hash_set_impl(reservation_size, hasher(), key_equal(), alloc) {}
 
-  explicit raw_hash_set(const allocator_type& alloc)
-      : raw_hash_set(0, hasher(), key_equal(), alloc) {}
+  explicit raw_hash_set_impl(const allocator_type& alloc)
+      : raw_hash_set_impl(0, hasher(), key_equal(), alloc) {}
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t reservation_size = 0,
-               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
-               const allocator_type& alloc = allocator_type())
-      : raw_hash_set(
+  raw_hash_set_impl(InputIter first, InputIter last,
+                    size_t reservation_size = 0,
+                    const hasher& hash = hasher(),
+                    const key_equal& eq = key_equal(),
+                    const allocator_type& alloc = allocator_type())
+      : raw_hash_set_impl(
             SelectReservationSizeForIterRange(first, last, reservation_size),
             hash, eq, alloc) {
     insert(first, last);
   }
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t reservation_size,
-               const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(first, last, reservation_size, hash, key_equal(), alloc) {}
+  raw_hash_set_impl(InputIter first, InputIter last, size_t reservation_size,
+                    const hasher& hash, const allocator_type& alloc)
+      : raw_hash_set_impl(first, last, reservation_size, hash, key_equal(),
+                          alloc) {}
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, size_t reservation_size,
-               const allocator_type& alloc)
-      : raw_hash_set(first, last, reservation_size, hasher(), key_equal(),
-                     alloc) {}
+  raw_hash_set_impl(InputIter first, InputIter last, size_t reservation_size,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(first, last, reservation_size, hasher(), key_equal(),
+                          alloc) {}
 
 #if defined(__cpp_lib_containers_ranges) && \
     __cpp_lib_containers_ranges >= 202202L
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size = 0,
-               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
-               const allocator_type& alloc = allocator_type())
-      : raw_hash_set(std::begin(rg), std::end(rg), reservation_size, hash, eq,
-                     alloc) {}
+  raw_hash_set_impl(std::from_range_t, R&& rg,
+                    size_type reservation_size = 0,
+                    const hasher& hash = hasher(),
+                    const key_equal& eq = key_equal(),
+                    const allocator_type& alloc = allocator_type())
+      : raw_hash_set_impl(std::begin(rg), std::end(rg), reservation_size, hash,
+                          eq, alloc) {}
 
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size,
-               const allocator_type& alloc)
-      : raw_hash_set(std::from_range, std::forward<R>(rg), reservation_size,
-                     hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(std::from_range_t, R&& rg, size_type reservation_size,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(std::from_range, std::forward<R>(rg),
+                          reservation_size, hasher(), key_equal(), alloc) {}
 
   template <typename R>
-  raw_hash_set(std::from_range_t, R&& rg, size_type reservation_size,
-               const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(std::from_range, std::forward<R>(rg), reservation_size,
-                     hash, key_equal(), alloc) {}
+  raw_hash_set_impl(std::from_range_t, R&& rg, size_type reservation_size,
+                    const hasher& hash, const allocator_type& alloc)
+      : raw_hash_set_impl(std::from_range, std::forward<R>(rg),
+                          reservation_size, hash, key_equal(), alloc) {}
 #endif
 
   template <class InputIter>
-  raw_hash_set(InputIter first, InputIter last, const allocator_type& alloc)
-      : raw_hash_set(first, last, 0, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(InputIter first, InputIter last,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(first, last, 0, hasher(), key_equal(), alloc) {}
 
   // Instead of accepting std::initializer_list<value_type> as the first
   // argument like std::unordered_set<value_type> does, we have two overloads
@@ -2692,54 +2790,62 @@ class raw_hash_set {
   // RequiresNotInit<T> is a workaround for gcc prior to 7.1.
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t reservation_size = 0,
-               const hasher& hash = hasher(), const key_equal& eq = key_equal(),
-               const allocator_type& alloc = allocator_type())
-      : raw_hash_set(init.begin(), init.end(), reservation_size, hash, eq,
-                     alloc) {}
+  raw_hash_set_impl(std::initializer_list<T> init,
+                    size_t reservation_size = 0,
+                    const hasher& hash = hasher(),
+                    const key_equal& eq = key_equal(),
+                    const allocator_type& alloc = allocator_type())
+      : raw_hash_set_impl(init.begin(), init.end(), reservation_size, hash, eq,
+                          alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init,
-               size_t reservation_size = 0, const hasher& hash = hasher(),
-               const key_equal& eq = key_equal(),
-               const allocator_type& alloc = allocator_type())
-      : raw_hash_set(init.begin(), init.end(), reservation_size, hash, eq,
-                     alloc) {}
-
-  template <class T, RequiresNotInit<T> = 0,
-            std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
-               const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
-
-  raw_hash_set(std::initializer_list<init_type> init, size_t reservation_size,
-               const hasher& hash, const allocator_type& alloc)
-      : raw_hash_set(init, reservation_size, hash, key_equal(), alloc) {}
+  raw_hash_set_impl(std::initializer_list<init_type> init,
+                    size_t reservation_size = 0,
+                    const hasher& hash = hasher(),
+                    const key_equal& eq = key_equal(),
+                    const allocator_type& alloc = allocator_type())
+      : raw_hash_set_impl(init.begin(), init.end(), reservation_size, hash, eq,
+                          alloc) {}
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, size_t reservation_size,
-               const allocator_type& alloc)
-      : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(std::initializer_list<T> init, size_t reservation_size,
+                    const hasher& hash, const allocator_type& alloc)
+      : raw_hash_set_impl(init, reservation_size, hash, key_equal(), alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init, size_t reservation_size,
-               const allocator_type& alloc)
-      : raw_hash_set(init, reservation_size, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(std::initializer_list<init_type> init,
+                    size_t reservation_size, const hasher& hash,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(init, reservation_size, hash, key_equal(), alloc) {}
 
   template <class T, RequiresNotInit<T> = 0,
             std::enable_if_t<Insertable<T>::value, int> = 0>
-  raw_hash_set(std::initializer_list<T> init, const allocator_type& alloc)
-      : raw_hash_set(init, 0, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(std::initializer_list<T> init, size_t reservation_size,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(init, reservation_size, hasher(), key_equal(),
+                          alloc) {}
 
-  raw_hash_set(std::initializer_list<init_type> init,
-               const allocator_type& alloc)
-      : raw_hash_set(init, 0, hasher(), key_equal(), alloc) {}
+  raw_hash_set_impl(std::initializer_list<init_type> init,
+                    size_t reservation_size, const allocator_type& alloc)
+      : raw_hash_set_impl(init, reservation_size, hasher(), key_equal(),
+                          alloc) {}
 
-  raw_hash_set(const raw_hash_set& that)
-      : raw_hash_set(that, AllocTraits::select_on_container_copy_construction(
-                               allocator_type(that.char_alloc_ref()))) {}
+  template <class T, RequiresNotInit<T> = 0,
+            std::enable_if_t<Insertable<T>::value, int> = 0>
+  raw_hash_set_impl(std::initializer_list<T> init,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(init, 0, hasher(), key_equal(), alloc) {}
 
-  raw_hash_set(const raw_hash_set& that, const allocator_type& a)
-      : raw_hash_set(0, that.hash_ref(), that.eq_ref(), a) {
+  raw_hash_set_impl(std::initializer_list<init_type> init,
+                    const allocator_type& alloc)
+      : raw_hash_set_impl(init, 0, hasher(), key_equal(), alloc) {}
+
+  raw_hash_set_impl(const raw_hash_set_impl& that)
+      : raw_hash_set_impl(
+            that, AllocTraits::select_on_container_copy_construction(
+                      allocator_type(that.char_alloc_ref()))) {}
+
+  raw_hash_set_impl(const raw_hash_set_impl& that, const allocator_type& a)
+      : raw_hash_set_impl(0, that.hash_ref(), that.eq_ref(), a) {
     that.AssertNotDebugCapacity();
     if (that.empty()) return;
     Copy(common(), GetPolicyFunctions(), that.common(),
@@ -2752,7 +2858,7 @@ class raw_hash_set {
          });
   }
 
-  ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(
+  ABSL_ATTRIBUTE_NOINLINE raw_hash_set_impl(raw_hash_set_impl&& that) noexcept(
       std::is_nothrow_copy_constructible_v<hasher> &&
       std::is_nothrow_copy_constructible_v<key_equal> &&
       std::is_nothrow_copy_constructible_v<allocator_type>)
@@ -2772,7 +2878,7 @@ class raw_hash_set {
     annotate_for_bug_detection_on_move(that);
   }
 
-  raw_hash_set(raw_hash_set&& that, const allocator_type& a)
+  raw_hash_set_impl(raw_hash_set_impl&& that, const allocator_type& a)
       : settings_(CommonFields::CreateDefault<SooEnabled()>(), that.hash_ref(),
                   that.eq_ref(), a) {
     if (CharAlloc(a) == that.char_alloc_ref()) {
@@ -2783,7 +2889,7 @@ class raw_hash_set {
     }
   }
 
-  raw_hash_set& operator=(const raw_hash_set& that) {
+  raw_hash_set_impl& operator=(const raw_hash_set_impl& that) {
     that.AssertNotDebugCapacity();
     if (ABSL_PREDICT_FALSE(this == &that)) return *this;
     constexpr bool propagate_alloc =
@@ -2794,12 +2900,12 @@ class raw_hash_set {
     // do the same heuristic as clear() and reuse if it's small enough.
     allocator_type alloc(propagate_alloc ? that.char_alloc_ref()
                                          : char_alloc_ref());
-    raw_hash_set tmp(that, alloc);
+    raw_hash_set_impl tmp(that, alloc);
     // NOLINTNEXTLINE: not returning *this for performance.
     return assign_impl<propagate_alloc>(std::move(tmp));
   }
 
-  raw_hash_set& operator=(raw_hash_set&& that) noexcept(
+  raw_hash_set_impl& operator=(raw_hash_set_impl&& that) noexcept(
       AllocTraits::is_always_equal::value &&
       std::is_nothrow_move_assignable_v<hasher> &&
       std::is_nothrow_move_assignable_v<key_equal>) {
@@ -2811,7 +2917,7 @@ class raw_hash_set {
         typename AllocTraits::propagate_on_container_move_assignment());
   }
 
-  ~raw_hash_set() {
+  ~raw_hash_set_impl() {
     destructor_impl();
     if constexpr (SwisstableGenerationsOrDebugEnabled()) {
       // Prevent the compiler from optimizing away the store.
@@ -2835,10 +2941,10 @@ class raw_hash_set {
   }
 
   const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->begin();
+    return const_cast<raw_hash_set_impl*>(this)->begin();
   }
   const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->end();
+    return const_cast<raw_hash_set_impl*>(this)->end();
   }
   const_iterator cbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return begin();
@@ -3082,7 +3188,7 @@ class raw_hash_set {
   // WARNING: This API is currently experimental. If there is a way to implement
   // the same thing with the rest of the API, prefer that.
   class constructor {
-    friend class raw_hash_set;
+    friend class raw_hash_set_impl;
 
    public:
     template <class... Args>
@@ -3227,7 +3333,7 @@ class raw_hash_set {
     return it == end() ? node_type() : extract(const_iterator{it});
   }
 
-  void swap(raw_hash_set& that) noexcept(
+  void swap(raw_hash_set_impl& that) noexcept(
       AllocTraits::is_always_equal::value &&
       std::is_nothrow_swappable_v<hasher> &&
       std::is_nothrow_swappable_v<key_equal>) {
@@ -3308,7 +3414,7 @@ class raw_hash_set {
   template <class K = key_type>
   const_iterator find(const key_arg<K>& key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->find(key);
+    return const_cast<raw_hash_set_impl*>(this)->find(key);
   }
 
   template <class K = key_type>
@@ -3350,10 +3456,11 @@ class raw_hash_set {
     return allocator_type(char_alloc_ref());
   }
 
-  friend bool operator==(const raw_hash_set& a, const raw_hash_set& b) {
+  friend bool operator==(const raw_hash_set_impl& a,
+                         const raw_hash_set_impl& b) {
     if (a.size() != b.size()) return false;
-    const raw_hash_set* outer = &a;
-    const raw_hash_set* inner = &b;
+    const raw_hash_set_impl* outer = &a;
+    const raw_hash_set_impl* inner = &b;
     if (outer->capacity() > inner->capacity()) std::swap(outer, inner);
     for (const value_type& elem : *outer) {
       auto it = PolicyTraits::apply(FindElement{*inner}, elem);
@@ -3371,19 +3478,20 @@ class raw_hash_set {
     return true;
   }
 
-  friend bool operator!=(const raw_hash_set& a, const raw_hash_set& b) {
+  friend bool operator!=(const raw_hash_set_impl& a,
+                         const raw_hash_set_impl& b) {
     return !(a == b);
   }
 
   template <typename H>
   friend std::enable_if_t<H::template is_hashable<value_type>::value, H>
-  AbslHashValue(H h, const raw_hash_set& s) {
+  AbslHashValue(H h, const raw_hash_set_impl& s) {
     return H::combine(H::combine_unordered(std::move(h), s.begin(), s.end()),
                       hash_internal::WeaklyMixedInteger{s.size()});
   }
 
-  friend void swap(raw_hash_set& a,
-                   raw_hash_set& b) noexcept(noexcept(a.swap(b))) {
+  friend void swap(raw_hash_set_impl& a,
+                   raw_hash_set_impl& b) noexcept(noexcept(a.swap(b))) {
     a.swap(b);
   }
 
@@ -3400,7 +3508,7 @@ class raw_hash_set {
     const_iterator operator()(const K& key, Args&&...) const {
       return s.find(key);
     }
-    const raw_hash_set& s;
+    const raw_hash_set_impl& s;
   };
 
   struct EmplaceDecomposable {
@@ -3412,7 +3520,7 @@ class raw_hash_set {
       }
       return {s.non_iterable_iterator_at_slot(res.first), res.second};
     }
-    raw_hash_set& s;
+    raw_hash_set_impl& s;
   };
 
   template <bool do_destroy>
@@ -3427,7 +3535,7 @@ class raw_hash_set {
       }
       return {s.non_iterable_iterator_at_slot(res.first), res.second};
     }
-    raw_hash_set& s;
+    raw_hash_set_impl& s;
     // Constructed slot. Either moved into place or destroyed.
     slot_type&& slot;
   };
@@ -3609,7 +3717,7 @@ class raw_hash_set {
 
   // Swaps common fields making sure to avoid memcpy'ing a full SOO slot if we
   // aren't allowed to do so.
-  void swap_common(raw_hash_set& that) {
+  void swap_common(raw_hash_set_impl& that) {
     using std::swap;
     if (PolicyTraits::transfer_uses_memcpy()) {
       swap(common(), that.common());
@@ -3625,7 +3733,8 @@ class raw_hash_set {
                 std::move(tmp));
   }
 
-  void annotate_for_bug_detection_on_move([[maybe_unused]] raw_hash_set& that) {
+  void annotate_for_bug_detection_on_move(
+      [[maybe_unused]] raw_hash_set_impl& that) {
     // We only enable moved-from validation when generations are enabled (rather
     // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
     // translation units but not in others.
@@ -3647,7 +3756,7 @@ class raw_hash_set {
   }
 
   template <bool propagate_alloc>
-  raw_hash_set& assign_impl(raw_hash_set&& that) {
+  raw_hash_set_impl& assign_impl(raw_hash_set_impl&& that) {
     // We don't bother checking for this/that aliasing. We just need to avoid
     // breaking the invariants in that case.
     destructor_impl();
@@ -3662,7 +3771,7 @@ class raw_hash_set {
     return *this;
   }
 
-  raw_hash_set& move_elements_allocs_unequal(raw_hash_set&& that) {
+  raw_hash_set_impl& move_elements_allocs_unequal(raw_hash_set_impl&& that) {
     const size_t size = that.size();
     if (size == 0) return *this;
     reserve(size);
@@ -3680,12 +3789,12 @@ class raw_hash_set {
     return *this;
   }
 
-  raw_hash_set& move_assign(raw_hash_set&& that,
-                            std::true_type /*propagate_alloc*/) {
+  raw_hash_set_impl& move_assign(raw_hash_set_impl&& that,
+                                 std::true_type /*propagate_alloc*/) {
     return assign_impl<true>(std::move(that));
   }
-  raw_hash_set& move_assign(raw_hash_set&& that,
-                            std::false_type /*propagate_alloc*/) {
+  raw_hash_set_impl& move_assign(raw_hash_set_impl&& that,
+                                 std::false_type /*propagate_alloc*/) {
     if (char_alloc_ref() == that.char_alloc_ref()) {
       return assign_impl<false>(std::move(that));
     }
@@ -3889,7 +3998,7 @@ class raw_hash_set {
     return {control() + i, slot_array() + i, common().generation_ptr()};
   }
   const_iterator iterator_at(size_t i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->iterator_at(i);
+    return const_cast<raw_hash_set_impl*>(this)->iterator_at(i);
   }
   iterator iterator_at_ptr(ctrl_t* ctrl, void* slot)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -3934,7 +4043,7 @@ class raw_hash_set {
   }
   const slot_type* soo_slot() const {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(
-        const_cast<raw_hash_set*>(this)->soo_slot());
+        const_cast<raw_hash_set_impl*>(this)->soo_slot());
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
@@ -3943,7 +4052,7 @@ class raw_hash_set {
                : to_slot(common().slot_array(/*capacity=*/1));
   }
   const slot_type* single_slot() const {
-    return const_cast<raw_hash_set*>(this)->single_slot();
+    return const_cast<raw_hash_set_impl*>(this)->single_slot();
   }
   void decrement_small_size() {
     ABSL_SWISSTABLE_ASSERT(is_small());
@@ -3956,7 +4065,7 @@ class raw_hash_set {
     return {SooControl(), single_slot(), common().generation_ptr()};
   }
   const_iterator single_iterator() const {
-    return const_cast<raw_hash_set*>(this)->single_iterator();
+    return const_cast<raw_hash_set_impl*>(this)->single_iterator();
   }
   HashtablezInfoHandle infoz() {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
@@ -3973,11 +4082,11 @@ class raw_hash_set {
   }
 
   static void* get_char_alloc_ref_fn(CommonFields& common) {
-    auto* h = reinterpret_cast<raw_hash_set*>(&common);
+    auto* h = reinterpret_cast<raw_hash_set_impl*>(&common);
     return &h->char_alloc_ref();
   }
   static void* get_hash_ref_fn(CommonFields& common) {
-    auto* h = reinterpret_cast<raw_hash_set*>(&common);
+    auto* h = reinterpret_cast<raw_hash_set_impl*>(&common);
     // TODO(b/397453582): Remove support for const hasher.
     return const_cast<std::remove_const_t<hasher>*>(&h->hash_ref());
   }
@@ -3986,20 +4095,20 @@ class raw_hash_set {
     auto* src_slot = to_slot(src);
     auto* dst_slot = to_slot(dst);
 
-    auto* h = static_cast<raw_hash_set*>(set);
+    auto* h = static_cast<raw_hash_set_impl*>(set);
     for (; count > 0; --count, ++src_slot, ++dst_slot) {
       h->transfer(dst_slot, src_slot);
     }
   }
 
   static void destroy_slot_fn_impl(void* set, void* slot) {
-    auto* h = static_cast<raw_hash_set*>(set);
+    auto* h = static_cast<raw_hash_set_impl*>(set);
     h->destroy(to_slot(slot));
   }
   static constexpr DestroySlotFn get_destroy_slot_fn() {
     return PolicyTraits::template destroy_is_trivial<Alloc>()
                ? nullptr
-               : &raw_hash_set::destroy_slot_fn_impl;
+               : &raw_hash_set_impl::destroy_slot_fn_impl;
   }
 
   // TODO(b/382423690): Try to type erase entire function or at least type erase
@@ -4016,7 +4125,7 @@ class raw_hash_set {
     ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
     ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
 
-    auto* set = reinterpret_cast<raw_hash_set*>(&common);
+    auto* set = reinterpret_cast<raw_hash_set_impl*>(&common);
     slot_type* old_slots_ptr = to_slot(old_slots);
     ctrl_t* new_ctrl = common.control();
     slot_type* new_slots = set->slot_array(new_capacity);
@@ -4073,7 +4182,7 @@ class raw_hash_set {
           static_cast<uint32_t>(sizeof(slot_type)),
           static_cast<uint16_t>(alignof(slot_type))>();
     } else {
-      return DtorPolicy::GetRef<raw_hash_set>();
+      return DtorPolicy::GetRef<raw_hash_set_impl>();
     }
   }
 
@@ -4098,17 +4207,17 @@ class raw_hash_set {
         // TODO(b/328722020): try to type erase
         // for standard layout and alignof(Hash) <= alignof(CommonFields).
         std::is_empty_v<hasher> ? &GetRefForEmptyClass
-                                : &raw_hash_set::get_hash_ref_fn,
+                                : &raw_hash_set_impl::get_hash_ref_fn,
         PolicyTraits::template get_hash_slot_fn<hasher, kIsAbslHash,
                                                 kSeedShift>(),
         PolicyTraits::transfer_uses_memcpy()
             ? TransferNRelocatable<sizeof(slot_type)>
-            : &raw_hash_set::transfer_n_slots_fn,
+            : &raw_hash_set_impl::transfer_n_slots_fn,
         std::is_empty_v<Alloc> ? &GetRefForEmptyClass
-                               : &raw_hash_set::get_char_alloc_ref_fn,
+                               : &raw_hash_set_impl::get_char_alloc_ref_fn,
         &AllocateBackingArray<kBackingArrayAlignment, CharAlloc>,
         get_dealloc_backing_array_fn(),
-        &raw_hash_set::transfer_unprobed_elements_to_next_capacity_fn};
+        &raw_hash_set_impl::transfer_unprobed_elements_to_next_capacity_fn};
     return value;
   }
 
@@ -4119,6 +4228,29 @@ class raw_hash_set {
                                             CharAlloc>
       settings_{CommonFields::CreateDefault<SooEnabled()>(), hasher{},
                 key_equal{}, CharAlloc{}};
+};
+
+template <class Policy, class... Params>
+class raw_hash_set
+    : public raw_hash_set_impl<Policy, Params...>,
+      private RawHashSetCopyCtorBase<
+          RawHashSetCopyTraits<raw_hash_set_impl<Policy, Params...>>::
+              kCanCopyConstruct>,
+      private RawHashSetCopyAssignBase<
+          RawHashSetCopyTraits<raw_hash_set_impl<Policy, Params...>>::
+              kCanCopyAssign> {
+  using Base = raw_hash_set_impl<Policy, Params...>;
+
+ public:
+  raw_hash_set() = default;
+  raw_hash_set(const raw_hash_set&) = default;
+  raw_hash_set(raw_hash_set&&) = default;
+  raw_hash_set& operator=(const raw_hash_set&) = default;
+  raw_hash_set& operator=(raw_hash_set&&) = default;
+  ~raw_hash_set() = default;
+  raw_hash_set(const Base&) = delete;
+  raw_hash_set(Base&&) = delete;
+  using Base::Base;
 };
 
 // Friend access for free functions in raw_hash_set.h.
