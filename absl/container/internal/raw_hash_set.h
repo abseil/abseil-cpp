@@ -1105,9 +1105,14 @@ using HashSetIteratorGenerationInfo = HashSetIteratorGenerationInfoDisabled;
 // `Group::kWidth`-width probe window starting from any control byte.
 constexpr size_t NumClonedBytes() { return Group::kWidth - 1; }
 
+// Returns the number of control bytes including cloned assuming large table.
+constexpr size_t NumControlBytesForLargeTable(size_t capacity) {
+  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(capacity));
+  return capacity + 1 + NumClonedBytes();
+}
 // Returns the number of control bytes including cloned.
 constexpr size_t NumControlBytes(size_t capacity) {
-  return IsSmallCapacity(capacity) ? 0 : capacity + 1 + NumClonedBytes();
+  return IsSmallCapacity(capacity) ? 0 : NumControlBytesForLargeTable(capacity);
 }
 
 // Returns the size in bytes table with given capacity use to store GrowthInfo.
@@ -1301,13 +1306,17 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // Note: we can't use slots() because Qt defines "slots" as a macro.
   // Returns pointer to the slots of a table with explicit capacity that must be
   // equal to the actual capacity of the table.
-  // Capacity is often known at compile time or already in register with some
-  // ABSL_ASSUME conditions. We require passing it explicitly to eliminate
-  // branches inside of NumControlBytes in majority of cases.
+  // Table must be large.
   void* slot_array(size_t capacity) const {
     ABSL_SWISSTABLE_ASSERT(capacity == this->capacity());
+    ABSL_ASSUME(capacity > kMaxSmallCapacity);
     ctrl_t* ctrl = control();
-    return ctrl + NumControlBytes(capacity);
+    return ctrl + NumControlBytesForLargeTable(capacity);
+  }
+  // Returns pointer to the single slot of a table with capacity 1.
+  void* single_non_soo_slot() const {
+    ABSL_SWISSTABLE_ASSERT(capacity() == 1);
+    return control();
   }
 
   // The number of filled slots.
@@ -3938,9 +3947,7 @@ class raw_hash_set {
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    return SooEnabled()
-               ? soo_slot()
-               : to_slot(common().slot_array(/*capacity=*/1));
+    return SooEnabled() ? soo_slot() : to_slot(common().single_non_soo_slot());
   }
   const slot_type* single_slot() const {
     return const_cast<raw_hash_set*>(this)->single_slot();
