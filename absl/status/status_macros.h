@@ -175,8 +175,7 @@
        ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_))              \
   (return_keyword, __VA_ARGS__)
 
-constexpr bool HasPotentiallyUnsafeConditionalOperator(const char* lhs,
-                                                       size_t size) {
+constexpr bool HasPotentialConditionalOperator(const char* lhs, size_t size) {
   return lhs[0] == '(' && lhs[size - 1] == ')' &&
          std::char_traits<char>::find(lhs, size, '?') != nullptr;
 }
@@ -231,25 +230,24 @@ ABSL_NAMESPACE_END
       (void)_; /* error_expression is allowed to not use this variable */      \
       return_keyword(error_expression))
 
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                 \
-    statusor, lhs, rexpr, error_expression)                                 \
-  auto statusor = (rexpr);                                                  \
-  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                                 \
-    error_expression;                                                       \
-  }                                                                         \
-  {                                                                         \
-    static_assert(                                                          \
-        !HasPotentiallyUnsafeConditionalOperator(#lhs, sizeof(#lhs) - 1),   \
-        "Identified potential conditional operator, consider not "          \
-        "using ABSL_ASSIGN_OR_RETURN");                                     \
-  }                                                                         \
-  {                                                                         \
-    static_assert(                                                          \
-        absl::status_macro_internal::IsAllowedStatusOrMacroType<            \
-            std::remove_const_t<decltype(statusor)>>(),                     \
-        "ABSL_ASSIGN_OR_RETURN should only be used with absl::StatusOr<>"); \
-  }                                                                         \
-  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) =   \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                  \
+    statusor, lhs, rexpr, error_expression)                                  \
+  auto statusor = (rexpr);                                                   \
+  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                                  \
+    error_expression;                                                        \
+  }                                                                          \
+  {                                                                          \
+    static_assert(!HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 1),  \
+                  "Identified potential conditional operator, consider not " \
+                  "using ABSL_ASSIGN_OR_RETURN");                            \
+  }                                                                          \
+  {                                                                          \
+    static_assert(                                                           \
+        absl::status_macro_internal::IsAllowedStatusOrMacroType<             \
+            std::remove_const_t<decltype(statusor)>>(),                      \
+        "ABSL_ASSIGN_OR_RETURN should only be used with absl::StatusOr<>");  \
+  }                                                                          \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) =    \
       (*std::move(statusor))
 
 // Internal helpers for macro expansion.
