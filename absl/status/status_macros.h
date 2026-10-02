@@ -180,6 +180,14 @@ constexpr bool HasPotentialConditionalOperator(const char* lhs, size_t size) {
          std::char_traits<char>::find(lhs, size, '?') != nullptr;
 }
 
+template <std::size_t N>
+constexpr bool IsEnclosedByParentheses(const char (&lhs)[N]) {
+  if (N < 2) {
+    return false;
+  }
+  return lhs[0] == '(' && lhs[N - 2] == ')';
+}
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace status_macro_internal {
