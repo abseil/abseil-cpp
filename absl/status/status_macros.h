@@ -22,6 +22,7 @@
 #define ABSL_STATUS_STATUS_MACROS_H_
 
 #include <cstddef>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -174,21 +175,10 @@
        ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_))              \
   (return_keyword, __VA_ARGS__)
 
-constexpr bool HasPotentialConditionalOperator(const char* lhs, int size) {
-  for (int i = 0; i < size; ++i) {
-    if (lhs[i] == '?') {
-      return true;
-    }
-  }
-  return false;
-}
-
-template <std::size_t N>
-constexpr bool IsEnclosedByParentheses(const char (&lhs)[N]) {
-  if (N < 2) {
-    return false;
-  }
-  return lhs[0] == '(' && lhs[N - 2] == ')';
+constexpr bool HasPotentiallyUnsafeConditionalOperator(const char* lhs,
+                                                       size_t size) {
+  return lhs[0] == '(' && lhs[size - 1] == ')' &&
+         std::char_traits<char>::find(lhs, size, '?') != nullptr;
 }
 
 namespace absl {
@@ -249,8 +239,7 @@ ABSL_NAMESPACE_END
   }                                                                         \
   {                                                                         \
     static_assert(                                                          \
-        !IsEnclosedByParentheses(#lhs) ||                                   \
-            !HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),       \
+        !HasPotentiallyUnsafeConditionalOperator(#lhs, sizeof(#lhs) - 1),   \
         "Identified potential conditional operator, consider not "          \
         "using ABSL_ASSIGN_OR_RETURN");                                     \
   }                                                                         \
