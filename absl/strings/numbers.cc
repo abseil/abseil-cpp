@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <charconv>
+#include <cfenv>
 #include <cfloat>  // for DBL_DIG and FLT_DIG
 #include <clocale>  // for localeconv
 #include <cmath>   // for HUGE_VAL
@@ -411,6 +413,55 @@ char* absl_nonnull numbers_internal::FastIntToBuffer(
 static constexpr double kDoublePrecisionCheckMax =
     std::numeric_limits<double>::max() / 1.000000000000001;
 
+// The C++17 __cpp_lib_to_chars feature-test macro covers the integer overloads
+// too, so it cannot be used to detect floating-point to_chars.  Detect the
+// standard library implementation instead.  The compiler and standard
+// library can be selected independently, especially when Clang uses libstdc++.
+#if defined(__GLIBCXX__) && defined(_GLIBCXX_RELEASE) && \
+    _GLIBCXX_RELEASE >= 11
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 1
+#elif defined(_LIBCPP_VERSION) && _LIBCPP_VERSION >= 14000
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1930 && !defined(__GLIBCXX__) && \
+    !defined(_LIBCPP_VERSION)
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 1
+#else
+#define ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT 0
+#endif
+
+#if ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT
+static char* absl_nonnull RoundTripDoubleToBufferWithToChars(
+    double d, char* absl_nonnull buffer) {
+  auto to_chars = [buffer, d](int precision) {
+    std::to_chars_result result = std::to_chars(
+        buffer, buffer + numbers_internal::kFastToBufferSize, d,
+        std::chars_format::general, precision);
+    ABSL_ASSERT(result.ec == std::errc());
+    if (result.ec != std::errc()) {
+      buffer[0] = '\0';
+      return buffer;
+    }
+    *result.ptr = '\0';
+    return result.ptr;
+  };
+
+  bool full_precision_needed = true;
+  if (std::abs(d) <= kDoublePrecisionCheckMax) {
+    char* end = to_chars(std::numeric_limits<double>::digits10);
+    double parsed_value = 0;
+    absl::from_chars_result parse_result =
+        absl::from_chars(buffer, end, parsed_value);
+    full_precision_needed = parse_result.ec != std::errc() ||
+                            parse_result.ptr != end || parsed_value != d;
+  }
+
+  if (full_precision_needed) {
+    to_chars(std::numeric_limits<double>::digits10 + 2);
+  }
+  return buffer;
+}
+#endif
+
 char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     double d, char* absl_nonnull buffer) {
   // DBL_DIG is 15 for IEEE-754 doubles, which are used on almost all
@@ -426,6 +477,18 @@ char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
     strcpy(buffer, "nan");  // NOLINT(runtime/printf)
     return buffer;
   }
+
+#if ABSL_INTERNAL_HAVE_STD_TO_CHARS_FLOAT
+  // std::to_chars is locale-independent and substantially faster than the
+  // snprintf/strtod path below. It is not required to honor a runtime
+  // rounding mode, so retain the old path when callers select one other than
+  // round-to-nearest. The old path is also the fallback for standard libraries
+  // without floating-point to_chars.
+  if (std::isfinite(d) && std::fegetround() == FE_TONEAREST) {
+    return RoundTripDoubleToBufferWithToChars(d, buffer);
+  }
+#endif
+
   bool full_precision_needed = true;
   if (std::abs(d) <= kDoublePrecisionCheckMax) {
     int snprintf_result =
