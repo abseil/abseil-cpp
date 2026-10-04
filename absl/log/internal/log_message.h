@@ -68,22 +68,22 @@ class LogMessage {
 
   // Used for `LOG`.  Taking `const char *` instead of `string_view` keeps
   // callsites a little bit smaller at the cost of doing `strlen` at runtime.
-  LogMessage(const char* absl_nonnull file, int line,
-             absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessage(const char* absl_nonnull file, int line,
+                                 absl::LogSeverity severity);
   // Used for FFI integrations that don't have a NUL-terminated string.
-  LogMessage(absl::string_view file, int line,
-             absl::LogSeverity severity) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessage(absl::string_view file, int line,
+                                 absl::LogSeverity severity);
   // These constructors are slightly smaller/faster to call; the severity is
   // curried into the function pointer.
-  LogMessage(const char* absl_nonnull file, int line,
-             InfoTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
-  LogMessage(const char* absl_nonnull file, int line,
-             WarningTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
-  LogMessage(const char* absl_nonnull file, int line,
-             ErrorTag) ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE;
+  ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE
+  LogMessage(const char* absl_nonnull file, int line, InfoTag);
+  ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE
+  LogMessage(const char* absl_nonnull file, int line, WarningTag);
+  ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE
+  LogMessage(const char* absl_nonnull file, int line, ErrorTag);
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
-  ~LogMessage() ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD ~LogMessage();
 
   // Overrides the location inferred from the callsite.  The string pointed to
   // by `file` must be valid until the end of the statement.
@@ -422,9 +422,9 @@ extern template void LogMessage::CopyToEncodedBuffer<
 // message.
 class LogMessageFatal final : public LogMessage {
  public:
-  LogMessageFatal(const char* absl_nonnull file, int line) ABSL_ATTRIBUTE_COLD;
-  LogMessageFatal(const char* absl_nonnull file, int line,
-                  const char* absl_nonnull failure_msg) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessageFatal(const char* absl_nonnull file, int line);
+  ABSL_ATTRIBUTE_COLD LogMessageFatal(const char* absl_nonnull file, int line,
+                                      const char* absl_nonnull failure_msg);
   [[noreturn]] ~LogMessageFatal();
 };
 
@@ -433,8 +433,8 @@ class LogMessageFatal final : public LogMessage {
 // for DLOG(FATAL) variants.
 class LogMessageDebugFatal final : public LogMessage {
  public:
-  LogMessageDebugFatal(const char* absl_nonnull file,
-                       int line) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessageDebugFatal(const char* absl_nonnull file,
+                                           int line);
   ~LogMessageDebugFatal();
 };
 
@@ -443,19 +443,19 @@ class LogMessageQuietlyDebugFatal final : public LogMessage {
   // DLOG(QFATAL) calls this instead of LogMessageQuietlyFatal to make sure the
   // destructor is not [[noreturn]] even if this is always FATAL as this is only
   // invoked when DLOG() is enabled.
-  LogMessageQuietlyDebugFatal(const char* absl_nonnull file,
-                              int line) ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessageQuietlyDebugFatal(const char* absl_nonnull file,
+                                                  int line);
   ~LogMessageQuietlyDebugFatal();
 };
 
 // Used for LOG(QFATAL) to make sure it's properly understood as [[noreturn]].
 class LogMessageQuietlyFatal final : public LogMessage {
  public:
-  LogMessageQuietlyFatal(const char* absl_nonnull file,
-                         int line) ABSL_ATTRIBUTE_COLD;
-  LogMessageQuietlyFatal(const char* absl_nonnull file, int line,
-                         const char* absl_nonnull failure_msg)
-      ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD LogMessageQuietlyFatal(const char* absl_nonnull file,
+                                             int line);
+  ABSL_ATTRIBUTE_COLD LogMessageQuietlyFatal(
+      const char* absl_nonnull file, int line,
+      const char* absl_nonnull failure_msg);
   [[noreturn]] ~LogMessageQuietlyFatal();
 };
 

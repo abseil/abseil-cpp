@@ -1026,7 +1026,7 @@ size_t FindNewPositionsAndTransferSlots(
   return total_probe_length;
 }
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportGrowthToInfozImpl(
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfozImpl(
     CommonFields& common, HashtablezInfoHandle infoz, size_t hash,
     size_t total_probe_length, size_t distance_from_desired) {
   infoz.RecordStorageChanged(common.size() - 1, common.capacity());
@@ -1037,7 +1037,7 @@ ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportGrowthToInfozImpl(
 }
 
 // Specialization to avoid passing two 0s from hot function.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportSingleGroupTableGrowthToInfoz(CommonFields& common, ctrl_t* old_ctrl,
                                     size_t hash) {
   ReportGrowthToInfozImpl(common, common.infoz_from_control(old_ctrl), hash,
@@ -1046,7 +1046,7 @@ ReportSingleGroupTableGrowthToInfoz(CommonFields& common, ctrl_t* old_ctrl,
 }
 
 // Specialization that computes hash and generates new seed.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportSingleElementTableGrowthToInfozAndForceSample(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     absl::FunctionRef<size_t(size_t)> get_hash) {
@@ -1062,7 +1062,7 @@ ReportSingleElementTableGrowthToInfozAndForceSample(
 // Outlines cold infoz recording so callers do not inline infoz extraction
 // or spill registers across SetCtrl. `common` is first and `hash` is third to
 // match argument order in callers.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportInsertMissToInfoz(
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportInsertMissToInfoz(
     CommonFields& common, size_t probe_length, size_t hash) {
   common.infoz().RecordInsertMiss(hash, probe_length);
 }
@@ -1070,7 +1070,7 @@ ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportInsertMissToInfoz(
 // Outlines cold infoz recording with computation of hash so callers can
 // avoid calling the hash function and seed extraction in the hot path.
 // `common` is first and `get_hash` is third to match argument order in callers.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportInsertMissToInfozAndComputeHash(
     CommonFields& common, size_t probe_length,
     absl::FunctionRef<size_t(size_t)> get_hash) {
@@ -1080,7 +1080,7 @@ ReportInsertMissToInfozAndComputeHash(
 // Outlines cold infoz recording with computation of probe_length so callers can
 // skip tracking of probe_length. `common` is first and `hash` is third to match
 // argument order in callers.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportInsertMissToInfozAndComputeProbeLength(CommonFields& common,
                                              size_t target, size_t hash) {
   const size_t cap = common.capacity();
@@ -1091,14 +1091,14 @@ ReportInsertMissToInfozAndComputeProbeLength(CommonFields& common,
   common.infoz().RecordInsertMiss(hash, seq.index());
 }
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportGrowthToInfoz(
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(
     CommonFields& common, ctrl_t* old_ctrl, size_t hash,
     size_t total_probe_length, size_t distance_from_desired) {
   ReportGrowthToInfozImpl(common, common.infoz_from_control(old_ctrl), hash,
                           total_probe_length, distance_from_desired);
 }
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportResizeToInfoz(
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportResizeToInfoz(
     CommonFields& common, HashtablezInfoHandle infoz,
     size_t total_probe_length) {
   infoz.RecordStorageChanged(common.size(), common.capacity());
@@ -1107,7 +1107,7 @@ ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void ReportResizeToInfoz(
   common.set_infoz(infoz);
 }
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportResizeToInfozAndForceSample(CommonFields& common,
                                   const PolicyFunctions& __restrict policy,
                                   size_t total_probe_length) {
@@ -1936,7 +1936,7 @@ namespace {
 
 // Called whenever the table needs to vacate empty slots either by removing
 // tombstones via rehash or growth to next capacity.
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_COLD void*
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void*
 RehashOrGrowToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
