@@ -723,15 +723,16 @@ TEST(Util, probe_seq) {
   size_t capacity = 127;
   probe_seq<16> seq(ProbeCapacity{capacity}, /*hash=*/0);
   auto gen = [&]() {
-    size_t res = seq.offset();
     seq.next();
-    return res;
+    return seq.offset();
   };
   std::vector<size_t> offsets(8);
-  std::generate_n(offsets.begin(), 8, gen);
+  offsets[0] = seq.offset();
+  std::generate_n(offsets.begin() + 1, 7, gen);
   EXPECT_THAT(offsets, ElementsAre(0, 16, 48, 96, 32, 112, 80, 64));
   seq = probe_seq<16>(ProbeCapacity{capacity}, /*hash=*/128);
-  std::generate_n(offsets.begin(), 8, gen);
+  offsets[0] = seq.offset();
+  std::generate_n(offsets.begin() + 1, 7, gen);
   EXPECT_THAT(offsets, ElementsAre(0, 16, 48, 96, 32, 112, 80, 64));
 }
 

@@ -175,7 +175,6 @@ inline Group::NonIterableBitMaskType probe_till_first_non_full_group(
       return mask;
     }
     seq.next();
-    ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity && "full table!");
   }
 }
 
@@ -1088,7 +1087,6 @@ ReportInsertMissToInfozAndComputeProbeLength(CommonFields& common,
   auto seq = probe(ProbeCapacity{cap}, hash);
   while (((target - seq.offset()) & cap) >= Group::kWidth) {
     seq.next();
-    ABSL_SWISSTABLE_ASSERT(seq.index() < common.capacity());
   }
   common.infoz().RecordInsertMiss(hash, seq.index());
 }

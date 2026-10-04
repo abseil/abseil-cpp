@@ -1806,6 +1806,7 @@ class probe_seq {
   size_t offset(size_t i) const { return (offset_ + i) & capacity_; }
 
   void next() {
+    ABSL_SWISSTABLE_ASSERT(next_index_ <= capacity_ && "full table!");
     offset_ += next_index_;
     offset_ &= capacity_;
     next_index_ += Width;
@@ -3462,20 +3463,18 @@ class raw_hash_set {
   // SOO functionality.
   template <class K = key_type>
   ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const key_arg<K>& key) {
-    ABSL_SWISSTABLE_ASSERT(is_small());
     return empty() || !equal_to(key, single_slot()) ? end() : single_iterator();
   }
 
   template <class K = key_type>
   iterator find_large(const key_arg<K>& key) {
-    ABSL_SWISSTABLE_ASSERT(!is_small());
     const size_t cap = common().capacity();
     ABSL_ASSUME(cap > kMaxSmallCapacity);
     const size_t hash = hash_of(key);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     ctrl_t* ctrl = control();
-    slot_type* slot_array = to_slot(common().slot_array(cap));
+    slot_type* slot_array = this->slot_array(cap);
     while (true) {
       // Loading the group before slot prefetch decreases critical path latency.
       Group g{ctrl + seq.offset()};
@@ -3489,7 +3488,6 @@ class raw_hash_set {
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
       seq.next();
-      ABSL_SWISSTABLE_ASSERT(seq.index() <= cap && "full table!");
     }
   }
 
@@ -3716,7 +3714,6 @@ class raw_hash_set {
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<slot_type*, bool>
   find_or_prepare_insert_soo(const K& key) {
-    ABSL_SWISSTABLE_ASSERT(is_soo());
     bool force_sampling;
     slot_type* slot = single_slot();
     if (empty()) {
@@ -3730,7 +3727,6 @@ class raw_hash_set {
     } else {
       force_sampling = false;
     }
-    ABSL_SWISSTABLE_ASSERT(capacity() == 1);
     constexpr bool kUseMemcpy =
         PolicyTraits::transfer_uses_memcpy() && SooEnabled();
     slot = to_slot(
@@ -3747,7 +3743,6 @@ class raw_hash_set {
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<slot_type*, bool>
   find_or_prepare_insert_small(const K& key) {
-    ABSL_SWISSTABLE_ASSERT(is_small());
     if constexpr (SooEnabled()) {
       return find_or_prepare_insert_soo(key);
     }
@@ -3764,15 +3759,13 @@ class raw_hash_set {
 
   template <class K>
   std::pair<slot_type*, bool> find_or_prepare_insert_large(const K& key) {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
     prefetch_heap_block();
     const size_t cap = capacity();
-    ABSL_ASSUME(cap > kMaxSmallCapacity);
     const size_t hash = hash_of(key);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
-    slot_type* slot_array = to_slot(common().slot_array(cap));
+    slot_type* slot_array = this->slot_array(cap);
     while (true) {
       // Loading the group before slot prefetch decreases critical path latency.
       Group g{ctrl + seq.offset()};
@@ -3800,7 +3793,6 @@ class raw_hash_set {
         return {to_slot(slot), true};
       }
       seq.next();
-      ABSL_SWISSTABLE_ASSERT(seq.index() <= capacity() && "full table!");
     }
   }
 
@@ -3933,7 +3925,6 @@ class raw_hash_set {
     return common().control();
   }
   slot_type* slot_array(size_t capacity) const {
-    ABSL_SWISSTABLE_ASSERT(!is_soo());
     return static_cast<slot_type*>(common().slot_array(capacity));
   }
   slot_type* soo_slot() {
