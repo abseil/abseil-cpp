@@ -36,11 +36,13 @@
 #include <random>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -1919,6 +1921,94 @@ TEST(Table, InsertOverloads) {
 
   EXPECT_THAT(t, UnorderedElementsAre(Pair("", ""), Pair("ABC", ""),
                                       Pair("DEF", "!!!")));
+}
+
+struct CopyTracker {
+  static inline int num_copies = 0;
+  CopyTracker() = default;
+  CopyTracker(const CopyTracker&) { ++num_copies; }
+  CopyTracker(CopyTracker&&) = default;
+
+  bool operator==(const CopyTracker&) const { return true; }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const CopyTracker&) {
+    return H::combine(std::move(h));
+  }
+};
+
+struct MoveTracker {
+  static inline int num_destructions = 0;
+  static inline int num_moves = 0;
+  ~MoveTracker() { ++num_destructions; }
+  MoveTracker() = default;
+  MoveTracker(const MoveTracker&) = default;
+  MoveTracker(MoveTracker&&) { ++num_moves; }
+
+  bool operator==(const MoveTracker&) const { return true; }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const MoveTracker&) {
+    return H::combine(std::move(h));
+  }
+};
+
+TEST(Table, InsertDoesNotAccidentallyCopy) {
+  CopyTracker::num_copies = 0;
+  {
+    ValueTable<CopyTracker> tc;
+    EXPECT_TRUE(tc.insert(CopyTracker()).second);
+    tc.insert(tc.end(), CopyTracker());
+  }
+  EXPECT_EQ(CopyTracker::num_copies, 0);
+
+  int num_default_constructs = 0;
+  MoveTracker::num_moves = 0;
+  MoveTracker::num_destructions = 0;
+  {
+    ValueTable<MoveTracker> tm;
+    EXPECT_TRUE(tm.insert((++num_default_constructs, MoveTracker())).second);
+    tm.insert(tm.end(), (++num_default_constructs, MoveTracker()));
+  }
+  EXPECT_EQ(MoveTracker::num_destructions - num_default_constructs,
+            MoveTracker::num_moves);
+}
+
+TEST(Table, InsertWithMovesCollapsedIntoCopy) {
+  {
+    ValueTable<std::string_view> t;
+    EXPECT_TRUE(t.insert(std::string_view("a")).second);
+    EXPECT_EQ(*t.insert(t.end(), std::string_view("b")), "b");
+  }
+  {
+    ValueTable<std::array<int, 2>> t;
+    EXPECT_TRUE(t.insert(std::array<int, 2>{1, 2}).second);
+    EXPECT_EQ(*t.insert(t.end(), std::array<int, 2>{3, 4}),
+              (std::array<int, 2>{3, 4}));
+  }
+  {
+    ValueTable<std::optional<int>> t;
+    EXPECT_TRUE(t.insert(std::optional<int>(1)).second);
+    EXPECT_EQ(*t.insert(t.end(), std::optional<int>(2)), 2);
+  }
+  {
+    ValueTable<std::pair<int, int>> t;
+    EXPECT_TRUE(t.insert(std::pair<int, int>{1, 2}).second);
+    EXPECT_EQ(*t.insert(t.end(), std::pair<int, int>{3, 4}),
+              (std::pair<int, int>{3, 4}));
+  }
+  {
+    ValueTable<std::tuple<int, int>> t;
+    EXPECT_TRUE(t.insert(std::tuple<int, int>{1, 2}).second);
+    EXPECT_EQ(*t.insert(t.end(), std::tuple<int, int>{3, 4}),
+              (std::tuple<int, int>{3, 4}));
+  }
+  {
+    ValueTable<std::variant<int, double>> t;
+    EXPECT_TRUE(t.insert(std::variant<int, double>{1}).second);
+    EXPECT_EQ(*t.insert(t.end(), std::variant<int, double>{2.5}),
+              (std::variant<int, double>{2.5}));
+  }
 }
 
 TYPED_TEST(SooTest, LargeTable) {

@@ -829,6 +829,7 @@ absl_cc_library(
     absl::optional
     absl::prefetch
     absl::raw_logging_internal
+    absl::string_view
     absl::utility
     absl::weakly_mixed_integer
   PUBLIC

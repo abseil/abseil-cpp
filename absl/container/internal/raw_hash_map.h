@@ -76,12 +76,18 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   //
   // TODO(b/402804213): Remove these traits and simplify the overloads whenever
   // we have a better mechanism available to handle lifetime analysis.
-  template <class K, bool Value, typename = void>
-  using LifetimeBoundK = HasValue<
-      Value, std::conditional_t<policy_trait_element_is_owner<Policy>::value,
-                                std::false_type,
-                                type_traits_internal::IsLifetimeBoundAssignment<
-                                    typename Policy::key_type, K>>>;
+  //
+  // MovableOrVoid is an optional, extra constraint (via SFINAE) to guard
+  // separate move-only overloads.
+  template <class K, bool Value, typename MovableOrVoid = void>
+  using LifetimeBoundK = std::bool_constant<
+      (std::is_void_v<MovableOrVoid> ||
+       !IsAllocMoveSameAsCopy<absl::remove_cvref_t<K>, Alloc>::value) &&
+      HasValue<Value, std::conditional_t<
+                          policy_trait_element_is_owner<Policy>::value,
+                          std::false_type,
+                          type_traits_internal::IsLifetimeBoundAssignment<
+                              typename Policy::key_type, K>>>::value>;
   template <class V, bool Value, typename = void>
   using LifetimeBoundV =
       HasValue<Value, type_traits_internal::IsLifetimeBoundAssignment<
