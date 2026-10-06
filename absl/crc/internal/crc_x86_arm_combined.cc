@@ -1068,15 +1068,23 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 1, PclmulStreamType::PCLMUL>();
 #endif
+    case CpuType::kIntelSapphirerapids:
+    case CpuType::kIntelEmeraldrapids:
+    case CpuType::kIntelGraniterapids:
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) &&                   \
+    (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
+    (!defined(_MSC_VER) || defined(__clang__))
+      return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+          3, 3, PclmulStreamType::VPCLMUL>();
+#else
+      [[fallthrough]];
+#endif
     // PCLMULQDQ is fast, use combined PCLMULQDQ + CRC implementation.
     case CpuType::kIntelCascadelakeXeon:
     case CpuType::kIntelSkylakeXeon:
     case CpuType::kIntelBroadwell:
     case CpuType::kIntelSkylake:
     case CpuType::kIntelIcelake:
-    case CpuType::kIntelSapphirerapids:
-    case CpuType::kIntelEmeraldrapids:
-    case CpuType::kIntelGraniterapids:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 2, PclmulStreamType::PCLMUL>();
     // PCLMULQDQ is slow, don't use it.
