@@ -209,14 +209,14 @@ class LogMessage {
 
   // This prevents non-const `char[]` arrays from looking like literals.
   template <int SIZE>
-  LogMessage& operator<<(char (&buf)[SIZE]) ABSL_ATTRIBUTE_NOINLINE;
+  ABSL_ATTRIBUTE_NOINLINE LogMessage& operator<<(char (&buf)[SIZE]);
   // `wchar_t[SIZE]` is handled by `operator<< <const wchar_t*>`.
 
   // Types that support `AbslStringify()` are serialized that way.
   // Types that don't support `AbslStringify()` but do support streaming into a
   // `std::ostream&` are serialized that way.
   template <typename T>
-  LogMessage& operator<<(const T& v) ABSL_ATTRIBUTE_NOINLINE;
+  ABSL_ATTRIBUTE_NOINLINE LogMessage& operator<<(const T& v);
 
   // Dispatches the completed `absl::LogEntry` to applicable `absl::LogSink`s.
   void Flush();
@@ -271,18 +271,17 @@ class LogMessage {
     kNotLiteral,
   };
   template <StringType str_type>
-  void CopyToEncodedBuffer(absl::string_view str) ABSL_ATTRIBUTE_NOINLINE;
+  void CopyToEncodedBuffer(absl::string_view str);
   template <StringType str_type>
-  void CopyToEncodedBuffer(char ch, size_t num) ABSL_ATTRIBUTE_NOINLINE;
+  void CopyToEncodedBuffer(char ch, size_t num);
   template <StringType str_type>
-  void CopyToEncodedBuffer(std::wstring_view str) ABSL_ATTRIBUTE_NOINLINE;
+  void CopyToEncodedBuffer(std::wstring_view str);
 
   // Copies `field` to the encoded buffer, then appends `str` after it
   // (truncating `str` if necessary to fit).
   template <StringType str_type>
   void CopyToEncodedBufferWithStructuredProtoField(StructuredProtoField field,
-                                                   absl::string_view str)
-      ABSL_ATTRIBUTE_NOINLINE;
+                                                   absl::string_view str);
 
   // Returns `true` if the message is fatal or enabled debug-fatal.
   bool IsFatal() const;

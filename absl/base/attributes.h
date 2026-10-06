@@ -99,9 +99,22 @@
 // ABSL_ATTRIBUTE_NOINLINE
 //
 // Forces functions to either inline or not inline. Introduced in gcc 3.1.
+//
+// Note that guarantees are ultimately toolchain-dependent. For example, MSVC
+// will not inline any function by default, meaning at least /Ob1 or a higher
+// levels of optimization is necessary.
 #if ABSL_HAVE_ATTRIBUTE(always_inline) || \
     (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+#define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
+#elif defined(_MSC_VER) && \
+    (_MSC_VER >= 1937 ||   \
+     (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
+#define ABSL_ATTRIBUTE_ALWAYS_INLINE                                      \
+  _Pragma("warning(push)")                                                \
+      _Pragma("warning(error: 4649)") /* error on misplaced attributes */ \
+      [[msvc::forceinline]] /*                                         */ \
+      _Pragma("warning(pop)")
 #define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
 #else
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE
@@ -109,6 +122,15 @@
 
 #if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_NOINLINE __attribute__((noinline))
+#define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
+#elif defined(_MSC_VER) && \
+    (_MSC_VER >= 1937 ||   \
+     (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
+#define ABSL_ATTRIBUTE_NOINLINE                                           \
+  _Pragma("warning(push)")                                                \
+      _Pragma("warning(error: 4649)") /* error on misplaced attributes */ \
+      [[msvc::noinline]] /*                                            */ \
+      _Pragma("warning(pop)")
 #define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
 #else
 #define ABSL_ATTRIBUTE_NOINLINE
