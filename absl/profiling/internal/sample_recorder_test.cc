@@ -187,6 +187,42 @@ TEST(SampleRecorderTest, Callback) {
   sampler.Unregister(info2);
 }
 
+TEST(SampleRecorderTest, DeadlockInIterateWithUnregister) {
+  SampleRecorder<Info> sampler;
+  auto* info1 = Register(&sampler, 1, 1);
+  auto* info2 = Register(&sampler, 2, 2);
+
+  // Thread 1 calls Iterate() which acquires info1.init_mu and invokes callback.
+  // In callback, thread 1 calls Unregister(info2) which acquires info2.init_mu
+  // then graveyard_.init_mu.
+  //
+  // Thread 2 calls Unregister(info1) which acquires info1.init_mu then
+  // graveyard_.init_mu.
+  //
+  // With the lock ordering sample->init_mu -> graveyard_.init_mu, no AB-BA
+  // deadlock occurs.
+  Notification thread1_in_callback;
+  Notification thread2_start;
+
+  ThreadPool pool(2);
+
+  pool.Schedule([&]() {
+    sampler.Iterate([&](const Info& info) {
+      if (&info == info1) {
+        thread1_in_callback.Notify();
+        thread2_start.WaitForNotification();
+        sampler.Unregister(info2);
+      }
+    });
+  });
+
+  pool.Schedule([&]() {
+    thread1_in_callback.WaitForNotification();
+    thread2_start.Notify();
+    sampler.Unregister(info1);
+  });
+}
+
 }  // namespace
 }  // namespace profiling_internal
 ABSL_NAMESPACE_END
