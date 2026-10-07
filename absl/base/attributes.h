@@ -475,26 +475,16 @@
 // Example:
 //
 //   int foo() ABSL_ATTRIBUTE_HOT;
-#if defined(__cplusplus) && defined(__clang__) && \
-    ABSL_HAVE_CPP_ATTRIBUTE(gnu::hot)
-#define ABSL_ATTRIBUTE_HOT                                       \
-  _Pragma("clang diagnostic push")                               \
-      _Pragma("clang diagnostic error \"-Wignored-attributes\"") \
-          [[gnu::hot]] /*                                     */ \
-          _Pragma("clang diagnostic pop")
+#if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::hot)
+#define ABSL_ATTRIBUTE_HOT [[gnu::hot]]
 #elif ABSL_HAVE_ATTRIBUTE(hot) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_HOT __attribute__((hot))
 #else
 #define ABSL_ATTRIBUTE_HOT
 #endif
 
-#if defined(__cplusplus) && defined(__clang__) && \
-    ABSL_HAVE_CPP_ATTRIBUTE(gnu::cold)
-#define ABSL_ATTRIBUTE_COLD                                      \
-  _Pragma("clang diagnostic push")                               \
-      _Pragma("clang diagnostic error \"-Wignored-attributes\"") \
-          [[gnu::cold]] /*                                   */  \
-          _Pragma("clang diagnostic pop")
+#if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::cold)
+#define ABSL_ATTRIBUTE_COLD [[gnu::cold]]
 #elif ABSL_HAVE_ATTRIBUTE(cold) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_COLD __attribute__((cold))
 #else
