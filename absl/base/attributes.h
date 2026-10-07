@@ -851,7 +851,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // Note that `ABSL_CONST_INIT` must not be used on a variable declared
 // constexpr.
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
-#define ABSL_CONST_INIT constinit
+#define ABSL_CONST_INIT constinit  // NOLINT(clang-diagnostic-pre-c++20-compat)
 #elif ABSL_HAVE_CPP_ATTRIBUTE(clang::require_constant_initialization)
 #define ABSL_CONST_INIT [[clang::require_constant_initialization]]
 #else
