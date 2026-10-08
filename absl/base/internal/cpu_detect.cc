@@ -35,6 +35,21 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <intrin.h>
+#if defined(__aarch64__) || defined(_M_ARM64)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
+#endif
+#ifndef PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE 31
+#endif
+#ifndef PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE 64
+#endif
+#endif  // defined(__aarch64__) || defined(_M_ARM64)
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -257,6 +272,33 @@ CpuType GetCpuType() {
 
 bool SupportsArmCRC32PMULL() { return false; }
 
+bool SupportsArmSHA3() { return false; }
+
+bool SupportsAvx2() {
+#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && !defined(_WIN32) && \
+    !defined(_WIN64)
+  return __builtin_cpu_supports("avx2") != 0;
+#elif defined(_WIN32) || defined(_WIN64)
+  int cpu_info[4];
+  __cpuid(cpu_info, 0);
+  if (cpu_info[0] < 7) {
+    return false;
+  }
+  __cpuid(cpu_info, 1);
+  constexpr int kOsxsaveAndAvx = (1 << 27) | (1 << 28);
+  if ((cpu_info[2] & kOsxsaveAndAvx) != kOsxsaveAndAvx) {
+    return false;
+  }
+  if ((_xgetbv(0) & 0x6) != 0x6) {
+    return false;
+  }
+  __cpuidex(cpu_info, 7, 0);
+  return (cpu_info[1] & (1 << 5)) != 0;
+#else
+  return false;
+#endif
+}
+
 bool SupportsBmi2() {
   int cpu_info[4];
   __cpuid(cpu_info, 0);
@@ -340,6 +382,17 @@ bool SupportsArmCRC32PMULL() {
 #endif
 }
 
+bool SupportsArmSHA3() {
+#if defined(HWCAP_SHA3)
+  uint64_t hwcaps = getauxval(AT_HWCAP);
+  return (hwcaps & HWCAP_SHA3) != 0;
+#else
+  return false;
+#endif
+}
+
+bool SupportsAvx2() { return false; }
+
 bool SupportsBmi2() { return false; }
 
 #elif defined(__aarch64__) && defined(__APPLE__)
@@ -388,6 +441,42 @@ bool SupportsArmCRC32PMULL() {
   return supported;
 }
 
+bool SupportsArmSHA3() {
+  static const bool supported = []() {
+#if defined(CAP_BIT_FEAT_SHA3)
+    const std::optional<uint64_t> caps =
+        ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
+    if (caps.has_value()) {
+      return (*caps & (uint64_t{1} << CAP_BIT_FEAT_SHA3)) != 0;
+    }
+#endif
+    const std::optional<int> feat_sha3 =
+        ReadSysctlByName<int>("hw.optional.armv8_2_sha3");
+    return feat_sha3.value_or(0) != 0;
+  }();
+  return supported;
+}
+
+bool SupportsAvx2() { return false; }
+
+bool SupportsBmi2() { return false; }
+
+#elif (defined(__aarch64__) || defined(_M_ARM64)) && \
+    (defined(_WIN32) || defined(_WIN64))
+
+CpuType GetCpuType() { return CpuType::kUnknown; }
+
+bool SupportsArmCRC32PMULL() {
+  return IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE) &&
+         IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
+bool SupportsArmSHA3() {
+  return IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
+}
+
+bool SupportsAvx2() { return false; }
+
 bool SupportsBmi2() { return false; }
 
 #else
@@ -395,6 +484,10 @@ bool SupportsBmi2() { return false; }
 CpuType GetCpuType() { return CpuType::kUnknown; }
 
 bool SupportsArmCRC32PMULL() { return false; }
+
+bool SupportsArmSHA3() { return false; }
+
+bool SupportsAvx2() { return false; }
 
 bool SupportsBmi2() { return false; }
 
