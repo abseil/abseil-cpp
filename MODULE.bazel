@@ -30,6 +30,12 @@ bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 bazel_dep(name = "platforms", version = "1.1.0")
 
+# Note: rules_foreign_cc is NOT a dev_dependency. It provides //CMake:absl, a
+# CMake build of Abseil for Bazel users that also build with CMake. Its module
+# and toolchain declarations join the dependency graph, but nothing from it is
+# fetched or built unless that target is used.
+bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
+
 bazel_dep(
     name = "google_benchmark",
     version = "1.9.5",
@@ -41,6 +47,31 @@ bazel_dep(
 bazel_dep(
     name = "googletest",
     version = "1.18.0",
+)
+
+# The CMake source trees of Abseil and of GoogleTest (which Abseil's test
+# helper libraries need), each as a single Bazel target: the inputs of
+# //CMake:absl and //CMake:googletest. See CMake/cmake_sources.bzl.
+cmake_sources = use_repo_rule("//CMake:cmake_sources.bzl", "cmake_sources")
+
+cmake_sources(
+    name = "abseil-cpp-cmake-sources",
+    dirs = [
+        "CMake",
+        "absl",
+    ],
+    files = ["CMakeLists.txt"],
+    root = "//:CMakeLists.txt",
+)
+
+cmake_sources(
+    name = "googletest-cmake-sources",
+    dirs = [
+        "googlemock",
+        "googletest",
+    ],
+    files = ["CMakeLists.txt"],
+    root = "@googletest//:CMakeLists.txt",
 )
 
 # Note: Gloop is NOT a dev_dependency, but should never be used directly.  It is only included here

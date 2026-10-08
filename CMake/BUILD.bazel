@@ -1,0 +1,70 @@
+# Copyright 2026 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Abseil built with CMake from Bazel, via rules_foreign_cc.
+#
+# Both targets are tagged `manual`: wildcard patterns such as
+# `bazel build //...` never build them, only an explicit request or a
+# dependency does.
+
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+# GoogleTest, built and installed with CMake. `:absl` needs it for Abseil's
+# test helper libraries; a project that builds both with CMake can depend on it
+# too, so that GoogleTest is only built once.
+cmake(
+    name = "googletest",
+    cache_entries = {
+        "BUILD_GMOCK": "ON",
+        "CMAKE_CXX_STANDARD": "17",
+        "INSTALL_GTEST": "ON",
+    },
+    generate_args = ["-GNinja"],
+    # The @googletest module's CMake source tree, see cmake_sources.bzl.
+    lib_source = "@googletest-cmake-sources//:srcs",
+    # Consumed through CMAKE_PREFIX_PATH only; no need to enumerate libraries.
+    out_headers_only = True,
+    tags = ["manual"],
+)
+
+# Abseil built and installed with CMake: static libraries, C++17, no tests,
+# plus the test helper libraries (absl::status_matchers, absl::scoped_mock_log,
+# ...) that downstream test suites link against. The result is an install
+# prefix (include/, lib/, lib/cmake/absl/) exactly like `cmake --install`
+# produces. Depend on it from another rules_foreign_cc target, e.g.
+# `cmake(deps = ["@abseil-cpp//CMake:absl"])`: rules_foreign_cc puts the prefix
+# on that build's CMAKE_PREFIX_PATH, so its `find_package(absl CONFIG)`
+# resolves to this build.
+cmake(
+    name = "absl",
+    cache_entries = {
+        "ABSL_BUILD_TESTING": "OFF",
+        "ABSL_BUILD_TEST_HELPERS": "ON",
+        "ABSL_ENABLE_INSTALL": "ON",
+        "ABSL_FIND_GOOGLETEST": "ON",
+        "ABSL_PROPAGATE_CXX_STD": "ON",
+        "ABSL_USE_EXTERNAL_GOOGLETEST": "ON",
+        "CMAKE_CXX_STANDARD": "17",
+    },
+    generate_args = ["-GNinja"],
+    # This repository's CMake source tree, see cmake_sources.bzl.
+    lib_source = "@abseil-cpp-cmake-sources//:srcs",
+    out_headers_only = True,
+    tags = ["manual"],
+    deps = [":googletest"],
+)
