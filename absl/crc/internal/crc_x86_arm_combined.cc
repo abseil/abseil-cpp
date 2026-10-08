@@ -1078,9 +1078,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
 CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
   CpuType type = GetCpuType();
   switch (type) {
-    case CpuType::kAmdRome:
-      return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 0, PclmulStreamType::PCLMUL>();
     case CpuType::kIntelHaswell:
     case CpuType::kAmdNaples:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
@@ -1089,13 +1086,14 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kAmdGenoa:
     case CpuType::kAmdSiena:
     case CpuType::kAmdTurin:
+    case CpuType::kAmdVenice:
 #if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) &&                   \
     (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
     (!defined(_MSC_VER) || defined(__clang__))
       // We don't have vector pclmul on arm, but this still needs to
       // compile.
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 1, PclmulStreamType::VPCLMUL>();
+          2, 2, PclmulStreamType::VPCLMUL>();
 #else
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 1, PclmulStreamType::PCLMUL>();
@@ -1120,6 +1118,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 2, PclmulStreamType::PCLMUL>();
     // PCLMULQDQ is slow, don't use it.
+    case CpuType::kAmdRome:
     case CpuType::kIntelIvybridge:
     case CpuType::kIntelSandybridge:
     case CpuType::kIntelWestmere:
