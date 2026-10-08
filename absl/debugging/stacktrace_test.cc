@@ -390,21 +390,45 @@ TEST(StackTrace, NoNullptrInPopulatedRange) {
 }
 
 
-#if defined(__aarch64__) && defined(__linux__)
+#if (defined(__aarch64__) || defined(__x86_64__) || defined(__i386__)) && \
+    defined(__linux__)
+#include <sys/mman.h>
+#include <unistd.h>
+
 static void CorruptedSigStackHandler(int, siginfo_t*, void*) {
   void** fp = reinterpret_cast<void**>(__builtin_frame_address(0));
   void* saved_fp = fp[0];
-  fp[0] = reinterpret_cast<void*>(0x7deadbeef000ULL);  // Unmapped address
 
+  // Test 1: fp[0] points directly to unmapped address / guard page
+  fp[0] = reinterpret_cast<void*>(0x7deadbeef000ULL);
   void* stack[16];
   absl::GetStackTrace(stack, 16, 0);
+
+  // Test 2: fp[0] points near page boundary whose next page is PROT_NONE
+  const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  char* pages = static_cast<char*>(mmap(nullptr, 2 * page_size,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+  if (pages != MAP_FAILED) {
+    if (mprotect(pages + page_size, page_size, PROT_NONE) == 0) {
+      // Set fake frame pointer at the end of the readable page.
+      // fake_fp[0] is in readable page, fake_fp[1] is in PROT_NONE page.
+      void** fake_fp =
+          reinterpret_cast<void**>(pages + page_size - sizeof(void*));
+      fake_fp[0] = nullptr;
+      fp[0] = fake_fp;
+      absl::GetStackTrace(stack, 16, 0);
+    }
+    munmap(pages, 2 * page_size);
+  }
 
   fp[0] = saved_fp;
 }
 #endif
 
 TEST(StackTrace, CorruptedSignalStackFrameSafety) {
-#if defined(__aarch64__) && defined(__linux__)
+#if (defined(__aarch64__) || defined(__x86_64__) || defined(__i386__)) && \
+    defined(__linux__)
   stack_t sigstk{};
   constexpr size_t kAltstackSize = 1 << 14;
   char altstack[kAltstackSize];
