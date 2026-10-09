@@ -115,6 +115,13 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   using const_iterator = typename raw_hash_map::raw_hash_set::const_iterator;
 
   raw_hash_map() {}
+  raw_hash_map(const raw_hash_map&) = default;
+  raw_hash_map(raw_hash_map&&) = default;
+  raw_hash_map& operator=(const raw_hash_map&) = default;
+  raw_hash_map& operator=(raw_hash_map&&) = default;
+  ~raw_hash_map() = default;
+  raw_hash_map(const typename raw_hash_map::raw_hash_set&) = delete;
+  raw_hash_map(typename raw_hash_map::raw_hash_set&&) = delete;
   using raw_hash_map::raw_hash_set::raw_hash_set;
 
   // The last two template parameters ensure that both arguments are rvalues

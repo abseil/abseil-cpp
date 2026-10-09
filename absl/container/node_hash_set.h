@@ -185,6 +185,13 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::node_hash_set<std::string> set8(std::from_range, v);
   node_hash_set() {}
+  node_hash_set(const node_hash_set&) = default;
+  node_hash_set(node_hash_set&&) = default;
+  node_hash_set& operator=(const node_hash_set&) = default;
+  node_hash_set& operator=(node_hash_set&&) = default;
+  ~node_hash_set() = default;
+  node_hash_set(const Base&) = delete;
+  node_hash_set(Base&&) = delete;
   using Base::Base;
 
   // node_hash_set::begin()
