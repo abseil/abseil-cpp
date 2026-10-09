@@ -756,7 +756,6 @@ TEST(ChunkedQueue, StatelessAllocatorDoesntAffectObjectSizes) {
     struct MockIterator {
       void* block;
       void* ptr;
-      void* limit;
     };
     MockIterator head;
     MockIterator tail;

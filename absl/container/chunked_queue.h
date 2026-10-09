@@ -142,20 +142,20 @@ class chunked_queue {
 
    protected:
     iterator_common() = default;
-    explicit iterator_common(Block* b)
-        : block(b), ptr(b->start()), limit(b->limit()) {}
+    explicit iterator_common(Block* b) : block(b), ptr(b->start()) {}
 
     void Incr() {
       // If we do not have a next block, make ptr point one past the end of this
       // block. If we do have a next block, make ptr point to the first element
       // of the next block.
       ++ptr;
-      if (ptr == limit && block->next()) *this = iterator_common(block->next());
+      if (ptr == block->limit() && block->next())
+        *this = iterator_common(block->next());
     }
 
     void IncrBy(size_t n) {
-      while (n > static_cast<size_t>(limit - ptr)) {
-        n -= static_cast<size_t>(limit - ptr);
+      while (n > static_cast<size_t>(block->limit() - ptr)) {
+        n -= static_cast<size_t>(block->limit() - ptr);
         *this = iterator_common(block->next());
       }
       ptr += n;
@@ -163,7 +163,6 @@ class chunked_queue {
 
     Block* block = nullptr;
     T* ptr = nullptr;
-    T* limit = nullptr;
   };
 
   // CT can be either T or const T.
@@ -502,7 +501,7 @@ class chunked_queue {
   void RangeInit(Iter first, Iter last, std::input_iterator_tag) {
     while (first != last) {
       AddTailBlock();
-      for (; first != last && tail_.ptr != tail_.limit;
+      for (; first != last && tail_.ptr != tail_.block->limit();
            ++alloc_and_size_.size, ++tail_.ptr, ++first) {
         AllocatorTraits::construct(alloc_and_size_.allocator(), tail_.ptr,
                                    *first);
@@ -556,16 +555,17 @@ class chunked_queue {
   // (1) When we have just one block:
   //      [head_.ptr .. tail_.ptr-1]
   // (2) When we have multiple blocks:
-  //      [head_.ptr .. head_.limit-1]
+  //      [head_.ptr .. head_.block->limit()-1]
   //      ... concatenation of all elements from interior blocks ...
-  //      [tail_.ptr .. tail_.limit-1]
+  //      [tail_.block->start() .. tail_.ptr-1]
   //
   // Rep invariants:
   // When have just one block:
-  //   head_.limit == tail_.limit == &head_.block->element[kBlockSize]
-  // Always:
-  //   head_.ptr <= head_.limit
-  //   tail_.ptr <= tail_.limit
+  //   head_.block->limit() == tail_.block->limit() ==
+  //   &head_.block->element[kBlockSize]
+  // Always (when non-empty):
+  //   head_.ptr <= head_.block->limit()
+  //   tail_.ptr <= tail_.block->limit()
 
   iterator head_;
   iterator tail_;
@@ -628,11 +628,12 @@ inline chunked_queue<T, BLo, BHi, Allocator>::~chunked_queue() {
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
 void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
   while (new_size > size()) {
-    if (tail_.ptr == tail_.limit) {
+    if (!tail_.block || tail_.ptr == tail_.block->limit()) {
       AddTailBlock();
     }
-    size_t to_add = (std::min)(new_size - size(),
-                               static_cast<size_t>(tail_.limit - tail_.ptr));
+    size_t to_add =
+        (std::min)(new_size - size(),
+                   static_cast<size_t>(tail_.block->limit() - tail_.ptr));
     T* start = tail_.ptr;
     T* limit = start + to_add;
     Construct(start, limit);
@@ -651,7 +652,7 @@ void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void chunked_queue<T, BLo, BHi, Allocator>::AddTailBlock() {
-  ABSL_ASSERT(tail_.ptr == tail_.limit);
+  ABSL_ASSERT(!tail_.block || tail_.ptr == tail_.block->limit());
   auto* b = Block::New(NewBlockSize(), &alloc_and_size_.allocator());
   if (!head_.block) {
     ABSL_ASSERT(!tail_.block);
@@ -665,7 +666,7 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::AddTailBlock() {
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline T* chunked_queue<T, BLo, BHi, Allocator>::AllocateBack() {
-  if (tail_.ptr == tail_.limit) {
+  if (!tail_.block || tail_.ptr == tail_.block->limit()) {
     AddTailBlock();
   }
   return tail_.ptr;
@@ -677,7 +678,7 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::EraseAllFrom(iterator i) {
     return;
   }
   ABSL_ASSERT(i.ptr);
-  ABSL_ASSERT(i.limit);
+  ABSL_ASSERT(i.block->limit());
   alloc_and_size_.size -= Destroy(i.ptr, block_end(i.block));
   Block* b = i.block->next();
   while (b) {
@@ -717,7 +718,7 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::pop_front() {
     head_.ptr = tail_.ptr = head_.block->start();
     return;
   }
-  if (head_.ptr == head_.limit) {
+  if (head_.ptr == head_.block->limit()) {
     Block* n = head_.block->next();
     Block::Delete(head_.block, &alloc_and_size_.allocator());
     head_ = iterator(n);
