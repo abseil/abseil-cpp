@@ -33,7 +33,7 @@ if [[ -z ${COMPILATION_MODE:-} ]]; then
 fi
 
 if [[ -z ${EXCEPTIONS_MODE:-} ]]; then
-  EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
+  EXCEPTIONS_MODE="-fno-exceptions"
 fi
 
 source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
