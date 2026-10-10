@@ -69,12 +69,12 @@ for std in ${STD}; do
           "${DOCKER_CONTAINER}" \
           /bin/bash -c "
             cmake /abseil-cpp \
-              -DABSL_GOOGLETEST_DOWNLOAD_URL=${ABSL_GOOGLETEST_DOWNLOAD_URL} \
-              -DBUILD_SHARED_LIBS=${build_shared} \
+              -DABSL_GOOGLETEST_DOWNLOAD_URL=\"${ABSL_GOOGLETEST_DOWNLOAD_URL}\" \
+              -DBUILD_SHARED_LIBS=\"${build_shared}\" \
               -DABSL_BUILD_TESTING=ON \
-              -DCMAKE_BUILD_TYPE=${compilation_mode} \
-              -DCMAKE_CXX_STANDARD=${std} \
-              -DABSL_BUILD_MONOLITHIC_SHARED_LIBS=${monolithic_shared} \
+              -DCMAKE_BUILD_TYPE=\"${compilation_mode}\" \
+              -DCMAKE_CXX_STANDARD=\"${std}\" \
+              -DABSL_BUILD_MONOLITHIC_SHARED_LIBS=\"${monolithic_shared}\" \
               -DCMAKE_MODULE_LINKER_FLAGS=\"-Wl,--no-undefined\" && \
             make -j$(nproc) && \
             TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo \
