@@ -28,8 +28,8 @@ if [[ -r "${KOKORO_GFILE_DIR:-}/distdir/googletest-${ABSL_GOOGLETEST_VERSION}.ta
   DOCKER_EXTRA_ARGS="--mount type=bind,source=${KOKORO_GFILE_DIR}/distdir,target=/distdir,readonly ${DOCKER_EXTRA_ARGS:-}"
 fi
 
-if [[ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]]; then
-  ABSL_CMAKE_CXX_STANDARDS="17"
+if [[ -z ${STD:-} ]]; then
+  STD="17"
 fi
 
 if [[ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]]; then
@@ -47,7 +47,7 @@ fi
 source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"
 readonly DOCKER_CONTAINER=${LINUX_GCC_LATEST_CONTAINER}
 
-for std in ${ABSL_CMAKE_CXX_STANDARDS}; do
+for std in ${STD}; do
   for compilation_mode in ${ABSL_CMAKE_BUILD_TYPES}; do
     for build_shared in ${ABSL_CMAKE_BUILD_SHARED}; do
       if [[ $build_shared == "OFF" ]]; then
