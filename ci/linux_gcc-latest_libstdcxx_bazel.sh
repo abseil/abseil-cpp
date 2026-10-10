@@ -44,9 +44,9 @@ docker run "${DOCKER_CONTAINER}" /usr/bin/fastfetch -c ci
 docker run "${DOCKER_CONTAINER}" /usr/local/bin/gcc -v
 docker run "${DOCKER_CONTAINER}" cat /root/cached_bazel_versions
 
-# USE_BAZEL_CACHE=1 only works on Kokoro.
+# Bazel cache only works on Kokoro.
 # Without access to the credentials this won't work.
-if [[ ${USE_BAZEL_CACHE:-0} -ne 0 ]]; then
+if [[ ${KOKORO_KEYSTORE_DIR:-} ]]; then
   DOCKER_EXTRA_ARGS="--mount type=bind,source=${KOKORO_KEYSTORE_DIR},target=/keystore,readonly ${DOCKER_EXTRA_ARGS:-}"
   # Bazel doesn't track changes to tools outside of the workspace
   # (e.g. /usr/bin/gcc), so by appending the docker container to the
