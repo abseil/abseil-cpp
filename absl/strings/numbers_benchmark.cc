@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -42,6 +43,33 @@ void BM_FastIntToBuffer(benchmark::State& state) {
 }
 BENCHMARK_TEMPLATE(BM_FastIntToBuffer, int32_t)->Range(0, 1 << 15);
 BENCHMARK_TEMPLATE(BM_FastIntToBuffer, int64_t)->Range(0, 1 << 30);
+
+struct RoundTripDoubleBenchmarkCase {
+  const char* label;
+  double value;
+};
+
+void BM_RoundTripDoubleToBuffer(benchmark::State& state) {
+  static const RoundTripDoubleBenchmarkCase kCases[] = {
+      {"common", 3.141592653589793},
+      {"small", 0.00000123456789012345},
+      {"large", 1.2345678901234568e+300},
+      {"subnormal", std::numeric_limits<double>::denorm_min()},
+      {"retry", 1.2345678901234567},
+      {"threshold", 1e20},
+  };
+  const RoundTripDoubleBenchmarkCase& test_case =
+      kCases[static_cast<size_t>(state.range(0))];
+  state.SetLabel(test_case.label);
+
+  char buffer[absl::numbers_internal::kFastToBufferSize];
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(
+        absl::numbers_internal::RoundTripDoubleToBuffer(test_case.value,
+                                                        buffer));
+  }
+}
+BENCHMARK(BM_RoundTripDoubleToBuffer)->DenseRange(0, 5);
 
 // Creates an integer that would be printed as `num_digits` repeated 7s in the
 // given `base`. `base` must be greater than or equal to 8.
