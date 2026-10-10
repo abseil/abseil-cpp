@@ -29,11 +29,11 @@ if [[ -z ${STD:-} ]]; then
 fi
 
 if [[ -z ${COMPILATION_MODE:-} ]]; then
-  COMPILATION_MODE="fastbuild opt"
+  COMPILATION_MODE="fastbuild"
 fi
 
 if [[ -z ${EXCEPTIONS_MODE:-} ]]; then
-  EXCEPTIONS_MODE="-fno-exceptions -fexceptions"
+  EXCEPTIONS_MODE="-fno-exceptions"
 fi
 
 source "${ABSEIL_ROOT}/ci/linux_docker_containers.sh"

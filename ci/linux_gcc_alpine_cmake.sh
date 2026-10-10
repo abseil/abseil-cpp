@@ -33,11 +33,11 @@ if [[ -z ${ABSL_CMAKE_CXX_STANDARDS:-} ]]; then
 fi
 
 if [[ -z ${ABSL_CMAKE_BUILD_TYPES:-} ]]; then
-  ABSL_CMAKE_BUILD_TYPES="Debug Release"
+  ABSL_CMAKE_BUILD_TYPES="Debug"
 fi
 
 if [[ -z ${ABSL_CMAKE_BUILD_SHARED:-} ]]; then
-  ABSL_CMAKE_BUILD_SHARED="OFF ON"
+  ABSL_CMAKE_BUILD_SHARED="OFF"
 fi
 
 if [[ -z ${ABSL_CMAKE_BUILD_MONOLITHIC_SHARED_LIBS:-} ]]; then
