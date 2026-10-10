@@ -40,6 +40,17 @@ SET CTEST_OUTPUT_ON_FAILURE=1
 SET CMAKE_BUILD_PARALLEL_LEVEL=16
 SET CTEST_PARALLEL_LEVEL=16
 
+:: Set the standard version, [c++17|c++latest]
+:: https://msdn.microsoft.com/en-us/library/mt490614.aspx
+:: The default is c++17 if not set on command line.
+IF "%ABSL_CMAKE_CXX_STANDARD%"=="" SET ABSL_CMAKE_CXX_STANDARD=17
+
+IF "%ABSL_CMAKE_BUILD_SHARED%"=="" SET ABSL_CMAKE_BUILD_SHARED=OFF
+
+IF "%ABSL_CMAKE_BUILD_TYPE%"=="" SET ABSL_CMAKE_BUILD_TYPE=Debug
+
+IF "%ABSL_CMAKE_GENERATOR%"=="" SET "ABSL_CMAKE_GENERATOR=Visual Studio 17 2022"
+
 :: Change directory to the root of the project.
 CD %~dp0\..
 if %errorlevel% neq 0 EXIT /B 1
