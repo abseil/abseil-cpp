@@ -88,6 +88,17 @@ class GraphCycles {
   // Return whether node exists in the graph.
   bool HasNode(GraphId node);
 
+  // Return an opaque handle to node for use with IsCurrent(), or nullptr if
+  // node is not in the graph. The handle remains usable for the lifetime of
+  // this GraphCycles.
+  const void* GetNodeHandle(GraphId node);
+
+  // Return whether node, whose handle was returned by GetNodeHandle(node), is
+  // still in the graph. Unlike the other methods, this may be called without
+  // external serialization. Its result then reflects at least every
+  // RemoveNode() call that happens-before it.
+  static bool IsCurrent(const void* node_handle, GraphId node);
+
   // Return whether there is an edge directly from source_node to dest_node.
   bool HasEdge(GraphId x, GraphId y) const;
 
