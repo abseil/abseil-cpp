@@ -608,9 +608,10 @@ bool GraphCycles::CheckInvariants() const {
   return true;
 }
 
-GraphId GraphCycles::GetId(void* ptr) {
+GraphId GraphCycles::GetId(void* ptr, bool* is_new) {
   int32_t i = rep_->ptrmap_.Find(ptr);
   if (i != -1) {
+    if (is_new != nullptr) *is_new = false;
     return MakeId(i, rep_->nodes_[static_cast<uint32_t>(i)]->version);
   } else if (rep_->free_nodes_.empty()) {
     const int32_t slot = static_cast<int32_t>(rep_->nodes_.size());
@@ -625,6 +626,7 @@ GraphId GraphCycles::GetId(void* ptr) {
     rep_->nodes_.push_back(n);
     LinkBetween(rep_, slot, rep_->highest_slot, /*next_slot=*/-1);
     rep_->ptrmap_.Add(ptr, slot);
+    if (is_new != nullptr) *is_new = true;
     return MakeId(slot, n->version);
   } else {
     // The slot keeps its rank (see "Rank allocation").
@@ -635,14 +637,15 @@ GraphId GraphCycles::GetId(void* ptr) {
     n->nstack = 0;
     n->priority = 0;
     rep_->ptrmap_.Add(ptr, slot);
+    if (is_new != nullptr) *is_new = true;
     return MakeId(slot, n->version);
   }
 }
 
-void GraphCycles::RemoveNode(void* ptr) {
+bool GraphCycles::RemoveNode(void* ptr) {
   int32_t i = rep_->ptrmap_.Remove(ptr);
   if (i == -1) {
-    return;
+    return false;
   }
   Node* x = rep_->nodes_[static_cast<uint32_t>(i)];
   HASH_FOR_EACH(y, x->out) {
@@ -660,6 +663,7 @@ void GraphCycles::RemoveNode(void* ptr) {
     x->version++;  // Invalidates all copies of node.
     rep_->free_nodes_.push_back(i);
   }
+  return true;
 }
 
 void* GraphCycles::Ptr(GraphId id) {
