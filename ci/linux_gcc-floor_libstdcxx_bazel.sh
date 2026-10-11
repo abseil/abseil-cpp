@@ -47,7 +47,7 @@ docker run "${DOCKER_CONTAINER}" cat /root/cached_bazel_versions
 # Bazel cache only works on Kokoro.
 # Without access to the credentials this won't work.
 if [[ ${KOKORO_KEYSTORE_DIR:-} ]]; then
-  DOCKER_EXTRA_ARGS="--volume=${KOKORO_KEYSTORE_DIR}:/keystore:ro ${DOCKER_EXTRA_ARGS:-}"
+  DOCKER_EXTRA_ARGS="--mount type=bind,source=${KOKORO_KEYSTORE_DIR},target=/keystore,readonly ${DOCKER_EXTRA_ARGS:-}"
   # Bazel doesn't track changes to tools outside of the workspace
   # (e.g. /usr/bin/gcc), so by appending the docker container to the
   # remote_cache url, we make changes to the container part of
@@ -73,7 +73,7 @@ for std in ${STD}; do
         --env="CC=/opt/gcc-10/bin/gcc" \
         --env="BAZEL_CXXOPTS=-std=${std}" \
         --env="BAZEL_LINKOPTS=-L/opt/gcc-10/lib64:-Wl,-rpath=/opt/gcc-10/lib64" \
-        --volume="${ABSEIL_ROOT}:/abseil-cpp:ro" \
+        --mount type=bind,source="${ABSEIL_ROOT}",target=/abseil-cpp,readonly \
         --workdir=/abseil-cpp \
         --cap-add=SYS_PTRACE \
         --rm \
