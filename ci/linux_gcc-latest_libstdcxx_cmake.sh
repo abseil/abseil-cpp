@@ -67,7 +67,7 @@ for std in ${STD}; do
           -e CXXFLAGS="-Werror" \
           ${DOCKER_EXTRA_ARGS:-} \
           "${DOCKER_CONTAINER}" \
-          /bin/bash -c "
+          /bin/sh -c "
             cmake /abseil-cpp \
               -DABSL_GOOGLETEST_DOWNLOAD_URL=\"${ABSL_GOOGLETEST_DOWNLOAD_URL}\" \
               -DBUILD_SHARED_LIBS=\"${build_shared}\" \

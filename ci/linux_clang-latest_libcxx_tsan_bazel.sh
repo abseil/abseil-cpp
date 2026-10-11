@@ -80,7 +80,7 @@ for std in ${STD}; do
         --rm \
         ${DOCKER_EXTRA_ARGS:-} \
         ${DOCKER_CONTAINER} \
-        /bin/bash --login -c "
+        /bin/sh -c "
         /usr/local/bin/bazel test ... \
           --build_tag_filters=\"-notsan\" \
           --compilation_mode=\"${compilation_mode}\" \

@@ -81,7 +81,7 @@ for std in ${STD}; do
         --rm \
         ${DOCKER_EXTRA_ARGS:-} \
         ${DOCKER_CONTAINER} \
-        /bin/bash --login -c "
+        /bin/sh -c "
           cp -r /abseil-cpp-ro/* /abseil-cpp/
           if [ -n \"${ALTERNATE_OPTIONS:-}\" ]; then
             cp ${ALTERNATE_OPTIONS:-} absl/base/options.h || exit 1
