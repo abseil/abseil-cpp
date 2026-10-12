@@ -1546,7 +1546,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // Asserts that the capacity is not a sentinel invalid value.
   void AssertNotDebugCapacity() const {
     if constexpr (SwisstableGenerationsOrDebugEnabled()) {
-      AssertNotDebugCapacityImpl();
+      if (ABSL_PREDICT_FALSE(!maybe_invalid_capacity().IsValid())) {
+        AssertNotDebugCapacityImpl();
+      }
     }
   }
 

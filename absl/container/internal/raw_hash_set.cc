@@ -292,9 +292,6 @@ void CommonFields::AssertInSooModeImpl() const {
 
 void CommonFields::AssertNotDebugCapacityImpl() const {
   const HashtableCapacity cap = maybe_invalid_capacity();
-  if (ABSL_PREDICT_TRUE(cap.IsValid())) {
-    return;
-  }
   assert(!cap.IsReentrance() &&
          "Reentrant container access during element construction/destruction "
          "is not allowed.");
