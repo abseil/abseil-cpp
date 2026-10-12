@@ -382,23 +382,15 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       // Try to avoid using std::tuple since that slows compilation.
       // (example: https://godbolt.org/z/nefW93T6K)
 
-      // Simple trick to bypass instantiating a bunch of templates in cases
-      // where they're irrelevant.
-      using V = std::conditional_t<
-          sizeof...(Args) == 0 &&
-              std::is_same_v<typename std::allocator_traits<
-                                 Alloc>::template rebind_alloc<char>,
-                             std::allocator<char>>,
-          mapped_type, void>;
-
-      if constexpr (std::is_trivially_move_constructible_v<V> &&
-                    std::is_trivially_destructible_v<V> &&
-                    // Check if size is a power of 2, to ensure cheap calls.
-                    absl::has_single_bit(sizeof(mapped_type)) &&
-                    // Check if copying 1-2 registers is enough. We don't want
-                    // (for example) 32 one-byte values to move around.
-                    alignof(mapped_type) * 2 >= sizeof(mapped_type) &&
-                    sizeof(mapped_type) <= sizeof(std::pair<void*, size_t>)) {
+      if constexpr (ShouldPreferPassByValue<std::conditional_t<
+                        sizeof...(Args) == 0 &&
+                            std::is_same_v<
+                                typename std::allocator_traits<
+                                    Alloc>::template rebind_alloc<char>,
+                                std::allocator<char>>,
+                        mapped_type,
+                        // Trick to avoid unnecessary template instantiations.
+                        void>>::value) {
         // Common case: operator[]
         // Note: This has a different run-time performance characteristic than
         // the other branches, due to the usage of a temporary object. In the
