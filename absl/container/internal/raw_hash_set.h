@@ -3444,7 +3444,7 @@ class raw_hash_set {
     AssertOnFind(key);
     if (is_small()) return find_small(key);
     prefetch_heap_block();
-    return find_large(key);
+    return find_large<FindLargeKey<key_arg<K>>>(key);
   }
 
   template <class K = key_type>
@@ -3599,13 +3599,14 @@ class raw_hash_set {
 
   // TODO(b/289225379): consider having a helper class that has the impls for
   // SOO functionality.
-  template <class K = key_type>
-  ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const key_arg<K>& key) {
+  template <class K>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const K& key) {
     return empty() || !equal_to(key, single_slot()) ? end() : single_iterator();
   }
 
-  template <class K = key_type>
-  iterator find_large(const key_arg<K>& key) {
+  template <class K>
+  iterator find_large(absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, FindLargeKey<K>>);
     const size_t cap = common().capacity();
     ABSL_ASSUME(cap > kMaxSmallCapacity);
     const size_t hash = hash_of(key);
@@ -3896,7 +3897,9 @@ class raw_hash_set {
   }
 
   template <class K>
-  std::pair<slot_type*, bool> find_or_prepare_insert_large(const K& key) {
+  std::pair<slot_type*, bool> find_or_prepare_insert_large(
+      absl::type_identity_t<K> key) {
+    static_assert(std::is_same_v<K, FindLargeKey<K>>);
     prefetch_heap_block();
     const size_t cap = capacity();
     const size_t hash = hash_of(key);
@@ -3919,15 +3922,15 @@ class raw_hash_set {
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
         size_t target_group_offset = seq.offset();
-        void* slot = SwisstableGenerationsEnabled()
-                         ? PrepareInsertLargeGenerationsEnabled(
-                               common(), GetPolicyFunctions(), hash, mask_empty,
-                               target_group_offset,
-                               HashKey<hasher, K, kIsAbslHash, kSeedShift>{
-                                   hash_ref(), key})
-                         : PrepareInsertLarge(
-                               common(), GetPolicyFunctions(), hash, mask_empty,
-                               target_group_offset);
+        void* slot =
+            SwisstableGenerationsEnabled()
+                ? PrepareInsertLargeGenerationsEnabled(
+                      common(), GetPolicyFunctions(), hash, mask_empty,
+                      target_group_offset,
+                      HashKey<hasher, absl::remove_cvref_t<K>, kIsAbslHash,
+                              kSeedShift>{hash_ref(), key})
+                : PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
+                                     mask_empty, target_group_offset);
         return {to_slot(slot), true};
       }
       seq.next();
@@ -3995,7 +3998,7 @@ class raw_hash_set {
   std::pair<slot_type*, bool> find_or_prepare_insert(const K& key) {
     AssertOnFind(key);
     return is_small() ? find_or_prepare_insert_small(key)
-                      : find_or_prepare_insert_large(key);
+                      : find_or_prepare_insert_large<FindLargeKey<K>>(key);
   }
 
   // Constructs the value in the space pointed by the iterator. This only works
@@ -4039,6 +4042,23 @@ class raw_hash_set {
 
  private:
   friend struct RawHashSetTestOnlyAccess;
+
+  // For string-like keys, we convert to string_view when calling find*_large()
+  // operations to (a) avoid repeatedly (i) branching on SSO or (ii) calling
+  // strlen(), (b) share code between the string-like types, (c) avoid
+  // materializing string_view on the stack just to pass a reference to it. Note
+  // that we don't pass FindLargeKey to find*_small() to avoid unnecessarily
+  // constructing string_view for small empty tables. Note: we use
+  // type_identity_t and static_asserts to ensure that the key type in
+  // find*_large is FindLargeKey. (type_identity_t ensures that the template
+  // argument is not deduced and must be specified explicitly.)
+  // TODO(ezb): extend this to other types (e.g. small trivial types).
+  template <class K>
+  using FindLargeKey = std::conditional_t<
+      std::is_same_v<hasher, absl::container_internal::StringHash> &&
+          std::is_same_v<key_equal, absl::container_internal::StringEq> &&
+          std::is_convertible_v<const K&, absl::string_view>,
+      const absl::string_view, const K&>;
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
