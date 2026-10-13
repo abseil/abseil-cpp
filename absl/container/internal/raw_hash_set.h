@@ -3620,10 +3620,13 @@ class raw_hash_set {
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
       absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
-      for (uint32_t i : g.Match(h2)) {
-        const size_t offset = seq.offset(i);
-        if (ABSL_PREDICT_TRUE(equal_to(key, slot_array + offset)))
-          return iterator_at_ptr(ctrl + offset, slot_array + offset);
+      // Predict one iteration (common case for find-hit).
+      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
+        do {
+          const size_t offset = seq.offset(*match);
+          if (ABSL_PREDICT_TRUE(equal_to(key, slot_array + offset)))
+            return iterator_at_ptr(ctrl + offset, slot_array + offset);
+        } while (ABSL_PREDICT_FALSE(++match));
       }
       if (ABSL_PREDICT_TRUE(g.MaskEmpty())) return end();
       seq.next();
@@ -3913,11 +3916,12 @@ class raw_hash_set {
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
       absl::PrefetchToLocalCache(slot_array + seq.offset());
 #endif
-      for (uint32_t i : g.Match(h2)) {
-        slot_type* slot = slot_array + seq.offset(i);
-        if (ABSL_PREDICT_TRUE(equal_to(key, slot))) {
-          return {slot, false};
-        }
+      // Predict one iteration (common case for insert-hit).
+      if (auto match = g.Match(h2); ABSL_PREDICT_TRUE(match)) {
+        do {
+          slot_type* slot = slot_array + seq.offset(*match);
+          if (ABSL_PREDICT_TRUE(equal_to(key, slot))) return {slot, false};
+        } while (ABSL_PREDICT_FALSE(++match));
       }
       auto mask_empty = g.MaskEmpty();
       if (ABSL_PREDICT_TRUE(mask_empty)) {
