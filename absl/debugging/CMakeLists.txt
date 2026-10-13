@@ -105,6 +105,7 @@ absl_cc_test(
     $<$<BOOL:${MSVC}>:-Z7>
   LINKOPTS
     $<$<BOOL:${MSVC}>:-DEBUG>
+    $<$<PLATFORM_ID:OpenBSD>:-Wl,--no-execute-only>
   DEPS
     absl::base
     absl::check
