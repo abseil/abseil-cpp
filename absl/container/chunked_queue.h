@@ -35,6 +35,8 @@
 //   shrink_to_fit()
 //   resize()
 //   assign()
+//   push_front()
+//   emplace_front()
 //   push_back()
 //   emplace_back()
 //   pop_front()
@@ -110,6 +112,7 @@
 #include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits.h"
 #include "absl/base/macros.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/internal/chunked_queue.h"
 #include "absl/container/internal/layout.h"
 
@@ -402,6 +405,20 @@ class chunked_queue {
   // Replaces the contents with the elements from the initializer list `il`.
   void assign(std::initializer_list<T> il) { assign(il.begin(), il.end()); }
 
+  // Prepends the given element value to the beginning of the container.
+  // Invalidates `end()` iterator if the container was empty. References to
+  // other elements remain valid.
+  void push_front(const T& val) { emplace_front(val); }
+  void push_front(T&& val) { emplace_front(std::move(val)); }
+
+  // Prepends a new element to the beginning of the container.
+  // The element is constructed in-place with `args`.
+  // Returns a reference to the new element.
+  // Invalidates `end()` iterator if the container was empty. References to
+  // other elements remain valid.
+  template <typename... A>
+  T& emplace_front(A&&... args);
+
   // Appends the given element value to the end of the container.
   // Invalidates `end()` iterator. References to other elements remain valid.
   void push_back(const T& val) { emplace_back(val); }
@@ -537,10 +554,13 @@ class chunked_queue {
   }
 
   void AddTailBlock();
-  size_t NewBlockSize() {
-    // Double the last block size and bound to [kBlockSizeMin, kBlockSizeMax].
-    if (!tail_.block) return kBlockSizeMin;
-    return (std::min)(kBlockSizeMax, 2 * tail_.block->size());
+  // Returns the capacity (in elements) to allocate for a new block adjacent to
+  // `b` (`head_.block` when prepending or `tail_.block` when appending). Starts
+  // at `kBlockSizeMin` when `b` is null, otherwise doubles `b->size()` and
+  // clamps to `[kBlockSizeMin, kBlockSizeMax]`.
+  size_t NewBlockSize(Block* b) {
+    if (!b) return kBlockSizeMin;
+    return (std::min)(kBlockSizeMax, 2 * b->size());
   }
 
   T* AllocateBack();
@@ -651,9 +671,70 @@ void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
 }
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
+template <typename... A>
+T& chunked_queue<T, BLo, BHi, Allocator>::emplace_front(A&&... args) {
+  // Per "The set of elements in the queue" / "Rep invariants" (documented above
+  // `head_` and `tail_`), in a multi-block queue the head block holds
+  // `[head_.ptr .. head_.block->limit()-1]`, interior blocks hold all elements
+  // `[b->start() .. b->limit()-1]`, and the tail block holds
+  // `[tail_.block->start() .. tail_.ptr-1]` (as also assumed by `block_begin()`
+  // and `iterator_common::Incr()`). Therefore, a head block is populated from
+  // `b->limit() - 1` down to `b->start()` before a new head block can be
+  // prepended.
+
+  // Determine the target block `b` and element slot `storage`, allocating a new
+  // head block if needed.
+  Block* b = head_.block;
+  T* storage;
+  if (empty()) {
+    // Empty queue: allocate the first block if none exists, or reuse the empty
+    // block retained by `clear()` / `pop_front()`.
+    if (!b) {
+      b = Block::New(NewBlockSize(b), &alloc_and_size_.allocator());
+    }
+    storage = b->limit() - 1;
+  } else if (head_.ptr == head_.block->start()) {
+    // Full head block (no spare capacity before `head_.ptr`): allocate a new
+    // head block to prepend.
+    b = Block::New(NewBlockSize(b), &alloc_and_size_.allocator());
+    storage = b->limit() - 1;
+  } else {
+    // Partially filled head block: use the slot immediately before `head_.ptr`.
+    storage = head_.ptr - 1;
+  }
+
+  // Construct the new element in `storage`.
+  {
+    // Exception safety: Unlike `emplace_back()` (where `AddTailBlock()` links
+    // the new block into `tail_` before construction with `tail_.ptr ==
+    // b->start()`, so the container owns it if construction throws), `b` is not
+    // linked into `head_` until after construction succeeds so that `head_`
+    // remains valid on throw. Delete `b` if construction throws.
+    absl::Cleanup cleanup = [&] {
+      if (b != head_.block) Block::Delete(b, &alloc_and_size_.allocator());
+    };
+    AllocatorTraits::construct(alloc_and_size_.allocator(), storage,
+                               std::forward<A>(args)...);
+    std::move(cleanup).Cancel();
+  }
+
+  // Link the new block (if allocated) and update queue iterators and size.
+  if (empty()) {
+    tail_.block = b;
+    tail_.ptr = b->limit();
+  } else if (b != head_.block) {
+    b->set_next(head_.block);
+  }
+  head_.block = b;
+  head_.ptr = storage;
+  ++alloc_and_size_.size;
+  return *storage;
+}
+
+template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void chunked_queue<T, BLo, BHi, Allocator>::AddTailBlock() {
   ABSL_ASSERT(!tail_.block || tail_.ptr == tail_.block->limit());
-  auto* b = Block::New(NewBlockSize(), &alloc_and_size_.allocator());
+  auto* b = Block::New(NewBlockSize(tail_.block), &alloc_and_size_.allocator());
   if (!head_.block) {
     ABSL_ASSERT(!tail_.block);
     head_ = iterator(b);
