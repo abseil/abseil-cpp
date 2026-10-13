@@ -49,7 +49,7 @@ using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
 
-// Check that absl::flat_hash_map works in a global constructor.
+// Checks that absl::flat_hash_map works in a global constructor.
 struct BeforeMain {
   BeforeMain() {
     absl::flat_hash_map<int, int> x;
@@ -82,6 +82,25 @@ using UniquePtrMapTypes = ::testing::Types<Map<int, std::unique_ptr<int>>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(FlatHashMap, UniquePtrModifiersTest,
                                UniquePtrMapTypes);
+
+using MoveOnlyMappedMap = flat_hash_map<std::string, std::unique_ptr<int>>;
+
+static_assert(!std::is_copy_constructible_v<MoveOnlyMappedMap>);
+static_assert(std::is_move_constructible_v<MoveOnlyMappedMap>);
+static_assert(
+    std::is_copy_constructible_v<flat_hash_map<std::string, int>>);
+
+TEST(FlatHashMap, MoveConstructsWithMoveOnlyMappedType) {
+  MoveOnlyMappedMap source;
+  source.emplace("a", std::make_unique<int>(7));
+
+  MoveOnlyMappedMap dest(std::move(source));
+
+  auto it = dest.find("a");
+  ASSERT_NE(it, dest.end());
+  ASSERT_NE(it->second, nullptr);
+  EXPECT_EQ(*it->second, 7);
+}
 
 TEST(FlatHashMap, StandardLayout) {
   struct Int {

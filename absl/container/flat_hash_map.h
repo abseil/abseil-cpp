@@ -204,6 +204,13 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::flat_hash_map<int, std::string> map8(std::from_range, v);
   flat_hash_map() {}
+  flat_hash_map(const flat_hash_map&) = default;
+  flat_hash_map(flat_hash_map&&) = default;
+  flat_hash_map& operator=(const flat_hash_map&) = default;
+  flat_hash_map& operator=(flat_hash_map&&) = default;
+  ~flat_hash_map() = default;
+  flat_hash_map(const Base&) = delete;
+  flat_hash_map(Base&&) = delete;
   using Base::Base;
 
   // flat_hash_map::begin()

@@ -197,6 +197,13 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_set
   //   std::vector<std::string> v = {"a", "b"};
   //   absl::flat_hash_set<std::string> set8(std::from_range, v);
   flat_hash_set() {}
+  flat_hash_set(const flat_hash_set&) = default;
+  flat_hash_set(flat_hash_set&&) = default;
+  flat_hash_set& operator=(const flat_hash_set&) = default;
+  flat_hash_set& operator=(flat_hash_set&&) = default;
+  ~flat_hash_set() = default;
+  flat_hash_set(const Base&) = delete;
+  flat_hash_set(Base&&) = delete;
   using Base::Base;
 
   // flat_hash_set::begin()

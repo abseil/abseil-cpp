@@ -191,6 +191,13 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //   std::vector<std::pair<int, std::string>> v = {{1, "a"}, {2, "b"}};
   //   absl::node_hash_map<int, std::string> map8(std::from_range, v);
   node_hash_map() {}
+  node_hash_map(const node_hash_map&) = default;
+  node_hash_map(node_hash_map&&) = default;
+  node_hash_map& operator=(const node_hash_map&) = default;
+  node_hash_map& operator=(node_hash_map&&) = default;
+  ~node_hash_map() = default;
+  node_hash_map(const Base&) = delete;
+  node_hash_map(Base&&) = delete;
   using Base::Base;
 
   // node_hash_map::begin()
