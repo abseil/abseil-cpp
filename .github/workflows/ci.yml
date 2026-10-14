@@ -47,7 +47,7 @@ jobs:
   # Mirrors the 10 Linux "latest" Bazel Kokoro jobs (parallelized to 1 job per
   # Bazel invocation). Not yet covered here:
   #   - "Linux GCC/libstdc++ (floor) Bazel" (requires a floor GCC Docker image)
-  #   - CMake, macOS, and Windows Kokoro jobs
+  #   - CMake and macOS Kokoro jobs
   linux:
     name: Linux ${{ matrix.config.name }} Bazel
     strategy:
@@ -103,10 +103,39 @@ jobs:
       stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
 
+  windows:
+    name: Windows ${{ matrix.config.name }} Bazel
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        config:
+          # windows-msvc-2022-cxx{17,20}-{dbg,opt}-bazel.cfg
+          - name: MSVC 2022
+            toolchain: windows-msvc
+          # windows-msvc-2022-alternate-options-cxx{17,20}-dbg-bazel.cfg (dbg only)
+          - name: MSVC 2022 Alternate Options
+            toolchain: windows-msvc
+            alternate_options: true
+            compilation_modes: '["dbg"]'
+          # windows-clangcl-cxx17-fastbuild-bazel.cfg
+          - name: ClangCL
+            toolchain: windows-clangcl
+            stds: '["c++17"]'
+            compilation_modes: '["fastbuild"]'
+    uses: ./.github/workflows/bazel.yml
+    secrets: inherit
+    with:
+      os: windows-2022
+      toolchain: ${{ matrix.config.toolchain }}
+      remote_config: remote-cache
+      alternate_options: ${{ matrix.config.alternate_options || false }}
+      stds: ${{ matrix.config.stds || '["c++17", "c++20"]' }}
+      compilation_modes: ${{ matrix.config.compilation_modes || '["dbg", "opt"]' }}
+
   # Provide a single predictably-named job for copybara to look for
   all-blocking-tests:
     name: All Blocking Tests
-    needs: [linux]
+    needs: [linux, windows]
     runs-on: ubuntu-latest
     steps:
       - name: Check for cancellations
