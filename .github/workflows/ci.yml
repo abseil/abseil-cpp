@@ -1,0 +1,121 @@
+# Copyright 2026 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Tests
+
+on:
+  # continuous runs
+  schedule:
+    # Run every hour
+    - cron: "0 * * * *"
+
+  # postsubmit runs
+  push:
+    branches:
+      - master
+      - lts_*
+
+  # presubmit runs
+  pull_request:
+    branches:
+      - master
+      - lts_*
+
+  # manual runs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Avoid running twice at the same time over the same changes.
+concurrency:
+  group: ${{ github.event_name }}-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch", "schedule"]'), github.event_name) }}
+
+jobs:
+  # Mirrors the 10 Linux "latest" Bazel Kokoro jobs (parallelized to 1 job per
+  # Bazel invocation). Not yet covered here:
+  #   - "Linux GCC/libstdc++ (floor) Bazel" (requires a floor GCC Docker image)
+  #   - CMake, macOS, and Windows Kokoro jobs
+  linux:
+    name: Linux ${{ matrix.config.name }} Bazel
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        config:
+          # linux_clang-latest_libcxx_bazel.cfg
+          - name: Clang/libc++
+            toolchain: clang
+          # linux_clang-latest_libcxx_exceptions_bazel.cfg (fastbuild only)
+          - name: Clang/libc++ -fexceptions
+            toolchain: clang
+            exceptions: -fexceptions
+            compilation_modes: '["fastbuild"]'
+          # linux_clang-latest_libcxx_alternate_options_bazel.cfg
+          - name: Clang/libc++ alternate options
+            toolchain: clang
+            alternate_options: true
+          # linux_clang-latest_libcxx_asan_bazel.cfg (fastbuild only)
+          - name: Clang/libc++ ASAN
+            toolchain: asan
+            compilation_modes: '["fastbuild"]'
+          # linux_clang-latest_libcxx_tsan_bazel.cfg (fastbuild only)
+          - name: Clang/libc++ TSAN
+            toolchain: tsan
+            compilation_modes: '["fastbuild"]'
+          # linux_clang-latest_libstdcxx_bazel.cfg
+          - name: Clang/libstdc++
+            toolchain: libstdc++
+          # linux_gcc-latest_libstdcxx_bazel.cfg
+          - name: GCC/libstdc++
+            toolchain: gcc
+          # linux_gcc-latest_libstdcxx_exceptions_bazel.cfg (fastbuild only)
+          - name: GCC/libstdc++ -fexceptions
+            toolchain: gcc
+            exceptions: -fexceptions
+            compilation_modes: '["fastbuild"]'
+          # linux_gcc-latest_libstdcxx_alternate_options_bazel.cfg
+          - name: GCC/libstdc++ alternate options
+            toolchain: gcc
+            alternate_options: true
+          # linux_arm_clang-latest_libcxx_bazel.cfg (c++17 and c++20 only)
+          - name: ARM64 Clang/libc++
+            toolchain: clang-arm
+            arch_suffix: -arm
+            stds: '["c++17", "c++20"]'
+    uses: ./.github/workflows/bazel_linux.yml
+    secrets: inherit
+    with:
+      toolchain: ${{ matrix.config.toolchain }}
+      exceptions: ${{ matrix.config.exceptions || '-fno-exceptions' }}
+      alternate_options: ${{ matrix.config.alternate_options || false }}
+      arch_suffix: ${{ matrix.config.arch_suffix || '' }}
+      stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
+      compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
+
+  # Provide a single predictably-named job for copybara to look for
+  all-blocking-tests:
+    name: All Blocking Tests
+    needs: [linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for cancellations
+        if: ${{ contains(join(needs.*.result, ' '), 'cancelled') }}
+        run: echo "One or more tests were cancelled.  If this was a presubmit job cancelled by a submit job, you can ignore this." && exit 1
+      - name: Check for failures
+        if: ${{ contains(join(needs.*.result, ' '), 'failure') }}
+        run: echo "One or more tests failed.  Please check the logs above and fix the issues." && exit 1
+    # This workflow must run even if one or more of the dependent workflows
+    # failed.
+    if: always()

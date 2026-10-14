@@ -1,0 +1,105 @@
+# Copyright 2026 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Linux Bazel Tests
+
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: "Bazel toolchain config (--config=<toolchain>)"
+        required: true
+        type: string
+      exceptions:
+        description: "Exception handling flag (-fexceptions or -fno-exceptions)"
+        required: false
+        default: "-fno-exceptions"
+        type: string
+      alternate_options:
+        description: "Whether to use ci/absl_alternate_options.h"
+        required: false
+        default: false
+        type: boolean
+      arch_suffix:
+        description: "Architecture suffix for runner and remote config (e.g. -arm)"
+        required: false
+        default: ""
+        type: string
+      stds:
+        description: "JSON array of C++ standards to test"
+        required: false
+        default: '["c++17", "c++20", "c++23"]'
+        type: string
+      compilation_modes:
+        description: "JSON array of Bazel compilation modes to test"
+        required: false
+        default: '["opt", "fastbuild"]'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04${{ inputs.arch_suffix }}
+    name: (${{ matrix.std }}, ${{ matrix.compilation_mode }})
+    container:
+      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
+      options: --cap-add=SYS_PTRACE
+      credentials:
+        # TODO(b/573304451): Switch to Workload Identity Federation to avoid the need for secrets.
+        username: _json_key
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        std: ${{ fromJSON(inputs.stds) }}
+        compilation_mode: ${{ fromJSON(inputs.compilation_modes) }}
+    env:
+      USE_BAZEL_VERSION: 9.x
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
+
+      - name: Set up alternate options
+        if: ${{ inputs.alternate_options }}
+        run: cp ci/absl_alternate_options.h absl/base/options.h
+
+      - name: Setup continuous run
+        if: ${{ github.event_name == 'schedule' }}
+        # Force builds and tests to run on scheduled runs.
+        run: echo "EXTRA_BAZEL_ARGS=--cache_test_results=no --action_env=FORCE_REBUILD=1" >> $GITHUB_ENV
+
+      - name: Set up Bazel and caches
+        uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          cache-save: true
+          bazelisk-cache: true
+          external-cache: true
+          repository-cache: true
+          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+          bazelrc: common --config=remote${{ inputs.arch_suffix }}
+
+      - name: Fetch all external dependencies
+        run: bazel fetch //...
+
+      - name: Run tests
+        run: >
+          bazel test ...
+          --config=${{ inputs.toolchain }}
+          --cxxopt=-std=${{ matrix.std }}
+          --host_cxxopt=-std=${{ matrix.std }}
+          --compilation_mode=${{ matrix.compilation_mode }}
+          --copt=${{ inputs.exceptions }}
+          ${{ env.EXTRA_BAZEL_ARGS }}
