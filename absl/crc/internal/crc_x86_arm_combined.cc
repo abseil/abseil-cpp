@@ -1084,6 +1084,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
           3, 1, PclmulStreamType::PCLMUL>();
     case CpuType::kAmdMilan:
     case CpuType::kAmdGenoa:
+    case CpuType::kAmdRyzenV3000:
     case CpuType::kAmdSiena:
     case CpuType::kAmdTurin:
     case CpuType::kAmdVenice:
