@@ -12,7 +12,96 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:private"])
+
+string_flag(
+    name = "compiler",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "clang_compiler",
+    flag_values = {":compiler": "clang"},
+)
+
+config_setting(
+    name = "gcc_compiler",
+    flag_values = {":compiler": "gcc"},
+)
+
+config_setting(
+    name = "msvc_compiler",
+    flag_values = {":compiler": "msvc"},
+)
+
+config_setting(
+    name = "clang_cl_compiler",
+    flag_values = {":compiler": "clang-cl"},
+)
+
+string_flag(
+    name = "stdlib",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "libcxx_enabled",
+    flag_values = {":stdlib": "libc++"},
+)
+
+config_setting(
+    name = "libstdcxx_enabled",
+    flag_values = {":stdlib": "libstdc++"},
+)
+
+config_setting(
+    name = "msvc_stdlib_enabled",
+    flag_values = {":stdlib": "msvc"},
+)
+
+string_flag(
+    name = "exceptions",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "exceptions_enabled",
+    flag_values = {":exceptions": "enabled"},
+)
+
+config_setting(
+    name = "exceptions_disabled",
+    flag_values = {":exceptions": "disabled"},
+)
+
+string_flag(
+    name = "sanitizer",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "asan_enabled",
+    flag_values = {":sanitizer": "asan"},
+)
+
+config_setting(
+    name = "tsan_enabled",
+    flag_values = {":sanitizer": "tsan"},
+)
+
+config_setting(
+    name = "msan_enabled",
+    flag_values = {":sanitizer": "msan"},
+)
+
+config_setting(
+    name = "ubsan_enabled",
+    flag_values = {":sanitizer": "ubsan"},
+)
 
 platform(
     name = "rbe",
@@ -81,4 +170,242 @@ platform(
         "@platforms//cpu:aarch64",
         "@bazel_tools//tools/cpp:clang",
     ],
+)
+
+# Verification of our CI toolchains.
+
+cc_test(
+    name = "toolchain_test",
+    srcs = ["toolchain_test.cc"],
+    local_defines = select({
+        ":clang_compiler": ["ABSL_CI_EXPECT_COMPILER_CLANG=1"],
+        ":gcc_compiler": ["ABSL_CI_EXPECT_COMPILER_GCC=1"],
+        ":msvc_compiler": ["ABSL_CI_EXPECT_COMPILER_MSVC=1"],
+        ":clang_cl_compiler": ["ABSL_CI_EXPECT_COMPILER_CLANG_CL=1"],
+        "//conditions:default": [],
+    }) + select({
+        ":libcxx_enabled": ["ABSL_CI_EXPECT_STDLIB_LIBCXX=1"],
+        ":libstdcxx_enabled": ["ABSL_CI_EXPECT_STDLIB_LIBSTDCXX=1"],
+        ":msvc_stdlib_enabled": ["ABSL_CI_EXPECT_STDLIB_MSVC=1"],
+        "//conditions:default": [],
+    }) + select({
+        ":exceptions_enabled": ["ABSL_CI_EXPECT_EXCEPTIONS_ENABLED=1"],
+        ":exceptions_disabled": ["ABSL_CI_EXPECT_EXCEPTIONS_DISABLED=1"],
+        "//conditions:default": [],
+    }) + select({
+        ":asan_enabled": ["ABSL_CI_EXPECT_SANITIZER_ASAN=1"],
+        ":tsan_enabled": ["ABSL_CI_EXPECT_SANITIZER_TSAN=1"],
+        ":msan_enabled": ["ABSL_CI_EXPECT_SANITIZER_MSAN=1"],
+        "//conditions:default": [],
+    }),
+)
+
+# Architecture verification tests
+sh_test(
+    name = "x86_64_architecture_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "arch",
+        "X86-64",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "aarch64_architecture_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "arch",
+        "AArch64",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+# Compiler ELF .comment verification tests
+sh_test(
+    name = "clang_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "comment",
+        "clang version",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":clang_compiler": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "gcc_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "comment",
+        "GCC:",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":gcc_compiler": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+# Standard library dynamic linkage verification tests
+sh_test(
+    name = "libstdcxx_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "needed",
+        "libstdc++.so",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":libstdcxx_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "libstdcxx_not_needed_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "not_needed",
+        "libstdc++.so",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":libcxx_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "libcxx_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "needed",
+        "libc++.so",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":libcxx_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }) + select({
+        # These sanitizers link libc++ statically.
+        ":msan_enabled": ["@platforms//:incompatible"],
+        ":tsan_enabled": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)
+
+sh_test(
+    name = "libcxx_not_needed_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "not_needed",
+        "libc++.so",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":libstdcxx_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+# Sanitizer runtime instrumentation verification tests
+sh_test(
+    name = "asan_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "symbol",
+        "__asan",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":asan_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "ubsan_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "symbol",
+        "__ubsan",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":asan_enabled": [],
+        ":ubsan_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "msan_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "symbol",
+        "__msan",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":msan_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+sh_test(
+    name = "tsan_verification_test",
+    srcs = ["verify_binary.sh"],
+    args = [
+        "$(rootpath :toolchain_test)",
+        "symbol",
+        "__tsan",
+    ],
+    data = [":toolchain_test"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ] + select({
+        ":tsan_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )

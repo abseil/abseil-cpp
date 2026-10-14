@@ -35,6 +35,11 @@ bazel_dep(
     version = "1.9.5",
     dev_dependency = True,
 )
+bazel_dep(
+    name = "rules_shell",
+    version = "0.6.1",
+    dev_dependency = True,
+)
 
 # Note: Googletest is NOT a dev_dependency. Some Abseil test utilities
 # intended to be used by Abseil users depend on GoogleTest.
