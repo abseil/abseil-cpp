@@ -1343,8 +1343,11 @@ constexpr void c_nth_element(
 // to return an iterator pointing to the first element in a sorted container
 // which does not compare less than `value`.
 template <typename Sequence, typename T>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
-    Sequence& sequence, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<
+        Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_lower_bound(Sequence&& sequence, const T& value) {
   return std::lower_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value);
 }
@@ -1352,8 +1355,11 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
 // Overload of c_lower_bound() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename Sequence, typename T, typename LessThan>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
-    Sequence& sequence, const T& value, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsPermissibleDestinationRange<
+        Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_lower_bound(Sequence&& sequence, const T& value, LessThan&& comp) {
   return std::lower_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value,
                           std::forward<LessThan>(comp));

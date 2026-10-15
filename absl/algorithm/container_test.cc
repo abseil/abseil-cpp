@@ -371,11 +371,25 @@ TEST_F(NonMutatingTest, LowerBound) {
   EXPECT_EQ(3, *i);
 }
 
+TEST_F(NonMutatingTest, LowerBoundTemporarySpan) {
+  int* i = absl::c_lower_bound(absl::MakeSpan(vector_), 3);
+  EXPECT_EQ(2, std::distance(vector_.data(), i));
+  EXPECT_EQ(3, *i);
+}
+
 TEST_F(NonMutatingTest, LowerBoundWithPredicate) {
   std::vector<int> v(vector_);
   std::sort(v.begin(), v.end(), std::greater<int>());
   std::vector<int>::iterator i = absl::c_lower_bound(v, 3, std::greater<int>());
   EXPECT_TRUE(i == v.begin());
+  EXPECT_EQ(3, *i);
+}
+
+TEST_F(NonMutatingTest, LowerBoundTemporarySpanWithPredicate) {
+  std::vector<int> v(vector_);
+  std::sort(v.begin(), v.end(), std::greater<int>());
+  int* i = absl::c_lower_bound(absl::MakeSpan(v), 3, std::greater<int>());
+  EXPECT_TRUE(i == v.data());
   EXPECT_EQ(3, *i);
 }
 
