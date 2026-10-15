@@ -1,0 +1,11 @@
+filegroup(
+    name = "string_escape_fuzzer_src",
+    srcs = ["string_escape_fuzzer.cc"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "string_utilities_fuzzer_src",
+    srcs = ["string_utilities_fuzzer.cc"],
+    visibility = ["//visibility:public"],
+)

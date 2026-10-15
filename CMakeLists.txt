@@ -102,6 +102,9 @@ include(CMakeDependentOption)
 option(ABSL_BUILD_TESTING
   "If ON, Abseil will build all of Abseil's own tests." OFF)
 
+option(ABSL_BUILD_FUZZERS
+  "If ON, Abseil will build the standalone fuzz targets." OFF)
+
 option(ABSL_BUILD_TEST_HELPERS
   "If ON, Abseil will build libraries that you can use to write tests against Abseil code. This option requires that Abseil is configured to use GoogleTest."
   OFF)
@@ -168,6 +171,10 @@ if((BUILD_TESTING AND ABSL_BUILD_TESTING) OR ABSL_BUILD_TEST_HELPERS)
 endif()
 
 add_subdirectory(absl)
+
+if(ABSL_BUILD_FUZZERS)
+  add_subdirectory(fuzz)
+endif()
 
 if(ABSL_ENABLE_INSTALL)
   # absl:lts-remove-begin(system installation is supported for LTS releases)
