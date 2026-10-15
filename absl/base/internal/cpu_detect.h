@@ -70,6 +70,12 @@ bool SupportsArmCRC32PMULL();
 // Returns whether the host CPU supports BMI2 instructions.
 bool SupportsBmi2();
 
+// Returns whether the host CPU supports AVX2 and PCLMULQDQ instructions.
+bool SupportsAvx2();
+
+// Returns whether the host CPU supports 256-bit VPCLMULQDQ instructions.
+bool SupportsVpclmulqdq();
+
 // Returns whether the host CPU supports simultaneous multithreading (SMT) and
 // if it is enabled.
 bool IsSMTEnabled();
