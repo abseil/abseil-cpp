@@ -44,9 +44,8 @@ concurrency:
   cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch", "schedule"]'), github.event_name) }}
 
 jobs:
-  # Mirrors the 10 Linux "latest" Bazel Kokoro jobs (parallelized to 1 job per
-  # Bazel invocation). Not yet covered here:
-  #   - "Linux GCC/libstdc++ (floor) Bazel" (requires a floor GCC Docker image)
+  # Mirrors the 11 Linux Bazel Kokoro jobs (parallelized to 1 job per Bazel
+  # invocation). Not yet covered here:
   #   - CMake, macOS, and Windows Kokoro jobs
   linux:
     name: Linux ${{ matrix.config.name }} Bazel
@@ -87,18 +86,25 @@ jobs:
           - name: GCC/libstdc++ alternate options
             toolchain: gcc
             alternate_options: true
+          # linux_gcc-floor_libstdcxx_bazel.cfg (c++17 only)
+          - name: GCC/libstdc++ (floor)
+            toolchain: gcc
+            remote_config: remote-floor
+            container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-floor@sha256:f3d8a0f76a88d5edbba70250de47fb862271297b9ff41ff317240e564c95d65e
+            stds: '["c++17"]'
           # linux_arm_clang-latest_libcxx_bazel.cfg (c++17 and c++20 only)
           - name: ARM64 Clang/libc++
+            os: ubuntu-24.04-arm
             toolchain: clang-arm
-            arch_suffix: -arm
+            remote_config: remote-arm
             stds: '["c++17", "c++20"]'
     uses: ./.github/workflows/bazel.yml
     secrets: inherit
     with:
-      os: ubuntu-24.04${{ matrix.config.arch_suffix }}
+      os: ${{ matrix.config.os || 'ubuntu-24.04' }}
       toolchain: ${{ matrix.config.toolchain }}
-      remote_config: remote${{ matrix.config.arch_suffix }}
-      container_image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
+      remote_config: ${{ matrix.config.remote_config || 'remote' }}
+      container_image: ${{ matrix.config.container_image || 'gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:8dfd8bff496cce2b3aaa5d2f1b63ebb6790f2bc78a02cdc0ca9898372fbc38f3' }}
       alternate_options: ${{ matrix.config.alternate_options || false }}
       stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
