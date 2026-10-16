@@ -47,10 +47,8 @@ namespace {
 // If the result of dividing a uint128 by a uint64 fits within 64 bits,
 // the division can be implemented efficiently using an intrinsic instruction.
 // Expects the quotient to fit in 64 bits.
-inline void DivModImpl(uint128 dividend, uint64_t divisor,
+inline void DivModImpl(uint64_t high, uint64_t low, uint64_t divisor,
                        uint64_t* quotient_ret, uint64_t* remainder_ret) {
-  uint64_t high = Uint128High64(dividend);
-  uint64_t low = Uint128Low64(dividend);
   ABSL_ASSUME(divisor != 0);
   ABSL_ASSUME(high < divisor);
 
@@ -126,34 +124,30 @@ inline void DivModImpl(uint128 dividend, uint64_t divisor,
 }
 
 // Long division/modulo for uint128.
-inline void DivModImpl(uint128 dividend, uint128 divisor, uint128* quotient_ret,
-                       uint128* remainder_ret) {
-  uint64_t dividend_high = Uint128High64(dividend);
-  uint64_t dividend_low = Uint128Low64(dividend);
-  uint64_t divisor_high = Uint128High64(divisor);
-  uint64_t divisor_low = Uint128Low64(divisor);
+inline void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
+                       uint64_t divisor_high, uint64_t divisor_low,
+                       uint64_t* quotient_high_ret, uint64_t* quotient_low_ret,
+                       uint64_t* remainder_high_ret,
+                       uint64_t* remainder_low_ret) {
   assert(divisor_high != 0 || divisor_low != 0);
+  *quotient_high_ret = 0;
+  *quotient_low_ret = 0;
+  *remainder_high_ret = 0;
+  *remainder_low_ret = 0;
 
   if (divisor_high == 0) {
     if (dividend_high >= divisor_low) {
       // Long division/modulo
       uint64_t qt_high = dividend_high / divisor_low;
       uint64_t rem_tmp = dividend_high % divisor_low;
-      uint64_t qt_low;
-      uint64_t rem_result;
-      DivModImpl(MakeUint128(rem_tmp, dividend_low), divisor_low, &qt_low,
-                 &rem_result);
-      *quotient_ret = MakeUint128(qt_high, qt_low);
-      *remainder_ret = MakeUint128(0, rem_result);
+      DivModImpl(rem_tmp, dividend_low, divisor_low, quotient_low_ret,
+                 remainder_low_ret);
+      *quotient_high_ret = qt_high;
 
     } else {
       // If the quotient fits within 64 bits
-      uint64_t qt_result;
-      uint64_t rem_result;
-      DivModImpl(MakeUint128(dividend_high, dividend_low), divisor_low,
-                 &qt_result, &rem_result);
-      *quotient_ret = MakeUint128(0, qt_result);
-      *remainder_ret = MakeUint128(0, rem_result);
+      DivModImpl(dividend_high, dividend_low, divisor_low, quotient_low_ret,
+                 remainder_low_ret);
     }
   } else if (dividend_high >= divisor_high) {
     int shift = countl_zero(divisor_high);
@@ -165,30 +159,28 @@ inline void DivModImpl(uint128 dividend, uint128 divisor, uint128* quotient_ret,
     uint64_t ylow = divisor_low << shift;
     uint64_t threshold = (uint64_t(2) << shift) - 1;
 
-    uint64_t qt;
-    uint64_t rem;
-    DivModImpl(MakeUint128(xhigh, xlow), yhigh, &qt, &rem);
+    uint64_t qt, rem;
+    DivModImpl(xhigh, xlow, yhigh, &qt, &rem);
     // The estimate is off by at most one, and only when rem is tiny.
     if (rem <= threshold) {
-      uint128 tmp = int128_internal::Mul64x64(qt, ylow);
-      uint64_t thigh = Uint128High64(tmp);
-      uint64_t tlow = Uint128Low64(tmp);
+      uint64_t thigh, tlow;
+      int128_internal::Mul64x64(qt, ylow, &thigh, &tlow);
       qt -= (rem < thigh || (rem == thigh && (dividend_low << shift) < tlow));
     }
 
-    *quotient_ret = MakeUint128(0, qt);
+    *quotient_low_ret = qt;
     // remainder = dividend - qt * divisor, subtracted in 64-bit halves.
-    uint128 floored = int128_internal::Mul64x64(qt, divisor_low);
-    uint64_t floored_high = Uint128High64(floored);
-    uint64_t floored_low = Uint128Low64(floored);
+    uint64_t floored_high, floored_low;
+    int128_internal::Mul64x64(qt, divisor_low, &floored_high, &floored_low);
     uint64_t rem_low = dividend_low - floored_low;
     uint64_t rem_high = dividend_high - floored_high - divisor_high * qt -
                         (dividend_low < floored_low);
-    *remainder_ret = MakeUint128(rem_high, rem_low);
+    *remainder_high_ret = rem_high;
+    *remainder_low_ret = rem_low;
   } else {
     // dividend < divisor
-    *quotient_ret = 0;
-    *remainder_ret = MakeUint128(dividend_high, dividend_low);
+    *remainder_high_ret = dividend_high;
+    *remainder_low_ret = dividend_low;
   }
 }
 
@@ -241,17 +233,19 @@ uint128::uint128(long double v) : uint128(MakeUint128FromFloat(v)) {}
 
 #if !defined(ABSL_HAVE_INTRINSIC_INT128)
 uint128 operator/(uint128 lhs, uint128 rhs) {
-  uint128 quotient = 0;
-  uint128 remainder = 0;
-  DivModImpl(lhs, rhs, &quotient, &remainder);
-  return quotient;
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  DivModImpl(Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
+             Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
+             &remainder_low);
+  return MakeUint128(quotient_high, quotient_low);
 }
 
 uint128 operator%(uint128 lhs, uint128 rhs) {
-  uint128 quotient = 0;
-  uint128 remainder = 0;
-  DivModImpl(lhs, rhs, &quotient, &remainder);
-  return remainder;
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  DivModImpl(Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
+             Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
+             &remainder_low);
+  return MakeUint128(remainder_high, remainder_low);
 }
 #endif  // !defined(ABSL_HAVE_INTRINSIC_INT128)
 
@@ -285,9 +279,23 @@ std::string Uint128ToFormattedString(uint128 v, std::ios_base::fmtflags flags) {
   os.setf(flags & copy_mask, copy_mask);
   uint128 high = v;
   uint128 low;
-  DivModImpl(high, div, &high, &low);
+  const uint64_t div_high = Uint128High64(div);
+  const uint64_t div_low = Uint128Low64(div);
+  {
+    uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+    DivModImpl(Uint128High64(high), Uint128Low64(high), div_high, div_low,
+               &quotient_high, &quotient_low, &remainder_high, &remainder_low);
+    high = MakeUint128(quotient_high, quotient_low);
+    low = MakeUint128(remainder_high, remainder_low);
+  }
   uint128 mid;
-  DivModImpl(high, div, &high, &mid);
+  {
+    uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+    DivModImpl(Uint128High64(high), Uint128Low64(high), div_high, div_low,
+               &quotient_high, &quotient_low, &remainder_high, &remainder_low);
+    high = MakeUint128(quotient_high, quotient_low);
+    mid = MakeUint128(remainder_high, remainder_low);
+  }
   if (Uint128Low64(high) != 0) {
     os << Uint128Low64(high);
     os << std::noshowbase << std::setfill('0') << std::setw(div_base_log);
@@ -368,10 +376,13 @@ int128::int128(long double v) : int128(MakeInt128FromFloat(v)) {}
 int128 operator/(int128 lhs, int128 rhs) {
   assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
 
-  uint128 quotient = 0;
-  uint128 remainder = 0;
-  DivModImpl(UnsignedAbsoluteValue(lhs), UnsignedAbsoluteValue(rhs),
-             &quotient, &remainder);
+  const uint128 lhs_abs = UnsignedAbsoluteValue(lhs);
+  const uint128 rhs_abs = UnsignedAbsoluteValue(rhs);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
+             Uint128High64(rhs_abs), Uint128Low64(rhs_abs), &quotient_high,
+             &quotient_low, &remainder_high, &remainder_low);
+  uint128 quotient = MakeUint128(quotient_high, quotient_low);
   if ((Int128High64(lhs) < 0) != (Int128High64(rhs) < 0)) quotient = -quotient;
   return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(quotient)),
                     Uint128Low64(quotient));
@@ -380,10 +391,13 @@ int128 operator/(int128 lhs, int128 rhs) {
 int128 operator%(int128 lhs, int128 rhs) {
   assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
 
-  uint128 quotient = 0;
-  uint128 remainder = 0;
-  DivModImpl(UnsignedAbsoluteValue(lhs), UnsignedAbsoluteValue(rhs),
-             &quotient, &remainder);
+  const uint128 lhs_abs = UnsignedAbsoluteValue(lhs);
+  const uint128 rhs_abs = UnsignedAbsoluteValue(rhs);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
+             Uint128High64(rhs_abs), Uint128Low64(rhs_abs), &quotient_high,
+             &quotient_low, &remainder_high, &remainder_low);
+  uint128 remainder = MakeUint128(remainder_high, remainder_low);
   if (Int128High64(lhs) < 0) remainder = -remainder;
   return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(remainder)),
                     Uint128Low64(remainder));
