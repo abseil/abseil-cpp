@@ -506,7 +506,7 @@ inline void SetCtrlNoSanitizeImpl(const CommonFields& c, size_t i, ctrl_t h) {
   ctrl_t* ctrl = c.control();
   const size_t cap = c.capacity();
   ctrl[i] = h;
-  ctrl[((i - NumClonedBytes()) & cap) + (NumClonedBytes() & cap)] = h;
+  ctrl[i < NumClonedBytes() ? i + cap + 1 : i] = h;
 }
 
 inline void SetCtrl(const CommonFields& c, size_t i, ctrl_t h,
@@ -545,22 +545,6 @@ inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, ctrl_t h,
 inline void SetCtrlInSingleGroupTable(const CommonFields& c, size_t i, h2_t h,
                                       size_t slot_size) {
   SetCtrlInSingleGroupTable(c, i, static_cast<ctrl_t>(h), slot_size);
-}
-
-// Like SetCtrl, but in a table with capacity >= Group::kWidth - 1,
-// we can save some operations when setting the cloned control byte.
-inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, ctrl_t h,
-                                size_t slot_size) {
-  ABSL_SWISSTABLE_ASSERT(c.capacity() >= Group::kWidth - 1);
-  DoSanitizeOnSetCtrl(c, i, h, slot_size);
-  ctrl_t* ctrl = c.control();
-  ctrl[i] = h;
-  ctrl[((i - NumClonedBytes()) & c.capacity()) + NumClonedBytes()] = h;
-}
-// Overload for setting to an occupied `h2_t` rather than a special `ctrl_t`.
-inline void SetCtrlInLargeTable(const CommonFields& c, size_t i, h2_t h,
-                                size_t slot_size) {
-  SetCtrlInLargeTable(c, i, static_cast<ctrl_t>(h), slot_size);
 }
 
 void BlockControlBytes(CommonFields& common, size_t blocked_element_count) {
@@ -638,7 +622,7 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
 
     // Element doesn't move.
     if (ABSL_PREDICT_TRUE(probe_index(new_i) == probe_index(i))) {
-      SetCtrlInLargeTable(common, i, h2, slot_size);
+      SetCtrl(common, i, h2, slot_size);
       continue;
     }
 
@@ -647,14 +631,14 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
       // Transfer element to the empty spot.
       // SetCtrl poisons/unpoisons the slots so we have to call it at the
       // right time.
-      SetCtrlInLargeTable(common, new_i, h2, slot_size);
+      SetCtrl(common, new_i, h2, slot_size);
       (*transfer_n)(set, new_slot_ptr, slot_ptr, 1);
-      SetCtrlInLargeTable(common, i, ctrl_t::kEmpty, slot_size);
+      SetCtrl(common, i, ctrl_t::kEmpty, slot_size);
       // Initialize or change empty space id.
       tmp_space_id = i;
     } else {
       ABSL_SWISSTABLE_ASSERT(IsDeleted(ctrl[new_i]));
-      SetCtrlInLargeTable(common, new_i, h2, slot_size);
+      SetCtrl(common, new_i, h2, slot_size);
       // Until we are done rehashing, DELETED marks previously FULL slots.
 
       if (tmp_space_id == kUnknownId) {
@@ -679,7 +663,7 @@ void* DropDeletesWithoutResizeAndPrepareInsert(
   PrepareInsertCommon(common);
   ResetGrowthLeft(capacity, common.size() + blocked_element_count, common);
   FindInfo find_info = find_first_non_full(common, new_hash);
-  SetCtrlInLargeTable(common, find_info.offset, H2(new_hash), slot_size);
+  SetCtrl(common, find_info.offset, H2(new_hash), slot_size);
   common.infoz().RecordInsertMiss(new_hash, find_info.probe_length);
   common.infoz().RecordRehash(total_probe_length);
   return SlotAddress(slot_array, find_info.offset, slot_size);
@@ -887,7 +871,7 @@ void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size) {
   }
 
   c.OverwriteFullAsDeleted();
-  SetCtrlInLargeTable(c, index, ctrl_t::kDeleted, slot_size);
+  SetCtrl(c, index, ctrl_t::kDeleted, slot_size);
 }
 
 void ClearBackingArray(CommonFields& c,
@@ -1474,7 +1458,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
     void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
     SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
     transfer_n(&c, dst_slot, src_slot, 1);
-    SetCtrlInLargeTable(c, new_i, static_cast<h2_t>(start->h2), slot_size);
+    SetCtrl(c, new_i, static_cast<h2_t>(start->h2), slot_size);
   }
   return total_probe_length;
 }
@@ -1509,7 +1493,7 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     total_probe_length += target.probe_length;
     const size_t new_i = target.offset;
     void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SetCtrlInLargeTable(c, new_i, H2(hash), slot_size);
+    SetCtrl(c, new_i, H2(hash), slot_size);
     transfer_n(&c, dst_slot, src_slot, 1);
   }
   return total_probe_length;
@@ -1898,7 +1882,7 @@ void* GrowToNextCapacityAndPrepareInsert(
     total_probe_length =
         GrowToNextCapacityDispatch(common, policy, old_ctrl, old_slots);
     find_info = find_first_non_full(common, new_hash);
-    SetCtrlInLargeTable(common, find_info.offset, new_h2, policy.slot_size);
+    SetCtrl(common, find_info.offset, new_h2, policy.slot_size);
   }
   ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
 
@@ -2055,7 +2039,7 @@ void* PrepareInsertLargeSlow(CommonFields& common,
   // Compute before `SetCtrl*` to avoid reloading `control_`.
   void* res =
       SlotAddress(common.slot_array(cap), target.offset, policy.slot_size);
-  SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
+  SetCtrl(common, target.offset, H2(hash), policy.slot_size);
   if (common.has_infoz()) {
     ReportInsertMissToInfoz(common, target.probe_length, hash);
   }
