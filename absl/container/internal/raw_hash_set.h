@@ -1371,9 +1371,24 @@ class CommonFields : public CommonFieldsGenerationInfo {
   const void* soo_data() const { return heap_or_soo_.get_soo_data(); }
   void* soo_data() { return heap_or_soo_.get_soo_data(); }
 
+  template <bool kIsDefaultAlloc>
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(capacity() > 0);
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap_or_soo_.control().get());
+    ctrl_t* ctrl = heap_or_soo_.control().get();
+    if constexpr (kIsDefaultAlloc) {
+      // Assume that the control bytes don't alias `this`. Example benefit: when
+      // a caller mutates an element via an iterator returned by find(), the
+      // compiler can now prove that the store to the slot does not clobber
+      // CommonFields metadata (size, capacity, etc.).
+      // Example of benefitting user code:
+      //   if (auto it = m.find(k1); it != m.end()) it->second = v;
+      //   if (auto it = m.find(k2); it != m.end()) it->second = v;
+      // With this assumption, the second lookup avoids reloading capacity.
+      // Note: for custom allocators, `this` may be part of the same allocation
+      // as the control bytes so we cannot make this assumption.
+      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
+    }
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(ctrl);
   }
 
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
@@ -1382,16 +1397,18 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // Returns pointer to the slots of a table with explicit capacity that must be
   // equal to the actual capacity of the table.
   // Table must be large.
+  template <bool kIsDefaultAlloc>
   void* slot_array(size_t capacity) const {
     ABSL_SWISSTABLE_ASSERT(capacity == this->capacity());
     ABSL_ASSUME(capacity > kMaxSmallCapacity);
-    ctrl_t* ctrl = control();
+    ctrl_t* ctrl = control<kIsDefaultAlloc>();
     return ctrl + NumControlBytesForLargeTable(capacity);
   }
   // Returns pointer to the single slot of a table with capacity 1.
+  template <bool kIsDefaultAlloc>
   void* single_non_soo_slot() const {
     ABSL_SWISSTABLE_ASSERT(capacity() == 1);
-    return control();
+    return control<kIsDefaultAlloc>();
   }
 
   // The number of filled slots.
@@ -1480,10 +1497,12 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   // The number of slots we can still fill without needing to rehash.
   // Hot code paths should try to work with GetGrowthLeftLowerBound() instead.
+  template <bool kIsDefaultAlloc = true>
   size_t GetGrowthLeftTotalSlow(size_t capacity) const;
 
   // Initializes the GrowthInfo assuming we can grow `growth_left` elements
   // and there are no kDeleted slots in the table.
+  template <bool kIsDefaultAlloc = true>
   void InitGrowthLeftNoDeleted(size_t growth_left, size_t capacity);
 
   // Modifies the GrowthInfo to mark full element as deleted.
@@ -1500,12 +1519,14 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
 
   // Modifies the GrowthInfo to mark full element as empty.
+  template <bool kIsDefaultAlloc = true>
   void OverwriteFullAsEmpty();
 
   // Returns a GrowthInfoLowerBound object containing the information
   // about minimum growth left.
   // It guarantees that GetGrowthLeft() will be > 0 if GetGrowthLeftTotal() > 0.
   // It may optionally borrow some growth left from the full_growth_info.
+  template <bool kIsDefaultAlloc = true>
   GrowthInfoLowerBound RebalanceGrowthLeftLowerBound(size_t capacity);
 
   bool has_infoz() const { return inline_data_.has_infoz(); }
@@ -1533,13 +1554,14 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return CommonFieldsGenerationInfo::should_rehash_for_bug_detection_on_move(
         capacity());
   }
+  template <bool kIsDefaultAlloc>
   void annotate_for_bug_detection_on_move(CommonFields& that,
                                           const PolicyFunctions& policy) {
     // We only enable moved-from validation when generations are enabled (rather
     // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
     // translation units but not in others.
     if constexpr (SwisstableGenerationsEnabled()) {
-      AnnotateForBugDetectionOnMoveImpl(that, policy);
+      AnnotateForBugDetectionOnMoveImpl<kIsDefaultAlloc>(that, policy);
     }
   }
   void reset_reserved_growth(size_t reservation) {
@@ -1580,8 +1602,9 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   // Returns the number of control bytes set to kDeleted. For testing only.
   size_t TombstonesCount() const {
+    const ctrl_t* ctrl = control</*kIsDefaultAlloc=*/false>();
     return static_cast<size_t>(
-        std::count(control(), control() + capacity(), ctrl_t::kDeleted));
+        std::count(ctrl, ctrl + capacity(), ctrl_t::kDeleted));
   }
 
   // Asserts that the capacity is not a sentinel invalid value.
@@ -1600,25 +1623,30 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return (size_t{1} << HasInfozShift()) - 1;
   }
 
+  template <bool kIsDefaultAlloc>
   void* GrowthInfoOverflowAddress() const {
     return reinterpret_cast<void*>(
-        reinterpret_cast<uintptr_t>(control()) -
+        reinterpret_cast<uintptr_t>(control<kIsDefaultAlloc>()) -
         /*growth_info_overflow_size=*/sizeof(uint64_t) - NumGenerationBytes());
   }
 
+  template <bool kIsDefaultAlloc>
   size_t GetOverflowGrowthLeft() const {
     ABSL_SWISSTABLE_ASSERT(capacity() >
                            GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
-    return static_cast<size_t>(
-        base_internal::UnalignedLoad64(GrowthInfoOverflowAddress()));
+    return static_cast<size_t>(base_internal::UnalignedLoad64(
+        GrowthInfoOverflowAddress<kIsDefaultAlloc>()));
   }
 
+  template <bool kIsDefaultAlloc>
   void SetGrowthInfoOverflow(size_t overflow) {
     ABSL_SWISSTABLE_ASSERT(capacity() >
                            GrowthInfoLowerBound::kMaxGrowthLeftLowerBound);
-    base_internal::UnalignedStore64(GrowthInfoOverflowAddress(), overflow);
+    base_internal::UnalignedStore64(
+        GrowthInfoOverflowAddress<kIsDefaultAlloc>(), overflow);
   }
 
+  template <bool kIsDefaultAlloc>
   GrowthInfoLowerBound RebalanceGrowthLeftLowerBoundLargeCapacity();
 
   // We can't assert that SOO is enabled because we don't have SooEnabled(), but
@@ -1631,6 +1659,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   void AssertInSooModeImpl() const;
   void AssertNotDebugCapacityImpl() const;
+  template <bool kIsDefaultAlloc>
   void AnnotateForBugDetectionOnMoveImpl(CommonFields& that,
                                          const PolicyFunctions& policy);
 
@@ -1961,6 +1990,7 @@ constexpr size_t BackingArrayAlignment(size_t align_of_slot) {
 // No insertion to the table is allowed during `cb` call.
 // Erasure is allowed only for the element passed to the callback.
 // The table must not be in SOO mode.
+template <bool kIsDefaultAlloc>
 void IterateOverFullSlots(const CommonFields& c, size_t slot_size,
                           absl::FunctionRef<void(const ctrl_t*, void*)> cb);
 
@@ -2165,14 +2195,17 @@ constexpr size_t MaxSmallAfterSooCapacity() { return 7; }
 // Type erased version of raw_hash_set::reserve. Requires:
 //   1. `new_size > policy.soo_capacity`.
 //   2. `new_size <= kMaxValidSize`.
+template <bool kIsDefaultAlloc>
 void ReserveTableToFitNewSize(CommonFields& common,
                               const PolicyFunctions& policy, size_t new_size);
 
 // Type erased version of raw_hash_set::rehash.
 // Requires: `n <= MaxValidCapacity()`.
+template <bool kIsDefaultAlloc>
 void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n);
 
 // Type erased version of copy constructor.
+template <bool kIsDefaultAlloc>
 void Copy(CommonFields& common, const PolicyFunctions& policy,
           const CommonFields& other,
           void (*copy_fn)(void* set, void* dst, const void* src));
@@ -2209,15 +2242,19 @@ using HashForKeyFn = size_t (*)(void* hasher, size_t seed);
 // the given new_hash. Returns the new slot.
 // All possible template combinations are defined in cc file to improve
 // compilation time.
-template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
-void* GrowSooTableToNextCapacityAndPrepareInsert(
-    CommonFields& common, const PolicyFunctions& policy, void* hasher,
-    HashForKeyFn get_hash, bool force_sampling);
+template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy,
+          bool kIsDefaultAlloc>
+void* GrowSooTableToNextCapacityAndPrepareInsert(CommonFields& common,
+                                                 const PolicyFunctions& policy,
+                                                 void* hasher,
+                                                 HashForKeyFn get_hash,
+                                                 bool force_sampling);
 
 // PrepareInsert for small tables (is_small()==true).
 // Returns the new slot.
 // Hash is only computed if the table is sampled or grew to large size
 // (is_small()==false).
+template <bool kIsDefaultAlloc>
 void* PrepareInsertSmallNonSoo(CommonFields& common,
                                const PolicyFunctions& policy, void* hasher,
                                HashForKeyFn get_hash);
@@ -2225,29 +2262,33 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
 // Resizes table with allocated slots and change the table seed.
 // Tables with SOO enabled must have capacity > policy.soo_capacity.
 // No sampling will be performed since table is already allocated.
+template <bool kIsDefaultAlloc>
 void ResizeAllocatedTableWithSeedChange(CommonFields& common,
                                         const PolicyFunctions& policy,
                                         size_t new_capacity);
 
 // Clears the backing array, either modifying it in place, or creating a new one
 // based on the value of "reuse". REQUIRES: c.capacity > MaxSmallCapacity().
+template <bool kIsDefaultAlloc>
 void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
                        void* alloc, bool reuse);
 
 // Destroys all full slots in the backing array.
 // REQUIRES: !is_small(c.capacity()).
 // REQUIRES: destroy_slot != nullptr.
+template <bool kIsDefaultAlloc>
 ABSL_ATTRIBUTE_NOINLINE void DestroySlots(CommonFields& c, size_t slot_size,
                                           DestroySlotFn destroy_slot);
 
 // Deallocates the backing array and unregister infoz if necessary.
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
+template <bool kIsDefaultAlloc>
 void UnregisterAndDeallocBackingArray(CommonFields& c, const DtorPolicy& policy,
                                       DeallocBackingArrayFn dealloc,
                                       void* alloc);
 
 // Type erased version of raw_hash_set::clear.
-template <bool kSooEnabled>
+template <bool kSooEnabled, bool kIsDefaultAlloc>
 void Clear(CommonFields& c, const PolicyFunctions& policy,
            DestroySlotFn destroy_slot, void* alloc);
 
@@ -2257,11 +2298,11 @@ void Clear(CommonFields& c, const PolicyFunctions& policy,
 // REQUIRES: !c.is_small || policy.destroy_slot != nullptr
 // For kSooEnabled = false:
 // REQUIRES: c.capacity > 0.
-template <bool kSooEnabled>
+template <bool kSooEnabled, bool kIsDefaultAlloc>
 void Destruct(CommonFields& c, const DtorPolicy& policy,
               DeallocBackingArrayFn dealloc, void* alloc);
 // REQUIRES: std::is_empty_v<Alloc>
-template <bool kSooEnabled>
+template <bool kSooEnabled, bool kIsDefaultAlloc>
 void Destruct(CommonFields& c, const DtorPolicy& policy,
               DeallocBackingArrayFn dealloc);
 // REQUIRES: std::is_empty_v<Alloc> && dealloc == kStandardDeallocBackingArrayFn
@@ -2278,7 +2319,9 @@ void AssertHashEqConsistentImpl(CommonFields& common, const void* hash_fn,
                                 EqualToKeyFn equal);
 
 // Type-erased versions of raw_hash_set::erase_meta_only_{small,large}.
+template <bool kIsDefaultAlloc>
 void EraseMetaOnlySmall(CommonFields& c, bool soo_enabled, size_t slot_size);
+template <bool kIsDefaultAlloc>
 void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size);
 
 // For trivially relocatable types we use memcpy directly. This allows us to
@@ -2311,12 +2354,14 @@ ABSL_ATTRIBUTE_NOINLINE void TransferNRelocatable(void*, void* dst, void* src,
 //           `target_group`.
 // REQUIRES: `target_group` is a starting position for the group that has
 //            at least one empty slot.
+template <bool kIsDefaultAlloc>
 void* PrepareInsertLarge(CommonFields& common, const PolicyFunctions& policy,
                          size_t hash, Group::NonIterableBitMaskType mask_empty,
                          size_t target_group_offset);
 
 // Same as above, but with generations enabled, we may end up changing the seed,
 // which means we need to be able to recompute the hash.
+template <bool kIsDefaultAlloc>
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
@@ -2768,8 +2813,8 @@ class raw_hash_set {
         eq_(eq),
         alloc_(alloc) {
     if (reservation_size > DefaultCapacity()) {
-      ReserveTableToFitNewSize(common(), GetPolicyFunctions(),
-                               reservation_size);
+      ReserveTableToFitNewSize<kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                                                reservation_size);
     }
   }
 
@@ -2901,7 +2946,8 @@ class raw_hash_set {
 
   raw_hash_set(const raw_hash_set& that, const allocator_type& a)
       : raw_hash_set(0, that.hash_ref(), that.eq_ref(), a) {
-    Copy(common(), GetPolicyFunctions(), that.common(), &copy_slot_fn);
+    Copy<kIsDefaultAlloc>(common(), GetPolicyFunctions(), that.common(),
+                          &copy_slot_fn);
   }
 
   ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(
@@ -2925,8 +2971,8 @@ class raw_hash_set {
       }
     }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
+    common().template annotate_for_bug_detection_on_move<kIsDefaultAlloc>(
+        that.common(), GetPolicyFunctions());
   }
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
@@ -2936,8 +2982,8 @@ class raw_hash_set {
         alloc_(a) {
     if (CharAlloc(a) == that.char_alloc_ref()) {
       swap_common(that);
-      common().annotate_for_bug_detection_on_move(that.common(),
-                                                  GetPolicyFunctions());
+      common().template annotate_for_bug_detection_on_move<kIsDefaultAlloc>(
+          that.common(), GetPolicyFunctions());
     } else {
       move_elements_allocs_unequal(std::move(that));
     }
@@ -3027,8 +3073,9 @@ class raw_hash_set {
   size_t max_size() const { return MaxValidSize(); }
 
   ABSL_ATTRIBUTE_REINITIALIZES void clear() {
-    Clear<SooEnabled()>(common(), GetPolicyFunctions(), get_destroy_slot_fn(),
-                        &char_alloc_ref());
+    Clear<SooEnabled(), kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                                         get_destroy_slot_fn(),
+                                         &char_alloc_ref());
   }
 
   // This overload kicks in when the argument is an rvalue of insertable and
@@ -3402,12 +3449,14 @@ class raw_hash_set {
   }
 
   void rehash(size_t n) {
-    Rehash(common(), GetPolicyFunctions(), (std::min)(n, MaxValidCapacity()));
+    Rehash<kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                            (std::min)(n, MaxValidCapacity()));
   }
 
   void reserve(size_t n) {
     if (ABSL_PREDICT_TRUE(n > DefaultCapacity())) {
-      ReserveTableToFitNewSize(common(), GetPolicyFunctions(), n);
+      ReserveTableToFitNewSize<kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                                                n);
     }
   }
 
@@ -3669,13 +3718,15 @@ class raw_hash_set {
 
   void clear_backing_array(bool reuse) {
     ABSL_SWISSTABLE_ASSERT(capacity() > kMaxSmallCapacity);
-    ClearBackingArray(common(), GetPolicyFunctions(), &char_alloc_ref(), reuse);
+    ClearBackingArray<kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                                       &char_alloc_ref(), reuse);
   }
 
   void destroy_slots() {
     ABSL_SWISSTABLE_ASSERT(!is_small());
     if (PolicyTraits::template destroy_is_trivial<Alloc>()) return;
-    DestroySlots(common(), sizeof(slot_type), get_destroy_slot_fn());
+    DestroySlots<kIsDefaultAlloc>(common(), sizeof(slot_type),
+                                  get_destroy_slot_fn());
   }
 
   void destructor_impl() {
@@ -3698,12 +3749,13 @@ class raw_hash_set {
       if constexpr (kIsStandardBackingArrayAlignment) {
         Destruct<SooEnabled()>(common(), GetDtorPolicy());
       } else {
-        Destruct<SooEnabled()>(common(), GetDtorPolicy(),
-                               get_dealloc_backing_array_fn());
+        Destruct<SooEnabled(), kIsDefaultAlloc>(common(), GetDtorPolicy(),
+                                                get_dealloc_backing_array_fn());
       }
     } else {
-      Destruct<SooEnabled()>(common(), GetDtorPolicy(),
-                             get_dealloc_backing_array_fn(), &char_alloc_ref());
+      Destruct<SooEnabled(), kIsDefaultAlloc>(common(), GetDtorPolicy(),
+                                              get_dealloc_backing_array_fn(),
+                                              &char_alloc_ref());
     }
   }
 
@@ -3719,14 +3771,16 @@ class raw_hash_set {
     erase_meta_only_large(it);
   }
   void erase_meta_only_small() {
-    EraseMetaOnlySmall(common(), SooEnabled(), sizeof(slot_type));
+    EraseMetaOnlySmall<kIsDefaultAlloc>(common(), SooEnabled(),
+                                        sizeof(slot_type));
   }
   void erase_meta_only_large(const_iterator it) {
-    EraseMetaOnlyLarge(common(),
-                       // `it` can be non-iterable iterator, so we can't use
-                       // it.control().
-                       static_cast<size_t>(it.slot() - slot_array(capacity())),
-                       sizeof(slot_type));
+    EraseMetaOnlyLarge<kIsDefaultAlloc>(
+        common(),
+        // `it` can be non-iterable iterator, so we can't use
+        // it.control().
+        static_cast<size_t>(it.slot() - slot_array(capacity())),
+        sizeof(slot_type));
   }
 
   template <class K>
@@ -3797,27 +3851,32 @@ class raw_hash_set {
     CopyAlloc(char_alloc_ref(), that.char_alloc_ref(),
               std::bool_constant<propagate_alloc>());
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
+    common().template annotate_for_bug_detection_on_move<kIsDefaultAlloc>(
+        that.common(), GetPolicyFunctions());
     return *this;
   }
 
   raw_hash_set& move_elements_allocs_unequal(raw_hash_set&& that) {
-    const size_t size = that.size();
-    if (size == 0) return *this;
-    reserve(size);
-    for (iterator it = that.begin(); it != that.end(); ++it) {
-      insert(std::move(PolicyTraits::element(it.slot())));
-      that.destroy(it.slot());
+    // Default allocators are always equal, so this is unreachable when
+    // kIsDefaultAlloc is true. Guard with `if constexpr` to avoid
+    // instantiating `get_dealloc_backing_array_fn()` for default allocators.
+    if constexpr (!kIsDefaultAlloc) {
+      const size_t size = that.size();
+      if (size == 0) return *this;
+      reserve(size);
+      for (iterator it = that.begin(); it != that.end(); ++it) {
+        insert(std::move(PolicyTraits::element(it.slot())));
+        that.destroy(it.slot());
+      }
+      if (!that.is_soo()) {
+        UnregisterAndDeallocBackingArray<kIsDefaultAlloc>(
+            that.common(), that.GetDtorPolicy(),
+            that.get_dealloc_backing_array_fn(), &that.char_alloc_ref());
+      }
+      that.common() = CommonFields::CreateDefault<SooEnabled()>();
+      common().template annotate_for_bug_detection_on_move<kIsDefaultAlloc>(
+          that.common(), GetPolicyFunctions());
     }
-    if (!that.is_soo()) {
-      UnregisterAndDeallocBackingArray(that.common(), that.GetDtorPolicy(),
-                                       that.get_dealloc_backing_array_fn(),
-                                       &that.char_alloc_ref());
-    }
-    that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
     return *this;
   }
 
@@ -3869,8 +3928,9 @@ class raw_hash_set {
         GrowSooTableToNextCapacityAndPrepareInsert<
             kUseMemcpy ? OptimalMemcpySizeForSooSlotTransfer(sizeof(slot_type))
                        : 0,
-            kUseMemcpy>(common(), GetPolicyFunctions(), &hash_key,
-                        &Hasher::GetHash, force_sampling));
+            kUseMemcpy, kIsDefaultAlloc>(common(), GetPolicyFunctions(),
+                                         &hash_key, &Hasher::GetHash,
+                                         force_sampling));
     return {slot, true};
   }
 
@@ -3887,8 +3947,8 @@ class raw_hash_set {
     }
     using Hasher = HashKey<hasher, K, kIsAbslHash, kSeedShift>;
     Hasher hash_key{hash_ref(), key};
-    return {to_slot(PrepareInsertSmallNonSoo(common(), GetPolicyFunctions(),
-                                             &hash_key, &Hasher::GetHash)),
+    return {to_slot(PrepareInsertSmallNonSoo<kIsDefaultAlloc>(
+                common(), GetPolicyFunctions(), &hash_key, &Hasher::GetHash)),
             true};
   }
 
@@ -3921,13 +3981,14 @@ class raw_hash_set {
         size_t target_group_offset = seq.offset();
         void* slot =
             SwisstableGenerationsEnabled()
-                ? PrepareInsertLargeGenerationsEnabled(
+                ? PrepareInsertLargeGenerationsEnabled<kIsDefaultAlloc>(
                       common(), GetPolicyFunctions(), hash, mask_empty,
                       target_group_offset,
                       HashKey<hasher, absl::remove_cvref_t<K>, kIsAbslHash,
                               kSeedShift>{hash_ref(), key})
-                : PrepareInsertLarge(common(), GetPolicyFunctions(), hash,
-                                     mask_empty, target_group_offset);
+                : PrepareInsertLarge<kIsDefaultAlloc>(
+                      common(), GetPolicyFunctions(), hash, mask_empty,
+                      target_group_offset);
         return {to_slot(slot), true};
       }
       seq.next();
@@ -4079,27 +4140,11 @@ class raw_hash_set {
   }
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
-    ctrl_t* ctrl = common().control();
-    if constexpr (kIsDefaultAlloc) {
-      // Assume that the control bytes don't alias `this`. Example benefit: when
-      // a caller mutates an element via an iterator returned by find(), the
-      // compiler can now prove that the store to the slot does not clobber
-      // CommonFields metadata (size, capacity, etc.).
-      // Example of benefitting user code:
-      //   if (auto it = m.find(k1); it != m.end()) it->second = v;
-      //   if (auto it = m.find(k2); it != m.end()) it->second = v;
-      // With this assumption, the second lookup avoids reloading capacity.
-      // Note: for custom allocators, `this` may be part of the same allocation
-      // as the control bytes so we cannot make this assumption.
-      // TODO(ezb): we could move this assumption into CommonFields::control()
-      // if we template the type-erased functions on whether the allocator is
-      // default or not.
-      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
-    }
-    return ctrl;
+    return common().template control<kIsDefaultAlloc>();
   }
   slot_type* slot_array(size_t capacity) const {
-    return static_cast<slot_type*>(common().slot_array(capacity));
+    return static_cast<slot_type*>(
+        common().template slot_array<kIsDefaultAlloc>(capacity));
   }
   slot_type* soo_slot() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
@@ -4112,9 +4157,10 @@ class raw_hash_set {
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    // Note: we don't use common().single_non_soo_slot() here because
-    // control() is more efficient (due to separate storage assume).
-    return SooEnabled() ? soo_slot() : to_slot(control());
+    return SooEnabled()
+               ? soo_slot()
+               : to_slot(
+                     common().template single_non_soo_slot<kIsDefaultAlloc>());
   }
   const slot_type* single_slot() const {
     return const_cast<raw_hash_set*>(this)->single_slot();
@@ -4215,7 +4261,7 @@ class raw_hash_set {
 
     auto* set = reinterpret_cast<raw_hash_set*>(&common);
     slot_type* old_slots_ptr = to_slot(old_slots);
-    ctrl_t* new_ctrl = common.control();
+    ctrl_t* new_ctrl = common.control<kIsDefaultAlloc>();
     slot_type* new_slots = set->slot_array(new_capacity);
 
     for (size_t group_index = 0; group_index < old_capacity;
@@ -4344,15 +4390,15 @@ struct HashtableFreeFunctionsAccess {
     [[maybe_unused]] const size_t original_size_for_assert = c->size();
     size_t num_deleted = 0;
     using SlotType = typename Set::slot_type;
-    IterateOverFullSlots(
+    IterateOverFullSlots<Set::kIsDefaultAlloc>(
         c->common(), sizeof(SlotType),
         [&](const ctrl_t* ctrl, void* slot_void) {
           auto* slot = static_cast<SlotType*>(slot_void);
           if (pred(Set::PolicyTraits::element(slot))) {
             c->destroy(slot);
-            EraseMetaOnlyLarge(c->common(),
-                               static_cast<size_t>(ctrl - c->control()),
-                               sizeof(*slot));
+            EraseMetaOnlyLarge<Set::kIsDefaultAlloc>(
+                c->common(), static_cast<size_t>(ctrl - c->control()),
+                sizeof(*slot));
             ++num_deleted;
           }
         });
@@ -4375,7 +4421,7 @@ struct HashtableFreeFunctionsAccess {
     }
     using SlotType = typename Set::slot_type;
     using ElementTypeWithConstness = decltype(*c->begin());
-    IterateOverFullSlots(
+    IterateOverFullSlots<Set::kIsDefaultAlloc>(
         c->common(), sizeof(SlotType), [&cb](const ctrl_t*, void* slot) {
           ElementTypeWithConstness& element =
               Set::PolicyTraits::element(static_cast<SlotType*>(slot));
@@ -4452,20 +4498,106 @@ struct HashtableDebugAccess<Set, std::void_t<typename Set::raw_hash_set>> {
 
 // Extern template instantiations reduce binary size and linker input size.
 // Function definition is in raw_hash_set.cc.
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<1, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<4, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+extern template size_t
+CommonFields::GetGrowthLeftTotalSlow</*kIsDefaultAlloc=*/true>(size_t) const;
+extern template size_t
+CommonFields::GetGrowthLeftTotalSlow</*kIsDefaultAlloc=*/false>(size_t) const;
+extern template void
+CommonFields::InitGrowthLeftNoDeleted</*kIsDefaultAlloc=*/true>(size_t, size_t);
+extern template void
+CommonFields::InitGrowthLeftNoDeleted</*kIsDefaultAlloc=*/false>(size_t,
+                                                                 size_t);
+extern template void
+CommonFields::OverwriteFullAsEmpty</*kIsDefaultAlloc=*/true>();
+extern template void
+CommonFields::OverwriteFullAsEmpty</*kIsDefaultAlloc=*/false>();
+extern template GrowthInfoLowerBound
+CommonFields::RebalanceGrowthLeftLowerBound</*kIsDefaultAlloc=*/true>(size_t);
+extern template GrowthInfoLowerBound
+CommonFields::RebalanceGrowthLeftLowerBound</*kIsDefaultAlloc=*/false>(size_t);
+extern template void CommonFields::AnnotateForBugDetectionOnMoveImpl<
+    /*kIsDefaultAlloc=*/true>(CommonFields&, const PolicyFunctions&);
+extern template void CommonFields::AnnotateForBugDetectionOnMoveImpl<
+    /*kIsDefaultAlloc=*/false>(CommonFields&, const PolicyFunctions&);
+
+extern template void IterateOverFullSlots</*kIsDefaultAlloc=*/true>(
+    const CommonFields&, size_t, absl::FunctionRef<void(const ctrl_t*, void*)>);
+extern template void IterateOverFullSlots</*kIsDefaultAlloc=*/false>(
+    const CommonFields&, size_t, absl::FunctionRef<void(const ctrl_t*, void*)>);
+
+extern template void ReserveTableToFitNewSize</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, size_t);
+extern template void ReserveTableToFitNewSize</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, size_t);
+
+extern template void Rehash</*kIsDefaultAlloc=*/true>(CommonFields&,
+                                                      const PolicyFunctions&,
+                                                      size_t);
+extern template void Rehash</*kIsDefaultAlloc=*/false>(CommonFields&,
+                                                       const PolicyFunctions&,
+                                                       size_t);
+
+extern template void Copy</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, const CommonFields&,
+    void (*)(void*, void*, const void*));
+extern template void Copy</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, const CommonFields&,
+    void (*)(void*, void*, const void*));
+
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<0, false, /*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<0, false, /*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<1, true, /*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<1, true, /*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<4, true, /*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<4, true, /*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
 #if UINTPTR_MAX == UINT64_MAX
-extern template void* GrowSooTableToNextCapacityAndPrepareInsert<8, true>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn,
-    bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<8, true, /*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+extern template void*
+GrowSooTableToNextCapacityAndPrepareInsert<8, true, /*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
 #endif
+
+extern template void* PrepareInsertSmallNonSoo</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn);
+extern template void* PrepareInsertSmallNonSoo</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn);
+
+extern template void ResizeAllocatedTableWithSeedChange<
+    /*kIsDefaultAlloc=*/true>(CommonFields&, const PolicyFunctions&, size_t);
+extern template void ResizeAllocatedTableWithSeedChange<
+    /*kIsDefaultAlloc=*/false>(CommonFields&, const PolicyFunctions&, size_t);
+
+extern template void ClearBackingArray</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, void*, bool);
+extern template void ClearBackingArray</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, void*, bool);
+
+extern template void DestroySlots</*kIsDefaultAlloc=*/true>(CommonFields&,
+                                                            size_t,
+                                                            DestroySlotFn);
+extern template void DestroySlots</*kIsDefaultAlloc=*/false>(CommonFields&,
+                                                             size_t,
+                                                             DestroySlotFn);
+
+extern template void UnregisterAndDeallocBackingArray</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const DtorPolicy&, DeallocBackingArrayFn, void*);
+extern template void UnregisterAndDeallocBackingArray<
+    /*kIsDefaultAlloc=*/false>(CommonFields&, const DtorPolicy&,
+                               DeallocBackingArrayFn, void*);
 
 extern template void* AllocateBackingArray<kStandardBackingArrayAlignment,
                                            std::allocator<char>>(void* alloc,
@@ -4474,29 +4606,65 @@ extern template void
 DeallocateBackingArray<kStandardBackingArrayAlignment, std::allocator<char>>(
     void* alloc, void* backing_array, size_t n);
 
-extern template void Clear</*kSooEnabled=*/true>(CommonFields& c,
-                                                 const PolicyFunctions& policy,
-                                                 DestroySlotFn destroy_slot,
-                                                 void* alloc);
-extern template void Clear</*kSooEnabled=*/false>(CommonFields& c,
-                                                  const PolicyFunctions& policy,
-                                                  DestroySlotFn destroy_slot,
-                                                  void* alloc);
+extern template void Clear</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/true>(
+    CommonFields& c, const PolicyFunctions&, DestroySlotFn, void*);
+extern template void Clear</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/false>(
+    CommonFields& c, const PolicyFunctions&, DestroySlotFn, void*);
+extern template void Clear</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/true>(
+    CommonFields& c, const PolicyFunctions&, DestroySlotFn, void*);
+extern template void Clear</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/false>(
+    CommonFields& c, const PolicyFunctions&, DestroySlotFn, void*);
 
-extern template void Destruct</*kSooEnabled=*/true>(
+extern template void Destruct</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/true>(
     CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
     void* alloc);
-extern template void Destruct</*kSooEnabled=*/true>(
+extern template void Destruct</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/true, /*kIsDefaultAlloc=*/false>(
     CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
 extern template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
                                                     const DtorPolicy& policy);
-extern template void Destruct</*kSooEnabled=*/false>(
+extern template void Destruct</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/true>(
     CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
     void* alloc);
-extern template void Destruct</*kSooEnabled=*/false>(
+extern template void Destruct</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/false>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc,
+    void* alloc);
+extern template void Destruct</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/true>(
+    CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
+extern template void Destruct</*kSooEnabled=*/false, /*kIsDefaultAlloc=*/false>(
     CommonFields& c, const DtorPolicy& policy, DeallocBackingArrayFn dealloc);
 extern template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
                                                      const DtorPolicy& policy);
+
+extern template void EraseMetaOnlySmall</*kIsDefaultAlloc=*/true>(CommonFields&,
+                                                                  bool, size_t);
+extern template void EraseMetaOnlySmall</*kIsDefaultAlloc=*/false>(
+    CommonFields&, bool, size_t);
+extern template void EraseMetaOnlyLarge</*kIsDefaultAlloc=*/true>(CommonFields&,
+                                                                  size_t,
+                                                                  size_t);
+extern template void EraseMetaOnlyLarge</*kIsDefaultAlloc=*/false>(
+    CommonFields&, size_t, size_t);
+
+extern template void* PrepareInsertLarge</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, size_t,
+    Group::NonIterableBitMaskType, size_t);
+extern template void* PrepareInsertLarge</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, size_t,
+    Group::NonIterableBitMaskType, size_t);
+
+extern template void*
+PrepareInsertLargeGenerationsEnabled</*kIsDefaultAlloc=*/true>(
+    CommonFields&, const PolicyFunctions&, size_t,
+    Group::NonIterableBitMaskType, size_t, absl::FunctionRef<size_t(size_t)>);
+extern template void*
+PrepareInsertLargeGenerationsEnabled</*kIsDefaultAlloc=*/false>(
+    CommonFields&, const PolicyFunctions&, size_t,
+    Group::NonIterableBitMaskType, size_t, absl::FunctionRef<size_t(size_t)>);
 
 // Extern template for inline function keeps possibility of inlining.
 // When compiler decided to not inline, no symbols will be added to the

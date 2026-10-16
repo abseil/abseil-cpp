@@ -4934,7 +4934,7 @@ TEST(Table, IterateOverFullSlotsEmpty) {
   };
   for (size_t i = 2; i < 256; ++i) {
     t.reserve(i);
-    container_internal::IterateOverFullSlots(
+    container_internal::IterateOverFullSlots</*kIsDefaultAlloc=*/true>(
         RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType), fail_if_any);
   }
 }
@@ -4951,12 +4951,13 @@ TEST(Table, IterateOverFullSlotsFull) {
     expected_slots.push_back(idx);
 
     std::vector<int64_t> slots;
-    container_internal::IterateOverFullSlots(
+    container_internal::IterateOverFullSlots</*kIsDefaultAlloc=*/true>(
         RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
         [&t, &slots](const ctrl_t* ctrl, void* slot) {
           SlotType* i = static_cast<SlotType*>(slot);
           ptrdiff_t ctrl_offset =
-              ctrl - RawHashSetTestOnlyAccess::GetCommon(t).control();
+              ctrl - RawHashSetTestOnlyAccess::GetCommon(t)
+                         .control</*kIsDefaultAlloc=*/true>();
           ptrdiff_t slot_offset = i - RawHashSetTestOnlyAccess::GetSlots(t);
           ASSERT_EQ(ctrl_offset, slot_offset);
           slots.push_back(**i);
@@ -4979,7 +4980,7 @@ TEST(Table, IterateOverFullSlotsDeathOnRemoval) {
         t.insert(val);
       }
 
-      container_internal::IterateOverFullSlots(
+      container_internal::IterateOverFullSlots</*kIsDefaultAlloc=*/true>(
           RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
           [&t](const ctrl_t*, void* slot) {
             int64_t value = **static_cast<SlotType*>(slot);
@@ -5014,7 +5015,7 @@ TEST(Table, IterateOverFullSlotsDeathOnInsert) {
         t.insert(val);
       }
 
-      container_internal::IterateOverFullSlots(
+      container_internal::IterateOverFullSlots</*kIsDefaultAlloc=*/true>(
           RawHashSetTestOnlyAccess::GetCommon(t), sizeof(SlotType),
           [&t](const ctrl_t*, void* slot) {
             int64_t value = **static_cast<SlotType*>(slot);
@@ -5462,10 +5463,11 @@ TEST(Table, GrowExtremelyLargeTable) {
     for (size_t i = cap - 1, growth_left = common.GetGrowthLeftTotalSlow(cap),
                 blocked = 0;
          i > cap / 2; --i) {
-      if (common.control()[i] == ctrl_t::kEmpty && growth_left > 1) {
+      if (common.control</*kIsDefaultAlloc=*/true>()[i] == ctrl_t::kEmpty &&
+          growth_left > 1) {
         growth_left--;
         blocked++;
-        common.control()[i] = ctrl_t::kSentinel;
+        common.control</*kIsDefaultAlloc=*/true>()[i] = ctrl_t::kSentinel;
         if (blocked > 100) break;
       }
     }
