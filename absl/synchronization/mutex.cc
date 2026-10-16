@@ -756,6 +756,9 @@ Mutex::~Mutex() { Dtor(); }
 #if !defined(NDEBUG) || defined(ABSL_HAVE_THREAD_SANITIZER) || \
     defined(ABSL_BUILD_DLL)
 void Mutex::Dtor() {
+  ABSL_RAW_DCHECK(
+      (mu_.load(std::memory_order_relaxed) & (kMuWriter | kMuReader)) == 0,
+      "Mutex destroyed while locked");
   if (kDebugMode) {
     this->ForgetDeadlockInfo();
   }

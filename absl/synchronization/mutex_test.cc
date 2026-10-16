@@ -856,27 +856,22 @@ TEST(Mutex, MutexReaderDecrementBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
 }
 #endif  // !ABSL_MUTEX_READER_LOCK_IS_EXCLUSIVE
 
-// Test that we correctly handle the situation when a lock is
-// held and then destroyed (w/o unlocking).
-#ifdef ABSL_HAVE_THREAD_SANITIZER
-// TSAN reports errors when locked Mutexes are destroyed.
-TEST(Mutex, DISABLED_LockedMutexDestructionBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
-#else
-TEST(Mutex, LockedMutexDestructionBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
-#endif
-  for (int i = 0; i != 10; i++) {
-    // Create, lock and destroy 10 locks.
-    const int kNumLocks = 10;
-    auto mu = std::make_unique<absl::Mutex[]>(kNumLocks);
-    for (int j = 0; j != kNumLocks; j++) {
-      if ((j % 2) == 0) {
-        mu[j].lock();
-      } else {
-        mu[j].lock_shared();
-      }
-    }
-  }
+#if !defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
+TEST(Mutex, LockedMutexDestructionDeathTest) ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        absl::Mutex mu;
+        mu.lock();
+      },
+      "Mutex destroyed while locked");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        absl::Mutex mu;
+        mu.lock_shared();
+      },
+      "Mutex destroyed while locked");
 }
+#endif
 
 // Some functions taking pointers to non-const.
 bool Equals42(int *p) { return *p == 42; }
@@ -1318,44 +1313,6 @@ TEST(Mutex, DeadlockDetectorStressTest) ABSL_NO_THREAD_SAFETY_ANALYSIS {
   }
 }
 
-#ifdef ABSL_HAVE_THREAD_SANITIZER
-// TSAN reports errors when locked Mutexes are destroyed.
-TEST(Mutex, DISABLED_DeadlockIdBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
-#else
-TEST(Mutex, DeadlockIdBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
-#endif
-  // Test a scenario where a cached deadlock graph node id in the
-  // list of held locks is not invalidated when the corresponding
-  // mutex is deleted.
-  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
-  // Mutex that will be destroyed while being held
-  absl::Mutex *a = new absl::Mutex;
-  // Other mutexes needed by test
-  absl::Mutex b, c;
-
-  // Hold mutex.
-  a->lock();
-
-  // Force deadlock id assignment by acquiring another lock.
-  b.lock();
-  b.unlock();
-
-  // Delete the mutex. The Mutex destructor tries to remove held locks,
-  // but the attempt isn't foolproof.  It can fail if:
-  //   (a) Deadlock detection is currently disabled.
-  //   (b) The destruction is from another thread.
-  // We exploit (a) by temporarily disabling deadlock detection.
-  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
-  delete a;
-  absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
-
-  // Now acquire another lock which will force a deadlock id assignment.
-  // We should end up getting assigned the same deadlock id that was
-  // freed up when "a" was deleted, which will cause a spurious deadlock
-  // report if the held lock entry for "a" was not invalidated.
-  c.lock();
-  c.unlock();
-}
 
 // --------------------------------------------------------
 // Test for timeouts/deadlines on condition waits that are specified using
