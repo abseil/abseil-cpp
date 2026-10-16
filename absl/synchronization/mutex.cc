@@ -538,6 +538,9 @@ struct SynchLocksHeld {
   struct {
     Mutex* mu;      // lock acquired
     int32_t count;  // times acquired
+    // True iff this thread called mu->ForgetDeadlockInfo() while holding mu.
+    // The entry is then ignored for lock ordering until it is released.
+    bool forgotten;
     GraphId id;     // deadlock_graph id of acquired lock
   } locks[40];
   // If a thread overfills the array during deadlock detection, we
@@ -557,6 +560,14 @@ static SynchLocksHeld* LocksHeldAlloc() {
   ret->n = 0;
   ret->overflow = false;
   return ret;
+}
+
+static void RemoveHeldLockEntry(SynchLocksHeld* held_locks, int i) {
+  const int last = --held_locks->n;
+  held_locks->locks[i] = held_locks->locks[last];
+  held_locks->locks[last].id = InvalidGraphId();
+  held_locks->locks[last].mu =
+      nullptr;  // clear mu to please the leak detector.
 }
 
 // Return the PerThreadSynch-struct for this thread.
@@ -757,6 +768,20 @@ Mutex::~Mutex() { Dtor(); }
     defined(ABSL_BUILD_DLL)
 void Mutex::Dtor() {
   if (kDebugMode) {
+    // If this thread is destroying a locked Mutex, remove any held-lock
+    // entries for it so their slots are not leaked.
+    ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+    if (identity != nullptr &&
+        identity->per_thread_synch.all_locks != nullptr) {
+      SynchLocksHeld* held_locks = identity->per_thread_synch.all_locks;
+      for (int i = 0; i < held_locks->n;) {
+        if (held_locks->locks[i].mu == this) {
+          RemoveHeldLockEntry(held_locks, i);
+        } else {
+          i++;
+        }
+      }
+    }
     this->ForgetDeadlockInfo();
   }
   ABSL_TSAN_MUTEX_DESTROY(this, __tsan_mutex_not_static);
@@ -1237,22 +1262,35 @@ static GraphId GetGraphId(Mutex* mu) ABSL_LOCKS_EXCLUDED(deadlock_graph_mu) {
   return id;
 }
 
+// Returns the index of the entry for mu in held_locks, or -1 if there is none.
+// Prefers the entry that is not marked forgotten (there is at most one), and
+// otherwise returns the first entry that is.
+static int FindHeldLock(const SynchLocksHeld* held_locks, const Mutex* mu) {
+  int forgotten_index = -1;
+  for (int i = 0; i != held_locks->n; i++) {
+    if (held_locks->locks[i].mu == mu) {
+      if (!held_locks->locks[i].forgotten) return i;
+      if (forgotten_index == -1) forgotten_index = i;
+    }
+  }
+  return forgotten_index;
+}
+
 // Record a lock acquisition.  This is used in debug mode for deadlock
 // detection.  The held_locks pointer points to the relevant data
 // structure for each case.
 static void LockEnter(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
   int n = held_locks->n;
-  int i = 0;
-  while (i != n && held_locks->locks[i].id != id) {
-    i++;
-  }
-  if (i == n) {
+  int i = FindHeldLock(held_locks, mu);
+  // A forgotten hold stays ignored, so a new hold of mu gets its own entry.
+  if (i == -1 || held_locks->locks[i].forgotten) {
     if (n == static_cast<int>(std::size(held_locks->locks))) {
       held_locks->overflow = true;  // lost some data
     } else {                        // we have room for lock
-      held_locks->locks[i].mu = mu;
-      held_locks->locks[i].count = 1;
-      held_locks->locks[i].id = id;
+      held_locks->locks[n].mu = mu;
+      held_locks->locks[n].count = 1;
+      held_locks->locks[n].forgotten = false;
+      held_locks->locks[n].id = id;
       held_locks->n = n + 1;
     }
   } else {
@@ -1261,38 +1299,27 @@ static void LockEnter(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
 }
 
 // Record a lock release.  Each call to LockEnter(mu, id, x) should be
-// eventually followed by a call to LockLeave(mu, id, x) by the same thread.
+// eventually followed by a call to LockLeave(mu, x) by the same thread.
 // It does not process the event if is not needed when deadlock detection is
 // disabled.
-static void LockLeave(Mutex* mu, GraphId id, SynchLocksHeld* held_locks) {
-  int n = held_locks->n;
-  int i = 0;
-  while (i != n && held_locks->locks[i].id != id) {
-    i++;
-  }
-  if (i == n) {
-    if (!held_locks->overflow) {
-      // The deadlock id may have been reassigned after ForgetDeadlockInfo,
-      // but in that case mu should still be present.
-      i = 0;
-      while (i != n && held_locks->locks[i].mu != mu) {
-        i++;
-      }
-      if (i == n) {  // mu missing means releasing unheld lock
-        SynchEvent* mu_events = GetSynchEvent(mu);
-        ABSL_RAW_LOG(FATAL,
-                     "thread releasing lock it does not hold: %p %s; "
-                     ,
-                     static_cast<void*>(mu),
-                     mu_events == nullptr ? "" : mu_events->name);
-      }
+static void LockLeave(Mutex* mu, SynchLocksHeld* held_locks) {
+  // If mu was forgotten while held, this releases the forgotten entry.
+  int i = FindHeldLock(held_locks, mu);
+  if (i == -1) {
+    // The thread does not hold mu, unless held_locks was full when mu was
+    // acquired.
+    if (held_locks->overflow) {
+      return;
     }
-  } else if (held_locks->locks[i].count == 1) {
-    held_locks->n = n - 1;
-    held_locks->locks[i] = held_locks->locks[n - 1];
-    held_locks->locks[n - 1].id = InvalidGraphId();
-    held_locks->locks[n - 1].mu =
-        nullptr;  // clear mu to please the leak detector.
+    SynchEvent* mu_events = GetSynchEvent(mu);
+    ABSL_RAW_LOG(FATAL,
+                 "thread releasing lock it does not hold: %p %s; "
+                 ,
+                 static_cast<void*>(mu),
+                 mu_events == nullptr ? "" : mu_events->name);
+  }
+  if (held_locks->locks[i].count == 1) {
+    RemoveHeldLockEntry(held_locks, i);
   } else {
     assert(held_locks->locks[i].count > 0);
     held_locks->locks[i].count--;
@@ -1324,7 +1351,7 @@ static inline void DebugOnlyLockLeave(Mutex* mu) {
   if (kDebugMode) {
     if (synch_deadlock_detection.load(std::memory_order_acquire) !=
         OnDeadlockCycle::kIgnore) {
-      LockLeave(mu, GetGraphId(mu), Synch_GetAllLocks());
+      LockLeave(mu, Synch_GetAllLocks());
     }
   }
 }
@@ -1384,6 +1411,29 @@ int GetStack(void** stack, int max_depth) {
 }
 }  // anonymous namespace
 
+// Returns true iff held_locks has an entry that counts for lock ordering, that
+// is, one that is not marked forgotten.
+static bool HoldsUnforgottenLock(const SynchLocksHeld* held_locks) {
+  for (int i = 0; i != held_locks->n; i++) {
+    if (!held_locks->locks[i].forgotten) return true;
+  }
+  return false;
+}
+
+// Looks up new ids for the entries in held_locks that are not marked forgotten
+// and whose ids are no longer current, because another thread called
+// ForgetDeadlockInfo() on that Mutex after this thread acquired it.
+static void UpdateHeldLockIds(SynchLocksHeld* held_locks)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
+  for (int i = 0; i != held_locks->n; i++) {
+    if (held_locks->locks[i].forgotten) continue;
+    const GraphId id = held_locks->locks[i].id;
+    if (id == InvalidGraphId() || deadlock_graph->Ptr(id) == nullptr) {
+      held_locks->locks[i].id = GetGraphIdLocked(held_locks->locks[i].mu);
+    }
+  }
+}
+
 // Called in debug mode when a thread is about to acquire a lock in a way that
 // may block.
 static GraphId DeadlockCheck(Mutex* mu) {
@@ -1397,13 +1447,15 @@ static GraphId DeadlockCheck(Mutex* mu) {
   absl::base_internal::SpinLockHolder lock(deadlock_graph_mu);
   const GraphId mu_id = GetGraphIdLocked(mu);
 
-  if (all_locks->n == 0) {
+  if (!HoldsUnforgottenLock(all_locks)) {
     // There are no other locks held. Return now so that we don't need to
     // call GetSynchEvent(). This way we do not record the stack trace
     // for this Mutex. It's ok, since if this Mutex is involved in a deadlock,
     // it can't always be the first lock acquired by a thread.
     return mu_id;
   }
+
+  UpdateHeldLockIds(all_locks);
 
   // We prefer to keep stack traces that show a thread holding and acquiring
   // as many locks as possible.  This increases the chances that a given edge
@@ -1413,6 +1465,7 @@ static GraphId DeadlockCheck(Mutex* mu) {
 
   // For each other mutex already held by this thread:
   for (int i = 0; i != all_locks->n; i++) {
+    if (all_locks->locks[i].forgotten) continue;
     const GraphId other_node_id = all_locks->locks[i].id;
     const Mutex* other =
         static_cast<const Mutex*>(deadlock_graph->Ptr(other_node_id));
@@ -1433,6 +1486,7 @@ static GraphId DeadlockCheck(Mutex* mu) {
                    CurrentStackString(b->buf, sizeof (b->buf), symbolize));
       size_t len = 0;
       for (int j = 0; j != all_locks->n; j++) {
+        if (all_locks->locks[j].forgotten) continue;
         void* pr = deadlock_graph->Ptr(all_locks->locks[j].id);
         if (pr != nullptr) {
           snprintf(b->buf + len, sizeof(b->buf) - len, " %p", pr);
@@ -1490,6 +1544,19 @@ static inline GraphId DebugOnlyDeadlockCheck(Mutex* mu) {
 void Mutex::ForgetDeadlockInfo() {
   if (kDebugMode && synch_deadlock_detection.load(std::memory_order_acquire) !=
                         OnDeadlockCycle::kIgnore) {
+    // If this thread holds this Mutex, ignore that hold from now on (see
+    // SynchLocksHeld::forgotten). Holds by other threads keep counting:
+    // RemoveNode() makes their ids stale, and DeadlockCheck() looks up the
+    // new id when they are next needed.
+    ThreadIdentity* identity = CurrentThreadIdentityIfPresent();
+    if (identity != nullptr &&
+        identity->per_thread_synch.all_locks != nullptr) {
+      SynchLocksHeld* held_locks = identity->per_thread_synch.all_locks;
+      int i = FindHeldLock(held_locks, this);
+      if (i != -1) {
+        held_locks->locks[i].forgotten = true;
+      }
+    }
     deadlock_graph_mu.lock();
     if (deadlock_graph != nullptr) {
       deadlock_graph->RemoveNode(this);
@@ -1505,10 +1572,9 @@ void Mutex::AssertNotHeld() const {
       (mu_.load(std::memory_order_relaxed) & (kMuWriter | kMuReader)) != 0 &&
       synch_deadlock_detection.load(std::memory_order_acquire) !=
           OnDeadlockCycle::kIgnore) {
-    GraphId id = GetGraphId(const_cast<Mutex*>(this));
     SynchLocksHeld* locks = Synch_GetAllLocks();
     for (int i = 0; i != locks->n; i++) {
-      if (locks->locks[i].id == id) {
+      if (locks->locks[i].mu == this) {
         SynchEvent* mu_events = GetSynchEvent(this);
         ABSL_RAW_LOG(FATAL, "thread should not hold mutex %p %s",
                      static_cast<const void*>(this),
