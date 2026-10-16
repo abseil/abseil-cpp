@@ -701,18 +701,24 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
     }
 
     size_t bs = static_cast<size_t>(e - p) /
-                (kNumActiveCrcStreams + kNumActivePclmulStreams) / 64;
+                (kNumActiveCrcStreams + kNumActivePclmulStreams) / 16;
+    if constexpr (copy_type != CopyType::kNone) {
+      // Make each stream a multiple of 64 bytes so that every destination
+      // stream starts on a cache line and all copies in the main loop write
+      // whole cache lines.
+      bs &= ~size_t{3};
+    }
 
     const uint8_t* stream_start = p;
     const uint8_t* crc_streams[kMaxStreams];
     for (size_t i = 0; i < kNumActiveCrcStreams; i++) {
       crc_streams[i] = stream_start;
-      stream_start += bs * 64;
+      stream_start += bs * 16;
     }
     const uint8_t* pclmul_streams[kMaxStreams];
     for (size_t i = 0; i < kNumActivePclmulStreams; i++) {
       pclmul_streams[i] = stream_start;
-      stream_start += bs * 64;
+      stream_start += bs * 16;
     }
 
     uint8_t* dst_crc_streams[kMaxStreams];
@@ -721,11 +727,11 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       uint8_t* dst_stream_start = reinterpret_cast<uint8_t*>(d);
       for (size_t i = 0; i < kNumActiveCrcStreams; i++) {
         dst_crc_streams[i] = dst_stream_start;
-        dst_stream_start += bs * 64;
+        dst_stream_start += bs * 16;
       }
       for (size_t i = 0; i < kNumActivePclmulStreams; i++) {
         dst_pclmul_streams[i] = dst_stream_start;
-        dst_stream_start += bs * 64;
+        dst_stream_start += bs * 16;
       }
     }
 
@@ -766,7 +772,12 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       pclmul_streams[i] += 64;
     }
 
-    for (size_t i = 1; i < bs; i++) {
+    // Compute the magic constant for the final reduction now, so it's latency
+    // is hidden by the main loop.
+    static_assert(16 % (1 << kNumDroppedBits) == 0);
+    uint32_t magic = ComputeZeroConstant(bs * 16);
+
+    for (size_t i = 1; i < bs / 4; i++) {
       // Prefetch data for next iterations.
       for (size_t j = 0; j < kNumActiveCrcStreams; j++) {
         PrefetchToLocalCache(crc_streams[j] + kPrefetchHorizon);
@@ -817,6 +828,42 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       }
     }
 
+    // In copy mode, each stream is a multiple of 64 bytes (`bs % 4 == 0`), so
+    // there are no remaining 32- or 16-byte stream blocks to process.
+    if constexpr (copy_type == CopyType::kNone) {
+      // Process the remaining 32 and 16 bytes of every stream, if any. These
+      // are folded into the oldest partial CRCs, which then hold the newest
+      // bytes, so they are moved to the end to keep the partial CRCs in order.
+      if (bs & 2) {
+        ProcessAllStreams16<kNumActiveCrcStreams, kNumActivePclmulStreams,
+                            /*kVpclmulBytes=*/32>(
+            crc_streams, l64_crc, pclmul_streams, partialCRC, /*lane=*/0);
+        ProcessAllStreams16<kNumActiveCrcStreams, kNumActivePclmulStreams,
+                            /*kVpclmulBytes=*/0>(
+            crc_streams, l64_crc, pclmul_streams, partialCRC, /*lane=*/1);
+        for (size_t j = 0; j < kNumActivePclmulStreams; j++) {
+          V128 newest0 = partialCRC[j][0];
+          V128 newest1 = partialCRC[j][1];
+          partialCRC[j][0] = partialCRC[j][2];
+          partialCRC[j][1] = partialCRC[j][3];
+          partialCRC[j][2] = newest0;
+          partialCRC[j][3] = newest1;
+        }
+      }
+      if (bs & 1) {
+        ProcessAllStreams16<kNumActiveCrcStreams, kNumActivePclmulStreams,
+                            /*kVpclmulBytes=*/16>(
+            crc_streams, l64_crc, pclmul_streams, partialCRC, /*lane=*/0);
+        for (size_t j = 0; j < kNumActivePclmulStreams; j++) {
+          V128 newest = partialCRC[j][0];
+          partialCRC[j][0] = partialCRC[j][1];
+          partialCRC[j][1] = partialCRC[j][2];
+          partialCRC[j][2] = partialCRC[j][3];
+          partialCRC[j][3] = newest;
+        }
+      }
+    }
+
     // PCLMULQDQ based streams require special final step;
     // CRC based don't.
     for (size_t i = 0; i < kNumActivePclmulStreams; i++) {
@@ -824,8 +871,6 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
     }
 
     // Combine all streams into single result.
-    static_assert(64 % (1 << kNumDroppedBits) == 0);
-    uint32_t magic = ComputeZeroConstant(bs * 64);
     l64 = l64_crc[0];
     for (size_t i = 1; i < kNumActiveCrcStreams; i++) {
       l64 = MultiplyWithExtraX33(static_cast<uint32_t>(l64), magic);
@@ -1072,6 +1117,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
   switch (type) {
     case CpuType::kIntelHaswell:
     case CpuType::kAmdNaples:
+    case CpuType::kAmdRome:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 1, PclmulStreamType::PCLMUL>();
     case CpuType::kAmdMilan:
@@ -1086,7 +1132,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       // We don't have vector pclmul on arm, but this still needs to
       // compile.
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          2, 2, PclmulStreamType::VPCLMUL>();
+          2, 3, PclmulStreamType::VPCLMUL>();
 #else
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 1, PclmulStreamType::PCLMUL>();
@@ -1103,15 +1149,16 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       [[fallthrough]];
 #endif
     // PCLMULQDQ is fast, use combined PCLMULQDQ + CRC implementation.
+    case CpuType::kIntelBroadwell:
+      return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+          3, 2, PclmulStreamType::PCLMUL>();
     case CpuType::kIntelCascadelakeXeon:
     case CpuType::kIntelSkylakeXeon:
-    case CpuType::kIntelBroadwell:
     case CpuType::kIntelSkylake:
     case CpuType::kIntelIcelake:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
-          3, 2, PclmulStreamType::PCLMUL>();
+          3, 3, PclmulStreamType::PCLMUL>();
     // PCLMULQDQ is slow, don't use it.
-    case CpuType::kAmdRome:
     case CpuType::kIntelIvybridge:
     case CpuType::kIntelSandybridge:
     case CpuType::kIntelWestmere:
