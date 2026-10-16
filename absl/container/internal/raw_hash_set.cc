@@ -1103,18 +1103,23 @@ ReportInsertMissToInfozAndComputeHash(CommonFields& common, size_t probe_length,
                                   probe_length);
 }
 
-// Outlines cold infoz recording with computation of probe_length so callers can
-// skip tracking of probe_length. `common` is first and `hash` is third to match
-// argument order in callers.
-ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
-ReportInsertMissToInfozAndComputeProbeLength(CommonFields& common,
-                                             size_t target, size_t hash) {
+// Outlines cold infoz recording with computation of probe_length and slot
+// address so callers can skip tracking probe_length and tail-call without
+// keeping the slot address live across a call (which would cost a callee-saved
+// register and a stack frame on every insert).
+// (Returning a value passed in by the caller doesn't work: the compiler infers
+// that and keeps the caller's copy alive across the call instead.)
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void*
+ReportInsertMissToInfozAndGetSlot(CommonFields& common,
+                                  const PolicyFunctions& __restrict policy,
+                                  size_t hash, size_t target) {
   const size_t cap = common.capacity();
   auto seq = probe(ProbeCapacity{cap}, hash);
   while (((target - seq.offset()) & cap) >= Group::kWidth) {
     seq.next();
   }
   common.infoz().RecordInsertMiss(hash, seq.index());
+  return SlotAddress(common.slot_array(cap), target, policy.slot_size);
 }
 
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(
@@ -2454,12 +2459,11 @@ void* PrepareInsertLargeImpl(CommonFields& common,
   // Compute before `SetCtrl` to avoid reloading `control_`.
   void* res = SlotAddress(common.slot_array(cap), target_group_offset,
                           policy.slot_size);
-  const bool hash_infoz = common.has_infoz();
   SetCtrl(common, target_group_offset, H2(hash), policy.slot_size);
   // Call NOINLINE function to move infoz instructions out of line.
-  if (hash_infoz) {
-    ReportInsertMissToInfozAndComputeProbeLength(common, target_group_offset,
-                                                 hash);
+  if (common.has_infoz()) {
+    return ReportInsertMissToInfozAndGetSlot(common, policy, hash,
+                                             target_group_offset);
   }
   return res;
 }
