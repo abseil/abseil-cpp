@@ -98,7 +98,7 @@ jobs:
       os: ubuntu-24.04${{ matrix.config.arch_suffix }}
       toolchain: ${{ matrix.config.toolchain }}
       remote_config: remote${{ matrix.config.arch_suffix }}
-      container_image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
+      container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:8dfd8bff496cce2b3aaa5d2f1b63ebb6790f2bc78a02cdc0ca9898372fbc38f3
       alternate_options: ${{ matrix.config.alternate_options || false }}
       stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
