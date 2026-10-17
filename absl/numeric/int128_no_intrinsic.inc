@@ -258,6 +258,38 @@ inline int128 operator*(int128 lhs, int128 rhs) {
       Uint128Low64(uint128(lhs) * rhs));
 }
 
+inline int128 operator/(int128 lhs, int128 rhs) {
+  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
+
+  const uint128 lhs_abs = int128_internal::UnsignedAbsoluteValue(lhs);
+  const uint128 rhs_abs = int128_internal::UnsignedAbsoluteValue(rhs);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
+                              Uint128High64(rhs_abs), Uint128Low64(rhs_abs),
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
+  uint128 quotient = MakeUint128(quotient_high, quotient_low);
+  if ((Int128High64(lhs) < 0) != (Int128High64(rhs) < 0)) quotient = -quotient;
+  return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(quotient)),
+                    Uint128Low64(quotient));
+}
+
+inline int128 operator%(int128 lhs, int128 rhs) {
+  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
+
+  const uint128 lhs_abs = int128_internal::UnsignedAbsoluteValue(lhs);
+  const uint128 rhs_abs = int128_internal::UnsignedAbsoluteValue(rhs);
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
+                              Uint128High64(rhs_abs), Uint128Low64(rhs_abs),
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
+  uint128 remainder = MakeUint128(remainder_high, remainder_low);
+  if (Int128High64(lhs) < 0) remainder = -remainder;
+  return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(remainder)),
+                    Uint128Low64(remainder));
+}
+
 inline int128 int128::operator++(int) {
   int128 tmp(*this);
   *this += 1;

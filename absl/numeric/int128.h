@@ -1068,6 +1068,17 @@ inline void Mul64x64(uint64_t lhs, uint64_t rhs, uint64_t* high_ret,
 }  // namespace int128_internal
 
 #if !defined(ABSL_HAVE_INTRINSIC_INT128)
+namespace int128_internal {
+// Long division/modulo for uint128. Leaves the quotient in
+// `quotient_high_ret`/`quotient_low_ret` and the remainder in
+// `remainder_high_ret`/`remainder_low_ret`. Defined in int128.cc.
+// Requires divisor_high != 0 || divisor_low != 0.
+void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
+                uint64_t divisor_high, uint64_t divisor_low,
+                uint64_t* quotient_high_ret, uint64_t* quotient_low_ret,
+                uint64_t* remainder_high_ret, uint64_t* remainder_low_ret);
+}  // namespace int128_internal
+
 inline uint128 operator*(uint128 lhs, uint128 rhs) {
   uint64_t lhigh = Uint128High64(lhs);
   uint64_t llow = Uint128Low64(lhs);
@@ -1076,6 +1087,24 @@ inline uint128 operator*(uint128 lhs, uint128 rhs) {
   uint64_t ml_high, ml_low;
   int128_internal::Mul64x64(llow, rlow, &ml_high, &ml_low);
   return MakeUint128(lhigh * rlow + llow * rhigh + ml_high, ml_low);
+}
+
+inline uint128 operator/(uint128 lhs, uint128 rhs) {
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(
+      Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
+      Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
+      &remainder_low);
+  return MakeUint128(quotient_high, quotient_low);
+}
+
+inline uint128 operator%(uint128 lhs, uint128 rhs) {
+  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
+  int128_internal::DivModImpl(
+      Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
+      Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
+      &remainder_low);
+  return MakeUint128(remainder_high, remainder_low);
 }
 #endif  // !defined(ABSL_HAVE_INTRINSIC_INT128)
 
@@ -1230,6 +1259,12 @@ constexpr int64_t BitCastToSigned(uint64_t v) {
   // MSVC optimize this to a no-op on x86-64.
   return v & (uint64_t{1} << 63) ? ~static_cast<int64_t>(~v)
                                  : static_cast<int64_t>(v);
+}
+
+// Returns the absolute value of the given int128 as a uint128.
+constexpr uint128 UnsignedAbsoluteValue(int128 v) {
+  // Cast to uint128 before possibly negating because -Int128Min() is undefined.
+  return Int128High64(v) < 0 ? -uint128(v) : uint128(v);
 }
 
 }  // namespace int128_internal

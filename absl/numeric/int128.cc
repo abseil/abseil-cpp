@@ -42,6 +42,8 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+namespace int128_internal {
+
 namespace {
 
 // If the result of dividing a uint128 by a uint64 fits within 64 bits,
@@ -123,12 +125,13 @@ inline void DivModImpl(uint64_t high, uint64_t low, uint64_t divisor,
 #endif
 }
 
+}  // namespace
+
 // Long division/modulo for uint128.
-inline void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
-                       uint64_t divisor_high, uint64_t divisor_low,
-                       uint64_t* quotient_high_ret, uint64_t* quotient_low_ret,
-                       uint64_t* remainder_high_ret,
-                       uint64_t* remainder_low_ret) {
+void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
+                uint64_t divisor_high, uint64_t divisor_low,
+                uint64_t* quotient_high_ret, uint64_t* quotient_low_ret,
+                uint64_t* remainder_high_ret, uint64_t* remainder_low_ret) {
   assert(divisor_high != 0 || divisor_low != 0);
   *quotient_high_ret = 0;
   *quotient_low_ret = 0;
@@ -184,6 +187,10 @@ inline void DivModImpl(uint64_t dividend_high, uint64_t dividend_low,
   }
 }
 
+}  // namespace int128_internal
+
+namespace {
+
 template <typename T>
 uint128 MakeUint128FromFloat(T v) {
   static_assert(std::is_floating_point_v<T>);
@@ -231,24 +238,6 @@ uint128::uint128(float v) : uint128(MakeUint128FromFloat(v)) {}
 uint128::uint128(double v) : uint128(MakeUint128FromFloat(v)) {}
 uint128::uint128(long double v) : uint128(MakeUint128FromFloat(v)) {}
 
-#if !defined(ABSL_HAVE_INTRINSIC_INT128)
-uint128 operator/(uint128 lhs, uint128 rhs) {
-  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  DivModImpl(Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
-             Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
-             &remainder_low);
-  return MakeUint128(quotient_high, quotient_low);
-}
-
-uint128 operator%(uint128 lhs, uint128 rhs) {
-  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  DivModImpl(Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
-             Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
-             &remainder_low);
-  return MakeUint128(remainder_high, remainder_low);
-}
-#endif  // !defined(ABSL_HAVE_INTRINSIC_INT128)
-
 namespace {
 
 std::string Uint128ToFormattedString(uint128 v, std::ios_base::fmtflags flags) {
@@ -283,16 +272,18 @@ std::string Uint128ToFormattedString(uint128 v, std::ios_base::fmtflags flags) {
   const uint64_t div_low = Uint128Low64(div);
   {
     uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-    DivModImpl(Uint128High64(high), Uint128Low64(high), div_high, div_low,
-               &quotient_high, &quotient_low, &remainder_high, &remainder_low);
+    int128_internal::DivModImpl(Uint128High64(high), Uint128Low64(high),
+                                div_high, div_low, &quotient_high, &quotient_low,
+                                &remainder_high, &remainder_low);
     high = MakeUint128(quotient_high, quotient_low);
     low = MakeUint128(remainder_high, remainder_low);
   }
   uint128 mid;
   {
     uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-    DivModImpl(Uint128High64(high), Uint128Low64(high), div_high, div_low,
-               &quotient_high, &quotient_low, &remainder_high, &remainder_low);
+    int128_internal::DivModImpl(Uint128High64(high), Uint128Low64(high),
+                                div_high, div_low, &quotient_high, &quotient_low,
+                                &remainder_high, &remainder_low);
     high = MakeUint128(quotient_high, quotient_low);
     mid = MakeUint128(remainder_high, remainder_low);
   }
@@ -338,15 +329,6 @@ std::ostream& operator<<(std::ostream& os, uint128 v) {
   return os << rep;
 }
 
-namespace {
-
-uint128 UnsignedAbsoluteValue(int128 v) {
-  // Cast to uint128 before possibly negating because -Int128Min() is undefined.
-  return Int128High64(v) < 0 ? -uint128(v) : uint128(v);
-}
-
-}  // namespace
-
 #if !defined(ABSL_HAVE_INTRINSIC_INT128)
 namespace {
 
@@ -372,43 +354,13 @@ int128 MakeInt128FromFloat(T v) {
 int128::int128(float v) : int128(MakeInt128FromFloat(v)) {}
 int128::int128(double v) : int128(MakeInt128FromFloat(v)) {}
 int128::int128(long double v) : int128(MakeInt128FromFloat(v)) {}
-
-int128 operator/(int128 lhs, int128 rhs) {
-  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
-
-  const uint128 lhs_abs = UnsignedAbsoluteValue(lhs);
-  const uint128 rhs_abs = UnsignedAbsoluteValue(rhs);
-  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
-             Uint128High64(rhs_abs), Uint128Low64(rhs_abs), &quotient_high,
-             &quotient_low, &remainder_high, &remainder_low);
-  uint128 quotient = MakeUint128(quotient_high, quotient_low);
-  if ((Int128High64(lhs) < 0) != (Int128High64(rhs) < 0)) quotient = -quotient;
-  return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(quotient)),
-                    Uint128Low64(quotient));
-}
-
-int128 operator%(int128 lhs, int128 rhs) {
-  assert(lhs != Int128Min() || rhs != -1);  // UB on two's complement.
-
-  const uint128 lhs_abs = UnsignedAbsoluteValue(lhs);
-  const uint128 rhs_abs = UnsignedAbsoluteValue(rhs);
-  uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  DivModImpl(Uint128High64(lhs_abs), Uint128Low64(lhs_abs),
-             Uint128High64(rhs_abs), Uint128Low64(rhs_abs), &quotient_high,
-             &quotient_low, &remainder_high, &remainder_low);
-  uint128 remainder = MakeUint128(remainder_high, remainder_low);
-  if (Int128High64(lhs) < 0) remainder = -remainder;
-  return MakeInt128(int128_internal::BitCastToSigned(Uint128High64(remainder)),
-                    Uint128Low64(remainder));
-}
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 std::string int128::ToString() const {
   std::string rep;
   if (Int128High64(*this) < 0) rep = "-";
-  rep.append(Uint128ToFormattedString(UnsignedAbsoluteValue(*this),
-                                      std::ios_base::dec));
+  rep.append(Uint128ToFormattedString(
+      int128_internal::UnsignedAbsoluteValue(*this), std::ios_base::dec));
   return rep;
 }
 
@@ -429,7 +381,8 @@ std::ostream& operator<<(std::ostream& os, int128 v) {
   }
 
   rep.append(Uint128ToFormattedString(
-      print_as_decimal ? UnsignedAbsoluteValue(v) : uint128(v), os.flags()));
+      print_as_decimal ? int128_internal::UnsignedAbsoluteValue(v) : uint128(v),
+      os.flags()));
 
   // Add the requisite padding.
   std::streamsize width = os.width(0);
