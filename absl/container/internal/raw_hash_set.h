@@ -1881,8 +1881,8 @@ inline probe_seq<Group::kWidth> probe(const CommonFields& common, size_t hash) {
 constexpr size_t kProbedElementIndexSentinel = ~size_t{};
 
 // Implementation detail of transfer_unprobed_elements_to_next_capacity_fn.
-// Tries to find the new index for an element whose hash corresponds to
-// `h1` for growth to the next capacity.
+// Tries to find the new index for an element with `hash` for growth to the next
+// capacity.
 // Returns kProbedElementIndexSentinel if full probing is required.
 //
 // If element is located in the first probing group in the table before growth,
@@ -1892,23 +1892,18 @@ constexpr size_t kProbedElementIndexSentinel = ~size_t{};
 // table. We only attempt to do so if the first probe group is already
 // initialized.
 template <typename = void>
-inline size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
+inline size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
                                             size_t old_capacity,
                                             ctrl_t* new_ctrl,
                                             size_t new_capacity) {
-  size_t index_diff = old_index - h1;
+  size_t h1 = H1(hash);
   // The first probe group starts with h1 & capacity.
   // All following groups start at (h1 + Group::kWidth * K) & capacity.
-  // We can find an index within the floating group as index_diff modulo
-  // Group::kWidth.
-  // Both old and new capacity are larger than Group::kWidth so we can avoid
-  // computing `& capacity`.
-  size_t in_floating_group_index = index_diff & (Group::kWidth - 1);
-  // By subtracting we will get the difference between the first probe group
-  // and the probe group corresponding to old_index.
-  index_diff -= in_floating_group_index;
-  if (ABSL_PREDICT_TRUE((index_diff & old_capacity) == 0)) {
-    size_t new_index = (h1 + in_floating_group_index) & new_capacity;
+  // If old_index is in the first probe group, (old_index - h1) & old_capacity
+  // is the index within the floating group (< Group::kWidth).
+  size_t index_diff = (old_index - h1) & old_capacity;
+  if (ABSL_PREDICT_TRUE(index_diff < Group::kWidth)) {
+    size_t new_index = (h1 + index_diff) & new_capacity;
     ABSL_ASSUME(new_index != kProbedElementIndexSentinel);
     return new_index;
   }
@@ -2019,11 +2014,11 @@ struct PolicyFunctions {
   // Different encoding is used depending on the capacity of the table.
   // See ProbedItem*Bytes classes for details.
   void (*transfer_unprobed_elements_to_next_capacity)(
-      CommonFields& common, const ctrl_t* old_ctrl, void* old_slots,
+      CommonFields& common, const ctrl_t* old_ctrl,
       // TODO(b/382423690): Try to use absl::FunctionRef here.
-      void* probed_storage,
-      void (*encode_probed_element)(void* probed_storage, h2_t h2,
-                                    size_t source_offset, size_t h1));
+      void* probed_storage, void* old_slots, size_t old_capacity,
+      void (*encode_probed_element)(void* probed_storage, size_t hash,
+                                    size_t source_offset));
 
   uint8_t soo_capacity() const {
     return static_cast<uint8_t>(soo_enabled ? SooCapacity() : 0);
@@ -4173,15 +4168,15 @@ class raw_hash_set {
   // by GetKey + Hash for memcpyable types.
   // TODO(b/382423690): Try to type erase for big slots: sizeof(slot_type) > 16.
   static void transfer_unprobed_elements_to_next_capacity_fn(
-      CommonFields& common, const ctrl_t* old_ctrl, void* old_slots,
-      void* probed_storage,
-      void (*encode_probed_element)(void* probed_storage, h2_t h2,
-                                    size_t source_offset, size_t h1)) {
-    const size_t new_capacity = common.capacity();
-    ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
-    const size_t old_capacity = PreviousCapacity(new_capacity);
+      CommonFields& common, const ctrl_t* old_ctrl, void* probed_storage,
+      void* old_slots, size_t old_capacity,
+      void (*encode_probed_element)(void* probed_storage, size_t hash,
+                                    size_t source_offset)) {
     ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
     ABSL_ASSUME((old_capacity + 1) % Group::kWidth == 0);
+    const size_t new_capacity = NextCapacity(old_capacity);
+    ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
+    ABSL_SWISSTABLE_ASSERT(common.capacity() == new_capacity);
 
     auto* set = reinterpret_cast<raw_hash_set*>(&common);
     slot_type* old_slots_ptr = to_slot(old_slots);
@@ -4203,19 +4198,17 @@ class raw_hash_set {
         // TODO(b/382423690): try to avoid entire hash calculation since we need
         // only one new bit of h1.
         size_t hash = set->hash_of(old_slot);
-        size_t h1 = H1(hash);
-        h2_t h2 = H2(hash);
         size_t new_index = TryFindNewIndexWithoutProbing(
-            h1, old_index, old_capacity, new_ctrl, new_capacity);
+            hash, old_index, old_capacity, new_ctrl, new_capacity);
         // Note that encode_probed_element is allowed to use old_ctrl buffer
         // till and included the old_index.
         if (ABSL_PREDICT_FALSE(new_index == kProbedElementIndexSentinel)) {
-          encode_probed_element(probed_storage, h2, old_index, h1);
+          encode_probed_element(probed_storage, hash, old_index);
           continue;
         }
         ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= old_index);
         ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
-        new_ctrl[new_index] = static_cast<ctrl_t>(h2);
+        new_ctrl[new_index] = static_cast<ctrl_t>(H2(hash));
         auto* new_slot = new_slots + new_index;
         SanitizerUnpoisonMemoryRegion(new_slot, sizeof(slot_type));
         set->transfer(new_slot, old_slot);
@@ -4465,7 +4458,7 @@ extern template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
 // Extern template for inline function keeps possibility of inlining.
 // When compiler decided to not inline, no symbols will be added to the
 // corresponding translation unit.
-extern template size_t TryFindNewIndexWithoutProbing(size_t h1,
+extern template size_t TryFindNewIndexWithoutProbing(size_t hash,
                                                      size_t old_index,
                                                      size_t old_capacity,
                                                      ctrl_t* new_ctrl,
