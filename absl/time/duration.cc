@@ -240,9 +240,20 @@ inline Duration ScaleFixed(Duration d, int64_t r) {
 // the Duration d by the double r.
 template <template <typename> class Operation>
 inline Duration ScaleDouble(Duration d, double r) {
+  int64_t rep_hi = time_internal::GetRepHi(d);
+  int64_t rep_lo = time_internal::GetRepLo(d);
+  constexpr int64_t kMaxExactSeconds =
+      int64_t{1} << std::numeric_limits<double>::digits;
+  // Give the seconds and ticks the same sign to avoid cancellation. Keep
+  // large seconds unchanged, as shifting one second can lose precision when
+  // converting them to double.
+  if (rep_hi < 0 && rep_hi >= -kMaxExactSeconds && rep_lo != 0) {
+    ++rep_hi;
+    rep_lo -= kTicksPerSecond;
+  }
   Operation<double> op;
-  double hi_doub = op(static_cast<double>(time_internal::GetRepHi(d)), r);
-  double lo_doub = op(static_cast<double>(time_internal::GetRepLo(d)), r);
+  double hi_doub = op(static_cast<double>(rep_hi), r);
+  double lo_doub = op(static_cast<double>(rep_lo), r);
 
   double hi_int = 0;
   double hi_frac = std::modf(hi_doub, &hi_int);
