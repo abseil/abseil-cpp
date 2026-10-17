@@ -533,6 +533,8 @@ absl_cc_test(
     absl::core_headers
     absl::synchronization
     GTest::gtest_main
+  SHARD_COUNT
+    4
 )
 
 # Internal-only target, do not depend on directly.
