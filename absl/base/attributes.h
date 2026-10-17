@@ -115,11 +115,7 @@
 #elif defined(_MSC_VER) && \
     (_MSC_VER >= 1937 ||   \
      (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
-#define ABSL_ATTRIBUTE_ALWAYS_INLINE                                      \
-  _Pragma("warning(push)")                                                \
-      _Pragma("warning(error: 4649)") /* error on misplaced attributes */ \
-      [[msvc::forceinline]] /*                                         */ \
-      _Pragma("warning(pop)")
+#define ABSL_ATTRIBUTE_ALWAYS_INLINE [[msvc::forceinline]]
 #define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
 #else
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE
@@ -131,11 +127,7 @@
 #elif defined(_MSC_VER) && \
     (_MSC_VER >= 1937 ||   \
      (_MSC_VER >= 1927 && ABSL_INTERNAL_CPLUSPLUS_LANG > 201703L))
-#define ABSL_ATTRIBUTE_NOINLINE                                           \
-  _Pragma("warning(push)")                                                \
-      _Pragma("warning(error: 4649)") /* error on misplaced attributes */ \
-      [[msvc::noinline]] /*                                            */ \
-      _Pragma("warning(pop)")
+#define ABSL_ATTRIBUTE_NOINLINE [[msvc::noinline]]
 #define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
 #else
 #define ABSL_ATTRIBUTE_NOINLINE
