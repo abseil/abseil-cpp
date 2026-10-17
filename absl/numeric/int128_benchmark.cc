@@ -35,11 +35,14 @@ template <typename T, typename H = std::conditional_t<
 std::vector<std::pair<T, T>> GetRandomClass128SampleUniformDivisor() {
   std::vector<std::pair<T, T>> values;
   absl::InsecureBitGen random;
+  std::uniform_int_distribution<int> uniform_bits(1, 63);
   std::uniform_int_distribution<H> uniform_h;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
     T a{absl::MakeUint128(uniform_h(random), uniform_h(random))};
     T b{absl::MakeUint128(uniform_h(random), uniform_h(random))};
+    a >>= uniform_bits(random);
+    b >>= uniform_bits(random);
     values.emplace_back(std::max(a, b), std::max(T(2), std::min(a, b)));
   }
   return values;
@@ -74,11 +77,13 @@ template <typename T, typename H = std::conditional_t<
 std::vector<std::pair<T, H>> GetRandomClass128SampleSmallDivisor() {
   std::vector<std::pair<T, H>> values;
   absl::InsecureBitGen random;
+  std::uniform_int_distribution<int> uniform_bits(1, 63);
   std::uniform_int_distribution<H> uniform_h;
   values.reserve(kSampleSize);
   for (size_t i = 0; i < kSampleSize; ++i) {
     T a{absl::MakeUint128(uniform_h(random), uniform_h(random))};
-    H b{std::max(H{2}, uniform_h(random))};
+    H b{std::max(H{2}, uniform_h(random) >> uniform_bits(random))};
+    a >>= uniform_bits(random);
     values.emplace_back(std::max(a, T(b)), b);
   }
   return values;
