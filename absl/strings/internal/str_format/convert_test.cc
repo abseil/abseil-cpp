@@ -1017,6 +1017,39 @@ TEST_F(FormatConvertTest, Double) {
   }
 }
 
+TEST_F(FormatConvertTest, ScientificZeroPadding) {
+  struct Case {
+    const char* format;
+    const char* positive;
+    const char* negative;
+  } cases[] = {
+      {"%010.0e", "000003e", "-00003e"},
+      {"%010.1g", "000003e", "-00003e"},
+      {"%010.0E", "000003E", "-00003E"},
+      {"%010.1G", "000003E", "-00003E"},
+      {"%+010.0e", "+00003e", "-00003e"},
+      {"%+010.1g", "+00003e", "-00003e"},
+      {"% 010.0e", " 00003e", "-00003e"},
+      {"% 010.1g", " 00003e", "-00003e"},
+      {"%#010.0e", "00003.e", "-0003.e"},
+      {"%#010.1g", "00003.e", "-0003.e"},
+  };
+
+  // These exact values exercise both slow scientific conversion paths.
+  for (double value : {0x1p128, 0x1p-128}) {
+    const std::string exponent = value > 1 ? "+38" : "-39";
+    for (const auto& c : cases) {
+      SCOPED_TRACE(c.format);
+      EXPECT_EQ(std::string(c.positive) + exponent,
+                FormatPack(UntypedFormatSpecImpl(c.format),
+                           {FormatArgImpl(value)}));
+      EXPECT_EQ(std::string(c.negative) + exponent,
+                FormatPack(UntypedFormatSpecImpl(c.format),
+                           {FormatArgImpl(-value)}));
+    }
+  }
+}
+
 TEST_F(FormatConvertTest, DoubleRound) {
   std::string s;
   const auto format = [&](const char *fmt, double d) -> std::string & {
