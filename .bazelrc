@@ -14,6 +14,8 @@
 
 common --show_timestamps
 
+common --noremote_accept_cached
+
 # Retry longer to avoid flakes when fetching external dependencies.
 common --http_connector_attempts=10
 common --http_timeout_scaling=2.0
@@ -76,6 +78,11 @@ build:remote --platforms=//ci:rbe
 build:remote --remote_cache=grpcs://us-east1-remotebuildexecution.googleapis.com
 build:remote --remote_executor=grpcs://us-east1-remotebuildexecution.googleapis.com
 build:remote --remote_instance_name=projects/google.com:absl-177019/instances/absl-ci-east
+
+build:remote-floor --config=remote
+build:remote-floor --extra_execution_platforms=//ci:rbe-floor
+build:remote-floor --host_platform=//ci:rbe-floor
+build:remote-floor --platforms=//ci:rbe-floor
 
 build:remote-arm --config=remote-base
 build:remote-arm --extra_execution_platforms=//ci:rbe-arm

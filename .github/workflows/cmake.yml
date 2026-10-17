@@ -1,0 +1,147 @@
+# Copyright 2026 The Abseil Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: CMake Tests
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: "GitHub Actions runner OS (e.g. ubuntu-24.04, macos-latest, windows-2022)"
+        required: true
+        type: string
+      container_image:
+        description: "Docker container image to run in (empty string for host execution)"
+        required: false
+        default: ""
+        type: string
+      build_types:
+        description: "JSON array of CMAKE_BUILD_TYPE values to test"
+        required: false
+        default: '["Debug", "Release"]'
+        type: string
+      link_modes:
+        description: "JSON array of link modes to test (static, shared, monolithic-shared)"
+        required: false
+        default: '["static", "shared", "monolithic-shared"]'
+        type: string
+      install_test:
+        description: "Whether to run the CMake installation integration test"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ inputs.os }}
+    name: (${{ matrix.build_type }}, ${{ matrix.link_mode }})
+    container:
+      image: ${{ inputs.container_image }}
+      # core=1 skips kernel pipe core_pattern handlers (e.g. apport) on death tests.
+      options: --cap-add=SYS_PTRACE --ulimit core=1
+      credentials:
+        # TODO(b/573304451): Switch to Workload Identity Federation to avoid the need for secrets.
+        username: _json_key
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        build_type: ${{ fromJSON(inputs.build_types) }}
+        link_mode: ${{ fromJSON(inputs.link_modes) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CC: ${{ startsWith(inputs.os, 'ubuntu') && 'gcc' || '' }}
+      CFLAGS: ${{ !inputs.install_test && startsWith(inputs.os, 'ubuntu') && '-Werror' || '' }}
+      CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'g++' || '' }}
+      CXXFLAGS: ${{ !inputs.install_test && (startsWith(inputs.os, 'ubuntu') && '-Werror' || startsWith(inputs.os, 'windows') && '-WX') || '' }}
+      CMAKE_BUILD_PARALLEL_LEVEL: 16
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_GENERATOR: Ninja
+      CTEST_OUTPUT_ON_FAILURE: 1
+      CTEST_PARALLEL_LEVEL: 16
+      SCCACHE_GCS_BUCKET: absl-cmake-sccache
+      SCCACHE_GCS_RW_MODE: READ_WRITE
+      SCCACHE_IDLE_TIMEOUT: 0
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_RECACHE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
+
+      - name: Set up MSVC
+        if: ${{ runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+          vsversion: "2022"
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
+      - name: Start sccache
+        env:
+          SCCACHE_GCS_KEY_PATH: ${{ steps.auth.outputs.credentials_file_path }}
+        run: sccache --start-server
+
+      - name: Run installation test
+        if: ${{ inputs.install_test }}
+        env:
+          LINK_TYPE: ${{ matrix.link_mode == 'shared' && 'DYNAMIC' || 'STATIC' }}
+        run: >
+          source ci/cmake_common.sh &&
+          export ABSL_GOOGLETEST_VERSION ABSL_GOOGLETEST_DOWNLOAD_URL &&
+          CMake/install_test_project/test.sh
+
+      - name: Configure
+        if: ${{ !inputs.install_test }}
+        run: >
+          source ci/cmake_common.sh &&
+          cmake -B build
+          -DABSL_BUILD_TESTING=ON
+          -DABSL_GOOGLETEST_DOWNLOAD_URL=${ABSL_GOOGLETEST_DOWNLOAD_URL}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_C_FLAGS_DEBUG="${{ runner.os == 'Windows' && '-O1 -Ob1 -Zc:inline' || '-Og' }}"
+          -DCMAKE_CXX_FLAGS_DEBUG="${{ runner.os == 'Windows' && '-O1 -Ob1 -Zc:inline' || '-Og' }}"
+          -DCMAKE_EXE_LINKER_FLAGS_DEBUG=""
+          -DCMAKE_SHARED_LINKER_FLAGS_DEBUG=""
+          -DCMAKE_CXX_STANDARD=17
+          -DBUILD_SHARED_LIBS=${{ matrix.link_mode != 'static' }}
+          -DABSL_BUILD_MONOLITHIC_SHARED_LIBS=${{ matrix.link_mode == 'monolithic-shared' }}
+          -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
+          -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=""
+
+      - name: Build
+        if: ${{ !inputs.install_test }}
+        run: cmake --build build
+
+      - name: Run tests
+        if: ${{ !inputs.install_test }}
+        env:
+          TZDIR: ${{ github.workspace }}/absl/time/internal/cctz/testdata/zoneinfo
+        run: >
+          ctest --test-dir build
+          --repeat until-pass:3
+          ${{ runner.os == 'Windows' && '-E "absl_lifetime_test|absl_symbolize_test"' || '' }}
