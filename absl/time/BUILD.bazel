@@ -23,6 +23,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -181,6 +182,7 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":clock_interface",
         ":simulated_clock",
@@ -248,3 +250,5 @@ cc_binary(
         "@google_benchmark//:benchmark_main",
     ],
 )
+
+cmake_package()

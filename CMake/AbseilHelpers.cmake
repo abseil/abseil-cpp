@@ -372,6 +372,7 @@ endfunction()
 # COPTS: List of private compile options
 # DEFINES: List of public defines
 # LINKOPTS: List of link options
+# SHARD_COUNT: Number of shards to split the test into for ctest
 #
 # Note:
 # By default, absl_cc_test will always create a binary named absl_${NAME}.
@@ -405,7 +406,7 @@ function(absl_cc_test)
 
   cmake_parse_arguments(ABSL_CC_TEST
     ""
-    "NAME"
+    "NAME;SHARD_COUNT"
     "SRCS;COPTS;DEFINES;LINKOPTS;DEPS"
     ${ARGN}
   )
@@ -461,5 +462,16 @@ function(absl_cc_test)
     target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
   endif()
 
-  add_test(NAME ${_NAME} COMMAND ${_NAME})
+  if(ABSL_CC_TEST_SHARD_COUNT AND ABSL_CC_TEST_SHARD_COUNT GREATER 1)
+    math(EXPR _LAST_SHARD "${ABSL_CC_TEST_SHARD_COUNT} - 1")
+    foreach(_SHARD RANGE 0 ${_LAST_SHARD})
+      add_test(NAME "${_NAME}_shard_${_SHARD}" COMMAND ${_NAME})
+      set_tests_properties("${_NAME}_shard_${_SHARD}" PROPERTIES
+        ENVIRONMENT "GTEST_TOTAL_SHARDS=${ABSL_CC_TEST_SHARD_COUNT};GTEST_SHARD_INDEX=${_SHARD}"
+        COST 100
+      )
+    endforeach()
+  else()
+    add_test(NAME ${_NAME} COMMAND ${_NAME})
+  endif()
 endfunction()

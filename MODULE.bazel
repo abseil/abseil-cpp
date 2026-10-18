@@ -36,6 +36,18 @@ bazel_dep(
     dev_dependency = True,
 )
 
+http_file = use_repo_rule(
+    "@bazel_tools//tools/build_defs/repo:http.bzl",
+    "http_file",
+)
+http_file(
+    name = "googletest_archive",
+    dev_dependency = True,
+    downloaded_file_path = "googletest-1.18.0.tar.gz",
+    sha256 = "6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5",
+    urls = ["https://github.com/google/googletest/releases/download/v1.18.0/googletest-1.18.0.tar.gz"],
+)
+
 # Note: Googletest is NOT a dev_dependency. Some Abseil test utilities
 # intended to be used by Abseil users depend on GoogleTest.
 bazel_dep(

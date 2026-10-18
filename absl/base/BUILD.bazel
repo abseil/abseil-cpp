@@ -23,6 +23,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -514,6 +515,7 @@ cc_library(
     visibility = ["//absl:__subpackages__"],
     deps = [
         ":config",
+        ":core_headers",
         ":pretty_function",
         "//absl/memory",
         "//absl/meta:type_traits",
@@ -565,6 +567,7 @@ cc_test(
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     tags = [
         "no_test_wasm",
     ],
@@ -1146,3 +1149,5 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cmake_package()
