@@ -27,6 +27,7 @@
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 
 namespace {
 
@@ -884,6 +885,21 @@ TEST(CivilTime, ParseYearCarryDoesNotOverflow) {
   EXPECT_TRUE(absl::ParseCivilTime("9223372036854775807-12-31T23:59:59", &ss))
       << ss;
   EXPECT_EQ("9223372036854775807-12-31T23:59:59", absl::FormatCivilTime(ss));
+}
+
+TEST(CivilTime, ParseRejectsEmbeddedNul) {
+  // Everything after the year must reach ParseTime, including any bytes that
+  // follow an embedded NUL, so trailing data there is rejected.
+  absl::CivilDay d;
+  EXPECT_FALSE(absl::ParseCivilTime(absl::string_view("2020-01-01\0x", 12), &d))
+      << d;
+  absl::CivilSecond ss;
+  EXPECT_FALSE(absl::ParseCivilTime(
+      absl::string_view("2020-01-01T00:00:00\0Z+99", 24), &ss))
+      << ss;
+  EXPECT_FALSE(
+      absl::ParseLenientCivilTime(absl::string_view("2020\0-13-99", 11), &ss))
+      << ss;
 }
 
 TEST(CivilTime, AbslStringify) {
