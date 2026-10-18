@@ -44,10 +44,9 @@ concurrency:
   cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch", "schedule"]'), github.event_name) }}
 
 jobs:
-  # Mirrors the 10 Linux "latest" Bazel Kokoro jobs (parallelized to 1 job per
-  # Bazel invocation). Not yet covered here:
-  #   - "Linux GCC/libstdc++ (floor) Bazel" (requires a floor GCC Docker image)
-  #   - CMake, macOS, and Windows Kokoro jobs
+  # Mirrors the 11 Linux Bazel Kokoro jobs (parallelized to 1 job per Bazel
+  # invocation). Not yet covered here:
+  #   - macOS Bazel and Windows Bazel Kokoro jobs
   linux:
     name: Linux ${{ matrix.config.name }} Bazel
     strategy:
@@ -87,26 +86,71 @@ jobs:
           - name: GCC/libstdc++ alternate options
             toolchain: gcc
             alternate_options: true
+          # linux_gcc-floor_libstdcxx_bazel.cfg (c++17 only)
+          - name: GCC/libstdc++ (floor)
+            toolchain: gcc
+            remote_config: remote-floor
+            container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-floor@sha256:f3d8a0f76a88d5edbba70250de47fb862271297b9ff41ff317240e564c95d65e
+            stds: '["c++17"]'
           # linux_arm_clang-latest_libcxx_bazel.cfg (c++17 and c++20 only)
           - name: ARM64 Clang/libc++
+            os: ubuntu-24.04-arm
             toolchain: clang-arm
-            arch_suffix: -arm
+            remote_config: remote-arm
             stds: '["c++17", "c++20"]'
+          # linux_gcc-latest_libstdcxx_cxx17_cmake.cfg
+          # cmake-install.cfg
+          - name: GCC/libstdc++ CMake
+            toolchain: gcc
+            stds: '["c++17"]'
+            targets: "//:cmake_static_test //:cmake_shared_test //:cmake_monolithic_shared_test //:cmake_install_static_test //:cmake_install_shared_test"
     uses: ./.github/workflows/bazel.yml
     secrets: inherit
     with:
-      os: ubuntu-24.04${{ matrix.config.arch_suffix }}
+      os: ${{ matrix.config.os || 'ubuntu-24.04' }}
       toolchain: ${{ matrix.config.toolchain }}
-      remote_config: remote${{ matrix.config.arch_suffix }}
-      container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:8dfd8bff496cce2b3aaa5d2f1b63ebb6790f2bc78a02cdc0ca9898372fbc38f3
+      remote_config: ${{ matrix.config.remote_config || 'remote' }}
+      container_image: ${{ matrix.config.container_image || 'gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:5a19067585ce5e5ee45640fd0287f05038d6b3f9574d6a5cdf08241e022d0f4a' }}
       alternate_options: ${{ matrix.config.alternate_options || false }}
       stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
+      targets: ${{ matrix.config.targets || '...' }}
+
+  cmake:
+    name: ${{ matrix.config.name }} CMake
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        config:
+          # linux_gcc_alpine_cmake.cfg
+          - name: Alpine Linux GCC (musl)
+            os: ubuntu-24.04
+            container_image: gcr.io/google.com/absl-177019/alpine@sha256:ae26b80601cebb14595056a94e070f0f865d24baaf3ce19bcd52f53be9f99c80
+            build_types: '["Debug"]'
+            link_modes: '["static"]'
+          # macos_xcode_cmake.cfg
+          - name: macOS Xcode
+            os: macos-latest
+            build_types: '["Debug"]'
+          # windows-msvc-2022-cxx17-dbg-cmake.cfg
+          # windows-msvc-2022-cxx17-dbg-dll-cmake.cfg
+          - name: Windows MSVC 2022
+            os: windows-2022
+            build_types: '["Debug"]'
+            link_modes: '["static", "shared"]'
+    uses: ./.github/workflows/cmake.yml
+    secrets: inherit
+    with:
+      os: ${{ matrix.config.os }}
+      container_image: ${{ matrix.config.container_image || '' }}
+      build_types: ${{ matrix.config.build_types || '["Debug", "Release"]' }}
+      link_modes: ${{ matrix.config.link_modes || '["static", "shared", "monolithic-shared"]' }}
+      install_test: ${{ matrix.config.install_test || false }}
 
   # Provide a single predictably-named job for copybara to look for
   all-blocking-tests:
     name: All Blocking Tests
-    needs: [linux]
+    needs: [linux, cmake]
     runs-on: ubuntu-latest
     steps:
       - name: Check for cancellations

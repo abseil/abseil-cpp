@@ -181,6 +181,7 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":clock_interface",
         ":simulated_clock",
@@ -247,4 +248,17 @@ cc_binary(
         "//absl/hash",
         "@google_benchmark//:benchmark_main",
     ],
+)
+
+filegroup(
+    name = "cmake_srcs",
+    srcs = glob(
+        ["**"],
+        allow_empty = True,
+        exclude = [
+            "BUILD",
+            "BUILD.bazel",
+        ],
+    ),
+    visibility = ["//:__pkg__"],
 )

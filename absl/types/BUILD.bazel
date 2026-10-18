@@ -275,3 +275,16 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+filegroup(
+    name = "cmake_srcs",
+    srcs = glob(
+        ["**"],
+        allow_empty = True,
+        exclude = [
+            "BUILD",
+            "BUILD.bazel",
+        ],
+    ),
+    visibility = ["//:__pkg__"],
+)
