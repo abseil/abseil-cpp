@@ -559,6 +559,44 @@ TEST(Symbolize, InvalidSymtabEntSizeDoesNotCrash) {
   EXPECT_FALSE(absl::Symbolize(static_cast<char*>(region) + 8, symbol_buf,
                                sizeof(symbol_buf)));
 }
+
+TEST(Symbolize, ForEachSectionBoundsChecksShstrtab) {
+  ElfW(Ehdr) ehdr = {};
+  memcpy(ehdr.e_ident, ELFMAG, SELFMAG);
+  ehdr.e_ident[EI_CLASS] = (sizeof(void*) == 8) ? ELFCLASS64 : ELFCLASS32;
+  ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
+  ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+  ehdr.e_type = ET_DYN;
+  ehdr.e_version = EV_CURRENT;
+  ehdr.e_shoff = sizeof(ElfW(Ehdr));
+  ehdr.e_shentsize = sizeof(ElfW(Shdr));
+  ehdr.e_shnum = 2;
+  ehdr.e_shstrndx = 0;
+
+  constexpr absl::string_view kStrtabAndTrailing(
+      "\0.sec_trailing_bytes", sizeof("\0.sec_trailing_bytes"));
+  ElfW(Shdr) shstrtab = {};
+  shstrtab.sh_type = SHT_STRTAB;
+  shstrtab.sh_offset = sizeof(ElfW(Ehdr)) + 2 * sizeof(ElfW(Shdr));
+  shstrtab.sh_size = 5;  // Only "\0.sec" is inside .shstrtab.
+
+  ElfW(Shdr) sec = {};
+  sec.sh_name = 5;  // Out of bounds: sh_name >= shstrtab.sh_size.
+  sec.sh_type = SHT_PROGBITS;
+
+  std::string image;
+  image.append(reinterpret_cast<const char*>(&ehdr), sizeof(ehdr));
+  image.append(reinterpret_cast<const char*>(&shstrtab), sizeof(shstrtab));
+  image.append(reinterpret_cast<const char*>(&sec), sizeof(sec));
+  image.append(kStrtabAndTrailing.data(), kStrtabAndTrailing.size());
+
+  TempFile file(image);
+  int fd = open(file.path(), O_RDONLY);
+  ASSERT_NE(fd, -1);
+  EXPECT_FALSE(absl::debugging_internal::ForEachSection(
+      fd, [](absl::string_view, const ElfW(Shdr) &) { return true; }));
+  close(fd);
+}
 #endif  // ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE
 #endif  // !ABSL_INTERNAL_HAVE_DARWIN_SYMBOLIZE &&
         // !ABSL_INTERNAL_HAVE_EMSCRIPTEN_SYMBOLIZE

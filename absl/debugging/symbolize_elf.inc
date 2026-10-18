@@ -625,13 +625,18 @@ bool ForEachSection(int fd,
     if (!file.ReadFromOffsetExact(&out, sizeof(out), section_header_offset)) {
       return false;
     }
+    if (out.sh_name >= shstrtab.sh_size) {
+      return false;
+    }
     off_t name_offset = static_cast<off_t>(shstrtab.sh_offset) + out.sh_name;
     char header_name[kMaxSectionNameLen];
+    const size_t max_name_len =
+        std::min<size_t>(kMaxSectionNameLen, shstrtab.sh_size - out.sh_name);
     ssize_t n_read =
-        file.ReadFromOffset(&header_name, kMaxSectionNameLen, name_offset);
+        file.ReadFromOffset(&header_name, max_name_len, name_offset);
     if (n_read < 0) {
       return false;
-    } else if (n_read > kMaxSectionNameLen) {
+    } else if (static_cast<size_t>(n_read) > max_name_len) {
       // Long read?
       return false;
     }
