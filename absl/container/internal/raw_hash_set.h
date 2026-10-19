@@ -1277,6 +1277,7 @@ union HeapOrSoo {
 };
 
 class CommonFields;
+struct PolicyFunctions;
 
 // RAII object that guards against reentrant calls to hash table methods in
 // debug mode.
@@ -1501,6 +1502,15 @@ class CommonFields : public CommonFieldsGenerationInfo {
     return CommonFieldsGenerationInfo::should_rehash_for_bug_detection_on_move(
         capacity());
   }
+  void annotate_for_bug_detection_on_move(CommonFields& that,
+                                          const PolicyFunctions& policy) {
+    // We only enable moved-from validation when generations are enabled (rather
+    // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
+    // translation units but not in others.
+    if constexpr (SwisstableGenerationsEnabled()) {
+      AnnotateForBugDetectionOnMoveImpl(that, policy);
+    }
+  }
   void reset_reserved_growth(size_t reservation) {
     CommonFieldsGenerationInfo::reset_reserved_growth(reservation, size());
   }
@@ -1590,6 +1600,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   void AssertInSooModeImpl() const;
   void AssertNotDebugCapacityImpl() const;
+  void AnnotateForBugDetectionOnMoveImpl(CommonFields& that,
+                                         const PolicyFunctions& policy);
 
   HashtableInlineData inline_data_;
 
@@ -2915,11 +2927,14 @@ class raw_hash_set {
                       : CommonFields{full_soo_tag_t{},
                                      that.common().soo_has_tried_sampling()},
                   that.hash_ref(), that.eq_ref(), that.char_alloc_ref()) {
-    if (!PolicyTraits::transfer_uses_memcpy() && that.is_full_soo()) {
-      transfer(soo_slot(), that.soo_slot());
+    if constexpr (SooEnabled() && !PolicyTraits::transfer_uses_memcpy()) {
+      if (that.is_full_soo()) {
+        transfer(soo_slot(), that.soo_slot());
+      }
     }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    annotate_for_bug_detection_on_move(that);
+    common().annotate_for_bug_detection_on_move(that.common(),
+                                                GetPolicyFunctions());
   }
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
@@ -2927,7 +2942,8 @@ class raw_hash_set {
                   that.eq_ref(), a) {
     if (CharAlloc(a) == that.char_alloc_ref()) {
       swap_common(that);
-      annotate_for_bug_detection_on_move(that);
+      common().annotate_for_bug_detection_on_move(that.common(),
+                                                  GetPolicyFunctions());
     } else {
       move_elements_allocs_unequal(std::move(that));
     }
@@ -3776,27 +3792,6 @@ class raw_hash_set {
                 std::move(tmp));
   }
 
-  void annotate_for_bug_detection_on_move([[maybe_unused]] raw_hash_set& that) {
-    // We only enable moved-from validation when generations are enabled (rather
-    // than using NDEBUG) to avoid issues in which NDEBUG is enabled in some
-    // translation units but not in others.
-    if (SwisstableGenerationsEnabled()) {
-      that.common().set_capacity(this == &that
-                                     ? HashtableCapacity::CreateSelfMovedFrom()
-                                     : HashtableCapacity::CreateMovedFrom());
-    }
-    if (!SwisstableGenerationsEnabled() ||
-        !maybe_invalid_capacity().IsValid() ||
-        capacity() == DefaultCapacity()) {
-      return;
-    }
-    common().increment_generation();
-    if (!empty() && common().should_rehash_for_bug_detection_on_move()) {
-      ResizeAllocatedTableWithSeedChange(common(), GetPolicyFunctions(),
-                                         capacity());
-    }
-  }
-
   template <bool propagate_alloc>
   raw_hash_set& assign_impl(raw_hash_set&& that) {
     // We don't bother checking for this/that aliasing. We just need to avoid
@@ -3809,7 +3804,8 @@ class raw_hash_set {
     CopyAlloc(char_alloc_ref(), that.char_alloc_ref(),
               std::bool_constant<propagate_alloc>());
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    annotate_for_bug_detection_on_move(that);
+    common().annotate_for_bug_detection_on_move(that.common(),
+                                                GetPolicyFunctions());
     return *this;
   }
 
@@ -3827,7 +3823,8 @@ class raw_hash_set {
                                        &that.char_alloc_ref());
     }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    annotate_for_bug_detection_on_move(that);
+    common().annotate_for_bug_detection_on_move(that.common(),
+                                                GetPolicyFunctions());
     return *this;
   }
 

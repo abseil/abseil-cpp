@@ -308,6 +308,23 @@ void CommonFields::AssertNotDebugCapacityImpl() const {
   }
 }
 
+void CommonFields::AnnotateForBugDetectionOnMoveImpl(
+    CommonFields& that, const PolicyFunctions& policy) {
+  if (!SwisstableGenerationsEnabled()) {
+    return;
+  }
+  that.set_capacity(this == &that ? HashtableCapacity::CreateSelfMovedFrom()
+                                  : HashtableCapacity::CreateMovedFrom());
+  if (!maybe_invalid_capacity().IsValid() ||
+      capacity() == policy.soo_capacity()) {
+    return;
+  }
+  increment_generation();
+  if (!empty() && should_rehash_for_bug_detection_on_move()) {
+    ResizeAllocatedTableWithSeedChange(*this, policy, capacity());
+  }
+}
+
 void ConvertDeletedToEmptyAndFullToDeleted(ctrl_t* ctrl, size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(ctrl[capacity] == ctrl_t::kSentinel);
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
