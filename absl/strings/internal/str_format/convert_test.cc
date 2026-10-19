@@ -47,6 +47,7 @@
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/bind.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -1014,6 +1015,35 @@ TEST_F(FormatConvertTest, Double) {
 
   for (double d : doubles) {
     TestWithMultipleFormatsHelper(d);
+  }
+}
+
+TEST_F(FormatConvertTest, ScientificZeroPadding) {
+  struct Case {
+    absl::string_view format;
+    // Positive and negative expected prefixes.
+    absl::string_view positive;
+    absl::string_view negative;
+  } cases[] = {
+      {"%010.0e", "000003e", "-00003e"},  {"%010.1g", "000003e", "-00003e"},
+      {"%010.0E", "000003E", "-00003E"},  {"%010.1G", "000003E", "-00003E"},
+      {"%+010.0e", "+00003e", "-00003e"}, {"%+010.1g", "+00003e", "-00003e"},
+      {"% 010.0e", " 00003e", "-00003e"}, {"% 010.1g", " 00003e", "-00003e"},
+      {"%#010.0e", "00003.e", "-0003.e"}, {"%#010.1g", "00003.e", "-0003.e"},
+  };
+
+  // These exact values exercise both slow scientific conversion paths.
+  for (double value : {0x1p128, 0x1p-128}) {
+    const absl::string_view exponent = value > 1 ? "+38" : "-39";
+    for (const auto& c : cases) {
+      SCOPED_TRACE(absl::StrCat(value, ", ", c.format));
+      EXPECT_EQ(
+          FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(value)}),
+          absl::StrCat(c.positive, exponent));
+      EXPECT_EQ(
+          FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(-value)}),
+          absl::StrCat(c.negative, exponent));
+    }
   }
 }
 
