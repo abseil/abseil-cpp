@@ -114,7 +114,6 @@ cc_library(
         "//absl/base:nullability",
         "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
-        "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/numeric:int128",
@@ -144,7 +143,6 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/base:raw_logging_internal",
-        "//absl/meta:type_traits",
     ],
 )
 
@@ -766,7 +764,6 @@ cc_library(
         ":cordz_handle",
         ":cordz_statistics",
         ":cordz_update_tracker",
-        "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:no_destructor",

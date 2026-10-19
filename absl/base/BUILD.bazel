@@ -219,10 +219,7 @@ cc_library(
         "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/util/random:__pkg__",
     ],
-    deps = [
-        ":base_internal",
-        ":config",
-    ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -304,10 +301,7 @@ cc_library(
         "//absl:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
-    deps = [
-        ":config",
-        "//absl/meta:type_traits",
-    ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -916,7 +910,6 @@ cc_library(
     ],
     deps = [
         ":config",
-        ":core_headers",
         ":errno_saver",
     ],
 )
@@ -1016,7 +1009,6 @@ cc_library(
     ],
     deps = [
         ":config",
-        ":core_headers",
         ":malloc_internal",
     ],
 )

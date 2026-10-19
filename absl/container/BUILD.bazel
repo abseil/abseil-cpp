@@ -135,7 +135,6 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":compressed_tuple",
-        "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:hardening",
@@ -958,7 +957,6 @@ cc_library(
     visibility = ["//visibility:public"],  # Should be private, requires cleanup
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/debugging:demangle_internal",
         "//absl/meta:type_traits",
         "//absl/strings",
