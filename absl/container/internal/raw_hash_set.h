@@ -2148,7 +2148,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& policy, size_t n);
 // Type erased version of copy constructor.
 void Copy(CommonFields& common, const PolicyFunctions& policy,
           const CommonFields& other,
-          absl::FunctionRef<void(void*, const void*)> copy_fn);
+          void (*copy_fn)(void* set, void* dst, const void* src));
 
 // Returns the optimal size for memcpy when transferring SOO slot.
 // Otherwise, returns the optimal size for memcpy SOO slot transfer
@@ -2899,16 +2899,7 @@ class raw_hash_set {
 
   raw_hash_set(const raw_hash_set& that, const allocator_type& a)
       : raw_hash_set(0, that.hash_ref(), that.eq_ref(), a) {
-    that.AssertNotDebugCapacity();
-    if (that.empty()) return;
-    Copy(common(), GetPolicyFunctions(), that.common(),
-         [this](void* dst, const void* src) {
-           // TODO(b/413598253): type erase for trivially copyable types via
-           // PolicyTraits.
-           construct(to_slot(dst),
-                     PolicyTraits::element(
-                         static_cast<slot_type*>(const_cast<void*>(src))));
-         });
+    Copy(common(), GetPolicyFunctions(), that.common(), &copy_slot_fn);
   }
 
   ABSL_ATTRIBUTE_NOINLINE raw_hash_set(raw_hash_set&& that) noexcept(
@@ -4157,6 +4148,14 @@ class raw_hash_set {
     for (; count > 0; --count, ++src_slot, ++dst_slot) {
       h->transfer(dst_slot, src_slot);
     }
+  }
+
+  static void copy_slot_fn(void* set, void* dst, const void* src) {
+    // TODO(b/413598253): type erase for trivially copyable types via
+    // PolicyTraits.
+    static_cast<raw_hash_set*>(set)->construct(
+        to_slot(dst),
+        PolicyTraits::element(static_cast<slot_type*>(const_cast<void*>(src))));
   }
 
   static void destroy_slot_fn_impl(void* set, void* slot) {

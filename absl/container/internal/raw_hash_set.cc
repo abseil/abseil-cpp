@@ -2337,9 +2337,10 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
 
 void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
           const CommonFields& other,
-          absl::FunctionRef<void(void*, const void*)> copy_fn) {
+          void (*copy_fn)(void* set, void* dst, const void* src)) {
+  other.AssertNotDebugCapacity();
   const size_t size = other.size();
-  ABSL_SWISSTABLE_ASSERT(size > 0);
+  if (size == 0) return;
   const size_t soo_capacity = policy.soo_capacity();
   const size_t slot_size = policy.slot_size;
   const bool soo_enabled = policy.soo_enabled;
@@ -2357,7 +2358,8 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
             : SlotAddress(other.slot_array(other_capacity),
                           FindFirstFullSlot(0, other_capacity, other.control()),
                           slot_size);
-    copy_fn(soo_enabled ? common.soo_data()
+    copy_fn(&common,
+            soo_enabled ? common.soo_data()
                         : SingleSlotAddress</*kSooEnabled=*/false>(common),
             other_slot);
 
@@ -2389,7 +2391,8 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
         infoz.RecordInsertMiss(hash, target.probe_length);
         offset = target.offset;
         SetCtrl(common, offset, H2(hash), slot_size);
-        copy_fn(SlotAddress(target_slot_array, offset, slot_size), that_slot);
+        copy_fn(&common, SlotAddress(target_slot_array, offset, slot_size),
+                that_slot);
         common.maybe_increment_generation_on_insert();
       });
   common.increment_size(size);
