@@ -211,6 +211,7 @@ absl_cc_library(
     absl::log_severity
     absl::log_sink
     absl::log_sink_registry
+    absl::malloc_internal
     absl::memory
     absl::nullability
     absl::raw_logging_internal
