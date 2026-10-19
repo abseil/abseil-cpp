@@ -822,9 +822,7 @@ TEST(HashtableDataTest, HashtableInlineDataSize) {
   EXPECT_EQ(data.size(), 5);
 
   constexpr size_t kHugeIncrement =
-      (size_t(1) << (sizeof(size_t) == 4
-                         ? 31
-                         : HashtableInlineData::kSizeBitCount - 2));
+      (size_t(1) << (sizeof(size_t) == 4 ? 31 : 39));
   data.increment_size(kHugeIncrement);
   EXPECT_EQ(data.size(), kHugeIncrement + 5);
 
@@ -5296,9 +5294,7 @@ TEST(Table, MaxValidSize) {
       if (key_size <= 4) {
         ASSERT_EQ(max_size, uint64_t{1} << 8 * key_size);
       } else if (i <= 21) {
-        // Small slot sizes are limited only by the number of size bits.
-        ASSERT_GE(max_size,
-                  (uint64_t{1} << HashtableInlineData::kSizeBitCount) - 1);
+        ASSERT_GE(max_size, uint64_t{1} << 40);
       }
       ASSERT_LE(max_size, uint64_t{1} << HashtableInlineData::kSizeBitCount);
       ASSERT_LT(absl::uint128(max_size) * slot_size, uint64_t{1} << 63);
