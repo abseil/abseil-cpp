@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+load("//ci:cmake.bzl", "define_cmake_tests")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
@@ -22,6 +24,49 @@ exports_files([
     "AUTHORS",
     "LICENSE",
 ])
+
+filegroup(
+    name = "cmake_srcs",
+    srcs = [
+        "CMakeLists.txt",
+        "MODULE.bazel",
+        "create_lts.py",
+    ] + glob(
+        ["CMake/**"],
+        exclude = [
+            "**/BUILD",
+            "**/BUILD.bazel",
+        ],
+    ) + [
+        "//absl:cmake_srcs",
+        "//absl/algorithm:cmake_srcs",
+        "//absl/base:cmake_srcs",
+        "//absl/cleanup:cmake_srcs",
+        "//absl/container:cmake_srcs",
+        "//absl/crc:cmake_srcs",
+        "//absl/debugging:cmake_srcs",
+        "//absl/flags:cmake_srcs",
+        "//absl/functional:cmake_srcs",
+        "//absl/hash:cmake_srcs",
+        "//absl/log:cmake_srcs",
+        "//absl/log/internal:cmake_srcs",
+        "//absl/memory:cmake_srcs",
+        "//absl/meta:cmake_srcs",
+        "//absl/numeric:cmake_srcs",
+        "//absl/profiling:cmake_srcs",
+        "//absl/random:cmake_srcs",
+        "//absl/random/internal:cmake_srcs",
+        "//absl/status:cmake_srcs",
+        "//absl/strings:cmake_srcs",
+        "//absl/synchronization:cmake_srcs",
+        "//absl/time:cmake_srcs",
+        "//absl/time/internal/cctz:cmake_srcs",
+        "//absl/types:cmake_srcs",
+        "//absl/utility:cmake_srcs",
+    ],
+)
+
+define_cmake_tests()
 
 # For building with clang-cl.
 # https://bazel.build/configure/windows#clang

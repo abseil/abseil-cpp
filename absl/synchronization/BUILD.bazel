@@ -382,6 +382,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     flaky = 1,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":kernel_timeout_internal",
         ":synchronization",
@@ -409,4 +410,17 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/log:check",
     ],
+)
+
+filegroup(
+    name = "cmake_srcs",
+    srcs = glob(
+        ["**"],
+        allow_empty = True,
+        exclude = [
+            "BUILD",
+            "BUILD.bazel",
+        ],
+    ),
+    visibility = ["//:__pkg__"],
 )

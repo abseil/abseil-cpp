@@ -50,6 +50,11 @@ on:
         required: false
         default: '["opt", "fastbuild"]'
         type: string
+      targets:
+        description: "Bazel target pattern(s) to test"
+        required: false
+        default: "..."
+        type: string
 
 permissions:
   contents: read
@@ -105,7 +110,7 @@ jobs:
 
       - name: Run tests
         run: >
-          bazel test ...
+          bazel test ${{ inputs.targets }}
           --config=${{ inputs.toolchain }}
           --cxxopt=${{ startsWith(inputs.os, 'windows') && '/std:' || '-std=' }}${{ matrix.std }}
           --host_cxxopt=${{ startsWith(inputs.os, 'windows') && '/std:' || '-std=' }}${{ matrix.std }}

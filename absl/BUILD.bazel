@@ -72,3 +72,16 @@ selects.config_setting_group(
     ],
     visibility = [":__subpackages__"],
 )
+
+filegroup(
+    name = "cmake_srcs",
+    srcs = glob(
+        ["**"],
+        allow_empty = True,
+        exclude = [
+            "BUILD",
+            "BUILD.bazel",
+        ],
+    ),
+    visibility = ["//:__pkg__"],
+)
