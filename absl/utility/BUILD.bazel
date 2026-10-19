@@ -20,6 +20,7 @@ load(
     "ABSL_DEFAULT_COPTS",
     "ABSL_DEFAULT_LINKOPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -46,3 +47,5 @@ cc_library(
         "//absl/meta:type_traits",
     ],
 )
+
+cmake_package()

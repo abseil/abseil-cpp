@@ -14,6 +14,8 @@
 
 package(default_visibility = ["//visibility:private"])
 
+exports_files(["cmake_runner.py"])
+
 platform(
     name = "rbe",
     constraint_values = [
@@ -23,7 +25,21 @@ platform(
     exec_properties = {
         "OSArch": "amd64",
         "cache-silo-key": "n2-highcpu-2-2026-10-14",
-        "container-image": "docker://gcr.io/google.com/absl-177019/oss-linux-latest@sha256:fd9e2ce179533e027466d47157a7581aec99de5a72b46ac43165a5d58855d3ba",
+        "container-image": "docker://gcr.io/google.com/absl-177019/oss-linux-latest@sha256:9f7f104e4857e3528e8bf5f14968183f5a0e786ca9ef63601eae4e4136f011d6",
+        "dockerRunAsRoot": "true",
+    },
+)
+
+platform(
+    name = "rbe-floor",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    exec_properties = {
+        "OSArch": "amd64",
+        "cache-silo-key": "n2-highcpu-2-2026-10-14",
+        "container-image": "docker://gcr.io/google.com/absl-177019/oss-linux-floor@sha256:60898eb3b0dbcf85cd60e346f103fbf3169d966d391dcb2362b243d528b1183b",
         "dockerRunAsRoot": "true",
     },
 )
@@ -37,7 +53,7 @@ platform(
     exec_properties = {
         "OSArch": "arm64",
         "cache-silo-key": "t2a-standard-4-2026-10-14",
-        "container-image": "docker://gcr.io/google.com/absl-177019/oss-linux-latest@sha256:fd9e2ce179533e027466d47157a7581aec99de5a72b46ac43165a5d58855d3ba",
+        "container-image": "docker://gcr.io/google.com/absl-177019/oss-linux-latest@sha256:9f7f104e4857e3528e8bf5f14968183f5a0e786ca9ef63601eae4e4136f011d6",
         "dockerRunAsRoot": "true",
     },
 )

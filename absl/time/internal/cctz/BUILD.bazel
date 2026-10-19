@@ -16,6 +16,7 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//absl:copts/configure_copts.bzl", "ABSL_DEFAULT_COPTS", "ABSL_DEFAULT_LINKOPTS", "ABSL_TEST_COPTS")
+load("//ci:cmake.bzl", "cmake_package")
 
 package(features = [
     "header_modules",
@@ -231,3 +232,5 @@ filegroup(
     srcs = glob(["testdata/zoneinfo/**"]),
     visibility = ["//absl/time:__subpackages__"],
 )
+
+cmake_package()
