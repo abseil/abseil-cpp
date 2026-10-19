@@ -23,6 +23,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -845,6 +846,7 @@ cc_test(
     srcs = ["internal/raw_hash_set_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkstatic = 1,
+    shard_count = 4,
     tags = NOTEST_TAGS_MOBILE + [
         "no_test_chromiumos_arm",
         "no_test_chromiumos_armv7",
@@ -1523,3 +1525,5 @@ cc_binary(
         "@google_benchmark//:benchmark_main",
     ],
 )
+
+cmake_package()

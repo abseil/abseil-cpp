@@ -23,6 +23,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = [
@@ -595,3 +596,5 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cmake_package()
