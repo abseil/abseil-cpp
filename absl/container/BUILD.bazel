@@ -135,7 +135,6 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":compressed_tuple",
-        "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:hardening",
@@ -170,6 +169,7 @@ cc_library(
     testonly = True,
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     textual_hdrs = ["internal/test_allocator.h"],
     visibility = ["//visibility:private"],
     deps = [
@@ -524,11 +524,11 @@ cc_library(
     srcs = ["internal/hash_generator_testing.cc"],
     hdrs = ["internal/hash_generator_testing.h"],
     copts = ABSL_TEST_COPTS,
+    implementation_deps = ["//absl/base:no_destructor"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":hash_policy_testing",
         "//absl/base:config",
-        "//absl/base:no_destructor",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/random",
@@ -622,6 +622,7 @@ cc_library(
     hdrs = ["internal/hashtable_debug.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     deps = [
         ":hashtable_debug_hooks",
         "//absl/base:config",
@@ -649,6 +650,15 @@ cc_library(
     ],
     hdrs = ["internal/hashtablez_sampler.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        "//absl/base:core_headers",
+        "//absl/base:no_destructor",
+        "//absl/base:raw_logging_internal",
+        "//absl/debugging:stacktrace",
+        "//absl/memory",
+        "//absl/profiling:exponential_biased",
+        "//absl/time",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
@@ -657,11 +667,6 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
-        "//absl/base:no_destructor",
-        "//absl/base:raw_logging_internal",
-        "//absl/debugging:stacktrace",
-        "//absl/memory",
-        "//absl/profiling:exponential_biased",
         "//absl/profiling:sample_recorder",
         "//absl/synchronization",
         "//absl/time",
@@ -809,6 +814,7 @@ cc_library(
     hdrs = ["internal/raw_hash_set.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],  # Should be private, but requires cleanup
     deps = [
         ":common",
@@ -958,7 +964,6 @@ cc_library(
     visibility = ["//visibility:public"],  # Should be private, requires cleanup
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/debugging:demangle_internal",
         "//absl/meta:type_traits",
         "//absl/strings",
@@ -1222,6 +1227,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         ":common",

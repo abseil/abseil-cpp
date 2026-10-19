@@ -149,6 +149,7 @@ cc_library(
     srcs = ["internal/raw_logging.cc"],
     hdrs = ["internal/raw_logging.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":errno_saver"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
@@ -164,7 +165,6 @@ cc_library(
         ":atomic_hook",
         ":config",
         ":core_headers",
-        ":errno_saver",
         ":log_severity",
     ],
 )
@@ -180,6 +180,10 @@ cc_library(
     ],
     hdrs = ["internal/spinlock_wait.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":core_headers",
+        ":errno_saver",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/base:__pkg__",
@@ -189,8 +193,6 @@ cc_library(
     deps = [
         ":base_internal",
         ":config",
-        ":core_headers",
-        ":errno_saver",
     ],
 )
 
@@ -219,10 +221,7 @@ cc_library(
         "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/util/random:__pkg__",
     ],
-    deps = [
-        ":base_internal",
-        ":config",
-    ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -254,6 +253,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         ":config",
@@ -279,6 +279,7 @@ cc_library(
         "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = [
         "//visibility:public",
     ],
@@ -304,10 +305,7 @@ cc_library(
         "//absl:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
-    deps = [
-        ":config",
-        "//absl/meta:type_traits",
-    ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -333,6 +331,10 @@ cc_library(
         "internal/unscaledcycleclock.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":atomic_hook",
+        ":spinlock_wait",
+    ],
     linkopts = select({
         "@rules_cc//cc/compiler:msvc-cl": [
             "-DEFAULTLIB:advapi32.lib",
@@ -350,7 +352,6 @@ cc_library(
     }) + ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":atomic_hook",
         ":base_internal",
         ":config",
         ":core_headers",
@@ -368,11 +369,11 @@ cc_library(
     srcs = ["internal/atomic_hook_test_helper.cc"],
     hdrs = ["internal/atomic_hook_test_helper.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":core_headers"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":atomic_hook",
         ":config",
-        ":core_headers",
     ],
 )
 
@@ -444,12 +445,10 @@ cc_library(
         "throw_delegate.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":raw_logging_internal"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
-    deps = [
-        ":config",
-        ":raw_logging_internal",
-    ],
+    deps = [":config"],
 )
 
 cc_test(
@@ -544,17 +543,17 @@ cc_library(
     testonly = True,
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
-    ],
-    deps = [
+    implementation_deps = [
         ":base",
         ":base_internal",
         ":config",
         ":core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
     ],
     alwayslink = 1,
 )
@@ -585,11 +584,7 @@ cc_library(
     testonly = True,
     srcs = ["internal/spinlock_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/base:__pkg__",
-    ],
-    deps = [
+    implementation_deps = [
         ":base",
         ":base_internal",
         ":no_destructor",
@@ -597,6 +592,11 @@ cc_library(
         "//absl/synchronization",
         "@google_benchmark//:benchmark_main",
     ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/base:__pkg__",
+    ],
+    deps = ["@google_benchmark//:benchmark_main"],
     alwayslink = 1,
 )
 
@@ -863,14 +863,12 @@ cc_library(
     srcs = ["internal/scoped_set_env.cc"],
     hdrs = ["internal/scoped_set_env.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":raw_logging_internal"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [
-        ":config",
-        ":raw_logging_internal",
-    ],
+    deps = [":config"],
 )
 
 cc_test(
@@ -908,16 +906,13 @@ cc_library(
     srcs = ["internal/strerror.cc"],
     hdrs = ["internal/strerror.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":errno_saver"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
-    deps = [
-        ":config",
-        ":core_headers",
-        ":errno_saver",
-    ],
+    deps = [":config"],
 )
 
 cc_test(
@@ -1009,15 +1004,12 @@ cc_library(
     ],
     hdrs = ["internal/poison.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":malloc_internal"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
     ],
-    deps = [
-        ":config",
-        ":core_headers",
-        ":malloc_internal",
-    ],
+    deps = [":config"],
 )
 
 cc_test(
@@ -1099,15 +1091,13 @@ cc_library(
     srcs = ["internal/tracing.cc"],
     hdrs = ["internal/tracing.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":core_headers"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
         "@do_not_use_for_gloop_visibility_only//gloop/perftools/tracing:__subpackages__",
     ],
-    deps = [
-        ":config",
-        ":core_headers",
-    ],
+    deps = [":config"],
 )
 
 cc_library(

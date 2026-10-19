@@ -89,10 +89,13 @@ cc_library(
     ],
     hdrs = ["int128.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":bits",
+        "//absl/base:core_headers",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":bits",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/types:compare",
