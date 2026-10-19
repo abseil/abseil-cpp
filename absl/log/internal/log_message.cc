@@ -25,12 +25,15 @@
 #include <atomic>
 #include <ios>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 
 #include "absl/base/attributes.h"
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/strerror.h"
 #include "absl/base/internal/sysinfo.h"
@@ -145,6 +148,17 @@ void WriteToStream(const char* data, void* os) {
   auto* cast_os = static_cast<std::ostream*>(os);
   *cast_os << data;
 }
+
+#ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
+absl::base_internal::LowLevelAlloc::Arena* LogMessageArena() {
+  ABSL_CONST_INIT static absl::once_flag once;
+  ABSL_CONST_INIT static absl::base_internal::LowLevelAlloc::Arena* arena =
+      nullptr;
+  absl::base_internal::LowLevelCallOnce(
+      &once, []() { arena = absl::base_internal::LowLevelAlloc::NewArena(0); });
+  return arena;
+}
+#endif
 }  // namespace
 
 struct LogMessage::LogMessageData final {
@@ -152,6 +166,16 @@ struct LogMessage::LogMessageData final {
                  absl::LogSeverity severity, absl::Time timestamp);
   LogMessageData(const LogMessageData&) = delete;
   LogMessageData& operator=(const LogMessageData&) = delete;
+
+#ifndef ABSL_LOW_LEVEL_ALLOC_MISSING
+  static void* operator new(size_t s) {
+    return absl::base_internal::LowLevelAlloc::AllocWithArena(
+        s, LogMessageArena());
+  }
+  static void operator delete(void* p) {
+    absl::base_internal::LowLevelAlloc::Free(p);
+  }
+#endif
 
   // `LogEntry` sent to `LogSink`s; contains metadata.
   absl::LogEntry entry;
@@ -169,7 +193,8 @@ struct LogMessage::LogMessageData final {
   // non-sink targets (e.g. stderr, log files).
   bool extra_sinks_only;
 
-  std::ostream manipulated;  // ostream with IO manipulators applied
+  std::optional<std::ostream> manipulated;  // Lazily constructed ostream
+                                            // with IO manipulators applied
 
   // A `logging.proto.Event` proto message is built into `encoded_buf`.
   std::array<char, kLogMessageBufferSize> encoded_buf;
@@ -200,12 +225,10 @@ struct LogMessage::LogMessageData final {
   void FinalizeEncodingAndFormat();
 };
 
-LogMessage::LogMessageData::LogMessageData(absl::string_view file,
-                                           int line, absl::LogSeverity severity,
+LogMessage::LogMessageData::LogMessageData(absl::string_view file, int line,
+                                           absl::LogSeverity severity,
                                            absl::Time timestamp)
-    : extra_sinks_only(false), manipulated(nullptr) {
-  // Legacy defaults for LOG's ostream:
-  manipulated.setf(std::ios_base::showbase | std::ios_base::boolalpha);
+    : extra_sinks_only(false) {
   entry.full_filename_ = file;
   entry.base_filename_ = Basename(file);
   entry.line_ = line;
@@ -439,12 +462,12 @@ LogMessage& LogMessage::operator<<(wchar_t v) {
 
 LogMessage& LogMessage::operator<<(std::ostream& (*m)(std::ostream& os)) {
   OstreamView view(*data_);
-  data_->manipulated << m;
+  view.stream() << m;
   return *this;
 }
 LogMessage& LogMessage::operator<<(std::ios_base& (*m)(std::ios_base& os)) {
   OstreamView view(*data_);
-  data_->manipulated << m;
+  view.stream() << m;
   return *this;
 }
 // NOLINTBEGIN(runtime/int)
@@ -501,6 +524,11 @@ void LogMessage::SetFailQuietly() { data_->fail_quietly = true; }
 
 LogMessage::OstreamView::OstreamView(LogMessageData& message_data)
     : data_(message_data), encoded_remaining_copy_(data_.encoded_remaining()) {
+  if (!data_.manipulated.has_value()) {
+    data_.manipulated.emplace(nullptr);
+    // Legacy defaults for LOG's ostream:
+    data_.manipulated->setf(std::ios_base::showbase | std::ios_base::boolalpha);
+  }
   // This constructor sets the `streambuf` up so that streaming into an attached
   // ostream encodes string data in-place.  To do that, we write appropriate
   // headers into the buffer using a copy of the buffer view so that we can
@@ -515,11 +543,11 @@ LogMessage::OstreamView::OstreamView(LogMessageData& message_data)
                          &encoded_remaining_copy_);
   setp(encoded_remaining_copy_.data(),
        encoded_remaining_copy_.data() + encoded_remaining_copy_.size());
-  data_.manipulated.rdbuf(this);
+  data_.manipulated->rdbuf(this);
 }
 
 LogMessage::OstreamView::~OstreamView() {
-  data_.manipulated.rdbuf(nullptr);
+  data_.manipulated->rdbuf(nullptr);
   if (!string_start_.data()) {
     // The second field header didn't fit.  Whether the first one did or not, we
     // shouldn't commit `encoded_remaining_copy_`, and we also need to zero the
@@ -536,7 +564,7 @@ LogMessage::OstreamView::~OstreamView() {
   data_.encoded_remaining() = encoded_remaining_copy_;
 }
 
-std::ostream& LogMessage::OstreamView::stream() { return data_.manipulated; }
+std::ostream& LogMessage::OstreamView::stream() { return *data_.manipulated; }
 
 bool LogMessage::IsFatal() const {
   return data_->entry.log_severity() == absl::LogSeverity::kFatal &&
