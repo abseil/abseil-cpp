@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+load("//ci:cmake.bzl", "define_cmake_tests")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
@@ -22,6 +24,21 @@ exports_files([
     "AUTHORS",
     "LICENSE",
 ])
+
+define_cmake_tests(
+    install_test_script = "CMake/install_test_project/test.sh",
+    root_srcs = [
+        "CMakeLists.txt",
+        "MODULE.bazel",
+        "create_lts.py",
+    ] + glob(
+        ["CMake/**"],
+        exclude = [
+            "**/BUILD",
+            "**/BUILD.bazel",
+        ],
+    ),
+)
 
 # For building with clang-cl.
 # https://bazel.build/configure/windows#clang

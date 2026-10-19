@@ -75,7 +75,7 @@ absl_cc_test(
   SRCS
     "bind_back_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::bind_back
     absl::memory
@@ -102,7 +102,7 @@ absl_cc_test(
   SRCS
     "bind_front_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::bind_front
     absl::config

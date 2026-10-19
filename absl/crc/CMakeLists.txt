@@ -69,7 +69,7 @@ absl_cc_test(
   SRCS
     "crc32c_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::crc32c
     absl::str_format
@@ -110,7 +110,7 @@ absl_cc_test(
   SRCS
     "internal/crc_memcpy_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::config
     absl::core_headers
@@ -122,6 +122,8 @@ absl_cc_test(
     absl::string_view
     absl::strings
     GTest::gtest_main
+  SHARD_COUNT
+    3
 )
 
 absl_cc_test(
@@ -130,7 +132,7 @@ absl_cc_test(
   SRCS
     "internal/non_temporal_memcpy_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::non_temporal_memcpy
     GTest::gtest_main
@@ -158,7 +160,7 @@ absl_cc_test(
   SRCS
     "internal/crc_cord_state_test.cc"
   COPTS
-    ${ABSL_DEFAULT_COPTS}
+    ${ABSL_TEST_COPTS}
   DEPS
     absl::crc32c
     absl::crc_cord_state

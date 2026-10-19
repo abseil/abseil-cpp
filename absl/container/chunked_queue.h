@@ -181,9 +181,10 @@ class chunked_queue {
     using reference = CT&;
 
     basic_iterator() = default;
+    basic_iterator(const basic_iterator& other) = default;
 
-    // Copy ctor if CT is T.
-    // Otherwise it's a conversion of iterator to const_iterator.
+    // Conversion of iterator to const_iterator.
+    template <typename U = CT, typename = std::enable_if_t<std::is_const_v<U>>>
     basic_iterator(const basic_iterator<T>& it)  // NOLINT(runtime/explicit)
         : iterator_common(it) {}
 

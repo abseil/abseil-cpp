@@ -22,6 +22,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -598,6 +599,7 @@ cc_test(
     timeout = "long",
     srcs = ["internal/cord_rep_btree_test.cc"],
     copts = ABSL_TEST_COPTS,
+    shard_count = 4,
     visibility = ["//visibility:private"],
     deps = [
         ":cord_internal",
@@ -1039,6 +1041,7 @@ cc_test(
     timeout = "long",
     srcs = ["cord_test.cc"],
     copts = ABSL_TEST_COPTS,
+    shard_count = 4,
     visibility = ["//visibility:private"],
     deps = [
         ":cord",
@@ -1565,6 +1568,7 @@ cc_test(
     timeout = "long",
     srcs = ["internal/str_format/convert_test.cc"],
     copts = ABSL_TEST_COPTS,
+    shard_count = 4,
     visibility = ["//visibility:private"],
     deps = [
         ":str_format",
@@ -1709,3 +1713,5 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cmake_package()

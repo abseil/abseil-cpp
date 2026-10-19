@@ -25,6 +25,7 @@ load(
     "ABSL_DEFAULT_LINKOPTS",
     "ABSL_TEST_COPTS",
 )
+load("//ci:cmake.bzl", "cmake_package")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -199,6 +200,7 @@ cc_test(
     srcs = ["bernoulli_distribution_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     deps = [
         ":distributions",
         ":random",
@@ -217,6 +219,7 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     flaky = 1,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     tags = [
         "no_test_wasm",
     ],
@@ -326,6 +329,7 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    shard_count = 4,
     tags = [
         # Too Slow.
         "no_test_android_arm",
@@ -571,3 +575,5 @@ cc_binary(
         "@google_benchmark//:benchmark_main",
     ],
 )
+
+cmake_package()
