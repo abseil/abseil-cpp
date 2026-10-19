@@ -746,11 +746,14 @@ class GrowthInfoLowerBound {
 class HashtableInlineData {
   // The number of bits in the seed. It is big enough to ensure
   // non-determinism of iteration order. We store the seed inside a uint64_t
-  // together with size and other metadata. The seed occupies the entire second
-  // byte of `data_` so that on the critical path of lookups it can be loaded
-  // with a single byte load and passed to the hash function without any
-  // masking. When absl::Hash is inlined, it can have lower latency knowing that
-  // the high bits of the seed are zero.
+  // together with size and other metadata. Reading `capacity` and `seed` by
+  // masking the 64-bit `data_` word (rather than issuing narrow byte loads)
+  // lets the compiler share a single 64-bit load across `is_small()`,
+  // `capacity()`, `seed()`, and `size()` (and pair it with `control_` via `ldp`
+  // on AArch64), while avoiding store-to-load forwarding (RAW) stalls after
+  // 64-bit stores to `data_` on both x86 and ARM. When absl::Hash is inlined,
+  // it can use the pre-shifted `data_ & kSeedMask` value directly without a
+  // right shift, knowing that the high bits of the seed are zero.
   static constexpr size_t kSeedBitCount = 8;
 
  public:
@@ -759,6 +762,9 @@ class HashtableInlineData {
   static constexpr size_t kMaxBlockedElementCount =
       (uint64_t{1} << kBlockedElementBitCount) - 1;
   static constexpr size_t kCapacityBitCount = 6;
+  static constexpr size_t kHasInfozShift = kCapacityBitCount;
+  static constexpr size_t kSeedShift =
+      kHasInfozShift + /*has_infoz*/ 1 + /*unused*/ 1;
   static constexpr size_t kSizeBitCount =
       64 -
       (kBlockedElementBitCount + kSeedBitCount + kGrowthInfoLowerBoundBitCount +
@@ -773,12 +779,8 @@ class HashtableInlineData {
               (has_tried_sampling ? kSooHasTriedSamplingMask : 0)) {}
 
   HashtableCapacity capacity() const {
-    // Reading the capacity via a single byte load (rather than a wide load of
-    // `data_` followed by masking) allows the compiler to also use a single
-    // byte load for the seed on the critical path of lookups. The high bits of
-    // the byte are not part of the capacity.
     return HashtableCapacity::FromRawData(
-        static_cast<uint8_t>(read_byte(kCapacityByteIndex) & kCapacityMask));
+        static_cast<uint8_t>(data_ & kCapacityMask));
   }
   bool is_small() const { return capacity().is_small(); }
 
@@ -815,12 +817,7 @@ class HashtableInlineData {
         (data_ & kMetadataMask) | (static_cast<uint64_t>(size) << kSizeShift);
   }
 
-  PerTableSeed seed() const {
-    // The seed is stored in exactly one byte, so we read it with a single byte
-    // load. This lets the compiler feed it directly into the hash function
-    // without a masking instruction on the critical path of lookups.
-    return PerTableSeed(read_byte(kSeedByteIndex));
-  }
+  PerTableSeed seed() const { return PerTableSeed(data_ & kSeedMask); }
 
   void generate_new_seed() { set_seed(NextHashTableSeed()); }
 
@@ -828,7 +825,7 @@ class HashtableInlineData {
   // hashes use the same seed and can e.g. identify stuck bits accurately.
   void set_sampled_seed() { set_seed(kSampledSeed); }
 
-  bool is_sampled_seed() const { return seed().seed() == kSampledSeed; }
+  bool is_sampled_seed() const { return seed().seed() == kSeedMask; }
 
   // Returns true if the table has infoz.
   bool has_infoz() const {
@@ -916,20 +913,14 @@ class HashtableInlineData {
   // (1 bit)        : has_infoz
   // (6 bits)       : capacity (the low 6 bits of the first byte)
   // Note: for size to overflow would require ~2^40 bytes of RAM, which is
-  // impractical. The seed and the capacity are deliberately byte-aligned and
-  // accessed with byte loads: this lets lookups avoid a wide load plus masking
-  // on the critical path. We don't split these components of `data_` into
-  // separate bit field elements because we get worse generated code that way
-  // (the compiler loads the whole word and extracts the fields).
+  // impractical. We don't split these components of `data_` into separate bit
+  // field elements because we get worse generated code that way.
 
   static constexpr size_t kSizeShift = 64 - kSizeBitCount;
   static constexpr uint64_t kSizeOneNoMetadata = uint64_t{1} << kSizeShift;
   static constexpr uint64_t kMetadataMask = kSizeOneNoMetadata - 1;
   static constexpr uint64_t kCapacityMask = (1 << kCapacityBitCount) - 1;
-  static constexpr size_t kHasInfozShift = kCapacityBitCount;
   static constexpr uint64_t kHasInfozMask = uint64_t{1} << kHasInfozShift;
-  static constexpr size_t kSeedShift =
-      kHasInfozShift + /*has_infoz*/ 1 + /*unused*/ 1;
   static constexpr uint64_t kSeedMask = ((uint64_t{1} << kSeedBitCount) - 1)
                                         << kSeedShift;
   static constexpr uint64_t kBlockedElementsShift = kSeedShift + kSeedBitCount;
@@ -952,25 +943,8 @@ class HashtableInlineData {
   // hashes use the same seed and can e.g. identify stuck bits accurately.
   static constexpr uint8_t kSampledSeed = (1 << kSeedBitCount) - 1;
 
-  // Indices of the bytes of `data_` that hold the capacity and the seed.
   static_assert(kSeedShift == 8);
   static_assert(kSeedBitCount == 8);
-#ifdef ABSL_IS_LITTLE_ENDIAN
-  static constexpr size_t kCapacityByteIndex = 0;
-  static constexpr size_t kSeedByteIndex = 1;
-#else
-  static constexpr size_t kCapacityByteIndex = 7;
-  static constexpr size_t kSeedByteIndex = 6;
-#endif
-
-  // Returns the `index`-th byte of `data_`. Accessing the storage through
-  // `unsigned char` is always allowed by the aliasing rules. Note: the reason
-  // we read the data this way rather than using bit manipulations as with other
-  // fields is that it results in better generated code (we get movzbl to read
-  // the seed this way).
-  uint8_t read_byte(size_t index) const {
-    return reinterpret_cast<const unsigned char*>(&data_)[index];
-  }
 
   // Returns the bits of `data_` that encode `capacity`.
   static uint64_t CapacityBits(HashtableCapacity capacity) {
@@ -2500,10 +2474,10 @@ class raw_hash_set {
   // For non-default hashers the seed is xor'ed with the hash value rather than
   // being used as a seed for the hash function. Because we require random
   // iteration order for small tables, the seed must have entropy in its low
-  // bits. The seed is loaded as a single byte from the inline data, so it
-  // already has low bits entropy and no shift is needed.
-  // TODO(ezb): get rid of kSeedShift.
-  constexpr static size_t kSeedShift = 0;
+  // bits. For default absl::Hash, the pre-shifted `data_ & kSeedMask` value can
+  // be passed directly without a right shift.
+  constexpr static size_t kSeedShift =
+      kIsAbslHash ? 0 : HashtableInlineData::kSeedShift;
 
   constexpr static bool SooEnabled() {
     return PolicyTraits::soo_enabled() &&
