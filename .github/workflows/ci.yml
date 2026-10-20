@@ -44,9 +44,6 @@ concurrency:
   cancel-in-progress: ${{ contains(fromJSON('["pull_request", "workflow_dispatch", "schedule"]'), github.event_name) }}
 
 jobs:
-  # Mirrors the 11 Linux Bazel Kokoro jobs (parallelized to 1 job per Bazel
-  # invocation). Not yet covered here:
-  #   - macOS Kokoro jobs
   linux:
     name: Linux ${{ matrix.config.name }} Bazel
     strategy:
@@ -180,10 +177,31 @@ jobs:
       stds: ${{ matrix.config.stds || '["c++17", "c++20"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["dbg", "opt"]' }}
 
+  macos:
+    name: macOS ${{ matrix.config.name }} Bazel
+    strategy:
+      fail-fast: false  # Don't cancel all jobs if one fails.
+      matrix:
+        config:
+          # macos_xcode_bazel.cfg
+          - name: Xcode
+          # macos_xcode_alternate_options_bazel.cfg
+          - name: Xcode Alternate Options
+            alternate_options: true
+    uses: ./.github/workflows/bazel.yml
+    secrets: inherit
+    with:
+      os: macos-latest
+      toolchain: macos
+      remote_config: remote-cache
+      alternate_options: ${{ matrix.config.alternate_options || false }}
+      stds: ${{ matrix.config.stds || '["c++17"]' }}
+      compilation_modes: ${{ matrix.config.compilation_modes || '["fastbuild"]' }}
+
   # Provide a single predictably-named job for copybara to look for
   all-blocking-tests:
     name: All Blocking Tests
-    needs: [linux, cmake, windows]
+    needs: [linux, cmake, windows, macos]
     runs-on: ubuntu-latest
     steps:
       - name: Check for cancellations

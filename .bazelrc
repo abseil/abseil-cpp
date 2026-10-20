@@ -50,6 +50,14 @@ build:windows-clangcl --copt=-Wno-microsoft-cast
 build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
 build:windows-clangcl --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
 
+# Configure our macOS Xcode setup.
+build:macos --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build:macos --copt=-Werror
+build:macos --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
+build:macos --features=external_include_paths
+build:macos --per_file_copt=external/.*@-w
+build:macos --host_per_file_copt=external/.*@-w
+
 build:gcc --config=linux --platforms=//ci:linux_gcc
 build:gcc-exceptions --config=gcc --copt=-fexceptions
 build:clang --config=linux --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument
