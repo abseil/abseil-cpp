@@ -43,6 +43,8 @@ build:windows-msvc --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
 build:windows-msvc --copt=/WX
 build:windows-msvc --per_file_copt=external/.*@/w
 build:windows-msvc --host_per_file_copt=external/.*@/w
+build:windows-msvc --remote_default_exec_properties=OSFamily=Windows
+build:windows-msvc --remote_default_exec_properties=cache-silo-key=absl-windows
 
 build:windows-clangcl --config=windows-msvc
 build:windows-clangcl --compiler=clang-cl
@@ -57,6 +59,8 @@ build:macos --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
 build:macos --features=external_include_paths
 build:macos --per_file_copt=external/.*@-w
 build:macos --host_per_file_copt=external/.*@-w
+build:macos --remote_default_exec_properties=OSFamily=macOS
+build:macos --remote_default_exec_properties=cache-silo-key=absl-macos
 
 build:gcc --config=linux --platforms=//ci:linux_gcc
 build:gcc-exceptions --config=gcc --copt=-fexceptions
