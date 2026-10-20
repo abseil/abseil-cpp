@@ -47,16 +47,16 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS + select({
         "//conditions:default": [],
     }),
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
+    implementation_deps = [
         "//absl/algorithm:container",
         "//absl/base",
         "//absl/base:base_internal",
-        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:malloc_internal",
         "//absl/base:raw_logging_internal",
     ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = ["//absl/base:config"],
 )
 
 cc_library(
@@ -130,6 +130,7 @@ cc_library(
         "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         ":graphcycles_internal",
@@ -294,10 +295,7 @@ cc_library(
     testonly = True,
     srcs = ["mutex_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-    ],
-    deps = [
+    implementation_deps = [
         ":synchronization",
         ":thread_pool",
         "//absl/base",
@@ -305,6 +303,10 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "@google_benchmark//:benchmark_main",
     ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+    ],
+    deps = ["@google_benchmark//:benchmark_main"],
     alwayslink = 1,
 )
 
@@ -342,11 +344,7 @@ cc_library(
     testonly = True,
     srcs = ["internal/per_thread_sem_test.cc"],
     copts = ABSL_TEST_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
-    ],
-    deps = [
+    implementation_deps = [
         ":kernel_timeout_internal",
         ":synchronization",
         "//absl/base",
@@ -355,6 +353,10 @@ cc_library(
         "//absl/strings",
         "//absl/time",
         "@googletest//:gtest",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
     ],
     alwayslink = 1,
 )

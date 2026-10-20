@@ -43,6 +43,7 @@ cc_library(
     ],
     hdrs = ["hash.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = ["//absl/base:prefetch"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
@@ -51,7 +52,6 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
-        "//absl/base:prefetch",
         "//absl/container:fixed_array",
         "//absl/functional:function_ref",
         "//absl/meta:type_traits",
@@ -172,16 +172,16 @@ cc_library(
         "internal/city.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/hash:__pkg__",
-    ],
-    deps = [
-        "//absl/base:config",
+    implementation_deps = [
         "//absl/base:core_headers",
         "//absl/base:endian",
         "//absl/numeric:bits",
     ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/hash:__pkg__",
+    ],
+    deps = ["//absl/base:config"],
 )
 
 cc_test(

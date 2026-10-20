@@ -53,6 +53,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         "//absl/base",
@@ -79,6 +80,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         ":time",
@@ -102,6 +104,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         ":clock_interface",
@@ -119,12 +122,12 @@ cc_library(
     srcs = ["internal/test_util.cc"],
     hdrs = ["internal/test_util.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = ["//absl/base:raw_logging_internal"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
         ":time",
         "//absl/base:config",
-        "//absl/base:raw_logging_internal",
     ],
 )
 

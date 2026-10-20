@@ -42,7 +42,7 @@
 //   absl::CharSet hex_letters("abcdef");
 //   hex_letters.contains('a');  // true
 //   hex_letters.contains('g');  // false
-
+// This file is used in both Abseil and OSS.
 #ifndef ABSL_STRINGS_CHARSET_H_
 #define ABSL_STRINGS_CHARSET_H_
 
