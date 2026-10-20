@@ -45,10 +45,7 @@ cc_library(
         "internal/crc32_x86_arm_combined_simd.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
-    deps = [
-        "//absl/base:config",
+    implementation_deps = [
         "//absl/base:core_headers",
         "//absl/base:cpu_detect",
         "//absl/base:endian",
@@ -56,6 +53,12 @@ cc_library(
         "//absl/base:raw_logging_internal",
         "//absl/memory",
         "//absl/numeric:bits",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:private"],
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
     ],
 )
 
@@ -74,16 +77,20 @@ cc_library(
         "internal/crc_memcpy.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":crc_internal",
+        ":non_temporal_memcpy",
+        "//absl/base:core_headers",
+        "//absl/base:cpu_detect",
+        "//absl/base:prefetch",
+        "//absl/strings:string_view",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
         ":crc_internal",
-        ":non_temporal_memcpy",
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:cpu_detect",
         "//absl/base:endian",
-        "//absl/base:prefetch",
         "//absl/strings:str_format",
         "//absl/strings:string_view",
     ],
@@ -170,13 +177,15 @@ cc_library(
     srcs = ["internal/crc_cord_state.cc"],
     hdrs = ["internal/crc_cord_state.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        "//absl/base:no_destructor",
+        "//absl/numeric:bits",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//absl/strings:__pkg__"],
     deps = [
         ":crc32c",
         "//absl/base:config",
-        "//absl/base:no_destructor",
-        "//absl/numeric:bits",
     ],
 )
 
