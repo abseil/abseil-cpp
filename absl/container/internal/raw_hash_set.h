@@ -260,6 +260,63 @@ namespace container_internal {
   assert((CONDITION) && "Try enabling sanitizers.")
 #endif
 
+// ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(a, b)
+//
+// Informs the compiler that the two pointer arguments point into separately
+// allocated storage (either different variable definitions or different dynamic
+// storage allocations), allowing the compiler to assume they do not alias for
+// optimization purposes. Differences from __restrict:
+//  - __restrict only applies to the pointer itself, not the pointed-to object.
+//  - This macro allows the compiler to optimize caller code, not just the
+//    pointer dereferences of a function argument within that function.
+//
+// WARNING: If the arguments point into the same storage, the program has
+// undefined behavior. Note that the definition of "storage" here refers to the
+// outermost enclosing allocation of any particular object (for example, it is
+// never correct to call this macro passing the addresses of fields in the same
+// struct, elements of the same array, objects on the same arena block, etc.).
+// Note that in the example below, the annotation will affect callers of
+// SetFirstAndGetSize as well (they may be mis-compiled if the arguments are not
+// from separate allocations).
+//
+// See
+// https://clang.llvm.org/docs/LanguageExtensions.html#builtin-assume-separate-storage
+//
+// Example:
+//
+//   class Buffer {
+//    public:
+//     size_t* data() {
+//       // Safe because `data_` is allocated via `::operator new`, so it is
+//       // guaranteed to be in a separate allocation from `*this`.
+//       ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(data_, this);
+//       return data_;
+//     }
+//     size_t size() const { return size_; }
+//
+//    private:
+//     size_t* data_ = new size_t[10];
+//     size_t size_ = 10;
+//   };
+//
+//   size_t SetFirstAndGetSize(Buffer& buf) {
+//     size_t n = buf.size();
+//     buf.data()[0] = n;
+//     // After inlining, the compiler knows storing to `buf.data()[0]` cannot
+//     // clobber `buf.size_`, and can return `n` without reloading `buf.size_`.
+//     return buf.size();
+//   }
+#if ABSL_HAVE_BUILTIN(__builtin_assume_separate_storage)
+#define ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(a, b) \
+  __builtin_assume_separate_storage(a, b)
+#elif ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#define ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(a, b) \
+  (decltype((void)(a), (void)(b))())
+#else
+#define ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(a, b) \
+  (false ? ((void)(a), (void)(b)) : void())
+#endif
+
 // We use uint8_t so we don't need to worry about padding.
 using GenerationType = uint8_t;
 
@@ -1344,14 +1401,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(capacity() > 0);
-    // Assume that the control bytes don't alias `this`.
-    ctrl_t* ctrl = heap_or_soo_.control().get();
-    [[maybe_unused]] size_t num_control_bytes = NumControlBytes(capacity());
-    ABSL_ASSUME(reinterpret_cast<uintptr_t>(ctrl + num_control_bytes) <=
-                    reinterpret_cast<uintptr_t>(this) ||
-                reinterpret_cast<uintptr_t>(this + 1) <=
-                    reinterpret_cast<uintptr_t>(ctrl));
-    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(ctrl);
+    ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(heap_or_soo_.control().get());
   }
 
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
@@ -4000,6 +4050,8 @@ class raw_hash_set {
   template <class K>
   std::pair<slot_type*, bool> find_or_prepare_insert(const K& key) {
     AssertOnFind(key);
+    // TODO(ezb): add ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE that the returned
+    // slot doesn't alias `this` for non-SOO tables with default allocators.
     return is_small() ? find_or_prepare_insert_small(key)
                       : find_or_prepare_insert_large<FindLargeKey<K>>(key);
   }
@@ -4083,7 +4135,24 @@ class raw_hash_set {
   }
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
-    return common().control();
+    ctrl_t* ctrl = common().control();
+    if constexpr (std::is_same_v<CharAlloc, std::allocator<char>>) {
+      // Assume that the control bytes don't alias `this`. Example benefit: when
+      // a caller mutates an element via an iterator returned by find(), the
+      // compiler can now prove that the store to the slot does not clobber
+      // CommonFields metadata (size, capacity, etc.).
+      // Example of benefitting user code:
+      //   if (auto it = m.find(k1); it != m.end()) it->second = v;
+      //   if (auto it = m.find(k2); it != m.end()) it->second = v;
+      // With this assumption, the second lookup avoids reloading capacity.
+      // Note: for custom allocators, `this` may be part of the same allocation
+      // as the control bytes so we cannot make this assumption.
+      // TODO(ezb): we could move this assumption into CommonFields::control()
+      // if we template the type-erased functions on whether the allocator is
+      // default or not.
+      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
+    }
+    return ctrl;
   }
   slot_type* slot_array(size_t capacity) const {
     return static_cast<slot_type*>(common().slot_array(capacity));
@@ -4099,7 +4168,9 @@ class raw_hash_set {
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    return SooEnabled() ? soo_slot() : to_slot(common().single_non_soo_slot());
+    // Note: we don't use common().single_non_soo_slot() here because
+    // control() is more efficient (due to separate storage assume).
+    return SooEnabled() ? soo_slot() : to_slot(control());
   }
   const slot_type* single_slot() const {
     return const_cast<raw_hash_set*>(this)->single_slot();
@@ -4498,5 +4569,6 @@ ABSL_NAMESPACE_END
 
 #undef ABSL_SWISSTABLE_ENABLE_GENERATIONS
 #undef ABSL_SWISSTABLE_ASSERT
+#undef ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE
 
 #endif  // ABSL_CONTAINER_INTERNAL_RAW_HASH_SET_H_
