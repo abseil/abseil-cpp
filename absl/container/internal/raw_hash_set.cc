@@ -519,9 +519,12 @@ inline void DoSanitizeOnSetCtrl(const CommonFields& c, size_t i, ctrl_t h,
 inline void SetCtrlNoSanitizeImpl(size_t cap, ctrl_t* ctrl, size_t i,
                                   ctrl_t h) {
   ABSL_SWISSTABLE_ASSERT(i < cap);
-  // Note: writing the cloned byte first results in better generated code.
-  ctrl[i < NumClonedBytes() ? i + cap + 1 : i] = h;
+  // Select the base pointer rather than the index so `ctrl + cap + 1` does not
+  // depend on `i`. When inlined, it can reuse `ctrl + cap` from `slot_array`
+  // and be hoisted out of loops.
+  ctrl_t* cloned_ctrl_base = i < NumClonedBytes() ? ctrl + cap + 1 : ctrl;
   ctrl[i] = h;
+  cloned_ctrl_base[i] = h;
 }
 
 inline void SetCtrl(const CommonFields& c, size_t cap, ctrl_t* ctrl, size_t i,
