@@ -187,6 +187,100 @@ TEST(SampleRecorderTest, Callback) {
   sampler.Unregister(info2);
 }
 
+TEST(SampleRecorderTest, ConcurrentChurnResurrectionAndIteration) {
+  SampleRecorder<Info> sampler;
+  static std::atomic<int64_t> disposed_count{0};
+  disposed_count.store(0, std::memory_order_relaxed);
+  sampler.SetDisposeCallback([](const Info& info) {
+    EXPECT_GE(info.weight, 100);
+    disposed_count.fetch_add(1, std::memory_order_relaxed);
+  });
+
+  Notification stop;
+  ThreadPool pool(8);
+  for (int t = 0; t < 6; ++t) {
+    pool.Schedule([&sampler, &stop, t]() {
+      const int64_t w = 100 + t;
+      while (!stop.HasBeenNotified()) {
+        Info* a = sampler.Register(w);
+        Info* b = sampler.Register(w);
+        ASSERT_NE(a, nullptr);
+        ASSERT_NE(b, nullptr);
+        ASSERT_NE(a, b);
+        a->size.store(static_cast<size_t>(t + 1), std::memory_order_release);
+        b->size.store(static_cast<size_t>(t + 1), std::memory_order_release);
+        sampler.Unregister(a);
+        sampler.Unregister(b);
+      }
+    });
+  }
+  for (int t = 0; t < 2; ++t) {
+    pool.Schedule([&sampler, &stop]() {
+      while (!stop.HasBeenNotified()) {
+        sampler.Iterate([](const Info& info) {
+          EXPECT_GE(info.weight, 100);
+          EXPECT_LT(info.weight, 106);
+        });
+      }
+    });
+  }
+  absl::SleepFor(absl::Milliseconds(500));
+  stop.Notify();
+  sampler.SetDisposeCallback(nullptr);
+  EXPECT_GT(disposed_count.load(std::memory_order_relaxed), 0);
+}
+
+TEST(SampleRecorderTest, CrossThreadShardStealingAndMaxSamples) {
+  SampleRecorder<Info> sampler;
+  // Register() checks `size > max_samples_` where `size` is pre-increment, so
+  // max_samples = 7 allows indices 0..7 (8 concurrent live samples).
+  sampler.SetMaxSamples(7);
+
+  // Unregister samples from one worker thread and resurrect them all from
+  // a different thread to exercise cross-shard graveyard stealing and soft
+  // max_samples enforcement without leaking or duplicating nodes.
+  std::vector<Info*> seeded;
+  {
+    ThreadPool producer_pool(1);
+    Notification done;
+    producer_pool.Schedule([&]() {
+      for (int i = 0; i < 8; ++i) {
+        Info* s = sampler.Register(200 + i);
+        ASSERT_NE(s, nullptr);
+        seeded.push_back(s);
+      }
+      for (Info* s : seeded) {
+        sampler.Unregister(s);
+      }
+      done.Notify();
+    });
+    done.WaitForNotification();
+  }
+
+  std::vector<Info*> resurrected;
+  for (int i = 0; i < 8; ++i) {
+    Info* s = sampler.Register(300 + i);
+    ASSERT_NE(s, nullptr);
+    resurrected.push_back(s);
+  }
+  // Every sample must have been stolen from the producer's graveyard shard
+  // rather than allocating duplicate heap entries.
+  std::sort(seeded.begin(), seeded.end());
+  std::vector<Info*> sorted_resurrected = resurrected;
+  std::sort(sorted_resurrected.begin(), sorted_resurrected.end());
+  EXPECT_EQ(seeded, sorted_resurrected);
+
+  // Exceeding max_samples drops registrations cleanly and tracks dropped count.
+  EXPECT_EQ(sampler.Register(999), nullptr);
+  size_t live = 0;
+  EXPECT_EQ(sampler.Iterate([&](const Info&) { ++live; }), 1);
+  EXPECT_EQ(live, 8);
+
+  for (Info* s : resurrected) {
+    sampler.Unregister(s);
+  }
+}
+
 }  // namespace
 }  // namespace profiling_internal
 ABSL_NAMESPACE_END
