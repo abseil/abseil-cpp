@@ -67,6 +67,12 @@ CpuType GetCpuType();
 // tuning.
 bool SupportsArmCRC32PMULL();
 
+// Returns whether the host CPU supports ARM SHA3 instructions (e.g., EOR3).
+bool SupportsArmSHA3();
+
+// Returns whether the host CPU and OS support AVX2 instructions.
+bool SupportsAvx2();
+
 // Returns whether the host CPU supports BMI2 instructions.
 bool SupportsBmi2();
 
