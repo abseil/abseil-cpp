@@ -1361,6 +1361,26 @@ TEST(Mutex, DeadlockIdBug) ABSL_NO_THREAD_SAFETY_ANALYSIS {
 // be compiled in. Under TSAN, the lock cycles they create would also trigger
 // TSAN's own reports.
 #if !defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
+TEST(Mutex, DeadlockDetectorReportsCycle) ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+        absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+        absl::Mutex a;
+        absl::Mutex b;
+        // Record a -> b. a is acquired with try_lock() while no other lock is
+        // held, so its hold must be recorded without a deadlock check.
+        ASSERT_TRUE(a.try_lock());
+        b.lock();
+        b.unlock();
+        a.unlock();
+        // Acquiring a while holding b closes the cycle.
+        b.lock();
+        a.lock();
+      },
+      "dying due to potential deadlock");
+}
+
 // ForgetDeadlockInfo(), which ~Mutex() also calls, must remove the lock order
 // recorded for the Mutex, including by other threads.
 TEST(Mutex, ForgetDeadlockInfoForgetsLockOrder)
