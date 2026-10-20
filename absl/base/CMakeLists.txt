@@ -367,6 +367,7 @@ absl_cc_library(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::memory
     absl::meta
     absl::pretty_function
