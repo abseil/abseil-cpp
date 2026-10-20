@@ -83,8 +83,7 @@ build:tsan --build_tag_filters=-notsan
 test:tsan --test_tag_filters=-benchmark,-notsan
 
 # Remote build configuration for CI.
-build:remote-cache --remote_cache=grpcs://us-east1-remotebuildexecution.googleapis.com
-build:remote-cache --remote_instance_name=projects/google.com:absl-177019/instances/absl-ci-east
+build:remote-cache --remote_cache=https://storage.googleapis.com/absl-bazel-remote-cache
 build:remote-cache --remote_timeout=1200 --bes_timeout=600s
 build:remote-cache --remote_download_minimal
 # Retry up for up to 15 minutes under heavy load (exponential backoff).

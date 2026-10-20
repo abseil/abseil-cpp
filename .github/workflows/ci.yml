@@ -202,7 +202,7 @@ jobs:
   all-blocking-tests:
     name: All Blocking Tests
     needs: [linux, cmake, windows, macos]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check for cancellations
         if: ${{ contains(join(needs.*.result, ' '), 'cancelled') }}
