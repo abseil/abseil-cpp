@@ -1863,29 +1863,39 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
 void* GrowToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_hash) {
+  ABSL_SWISSTABLE_ASSERT(
+      common.GetGrowthLeftTotalSlow(common.capacity()) == 0);
+  ABSL_SWISSTABLE_ASSERT(common.capacity() > policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(common.capacity()));
+
+  // Call `get_char_alloc` first so no local variables need to be spilled
+  // across the indirect call, which may alias `common`.
+  void* alloc = policy.get_char_alloc(common);
   const size_t old_capacity = common.capacity();
-  ABSL_SWISSTABLE_ASSERT(common.GetGrowthLeftTotalSlow(old_capacity) == 0);
-  ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
-  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(old_capacity));
   ABSL_ASSUME(old_capacity > kMaxSmallCapacity);
 
   const size_t new_capacity = NextCapacity(old_capacity);
   ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
-  ctrl_t* old_ctrl = common.control();
-  void* old_slots = common.slot_array(old_capacity);
-  size_t old_blocked_element_count = common.blocked_element_count();
-
   const bool has_infoz = common.has_infoz();
-  common.set_capacity(new_capacity);
-  common.set_blocked_element_count_to_zero();
-  const size_t slot_size = policy.slot_size;
-  const size_t slot_align = policy.slot_align;
-  void* alloc = policy.get_char_alloc(common);
 
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
                         /*blocked_element_count=*/0);
+  // Read old `common` fields after `AllocBackingArray` to avoid spilling them
+  // across the call.
+  ctrl_t* old_ctrl = common.control();
+  void* old_slots = common.slot_array(old_capacity);
+  size_t old_blocked_element_count = common.blocked_element_count();
+  const size_t old_size = common.size();
+
+  // Group all `common` updates together so `inline_data_` is modified in a
+  // single load-store sequence.
+  common.set_capacity(new_capacity);
+  common.set_blocked_element_count_to_zero();
   common.set_control(new_ctrl);
+  PrepareInsertCommon(common);
+  ResetGrowthLeft(new_capacity, old_size + 1, common);
+  const size_t slot_size = policy.slot_size;
   SanitizerPoisonMemoryRegion(new_slots, new_capacity * slot_size);
 
   h2_t new_h2 = H2(new_hash);
@@ -1893,7 +1903,6 @@ void* GrowToNextCapacityAndPrepareInsert(
   FindInfo find_info;
   if (ABSL_PREDICT_TRUE(is_single_group(new_capacity))) {
     size_t offset;
-    const size_t old_size = common.size();
     GrowIntoSingleGroupShuffleControlBytes(old_ctrl, old_capacity,
                                            old_blocked_element_count, new_ctrl,
                                            new_capacity);
@@ -1903,11 +1912,11 @@ void* GrowToNextCapacityAndPrepareInsert(
 
     ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[offset]));
     SetCtrlInSingleGroupTable(common, new_capacity, new_ctrl, offset, new_h2,
-                              policy.slot_size);
+                              slot_size);
     find_info = FindInfo{offset, 0};
     // Single group tables have all slots full on resize. So we can transfer
     // all slots without checking the control bytes.
-    ABSL_SWISSTABLE_ASSERT(common.size() + old_blocked_element_count ==
+    ABSL_SWISSTABLE_ASSERT(old_size + old_blocked_element_count ==
                            old_capacity);
     void* target = NextSlot(new_slots, slot_size);
     SanitizerUnpoisonMemoryRegion(target, old_size * slot_size);
@@ -1917,12 +1926,9 @@ void* GrowToNextCapacityAndPrepareInsert(
         GrowToNextCapacityDispatch(common, policy, old_ctrl, old_slots);
     find_info = find_first_non_full(new_capacity, new_ctrl, new_hash);
     SetCtrl(common, new_capacity, new_ctrl, find_info.offset, new_h2,
-            policy.slot_size);
+            slot_size);
   }
   ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
-
-  PrepareInsertCommon(common);
-  ResetGrowthLeft(new_capacity, common.size(), common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportGrowthToInfoz(common, old_ctrl, new_hash, total_probe_length,
@@ -1930,9 +1936,10 @@ void* GrowToNextCapacityAndPrepareInsert(
   }
   // Deallocate after `ReportGrowthToInfoz`, because it reads infoz from
   // old_ctrl.
-  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size, slot_align,
-                          has_infoz, old_blocked_element_count, policy.dealloc);
-  return SlotAddress(new_slots, find_info.offset, policy.slot_size);
+  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size,
+                          policy.slot_align, has_infoz,
+                          old_blocked_element_count, policy.dealloc);
+  return SlotAddress(new_slots, find_info.offset, slot_size);
 }
 
 }  // namespace
