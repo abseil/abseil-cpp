@@ -964,12 +964,21 @@ class HashtableInlineData {
 #endif
 
   // Returns the `index`-th byte of `data_`. Accessing the storage through
-  // `unsigned char` is always allowed by the aliasing rules. Note: the reason
-  // we read the data this way rather than using bit manipulations as with other
-  // fields is that it results in better generated code (we get movzbl to read
-  // the seed this way).
+  // `unsigned char` is always allowed by the aliasing rules. Note: on x86, the
+  // reason we read the data this way rather than using bit manipulations as
+  // with other fields is that it results in better generated code (we get
+  // movzbl to read the seed this way). On other architectures (such as
+  // AArch64), byte loads prevent load-pair (ldp) of `inline_data_` with
+  // `control_` and introduce narrow loads after 64-bit stores to `data_`, so we
+  // use bit shifts on the wide word instead.
   uint8_t read_byte(size_t index) const {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
+    defined(_M_IX86)
     return reinterpret_cast<const unsigned char*>(&data_)[index];
+#else
+    return static_cast<uint8_t>(little_endian::FromHost64(data_) >>
+                                (8 * index));
+#endif
   }
 
   // Returns the bits of `data_` that encode `capacity`.
