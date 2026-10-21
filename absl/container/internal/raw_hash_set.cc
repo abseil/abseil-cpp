@@ -1817,21 +1817,15 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(common.blocked_element_count() == 0);
   constexpr size_t kOldCapacity = 1;
   constexpr size_t kNewCapacity = NextCapacity(kOldCapacity);
-  void* old_slots = common.single_non_soo_slot();
-  // old_slots == old_ctrl in case of capacity == 1.
-  ctrl_t* old_ctrl = static_cast<ctrl_t*>(old_slots);
 
-  const size_t slot_size = policy.slot_size;
-  const size_t slot_align = policy.slot_align;
+  // Call `get_char_alloc` first so no local variables need to be spilled
+  // across the indirect call, which may alias `common`.
   void* alloc = policy.get_char_alloc(common);
   const bool has_infoz = common.has_infoz();
-  common.set_capacity(kNewCapacity);
 
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc,
                         /*blocked_element_count=*/0);
-  common.set_control(new_ctrl);
-  SanitizerPoisonMemoryRegion(new_slots, kNewCapacity * slot_size);
 
   if (ABSL_PREDICT_TRUE(!has_infoz)) {
     // When we're sampled, we already have a seed.
@@ -1839,29 +1833,45 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   }
   const size_t new_hash = get_hash(hasher, common.seed().seed());
   h2_t new_h2 = H2(new_hash);
-  size_t orig_hash =
-      policy.hash_slot(policy.hash_fn(common), old_slots, common.seed().seed());
+  // `hash_fn` is in separate statement, so the hash_slot function pointer is
+  // not loaded before the hash_fn call.
+  const void* hash_fn = policy.hash_fn(common);
+  size_t orig_hash = policy.hash_slot(
+      hash_fn, common.single_non_soo_slot(), common.seed().seed());
   size_t offset = Resize1To3NewOffset(new_hash);
   InitializeThreeElementsControlBytes(H2(orig_hash), new_h2, offset, new_ctrl);
 
+  // Read `old_slots` and `slot_size` after the hash calls to avoid keeping
+  // them live across indirect calls.
+  void* old_slots = common.single_non_soo_slot();
+  // old_slots == old_ctrl in case of capacity == 1.
+  ctrl_t* old_ctrl = static_cast<ctrl_t*>(old_slots);
+  common.set_control(new_ctrl);
+  const size_t slot_size = policy.slot_size;
+  SanitizerPoisonMemoryRegion(new_slots, kNewCapacity * slot_size);
+
   void* old_element_target = NextSlot(new_slots, slot_size);
+  // Compute `new_element_target_slot` before `transfer_n` to free up registers
+  // of `new_slots` and `offset`.
+  void* new_element_target_slot = SlotAddress(new_slots, offset, slot_size);
   SanitizerUnpoisonMemoryRegion(old_element_target, slot_size);
   policy.transfer_n(&common, old_element_target, old_slots, 1);
-
-  void* new_element_target_slot = SlotAddress(new_slots, offset, slot_size);
   SanitizerUnpoisonMemoryRegion(new_element_target_slot, slot_size);
 
+  // Group `common` updates together so `inline_data_` is modified in a single
+  // load-store sequence.
+  common.set_capacity(kNewCapacity);
+  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
   PrepareInsertCommon(common);
   ABSL_SWISSTABLE_ASSERT(common.size() == 2);
-  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
     ReportSingleGroupTableGrowthToInfoz(common, old_ctrl, new_hash);
   }
   // Deallocate after `ReportSingleGroupTableGrowthToInfoz`, because it reads
   // infoz from old_ctrl.
-  DeallocBackingArrayImpl(alloc, kOldCapacity, old_ctrl, slot_size, slot_align,
-                          has_infoz,
+  DeallocBackingArrayImpl(alloc, kOldCapacity, old_ctrl, slot_size,
+                          policy.slot_align, has_infoz,
                           /*blocked_element_count=*/0, policy.dealloc);
   return new_element_target_slot;
 }
@@ -1976,7 +1986,6 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(common.capacity() == 0);
   constexpr size_t kNewCapacity = 1;
 
-  common.set_capacity(kNewCapacity);
   const bool has_infoz =
       policy.is_hashtablez_enabled && ShouldSampleNextTable();
   void* alloc = policy.get_char_alloc(common);
@@ -1984,6 +1993,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc,
                         /*blocked_element_count=*/0);
+  common.set_capacity(kNewCapacity);
   common.set_control(new_ctrl);
 
   static_assert(NextCapacity(0) == 1);
@@ -2264,10 +2274,16 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   }
   ABSL_SWISSTABLE_ASSERT(common.size() == policy.soo_capacity());
   static constexpr size_t kNewCapacity = NextCapacity(SooCapacity());
-  const size_t slot_size = policy.slot_size;
-  void* alloc = policy.get_char_alloc(common);
-  common.set_capacity(kNewCapacity);
+  // Generate the seed and compute hashes before `AllocBackingArray` so
+  // `hasher`, `get_hash`, and `new_ctrl`/`new_slots` do not need to be spilled
+  // across calls.
+  common.generate_new_seed(/*has_infoz=*/false);
+  const size_t new_hash = get_hash(hasher, common.seed().seed());
+  const void* hash_fn = policy.hash_fn(common);
+  const h2_t soo_slot_h2 =
+      H2(policy.hash_slot(hash_fn, common.soo_data(), common.seed().seed()));
 
+  void* alloc = policy.get_char_alloc(common);
   // Since the table is not empty, it will not be sampled.
   // The decision to sample was already made during the first insertion.
   //
@@ -2276,21 +2292,21 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   const auto [new_ctrl, new_slots] = AllocBackingArray(
       common, policy, kNewCapacity, /*has_infoz=*/false, alloc,
       /*blocked_element_count=*/0);
-
+  // Group `common` updates together after `AllocBackingArray` so `inline_data_`
+  // is modified in a single load-store sequence.
+  common.set_capacity(kNewCapacity);
+  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
   PrepareInsertCommon(common);
   ABSL_SWISSTABLE_ASSERT(common.size() == 2);
-  common.InitGrowthLeftNoDeleted(kNewCapacity - 2, kNewCapacity);
-  common.generate_new_seed(/*has_infoz=*/false);
-  const h2_t soo_slot_h2 = H2(policy.hash_slot(
-      policy.hash_fn(common), common.soo_data(), common.seed().seed()));
-  const size_t new_hash = get_hash(hasher, common.seed().seed());
 
   const size_t offset = Resize1To3NewOffset(new_hash);
   InitializeThreeElementsControlBytes(soo_slot_h2, H2(new_hash), offset,
                                       new_ctrl);
 
+  const size_t slot_size = policy.slot_size;
   SanitizerPoisonMemoryRegion(new_slots, slot_size * kNewCapacity);
   void* target_slot = SlotAddress(new_slots, SooSlotIndex(), slot_size);
+  void* new_slot = SlotAddress(new_slots, offset, slot_size);
   SanitizerUnpoisonMemoryRegion(target_slot, slot_size);
   if constexpr (TransferUsesMemcpy) {
     // Target slot is placed at index 1, but capacity is at
@@ -2314,7 +2330,6 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   // Full SOO table couldn't be sampled. If SOO table is sampled, it would
   // have been resized to the next capacity.
   ABSL_SWISSTABLE_ASSERT(!common.infoz().IsSampled());
-  void* new_slot = SlotAddress(new_slots, offset, slot_size);
   SanitizerUnpoisonMemoryRegion(new_slot, slot_size);
   return new_slot;
 }
