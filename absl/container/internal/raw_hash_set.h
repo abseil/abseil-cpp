@@ -1273,6 +1273,13 @@ class RawHashSetLayout {
     alloc_size_ = slot_offset_ + (capacity - blocked_element_count) * slot_size;
   }
 
+  // Creates a layout for a small non-SOO table growing from capacity
+  // 0 -> 1 (`size == 0`) or 1 -> 3 (`size == 1`).
+  static RawHashSetLayout CreateForSmallNonSooGrowth(size_t size,
+                                                     size_t slot_size,
+                                                     size_t slot_align,
+                                                     bool has_infoz);
+
   // Returns precomputed offset from the start of the backing allocation of
   // control.
   size_t control_offset() const { return control_offset_; }
@@ -1290,6 +1297,8 @@ class RawHashSetLayout {
   size_t alloc_size() const { return alloc_size_; }
 
  private:
+  explicit RawHashSetLayout(uninitialized_tag_t) {}
+
   size_t control_offset_;
   size_t generation_offset_;
   size_t slot_offset_;

@@ -1170,10 +1170,8 @@ struct BackingArrayPtrs {
 
 BackingArrayPtrs AllocBackingArray(CommonFields& common,
                                    const PolicyFunctions& __restrict policy,
-                                   size_t new_capacity, bool has_infoz,
-                                   void* alloc, size_t blocked_element_count) {
-  RawHashSetLayout layout(new_capacity, policy.slot_size, policy.slot_align,
-                          has_infoz, blocked_element_count);
+                                   const RawHashSetLayout& layout,
+                                   void* alloc) {
   // Perform a direct call in the common case to allow for profile-guided
   // heap optimization (PGHO) to understand which allocation function is used.
   constexpr size_t kDefaultAlignment = BackingArrayAlignment(alignof(size_t));
@@ -1191,6 +1189,17 @@ BackingArrayPtrs AllocBackingArray(CommonFields& common,
 
   return {reinterpret_cast<ctrl_t*>(mem + layout.control_offset()),
           mem + layout.slot_offset()};
+}
+
+BackingArrayPtrs AllocBackingArray(CommonFields& common,
+                                   const PolicyFunctions& __restrict policy,
+                                   size_t new_capacity, bool has_infoz,
+                                   void* alloc, size_t blocked_element_count) {
+  return AllocBackingArray(
+      common, policy,
+      RawHashSetLayout(new_capacity, policy.slot_size, policy.slot_align,
+                       has_infoz, blocked_element_count),
+      alloc);
 }
 
 void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
@@ -1807,7 +1816,8 @@ void IncrementSmallSize(CommonFields& common,
 
 void* Grow1To3AndPrepareInsert(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               void* hasher, HashForKeyFn get_hash) {
+                               void* hasher, HashForKeyFn get_hash, void* alloc,
+                               bool has_infoz, void* new_slots) {
   // TODO(b/413062340): Refactor to reuse more code with
   // GrowSooTableToNextCapacityAndPrepareInsert.
   ABSL_SWISSTABLE_ASSERT(common.capacity() == 1);
@@ -1817,15 +1827,8 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(common.blocked_element_count() == 0);
   constexpr size_t kOldCapacity = 1;
   constexpr size_t kNewCapacity = NextCapacity(kOldCapacity);
-
-  // Call `get_char_alloc` first so no local variables need to be spilled
-  // across the indirect call, which may alias `common`.
-  void* alloc = policy.get_char_alloc(common);
-  const bool has_infoz = common.has_infoz();
-
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
+  ctrl_t* new_ctrl =
+      static_cast<ctrl_t*>(new_slots) - NumControlBytes(kNewCapacity);
 
   if (ABSL_PREDICT_TRUE(!has_infoz)) {
     // When we're sampled, we already have a seed.
@@ -1961,49 +1964,86 @@ void* GrowToNextCapacityAndPrepareInsert(
 
 }  // namespace
 
+RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
+                                                              size_t slot_size,
+                                                              size_t slot_align,
+                                                              bool has_infoz) {
+  ABSL_SWISSTABLE_ASSERT(size <= 1);
+  static_assert(NumControlBytes(1) == 0);
+  const size_t num_control_bytes = size * NumControlBytes(3);
+  static_assert(NextCapacity(0) == 1);
+  static_assert(NextCapacity(1) == 3);
+  const size_t new_capacity = NextCapacity(size);
+  const size_t slots_size = new_capacity * slot_size;
+
+  // Since `GrowthInfoSizeForCapacity` is 0 for capacities 1 and 3, compute
+  // `metadata_size` directly without `MetadataBeforeControlSize` to avoid its
+  // `ABSL_PREDICT_FALSE(has_infoz)` branch and allow a branchless shift.
+  static_assert(GrowthInfoSizeForCapacity(1) == 0);
+  static_assert(GrowthInfoSizeForCapacity(3) == 0);
+  const size_t metadata_size =
+      (has_infoz ? sizeof(HashtablezInfoHandle) + sizeof(uint64_t) : 0) +
+      NumGenerationBytes();
+  ABSL_SWISSTABLE_ASSERT(metadata_size ==
+                         MetadataBeforeControlSize(has_infoz, new_capacity));
+
+  RawHashSetLayout layout(uninitialized_tag_t{});
+  layout.slot_offset_ =
+      AlignUpTo(metadata_size + num_control_bytes, slot_align);
+  layout.control_offset_ = layout.slot_offset_ - num_control_bytes;
+  layout.generation_offset_ = layout.control_offset_ - NumGenerationBytes();
+  layout.alloc_size_ = layout.slot_offset_ + slots_size;
+  return layout;
+}
+
 void* PrepareInsertSmallNonSoo(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
                                void* hasher, HashForKeyFn get_hash) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   ABSL_SWISSTABLE_ASSERT(!policy.soo_enabled);
-  if (common.capacity() == 1) {
-    if (common.empty()) {
-      IncrementSmallSizeNonSoo(common, policy);
-      // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
-      void* res = common.single_non_soo_slot();
-      // Call NOINLINE function to move infoz instructions out of line.
-      if (common.has_infoz()) {
-        ReportInsertMissToInfozAndComputeHash(common, /*probe_length=*/0,
-                                              hasher, get_hash);
-      }
-      return res;
-    } else {
-      return Grow1To3AndPrepareInsert(common, policy, hasher, get_hash);
+  const bool is_empty = common.empty();
+  if (common.capacity() == 1 && is_empty) {
+    IncrementSmallSizeNonSoo(common, policy);
+    // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
+    void* res = common.single_non_soo_slot();
+    // Call NOINLINE function to move infoz instructions out of line.
+    if (common.has_infoz()) {
+      ReportInsertMissToInfozAndComputeHash(common, /*probe_length=*/0, hasher,
+                                            get_hash);
     }
+    return res;
   }
 
-  // Growing from 0 to 1 capacity.
-  ABSL_SWISSTABLE_ASSERT(common.capacity() == 0);
-  constexpr size_t kNewCapacity = 1;
-
+  const size_t size = common.size();
   const bool has_infoz =
-      policy.is_hashtablez_enabled && ShouldSampleNextTable();
+      is_empty ? (policy.is_hashtablez_enabled && ShouldSampleNextTable())
+               : common.has_infoz();
   void* alloc = policy.get_char_alloc(common);
+  void* new_slots =
+      AllocBackingArray(
+          common, policy,
+          RawHashSetLayout::CreateForSmallNonSooGrowth(
+              size, policy.slot_size, policy.slot_align, has_infoz),
+          alloc)
+          .slots;
+  if (is_empty) {
+    // Growing from 0 to 1 capacity.
+    ABSL_SWISSTABLE_ASSERT(common.capacity() == 0);
+    constexpr size_t kNewCapacity = 1;
+    common.set_capacity(kNewCapacity);
+    common.set_control(static_cast<ctrl_t*>(new_slots));
 
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, kNewCapacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
-  common.set_capacity(kNewCapacity);
-  common.set_control(new_ctrl);
+    static_assert(NextCapacity(0) == 1);
+    PrepareInsertCommon(common);
 
-  static_assert(NextCapacity(0) == 1);
-  PrepareInsertCommon(common);
-
-  if (ABSL_PREDICT_FALSE(has_infoz)) {
-    ReportSingleElementTableGrowthToInfozAndForceSample(common, policy, hasher,
-                                                        get_hash);
+    if (ABSL_PREDICT_FALSE(has_infoz)) {
+      ReportSingleElementTableGrowthToInfozAndForceSample(
+          common, policy, hasher, get_hash);
+    }
+    return new_slots;
   }
-  return new_slots;
+  return Grow1To3AndPrepareInsert(common, policy, hasher, get_hash, alloc,
+                                  has_infoz, new_slots);
 }
 
 namespace {
