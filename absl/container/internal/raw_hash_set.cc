@@ -1021,6 +1021,33 @@ void AssertHashEqConsistentImpl(CommonFields& common, const void* hash_fn,
 
 namespace {
 
+// Finds the first non-full slot in the probe sequence of `h1` in the large
+// table with control bytes `new_ctrl`, marks it as full with `h2` and transfers
+// `src_slot` into it. `new_ctrl` is passed explicitly rather than read from `c`
+// so that the function can be used while `c` still stores SOO data in place of
+// the control pointer.
+// This function is shared by the cold paths that move elements to new
+// positions (growth of probed elements, rehash and reserve).
+// Returns the probe length.
+ABSL_ATTRIBUTE_NOINLINE size_t TransferSlotToNewPosition(
+    CommonFields& c, const PolicyFunctions& __restrict policy, ctrl_t* new_ctrl,
+    void* src_slot, size_t h1, h2_t h2) {
+  const size_t new_capacity = c.capacity();
+  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(new_capacity));
+  const FindInfo target =
+      find_first_non_full_from_h1(new_capacity, new_ctrl, h1);
+  ABSL_SWISSTABLE_ASSERT(IsEmptyOrDeleted(new_ctrl[target.offset]));
+  SetCtrlNoSanitizeImpl(new_capacity, new_ctrl, target.offset,
+                        static_cast<ctrl_t>(h2));
+  const size_t slot_size = policy.slot_size;
+  void* dst_slot =
+      SlotAddress(new_ctrl + NumControlBytesForLargeTable(new_capacity),
+                  target.offset, slot_size);
+  SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
+  policy.transfer_n(&c, dst_slot, src_slot, 1);
+  return target.probe_length;
+}
+
 // Iterates over full slots in the old table, finds new positions for them and
 // transfers the slots to the new backing array (`new_ctrl`, `new_slots`).
 // `common` must already have the new capacity and the new seed. `new_ctrl` and
@@ -1038,20 +1065,14 @@ size_t FindNewPositionsAndTransferSlots(
   const size_t seed = common.seed().seed();
   const size_t new_capacity = common.capacity();
 
-  const auto insert_slot = [&](void* slot) {
-    size_t hash = policy.hash_slot(hash_fn, slot, seed);
-    FindInfo target;
+  const auto insert_slot = [&](void* slot) -> size_t {
     if (IsSmallCapacity(new_capacity)) {
-      target = FindInfo{0, 0};
-    } else {
-      target = find_first_non_full(new_capacity, new_ctrl, hash);
-      SetCtrlNoSanitizeImpl(new_capacity, new_ctrl, target.offset,
-                            static_cast<ctrl_t>(H2(hash)));
+      policy.transfer_n(&common, new_slots, slot, 1);
+      return 0;
     }
-    void* target_slot = SlotAddress(new_slots, target.offset, slot_size);
-    SanitizerUnpoisonMemoryRegion(target_slot, slot_size);
-    policy.transfer_n(&common, target_slot, slot, 1);
-    return target.probe_length;
+    const size_t hash = policy.hash_slot(hash_fn, slot, seed);
+    return TransferSlotToNewPosition(common, policy, new_ctrl, slot, H1(hash),
+                                     H2(hash));
   };
   if (IsSmallCapacity(old_capacity)) {
     if (common.size() == 1) insert_slot(old_slots);
@@ -1480,30 +1501,15 @@ ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
     CommonFields& c, const PolicyFunctions& __restrict policy,
     const ProbedItem* start, const ProbedItem* end, void* old_slots) {
   ABSL_SWISSTABLE_ASSERT(!c.is_small());
-  const size_t new_capacity = c.capacity();
-
-  void* new_slots = c.slot_array(new_capacity);
   ctrl_t* new_ctrl = c.control();
-  size_t total_probe_length = 0;
-
   const size_t slot_size = policy.slot_size;
-  auto transfer_n = policy.transfer_n;
-
+  size_t total_probe_length = 0;
   for (; start < end; ++start) {
-    const FindInfo target = find_first_non_full_from_h1(
-        new_capacity, new_ctrl, static_cast<size_t>(start->h1));
-    total_probe_length += target.probe_length;
     const size_t old_index = static_cast<size_t>(start->source_offset);
-    const size_t new_i = target.offset;
-    ABSL_SWISSTABLE_ASSERT(old_index < new_capacity / 2);
-    ABSL_SWISSTABLE_ASSERT(new_i < new_capacity);
-    ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_i]));
-    void* src_slot = SlotAddress(old_slots, old_index, slot_size);
-    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
-    transfer_n(&c, dst_slot, src_slot, 1);
-    SetCtrl(c, new_capacity, new_ctrl, new_i, static_cast<h2_t>(start->h2),
-            slot_size);
+    ABSL_SWISSTABLE_ASSERT(old_index < c.capacity() / 2);
+    total_probe_length += TransferSlotToNewPosition(
+        c, policy, new_ctrl, SlotAddress(old_slots, old_index, slot_size),
+        static_cast<size_t>(start->h1), static_cast<h2_t>(start->h2));
   }
   return total_probe_length;
 }
@@ -1521,11 +1527,9 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     void* old_slots, size_t start) {
   const size_t old_capacity = PreviousCapacity(c.capacity());
   const size_t slot_size = policy.slot_size;
-  void* new_slots = c.slot_array(c.capacity());
   size_t total_probe_length = 0;
   const void* hash_fn = policy.hash_fn(c);
   auto hash_slot = policy.hash_slot;
-  auto transfer_n = policy.transfer_n;
   const size_t seed = c.seed().seed();
   for (size_t old_index = start; old_index < old_capacity; ++old_index) {
     if (old_ctrl[old_index] != ctrl_t::kMarkedForSlowTransfer) {
@@ -1533,14 +1537,8 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     }
     void* src_slot = SlotAddress(old_slots, old_index, slot_size);
     const size_t hash = hash_slot(hash_fn, src_slot, seed);
-    const size_t new_capacity = c.capacity();
-    ctrl_t* new_ctrl = c.control();
-    const FindInfo target = find_first_non_full(new_capacity, new_ctrl, hash);
-    total_probe_length += target.probe_length;
-    const size_t new_i = target.offset;
-    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SetCtrl(c, new_capacity, new_ctrl, new_i, H2(hash), slot_size);
-    transfer_n(&c, dst_slot, src_slot, 1);
+    total_probe_length += TransferSlotToNewPosition(
+        c, policy, c.control(), src_slot, H1(hash), H2(hash));
   }
   return total_probe_length;
 }
