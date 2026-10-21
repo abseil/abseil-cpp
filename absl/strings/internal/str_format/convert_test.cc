@@ -47,6 +47,7 @@
 #include "absl/strings/internal/str_format/arg.h"
 #include "absl/strings/internal/str_format/bind.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -415,11 +416,11 @@ MATCHER_P(MatchesPointerString, ptr, "") {
   if (ptr == nullptr && arg == "(nil)") {
     return true;
   }
-  void* parsed = nullptr;
-  if (sscanf(arg.c_str(), "%p", &parsed) != 1) {
+  uintptr_t parsed = 0;
+  if (!absl::SimpleHexAtoi(arg, &parsed)) {
     LOG(FATAL) << "Could not parse " << arg;
   }
-  return ptr == parsed;
+  return ptr == reinterpret_cast<void*>(parsed);
 }
 
 TEST_F(FormatConvertTest, Pointer) {
