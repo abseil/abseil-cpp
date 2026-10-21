@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
@@ -54,15 +55,23 @@ string_view ExtractStringification(StringifySink& sink, const T& v) {
   return sink.buffer_;
 }
 
+ABSL_ATTRIBUTE_NOINLINE void StringifySourceLocation(StringifySink& sink,
+                                                     SourceLocation l);
+
 }  // namespace strings_internal
 
 template <typename Sink>
 void AbslStringify(Sink& sink, SourceLocation l) {
-  sink.Append(l.file_name());
-  sink.Append(":");
-  std::array<char, numbers_internal::kFastToBufferSize> buffer;
-  numbers_internal::FastIntToBuffer(l.line(), buffer.data());
-  sink.Append(buffer.data());
+  if constexpr (std::is_same_v<Sink, strings_internal::StringifySink>) {
+    strings_internal::StringifySourceLocation(sink, l);
+  } else {
+    sink.Append(l.file_name());
+    std::array<char, 1 + numbers_internal::kFastToBufferSize> buffer;
+    buffer[0] = ':';
+    char* end = numbers_internal::FastIntToBuffer(l.line(), buffer.data() + 1);
+    sink.Append(absl::string_view(
+        buffer.data(), static_cast<size_t>(end - buffer.data())));
+  }
 }
 
 ABSL_NAMESPACE_END

@@ -22,6 +22,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/nullability.h"
@@ -124,6 +125,14 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
       });
 }
 
+ABSL_ATTRIBUTE_NOINLINE std::string SubstituteArray(
+    absl::string_view format, const absl::string_view* absl_nullable args_array,
+    size_t num_args) {
+  std::string result;
+  SubstituteAndAppendArray(&result, format, args_array, num_args);
+  return result;
+}
+
 Arg::Arg(const void* absl_nullable value) {
   static_assert(sizeof(scratch_) >= sizeof(value) * 2 + 2,
                 "fix sizeof(scratch_)");
@@ -143,58 +152,13 @@ Arg::Arg(const void* absl_nullable value) {
   }
 }
 
-// TODO(jorg): Don't duplicate so much code between here and str_cat.cc
-Arg::Arg(Hex hex) {
-  char* const end = &scratch_[numbers_internal::kFastToBufferSize];
-  char* writer = end;
-  uint64_t value = hex.value;
-  do {
-    *--writer = absl::numbers_internal::kHexChar[value & 0xF];
-    value >>= 4;
-  } while (value != 0);
+Arg::Arg(Hex hex)
+    : piece_(strings_internal::FormatHex(
+          hex, &scratch_[numbers_internal::kFastToBufferSize])) {}
 
-  char* beg;
-  if (end - writer < hex.width) {
-    beg = end - hex.width;
-    std::fill_n(beg, writer - beg, hex.fill);
-  } else {
-    beg = writer;
-  }
-
-  piece_ = absl::string_view(beg, static_cast<size_t>(end - beg));
-}
-
-// TODO(jorg): Don't duplicate so much code between here and str_cat.cc
-Arg::Arg(Dec dec) {
-  assert(dec.width <= numbers_internal::kFastToBufferSize);
-  char* const end = &scratch_[numbers_internal::kFastToBufferSize];
-  char* const minfill = end - dec.width;
-  char* writer = end;
-  uint64_t value = dec.value;
-  bool neg = dec.neg;
-  while (value > 9) {
-    *--writer = '0' + (value % 10);
-    value /= 10;
-  }
-  *--writer = '0' + static_cast<char>(value);
-  if (neg) *--writer = '-';
-
-  ptrdiff_t fillers = writer - minfill;
-  if (fillers > 0) {
-    // Tricky: if the fill character is ' ', then it's <fill><+/-><digits>
-    // But...: if the fill character is '0', then it's <+/-><fill><digits>
-    bool add_sign_again = false;
-    if (neg && dec.fill == '0') {  // If filling with '0',
-      ++writer;                    // ignore the sign we just added
-      add_sign_again = true;       // and re-add the sign later.
-    }
-    writer -= fillers;
-    std::fill_n(writer, fillers, dec.fill);
-    if (add_sign_again) *--writer = '-';
-  }
-
-  piece_ = absl::string_view(writer, static_cast<size_t>(end - writer));
-}
+Arg::Arg(Dec dec)
+    : piece_(strings_internal::FormatDec(
+          dec, &scratch_[numbers_internal::kFastToBufferSize])) {}
 
 }  // namespace substitute_internal
 ABSL_NAMESPACE_END
