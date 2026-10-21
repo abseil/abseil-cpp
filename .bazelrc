@@ -86,6 +86,10 @@ test:tsan --test_tag_filters=-benchmark,-notsan
 build:remote-cache --remote_cache=https://storage.googleapis.com/absl-bazel-remote-cache
 build:remote-cache --remote_timeout=1200 --bes_timeout=600s
 build:remote-cache --remote_download_minimal
+# cc_test puts Windows .pdb files in the pdb_file output group rather than
+# runfiles, so explicitly download symbolize_test.pdb when linking hits the
+# remote cache.
+build:remote-cache --remote_download_regex=.*symbolize_test\.pdb$
 # Retry up for up to 15 minutes under heavy load (exponential backoff).
 build:remote-cache --remote_retries=20 --remote_retry_max_delay=60s
 

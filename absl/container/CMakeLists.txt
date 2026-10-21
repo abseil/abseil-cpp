@@ -49,7 +49,7 @@ absl_cc_library(
 absl_cc_library(
   NAME
     btree_test_common
-  hdrs
+  HDRS
     "btree_test.h"
   COPTS
     ${ABSL_TEST_COPTS}

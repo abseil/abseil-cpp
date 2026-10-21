@@ -130,13 +130,15 @@ function(absl_cc_library)
   # 4. "static"  -- This target does not depend on the DLL and should be built
   #                 statically.
   if (${ABSL_BUILD_DLL})
-    if(ABSL_ENABLE_INSTALL)
-      absl_internal_dll_contains(TARGET ${_NAME} OUTPUT _in_dll)
-      absl_internal_test_dll_contains(TARGET ${_NAME} OUTPUT _in_test_dll)
-    else()
-      absl_internal_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_dll)
-      absl_internal_test_dll_contains(TARGET ${ABSL_CC_LIB_NAME} OUTPUT _in_test_dll)
-    endif()
+    absl_internal_dll_contains(
+      FILES ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS}
+      OUTPUT _in_dll
+    )
+    absl_internal_dll_contains(
+      TEST
+      FILES ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS}
+      OUTPUT _in_test_dll
+    )
     if (${_in_dll} OR ${_in_test_dll})
       # This target should be replaced by the DLL
       set(_build_type "dll")
@@ -227,17 +229,11 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
 
   if(NOT ABSL_CC_LIB_IS_INTERFACE)
     if(_build_type STREQUAL "dll_dep")
-      # This target depends on the DLL. When adding dependencies to this target,
-      # any depended-on-target which is contained inside the DLL is replaced
-      # with a dependency on the DLL.
+      # This target depends on the DLL.
       add_library(${_NAME} STATIC "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
-      absl_internal_dll_targets(
-        DEPS ${ABSL_CC_LIB_DEPS}
-        OUTPUT _dll_deps
-      )
       target_link_libraries(${_NAME}
-        PUBLIC ${_dll_deps}
+        PUBLIC ${ABSL_CC_LIB_DEPS}
         PRIVATE
           ${ABSL_CC_LIB_LINKOPTS}
           ${ABSL_DEFAULT_LINKOPTS}
@@ -427,16 +423,6 @@ function(absl_cc_test)
         ABSL_CONSUME_DLL
         ABSL_CONSUME_TEST_DLL
         GTEST_LINKED_AS_SHARED_LIBRARY=1
-    )
-
-    # Replace dependencies on targets inside the DLL with abseil_dll itself.
-    absl_internal_dll_targets(
-      DEPS ${ABSL_CC_TEST_DEPS}
-      OUTPUT ABSL_CC_TEST_DEPS
-    )
-    absl_internal_dll_targets(
-      DEPS ${ABSL_CC_TEST_LINKOPTS}
-      OUTPUT ABSL_CC_TEST_LINKOPTS
     )
   else()
     target_compile_definitions(${_NAME}
