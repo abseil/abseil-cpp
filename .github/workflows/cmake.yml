@@ -70,12 +70,20 @@ jobs:
       CFLAGS: ${{ !inputs.install_test && startsWith(inputs.os, 'ubuntu') && '-Werror' || '' }}
       CXX: ${{ startsWith(inputs.os, 'ubuntu') && 'g++' || '' }}
       CXXFLAGS: ${{ !inputs.install_test && (startsWith(inputs.os, 'ubuntu') && '-Werror' || startsWith(inputs.os, 'windows') && '-WX') || '' }}
-      CMAKE_BUILD_PARALLEL_LEVEL: 16
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ startsWith(inputs.os, 'ubuntu') && 50 || 16 }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ startsWith(inputs.os, 'ubuntu') && 'rewrapper' || 'sccache' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ startsWith(inputs.os, 'ubuntu') && 'rewrapper' || 'sccache' }}
+      CMAKE_TEST_LAUNCHER: ${{ startsWith(inputs.os, 'ubuntu') && 'rbe_test_launcher' || '' }}
       CMAKE_GENERATOR: Ninja
       CTEST_OUTPUT_ON_FAILURE: 1
-      CTEST_PARALLEL_LEVEL: 16
+      CTEST_PARALLEL_LEVEL: ${{ startsWith(inputs.os, 'ubuntu') && 50 || 16 }}
+      TZDIR: ${{ github.workspace }}/absl/time/internal/cctz/testdata/zoneinfo
+      RBE_service: us-east1-remotebuildexecution.googleapis.com:443
+      RBE_instance: projects/google.com:absl-177019/instances/absl-ci-east
+      RBE_use_application_default_credentials: true
+      RBE_exec_strategy: remote
+      RBE_exec_root: ${{ github.workspace }}
+      RBE_platform: OSArch=amd64,cache-silo-key=n2-highcpu-2-2026-10-14,container-image=docker://${{ inputs.container_image }},dockerRunAsRoot=true
       SCCACHE_GCS_BUCKET: absl-cmake-sccache
       SCCACHE_GCS_RW_MODE: READ_WRITE
       SCCACHE_IDLE_TIMEOUT: 0
@@ -98,12 +106,22 @@ jobs:
           credentials_json: ${{ secrets.GAR_SERVICE_ACCOUNT }}
 
       - name: Set up sccache
+        if: ${{ runner.os != 'Linux' }}
         uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
 
       - name: Start sccache
+        if: ${{ runner.os != 'Linux' }}
         env:
           SCCACHE_GCS_KEY_PATH: ${{ steps.auth.outputs.credentials_file_path }}
         run: sccache --start-server
+
+      - name: Start reclient (RBE)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          # CMake passes absolute source/include paths (${GITHUB_WORKSPACE}/...) to
+          # the compiler, so mount the remote input root at that same container path.
+          echo "RBE_platform=${RBE_platform},InputRootAbsolutePath=${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
+          bootstrap
 
       - name: Run installation test
         if: ${{ inputs.install_test }}
@@ -140,9 +158,11 @@ jobs:
 
       - name: Run tests
         if: ${{ !inputs.install_test }}
-        env:
-          TZDIR: ${{ github.workspace }}/absl/time/internal/cctz/testdata/zoneinfo
         run: >
           ctest --test-dir build
           --repeat until-pass:3
           ${{ runner.os == 'Windows' && '-E "absl_lifetime_test|absl_symbolize_test"' || '' }}
+
+      - name: Stop reclient (RBE)
+        if: ${{ always() && runner.os == 'Linux' }}
+        run: bootstrap --shutdown
