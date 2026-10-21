@@ -1963,18 +1963,14 @@ constexpr size_t kProbedElementIndexSentinel = ~size_t{};
 // Implementation detail of transfer_unprobed_elements_to_next_capacity_fn.
 // Tries to find the new index for an element with `hash` for growth to the next
 // capacity.
-// Returns kProbedElementIndexSentinel if full probing is required.
+// Returns kProbedElementIndexSentinel if element was probed in the table before
+// growth.
 //
 // If element is located in the first probing group in the table before growth,
 // returns one of two positions: `old_index` or `old_index + old_capacity + 1`.
-//
-// Otherwise, we will try to insert it into the first probe group of the new
-// table. We only attempt to do so if the first probe group is already
-// initialized.
 template <typename = void>
 inline size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
                                             size_t old_capacity,
-                                            ctrl_t* new_ctrl,
                                             size_t new_capacity) {
   size_t h1 = H1(hash);
   // The first probe group starts with h1 & capacity.
@@ -1986,23 +1982,6 @@ inline size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
     size_t new_index = (h1 + index_diff) & new_capacity;
     ABSL_ASSUME(new_index != kProbedElementIndexSentinel);
     return new_index;
-  }
-  ABSL_SWISSTABLE_ASSERT(((old_index - h1) & old_capacity) >= Group::kWidth);
-  // Try to insert element into the first probe group.
-  // new_ctrl is not yet fully initialized so we can't use regular search via
-  // find_first_non_full.
-
-  // We can search in the first probe group only if it is located in already
-  // initialized part of the table.
-  if (ABSL_PREDICT_FALSE((h1 & old_capacity) >= old_index)) {
-    return kProbedElementIndexSentinel;
-  }
-  size_t offset = h1 & new_capacity;
-  Group new_g(new_ctrl + offset);
-  if (auto mask = new_g.MaskNonFull(); ABSL_PREDICT_TRUE(mask)) {
-    size_t result = offset + mask.LowestBitSet();
-    ABSL_ASSUME(result != kProbedElementIndexSentinel);
-    return result;
   }
   return kProbedElementIndexSentinel;
 }
@@ -4284,7 +4263,7 @@ class raw_hash_set {
         // only one new bit of h1.
         size_t hash = set->hash_of(old_slot);
         size_t new_index = TryFindNewIndexWithoutProbing(
-            hash, old_index, old_capacity, new_ctrl, new_capacity);
+            hash, old_index, old_capacity, new_capacity);
         // Note that encode_probed_element is allowed to use old_ctrl buffer
         // till and included the old_index.
         if (ABSL_PREDICT_FALSE(new_index == kProbedElementIndexSentinel)) {
@@ -4546,7 +4525,6 @@ extern template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
 extern template size_t TryFindNewIndexWithoutProbing(size_t hash,
                                                      size_t old_index,
                                                      size_t old_capacity,
-                                                     ctrl_t* new_ctrl,
                                                      size_t new_capacity);
 extern template void AssertIsFull(const ctrl_t* const& ctrl, const void* slot,
                                   GenerationType generation,

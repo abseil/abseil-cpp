@@ -1576,8 +1576,73 @@ template <typename ProbedItemType,
 class ProbedItemEncoder {
  public:
   using ProbedItem = ProbedItemType;
-  explicit ProbedItemEncoder(ctrl_t* control) : control_(control) {}
+  ProbedItemEncoder(CommonFields& common,
+                    const PolicyFunctions& __restrict policy, ctrl_t* control,
+                    void* old_slots, size_t new_capacity)
+      : common_(common),
+        policy_(policy),
+        control_(control),
+        old_slots_(old_slots),
+        new_capacity_(new_capacity),
+        new_ctrl_(common.control()),
+        new_slots_(common.slot_array(new_capacity)) {}
 
+  // Transfers item to the first probe group if possible, otherwise encodes it
+  // into the best available location.
+  void EncodeProbedElement(size_t hash, size_t source_offset) {
+    size_t h1 = H1(hash);
+    const size_t new_capacity = new_capacity_;
+    const size_t old_capacity = PreviousCapacity(new_capacity);
+    ABSL_SWISSTABLE_ASSERT(((source_offset - h1) & old_capacity) >=
+                           Group::kWidth);
+    // Try to insert element into the first probe group.
+    // new_ctrl is not yet fully initialized so we can't use regular search via
+    // find_first_non_full.
+    //
+    // We can search in the first probe group only if it is located in already
+    // initialized part of the table.
+    if (ABSL_PREDICT_TRUE((h1 & old_capacity) < source_offset)) {
+      ctrl_t* new_ctrl = new_ctrl_;
+      size_t offset = h1 & new_capacity;
+      Group new_g(new_ctrl + offset);
+      if (auto mask = new_g.MaskNonFull(); ABSL_PREDICT_TRUE(mask)) {
+        size_t new_index = offset + mask.LowestBitSet();
+        ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= source_offset);
+        ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
+        new_ctrl[new_index] = static_cast<ctrl_t>(H2(hash));
+        const size_t slot_size = policy_.slot_size;
+        void* new_slot = SlotAddress(new_slots_, new_index, slot_size);
+        void* old_slot = SlotAddress(old_slots_, source_offset, slot_size);
+        SanitizerUnpoisonMemoryRegion(new_slot, slot_size);
+        policy_.transfer_n(&common_, new_slot, old_slot, 1);
+        SanitizerPoisonMemoryRegion(old_slot, slot_size);
+        return;
+      }
+    }
+    EncodeItem(ProbedItem(H2(hash), source_offset, h1));
+  }
+
+  // Decodes information about probed elements from all available sources.
+  // Finds new position for each element and transfers it to the new slots.
+  // Returns the total probe length.
+  size_t DecodeAndInsertToTable() const {
+    if (pos_ == buffer_) {
+      return 0;
+    }
+    if constexpr (kGuaranteedFitToBuffer) {
+      return DecodeAndInsertImpl(common_, policy_, buffer_, pos_, old_slots_);
+    }
+    size_t total_probe_length = DecodeAndInsertImpl(
+        common_, policy_, buffer_,
+        local_buffer_full_ ? buffer_ + kBufferSize : pos_, old_slots_);
+    if (!local_buffer_full_) {
+      return total_probe_length;
+    }
+    total_probe_length += DecodeAndInsertToTableOverflow();
+    return total_probe_length;
+  }
+
+ private:
   // Encode item into the best available location.
   void EncodeItem(ProbedItem item) {
     if (ABSL_PREDICT_FALSE(!kGuaranteedFitToBuffer && pos_ >= end_)) {
@@ -1588,30 +1653,6 @@ class ProbedItemEncoder {
     ++pos_;
   }
 
-  // Decodes information about probed elements from all available sources.
-  // Finds new position for each element and transfers it to the new slots.
-  // Returns the total probe length.
-  size_t DecodeAndInsertToTable(CommonFields& common,
-                                const PolicyFunctions& __restrict policy,
-                                void* old_slots) const {
-    if (pos_ == buffer_) {
-      return 0;
-    }
-    if constexpr (kGuaranteedFitToBuffer) {
-      return DecodeAndInsertImpl(common, policy, buffer_, pos_, old_slots);
-    }
-    size_t total_probe_length = DecodeAndInsertImpl(
-        common, policy, buffer_,
-        local_buffer_full_ ? buffer_ + kBufferSize : pos_, old_slots);
-    if (!local_buffer_full_) {
-      return total_probe_length;
-    }
-    total_probe_length +=
-        DecodeAndInsertToTableOverflow(common, policy, old_slots);
-    return total_probe_length;
-  }
-
- private:
   static ProbedItem* AlignToNextItem(void* ptr) {
     return reinterpret_cast<ProbedItem*>(AlignUpTo(
         reinterpret_cast<uintptr_t>(ptr), alignof(ProbedItem)));
@@ -1672,33 +1713,37 @@ class ProbedItemEncoder {
   // marked elements.
   // Finds new position for each element and transfers it to the new slots.
   // Returns the total probe length.
-  ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertToTableOverflow(
-      CommonFields& common, const PolicyFunctions& __restrict policy,
-      void* old_slots) const {
+  ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertToTableOverflow() const {
     ABSL_SWISSTABLE_ASSERT(local_buffer_full_ &&
                            "must not be called when local buffer is not full");
     size_t total_probe_length = DecodeAndInsertImpl(
-        common, policy, OverflowBufferStart(), pos_, old_slots);
+        common_, policy_, OverflowBufferStart(), pos_, old_slots_);
     if (ABSL_PREDICT_TRUE(marked_elements_starting_position_ ==
                           kNoMarkedElementsSentinel)) {
       return total_probe_length;
     }
     total_probe_length +=
-        ProcessProbedMarkedElements(common, policy, control_, old_slots,
+        ProcessProbedMarkedElements(common_, policy_, control_, old_slots_,
                                     marked_elements_starting_position_);
     return total_probe_length;
   }
 
   static constexpr size_t kBufferSize =
       kProbedElementsBufferSize / sizeof(ProbedItem);
-  ProbedItem buffer_[kBufferSize];
+  CommonFields& common_;
+  const PolicyFunctions& policy_;
+  ctrl_t* const control_;
+  void* const old_slots_;
+  const size_t new_capacity_;
+  ctrl_t* const new_ctrl_;
+  void* const new_slots_;
   // If local_buffer_full_ is false, then pos_/end_ are in the local buffer,
   // otherwise, they're in the overflow buffer.
   ProbedItem* pos_ = buffer_;
   const void* end_ = buffer_ + kBufferSize;
-  ctrl_t* const control_;
   size_t marked_elements_starting_position_ = kNoMarkedElementsSentinel;
   bool local_buffer_full_ = false;
+  ProbedItem buffer_[kBufferSize];
 };
 
 // Grows to next capacity with specified encoder type.
@@ -1710,18 +1755,17 @@ size_t GrowToNextCapacity(CommonFields& common,
                           const PolicyFunctions& __restrict policy,
                           ctrl_t* old_ctrl, void* old_slots,
                           size_t new_capacity) {
-  using ProbedItem = typename Encoder::ProbedItem;
   ABSL_SWISSTABLE_ASSERT(common.capacity() == new_capacity);
-  ABSL_SWISSTABLE_ASSERT(new_capacity <= ProbedItem::kMaxNewCapacity);
-  Encoder encoder(old_ctrl);
+  ABSL_SWISSTABLE_ASSERT(new_capacity <= Encoder::ProbedItem::kMaxNewCapacity);
+  Encoder encoder(common, policy, old_ctrl, old_slots, new_capacity);
   policy.transfer_unprobed_elements_to_next_capacity(
       common, old_ctrl, &encoder, old_slots, PreviousCapacity(new_capacity),
       [](void* probed_storage, size_t hash, size_t source_offset) {
         auto encoder_ptr = static_cast<Encoder*>(probed_storage);
-        encoder_ptr->EncodeItem(ProbedItem(H2(hash), source_offset, H1(hash)));
+        encoder_ptr->EncodeProbedElement(hash, source_offset);
       });
   InitializeMirroredControlBytes(common.control(), new_capacity);
-  return encoder.DecodeAndInsertToTable(common, policy, old_slots);
+  return encoder.DecodeAndInsertToTable();
 }
 
 // Grows to next capacity for relatively small tables so that even if all
@@ -2691,7 +2735,6 @@ template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
 // Extern template instantiation for inline functions.
 template size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
                                               size_t old_capacity,
-                                              ctrl_t* new_ctrl,
                                               size_t new_capacity);
 template void AssertIsFull(const ctrl_t* const& ctrl, const void* slot,
                            GenerationType generation,
