@@ -1215,12 +1215,12 @@ void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
   const size_t slot_size = policy.slot_size;
   const bool has_infoz =
       policy.is_hashtablez_enabled && (force_infoz || ShouldSampleNextTable());
-  void* alloc = policy.get_char_alloc(common);
 
   common.set_capacity(new_capacity);
   common.init_blocked_element_count(blocked_element_count);
-  const auto [new_ctrl, new_slots] = AllocBackingArray(
-      common, policy, new_capacity, has_infoz, alloc, blocked_element_count);
+  const auto [new_ctrl, new_slots] =
+      AllocBackingArray(common, policy, new_capacity, has_infoz,
+                        policy.get_char_alloc(common), blocked_element_count);
   common.set_control(new_ctrl);
   common.generate_new_seed(has_infoz);
 
@@ -1284,7 +1284,6 @@ void ResizeFullSooTable(CommonFields& common,
                         ResizeFullSooTableSamplingMode sampling_mode) {
   AssertFullSoo(common, policy);
   const size_t slot_size = policy.slot_size;
-  void* alloc = policy.get_char_alloc(common);
   constexpr size_t kTableSize = 1;
 
   HashtablezInfoHandle infoz;
@@ -1305,9 +1304,9 @@ void ResizeFullSooTable(CommonFields& common,
 
   // We do not set control and slots in CommonFields yet to avoid overriding
   // SOO data.
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
+  const auto [new_ctrl, new_slots] = AllocBackingArray(
+      common, policy, new_capacity, has_infoz, policy.get_char_alloc(common),
+      /*blocked_element_count=*/0);
 
   InsertOldSooSlotAndInitializeControlBytes(common, policy, new_ctrl, new_slots,
                                             has_infoz);
@@ -1880,11 +1879,9 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   }
   const size_t new_hash = get_hash(hasher, common.seed().seed());
   h2_t new_h2 = H2(new_hash);
-  // `hash_fn` is in separate statement, so the hash_slot function pointer is
-  // not loaded before the hash_fn call.
-  const void* hash_fn = policy.hash_fn(common);
-  size_t orig_hash = policy.hash_slot(
-      hash_fn, common.single_non_soo_slot(), common.seed().seed());
+  size_t orig_hash =
+      policy.hash_slot(policy.hash_fn(common), common.single_non_soo_slot(),
+                       common.seed().seed());
   size_t offset = Resize1To3NewOffset(new_hash);
   InitializeThreeElementsControlBytes(H2(orig_hash), new_h2, offset, new_ctrl);
 
@@ -1934,12 +1931,10 @@ void* GrowToNextCapacityAndPrepareInsert(
   ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(old_capacity));
   ABSL_ASSUME(old_capacity > kMaxSmallCapacity);
 
-  // Call `get_char_alloc` first so no local variables need to be spilled
-  // across the indirect call, which may alias `common`.
-  void* alloc = policy.get_char_alloc(common);
   const size_t new_capacity = NextCapacity(old_capacity);
   ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
 
+  void* alloc = policy.get_char_alloc(common);
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, policy, new_capacity, common.has_infoz(), alloc,
                         /*blocked_element_count=*/0);
@@ -2295,14 +2290,6 @@ void GrowFullSooTableToNextCapacityForceSampling(
 
 }  // namespace
 
-void* GetRefForEmptyClass(CommonFields& common) {
-  // Empty base optimization typically make the empty base class address to be
-  // the same as the first address of the derived class object.
-  // But we generally assume that for empty classes we can return any valid
-  // pointer.
-  return &common;
-}
-
 void ResizeAllocatedTableWithSeedChange(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_capacity) {
@@ -2320,13 +2307,12 @@ void ResizeAllocatedTableWithSeedChange(
   const size_t slot_align = policy.slot_align;
   HashtablezInfoHandle infoz = common.infoz();
   const bool has_infoz = common.has_infoz();
-  void* alloc = policy.get_char_alloc(common);
 
   common.set_capacity(new_capacity);
   common.set_blocked_element_count_to_zero();
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
+  const auto [new_ctrl, new_slots] = AllocBackingArray(
+      common, policy, new_capacity, has_infoz, policy.get_char_alloc(common),
+      /*blocked_element_count=*/0);
   common.set_control(new_ctrl);
   common.generate_new_seed(has_infoz);
 
@@ -2336,8 +2322,9 @@ void ResizeAllocatedTableWithSeedChange(
   ABSL_SWISSTABLE_ASSERT(old_capacity > 0);
   total_probe_length = FindNewPositionsAndTransferSlots(
       common, policy, old_ctrl, old_slots, old_capacity);
-  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size, slot_align,
-                          has_infoz, old_blocked_element_count, policy.dealloc);
+  DeallocBackingArrayImpl(policy.get_char_alloc(common), old_capacity, old_ctrl,
+                          slot_size, slot_align, has_infoz,
+                          old_blocked_element_count, policy.dealloc);
   ResetGrowthLeft(new_capacity, common.size(), common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
@@ -2363,19 +2350,18 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   // across calls.
   common.generate_new_seed(/*has_infoz=*/false);
   const size_t new_hash = get_hash(hasher, common.seed().seed());
-  const void* hash_fn = policy.hash_fn(common);
-  const h2_t soo_slot_h2 =
-      H2(policy.hash_slot(hash_fn, common.soo_data(), common.seed().seed()));
+  const h2_t soo_slot_h2 = H2(policy.hash_slot(
+      policy.hash_fn(common), common.soo_data(), common.seed().seed()));
 
-  void* alloc = policy.get_char_alloc(common);
   // Since the table is not empty, it will not be sampled.
   // The decision to sample was already made during the first insertion.
   //
   // We do not set control and slots in CommonFields yet to avoid overriding
   // SOO data.
-  const auto [new_ctrl, new_slots] = AllocBackingArray(
-      common, policy, kNewCapacity, /*has_infoz=*/false, alloc,
-      /*blocked_element_count=*/0);
+  const auto [new_ctrl, new_slots] =
+      AllocBackingArray(common, policy, kNewCapacity, /*has_infoz=*/false,
+                        policy.get_char_alloc(common),
+                        /*blocked_element_count=*/0);
   // Group `common` updates together after `AllocBackingArray` so `inline_data_`
   // is modified in a single load-store sequence.
   common.set_capacity(kNewCapacity);

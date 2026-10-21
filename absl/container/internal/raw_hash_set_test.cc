@@ -1346,6 +1346,12 @@ using NonMemcpyableSooIntCustomAllocTable =
 TEST(Table, EmptyFunctorOptimization) {
   static_assert(std::is_empty_v<std::equal_to<absl::string_view>>);
   static_assert(std::is_empty_v<std::allocator<int>>);
+#if defined(_MSC_VER) && _MSC_VER < 1929
+  // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS expands to nothing for MSVC compatibility
+  // versions below 19.29 (e.g. clang with `-fms-compatibility-version=19.25`),
+  // so empty functors still take space.
+  GTEST_SKIP() << "ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS is a no-op.";
+#endif
 
   struct MockTable {
     uint64_t size;
