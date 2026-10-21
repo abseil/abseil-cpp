@@ -18,6 +18,7 @@
 
 #include "absl/base/config.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -30,5 +31,10 @@ void StringifySink::Append(string_view v) {
 }
 
 }  // namespace strings_internal
+
+void AbslStringify(strings_internal::StringifySink& sink, SourceLocation l) {
+  AbslStringify<strings_internal::StringifySink>(sink, l);
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl

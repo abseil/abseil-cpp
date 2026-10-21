@@ -56,6 +56,8 @@ string_view ExtractStringification(StringifySink& sink, const T& v) {
 
 }  // namespace strings_internal
 
+void AbslStringify(strings_internal::StringifySink& sink, SourceLocation l);
+
 template <typename Sink>
 void AbslStringify(Sink& sink, SourceLocation l) {
   sink.Append(l.file_name());
