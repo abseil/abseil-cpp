@@ -1141,8 +1141,13 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       // Not all ARM processors support the needed instructions, so check here
       // before trying to use an accelerated implementation.
       if (SupportsArmCRC32PMULL()) {
+#if defined(__APPLE__)
+        return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+            3, 3, PclmulStreamType::NEON_PCLMUL>();
+#else
         return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
             1, 1, PclmulStreamType::NEON_PCLMUL>();
+#endif
       } else {
         return nullptr;
       }
