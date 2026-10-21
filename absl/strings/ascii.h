@@ -82,6 +82,10 @@ void AsciiStrToLower(char* absl_nonnull dst, const char* absl_nullable src,
 void AsciiStrToUpper(char* absl_nonnull dst, const char* absl_nullable src,
                      size_t n);
 
+ABSL_ATTRIBUTE_NOINLINE std::string AsciiStrToLower(std::string&& s);
+
+ABSL_ATTRIBUTE_NOINLINE std::string AsciiStrToUpper(std::string&& s);
+
 }  // namespace ascii_internal
 
 // ascii_isalpha()
@@ -185,26 +189,18 @@ inline char ascii_tolower(unsigned char c) {
 }
 
 // Converts the characters in `s` to lowercase, changing the contents of `s`.
-void AsciiStrToLower(std::string* absl_nonnull s);
+ABSL_ATTRIBUTE_NOINLINE void AsciiStrToLower(std::string* absl_nonnull s);
 
 // Creates a lowercase string from a given absl::string_view.
-[[nodiscard]] inline std::string AsciiStrToLower(absl::string_view s) {
-  std::string result;
-  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
-    ascii_internal::AsciiStrToLower(buf, s.data(), s.size());
-    return buf_size;
-  });
-  return result;
-}
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::string AsciiStrToLower(
+    absl::string_view s);
 
 // Creates a lowercase string from a given std::string&&.
 //
 // (Template is used to lower priority of this overload.)
 template <int&... DoNotSpecify>
 [[nodiscard]] inline std::string AsciiStrToLower(std::string&& s) {
-  std::string result = std::move(s);
-  absl::AsciiStrToLower(&result);
-  return result;
+  return ascii_internal::AsciiStrToLower(std::move(s));
 }
 
 // ascii_toupper()
@@ -216,71 +212,52 @@ inline char ascii_toupper(unsigned char c) {
 }
 
 // Converts the characters in `s` to uppercase, changing the contents of `s`.
-void AsciiStrToUpper(std::string* absl_nonnull s);
+ABSL_ATTRIBUTE_NOINLINE void AsciiStrToUpper(std::string* absl_nonnull s);
 
 // Creates an uppercase string from a given absl::string_view.
-[[nodiscard]] inline std::string AsciiStrToUpper(absl::string_view s) {
-  std::string result;
-  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
-    ascii_internal::AsciiStrToUpper(buf, s.data(), s.size());
-    return buf_size;
-  });
-  return result;
-}
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::string AsciiStrToUpper(
+    absl::string_view s);
 
 // Creates an uppercase string from a given std::string&&.
 //
 // (Template is used to lower priority of this overload.)
 template <int&... DoNotSpecify>
 [[nodiscard]] inline std::string AsciiStrToUpper(std::string&& s) {
-  std::string result = std::move(s);
-  absl::AsciiStrToUpper(&result);
-  return result;
+  return ascii_internal::AsciiStrToUpper(std::move(s));
 }
 
 // Returns absl::string_view with whitespace stripped from the beginning of the
 // given string_view.
-[[nodiscard]] inline absl::string_view StripLeadingAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  auto it = std::find_if_not(str.begin(), str.end(), absl::ascii_isspace);
-  return str.substr(static_cast<size_t>(it - str.begin()));
-}
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE absl::string_view
+StripLeadingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from the beginning of the given string.
-inline void StripLeadingAsciiWhitespace(std::string* absl_nonnull str) {
-  auto it = std::find_if_not(str->begin(), str->end(), absl::ascii_isspace);
-  str->erase(str->begin(), it);
-}
+ABSL_ATTRIBUTE_NOINLINE void StripLeadingAsciiWhitespace(
+    std::string* absl_nonnull str);
 
 // Returns absl::string_view with whitespace stripped from the end of the given
 // string_view.
-[[nodiscard]] inline absl::string_view StripTrailingAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  auto it = std::find_if_not(str.rbegin(), str.rend(), absl::ascii_isspace);
-  return str.substr(0, static_cast<size_t>(str.rend() - it));
-}
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE absl::string_view
+StripTrailingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from the end of the given string
-inline void StripTrailingAsciiWhitespace(std::string* absl_nonnull str) {
-  auto it = std::find_if_not(str->rbegin(), str->rend(), absl::ascii_isspace);
-  str->erase(static_cast<size_t>(str->rend() - it));
-}
+ABSL_ATTRIBUTE_NOINLINE void StripTrailingAsciiWhitespace(
+    std::string* absl_nonnull str);
 
 // Returns absl::string_view with whitespace stripped from both ends of the
 // given string_view.
-[[nodiscard]] inline absl::string_view StripAsciiWhitespace(
-    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-  return StripTrailingAsciiWhitespace(StripLeadingAsciiWhitespace(str));
-}
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE absl::string_view StripAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 // Strips in place whitespace from both ends of the given string
-inline void StripAsciiWhitespace(std::string* absl_nonnull str) {
-  StripTrailingAsciiWhitespace(str);
-  StripLeadingAsciiWhitespace(str);
-}
+ABSL_ATTRIBUTE_NOINLINE void StripAsciiWhitespace(
+    std::string* absl_nonnull str);
 
 // Removes leading, trailing, and consecutive internal whitespace.
-void RemoveExtraAsciiWhitespace(std::string* absl_nonnull str);
+ABSL_ATTRIBUTE_NOINLINE void RemoveExtraAsciiWhitespace(
+    std::string* absl_nonnull str);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

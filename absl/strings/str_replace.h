@@ -69,7 +69,7 @@ ABSL_NAMESPACE_BEGIN
 //        {"$who", "Bob"},
 //        {"#Noun", "Apples"}});
 //   EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
-[[nodiscard]] std::string StrReplaceAll(
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::string StrReplaceAll(
     absl::string_view s,
     std::initializer_list<std::pair<absl::string_view, absl::string_view>>
         replacements);
@@ -114,7 +114,7 @@ std::string StrReplaceAll(absl::string_view s,
 //                               {"#Noun", "Apples"}}, &s);
 //  EXPECT_EQ(count, 4);
 //  EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
-int StrReplaceAll(
+ABSL_ATTRIBUTE_NOINLINE int StrReplaceAll(
     std::initializer_list<std::pair<absl::string_view, absl::string_view>>
         replacements,
     std::string* absl_nonnull target);
@@ -189,34 +189,30 @@ std::vector<ViableSubstitution> FindSubstitutions(
   return subs;
 }
 
-int ApplySubstitutions(absl::string_view s,
-                       std::vector<ViableSubstitution>* absl_nonnull subs_ptr,
-                       std::string* absl_nonnull result_ptr);
+ABSL_ATTRIBUTE_NOINLINE int ApplySubstitutions(
+    absl::string_view s, std::vector<ViableSubstitution>* absl_nonnull subs_ptr,
+    std::string* absl_nonnull result_ptr);
+
+ABSL_ATTRIBUTE_NOINLINE std::string ApplySubstitutions(
+    absl::string_view s, std::vector<ViableSubstitution> subs);
+
+ABSL_ATTRIBUTE_NOINLINE int ApplySubstitutions(
+    std::vector<ViableSubstitution> subs, std::string* absl_nonnull target);
 
 }  // namespace strings_internal
 
 template <typename StrToStrMapping>
 std::string StrReplaceAll(absl::string_view s,
                           const StrToStrMapping& replacements) {
-  auto subs = strings_internal::FindSubstitutions(s, replacements);
-  std::string result;
-  result.reserve(s.size());
-  strings_internal::ApplySubstitutions(s, &subs, &result);
-  return result;
+  return strings_internal::ApplySubstitutions(
+      s, strings_internal::FindSubstitutions(s, replacements));
 }
 
 template <typename StrToStrMapping>
 int StrReplaceAll(const StrToStrMapping& replacements,
                   std::string* absl_nonnull target) {
-  auto subs = strings_internal::FindSubstitutions(*target, replacements);
-  if (subs.empty()) return 0;
-
-  std::string result;
-  result.reserve(target->size());
-  int substitutions =
-      strings_internal::ApplySubstitutions(*target, &subs, &result);
-  target->swap(result);
-  return substitutions;
+  return strings_internal::ApplySubstitutions(
+      strings_internal::FindSubstitutions(*target, replacements), target);
 }
 
 ABSL_NAMESPACE_END
