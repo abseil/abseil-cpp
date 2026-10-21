@@ -20,8 +20,8 @@
 #include <ostream>
 #include <streambuf>
 #include <string>
-#include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 
 namespace absl {
@@ -69,19 +69,10 @@ class OStringStream final : public std::ostream {
   //
   // The destructor of OStringStream doesn't use the std::string. It's OK to
   // destroy the std::string before the stream.
-  explicit OStringStream(std::string* str)
-      : std::ostream(&buf_), buf_(str) {}
-  OStringStream(OStringStream&& that)
-      : std::ostream(std::move(static_cast<std::ostream&>(that))),
-        buf_(that.buf_) {
-    rdbuf(&buf_);
-  }
-  OStringStream& operator=(OStringStream&& that) {
-    std::ostream::operator=(std::move(static_cast<std::ostream&>(that)));
-    buf_ = that.buf_;
-    rdbuf(&buf_);
-    return *this;
-  }
+  ABSL_ATTRIBUTE_NOINLINE explicit OStringStream(std::string* str);
+  ABSL_ATTRIBUTE_NOINLINE OStringStream(OStringStream&& that);
+  ABSL_ATTRIBUTE_NOINLINE OStringStream& operator=(OStringStream&& that);
+  ABSL_ATTRIBUTE_NOINLINE ~OStringStream() override;
 
   std::string* str() { return buf_.str(); }
   const std::string* str() const { return buf_.str(); }
@@ -93,6 +84,7 @@ class OStringStream final : public std::ostream {
     explicit Streambuf(std::string* str) : str_(str) {}
     Streambuf(const Streambuf&) = default;
     Streambuf& operator=(const Streambuf&) = default;
+    ~Streambuf() override;
 
     std::string* str() { return str_; }
     const std::string* str() const { return str_; }

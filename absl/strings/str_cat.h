@@ -111,6 +111,7 @@
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/has_absl_stringify.h"
@@ -126,6 +127,9 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+struct Hex;
+struct Dec;
+
 namespace strings_internal {
 // AlphaNumBuffer allows a way to pass a string to StrCat without having to do
 // memory allocation.  It is simply a pair of a fixed-size character array, and
@@ -135,6 +139,11 @@ struct AlphaNumBuffer {
   std::array<char, max_size> data;
   size_t size;
 };
+
+ABSL_ATTRIBUTE_NOINLINE absl::string_view FormatHex(Hex hex,
+                                                    char* absl_nonnull end);
+ABSL_ATTRIBUTE_NOINLINE absl::string_view FormatDec(Dec dec,
+                                                    char* absl_nonnull end);
 
 }  // namespace strings_internal
 
@@ -222,23 +231,9 @@ struct Hex {
 
   template <typename S>
   friend void AbslStringify(S& sink, Hex hex) {
-    static_assert(
-        numbers_internal::kFastToBufferSize >= 32,
-        "This function only works when output buffer >= 32 bytes long");
     char buffer[numbers_internal::kFastToBufferSize];
-    char* const end = &buffer[numbers_internal::kFastToBufferSize];
-    auto real_width =
-        absl::numbers_internal::FastHexToBufferZeroPad16(hex.value, end - 16);
-    if (real_width >= hex.width) {
-      sink.Append(absl::string_view(end - real_width, real_width));
-    } else {
-      // Pad first 16 chars because FastHexToBufferZeroPad16 pads only to 16 and
-      // max pad width can be up to 20.
-      std::memset(end - 32, hex.fill, 16);
-      // Patch up everything else up to the real_width.
-      std::memset(end - real_width - 16, hex.fill, 16);
-      sink.Append(absl::string_view(end - hex.width, hex.width));
-    }
+    sink.Append(strings_internal::FormatHex(
+        hex, &buffer[numbers_internal::kFastToBufferSize]));
   }
 
  private:
@@ -277,34 +272,9 @@ struct Dec {
 
   template <typename S>
   friend void AbslStringify(S& sink, Dec dec) {
-    assert(dec.width <= numbers_internal::kFastToBufferSize);
     char buffer[numbers_internal::kFastToBufferSize];
-    char* const end = &buffer[numbers_internal::kFastToBufferSize];
-    char* const minfill = end - dec.width;
-    char* writer = end;
-    uint64_t val = dec.value;
-    while (val > 9) {
-      *--writer = '0' + (val % 10);
-      val /= 10;
-    }
-    *--writer = '0' + static_cast<char>(val);
-    if (dec.neg) *--writer = '-';
-
-    ptrdiff_t fillers = writer - minfill;
-    if (fillers > 0) {
-      // Tricky: if the fill character is ' ', then it's <fill><+/-><digits>
-      // But...: if the fill character is '0', then it's <+/-><fill><digits>
-      bool add_sign_again = false;
-      if (dec.neg && dec.fill == '0') {  // If filling with '0',
-        ++writer;                    // ignore the sign we just added
-        add_sign_again = true;       // and re-add the sign later.
-      }
-      writer -= fillers;
-      std::fill_n(writer, fillers, dec.fill);
-      if (add_sign_again) *--writer = '-';
-    }
-
-    sink.Append(absl::string_view(writer, static_cast<size_t>(end - writer)));
+    sink.Append(strings_internal::FormatDec(
+        dec, &buffer[numbers_internal::kFastToBufferSize]));
   }
 };
 
@@ -321,21 +291,13 @@ struct Dec {
 // HighPrecision is conisderably slower than the default formatting, so only use
 // it if you need the string to convert back to the same floating-point value.
 
-inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
-HighPrecision(float f) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
-  result.size =
-      strlen(numbers_internal::RoundTripFloatToBuffer(f, &result.data[0]));
-  return result;
-}
+ABSL_ATTRIBUTE_NOINLINE
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(float f);
 
-inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
-HighPrecision(double d) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
-  result.size =
-      strlen(numbers_internal::RoundTripDoubleToBuffer(d, &result.data[0]));
-  return result;
-}
+ABSL_ATTRIBUTE_NOINLINE
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(double d);
 
 // -----------------------------------------------------------------------------
 // AlphaNum
@@ -357,41 +319,36 @@ class AlphaNum {
   AlphaNum(std::initializer_list<T>) = delete;  // NOLINT(runtime/explicit)
 
   AlphaNum(int x)  // NOLINT(runtime/explicit)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
   AlphaNum(unsigned int x)  // NOLINT(runtime/explicit)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
   AlphaNum(long x)  // NOLINT(*)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
   AlphaNum(unsigned long x)  // NOLINT(*)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
   AlphaNum(long long x)  // NOLINT(*)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
   AlphaNum(unsigned long long x)  // NOLINT(*)
-      : piece_(digits_, static_cast<size_t>(
-                            numbers_internal::FastIntToBuffer(x, digits_) -
-                            &digits_[0])) {}
+      : piece_(
+            MakePieceFromEnd(numbers_internal::FastIntToBuffer(x, digits_))) {}
 
   AlphaNum(float f)  // NOLINT(runtime/explicit)
-      : piece_(digits_, numbers_internal::SixDigitsToBuffer(
-                            static_cast<double>(f), digits_)) {}
+      : piece_(MakePieceWithLength(numbers_internal::SixDigitsToBuffer(
+            static_cast<double>(f), digits_))) {}
   AlphaNum(double f)  // NOLINT(runtime/explicit)
-      : piece_(digits_, numbers_internal::SixDigitsToBuffer(f, digits_)) {}
+      : piece_(MakePieceWithLength(
+            numbers_internal::SixDigitsToBuffer(f, digits_))) {}
 
   template <size_t size>
   AlphaNum(  // NOLINT(runtime/explicit)
       const strings_internal::AlphaNumBuffer<size>& buf
           ABSL_ATTRIBUTE_LIFETIME_BOUND)
-      : piece_(&buf.data[0], buf.size) {}
+      : piece_(MakePieceFromBuffer(buf)) {}
 
   AlphaNum(const char* absl_nullable c_str  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
@@ -457,6 +414,23 @@ class AlphaNum {
   AlphaNum(T e) : AlphaNum(static_cast<bool>(e)) {}  // NOLINT(runtime/explicit)
 
  private:
+  absl::string_view MakePieceFromEnd(const char* absl_nonnull end) const {
+    const size_t len = static_cast<size_t>(end - &digits_[0]);
+    ABSL_ASSUME(len <= sizeof(digits_));
+    return absl::string_view(digits_, len);
+  }
+  absl::string_view MakePieceWithLength(size_t len) const {
+    ABSL_ASSUME(len <= sizeof(digits_));
+    return absl::string_view(digits_, len);
+  }
+  template <size_t max_size>
+  static absl::string_view MakePieceFromBuffer(
+      const strings_internal::AlphaNumBuffer<max_size>& buf) {
+    const size_t len = buf.size;
+    ABSL_ASSUME(len <= max_size);
+    return absl::string_view(&buf.data[0], len);
+  }
+
   absl::string_view piece_;
   char digits_[numbers_internal::kFastToBufferSize];
 };
@@ -496,58 +470,28 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces);
 void AppendPieces(std::string* absl_nonnull dest,
                   std::initializer_list<absl::string_view> pieces);
 
-template <typename Integer>
-std::string IntegerToString(Integer i) {
-  // Any integer (signed/unsigned) up to 64 bits can be formatted into a buffer
-  // with 22 bytes (including NULL at the end).
-  constexpr size_t kMaxDigits10 = 22;
-  std::string result;
-  StringResizeAndOverwrite(
-      result, kMaxDigits10, [i](char* start, size_t buf_size) {
-        // Note: This can be optimized to not write last zero.
-        char* end = numbers_internal::FastIntToBuffer(i, start);
-        auto size = static_cast<size_t>(end - start);
-        ABSL_ASSERT(size < buf_size);
-        return size;
-      });
-  return result;
-}
-
-template <typename Float>
-std::string FloatToString(Float f) {
-  std::string result;
-  StringResizeAndOverwrite(result, numbers_internal::kSixDigitsToBufferSize,
-                           [f](char* start, size_t buf_size) {
-                             size_t size = numbers_internal::SixDigitsToBuffer(
-                                 static_cast<double>(f), start);
-                             ABSL_ASSERT(size < buf_size);
-                             return size;
-                           });
-  return result;
-}
+ABSL_ATTRIBUTE_NOINLINE std::string JoinStringViews(
+    const absl::string_view* absl_nullable data, size_t count,
+    absl::string_view sep);
+ABSL_ATTRIBUTE_NOINLINE std::string JoinStrings(
+    const std::string* absl_nullable data, size_t count, absl::string_view sep);
 
 // `SingleArgStrCat` overloads take built-in `int`, `long` and `long long` types
 // (signed / unsigned) to avoid ambiguity on the call side. If we used int32_t
 // and int64_t, then at least one of the three (`int` / `long` / `long long`)
 // would have been ambiguous when passed to `SingleArgStrCat`.
-inline std::string SingleArgStrCat(int x) { return IntegerToString(x); }
-inline std::string SingleArgStrCat(unsigned int x) {
-  return IntegerToString(x);
-}
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(int x);
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(unsigned int x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long x) { return IntegerToString(x); }
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long x) {
-  return IntegerToString(x);
-}
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(unsigned long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long long x) { return IntegerToString(x); }
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(long long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long long x) {
-  return IntegerToString(x);
-}
-inline std::string SingleArgStrCat(float x) { return FloatToString(x); }
-inline std::string SingleArgStrCat(double x) { return FloatToString(x); }
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(unsigned long long x);
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(float x);
+ABSL_ATTRIBUTE_NOINLINE std::string SingleArgStrCat(double x);
 
 // As of September 2023, the SingleArgStrCat() optimization is only enabled for
 // libc++. The reasons for this are:
@@ -648,14 +592,9 @@ inline void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
 
 // Helper function for the future StrCat default floating-point format, %.6g
 // This is fast.
-inline strings_internal::AlphaNumBuffer<
-    numbers_internal::kSixDigitsToBufferSize>
-SixDigits(double d) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
-      result;
-  result.size = numbers_internal::SixDigitsToBuffer(d, &result.data[0]);
-  return result;
-}
+ABSL_ATTRIBUTE_NOINLINE
+strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
+SixDigits(double d);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

@@ -14,10 +14,14 @@
 
 #include "absl/strings/internal/stringify_sink.h"
 
+#include <array>
 #include <cstddef>
 
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -27,6 +31,16 @@ void StringifySink::Append(size_t count, char ch) { buffer_.append(count, ch); }
 
 void StringifySink::Append(string_view v) {
   buffer_.append(v.data(), v.size());
+}
+
+void StringifySourceLocation(StringifySink& sink, SourceLocation l) {
+  sink.Append(l.file_name());
+  std::array<char, 1 + numbers_internal::kFastToBufferSize> buffer;
+  buffer[0] = ':';
+  char* end = numbers_internal::FastIntToBuffer(l.line(), buffer.data() + 1);
+  const size_t len = static_cast<size_t>(end - buffer.data());
+  ABSL_ASSUME(len <= sizeof(buffer));
+  sink.Append(absl::string_view(buffer.data(), len));
 }
 
 }  // namespace strings_internal
