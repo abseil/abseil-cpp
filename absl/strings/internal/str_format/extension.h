@@ -24,6 +24,7 @@
 #include <string>
 
 #include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/internal/str_format/output.h"
 #include "absl/strings/string_view.h"
 
@@ -70,7 +71,9 @@ class FormatSinkImpl {
   ~FormatSinkImpl() { Flush(); }
 
   void Flush() {
-    raw_.Write(string_view(buf_, static_cast<size_t>(pos_ - buf_)));
+    const size_t len = static_cast<size_t>(pos_ - buf_);
+    ABSL_ASSUME(len <= sizeof(buf_));
+    raw_.Write(string_view(buf_, len));
     pos_ = buf_;
   }
 
