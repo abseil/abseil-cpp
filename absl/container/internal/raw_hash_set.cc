@@ -1706,10 +1706,10 @@ size_t GrowToNextCapacity(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(new_capacity <= ProbedItem::kMaxNewCapacity);
   Encoder encoder(old_ctrl);
   policy.transfer_unprobed_elements_to_next_capacity(
-      common, old_ctrl, old_slots, &encoder,
-      [](void* probed_storage, h2_t h2, size_t source_offset, size_t h1) {
+      common, old_ctrl, &encoder, old_slots, PreviousCapacity(new_capacity),
+      [](void* probed_storage, size_t hash, size_t source_offset) {
         auto encoder_ptr = static_cast<Encoder*>(probed_storage);
-        encoder_ptr->EncodeItem(ProbedItem(h2, source_offset, h1));
+        encoder_ptr->EncodeItem(ProbedItem(H2(hash), source_offset, H1(hash)));
       });
   InitializeMirroredControlBytes(common.control(), new_capacity);
   return encoder.DecodeAndInsertToTable(common, policy, old_slots);
@@ -2634,7 +2634,7 @@ template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
                                               const DtorPolicy& policy);
 
 // Extern template instantiation for inline functions.
-template size_t TryFindNewIndexWithoutProbing(size_t h1, size_t old_index,
+template size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
                                               size_t old_capacity,
                                               ctrl_t* new_ctrl,
                                               size_t new_capacity);
