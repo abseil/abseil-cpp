@@ -172,14 +172,20 @@ class IntDigits {
 
   // The printed value including the '-' sign if available.
   // For inputs of value `0`, this will return "0"
-  string_view with_neg_and_zero() const { return {start_, size_}; }
+  string_view with_neg_and_zero() const {
+    const size_t len = size_;
+    ABSL_ASSUME(len <= sizeof(storage_));
+    return {start_, len};
+  }
 
   // The printed value not including the '-' sign.
   // For inputs of value `0`, this will return "".
   string_view without_neg_or_zero() const {
     static_assert('-' < '0', "The check below verifies both.");
-    size_t advance = start_[0] <= '0' ? 1 : 0;
-    return {start_ + advance, size_ - advance};
+    const size_t advance = start_[0] <= '0' ? 1 : 0;
+    const size_t len = size_ - advance;
+    ABSL_ASSUME(len <= sizeof(storage_));
+    return {start_ + advance, len};
   }
 
   bool is_negative() const { return start_[0] == '-'; }

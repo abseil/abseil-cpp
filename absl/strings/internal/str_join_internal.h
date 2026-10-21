@@ -41,6 +41,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/config.h"
@@ -229,44 +230,65 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
 // string to avoid the need to resize while appending. To do this, the iterator
 // range will be traversed twice: once to calculate the total needed size, and
 // then again to copy the elements and delimiters to the output string.
+template <typename Iterator, typename Value>
+struct IsContiguousIteratorOf
+    : std::integral_constant<
+          bool,
+          (std::is_pointer_v<Iterator> &&
+           std::is_same_v<std::remove_cv_t<std::remove_pointer_t<Iterator>>,
+                          Value>) ||
+              std::is_same_v<Iterator, typename std::vector<Value>::iterator> ||
+              std::is_same_v<Iterator,
+                             typename std::vector<Value>::const_iterator>> {};
+
 template <typename Iterator,
           typename = std::enable_if_t<
               base_internal::IsAtLeastForwardIterator<Iterator>::value>>
 std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view sep,
                           NoFormatter) {
-  std::string result;
-  if (start != end) {
-    // Sums size
-    auto&& start_value = *start;
-    // Use uint64_t to prevent size_t overflow. We assume it is not possible for
-    // in memory strings to overflow a uint64_t.
-    uint64_t result_size = start_value.size();
-    for (Iterator it = start; ++it != end;) {
-      result_size += sep.size();
-      result_size += (*it).size();
-    }
+  if constexpr (IsContiguousIteratorOf<Iterator, absl::string_view>::value) {
+    const auto count = static_cast<size_t>(end - start);
+    return JoinStringViews(count == 0 ? nullptr : std::addressof(*start), count,
+                           sep);
+  } else if constexpr (IsContiguousIteratorOf<Iterator, std::string>::value) {
+    const auto count = static_cast<size_t>(end - start);
+    return JoinStrings(count == 0 ? nullptr : std::addressof(*start), count,
+                       sep);
+  } else {
+    std::string result;
+    if (start != end) {
+      // Sums size
+      auto&& start_value = *start;
+      // Use uint64_t to prevent size_t overflow. We assume it is not possible
+      // for in memory strings to overflow a uint64_t.
+      uint64_t result_size = start_value.size();
+      for (Iterator it = start; ++it != end;) {
+        result_size += sep.size();
+        result_size += (*it).size();
+      }
 
-    if (result_size > 0) {
-      constexpr uint64_t kMaxSize =
-          uint64_t{(std::numeric_limits<size_t>::max)()};
-      ABSL_INTERNAL_CHECK(result_size <= kMaxSize, "size_t overflow");
+      if (result_size > 0) {
+        constexpr uint64_t kMaxSize =
+            uint64_t{(std::numeric_limits<size_t>::max)()};
+        ABSL_INTERNAL_CHECK(result_size <= kMaxSize, "size_t overflow");
 
-      StringResizeAndOverwrite(
-          result, static_cast<size_t>(result_size),
-          [&start, &end, &start_value, sep](char* result_buf,
-                                            size_t result_buf_size) {
-            // Joins strings
-            result_buf = absl::c_copy(start_value, result_buf);
-            for (Iterator it = start; ++it != end;) {
-              result_buf = absl::c_copy(sep, result_buf);
-              auto&& value = *it;
-              result_buf = absl::c_copy(value, result_buf);
-            }
-            return result_buf_size;
-          });
+        StringResizeAndOverwrite(
+            result, static_cast<size_t>(result_size),
+            [&start, &end, &start_value, sep](char* result_buf,
+                                              size_t result_buf_size) {
+              // Joins strings
+              result_buf = absl::c_copy(start_value, result_buf);
+              for (Iterator it = start; ++it != end;) {
+                result_buf = absl::c_copy(sep, result_buf);
+                auto&& value = *it;
+                result_buf = absl::c_copy(value, result_buf);
+              }
+              return result_buf_size;
+            });
+      }
     }
+    return result;
   }
-  return result;
 }
 
 // JoinTupleLoop implements a loop over the elements of a std::tuple, which

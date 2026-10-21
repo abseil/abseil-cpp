@@ -14,13 +14,17 @@
 
 #include "absl/strings/ascii.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstddef>
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
+#include "absl/strings/resize_and_overwrite.h"
+#include "absl/strings/string_view.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -227,6 +231,18 @@ void AsciiStrToUpper(char* absl_nonnull dst, const char* absl_nullable src,
   return AsciiStrCaseFold<true>(dst, src, n);
 }
 
+std::string AsciiStrToLower(std::string&& s) {
+  std::string result = std::move(s);
+  absl::AsciiStrToLower(&result);
+  return result;
+}
+
+std::string AsciiStrToUpper(std::string&& s) {
+  std::string result = std::move(s);
+  absl::AsciiStrToUpper(&result);
+  return result;
+}
+
 static constexpr size_t ValidateAsciiCasefold() {
   constexpr size_t num_chars = 1 + CHAR_MAX - CHAR_MIN;
   size_t incorrect_index = 0;
@@ -258,9 +274,56 @@ void AsciiStrToLower(std::string* absl_nonnull s) {
   return ascii_internal::AsciiStrCaseFold<false>(p, p, s->size());
 }
 
+std::string AsciiStrToLower(absl::string_view s) {
+  std::string result;
+  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
+    ascii_internal::AsciiStrCaseFold<false>(buf, s.data(), s.size());
+    return buf_size;
+  });
+  return result;
+}
+
 void AsciiStrToUpper(std::string* absl_nonnull s) {
   char* p = &(*s)[0];
   return ascii_internal::AsciiStrCaseFold<true>(p, p, s->size());
+}
+
+std::string AsciiStrToUpper(absl::string_view s) {
+  std::string result;
+  StringResizeAndOverwrite(result, s.size(), [s](char* buf, size_t buf_size) {
+    ascii_internal::AsciiStrCaseFold<true>(buf, s.data(), s.size());
+    return buf_size;
+  });
+  return result;
+}
+
+absl::string_view StripLeadingAsciiWhitespace(absl::string_view str) {
+  auto it = std::find_if_not(str.begin(), str.end(), absl::ascii_isspace);
+  return str.substr(static_cast<size_t>(it - str.begin()));
+}
+
+void StripLeadingAsciiWhitespace(std::string* absl_nonnull str) {
+  auto it = std::find_if_not(str->begin(), str->end(), absl::ascii_isspace);
+  str->erase(str->begin(), it);
+}
+
+absl::string_view StripTrailingAsciiWhitespace(absl::string_view str) {
+  auto it = std::find_if_not(str.rbegin(), str.rend(), absl::ascii_isspace);
+  return str.substr(0, static_cast<size_t>(str.rend() - it));
+}
+
+void StripTrailingAsciiWhitespace(std::string* absl_nonnull str) {
+  auto it = std::find_if_not(str->rbegin(), str->rend(), absl::ascii_isspace);
+  str->erase(static_cast<size_t>(str->rend() - it));
+}
+
+absl::string_view StripAsciiWhitespace(absl::string_view str) {
+  return StripTrailingAsciiWhitespace(StripLeadingAsciiWhitespace(str));
+}
+
+void StripAsciiWhitespace(std::string* absl_nonnull str) {
+  StripTrailingAsciiWhitespace(str);
+  StripLeadingAsciiWhitespace(str);
 }
 
 void RemoveExtraAsciiWhitespace(std::string* absl_nonnull str) {

@@ -979,7 +979,7 @@ bool Base64UnescapeInternal(const char* absl_nullable src, size_t slen,
 
   bool ok;
   StringResizeAndOverwrite(
-      *dest, dest_len, [src, slen, unbase64, &ok](char* buf, size_t buf_size) {
+      *dest, dest_len, [src, slen, &unbase64, &ok](char* buf, size_t buf_size) {
         size_t len;
         ok = Base64UnescapeInternal(src, slen, buf, buf_size, unbase64, &len);
         if (!ok) {
