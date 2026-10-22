@@ -94,7 +94,7 @@ inline bool CUnescape(absl::string_view source,
 //   std::string s = "foo\rbar\tbaz\010\011\012\013\014\x0d\n";
 //   std::string escaped_s = absl::CEscape(s);
 //   EXPECT_EQ(escaped_s, "foo\\rbar\\tbaz\\010\\t\\n\\013\\014\\r\\n");
-std::string CEscape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string CEscape(absl::string_view src);
 
 // CHexEscape()
 //
@@ -107,7 +107,7 @@ std::string CEscape(absl::string_view src);
 //   std::string s = "foo\rbar\tbaz\010\011\012\013\014\x0d\n";
 //   std::string escaped_s = absl::CHexEscape(s);
 //   EXPECT_EQ(escaped_s, "foo\\rbar\\tbaz\\x08\\t\\n\\x0b\\x0c\\r\\n");
-std::string CHexEscape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string CHexEscape(absl::string_view src);
 
 // Utf8SafeCEscape()
 //
@@ -115,21 +115,21 @@ std::string CHexEscape(absl::string_view src);
 // octal sequences, and passing through UTF-8 characters without conversion.
 // I.e., when encountering any bytes with their high bit set, this function
 // will not escape those values, whether or not they are valid UTF-8.
-std::string Utf8SafeCEscape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string Utf8SafeCEscape(absl::string_view src);
 
 // Utf8SafeCHexEscape()
 //
 // Escapes a `src` string using C-style escape sequences, escaping bytes as
 // hexadecimal sequences, and passing through UTF-8 characters without
 // conversion.
-std::string Utf8SafeCHexEscape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string Utf8SafeCHexEscape(absl::string_view src);
 
 // Base64Escape()
 //
 // Encodes a `src` string into a base64-encoded `dest` string with padding
 // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
 // 2045.
-std::string Base64Escape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string Base64Escape(absl::string_view src);
 [[deprecated(
     "Use the string-returning version of "
     "Base64Escape()")]] ABSL_REFACTOR_INLINE inline void
@@ -142,7 +142,7 @@ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
 // Encodes a `src` string into a base64 string, like Base64Escape() does, but
 // outputs '-' instead of '+' and '_' instead of '/', and does not pad `dest`.
 // This function conforms with RFC 4648 section 5 (base64url).
-std::string WebSafeBase64Escape(absl::string_view src);
+ABSL_ATTRIBUTE_NOINLINE std::string WebSafeBase64Escape(absl::string_view src);
 [[deprecated(
     "Use the string-returning version of "
     "WebSafeBase64Escape()")]] ABSL_REFACTOR_INLINE inline void
@@ -157,7 +157,8 @@ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
 // `src` contains invalid characters, `dest` is cleared and returns `false`.
 // If padding is included (note that `Base64Escape()` does produce it), it must
 // be correct. In the padding, '=' and '.' are treated identically.
-bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
+ABSL_ATTRIBUTE_NOINLINE bool Base64Unescape(absl::string_view src,
+                                            std::string* absl_nonnull dest);
 
 // WebSafeBase64Unescape()
 //
@@ -167,8 +168,8 @@ bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
 // `false`. If padding is included (note that `WebSafeBase64Escape()` does not
 // produce it), it must be correct. In the padding, '=' and '.' are treated
 // identically.
-bool WebSafeBase64Unescape(absl::string_view src,
-                           std::string* absl_nonnull dest);
+ABSL_ATTRIBUTE_NOINLINE bool WebSafeBase64Unescape(
+    absl::string_view src, std::string* absl_nonnull dest);
 
 // HexStringToBytes()
 //
@@ -185,13 +186,13 @@ bool WebSafeBase64Unescape(absl::string_view src,
 // `from.size()/2`. The input must be valid hexadecimal data, otherwise the
 // return value is unspecified.
 [[deprecated("Use the HexStringToBytes() that returns a bool")]]
-std::string HexStringToBytes(absl::string_view from);
+ABSL_ATTRIBUTE_NOINLINE std::string HexStringToBytes(absl::string_view from);
 
 // BytesToHexString()
 //
 // Converts binary data into an ASCII text string, returning a string of size
 // `2*from.size()`.
-std::string BytesToHexString(absl::string_view from);
+ABSL_ATTRIBUTE_NOINLINE std::string BytesToHexString(absl::string_view from);
 
 // UrlEscape()
 //
@@ -211,7 +212,8 @@ std::string BytesToHexString(absl::string_view from);
 //                                     absl::UrlEscape("gift for mom & dad"));
 //   assert(url ==
 //     "https://www.google.com/search?q=gift%20for%20mom%20%26%20dad");
-[[nodiscard]] std::string UrlEscape(absl::string_view input);
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::string UrlEscape(
+    absl::string_view input);
 
 // UrlUnescape()
 //
@@ -222,7 +224,8 @@ std::string BytesToHexString(absl::string_view from);
 //
 // UrlUnescape() is identical to UrlUnescapePlus() except that it does not
 // unescape '+' to ' '.
-[[nodiscard]] std::optional<std::string> UrlUnescape(absl::string_view input);
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::optional<std::string> UrlUnescape(
+    absl::string_view input);
 
 // UrlEscapePlus()
 //
@@ -252,14 +255,15 @@ std::string BytesToHexString(absl::string_view from);
 //                                     absl::UrlEscapePlus(
 //                                         "gift for mom & dad"));
 //   assert(url == "https://www.google.com/search?q=gift+for+mom+%26+dad");
-[[nodiscard]] std::string UrlEscapePlus(absl::string_view input);
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::string UrlEscapePlus(
+    absl::string_view input);
 
 // UrlUnescapePlus()
 //
 // Performs the inverse transformation of UrlEscapePlus(). It returns
 // `std::nullopt` if any % is not followed by two hexadecimal digits.
-[[nodiscard]] std::optional<std::string> UrlUnescapePlus(
-    absl::string_view input);
+[[nodiscard]] ABSL_ATTRIBUTE_NOINLINE std::optional<std::string>
+UrlUnescapePlus(absl::string_view input);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

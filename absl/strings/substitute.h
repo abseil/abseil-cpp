@@ -78,9 +78,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
@@ -131,51 +133,35 @@ class Arg {
     piece_ = absl::string_view(scratch_, 1);
   }
   Arg(short value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(unsigned short value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(int value)  // NOLINT(google-explicit-constructor)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(unsigned int value)  // NOLINT(google-explicit-constructor)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(long value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(unsigned long value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(long long value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(unsigned long long value)  // NOLINT(*)
-      : piece_(scratch_,
-               static_cast<size_t>(
-                   numbers_internal::FastIntToBuffer(value, scratch_) -
-                   scratch_)) {}
+      : piece_(MakePieceFromEnd(
+            numbers_internal::FastIntToBuffer(value, scratch_))) {}
   Arg(float value)  // NOLINT(google-explicit-constructor)
-      : piece_(scratch_, numbers_internal::SixDigitsToBuffer(value, scratch_)) {
-  }
+      : piece_(MakePieceWithLength(
+            numbers_internal::SixDigitsToBuffer(value, scratch_))) {}
   Arg(double value)  // NOLINT(google-explicit-constructor)
-      : piece_(scratch_, numbers_internal::SixDigitsToBuffer(value, scratch_)) {
-  }
+      : piece_(MakePieceWithLength(
+            numbers_internal::SixDigitsToBuffer(value, scratch_))) {}
   Arg(bool value)  // NOLINT(google-explicit-constructor)
       : piece_(value ? "true" : "false") {}
 
@@ -218,6 +204,16 @@ class Arg {
   absl::string_view piece() const { return piece_; }
 
  private:
+  absl::string_view MakePieceFromEnd(const char* absl_nonnull end) const {
+    const size_t len = static_cast<size_t>(end - scratch_);
+    ABSL_ASSUME(len <= sizeof(scratch_));
+    return absl::string_view(scratch_, len);
+  }
+  absl::string_view MakePieceWithLength(size_t len) const {
+    ABSL_ASSUME(len <= sizeof(scratch_));
+    return absl::string_view(scratch_, len);
+  }
+
   absl::string_view piece_;
   char scratch_[numbers_internal::kFastToBufferSize];
 };
@@ -228,6 +224,10 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
                               absl::string_view format,
                               const absl::string_view* absl_nullable args_array,
                               size_t num_args);
+
+ABSL_ATTRIBUTE_NOINLINE std::string SubstituteArray(
+    absl::string_view format, const absl::string_view* absl_nullable args_array,
+    size_t num_args);
 
 #if defined(ABSL_BAD_CALL_IF)
 constexpr int CalculateOneBit(const char* absl_nonnull format) {
@@ -543,50 +543,45 @@ void SubstituteAndAppend(
 //    std::string s = absl::Substitute(format, args...);
 
 [[nodiscard]] inline std::string Substitute(absl::string_view format) {
-  std::string result;
-  SubstituteAndAppend(&result, format);
-  return result;
+  return substitute_internal::SubstituteArray(format, nullptr, 0);
 }
 
 [[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0);
-  return result;
+  const absl::string_view args[] = {a0.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
@@ -594,9 +589,9 @@ void SubstituteAndAppend(
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
     const substitute_internal::Arg& a5) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4, a5);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
@@ -604,9 +599,10 @@ void SubstituteAndAppend(
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
     const substitute_internal::Arg& a5, const substitute_internal::Arg& a6) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4, a5, a6);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece(),
+                                    a6.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
@@ -615,9 +611,10 @@ void SubstituteAndAppend(
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
     const substitute_internal::Arg& a5, const substitute_internal::Arg& a6,
     const substitute_internal::Arg& a7) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4, a5, a6, a7);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece(),
+                                    a6.piece(), a7.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
@@ -626,9 +623,10 @@ void SubstituteAndAppend(
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
     const substitute_internal::Arg& a5, const substitute_internal::Arg& a6,
     const substitute_internal::Arg& a7, const substitute_internal::Arg& a8) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4, a5, a6, a7, a8);
-  return result;
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece(),
+                                    a6.piece(), a7.piece(), a8.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 [[nodiscard]] inline std::string Substitute(
@@ -638,9 +636,10 @@ void SubstituteAndAppend(
     const substitute_internal::Arg& a5, const substitute_internal::Arg& a6,
     const substitute_internal::Arg& a7, const substitute_internal::Arg& a8,
     const substitute_internal::Arg& a9) {
-  std::string result;
-  SubstituteAndAppend(&result, format, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-  return result;
+  const absl::string_view args[] = {
+      a0.piece(), a1.piece(), a2.piece(), a3.piece(), a4.piece(),
+      a5.piece(), a6.piece(), a7.piece(), a8.piece(), a9.piece()};
+  return substitute_internal::SubstituteArray(format, args, std::size(args));
 }
 
 #if defined(ABSL_BAD_CALL_IF)
