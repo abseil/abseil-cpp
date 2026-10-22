@@ -119,7 +119,7 @@ jobs:
           # linux_gcc_alpine_cmake.cfg
           - name: Alpine Linux GCC (musl)
             os: ubuntu-24.04
-            container_image: gcr.io/google.com/absl-177019/alpine@sha256:ae26b80601cebb14595056a94e070f0f865d24baaf3ce19bcd52f53be9f99c80
+            container_image: gcr.io/google.com/absl-177019/alpine@sha256:52945833fc7b7b93f73ec865eb82390aa46d4e3acd1af87d253cd4a05f95d241
             build_types: '["Debug"]'
             link_modes: '["static"]'
           # cmake-install.cfg
