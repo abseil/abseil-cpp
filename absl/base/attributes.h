@@ -1149,7 +1149,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 //
 // Note: When wrapping a multi-line statement, placing a semicolon after the
 // closing parenthesis may produce an extra semicolon warning.
-#if defined(__clang__)
+#if defined(__clang__) && ABSL_HAVE_ATTRIBUTE(unsafe_buffer_usage)
 #define ABSL_UNSAFE_BUFFERS(...)             \
   _Pragma("clang unsafe_buffer_usage begin") \
       __VA_ARGS__ _Pragma("clang unsafe_buffer_usage end")
