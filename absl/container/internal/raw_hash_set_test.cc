@@ -2074,7 +2074,7 @@ TYPED_TEST(SooTest, ClearBug) {
   }
   ASSERT_EQ(capacity, t.capacity());
   intptr_t original = reinterpret_cast<intptr_t>(&*t.find(2));
-  t.clear();
+  t.erase(t.begin(), t.end());
   ASSERT_EQ(capacity, t.capacity());
   for (size_t i = 0; i < max_size; ++i) {
     t.insert(i);
