@@ -25,9 +25,11 @@
 #include <atomic>
 #include <ios>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -44,6 +46,7 @@
 #include "absl/log/internal/log_format.h"
 #include "absl/log/internal/log_sink_set.h"
 #include "absl/log/internal/nullguard.h"
+#include "absl/log/internal/object_pool.h"
 #include "absl/log/internal/proto.h"
 #include "absl/log/internal/structured_proto.h"
 #include "absl/log/log_entry.h"
@@ -148,10 +151,18 @@ void WriteToStream(const char* data, void* os) {
 }  // namespace
 
 struct LogMessage::LogMessageData final {
-  LogMessageData(absl::string_view file, int line,
-                 absl::LogSeverity severity, absl::Time timestamp);
+  static constexpr size_t kPoolCapacity = 16;
+  ABSL_CONST_INIT static ObjectPool<LogMessageData, kPoolCapacity> pool;
+
+  LogMessageData(absl::string_view file, int line, absl::LogSeverity severity,
+                 absl::Time timestamp) {
+    Reset(file, line, severity, timestamp);
+  }
   LogMessageData(const LogMessageData&) = delete;
   LogMessageData& operator=(const LogMessageData&) = delete;
+
+  void Reset(absl::string_view file, int line, absl::LogSeverity severity,
+             absl::Time timestamp);
 
   // `LogEntry` sent to `LogSink`s; contains metadata.
   absl::LogEntry entry;
@@ -169,7 +180,9 @@ struct LogMessage::LogMessageData final {
   // non-sink targets (e.g. stderr, log files).
   bool extra_sinks_only;
 
-  std::ostream manipulated;  // ostream with IO manipulators applied
+  // Lazily initialized ostream with IO manipulators applied.
+  std::optional<std::ostream> manipulated;
+  bool manipulated_used;
 
   // A `logging.proto.Event` proto message is built into `encoded_buf`.
   std::array<char, kLogMessageBufferSize> encoded_buf;
@@ -200,12 +213,21 @@ struct LogMessage::LogMessageData final {
   void FinalizeEncodingAndFormat();
 };
 
-LogMessage::LogMessageData::LogMessageData(absl::string_view file,
-                                           int line, absl::LogSeverity severity,
-                                           absl::Time timestamp)
-    : extra_sinks_only(false), manipulated(nullptr) {
-  // Legacy defaults for LOG's ostream:
-  manipulated.setf(std::ios_base::showbase | std::ios_base::boolalpha);
+ABSL_CONST_INIT ObjectPool<LogMessage::LogMessageData,
+                           LogMessage::LogMessageData::kPoolCapacity>
+    LogMessage::LogMessageData::pool;
+
+void LogMessage::LogMessageData::Reset(absl::string_view file, int line,
+                                       absl::LogSeverity severity,
+                                       absl::Time timestamp) {
+  first_fatal = false;
+  fail_quietly = false;
+  is_perror = false;
+  extra_sinks.clear();
+  extra_sinks.shrink_to_fit();
+  extra_sinks_only = false;
+  manipulated_used = false;
+  encoded_remaining_actual_do_not_use_directly = absl::Span<char>();
   entry.full_filename_ = file;
   entry.base_filename_ = Basename(file);
   entry.line_ = line;
@@ -214,6 +236,13 @@ LogMessage::LogMessageData::LogMessageData(absl::string_view file,
   entry.verbose_level_ = absl::LogEntry::kNoVerbosityLevel;
   entry.timestamp_ = timestamp;
   entry.tid_ = absl::base_internal::GetCachedTID();
+  entry.text_message_with_prefix_and_newline_and_nul_ =
+      absl::Span<const char>();
+  entry.prefix_len_ = 0;
+  entry.encoding_ = absl::string_view();
+  if (!entry.stacktrace_.empty()) {
+    entry.stacktrace_ = std::string();
+  }
 }
 
 void LogMessage::LogMessageData::InitializeEncodingAndFormat() {
@@ -278,12 +307,7 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line,
   : LogMessage(absl::string_view(file), line, severity) {}
 LogMessage::LogMessage(absl::string_view file, int line,
                        absl::LogSeverity severity)
-    : data_(
-          std::make_unique<LogMessageData>(file, line, severity, absl::Now())) {
-  data_->first_fatal = false;
-  data_->is_perror = false;
-  data_->fail_quietly = false;
-
+    : data_(LogMessageData::pool.Acquire(file, line, severity, absl::Now())) {
   // This logs a backtrace even if the location is subsequently changed using
   // AtLocation.  This quirk, and the behavior when AtLocation is called twice,
   // are fixable but probably not worth fixing.
@@ -298,7 +322,7 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line, ErrorTag)
     : LogMessage(file, line, absl::LogSeverity::kError) {}
 
 // This cannot go in the header since LogMessageData is defined in this file.
-LogMessage::~LogMessage() = default;
+LogMessage::~LogMessage() { LogMessageData::pool.Release(std::move(data_)); }
 
 LogMessage& LogMessage::AtLocation(absl::string_view file, int line) {
   data_->entry.full_filename_ = file;
@@ -437,14 +461,16 @@ LogMessage& LogMessage::operator<<(wchar_t v) {
   return *this;
 }
 
-LogMessage& LogMessage::operator<<(std::ostream& (*m)(std::ostream& os)) {
+LogMessage& LogMessage::operator<<(
+    std::ostream& (*absl_nonnull m)(std::ostream& os)) {
   OstreamView view(*data_);
-  data_->manipulated << m;
+  view.stream() << m;
   return *this;
 }
-LogMessage& LogMessage::operator<<(std::ios_base& (*m)(std::ios_base& os)) {
+LogMessage& LogMessage::operator<<(
+    std::ios_base& (*absl_nonnull m)(std::ios_base& os)) {
   OstreamView view(*data_);
-  data_->manipulated << m;
+  view.stream() << m;
   return *this;
 }
 // NOLINTBEGIN(runtime/int)
@@ -515,11 +541,23 @@ LogMessage::OstreamView::OstreamView(LogMessageData& message_data)
                          &encoded_remaining_copy_);
   setp(encoded_remaining_copy_.data(),
        encoded_remaining_copy_.data() + encoded_remaining_copy_.size());
-  data_.manipulated.rdbuf(this);
+  if (!std::exchange(data_.manipulated_used, true)) {
+    if (!data_.manipulated.has_value()) {
+      data_.manipulated.emplace(nullptr);
+    }
+    data_.manipulated->clear();
+    data_.manipulated->flags(std::ios_base::dec | std::ios_base::skipws |
+                             std::ios_base::showbase |
+                             std::ios_base::boolalpha);
+    data_.manipulated->precision(6);
+    data_.manipulated->width(0);
+    data_.manipulated->fill(' ');
+  }
+  data_.manipulated->rdbuf(this);
 }
 
 LogMessage::OstreamView::~OstreamView() {
-  data_.manipulated.rdbuf(nullptr);
+  data_.manipulated->rdbuf(nullptr);
   if (!string_start_.data()) {
     // The second field header didn't fit.  Whether the first one did or not, we
     // shouldn't commit `encoded_remaining_copy_`, and we also need to zero the
@@ -536,7 +574,7 @@ LogMessage::OstreamView::~OstreamView() {
   data_.encoded_remaining() = encoded_remaining_copy_;
 }
 
-std::ostream& LogMessage::OstreamView::stream() { return data_.manipulated; }
+std::ostream& LogMessage::OstreamView::stream() { return *data_.manipulated; }
 
 bool LogMessage::IsFatal() const {
   return data_->entry.log_severity() == absl::LogSeverity::kFatal &&

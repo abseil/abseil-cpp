@@ -195,6 +195,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/internal/nullguard.cc"
   "log/internal/nullguard.h"
   "log/internal/nullstream.h"
+  "log/internal/object_pool.h"
   "log/internal/proto.cc"
   "log/internal/proto.h"
   "log/internal/strip.h"

@@ -25,6 +25,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -1948,6 +1949,47 @@ TEST(ManipulatorLogFormatTest, SetFill) {
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setfill('0') << std::setw(8) << value;
+}
+
+TEST(ManipulatorLogFormatTest, ManipulatorsDoNotLeakAcrossPooledMessages) {
+  struct BufferAndMessageCaptureSink : public absl::LogSink {
+    void Send(const absl::LogEntry& entry) override {
+      buffers.push_back(entry.text_message_with_prefix_and_newline().data());
+      messages.emplace_back(entry.text_message());
+    }
+    std::vector<const char*> buffers;
+    std::vector<std::string> messages;
+  } sink;
+
+  // 1. Log without touching OstreamView (leaves std::optional<std::ostream>
+  // uninitialized or unused for this message).
+  constexpr absl::string_view kPlainMessage = "plain string_view";
+  LOG(INFO).ToSinkOnly(&sink) << kPlainMessage;
+
+  // 2. Log with non-default stream manipulators and stream error state bits on
+  // the same pooled buffer.
+  LOG(INFO).ToSinkOnly(&sink)
+      << std::hex << std::uppercase << std::noshowbase << std::noboolalpha
+      << std::scientific << std::setprecision(2) << std::setfill('*')
+      << std::left << std::setw(8) << 255 << " " << true << " " << 1.5
+      << +[](std::ostream& os) -> std::ostream& {
+    os.setstate(std::ios_base::failbit | std::ios_base::badbit |
+                std::ios_base::eofbit);
+    return os;
+  };
+
+  // 3. Log again without manipulators; verify the same pooled LogMessageData
+  // buffer is reused and all default ostream flags/precision/width/fill/rdstate
+  // are restored.
+  LOG(INFO).ToSinkOnly(&sink)
+      << 255 << " " << true << " " << 1.5 << " " << std::setw(4) << 7;
+
+  ASSERT_EQ(sink.messages.size(), 3u);
+  EXPECT_EQ(sink.buffers[0], sink.buffers[1]);
+  EXPECT_EQ(sink.buffers[1], sink.buffers[2]);
+  EXPECT_EQ(sink.messages[0], "plain string_view");
+  EXPECT_EQ(sink.messages[1], "FF****** 1 1.50E+00");
+  EXPECT_EQ(sink.messages[2], "255 true 1.5    7");
 }
 
 class FromCustomClass {};

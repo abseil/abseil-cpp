@@ -206,6 +206,7 @@ absl_cc_library(
     absl::log_internal_globals
     absl::log_internal_log_sink_set
     absl::log_internal_nullguard
+    absl::log_internal_object_pool
     absl::log_internal_proto
     absl::log_internal_structured_proto
     absl::log_severity
@@ -282,6 +283,22 @@ absl_cc_library(
     absl::core_headers
     absl::log_severity
     absl::string_view
+)
+
+absl_cc_library(
+  NAME
+    log_internal_object_pool
+  HDRS
+    "internal/object_pool.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::base
+    absl::config
+    absl::core_headers
+    absl::nullability
 )
 
 absl_cc_library(
@@ -1239,3 +1256,20 @@ absl_cc_test(
     absl::strings
     GTest::gmock_main
 )
+
+absl_cc_test(
+  NAME
+    internal_object_pool_test
+  SRCS
+    "internal/object_pool_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  LINKOPTS
+    ${ABSL_DEFAULT_LINKOPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::log_internal_object_pool
+    GTest::gmock_main
+)
+
