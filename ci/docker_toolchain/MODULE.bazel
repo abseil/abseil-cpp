@@ -16,3 +16,6 @@ module(
     name = "docker_toolchain",
     version = "0.1",
 )
+
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "platforms", version = "1.1.0")

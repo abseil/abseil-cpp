@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Standalone fallback toolchain module when building outside the Docker container.
-# Inside the container, this module is overridden via /etc/bazel.bazelrc to point to an actual
-# toolchain.
+# Standalone toolchain module when building outside the Linux Docker container.
+# Inside the Linux container, this module is overridden via /etc/bazel.bazelrc
+# to point to /opt/docker_toolchain. On Windows RBE, this module provides the
+# toolchains targeting the oss-windows-latest container.
+
+load(":windows_toolchain.bzl", "setup_windows_toolchains")
 
 package(default_visibility = ["//visibility:public"])
 
 filegroup(name = "empty")
+
+setup_windows_toolchains()

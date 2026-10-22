@@ -39,16 +39,16 @@ build:linux --host_per_file_copt=external/.*@-w
 
 # Configure our Windows MSVC and ClangCL setup.
 common:windows-msvc --enable_runfiles
+build:windows-msvc --platforms=//ci:windows_msvc
 build:windows-msvc --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
 build:windows-msvc --copt=/WX
 build:windows-msvc --per_file_copt=external/.*@/w
 build:windows-msvc --host_per_file_copt=external/.*@/w
 
 build:windows-clangcl --config=windows-msvc
+build:windows-clangcl --platforms=//ci:windows_clangcl
 build:windows-clangcl --compiler=clang-cl
 build:windows-clangcl --copt=-Wno-microsoft-cast
-build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
-build:windows-clangcl --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
 
 # Configure our macOS Xcode setup.
 build:macos --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
@@ -120,3 +120,15 @@ build:remote-arm --platforms=//ci:rbe-arm
 build:remote-arm --remote_cache=grpcs://us-central1-remotebuildexecution.googleapis.com
 build:remote-arm --remote_executor=grpcs://us-central1-remotebuildexecution.googleapis.com
 build:remote-arm --remote_instance_name=projects/google.com:absl-177019/instances/gloop-ci-central
+
+build:remote-windows --config=remote-base
+build:remote-windows --extra_execution_platforms=//ci:rbe-windows
+build:remote-windows --host_platform=//ci:rbe-windows
+build:remote-windows --platforms=//ci:rbe-windows
+build:remote-windows --remote_cache=grpcs://us-east1-remotebuildexecution.googleapis.com
+build:remote-windows --remote_executor=grpcs://us-east1-remotebuildexecution.googleapis.com
+build:remote-windows --remote_instance_name=projects/google.com:absl-177019/instances/absl-ci-east
+# cc_test puts Windows .pdb files in the pdb_file output group rather than
+# runfiles, so run symbolize_test locally with symbolize_test.pdb downloaded.
+build:remote-windows --remote_download_regex=.*symbolize_test\.pdb$
+build:remote-windows --strategy_regexp=Testing.*symbolize_test=local
