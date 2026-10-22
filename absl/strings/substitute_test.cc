@@ -269,6 +269,25 @@ TEST(SubstituteTest, AbslStringifyWithEnum) {
   EXPECT_EQ(absl::Substitute("$0", e), "Choices");
 }
 
+void ExpectSubEq(absl::string_view actual, absl::string_view expected) {
+  EXPECT_EQ(actual, expected);
+}
+
+TEST(SubstituteTest, CompileTimeConstantInts) {
+  ExpectSubEq(
+      absl::Substitute("$0,$1,$2,$3,$4,$5,$6,$7", int16_t{-32768},
+                       int16_t{-999}, int16_t{-10}, int16_t{-9}, int16_t{-1},
+                       int16_t{0}, int16_t{99}, uint16_t{65535}),
+      "-32768,-999,-10,-9,-1,0,99,65535");
+  ExpectSubEq(
+      absl::Substitute("$0,$1,$2,$3,$4,$5,$6,$7,$8,$9", -999, -9, -1, 0, 9, 42,
+                       99, 404, 8080, 0xabfaa72),
+      "-999,-9,-1,0,9,42,99,404,8080,180333170");
+  ExpectSubEq(absl::Substitute("$0,$1", std::numeric_limits<int64_t>::min(),
+                               std::numeric_limits<uint64_t>::max()),
+              "-9223372036854775808,18446744073709551615");
+}
+
 #if GTEST_HAS_DEATH_TEST
 
 TEST(SubstituteDeathTest, SubstituteDeath) {

@@ -67,6 +67,25 @@ int ApplySubstitutions(
   return substitutions;
 }
 
+std::string ApplySubstitutions(absl::string_view s,
+                               std::vector<ViableSubstitution> subs) {
+  std::string result;
+  result.reserve(s.size());
+  ApplySubstitutions(s, &subs, &result);
+  return result;
+}
+
+int ApplySubstitutions(std::vector<ViableSubstitution> subs,
+                       std::string* absl_nonnull target) {
+  if (subs.empty()) return 0;
+
+  std::string result;
+  result.reserve(target->size());
+  int substitutions = ApplySubstitutions(*target, &subs, &result);
+  target->swap(result);
+  return substitutions;
+}
+
 }  // namespace strings_internal
 
 // We can implement this in terms of the generic StrReplaceAll, but

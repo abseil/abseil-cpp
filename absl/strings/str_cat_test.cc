@@ -717,4 +717,31 @@ TEST(StrCat, SingleArgumentLimits) {
   CheckSingleArgumentIntegerLimits<uint64_t>();
 }
 
+void ExpectStrEq(absl::string_view actual, absl::string_view expected) {
+  EXPECT_EQ(actual, expected);
+}
+
+TEST(StrCat, CompileTimeConstantIntsAndBools) {
+  ExpectStrEq(absl::StrCat("v=", std::numeric_limits<int32_t>::min()),
+              "v=-2147483648");
+  ExpectStrEq(absl::StrCat("v=", -999, ",", -100, ",", -10, ",", -9, ",", -1),
+              "v=-999,-100,-10,-9,-1");
+  ExpectStrEq(absl::StrCat("v=", 0, ",", 1, ",", 9, ",", 10, ",", 42, ",", 99),
+              "v=0,1,9,10,42,99");
+  ExpectStrEq(absl::StrCat("v=", 100, ",", 404, ",", 8080, ",", 9999),
+              "v=100,404,8080,9999");
+  ExpectStrEq(absl::StrCat("v=", 0xabfaa72, ",", 99u, ",", 8080u),
+              "v=180333170,99,8080");
+  ExpectStrEq(absl::StrCat("v=", std::numeric_limits<int64_t>::min(), ",",
+                           std::numeric_limits<uint64_t>::max()),
+              "v=-9223372036854775808,18446744073709551615");
+
+  volatile bool rt = true;
+  volatile bool rf = false;
+  ExpectStrEq(absl::StrCat(true), "1");
+  ExpectStrEq(absl::StrCat(false), "0");
+  ExpectStrEq(absl::StrCat("b=", true, ",", false), "b=1,0");
+  ExpectStrEq(absl::StrCat("b=", bool{rt}, ",", bool{rf}), "b=1,0");
+}
+
 }  // namespace
