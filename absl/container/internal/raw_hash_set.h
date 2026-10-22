@@ -3444,7 +3444,7 @@ class raw_hash_set {
   //   s.count("abc");
   template <class K = key_type>
   size_t count(const key_arg<K>& key) const {
-    return find(key) == end() ? 0 : 1;
+    return contains(key) ? 1 : 0;
   }
 
   // Issues CPU prefetch instructions for the memory needed to find or insert
