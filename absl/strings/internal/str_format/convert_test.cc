@@ -1048,6 +1048,39 @@ TEST_F(FormatConvertTest, ScientificZeroPadding) {
   }
 }
 
+TEST_F(FormatConvertTest, LargeGeneralFixedNotation) {
+  // 0x1p129 has 39 integral digits and takes the slow `%g` path, which uses
+  // fixed notation when the precision is greater than the exponent.
+  const absl::string_view digits = "680564733841876926926749214863536422912";
+  struct Case {
+    absl::string_view format;
+    std::string positive;
+    std::string negative;
+  } cases[] = {
+      {"%.39g", absl::StrCat(digits), absl::StrCat("-", digits)},
+      {"%#.39g", absl::StrCat(digits, "."), absl::StrCat("-", digits, ".")},
+      {"%#.41G", absl::StrCat(digits, ".00"), absl::StrCat("-", digits, ".00")},
+      {"%45.39g", absl::StrCat("      ", digits),
+       absl::StrCat("     -", digits)},
+      {"%-45.39g", absl::StrCat(digits, "      "),
+       absl::StrCat("-", digits, "     ")},
+      {"%045.39g", absl::StrCat("000000", digits),
+       absl::StrCat("-00000", digits)},
+      {"%#45.39g", absl::StrCat("     ", digits, "."),
+       absl::StrCat("    -", digits, ".")},
+  };
+
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.format);
+    EXPECT_EQ(
+        FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(0x1p129)}),
+        c.positive);
+    EXPECT_EQ(
+        FormatPack(UntypedFormatSpecImpl(c.format), {FormatArgImpl(-0x1p129)}),
+        c.negative);
+  }
+}
+
 TEST_F(FormatConvertTest, DoubleRound) {
   std::string s;
   const auto format = [&](const char *fmt, double d) -> std::string & {
