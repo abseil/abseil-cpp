@@ -87,8 +87,8 @@ jobs:
 
       - name: Setup continuous run
         if: ${{ github.event_name == 'schedule' }}
-        # Force builds and tests to run on scheduled runs.
-        run: echo "EXTRA_BAZEL_ARGS=--cache_test_results=no --action_env=FORCE_REBUILD=1" >> $GITHUB_ENV
+        # Force tests to run on scheduled runs.
+        run: echo "EXTRA_BAZEL_ARGS=--cache_test_results=no" >> $GITHUB_ENV
 
       - name: Set up Bazel and caches
         uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
