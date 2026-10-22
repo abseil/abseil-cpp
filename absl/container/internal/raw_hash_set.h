@@ -2416,36 +2416,12 @@ using IsAllocMoveSameAsCopy =
                                               Alloc>::template rebind_alloc<T>>,
         T, void>>>;
 
-template <class T>
-using ShouldStructurallyPreferPassByValue = std::bool_constant<
-    // Check if size is a power of 2, to ensure cheap calls.
-    absl::has_single_bit(sizeof(T)) &&
-    // Check if copying 1-2 registers is enough. We don't want (for example) 32
-    // one-byte values to move around, since that sometimes results in poor
-    // codegen.
-    alignof(T) * 2 >= sizeof(T) &&
-    sizeof(T) <= sizeof(std::pair<void*, size_t>)>;
-
-template <class T>
-using ShouldSemanticallyPreferPassByValue =
-    std::bool_constant<std::is_trivially_move_constructible_v<T> &&
-                       std::is_trivially_destructible_v<T>>;
-
-// Checks the given type to see if it is a good candidate for accepting by value
-// instead of by rvalue-reference. This includes both a semantic constraint
-// (to ensure correctness), as well as a structural constraint (to ensure
-// performance).
-template <class T>
-using ShouldPreferPassByValue =
-    std::bool_constant<ShouldSemanticallyPreferPassByValue<T>::value &&
-                       ShouldStructurallyPreferPassByValue<std::conditional_t<
-                           std::is_void_v<T>, char, T>>::value>;
-
 // This is a 'struct' instead of 'using' in order to avoid eager evaluation for
 // callers that may be passing incomplete types.
 template <class T>
 struct AddConstRefIfExpensive
-    : std::conditional<ShouldPreferPassByValue<T>::value, T, const T&> {
+    : std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value,
+                       T, const T&> {
   static_assert(std::is_same_v<remove_cvref_t<T>, T>,
                 "passed types must be unqualified");
 };
@@ -4093,19 +4069,20 @@ class raw_hash_set {
   // For string-like keys, we convert to string_view when calling find*_large()
   // operations to (a) avoid repeatedly (i) branching on SSO or (ii) calling
   // strlen(), (b) share code between the string-like types, (c) avoid
-  // materializing string_view on the stack just to pass a reference to it. Note
-  // that we don't pass FindLargeKey to find*_small() to avoid unnecessarily
-  // constructing string_view for small empty tables. Note: we use
-  // type_identity_t and static_asserts to ensure that the key type in
-  // find*_large is FindLargeKey. (type_identity_t ensures that the template
-  // argument is not deduced and must be specified explicitly.)
-  // TODO(ezb): extend this to other types (e.g. small trivial types).
+  // materializing string_view on the stack just to pass a reference to it.
+  // For other small trivial keys (see KeyParamT), we pass by value in
+  // registers rather than by reference. Note that we don't pass FindLargeKey
+  // to find*_small() to avoid unnecessarily constructing string_view for small
+  // empty tables. Note: we use type_identity_t and static_asserts to ensure
+  // that the key type in find*_large is FindLargeKey. (type_identity_t ensures
+  // that the template argument is not deduced and must be specified
+  // explicitly.)
   template <class K>
   using FindLargeKey = std::conditional_t<
       std::is_same_v<hasher, absl::container_internal::StringHash> &&
           std::is_same_v<key_equal, absl::container_internal::StringEq> &&
           std::is_convertible_v<const K&, absl::string_view>,
-      const absl::string_view, const K&>;
+      const absl::string_view, KeyParamT<K>>;
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
