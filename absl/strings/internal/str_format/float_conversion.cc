@@ -650,8 +650,7 @@ void FormatFFast(Int v, int exp, const FormatState &state) {
 // Prints `v*2^exp` with the options from `state`.
 // This one is guaranteed to not have fractional digits, so we don't have to
 // worry about anything after the `.`.
-void FormatFPositiveExpSlow(uint128 v, int exp, const FormatState& state,
-                            bool strip_trailing_zeros = false) {
+void FormatFPositiveExpSlow(uint128 v, int exp, const FormatState& state) {
   BinaryToDecimal::RunConversion(v, exp, [&](BinaryToDecimal btd) {
     const size_t total_digits =
         btd.TotalDigits() + (state.ShouldPrintDot() ? state.precision + 1 : 0);
@@ -668,12 +667,10 @@ void FormatFPositiveExpSlow(uint128 v, int exp, const FormatState& state,
       state.sink->Append(btd.CurrentDigits());
     } while (btd.AdvanceDigits());
 
-    if (state.ShouldPrintDot() && !strip_trailing_zeros) {
+    if (state.ShouldPrintDot()) {
       state.sink->Append(1, '.');
     }
-    if (!strip_trailing_zeros) {
-      state.sink->Append(state.precision, '0');
-    }
+    state.sink->Append(state.precision, '0');
     state.sink->Append(padding.right_spaces, ' ');
   });
 }
@@ -2039,7 +2036,15 @@ void FormatGPositiveExpSlow(Int mantissa, int exp, bool uppercase,
       FormatEPositiveExpSlow(mantissa, exp, uppercase, state,
                              num_trailing_zeros);
     } else {
-      FormatFPositiveExpSlow(mantissa, exp, state, !state.conv.has_alt_flag());
+      // %g uses precision P - 1 - X for the fixed style. The value is an
+      // integer here, so without '#' every fractional digit is a trailing
+      // zero and gets removed along with the decimal point.
+      FormatState f_state = state;
+      f_state.precision =
+          state.conv.has_alt_flag()
+              ? state.precision - static_cast<size_t>(scientific_exp)
+              : 0;
+      FormatFPositiveExpSlow(mantissa, exp, f_state);
     }
   });
 }
