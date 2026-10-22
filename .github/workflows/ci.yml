@@ -87,7 +87,7 @@ jobs:
           - name: GCC/libstdc++ (floor)
             toolchain: gcc
             remote_config: remote-floor
-            container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-floor@sha256:5a5d17e588e14d5f0d993ea828b7ba844c72b02980bcf731ccf5a4cddf8db599
+            container_image: gcr.io/google.com/absl-177019/oss-linux-toolchain-floor@sha256:9027d0b4cae51d764cebafecbf9e390a14f97cf977ca24d02cc533998614acd2
             stds: '["c++17"]'
           # linux_arm_clang-latest_libcxx_bazel.cfg (c++17 and c++20 only)
           - name: ARM64 Clang/libc++
@@ -101,7 +101,7 @@ jobs:
       os: ${{ matrix.config.os || 'ubuntu-24.04' }}
       toolchain: ${{ matrix.config.toolchain }}
       remote_config: ${{ matrix.config.remote_config || 'remote' }}
-      container_image: ${{ matrix.config.container_image || 'gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:5a19067585ce5e5ee45640fd0287f05038d6b3f9574d6a5cdf08241e022d0f4a' }}
+      container_image: ${{ matrix.config.container_image || 'gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:81009eeb5523ae59cfbea8dc0847d41572ed100f79e3c976c64378a0c30d353c' }}
       alternate_options: ${{ matrix.config.alternate_options || false }}
       stds: ${{ matrix.config.stds || '["c++17", "c++20", "c++23"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["opt", "fastbuild"]' }}
@@ -115,7 +115,7 @@ jobs:
           # linux_gcc-latest_libstdcxx_cxx17_cmake.cfg
           - name: Linux GCC/libstdc++
             os: ubuntu-24.04
-            container_image: gcr.io/google.com/absl-177019/oss-linux-latest@sha256:9f7f104e4857e3528e8bf5f14968183f5a0e786ca9ef63601eae4e4136f011d6
+            container_image: gcr.io/google.com/absl-177019/oss-linux-latest@sha256:84505366948db3ea97c71d0aa384a920e73f6994bb4194d7f80ee77979fd9d58
           # linux_gcc_alpine_cmake.cfg
           - name: Alpine Linux GCC (musl)
             os: ubuntu-24.04
@@ -125,7 +125,7 @@ jobs:
           # cmake-install.cfg
           - name: Linux Install
             os: ubuntu-24.04
-            container_image: gcr.io/google.com/absl-177019/oss-linux-latest@sha256:9f7f104e4857e3528e8bf5f14968183f5a0e786ca9ef63601eae4e4136f011d6
+            container_image: gcr.io/google.com/absl-177019/oss-linux-latest@sha256:84505366948db3ea97c71d0aa384a920e73f6994bb4194d7f80ee77979fd9d58
             build_types: '["Release"]'
             link_modes: '["static", "shared"]'
             install_test: true
