@@ -91,6 +91,8 @@ struct RawHashSetTestOnlyAccess {
   static size_t CountTombstones(const C& c) {
     return c.common().TombstonesCount();
   }
+  template <typename C, typename K>
+  using FindLargeKey = typename C::template FindLargeKey<K>;
 };
 
 namespace {
@@ -5483,6 +5485,31 @@ TEST(Table, GrowExtremelyLargeTable) {
     }
   }
   EXPECT_EQ(t.capacity(), kTargetCapacity);
+}
+
+TEST(Table, FindLargeKeyPointerCanonicalization) {
+  struct Base {};
+  struct Derived : Base {};
+
+  using Set = absl::flat_hash_set<int*>;
+  static_assert(
+      std::is_same_v<RawHashSetTestOnlyAccess::FindLargeKey<Set, int*>,
+                     const int*>);
+  static_assert(
+      std::is_same_v<
+          RawHashSetTestOnlyAccess::FindLargeKey<Set, std::unique_ptr<int>>,
+          const std::unique_ptr<int>&>);
+
+  using BaseSet = absl::flat_hash_set<const Base*>;
+  static_assert(
+      std::is_same_v<RawHashSetTestOnlyAccess::FindLargeKey<BaseSet, Derived*>,
+                     const Base*>);
+
+  using CustomSet =
+      absl::flat_hash_set<int*, absl::Hash<int*>, std::equal_to<int*>>;
+  static_assert(
+      std::is_same_v<RawHashSetTestOnlyAccess::FindLargeKey<CustomSet, int*>,
+                     int*>);
 }
 
 }  // namespace
