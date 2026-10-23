@@ -314,17 +314,21 @@ static void **NextStackFrame(void **old_fp, const void *uc,
 #if !defined(_WIN32)
   const uintptr_t old_fp_page = old_fp_u & ~(page_size - 1);
   const uintptr_t new_fp_page = new_fp_u & ~(page_size - 1);
-  if (old_fp_page == new_fp_page && (new_fp_u & (sizeof(void*) - 1)) == 0) {
-    // We dereferenced the old_fp above, so it is safe to dereference
-    // new_fp if it's on the same page as the old_fp and is aligned.
-  } else if (!STRICT_UNWINDING) {
-    // Lax sanity checks cause a crash in 32-bit tcmalloc/crash_reason_test
-    // on AMD-based machines with VDSO-enabled kernels.
-    // Make an extra sanity check to insure new_fp is readable.
-    // Note: NextStackFrame<false>() is only called while the program
-    //       is already on its last leg, so it's ok to be slow here.
+  const uintptr_t new_fp_plus_1_u =
+      reinterpret_cast<uintptr_t>(new_fp + 1);
+  const uintptr_t new_fp_plus_1_page = new_fp_plus_1_u & ~(page_size - 1);
 
+  if (old_fp_page == new_fp_page && old_fp_page == new_fp_plus_1_page) {
+    // We dereferenced old_fp and old_fp + 1 above, so it is safe to dereference
+    // new_fp and new_fp + 1 if they are both on the same page as old_fp.
+  } else {
+    // Ensure new_fp and new_fp + 1 (the return address) do not dereference
+    // unmapped memory or a guard page beyond the stack top.
     if (!AddressIsReadable(new_fp)) {
+      return nullptr;
+    }
+    if (new_fp_page != new_fp_plus_1_page &&
+        !AddressIsReadable(new_fp + 1)) {
       return nullptr;
     }
   }
