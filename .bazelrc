@@ -30,7 +30,7 @@ test --test_tag_filters=-benchmark
 # Configure our Linux Docker toolchain setup.
 common --extra_toolchains=@docker_toolchain//:all
 build:linux --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
-build:linux --copt=-fno-exceptions
+build:linux --copt=-fno-exceptions --//ci:exceptions=disabled
 build:linux --copt=-Werror
 build:linux --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
 build:linux --features=external_include_paths
@@ -43,9 +43,10 @@ build:windows-msvc --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
 build:windows-msvc --copt=/WX
 build:windows-msvc --per_file_copt=external/.*@/w
 build:windows-msvc --host_per_file_copt=external/.*@/w
+build:windows-msvc --//ci:compiler=msvc --//ci:stdlib=msvc --//ci:exceptions=enabled
 
 build:windows-clangcl --config=windows-msvc
-build:windows-clangcl --compiler=clang-cl
+build:windows-clangcl --compiler=clang-cl --//ci:compiler=clang-cl
 build:windows-clangcl --copt=-Wno-microsoft-cast
 build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
 build:windows-clangcl --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
@@ -57,27 +58,28 @@ build:macos --copt=-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1
 build:macos --features=external_include_paths
 build:macos --per_file_copt=external/.*@-w
 build:macos --host_per_file_copt=external/.*@-w
+build:macos --//ci:compiler=clang --//ci:stdlib=libc++ --//ci:exceptions=enabled
 
-build:gcc --config=linux --platforms=//ci:linux_gcc
-build:gcc-exceptions --config=gcc --copt=-fexceptions
-build:clang --config=linux --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument
-build:clang-exceptions --config=clang --copt=-fexceptions
-build:clang-arm --config=linux --platforms=//ci:linux_arm_clang --conlyopt=-Wno-unused-command-line-argument
-build:libstdc++ --config=clang --features=libstdc++ --copt=-march=haswell
+build:gcc --config=linux --platforms=//ci:linux_gcc --//ci:compiler=gcc --//ci:stdlib=libstdc++
+build:gcc-exceptions --config=gcc --copt=-fexceptions --//ci:exceptions=enabled
+build:clang --config=linux --platforms=//ci:linux_clang --conlyopt=-Wno-unused-command-line-argument --//ci:compiler=clang --//ci:stdlib=libc++
+build:clang-exceptions --config=clang --copt=-fexceptions --//ci:exceptions=enabled
+build:clang-arm --config=linux --platforms=//ci:linux_arm_clang --conlyopt=-Wno-unused-command-line-argument --//ci:compiler=clang --//ci:stdlib=libc++
+build:libstdc++ --config=clang --features=libstdc++ --copt=-march=haswell --//ci:stdlib=libstdc++
 
 # Sanitizer configurations.
-build:ubsan --features=ubsan
+build:ubsan --features=ubsan --//ci:sanitizer=ubsan
 build:ubsan --copt=-fsanitize=float-divide-by-zero,nullability,undefined
 build:ubsan --copt=-fno-sanitize-recover=float-divide-by-zero,nullability,undefined
 build:ubsan --copt=-fno-sanitize-blacklist
 test:ubsan --test_env=UBSAN_OPTIONS=print_stacktrace=1
 
-build:asan --config=clang --config=ubsan --features=asan
+build:asan --config=clang --config=ubsan --features=asan --//ci:sanitizer=asan
 build:asan --copt=-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG
 build:asan --linkopt=-fsanitize-link-c++-runtime
 test:asan --test_tag_filters=-benchmark,-noasan
 
-build:tsan --config=clang --features=tsan
+build:tsan --config=clang --features=tsan --//ci:sanitizer=tsan
 build:tsan --copt=-fno-sanitize-blacklist
 build:tsan --build_tag_filters=-notsan
 test:tsan --test_tag_filters=-benchmark,-notsan
