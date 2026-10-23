@@ -201,6 +201,7 @@ cc_library(
         ":globals",
         ":log_sink_set",
         ":nullguard",
+        ":object_pool",
         ":proto",
         ":structured_proto",
         "//absl/base",
@@ -289,6 +290,33 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:log_severity",
         "//absl/strings:string_view",
+    ],
+)
+
+cc_library(
+    name = "object_pool",
+    hdrs = ["object_pool.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:nullability",
+    ],
+)
+
+cc_test(
+    name = "object_pool_test",
+    srcs = ["object_pool_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":object_pool",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

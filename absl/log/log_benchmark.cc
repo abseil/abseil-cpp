@@ -95,6 +95,29 @@ static void BM_EnabledLogOverhead(benchmark::State& state) {
 }
 BENCHMARK(BM_EnabledLogOverhead);
 
+class LocalNullLogSink : public absl::LogSink {
+ public:
+  void Send(const absl::LogEntry&) override {}
+};
+
+static void BM_EnabledLogToSinkString(benchmark::State& state) {
+  absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfo);
+  LocalNullLogSink sink;
+  for (auto _ : state) {
+    LOG(INFO).ToSinkOnly(&sink) << "hello world";
+  }
+}
+BENCHMARK(BM_EnabledLogToSinkString)->ThreadRange(1, 16);
+
+static void BM_EnabledLogToSinkInt(benchmark::State& state) {
+  absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfo);
+  LocalNullLogSink sink;
+  for (auto _ : state) {
+    LOG(INFO).ToSinkOnly(&sink) << "value: " << 42;
+  }
+}
+BENCHMARK(BM_EnabledLogToSinkInt)->ThreadRange(1, 16);
+
 static void BM_VlogIsOnOverhead(benchmark::State& state) {
   // It would make sense to do this only when state.thread_index == 0,
   // but thread_index is an int on some platforms (e.g. Android) and a
