@@ -84,17 +84,13 @@ void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
 // kProfileTimestampShift below) are not reported.
 static constexpr int64_t kMinProfiledWaitCycles = 1 << 7;
 
-// Report how long an acquiring thread was blocked, measured from the point
-// at which it gave up spinning for the lock.
-static void ReportLockWait(SpinLock& lock, int64_t wait_start_time,
-                           int64_t wait_end_time) {
+void SubmitLockWait(const void* absl_nonnull lock, int64_t wait_start_time,
+                    int64_t wait_end_time) {
   const int64_t wait_cycles = wait_end_time - wait_start_time;
   if (wait_cycles < kMinProfiledWaitCycles) {
     return;
   }
-  ABSL_TSAN_MUTEX_PRE_DIVERT(&lock, 0);
-  submit_lock_profile_data(&lock, wait_cycles);
-  ABSL_TSAN_MUTEX_POST_DIVERT(&lock, 0);
+  submit_lock_profile_data(lock, wait_cycles);
 }
 
 // Monitor the lock to see if its value changes within some time period
@@ -191,7 +187,9 @@ void SpinLock::SlowLock() {
     lock_value = TryLockInternal(lock_value, wait_cycles);
   }
 
-  ReportLockWait(*this, wait_start_time, now);
+  ABSL_TSAN_MUTEX_PRE_DIVERT(this, 0);
+  SubmitLockWait(this, wait_start_time, now);
+  ABSL_TSAN_MUTEX_POST_DIVERT(this, 0);
 }
 
 void SpinLock::SlowUnlock(uint32_t lock_value) {
