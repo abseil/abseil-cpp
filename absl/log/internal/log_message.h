@@ -129,7 +129,7 @@ class LogMessage {
   // NOLINTBEGIN(google-runtime-int)
   // clang-format off:  The CUDA toolchain cannot handle these <<<'s
   LogMessage& operator<<(char v) { return operator<< <char>(v); }
-  LogMessage& operator<<(signed char v) { return operator<< <signed char>(v); }
+  LogMessage& operator<<(signed char v);
   LogMessage& operator<<(unsigned char v) {
     return operator<< <unsigned char>(v);
   }
@@ -140,21 +140,15 @@ class LogMessage {
   LogMessage& operator<<(signed long v) {
     return operator<< <signed long>(v);
   }
-  LogMessage& operator<<(signed long long v) {
-    return operator<< <signed long long>(v);
-  }
-  LogMessage& operator<<(unsigned short v) {
-    return operator<< <unsigned short>(v);
-  }
+  LogMessage& operator<<(signed long long v);
+  LogMessage& operator<<(unsigned short v);
   LogMessage& operator<<(unsigned int v) {
     return operator<< <unsigned int>(v);
   }
   LogMessage& operator<<(unsigned long v) {
     return operator<< <unsigned long>(v);
   }
-  LogMessage& operator<<(unsigned long long v) {
-    return operator<< <unsigned long long>(v);
-  }
+  LogMessage& operator<<(unsigned long long v);
   LogMessage& operator<<(void* absl_nullable  v) {
     return operator<< <void*>(v);
   }
@@ -180,11 +174,7 @@ class LogMessage {
   LogMessage& operator<<(wchar_t v);
 
   // Overload for absl::SourceLocation or the std::source_location alias.
-  LogMessage& operator<<(const absl::SourceLocation& loc) {
-    OstreamView view(*data_);
-    view.stream() << loc.file_name() << ':' << loc.line();
-    return *this;
-  }
+  LogMessage& operator<<(const absl::SourceLocation& loc);
 
   // Handle stream manipulators e.g. std::endl.
   LogMessage& operator<<(std::ostream& (*absl_nonnull m)(std::ostream& os));
@@ -331,9 +321,7 @@ class StringifySink final {
                                                                       count);
   }
 
-  void Append(absl::string_view v) {
-    message_.CopyToEncodedBuffer<LogMessage::StringType::kNotLiteral>(v);
-  }
+  void Append(absl::string_view v);
 
   // For types that implement `AbslStringify` using `absl::Format()`.
   friend void AbslFormatFlush(StringifySink* absl_nonnull sink,
