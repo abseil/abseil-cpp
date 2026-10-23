@@ -764,11 +764,6 @@ inline StatusBuilder::StatusBuilder(absl::StatusCode code,
                                     absl::SourceLocation location)
     : loc_(location), rep_(InitRep(absl::Status(code, ""))) {}
 
-inline StatusBuilder::StatusBuilder(const StatusBuilder& sb) : loc_(sb.loc_) {
-  if (sb.rep_ != nullptr) {
-    rep_ = std::make_unique<Rep>(*sb.rep_);
-  }
-}
 
 inline StatusBuilder::StatusBuilder(absl::Status&& original_status,
                                     absl::SourceLocation location)
@@ -787,24 +782,7 @@ inline StatusBuilder::~StatusBuilder() {
   AssumeEmpty();
 }
 
-inline StatusBuilder& StatusBuilder::operator=(const StatusBuilder& sb) {
-  loc_ = sb.loc_;
-  if (sb.rep_ != nullptr) {
-    rep_ = std::make_unique<Rep>(*sb.rep_);
-  } else {
-    rep_ = nullptr;
-  }
-  return *this;
-}
 
-inline StatusBuilder& StatusBuilder::SetPrepend() & {
-  if (rep_ == nullptr) return *this;
-  rep_->message_join_style = MessageJoinStyle::kPrepend;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::SetPrepend() && {
-  return std::move(SetPrepend());
-}
 
 inline StatusBuilder& StatusBuilder::SetAppend() & {
   if (rep_ == nullptr) return *this;
@@ -815,36 +793,11 @@ inline StatusBuilder&& StatusBuilder::SetAppend() && {
   return std::move(SetAppend());
 }
 
-inline StatusBuilder& StatusBuilder::SetNoLogging() & {
-  if (rep_ != nullptr) {
-    rep_->logging_mode = Rep::LoggingMode::kDisabled;
-    rep_->should_log_stack_trace = false;
-  }
-  return *this;
-}
 inline StatusBuilder&& StatusBuilder::SetNoLogging() && {
   return std::move(SetNoLogging());
 }
 
-inline StatusBuilder& StatusBuilder::Log(absl::LogSeverity level) & {
-  if (rep_ == nullptr) return *this;
-  rep_->logging_mode = Rep::LoggingMode::kLog;
-  rep_->log_severity = level;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::Log(absl::LogSeverity level) && {
-  return std::move(Log(level));
-}
 
-inline StatusBuilder& StatusBuilder::LogEveryN(absl::LogSeverity level,
-                                               int n) & {
-  if (rep_ == nullptr) return *this;
-  if (n < 1) return Log(level);
-  rep_->logging_mode = Rep::LoggingMode::kLogEveryN;
-  rep_->log_severity = level;
-  rep_->n = n;
-  return *this;
-}
 inline StatusBuilder&& StatusBuilder::LogEveryN(absl::LogSeverity level,
                                                 int n) && {
   return std::move(LogEveryN(level, n));
@@ -864,12 +817,6 @@ inline StatusBuilder&& StatusBuilder::LogEvery(absl::LogSeverity level,
   return std::move(LogEvery(level, period));
 }
 
-inline StatusBuilder& StatusBuilder::VLog(int verbose_level) & {
-  if (rep_ == nullptr) return *this;
-  rep_->logging_mode = Rep::LoggingMode::kVLog;
-  rep_->verbose_level = verbose_level;
-  return *this;
-}
 inline StatusBuilder&& StatusBuilder::VLog(int verbose_level) && {
   return std::move(VLog(verbose_level));
 }
@@ -922,18 +869,7 @@ StatusBuilder&& StatusBuilder::operator<<(const T& value) && {
   return std::move(operator<<(value));
 }
 
-inline StatusBuilder& StatusBuilder::SetPayload(absl::string_view type_url,
-                                                absl::Cord payload) & {
-  if (rep_ != nullptr) {
-    rep_->status.SetPayload(type_url, std::move(payload));
-  }
-  return *this;
-}
 
-inline std::optional<absl::Cord> StatusBuilder::GetPayload(
-    absl::string_view type_url) const {
-  return rep_ == nullptr ? std::nullopt : rep_->status.GetPayload(type_url);
-}
 
 inline bool StatusBuilder::ok() const {
   return rep_ == nullptr ? true : rep_->status.ok();
