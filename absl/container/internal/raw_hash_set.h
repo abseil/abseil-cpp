@@ -2237,8 +2237,8 @@ void ClearBackingArray(CommonFields& c, const PolicyFunctions& policy,
 // Destroys all full slots in the backing array.
 // REQUIRES: !is_small(c.capacity()).
 // REQUIRES: destroy_slot != nullptr.
-void DestroySlots(CommonFields& c, size_t slot_size,
-                  DestroySlotFn destroy_slot);
+ABSL_ATTRIBUTE_NOINLINE void DestroySlots(CommonFields& c, size_t slot_size,
+                                          DestroySlotFn destroy_slot);
 
 // Deallocates the backing array and unregister infoz if necessary.
 // REQUIRES: c.capacity > raw_hash_set::DefaultCapacity().
