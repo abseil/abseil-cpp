@@ -35,9 +35,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
+#include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/spinlock_wait.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
@@ -178,10 +180,17 @@ template <typename Callable, typename... Args>
   // kOnceDone. If it returns kOnceDone, it must have loaded the control word
   // with std::memory_order_acquire and seen a value of kOnceDone.
   uint32_t old_control = kOnceInit;
-  if (control->compare_exchange_strong(old_control, kOnceRunning,
-                                       std::memory_order_relaxed) ||
-      base_internal::SpinLockWait(control, static_cast<int>(std::size(trans)),
-                                  trans, scheduling_mode) == kOnceInit) {
+  bool run_fn = control->compare_exchange_strong(old_control, kOnceRunning,
+                                                 std::memory_order_relaxed);
+  if (!run_fn) {
+    const int64_t wait_start_time = base_internal::CycleClock::Now();
+    const uint32_t wait_status = base_internal::SpinLockWait(
+        control, static_cast<int>(std::size(trans)), trans, scheduling_mode);
+    base_internal::SubmitLockWait(control, wait_start_time,
+                                  base_internal::CycleClock::Now());
+    run_fn = (wait_status == kOnceInit);
+  }
+  if (run_fn) {
     std::invoke(std::forward<Callable>(fn), std::forward<Args>(args)...);
     old_control =
         control->exchange(base_internal::kOnceDone, std::memory_order_release);

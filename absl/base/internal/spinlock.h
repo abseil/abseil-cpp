@@ -294,6 +294,13 @@ void RegisterSpinLockLockProfiler(void (*absl_nonnull fn)(
 // Public interface ends here.
 //------------------------------------------------------------------------------
 
+// Reports how long an acquiring thread was blocked over
+// `[wait_start_time, wait_end_time]` to the profiler registered with
+// RegisterSpinLockLockProfiler(), if any. Callers inside a TSan mutex ignore
+// region (such as SpinLock::SlowLock) must divert before calling this function.
+void SubmitLockWait(const void* absl_nonnull lock, int64_t wait_start_time,
+                    int64_t wait_end_time);
+
 // If (result & kSpinLockHeld) == 0, then *this was successfully locked.
 // Otherwise, returns last observed value for lockword_.
 inline uint32_t SpinLock::TryLockInternal(uint32_t lock_value,

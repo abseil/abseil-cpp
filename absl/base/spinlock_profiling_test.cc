@@ -21,6 +21,7 @@
 #include <thread>  // NOLINT(build/c++11)
 
 #include "gtest/gtest.h"
+#include "absl/base/call_once.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/internal/scheduling_mode.h"
@@ -127,6 +128,87 @@ TEST_F(SpinLockProfiling, UncontendedAcquisitionsAreNotReported) {
   for (int i = 0; i < 1000; ++i) {
     spinlock.lock();
     spinlock.unlock();
+  }
+  profiled_lock = nullptr;
+
+  EXPECT_EQ(0, lock_profiler_calls.load(std::memory_order_relaxed));
+  EXPECT_EQ(0, unlock_profiler_calls.load(std::memory_order_relaxed));
+}
+
+TEST_F(SpinLockProfiling, CallOnceContentionIsReported) {
+  once_flag once;
+  profiled_lock = ControlWord(&once);
+
+  constexpr int64_t kContendedHoldCycles = int64_t{1} << 20;
+  Notification started;
+  std::thread initializer([&] {
+    absl::call_once(once, [&] {
+      started.Notify();
+      while (ControlWord(&once)->load(std::memory_order_relaxed) !=
+             kOnceWaiter) {
+        std::this_thread::yield();
+      }
+      const int64_t end = CycleClock::Now() + kContendedHoldCycles;
+      while (CycleClock::Now() < end) {
+      }
+    });
+  });
+  started.WaitForNotification();
+  absl::call_once(once, [] {});
+  initializer.join();
+  profiled_lock = nullptr;
+
+  // Only the blocked waiter reports contention; the slow initializer does not,
+  // and call_once has no unlock-side contention report.
+  EXPECT_EQ(1, lock_profiler_calls.load(std::memory_order_relaxed));
+  EXPECT_GE(lock_profiler_cycles.load(std::memory_order_relaxed),
+            kContendedHoldCycles);
+  EXPECT_EQ(0, unlock_profiler_calls.load(std::memory_order_relaxed));
+}
+
+TEST_F(SpinLockProfiling, LowLevelCallOnceContentionIsReported) {
+  once_flag once;
+  profiled_lock = ControlWord(&once);
+
+  constexpr int64_t kContendedHoldCycles = int64_t{1} << 20;
+  std::atomic<bool> started{false};
+  std::thread initializer([&] {
+    LowLevelCallOnce(&once, [&] {
+      started.store(true, std::memory_order_relaxed);
+      while (ControlWord(&once)->load(std::memory_order_relaxed) !=
+             kOnceWaiter) {
+        std::this_thread::yield();
+      }
+      const int64_t end = CycleClock::Now() + kContendedHoldCycles;
+      while (CycleClock::Now() < end) {
+      }
+    });
+  });
+  while (!started.load(std::memory_order_relaxed)) {
+    std::this_thread::yield();
+  }
+  LowLevelCallOnce(&once, [] {});
+  initializer.join();
+  profiled_lock = nullptr;
+
+  EXPECT_EQ(1, lock_profiler_calls.load(std::memory_order_relaxed));
+  EXPECT_GE(lock_profiler_cycles.load(std::memory_order_relaxed),
+            kContendedHoldCycles);
+  EXPECT_EQ(0, unlock_profiler_calls.load(std::memory_order_relaxed));
+}
+
+TEST_F(SpinLockProfiling, UncontendedCallOnceIsNotReported) {
+  once_flag once;
+  profiled_lock = ControlWord(&once);
+
+  constexpr int64_t kInitCycles = int64_t{1} << 20;
+  absl::call_once(once, [&] {
+    const int64_t end = CycleClock::Now() + kInitCycles;
+    while (CycleClock::Now() < end) {
+    }
+  });
+  for (int i = 0; i < 1000; ++i) {
+    absl::call_once(once, [] {});
   }
   profiled_lock = nullptr;
 
