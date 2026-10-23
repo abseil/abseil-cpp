@@ -787,5 +787,43 @@ LogMessageQuietlyFatal::~LogMessageQuietlyFatal() { FailQuietly(); }
 
 }  // namespace log_internal
 
+namespace log_internal {
+LogMessage& LogMessage::operator<<(signed char v) {
+  return operator<< <signed char>(v);
+}
+}  // namespace log_internal
+
+namespace log_internal {
+LogMessage& LogMessage::operator<<(signed long long v) {
+  return operator<< <signed long long>(v);
+}
+}  // namespace log_internal
+
+namespace log_internal {
+LogMessage& LogMessage::operator<<(unsigned short v) {
+  return operator<< <unsigned short>(v);
+}
+}  // namespace log_internal
+
+namespace log_internal {
+LogMessage& LogMessage::operator<<(unsigned long long v) {
+  return operator<< <unsigned long long>(v);
+}
+}  // namespace log_internal
+
+namespace log_internal {
+LogMessage& LogMessage::operator<<(const absl::SourceLocation& loc) {
+  OstreamView view(*data_);
+  view.stream() << loc.file_name() << ':' << loc.line();
+  return *this;
+}
+}  // namespace log_internal
+
+namespace log_internal {
+void StringifySink::Append(absl::string_view v) {
+  message_.CopyToEncodedBuffer<LogMessage::StringType::kNotLiteral>(v);
+}
+}  // namespace log_internal
+
 ABSL_NAMESPACE_END
 }  // namespace absl
