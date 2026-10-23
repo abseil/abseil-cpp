@@ -197,5 +197,106 @@ Arg::Arg(Dec dec) {
 }
 
 }  // namespace substitute_internal
+
+namespace substitute_internal {
+Arg::Arg(const char* absl_nullable value)
+    : piece_(absl::NullSafeStringView(value)) {}
+}  // namespace substitute_internal
+
+namespace substitute_internal {
+Arg::Arg(char value) {  // NOLINT(google-explicit-constructor)
+  scratch_[0] = value;
+  piece_ = absl::string_view(scratch_, 1);
+}
+}  // namespace substitute_internal
+
+namespace substitute_internal {
+Arg::Arg(unsigned short value)
+    : piece_(scratch_, static_cast<size_t>(
+                           numbers_internal::FastIntToBuffer(value, scratch_) -
+                           scratch_)) {}
+}  // namespace substitute_internal
+
+namespace substitute_internal {
+Arg::Arg(unsigned int value)
+    : piece_(scratch_, static_cast<size_t>(
+                           numbers_internal::FastIntToBuffer(value, scratch_) -
+                           scratch_)) {}
+}  // namespace substitute_internal
+
+namespace substitute_internal {
+Arg::Arg(float value)
+    : piece_(scratch_, numbers_internal::SixDigitsToBuffer(value, scratch_)) {}
+}  // namespace substitute_internal
+
+void SubstituteAndAppend(std::string* absl_nonnull output,
+                         absl::string_view format) {
+  substitute_internal::SubstituteAndAppendArray(output, format, nullptr, 0);
+}
+
+void SubstituteAndAppend(std::string* absl_nonnull output,
+                         absl::string_view format,
+                         const substitute_internal::Arg& a0,
+                         const substitute_internal::Arg& a1,
+                         const substitute_internal::Arg& a2,
+                         const substitute_internal::Arg& a3,
+                         const substitute_internal::Arg& a4) {
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece()};
+  substitute_internal::SubstituteAndAppendArray(output, format, args,
+                                                std::size(args));
+}
+
+void SubstituteAndAppend(
+    std::string* absl_nonnull output, absl::string_view format,
+    const substitute_internal::Arg& a0, const substitute_internal::Arg& a1,
+    const substitute_internal::Arg& a2, const substitute_internal::Arg& a3,
+    const substitute_internal::Arg& a4, const substitute_internal::Arg& a5) {
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece()};
+  substitute_internal::SubstituteAndAppendArray(output, format, args,
+                                                std::size(args));
+}
+
+void SubstituteAndAppend(
+    std::string* absl_nonnull output, absl::string_view format,
+    const substitute_internal::Arg& a0, const substitute_internal::Arg& a1,
+    const substitute_internal::Arg& a2, const substitute_internal::Arg& a3,
+    const substitute_internal::Arg& a4, const substitute_internal::Arg& a5,
+    const substitute_internal::Arg& a6) {
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece(),
+                                    a6.piece()};
+  substitute_internal::SubstituteAndAppendArray(output, format, args,
+                                                std::size(args));
+}
+
+void SubstituteAndAppend(
+    std::string* absl_nonnull output, absl::string_view format,
+    const substitute_internal::Arg& a0, const substitute_internal::Arg& a1,
+    const substitute_internal::Arg& a2, const substitute_internal::Arg& a3,
+    const substitute_internal::Arg& a4, const substitute_internal::Arg& a5,
+    const substitute_internal::Arg& a6, const substitute_internal::Arg& a7) {
+  const absl::string_view args[] = {a0.piece(), a1.piece(), a2.piece(),
+                                    a3.piece(), a4.piece(), a5.piece(),
+                                    a6.piece(), a7.piece()};
+  substitute_internal::SubstituteAndAppendArray(output, format, args,
+                                                std::size(args));
+}
+
+void SubstituteAndAppend(
+    std::string* absl_nonnull output, absl::string_view format,
+    const substitute_internal::Arg& a0, const substitute_internal::Arg& a1,
+    const substitute_internal::Arg& a2, const substitute_internal::Arg& a3,
+    const substitute_internal::Arg& a4, const substitute_internal::Arg& a5,
+    const substitute_internal::Arg& a6, const substitute_internal::Arg& a7,
+    const substitute_internal::Arg& a8, const substitute_internal::Arg& a9) {
+  const absl::string_view args[] = {
+      a0.piece(), a1.piece(), a2.piece(), a3.piece(), a4.piece(),
+      a5.piece(), a6.piece(), a7.piece(), a8.piece(), a9.piece()};
+  substitute_internal::SubstituteAndAppendArray(output, format, args,
+                                                std::size(args));
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl
