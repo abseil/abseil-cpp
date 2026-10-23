@@ -1104,4 +1104,77 @@ TEST(SplitInternalTest, TypeTraits) {
                std::initializer_list<int>>::value));
 }
 
+template <typename T>
+struct CustomVectorAllocator : public std::allocator<T> {
+  CustomVectorAllocator() = default;
+  template <typename U>
+  explicit CustomVectorAllocator(const CustomVectorAllocator<U>&) noexcept {}
+  template <typename U>
+  struct rebind {
+    using other = CustomVectorAllocator<U>;
+  };
+};
+
+TEST(Split, VectorStringAllocationBoundaries) {
+  // Test 0 tokens (e.g. empty string with SkipEmpty)
+  {
+    std::vector<std::string> results =
+        absl::StrSplit("", ',', absl::SkipEmpty());
+    EXPECT_THAT(results, IsEmpty());
+  }
+
+  // Test 1 token (empty string without SkipEmpty)
+  {
+    std::vector<std::string> results = absl::StrSplit("", ',');
+    EXPECT_THAT(results, ElementsAre(""));
+  }
+
+  // Test 1 non-empty token
+  {
+    std::vector<std::string> results = absl::StrSplit("hello", ',');
+    EXPECT_THAT(results, ElementsAre("hello"));
+  }
+
+  // Test 2 tokens
+  {
+    std::vector<std::string> results = absl::StrSplit("a,b", ',');
+    EXPECT_THAT(results, ElementsAre("a", "b"));
+  }
+
+  // Test boundary token counts (15, 16 stack fast path; 17, 32, 33 heap spill
+  // path)
+  for (int num_tokens : {15, 16, 17, 32, 33}) {
+    std::string input_string;
+    std::vector<std::string> expected_tokens;
+    for (int token_index = 0; token_index < num_tokens; ++token_index) {
+      if (token_index > 0) input_string += ",";
+      input_string += std::to_string(token_index);
+      expected_tokens.push_back(std::to_string(token_index));
+    }
+    std::vector<std::string> results = absl::StrSplit(input_string, ',');
+    EXPECT_EQ(results, expected_tokens);
+  }
+
+  // Test with custom allocator across stack and heap spill paths
+  {
+    using CustomVector =
+        std::vector<std::string, CustomVectorAllocator<std::string>>;
+    CustomVector stack_results = absl::StrSplit("one,two,three", ',');
+    EXPECT_THAT(stack_results, ElementsAre("one", "two", "three"));
+
+    std::string input_string;
+    std::vector<std::string> expected_tokens;
+    for (int token_index = 0; token_index < 20; ++token_index) {
+      if (token_index > 0) input_string += ",";
+      input_string += std::to_string(token_index);
+      expected_tokens.push_back(std::to_string(token_index));
+    }
+    CustomVector heap_results = absl::StrSplit(input_string, ',');
+    EXPECT_EQ(heap_results.size(), 20);
+    for (size_t token_index = 0; token_index < 20; ++token_index) {
+      EXPECT_EQ(heap_results[token_index], expected_tokens[token_index]);
+    }
+  }
+}
+
 }  // namespace

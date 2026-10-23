@@ -410,6 +410,24 @@ class Splitter {
     }
   };
 
+  struct raw_view {
+    const char* data;
+    size_t size;
+    operator absl::string_view() const {  // NOLINT(runtime/explicit)
+      return {data, size};
+    }
+  };
+
+  static size_t FillChunk(const_iterator& it, std::array<raw_view, 16>& ar) {
+    size_t index = 0;
+    do {
+      ar[index].data = it->data();
+      ar[index].size = it->size();
+      ++it;
+    } while (++index != ar.size() && !it.at_end());
+    return index;
+  }
+
   // Partial specialization for a std::vector<absl::string_view>.
   //
   // Optimized for the common case of splitting to a
@@ -420,22 +438,10 @@ class Splitter {
                             absl::string_view, false> {
     std::vector<absl::string_view, A> operator()(
         const Splitter& splitter) const {
-      struct raw_view {
-        const char* data;
-        size_t size;
-        operator absl::string_view() const {  // NOLINT(runtime/explicit)
-          return {data, size};
-        }
-      };
       std::vector<absl::string_view, A> v;
       std::array<raw_view, 16> ar;
       for (auto it = splitter.begin(); !it.at_end();) {
-        size_t index = 0;
-        do {
-          ar[index].data = it->data();
-          ar[index].size = it->size();
-          ++it;
-        } while (++index != ar.size() && !it.at_end());
+        const size_t index = FillChunk(it, ar);
         // We static_cast index to a signed type to work around overzealous
         // compiler warnings about signedness.
         v.insert(v.end(), ar.begin(),
@@ -448,13 +454,32 @@ class Splitter {
   // Partial specialization for a std::vector<std::string>.
   //
   // Optimized for the common case of splitting to a std::vector<std::string>.
-  // In this case we first split the results to a std::vector<absl::string_view>
-  // so the returned std::vector<std::string> can have space reserved to avoid
-  // std::string moves.
+  // For splits with at most 16 pieces, we construct the returned
+  // std::vector<std::string> directly from a stack-allocated array of views to
+  // avoid allocating a temporary heap std::vector<absl::string_view> while
+  // still reserving exact space to avoid std::string moves.
   template <typename A>
   struct ConvertToContainer<std::vector<std::string, A>, std::string, false> {
     std::vector<std::string, A> operator()(const Splitter& splitter) const {
-      const std::vector<absl::string_view> v = splitter;
+      std::array<raw_view, 16> ar;
+      auto it = splitter.begin();
+      if (it.at_end()) return std::vector<std::string, A>();
+      size_t index = FillChunk(it, ar);
+      if (it.at_end()) {
+        std::vector<std::string, A> result;
+        result.reserve(index);
+        for (size_t i = 0; i != index; ++i) {
+          result.emplace_back(ar[i].data, ar[i].size);
+        }
+        return result;
+      }
+      std::vector<absl::string_view> v(
+          ar.begin(), ar.begin() + static_cast<ptrdiff_t>(index));
+      while (!it.at_end()) {
+        index = FillChunk(it, ar);
+        v.insert(v.end(), ar.begin(),
+                 ar.begin() + static_cast<ptrdiff_t>(index));
+      }
       return std::vector<std::string, A>(v.begin(), v.end());
     }
   };
