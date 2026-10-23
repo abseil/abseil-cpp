@@ -156,10 +156,10 @@ jobs:
         config:
           # windows-msvc-2022-cxx{17,20}-{dbg,opt}-bazel.cfg
           - name: MSVC 2022
-            toolchain: windows-msvc
+            toolchain: ci-windows-msvc
           # windows-msvc-2022-alternate-options-cxx{17,20}-dbg-bazel.cfg (dbg only)
           - name: MSVC 2022 Alternate Options
-            toolchain: windows-msvc
+            toolchain: ci-windows-msvc
             alternate_options: true
             compilation_modes: '["dbg"]'
           # windows-clangcl-cxx17-fastbuild-bazel.cfg
