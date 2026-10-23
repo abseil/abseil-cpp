@@ -41,8 +41,8 @@ build:linux --host_per_file_copt=external/.*@-w
 common:windows-base --enable_runfiles
 build:windows-base --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
 build:windows-base --copt=/WX
-build:windows-base --per_file_copt=external/.*@/w
-build:windows-base --host_per_file_copt=external/.*@/w
+build:windows-base --per_file_copt=external/.*@/w,/O1
+build:windows-base --host_per_file_copt=external/.*@/w,/O1
 
 common:windows-msvc --config=windows-base
 test:ci-windows-msvc --config=windows-msvc
