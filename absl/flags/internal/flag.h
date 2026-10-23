@@ -140,20 +140,12 @@ inline FlagFastTypeId FastTypeId(FlagOpFn op) {
       op(FlagOp::kFastTypeId, nullptr, nullptr, nullptr));
 }
 // Returns fast type id corresponding to the value type.
-inline const std::type_info* RuntimeTypeId(FlagOpFn op) {
-  return reinterpret_cast<const std::type_info*>(
-      op(FlagOp::kRuntimeTypeId, nullptr, nullptr, nullptr));
-}
+const std::type_info* RuntimeTypeId(FlagOpFn op);
 // Returns offset of the field value_ from the field impl_ inside of
 // absl::Flag<T> data. Given FlagImpl pointer p you can get the
 // location of the corresponding value as:
 //      reinterpret_cast<char*>(p) + ValueOffset().
-inline ptrdiff_t ValueOffset(FlagOpFn op) {
-  // This sequence of casts reverses the sequence from
-  // `flags_internal::FlagOps()`
-  return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
-      op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
-}
+ptrdiff_t ValueOffset(FlagOpFn op);
 
 // Returns an address of RTTI's typeid(T).
 template <typename T>

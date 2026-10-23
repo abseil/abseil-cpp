@@ -708,5 +708,22 @@ bool FlagImpl::ValidateInputValue(absl::string_view value) const {
 }
 
 }  // namespace flags_internal
+
+namespace flags_internal {
+const std::type_info* RuntimeTypeId(FlagOpFn op) {
+  return reinterpret_cast<const std::type_info*>(
+      op(FlagOp::kRuntimeTypeId, nullptr, nullptr, nullptr));
+}
+}  // namespace flags_internal
+
+namespace flags_internal {
+ptrdiff_t ValueOffset(FlagOpFn op) {
+  // This sequence of casts reverses the sequence from
+  // `flags_internal::FlagOps()`
+  return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
+      op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
+}
+}  // namespace flags_internal
+
 ABSL_NAMESPACE_END
 }  // namespace absl
