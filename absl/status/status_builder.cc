@@ -192,5 +192,79 @@ ABSL_ATTRIBUTE_WEAK std::ostream& operator<<(std::ostream& os,
   return os << static_cast<absl::Status>(std::move(builder));
 }
 
+StatusBuilder::StatusBuilder(const StatusBuilder& sb) : loc_(sb.loc_) {
+  if (sb.rep_ != nullptr) {
+    rep_ = std::make_unique<Rep>(*sb.rep_);
+  }
+}
+
+StatusBuilder& StatusBuilder::operator=(const StatusBuilder& sb) {
+  loc_ = sb.loc_;
+  if (sb.rep_ != nullptr) {
+    rep_ = std::make_unique<Rep>(*sb.rep_);
+  } else {
+    rep_ = nullptr;
+  }
+  return *this;
+}
+
+StatusBuilder& StatusBuilder::SetPrepend() & {
+  if (rep_ == nullptr) return *this;
+  rep_->message_join_style = MessageJoinStyle::kPrepend;
+  return *this;
+}
+
+StatusBuilder&& StatusBuilder::SetPrepend() && {
+  return std::move(SetPrepend());
+}
+
+StatusBuilder& StatusBuilder::SetNoLogging() & {
+  if (rep_ != nullptr) {
+    rep_->logging_mode = Rep::LoggingMode::kDisabled;
+    rep_->should_log_stack_trace = false;
+  }
+  return *this;
+}
+
+StatusBuilder& StatusBuilder::Log(absl::LogSeverity level) & {
+  if (rep_ == nullptr) return *this;
+  rep_->logging_mode = Rep::LoggingMode::kLog;
+  rep_->log_severity = level;
+  return *this;
+}
+
+StatusBuilder&& StatusBuilder::Log(absl::LogSeverity level) && {
+  return std::move(Log(level));
+}
+
+StatusBuilder& StatusBuilder::LogEveryN(absl::LogSeverity level, int n) & {
+  if (rep_ == nullptr) return *this;
+  if (n < 1) return Log(level);
+  rep_->logging_mode = Rep::LoggingMode::kLogEveryN;
+  rep_->log_severity = level;
+  rep_->n = n;
+  return *this;
+}
+
+StatusBuilder& StatusBuilder::VLog(int verbose_level) & {
+  if (rep_ == nullptr) return *this;
+  rep_->logging_mode = Rep::LoggingMode::kVLog;
+  rep_->verbose_level = verbose_level;
+  return *this;
+}
+
+StatusBuilder& StatusBuilder::SetPayload(absl::string_view type_url,
+                                         absl::Cord payload) & {
+  if (rep_ != nullptr) {
+    rep_->status.SetPayload(type_url, std::move(payload));
+  }
+  return *this;
+}
+
+std::optional<absl::Cord> StatusBuilder::GetPayload(
+    absl::string_view type_url) const {
+  return rep_ == nullptr ? std::nullopt : rep_->status.GetPayload(type_url);
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl
