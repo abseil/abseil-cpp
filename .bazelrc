@@ -92,6 +92,8 @@ build:remote-cache --remote_download_minimal
 build:remote-cache --remote_download_regex=.*symbolize_test\.pdb$
 # Retry up for up to 15 minutes under heavy load (exponential backoff).
 build:remote-cache --remote_retries=20 --remote_retry_max_delay=60s
+# Use more parallel jobs for remote cache lookups and tests.
+build:remote-cache --jobs=HOST_CPUS*4
 
 build:remote-base --define=EXECUTOR=remote
 build:remote-base --remote_timeout=1200 --bes_timeout=600s
