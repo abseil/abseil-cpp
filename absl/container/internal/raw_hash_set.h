@@ -2549,6 +2549,8 @@ class raw_hash_set {
       typename std::allocator_traits<Alloc>::template rebind_alloc<char>;
   using SlotAllocTraits = typename std::allocator_traits<
       allocator_type>::template rebind_traits<slot_type>;
+  constexpr static bool kIsDefaultAlloc =
+      std::is_same_v<CharAlloc, std::allocator<char>>;
 
   static_assert(std::is_lvalue_reference_v<reference>,
                 "Policy::element() must return a reference");
@@ -3682,9 +3684,8 @@ class raw_hash_set {
       return;
     }
     constexpr bool kIsStandardBackingArrayAlignment =
-        std::is_same_v<CharAlloc, std::allocator<char>> &&
-        BackingArrayAlignment(alignof(slot_type)) ==
-            kStandardBackingArrayAlignment;
+        kIsDefaultAlloc && BackingArrayAlignment(alignof(slot_type)) ==
+                               kStandardBackingArrayAlignment;
     if constexpr (SooEnabled()) {
       if (is_small() &&
           (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
@@ -3982,8 +3983,6 @@ class raw_hash_set {
   template <class K>
   std::pair<slot_type*, bool> find_or_prepare_insert(const K& key) {
     AssertOnFind(key);
-    // TODO(ezb): add ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE that the returned
-    // slot doesn't alias `this` for non-SOO tables with default allocators.
     return is_small() ? find_or_prepare_insert_small(key)
                       : find_or_prepare_insert_large<FindLargeKey<K>>(key);
   }
@@ -4012,6 +4011,19 @@ class raw_hash_set {
   // It is non-iterable, meaning that std::next(it) always points to end().
   iterator non_iterable_iterator_at_slot(slot_type* slot)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    if constexpr (!SooEnabled() && kIsDefaultAlloc) {
+      // Assume that `slot` doesn't alias `this`. Example benefit: when a caller
+      // mutates an element via an iterator/reference returned by insert() or
+      // operator[], the compiler can prove that the store to the slot does not
+      // clobber CommonFields metadata (size, capacity, etc.) for subsequent
+      // operations on the same container.
+      // Example of benefitting user code:
+      //   m[k1] = v;
+      //   m[k2] = v;
+      // With this assumption, when the first lookup hits, the second lookup
+      // avoids reloading capacity after storing to `m[k1]`.
+      ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(slot, this);
+    }
     return {InsertIteratorControl(), slot, common().generation_ptr()};
   }
   iterator iterator_at(size_t i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -4068,7 +4080,7 @@ class raw_hash_set {
   ctrl_t* control() const {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     ctrl_t* ctrl = common().control();
-    if constexpr (std::is_same_v<CharAlloc, std::allocator<char>>) {
+    if constexpr (kIsDefaultAlloc) {
       // Assume that the control bytes don't alias `this`. Example benefit: when
       // a caller mutates an element via an iterator returned by find(), the
       // compiler can now prove that the store to the slot does not clobber
