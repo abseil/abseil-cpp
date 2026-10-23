@@ -635,6 +635,31 @@ using IsLifetimeBoundAssignment =
                      IsOwner<absl::remove_cvref_t<U>>,
                      IsView<absl::remove_cvref_t<T>>>;
 
+template <class T>
+using ShouldStructurallyPreferPassByValue = std::bool_constant<
+    // Check if size is a power of 2, to ensure cheap calls.
+    (sizeof(T) & (sizeof(T) - 1)) == 0 &&
+    // Check if copying 1-2 registers is enough. We don't want (for example) 32
+    // one-byte values to move around, since that sometimes results in poor
+    // codegen.
+    alignof(T) * 2 >= sizeof(T) &&
+    sizeof(T) <= sizeof(std::pair<void*, size_t>)>;
+
+template <class T>
+using ShouldSemanticallyPreferPassByValue =
+    std::bool_constant<std::is_trivially_move_constructible_v<T> &&
+                       std::is_trivially_destructible_v<T>>;
+
+// Checks the given type to see if it is a good candidate for accepting by value
+// instead of by rvalue-reference. This includes both a semantic constraint
+// (to ensure correctness), as well as a structural constraint (to ensure
+// performance).
+template <class T>
+using ShouldPreferPassByValue =
+    std::bool_constant<ShouldSemanticallyPreferPassByValue<T>::value &&
+                       ShouldStructurallyPreferPassByValue<std::conditional_t<
+                           std::is_void_v<T>, char, T>>::value>;
+
 }  // namespace type_traits_internal
 
 ABSL_NAMESPACE_END

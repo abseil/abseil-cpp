@@ -382,15 +382,17 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       // Try to avoid using std::tuple since that slows compilation.
       // (example: https://godbolt.org/z/nefW93T6K)
 
-      if constexpr (ShouldPreferPassByValue<std::conditional_t<
-                        sizeof...(Args) == 0 &&
-                            std::is_same_v<
-                                typename std::allocator_traits<
-                                    Alloc>::template rebind_alloc<char>,
-                                std::allocator<char>>,
-                        mapped_type,
-                        // Trick to avoid unnecessary template instantiations.
-                        void>>::value) {
+      if constexpr (type_traits_internal::ShouldPreferPassByValue<
+                        std::conditional_t<
+                            sizeof...(Args) == 0 &&
+                                std::is_same_v<
+                                    typename std::allocator_traits<
+                                        Alloc>::template rebind_alloc<char>,
+                                    std::allocator<char>>,
+                            mapped_type,
+                            // Trick to avoid unnecessary template
+                            // instantiations.
+                            void>>::value) {
         // Common case: operator[]
         // Note: This has a different run-time performance characteristic than
         // the other branches, due to the usage of a temporary object. In the

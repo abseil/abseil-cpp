@@ -2380,36 +2380,12 @@ using IsAllocMoveSameAsCopy =
                                               Alloc>::template rebind_alloc<T>>,
         T, void>>>;
 
-template <class T>
-using ShouldStructurallyPreferPassByValue = std::bool_constant<
-    // Check if size is a power of 2, to ensure cheap calls.
-    absl::has_single_bit(sizeof(T)) &&
-    // Check if copying 1-2 registers is enough. We don't want (for example) 32
-    // one-byte values to move around, since that sometimes results in poor
-    // codegen.
-    alignof(T) * 2 >= sizeof(T) &&
-    sizeof(T) <= sizeof(std::pair<void*, size_t>)>;
-
-template <class T>
-using ShouldSemanticallyPreferPassByValue =
-    std::bool_constant<std::is_trivially_move_constructible_v<T> &&
-                       std::is_trivially_destructible_v<T>>;
-
-// Checks the given type to see if it is a good candidate for accepting by value
-// instead of by rvalue-reference. This includes both a semantic constraint
-// (to ensure correctness), as well as a structural constraint (to ensure
-// performance).
-template <class T>
-using ShouldPreferPassByValue =
-    std::bool_constant<ShouldSemanticallyPreferPassByValue<T>::value &&
-                       ShouldStructurallyPreferPassByValue<std::conditional_t<
-                           std::is_void_v<T>, char, T>>::value>;
-
 // This is a 'struct' instead of 'using' in order to avoid eager evaluation for
 // callers that may be passing incomplete types.
 template <class T>
 struct AddConstRefIfExpensive
-    : std::conditional<ShouldPreferPassByValue<T>::value, T, const T&> {
+    : std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value,
+                       T, const T&> {
   static_assert(std::is_same_v<remove_cvref_t<T>, T>,
                 "passed types must be unqualified");
 };
