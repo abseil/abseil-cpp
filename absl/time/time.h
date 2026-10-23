@@ -810,10 +810,7 @@ class Time {
     rep_ += d;
     return *this;
   }
-  Time& operator-=(Duration d) {
-    rep_ -= d;
-    return *this;
-  }
+  Time& operator-=(Duration d);
 
   // Time::Breakdown
   //
@@ -1103,7 +1100,7 @@ class TimeZone {
 
   explicit operator time_internal::cctz::time_zone() const { return cz_; }
 
-  std::string name() const { return cz_.name(); }
+  std::string name() const;
 
   // TimeZone::CivilInfo
   //
@@ -1271,10 +1268,7 @@ inline bool LoadTimeZone(absl::string_view name, TimeZone* tz) {
 // Returns a TimeZone that is a fixed offset (seconds east) from UTC.
 // Note: If the absolute value of the offset is greater than 24 hours
 // you'll get UTC (i.e., no offset) instead.
-inline TimeZone FixedTimeZone(int seconds) {
-  return TimeZone(
-      time_internal::cctz::fixed_time_zone(std::chrono::seconds(seconds)));
-}
+TimeZone FixedTimeZone(int seconds);
 
 // UTCTimeZone()
 //
@@ -1289,9 +1283,7 @@ inline TimeZone UTCTimeZone() {
 // no configured local zone.  Warning: Be wary of using LocalTimeZone(),
 // and particularly so in a server process, as the zone configured for the
 // local machine should be irrelevant.  Prefer an explicit zone name.
-inline TimeZone LocalTimeZone() {
-  return TimeZone(time_internal::cctz::local_time_zone());
-}
+TimeZone LocalTimeZone();
 
 // ToCivilSecond()
 // ToCivilMinute()
@@ -1307,20 +1299,10 @@ inline TimeZone LocalTimeZone() {
 //   absl::Time t = ...;
 //   absl::TimeZone tz = ...;
 //   const auto cd = absl::ToCivilDay(t, tz);
-ABSL_ATTRIBUTE_PURE_FUNCTION inline CivilSecond ToCivilSecond(Time t,
-                                                              TimeZone tz) {
-  return tz.At(t).cs;  // already a CivilSecond
-}
-ABSL_ATTRIBUTE_PURE_FUNCTION inline CivilMinute ToCivilMinute(Time t,
-                                                              TimeZone tz) {
-  return CivilMinute(tz.At(t).cs);
-}
-ABSL_ATTRIBUTE_PURE_FUNCTION inline CivilHour ToCivilHour(Time t, TimeZone tz) {
-  return CivilHour(tz.At(t).cs);
-}
-ABSL_ATTRIBUTE_PURE_FUNCTION inline CivilDay ToCivilDay(Time t, TimeZone tz) {
-  return CivilDay(tz.At(t).cs);
-}
+ABSL_ATTRIBUTE_PURE_FUNCTION CivilSecond ToCivilSecond(Time t, TimeZone tz);
+ABSL_ATTRIBUTE_PURE_FUNCTION CivilMinute ToCivilMinute(Time t, TimeZone tz);
+ABSL_ATTRIBUTE_PURE_FUNCTION CivilHour ToCivilHour(Time t, TimeZone tz);
+ABSL_ATTRIBUTE_PURE_FUNCTION CivilDay ToCivilDay(Time t, TimeZone tz);
 ABSL_ATTRIBUTE_PURE_FUNCTION inline CivilMonth ToCivilMonth(Time t,
                                                             TimeZone tz) {
   return CivilMonth(tz.At(t).cs);
@@ -1507,9 +1489,7 @@ ABSL_ATTRIBUTE_PURE_FUNCTION std::string FormatTime(Time t, TimeZone tz);
 ABSL_ATTRIBUTE_PURE_FUNCTION std::string FormatTime(Time t);
 
 // Output stream operator.
-inline std::ostream& operator<<(std::ostream& os, Time t) {
-  return os << FormatTime(t);
-}
+std::ostream& operator<<(std::ostream& os, Time t);
 
 // Support for StrFormat(), StrCat() etc.
 template <typename Sink>

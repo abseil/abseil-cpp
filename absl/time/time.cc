@@ -508,5 +508,37 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
   return tm;
 }
 
+Time& Time::operator-=(Duration d) {
+  rep_ -= d;
+  return *this;
+}
+
+std::string TimeZone::name() const { return cz_.name(); }
+
+TimeZone FixedTimeZone(int seconds) {
+  return TimeZone(
+      time_internal::cctz::fixed_time_zone(std::chrono::seconds(seconds)));
+}
+
+TimeZone LocalTimeZone() {
+  return TimeZone(time_internal::cctz::local_time_zone());
+}
+
+CivilSecond ToCivilSecond(Time t, TimeZone tz) {
+  return tz.At(t).cs;  // already a CivilSecond
+}
+
+CivilMinute ToCivilMinute(Time t, TimeZone tz) {
+  return CivilMinute(tz.At(t).cs);
+}
+
+CivilHour ToCivilHour(Time t, TimeZone tz) { return CivilHour(tz.At(t).cs); }
+
+CivilDay ToCivilDay(Time t, TimeZone tz) { return CivilDay(tz.At(t).cs); }
+
+std::ostream& operator<<(std::ostream& os, Time t) {
+  return os << FormatTime(t);
+}
+
 ABSL_NAMESPACE_END
 }  // namespace absl
