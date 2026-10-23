@@ -223,7 +223,7 @@ CountLeadingZeroes64(uint64_t x) {
   // Handle 0 as a special case because __builtin_clzll(0) is undefined.
   return x == 0 ? 64 : __builtin_clzll(x);
 #elif defined(_MSC_VER) && !defined(__clang__) && \
-    (defined(_M_X64) || defined(_M_ARM64))
+    (defined(_M_X64) || defined(_M_ARM64)|| defined(_M_ARM64EC))
   // MSVC does not have __buitin_clzll. Use _BitScanReverse64.
   unsigned long result = 0;  // NOLINT(runtime/int)
   if (_BitScanReverse64(&result, x)) {
@@ -310,7 +310,7 @@ CountTrailingZeroesNonzero64(uint64_t x) {
                 "__builtin_ctzll does not take 64-bit arg");
   return __builtin_ctzll(x);
 #elif defined(_MSC_VER) && !defined(__clang__) && \
-    (defined(_M_X64) || defined(_M_ARM64))
+    (defined(_M_X64) || defined(_M_ARM64)|| defined(_M_ARM64EC))
   unsigned long result = 0;  // NOLINT(runtime/int)
   _BitScanForward64(&result, x);
   return result;
