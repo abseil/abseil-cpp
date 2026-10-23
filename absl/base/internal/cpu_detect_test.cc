@@ -37,6 +37,34 @@ TEST(CpuDetectTest, SupportsBmi2) {
 #endif
 }
 
+TEST(CpuDetectTest, SupportsAvx2) {
+#if defined(__x86_64__) || defined(_M_X64)
+#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)
+  EXPECT_EQ(SupportsAvx2(), __builtin_cpu_supports("avx2") != 0 &&
+                                __builtin_cpu_supports("pclmul") != 0);
+#else
+  (void)SupportsAvx2();
+#endif
+#else
+  EXPECT_FALSE(SupportsAvx2());
+#endif
+}
+
+TEST(CpuDetectTest, SupportsVpclmulqdq) {
+#if defined(__x86_64__) || defined(_M_X64)
+#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)
+  EXPECT_EQ(SupportsVpclmulqdq(),
+            __builtin_cpu_supports("vpclmulqdq") != 0 &&
+                __builtin_cpu_supports("avx2") != 0 &&
+                __builtin_cpu_supports("pclmul") != 0);
+#else
+  (void)SupportsVpclmulqdq();
+#endif
+#else
+  EXPECT_FALSE(SupportsVpclmulqdq());
+#endif
+}
+
 }  // namespace
 }  // namespace base_internal
 ABSL_NAMESPACE_END
