@@ -40,12 +40,15 @@
 //   push_back()
 //   emplace_back()
 //   pop_front()
+//   pop_back()
 //   front()
 //   back()
 //   swap()
 //   clear()
 //   begin(), end()
 //   cbegin(), cend()
+//   rbegin(), rend()
+//   crbegin(), crend()
 //
 // === ADVANCED USAGE
 //
@@ -156,6 +159,19 @@ class chunked_queue {
         *this = iterator_common(block->next());
     }
 
+    void Decr() {
+      // If we are at the start of this block, make ptr point to the last
+      // element of the previous block. Unlike Incr(), which can advance one
+      // past the last block to form end(), Decr() cannot move before the first
+      // block (begin()), so a previous block must exist.
+      if (ptr == block->start()) {
+        ABSL_ASSERT(block->prev() != nullptr);
+        block = block->prev();
+        ptr = block->limit();
+      }
+      --ptr;
+    }
+
     void IncrBy(size_t n) {
       while (n > static_cast<size_t>(block->limit() - ptr)) {
         n -= static_cast<size_t>(block->limit() - ptr);
@@ -172,7 +188,7 @@ class chunked_queue {
   template <typename CT>
   class basic_iterator : public iterator_common {
    public:
-    using iterator_category = std::forward_iterator_tag;
+    using iterator_category = std::bidirectional_iterator_tag;
     using value_type = typename AllocatorTraits::value_type;
     using difference_type = typename AllocatorTraits::difference_type;
     using pointer = std::conditional_t<std::is_const_v<CT>,
@@ -200,6 +216,15 @@ class chunked_queue {
       ++*this;
       return t;
     }
+    basic_iterator& operator--() {
+      this->Decr();
+      return *this;
+    }
+    basic_iterator operator--(int) {
+      basic_iterator t = *this;
+      --*this;
+      return t;
+    }
 
    private:
     explicit basic_iterator(Block* b) : iterator_common(b) {}
@@ -216,6 +241,8 @@ class chunked_queue {
   using const_reference = const value_type&;
   using iterator = basic_iterator<T>;
   using const_iterator = basic_iterator<const T>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   // Constructs an empty queue.
   chunked_queue() : chunked_queue(allocator_type()) {}
@@ -443,6 +470,11 @@ class chunked_queue {
   // REQUIRES: !empty()
   void pop_front();
 
+  // Removes the last element of the container.
+  // Invalidates iterators to the removed element and `end()`.
+  // REQUIRES: !empty()
+  void pop_back();
+
   // Returns a reference to the first element in the container.
   // REQUIRES: !empty()
   T& front() {
@@ -497,6 +529,23 @@ class chunked_queue {
 
   const_iterator cbegin() const { return head_; }
   const_iterator cend() const { return tail_; }
+
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
+  reverse_iterator rend() { return reverse_iterator(begin()); }
+
+  const_reverse_iterator rbegin() const {
+    return const_reverse_iterator(end());
+  }
+  const_reverse_iterator rend() const {
+    return const_reverse_iterator(begin());
+  }
+
+  const_reverse_iterator crbegin() const {
+    return const_reverse_iterator(cend());
+  }
+  const_reverse_iterator crend() const {
+    return const_reverse_iterator(cbegin());
+  }
 
   // Returns the allocator associated with the container.
   allocator_type get_allocator() const { return alloc_and_size_.allocator(); }
@@ -724,6 +773,7 @@ T& chunked_queue<T, BLo, BHi, Allocator>::emplace_front(A&&... args) {
     tail_.ptr = b->limit();
   } else if (b != head_.block) {
     b->set_next(head_.block);
+    head_.block->set_prev(b);
   }
   head_.block = b;
   head_.ptr = storage;
@@ -741,6 +791,7 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::AddTailBlock() {
   } else {
     ABSL_ASSERT(tail_.block);
     tail_.block->set_next(b);
+    b->set_prev(tail_.block);
   }
   tail_ = iterator(b);
 }
@@ -802,7 +853,39 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::pop_front() {
   if (head_.ptr == head_.block->limit()) {
     Block* n = head_.block->next();
     Block::Delete(head_.block, &alloc_and_size_.allocator());
+    n->set_prev(nullptr);
     head_ = iterator(n);
+  }
+}
+
+template <typename T, size_t BLo, size_t BHi, typename Allocator>
+inline void chunked_queue<T, BLo, BHi, Allocator>::pop_back() {
+  absl::base_internal::HardeningAssertNonEmpty(*this);
+  ABSL_ASSERT(tail_.block);
+  ABSL_ASSERT(tail_.ptr > tail_.block->start());
+
+  // Since tail_.ptr points just past the last element, repoint it to the last
+  // element (past the second-to-last one), and delete it.
+  --tail_.ptr;
+  AllocatorTraits::destroy(alloc_and_size_.allocator(), tail_.ptr);
+  --alloc_and_size_.size;
+
+  if (empty()) {
+    // Reset head and tail to the start of the (only) block.
+    ABSL_ASSERT(head_.block == tail_.block);
+    head_.ptr = tail_.ptr = head_.block->start();
+    return;
+  }
+
+  // If we deleted the only element from the last block, repoint the tail_ to
+  // the second-to-last block.
+  if (tail_.ptr == tail_.block->start()) {
+    Block* prev = tail_.block->prev();
+    ABSL_ASSERT(prev != nullptr);
+    Block::Delete(tail_.block, &alloc_and_size_.allocator());
+    prev->set_next(nullptr);
+    tail_.block = prev;
+    tail_.ptr = prev->limit();
   }
 }
 
