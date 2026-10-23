@@ -59,7 +59,8 @@ bool ParseYearAnd(string_view fmt, string_view s, CivilT* c) {
       std::strtoll(np, &endp, 10);  // NOLINT(runtime/deprecated_fn)
   if (endp == np || errno == ERANGE) return false;
   const civil_year_t normalized_year = NormalizeYear(y);
-  const std::string norm = StrCat(normalized_year, endp);
+  const std::string norm =
+      StrCat(normalized_year, s.substr(static_cast<size_t>(endp - np)));
 
   const TimeZone utc = UTCTimeZone();
   Time t;
