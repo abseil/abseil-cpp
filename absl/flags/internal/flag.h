@@ -22,10 +22,12 @@
 #include <atomic>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -44,8 +46,11 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/utility/utility.h"
 
-    namespace absl {
+namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+class Duration;
+class Time;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declaration of absl::Flag<T> public API.
@@ -86,6 +91,7 @@ enum class FlagOp {
   kParse,
   kUnparse,
   kValueOffset,
+  kTypeName,
 };
 using FlagOpFn = void* (*)(FlagOp, const void*, void*, void*);
 
@@ -153,6 +159,29 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   // `flags_internal::FlagOps()`
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
+}
+// Returns string representation of the flag's value type.
+inline absl::string_view TypeName(FlagOpFn op) {
+  absl::string_view result;
+  op(FlagOp::kTypeName, nullptr, &result, nullptr);
+  return result;
+}
+
+template <typename T>
+constexpr absl::string_view GenTypeName() {
+#if ABSL_FLAGS_STRIP_NAMES
+  return "";
+#elif defined(__clang__) || defined(__GNUC__)
+  absl::string_view name = __PRETTY_FUNCTION__;
+  constexpr absl::string_view kKey = "T = ";
+  const size_t start = name.find(kKey);
+  if (start == absl::string_view::npos) return "";
+  name.remove_prefix(start + kKey.size());
+  const size_t end = name.find_first_of(";]");
+  return end == absl::string_view::npos ? name : name.substr(0, end);
+#else
+  return "";
+#endif
 }
 
 // Returns an address of RTTI's typeid(T).
@@ -260,7 +289,8 @@ union FlagDefaultSrc {
 enum class FlagDefaultKind : uint8_t {
   kDynamicValue = 0,
   kGenFunc = 1,
-  kOneWord = 2  // for default values UP to one word in size
+  kOneWord = 2,             // inline default value in descriptor
+  kDefaultConstructed = 3,  // all-zero bytes or default-constructed empty value
 };
 
 struct FlagDefaultArg {
@@ -281,6 +311,147 @@ constexpr T InitDefaultValue(T t) {
 template <typename T>
 constexpr T InitDefaultValue(EmptyBraces) {
   return T{};
+}
+
+template <typename T>
+struct IsStdOptional : std::false_type {};
+template <typename U>
+struct IsStdOptional<std::optional<U>> : std::true_type {};
+
+struct FlagStringDefault {
+  bool is_literal = false;
+  absl::string_view sv{};
+
+  constexpr FlagStringDefault() : is_literal(true), sv() {}
+  constexpr FlagStringDefault(const char* s)  // NOLINT
+      : is_literal(s != nullptr),
+        sv(s == nullptr ? absl::string_view() : absl::string_view(s)) {}
+  template <
+      typename SV,
+      std::enable_if_t<std::is_same_v<std::decay_t<SV>, absl::string_view>,
+                       int> = 0>
+  constexpr FlagStringDefault(SV s)  // NOLINT
+      : is_literal(true), sv(s) {}
+  template <typename Arg,
+            std::enable_if_t<
+                !std::is_convertible_v<const Arg&, const char*> &&
+                    !std::is_same_v<std::decay_t<Arg>, absl::string_view> &&
+                    !std::is_same_v<std::decay_t<Arg>, FlagStringDefault>,
+                int> = 0>
+  constexpr FlagStringDefault(const Arg&)  // NOLINT
+      : is_literal(false), sv() {}
+};
+
+template <typename T,
+          std::enable_if_t<!std::is_same_v<T, std::string>, int> = 0>
+constexpr bool IsEmptyDefaultArg(EmptyBraces) {
+  return std::is_same_v<T, std::vector<std::string>> || IsStdOptional<T>::value;
+}
+template <typename T, std::enable_if_t<!std::is_same_v<T, std::string> &&
+                                           !IsStdOptional<T>::value,
+                                       int> = 0>
+constexpr bool IsEmptyDefaultArg(const T&) {
+  return false;
+}
+template <typename T, std::enable_if_t<IsStdOptional<T>::value, int> = 0>
+constexpr bool IsEmptyDefaultArg(std::nullopt_t) {
+  return true;
+}
+template <
+    typename T, typename Arg,
+    std::enable_if_t<IsStdOptional<T>::value &&
+                         !std::is_same_v<std::decay_t<Arg>, std::nullopt_t>,
+                     int> = 0>
+constexpr bool IsEmptyDefaultArg(const Arg&) {
+  return false;
+}
+template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, int> = 0>
+constexpr bool IsEmptyDefaultArg(FlagStringDefault d) {
+  return d.is_literal && d.sv.empty();
+}
+
+template <typename T,
+          std::enable_if_t<!std::is_same_v<T, std::string>, int> = 0>
+constexpr absl::string_view AsConstexprStringView(EmptyBraces) {
+  return absl::string_view();
+}
+template <typename T,
+          std::enable_if_t<!std::is_same_v<T, std::string>, int> = 0>
+constexpr absl::string_view AsConstexprStringView(const T&) {
+  return absl::string_view();
+}
+template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, int> = 0>
+constexpr absl::string_view AsConstexprStringView(FlagStringDefault d) {
+  return d.is_literal ? d.sv : absl::string_view();
+}
+
+constexpr bool HasNoEmbeddedNul(absl::string_view s) {
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i] == '\0') return false;
+  }
+  return true;
+}
+
+template <typename T,
+          std::enable_if_t<!std::is_same_v<T, std::string>, int> = 0>
+constexpr bool IsLiteralStringDefaultArg(EmptyBraces) {
+  return false;
+}
+template <typename T,
+          std::enable_if_t<!std::is_same_v<T, std::string>, int> = 0>
+constexpr bool IsLiteralStringDefaultArg(const T&) {
+  return false;
+}
+template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, int> = 0>
+constexpr bool IsLiteralStringDefaultArg(FlagStringDefault d) {
+  return d.is_literal && !d.sv.empty() && HasNoEmbeddedNul(d.sv);
+}
+
+template <size_t N>
+struct FlagBytes {
+  uint8_t b[N];
+  constexpr bool IsAllZero() const {
+    for (size_t i = 0; i < N; ++i) {
+      if (b[i] != 0) return false;
+    }
+    return true;
+  }
+};
+
+#if ABSL_HAVE_BUILTIN(__builtin_bit_cast)
+#define ABSL_FLAGS_INTERNAL_HAS_CONSTEXPR_BIT_CAST 1
+#else
+#define ABSL_FLAGS_INTERNAL_HAS_CONSTEXPR_BIT_CAST 0
+#endif
+
+template <typename T>
+struct IsBitCastableDefaultType
+    : std::bool_constant<
+#if ABSL_FLAGS_INTERNAL_HAS_CONSTEXPR_BIT_CAST
+          std::is_trivially_copyable_v<T> &&
+          (std::is_arithmetic_v<T> || std::is_enum_v<T> ||
+           std::is_same_v<T, absl::int128> ||
+           std::is_same_v<T, absl::uint128> ||
+           std::is_same_v<T, absl::Duration> || std::is_same_v<T, absl::Time>)
+#else
+          false
+#endif
+          > {
+};
+
+template <typename T>
+constexpr FlagBytes<sizeof(T)> BitCastToFlagBytes(const T& v) {
+#if ABSL_FLAGS_INTERNAL_HAS_CONSTEXPR_BIT_CAST
+  if constexpr (IsBitCastableDefaultType<T>::value) {
+    return __builtin_bit_cast(FlagBytes<sizeof(T)>, v);
+  } else {
+    (void)v;
+    return FlagBytes<sizeof(T)>{};
+  }
+#else
+  (void)v;
+  return FlagBytes<sizeof(T)>{};
+#endif
 }
 
 template <typename ValueT, typename GenT,
@@ -317,13 +488,15 @@ enum class FlagValueStorageKind : uint8_t {
   kOneWordAtomic = 1,
   kSequenceLocked = 2,
   kHeapAllocated = 3,
+  kInlineBool = 4,
 };
 
 // This constexpr function returns the storage kind for the given flag value
 // type.
 template <typename T>
 static constexpr FlagValueStorageKind StorageKind() {
-  return FlagUseValueAndInitBitStorage<T>::value
+  return std::is_same_v<T, bool> ? FlagValueStorageKind::kInlineBool
+         : FlagUseValueAndInitBitStorage<T>::value
              ? FlagValueStorageKind::kValueAndInitBit
          : FlagUseOneWordStorage<T>::value
              ? FlagValueStorageKind::kOneWordAtomic
@@ -437,7 +610,7 @@ struct FlagValue;
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue(0) {}
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     int64_t storage = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(storage == 0)) {
       // This assert is to ensure that the initialization inside FlagImpl::Init
@@ -458,7 +631,7 @@ struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue() {}
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     int64_t one_word_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(one_word_val == FlagOneWordValue::Uninitialized())) {
       return false;
@@ -476,15 +649,30 @@ struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
 // value once it is initialized.
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kSequenceLocked> {
-  bool Get(const SequenceLock& lock, T& dst) const {
-    return lock.TryRead(&dst, value_words, sizeof(T));
+  constexpr FlagValue() : FlagValue(std::make_index_sequence<kNumWords>{}) {}
+
+  bool Get(T& dst) const {
+    // FlagImpl::SeqLock() computes `&seq_lock` via `AtomicBufferValue() +
+    // kNumWords`, so verify no padding or fields sit between `value_words`
+    // and `seq_lock`.
+    static_assert(
+        offsetof(FlagValue, seq_lock) - offsetof(FlagValue, value_words) ==
+            kNumWords * sizeof(std::atomic<uint64_t>),
+        "Unexpected memory layout of sequence-locked FlagValue");
+    return seq_lock.TryRead(&dst, value_words, sizeof(T));
   }
 
-  static constexpr int kNumWords =
+  static constexpr size_t kNumWords =
       flags_internal::AlignUp(sizeof(T), sizeof(uint64_t)) / sizeof(uint64_t);
 
   alignas(T) alignas(
       std::atomic<uint64_t>) std::atomic<uint64_t> value_words[kNumWords];
+  flags_internal::SequenceLock seq_lock;
+
+ private:
+  template <size_t... Is>
+  constexpr explicit FlagValue(std::index_sequence<Is...>)
+      : value_words{(static_cast<void>(Is), uint64_t{0})...} {}
 };
 
 // This specialization represents the storage of flag values types with the
@@ -531,7 +719,7 @@ struct FlagValue<T, FlagValueStorageKind::kHeapAllocated>
   // ensure Init is done before any access to the flag value.
   constexpr FlagValue() : FlagMaskedPointerValue(&buffer[0]) {}
 
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     MaskedPointer ptr_value = value.load(std::memory_order_acquire);
 
     if (ABSL_PREDICT_TRUE(ptr_value.AllowsUnprotectedRead())) {
@@ -544,6 +732,10 @@ struct FlagValue<T, FlagValueStorageKind::kHeapAllocated>
   alignas(MaskedPointer::RequiredAlignment()) alignas(
       T) char buffer[sizeof(T)]{};
 };
+
+// Specialization for bool flags whose value is stored inline in FlagImpl.
+template <typename T>
+struct FlagValue<T, FlagValueStorageKind::kInlineBool> {};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Flag callback auxiliary structs.
@@ -569,6 +761,539 @@ struct DynValueDeleter {
   FlagOpFn op;
 };
 
+inline constexpr uint8_t kNoBuiltinOp = 0xFF;
+
+template <typename T>
+struct BuiltinFlagOpIdImpl {
+  static constexpr uint8_t kValue = kNoBuiltinOp;
+};
+template <>
+struct BuiltinFlagOpIdImpl<bool> {
+  static constexpr uint8_t kValue = 0;
+};
+template <>
+struct BuiltinFlagOpIdImpl<short> {  // NOLINT
+  static constexpr uint8_t kValue = 1;
+};
+template <>
+struct BuiltinFlagOpIdImpl<unsigned short> {  // NOLINT
+  static constexpr uint8_t kValue = 2;
+};
+template <>
+struct BuiltinFlagOpIdImpl<int> {
+  static constexpr uint8_t kValue = 3;
+};
+template <>
+struct BuiltinFlagOpIdImpl<unsigned int> {
+  static constexpr uint8_t kValue = 4;
+};
+template <>
+struct BuiltinFlagOpIdImpl<long> {  // NOLINT
+  static constexpr uint8_t kValue = 5;
+};
+template <>
+struct BuiltinFlagOpIdImpl<unsigned long> {  // NOLINT
+  static constexpr uint8_t kValue = 6;
+};
+template <>
+struct BuiltinFlagOpIdImpl<long long> {  // NOLINT
+  static constexpr uint8_t kValue = 7;
+};
+template <>
+struct BuiltinFlagOpIdImpl<unsigned long long> {  // NOLINT
+  static constexpr uint8_t kValue = 8;
+};
+template <>
+struct BuiltinFlagOpIdImpl<float> {
+  static constexpr uint8_t kValue = 9;
+};
+template <>
+struct BuiltinFlagOpIdImpl<double> {
+  static constexpr uint8_t kValue = 10;
+};
+template <>
+struct BuiltinFlagOpIdImpl<std::string> {
+  static constexpr uint8_t kValue = 11;
+};
+template <>
+struct BuiltinFlagOpIdImpl<std::vector<std::string>> {
+  static constexpr uint8_t kValue = 12;
+};
+template <>
+struct BuiltinFlagOpIdImpl<absl::int128> {
+  static constexpr uint8_t kValue = 13;
+};
+template <>
+struct BuiltinFlagOpIdImpl<absl::uint128> {
+  static constexpr uint8_t kValue = 14;
+};
+template <>
+struct BuiltinFlagOpIdImpl<absl::LogSeverity> {
+  static constexpr uint8_t kValue = 15;
+};
+template <>
+struct BuiltinFlagOpIdImpl<absl::Duration> {
+  static constexpr uint8_t kValue = 23;
+};
+template <>
+struct BuiltinFlagOpIdImpl<absl::Time> {
+  static constexpr uint8_t kValue = 24;
+};
+template <typename U>
+struct BuiltinFlagOpIdImpl<std::optional<U>> {
+  static constexpr uint8_t kValue = static_cast<uint8_t>(
+      std::is_same_v<U, bool>             ? 16
+      : std::is_same_v<U, int>            ? 17
+      : std::is_same_v<U, long>           ? 18  // NOLINT
+      : std::is_same_v<U, long long>      ? 19  // NOLINT
+      : std::is_same_v<U, unsigned long>  ? 20  // NOLINT
+      : std::is_same_v<U, double>         ? 21
+      : std::is_same_v<U, std::string>    ? 22
+      : std::is_same_v<U, absl::Duration> ? 25
+                                          : kNoBuiltinOp);
+};
+
+template <typename T>
+constexpr uint8_t BuiltinFlagOpId() {
+  return BuiltinFlagOpIdImpl<T>::kValue;
+}
+
+enum class FlagMetaKind : uint8_t {
+  kPtrMeta = 0,
+  kZeroFlatMeta = 1,
+  kOneWordFlatMeta = 2,
+  kTwoWordFlatMeta = 3,
+};
+
+struct FlagMetaHeader {
+  constexpr static uint8_t PackKinds(FlagValueStorageKind vk, FlagHelpKind hk,
+                                     FlagDefaultKind dk, FlagMetaKind mk) {
+    return static_cast<uint8_t>((static_cast<uint8_t>(vk) & 0x7u) |
+                                ((static_cast<uint8_t>(hk) & 0x1u) << 3) |
+                                ((static_cast<uint8_t>(dk) & 0x3u) << 4) |
+                                ((static_cast<uint8_t>(mk) & 0x3u) << 6));
+  }
+
+  uint8_t kinds;
+  uint8_t builtin_op_id;
+  uint8_t name_len;
+};
+
+constexpr size_t ConstexprStrLen(const char* s) {
+  size_t len = 0;
+  if (s != nullptr) {
+    while (s[len] != '\0') ++len;
+  }
+  return len;
+}
+
+template <size_t N>
+constexpr const char* ColdHelpPtr(const FixedCharArray<N>& arr) {
+  return arr.value;
+}
+constexpr const char* ColdHelpPtr(std::false_type) { return nullptr; }
+
+// Pointer-based descriptor for built-in types (32 B, omits FlagOpFn pointer).
+struct BuiltinPtrFlagMeta {
+  constexpr BuiltinPtrFlagMeta(FlagMetaHeader hdr_arg, const char* name_arg,
+                               FlagHelpMsg help_arg,
+                               FlagDefaultSrc default_value_arg)
+      : hdr(hdr_arg),
+        name(name_arg),
+        help(help_arg),
+        default_value(default_value_arg) {}
+
+  FlagMetaHeader hdr;
+  const char* const name;
+  const FlagHelpMsg help;
+  const FlagDefaultSrc default_value;
+};
+
+// Full pointer-based descriptor for custom/enum types (40 B).
+struct FlagMeta {
+  constexpr FlagMeta(FlagMetaHeader hdr_arg, const char* name_arg,
+                     FlagHelpMsg help_arg, FlagDefaultSrc default_value_arg,
+                     FlagOpFn op_arg)
+      : hdr(hdr_arg),
+        name(name_arg),
+        help(help_arg),
+        default_value(default_value_arg),
+        op(op_arg) {}
+
+  FlagMetaHeader hdr;
+  // Flag's name passed to ABSL_FLAG as second arg.
+  const char* const name;
+  // Help message literal or function to generate it.
+  const FlagHelpMsg help;
+  // Initial default value source specified in ABSL_FLAG.
+  const FlagDefaultSrc default_value;
+  // Type-specific operations vtable.
+  const FlagOpFn op;
+};
+
+template <typename T>
+constexpr FlagMeta MakeFlagMeta(const char* name, FlagHelpArg help,
+                                FlagDefaultArg default_arg) {
+  return FlagMeta(
+      FlagMetaHeader{
+          FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(), help.kind,
+                                    default_arg.kind, FlagMetaKind::kPtrMeta),
+          BuiltinFlagOpId<T>(),
+          static_cast<uint8_t>(
+              ConstexprStrLen(name) <= 254 ? ConstexprStrLen(name) : 254)},
+      name, help.source, default_arg.source, &FlagOps<T>);
+}
+
+template <typename T>
+constexpr BuiltinPtrFlagMeta MakeBuiltinPtrFlagMeta(
+    const char* name, FlagHelpArg help, FlagDefaultArg default_arg) {
+  return BuiltinPtrFlagMeta(
+      FlagMetaHeader{
+          FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(), help.kind,
+                                    default_arg.kind, FlagMetaKind::kPtrMeta),
+          BuiltinFlagOpId<T>(),
+          static_cast<uint8_t>(
+              ConstexprStrLen(name) <= 254 ? ConstexprStrLen(name) : 254)},
+      name, help.source, default_arg.source);
+}
+
+// Pointer-free .rodata descriptors for common cases (alignof == 1, 0 pointers,
+// 0 relocations in PIE; help stays in flags_help_cold via FlagRegistrar).
+template <size_t NameLen>
+struct ZeroFlatFlagMeta {
+  FlagMetaHeader hdr;
+  char name[NameLen];
+};
+
+template <size_t NameLen>
+struct OneWordFlatFlagMeta {
+  FlagMetaHeader hdr;
+  uint8_t default_bytes[8];
+  char name[NameLen];
+};
+
+template <size_t NameLen>
+struct TwoWordFlatFlagMeta {
+  FlagMetaHeader hdr;
+  uint8_t default_bytes[16];
+  char name[NameLen];
+};
+
+template <typename T, size_t NameLen, size_t... NameI>
+constexpr ZeroFlatFlagMeta<NameLen> MakeZeroFlatFlagMeta(
+    const char* name, FlagDefaultKind def_kind, std::index_sequence<NameI...>) {
+  return ZeroFlatFlagMeta<NameLen>{
+      FlagMetaHeader{FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(),
+                                               FlagHelpKind::kLiteral, def_kind,
+                                               FlagMetaKind::kZeroFlatMeta),
+                     BuiltinFlagOpId<T>(), static_cast<uint8_t>(NameLen - 1)},
+      {name[NameI]..., '\0'}};
+}
+
+template <typename T, size_t NameLen, size_t... NameI>
+constexpr OneWordFlatFlagMeta<NameLen> MakeOneWordFlatFlagMeta(
+    const char* name, const FlagBytes<sizeof(T)>& def_bytes,
+    std::index_sequence<NameI...>) {
+  OneWordFlatFlagMeta<NameLen> res{
+      FlagMetaHeader{FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(),
+                                               FlagHelpKind::kLiteral,
+                                               FlagDefaultKind::kOneWord,
+                                               FlagMetaKind::kOneWordFlatMeta),
+                     BuiltinFlagOpId<T>(), static_cast<uint8_t>(NameLen - 1)},
+      {},
+      {name[NameI]..., '\0'}};
+  for (size_t i = 0; i < (sizeof(T) <= 8 ? sizeof(T) : 8); ++i) {
+    res.default_bytes[i] = def_bytes.b[i];
+  }
+  return res;
+}
+
+template <typename T, size_t NameLen, size_t... NameI>
+constexpr TwoWordFlatFlagMeta<NameLen> MakeTwoWordFlatFlagMeta(
+    const char* name, const FlagBytes<sizeof(T)>& def_bytes,
+    std::index_sequence<NameI...>) {
+  TwoWordFlatFlagMeta<NameLen> res{
+      FlagMetaHeader{FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(),
+                                               FlagHelpKind::kLiteral,
+                                               FlagDefaultKind::kOneWord,
+                                               FlagMetaKind::kTwoWordFlatMeta),
+                     BuiltinFlagOpId<T>(), static_cast<uint8_t>(NameLen - 1)},
+      {},
+      {name[NameI]..., '\0'}};
+  for (size_t i = 0; i < (sizeof(T) <= 16 ? sizeof(T) : 16); ++i) {
+    res.default_bytes[i] = def_bytes.b[i];
+  }
+  return res;
+}
+
+template <size_t NameLen, size_t DefLen>
+struct StringFlatFlagMeta {
+  FlagMetaHeader hdr;
+  char name[NameLen];
+  char def_str[DefLen];
+};
+
+template <typename T, size_t NameLen, size_t DefLen, size_t... NameI,
+          size_t... DefI>
+constexpr StringFlatFlagMeta<NameLen, DefLen> MakeStringFlatFlagMeta(
+    const char* name, absl::string_view def_str, std::index_sequence<NameI...>,
+    std::index_sequence<DefI...>) {
+  return StringFlatFlagMeta<NameLen, DefLen>{
+      FlagMetaHeader{FlagMetaHeader::PackKinds(flags_internal::StorageKind<T>(),
+                                               FlagHelpKind::kLiteral,
+                                               FlagDefaultKind::kOneWord,
+                                               FlagMetaKind::kOneWordFlatMeta),
+                     BuiltinFlagOpId<T>(), static_cast<uint8_t>(NameLen - 1)},
+      {name[NameI]..., '\0'},
+      {def_str[DefI]..., '\0'}};
+}
+
+template <typename GenT, int = ((void)GenT{}, 0)>
+constexpr bool HasConstexprDefault(int) {
+  return true;
+}
+template <typename GenT>
+constexpr bool HasConstexprDefault(char) {
+  return false;
+}
+
+template <typename GenT, bool B = GenT::IsEmpty()>
+constexpr bool IsConstexprEmptyDefault(int) {
+  return B;
+}
+template <typename GenT>
+constexpr bool IsConstexprEmptyDefault(char) {
+  return false;
+}
+
+template <typename GenT, bool B = GenT::IsLiteralStr()>
+constexpr bool IsConstexprStringDefault(int) {
+  return B;
+}
+template <typename GenT>
+constexpr bool IsConstexprStringDefault(char) {
+  return false;
+}
+
+template <typename GenT, size_t N = GenT::StrView().size() + 1>
+constexpr size_t ConstexprDefStrLen(int) {
+  return N;
+}
+template <typename GenT>
+constexpr size_t ConstexprDefStrLen(char) {
+  return 1;
+}
+
+template <typename ValueT, typename GenT,
+          bool B = BitCastToFlagBytes<ValueT>(GenT{}.value).IsAllZero()>
+constexpr bool IsZeroBytesValue(int) {
+  return B;
+}
+template <typename ValueT, typename GenT>
+constexpr bool IsZeroBytesValue(char) {
+  return false;
+}
+
+template <typename ValueT>
+constexpr bool IsZeroBytesDefaultConstructed() {
+  if constexpr (IsBitCastableDefaultType<ValueT>::value) {
+    return BitCastToFlagBytes<ValueT>(ValueT{}).IsAllZero();
+  } else {
+    return false;
+  }
+}
+
+enum class FlagMetaShape {
+  kCustomPtr,
+  kBuiltinPtr,
+  kZeroDefaultConstructed,
+  kZeroBoolTrue,
+  kOneWordFlat,
+  kTwoWordFlat,
+  kStringFlat,
+};
+
+template <typename ValueT, typename GenT,
+          bool IsBitCastable = IsBitCastableDefaultType<ValueT>::value,
+          bool HasConstexpr =
+              IsBitCastable ? HasConstexprDefault<GenT>(0) : false>
+struct BitCastDefaultShape {
+  static constexpr FlagMetaShape Value() { return FlagMetaShape::kBuiltinPtr; }
+};
+
+template <typename ValueT, typename GenT>
+struct BitCastDefaultShape<ValueT, GenT, true, true> {
+  static constexpr FlagMetaShape Value() {
+    if constexpr (IsZeroBytesValue<ValueT, GenT>(0) &&
+                  IsZeroBytesDefaultConstructed<ValueT>()) {
+      return FlagMetaShape::kZeroDefaultConstructed;
+    } else if constexpr (!IsZeroBytesValue<ValueT, GenT>(0) &&
+                         std::is_same_v<ValueT, bool>) {
+      return FlagMetaShape::kZeroBoolTrue;
+    } else if constexpr (!IsZeroBytesValue<ValueT, GenT>(0) &&
+                         sizeof(ValueT) <= 8) {
+      return FlagMetaShape::kOneWordFlat;
+    } else if constexpr (!IsZeroBytesValue<ValueT, GenT>(0) &&
+                         sizeof(ValueT) > 8 && sizeof(ValueT) <= 16) {
+      return FlagMetaShape::kTwoWordFlat;
+    } else {
+      return FlagMetaShape::kBuiltinPtr;
+    }
+  }
+};
+
+template <typename ValueT, typename GenT, size_t NameLen>
+constexpr FlagMetaShape SelectLiteralHelpMetaShape() {
+  if constexpr (BuiltinFlagOpId<ValueT>() == kNoBuiltinOp) {
+    return FlagMetaShape::kCustomPtr;
+  } else if constexpr (NameLen > 255) {
+    return FlagMetaShape::kBuiltinPtr;
+  } else if constexpr (IsBitCastableDefaultType<ValueT>::value) {
+    return BitCastDefaultShape<ValueT, GenT>::Value();
+  } else if constexpr (std::is_same_v<ValueT, std::string>) {
+    if constexpr (IsConstexprEmptyDefault<GenT>(0)) {
+      return FlagMetaShape::kZeroDefaultConstructed;
+    } else if constexpr (IsConstexprStringDefault<GenT>(0)) {
+      return FlagMetaShape::kStringFlat;
+    } else {
+      return FlagMetaShape::kBuiltinPtr;
+    }
+  } else if constexpr (std::is_same_v<ValueT, std::vector<std::string>> ||
+                       IsStdOptional<ValueT>::value) {
+    if constexpr (IsConstexprEmptyDefault<GenT>(0)) {
+      return FlagMetaShape::kZeroDefaultConstructed;
+    } else {
+      return FlagMetaShape::kBuiltinPtr;
+    }
+  } else {
+    return FlagMetaShape::kBuiltinPtr;
+  }
+}
+
+template <FlagMetaShape Shape, size_t NameLen, typename GenT>
+struct FlagMetaMaker;
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kCustomPtr, NameLen, GenT> {
+  using type = FlagMeta;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr FlagMeta Make(const char* name,
+                                 const HelpStorageT& help_storage) {
+    return MakeFlagMeta<ValueT>(name, HelpArg<HelpGenT>(help_storage),
+                                DefaultArg<ValueT, GenT>(0));
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kBuiltinPtr, NameLen, GenT> {
+  using type = BuiltinPtrFlagMeta;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr BuiltinPtrFlagMeta Make(const char* name,
+                                           const HelpStorageT& help_storage) {
+    return MakeBuiltinPtrFlagMeta<ValueT>(name, HelpArg<HelpGenT>(help_storage),
+                                          DefaultArg<ValueT, GenT>(0));
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kZeroDefaultConstructed, NameLen, GenT> {
+  using type = ZeroFlatFlagMeta<NameLen>;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr ZeroFlatFlagMeta<NameLen> Make(const char* name,
+                                                  const HelpStorageT&) {
+    return MakeZeroFlatFlagMeta<ValueT, NameLen>(
+        name, FlagDefaultKind::kDefaultConstructed,
+        std::make_index_sequence<NameLen - 1>{});
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kZeroBoolTrue, NameLen, GenT> {
+  using type = ZeroFlatFlagMeta<NameLen>;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr ZeroFlatFlagMeta<NameLen> Make(const char* name,
+                                                  const HelpStorageT&) {
+    return MakeZeroFlatFlagMeta<ValueT, NameLen>(
+        name, FlagDefaultKind::kOneWord,
+        std::make_index_sequence<NameLen - 1>{});
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kOneWordFlat, NameLen, GenT> {
+  using type = OneWordFlatFlagMeta<NameLen>;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr OneWordFlatFlagMeta<NameLen> Make(const char* name,
+                                                     const HelpStorageT&) {
+    return MakeOneWordFlatFlagMeta<ValueT, NameLen>(
+        name, BitCastToFlagBytes<ValueT>(GenT{}.value),
+        std::make_index_sequence<NameLen - 1>{});
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kTwoWordFlat, NameLen, GenT> {
+  using type = TwoWordFlatFlagMeta<NameLen>;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr TwoWordFlatFlagMeta<NameLen> Make(const char* name,
+                                                     const HelpStorageT&) {
+    return MakeTwoWordFlatFlagMeta<ValueT, NameLen>(
+        name, BitCastToFlagBytes<ValueT>(GenT{}.value),
+        std::make_index_sequence<NameLen - 1>{});
+  }
+};
+
+template <size_t NameLen, typename GenT>
+struct FlagMetaMaker<FlagMetaShape::kStringFlat, NameLen, GenT> {
+  static constexpr size_t kDefLen = ConstexprDefStrLen<GenT>(0);
+  using type = StringFlatFlagMeta<NameLen, kDefLen>;
+  template <typename ValueT, typename HelpGenT, typename HelpStorageT>
+  static constexpr type Make(const char* name, const HelpStorageT&) {
+    return MakeStringFlatFlagMeta<ValueT, NameLen, kDefLen>(
+        name, GenT::StrView(), std::make_index_sequence<NameLen - 1>{},
+        std::make_index_sequence<kDefLen - 1>{});
+  }
+};
+
+template <typename ValueT, typename GenT, typename HelpGenT, size_t NameLen,
+          typename HelpStorageT>
+struct FlagMetaSelector;
+
+template <typename ValueT, typename GenT, typename HelpGenT, size_t NameLen,
+          size_t HelpLen>
+struct FlagMetaSelector<ValueT, GenT, HelpGenT, NameLen,
+                        FixedCharArray<HelpLen>> {
+  using Maker =
+      FlagMetaMaker<SelectLiteralHelpMetaShape<ValueT, GenT, NameLen>(),
+                    NameLen, GenT>;
+  using type = typename Maker::type;
+  static constexpr type Make(const char* name,
+                             const FixedCharArray<HelpLen>& help_storage) {
+    return Maker::template Make<ValueT, HelpGenT>(name, help_storage);
+  }
+};
+
+template <typename ValueT, typename GenT, typename HelpGenT, size_t NameLen>
+struct FlagMetaSelector<ValueT, GenT, HelpGenT, NameLen, std::false_type> {
+  using Maker = FlagMetaMaker<BuiltinFlagOpId<ValueT>() != kNoBuiltinOp
+                                  ? FlagMetaShape::kBuiltinPtr
+                                  : FlagMetaShape::kCustomPtr,
+                              NameLen, GenT>;
+  using type = typename Maker::type;
+  static constexpr type Make(const char* name, std::false_type help_storage) {
+    return Maker::template Make<ValueT, HelpGenT>(name, help_storage);
+  }
+};
+
+template <typename ValueT, typename GenT, typename HelpGenT, size_t NameLen,
+          typename HelpStorageT>
+constexpr typename FlagMetaSelector<ValueT, GenT, HelpGenT, NameLen,
+                                    HelpStorageT>::type
+SelectFlagMeta(const char* name, const HelpStorageT& help_storage, int) {
+  return FlagMetaSelector<ValueT, GenT, HelpGenT, NameLen, HelpStorageT>::Make(
+      name, help_storage);
+}
+
 class FlagState;
 
 // These are only used as constexpr global objects.
@@ -579,37 +1304,62 @@ class FlagState;
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 #endif
 class FlagImpl final : public CommandLineFlag {
+ private:
+  static constexpr uint8_t kMaxInlineModCount = 7;
+
+  struct MuState {
+    uint8_t def_kind : 2;
+    bool modified : 1;
+    bool on_command_line : 1;
+    bool has_callback : 1;
+    uint8_t mod_count : 3;
+
+    constexpr FlagDefaultKind DefaultKind() const {
+      return static_cast<FlagDefaultKind>(def_kind);
+    }
+  };
+  static_assert(sizeof(MuState) == 1, "MuState must be 1 byte");
+  static_assert(std::atomic<MuState>::is_always_lock_free,
+                "std::atomic<MuState> must be lock-free");
+
  public:
-  constexpr FlagImpl(const char* name, const char* type_name,
-                     const char* filename, FlagOpFn op, FlagHelpArg help,
-                     FlagValueStorageKind value_kind,
-                     FlagDefaultArg default_arg)
-      : name_(name),
-        type_name_(type_name),
-        filename_(filename),
-        op_(op),
-        help_(help.source),
-        help_source_kind_(static_cast<uint8_t>(help.kind)),
-        value_storage_kind_(static_cast<uint8_t>(value_kind)),
-        def_kind_(static_cast<uint8_t>(default_arg.kind)),
-        modified_(false),
-        on_command_line_(false),
-        callback_(nullptr),
-        default_value_(default_arg.source),
-        data_guard_{} {}
+  constexpr explicit FlagImpl(const FlagMetaHeader* meta)
+      : meta_(meta),
+        init_control_{},
+        file_id_(0),
+        mu_state_(MuState{static_cast<uint8_t>((meta->kinds >> 4) & 0x3u),
+                          false, false, false, 0}),
+        inline_bool_value_(0) {}
+
+  constexpr FlagImpl(const FlagMeta* meta, FlagHelpKind /*help_kind*/,
+                     FlagValueStorageKind /*value_kind*/,
+                     FlagDefaultKind default_kind)
+      : meta_(&meta->hdr),
+        init_control_{},
+        file_id_(0),
+        mu_state_(MuState{static_cast<uint8_t>(default_kind), false, false,
+                          false, 0}),
+        inline_bool_value_(0) {}
+
+  bool TryGetInlineBool(bool& dst) const {
+    uint8_t s = inline_bool_value_.load(std::memory_order_acquire);
+    if (ABSL_PREDICT_FALSE(s == 0)) return false;
+    dst = static_cast<bool>(s & 1u);
+    return true;
+  }
 
   // Constant access methods
-  int64_t ReadOneWord() const ABSL_LOCKS_EXCLUDED(DataGuard());
-  bool ReadOneBool() const ABSL_LOCKS_EXCLUDED(DataGuard());
-  void Read(void* dst) const override ABSL_LOCKS_EXCLUDED(DataGuard());
-  void Read(bool* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
+  int64_t ReadOneWord() const ABSL_LOCKS_EXCLUDED(*DataGuard());
+  bool ReadOneBool() const ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void Read(void* dst) const override ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void Read(bool* value) const ABSL_LOCKS_EXCLUDED(*DataGuard()) {
     *value = ReadOneBool();
   }
   template <typename T,
             std::enable_if_t<flags_internal::StorageKind<T>() ==
                                  FlagValueStorageKind::kOneWordAtomic,
                              int> = 0>
-  void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
+  void Read(T* value) const ABSL_LOCKS_EXCLUDED(*DataGuard()) {
     int64_t v = ReadOneWord();
     std::memcpy(value, static_cast<const void*>(&v), sizeof(T));
   }
@@ -617,17 +1367,19 @@ class FlagImpl final : public CommandLineFlag {
             std::enable_if_t<flags_internal::StorageKind<T>() ==
                                  FlagValueStorageKind::kValueAndInitBit,
                              int> = 0>
-  void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
+  void Read(T* value) const ABSL_LOCKS_EXCLUDED(*DataGuard()) {
     *value = absl::bit_cast<FlagValueAndInitBit<T>>(ReadOneWord()).value;
   }
 
   // Mutating access methods
-  void Write(const void* src) ABSL_LOCKS_EXCLUDED(DataGuard());
+  void Write(const void* src) ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void SetFilename(const char* filename);
+  void SetColdHelp(const char* cold_help);
 
   // Interfaces to operate on callbacks.
   void SetCallback(const FlagCallbackFunc mutation_callback)
-      ABSL_LOCKS_EXCLUDED(DataGuard());
-  void InvokeCallback() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  void InvokeCallback() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   // Used in read/write operations to validate source/target has correct type.
   // For example if flag is declared as absl::Flag<int> FLAGS_foo, a call to
@@ -643,12 +1395,19 @@ class FlagImpl final : public CommandLineFlag {
   friend class Flag;
   friend class FlagState;
 
+  FlagOpFn op() const;
+  const BuiltinPtrFlagMeta* PtrMeta() const {
+    return reinterpret_cast<const BuiltinPtrFlagMeta*>(meta_);
+  }
+  const void* DefaultValueStoragePtr() const;
+  const char* DefaultCStringPtr() const;
+
   // Ensures that `data_guard_` is initialized and returns it.
-  absl::Mutex& DataGuard() const
+  absl::Mutex* DataGuard() const
       ABSL_LOCK_RETURNED(reinterpret_cast<absl::Mutex*>(data_guard_));
   // Returns heap allocated value of type T initialized with default value.
   std::unique_ptr<void, DynValueDeleter> MakeInitValue() const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
   // Flag initialization called via absl::call_once.
   void Init();
 
@@ -656,13 +1415,16 @@ class FlagImpl final : public CommandLineFlag {
   // respect const correctness, so be very careful using them.
 
   // This is a shared helper routine which encapsulates most of the magic. Since
-  // it is only used inside the three routines below, which are defined in
+  // it is only used inside the routines below, which are defined in
   // flag.cc, we can define it in that file as well.
   template <typename StorageT>
   StorageT* OffsetValue() const;
 
   // The same as above, but used for sequencelock-protected storage.
   std::atomic<uint64_t>* AtomicBufferValue() const;
+
+  // Accessor for the SequenceLock inside FlagValue<T, kSequenceLocked>.
+  flags_internal::SequenceLock& SeqLock() const;
 
   // This is an accessor for a value stored as one word atomic. Returns a
   // mutable reference to an atomic value.
@@ -674,25 +1436,25 @@ class FlagImpl final : public CommandLineFlag {
   // returns new value. Otherwise returns nullptr.
   std::unique_ptr<void, DynValueDeleter> TryParse(absl::string_view value,
                                                   std::string& err) const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
   // Stores the flag value based on the pointer to the source.
   void StoreValue(const void* src, ValueSource source)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
-  // Copy the flag data, protected by `seq_lock_` into `dst`.
+  // Copy the flag data, protected by `SeqLock()` into `dst`.
   //
   // REQUIRES: ValueStorageKind() == kSequenceLocked.
-  void ReadSequenceLockedData(void* dst) const ABSL_LOCKS_EXCLUDED(DataGuard());
+  void ReadSequenceLockedData(void* dst) const
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   FlagHelpKind HelpSourceKind() const {
-    return static_cast<FlagHelpKind>(help_source_kind_);
+    return static_cast<FlagHelpKind>((meta_->kinds >> 3) & 0x1u);
   }
   FlagValueStorageKind ValueStorageKind() const {
-    return static_cast<FlagValueStorageKind>(value_storage_kind_);
+    return static_cast<FlagValueStorageKind>(meta_->kinds & 0x7u);
   }
-  FlagDefaultKind DefaultKind() const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard()) {
-    return static_cast<FlagDefaultKind>(def_kind_);
+  FlagMetaKind MetaKind() const {
+    return static_cast<FlagMetaKind>((meta_->kinds >> 6) & 0x3u);
   }
 
   // CommandLineFlag interface implementation
@@ -702,86 +1464,63 @@ class FlagImpl final : public CommandLineFlag {
   std::string Help() const override;
   FlagFastTypeId TypeId() const override;
   bool IsSpecifiedOnCommandLine() const override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
-  std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
-  std::string CurrentValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
+  std::string CurrentValue() const override ABSL_LOCKS_EXCLUDED(*DataGuard());
   bool ValidateInputValue(absl::string_view value) const override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
   void CheckDefaultValueParsingRoundtrip() const override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
-  int64_t ModificationCount() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+  int64_t ModificationCount() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
+  // Lock-free check used by SaveState() and RestoreState() to skip lazy
+  // initialization on flags that have never been mutated. Safe without
+  // DataGuard() because all mutations update mu_state_ under DataGuard()
+  // with release semantics after writing the flag value, and observing a
+  // zero modification count means the flag still holds its initial
+  // compile-time state.
+  bool IsUnmodifiedFast() const {
+    return mu_state_.load(std::memory_order_acquire).mod_count == 0;
+  }
   bool CanSkipInitOnSave() const;
+  void RecordMutation() ABSL_EXCLUSIVE_LOCKS_REQUIRED(*DataGuard());
 
   // Interfaces to save and restore flags to/from persistent state.
   // Returns current flag state or nullptr if flag does not support
   // saving and restoring a state.
   std::unique_ptr<FlagStateInterface> SaveState() override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   // Restores the flag state to the supplied state object. If there is
   // nothing to restore returns false. Otherwise returns true.
   bool RestoreState(const FlagState& flag_state)
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
   bool ParseFrom(absl::string_view value, FlagSettingMode set_mode,
                  ValueSource source, std::string& error) override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+      ABSL_LOCKS_EXCLUDED(*DataGuard());
 
-  // Immutable flag's state.
+  // Pointer to immutable flag descriptor in .rodata / .data.rel.ro.
+  const FlagMetaHeader* const meta_;
 
-  // Flags name passed to ABSL_FLAG as second arg.
-  const char* const name_;
-
-  // Flags type passed to ABSL_FLAG as first arg.
-  const char* const type_name_;
-
-  // The file name where ABSL_FLAG resides.
-  const char* const filename_;
-  // Type-specific operations vtable.
-  const FlagOpFn op_;
-  // Help message literal or function to generate it.
-  const FlagHelpMsg help_;
-  // Indicates if help message was supplied as literal or generator func.
-  const uint8_t help_source_kind_ : 1;
-  // Kind of storage this flag is using for the flag's value.
-  const uint8_t value_storage_kind_ : 2;
-
-  uint8_t : 0;  // The bytes containing the const bitfields must not be
-                // shared with bytes containing the mutable bitfields.
-
-  // Mutable flag's state (guarded by `data_guard_`).
-
-  // def_kind_ is not guard by DataGuard() since it is accessed in Init without
-  // locks.
-  uint8_t def_kind_ : 2;
-  // Has this flag's value been modified?
-  bool modified_ : 1 ABSL_GUARDED_BY(DataGuard());
-  // Has this flag been specified on command line.
-  bool on_command_line_ : 1 ABSL_GUARDED_BY(DataGuard());
+  // Per-flag mutex guard, placement-initialized in Init().
+  alignas(sizeof(void*)) mutable char data_guard_[sizeof(absl::Mutex)]{};
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
 
-  // Sequence lock / mutation counter.
-  flags_internal::SequenceLock seq_lock_;
+  // Deduplicated filename index assigned on registration (0 = unset).
+  uint16_t file_id_;
 
-  // Optional flag's callback and absl::Mutex to guard the invocations.
-  FlagCallback* callback_ ABSL_GUARDED_BY(DataGuard());
-  // Either a pointer to the function generating the default value based on the
-  // value specified in ABSL_FLAG or pointer to the dynamically set default
-  // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
-  // these two cases.
-  FlagDefaultSrc default_value_;
+  // Atomic state bitfields (def_kind, modified, on_command_line, has_callback,
+  // and saturating 3-bit mod_count where 7 indicates overflow in side table).
+  // All writes occur under DataGuard() with release semantics; SaveState() and
+  // RestoreState() perform lock-free acquire loads to fast-path unmodified
+  // flags without triggering lazy initialization.
+  std::atomic<MuState> mu_state_;
 
-  // This is reserved space for an absl::Mutex to guard flag data. It will be
-  // initialized in FlagImpl::Init via placement new.
-  // We can't use "absl::Mutex data_guard_", since this class is not literal.
-  // We do not want to use "absl::Mutex* data_guard_", since this would require
-  // heap allocation during initialization, which is both slows program startup
-  // and can fail. Using reserved space + placement new allows us to avoid both
-  // problems.
-  alignas(absl::Mutex) mutable unsigned char data_guard_[sizeof(absl::Mutex)];
+  // Inline atomic storage for Flag<bool> (0 = uninit, 2 = false, 3 = true).
+  mutable std::atomic<uint8_t> inline_bool_value_;
 };
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
@@ -791,25 +1530,52 @@ class FlagImpl final : public CommandLineFlag {
 // The Flag object parameterized by the flag's value type. This class implements
 // flag reflection handle interface.
 
+template <typename T,
+          FlagValueStorageKind Kind = flags_internal::StorageKind<T>()>
+struct FlagStorage {
+  constexpr explicit FlagStorage(const FlagMetaHeader* meta)
+      : impl_(meta), value_() {}
+  constexpr FlagStorage(const FlagMeta* meta, FlagHelpKind help_kind,
+                        FlagDefaultKind default_kind)
+      : impl_(meta, help_kind, Kind, default_kind), value_() {}
+
+  // The implementation depends on value_ field to be placed exactly after the
+  // impl_ field, so that impl_ can figure out the offset to the value and
+  // access it.
+  FlagImpl impl_;
+  FlagValue<T, Kind> value_;
+};
+
 template <typename T>
-class Flag {
+struct FlagStorage<T, FlagValueStorageKind::kInlineBool> {
+  constexpr explicit FlagStorage(const FlagMetaHeader* meta) : impl_(meta) {}
+  constexpr FlagStorage(const FlagMeta* meta, FlagHelpKind help_kind,
+                        FlagDefaultKind default_kind)
+      : impl_(meta, help_kind, FlagValueStorageKind::kInlineBool,
+              default_kind) {}
+
+  FlagImpl impl_;
+};
+
+template <typename T>
+class Flag : private FlagStorage<T> {
  public:
-  constexpr Flag(const char* name, const char* type_name, const char* filename,
-                 FlagHelpArg help, const FlagDefaultArg default_arg)
-      : impl_(name, type_name, filename, &FlagOps<T>, help,
-              flags_internal::StorageKind<T>(), default_arg),
-        value_() {}
+  constexpr explicit Flag(const FlagMetaHeader* meta) : FlagStorage<T>(meta) {}
+
+  constexpr Flag(const FlagMeta* meta, FlagHelpKind help_kind,
+                 FlagDefaultKind default_kind)
+      : FlagStorage<T>(meta, help_kind, default_kind) {}
 
   // CommandLineFlag interface
-  absl::string_view Name() const { return impl_.Name(); }
-  std::string Filename() const { return impl_.Filename(); }
-  std::string Help() const { return impl_.Help(); }
+  absl::string_view Name() const { return this->impl_.Name(); }
+  std::string Filename() const { return this->impl_.Filename(); }
+  std::string Help() const { return this->impl_.Help(); }
   // Do not use. To be removed.
   bool IsSpecifiedOnCommandLine() const {
-    return impl_.IsSpecifiedOnCommandLine();
+    return this->impl_.IsSpecifiedOnCommandLine();
   }
-  std::string DefaultValue() const { return impl_.DefaultValue(); }
-  std::string CurrentValue() const { return impl_.CurrentValue(); }
+  std::string DefaultValue() const { return this->impl_.DefaultValue(); }
+  std::string CurrentValue() const { return this->impl_.CurrentValue(); }
 
  private:
   template <typename, bool>
@@ -826,28 +1592,28 @@ class Flag {
     U u;
 
 #if !defined(NDEBUG)
-    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    this->impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
 #endif
 
-    if (ABSL_PREDICT_FALSE(!value_.Get(impl_.seq_lock_, u.value))) {
-      impl_.Read(&u.value);
+    if constexpr (flags_internal::StorageKind<T>() ==
+                  FlagValueStorageKind::kInlineBool) {
+      if (ABSL_PREDICT_FALSE(!this->impl_.TryGetInlineBool(u.value))) {
+        this->impl_.Read(&u.value);
+      }
+    } else {
+      if (ABSL_PREDICT_FALSE(!this->value_.Get(u.value))) {
+        this->impl_.Read(&u.value);
+      }
     }
     return std::move(u.value);
   }
   void Set(const T& v) {
-    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
-    impl_.Write(&v);
+    this->impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    this->impl_.Write(&v);
   }
 
   // Access to the reflection.
-  const CommandLineFlag& Reflect() const { return impl_; }
-
-  // Flag's data
-  // The implementation depends on value_ field to be placed exactly after the
-  // impl_ field, so that impl_ can figure out the offset to the value and
-  // access it.
-  FlagImpl impl_;
-  FlagValue<T> value_;
+  const CommandLineFlag& Reflect() const { return this->impl_; }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -895,6 +1661,12 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       *static_cast<T*>(v2) = *static_cast<const T*>(v1);
       return nullptr;
     case FlagOp::kCopyConstruct:
+      if constexpr (std::is_default_constructible_v<T>) {
+        if (v1 == nullptr) {
+          new (v2) T();
+          return nullptr;
+        }
+      }
       new (v2) T(*static_cast<const T*>(v1));
       return nullptr;
     case FlagOp::kSizeof:
@@ -925,6 +1697,9 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       size_t offset = (sizeof(FlagImpl) + round_to - 1) / round_to * round_to;
       return reinterpret_cast<void*>(offset);
     }
+    case FlagOp::kTypeName:
+      *static_cast<absl::string_view*>(v2) = GenTypeName<T>();
+      return nullptr;
   }
   return nullptr;
 }
@@ -937,10 +1712,18 @@ struct FlagRegistrarEmpty {};
 template <typename T, bool do_register>
 class FlagRegistrar {
  public:
-  constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename)
+  constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename,
+                                   const char* cold_help = nullptr)
       : flag_(flag) {
-    if (do_register)
+    if (filename != nullptr) {
+      flag_.impl_.SetFilename(filename);
+    }
+    if (cold_help != nullptr) {
+      flag_.impl_.SetColdHelp(cold_help);
+    }
+    if (do_register) {
       flags_internal::RegisterCommandLineFlag(flag_.impl_, filename);
+    }
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
