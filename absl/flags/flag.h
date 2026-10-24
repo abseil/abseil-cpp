@@ -197,11 +197,11 @@ ABSL_NAMESPACE_END
 
 // ABSL_FLAG_IMPL macro definition conditional on ABSL_FLAGS_STRIP_NAMES
 #define ABSL_FLAG_IMPL_FLAG_PTR(flag) flag
-#define ABSL_FLAG_IMPL_HELP_ARG(name)                      \
-  absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>( \
+#define ABSL_FLAG_IMPL_HELP_ARG(name)                        \
+  ::absl::flags_internal::HelpArg<AbslFlagHelpGenFor##name>( \
       FLAGS_help_storage_##name)
 #define ABSL_FLAG_IMPL_DEFAULT_ARG(Type, name) \
-  absl::flags_internal::DefaultArg<Type, AbslFlagDefaultGenFor##name>(0)
+  ::absl::flags_internal::DefaultArg<Type, AbslFlagDefaultGenFor##name>(0)
 
 #if ABSL_FLAGS_STRIP_NAMES
 #define ABSL_FLAG_IMPL_FLAGNAME(txt) ""
@@ -260,22 +260,30 @@ ABSL_NAMESPACE_END
     }                                                                         \
   };
 
+#define ABSL_FLAG_IMPL_DECLARE_META_WRAPPER(name)                            \
+  template <typename AbslFlagType>                                           \
+  struct AbslFlagMetaFor##name {                                             \
+    static constexpr auto kMeta = ::absl::flags_internal::SelectFlagMeta<    \
+        AbslFlagType, AbslFlagDefaultGenFor##name, AbslFlagHelpGenFor##name, \
+        sizeof(ABSL_FLAG_IMPL_FLAGNAME(#name))>(                             \
+        ABSL_FLAG_IMPL_FLAGNAME(#name), FLAGS_help_storage_##name, 0);       \
+  };
+
 // ABSL_FLAG_IMPL
 //
 // Note: Name of registrar object is not arbitrary. It is used to "grab"
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
-#define ABSL_FLAG_IMPL(Type, name, default_value, help)               \
-  extern ::absl::Flag<Type> FLAGS_##name;                             \
-  namespace absl /* block flags in namespaces */ {}                   \
-  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)   \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                     \
-  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                      \
-      ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_TYPENAME(#Type), \
-      ABSL_FLAG_IMPL_FILENAME(), ABSL_FLAG_IMPL_HELP_ARG(name),       \
-      ABSL_FLAG_IMPL_DEFAULT_ARG(Type, name)};                        \
-  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;     \
-  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =           \
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)             \
+  extern ::absl::Flag<Type> FLAGS_##name;                           \
+  namespace absl /* block flags in namespaces */ {}                 \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                   \
+  ABSL_FLAG_IMPL_DECLARE_META_WRAPPER(name)                         \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                    \
+      &AbslFlagMetaFor##name<Type>::kMeta.hdr};                     \
+  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;   \
+  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =         \
       ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 
 // ABSL_RETIRED_FLAG
