@@ -39,6 +39,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/usage_config.h"
@@ -102,6 +103,91 @@ void AddToFreelist(void* p) {
     s_freelist = new std::vector<void*>;
   }
   s_freelist->push_back(p);
+}
+
+absl::Mutex& SideTableMutex() {
+  static absl::NoDestructor<absl::Mutex> mutex;
+  return *mutex;
+}
+
+FlagCallback* GetOrCreateCallback(const FlagImpl* flag) {
+  absl::MutexLock l(SideTableMutex());
+  static absl::NoDestructor<absl::flat_hash_map<const FlagImpl*, FlagCallback*>>
+      s_callbacks;
+  FlagCallback*& cb = (*s_callbacks)[flag];
+  if (cb == nullptr) {
+    cb = new FlagCallback;
+  }
+  return cb;
+}
+
+absl::flat_hash_map<const FlagImpl*, void*>& DynamicDefaults()
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(SideTableMutex()) {
+  static absl::NoDestructor<absl::flat_hash_map<const FlagImpl*, void*>>
+      s_dyn_defaults;
+  return *s_dyn_defaults;
+}
+
+void* GetDynamicDefault(const FlagImpl* flag) {
+  absl::MutexLock l(SideTableMutex());
+  const auto& defaults = DynamicDefaults();
+  auto it = defaults.find(flag);
+  return it != defaults.end() ? it->second : nullptr;
+}
+
+void* SetDynamicDefault(const FlagImpl* flag, void* new_val) {
+  absl::MutexLock l(SideTableMutex());
+  return std::exchange(DynamicDefaults()[flag], new_val);
+}
+
+absl::flat_hash_map<const FlagImpl*, int64_t>& OverflowModCounts()
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(SideTableMutex()) {
+  static absl::NoDestructor<absl::flat_hash_map<const FlagImpl*, int64_t>>
+      s_counts;
+  return *s_counts;
+}
+
+int64_t GetOverflowModCount(const FlagImpl* flag) {
+  absl::MutexLock l(SideTableMutex());
+  const auto& counts = OverflowModCounts();
+  auto it = counts.find(flag);
+  return it != counts.end() ? it->second : 0;
+}
+
+void IncrementOverflowModCount(const FlagImpl* flag) {
+  absl::MutexLock l(SideTableMutex());
+  ++OverflowModCounts()[flag];
+}
+
+std::vector<const char*>& FilenameTable()
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(SideTableMutex()) {
+  static absl::NoDestructor<std::vector<const char*>> s_files;
+  return *s_files;
+}
+
+uint16_t InternFilename(const char* filename) {
+  if (filename == nullptr) return 0;
+  absl::MutexLock l(SideTableMutex());
+  auto& files = FilenameTable();
+  if (!files.empty() &&
+      (files.back() == filename || std::strcmp(files.back(), filename) == 0)) {
+    return static_cast<uint16_t>(files.size());
+  }
+  for (size_t i = 0; i < files.size(); ++i) {
+    if (files[i] == filename || std::strcmp(files[i], filename) == 0) {
+      return static_cast<uint16_t>(i + 1);
+    }
+  }
+  if (files.size() >= 0xFFFEu) return 0xFFFFu;
+  files.push_back(filename);
+  return static_cast<uint16_t>(files.size());
+}
+
+const char* GetFilenameById(uint16_t id) {
+  if (id == 0 || id == 0xFFFFu) return "";
+  absl::MutexLock l(SideTableMutex());
+  const auto& files = FilenameTable();
+  return id <= files.size() ? files[id - 1] : "";
 }
 
 }  // namespace
@@ -210,6 +296,12 @@ bool MaskedPointer::CheckMask(mask_t mask) const {
   return (reinterpret_cast<mask_t>(ptr_) & mask) != 0;
 }
 
+void FlagImpl::SetFilename(const char* filename) {
+  if (file_id_ == 0 && filename != nullptr) {
+    file_id_ = InternFilename(filename);
+  }
+}
+
 void FlagImpl::Init() {
   new (&data_guard_) absl::Mutex;
 
@@ -242,6 +334,7 @@ void FlagImpl::Init() {
       // during initialization.
       assert(def_kind == FlagDefaultKind::kGenFunc);
       (*default_value_.gen_func)(AtomicBufferValue());
+      SeqLock().MarkInitialized();
       break;
     }
     case FlagValueStorageKind::kHeapAllocated:
@@ -256,7 +349,6 @@ void FlagImpl::Init() {
                          std::memory_order_release);
       break;
   }
-  seq_lock_.MarkInitialized();
 }
 
 absl::Mutex& FlagImpl::DataGuard() const {
@@ -296,7 +388,7 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   switch (DefaultKind()) {
     case FlagDefaultKind::kDynamicValue:
-      res = flags_internal::Clone(op_, default_value_.dynamic_value);
+      res = flags_internal::Clone(op_, GetDynamicDefault(this));
       break;
     case FlagDefaultKind::kGenFunc:
       res = flags_internal::Alloc(op_);
@@ -309,6 +401,14 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   return {res, DynValueDeleter{op_}};
 }
 
+void FlagImpl::IncrementModCount() {
+  if (mod_count_ < 7) {
+    ++mod_count_;
+  } else {
+    IncrementOverflowModCount(this);
+  }
+}
+
 void FlagImpl::StoreValue(const void* src, ValueSource source) {
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
@@ -317,11 +417,10 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
       int64_t one_word_val = OneWordValue().load(std::memory_order_acquire);
       std::memcpy(&one_word_val, src, Sizeof(op_));
       OneWordValue().store(one_word_val, std::memory_order_release);
-      seq_lock_.IncrementModificationCount();
       break;
     }
     case FlagValueStorageKind::kSequenceLocked: {
-      seq_lock_.Write(AtomicBufferValue(), src, Sizeof(op_));
+      SeqLock().Write(AtomicBufferValue(), src, Sizeof(op_));
       break;
     }
     case FlagValueStorageKind::kHeapAllocated:
@@ -345,19 +444,22 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
       }
 
       PtrStorage().store(ptr_value, std::memory_order_release);
-      seq_lock_.IncrementModificationCount();
       break;
   }
+  IncrementModCount();
   modified_ = true;
   InvokeCallback();
 }
 
 absl::string_view FlagImpl::Name() const { return name_; }
 
-absl::string_view FlagImpl::TypeName() const { return type_name_; }
+absl::string_view FlagImpl::TypeName() const {
+  return flags_internal::TypeName(op_);
+}
 
 std::string FlagImpl::Filename() const {
-  return flags_internal::GetUsageConfig().normalize_filename(filename_);
+  return flags_internal::GetUsageConfig().normalize_filename(
+      GetFilenameById(file_id_));
 }
 
 std::string FlagImpl::Help() const {
@@ -370,7 +472,7 @@ FlagFastTypeId FlagImpl::TypeId() const {
 }
 
 int64_t FlagImpl::ModificationCount() const {
-  return seq_lock_.ModificationCount();
+  return mod_count_ + GetOverflowModCount(this);
 }
 
 bool FlagImpl::IsSpecifiedOnCommandLine() const {
@@ -414,20 +516,20 @@ std::string FlagImpl::CurrentValue() const {
 void FlagImpl::SetCallback(const FlagCallbackFunc mutation_callback) {
   absl::MutexLock l(DataGuard());
 
-  if (callback_ == nullptr) {
-    callback_ = new FlagCallback;
-  }
-  callback_->func = mutation_callback;
+  FlagCallback* cb = GetOrCreateCallback(this);
+  cb->func = mutation_callback;
+  has_callback_ = true;
 
   InvokeCallback();
 }
 
 void FlagImpl::InvokeCallback() const {
-  if (!callback_) return;
+  if (!has_callback_) return;
 
+  FlagCallback* cb_entry = GetOrCreateCallback(this);
   // Make a copy of the C-style function pointer that we are about to invoke
   // before we release the lock guarding it.
-  FlagCallbackFunc cb = callback_->func;
+  FlagCallbackFunc cb = cb_entry->func;
 
   // If the flag has a mutation callback this function invokes it. While the
   // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -441,7 +543,7 @@ void FlagImpl::InvokeCallback() const {
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
   MutexRelock relock(DataGuard());
-  absl::MutexLock lock(callback_->guard);
+  absl::MutexLock lock(cb_entry->guard);
   cb();
 }
 
@@ -450,7 +552,7 @@ void FlagImpl::InvokeCallback() const {
 // instead reconstructs from the provided default value if modified before
 // restoration.
 bool FlagImpl::CanSkipInitOnSave() const {
-  if (!seq_lock_.IsUnmodified()) return false;
+  if (!IsUnmodifiedFast()) return false;
   switch (ValueStorageKind()) {
     case FlagValueStorageKind::kValueAndInitBit:
     case FlagValueStorageKind::kOneWordAtomic:
@@ -489,7 +591,7 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
       void* cloned = flags_internal::Alloc(op_);
       // Read is guaranteed to be successful because we hold the lock.
       bool success =
-          seq_lock_.TryRead(cloned, AtomicBufferValue(), Sizeof(op_));
+          SeqLock().TryRead(cloned, AtomicBufferValue(), Sizeof(op_));
       assert(success);
       static_cast<void>(success);
       return std::make_unique<FlagState>(*this, cloned, modified,
@@ -507,7 +609,7 @@ std::unique_ptr<FlagStateInterface> FlagImpl::SaveState() {
 }
 
 bool FlagImpl::RestoreState(const FlagState& flag_state) {
-  if (ABSL_PREDICT_TRUE(flag_state.counter_ < 0 && seq_lock_.IsUnmodified())) {
+  if (ABSL_PREDICT_TRUE(flag_state.counter_ < 0 && IsUnmodifiedFast())) {
     return false;
   }
 
@@ -556,6 +658,14 @@ StorageT* FlagImpl::OffsetValue() const {
 std::atomic<uint64_t>* FlagImpl::AtomicBufferValue() const {
   assert(ValueStorageKind() == FlagValueStorageKind::kSequenceLocked);
   return OffsetValue<std::atomic<uint64_t>>();
+}
+
+flags_internal::SequenceLock& FlagImpl::SeqLock() const {
+  assert(ValueStorageKind() == FlagValueStorageKind::kSequenceLocked);
+  size_t num_words =
+      flags_internal::AlignUp(Sizeof(op_), sizeof(uint64_t)) / sizeof(uint64_t);
+  return *reinterpret_cast<flags_internal::SequenceLock*>(AtomicBufferValue() +
+                                                          num_words);
 }
 
 std::atomic<int64_t>& FlagImpl::OneWordValue() const {
@@ -638,13 +748,13 @@ bool FlagImpl::ReadOneBool() const {
 void FlagImpl::ReadSequenceLockedData(void* dst) const {
   size_t size = Sizeof(op_);
   // Attempt to read using the sequence lock.
-  if (ABSL_PREDICT_TRUE(seq_lock_.TryRead(dst, AtomicBufferValue(), size))) {
+  if (ABSL_PREDICT_TRUE(SeqLock().TryRead(dst, AtomicBufferValue(), size))) {
     return;
   }
   // We failed due to contention. Acquire the lock to prevent contention
   // and try again.
   absl::ReaderMutexLock l(DataGuard());
-  bool success = seq_lock_.TryRead(dst, AtomicBufferValue(), size);
+  bool success = SeqLock().TryRead(dst, AtomicBufferValue(), size);
   assert(success);
   static_cast<void>(success);
 }
@@ -712,18 +822,17 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
       auto tentative_value = TryParse(value, err);
       if (!tentative_value) return false;
 
+      void* new_default = tentative_value.release();
+      void* old_value = SetDynamicDefault(this, new_default);
       if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-        void* old_value = default_value_.dynamic_value;
-        default_value_.dynamic_value = tentative_value.release();
         tentative_value.reset(old_value);
       } else {
-        default_value_.dynamic_value = tentative_value.release();
         def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case.
-        StoreValue(default_value_.dynamic_value, source);
+        StoreValue(new_default, source);
         modified_ = false;
       }
       break;
