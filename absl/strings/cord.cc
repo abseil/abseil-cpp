@@ -1687,5 +1687,12 @@ size_t CordTestAccess::SizeofCordRepSubstring() {
   return sizeof(CordRepSubstring);
 }
 }  // namespace strings_internal
+
+Cord::Cord(const Cord&) = default;
+
+Cord& Cord::operator=(const Cord&) = default;
+
+Cord& Cord::operator=(Cord&&) = default;
+
 ABSL_NAMESPACE_END
 }  // namespace absl
