@@ -110,7 +110,7 @@ TEST_F(FlagTest, Traits) {
   EXPECT_EQ(flags::StorageKind<int>(),
             flags::FlagValueStorageKind::kValueAndInitBit);
   EXPECT_EQ(flags::StorageKind<bool>(),
-            flags::FlagValueStorageKind::kValueAndInitBit);
+            flags::FlagValueStorageKind::kInlineBool);
   EXPECT_EQ(flags::StorageKind<double>(),
             flags::FlagValueStorageKind::kOneWordAtomic);
   EXPECT_EQ(flags::StorageKind<int64_t>(),
@@ -137,6 +137,20 @@ TEST_F(FlagTest, Traits) {
             flags::FlagValueStorageKind::kSequenceLocked);
   EXPECT_EQ(flags::StorageKind<absl::uint128>(),
             flags::FlagValueStorageKind::kSequenceLocked);
+
+  // These sizes are not hard limits, but we want to keep per-flag size as
+  // small as possible because production binaries may define thousands of
+  // flags.
+  if (sizeof(void*) == 8) {
+    EXPECT_EQ(sizeof(flags::FlagImpl), 32);
+    EXPECT_EQ(sizeof(flags::FlagMetaHeader), 3);
+    EXPECT_EQ(sizeof(flags::BuiltinPtrFlagMeta), 32);
+    EXPECT_EQ(sizeof(flags::FlagMeta), 40);
+    EXPECT_EQ(sizeof(absl::Flag<bool>), 32);
+    EXPECT_EQ(sizeof(absl::Flag<int>), 40);
+    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 40);
+    EXPECT_EQ(sizeof(absl::Flag<double>), 40);
+  }
 }
 
 // --------------------------------------------------------------------
@@ -148,17 +162,19 @@ using String = std::string;
 using int128 = absl::int128;
 using uint128 = absl::uint128;
 
-#define DEFINE_CONSTRUCTED_FLAG(T, dflt, dflt_kind)                        \
-  constexpr flags::FlagDefaultArg f1default##T{                            \
-      flags::FlagDefaultSrc{dflt}, flags::FlagDefaultKind::dflt_kind};     \
-  constexpr absl::Flag<T> f1##T{"f1", #T, "file", help_arg, f1default##T}; \
-  ABSL_CONST_INIT absl::Flag<T> f2##T {                                    \
-    "f2", #T, "file",                                                      \
-        {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc}, \
-        flags::FlagDefaultArg {                                            \
-      flags::FlagDefaultSrc(&TestMakeDflt<T>),                             \
-          flags::FlagDefaultKind::kGenFunc                                 \
-    }                                                                      \
+#define DEFINE_CONSTRUCTED_FLAG(T, dflt, dflt_kind)                            \
+  constexpr flags::FlagDefaultArg f1default##T{                                \
+      flags::FlagDefaultSrc{dflt}, flags::FlagDefaultKind::dflt_kind};         \
+  constexpr flags::FlagMeta f1meta##T =                                        \
+      flags::MakeFlagMeta<T>("f1", help_arg, f1default##T);                    \
+  constexpr absl::Flag<T> f1##T{&f1meta##T, help_arg.kind, f1default##T.kind}; \
+  constexpr flags::FlagMeta f2meta##T = flags::MakeFlagMeta<T>(                \
+      "f2", {flags::FlagHelpMsg(&TestHelpMsg), flags::FlagHelpKind::kGenFunc}, \
+      flags::FlagDefaultArg{flags::FlagDefaultSrc(&TestMakeDflt<T>),           \
+                            flags::FlagDefaultKind::kGenFunc});                \
+  ABSL_CONST_INIT absl::Flag<T> f2##T {                                        \
+    &f2meta##T, flags::FlagHelpKind::kGenFunc,                                 \
+        flags::FlagDefaultKind::kGenFunc                                       \
   }
 
 DEFINE_CONSTRUCTED_FLAG(bool, true, kOneWord);
@@ -179,9 +195,9 @@ template <typename T>
 bool TestConstructionFor(const absl::Flag<T>& f1, absl::Flag<T>& f2) {
   EXPECT_EQ(absl::GetFlagReflectionHandle(f1).Name(), "f1");
   EXPECT_EQ(absl::GetFlagReflectionHandle(f1).Help(), "literal help");
-  EXPECT_EQ(absl::GetFlagReflectionHandle(f1).Filename(), "file");
+  EXPECT_EQ(absl::GetFlagReflectionHandle(f1).Filename(), "");
 
-  flags::FlagRegistrar<T, false>(ABSL_FLAG_IMPL_FLAG_PTR(f2), nullptr)
+  flags::FlagRegistrar<T, false>(ABSL_FLAG_IMPL_FLAG_PTR(f2), "file")
       .OnUpdate(TestCallback);
 
   EXPECT_EQ(absl::GetFlagReflectionHandle(f2).Name(), "f2");
