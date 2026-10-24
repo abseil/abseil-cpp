@@ -14,6 +14,7 @@
 
 #include "absl/base/attributes.h"
 
+#include <cstddef>
 #include <type_traits>
 
 #include "gtest/gtest.h"
@@ -70,6 +71,20 @@ TEST(Attributes, UnsafeBuffers) {
   // Multi-line statement example
   ABSL_UNSAFE_BUFFERS(int* p3 = buffer + offset; p3[0] = 1;)
   EXPECT_EQ(buffer[1], 1);
+}
+
+TEST(Attributes, UnsafeBufferUsageInContainer) {
+  struct IntSpan {
+    ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER
+    IntSpan(int* p, size_t n) : ptr(p), size(n) {}
+
+    int* ptr;
+    size_t size;
+  };
+  int buffer[3] = {0};
+  IntSpan span(buffer, 3);
+  EXPECT_EQ(span.ptr, buffer);
+  EXPECT_EQ(span.size, 3u);
 }
 
 }  // namespace

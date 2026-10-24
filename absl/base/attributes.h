@@ -1161,4 +1161,41 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 #define ABSL_UNSAFE_BUFFERS(...) __VA_ARGS__
 #endif
 
+// ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER
+//
+// Marks a two-parameter constructor or factory function of a container or view
+// type that takes a (pointer, size) or (begin, end) pair, such as
+// `absl::Span<T>(T* ptr, size_t size)`. When Clang's
+// `-Wunsafe-buffer-usage-in-container` diagnostic is enabled, calls to an
+// annotated function emit a warning unless the arguments are provably safe,
+// e.g. `c.data(), c.size()` or `c.begin(), c.end()` on the same container `c`,
+// a constant-size array and its size, or when the size evaluates to zero.
+//
+// Example:
+//
+//   template <typename T>
+//   class MySpan {
+//    public:
+//     ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER
+//     MySpan(T* ptr, size_t size);
+//   };
+//
+//   void F(int* p, size_t n, std::vector<int>& v) {
+//     MySpan<int> s1(p, n);                // Warning
+//     MySpan<int> s2(v.data(), v.size());  // OK
+//   }
+//
+// Unavoidable unsafe calls can be suppressed with `ABSL_UNSAFE_BUFFERS()`.
+// Note that, as with `[[clang::unsafe_buffer_usage]]`, Clang does not check the
+// body of an annotated function for unsafe buffer usage.
+//
+// See the upstream documentation:
+// https://clang.llvm.org/docs/AttributeReference.html#unsafe-buffer-usage
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::unsafe_buffer_usage_in_container)
+#define ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER \
+  [[clang::unsafe_buffer_usage_in_container]]
+#else
+#define ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER
+#endif
+
 #endif  // ABSL_BASE_ATTRIBUTES_H_

@@ -219,6 +219,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   static constexpr size_type npos = static_cast<size_type>(-1);
 
   constexpr Span() noexcept : Span(nullptr, 0) {}
+  ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER
   constexpr Span(pointer array ABSL_ATTRIBUTE_LIFETIME_BOUND,
                  size_type length) noexcept
       : ptr_(array), len_(length) {}
@@ -716,14 +717,15 @@ constexpr bool operator>=(Span<T> a, const U& b) {
 // or pass the container directly instead of using `&v[0]` or `&v[v.size()]`.
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<T> MakeSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                           size_t size) noexcept {
+ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER constexpr Span<T> MakeSpan(
+    T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND, size_t size) noexcept {
   return Span<T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<T> MakeSpan(T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                 T* absl_nullable end) noexcept {
+ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER Span<T> MakeSpan(
+    T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
+    T* absl_nullable end) noexcept {
   absl::base_internal::HardeningAssertLE(begin, end);
   return Span<T>(begin, static_cast<size_t>(end - begin));
 }
@@ -776,15 +778,16 @@ constexpr Span<T> MakeSpan(
 //   ProcessInts(absl::MakeConstSpan(std::vector<int>{ 0, 0, 0 }));
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<const T> MakeConstSpan(
-    T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND, size_t size) noexcept {
+ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER constexpr Span<const T>
+MakeConstSpan(T* absl_nullable ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
+              size_t size) noexcept {
   return Span<const T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<const T> MakeConstSpan(T* absl_nullable begin
-                                ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                            T* absl_nullable end) noexcept {
+ABSL_ATTRIBUTE_UNSAFE_BUFFER_USAGE_IN_CONTAINER Span<const T> MakeConstSpan(
+    T* absl_nullable begin ABSL_ATTRIBUTE_LIFETIME_BOUND,
+    T* absl_nullable end) noexcept {
   absl::base_internal::HardeningAssertLE(begin, end);
   return Span<const T>(begin, end - begin);
 }
