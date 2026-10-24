@@ -458,8 +458,15 @@ class chunked_queue {
   template <typename... A>
   T& emplace_back(A&&... args) {
     T* storage = AllocateBack();
-    AllocatorTraits::construct(alloc_and_size_.allocator(), storage,
-                               std::forward<A>(args)...);
+    {
+      // If construction throws, do not leave behind an empty tail block that
+      // AllocateBack() just added: back() and pop_back() rely on the tail
+      // block holding at least one element unless it is also the head block.
+      absl::Cleanup cleanup = [&] { RemoveEmptyTailBlock(); };
+      AllocatorTraits::construct(alloc_and_size_.allocator(), storage,
+                                 std::forward<A>(args)...);
+      std::move(cleanup).Cancel();
+    }
     ++alloc_and_size_.size;
     ++tail_.ptr;
     return *storage;
@@ -603,6 +610,9 @@ class chunked_queue {
   }
 
   void AddTailBlock();
+  // If the tail block holds no elements and is not also the head block, deletes
+  // it and moves `tail_` to the end of the previous block.
+  void RemoveEmptyTailBlock();
   // Returns the capacity (in elements) to allocate for a new block adjacent to
   // `b` (`head_.block` when prepending or `tail_.block` when appending). Starts
   // at `kBlockSizeMin` when `b` is null, otherwise doubles `b->size()` and
@@ -705,7 +715,11 @@ void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
                    static_cast<size_t>(tail_.block->limit() - tail_.ptr));
     T* start = tail_.ptr;
     T* limit = start + to_add;
-    Construct(start, limit);
+    {
+      absl::Cleanup cleanup = [this] { RemoveEmptyTailBlock(); };
+      Construct(start, limit);
+      std::move(cleanup).Cancel();
+    }
     tail_.ptr = limit;
     alloc_and_size_.size += to_add;
   }
@@ -879,14 +893,18 @@ inline void chunked_queue<T, BLo, BHi, Allocator>::pop_back() {
 
   // If we deleted the only element from the last block, repoint the tail_ to
   // the second-to-last block.
-  if (tail_.ptr == tail_.block->start()) {
-    Block* prev = tail_.block->prev();
-    ABSL_ASSERT(prev != nullptr);
-    Block::Delete(tail_.block, &alloc_and_size_.allocator());
-    prev->set_next(nullptr);
-    tail_.block = prev;
-    tail_.ptr = prev->limit();
-  }
+  RemoveEmptyTailBlock();
+}
+
+template <typename T, size_t BLo, size_t BHi, typename Allocator>
+inline void chunked_queue<T, BLo, BHi, Allocator>::RemoveEmptyTailBlock() {
+  if (tail_.block == head_.block || tail_.ptr != tail_.block->start()) return;
+  Block* prev = tail_.block->prev();
+  ABSL_ASSERT(prev != nullptr);
+  Block::Delete(tail_.block, &alloc_and_size_.allocator());
+  prev->set_next(nullptr);
+  tail_.block = prev;
+  tail_.ptr = prev->limit();
 }
 
 template <typename T, size_t BLo, size_t BHi, typename Allocator>
