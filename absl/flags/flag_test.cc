@@ -142,11 +142,11 @@ TEST_F(FlagTest, Traits) {
   // small as possible because production binaries may define thousands of
   // flags.
   if (sizeof(void*) == 8) {
-    EXPECT_EQ(sizeof(flags::FlagImpl), 72);
-    EXPECT_EQ(sizeof(absl::Flag<bool>), 80);
-    EXPECT_EQ(sizeof(absl::Flag<int>), 80);
-    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 80);
-    EXPECT_EQ(sizeof(absl::Flag<double>), 80);
+    EXPECT_EQ(sizeof(flags::FlagImpl), 64);
+    EXPECT_EQ(sizeof(absl::Flag<bool>), 72);
+    EXPECT_EQ(sizeof(absl::Flag<int>), 72);
+    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 72);
+    EXPECT_EQ(sizeof(absl::Flag<double>), 72);
   }
 }
 
@@ -1415,5 +1415,35 @@ TEST_F(FlagTest, TestStdOptional) {
 // --------------------------------------------------------------------
 
 #endif
+
+}  // namespace
+
+ABSL_FLAG(int, concurrent_saver_test_flag, 0,
+          "test flag for concurrent FlagSaver");
+
+namespace {
+
+TEST_F(FlagTest, ConcurrentFlagSaverAndSetFlag) {
+  std::atomic<bool> stop{false};
+  std::thread writer([&stop]() {
+    int i = 1;
+    while (!stop.load(std::memory_order_relaxed)) {
+      absl::SetFlag(&FLAGS_concurrent_saver_test_flag, i++);
+    }
+  });
+  // Run an arbitrary small number of FlagSaver save/restore cycles while the
+  // writer thread mutates the flag past the 7-update inline modification
+  // counter limit, checking under ThreadSanitizer that concurrent SaveState,
+  // RestoreState, and SetFlag calls do not race. Each FlagSaver snapshots
+  // every registered flag in the binary, so keep the cycle count small.
+  constexpr int kSaveRestoreCycles = 50;
+  for (int iter = 0; iter < kSaveRestoreCycles; ++iter) {
+    absl::FlagSaver saver;
+    (void)absl::GetFlag(FLAGS_concurrent_saver_test_flag);
+  }
+  stop.store(true, std::memory_order_relaxed);
+  writer.join();
+  EXPECT_GE(absl::GetFlag(FLAGS_concurrent_saver_test_flag), 0);
+}
 
 }  // namespace
