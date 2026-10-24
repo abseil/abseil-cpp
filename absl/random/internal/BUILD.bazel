@@ -168,6 +168,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
+    tags = ["nofixdeps"],
     deps = [
         ":fast_uniform_bits",
         "//absl/base:config",
@@ -185,6 +186,16 @@ cc_library(
     srcs = ["entropy_pool.cc"],
     hdrs = ["entropy_pool.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":platform",
+        ":randen",
+        ":seed_material",
+        "//absl/algorithm:container",
+        "//absl/base",
+        "//absl/base:core_headers",
+        "//absl/random:seed_gen_exception",
+        "//absl/types:span",
+    ],
     linkopts = select({
         "@rules_cc//cc/compiler:msvc-cl": [],
         "@rules_cc//cc/compiler:clang-cl": [],
@@ -192,17 +203,7 @@ cc_library(
         "@platforms//os:wasi": [],
         "//conditions:default": ["-pthread"],
     }) + ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":platform",
-        ":randen",
-        ":seed_material",
-        "//absl/algorithm:container",
-        "//absl/base",
-        "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/random:seed_gen_exception",
-        "//absl/types:span",
-    ],
+    deps = ["//absl/base:config"],
 )
 
 cc_library(
@@ -372,10 +373,10 @@ cc_library(
         "randen.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":randen_hwaes"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
-        ":randen_hwaes",
         ":randen_hwaes_impl",
         ":randen_slow",
         "//absl/base:config",
@@ -387,13 +388,16 @@ cc_library(
     srcs = ["randen_slow.cc"],
     hdrs = ["randen_slow.h"],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":platform",
+        "//absl/base:core_headers",
+        "//absl/base:endian",
+        "//absl/numeric:int128",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:endian",
-        "//absl/numeric:int128",
     ],
 )
 
@@ -406,6 +410,7 @@ cc_library(
         "randen_detect.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [":platform"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":platform",
@@ -428,6 +433,7 @@ cc_library(
         "//conditions:default": ["-Wno-pass-failed"],
     }),
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     deps = [
         ":platform",
         "//absl/base:config",
@@ -461,13 +467,15 @@ cc_library(
         "distribution_test_util.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        "//absl/base:config",
+    implementation_deps = [
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/strings",
         "//absl/strings:str_format",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
         "//absl/strings:string_view",
         "//absl/types:span",
     ],
@@ -773,9 +781,7 @@ cc_test(
 cc_library(
     name = "nanobenchmark",
     srcs = ["nanobenchmark.cc"],
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    textual_hdrs = ["nanobenchmark.h"],
-    deps = [
+    implementation_deps = [
         ":platform",
         ":randen_engine",
         "//absl/algorithm:container",
@@ -783,6 +789,9 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
     ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    textual_hdrs = ["nanobenchmark.h"],
+    deps = [":platform"],
 )
 
 cc_library(

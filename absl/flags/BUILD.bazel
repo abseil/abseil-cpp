@@ -61,6 +61,12 @@ cc_library(
         "internal/program_name.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":path_util",
+        "//absl/base:core_headers",
+        "//absl/base:no_destructor",
+        "//absl/synchronization",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/flags:__pkg__",
@@ -68,12 +74,8 @@ cc_library(
         "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
     ],
     deps = [
-        ":path_util",
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:no_destructor",
         "//absl/strings:string_view",
-        "//absl/synchronization",
     ],
 )
 
@@ -87,17 +89,19 @@ cc_library(
         "usage_config.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":path_util",
         ":program_name",
-        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:no_destructor",
         "//absl/strings",
-        "//absl/strings:string_view",
         "//absl/synchronization",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//absl/base:config",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -110,15 +114,17 @@ cc_library(
         "marshalling.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        "//absl/base:core_headers",
+        "//absl/base:log_severity",
+        "//absl/strings",
+        "//absl/strings:str_format",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:log_severity",
         "//absl/numeric:int128",
-        "//absl/strings",
-        "//absl/strings:str_format",
         "//absl/strings:string_view",
         "//absl/types:optional",
     ],
@@ -197,22 +203,24 @@ cc_library(
         "reflection.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":config",
+        ":private_handle_accessor",
+        "//absl/base:core_headers",
+        "//absl/base:no_destructor",
+        "//absl/strings",
+        "//absl/synchronization",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
         ":commandlineflag",
         ":commandlineflag_internal",
-        ":config",
-        ":private_handle_accessor",
         "//absl/base:config",
-        "//absl/base:core_headers",
         "//absl/base:fast_type_id",
-        "//absl/base:no_destructor",
         "//absl/base:nullability",
         "//absl/container:flat_hash_map",
-        "//absl/strings",
         "//absl/strings:string_view",
-        "//absl/synchronization",
     ],
 )
 
@@ -227,6 +235,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//absl/base:__subpackages__"],
     deps = [
         ":commandlineflag",
@@ -279,13 +288,7 @@ cc_library(
         "internal/usage.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/flags:__pkg__",
-        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
-    ],
-    deps = [
-        ":commandlineflag",
+    implementation_deps = [
         ":config",
         ":flag",
         ":flag_internal",
@@ -293,12 +296,20 @@ cc_library(
         ":private_handle_accessor",
         ":program_name",
         ":reflection",
-        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:no_destructor",
         "//absl/strings",
-        "//absl/strings:string_view",
         "//absl/synchronization",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/flags:__pkg__",
+        "@do_not_use_for_gloop_visibility_only//gloop/base:__pkg__",
+    ],
+    deps = [
+        ":commandlineflag",
+        "//absl/base:config",
+        "//absl/strings:string_view",
     ],
 )
 
@@ -311,15 +322,17 @@ cc_library(
         "usage.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
+    implementation_deps = [
+        ":usage_internal",
+        "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
+        "//absl/synchronization",
+    ],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        ":usage_internal",
         "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:raw_logging_internal",
         "//absl/strings:string_view",
-        "//absl/synchronization",
     ],
 )
 
@@ -331,9 +344,7 @@ cc_library(
         "parse.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":commandlineflag",
         ":commandlineflag_internal",
         ":config",
@@ -345,12 +356,18 @@ cc_library(
         ":usage",
         ":usage_internal",
         "//absl/algorithm:container",
-        "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:no_destructor",
         "//absl/strings",
-        "//absl/strings:string_view",
         "//absl/synchronization",
+    ],
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":flag",
+        ":usage_internal",
+        "//absl/base:config",
+        "//absl/strings:string_view",
     ],
 )
 
