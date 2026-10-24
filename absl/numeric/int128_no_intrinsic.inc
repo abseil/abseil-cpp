@@ -280,9 +280,14 @@ inline int128 operator/(int128 lhs, int128 rhs) {
   int128_internal::ConditionalNegate(lhs_high, lhs_low, lhs_mask);
   int128_internal::ConditionalNegate(rhs_high, rhs_low, rhs_mask);
   uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
-                              &quotient_high, &quotient_low, &remainder_high,
-                              &remainder_low);
+  if (lhs_high == 0 && rhs_high == 0) {
+    quotient_high = 0;
+    quotient_low = lhs_low / rhs_low;
+  } else {
+    int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                                &quotient_high, &quotient_low, &remainder_high,
+                                &remainder_low);
+  }
   int128_internal::ConditionalNegate(quotient_high, quotient_low,
                                      lhs_mask ^ rhs_mask);
   return MakeInt128(int128_internal::BitCastToSigned(quotient_high),
@@ -302,9 +307,14 @@ inline int128 operator%(int128 lhs, int128 rhs) {
   int128_internal::ConditionalNegate(lhs_high, lhs_low, lhs_mask);
   int128_internal::ConditionalNegate(rhs_high, rhs_low, rhs_mask);
   uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
-                              &quotient_high, &quotient_low, &remainder_high,
-                              &remainder_low);
+  if (lhs_high == 0 && rhs_high == 0) {
+    remainder_high = 0;
+    remainder_low = lhs_low % rhs_low;
+  } else {
+    int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                                &quotient_high, &quotient_low, &remainder_high,
+                                &remainder_low);
+  }
   int128_internal::ConditionalNegate(remainder_high, remainder_low, lhs_mask);
   return MakeInt128(int128_internal::BitCastToSigned(remainder_high),
                     remainder_low);

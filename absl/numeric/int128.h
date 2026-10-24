@@ -1090,20 +1090,32 @@ inline uint128 operator*(uint128 lhs, uint128 rhs) {
 }
 
 inline uint128 operator/(uint128 lhs, uint128 rhs) {
+  const uint64_t lhs_high = Uint128High64(lhs);
+  const uint64_t lhs_low = Uint128Low64(lhs);
+  const uint64_t rhs_high = Uint128High64(rhs);
+  const uint64_t rhs_low = Uint128Low64(rhs);
+  if (lhs_high == 0 && rhs_high == 0) {
+    return MakeUint128(0, lhs_low / rhs_low);
+  }
   uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  int128_internal::DivModImpl(
-      Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
-      Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
-      &remainder_low);
+  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
   return MakeUint128(quotient_high, quotient_low);
 }
 
 inline uint128 operator%(uint128 lhs, uint128 rhs) {
+  const uint64_t lhs_high = Uint128High64(lhs);
+  const uint64_t lhs_low = Uint128Low64(lhs);
+  const uint64_t rhs_high = Uint128High64(rhs);
+  const uint64_t rhs_low = Uint128Low64(rhs);
+  if (lhs_high == 0 && rhs_high == 0) {
+    return MakeUint128(0, lhs_low % rhs_low);
+  }
   uint64_t quotient_high, quotient_low, remainder_high, remainder_low;
-  int128_internal::DivModImpl(
-      Uint128High64(lhs), Uint128Low64(lhs), Uint128High64(rhs),
-      Uint128Low64(rhs), &quotient_high, &quotient_low, &remainder_high,
-      &remainder_low);
+  int128_internal::DivModImpl(lhs_high, lhs_low, rhs_high, rhs_low,
+                              &quotient_high, &quotient_low, &remainder_high,
+                              &remainder_low);
   return MakeUint128(remainder_high, remainder_low);
 }
 #endif  // !defined(ABSL_HAVE_INTRINSIC_INT128)
