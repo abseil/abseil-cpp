@@ -30,6 +30,14 @@ namespace {
 
 constexpr size_t kSampleSize = 1000000;
 
+template <typename T>
+T RandomizeSign(T v, absl::InsecureBitGen& random) {
+  if constexpr (std::numeric_limits<T>::is_signed) {
+    if (random() % 2 != 0) return -v;
+  }
+  return v;
+}
+
 template <typename T, typename H = std::conditional_t<
                           std::numeric_limits<T>::is_signed, int64_t, uint64_t>>
 std::vector<std::pair<T, T>> GetRandomClass128SampleUniformDivisor() {
@@ -43,7 +51,9 @@ std::vector<std::pair<T, T>> GetRandomClass128SampleUniformDivisor() {
     T b{absl::MakeUint128(uniform_h(random), uniform_h(random))};
     a >>= uniform_bits(random);
     b >>= uniform_bits(random);
-    values.emplace_back(std::max(a, b), std::max(T(2), std::min(a, b)));
+    const T divisor = std::max(T(2), std::min(a, b));
+    values.emplace_back(RandomizeSign(std::max(a, b), random),
+                        RandomizeSign(divisor, random));
   }
   return values;
 }
@@ -84,7 +94,8 @@ std::vector<std::pair<T, H>> GetRandomClass128SampleSmallDivisor() {
     T a{absl::MakeUint128(uniform_h(random), uniform_h(random))};
     H b{std::max(H{2}, uniform_h(random) >> uniform_bits(random))};
     a >>= uniform_bits(random);
-    values.emplace_back(std::max(a, T(b)), b);
+    values.emplace_back(RandomizeSign(std::max(a, T(b)), random),
+                        RandomizeSign(b, random));
   }
   return values;
 }
