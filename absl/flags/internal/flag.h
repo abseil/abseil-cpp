@@ -86,6 +86,7 @@ enum class FlagOp {
   kParse,
   kUnparse,
   kValueOffset,
+  kTypeName,
 };
 using FlagOpFn = void* (*)(FlagOp, const void*, void*, void*);
 
@@ -153,6 +154,29 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   // `flags_internal::FlagOps()`
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
+}
+// Returns string representation of the flag's value type.
+inline absl::string_view TypeName(FlagOpFn op) {
+  absl::string_view result;
+  op(FlagOp::kTypeName, nullptr, &result, nullptr);
+  return result;
+}
+
+template <typename T>
+constexpr absl::string_view GenTypeName() {
+#if ABSL_FLAGS_STRIP_NAMES
+  return "";
+#elif defined(__clang__) || defined(__GNUC__)
+  absl::string_view name = __PRETTY_FUNCTION__;
+  constexpr absl::string_view kKey = "T = ";
+  const size_t start = name.find(kKey);
+  if (start == absl::string_view::npos) return "";
+  name.remove_prefix(start + kKey.size());
+  const size_t end = name.find_first_of(";]");
+  return end == absl::string_view::npos ? name : name.substr(0, end);
+#else
+  return "";
+#endif
 }
 
 // Returns an address of RTTI's typeid(T).
@@ -580,12 +604,10 @@ class FlagState;
 #endif
 class FlagImpl final : public CommandLineFlag {
  public:
-  constexpr FlagImpl(const char* name, const char* type_name,
-                     const char* filename, FlagOpFn op, FlagHelpArg help,
-                     FlagValueStorageKind value_kind,
+  constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
+                     FlagHelpArg help, FlagValueStorageKind value_kind,
                      FlagDefaultArg default_arg)
       : name_(name),
-        type_name_(type_name),
         filename_(filename),
         op_(op),
         help_(help.source),
@@ -594,7 +616,7 @@ class FlagImpl final : public CommandLineFlag {
         def_kind_(static_cast<uint8_t>(default_arg.kind)),
         modified_(false),
         on_command_line_(false),
-        callback_(nullptr),
+        has_callback_(false),
         default_value_(default_arg.source),
         data_guard_{} {}
 
@@ -733,9 +755,6 @@ class FlagImpl final : public CommandLineFlag {
   // Flags name passed to ABSL_FLAG as second arg.
   const char* const name_;
 
-  // Flags type passed to ABSL_FLAG as first arg.
-  const char* const type_name_;
-
   // The file name where ABSL_FLAG resides.
   const char* const filename_;
   // Type-specific operations vtable.
@@ -759,6 +778,8 @@ class FlagImpl final : public CommandLineFlag {
   bool modified_ : 1 ABSL_GUARDED_BY(DataGuard());
   // Has this flag been specified on command line.
   bool on_command_line_ : 1 ABSL_GUARDED_BY(DataGuard());
+  // Has a mutation callback been registered on this flag?
+  bool has_callback_ : 1 ABSL_GUARDED_BY(DataGuard());
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
@@ -766,13 +787,9 @@ class FlagImpl final : public CommandLineFlag {
   // Sequence lock / mutation counter.
   flags_internal::SequenceLock seq_lock_;
 
-  // Optional flag's callback and absl::Mutex to guard the invocations.
-  FlagCallback* callback_ ABSL_GUARDED_BY(DataGuard());
-  // Either a pointer to the function generating the default value based on the
-  // value specified in ABSL_FLAG or pointer to the dynamically set default
-  // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
-  // these two cases.
-  FlagDefaultSrc default_value_;
+  // Initial default value source specified in ABSL_FLAG. Dynamic default
+  // overrides set via SET_FLAGS_DEFAULT are stored in a side table in flag.cc.
+  const FlagDefaultSrc default_value_;
 
   // This is reserved space for an absl::Mutex to guard flag data. It will be
   // initialized in FlagImpl::Init via placement new.
@@ -794,11 +811,15 @@ class FlagImpl final : public CommandLineFlag {
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(const char* name, const char* type_name, const char* filename,
-                 FlagHelpArg help, const FlagDefaultArg default_arg)
-      : impl_(name, type_name, filename, &FlagOps<T>, help,
+  constexpr Flag(const char* name, const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : impl_(name, filename, &FlagOps<T>, help,
               flags_internal::StorageKind<T>(), default_arg),
         value_() {}
+  constexpr Flag(const char* name, const char* /*type_name*/,
+                 const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(name, filename, help, default_arg) {}
 
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }
@@ -925,6 +946,9 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
       size_t offset = (sizeof(FlagImpl) + round_to - 1) / round_to * round_to;
       return reinterpret_cast<void*>(offset);
     }
+    case FlagOp::kTypeName:
+      *static_cast<absl::string_view*>(v2) = GenTypeName<T>();
+      return nullptr;
   }
   return nullptr;
 }
