@@ -1183,6 +1183,7 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
     case CpuType::kArmNeoverseN3:
     case CpuType::kArmNeoverseN4:
     case CpuType::kNvidiaGrace:
+    case CpuType::kNvidiaVera:
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           1, 1, PclmulStreamType::NEON_PCLMUL_EOR3>();
     case CpuType::kAmpereSiryn:
