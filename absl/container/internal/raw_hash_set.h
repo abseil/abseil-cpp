@@ -1219,17 +1219,26 @@ constexpr size_t AlignUpTo(size_t offset, size_t align) {
   return (offset + align - 1) & (~align + 1);
 }
 
+// Same as `AlignUpTo(offset, align_mask + 1)`. `align_mask` must be one less
+// than a power of two. Taking the mask avoids negating the alignment (and with
+// BMI1 the computation is just `add` + `andn`).
+constexpr size_t AlignUpToMask(size_t offset, size_t align_mask) {
+  return (offset + align_mask) & ~align_mask;
+}
+
 // Helper class for computing offsets and allocation size of hash set fields.
 class RawHashSetLayout {
  public:
+  // `slot_align_mask` is `alignof(slot_type) - 1`.
   explicit RawHashSetLayout(size_t capacity, size_t slot_size,
-                            size_t slot_align, bool has_infoz,
+                            size_t slot_align_mask, bool has_infoz,
                             size_t blocked_element_count)
       : control_offset_(MetadataBeforeControlSize(has_infoz, capacity)),
         generation_offset_(control_offset_ - NumGenerationBytes()),
         slot_offset_(control_offset_ + NumControlBytes(capacity)) {
     ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
-    size_t aligned_slot_offset = AlignUpTo(slot_offset_, slot_align);
+    size_t aligned_slot_offset =
+        AlignUpToMask(slot_offset_, slot_align_mask);
     size_t slot_array_padding = aligned_slot_offset - slot_offset_;
     slot_offset_ = aligned_slot_offset;
     ABSL_SWISSTABLE_ASSERT(
@@ -1246,7 +1255,7 @@ class RawHashSetLayout {
   // 0 -> 1 (`size == 0`) or 1 -> 3 (`size == 1`).
   static RawHashSetLayout CreateForSmallNonSooGrowth(size_t size,
                                                      size_t slot_size,
-                                                     size_t slot_align,
+                                                     size_t slot_align_mask,
                                                      bool has_infoz);
 
   // Returns precomputed offset from the start of the backing allocation of
@@ -1573,7 +1582,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   // The size of the backing array allocation.
   size_t alloc_size(size_t slot_size, size_t slot_align) const {
-    return RawHashSetLayout(capacity(), slot_size, slot_align, has_infoz(),
+    return RawHashSetLayout(capacity(), slot_size,
+                            /*slot_align_mask=*/slot_align - 1, has_infoz(),
                             blocked_element_count())
         .alloc_size();
   }
@@ -2013,7 +2023,9 @@ struct PolicyFunctions {
 
   // 8  bytes
   uint32_t slot_size;
-  uint16_t slot_align;
+  // `alignof(slot_type) - 1`. Storing the mask instead of the alignment lets
+  // `AlignUpToMask` compute `(offset + mask) & ~mask` without negation.
+  uint16_t slot_align_mask;
   bool soo_enabled;
   bool is_hashtablez_enabled;
   // 8  bytes
@@ -2073,7 +2085,8 @@ using DestroySlotFn = void (*)(void* set, void* slot);
 // functions, so we do not want to include non-destructor related fields.
 struct DtorPolicy {
   uint32_t slot_size;
-  uint16_t slot_align;
+  // `alignof(slot_type) - 1`. See `PolicyFunctions::slot_align_mask`.
+  uint16_t slot_align_mask;
   DestroySlotFn destroy_slot;
 
   template <uint32_t kSlotSize, uint16_t kSlotAlign>
@@ -2092,15 +2105,17 @@ struct DtorPolicy {
   // to minimize the name length of static variables.
   template <uint32_t kSlotSize, uint16_t kSlotAlign>
   static const DtorPolicy& R() {
-    static constexpr DtorPolicy p = {kSlotSize, kSlotAlign,
-                                     /*destroy_slot=*/nullptr};
+    static constexpr DtorPolicy p = {
+        kSlotSize,
+        /*slot_align_mask=*/static_cast<uint16_t>(kSlotAlign - 1),
+        /*destroy_slot=*/nullptr};
     return p;
   }
   template <typename SetType>
   static const DtorPolicy& R() {
     static constexpr DtorPolicy p = {
         sizeof(typename SetType::slot_type),
-        alignof(typename SetType::slot_type),
+        /*slot_align_mask=*/alignof(typename SetType::slot_type) - 1,
         SetType::get_destroy_slot_fn(),
     };
     return p;
@@ -4298,7 +4313,7 @@ class raw_hash_set {
         static_cast<uint32_t>(sizeof(key_type)),
         static_cast<uint32_t>(sizeof(value_type)),
         static_cast<uint32_t>(sizeof(slot_type)),
-        static_cast<uint16_t>(alignof(slot_type)),
+        /*slot_align_mask=*/static_cast<uint16_t>(alignof(slot_type) - 1),
         SooEnabled(),
         HashtablezForTableEnabled(),
         static_cast<uint32_t>(HasherOffset()),

@@ -427,10 +427,10 @@ void CommonFields::set_infoz(HashtablezInfoHandle infoz) {
 
 namespace {
 void DeallocBackingArrayImpl(void* alloc, size_t capacity, ctrl_t* ctrl,
-                             size_t slot_size, size_t slot_align,
+                             size_t slot_size, size_t slot_align_mask,
                              bool has_infoz, size_t blocked_element_count,
                              DeallocBackingArrayFn dealloc) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
+  RawHashSetLayout layout(capacity, slot_size, slot_align_mask, has_infoz,
                           blocked_element_count);
   void* backing_array = ctrl - layout.control_offset();
   // Unpoison before returning the memory to the allocator.
@@ -442,7 +442,7 @@ void DeallocBackingArrayImpl(CommonFields& c,
                              const PolicyFunctions& __restrict policy,
                              void* alloc) {
   DeallocBackingArrayImpl(alloc, c.capacity(), c.control(), policy.slot_size,
-                          policy.slot_align, c.has_infoz(),
+                          policy.slot_align_mask, c.has_infoz(),
                           c.blocked_element_count(), policy.dealloc);
 }
 
@@ -456,7 +456,7 @@ void UnregisterAndDeallocBackingArray(CommonFields& c,
                               // in a local variable before Unregister().
   c.infoz().Unregister();
   DeallocBackingArrayImpl(alloc, cap, c.control(), policy.slot_size,
-                          policy.slot_align, c.has_infoz(),
+                          policy.slot_align_mask, c.has_infoz(),
                           c.blocked_element_count(), dealloc);
 }
 
@@ -1223,7 +1223,7 @@ BackingArrayPtrs AllocBackingArray(CommonFields& common,
                                    void* alloc, size_t blocked_element_count) {
   return AllocBackingArray(
       common, policy,
-      RawHashSetLayout(new_capacity, policy.slot_size, policy.slot_align,
+      RawHashSetLayout(new_capacity, policy.slot_size, policy.slot_align_mask,
                        has_infoz, blocked_element_count),
       alloc);
 }
@@ -1329,8 +1329,9 @@ ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
   common.set_control(new_ctrl);
   if (!was_soo) {
     DeallocBackingArrayImpl(policy.get_char_alloc(common), old_capacity,
-                            old_ctrl, slot_size, policy.slot_align, has_infoz,
-                            old_blocked_element_count, policy.dealloc);
+                            old_ctrl, slot_size, policy.slot_align_mask,
+                            has_infoz, old_blocked_element_count,
+                            policy.dealloc);
   }
   ResetGrowthLeft(new_capacity, common.size(), common);
   if (ABSL_PREDICT_FALSE(has_infoz)) {
@@ -1914,7 +1915,7 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   // Deallocate after `ReportSingleGroupTableGrowthToInfoz`, because it reads
   // infoz from old_ctrl.
   DeallocBackingArrayImpl(alloc, kOldCapacity, old_ctrl, slot_size,
-                          policy.slot_align, has_infoz,
+                          policy.slot_align_mask, has_infoz,
                           /*blocked_element_count=*/0, policy.dealloc);
   return new_element_target_slot;
 }
@@ -1995,17 +1996,15 @@ void* GrowToNextCapacityAndPrepareInsert(
   // Deallocate after `ReportGrowthToInfoz`, because it reads infoz from
   // old_ctrl.
   DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size,
-                          policy.slot_align, has_infoz,
+                          policy.slot_align_mask, has_infoz,
                           old_blocked_element_count, policy.dealloc);
   return SlotAddress(new_slots, find_info.offset, slot_size);
 }
 
 }  // namespace
 
-RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
-                                                              size_t slot_size,
-                                                              size_t slot_align,
-                                                              bool has_infoz) {
+RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(
+    size_t size, size_t slot_size, size_t slot_align_mask, bool has_infoz) {
   ABSL_SWISSTABLE_ASSERT(size <= 1);
   static_assert(NumControlBytes(1) == 0);
   const size_t num_control_bytes = size * NumControlBytes(3);
@@ -2027,7 +2026,7 @@ RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
 
   RawHashSetLayout layout(uninitialized_tag_t{});
   layout.slot_offset_ =
-      AlignUpTo(metadata_size + num_control_bytes, slot_align);
+      AlignUpToMask(metadata_size + num_control_bytes, slot_align_mask);
   layout.control_offset_ = layout.slot_offset_ - num_control_bytes;
   layout.generation_offset_ = layout.control_offset_ - NumGenerationBytes();
   layout.alloc_size_ = layout.slot_offset_ + slots_size;
@@ -2061,7 +2060,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
       AllocBackingArray(
           common, policy,
           RawHashSetLayout::CreateForSmallNonSooGrowth(
-              size, policy.slot_size, policy.slot_align, has_infoz),
+              size, policy.slot_size, policy.slot_align_mask, has_infoz),
           alloc)
           .slots;
   if (is_empty) {
@@ -2394,7 +2393,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
       }
       // Reducing from large capacity to SOO.
       ABSL_SWISSTABLE_ASSERT(slot_size <= sizeof(HeapOrSoo));
-      ABSL_SWISSTABLE_ASSERT(policy.slot_align <= alignof(HeapOrSoo));
+      ABSL_SWISSTABLE_ASSERT(policy.slot_align_mask < alignof(HeapOrSoo));
       ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(cap));
       HeapOrSoo tmp_slot;
       size_t begin_offset = FindFirstFullSlot(0, cap, common.control());
