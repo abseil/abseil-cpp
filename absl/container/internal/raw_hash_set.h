@@ -1393,16 +1393,18 @@ class CommonFields : public CommonFieldsGenerationInfo {
 
   void set_control(ctrl_t* c) { heap_or_soo_.control().set(c); }
 
-  // Note: we can't use slots() because Qt defines "slots" as a macro.
   // Returns pointer to the slots of a table with explicit capacity that must be
   // equal to the actual capacity of the table.
   // Table must be large.
-  void* slot_array(size_t capacity) const {
-    ABSL_SWISSTABLE_ASSERT(capacity == this->capacity());
+  // Note: we can't use `slots()` because Qt defines `slots` as a macro.
+  // Note: we take `ctrl` as a parameter so that raw_hash_set can benefit from
+  // the separate storage assumption.
+  void* slot_array(ctrl_t* ctrl, size_t capacity) const {
+    ABSL_SWISSTABLE_ASSERT(ctrl == this->control());
     ABSL_ASSUME(capacity > kMaxSmallCapacity);
-    ctrl_t* ctrl = control();
     return ctrl + NumControlBytesForLargeTable(capacity);
   }
+  void* slot_array(size_t cap) const { return slot_array(control(), cap); }
   // Returns pointer to the single slot of a table with capacity 1.
   void* single_non_soo_slot() const {
     ABSL_SWISSTABLE_ASSERT(capacity() == 1);
@@ -4112,15 +4114,18 @@ class raw_hash_set {
       // With this assumption, the second lookup avoids reloading capacity.
       // Note: for custom allocators, `this` may be part of the same allocation
       // as the control bytes so we cannot make this assumption.
-      // TODO(ezb): we could move this assumption into CommonFields::control()
+      // Note: we could move this assumption into CommonFields::control()
       // if we template the type-erased functions on whether the allocator is
-      // default or not.
+      // default or not, but it adds a lot of complexity, and we can avoid
+      // reloads in raw_hash_set.cc functions in other ways.
       ABSL_SWISSTABLE_ASSUME_SEPARATE_STORAGE(ctrl, this);
     }
     return ctrl;
   }
   slot_type* slot_array(size_t capacity) const {
-    return static_cast<slot_type*>(common().slot_array(capacity));
+    // Note: we don't use common().slot_array(capacity) here because it misses
+    // the separate storage assumption in raw_hash_set::control().
+    return static_cast<slot_type*>(common().slot_array(control(), capacity));
   }
   slot_type* soo_slot() {
     ABSL_SWISSTABLE_ASSERT(is_soo());
@@ -4133,8 +4138,8 @@ class raw_hash_set {
   }
   slot_type* single_slot() {
     ABSL_SWISSTABLE_ASSERT(is_small());
-    // Note: we don't use common().single_non_soo_slot() here because
-    // control() is more efficient (due to separate storage assume).
+    // Note: we don't use common().single_non_soo_slot() here because it misses
+    // the separate storage assumption in raw_hash_set::control().
     return SooEnabled() ? soo_slot() : to_slot(control());
   }
   const slot_type* single_slot() const {
