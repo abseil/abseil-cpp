@@ -30,7 +30,6 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::endian
-    absl::fixed_array
     absl::function_ref
     absl::int128
     absl::meta
