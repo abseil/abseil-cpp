@@ -14,6 +14,7 @@
 
 // Hardware accelerated CRC32 computation on Intel and ARM architecture.
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -68,11 +69,6 @@ class CRC32AcceleratedX86ARMCombined : public CRC32 {
   CRC32AcceleratedX86ARMCombined& operator=(
       const CRC32AcceleratedX86ARMCombined&) = delete;
 };
-
-// Constants for switching between algorithms.
-// Chosen by comparing speed at different powers of 2.
-constexpr size_t kSmallCutoff = 256;
-constexpr size_t kMediumCutoff = 2048;
 
 #define ABSL_INTERNAL_STEP1(crc, p)                   \
   do {                                                \
@@ -543,10 +539,14 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
     }
   }
 
+  // Requires `length >= kSmallCutoff`. Shorter inputs are handled by
+  // `ExtendCrc32cInline()` in `absl::ExtendCrc32c()` and
+  // `CrcMemcpy::CrcAndCopy()`.
   template <CopyType copy_type>
   ABSL_ATTRIBUTE_HOT void Extend(uint32_t* crc, const void* bytes,
                                  const size_t length,
                                  void* __restrict dst = nullptr) const {
+    assert(length >= kSmallCutoff);
     if constexpr (pclmul_stream_type != PclmulStreamType::NONE) {
       if (length >= kMediumCutoff) {
         ExtendWithPclmul<copy_type>(crc, bytes, length, dst);
@@ -573,12 +573,10 @@ class CRC32AcceleratedX86ARMCombinedMultipleStreams
       std::memcpy(d, p, length);
     }
 
-    // For small blocks just run simple loop, because cost of combining multiple
-    // streams is significant.
-    if (num_crc_streams == 1 || (length < kSmallCutoff)) {
-      // fallthrough; Use the same strategy as we do for processing the
-      // remaining bytes after any other strategy.
-    } else {
+    // A single CRC stream just runs the simple loop used to process the
+    // remaining bytes after the multi-stream strategy below. Inputs shorter
+    // than kSmallCutoff never reach this function (see `Extend()`).
+    if constexpr (num_crc_streams > 1) {
       l64 = l;
       const size_t blockSize = 32;
       size_t bs = static_cast<size_t>(e - p) / kGroupsSmall / blockSize;
