@@ -852,7 +852,7 @@ void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
   ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
   if (policy.destroy_slot != nullptr) {
     if (c.is_small()) {
-      if (!c.empty()) {
+      if (!c.empty_when_small()) {
         static_assert(kMaxSmallCapacity == 1);
         policy.destroy_slot(&c, c.single_non_soo_slot());
       }
@@ -948,7 +948,7 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
   if (c.is_small()) {
     // In the small case, we keep the backing array allocation because the
     // memory overhead is small compared to the potential benefits of reuse.
-    if (!c.empty()) {
+    if (!c.empty_when_small()) {
       if (destroy_slot != nullptr) {
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
@@ -2039,7 +2039,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
                                void* hasher, HashForKeyFn get_hash) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   ABSL_SWISSTABLE_ASSERT(!policy.soo_enabled);
-  const bool is_empty = common.empty();
+  const bool is_empty = common.empty_when_small();
   if (common.capacity() == 1 && is_empty) {
     IncrementSmallSizeNonSoo(common, policy);
     // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
@@ -2052,7 +2052,7 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
     return res;
   }
 
-  const size_t size = common.size();
+  const size_t size = is_empty ? 0 : 1;
   const bool has_infoz =
       is_empty ? (policy.is_hashtablez_enabled && ShouldSampleNextTable())
                : common.has_infoz();

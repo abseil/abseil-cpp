@@ -853,6 +853,12 @@ class HashtableInlineData {
   void decrement_size() { data_ -= kSizeOneNoMetadata; }
   // Returns true if the table is empty.
   bool empty() const { return data_ < kSizeOneNoMetadata; }
+  // Returns true if a small table (capacity <= 1) is empty.
+  bool empty_when_small() const {
+    ABSL_SWISSTABLE_ASSERT(is_small());
+    ABSL_SWISSTABLE_ASSERT(size() <= 1);
+    return (data_ & kSizeOneNoMetadata) == 0;
+  }
 
   // Returns true if an empty SOO table has already queried should_sample_soo().
   bool soo_has_tried_sampling() const {
@@ -1419,6 +1425,7 @@ class CommonFields : public CommonFieldsGenerationInfo {
     inline_data_.decrement_size();
   }
   bool empty() const { return inline_data_.empty(); }
+  bool empty_when_small() const { return inline_data_.empty_when_small(); }
   void set_soo_has_tried_sampling() {
     inline_data_.set_soo_has_tried_sampling();
   }
@@ -2515,18 +2522,15 @@ class raw_hash_set {
     return SizeToCapacity(MaxValidSize());
   }
 
-  // Whether `size` fits in the SOO capacity of this table.
-  bool fits_in_soo(size_t size) const {
-    return SooEnabled() && size <= SooCapacity();
-  }
   // Whether this table is in SOO mode or non-SOO mode.
   bool is_soo() const {
-    HashtableCapacity cap = maybe_invalid_capacity();
-    return cap.IsValid() && fits_in_soo(cap.capacity());
+    static_assert(SooCapacity() == kMaxSmallCapacity);
+    return SooEnabled() && maybe_invalid_capacity().is_small();
   }
-  bool is_full_soo() const { return is_soo() && !empty(); }
+  bool is_full_soo() const { return is_soo() && !empty_when_small(); }
 
   bool is_small() const { return common().is_small(); }
+  bool empty_when_small() const { return common().empty_when_small(); }
 
   // Give an early error when key_type is not hashable/eq.
   auto KeyTypeCanBeHashed(const Hash& h, const key_type& k) -> decltype(h(k));
@@ -3351,7 +3355,7 @@ class raw_hash_set {
     };
 
     if (src.is_small()) {
-      if (src.empty()) return;
+      if (src.empty_when_small()) return;
       if (insert_slot(src.single_slot()))
         src.erase_meta_only_small();
       return;
@@ -3613,7 +3617,9 @@ class raw_hash_set {
   // SOO functionality.
   template <class K>
   ABSL_ATTRIBUTE_ALWAYS_INLINE iterator find_small(const K& key) {
-    return empty() || !equal_to(key, single_slot()) ? end() : single_iterator();
+    return empty_when_small() || !equal_to(key, single_slot())
+               ? end()
+               : single_iterator();
   }
 
   template <class K>
@@ -3687,8 +3693,8 @@ class raw_hash_set {
         kIsDefaultAlloc && BackingArrayAlignment(alignof(slot_type)) ==
                                kStandardBackingArrayAlignment;
     if constexpr (SooEnabled()) {
-      if (is_small() &&
-          (PolicyTraits::template destroy_is_trivial<Alloc>() || empty())) {
+      if (is_small() && (PolicyTraits::template destroy_is_trivial<Alloc>() ||
+                         empty_when_small())) {
         return;
       }
     } else {
@@ -3850,7 +3856,7 @@ class raw_hash_set {
   find_or_prepare_insert_soo(const K& key) {
     bool force_sampling;
     slot_type* slot = single_slot();
-    if (empty()) {
+    if (empty_when_small()) {
       if (!should_sample_soo()) {
         common().set_full_soo();
         return {slot, true};
@@ -3880,7 +3886,7 @@ class raw_hash_set {
     if constexpr (SooEnabled()) {
       return find_or_prepare_insert_soo(key);
     }
-    if (!empty()) {
+    if (!empty_when_small()) {
       if (equal_to(key, single_slot())) {
         return {single_slot(), false};
       }
