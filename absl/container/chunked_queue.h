@@ -172,12 +172,13 @@ class chunked_queue {
       --ptr;
     }
 
-    void IncrBy(size_t n) {
-      while (n > static_cast<size_t>(block->limit() - ptr)) {
-        n -= static_cast<size_t>(block->limit() - ptr);
-        *this = iterator_common(block->next());
+    void DecrBy(size_t n) {
+      while (n > static_cast<size_t>(ptr - block->start())) {
+        n -= static_cast<size_t>(ptr - block->start());
+        block = block->prev();
+        ptr = block->limit();
       }
-      ptr += n;
+      ptr -= n;
     }
 
     Block* block = nullptr;
@@ -379,41 +380,15 @@ class chunked_queue {
                 base_internal::IsAtLeastInputIterator<Iter>::value>>
   void assign(Iter first, Iter last) {
     auto out = begin();
-    Block* prev_block = nullptr;
 
     // Overwrite existing elements.
-    for (; out != end() && first != last; ++first) {
-      // Track the previous block so we can correctly update tail_ if we stop
-      // exactly at a block boundary.
-      if (out.ptr + 1 == out.block->limit()) {
-        prev_block = out.block;
-      }
+    for (; out != end() && first != last; ++out, ++first) {
       *out = *first;
-      ++out;
     }
 
-    // If we stopped exactly at the start of a block (meaning the previous block
-    // was full), we must ensure tail_ points to the end of the previous block,
-    // not the start of the current (now empty and to be deleted) block.
-    // This maintains the invariant required by back() which assumes tail_
-    // never points to the start of a block (unless it's the only block).
-    if (!empty() && out.block != nullptr && out.ptr == out.block->start() &&
-        prev_block != nullptr) {
-      // Delete the current block and all subsequent blocks.
-      //
-      // NOTE: Calling EraseAllFrom on an iterator that points to the limit of
-      // the previous block will not delete any element from the previous block.
-      iterator prev_block_end(prev_block);
-      prev_block_end.ptr = prev_block->limit();
-      EraseAllFrom(prev_block_end);
-
-      // Update tail_ to point to the end of the previous block.
-      tail_ = prev_block_end;
-      prev_block->set_next(nullptr);
-    } else {
-      // Standard erase from the current position to the end.
-      EraseAllFrom(out);
-    }
+    // Erase any remaining existing elements from the current position to the
+    // end.
+    EraseAllFrom(out);
 
     // Append any remaining new elements.
     for (; first != last; ++first) {
@@ -713,8 +688,8 @@ void chunked_queue<T, BLo, BHi, Allocator>::resize(size_t new_size) {
     return;
   }
   ABSL_ASSERT(new_size < size());
-  auto new_end = begin();
-  new_end.IncrBy(new_size);
+  auto new_end = end();
+  new_end.DecrBy(size() - new_size);
   ABSL_ASSERT(new_end != end());
   EraseAllFrom(new_end);
 }
@@ -808,6 +783,15 @@ template <typename T, size_t BLo, size_t BHi, typename Allocator>
 inline void chunked_queue<T, BLo, BHi, Allocator>::EraseAllFrom(iterator i) {
   if (!i.block) {
     return;
+  }
+  // If `i` points to the start of a non-head block, all elements in `i.block`
+  // are being erased. Repoint `i` to the end of the previous block so that
+  // `i.block` is also deleted below and `tail_` points to `prev->limit()`
+  // rather than the start of an empty block (preserving the invariant required
+  // by `back()`, `pop_back()`, and `Incr()`).
+  if (i.ptr == i.block->start() && i.block->prev() != nullptr) {
+    i.block = i.block->prev();
+    i.ptr = i.block->limit();
   }
   ABSL_ASSERT(i.ptr);
   ABSL_ASSERT(i.block->limit());
