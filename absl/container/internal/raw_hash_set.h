@@ -3619,9 +3619,9 @@ class raw_hash_set {
   template <class K>
   iterator find_large(absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
+    const size_t hash = hash_of(key);
     const size_t cap = common().capacity();
     ABSL_ASSUME(cap > kMaxSmallCapacity);
-    const size_t hash = hash_of(key);
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     ctrl_t* ctrl = control();
@@ -3897,8 +3897,8 @@ class raw_hash_set {
       absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
     prefetch_heap_block();
-    const size_t cap = capacity();
     const size_t hash = hash_of(key);
+    const size_t cap = capacity();
     auto seq = probe(ProbeCapacity{cap}, hash);
     const h2_t h2 = H2(hash);
     const ctrl_t* ctrl = control();
