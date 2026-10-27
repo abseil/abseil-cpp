@@ -319,7 +319,9 @@
 // ABSL_ATTRIBUTE_RETURNS_NONNULL
 //
 // Tells the compiler that a particular function never returns a null pointer.
-#if ABSL_HAVE_ATTRIBUTE(returns_nonnull)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::returns_nonnull)
+#define ABSL_ATTRIBUTE_RETURNS_NONNULL [[gnu::returns_nonnull]]
+#elif ABSL_HAVE_ATTRIBUTE(returns_nonnull)
 #define ABSL_ATTRIBUTE_RETURNS_NONNULL __attribute__((returns_nonnull))
 #else
 #define ABSL_ATTRIBUTE_RETURNS_NONNULL
