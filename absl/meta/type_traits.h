@@ -655,7 +655,7 @@ using ShouldSemanticallyPreferPassByValue =
 // (to ensure correctness), as well as a structural constraint (to ensure
 // performance).
 template <class T>
-using ShouldPreferPassByValue =
+using ShouldPreferPassByValueOverRRef =
     std::bool_constant<ShouldSemanticallyPreferPassByValue<T>::value &&
                        ShouldStructurallyPreferPassByValue<std::conditional_t<
                            std::is_void_v<T>, char, T>>::value>;

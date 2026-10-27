@@ -382,7 +382,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       // Try to avoid using std::tuple since that slows compilation.
       // (example: https://godbolt.org/z/nefW93T6K)
 
-      if constexpr (type_traits_internal::ShouldPreferPassByValue<
+      if constexpr (type_traits_internal::ShouldPreferPassByValueOverRRef<
                         std::conditional_t<
                             sizeof...(Args) == 0 &&
                                 std::is_same_v<

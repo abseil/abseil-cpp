@@ -492,22 +492,24 @@ struct TrivialCopyNonTrivialMove {
   TrivialCopyNonTrivialMove(TrivialCopyNonTrivialMove&&) {}  // NOLINT
 };
 
-TEST(ShouldPreferPassByValue, Basic) {
-  static_assert(ShouldPreferPassByValue<int>::value);
-  static_assert(ShouldPreferPassByValue<void*>::value);
-  static_assert(ShouldPreferPassByValue<UnscopedEnum>::value);
-  static_assert(ShouldPreferPassByValue<ScopedEnum>::value);
-  static_assert(ShouldPreferPassByValue<TrivialUnion>::value);
-  static_assert(ShouldPreferPassByValue<std::string_view>::value);
-  static_assert(ShouldPreferPassByValue<std::pair<int, int>>::value);
-  static_assert(ShouldPreferPassByValue<std::pair<char, int>>::value);
-  static_assert(ShouldPreferPassByValue<TrivialMoveNonTrivialCopy>::value);
-  static_assert(!ShouldPreferPassByValue<TrivialCopyNonTrivialMove>::value);
-  static_assert(!ShouldPreferPassByValue<void>::value);
-  static_assert(!ShouldPreferPassByValue<char[3]>::value);
-  static_assert(!ShouldPreferPassByValue<char[4]>::value);
-  static_assert(!ShouldPreferPassByValue<std::string>::value);
-  static_assert(!ShouldPreferPassByValue<std::shared_ptr<int>>::value);
+TEST(ShouldPreferPassByValueOverRRef, Basic) {
+  static_assert(ShouldPreferPassByValueOverRRef<int>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<void*>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<UnscopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<ScopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<TrivialUnion>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::string_view>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::pair<int, int>>::value);
+  static_assert(ShouldPreferPassByValueOverRRef<std::pair<char, int>>::value);
+  static_assert(
+      ShouldPreferPassByValueOverRRef<TrivialMoveNonTrivialCopy>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverRRef<TrivialCopyNonTrivialMove>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<void>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<char[3]>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<char[4]>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<std::string>::value);
+  static_assert(!ShouldPreferPassByValueOverRRef<std::shared_ptr<int>>::value);
 }
 
 }  // namespace

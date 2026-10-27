@@ -2408,8 +2408,9 @@ using IsAllocMoveSameAsCopy =
 // callers that may be passing incomplete types.
 template <class T>
 struct AddConstRefIfExpensive
-    : std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value,
-                       T, const T&> {
+    : std::conditional<
+          type_traits_internal::ShouldPreferPassByValueOverRRef<T>::value, T,
+          const T&> {
   static_assert(std::is_same_v<remove_cvref_t<T>, T>,
                 "passed types must be unqualified");
 };
