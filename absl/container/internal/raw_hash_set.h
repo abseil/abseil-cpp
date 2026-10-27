@@ -2406,19 +2406,14 @@ using IsAllocMoveSameAsCopy =
 
 // This is a 'struct' instead of 'using' in order to avoid eager evaluation for
 // callers that may be passing incomplete types.
-template <class T>
-struct AddConstRefIfExpensive
-    : std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value,
-                       T, const T&> {
-  static_assert(std::is_same_v<remove_cvref_t<T>, T>,
-                "passed types must be unqualified");
-};
-
 template <class T, class Alloc = std::allocator<T>>
-using PreferredParamType =
-    typename std::conditional_t<IsAllocMoveSameAsCopy<T, Alloc>::value,
-                                AddConstRefIfExpensive<T>,
-                                std::add_rvalue_reference<T>>::type;
+struct PreferredParamType
+    : std::conditional_t<
+          IsAllocMoveSameAsCopy<T, Alloc>::value,
+          std::conditional_t<
+              type_traits_internal::ShouldPreferPassByValueOverRRef<T>::value,
+              type_identity<T>, std::add_lvalue_reference<std::add_const_t<T>>>,
+          std::add_rvalue_reference<T>> {};
 
 // A SwissTable.
 //
