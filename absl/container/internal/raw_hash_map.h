@@ -84,8 +84,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   // separate move-only overloads.
   template <class K, bool Value, bool ExtraConstraint = true>
   using LifetimeBoundK = std::bool_constant<
-      (ExtraConstraint ||
-       !IsAllocMoveSameAsCopy<absl::remove_cvref_t<K>, Alloc>::value) &&
+      (ExtraConstraint || !type_traits_internal::IsAllocMoveSameAsCopy<
+                              absl::remove_cvref_t<K>, Alloc>::value) &&
       HasValue<Value, std::conditional_t<
                           policy_trait_element_is_owner<Policy>::value,
                           std::false_type,

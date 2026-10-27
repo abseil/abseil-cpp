@@ -2355,70 +2355,12 @@ struct InstantiateRawHashSet {
       TypeList<Policy, Hash, Eq, Alloc>>::type;
 };
 
-template <class T>
-using HasTrivialCopyAndMove =
-    std::bool_constant<std::is_trivially_copy_constructible_v<T> &&
-                       std::is_trivially_move_constructible_v<T>>;
-
-// In principle, being trivially copy- and move-constructible is sufficient
-// (though not necessary) for proving copy and move equivalence. However, we
-// can't even test that for all types, because not all types are complete at the
-// point of evaluation of this trait. Therefore, we restrict this trait to a
-// subset of common types that we know to be complete at the point of evaluation
-// of this trait.
-template <class T>
-inline constexpr bool kIsMoveSameAsCopy = HasTrivialCopyAndMove<
-    std::conditional_t<(!std::is_class_v<T> && !std::is_union_v<T>) ||
-                           std::is_same_v<T, std::type_index> ||
-                           std::is_same_v<T, absl::string_view>,
-                       T, void>>::value;
-
-template <class T, class Traits>
-inline constexpr bool kIsMoveSameAsCopy<std::basic_string_view<T, Traits>> =
-    std::is_trivially_copy_constructible_v<std::basic_string_view<T, Traits>>;
-
-template <class T, size_t N>
-inline constexpr bool kIsMoveSameAsCopy<std::array<T, N>> =
-    kIsMoveSameAsCopy<T>;
-
-template <class T>
-inline constexpr bool kIsMoveSameAsCopy<std::optional<T>> =
-    kIsMoveSameAsCopy<T>;
-
-template <class T1, class T2>
-inline constexpr bool kIsMoveSameAsCopy<std::pair<T1, T2>> =
-    kIsMoveSameAsCopy<T1> && kIsMoveSameAsCopy<T2>;
-
-template <class... T>
-inline constexpr bool kIsMoveSameAsCopy<std::tuple<T...>> =
-    (true && ... && kIsMoveSameAsCopy<T>);
-
-template <class... T>
-inline constexpr bool kIsMoveSameAsCopy<std::variant<T...>> =
-    (true && ... && kIsMoveSameAsCopy<T>);
-
 template <class T, class Alloc = std::allocator<T>>
-using IsAllocMoveSameAsCopy =
-    std::bool_constant<kIsMoveSameAsCopy<std::conditional_t<
-        std::is_same_v<std::allocator<T>, typename std::allocator_traits<
-                                              Alloc>::template rebind_alloc<T>>,
-        T, void>>>;
-
-// This is a 'struct' instead of 'using' in order to avoid eager evaluation for
-// callers that may be passing incomplete types.
-template <class T>
-struct AddConstRefIfExpensive
-    : std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value,
-                       T, const T&> {
-  static_assert(std::is_same_v<remove_cvref_t<T>, T>,
-                "passed types must be unqualified");
-};
-
-template <class T, class Alloc = std::allocator<T>>
-using PreferredParamType =
-    typename std::conditional_t<IsAllocMoveSameAsCopy<T, Alloc>::value,
-                                AddConstRefIfExpensive<T>,
-                                std::add_rvalue_reference<T>>::type;
+using DecayIfCheap = typename std::conditional_t<
+    type_traits_internal::IsAllocMoveSameAsCopy<T, Alloc>::value,
+    std::conditional<type_traits_internal::ShouldPreferPassByValue<T>::value, T,
+                     std::add_lvalue_reference_t<std::add_const_t<T>>>,
+    std::add_rvalue_reference<T>>::type;
 
 // A SwissTable.
 //
@@ -2586,9 +2528,9 @@ class raw_hash_set {
   // Bit-fields cannot be moved, and types with trivial copy and move
   // constructors should also not be moved.
   template <class T>
-  using EnableElementMoveFrom =
-      std::bool_constant<std::is_pointer_v<T*> &&
-                         !IsAllocMoveSameAsCopy<T, Alloc>::value>;
+  using EnableElementMoveFrom = std::bool_constant<
+      std::is_pointer_v<T*> &&
+      !type_traits_internal::IsAllocMoveSameAsCopy<T, Alloc>::value>;
 
   // RequiresNotInit is a workaround for gcc prior to 7.1.
   // See https://godbolt.org/g/Y4xsUh.
@@ -3111,7 +3053,7 @@ class raw_hash_set {
   //
   //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
-  std::pair<iterator, bool> insert(PreferredParamType<init_type, Alloc> value)
+  std::pair<iterator, bool> insert(DecayIfCheap<init_type, Alloc> value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
     requires(!IsLifetimeBoundAssignmentFrom<init_type>::value)
@@ -3120,7 +3062,7 @@ class raw_hash_set {
     return emplace(std::move(value));
   }
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-  std::pair<iterator, bool> insert(PreferredParamType<init_type, Alloc> value
+  std::pair<iterator, bool> insert(DecayIfCheap<init_type, Alloc> value
                                        ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND
     requires(IsLifetimeBoundAssignmentFrom<init_type>::value)
@@ -3155,7 +3097,7 @@ class raw_hash_set {
     return insert(value).first;
   }
 
-  iterator insert(const_iterator, PreferredParamType<init_type, Alloc> value)
+  iterator insert(const_iterator, DecayIfCheap<init_type, Alloc> value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(std::move(value)).first;
   }
