@@ -1164,12 +1164,14 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
 // CombineContiguousImpl() repeatedly with the chunk stride size.
-uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
-                                                    const unsigned char* first,
-                                                    size_t len);
-uint64_t CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
-                                                     const unsigned char* first,
-                                                     size_t len);
+ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
+CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
+                                           const unsigned char* first,
+                                           size_t len);
+ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
+CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
+                                            const unsigned char* first,
+                                            size_t len);
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineSmallContiguousImpl(
     uint64_t state, const unsigned char* first, size_t len) {
