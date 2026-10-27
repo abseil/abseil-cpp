@@ -35,6 +35,8 @@
 #ifndef ABSL_META_TYPE_TRAITS_H_
 #define ABSL_META_TYPE_TRAITS_H_
 
+#include <limits.h>
+
 #include <array>
 #include <cstddef>
 #include <functional>
@@ -645,20 +647,15 @@ using ShouldStructurallyPreferPassByValue = std::bool_constant<
     alignof(T) * 2 >= sizeof(T) &&
     sizeof(T) <= sizeof(std::pair<void*, size_t>)>;
 
-template <class T>
-using ShouldSemanticallyPreferPassByValue =
-    std::bool_constant<std::is_trivially_move_constructible_v<T> &&
-                       std::is_trivially_destructible_v<T>>;
-
 // Checks the given type to see if it is a good candidate for accepting by value
 // instead of by rvalue-reference. This includes both a semantic constraint
 // (to ensure correctness), as well as a structural constraint (to ensure
 // performance).
 template <class T>
-using ShouldPreferPassByValueOverRRef =
-    std::bool_constant<ShouldSemanticallyPreferPassByValue<T>::value &&
-                       ShouldStructurallyPreferPassByValue<std::conditional_t<
-                           std::is_void_v<T>, char, T>>::value>;
+using ShouldPreferPassByValueOverRRef = ShouldStructurallyPreferPassByValue<
+    std::conditional_t<std::is_trivially_move_constructible_v<T> &&
+                           std::is_trivially_destructible_v<T>,
+                       T, char[SHRT_MAX]>>;
 
 }  // namespace type_traits_internal
 
