@@ -3429,7 +3429,6 @@ class raw_hash_set {
   iterator find(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     AssertOnFind(key);
     if (is_small()) return find_small(key);
-    prefetch_heap_block();
     return find_large<FindLargeKey<key_arg<K>>>(key);
   }
 
@@ -3595,6 +3594,7 @@ class raw_hash_set {
   template <class K>
   iterator find_large(absl::type_identity_t<K> key) {
     static_assert(std::is_same_v<K, FindLargeKey<K>>);
+    prefetch_heap_block();
     const size_t hash = hash_of(key);
     const size_t cap = common().capacity();
     ABSL_ASSUME(cap > kMaxSmallCapacity);
