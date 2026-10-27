@@ -2359,9 +2359,9 @@ struct InstantiateRawHashSet {
 // callers that may be passing incomplete types.
 template <class T>
 struct AddConstRefIfExpensive
-    : std::conditional<
-          type_traits_internal::ShouldPreferPassByValueOverRRef<T>::value, T,
-          const T&> {
+    : std::conditional_t<
+          type_traits_internal::ShouldPreferPassByValueOverRRef<T>::value,
+          type_identity<T>, std::add_lvalue_reference<std::add_const_t<T>>> {
   static_assert(std::is_same_v<remove_cvref_t<T>, T>,
                 "passed types must be unqualified");
 };
