@@ -363,6 +363,7 @@ absl_cc_test(
     absl::string_view
     absl::strings
     absl::time
+    Threads::Threads
     GTest::gtest_main
 )
 
@@ -454,6 +455,7 @@ absl_cc_test(
     absl::base
     absl::flags_internal
     absl::time
+    Threads::Threads
     GTest::gmock_main
   SHARD_COUNT
     31

@@ -163,6 +163,7 @@ absl_cc_test(
     absl::config
     absl::synchronization
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -198,6 +199,7 @@ absl_cc_test(
     absl::mock_clock
     absl::synchronization
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -236,6 +238,7 @@ absl_cc_test(
     absl::simulated_clock
     absl::synchronization
     absl::time
+    Threads::Threads
     GTest::gmock_main
   SHARD_COUNT
     4
