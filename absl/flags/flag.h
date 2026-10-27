@@ -232,33 +232,52 @@ ABSL_NAMESPACE_END
 // between the two via the call to HelpArg in absl::Flag instantiation below.
 // If help message expression is constexpr evaluable compiler will optimize
 // away this whole struct.
-// TODO(rogeeff): place these generated structs into local namespace and apply
-// ABSL_INTERNAL_UNIQUE_SHORT_NAME.
 // TODO(rogeeff): Apply __attribute__((nodebug)) to FLAGS_help_storage_##name
 #define ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, txt)                       \
+  namespace {                                                                \
   struct AbslFlagHelpGenFor##name {                                          \
     /* The expression is run in the caller as part of the   */               \
     /* default value argument. That keeps temporaries alive */               \
     /* long enough for NonConst to work correctly.          */               \
     static constexpr absl::string_view Value(                                \
-        absl::string_view absl_flag_help ABSL_ATTRIBUTE_LIFETIME_BOUND  =     \
+        absl::string_view absl_flag_help ABSL_ATTRIBUTE_LIFETIME_BOUND =     \
             ABSL_FLAG_IMPL_FLAGHELP(txt)) {                                  \
       return absl_flag_help;                                                 \
     }                                                                        \
-    static std::string NonConst() { return std::string(Value()); }           \
+    static std::string NonConst() ABSL_INTERNAL_UNIQUE_SMALL_NAME() {        \
+      return std::string(Value());                                           \
+    }                                                                        \
   };                                                                         \
+  }                                                                          \
   constexpr auto FLAGS_help_storage_##name ABSL_INTERNAL_UNIQUE_SMALL_NAME() \
       ABSL_ATTRIBUTE_SECTION_VARIABLE(flags_help_cold) =                     \
           absl::flags_internal::HelpStringAsArray<AbslFlagHelpGenFor##name>( \
               0);
 
-#define ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)     \
-  struct AbslFlagDefaultGenFor##name {                                        \
-    Type value = absl::flags_internal::InitDefaultValue<Type>(default_value); \
-    static void Gen(void* absl_flag_default_loc) {                            \
-      new (absl_flag_default_loc) Type(AbslFlagDefaultGenFor##name{}.value);  \
-    }                                                                         \
-  };
+// Wraps default_value for compile-time inspection and in-place construction.
+#define ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value) \
+  namespace {                                                             \
+  struct AbslFlagDefaultGenFor##name {                                    \
+    template <typename U = Type>                                          \
+    static constexpr U MakeDefault() {                                    \
+      return absl::flags_internal::InitDefaultValue<U>(default_value);    \
+    }                                                                     \
+    Type value = MakeDefault();                                           \
+    template <typename U = Type>                                          \
+    static constexpr bool IsEmpty() {                                     \
+      return absl::flags_internal::IsEmptyDefault<U>(default_value, 0);   \
+    }                                                                     \
+    static void Gen(void* absl_flag_default_loc)                          \
+        ABSL_INTERNAL_UNIQUE_SMALL_NAME() {                               \
+      if constexpr (std::is_move_constructible_v<Type>) {                 \
+        new (absl_flag_default_loc) Type(MakeDefault());                  \
+      } else {                                                            \
+        new (absl_flag_default_loc)                                       \
+            Type(AbslFlagDefaultGenFor##name{}.value);                    \
+      }                                                                   \
+    }                                                                     \
+  };                                                                      \
+  }
 
 // ABSL_FLAG_IMPL
 //

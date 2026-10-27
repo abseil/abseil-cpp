@@ -1397,3 +1397,107 @@ TEST_F(FlagTest, TestStdOptional) {
 #endif
 
 }  // namespace
+
+// --------------------------------------------------------------------
+
+namespace {
+
+constexpr char kLongLiteral[] = "a string longer than the small string buffer";
+const char* RuntimeCString() { return "runtime c string"; }
+
+struct AggregateUDT {
+  int value = 0;
+};
+bool AbslParseFlag(absl::string_view text, AggregateUDT* f, std::string*) {
+  return absl::SimpleAtoi(text, &f->value);
+}
+std::string AbslUnparseFlag(const AggregateUDT& f) {
+  return absl::StrCat(f.value);
+}
+
+}  // namespace
+
+ABSL_FLAG(std::string, test_dflt_string_literal, kLongLiteral, "");
+ABSL_FLAG(std::string, test_dflt_embedded_nul, "ab\0cd", "");
+ABSL_FLAG(std::string, test_dflt_runtime_cstring, RuntimeCString(), "");
+ABSL_FLAG(std::vector<std::string>, test_dflt_empty_vector, {}, "");
+ABSL_FLAG(std::vector<std::string>, test_dflt_nonempty_vector,
+          std::vector<std::string>({"a", "b"}), "");
+ABSL_FLAG(AggregateUDT, test_dflt_aggregate_braces, {7}, "");
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+ABSL_FLAG(AggregateUDT, test_dflt_designated_init, {.value = 9}, "");
+#endif
+
+namespace {
+
+TEST_F(FlagTest, TestConvertedAndAggregateDefaultValues) {
+  // Converting InitDefaultValue preserves NUL-termination and DefaultValue().
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_string_literal), kLongLiteral);
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_embedded_nul), "ab");
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_runtime_cstring), "runtime c string");
+
+  absl::SetFlag(&FLAGS_test_dflt_string_literal, "changed");
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_string_literal), "changed");
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_dflt_string_literal)
+                .DefaultValue(),
+            kLongLiteral);
+
+  // Non-empty braced and designated initializers are not treated as empty.
+  EXPECT_TRUE(absl::GetFlag(FLAGS_test_dflt_empty_vector).empty());
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_nonempty_vector),
+            std::vector<std::string>({"a", "b"}));
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_aggregate_braces).value, 7);
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_dflt_designated_init).value, 9);
+#endif
+}
+
+template <typename Gen, typename T = decltype(Gen::value)>
+constexpr bool UsesOneWordDefault() {
+  return flags::DefaultArg<T, Gen>(0).kind == flags::FlagDefaultKind::kOneWord;
+}
+
+template <typename Gen, typename T = decltype(Gen::value)>
+constexpr bool UsesSharedDefaultGen() {
+  constexpr flags::FlagDefaultArg arg = flags::DefaultArg<T, Gen>(0);
+  return arg.kind == flags::FlagDefaultKind::kGenFunc &&
+         arg.source.gen_func == &flags::GenDefaultValue<T>;
+}
+
+template <typename Gen, typename T = decltype(Gen::value)>
+constexpr bool UsesPerFlagDefaultGen() {
+  constexpr flags::FlagDefaultArg arg = flags::DefaultArg<T, Gen>(0);
+  return arg.kind == flags::FlagDefaultKind::kGenFunc &&
+         arg.source.gen_func == &Gen::Gen;
+}
+
+TEST_F(FlagTest, TestDefaultArgSelection) {
+  // Constexpr arithmetic -> kOneWord; runtime arithmetic -> per-flag Gen.
+  EXPECT_TRUE(UsesOneWordDefault<AbslFlagDefaultGenFortest_flag_02>());
+  EXPECT_TRUE(UsesPerFlagDefaultGen<
+              AbslFlagDefaultGenFortest_int_flag_with_non_const_default>());
+
+  // Empty defaults ("", {}, std::nullopt) -> shared GenDefaultValue<T>.
+  EXPECT_TRUE(UsesSharedDefaultGen<AbslFlagDefaultGenFortest_flag_11>());
+  EXPECT_TRUE(UsesSharedDefaultGen<AbslFlagDefaultGenFortest_flag_eb_05>());
+  EXPECT_TRUE(
+      UsesSharedDefaultGen<AbslFlagDefaultGenFortest_dflt_empty_vector>());
+  EXPECT_TRUE(UsesSharedDefaultGen<AbslFlagDefaultGenFortest_flag_eb_06>());
+  EXPECT_TRUE(UsesSharedDefaultGen<AbslFlagDefaultGenForoptional_int>());
+  EXPECT_TRUE(UsesSharedDefaultGen<AbslFlagDefaultGenForoptional_string>());
+
+  // Non-empty or runtime defaults -> per-flag Gen.
+  EXPECT_TRUE(
+      UsesPerFlagDefaultGen<AbslFlagDefaultGenFortest_dflt_string_literal>());
+  EXPECT_TRUE(
+      UsesPerFlagDefaultGen<AbslFlagDefaultGenFortest_dflt_runtime_cstring>());
+  EXPECT_TRUE(UsesPerFlagDefaultGen<
+              AbslFlagDefaultGenFortest_string_flag_with_non_const_default>());
+  EXPECT_TRUE(
+      UsesPerFlagDefaultGen<AbslFlagDefaultGenFortest_dflt_nonempty_vector>());
+  EXPECT_TRUE(
+      UsesPerFlagDefaultGen<AbslFlagDefaultGenFortest_dflt_aggregate_braces>());
+  EXPECT_TRUE(UsesPerFlagDefaultGen<AbslFlagDefaultGenForoptional_double>());
+}
+
+}  // namespace

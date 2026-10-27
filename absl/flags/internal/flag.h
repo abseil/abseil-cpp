@@ -21,11 +21,14 @@
 
 #include <atomic>
 #include <cstring>
+#include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -283,6 +286,80 @@ constexpr T InitDefaultValue(EmptyBraces) {
   return T{};
 }
 
+// True if class T is implicitly constructible from U (other than T itself).
+template <typename T, typename U>
+constexpr bool CanConvertToClassDefault() {
+  return std::is_class_v<T> && !std::is_same_v<std::decay_t<U>, T> &&
+         std::is_convertible_v<const U&, T>;
+}
+
+// Constructs class T directly from U via copy elision.
+template <typename T, typename U,
+          std::enable_if_t<CanConvertToClassDefault<T, U>(), int> = 0>
+constexpr T InitDefaultValue(const U& value) {
+  return value;
+}
+
+template <typename T>
+struct IsOptional : std::false_type {};
+template <typename T>
+struct IsOptional<std::optional<T>> : std::true_type {};
+
+template <typename T, typename U>
+constexpr bool IsStringWithStringViewDefault() {
+  return std::is_same_v<T, std::string> &&
+         std::is_convertible_v<const U&, absl::string_view>;
+}
+
+template <typename T, typename U>
+constexpr bool IsOptionalWithNulloptDefault() {
+  return IsOptional<T>::value &&
+         std::is_same_v<std::decay_t<U>, std::nullopt_t>;
+}
+
+// True if the default value expression is statically known to equal T{}.
+template <typename T>
+constexpr bool IsEmptyDefault(EmptyBraces, int) {
+  return true;
+}
+
+template <typename T, typename U>
+constexpr bool IsEmptyDefault(std::initializer_list<U>, int) {
+  return false;
+}
+
+template <typename T, typename U>
+constexpr bool IsEmptyDefault([[maybe_unused]] const U& v, int) {
+  if constexpr (IsStringWithStringViewDefault<T, U>()) {
+    return absl::string_view(v).empty();
+  } else {
+    return IsOptionalWithNulloptDefault<T, U>();
+  }
+}
+
+// Fallback for C++20 designated initializers like {.a = 1}.
+template <typename T, std::enable_if_t<std::is_class_v<T>, int> = 0>
+constexpr bool IsEmptyDefault(const T&, char) {
+  return false;
+}
+
+// Shared placement-new generator for flags with default T{}.
+template <typename T>
+void GenDefaultValue(void* dst) {
+  new (dst) T{};
+}
+
+extern template void GenDefaultValue<std::string>(void*);
+extern template void GenDefaultValue<std::vector<std::string>>(void*);
+
+// Requires copyability so non-copyable types still fail in GenT::Gen.
+template <typename ValueT, typename GenT>
+constexpr bool CanUseSharedDefaultGen() {
+  return std::is_default_constructible_v<ValueT> &&
+         std::is_copy_constructible_v<ValueT> && GenT::IsEmpty();
+}
+
+// Ranked int -> char -> ...: inline kOneWord, shared GenDefaultValue, or Gen.
 template <typename ValueT, typename GenT,
           std::enable_if_t<std::is_arithmetic_v<ValueT>, int> = ((void)GenT{},
                                                                  0)>
@@ -290,8 +367,14 @@ constexpr FlagDefaultArg DefaultArg(int) {
   return {FlagDefaultSrc(GenT{}.value), FlagDefaultKind::kOneWord};
 }
 
-template <typename ValueT, typename GenT>
+template <typename ValueT, typename GenT,
+          std::enable_if_t<CanUseSharedDefaultGen<ValueT, GenT>(), int> = 0>
 constexpr FlagDefaultArg DefaultArg(char) {
+  return {FlagDefaultSrc(&GenDefaultValue<ValueT>), FlagDefaultKind::kGenFunc};
+}
+
+template <typename ValueT, typename GenT>
+constexpr FlagDefaultArg DefaultArg(...) {
   return {FlagDefaultSrc(&GenT::Gen), FlagDefaultKind::kGenFunc};
 }
 
