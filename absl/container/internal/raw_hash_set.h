@@ -2416,7 +2416,7 @@ struct AddConstRefIfExpensive
 };
 
 template <class T, class Alloc = std::allocator<T>>
-using PreferredParamType =
+using PreferredMoveParamType =
     typename std::conditional_t<IsAllocMoveSameAsCopy<T, Alloc>::value,
                                 AddConstRefIfExpensive<T>,
                                 std::add_rvalue_reference<T>>::type;
@@ -3112,8 +3112,8 @@ class raw_hash_set {
   //
   //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
-  std::pair<iterator, bool> insert(PreferredParamType<init_type, Alloc> value)
-      ABSL_ATTRIBUTE_LIFETIME_BOUND
+  std::pair<iterator, bool> insert(PreferredMoveParamType<init_type, Alloc>
+                                       value) ABSL_ATTRIBUTE_LIFETIME_BOUND
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
     requires(!IsLifetimeBoundAssignmentFrom<init_type>::value)
 #endif
@@ -3121,8 +3121,9 @@ class raw_hash_set {
     return emplace(std::move(value));
   }
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-  std::pair<iterator, bool> insert(PreferredParamType<init_type, Alloc> value
-                                       ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+  std::pair<iterator, bool> insert(
+      PreferredMoveParamType<init_type, Alloc> value
+          ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND
     requires(IsLifetimeBoundAssignmentFrom<init_type>::value)
   {
@@ -3156,7 +3157,8 @@ class raw_hash_set {
     return insert(value).first;
   }
 
-  iterator insert(const_iterator, PreferredParamType<init_type, Alloc> value)
+  iterator insert(const_iterator,
+                  PreferredMoveParamType<init_type, Alloc> value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(std::move(value)).first;
   }
