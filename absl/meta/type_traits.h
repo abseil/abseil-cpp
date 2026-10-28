@@ -254,9 +254,7 @@ using remove_cvref_t = std::remove_cvref_t<T>;
 // C++17 compatible implementation of std::remove_cvref which was added in
 // C++20.
 template <typename T>
-struct remove_cvref {
-  using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
+using remove_cvref = std::remove_cv<std::remove_reference_t<T>>;
 
 template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
@@ -273,9 +271,7 @@ using type_identity_t = std::type_identity_t<T>;
 //
 // Back-fill of C++20's `std::type_identity`.
 template <typename T>
-struct type_identity {
-  typedef T type;
-};
+using type_identity = std::enable_if<true, T>;
 
 // type_identity_t
 //
