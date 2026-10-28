@@ -491,6 +491,10 @@ struct TrivialCopyNonTrivialMove {
   TrivialCopyNonTrivialMove(const TrivialCopyNonTrivialMove&) = default;
   TrivialCopyNonTrivialMove(TrivialCopyNonTrivialMove&&) {}  // NOLINT
 };
+struct TrivialCopyNoMove {
+  TrivialCopyNoMove(const TrivialCopyNoMove&) = default;
+  TrivialCopyNoMove(TrivialCopyNoMove&&) = delete;
+};
 
 TEST(ShouldPreferPassByValueOverRRef, Basic) {
   static_assert(ShouldPreferPassByValueOverRRef<int>::value);
@@ -505,11 +509,38 @@ TEST(ShouldPreferPassByValueOverRRef, Basic) {
       ShouldPreferPassByValueOverRRef<TrivialMoveNonTrivialCopy>::value);
   static_assert(
       !ShouldPreferPassByValueOverRRef<TrivialCopyNonTrivialMove>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverRRef<TrivialCopyNoMove>::value);
   static_assert(!ShouldPreferPassByValueOverRRef<void>::value);
   static_assert(!ShouldPreferPassByValueOverRRef<char[3]>::value);
   static_assert(!ShouldPreferPassByValueOverRRef<char[4]>::value);
   static_assert(!ShouldPreferPassByValueOverRRef<std::string>::value);
   static_assert(!ShouldPreferPassByValueOverRRef<std::shared_ptr<int>>::value);
+}
+
+TEST(ShouldPreferPassByValueOverConstRef, Basic) {
+  static_assert(ShouldPreferPassByValueOverConstRef<int>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<void*>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<UnscopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<ScopedEnum>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<TrivialUnion>::value);
+  static_assert(ShouldPreferPassByValueOverConstRef<std::string_view>::value);
+  static_assert(
+      ShouldPreferPassByValueOverConstRef<std::pair<int, int>>::value);
+  static_assert(
+      ShouldPreferPassByValueOverConstRef<std::pair<char, int>>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialMoveNonTrivialCopy>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialCopyNonTrivialMove>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<TrivialCopyNoMove>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<void>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<char[3]>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<char[4]>::value);
+  static_assert(!ShouldPreferPassByValueOverConstRef<std::string>::value);
+  static_assert(
+      !ShouldPreferPassByValueOverConstRef<std::shared_ptr<int>>::value);
 }
 
 }  // namespace

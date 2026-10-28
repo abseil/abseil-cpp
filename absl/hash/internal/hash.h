@@ -1378,9 +1378,14 @@ struct HashSelect {
     }
   };
 
+  template <typename T>
   struct HashValueProbe {
-    template <typename H, typename T>
-    static H Invoke(H state, const T& value) {
+    // The std::conditional_t<false, H, T> test is to enable SFINAE by making T
+    // be a dependent type.
+    template <typename H>
+    static H Invoke(H state, type_traits_internal::AddConstRefIfExpensiveToCopy<
+                                 std::conditional_t<false, H, T>>
+                                 value) {
       return AbslHashValue(std::move(state), value);
     }
   };
@@ -1413,7 +1418,7 @@ struct HashSelect {
     } else if constexpr (std::is_same_v<State,
                                         typename AbslHashValueResultOrVoid<
                                             State, const T&>::type>) {
-      return HashValueProbe();
+      return HashValueProbe<T>();
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
     } else if constexpr (std::is_convertible_v<
                              InvokeResultOrVoid<

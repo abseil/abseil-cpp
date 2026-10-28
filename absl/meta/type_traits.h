@@ -720,6 +720,17 @@ using ShouldPreferPassByValueOverRRef = ShouldStructurallyPreferPassByValue<
                            std::is_trivially_destructible_v<T>,
                        T, char[SHRT_MAX]>>;
 
+// As above, but for const-lvalue-reference.
+template <class T>
+using ShouldPreferPassByValueOverConstRef =
+    std::bool_constant<ShouldPreferPassByValueOverRRef<T>::value &&
+                       std::is_trivially_copy_constructible_v<T>>;
+
+template <class T>
+using AddConstRefIfExpensiveToCopy =
+    std::conditional_t<ShouldPreferPassByValueOverConstRef<T>::value, T,
+                       std::add_lvalue_reference_t<std::add_const_t<T>>>;
+
 }  // namespace type_traits_internal
 
 ABSL_NAMESPACE_END
