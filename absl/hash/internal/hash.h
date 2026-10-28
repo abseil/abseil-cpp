@@ -1259,8 +1259,22 @@ inline uint64_t CombineContiguousImpl(
   // reading the memory. Fused instructions also reduce register pressure
   // allowing surrounding code to be more efficient when this code is inlined.
   if (len > 8) {
+#if ABSL_HAVE_BUILTIN(__builtin_constant_p)
+    // CRC32 only uses the low 32 bits of its first argument. When `state` has
+    // known zero upper 32 bits in SwissTable's per-table seed,
+    // `static_cast<uint32_t>(crcs.second)` is a compile-time constant 0;
+    // folding it avoids shifting `state` and breaks the false dependency from
+    // loading the seed to the second CRC32 stream without adding a
+    // zero-extension when `crcs.second` is not a compile-time constant.
+    const uint64_t second_init =
+        __builtin_constant_p(static_cast<uint32_t>(crcs.second))
+            ? static_cast<uint32_t>(crcs.second)
+            : crcs.second;
+#else
+    const uint64_t second_init = crcs.second;
+#endif
     crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first)),
-            ABSL_HASH_INTERNAL_CRC32_U64(crcs.second, Read8(first + len - 8))};
+            ABSL_HASH_INTERNAL_CRC32_U64(second_init, Read8(first + len - 8))};
     if (len > 16) {
       // We compute the second round of dependent CRC32 operations.
       crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first + len - 16)),
