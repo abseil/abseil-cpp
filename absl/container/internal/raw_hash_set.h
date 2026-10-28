@@ -3566,17 +3566,17 @@ class raw_hash_set {
   };
 
   template <typename... Args>
-  void construct(slot_type* slot, Args&&... args) {
+  void construct(slot_type* __restrict slot, Args&&... args) {
     ReentranceGuard guard(common());
     allocator_type alloc(char_alloc_ref());
     PolicyTraits::construct(&alloc, slot, std::forward<Args>(args)...);
   }
-  void destroy(slot_type* slot) {
+  void destroy(slot_type* __restrict slot) {
     ReentranceGuard guard(common());
     allocator_type alloc(char_alloc_ref());
     PolicyTraits::destroy(&alloc, slot);
   }
-  void transfer(slot_type* to, slot_type* from) {
+  void transfer(slot_type* __restrict to, slot_type* __restrict from) {
     ReentranceGuard guard(common());
     allocator_type alloc(char_alloc_ref());
     PolicyTraits::transfer(&alloc, to, from);
@@ -4149,8 +4149,8 @@ class raw_hash_set {
                                                    kSeedShift>();
   }
 
-  static void transfer_n_slots_fn(void* set, void* dst, void* src,
-                                  size_t count) {
+  static void transfer_n_slots_fn(void* set, void* __restrict dst,
+                                  void* __restrict src, size_t count) {
     auto* src_slot = to_slot(src);
     auto* dst_slot = to_slot(dst);
 
@@ -4168,7 +4168,7 @@ class raw_hash_set {
         PolicyTraits::element(static_cast<slot_type*>(const_cast<void*>(src))));
   }
 
-  static void destroy_slot_fn_impl(void* set, void* slot) {
+  static void destroy_slot_fn_impl(void* set, void* __restrict slot) {
     auto* h = static_cast<raw_hash_set*>(set);
     h->destroy(to_slot(slot));
   }
@@ -4182,8 +4182,8 @@ class raw_hash_set {
   // by GetKey + Hash for memcpyable types.
   // TODO(b/382423690): Try to type erase for big slots: sizeof(slot_type) > 16.
   static void transfer_unprobed_elements_to_next_capacity_fn(
-      CommonFields& common, const ctrl_t* old_ctrl, void* probed_storage,
-      void* old_slots, size_t old_capacity,
+      CommonFields& __restrict common, const ctrl_t* old_ctrl,
+      void* probed_storage, void* __restrict old_slots, size_t old_capacity,
       void (*encode_probed_element)(void* probed_storage, size_t hash,
                                     size_t source_offset)) {
     ABSL_ASSUME(old_capacity + 1 >= Group::kWidth);
