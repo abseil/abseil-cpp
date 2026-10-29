@@ -160,8 +160,9 @@ void SampleRecorder<T>::PushDead(T* sample) {
     dispose(*sample);
   }
 
-  absl::MutexLock graveyard_lock(graveyard_.init_mu);
   absl::MutexLock sample_lock(sample->init_mu);
+  sample->init_mu.ForgetDeadlockInfo();
+  absl::MutexLock graveyard_lock(graveyard_.init_mu);
   sample->dead = graveyard_.dead;
   graveyard_.dead = sample;
 }
@@ -187,6 +188,7 @@ T* SampleRecorder<T>::PopDead(Targs... args) {
   // SampleRecorder<T>::Iterate will acquire per sample lock, so there will be
   // no data race either.
   absl::MutexLock sample_lock(sample->init_mu);
+  sample->init_mu.ForgetDeadlockInfo();
   // Note: consider PrepareForSampling out of the lock.
   // Currently many clients have PrepareForSampling marked as
   // ABSL_EXCLUSIVE_LOCKS_REQUIRED.
