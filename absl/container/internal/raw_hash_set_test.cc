@@ -965,8 +965,7 @@ TEST(Batch, DropDeletes) {
   }
 }
 
-template <class T, bool kTransferable = false, bool kSoo = false,
-          bool kDestroyTrivial = false>
+template <class T, bool kTransferable = false, bool kDestroyTrivial = false>
 struct ValuePolicy {
   using slot_type = T;
   using key_type = T;
@@ -1015,8 +1014,6 @@ struct ValuePolicy {
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
-
-  static constexpr bool soo_enabled() { return kSoo; }
 };
 
 using IntPolicy = ValuePolicy<int64_t>;
@@ -1058,9 +1055,8 @@ class SizedValue {
   static_assert(N >= sizeof(int64_t));
   int64_t vals_[N / sizeof(int64_t)];
 };
-template <int N, bool kSoo>
-using SizedValuePolicy =
-    ValuePolicy<SizedValue<N>, /*kTransferable=*/true, kSoo>;
+template <int N>
+using SizedValuePolicy = ValuePolicy<SizedValue<N>, /*kTransferable=*/true>;
 
 // Value is aligned as type T and contains N copies of it.
 template <typename T, int N>
@@ -1185,10 +1181,10 @@ struct StringTable
   using Base::Base;
 };
 
-template <typename T, bool kTransferable = false, bool kSoo = false,
-          bool kDestroyTrivial = false, class Alloc = std::allocator<T>>
+template <typename T, bool kTransferable = false, bool kDestroyTrivial = false,
+          class Alloc = std::allocator<T>>
 struct ValueTable : InstantiateRawHashSet<
-                        ValuePolicy<T, kTransferable, kSoo, kDestroyTrivial>,
+                        ValuePolicy<T, kTransferable, kDestroyTrivial>,
                         hash_default_hash<T>, std::equal_to<T>, Alloc>::type {
   using Base = typename ValueTable::raw_hash_set;
   using Base::Base;
@@ -1294,7 +1290,7 @@ struct FreezableAlloc : std::allocator<T> {
 
 template <int N>
 struct FreezableSizedValueSooTable
-    : raw_hash_set<SizedValuePolicy<N, /*kSoo=*/true>,
+    : raw_hash_set<SizedValuePolicy<N>,
                    container_internal::hash_default_hash<SizedValue<N>>,
                    std::equal_to<SizedValue<N>>,
                    FreezableAlloc<SizedValue<N>>> {
@@ -1328,23 +1324,18 @@ using NonSooIntTableSlotType = SizedValue<kNonSooSize>;
 static_assert(sizeof(NonSooIntTableSlotType) > MaxSooSlotSize(), "too small");
 using NonSooIntTable = ValueTable<NonSooIntTableSlotType>;
 using NonSooIntTableTrivialDestroy =
-    ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false, /*kSoo=*/false,
+    ValueTable<NonSooIntTableSlotType, /*kTransferable=*/false,
                /*kDestroyTrivial=*/true>;
-using SooInt32Table =
-    ValueTable<int32_t, /*kTransferable=*/true, /*kSoo=*/true>;
-using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true>;
+using SooInt32Table = ValueTable<int32_t, /*kTransferable=*/true>;
+using SooIntTable = ValueTable<int64_t, /*kTransferable=*/true>;
 using SooIntTableTrivialDestroy =
-    ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
-               /*kDestroyTrivial=*/true>;
-using NonMemcpyableSooIntTable =
-    ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true>;
+    ValueTable<int64_t, /*kTransferable=*/true, /*kDestroyTrivial=*/true>;
+using NonMemcpyableSooIntTable = ValueTable<int64_t, /*kTransferable=*/false>;
 using MemcpyableSooIntCustomAllocTable =
-    ValueTable<int64_t, /*kTransferable=*/true, /*kSoo=*/true,
-               /*kDestroyTrivial=*/false,
+    ValueTable<int64_t, /*kTransferable=*/true, /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 using NonMemcpyableSooIntCustomAllocTable =
-    ValueTable<int64_t, /*kTransferable=*/false, /*kSoo=*/true,
-               /*kDestroyTrivial=*/false,
+    ValueTable<int64_t, /*kTransferable=*/false, /*kDestroyTrivial=*/false,
                ChangingSizeAndTrackingTypeAlloc<int64_t>>;
 
 TEST(Table, EmptyFunctorOptimization) {
@@ -2757,24 +2748,22 @@ class SmallTableResizeTest : public testing::Test {};
 using SmallTableTypes = ::testing::Types<
     IntTable, TransferableIntTable, SooIntTable,
     // int8
-    ValueTable<int8_t, /*kTransferable=*/true, /*kSoo=*/true>,
-    ValueTable<int8_t, /*kTransferable=*/false, /*kSoo=*/true>,
+    ValueTable<int8_t, /*kTransferable=*/true>,
+    ValueTable<int8_t, /*kTransferable=*/false>,
     // int16
-    ValueTable<int16_t, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<int16_t, /*kTransferable=*/true>,
     // int128
-    ValueTable<SizedValue<16>, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<SizedValue<16>, /*kTransferable=*/true>,
     // Special tables.
     MinimumAlignmentUint8Table, CustomAllocIntTable, ChangingSizeAllocIntTable,
     BadTable,
     // alignment 1, size 2.
-    ValueTable<AlignedValue<uint8_t, 2>, /*kTransferable=*/true, /*kSoo=*/true>,
+    ValueTable<AlignedValue<uint8_t, 2>, /*kTransferable=*/true>,
     // alignment 1, size 7.
-    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/true, /*kSoo=*/true>,
-    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/false,
-               /*kSoo=*/true>,
+    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/true>,
+    ValueTable<AlignedValue<uint8_t, 7>, /*kTransferable=*/false>,
     // alignment 2, size 6.
-    ValueTable<AlignedValue<uint16_t, 3>, /*kTransferable=*/true,
-               /*kSoo=*/true>>;
+    ValueTable<AlignedValue<uint16_t, 3>, /*kTransferable=*/true>>;
 TYPED_TEST_SUITE(SmallTableResizeTest, SmallTableTypes);
 
 TYPED_TEST(SmallTableResizeTest, InsertIntoSmallTable) {
@@ -3840,9 +3829,8 @@ TEST(Table, StringViewConversionCount) {
     }
   };
 
-  const auto test_table = [](auto soo) {
-    using Policy = ValuePolicy<absl::string_view, /*kTransferable=*/true,
-                               /*kSoo=*/decltype(soo)::value>;
+  const auto test_table = [] {
+    using Policy = ValuePolicy<absl::string_view, /*kTransferable=*/true>;
     using Table = raw_hash_set<Policy, hash_default_hash<absl::string_view>,
                                hash_default_eq<absl::string_view>>;
     Table t;
@@ -3907,8 +3895,7 @@ TEST(Table, StringViewConversionCount) {
     }
   };
 
-  test_table(/*soo=*/std::false_type{});
-  test_table(/*soo=*/std::true_type{});
+  test_table();
 }
 
 TEST(Iterator, IsDefaultConstructible) {

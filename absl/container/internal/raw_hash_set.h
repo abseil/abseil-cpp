@@ -2466,8 +2466,7 @@ class raw_hash_set {
       kIsAbslHash ? 0 : HashtableInlineData::kSeedShift;
 
   constexpr static bool SooEnabled() {
-    return PolicyTraits::soo_enabled() &&
-           sizeof(slot_type) <= sizeof(HeapOrSoo) &&
+    return sizeof(slot_type) <= sizeof(HeapOrSoo) &&
            alignof(slot_type) <= alignof(HeapOrSoo);
   }
 
