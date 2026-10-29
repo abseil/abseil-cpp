@@ -851,6 +851,7 @@ absl_cc_test(
     absl::cordz_update_tracker
     absl::core_headers
     absl::synchronization
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -880,6 +881,7 @@ absl_cc_test(
     absl::config
     absl::cordz_functions
     absl::cordz_test_helpers
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -930,6 +932,7 @@ absl_cc_test(
     absl::random_random
     absl::synchronization
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1001,6 +1004,7 @@ absl_cc_test(
     absl::cordz_update_tracker
     absl::crc_cord_state
     absl::thread_pool
+    Threads::Threads
     GTest::gmock_main
 )
 
@@ -1040,6 +1044,7 @@ absl_cc_test(
     absl::synchronization
     absl::thread_pool
     absl::time
+    Threads::Threads
     GTest::gmock_main
 )
 
