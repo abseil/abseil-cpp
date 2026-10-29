@@ -322,20 +322,26 @@ class FlagSaverImpl {
     flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
       if (auto flag_state =
               flags_internal::PrivateHandleAccessor::SaveState(flag)) {
-        backup_registry_.emplace_back(std::move(flag_state));
+        backup_registry_.emplace(&flag, std::move(flag_state));
       }
     });
   }
 
   // Restores the saved flag states into the flag registry.
   void RestoreToRegistry() && {
-    for (const auto& flag_state : backup_registry_) {
-      std::move(*flag_state).Restore();
-    }
+    flags_internal::ForEachFlag([&](CommandLineFlag& flag) {
+      if (auto it = backup_registry_.find(&flag);
+          it != backup_registry_.end()) {
+        std::move(*it->second).Restore();
+      } else {
+        flags_internal::PrivateHandleAccessor::RestoreToInitialState(flag);
+      }
+    });
   }
 
  private:
-  std::vector<std::unique_ptr<flags_internal::FlagStateInterface>>
+  absl::flat_hash_map<CommandLineFlag*,
+                      std::unique_ptr<flags_internal::FlagStateInterface>>
       backup_registry_;
 };
 
