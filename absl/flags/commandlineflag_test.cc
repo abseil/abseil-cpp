@@ -37,6 +37,8 @@ ABSL_RETIRED_FLAG(bool, bool_retired_flag, false, "bool_retired_flag help");
 // These are only used to test default values.
 ABSL_FLAG(int, int_flag2, 201, "");
 ABSL_FLAG(std::string, string_flag2, "dflt", "");
+ABSL_FLAG(int, int_flag3, 201, "");
+ABSL_FLAG(std::string, string_flag3, "dflt", "");
 
 namespace {
 
@@ -231,6 +233,36 @@ TEST_F(CommandLineFlagTest, TestParseFromIfDefault) {
       err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 201);
   // EXPECT_EQ(err, "ERROR: int_flag is already set to 201");
+}
+
+TEST_F(CommandLineFlagTest, TestFlagSaverRestoresUnmodifiedSetFlagsDefault) {
+  std::string err;
+  auto* int_handle = absl::FindCommandLineFlag("int_flag3");
+  auto* str_handle = absl::FindCommandLineFlag("string_flag3");
+  ASSERT_NE(int_handle, nullptr);
+  ASSERT_NE(str_handle, nullptr);
+
+  {
+    absl::FlagSaver saver;
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *int_handle, "111", flags::SET_FLAGS_DEFAULT,
+        flags::kProgrammaticChange, err));
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *int_handle, "222", flags::SET_FLAGS_DEFAULT,
+        flags::kProgrammaticChange, err));
+    EXPECT_EQ(absl::GetFlag(FLAGS_int_flag3), 222);
+
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *str_handle, "abc", flags::SET_FLAGS_DEFAULT,
+        flags::kProgrammaticChange, err));
+    EXPECT_TRUE(flags::PrivateHandleAccessor::ParseFrom(
+        *str_handle, "def", flags::SET_FLAGS_DEFAULT,
+        flags::kProgrammaticChange, err));
+    EXPECT_EQ(absl::GetFlag(FLAGS_string_flag3), "def");
+  }
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_int_flag3), 201);
+  EXPECT_EQ(absl::GetFlag(FLAGS_string_flag3), "dflt");
 }
 
 }  // namespace
