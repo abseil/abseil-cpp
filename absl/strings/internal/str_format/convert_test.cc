@@ -63,6 +63,7 @@ struct NativePrintfTraits {
   bool hex_float_prefers_denormal_repr;
   bool hex_float_uses_minimal_precision_when_not_specified;
   bool hex_float_optimizes_leading_digit_bit_count;
+  bool nan_has_sign;
 };
 
 template <typename T, size_t N>
@@ -237,28 +238,32 @@ NativePrintfTraits VerifyNativeImplementationImpl() {
   NativePrintfTraits result;
 
   // >>> hex_float_has_glibc_rounding. To have glibc's rounding behavior we need
-  // to meet three requirements:
+  // to meet four requirements:
   //
   //   - The threshold for rounding up is 8 (for e.g. MSVC uses 9).
   //   - If the digits lower than than the 8 are non-zero then we round up.
   //   - If the digits lower than the 8 are all zero then we round toward even.
+  //   - A carry out of the fraction is kept in the leading digit ("0x2p+0")
+  //     rather than renormalized into the exponent ("0x1p+1", e.g. FreeBSD).
   //
   // The numbers below represent all the cases covering {below,at,above} the
   // threshold (8) with both {zero,non-zero} lower bits and both {even,odd}
-  // preceding digits.
+  // preceding digits, plus one that carries into the leading digit.
   const double d0079 = 65657.0;  // 0x1.0079p+16
   const double d0179 = 65913.0;  // 0x1.0179p+16
   const double d0080 = 65664.0;  // 0x1.0080p+16
   const double d0180 = 65920.0;  // 0x1.0180p+16
   const double d0081 = 65665.0;  // 0x1.0081p+16
   const double d0181 = 65921.0;  // 0x1.0181p+16
+  const double d1c = 1.75;       // 0x1.cp+0
   result.hex_float_has_glibc_rounding =
       StartsWith(StrPrint("%.2a", d0079), "0x1.00") &&
       StartsWith(StrPrint("%.2a", d0179), "0x1.01") &&
       StartsWith(StrPrint("%.2a", d0080), "0x1.00") &&
       StartsWith(StrPrint("%.2a", d0180), "0x1.02") &&
       StartsWith(StrPrint("%.2a", d0081), "0x1.01") &&
-      StartsWith(StrPrint("%.2a", d0181), "0x1.02");
+      StartsWith(StrPrint("%.2a", d0181), "0x1.02") &&
+      StrPrint("%.0a", d1c) == "0x2p+0";
 
   // >>> hex_float_prefers_denormal_repr. Formatting `denormal` on glibc yields
   // "0x0.0000000000001p-1022", whereas on std libs that don't use denormal
@@ -281,6 +286,12 @@ NativePrintfTraits VerifyNativeImplementationImpl() {
   result.hex_float_optimizes_leading_digit_bit_count =
       StartsWith(StrPrint("%a", d_15), "0x1.8") &&
       StartsWith(StrPrint("%La", ld_15), "0xc");
+
+  // >>> nan_has_sign. glibc formats NaN with its sign and honors the '+' flag
+  // ("-nan", "+nan"), whereas e.g. Apple and FreeBSD always print "nan".
+  const double qnan = std::numeric_limits<double>::quiet_NaN();
+  result.nan_has_sign = StrPrint("%+f", qnan) == "+nan" &&
+                        StrPrint("%f", std::copysign(qnan, -1.0)) == "-nan";
 
   return result;
 }
@@ -898,10 +909,9 @@ void TestWithMultipleFormatsHelper(Floating tested_float) {
         // MSVC has a different rounding policy than us so we can't test our
         // implementation against the native one there.
         continue;
-#elif defined(__APPLE__)
-        // Apple formats NaN differently (+nan) vs. (nan)
-        if (std::isnan(tested_float)) continue;
 #endif
+        // Some platforms format NaN differently (+nan) vs. (nan)
+        if (std::isnan(tested_float) && !native_traits.nan_has_sign) continue;
         // We use ASSERT_EQ here because failures are usually correlated and a
         // bug would print way too many failed expectations causing the test
         // to time out.
@@ -1552,6 +1562,7 @@ TEST_F(FormatConvertTest, GlibcHasCorrectTraits) {
   EXPECT_TRUE(
       native_traits.hex_float_uses_minimal_precision_when_not_specified);
   EXPECT_TRUE(native_traits.hex_float_optimizes_leading_digit_bit_count);
+  EXPECT_TRUE(native_traits.nan_has_sign);
 }
 
 }  // namespace
