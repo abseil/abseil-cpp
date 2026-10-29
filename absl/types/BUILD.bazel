@@ -53,6 +53,7 @@ cc_library(
     hdrs = ["source_location.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         "//absl/base:config",
@@ -86,6 +87,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["nofixdeps"],
     visibility = ["//visibility:public"],
     deps = [
         "//absl/algorithm",
