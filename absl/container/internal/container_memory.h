@@ -43,6 +43,38 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
+// We only allow a maximum of 1 SOO element, which makes the implementation
+// much simpler. Complications with multiple SOO elements include:
+// - Satisfying the guarantee that erasing one element doesn't invalidate
+//   iterators to other elements means we would probably need actual SOO
+//   control bytes.
+// - In order to prevent user code from depending on iteration order for small
+//   tables, we would need to randomize the iteration order somehow.
+constexpr size_t HashtableSooCapacity() { return 1; }
+
+// HashtableTypeInfo bundles the numeric properties of a raw_hash_set<T, ...>
+// instantiation. It is defined here (rather than in raw_hash_set.h) so that
+// hashtablez sampling can receive a pointer to it instead of several separate
+// size arguments.
+struct HashtableTypeInfo {
+  // 8 bytes
+  uint32_t slot_size;
+  // `alignof(slot_type) - 1`. Storing the mask instead of the alignment lets
+  // `AlignUpToMask` compute `(offset + mask) & ~mask` without negation.
+  uint16_t slot_align_mask;
+  bool soo_enabled;
+  bool is_hashtablez_enabled;
+  // 8 bytes
+  uint32_t alloc_offset;
+  uint32_t key_size;
+  // 4 bytes
+  uint32_t value_size;
+
+  constexpr uint8_t soo_capacity() const {
+    return static_cast<uint8_t>(soo_enabled ? HashtableSooCapacity() : 0);
+  }
+};
+
 template <size_t Alignment>
 struct alignas(Alignment) AlignedType {
   // When alignment is sufficient for the allocated memory to store pointers,
