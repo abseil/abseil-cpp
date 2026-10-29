@@ -2898,8 +2898,7 @@ class raw_hash_set {
       }
     }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
+    annotate_for_bug_detection_on_move(that);
   }
 
   raw_hash_set(raw_hash_set&& that, const allocator_type& a)
@@ -2909,8 +2908,7 @@ class raw_hash_set {
         alloc_(a) {
     if (CharAlloc(a) == that.char_alloc_ref()) {
       swap_common(that);
-      common().annotate_for_bug_detection_on_move(that.common(),
-                                                  GetPolicyFunctions());
+      annotate_for_bug_detection_on_move(that);
     } else {
       move_elements_allocs_unequal(std::move(that));
     }
@@ -3763,6 +3761,15 @@ class raw_hash_set {
                 std::move(tmp));
   }
 
+  // Only references `GetPolicyFunctions()` when generations are enabled, so
+  // that the `PolicyFunctions` instance is not kept alive otherwise.
+  void annotate_for_bug_detection_on_move(raw_hash_set& that) {
+    if constexpr (SwisstableGenerationsEnabled()) {
+      common().annotate_for_bug_detection_on_move(that.common(),
+                                                  GetPolicyFunctions());
+    }
+  }
+
   template <bool propagate_alloc>
   raw_hash_set& assign_impl(raw_hash_set&& that) {
     // We don't bother checking for this/that aliasing. We just need to avoid
@@ -3775,8 +3782,7 @@ class raw_hash_set {
     CopyAlloc(char_alloc_ref(), that.char_alloc_ref(),
               std::bool_constant<propagate_alloc>());
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
+    annotate_for_bug_detection_on_move(that);
     return *this;
   }
 
@@ -3794,8 +3800,7 @@ class raw_hash_set {
                                        &that.char_alloc_ref());
     }
     that.common() = CommonFields::CreateDefault<SooEnabled()>();
-    common().annotate_for_bug_detection_on_move(that.common(),
-                                                GetPolicyFunctions());
+    annotate_for_bug_detection_on_move(that);
     return *this;
   }
 
