@@ -4036,14 +4036,26 @@ class raw_hash_set {
  private:
   friend struct RawHashSetTestOnlyAccess;
 
+  template <class K, class KeyType = key_type>
+  struct IsConvertibleToKeyPtr : std::false_type {};
+
+  template <class K, class T>
+  struct IsConvertibleToKeyPtr<K, T*>
+      : std::bool_constant<
+            std::is_same_v<hasher, typename HashEq<T*>::Hash> &&
+            std::is_same_v<key_equal, typename HashEq<T*>::Eq> &&
+            std::is_convertible_v<const absl::remove_cvref_t<K>&, const T*>> {};
+
   // For string-like keys, we convert to string_view when calling find*_large()
   // operations to (a) avoid repeatedly (i) branching on SSO or (ii) calling
-  // strlen(), (b) share code between the string-like types. Note that we don't
-  // pass FindLargeKey to find*_small() to avoid unnecessarily constructing
-  // string_view for small empty tables. Note: we use type_identity_t and
-  // static_asserts to ensure that the key type in find*_large is FindLargeKey.
-  // (type_identity_t ensures that the template argument is not deduced and must
-  // be specified explicitly.)
+  // strlen(), (b) share code between the string-like types. For pointer keys,
+  // we similarly convert to `const T*` to share code between `T*`, `const T*`,
+  // and derived-pointer lookups. Note that we don't pass FindLargeKey to
+  // find*_small() to avoid unnecessarily constructing string_view for small
+  // empty tables. Note: we use type_identity_t and static_asserts to ensure
+  // that the key type in find*_large is FindLargeKey. (type_identity_t ensures
+  // that the template argument is not deduced and must be specified
+  // explicitly.)
   template <class K>
   using FindLargeKey =
       type_traits_internal::AddConstRefIfExpensiveToCopy<std::conditional_t<
@@ -4051,7 +4063,10 @@ class raw_hash_set {
               std::is_same_v<key_equal, absl::container_internal::StringEq> &&
               std::is_convertible_v<const absl::remove_cvref_t<K>&,
                                     absl::string_view>,
-          absl::string_view, absl::remove_cvref_t<K>>>;
+          absl::string_view,
+          std::conditional_t<IsConvertibleToKeyPtr<K>::value,
+                             const std::remove_pointer_t<key_type>*,
+                             absl::remove_cvref_t<K>>>>;
 
   // Prefetch the heap-allocated memory region to resolve potential TLB and
   // cache misses. This is intended to overlap with execution of calculating the
