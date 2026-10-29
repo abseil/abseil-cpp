@@ -378,11 +378,11 @@ class MaskedPointer {
   MaskedPointer(const MaskedPointer& rhs) = default;
   MaskedPointer& operator=(const MaskedPointer& rhs) = default;
 
-  void* Ptr() const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void* Ptr() const {
     return reinterpret_cast<void*>(reinterpret_cast<mask_t>(ptr_) &
                                    kPtrValueMask);
   }
-  bool AllowsUnprotectedRead() const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool AllowsUnprotectedRead() const {
     return (reinterpret_cast<mask_t>(ptr_) & kAllowsUnprotectedRead) ==
            kAllowsUnprotectedRead;
   }
@@ -437,7 +437,7 @@ struct FlagValue;
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue(0) {}
-  bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
     int64_t storage = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(storage == 0)) {
       // This assert is to ensure that the initialization inside FlagImpl::Init
@@ -458,7 +458,7 @@ struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue() {}
-  bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
     int64_t one_word_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(one_word_val == FlagOneWordValue::Uninitialized())) {
       return false;
@@ -476,7 +476,8 @@ struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
 // value once it is initialized.
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kSequenceLocked> {
-  bool Get(const SequenceLock& lock, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock& lock,
+                                        T& dst) const {
     return lock.TryRead(&dst, value_words, sizeof(T));
   }
 
@@ -531,7 +532,7 @@ struct FlagValue<T, FlagValueStorageKind::kHeapAllocated>
   // ensure Init is done before any access to the flag value.
   constexpr FlagValue() : FlagMaskedPointerValue(&buffer[0]) {}
 
-  bool Get(const SequenceLock&, T& dst) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool Get(const SequenceLock&, T& dst) const {
     MaskedPointer ptr_value = value.load(std::memory_order_acquire);
 
     if (ABSL_PREDICT_TRUE(ptr_value.AllowsUnprotectedRead())) {
@@ -641,6 +642,8 @@ class FlagImpl final : public CommandLineFlag {
  private:
   template <typename T>
   friend class Flag;
+  template <typename, bool>
+  friend class FlagRegistrar;
   friend class FlagState;
 
   // Ensures that `data_guard_` is initialized and returns it.
@@ -718,6 +721,7 @@ class FlagImpl final : public CommandLineFlag {
   // saving and restoring a state.
   std::unique_ptr<FlagStateInterface> SaveState() override
       ABSL_LOCKS_EXCLUDED(DataGuard());
+  void RestoreToInitialState() override ABSL_LOCKS_EXCLUDED(DataGuard());
 
   // Restores the flag state to the supplied state object. If there is
   // nothing to restore returns false. Otherwise returns true.
@@ -792,6 +796,14 @@ class FlagImpl final : public CommandLineFlag {
 // flag reflection handle interface.
 
 template <typename T>
+struct IsSupportedFlagType : std::false_type {};
+#define ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE(T, name) \
+  template <>                                          \
+  struct IsSupportedFlagType<T> : std::true_type {};
+ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE)
+#undef ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE
+
+template <typename T>
 class Flag {
  public:
   constexpr Flag(const char* name, const char* type_name, const char* filename,
@@ -816,7 +828,7 @@ class Flag {
   friend class FlagRegistrar;
   friend class FlagImplPeer;
 
-  T Get() const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE T Get() const {
     // See implementation notes in CommandLineFlag::Get().
     union U {
       T value;
@@ -826,7 +838,13 @@ class Flag {
     U u;
 
 #if !defined(NDEBUG)
-    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    if constexpr (IsSupportedFlagType<T>::value) {
+      if (ABSL_PREDICT_FALSE(impl_.op_ != &FlagOps<T>)) {
+        impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      }
+    } else {
+      impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    }
 #endif
 
     if (ABSL_PREDICT_FALSE(!value_.Get(impl_.seq_lock_, u.value))) {
@@ -835,7 +853,13 @@ class Flag {
     return std::move(u.value);
   }
   void Set(const T& v) {
-    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    if constexpr (IsSupportedFlagType<T>::value) {
+      if (ABSL_PREDICT_FALSE(impl_.op_ != &FlagOps<T>)) {
+        impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+      }
+    } else {
+      impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    }
     impl_.Write(&v);
   }
 
@@ -856,7 +880,7 @@ class Flag {
 class FlagImplPeer {
  public:
   template <typename T, typename FlagType>
-  static T InvokeGet(const FlagType& flag) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static T InvokeGet(const FlagType& flag) {
     return flag.Get();
   }
   template <typename FlagType, typename T>
@@ -939,8 +963,10 @@ class FlagRegistrar {
  public:
   constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename)
       : flag_(flag) {
-    if (do_register)
-      flags_internal::RegisterCommandLineFlag(flag_.impl_, filename);
+    if (do_register) {
+      flags_internal::RegisterCommandLineFlag(
+          flag_.impl_, flag_.impl_.filename_ == filename ? nullptr : filename);
+    }
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
