@@ -247,9 +247,11 @@ HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
 // It is useful to avoid sampling attempts and sampling delays in tests.
 void TestOnlyRefreshSamplingStateForCurrentThread();
 
-// Returns a sampling handle.
-inline HashtablezInfoHandle Sample(size_t inline_element_size, size_t key_size,
-                                   size_t value_size, uint16_t soo_capacity) {
+// Returns a sampling handle. For use in tests only: `raw_hash_set` calls
+// `ShouldSampleNextTable()` and `ForcedTrySample()` directly.
+inline HashtablezInfoHandle SampleForTesting(size_t inline_element_size,
+                                             size_t key_size, size_t value_size,
+                                             uint16_t soo_capacity) {
   if (ABSL_PREDICT_TRUE(!ShouldSampleNextTable())) {
     return HashtablezInfoHandle(nullptr);
   }
