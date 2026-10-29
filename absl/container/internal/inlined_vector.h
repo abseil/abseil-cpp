@@ -825,8 +825,7 @@ auto Storage<T, N, A>::EmplaceBack(Args&&... args) -> Reference<A> {
     AddSize(1);
     return *last_ptr;
   }
-  // TODO(b/173712035): Annotate with musttail attribute to prevent regression.
-  return EmplaceBackSlow(std::forward<Args>(args)...);
+  ABSL_ATTRIBUTE_MUSTTAIL return EmplaceBackSlow(std::forward<Args>(args)...);
 }
 
 template <typename T, size_t N, typename A>
