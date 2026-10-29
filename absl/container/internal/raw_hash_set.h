@@ -2715,6 +2715,7 @@ class raw_hash_set {
     bool unchecked_equals(const const_iterator& b) const {
       return inner_.unchecked_equals(b.inner_);
     }
+    reference unchecked_deref() const { return inner_.unchecked_deref(); }
     ctrl_t* control() const { return inner_.control(); }
     slot_type* slot() const { return inner_.slot(); }
 
@@ -3258,7 +3259,7 @@ class raw_hash_set {
   template <class K = key_type>
   size_type erase(const key_arg<K>& key) {
     auto it = find(key);
-    if (it == end()) return 0;
+    if (it.unchecked_equals(end())) return 0;
     erase(it);
     return 1;
   }
@@ -3358,7 +3359,8 @@ class raw_hash_set {
             std::enable_if_t<!std::is_same_v<K, iterator>, int> = 0>
   node_type extract(const key_arg<K>& key) {
     auto it = find(key);
-    return it == end() ? node_type() : extract(const_iterator{it});
+    return it.unchecked_equals(end()) ? node_type()
+                                      : extract(const_iterator{it});
   }
 
   void swap(raw_hash_set& that) noexcept(
@@ -3457,14 +3459,14 @@ class raw_hash_set {
   std::pair<iterator, iterator> equal_range(const key_arg<K>& key)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
-    if (it != end()) return {it, std::next(it)};
+    if (!it.unchecked_equals(end())) return {it, std::next(it)};
     return {it, it};
   }
   template <class K = key_type>
   std::pair<const_iterator, const_iterator> equal_range(
       const key_arg<K>& key) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = find(key);
-    if (it != end()) return {it, std::next(it)};
+    if (!it.unchecked_equals(end())) return {it, std::next(it)};
     return {it, it};
   }
 
@@ -3490,7 +3492,7 @@ class raw_hash_set {
     if (outer->capacity() > inner->capacity()) std::swap(outer, inner);
     for (const value_type& elem : *outer) {
       auto it = PolicyTraits::apply(FindElement{*inner}, elem);
-      if (it == inner->end()) return false;
+      if (unchecked_equals(it, inner->end())) return false;
       // Note: we used key_equal to check for key equality in FindElement, but
       // we may need to do an additional comparison using
       // value_type::operator==. E.g. the keys could be equal and the
@@ -3499,7 +3501,7 @@ class raw_hash_set {
       static constexpr bool kKeyEqIsValueEq =
           std::is_same_v<key_type, value_type> &&
           std::is_same_v<key_equal, hash_default_eq<key_type>>;
-      if (!kKeyEqIsValueEq && !(*it == elem)) return false;
+      if (!kKeyEqIsValueEq && !(unchecked_deref(it) == elem)) return false;
     }
     return true;
   }
@@ -4013,7 +4015,19 @@ class raw_hash_set {
     return {ctrl, to_slot(slot), common().generation_ptr()};
   }
 
-  reference unchecked_deref(iterator it) { return it.unchecked_deref(); }
+  // For use in raw_hash_map and friend functions.
+  static typename iterator::reference unchecked_deref(iterator it) {
+    return it.unchecked_deref();
+  }
+  static const_reference unchecked_deref(const_iterator it) {
+    return it.unchecked_deref();
+  }
+  static bool unchecked_equals(iterator a, iterator b) {
+    return a.unchecked_equals(b);
+  }
+  static bool unchecked_equals(const_iterator a, const_iterator b) {
+    return a.unchecked_equals(b);
+  }
 
  private:
   friend struct RawHashSetTestOnlyAccess;
