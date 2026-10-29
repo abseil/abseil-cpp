@@ -139,6 +139,41 @@ TEST(NotificationTest, SanityTest) {
   BasicTests(true, &local_notification2);
 }
 
+TEST(NotificationTest, MultipleWaitersAndDestructionAfterWait) {
+  constexpr int kNumWaiters = 16;
+  auto* notification = new Notification();
+  ThreadSafeCounter ready_counter;
+  ThreadSafeCounter done_counter;
+
+  std::vector<std::thread> waiters;
+  waiters.reserve(kNumWaiters);
+  for (int i = 0; i < kNumWaiters; ++i) {
+    waiters.emplace_back([i, notification, &ready_counter, &done_counter]() {
+      ready_counter.Increment();
+      if (i % 3 == 0) {
+        notification->WaitForNotification();
+      } else if (i % 3 == 1) {
+        EXPECT_TRUE(
+            notification->WaitForNotificationWithTimeout(absl::Seconds(60)));
+      } else {
+        EXPECT_TRUE(notification->WaitForNotificationWithDeadline(
+            absl::Now() + absl::Seconds(60)));
+      }
+      done_counter.Increment();
+    });
+  }
+
+  ready_counter.WaitUntilGreaterOrEqual(kNumWaiters);
+  std::thread notifier([notification]() { notification->Notify(); });
+  done_counter.WaitUntilGreaterOrEqual(kNumWaiters);
+  delete notification;
+
+  notifier.join();
+  for (std::thread& waiter : waiters) {
+    waiter.join();
+  }
+}
+
 #if ABSL_HAVE_ATTRIBUTE_WEAK
 
 namespace base_internal {
