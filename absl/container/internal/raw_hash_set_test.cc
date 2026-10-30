@@ -1801,6 +1801,9 @@ TYPED_TEST(ExtendedSooTest, ClearDifferentSizes) {
 }
 
 TYPED_TEST(ExtendedSooTest, ReserveTwice) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   for (int reserve_size = 0; reserve_size < 32; ++reserve_size) {
     for (int reserve_size2 = reserve_size; reserve_size2 < 32;
          ++reserve_size2) {
@@ -2358,6 +2361,9 @@ TYPED_TEST(SooTest, HintInsert) {
 }
 
 TYPED_TEST(SooTest, RehashZeroForSmallTable) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   TypeParam t{0};
   EXPECT_EQ(t.capacity(), 1);
   t.rehash(0);
@@ -2370,6 +2376,9 @@ TYPED_TEST(SooTest, RehashZeroForSmallTable) {
 }
 
 TYPED_TEST(SooTest, RangeConstructorReservation) {
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
+
   constexpr int kMaxSize = 25;
   std::vector<int> v;
   for (int size = 1; size <= kMaxSize; ++size) {
@@ -2521,6 +2530,9 @@ TYPED_TEST(SooTest, UnstablePointers) {
 TYPED_TEST(SooTest, IteratorInvalidAssertsEqualityOperator) {
   if (!IsAssertEnabled() && !SwisstableGenerationsEnabled())
     GTEST_SKIP() << "Assertions not enabled.";
+
+  // We need to disable hashtablez to avoid issues related to SOO and sampling.
+  DisableSampling();
 
   TypeParam t;
   t.insert(1);
@@ -4805,10 +4817,17 @@ TEST(Table, InvalidReferenceUseCrashesWithSanitizers) {
   // RehashProbabilityConstant().
   int i = 0;
   while (t.capacity() <= RehashProbabilityConstant()) {
-    // ptr will become invalidated on rehash.
-    const auto* ptr = &*t.begin();
-    t.insert(++i);
-    EXPECT_DEATH_IF_SUPPORTED(std::cout << **ptr, "use-after-free") << i;
+    ++i;
+    EXPECT_DEATH_IF_SUPPORTED(
+        {
+          // ptr will become invalidated on rehash.
+          const auto* ptr = &*t.begin();
+          t.insert(i);
+          std::cout << **ptr;
+        },
+        "use-after-free")
+        << i;
+    t.insert(i);
   }
 }
 
