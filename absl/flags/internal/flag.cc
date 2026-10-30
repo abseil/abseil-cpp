@@ -56,6 +56,9 @@ namespace flags_internal {
 // if ABSL_FLAGS_STRIP_HELP is set to 1 before including absl/flags/flag.h
 const char kStrippedFlagHelp[] = "\001\002\003\004 (unknown) \004\003\002\001";
 
+template void GenDefaultValue<std::string>(void*);
+template void GenDefaultValue<std::vector<std::string>>(void*);
+
 namespace {
 
 // Currently we only validate flag values for user-defined flag types.
