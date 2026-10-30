@@ -644,6 +644,24 @@ TEST(GraphCycles, RanksRunOut) {
   CheckInvariants(g);
 }
 
+TEST(GraphCycles, GetIdIsNewAndRemoveNodeResult) {
+  GraphCycles g;
+  int a = 0;
+  bool is_new = false;
+  EXPECT_FALSE(g.RemoveNode(&a));
+
+  const GraphId id1 = g.GetId(&a, &is_new);
+  EXPECT_TRUE(is_new);
+  EXPECT_EQ(g.GetId(&a, &is_new), id1);
+  EXPECT_FALSE(is_new);
+
+  EXPECT_TRUE(g.RemoveNode(&a));
+  EXPECT_FALSE(g.RemoveNode(&a));
+
+  EXPECT_NE(g.GetId(&a, &is_new), id1);
+  EXPECT_TRUE(is_new);
+}
+
 }  // namespace synchronization_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

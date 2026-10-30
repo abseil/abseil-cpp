@@ -1250,6 +1250,45 @@ PerThreadSynch* Mutex::Wakeup(PerThreadSynch* w) {
   return next;
 }
 
+// Counts of deadlock_graph nodes per hash bucket of Mutex addresses, so that
+// ForgetDeadlockInfo() can skip deadlock_graph_mu when the bucket of a Mutex
+// is empty. Most Mutexes never get a node, since they are never held while
+// another lock is acquired. Each word holds four 8-bit counts, which are
+// modified only under deadlock_graph_mu but read without it. A count that
+// reaches 255 stays there, so its bucket is never treated as empty again.
+constexpr int kDeadlockNodeBucketBits = 18;
+ABSL_CONST_INIT static std::atomic<uint32_t>
+    deadlock_node_bucket_counts[(size_t{1} << kDeadlockNodeBucketBits) / 4];
+
+namespace {
+struct DeadlockNodeBucket {
+  std::atomic<uint32_t>* word;
+  int shift;  // Bit offset of the count within *word.
+
+  explicit DeadlockNodeBucket(const Mutex* mu) {
+    const uint64_t h =
+        uint64_t{reinterpret_cast<uintptr_t>(mu)} * 0x9e3779b97f4a7c15ULL;
+    const size_t i = static_cast<size_t>(h >> (64 - kDeadlockNodeBucketBits));
+    word = &deadlock_node_bucket_counts[i / 4];
+    shift = static_cast<int>(i % 4) * 8;
+  }
+
+  bool IsEmpty() const {
+    return ((word->load(std::memory_order_relaxed) >> shift) & 0xff) == 0;
+  }
+
+  // Adds 1 to (if increment) or subtracts 1 from the count, unless it is
+  // saturated.
+  void Update(bool increment) const
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
+    const uint32_t w = word->load(std::memory_order_relaxed);
+    if (((w >> shift) & 0xff) == 0xff) return;
+    const uint32_t one = uint32_t{1} << shift;
+    word->store(increment ? w + one : w - one, std::memory_order_relaxed);
+  }
+};
+}  // namespace
+
 static GraphId GetGraphIdLocked(Mutex* mu)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(deadlock_graph_mu) {
   if (!deadlock_graph) {  // (re)create the deadlock graph.
@@ -1257,7 +1296,10 @@ static GraphId GetGraphIdLocked(Mutex* mu)
         new (base_internal::LowLevelAlloc::Alloc(sizeof(*deadlock_graph)))
             GraphCycles;
   }
-  return deadlock_graph->GetId(mu);
+  bool is_new = false;
+  const GraphId id = deadlock_graph->GetId(mu, &is_new);
+  if (is_new) DeadlockNodeBucket(mu).Update(/*increment=*/true);
+  return id;
 }
 
 // Returns the index of the entry for mu in held_locks, or -1 if there is none.
@@ -1544,9 +1586,14 @@ void Mutex::ForgetDeadlockInfo() {
         held_locks->locks[i].forgotten = true;
       }
     }
+    // A node for this Mutex is created by a DeadlockCheck() call that
+    // happens-before this call, unless the two race (which would also race
+    // with the removal below), so then its bucket is not empty here.
+    const DeadlockNodeBucket bucket(this);
+    if (bucket.IsEmpty()) return;
     deadlock_graph_mu.lock();
-    if (deadlock_graph != nullptr) {
-      deadlock_graph->RemoveNode(this);
+    if (deadlock_graph != nullptr && deadlock_graph->RemoveNode(this)) {
+      bucket.Update(/*increment=*/false);
     }
     deadlock_graph_mu.unlock();
   }
