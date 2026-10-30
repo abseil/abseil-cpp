@@ -136,7 +136,7 @@ jobs:
           # windows-msvc-2022-cxx17-dbg-cmake.cfg
           # windows-msvc-2022-cxx17-dbg-dll-cmake.cfg
           - name: Windows MSVC 2022
-            os: windows-2022
+            os: windows-2022-8-core
             build_types: '["Debug"]'
             link_modes: '["static", "shared"]'
     uses: ./.github/workflows/cmake.yml
@@ -170,7 +170,7 @@ jobs:
     uses: ./.github/workflows/bazel.yml
     secrets: inherit
     with:
-      os: windows-2022
+      os: windows-2022-8-core
       toolchain: ${{ matrix.config.toolchain }}
       remote_config: remote-cache
       alternate_options: ${{ matrix.config.alternate_options || false }}
