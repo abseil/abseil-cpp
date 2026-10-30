@@ -1868,6 +1868,93 @@ inline void AssertSameContainer(const ctrl_t* const& ctrl_a,
   }
 }
 
+// Base class for iterators that stores type-erased control and slot pointers
+// and implements operations that do not depend on the slot type or size.
+class HashSetIteratorBase : private HashSetIteratorGenerationInfo {
+ public:
+  // We use DefaultIterSlot() for default-constructed iterators so that
+  // they can be distinguished from end iterators, which have nullptr slot_.
+  HashSetIteratorBase() : slot_(DefaultIterSlot()) {}
+
+ protected:
+  HashSetIteratorBase(ctrl_t* ctrl, void* slot,
+                      const GenerationType* generation_ptr)
+      : HashSetIteratorGenerationInfo(generation_ptr),
+        ctrl_(ctrl),
+        slot_(slot) {
+    // This assumption helps the compiler know that any non-end iterator is
+    // not equal to any end iterator.
+    ABSL_ASSUME(slot != nullptr);
+  }
+  // For end() iterators.
+  explicit HashSetIteratorBase(const GenerationType* generation_ptr)
+      : HashSetIteratorGenerationInfo(generation_ptr), slot_(nullptr) {}
+
+  void assert_is_full(const char* operation) const {
+    AssertIsFull(ctrl_, slot_, generation(), generation_ptr(), operation);
+  }
+  void* deref_slot() const {
+    assert_is_full("operator*()");
+    return slot_;
+  }
+  void* arrow_slot() const {
+    assert_is_full("operator->");
+    return slot_;
+  }
+
+  bool equals(const HashSetIteratorBase& b) const {
+    if constexpr (SwisstableDebugEnabled()) {
+      AssertIsValidForComparison(ctrl_, slot_, generation(), generation_ptr());
+      AssertIsValidForComparison(b.ctrl_, b.slot_, b.generation(),
+                                 b.generation_ptr());
+      AssertSameContainer(ctrl_, b.ctrl_, slot_, b.slot_, generation_ptr(),
+                          b.generation_ptr());
+    }
+    return unchecked_equals(b);
+  }
+
+  // An equality check which skips ABSL Hardening iterator invalidation
+  // checks.
+  // Should be used when the lifetimes of the iterators are well-enough
+  // understood to prove that they cannot be invalid.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_equals(
+      const HashSetIteratorBase& b) const {
+    return slot_ == b.slot_;
+  }
+
+  ctrl_t* control() const { return ctrl_; }
+
+  // To avoid uninitialized member warnings, put ctrl_ in an anonymous union.
+  // The member is not initialized on singleton and end iterators.
+  union {
+    ctrl_t* ctrl_;
+  };
+  void* slot_;
+};
+
+template <size_t kSlotSize>
+class HashSetSizedIteratorBase : public HashSetIteratorBase {
+ protected:
+  using HashSetIteratorBase::HashSetIteratorBase;
+
+  void increment() {
+    assert_is_full("operator++");
+    ++ctrl_;
+    slot_ = static_cast<char*>(slot_) + kSlotSize;
+    skip_empty_or_deleted();
+    if (ABSL_PREDICT_FALSE(*ctrl_ == ctrl_t::kSentinel)) slot_ = nullptr;
+  }
+
+  // Fixes up `ctrl_` to point to a full or sentinel by advancing `ctrl_` and
+  // `slot_` until they reach one.
+  void skip_empty_or_deleted() {
+    while (IsEmptyOrDeleted(*ctrl_)) {
+      ++ctrl_;
+      slot_ = static_cast<char*>(slot_) + kSlotSize;
+    }
+  }
+};
+
 struct FindInfo {
   size_t offset;
   size_t probe_length;
@@ -2627,7 +2714,8 @@ class raw_hash_set {
   static_assert(std::is_same_v<const_pointer, const value_type*>,
                 "Allocators with custom pointer types are not supported");
 
-  class iterator : private HashSetIteratorGenerationInfo {
+  class iterator : private HashSetSizedIteratorBase<sizeof(slot_type)> {
+    using Base = HashSetSizedIteratorBase<sizeof(slot_type)>;
     friend class raw_hash_set;
     friend struct HashtableFreeFunctionsAccess;
 
@@ -2636,33 +2724,25 @@ class raw_hash_set {
     using value_type = typename raw_hash_set::value_type;
     using reference =
         std::conditional_t<PolicyTraits::constant_iterators::value,
-                            const value_type&, value_type&>;
+                           const value_type&, value_type&>;
     using pointer = std::remove_reference_t<reference>*;
     using difference_type = typename raw_hash_set::difference_type;
 
-    // We use DefaultIterSlot() for default-constructed iterators so that
-    // they can be distinguished from end iterators, which have nullptr slot_.
-    iterator() : slot_(static_cast<slot_type*>(DefaultIterSlot())) {}
+    iterator() = default;
 
     // PRECONDITION: not an end() iterator.
     reference operator*() const {
-      assert_is_full("operator*()");
-      return unchecked_deref();
+      return PolicyTraits::element(to_slot(this->deref_slot()));
     }
 
     // PRECONDITION: not an end() iterator.
     pointer operator->() const {
-      assert_is_full("operator->");
-      return &operator*();
+      return &PolicyTraits::element(to_slot(this->arrow_slot()));
     }
 
     // PRECONDITION: not an end() iterator.
     iterator& operator++() {
-      assert_is_full("operator++");
-      ++ctrl_;
-      ++slot_;
-      skip_empty_or_deleted();
-      if (ABSL_PREDICT_FALSE(*ctrl_ == ctrl_t::kSentinel)) slot_ = nullptr;
+      this->increment();
       return *this;
     }
     // PRECONDITION: not an end() iterator.
@@ -2673,66 +2753,24 @@ class raw_hash_set {
     }
 
     friend bool operator==(const iterator& a, const iterator& b) {
-      if constexpr (SwisstableDebugEnabled()) {
-        AssertIsValidForComparison(a.ctrl_, a.slot_, a.generation(),
-                                   a.generation_ptr());
-        AssertIsValidForComparison(b.ctrl_, b.slot_, b.generation(),
-                                   b.generation_ptr());
-        AssertSameContainer(a.ctrl_, b.ctrl_, a.slot_, b.slot_,
-                            a.generation_ptr(), b.generation_ptr());
-      }
-      return a.unchecked_equals(b);
+      return a.equals(b);
     }
     friend bool operator!=(const iterator& a, const iterator& b) {
       return !(a == b);
     }
 
    private:
-    iterator(ctrl_t* ctrl, slot_type* slot,
-             const GenerationType* generation_ptr)
-        : HashSetIteratorGenerationInfo(generation_ptr),
-          ctrl_(ctrl),
-          slot_(slot) {
-      // This assumption helps the compiler know that any non-end iterator is
-      // not equal to any end iterator.
-      ABSL_ASSUME(slot != nullptr);
-    }
-    // For end() iterators.
-    explicit iterator(const GenerationType* generation_ptr)
-        : HashSetIteratorGenerationInfo(generation_ptr), slot_(nullptr) {}
-
-    void assert_is_full(const char* operation) const {
-      AssertIsFull(ctrl_, slot_, generation(), generation_ptr(), operation);
-    }
-
-    // Fixes up `ctrl_` to point to a full or sentinel by advancing `ctrl_` and
-    // `slot_` until they reach one.
-    void skip_empty_or_deleted() {
-      while (IsEmptyOrDeleted(*ctrl_)) {
-        ++ctrl_;
-        ++slot_;
-      }
-    }
-
-    // An equality check which skips ABSL Hardening iterator invalidation
-    // checks.
-    // Should be used when the lifetimes of the iterators are well-enough
-    // understood to prove that they cannot be invalid.
-    bool unchecked_equals(const iterator& b) const { return slot_ == b.slot(); }
+    using Base::Base;
 
     // Dereferences the iterator without ABSL Hardening iterator invalidation
     // checks.
-    reference unchecked_deref() const { return PolicyTraits::element(slot_); }
+    ABSL_ATTRIBUTE_ALWAYS_INLINE reference unchecked_deref() const {
+      return PolicyTraits::element(slot());
+    }
 
-    ctrl_t* control() const { return ctrl_; }
-    slot_type* slot() const { return slot_; }
-
-    // To avoid uninitialized member warnings, put ctrl_ in an anonymous union.
-    // The member is not initialized on singleton and end iterators.
-    union {
-      ctrl_t* ctrl_;
-    };
-    slot_type* slot_;
+    ABSL_ATTRIBUTE_ALWAYS_INLINE slot_type* slot() const {
+      return to_slot(this->slot_);
+    }
   };
 
   class const_iterator {
@@ -2769,16 +2807,16 @@ class raw_hash_set {
     }
 
    private:
-    const_iterator(const ctrl_t* ctrl, const slot_type* slot,
-                   const GenerationType* gen)
-        : inner_(const_cast<ctrl_t*>(ctrl), const_cast<slot_type*>(slot), gen) {
-    }
-    bool unchecked_equals(const const_iterator& b) const {
+    ABSL_ATTRIBUTE_ALWAYS_INLINE bool unchecked_equals(
+        const const_iterator& b) const {
       return inner_.unchecked_equals(b.inner_);
     }
-    reference unchecked_deref() const { return inner_.unchecked_deref(); }
-    ctrl_t* control() const { return inner_.control(); }
-    slot_type* slot() const { return inner_.slot(); }
+    ABSL_ATTRIBUTE_ALWAYS_INLINE reference unchecked_deref() const {
+      return inner_.unchecked_deref();
+    }
+    ABSL_ATTRIBUTE_ALWAYS_INLINE slot_type* slot() const {
+      return inner_.slot();
+    }
 
     iterator inner_;
   };
@@ -4072,28 +4110,26 @@ class raw_hash_set {
     }
     return {InsertIteratorControl(), slot, common().generation_ptr()};
   }
-  iterator iterator_at(size_t i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return {control() + i, slot_array() + i, common().generation_ptr()};
-  }
-  const_iterator iterator_at(size_t i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_cast<raw_hash_set*>(this)->iterator_at(i);
-  }
   iterator iterator_at_ptr(ctrl_t* ctrl, void* slot)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return {ctrl, to_slot(slot), common().generation_ptr()};
+    return {ctrl, slot, common().generation_ptr()};
   }
 
   // For use in raw_hash_map and friend functions.
-  static typename iterator::reference unchecked_deref(iterator it) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static decltype(auto) unchecked_deref(
+      iterator it) {
     return it.unchecked_deref();
   }
-  static const_reference unchecked_deref(const_iterator it) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static const_reference unchecked_deref(
+      const_iterator it) {
     return it.unchecked_deref();
   }
-  static bool unchecked_equals(iterator a, iterator b) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(iterator a,
+                                                            iterator b) {
     return a.unchecked_equals(b);
   }
-  static bool unchecked_equals(const_iterator a, const_iterator b) {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static bool unchecked_equals(const_iterator a,
+                                                            const_iterator b) {
     return a.unchecked_equals(b);
   }
 
