@@ -154,7 +154,6 @@ inline ptrdiff_t ValueOffset(FlagOpFn op) {
   return static_cast<ptrdiff_t>(reinterpret_cast<intptr_t>(
       op(FlagOp::kValueOffset, nullptr, nullptr, nullptr)));
 }
-
 // Returns an address of RTTI's typeid(T).
 template <typename T>
 inline const std::type_info* GenRuntimeTypeId() {
@@ -166,7 +165,7 @@ inline const std::type_info* GenRuntimeTypeId() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Flag help auxiliary structs.
+// Flag help and name/type-name auxiliary structs.
 
 // This is help argument for absl::Flag encapsulating the string literal pointer
 // or pointer to function generating it as well as enum discriminating two
@@ -183,6 +182,113 @@ struct FixedCharArray {
     return (void)str, FixedCharArray<N>({{str[I]..., '\0'}});
   }
 };
+
+inline constexpr uint8_t kEmptyFlagTypeId = 0;
+inline constexpr uint8_t kCustomFlagTypeId = 31;
+
+// Common macro-stringified `#Type` spellings stored as a 5-bit ID in `FlagImpl`
+// so common flags avoid emitting a per-flag type-name string. Entry 0 (`""`) is
+// used when flag names are stripped or omitted; ID 31 (`kCustomFlagTypeId`)
+// indicates that `name_` points to a packed `"<name>\0<type_name>\0"` array.
+inline constexpr absl::string_view kCommonFlagTypeNames[] = {
+    "",
+    "bool",
+    "int",
+    "int16_t",
+    "uint16_t",
+    "int32_t",
+    "uint32_t",
+    "int64_t",
+    "uint64_t",
+    "size_t",
+    "float",
+    "double",
+    "std::string",
+    "string",
+    "std::vector<std::string>",
+    "absl::Duration",
+    "absl::Time",
+    "absl::int128",
+    "absl::uint128",
+    "std::int32_t",
+    "std::int64_t",
+    "std::optional<bool>",
+    "std::optional<int>",
+    "std::optional<int32_t>",
+    "std::optional<uint32_t>",
+    "std::optional<int64_t>",
+    "std::optional<uint64_t>",
+    "std::optional<size_t>",
+    "std::optional<double>",
+    "std::optional<std::string>",
+    "std::optional<absl::Duration>",
+};
+static_assert(sizeof(kCommonFlagTypeNames) / sizeof(kCommonFlagTypeNames[0]) ==
+                  kCustomFlagTypeId,
+              "kCommonFlagTypeNames must have kCustomFlagTypeId entries");
+
+constexpr bool ConstexprStrEq(absl::string_view a, absl::string_view b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+constexpr uint8_t LookupCommonFlagTypeId(absl::string_view type_name) {
+  for (size_t i = 0; i < kCustomFlagTypeId; ++i) {
+    if (ConstexprStrEq(kCommonFlagTypeNames[i], type_name)) {
+      return static_cast<uint8_t>(i);
+    }
+  }
+  return kCustomFlagTypeId;
+}
+
+constexpr uint8_t LookupCommonOrEmptyFlagTypeId(const char* type_name) {
+  if (type_name == nullptr) return kEmptyFlagTypeId;
+  size_t len = 0;
+  while (type_name[len] != '\0') ++len;
+  const uint8_t id = LookupCommonFlagTypeId(absl::string_view(type_name, len));
+  return id == kCustomFlagTypeId ? kEmptyFlagTypeId : id;
+}
+
+struct FlagNameArg {
+  const char* name;
+  uint8_t type_id;
+};
+
+template <size_t N1, size_t N2, size_t... I1, size_t... I2>
+constexpr FixedCharArray<N1 + N2 + 2> PackNameAndTypeImpl(
+    absl::string_view name, absl::string_view type_name,
+    std::index_sequence<I1...>, std::index_sequence<I2...>) {
+  return (void)name, (void)type_name,
+         FixedCharArray<N1 + N2 + 2>(
+             {{name[I1]..., '\0', type_name[I2]..., '\0'}});
+}
+
+template <typename Gen>
+constexpr auto PackNameAndType() {
+  constexpr absl::string_view kName = Gen::AbslFlagNameView();
+  constexpr absl::string_view kType = Gen::AbslFlagTypeName();
+  return PackNameAndTypeImpl<kName.size(), kType.size()>(
+      kName, kType, std::make_index_sequence<kName.size()>{},
+      std::make_index_sequence<kType.size()>{});
+}
+
+template <typename Gen>
+struct PackedFlagNameAndType {
+  static constexpr auto value = PackNameAndType<Gen>();
+};
+
+template <typename Gen>
+constexpr FlagNameArg MakeFlagNameArg() {
+  constexpr uint8_t kTypeId = LookupCommonFlagTypeId(Gen::AbslFlagTypeName());
+  if constexpr (kTypeId != kCustomFlagTypeId) {
+    return {Gen::AbslFlagName(), kTypeId};
+  } else {
+    return {PackedFlagNameAndType<Gen>::value.value, kCustomFlagTypeId};
+  }
+}
 
 template <typename Gen, size_t N = Gen::Value().size()>
 constexpr FixedCharArray<N + 1> HelpStringAsArray(int) {
@@ -437,7 +543,7 @@ struct FlagValue;
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue(0) {}
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     int64_t storage = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(storage == 0)) {
       // This assert is to ensure that the initialization inside FlagImpl::Init
@@ -458,7 +564,7 @@ struct FlagValue<T, FlagValueStorageKind::kValueAndInitBit> : FlagOneWordValue {
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
   constexpr FlagValue() : FlagOneWordValue() {}
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     int64_t one_word_val = value.load(std::memory_order_acquire);
     if (ABSL_PREDICT_FALSE(one_word_val == FlagOneWordValue::Uninitialized())) {
       return false;
@@ -476,8 +582,17 @@ struct FlagValue<T, FlagValueStorageKind::kOneWordAtomic> : FlagOneWordValue {
 // value once it is initialized.
 template <typename T>
 struct FlagValue<T, FlagValueStorageKind::kSequenceLocked> {
-  bool Get(const SequenceLock& lock, T& dst) const {
-    return lock.TryRead(&dst, value_words, sizeof(T));
+  constexpr FlagValue() : FlagValue(std::make_index_sequence<kNumWords>{}) {}
+
+  bool Get(T& dst) const {
+    // FlagImpl::SeqLock() computes `&seq_lock` via `AtomicBufferValue() +
+    // kNumWords`, so verify no padding or fields sit between `value_words`
+    // and `seq_lock`.
+    static_assert(
+        offsetof(FlagValue, seq_lock) - offsetof(FlagValue, value_words) ==
+            kNumWords * sizeof(std::atomic<uint64_t>),
+        "Unexpected memory layout of sequence-locked FlagValue");
+    return seq_lock.TryRead(&dst, value_words, sizeof(T));
   }
 
   static constexpr int kNumWords =
@@ -485,6 +600,12 @@ struct FlagValue<T, FlagValueStorageKind::kSequenceLocked> {
 
   alignas(T) alignas(
       std::atomic<uint64_t>) std::atomic<uint64_t> value_words[kNumWords];
+  flags_internal::SequenceLock seq_lock;
+
+ private:
+  template <size_t... Is>
+  constexpr explicit FlagValue(std::index_sequence<Is...>)
+      : value_words{(static_cast<void>(Is), uint64_t{0})...} {}
 };
 
 // This specialization represents the storage of flag values types with the
@@ -531,7 +652,7 @@ struct FlagValue<T, FlagValueStorageKind::kHeapAllocated>
   // ensure Init is done before any access to the flag value.
   constexpr FlagValue() : FlagMaskedPointerValue(&buffer[0]) {}
 
-  bool Get(const SequenceLock&, T& dst) const {
+  bool Get(T& dst) const {
     MaskedPointer ptr_value = value.load(std::memory_order_acquire);
 
     if (ABSL_PREDICT_TRUE(ptr_value.AllowsUnprotectedRead())) {
@@ -579,24 +700,40 @@ class FlagState;
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 #endif
 class FlagImpl final : public CommandLineFlag {
+ private:
+  static constexpr uint8_t kMaxInlineModCount = 7;
+
+  struct MuState {
+    uint8_t def_kind : 2;
+    bool modified : 1;
+    bool on_command_line : 1;
+    bool has_callback : 1;
+    uint8_t mod_count : 3;
+
+    constexpr FlagDefaultKind DefaultKind() const {
+      return static_cast<FlagDefaultKind>(def_kind);
+    }
+  };
+  static_assert(sizeof(MuState) == 1, "MuState must be 1 byte");
+  static_assert(std::atomic<MuState>::is_always_lock_free,
+                "std::atomic<MuState> must be lock-free");
+
  public:
-  constexpr FlagImpl(const char* name, const char* type_name,
-                     const char* filename, FlagOpFn op, FlagHelpArg help,
+  constexpr FlagImpl(FlagNameArg name, FlagOpFn op, FlagHelpArg help,
                      FlagValueStorageKind value_kind,
                      FlagDefaultArg default_arg)
-      : name_(name),
-        type_name_(type_name),
-        filename_(filename),
+      : name_(name.name),
         op_(op),
         help_(help.source),
+        default_value_(default_arg.source),
+        data_guard_{},
+        init_control_{},
+        file_id_(0),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         value_storage_kind_(static_cast<uint8_t>(value_kind)),
-        def_kind_(static_cast<uint8_t>(default_arg.kind)),
-        modified_(false),
-        on_command_line_(false),
-        callback_(nullptr),
-        default_value_(default_arg.source),
-        data_guard_{} {}
+        type_id_(name.type_id),
+        mu_state_(MuState{static_cast<uint8_t>(default_arg.kind), false, false,
+                          false, 0}) {}
 
   // Constant access methods
   int64_t ReadOneWord() const ABSL_LOCKS_EXCLUDED(DataGuard());
@@ -623,6 +760,7 @@ class FlagImpl final : public CommandLineFlag {
 
   // Mutating access methods
   void Write(const void* src) ABSL_LOCKS_EXCLUDED(DataGuard());
+  void SetFilename(const char* filename);
 
   // Interfaces to operate on callbacks.
   void SetCallback(const FlagCallbackFunc mutation_callback)
@@ -664,6 +802,9 @@ class FlagImpl final : public CommandLineFlag {
   // The same as above, but used for sequencelock-protected storage.
   std::atomic<uint64_t>* AtomicBufferValue() const;
 
+  // Accessor for the SequenceLock inside FlagValue<T, kSequenceLocked>.
+  flags_internal::SequenceLock& SeqLock() const;
+
   // This is an accessor for a value stored as one word atomic. Returns a
   // mutable reference to an atomic value.
   std::atomic<int64_t>& OneWordValue() const;
@@ -690,10 +831,6 @@ class FlagImpl final : public CommandLineFlag {
   FlagValueStorageKind ValueStorageKind() const {
     return static_cast<FlagValueStorageKind>(value_storage_kind_);
   }
-  FlagDefaultKind DefaultKind() const
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard()) {
-    return static_cast<FlagDefaultKind>(def_kind_);
-  }
 
   // CommandLineFlag interface implementation
   absl::string_view Name() const override;
@@ -701,8 +838,7 @@ class FlagImpl final : public CommandLineFlag {
   std::string Filename() const override;
   std::string Help() const override;
   FlagFastTypeId TypeId() const override;
-  bool IsSpecifiedOnCommandLine() const override
-      ABSL_LOCKS_EXCLUDED(DataGuard());
+  bool IsSpecifiedOnCommandLine() const override;
   std::string DefaultValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
   std::string CurrentValue() const override ABSL_LOCKS_EXCLUDED(DataGuard());
   bool ValidateInputValue(absl::string_view value) const override
@@ -711,7 +847,17 @@ class FlagImpl final : public CommandLineFlag {
       ABSL_LOCKS_EXCLUDED(DataGuard());
 
   int64_t ModificationCount() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
+  // Lock-free check used by SaveState() and RestoreState() to skip lazy
+  // initialization on flags that have never been mutated. Safe without
+  // DataGuard() because all mutations update mu_state_ under DataGuard()
+  // with release semantics after writing the flag value, and observing a
+  // zero modification count means the flag still holds its initial
+  // compile-time state.
+  bool IsUnmodifiedFast() const {
+    return mu_state_.load(std::memory_order_acquire).mod_count == 0;
+  }
   bool CanSkipInitOnSave() const;
+  void RecordMutation() ABSL_EXCLUSIVE_LOCKS_REQUIRED(DataGuard());
 
   // Interfaces to save and restore flags to/from persistent state.
   // Returns current flag state or nullptr if flag does not support
@@ -730,58 +876,39 @@ class FlagImpl final : public CommandLineFlag {
 
   // Immutable flag's state.
 
-  // Flags name passed to ABSL_FLAG as second arg.
+  // Flags name passed to ABSL_FLAG as second arg (followed by NUL-terminated
+  // type name when `type_id_ == kCustomFlagTypeId`).
   const char* const name_;
-
-  // Flags type passed to ABSL_FLAG as first arg.
-  const char* const type_name_;
-
-  // The file name where ABSL_FLAG resides.
-  const char* const filename_;
   // Type-specific operations vtable.
   const FlagOpFn op_;
   // Help message literal or function to generate it.
   const FlagHelpMsg help_;
-  // Indicates if help message was supplied as literal or generator func.
-  const uint8_t help_source_kind_ : 1;
-  // Kind of storage this flag is using for the flag's value.
-  const uint8_t value_storage_kind_ : 2;
-
-  uint8_t : 0;  // The bytes containing the const bitfields must not be
-                // shared with bytes containing the mutable bitfields.
-
-  // Mutable flag's state (guarded by `data_guard_`).
-
-  // def_kind_ is not guard by DataGuard() since it is accessed in Init without
-  // locks.
-  uint8_t def_kind_ : 2;
-  // Has this flag's value been modified?
-  bool modified_ : 1 ABSL_GUARDED_BY(DataGuard());
-  // Has this flag been specified on command line.
-  bool on_command_line_ : 1 ABSL_GUARDED_BY(DataGuard());
+  // Initial default value source specified in ABSL_FLAG. Dynamic default
+  // overrides set via SET_FLAGS_DEFAULT are stored in a side table.
+  const FlagDefaultSrc default_value_;
+  // Reserved space for an absl::Mutex to guard flag data, initialized in Init.
+  alignas(absl::Mutex) mutable unsigned char data_guard_[sizeof(absl::Mutex)];
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
 
-  // Sequence lock / mutation counter.
-  flags_internal::SequenceLock seq_lock_;
+  // Deduplicated filename index assigned on registration (0 = unset).
+  uint16_t file_id_;
 
-  // Optional flag's callback and absl::Mutex to guard the invocations.
-  FlagCallback* callback_ ABSL_GUARDED_BY(DataGuard());
-  // Either a pointer to the function generating the default value based on the
-  // value specified in ABSL_FLAG or pointer to the dynamically set default
-  // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
-  // these two cases.
-  FlagDefaultSrc default_value_;
+  // Indicates if help message was supplied as literal or generator func.
+  const uint8_t help_source_kind_ : 1;
+  // Kind of storage this flag is using for the flag's value.
+  const uint8_t value_storage_kind_ : 2;
+  // Index into `kCommonFlagTypeNames`, or `kCustomFlagTypeId` when `name_`
+  // stores `"<name>\0<type_name>\0"`.
+  const uint8_t type_id_ : 5;
 
-  // This is reserved space for an absl::Mutex to guard flag data. It will be
-  // initialized in FlagImpl::Init via placement new.
-  // We can't use "absl::Mutex data_guard_", since this class is not literal.
-  // We do not want to use "absl::Mutex* data_guard_", since this would require
-  // heap allocation during initialization, which is both slows program startup
-  // and can fail. Using reserved space + placement new allows us to avoid both
-  // problems.
-  alignas(absl::Mutex) mutable unsigned char data_guard_[sizeof(absl::Mutex)];
+  // Atomic state bitfields (def_kind, modified, on_command_line, has_callback,
+  // and saturating 3-bit mod_count where 7 indicates overflow in side table).
+  // All writes occur under DataGuard() with release semantics; SaveState() and
+  // RestoreState() perform lock-free acquire loads to fast-path unmodified
+  // flags without triggering lazy initialization.
+  std::atomic<MuState> mu_state_;
 };
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
@@ -794,11 +921,23 @@ class FlagImpl final : public CommandLineFlag {
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(const char* name, const char* type_name, const char* filename,
-                 FlagHelpArg help, const FlagDefaultArg default_arg)
-      : impl_(name, type_name, filename, &FlagOps<T>, help,
-              flags_internal::StorageKind<T>(), default_arg),
+  constexpr Flag(FlagNameArg name, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : impl_(name, &FlagOps<T>, help, flags_internal::StorageKind<T>(),
+              default_arg),
         value_() {}
+  constexpr Flag(const char* name, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
+  constexpr Flag(const char* name, const char* /*filename*/, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, help, default_arg) {}
+  // Kept for backwards compatibility.
+  constexpr Flag(const char* name, const char* type_name,
+                 const char* /*filename*/, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, LookupCommonOrEmptyFlagTypeId(type_name)}, help,
+             default_arg) {}
 
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }
@@ -829,7 +968,7 @@ class Flag {
     impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
 #endif
 
-    if (ABSL_PREDICT_FALSE(!value_.Get(impl_.seq_lock_, u.value))) {
+    if (ABSL_PREDICT_FALSE(!value_.Get(u.value))) {
       impl_.Read(&u.value);
     }
     return std::move(u.value);
@@ -939,8 +1078,12 @@ class FlagRegistrar {
  public:
   constexpr explicit FlagRegistrar(Flag<T>& flag, const char* filename)
       : flag_(flag) {
-    if (do_register)
+    if (filename != nullptr) {
+      flag_.impl_.SetFilename(filename);
+    }
+    if (do_register) {
       flags_internal::RegisterCommandLineFlag(flag_.impl_, filename);
+    }
   }
 
   FlagRegistrar OnUpdate(FlagCallbackFunc cb) && {
