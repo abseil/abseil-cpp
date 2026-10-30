@@ -440,6 +440,7 @@ cc_library(
     ],
     deps = [
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/hash",
         "//absl/memory",
         "//absl/meta:type_traits",

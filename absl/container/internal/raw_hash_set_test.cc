@@ -4847,18 +4847,20 @@ using RawHashSetAlloc = raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
 TEST(Table, AllocatorPropagation) { TestAllocPropagation<RawHashSetAlloc>(); }
 
 struct CountedHash {
+  explicit CountedHash(int* count) : count(count) {}
   size_t operator()(int64_t value) const {
-    ++count;
+    ++(*count);
     return static_cast<size_t>(value);
   }
-  mutable int count = 0;
+  int* count = nullptr;
 };
 
 struct CountedHashIntTable
     : raw_hash_set<IntPolicy, CountedHash, std::equal_to<int>,
                    std::allocator<int>> {
   using Base = typename CountedHashIntTable::raw_hash_set;
-  using Base::Base;
+  CountedHashIntTable() : Base(0, CountedHash(&count)) {}
+  int count = 0;
 };
 
 TEST(Table, CountedHash) {
@@ -4876,7 +4878,7 @@ TEST(Table, CountedHash) {
   DisableSampling();
 
   using Table = CountedHashIntTable;
-  auto HashCount = [](const Table& t) { return t.hash_function().count; };
+  auto HashCount = [](const Table& t) { return t.count; };
   {
     Table t;
     t.find(0);
