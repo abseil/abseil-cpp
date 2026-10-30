@@ -39,6 +39,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/flags/config.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/usage_config.h"
@@ -102,6 +103,55 @@ void AddToFreelist(void* p) {
     s_freelist = new std::vector<void*>;
   }
   s_freelist->push_back(p);
+}
+
+template <typename K, typename V>
+class ThreadSafeMap {
+ public:
+  V Get(const K& key) {
+    absl::MutexLock l(mutex_);
+    auto it = map_.find(key);
+    return it != map_.end() ? it->second : V{};
+  }
+
+  V Set(const K& key, V new_val) {
+    absl::MutexLock l(mutex_);
+    return std::exchange(map_[key], new_val);
+  }
+
+  template <typename Factory>
+  V GetOrCreate(const K& key, Factory factory) {
+    absl::MutexLock l(mutex_);
+    V& val = map_[key];
+    if (val == V{}) {
+      val = factory();
+    }
+    return val;
+  }
+
+ private:
+  absl::Mutex mutex_;
+  absl::flat_hash_map<K, V> map_ ABSL_GUARDED_BY(mutex_);
+};
+
+FlagCallback* GetOrCreateCallback(const FlagImpl* flag) {
+  static absl::NoDestructor<ThreadSafeMap<const FlagImpl*, FlagCallback*>>
+      callbacks;
+  return callbacks->GetOrCreate(flag, [] { return new FlagCallback; });
+}
+
+ThreadSafeMap<const FlagImpl*, void*>& DynamicDefaults() {
+  static absl::NoDestructor<ThreadSafeMap<const FlagImpl*, void*>>
+      dynamic_defaults;
+  return *dynamic_defaults;
+}
+
+void* GetDynamicDefault(const FlagImpl* flag) {
+  return DynamicDefaults().Get(flag);
+}
+
+void* SetDynamicDefault(const FlagImpl* flag, void* new_val) {
+  return DynamicDefaults().Set(flag, new_val);
 }
 
 }  // namespace
@@ -296,7 +346,7 @@ std::unique_ptr<void, DynValueDeleter> FlagImpl::MakeInitValue() const {
   void* res = nullptr;
   switch (DefaultKind()) {
     case FlagDefaultKind::kDynamicValue:
-      res = flags_internal::Clone(op_, default_value_.dynamic_value);
+      res = flags_internal::Clone(op_, GetDynamicDefault(this));
       break;
     case FlagDefaultKind::kGenFunc:
       res = flags_internal::Alloc(op_);
@@ -354,7 +404,12 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
 
 absl::string_view FlagImpl::Name() const { return name_; }
 
-absl::string_view FlagImpl::TypeName() const { return type_name_; }
+absl::string_view FlagImpl::TypeName() const {
+  if (ABSL_PREDICT_TRUE(type_id_ != kCustomFlagTypeId)) {
+    return kCommonFlagTypeNames[type_id_];
+  }
+  return name_ + std::strlen(name_) + 1;
+}
 
 std::string FlagImpl::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
@@ -414,20 +469,20 @@ std::string FlagImpl::CurrentValue() const {
 void FlagImpl::SetCallback(const FlagCallbackFunc mutation_callback) {
   absl::MutexLock l(DataGuard());
 
-  if (callback_ == nullptr) {
-    callback_ = new FlagCallback;
-  }
-  callback_->func = mutation_callback;
+  FlagCallback* cb = GetOrCreateCallback(this);
+  cb->func = mutation_callback;
+  has_callback_ = true;
 
   InvokeCallback();
 }
 
 void FlagImpl::InvokeCallback() const {
-  if (!callback_) return;
+  if (!has_callback_) return;
 
+  FlagCallback* cb_entry = GetOrCreateCallback(this);
   // Make a copy of the C-style function pointer that we are about to invoke
   // before we release the lock guarding it.
-  FlagCallbackFunc cb = callback_->func;
+  FlagCallbackFunc cb = cb_entry->func;
 
   // If the flag has a mutation callback this function invokes it. While the
   // callback is being invoked the primary flag's mutex is unlocked and it is
@@ -441,7 +496,7 @@ void FlagImpl::InvokeCallback() const {
   // completed. Requires that *primary_lock be held in exclusive mode; it may be
   // released and reacquired by the implementation.
   MutexRelock relock(DataGuard());
-  absl::MutexLock lock(callback_->guard);
+  absl::MutexLock lock(cb_entry->guard);
   cb();
 }
 
@@ -712,18 +767,17 @@ bool FlagImpl::ParseFrom(absl::string_view value, FlagSettingMode set_mode,
       auto tentative_value = TryParse(value, err);
       if (!tentative_value) return false;
 
+      void* new_default = tentative_value.release();
+      void* old_value = SetDynamicDefault(this, new_default);
       if (DefaultKind() == FlagDefaultKind::kDynamicValue) {
-        void* old_value = default_value_.dynamic_value;
-        default_value_.dynamic_value = tentative_value.release();
         tentative_value.reset(old_value);
       } else {
-        default_value_.dynamic_value = tentative_value.release();
         def_kind_ = static_cast<uint8_t>(FlagDefaultKind::kDynamicValue);
       }
 
       if (!modified_) {
         // Need to set both default value *and* current, in this case.
-        StoreValue(default_value_.dynamic_value, source);
+        StoreValue(new_default, source);
         modified_ = false;
       }
       break;
