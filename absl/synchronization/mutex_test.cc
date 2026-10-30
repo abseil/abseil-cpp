@@ -1403,6 +1403,50 @@ ABSL_NO_THREAD_SAFETY_ANALYSIS {
   b.unlock();
 }
 
+TEST(Mutex, ForgetDeadlockInfoInvalidatesCachedEdge)
+ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  for (bool recreate_from : {false, true}) {
+    EXPECT_DEATH_IF_SUPPORTED(
+        {
+          ScopedDisableBazelTestWarnings disable_bazel_test_warnings;
+          absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kAbort);
+          alignas(absl::Mutex) unsigned char storage_a[sizeof(absl::Mutex)];
+          alignas(absl::Mutex) unsigned char storage_b[sizeof(absl::Mutex)];
+          absl::Mutex* a = new (storage_a) absl::Mutex;
+          absl::Mutex* b = new (storage_b) absl::Mutex;
+
+          // Populate this thread's edge cache with a -> b.
+          a->lock();
+          b->lock();
+          b->unlock();
+          a->unlock();
+
+          // Destroy and recreate one endpoint at the exact same address on
+          // another thread, then record the reverse edge b -> a.
+          std::thread other([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+            if (recreate_from) {
+              a->~Mutex();
+              a = new (storage_a) absl::Mutex;
+            } else {
+              b->~Mutex();
+              b = new (storage_b) absl::Mutex;
+            }
+            b->lock();
+            a->lock();
+            a->unlock();
+            b->unlock();
+          });
+          other.join();
+
+          // Acquiring b while holding a on the original thread must not hit the
+          // stale a -> b cache entry; it must detect the b -> a -> b cycle.
+          a->lock();
+          b->lock();
+        },
+        "dying due to potential deadlock");
+  }
+}
+
 TEST(Mutex, ForgetDeadlockInfoWhileHeldDoesNotMaskOtherHeldLocks)
 ABSL_NO_THREAD_SAFETY_ANALYSIS {
   EXPECT_DEATH_IF_SUPPORTED(
