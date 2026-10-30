@@ -16,6 +16,7 @@
 #define ABSL_LOG_INTERNAL_APPEND_TRUNCATED_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <string_view>
 
@@ -35,6 +36,14 @@ inline size_t AppendTruncated(absl::string_view src, absl::Span<char> &dst) {
   dst.remove_prefix(src.size());
   return src.size();
 }
+inline bool IsHighSurrogate(wchar_t wc) {
+  const uint32_t v = static_cast<uint32_t>(wc);
+  return v >= 0xD800 && v <= 0xDBFF;
+}
+inline bool IsLowSurrogate(wchar_t wc) {
+  const uint32_t v = static_cast<uint32_t>(wc);
+  return v >= 0xDC00 && v <= 0xDFFF;
+}
 // Likewise, but it also takes a wide character string and transforms it into a
 // UTF-8 encoded byte string regardless of the current locale.
 // - On platforms where `wchar_t` is 2 bytes (e.g., Windows), the input is
@@ -42,17 +51,32 @@ inline size_t AppendTruncated(absl::string_view src, absl::Span<char> &dst) {
 // - On platforms where `wchar_t` is 4 bytes (e.g., Linux, macOS), the input
 //   is treated as UTF-32.
 inline size_t AppendTruncated(std::wstring_view src, absl::Span<char> &dst) {
+  constexpr wchar_t kReplacementCharacter = L'\uFFFD';
   absl::strings_internal::ShiftState state;
   size_t total_bytes_written = 0;
-  for (const wchar_t wc : src) {
-    // If the destination buffer might not be large enough to write the next
+  for (size_t i = 0; i < src.size(); ++i) {
+    // A pending high surrogate already reserved the four bytes of the sequence
+    // it started, so the low surrogate completing it always fits. Otherwise, if
+    // the destination buffer might not be large enough to write the next
     // character, stop.
-    if (dst.size() < absl::strings_internal::kMaxEncodedUTF8Size) break;
+    if (!state.saw_high_surrogate &&
+        dst.size() < absl::strings_internal::kMaxEncodedUTF8Size) {
+      break;
+    }
+    wchar_t wc = src[i];
+    // `WideToUtf8()` encodes a surrogate pair over two calls, emitting the
+    // first two bytes of a four-byte sequence for the high surrogate and the
+    // remaining two for the low one. Unless the matching low surrogate follows
+    // immediately, those first two bytes would be left in `dst` as a partial
+    // sequence, so encode U+FFFD for the unpaired high surrogate instead.
+    if (IsHighSurrogate(wc) &&
+        !(i + 1 < src.size() && IsLowSurrogate(src[i + 1]))) {
+      wc = kReplacementCharacter;
+    }
     size_t bytes_written =
         absl::strings_internal::WideToUtf8(wc, dst.data(), state);
     if (bytes_written == static_cast<size_t>(-1)) {
       // Invalid character. Encode REPLACEMENT CHARACTER (U+FFFD) instead.
-      constexpr wchar_t kReplacementCharacter = L'\uFFFD';
       bytes_written = absl::strings_internal::WideToUtf8(kReplacementCharacter,
                                                          dst.data(), state);
     }
