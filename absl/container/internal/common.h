@@ -84,16 +84,25 @@ struct KeyArg {
   // Transparent. Forward `K`.
   template <typename K, typename key_type>
   using type = K;
+
+  // In the transparent case, the argument type is deduced so we can't use
+  // AddConstRefIfExpensiveToCopy.
+  template <typename K, typename key_type>
+  using const_ref_if_expensive = const K&;
 };
 
 template <>
 struct KeyArg<false> {
   // Not transparent. Always use `key_type`.
-  // TODO(ezb): use AddConstRefIfExpensiveToCopy for non-transparent key
-  // arguments. Also experiment with using it more widely within non-user-facing
-  // functions in raw_hash_set.
   template <typename K, typename key_type>
   using type = key_type;
+
+  // The std::conditional_t<false, K, key_type> is to allow key_type to be an
+  // incomplete type by making it a dependent type.
+  template <typename K, typename key_type>
+  using const_ref_if_expensive =
+      type_traits_internal::AddConstRefIfExpensiveToCopy<
+          std::conditional_t<false, K, key_type>>;
 };
 
 // The node_handle concept from C++17.
