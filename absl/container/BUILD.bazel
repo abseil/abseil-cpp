@@ -1343,7 +1343,6 @@ cc_binary(
         "//absl/base:raw_logging_internal",
         "//absl/hash",
         "//absl/log",
-        "//absl/memory",
         "//absl/random",
         "//absl/strings:cord",
         "//absl/strings:str_format",
