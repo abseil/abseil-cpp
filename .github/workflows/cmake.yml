@@ -88,6 +88,8 @@ jobs:
       SCCACHE_GCS_RW_MODE: READ_WRITE
       SCCACHE_IDLE_TIMEOUT: 0
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_RECACHE: 1
+      RBE_remote_accept_cache: false
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
