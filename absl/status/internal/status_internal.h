@@ -118,7 +118,9 @@ class StatusRep {
   const Payloads* absl_nullable payloads() const { return payloads_.get(); }
 
   absl::Span<const SourceLocation> GetSourceLocations() const;
-  void AddSourceLocation(absl::SourceLocation loc);
+  void AddSourceLocation(absl::SourceLocation loc) {
+    source_locations_.push_back(loc);
+  }
 
   std::string ToString(StatusToStringMode mode) const;
 

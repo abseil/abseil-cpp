@@ -142,10 +142,6 @@ absl::Span<const SourceLocation> StatusRep::GetSourceLocations() const {
   return absl::MakeSpan(source_locations_);
 }
 
-void StatusRep::AddSourceLocation(absl::SourceLocation loc) {
-  source_locations_.push_back(loc);
-}
-
 std::string StatusRep::ToString(StatusToStringMode mode) const {
   std::string text;
   absl::StrAppend(&text, absl::StatusCodeToString(code()), ": ", message());
