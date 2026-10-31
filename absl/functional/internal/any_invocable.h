@@ -204,33 +204,47 @@ template <bool SigIsNoexcept, class ReturnType, class... P>
 using InvokerType = ReturnType(
     TypeErasedState*, ForwardedParameterType<P>...) noexcept(SigIsNoexcept);
 
-// The manager that is used when AnyInvocable is empty
-inline void EmptyManager(FunctionToCall /*operation*/,
-                         TypeErasedState* /*from*/,
-                         TypeErasedState* /*to*/) noexcept {}
+// The manager that is used when AnyInvocable is empty or when a target
+// function is in local storage and is a trivially copyable type.
+inline void EmptyManager(FunctionToCall operation, TypeErasedState* const from,
+                         TypeErasedState* const to) noexcept {
+  if (operation != FunctionToCall::dispose) {
+    // Note: Correctness for locally stored trivially copyable types relies on
+    // http://wg21.link/p0593, which has only become standard in C++20, though
+    // implementations do not break it in practice for earlier versions of C++.
+    //
+    // The correct way to do this without that paper is to first placement-new a
+    // default-constructed T in "to->storage" prior to the memmove, but doing so
+    // requires a different function to be created for each T that is stored
+    // locally, which can cause unnecessary bloat and be less cache friendly.
+    //
+    // Because the type is trivially copyable, the destructor does not need to
+    // be called ("trivially copyable" requires a trivial destructor).
+    //
+    // When AnyInvocable is empty or holds a stateless (zero-byte) callable,
+    // `from->storage` (`unsigned char[kStorageSize]`) is left unwritten;
+    // copying indeterminate `unsigned char` storage is well-defined in C++17+
+    // ([dcl.init]/12), so suppress GCC's `-Wuninitialized` diagnostics when
+    // `EmptyManager` is inlined into `RelocateFrom`.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+    *to = *from;
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+  }
+}
 
-// The manager that is used when a target function is in local storage and is
-// a trivially copyable type.
-inline void LocalManagerTrivial(FunctionToCall /*operation*/,
+// Retained as an alias for EmptyManager in case external order files or
+// debuggers reference the symbol name.
+inline void LocalManagerTrivial(FunctionToCall operation,
                                 TypeErasedState* const from,
                                 TypeErasedState* const to) noexcept {
-  // This single statement without branching handles both possible operations.
-  //
-  // For FunctionToCall::dispose, "from" and "to" point to the same state, and
-  // so this assignment logically would do nothing.
-  //
-  // Note: Correctness here relies on http://wg21.link/p0593, which has only
-  // become standard in C++20, though implementations do not break it in
-  // practice for earlier versions of C++.
-  //
-  // The correct way to do this without that paper is to first placement-new a
-  // default-constructed T in "to->storage" prior to the memmove, but doing so
-  // requires a different function to be created for each T that is stored
-  // locally, which can cause unnecessary bloat and be less cache friendly.
-  *to = *from;
-
-  // Note: Because the type is trivially copyable, the destructor does not need
-  // to be called ("trivially copyable" requires a trivial destructor).
+  EmptyManager(operation, from, to);
 }
 
 // The manager that is used when a target function is in local storage and is
@@ -439,12 +453,7 @@ class CoreImpl {
       }
     } else if constexpr (IsCompatibleAnyInvocable<DecayedT>::value) {
       // In this case we can "steal the guts" of the other AnyInvocable.
-      f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
-      manager_ = f.manager_;
-      invoker_ = f.invoker_;
-
-      f.manager_ = EmptyManager;
-      f.invoker_ = nullptr;
+      RelocateFrom(f);
     } else if constexpr (IsAnyInvocable<DecayedT>::value) {
       if (f.HasValue()) {
         InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
@@ -465,13 +474,7 @@ class CoreImpl {
     InitializeStorage<QualTRef>(std::forward<Args>(args)...);
   }
 
-  CoreImpl(CoreImpl&& other) noexcept {
-    other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
-    manager_ = other.manager_;
-    invoker_ = other.invoker_;
-    other.manager_ = EmptyManager;
-    other.invoker_ = nullptr;
-  }
+  CoreImpl(CoreImpl&& other) noexcept { RelocateFrom(other); }
 
   CoreImpl& operator=(CoreImpl&& other) noexcept {
     // Put the left-hand operand in an empty state.
@@ -484,25 +487,41 @@ class CoreImpl {
     Clear();
 
     // Perform the actual move/destroy operation on the target function.
-    other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
-    manager_ = other.manager_;
-    invoker_ = other.invoker_;
-    other.manager_ = EmptyManager;
-    other.invoker_ = nullptr;
+    RelocateFrom(other);
 
     return *this;
   }
 
-  ~CoreImpl() { manager_(FunctionToCall::dispose, &state_, &state_); }
+  ~CoreImpl() {
+    if (manager_ != EmptyManager) {
+      manager_(FunctionToCall::dispose, &state_, &state_);
+    }
+  }
 
   // Check whether or not the AnyInvocable is in the empty state.
   bool HasValue() const { return invoker_ != nullptr; }
 
   // Effects: Puts the object into its empty state.
   void Clear() {
-    manager_(FunctionToCall::dispose, &state_, &state_);
-    manager_ = EmptyManager;
+    if (manager_ != EmptyManager) {
+      manager_(FunctionToCall::dispose, &state_, &state_);
+      manager_ = EmptyManager;
+    }
     invoker_ = nullptr;
+  }
+
+  template <class OtherCore>
+  void RelocateFrom(OtherCore& other) noexcept {
+    if (other.manager_ == EmptyManager) {
+      EmptyManager(FunctionToCall::relocate_from_to, &other.state_, &state_);
+      manager_ = EmptyManager;
+    } else {
+      other.manager_(FunctionToCall::relocate_from_to, &other.state_, &state_);
+      manager_ = other.manager_;
+      other.manager_ = EmptyManager;
+    }
+    invoker_ = other.invoker_;
+    other.invoker_ = nullptr;
   }
 
   // Use local (inline) storage for applicable target object types.
@@ -515,7 +534,7 @@ class CoreImpl {
       invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
       // We can simplify our manager if we know the type is trivially copyable.
       if constexpr (std::is_trivially_copyable_v<RawT>) {
-        manager_ = LocalManagerTrivial;
+        manager_ = EmptyManager;
       } else {
         manager_ = LocalManagerNontrivial<RawT>;
       }
