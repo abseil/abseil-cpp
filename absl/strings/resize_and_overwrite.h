@@ -184,7 +184,18 @@ void StringResizeAndOverwriteImpl(T& str, typename T::size_type n, Op op) {
 // value to `buf[buf_size]`.
 template <typename T, typename Op>
 void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
-  strings_internal::StringResizeAndOverwriteImpl(str, n, std::move(op));
+  // StringResizeAndOverwriteImpl() only checks the result of `op` in its
+  // fallback. The other paths set the length to whatever `op` returns, so check
+  // it here before it reaches any of them.
+  strings_internal::StringResizeAndOverwriteImpl(
+      str, n,
+      [do_overwrite = std::move(op)](typename T::value_type* buf,
+                                     typename T::size_type buf_size) mutable {
+        typename T::size_type new_size = static_cast<typename T::size_type>(
+            std::move(do_overwrite)(buf, buf_size));
+        absl::base_internal::HardeningAssertLE(new_size, buf_size);
+        return new_size;
+      });
 #if defined(ABSL_HAVE_MEMORY_SANITIZER)
   __msan_check_mem_is_initialized(str.data(), str.size());
 #endif
