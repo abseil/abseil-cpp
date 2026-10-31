@@ -199,6 +199,10 @@ void* GetProgramCounter(void* const vuc) {
     return reinterpret_cast<void*>(context->uc_mcontext.cr0_hi);
 #elif defined(__loongarch__)
     return reinterpret_cast<void*>(context->uc_mcontext.__pc);
+#elif defined(__wasm__)
+    // WebAssembly code has no addressable program counter, so there is
+    // nothing to recover from the signal context.
+    static_cast<void>(context);
 #else
 #error "Undefined Architecture."
 #endif
