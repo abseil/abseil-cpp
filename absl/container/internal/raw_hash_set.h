@@ -2431,9 +2431,12 @@ struct AddConstRefIfExpensiveToMove
                 "passed types must be unqualified");
 };
 
-template <class T, class Alloc = std::allocator<T>>
+// The dummy parameter is to delay the evaluation of the alias so that it does
+// not require the type to be complete at the point of class definition.
+template <class T, class Alloc, std::nullptr_t Dummy = nullptr>
 using PreferredMoveParamType = typename std::conditional_t<
-    type_traits_internal::IsAllocMoveSameAsCopy<T, Alloc>::value,
+    type_traits_internal::IsAllocMoveSameAsCopy<
+        T, std::enable_if_t<!static_cast<bool>(Dummy), Alloc>>::value,
     AddConstRefIfExpensiveToMove<T>, std::add_rvalue_reference<T>>::type;
 
 // A SwissTable.
@@ -2612,9 +2615,20 @@ class raw_hash_set {
   template <class... Ts>
   using IsDecomposable = IsDecomposable<void, PolicyTraits, Hash, Eq, Ts...>;
 
+  template <class T, class ParamTypeToExclude>
+  using IsDecomposableAndInsertableImpl = std::bool_constant<
+      // Make sure that T isn't convertible to the preferred-qualified version
+      // of init_type itself, or otherwise we'll have ambiguous overloads.
+      !std::conjunction_v<
+          std::is_same<remove_cvref_t<T>, remove_cvref_t<ParamTypeToExclude>>,
+          std::is_convertible<T, ParamTypeToExclude>> &&
+      IsDecomposable<std::enable_if_t<Insertable<T>::value, T>>::value>;
+
   template <class T>
-  using IsDecomposableAndInsertable =
-      IsDecomposable<std::enable_if_t<Insertable<T>::value, T>>;
+  using IsDecomposableAndInsertable = IsDecomposableAndInsertableImpl<
+      T,
+      PreferredMoveParamType<init_type, Alloc,
+                             (std::conditional_t<false, T, std::nullptr_t>())>>;
 
   // Evaluates to true if an assignment from the given type would require the
   // source object to remain alive for the life of the element.
@@ -3123,8 +3137,10 @@ class raw_hash_set {
   //
   //   flat_hash_map<std::string, int> s;
   //   s.insert({"abc", 42});
-  std::pair<iterator, bool> insert(PreferredMoveParamType<init_type, Alloc>
-                                       value) ABSL_ATTRIBUTE_LIFETIME_BOUND
+  template <std::nullptr_t Dummy = nullptr>
+  std::pair<iterator, bool> insert(
+      PreferredMoveParamType<init_type, Alloc, Dummy> value)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
     requires(!IsLifetimeBoundAssignmentFrom<init_type>::value)
 #endif
@@ -3132,8 +3148,9 @@ class raw_hash_set {
     return emplace(std::move(value));
   }
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+  template <std::nullptr_t Dummy = nullptr>
   std::pair<iterator, bool> insert(
-      PreferredMoveParamType<init_type, Alloc> value
+      PreferredMoveParamType<init_type, Alloc, Dummy> value
           ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_ATTRIBUTE_LIFETIME_BOUND
     requires(IsLifetimeBoundAssignmentFrom<init_type>::value)
@@ -3168,8 +3185,9 @@ class raw_hash_set {
     return insert(value).first;
   }
 
+  template <std::nullptr_t Dummy = nullptr>
   iterator insert(const_iterator,
-                  PreferredMoveParamType<init_type, Alloc> value)
+                  PreferredMoveParamType<init_type, Alloc, Dummy> value)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return insert(std::move(value)).first;
   }
