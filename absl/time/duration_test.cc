@@ -1193,6 +1193,35 @@ TEST(Duration, Multiplication) {
 #undef TEST_MOD_IDENTITY
 }
 
+TEST(Duration, DoubleScalingFractionalDurations) {
+  const absl::Duration tick = absl::Nanoseconds(1) / 4;
+  for (int sign : {1, -1}) {
+    const absl::Duration ns = absl::Nanoseconds(sign);
+    // Halfway cases round away from zero to a quarter nanosecond.
+    EXPECT_EQ(sign * tick, ns / 8.0);
+    EXPECT_EQ(-sign * tick, ns / -8.0);
+    EXPECT_EQ(sign * tick, ns * 0.125);
+    EXPECT_EQ(-sign * tick, ns * -0.125);
+    // These products are exact, even when the factor is large.
+    EXPECT_EQ(absl::Seconds(sign * 1000), ns * 1000000000000.0);
+    EXPECT_EQ(absl::Seconds(-sign * 1000), ns * -1000000000000.0);
+  }
+
+  // Rounding a negative result away from zero can discard positive ticks.
+  const absl::Duration mixed = absl::Seconds(-2) + tick;
+  EXPECT_EQ(absl::Seconds(-1), mixed / 2.0);
+  EXPECT_EQ(absl::Seconds(-1), mixed * 0.5);
+
+  // Adjusting large seconds before conversion to double can lose precision.
+  for (int64_t sec : {-(int64_t{1} << 53), -(int64_t{1} << 54), kint64min}) {
+    const absl::Duration d = absl::Seconds(sec) + absl::Nanoseconds(1);
+    const absl::Duration half =
+        absl::Seconds(sec / 2) + absl::Nanoseconds(1) / 2;
+    EXPECT_EQ(half, d / 2.0);
+    EXPECT_EQ(half, d * 0.5);
+  }
+}
+
 TEST(Duration, Truncation) {
   const absl::Duration d = absl::Nanoseconds(1234567890);
   const absl::Duration inf = absl::InfiniteDuration();
