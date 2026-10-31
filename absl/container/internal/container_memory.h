@@ -64,11 +64,13 @@ struct HashtableTypeInfo {
   // `AlignUpToMask` compute `(offset + mask) & ~mask` without negation.
   uint16_t slot_align_mask;
   bool soo_enabled;
-  bool is_hashtablez_enabled;
+  bool is_hashtablez_enabled : 1;
+  // True if `alignof(slot_type) > alignof(size_t)` or the allocator is not
+  // `std::allocator`. When true, the policy object is an instance of
+  // `CustomAllocPolicy`.
+  bool is_custom_alloc : 1;
   // 8 bytes
-  uint32_t alloc_offset;
   uint32_t key_size;
-  // 4 bytes
   uint32_t value_size;
 
   constexpr uint8_t soo_capacity() const {

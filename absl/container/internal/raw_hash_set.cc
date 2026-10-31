@@ -425,25 +425,60 @@ void CommonFields::set_infoz(HashtablezInfoHandle infoz) {
   std::memcpy(dst, &infoz, sizeof(HashtablezInfoHandle));
 }
 
-namespace {
-void DeallocBackingArrayImpl(void* alloc, size_t capacity, ctrl_t* ctrl,
-                             size_t slot_size, size_t slot_align_mask,
-                             bool has_infoz, size_t blocked_element_count,
-                             DeallocBackingArrayFn dealloc) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align_mask, has_infoz,
-                          blocked_element_count);
-  void* backing_array = ctrl - layout.control_offset();
-  // Unpoison before returning the memory to the allocator.
-  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
-  dealloc(alloc, backing_array, layout.alloc_size());
+// Leading parameters match `operator new(size_t)` and
+// `operator delete(void*, size_t)` so callers set up those argument registers
+// once before branching on `is_custom_alloc`.
+//
+// The prototypes below only exist to silence -Wmissing-prototypes.
+// We define these functions with external linkage so compiler does not split
+// `policy` into scalar arguments at every caller.
+void* CustomAllocate(size_t alloc_size, const AllocPolicy& __restrict policy,
+                     CommonFields& common);
+void CustomDeallocate(void* backing_array, size_t alloc_size,
+                      const AllocPolicy& __restrict policy,
+                      CommonFields& common);
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void* CustomAllocate(
+    size_t alloc_size, const AllocPolicy& __restrict policy,
+    CommonFields& common) {
+  ABSL_SWISSTABLE_ASSERT(policy.is_custom_alloc);
+  const auto& custom = static_cast<const CustomAllocPolicy&>(policy);
+  return custom.alloc(custom.get_char_alloc(common), alloc_size);
 }
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void CustomDeallocate(
+    void* backing_array, size_t alloc_size,
+    const AllocPolicy& __restrict policy, CommonFields& common) {
+  ABSL_SWISSTABLE_ASSERT(policy.is_custom_alloc);
+  const auto& custom = static_cast<const CustomAllocPolicy&>(policy);
+  custom.dealloc(custom.get_char_alloc(common), backing_array, alloc_size);
+}
+
+namespace {
 
 void DeallocBackingArrayImpl(CommonFields& c,
                              const AllocPolicy& __restrict policy,
-                             void* alloc) {
-  DeallocBackingArrayImpl(alloc, c.capacity(), c.control(), policy.slot_size,
-                          policy.slot_align_mask, c.has_infoz(),
-                          c.blocked_element_count(), policy.dealloc);
+                             size_t capacity, ctrl_t* ctrl, size_t slot_size,
+                             bool has_infoz, size_t blocked_element_count) {
+  RawHashSetLayout layout(capacity, slot_size, policy.slot_align_mask,
+                          has_infoz, blocked_element_count);
+  void* backing_array = ctrl - layout.control_offset();
+  const size_t alloc_size = layout.alloc_size();
+  // Unpoison before returning the memory to the allocator.
+  SanitizerUnpoisonMemoryRegion(backing_array, alloc_size);
+  if (ABSL_PREDICT_TRUE(!policy.is_custom_alloc)) {
+    DeallocateBackingArray<kStandardBackingArrayAlignment,
+                           std::allocator<char>>(&c, backing_array, alloc_size);
+  } else {
+    CustomDeallocate(backing_array, alloc_size, policy, c);
+  }
+}
+
+void DeallocBackingArrayImpl(CommonFields& c,
+                             const AllocPolicy& __restrict policy) {
+  DeallocBackingArrayImpl(c, policy, c.capacity(), c.control(),
+                          policy.slot_size, c.has_infoz(),
+                          c.blocked_element_count());
 }
 
 }  // namespace
@@ -452,12 +487,17 @@ void UnregisterAndDeallocBackingArray(CommonFields& c,
                                       const DtorPolicy& __restrict policy,
                                       DeallocBackingArrayFn dealloc,
                                       void* alloc) {
-  size_t cap = c.capacity();  // capacity is already in register, so storing it
-                              // in a local variable before Unregister().
   c.infoz().Unregister();
-  DeallocBackingArrayImpl(alloc, cap, c.control(), policy.slot_size,
+  // Read `c.capacity()` after `Unregister()` so `inline_data_` does not need
+  // to be spilled across the cold `UnsampleSlow` call (it is reloaded afterward
+  // for `has_infoz()` and `blocked_element_count()` anyway).
+  RawHashSetLayout layout(c.capacity(), policy.slot_size,
                           policy.slot_align_mask, c.has_infoz(),
-                          c.blocked_element_count(), dealloc);
+                          c.blocked_element_count());
+  void* backing_array = c.control() - layout.control_offset();
+  // Unpoison before returning the memory to the allocator.
+  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
+  dealloc(alloc, backing_array, layout.alloc_size());
 }
 
 namespace {
@@ -806,15 +846,18 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeThreeElementsControlBytes(
 // Clears the backing array and sets the common fields to the default values for
 // empty non-allocated tables. REQUIRES: c.capacity > policy.soo_capacity.
 void ClearBackingArrayNoReuse(CommonFields& c,
-                              const AllocPolicy& __restrict policy,
-                              void* alloc) {
+                              const AllocPolicy& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > policy.soo_capacity());
   // We need to record infoz before calling dealloc, which will unregister
-  // infoz.
-  c.infoz().RecordClearedReservation();
-  c.infoz().RecordStorageChanged(0, policy.soo_capacity());
-  c.infoz().Unregister();
-  DeallocBackingArrayImpl(c, policy, alloc);
+  // infoz. Check `IsSampled()` once so `c.infoz()` is not re-evaluated before
+  // each cold Hashtablez call.
+  if (HashtablezInfoHandle infoz = c.infoz();
+      ABSL_PREDICT_FALSE(infoz.IsSampled())) {
+    infoz.RecordClearedReservation();
+    infoz.RecordStorageChanged(0, policy.soo_capacity());
+    infoz.Unregister();
+  }
+  DeallocBackingArrayImpl(c, policy);
   c = policy.soo_enabled ? CommonFields{soo_tag_t{}}
                          : CommonFields{non_soo_tag_t{}};
 }
@@ -897,8 +940,7 @@ void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size) {
 }
 
 void ClearBackingArray(CommonFields& c,
-                       const AllocPolicy& __restrict policy,
-                       void* alloc, bool reuse) {
+                       const AllocPolicy& __restrict policy, bool reuse) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > kMaxSmallCapacity);
   if (reuse) {
     const size_t blocked_element_count = c.blocked_element_count();
@@ -912,7 +954,7 @@ void ClearBackingArray(CommonFields& c,
     ABSL_SWISSTABLE_ASSERT(c.blocked_element_count() == blocked_element_count);
     c.infoz().RecordStorageChanged(0, c.capacity());
   } else {
-    ClearBackingArrayNoReuse(c, policy, alloc);
+    ClearBackingArrayNoReuse(c, policy);
   }
 }
 
@@ -935,7 +977,7 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 
 template <bool kSooEnabled>
 void Clear(CommonFields& c, const AllocPolicy& __restrict policy,
-           DestroySlotFn destroy_slot, void* alloc) {
+           DestroySlotFn destroy_slot) {
   if (SwisstableGenerationsEnabled() &&
       c.maybe_invalid_capacity().IsMovedFrom()) {
     c.set_capacity(policy.soo_capacity());
@@ -961,7 +1003,7 @@ void Clear(CommonFields& c, const AllocPolicy& __restrict policy,
     }
     // Iterating over this container is O(bucket_count()). When bucket_count()
     // is much greater than size(), iteration becomes prohibitively expensive.
-    ClearBackingArrayNoReuse(c, policy, alloc);
+    ClearBackingArrayNoReuse(c, policy);
   }
   c.set_reserved_growth(0);
   c.set_reservation_size(0);
@@ -1191,17 +1233,15 @@ struct BackingArrayPtrs {
 
 BackingArrayPtrs AllocBackingArray(
     CommonFields& common, const AllocPolicy& __restrict policy,
-    const RawHashSetLayout& layout, void* alloc) {
+    const RawHashSetLayout& layout) {
   // Perform a direct call in the common case to allow for profile-guided
   // heap optimization (PGHO) to understand which allocation function is used.
-  constexpr size_t kDefaultAlignment = BackingArrayAlignment(alignof(size_t));
   char* mem = static_cast<char*>(
-      ABSL_PREDICT_TRUE(
-          policy.alloc ==
-          (&AllocateBackingArray<kDefaultAlignment, std::allocator<char>>))
-          ? AllocateBackingArray<kDefaultAlignment, std::allocator<char>>(
-                alloc, layout.alloc_size())
-          : policy.alloc(alloc, layout.alloc_size()));
+      ABSL_PREDICT_TRUE(!policy.is_custom_alloc)
+          ? AllocateBackingArray<kStandardBackingArrayAlignment,
+                                 std::allocator<char>>(&common,
+                                                       layout.alloc_size())
+          : CustomAllocate(layout.alloc_size(), policy, common));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
       reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
@@ -1213,13 +1253,12 @@ BackingArrayPtrs AllocBackingArray(
 
 BackingArrayPtrs AllocBackingArray(
     CommonFields& common, const AllocPolicy& __restrict policy,
-    size_t new_capacity, size_t slot_size, bool has_infoz, void* alloc,
+    size_t new_capacity, size_t slot_size, bool has_infoz,
     size_t blocked_element_count) {
   return AllocBackingArray(
       common, policy,
       RawHashSetLayout(new_capacity, slot_size, policy.slot_align_mask,
-                       has_infoz, blocked_element_count),
-      alloc);
+                       has_infoz, blocked_element_count));
 }
 
 void ResizeEmptyNonAllocatedTableImpl(
@@ -1231,14 +1270,17 @@ void ResizeEmptyNonAllocatedTableImpl(
   ABSL_SWISSTABLE_ASSERT(common.capacity() == policy.soo_capacity());
   ABSL_SWISSTABLE_ASSERT(common.empty());
   const size_t slot_size = policy.slot_size;
+  const size_t slot_align_mask = policy.slot_align_mask;
+  common.set_capacity(new_capacity);
+  common.init_blocked_element_count(blocked_element_count);
   const bool has_infoz = policy.is_hashtablez_enabled &&
                          (force_infoz || ShouldSampleNextTable());
 
-  common.set_capacity(new_capacity);
-  common.init_blocked_element_count(blocked_element_count);
   const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, slot_size, has_infoz,
-                        policy.get_char_alloc(common), blocked_element_count);
+      AllocBackingArray(common, policy,
+                        RawHashSetLayout(new_capacity, slot_size,
+                                         slot_align_mask, has_infoz,
+                                         blocked_element_count));
   common.set_control(new_ctrl);
   common.generate_new_seed(has_infoz);
 
@@ -1264,6 +1306,24 @@ void AssertFullSoo([[maybe_unused]] CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(common.size() == policy.soo_capacity());
 }
 
+// Kept as a separate function (rather than inlined into its single caller
+// `ResizeTableWithSeedChangeImpl`) so that `was_soo` and `common.capacity()`
+// are only evaluated for the assertions: `ResizeTableWithSeedChangeImpl` reads
+// them later, after a possible early return, and computing them up front would
+// keep the values live (in registers or spilled) across that path.
+void AssertResizeTableWithSeedChangePreconditions(
+    [[maybe_unused]] CommonFields& common,
+    [[maybe_unused]] const AllocPolicy& __restrict policy,
+    [[maybe_unused]] size_t new_capacity,
+    [[maybe_unused]] bool force_sample_soo) {
+  ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
+  ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
+  [[maybe_unused]] const bool was_soo =
+      common.capacity() == policy.soo_capacity();
+  ABSL_SWISSTABLE_ASSERT(!was_soo || common.size() == policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(!force_sample_soo || was_soo);
+}
+
 // Resizes an allocated table or a full SOO table to `new_capacity`, changes the
 // table seed and transfers all elements to the new backing array.
 // Allocated tables keep their infoz. If `force_sample_soo`, the table must be a
@@ -1278,14 +1338,9 @@ void AssertFullSoo([[maybe_unused]] CommonFields& common,
 ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_capacity, bool force_sample_soo) {
-  ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
-  ABSL_SWISSTABLE_ASSERT(new_capacity > policy.alloc_policy->soo_capacity());
-  const size_t old_capacity = common.capacity();
   const AllocPolicy& alloc_policy = *policy.alloc_policy;
-  const bool was_soo = old_capacity == alloc_policy.soo_capacity();
-  ABSL_SWISSTABLE_ASSERT(!was_soo || common.size() ==
-                                         policy.alloc_policy->soo_capacity());
-  ABSL_SWISSTABLE_ASSERT(!force_sample_soo || was_soo);
+  AssertResizeTableWithSeedChangePreconditions(common, alloc_policy,
+                                               new_capacity, force_sample_soo);
   // Note: `has_infoz` determines the layout of the backing array and may be
   // set even if `infoz` is not sampled (see
   // `ReportResizeToInfozAndForceSample`).
@@ -1301,6 +1356,8 @@ ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
     has_infoz = common.has_infoz();
     infoz = common.infoz();
   }
+  const size_t old_capacity = common.capacity();
+  const bool was_soo = old_capacity == alloc_policy.soo_capacity();
   // `old_ctrl` is not used for SOO tables.
   ctrl_t* const old_ctrl = was_soo ? nullptr : common.control();
   void* const old_slots = was_soo ? common.soo_data()
@@ -1314,8 +1371,7 @@ ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
   common.set_blocked_element_count_to_zero();
   const auto [new_ctrl, new_slots] =
       AllocBackingArray(common, alloc_policy, new_capacity, slot_size,
-                        has_infoz, alloc_policy.get_char_alloc(common),
-                        /*blocked_element_count=*/0);
+                        has_infoz, /*blocked_element_count=*/0);
   common.generate_new_seed(has_infoz);
   ResetCtrl(new_capacity, new_ctrl, new_slots, slot_size,
             /*blocked_element_count=*/0);
@@ -1324,11 +1380,13 @@ ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
   // Control is set in `common` only after the transfer to avoid overriding
   // the SOO data.
   common.set_control(new_ctrl);
-  if (!was_soo) {
-    DeallocBackingArrayImpl(
-        alloc_policy.get_char_alloc(common), old_capacity, old_ctrl,
-        slot_size, alloc_policy.slot_align_mask, has_infoz,
-        old_blocked_element_count, alloc_policy.dealloc);
+  // `old_ctrl` is `nullptr` iff `was_soo`. Checking `old_ctrl != nullptr`
+  // instead of `!was_soo` avoids keeping `was_soo` (or `soo_capacity`) live
+  // across the calls above, since `old_ctrl` is already kept live for
+  // `DeallocBackingArrayImpl`.
+  if (old_ctrl != nullptr) {
+    DeallocBackingArrayImpl(common, alloc_policy, old_capacity, old_ctrl,
+                            slot_size, has_infoz, old_blocked_element_count);
   }
   ResetGrowthLeft(new_capacity, common.size(), common);
   if (ABSL_PREDICT_FALSE(has_infoz)) {
@@ -1844,13 +1902,9 @@ void IncrementSmallSizeNonSoo(CommonFields& common,
       SingleSlotAddress</*kSooEnabled=*/false>(common), policy.slot_size);
 }
 
-// `slot_align_mask` is passed by value (rather than reading it from
-// `AllocPolicy`) so that the caller loads it only once. `dealloc` is
-// read through `policy` at the end to avoid keeping it live across calls.
 void* Grow1To3AndPrepareInsert(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               size_t slot_align_mask, void* hasher,
-                               HashForKeyFn get_hash, void* alloc,
+                               void* hasher, HashForKeyFn get_hash,
                                bool has_infoz, void* new_slots) {
   // TODO(b/413062340): Refactor to reuse more code with
   // GrowSooTableToNextCapacityAndPrepareInsert.
@@ -1860,8 +1914,6 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   ABSL_SWISSTABLE_ASSERT(common.blocked_element_count() == 0);
   constexpr size_t kOldCapacity = 1;
   constexpr size_t kNewCapacity = NextCapacity(kOldCapacity);
-  ctrl_t* new_ctrl =
-      static_cast<ctrl_t*>(new_slots) - NumControlBytes(kNewCapacity);
 
   if (ABSL_PREDICT_TRUE(!has_infoz)) {
     // When we're sampled, we already have a seed.
@@ -1873,6 +1925,8 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
                                       common.single_non_soo_slot(),
                                       common.seed().seed());
   size_t offset = Resize1To3NewOffset(new_hash);
+  ctrl_t* new_ctrl =
+      static_cast<ctrl_t*>(new_slots) - NumControlBytes(kNewCapacity);
   InitializeThreeElementsControlBytes(H2(orig_hash), new_h2, offset, new_ctrl);
 
   // Read `old_slots` and `slot_size` after the hash calls to avoid keeping
@@ -1904,10 +1958,8 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   }
   // Deallocate after `ReportSingleGroupTableGrowthToInfoz`, because it reads
   // infoz from old_ctrl.
-  DeallocBackingArrayImpl(alloc, kOldCapacity, old_ctrl, slot_size,
-                          slot_align_mask, has_infoz,
-                          /*blocked_element_count=*/0,
-                          policy.alloc_policy->dealloc);
+  DeallocBackingArrayImpl(common, *policy.alloc_policy, kOldCapacity, old_ctrl,
+                          slot_size, has_infoz, /*blocked_element_count=*/0);
   return new_element_target_slot;
 }
 
@@ -1927,10 +1979,9 @@ void* GrowToNextCapacityAndPrepareInsert(
 
   const size_t slot_size = policy.slot_size;
   const AllocPolicy& alloc_policy = *policy.alloc_policy;
-  void* alloc = alloc_policy.get_char_alloc(common);
   const auto [new_ctrl, new_slots] = AllocBackingArray(
       common, alloc_policy, new_capacity, slot_size, common.has_infoz(),
-      alloc, /*blocked_element_count=*/0);
+      /*blocked_element_count=*/0);
   // Read old `common` fields after `AllocBackingArray` to avoid spilling them
   // across the call.
   ctrl_t* old_ctrl = common.control();
@@ -1987,9 +2038,8 @@ void* GrowToNextCapacityAndPrepareInsert(
   }
   // Deallocate after `ReportGrowthToInfoz`, because it reads infoz from
   // old_ctrl.
-  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size,
-                          alloc_policy.slot_align_mask, has_infoz,
-                          old_blocked_element_count, alloc_policy.dealloc);
+  DeallocBackingArrayImpl(common, alloc_policy, old_capacity, old_ctrl,
+                          slot_size, has_infoz, old_blocked_element_count);
   return SlotAddress(new_slots, find_info.offset, slot_size);
 }
 
@@ -1998,13 +2048,6 @@ void* GrowToNextCapacityAndPrepareInsert(
 RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(
     size_t size, size_t slot_size, size_t slot_align_mask, bool has_infoz) {
   ABSL_SWISSTABLE_ASSERT(size <= 1);
-  static_assert(NumControlBytes(1) == 0);
-  const size_t num_control_bytes = size * NumControlBytes(3);
-  static_assert(NextCapacity(0) == 1);
-  static_assert(NextCapacity(1) == 3);
-  const size_t new_capacity = NextCapacity(size);
-  const size_t slots_size = new_capacity * slot_size;
-
   // Since `GrowthInfoSizeForCapacity` is 0 for capacities 1 and 3, compute
   // `metadata_size` directly without `MetadataBeforeControlSize` to avoid its
   // `ABSL_PREDICT_FALSE(has_infoz)` branch and allow a branchless shift.
@@ -2013,6 +2056,13 @@ RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(
   const size_t metadata_size =
       (has_infoz ? sizeof(HashtablezInfoHandle) + sizeof(uint64_t) : 0) +
       NumGenerationBytes();
+
+  static_assert(NumControlBytes(1) == 0);
+  const size_t num_control_bytes = size * NumControlBytes(3);
+  static_assert(NextCapacity(0) == 1);
+  static_assert(NextCapacity(1) == 3);
+  const size_t new_capacity = NextCapacity(size);
+  const size_t slots_size = new_capacity * slot_size;
   ABSL_SWISSTABLE_ASSERT(metadata_size ==
                          MetadataBeforeControlSize(has_infoz, new_capacity));
 
@@ -2044,20 +2094,17 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
   }
 
   const size_t size = is_empty ? 0 : 1;
+  const size_t slot_size = policy.slot_size;
   const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  const size_t slot_align_mask = alloc_policy.slot_align_mask;
   const bool has_infoz =
       is_empty
           ? (alloc_policy.is_hashtablez_enabled && ShouldSampleNextTable())
           : common.has_infoz();
-  void* alloc = alloc_policy.get_char_alloc(common);
-  // Load `slot_align_mask` once: it is used for both allocation and
-  // deallocation.
-  const size_t slot_align_mask = alloc_policy.slot_align_mask;
   void* new_slots =
       AllocBackingArray(common, alloc_policy,
                         RawHashSetLayout::CreateForSmallNonSooGrowth(
-                            size, policy.slot_size, slot_align_mask, has_infoz),
-                        alloc)
+                            size, slot_size, slot_align_mask, has_infoz))
           .slots;
   if (is_empty) {
     // Growing from 0 to 1 capacity.
@@ -2075,8 +2122,8 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
     }
     return new_slots;
   }
-  return Grow1To3AndPrepareInsert(common, policy, slot_align_mask, hasher,
-                                  get_hash, alloc, has_infoz, new_slots);
+  return Grow1To3AndPrepareInsert(common, policy, hasher, get_hash, has_infoz,
+                                  new_slots);
 }
 
 namespace {
@@ -2320,7 +2367,7 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   const size_t slot_size = policy.slot_size;
   const auto [new_ctrl, new_slots] = AllocBackingArray(
       common, alloc_policy, kNewCapacity, slot_size, /*has_infoz=*/false,
-      alloc_policy.get_char_alloc(common), /*blocked_element_count=*/0);
+      /*blocked_element_count=*/0);
   // Group `common` updates together after `AllocBackingArray` so `inline_data_`
   // is modified in a single load-store sequence.
   common.set_capacity(kNewCapacity);
@@ -2369,9 +2416,7 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   // `alloc_policy` is read at each use (rather than once at the top) so that
   // `policy` stays in its argument register for the calls that need it.
   auto clear_backing_array = [&]() {
-    const AllocPolicy& alloc_policy = *policy.alloc_policy;
-    ClearBackingArrayNoReuse(common, alloc_policy,
-                             alloc_policy.get_char_alloc(common));
+    ClearBackingArrayNoReuse(common, *policy.alloc_policy);
   };
 
   const size_t slot_size = policy.slot_size;
@@ -2654,20 +2699,15 @@ template void* GrowSooTableToNextCapacityAndPrepareInsert<
 static_assert(MaxSooSlotSize() == 8);
 #endif
 
-template void* AllocateBackingArray<kStandardBackingArrayAlignment,
-                                    std::allocator<char>>(void* alloc,
-                                                          size_t n);
 template void DeallocateBackingArray<kStandardBackingArrayAlignment,
                                      std::allocator<char>>(void* alloc,
                                                            void* backing_array,
                                                            size_t n);
 
 template void Clear</*kSooEnabled=*/true>(
-    CommonFields& c, const AllocPolicy& policy,
-    DestroySlotFn destroy_slot, void* alloc);
+    CommonFields& c, const AllocPolicy& policy, DestroySlotFn destroy_slot);
 template void Clear</*kSooEnabled=*/false>(
-    CommonFields& c, const AllocPolicy& policy,
-    DestroySlotFn destroy_slot, void* alloc);
+    CommonFields& c, const AllocPolicy& policy, DestroySlotFn destroy_slot);
 
 template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
                                              const DtorPolicy& policy,

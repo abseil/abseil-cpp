@@ -260,7 +260,7 @@ inline HashtablezInfoHandle SampleForTesting(size_t inline_element_size,
       /*slot_align_mask=*/0,  // Unused by sampling.
       /*soo_enabled=*/soo_capacity != 0,
       /*is_hashtablez_enabled=*/true,
-      /*alloc_offset=*/0,  // Unused by sampling.
+      /*is_custom_alloc=*/false,  // Unused by sampling.
       static_cast<uint32_t>(key_size),
       static_cast<uint32_t>(value_size),
   };
