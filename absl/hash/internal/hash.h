@@ -527,16 +527,16 @@ H AbslHashValue(H hash_state, T (&)[N]) {
   return hash_state;
 }
 
-// AbslHashValue() for hashing pointers
+struct DefaultPointerHashResult {};
+
+// Raw pointers are hashed by address via `UniquelyRepresentedProbe`. This
+// overload only participates in `AbslHashValueResultOrVoid` overload
+// resolution: it prevents `char*` from matching the `absl::string_view`
+// overload and lets `HasCustomPointerAbslHashValue` detect user-defined
+// `AbslHashValue(H, MyType*)` overloads (which return `H`).
 template <typename H, typename T>
-std::enable_if_t<std::is_pointer_v<T>, H> AbslHashValue(H hash_state, T ptr) {
-  auto v = reinterpret_cast<uintptr_t>(ptr);
-  // Due to alignment, pointers tend to have low bits as zero, and the next few
-  // bits follow a pattern since they are also multiples of some base value.
-  // The PointerAlignment test verifies that our mixing is good enough to handle
-  // these cases.
-  return H::combine(std::move(hash_state), v);
-}
+std::enable_if_t<std::is_pointer_v<T>, DefaultPointerHashResult> AbslHashValue(
+    H hash_state, T ptr);
 
 // AbslHashValue() for hashing nullptr_t
 template <typename H>
@@ -1389,6 +1389,11 @@ struct HashSelect {
   struct UniquelyRepresentedProbe {
     template <typename H, typename T>
     static H Invoke(H state, const T& value) {
+      static_assert(
+          !HasCustomPointerAbslHashValue<T>::value,
+          "Pointer types cannot have custom AbslHashValue overloads. "
+          "All pointers are hashed by address; wrap the pointer in a struct or "
+          "use a custom hash functor to hash the pointee.");
       return hash_internal::hash_bytes(std::move(state), value);
     }
   };
@@ -1425,11 +1430,24 @@ struct HashSelect {
   };
 
  public:
+  template <typename T, bool = std::is_pointer_v<T>>
+  struct HasCustomPointerAbslHashValue : std::false_type {};
+
+  template <typename T>
+  struct HasCustomPointerAbslHashValue<T, true>
+      : std::bool_constant<
+            std::is_same_v<State, typename AbslHashValueResultOrVoid<
+                                      State, const T&>::type> ||
+            std::is_same_v<State, typename AbslHashValueResultOrVoid<
+                                      State, const std::remove_pointer_t<
+                                                 T>* const&>::type>> {};
+
   template <typename T>
   static auto Apply() {
     if constexpr (std::is_same_v<T, WeaklyMixedInteger>) {
       return WeaklyMixedIntegerProbe();
-    } else if constexpr (is_uniquely_represented<T>::value) {
+    } else if constexpr (is_uniquely_represented<T>::value ||
+                         std::is_pointer_v<T>) {
       return UniquelyRepresentedProbe();
     } else if constexpr (std::is_same_v<State,
                                         typename AbslHashValueResultOrVoid<

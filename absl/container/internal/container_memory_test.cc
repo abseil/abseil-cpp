@@ -349,6 +349,18 @@ TEST(ApplyTest, GetTypeErasedApplyToSlotFnCanonicalizesTypes) {
   EXPECT_EQ(fn(nullptr, &c, seed),
             (HashElement<absl::Hash<MyEnum>, /*kIsAbsl=*/true, 0>(
                 absl::Hash<MyEnum>{}, seed)(c)));
+
+  HashSlotFn ptr_fn =
+      GetTypeErasedApplyToSlotFn<absl::Hash<uintptr_t>, uintptr_t,
+                                 /*kIsAbsl=*/true, 0>();
+  EXPECT_EQ(ptr_fn, (GetTypeErasedApplyToSlotFn<absl::Hash<int32_t*>, int32_t*,
+                                                /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(ptr_fn,
+            (GetTypeErasedApplyToSlotFn<absl::Hash<const void*>, const void*,
+                                        /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(ptr_fn, (GetTypeErasedApplyToSlotFn<
+                        absl::TransparentHash<int32_t*, const void*>, int32_t*,
+                        /*kIsAbsl=*/true, 0>()));
 }
 
 TEST(ApplyTest, TypeErasedDerefAndApplyToSlotFn) {
@@ -386,6 +398,20 @@ TEST(ApplyTest, GetTypeErasedDerefAndApplyToSlotFnCanonicalizesTypes) {
   EXPECT_EQ(fn(nullptr, &c_ptr, seed),
             (HashElement<absl::Hash<MyEnum>, /*kIsAbsl=*/true, 0>(
                 absl::Hash<MyEnum>{}, seed)(c)));
+
+  HashSlotFn ptr_fn =
+      GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<uintptr_t>, uintptr_t,
+                                         /*kIsAbsl=*/true, 0>();
+  EXPECT_EQ(ptr_fn,
+            (GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<int32_t*>, int32_t*,
+                                                /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(ptr_fn,
+            (GetTypeErasedDerefAndApplyToSlotFn<absl::Hash<const void*>,
+                                                const void*,
+                                                /*kIsAbsl=*/true, 0>()));
+  EXPECT_EQ(ptr_fn, (GetTypeErasedDerefAndApplyToSlotFn<
+                        absl::TransparentHash<int32_t*, const void*>, int32_t*,
+                        /*kIsAbsl=*/true, 0>()));
 }
 
 TEST(HashKeyTest, NonCanonicalUsesHasher) {

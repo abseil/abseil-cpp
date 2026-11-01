@@ -38,12 +38,18 @@ using UintOfSizeT = std::conditional_t<
                            std::conditional_t<N == 8, uint64_t, void>>>>;
 
 // Returns a canonical `absl::Hash` for `T`. Types with the exact same hash
-// implementation (such as `is_uniquely_represented` types of the same size)
-// return the same hasher type, which is useful for type erasure.
+// implementation (such as `is_uniquely_represented` types of the same size and
+// pointers) return the same hasher type, which is useful for type erasure.
 template <typename T>
 constexpr auto CanonicalHasher() {
-  if constexpr (is_uniquely_represented<T>::value &&
-                FitsIn64BitsPowerOf2<T>::value) {
+  static_assert(
+      !HashSelect::HasCustomPointerAbslHashValue<T>::value,
+      "Pointer types cannot have custom AbslHashValue overloads. "
+      "All pointers are hashed by address; wrap the pointer in a struct or "
+      "use a custom hash functor to hash the pointee.");
+  if constexpr ((is_uniquely_represented<T>::value &&
+                 FitsIn64BitsPowerOf2<T>::value) ||
+                std::is_pointer_v<T>) {
     return Hash<UintOfSizeT<sizeof(T)>>();
   } else {
     return Hash<T>();
