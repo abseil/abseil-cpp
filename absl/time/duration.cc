@@ -314,6 +314,15 @@ inline bool IDivFastPath(const Duration num, const Duration den, int64_t* q,
         *rem = time_internal::MakeDuration(0, num_lo % den_lo);
         return true;
       }
+    } else if (den_lo != 0 && num_hi >= 0 &&
+               static_cast<uint64_t>(num_hi) <
+                   static_cast<uint64_t>(kint64max) / kTicksPerSecond) {
+      const uint64_t num_ticks =
+          static_cast<uint64_t>(num_hi) * kTicksPerSecond + num_lo;
+      *q = static_cast<int64_t>(num_ticks / den_lo);
+      *rem = time_internal::MakeDuration(
+          0, static_cast<uint32_t>(num_ticks % den_lo));
+      return true;
     }
   } else if (den_hi > 0 && den_lo == 0) {
     // Dividing by positive multiple of 1s
@@ -368,17 +377,29 @@ int64_t IDivSlowPath(bool satq, const Duration num, const Duration den,
 
   const uint128 a = MakeU128Ticks(num);
   const uint128 b = MakeU128Ticks(den);
-  uint128 quotient128 = a / b;
-
-  if (satq) {
-    // Limits the quotient to the range of int64_t.
-    if (quotient128 > uint128(static_cast<uint64_t>(kint64max))) {
-      quotient128 = quotient_neg ? uint128(static_cast<uint64_t>(kint64min))
-                                 : uint128(static_cast<uint64_t>(kint64max));
+  uint128 quotient128;
+  uint128 remainder128;
+  if ((Uint128High64(a) | Uint128High64(b)) == 0) {
+    const uint64_t a64 = Uint128Low64(a);
+    const uint64_t b64 = Uint128Low64(b);
+    uint64_t q64 = a64 / b64;
+    if (satq && q64 > static_cast<uint64_t>(kint64max)) {
+      q64 = quotient_neg ? static_cast<uint64_t>(kint64min)
+                         : static_cast<uint64_t>(kint64max);
     }
+    quotient128 = q64;
+    remainder128 = a64 - q64 * b64;
+  } else {
+    quotient128 = a / b;
+    if (satq) {
+      // Limits the quotient to the range of int64_t.
+      if (quotient128 > uint128(static_cast<uint64_t>(kint64max))) {
+        quotient128 = quotient_neg ? uint128(static_cast<uint64_t>(kint64min))
+                                   : uint128(static_cast<uint64_t>(kint64max));
+      }
+    }
+    remainder128 = a - quotient128 * b;
   }
-
-  const uint128 remainder128 = a - quotient128 * b;
   *rem = MakeDurationFromU128(remainder128, num_neg);
 
   if (!quotient_neg || quotient128 == 0) {

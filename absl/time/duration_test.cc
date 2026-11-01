@@ -1909,4 +1909,47 @@ TEST(Duration, NoPadding) {
   EXPECT_EQ(alignof(NoPadding), alignof(absl::Duration));
 }
 
+TEST(Duration, IDivDurationFastPathBoundaries) {
+  // Exercise 64-bit tick IDivDuration boundaries around
+  // kint64max / kTicksPerSecond (2305843009s) and uint64_max / kTicksPerSecond
+  // (4611686018s) across both sub-second and multi-second divisors.
+  const absl::Duration kDivisors[] = {
+      absl::Nanoseconds(7) + absl::Nanoseconds(1) / 4,
+      absl::Seconds(1) + absl::Milliseconds(500),
+  };
+  for (absl::Duration den : kDivisors) {
+    for (int64_t sec :
+         {int64_t{0}, int64_t{1}, int64_t{2305843008}, int64_t{2305843009},
+          int64_t{2305843010}, int64_t{4611686018}, int64_t{4611686019}}) {
+      const absl::Duration num = absl::Seconds(sec) +
+                                 absl::Nanoseconds(999999999) +
+                                 absl::Nanoseconds(3) / 4;
+      absl::Duration rem;
+      const int64_t q = absl::IDivDuration(num, den, &rem);
+      if (q < std::numeric_limits<int64_t>::max()) {
+        EXPECT_EQ(num, q * den + rem);
+        EXPECT_GE(rem, absl::ZeroDuration());
+        EXPECT_LT(rem, den);
+      }
+      absl::Duration neg_rem;
+      EXPECT_EQ(-q, absl::IDivDuration(-num, den, &neg_rem));
+      EXPECT_EQ(-rem, neg_rem);
+      EXPECT_EQ(-q, absl::IDivDuration(num, -den, &neg_rem));
+      EXPECT_EQ(rem, neg_rem);
+      EXPECT_EQ(q, absl::IDivDuration(-num, -den, &neg_rem));
+      EXPECT_EQ(-rem, neg_rem);
+    }
+  }
+
+  // Exercise 64-bit IDivSlowPath saturation when ticks fit in uint64_t
+  // (4611686018s * 4e9 < 2^64) while quotient exceeds int64_t.
+  const absl::Duration large_u64 = absl::Seconds(4611686018);
+  const absl::Duration quarter_ns = absl::Nanoseconds(1) / 4;
+  absl::Duration sat_rem;
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(),
+            absl::IDivDuration(large_u64, -quarter_ns, &sat_rem));
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(),
+            absl::IDivDuration(-large_u64, -quarter_ns, &sat_rem));
+}
+
 }  // namespace
