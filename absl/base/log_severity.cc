@@ -22,6 +22,8 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
+
 std::ostream& operator<<(std::ostream& os, absl::LogSeverity s) {
   if (s == absl::NormalizeLogSeverity(s)) return os << absl::LogSeverityName(s);
   return os << "absl::LogSeverity(" << static_cast<int>(s) << ")";
@@ -52,5 +54,7 @@ std::ostream& operator<<(std::ostream& os, absl::LogSeverityAtMost s) {
   }
   return os;
 }
+
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
 ABSL_NAMESPACE_END
 }  // namespace absl
