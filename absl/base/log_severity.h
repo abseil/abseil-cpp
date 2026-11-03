@@ -16,7 +16,7 @@
 #define ABSL_BASE_LOG_SEVERITY_H_
 
 #include <array>
-#include <ostream>
+#include <iosfwd>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -126,7 +126,9 @@ constexpr absl::LogSeverity NormalizeLogSeverity(int s) {
 //
 // The exact representation of a streamed `absl::LogSeverity` is deliberately
 // unspecified; do not rely on it.
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
 std::ostream& operator<<(std::ostream& os, absl::LogSeverity s);
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
 
 // Enums representing a lower bound for LogSeverity. APIs that only operate on
 // messages of at least a certain level (for example, `SetMinLogLevel()`) use
@@ -141,7 +143,9 @@ enum class LogSeverityAtLeast : int {
   kInfinity = 1000,
 };
 
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
 std::ostream& operator<<(std::ostream& os, absl::LogSeverityAtLeast s);
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
 
 // Enums representing an upper bound for LogSeverity. APIs that only operate on
 // messages of at most a certain level (for example, buffer all messages at or
@@ -156,7 +160,9 @@ enum class LogSeverityAtMost : int {
   kFatal = static_cast<int>(absl::LogSeverity::kFatal),
 };
 
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
 std::ostream& operator<<(std::ostream& os, absl::LogSeverityAtMost s);
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
 
 #define COMPOP(op1, op2, T)                                         \
   constexpr bool operator op1(absl::T lhs, absl::LogSeverity rhs) { \
