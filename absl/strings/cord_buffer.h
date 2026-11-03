@@ -419,6 +419,9 @@ class CordBuffer {
     return static_cast<size_t>(absl::bit_width(size - 1));
   }
 
+  // Returns the desired payload size for `CreateWithCustomLimit()`.
+  static size_t DesiredCustomSize(size_t block_size, size_t capacity);
+
   // Implementation of `CreateWithCustomLimit()`.
   // This implementation allows for future memory allocation hints to
   // be passed down into the CordRepFlat allocation function.
@@ -473,9 +476,8 @@ inline CordBuffer CordBuffer::CreateWithDefaultLimit(size_t capacity) {
   return CordBuffer();
 }
 
-template <typename... AllocationHints>
-inline CordBuffer CordBuffer::CreateWithCustomLimitImpl(
-    size_t block_size, size_t capacity, AllocationHints... hints) {
+inline size_t CordBuffer::DesiredCustomSize(size_t block_size,
+                                            size_t capacity) {
   assert(IsPow2(block_size));
   capacity = (std::min)(capacity, kCustomLimit);
   block_size = (std::min)(block_size, kCustomLimit);
@@ -498,7 +500,13 @@ inline CordBuffer CordBuffer::CreateWithCustomLimitImpl(
       capacity = rounded_down;
     }
   }
-  const size_t length = capacity - kOverhead;
+  return capacity > kOverhead ? capacity - kOverhead : 0;
+}
+
+template <typename... AllocationHints>
+inline CordBuffer CordBuffer::CreateWithCustomLimitImpl(
+    size_t block_size, size_t capacity, AllocationHints... hints) {
+  const size_t length = DesiredCustomSize(block_size, capacity);
   auto* rep = CordRepFlat::New(CordRepFlat::Large(), length, hints...);
   rep->length = 0;
   return CordBuffer(rep);
