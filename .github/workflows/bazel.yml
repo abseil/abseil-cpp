@@ -50,6 +50,11 @@ on:
         required: false
         default: '["opt", "fastbuild"]'
         type: string
+      shards:
+        description: "JSON array of shards to split tests across (e.g. '[\"1/2\", \"2/2\"]')"
+        required: false
+        default: '[""]'
+        type: string
 
 permissions:
   contents: read
@@ -57,7 +62,7 @@ permissions:
 jobs:
   test:
     runs-on: ${{ inputs.os }}
-    name: (${{ matrix.std }}, ${{ matrix.compilation_mode }})
+    name: (${{ matrix.std }}, ${{ matrix.compilation_mode }}${{ matrix.shard && format(', {0}', matrix.shard) || '' }})
     container:
       image: ${{ inputs.container_image }}
       options: --cap-add=SYS_PTRACE
@@ -70,6 +75,7 @@ jobs:
       matrix:
         std: ${{ fromJSON(inputs.stds) }}
         compilation_mode: ${{ fromJSON(inputs.compilation_modes) }}
+        shard: ${{ fromJSON(inputs.shards) }}
     defaults:
       run:
         shell: bash
@@ -98,14 +104,21 @@ jobs:
           external-cache: true
           repository-cache: true
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --config=${{ inputs.remote_config }}
+          bazelrc: build --config=${{ inputs.remote_config }}
 
       - name: Fetch all external dependencies
         run: bazel fetch //...
 
+      - name: Shard test targets
+        if: ${{ matrix.shard != '' }}
+        run: |
+          IFS=/ read -r shard total <<< "${{ matrix.shard }}"
+          bazel query 'tests(//...)' | tr -d '\r' | awk "NR % $total == $shard - 1" > targets.txt
+
       - name: Run tests
         run: >
-          bazel test ...
+          bazel test
+          ${{ matrix.shard && '--target_pattern_file=targets.txt' || '...' }}
           --config=${{ inputs.toolchain }}
           --cxxopt=${{ startsWith(inputs.os, 'windows') && '/std:' || '-std=' }}${{ matrix.std }}
           --host_cxxopt=${{ startsWith(inputs.os, 'windows') && '/std:' || '-std=' }}${{ matrix.std }}

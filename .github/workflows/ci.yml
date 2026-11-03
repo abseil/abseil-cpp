@@ -157,11 +157,13 @@ jobs:
           # windows-msvc-2022-cxx{17,20}-{dbg,opt}-bazel.cfg
           - name: MSVC 2022
             toolchain: ci-windows-msvc
+            shards: '["1/2", "2/2"]'
           # windows-msvc-2022-alternate-options-cxx{17,20}-dbg-bazel.cfg (dbg only)
           - name: MSVC 2022 Alternate Options
             toolchain: ci-windows-msvc
             alternate_options: true
             compilation_modes: '["dbg"]'
+            shards: '["1/2", "2/2"]'
           # windows-clangcl-cxx17-fastbuild-bazel.cfg
           - name: ClangCL
             toolchain: windows-clangcl
@@ -176,6 +178,7 @@ jobs:
       alternate_options: ${{ matrix.config.alternate_options || false }}
       stds: ${{ matrix.config.stds || '["c++17", "c++20"]' }}
       compilation_modes: ${{ matrix.config.compilation_modes || '["dbg", "opt"]' }}
+      shards: ${{ matrix.config.shards || '[""]' }}
 
   macos:
     name: macOS ${{ matrix.config.name }} Bazel
