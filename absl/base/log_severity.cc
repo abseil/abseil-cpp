@@ -14,14 +14,17 @@
 
 #include "absl/base/log_severity.h"
 
-#include <ostream>
-
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
+#include <ostream>
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
+#ifdef ABSL_INTERNAL_HAVE_STD_OSTREAM
 std::ostream& operator<<(std::ostream& os, absl::LogSeverity s) {
   if (s == absl::NormalizeLogSeverity(s)) return os << absl::LogSeverityName(s);
   return os << "absl::LogSeverity(" << static_cast<int>(s) << ")";
@@ -52,5 +55,7 @@ std::ostream& operator<<(std::ostream& os, absl::LogSeverityAtMost s) {
   }
   return os;
 }
+#endif  // ABSL_INTERNAL_HAVE_STD_OSTREAM
+
 ABSL_NAMESPACE_END
 }  // namespace absl
