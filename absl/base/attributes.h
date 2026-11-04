@@ -90,7 +90,7 @@
   [[gnu::format(printf, string_index, first_to_check)]]
 #define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
   [[gnu::format(scanf, string_index, first_to_check)]]
-#elif ABSL_HAVE_ATTRIBUTE(format) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(format)
 #define ABSL_PRINTF_ATTRIBUTE(string_index, first_to_check) \
   __attribute__((__format__(__printf__, string_index, first_to_check)))
 #define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
@@ -108,8 +108,7 @@
 // Note that guarantees are ultimately toolchain-dependent. For example, MSVC
 // will not inline any function by default, meaning at least /Ob1 or a higher
 // levels of optimization is necessary.
-#if ABSL_HAVE_ATTRIBUTE(always_inline) || \
-    (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(always_inline)
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
 #define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
 #elif defined(_MSC_VER) && \
@@ -121,7 +120,7 @@
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(noinline)
 #define ABSL_ATTRIBUTE_NOINLINE __attribute__((noinline))
 #define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
 #elif defined(_MSC_VER) && \
@@ -212,8 +211,7 @@
 // for further information. Weak attributes do not work across DLL boundary.
 // The MinGW compiler doesn't complain about the weak attribute until the link
 // step, presumably because Windows doesn't use ELF binaries.
-#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                 \
-     (defined(__GNUC__) && !defined(__clang__))) &&               \
+#if ABSL_HAVE_ATTRIBUTE(weak) &&                                  \
     (!defined(_WIN32) ||                                          \
      (defined(__clang__) && __clang_major__ >= 9 &&               \
       !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL))) && \
@@ -264,7 +262,7 @@
 //
 // NOTE: The GCC nonnull attribute actually accepts a list of arguments, but
 // ABSL_ATTRIBUTE_NONNULL does not.
-#if ABSL_HAVE_ATTRIBUTE(nonnull) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(nonnull)
 #define ABSL_ATTRIBUTE_NONNULL(arg_index) __attribute__((nonnull(arg_index)))
 #else
 #define ABSL_ATTRIBUTE_NONNULL(...)
@@ -388,9 +386,8 @@
 // a prerequisite. Labeled sections are not supported on Darwin/iOS.
 #ifdef ABSL_HAVE_ATTRIBUTE_SECTION
 #error ABSL_HAVE_ATTRIBUTE_SECTION cannot be directly set
-#elif (ABSL_HAVE_ATTRIBUTE(section) ||                \
-       (defined(__GNUC__) && !defined(__clang__))) && \
-    !defined(__APPLE__) && ABSL_HAVE_ATTRIBUTE_WEAK
+#elif ABSL_HAVE_ATTRIBUTE(section) && !defined(__APPLE__) && \
+    ABSL_HAVE_ATTRIBUTE_WEAK
 #define ABSL_HAVE_ATTRIBUTE_SECTION 1
 
 // ABSL_ATTRIBUTE_SECTION
@@ -472,8 +469,7 @@
 // ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC
 //
 // Support for aligning the stack on 32-bit x86.
-#if ABSL_HAVE_ATTRIBUTE(force_align_arg_pointer) || \
-    (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(force_align_arg_pointer)
 #if defined(__i386__)
 #define ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC \
   __attribute__((force_align_arg_pointer))
@@ -533,7 +529,7 @@
 //   int foo() ABSL_ATTRIBUTE_HOT;
 #if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::hot)
 #define ABSL_ATTRIBUTE_HOT [[gnu::hot]]
-#elif ABSL_HAVE_ATTRIBUTE(hot) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(hot)
 #define ABSL_ATTRIBUTE_HOT __attribute__((hot))
 #else
 #define ABSL_ATTRIBUTE_HOT
@@ -541,7 +537,7 @@
 
 #if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::cold)
 #define ABSL_ATTRIBUTE_COLD [[gnu::cold]]
-#elif ABSL_HAVE_ATTRIBUTE(cold) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(cold)
 #define ABSL_ATTRIBUTE_COLD __attribute__((cold))
 #else
 #define ABSL_ATTRIBUTE_COLD
@@ -671,7 +667,7 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 //
 // Tells the compiler to use "initial-exec" mode for a thread-local variable.
 // See http://people.redhat.com/drepper/tls.pdf for the gory details.
-#if ABSL_HAVE_ATTRIBUTE(tls_model) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(tls_model)
 #define ABSL_ATTRIBUTE_INITIAL_EXEC __attribute__((tls_model("initial-exec")))
 #else
 #define ABSL_ATTRIBUTE_INITIAL_EXEC
@@ -702,7 +698,7 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 // natural alignment of structure members not annotated is preserved. Aligned
 // member accesses are faster than non-aligned member accesses even if the
 // targeted microprocessor supports non-aligned accesses.
-#if ABSL_HAVE_ATTRIBUTE(packed) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(packed)
 #define ABSL_ATTRIBUTE_PACKED __attribute__((__packed__))
 #else
 #define ABSL_ATTRIBUTE_PACKED
@@ -714,7 +710,7 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 // alignment boundary
 #if ABSL_HAVE_CPP_ATTRIBUTE(gnu::aligned)
 #define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes) [[gnu::aligned(bytes)]]
-#elif ABSL_HAVE_ATTRIBUTE(aligned) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(aligned)
 #define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes) __attribute__((aligned(bytes)))
 #else
 #define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes)
