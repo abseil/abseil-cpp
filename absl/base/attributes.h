@@ -149,6 +149,61 @@
 #define ABSL_HAVE_ATTRIBUTE_NO_TAIL_CALL 0
 #endif
 
+// ABSL_INTERNAL_MUSTTAIL
+//
+// Tells the compiler that a `return` statement must be compiled as a tail
+// call, reusing the caller's stack frame rather than creating a new one.
+// Compilation fails if the compiler cannot generate a tail call.
+//
+// MANDATORY USAGE REQUIREMENTS:
+// * Functionally correct fallback: Code MUST be written with a functionally
+//   correct fallback when the attribute is unavailable
+//   (`!ABSL_INTERNAL_HAVE_MUSTTAIL`, where `ABSL_INTERNAL_MUSTTAIL` expands to
+//   nothing). Never rely on `ABSL_INTERNAL_MUSTTAIL` for program correctness
+//   (such as preventing unbounded stack growth in recursive cycles) unless
+//   explicitly gated on `#if ABSL_INTERNAL_HAVE_MUSTTAIL` with a non-recursive
+//   fallback.
+// * Benchmark justification: The performance or code-size impact of using
+//   `ABSL_INTERNAL_MUSTTAIL` MUST be clearly demonstrated by benchmarks.
+// * This macro is strictly for internal Abseil use and must not be exposed as a
+//   public Abseil API.
+//
+// Technical requirements and limitations:
+// * Must be placed immediately before `return`, and the returned expression
+//   must be a function call (not wrapped in another expression or conversion).
+// * The caller and callee must have compatible function signatures, including
+//   matching return types, parameter types, calling conventions, and implicit
+//   `this` arguments (a non-static member function can only tail-call another
+//   non-static member function of the same class).
+// * No variables, temporaries, or by-value parameters with non-trivial
+//   destructors may be live at the `return` statement.
+// * Arguments to the tail call must not reference local variables or by-value
+//   parameters in the caller's stack frame, whose lifetime ends before the
+//   callee runs.
+// * If the caller is inlined into an outer function where the call is no
+//   longer in tail position, the compiler drops `musttail`. It is therefore
+//   only effective on out-of-line / non-inlined functions, not `inline`
+//   header functions or templates.
+// * Only enabled on 64-bit x86 and AArch64, where Clang's backend support for
+//   `musttail` is reliable. Other targets (such as 32-bit x86/ARM, PowerPC,
+//   and WebAssembly) have incomplete backend tail-call support or compiler
+//   crashes even when `__has_cpp_attribute(clang::musttail)` is true (e.g.,
+//   https://github.com/llvm/llvm-project/issues/53271).
+//
+// See: https://clang.llvm.org/docs/AttributeReference.html#musttail
+#ifdef ABSL_INTERNAL_HAVE_MUSTTAIL
+#error "ABSL_INTERNAL_HAVE_MUSTTAIL cannot be directly set."
+#elif defined(ABSL_INTERNAL_MUSTTAIL)
+#error "ABSL_INTERNAL_MUSTTAIL cannot be directly set."
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::musttail) && \
+    (defined(__aarch64__) || defined(__x86_64__) || defined(_M_X64))
+#define ABSL_INTERNAL_HAVE_MUSTTAIL 1
+#define ABSL_INTERNAL_MUSTTAIL [[clang::musttail]]
+#else
+#define ABSL_INTERNAL_HAVE_MUSTTAIL 0
+#define ABSL_INTERNAL_MUSTTAIL
+#endif
+
 // ABSL_ATTRIBUTE_WEAK
 //
 // Tags a function as weak for the purposes of compilation and linking.
