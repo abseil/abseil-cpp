@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -166,7 +167,7 @@ inline const std::type_info* GenRuntimeTypeId() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Flag help auxiliary structs.
+// Flag help and name/type-name auxiliary structs.
 
 // This is help argument for absl::Flag encapsulating the string literal pointer
 // or pointer to function generating it as well as enum discriminating two
@@ -183,6 +184,81 @@ struct FixedCharArray {
     return (void)str, FixedCharArray<N>({{str[I]..., '\0'}});
   }
 };
+
+inline constexpr uint8_t kEmptyFlagTypeId = 0;
+inline constexpr uint8_t kCustomFlagTypeId = 31;
+
+// Common macro-stringified `#Type` spellings stored as a 5-bit ID in `FlagImpl`
+// so common flags avoid emitting a per-flag type-name string. Entry 0 (`""`) is
+// used when flag names are stripped or omitted; ID 31 (`kCustomFlagTypeId`)
+// indicates that `name_` points to a packed `"<name>\0<type_name>\0"` array.
+inline constexpr absl::string_view kCommonFlagTypeNames[] = {
+    "",
+    "bool",
+    "int",
+    "int16_t",
+    "uint16_t",
+    "int32_t",
+    "uint32_t",
+    "int64_t",
+    "uint64_t",
+    "size_t",
+    "float",
+    "double",
+    "std::string",
+    "string",
+    "std::vector<std::string>",
+    "absl::Duration",
+    "absl::Time",
+    "absl::int128",
+    "absl::uint128",
+    "std::int32_t",
+    "std::int64_t",
+    "std::optional<bool>",
+    "std::optional<int>",
+    "std::optional<int32_t>",
+    "std::optional<uint32_t>",
+    "std::optional<int64_t>",
+    "std::optional<uint64_t>",
+    "std::optional<size_t>",
+    "std::optional<double>",
+    "std::optional<std::string>",
+    "std::optional<absl::Duration>",
+};
+static_assert(std::size(kCommonFlagTypeNames) == kCustomFlagTypeId,
+              "kCommonFlagTypeNames must have kCustomFlagTypeId entries");
+
+constexpr uint8_t LookupCommonFlagTypeId(absl::string_view type_name) {
+  for (size_t i = 0; i < kCustomFlagTypeId; ++i) {
+    if (kCommonFlagTypeNames[i] == type_name) {
+      return static_cast<uint8_t>(i);
+    }
+  }
+  return kCustomFlagTypeId;
+}
+
+constexpr uint8_t LookupCommonOrEmptyFlagTypeId(const char* type_name) {
+  if (type_name == nullptr) return kEmptyFlagTypeId;
+  size_t len = 0;
+  while (type_name[len] != '\0') ++len;
+  const uint8_t id = LookupCommonFlagTypeId(absl::string_view(type_name, len));
+  return id == kCustomFlagTypeId ? kEmptyFlagTypeId : id;
+}
+
+struct FlagNameArg {
+  const char* name;
+  uint8_t type_id;
+};
+
+template <typename Gen>
+constexpr FlagNameArg MakeFlagNameArg() {
+  constexpr uint8_t kTypeId = LookupCommonFlagTypeId(Gen::AbslFlagTypeName());
+  if constexpr (kTypeId != kCustomFlagTypeId) {
+    return {Gen::AbslFlagName(), kTypeId};
+  } else {
+    return {Gen::AbslFlagPackedNameAndType(), kCustomFlagTypeId};
+  }
+}
 
 template <typename Gen, size_t N = Gen::Value().size()>
 constexpr FixedCharArray<N + 1> HelpStringAsArray(int) {
@@ -581,17 +657,16 @@ class FlagState;
 #endif
 class FlagImpl final : public CommandLineFlag {
  public:
-  constexpr FlagImpl(const char* name, const char* type_name,
-                     const char* filename, FlagOpFn op, FlagHelpArg help,
-                     FlagValueStorageKind value_kind,
+  constexpr FlagImpl(FlagNameArg name, const char* filename, FlagOpFn op,
+                     FlagHelpArg help, FlagValueStorageKind value_kind,
                      FlagDefaultArg default_arg)
-      : name_(name),
-        type_name_(type_name),
+      : name_(name.name),
         filename_(filename),
         op_(op),
         help_(help.source),
         help_source_kind_(static_cast<uint8_t>(help.kind)),
         value_storage_kind_(static_cast<uint8_t>(value_kind)),
+        type_id_(name.type_id),
         def_kind_(static_cast<uint8_t>(default_arg.kind)),
         modified_(false),
         on_command_line_(false),
@@ -731,11 +806,9 @@ class FlagImpl final : public CommandLineFlag {
 
   // Immutable flag's state.
 
-  // Flags name passed to ABSL_FLAG as second arg.
+  // Flags name passed to ABSL_FLAG as second arg (followed by NUL-terminated
+  // type name when `type_id_ == kCustomFlagTypeId`).
   const char* const name_;
-
-  // Flags type passed to ABSL_FLAG as first arg.
-  const char* const type_name_;
 
   // The file name where ABSL_FLAG resides.
   const char* const filename_;
@@ -747,6 +820,9 @@ class FlagImpl final : public CommandLineFlag {
   const uint8_t help_source_kind_ : 1;
   // Kind of storage this flag is using for the flag's value.
   const uint8_t value_storage_kind_ : 2;
+  // Index into `kCommonFlagTypeNames`, or `kCustomFlagTypeId` when `name_`
+  // stores `"<name>\0<type_name>\0"`.
+  const uint8_t type_id_ : 5;
 
   uint8_t : 0;  // The bytes containing the const bitfields must not be
                 // shared with bytes containing the mutable bitfields.
@@ -803,11 +879,21 @@ ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(ABSL_FLAGS_INTERNAL_IS_SUPPORTED_TYPE)
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(const char* name, const char* type_name, const char* filename,
-                 FlagHelpArg help, const FlagDefaultArg default_arg)
-      : impl_(name, type_name, filename, &FlagOps<T>, help,
+  constexpr Flag(FlagNameArg name, const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : impl_(name, filename, &FlagOps<T>, help,
               flags_internal::StorageKind<T>(), default_arg),
         value_() {}
+  constexpr Flag(const char* name, const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, kEmptyFlagTypeId}, filename, help, default_arg) {
+  }
+  // Kept for backwards compatibility.
+  constexpr Flag(const char* name, const char* type_name,
+                 const char* filename, FlagHelpArg help,
+                 const FlagDefaultArg default_arg)
+      : Flag(FlagNameArg{name, LookupCommonOrEmptyFlagTypeId(type_name)},
+             filename, help, default_arg) {}
 
   // CommandLineFlag interface
   absl::string_view Name() const { return impl_.Name(); }

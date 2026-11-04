@@ -354,7 +354,12 @@ void FlagImpl::StoreValue(const void* src, ValueSource source) {
 
 absl::string_view FlagImpl::Name() const { return name_; }
 
-absl::string_view FlagImpl::TypeName() const { return type_name_; }
+absl::string_view FlagImpl::TypeName() const {
+  if (ABSL_PREDICT_TRUE(type_id_ != kCustomFlagTypeId)) {
+    return kCommonFlagTypeNames[type_id_];
+  }
+  return name_ + std::strlen(name_) + 1;
+}
 
 std::string FlagImpl::Filename() const {
   return flags_internal::GetUsageConfig().normalize_filename(filename_);
