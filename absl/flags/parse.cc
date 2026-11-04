@@ -21,6 +21,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -173,6 +174,21 @@ namespace flags_internal {
 
 namespace {
 
+// Normalizes a flagfile path for cycle comparison: relative paths are
+// resolved against the current working directory and `.` / `..` components
+// are folded, so `--flagfile=./f` and `--flagfile=f` compare equal.
+// Symlinks are intentionally not resolved (a symlink cycle would still be
+// caught once the same spelling repeats on the expansion stack).
+std::string NormalizeFlagfilePath(const std::string& flag_file_name) {
+  std::error_code ec;
+  std::filesystem::path path(flag_file_name);
+  if (path.is_relative()) {
+    std::filesystem::path cwd = std::filesystem::current_path(ec);
+    if (!ec) path = cwd / path;
+  }
+  return path.lexically_normal().generic_string();
+}
+
 class ArgsList {
  public:
   ArgsList() : next_arg_(0) {}
@@ -183,6 +199,14 @@ class ArgsList {
   // Returns success status: true if parsing successful, false otherwise.
   bool ReadFromFlagfile(const std::string& flag_file_name);
 
+  // Normalized path of the flagfile this list was read from, or empty for
+  // the original argv list.  Used to detect flagfile cycles: a flagfile
+  // may not (transitively) include itself.
+  const std::string& SourceFlagfile() const { return source_flagfile_; }
+  void SetSourceFlagfile(std::string source) {
+    source_flagfile_ = std::move(source);
+  }
+
   size_t Size() const { return args_.size() - next_arg_; }
   size_t FrontIndex() const { return next_arg_; }
   absl::string_view Front() const { return args_[next_arg_]; }
@@ -191,6 +215,7 @@ class ArgsList {
  private:
   std::vector<std::string> args_;
   size_t next_arg_;
+  std::string source_flagfile_;
 };
 
 bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
@@ -366,9 +391,10 @@ bool ReadFlagfiles(const std::vector<std::string>& flagfiles,
   bool success = true;
   for (auto it = flagfiles.rbegin(); it != flagfiles.rend(); ++it) {
     ArgsList al;
+    al.SetSourceFlagfile(NormalizeFlagfilePath(*it));
 
     if (al.ReadFromFlagfile(*it)) {
-      input_args.push_back(al);
+      input_args.push_back(std::move(al));
     } else {
       success = false;
     }
@@ -467,7 +493,44 @@ bool HandleGeneratorFlags(std::vector<ArgsList>& input_args,
                             flagfiles.end());
     }
 
-    success &= ReadFlagfiles(flagfiles, input_args);
+    // Each --flagfile occurrence replaces the flag's value, so the
+    // current value is exactly the set of newly requested files for
+    // this expansion (not a cumulative list).
+    const std::vector<std::string>& new_flagfiles = flagfiles;
+
+    if (flags_internal::IsIndirectFlagExpansionEnabled()) {
+      // A flagfile cycle (a file that, directly or transitively, includes
+      // itself) used to livelock parsing: each expansion re-set
+      // flagfile_needs_processing and the same files were re-read forever.
+      // A file already on the expansion stack -- i.e. an ArgsList in
+      // input_args was read from it -- is a cycle: report it and skip it
+      // instead of expanding it again.  Files expanded earlier but no
+      // longer on the stack (a diamond, not a cycle) are still allowed.
+      std::vector<std::string> to_expand;
+      for (const std::string& flagfile : new_flagfiles) {
+        const std::string normalized = NormalizeFlagfilePath(flagfile);
+        bool on_stack = false;
+        for (const ArgsList& args_list : input_args) {
+          if (!args_list.SourceFlagfile().empty() &&
+              args_list.SourceFlagfile() == normalized) {
+            on_stack = true;
+            break;
+          }
+        }
+        if (on_stack) {
+          flags_internal::ReportUsageError(
+              absl::StrCat("flagfile cycle detected: ", flagfile,
+                           " is already being expanded"),
+              true);
+          success = false;
+        } else {
+          to_expand.push_back(flagfile);
+        }
+      }
+      success &= ReadFlagfiles(to_expand, input_args);
+    } else {
+      success &= ReadFlagfiles(new_flagfiles, input_args);
+    }
 
     flags_internal::flagfile_needs_processing = false;
   }

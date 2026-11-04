@@ -830,6 +830,47 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
                "Unexpected line 2 in the flagfile .*");
 }
 
+TEST_F(ParseDeathTest, TestCyclicFlagfiles) {
+  // A flagfile that includes itself used to livelock parsing.  It must
+  // now fail fast with a cycle error instead of looping forever.
+  std::string flagfile_flag;
+
+  constexpr const char* const ff_self_data[] = {
+      "--int_flag=10",
+      "--flagfile=$0/parse_test.ffself",
+  };
+
+  const char* in_args_self[] = {
+      "testbin",
+      GetFlagfileFlag({{"parse_test.ffself",
+                        absl::MakeConstSpan(ff_self_data)}}, flagfile_flag),
+  };
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args_self),
+                            "flagfile cycle detected");
+
+  // Mutual cycle: A includes B, B includes A.
+  constexpr const char* const ff_a_data[] = {
+      "--flagfile=$0/parse_test.ffmutual_b",
+  };
+  constexpr const char* const ff_b_data[] = {
+      "--flagfile=$0/parse_test.ffmutual_a",
+  };
+
+  const char* in_args_mutual[] = {
+      "testbin",
+      GetFlagfileFlag({{"parse_test.ffmutual_a",
+                        absl::MakeConstSpan(ff_a_data)},
+                       {"parse_test.ffmutual_b",
+                        absl::MakeConstSpan(ff_b_data)}},
+                      flagfile_flag),
+  };
+  // Note: the top-level --flagfile list names both files, so both are
+  // already pending when A's list requests B again -- the cycle is
+  // reported at that point, before any infinite re-expansion.
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args_mutual),
+                            "flagfile cycle detected");
+}
+
 // --------------------------------------------------------------------
 
 TEST_F(ParseTest, TestReadingRequiredFlagsFromEnv) {
