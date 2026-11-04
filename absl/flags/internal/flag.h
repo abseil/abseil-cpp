@@ -670,7 +670,7 @@ class FlagImpl final : public CommandLineFlag {
         def_kind_(static_cast<uint8_t>(default_arg.kind)),
         modified_(false),
         on_command_line_(false),
-        callback_(nullptr),
+        has_callback_(false),
         default_value_(default_arg.source),
         data_guard_{} {}
 
@@ -836,6 +836,8 @@ class FlagImpl final : public CommandLineFlag {
   bool modified_ : 1 ABSL_GUARDED_BY(DataGuard());
   // Has this flag been specified on command line.
   bool on_command_line_ : 1 ABSL_GUARDED_BY(DataGuard());
+  // Has a mutation callback been registered on this flag?
+  bool has_callback_ : 1 ABSL_GUARDED_BY(DataGuard());
 
   // Unique tag for absl::call_once call to initialize this flag.
   absl::once_flag init_control_;
@@ -843,13 +845,9 @@ class FlagImpl final : public CommandLineFlag {
   // Sequence lock / mutation counter.
   flags_internal::SequenceLock seq_lock_;
 
-  // Optional flag's callback and absl::Mutex to guard the invocations.
-  FlagCallback* callback_ ABSL_GUARDED_BY(DataGuard());
-  // Either a pointer to the function generating the default value based on the
-  // value specified in ABSL_FLAG or pointer to the dynamically set default
-  // value via SetCommandLineOptionWithMode. def_kind_ is used to distinguish
-  // these two cases.
-  FlagDefaultSrc default_value_;
+  // Initial default value source specified in ABSL_FLAG. Dynamic default
+  // overrides set via SET_FLAGS_DEFAULT are stored in a side table.
+  const FlagDefaultSrc default_value_;
 
   // This is reserved space for an absl::Mutex to guard flag data. It will be
   // initialized in FlagImpl::Init via placement new.

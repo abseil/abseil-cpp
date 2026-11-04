@@ -240,6 +240,7 @@ cc_library(
         "//absl/base:dynamic_annotations",
         "//absl/base:fast_type_id",
         "//absl/base:no_destructor",
+        "//absl/container:flat_hash_map",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/strings",

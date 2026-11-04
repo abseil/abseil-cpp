@@ -142,11 +142,11 @@ TEST_F(FlagTest, Traits) {
   // small as possible because production binaries may define thousands of
   // flags.
   if (sizeof(void*) == 8) {
-    EXPECT_EQ(sizeof(flags::FlagImpl), 80);
-    EXPECT_EQ(sizeof(absl::Flag<bool>), 88);
-    EXPECT_EQ(sizeof(absl::Flag<int>), 88);
-    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 88);
-    EXPECT_EQ(sizeof(absl::Flag<double>), 88);
+    EXPECT_EQ(sizeof(flags::FlagImpl), 72);
+    EXPECT_EQ(sizeof(absl::Flag<bool>), 80);
+    EXPECT_EQ(sizeof(absl::Flag<int>), 80);
+    EXPECT_EQ(sizeof(absl::Flag<int64_t>), 80);
+    EXPECT_EQ(sizeof(absl::Flag<double>), 80);
   }
 }
 
