@@ -963,9 +963,16 @@ TEST(Parse, LeapSecond) {
   EXPECT_TRUE(parse(RFC3339_full, "2013-06-28T07:08:60-08:00", tz, &tp));
   ExpectTime(tp, tz, 2013, 6, 28, 8, 9, 0, -7 * 60 * 60, true, "PDT");
 
-  // ":60.5" -> ":00.0"
+  // ":60.5" -> ":00.5" (the fraction is carried through the +1s
+  // normalization; it used to be silently zeroed to ":00.0").
   EXPECT_TRUE(parse(RFC3339_full, "2013-06-28T07:08:60.5-08:00", tz, &tp));
   ExpectTime(tp, tz, 2013, 6, 28, 8, 9, 0, -7 * 60 * 60, true, "PDT");
+  {
+    time_point<chrono::nanoseconds> tp_fraction;
+    EXPECT_TRUE(
+        parse(RFC3339_full, "2013-06-28T07:09:00.5-08:00", tz, &tp_fraction));
+    EXPECT_EQ(tp, tp_fraction);
+  }
 
   // ":61" -> error
   EXPECT_FALSE(parse(RFC3339_full, "2013-06-28T07:08:61-08:00", tz, &tp));
@@ -1998,7 +2005,7 @@ TEST(FormatParse, RoundTrip) {
     EXPECT_EQ(in, out);  // RFC1123_full includes %z
   }
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64)
   // Initial investigations indicate the %c does not roundtrip on Windows.
   // TODO: Figure out what is going on here (perhaps a locale problem).
 #elif defined(__EMSCRIPTEN__)

@@ -198,7 +198,7 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
   // as the result of a failed load_time_zone().
   char sign = '+';
   if (offset < 0) {
-    offset = -offset;  // bounded by -25h so no overflow
+    offset = -offset;  // bounded by 24h so no overflow
     sign = '-';
   }
   const int seconds = offset % 60;
@@ -219,7 +219,7 @@ char* FormatOffset(char* ep, int offset, const char* mode) {
     ep = Format02d(ep, minutes);
     if (sep != '\0') *--ep = sep;
   }
-  ep = Format02d(ep, hours);  // bounded by 26h so fits in two digits
+  ep = Format02d(ep, hours);
   *--ep = sign;
   return ep;
 }
@@ -1017,10 +1017,14 @@ bool parse(const std::string& format, const std::string& input,
   time_zone ptz = saw_offset ? utc_time_zone() : tz;
 
   // Allows a leap second of 60 to normalize forward to the following ":00".
+  // The fractional part is deliberately carried through the +1s
+  // normalization below (23:59:59.x + 1s = 00:00:00.x), so that e.g.
+  // "23:59:60.5" parses to 00:00:00.5 rather than silently dropping the
+  // fraction.  (Previously the fraction was zeroed here, losing up to
+  // just under a second.)
   if (tm.tm_sec == 60) {
     tm.tm_sec -= 1;
     offset -= 1;
-    subseconds = detail::femtoseconds::zero();
   }
 
   if (!saw_year) {
