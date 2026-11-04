@@ -51,9 +51,9 @@ Notification::~Notification() {
 void Notification::WaitForNotification() const {
   base_internal::TraceWait(this, TraceObjectKind());
   if (!HasBeenNotifiedInternal(&this->notified_yet_)) {
-    this->mutex_.LockWhen(
+    this->mutex_.ReaderLockWhen(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_));
-    this->mutex_.unlock();
+    this->mutex_.unlock_shared();
   }
   base_internal::TraceContinue(this, TraceObjectKind());
 }
@@ -63,9 +63,9 @@ bool Notification::WaitForNotificationWithTimeout(
   base_internal::TraceWait(this, TraceObjectKind());
   bool notified = HasBeenNotifiedInternal(&this->notified_yet_);
   if (!notified) {
-    notified = this->mutex_.LockWhenWithTimeout(
+    notified = this->mutex_.ReaderLockWhenWithTimeout(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_), timeout);
-    this->mutex_.unlock();
+    this->mutex_.unlock_shared();
   }
   base_internal::TraceContinue(notified ? this : nullptr, TraceObjectKind());
   return notified;
@@ -75,9 +75,9 @@ bool Notification::WaitForNotificationWithDeadline(absl::Time deadline) const {
   base_internal::TraceWait(this, TraceObjectKind());
   bool notified = HasBeenNotifiedInternal(&this->notified_yet_);
   if (!notified) {
-    notified = this->mutex_.LockWhenWithDeadline(
+    notified = this->mutex_.ReaderLockWhenWithDeadline(
         Condition(&HasBeenNotifiedInternal, &this->notified_yet_), deadline);
-    this->mutex_.unlock();
+    this->mutex_.unlock_shared();
   }
   base_internal::TraceContinue(notified ? this : nullptr, TraceObjectKind());
   return notified;
