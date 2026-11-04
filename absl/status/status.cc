@@ -119,9 +119,8 @@ uintptr_t MakeStatusRepImpl(uintptr_t inlined_rep, StringOrView msg,
   ) {
     return inlined_rep;
   }
-  auto* rep =
-      new status_internal::StatusRep(Status::InlinedRepToCode(inlined_rep),
-                                     std::forward<StringOrView>(msg), nullptr);
+  auto* rep = new status_internal::StatusRep(
+      code, std::forward<StringOrView>(msg), nullptr);
   if (loc.file_name()[0] != '\0') {
     rep->AddSourceLocation(loc);
   }
