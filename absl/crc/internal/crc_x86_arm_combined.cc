@@ -47,6 +47,9 @@ using ::absl::base_internal::CpuType;
 using ::absl::base_internal::GetCpuType;
 #if defined(__aarch64__)
 using ::absl::base_internal::SupportsArmCRC32PMULL;
+#else
+using ::absl::base_internal::SupportsAvx2;
+using ::absl::base_internal::SupportsVpclmulqdq;
 #endif
 
 #if defined(ABSL_INTERNAL_CAN_USE_SIMD_CRC32C)
@@ -1221,6 +1224,18 @@ CRCImpl* TryNewCRC32AcceleratedX86ARMCombined() {
       }
 #else
     default:
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) &&                   \
+    (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
+    (!defined(_MSC_VER) || defined(__clang__))
+      if (SupportsVpclmulqdq()) {
+        return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+            3, 3, PclmulStreamType::VPCLMUL>();
+      }
+#endif
+      if (SupportsAvx2()) {
+        return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
+            3, 2, PclmulStreamType::PCLMUL>();
+      }
       // Something else, play it safe and assume slow PCLMULQDQ.
       return new CRC32AcceleratedX86ARMCombinedMultipleStreams<
           3, 0, PclmulStreamType::NONE>();
