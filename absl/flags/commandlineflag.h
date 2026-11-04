@@ -188,6 +188,9 @@ class CommandLineFlag {
   // or nullptr if flag does not support saving and restoring a state.
   virtual std::unique_ptr<flags_internal::FlagStateInterface> SaveState() = 0;
 
+  // Restores a flag that was in its initial unmodified state when saved.
+  virtual void RestoreToInitialState();
+
   // Copy-construct a new value of the flag's type in a memory referenced by
   // the dst based on the current flag's value.
   virtual void Read(void* absl_nonnull dst) const = 0;
