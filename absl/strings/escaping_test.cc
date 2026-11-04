@@ -706,6 +706,41 @@ TEST(Base64, DISABLED_HugeData) {
   EXPECT_EQ(huge, unescaped);
 }
 
+TEST(Escaping, Base64UnescapeInPlace) {
+  // Decoding into the same string must succeed (previously a valid input
+  // of 4+ characters failed and cleared the destination, because resizing
+  // the destination overwrote a still-unread input byte).
+  std::string s = "QUJD";
+  EXPECT_TRUE(absl::Base64Unescape(s, &s));
+  EXPECT_EQ(s, "ABC");
+
+  std::string t = "QUJDREVG";
+  EXPECT_TRUE(absl::Base64Unescape(t, &t));
+  EXPECT_EQ(t, "ABCDEF");
+
+  std::string w = "QUJDREVG";
+  EXPECT_TRUE(absl::WebSafeBase64Unescape(w, &w));
+  EXPECT_EQ(w, "ABCDEF");
+
+  // A longer in-place input (300 repetitions of "QUJD", 1200 characters).
+  std::string big;
+  for (int i = 0; i < 300; ++i) big += "QUJD";
+  EXPECT_TRUE(absl::Base64Unescape(big, &big));
+  std::string big_expected;
+  for (int i = 0; i < 300; ++i) big_expected += "ABC";
+  EXPECT_EQ(big, big_expected);
+
+  // Invalid in-place input still fails and clears the destination.
+  std::string bad = "QUJD!";
+  EXPECT_FALSE(absl::Base64Unescape(bad, &bad));
+  EXPECT_TRUE(bad.empty());
+
+  // Empty input is a no-op success.
+  std::string empty;
+  EXPECT_TRUE(absl::Base64Unescape(empty, &empty));
+  EXPECT_TRUE(empty.empty());
+}
+
 TEST(Escaping, HexStringToBytesBackToHex) {
   std::string bytes, hex;
 

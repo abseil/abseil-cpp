@@ -977,6 +977,31 @@ bool Base64UnescapeInternal(const char* absl_nullable src, size_t slen,
   // 4 characters.  Any leftover chars are added directly for good measure.
   const size_t dest_len = 3 * (slen / 4) + (slen % 4);
 
+  // Like CUnescape(), allow in-place unescaping, where `src` aliases
+  // `*dest`.  Resizing the destination first would write the terminating
+  // NUL at `dest_len` (< `slen` for inputs of 4+ characters), clobbering a
+  // still-unread input byte and making a valid input fail.  Decoding
+  // writes at most 3 bytes per 4 input bytes read, so decoding directly
+  // into the existing buffer (when it is already large enough) can never
+  // overwrite an input byte that has not been read yet.  This also covers
+  // every same-string alias: a string_view into `*dest` is never longer
+  // than `*dest` itself.
+  // Note: absl::StringResizeAndOverwrite() invalidates pointers into the
+  // string, so the resize path below is only safe for non-aliasing inputs;
+  // aliasing inputs always take the in-place path above.
+  if (dest->size() >= slen) {
+    size_t len = 0;
+    const bool ok = Base64UnescapeInternal(src, slen, dest->data(),
+                                           dest->size(), unbase64, &len);
+    if (ok) {
+      assert(len <= dest->size());
+      dest->erase(len);
+    } else {
+      dest->clear();
+    }
+    return ok;
+  }
+
   bool ok;
   StringResizeAndOverwrite(
       *dest, dest_len, [src, slen, unbase64, &ok](char* buf, size_t buf_size) {

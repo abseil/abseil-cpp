@@ -27,7 +27,9 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -153,6 +155,7 @@ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
 // Converts a `src` string encoded in Base64 (RFC 4648 section 4) to its binary
 // equivalent, writing it to a `dest` buffer, returning `true` on success. If
 // `src` contains invalid characters, `dest` is cleared and returns `false`.
+// In-place unescaping is supported: `src` may alias `*dest`.
 // If padding is included (note that `Base64Escape()` does produce it), it must
 // be correct. In the padding, '=' and '.' are treated identically.
 bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
