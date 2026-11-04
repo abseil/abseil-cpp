@@ -227,9 +227,6 @@ cc_library(
 
 cc_library(
     name = "dynamic_annotations",
-    srcs = [
-        "internal/dynamic_annotations.h",
-    ],
     hdrs = [
         "dynamic_annotations.h",
     ],
