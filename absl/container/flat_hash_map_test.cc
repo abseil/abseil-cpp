@@ -400,9 +400,18 @@ TEST(FlatHashMap, Reserve) {
 TEST(FlatHashMap, RecursiveTypeCompiles) {
   struct RecursiveType {
     flat_hash_map<int, RecursiveType> m;
+    flat_hash_map<int, RecursiveType>::iterator it;
+    flat_hash_map<int, RecursiveType>::const_iterator cit;
+    void Erase(int key) { m.erase(key); }
   };
   RecursiveType t;
   t.m[0] = RecursiveType{};
+  t.it = t.m.begin();
+  t.cit = t.m.cbegin();
+  EXPECT_NE(t.it, t.m.end());
+  EXPECT_NE(t.cit, t.m.cend());
+  t.Erase(0);
+  EXPECT_TRUE(t.m.empty());
 }
 
 TEST(FlatHashMap, FlatHashMapPolicyDestroyReturnsTrue) {
