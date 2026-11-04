@@ -460,6 +460,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:no_destructor",
         "//absl/functional:overload",
+        "//absl/hash",
         "//absl/meta:type_traits",
         "//absl/strings:string_view",
         "@googletest//:gtest",

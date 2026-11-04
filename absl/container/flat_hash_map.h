@@ -707,7 +707,7 @@ struct FlatHashMapPolicy : FlatHashMapPolicyBase {
   template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<K, V>::value
-               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>
+               ? GetTypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>()
                : nullptr;
   }
 

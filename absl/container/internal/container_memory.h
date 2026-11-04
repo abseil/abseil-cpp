@@ -633,6 +633,27 @@ size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
       *f, seed}(*static_cast<const T*>(slot));
 }
 
+// Type erased function to apply `CanonicalHasher` to data inside of the `slot`.
+template <class CanonicalHasher>
+size_t TypeErasedApplyAbslHashToSlotFn(const void*, void* slot, size_t seed) {
+  using T = typename CanonicalHasher::KeyType;
+  return absl::hash_internal::HashWithSeed().hash(
+      CanonicalHasher(), *static_cast<const T*>(slot), seed);
+}
+
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
+constexpr HashSlotFn GetTypeErasedApplyToSlotFn() {
+  using NonConstT = std::remove_const_t<T>;
+  // Use the canonical `absl::Hash<NonConstT>` implementation when `Fn` is
+  // `absl::Hash<NonConstT>` or a transparent hasher (such as `StringHash`)
+  // that hashes `NonConstT` identically.
+  if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
+    return &TypeErasedApplyAbslHashToSlotFn<
+        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
+  }
+  return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
+}
+
 // Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
 // The data is expected to have type `T`.
 template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
@@ -648,6 +669,30 @@ size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
   // standard-layout.
   std::memcpy(&slot, slot_ptr, sizeof(slot));
   return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
+}
+
+// Type erased function to apply `CanonicalHasher` to data inside of the
+// `*slot_ptr`.
+template <class CanonicalHasher>
+size_t TypeErasedDerefAndApplyAbslHashToSlotFn(const void*, void* slot_ptr,
+                                               size_t seed) {
+  using T = typename CanonicalHasher::KeyType;
+  const T* slot;
+  // See comment in `TypeErasedDerefAndApplyToSlotFn`.
+  std::memcpy(&slot, slot_ptr, sizeof(slot));
+  return absl::hash_internal::HashWithSeed().hash(CanonicalHasher(), *slot,
+                                                  seed);
+}
+
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
+constexpr HashSlotFn GetTypeErasedDerefAndApplyToSlotFn() {
+  using NonConstT = std::remove_const_t<T>;
+  // See comment in `GetTypeErasedApplyToSlotFn`.
+  if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
+    return &TypeErasedDerefAndApplyAbslHashToSlotFn<
+        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
+  }
+  return &TypeErasedDerefAndApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
 }
 
 }  // namespace container_internal

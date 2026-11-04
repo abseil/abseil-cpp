@@ -383,7 +383,7 @@ struct is_uniquely_represented<unsigned __int128> : std::true_type {};
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 template <typename T>
-using FitsIn64Bits =
+using FitsIn64BitsPowerOf2 =
     std::bool_constant<sizeof(T) <= sizeof(uint64_t) &&
                        // Check that sizeof(T) is a power of 2, since unaligned
                        // operations require it.
@@ -408,7 +408,7 @@ struct HashWithSeed {
 // Convenience function that combines `hash_state` with the byte representation
 // of `value`.
 template <typename H, typename T,
-          std::enable_if_t<FitsIn64Bits<T>::value, int> = 0>
+          std::enable_if_t<FitsIn64BitsPowerOf2<T>::value, int> = 0>
 H hash_bytes(H hash_state, const T& value) {
   const unsigned char* start = reinterpret_cast<const unsigned char*>(&value);
   uint64_t v;
@@ -425,7 +425,7 @@ H hash_bytes(H hash_state, const T& value) {
   return CombineRaw()(std::move(hash_state), v);
 }
 template <typename H, typename T,
-          std::enable_if_t<!FitsIn64Bits<T>::value, int> = 0>
+          std::enable_if_t<!FitsIn64BitsPowerOf2<T>::value, int> = 0>
 H hash_bytes(H hash_state, const T& value) {
   const unsigned char* start = reinterpret_cast<const unsigned char*>(&value);
   return H::combine_contiguous(std::move(hash_state), start, sizeof(value));
@@ -1455,7 +1455,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>
   using IntegralFastPath =
       std::conjunction<std::is_integral<T>, is_uniquely_represented<T>,
-                       FitsIn64Bits<T>>;
+                       FitsIn64BitsPowerOf2<T>>;
 
  public:
   // Move only
@@ -1603,6 +1603,8 @@ struct PoisonedHash : private AggregateBarrier {
 
 template <typename T>
 struct HashImpl {
+  using KeyType = T;
+
   size_t operator()(const T& value) const {
     return MixingHashState::hash(value);
   }
@@ -1618,6 +1620,23 @@ struct HashImpl {
 template <typename T>
 struct Hash
     : std::conditional_t<is_hashable<T>::value, HashImpl<T>, PoisonedHash> {};
+
+// Returns a canonical `absl::Hash` for `T`. Types with the exact same hash
+// implementation (such as `is_uniquely_represented` types of the same size)
+// return the same hasher type, which is useful for type erasure.
+template <typename T>
+constexpr auto CanonicalHasher() {
+  if constexpr (is_uniquely_represented<T>::value &&
+                FitsIn64BitsPowerOf2<T>::value) {
+    constexpr size_t N = sizeof(T);
+    return Hash<std::conditional_t<
+        N == 1, uint8_t,
+        std::conditional_t<N == 2, uint16_t,
+                           std::conditional_t<N == 4, uint32_t, uint64_t>>>>();
+  } else {
+    return Hash<T>();
+  }
+}
 
 template <typename T, typename... Ts>
 inline constexpr bool pack_contains_v = (std::is_same_v<T, Ts> || ...);

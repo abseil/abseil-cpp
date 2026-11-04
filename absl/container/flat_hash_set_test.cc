@@ -408,6 +408,24 @@ TEST(FlatHashSet, IsDefaultHash) {
   };
   EXPECT_EQ((HashtableDebugAccess<flat_hash_set<size_t, Hash>>::kIsAbslHash),
             false);
+
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<StringHash, std::string, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<std::string>, std::string,
+                                        true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<StringHash, std::string, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<
+                absl::TransparentHash<std::string, absl::string_view>,
+                std::string, true, 0>()));
+  EXPECT_EQ(
+      (GetTypeErasedApplyToSlotFn<StringHash, absl::string_view, true, 0>()),
+      (GetTypeErasedApplyToSlotFn<absl::Hash<absl::string_view>,
+                                  absl::string_view, true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<BasicStringHash<wchar_t>, std::wstring,
+                                        true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<std::wstring>, std::wstring,
+                                        true, 0>()));
+  EXPECT_EQ((GetTypeErasedApplyToSlotFn<HashEq<int*>::Hash, int*, true, 0>()),
+            (GetTypeErasedApplyToSlotFn<absl::Hash<int*>, int*, true, 0>()));
 }
 
 #if defined(__cpp_lib_containers_ranges) && \

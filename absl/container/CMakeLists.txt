@@ -508,6 +508,7 @@ absl_cc_test(
   DEPS
     absl::config
     absl::container_memory
+    absl::hash
     absl::no_destructor
     absl::overload
     absl::string_view
