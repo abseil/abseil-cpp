@@ -2482,6 +2482,39 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   }
 }
 
+void ReclaimExcessCapacityImpl(CommonFields& common,
+                               const PolicyFunctions& __restrict policy) {
+  const size_t old_capacity = common.capacity();
+  if (!common.empty() && is_single_group(old_capacity)) return;
+
+  const size_t soo_capacity = policy.alloc_policy->soo_capacity();
+  const size_t size = common.size();
+
+  // For tables that fit within SOO capacity (or are empty), `Rehash(..., 0)`
+  // shrinks to `soo_capacity` (or `NextCapacity(soo_capacity)` for a sampled
+  // 1-element SOO table to preserve Hashtablez sampling).
+  // For larger tables, keep one capacity doubling tier of growth headroom
+  // (`NextCapacity(SizeToCapacity(size))`) so subsequent insertions do not
+  // immediately trigger a rehash.
+  size_t target_capacity;
+  if (size > soo_capacity) {
+    target_capacity = NextCapacity(SizeToCapacity(size));
+  } else if (size > 0 && common.has_infoz()) {
+    target_capacity = NextCapacity(soo_capacity);
+  } else {
+    target_capacity = soo_capacity;
+  }
+  if (old_capacity <= target_capacity) return;
+
+  common.infoz().RecordCompaction(
+      (old_capacity - target_capacity) * policy.slot_size);
+  if (size <= soo_capacity) {
+    Rehash(common, policy, 0);
+  } else {
+    ResizeAllocatedTableWithSeedChange(common, policy, target_capacity);
+  }
+}
+
 void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
           const CommonFields& other,
           void (*copy_fn)(void* set, void* dst, const void* src)) {
