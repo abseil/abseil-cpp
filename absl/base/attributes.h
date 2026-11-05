@@ -471,8 +471,12 @@
 // Support for aligning the stack on 32-bit x86.
 #if ABSL_HAVE_ATTRIBUTE(force_align_arg_pointer)
 #if defined(__i386__)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::force_align_arg_pointer)
+#define ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC [[gnu::force_align_arg_pointer]]
+#else
 #define ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC \
   __attribute__((force_align_arg_pointer))
+#endif
 #define ABSL_REQUIRE_STACK_ALIGN_TRAMPOLINE (0)
 #elif defined(__x86_64__)
 #define ABSL_REQUIRE_STACK_ALIGN_TRAMPOLINE (1)
