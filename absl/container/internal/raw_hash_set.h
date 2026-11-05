@@ -1395,12 +1395,15 @@ class CommonFields : public CommonFieldsGenerationInfo {
   // Note: we can't use `slots()` because Qt defines `slots` as a macro.
   // Note: we take `ctrl` as a parameter so that raw_hash_set can benefit from
   // the separate storage assumption.
-  void* slot_array(ctrl_t* ctrl, size_t capacity) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void* slot_array(ctrl_t* ctrl,
+                                                size_t capacity) const {
     ABSL_SWISSTABLE_ASSERT(ctrl == this->control());
     ABSL_ASSUME(capacity > kMaxSmallCapacity);
     return ctrl + NumControlBytesForLargeTable(capacity);
   }
-  void* slot_array(size_t cap) const { return slot_array(control(), cap); }
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void* slot_array(size_t cap) const {
+    return slot_array(control(), cap);
+  }
   // Returns pointer to the single slot of a table with capacity 1.
   void* single_non_soo_slot() const {
     ABSL_SWISSTABLE_ASSERT(capacity() == 1);
@@ -2604,7 +2607,7 @@ class raw_hash_set_base {
   }
 
   template <bool kIsDefaultAlloc>
-  void* slot_array(size_t capacity) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void* slot_array(size_t capacity) const {
     // Note: we don't use common().slot_array(capacity) here because it misses
     // the separate storage assumption in control().
     return common().slot_array(control<kIsDefaultAlloc>(), capacity);
@@ -4296,7 +4299,7 @@ class raw_hash_set : public raw_hash_set_base {
     ABSL_SWISSTABLE_ASSERT(!is_soo());
     return raw_hash_set_base::control<kIsDefaultAlloc>();
   }
-  slot_type* slot_array(size_t capacity) const {
+  ABSL_ATTRIBUTE_ALWAYS_INLINE slot_type* slot_array(size_t capacity) const {
     return to_slot(raw_hash_set_base::slot_array<kIsDefaultAlloc>(capacity));
   }
   slot_type* soo_slot() {
