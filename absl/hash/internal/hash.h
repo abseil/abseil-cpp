@@ -450,8 +450,8 @@ H hash_weakly_mixed_integer(H hash_state, WeaklyMixedInteger value) {
 // We use SFINAE to ensure that this overload only accepts bool, not types that
 // are convertible to bool.
 template <typename H, typename B>
-std::enable_if_t<std::is_same_v<B, bool>, H> AbslHashValue(H hash_state,
-                                                           B value) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline std::enable_if_t<std::is_same_v<B, bool>, H>
+AbslHashValue(H hash_state, B value) {
   // We use ~size_t{} instead of 1 so that all bits are different between
   // true/false instead of only 1.
   return H::combine(std::move(hash_state),
@@ -1397,9 +1397,10 @@ struct HashSelect {
     // The std::conditional_t<false, H, T> test is to enable SFINAE by making T
     // be a dependent type.
     template <typename H>
-    static H Invoke(H state, type_traits_internal::AddConstRefIfExpensiveToCopy<
-                                 std::conditional_t<false, H, T>>
-                                 value) {
+    ABSL_ATTRIBUTE_ALWAYS_INLINE static H Invoke(
+        H state, type_traits_internal::AddConstRefIfExpensiveToCopy<
+                     std::conditional_t<false, H, T>>
+                     value) {
       return AbslHashValue(std::move(state), value);
     }
   };
