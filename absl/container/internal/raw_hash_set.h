@@ -1420,7 +1420,8 @@ class CommonFields : public CommonFieldsGenerationInfo {
   }
   void set_full_soo() {
     AssertInSooMode();
-    inline_data_.set_size(1);
+    ABSL_SWISSTABLE_ASSERT(empty());
+    inline_data_.increment_size();
   }
   void increment_size() {
     ABSL_SWISSTABLE_ASSERT(size() < capacity());
